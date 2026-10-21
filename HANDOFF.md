@@ -160,9 +160,8 @@ fail. A fresh clone does not have them.
 - **Preset persona.** Every shipped preset mounts `dsh-persona` with "You are a coding agent powered by
   the {{model}} model", scoped per agent, ahead of the patent prompt. A bundle layer cannot patch a
   preset's child row. S3 ships a FlowLeap `patent` preset and makes it the registry default.
-- **Prompt gaps.** The 56 references above make the model look for tools it does not have. Fix in
-  agent-v2 (`patentAIPrompt.tsx`): gate each passage on `detectPatentTools`/props, add a plain-text
-  "ask the user" variant for the jurisdiction gate, then re-export. The drift gate catches the rest.
+- **Prompt gaps.** Closed by agent-v2 draft PR #849 (stacked on #847): zero references to absent tools;
+  the bundle copy is from that branch. Re-copy once the PRs merge to main.
 - **Tokens.** One turn cost 157K tokens: the 8,010-word prompt plus 88 tool schemas (54 MCP + 34
   dsh) plus results. ADR 0018 decision 4 (at most 30 tools) applies here first: a backend profile
   parameter on the MCP endpoint, and `toolOrder`/tool restriction in the preset.
