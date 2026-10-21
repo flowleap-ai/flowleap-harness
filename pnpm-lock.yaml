@@ -335,6 +335,9 @@ importers:
       '@deepseek-ai/dsh-experimental-voice-input-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/voice-input-bundle
+      '@deepseek-ai/dsh-flowleap-web':
+        specifier: workspace:*
+        version: link:../../packages/bundle/flowleap-web
       '@deepseek-ai/dsh-fs-local':
         specifier: workspace:*
         version: link:../../packages/fs/fs-local
@@ -2492,6 +2495,19 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/bundle/flowleap-web:
+    dependencies:
+      '@deepseek-ai/dsh-flowleap-prompt':
+        specifier: workspace:*
+        version: link:../../host/flowleap-prompt
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-client
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -10547,6 +10563,19 @@ importers:
       tsx:
         specifier: ^4.23.13
         version: 4.23.13
+
+  packages/host/flowleap-prompt:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
 
   packages/host/frontend-static:
     dependencies:
