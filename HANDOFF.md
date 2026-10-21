@@ -94,8 +94,8 @@ Verification status is at the end of this file.
 
 | # | Slice | Done when |
 |---|---|---|
-| S1 | `packages/bundle/flowleap-web` profile: DeepSeek rows off, `dsh-mcp-client` to the FlowLeap MCP server, `dsh-skill-filesystem` at the plugins pack, `llm-pi-ai` Anthropic + OpenRouter + Mistral | `pnpm dsh --profile flowleap-web web` lists the MCP tools and the skills and answers a patent question |
-| S2 | Prompt export in agent-v2 (`scripts/export-patent-prompt.ts` renders `patentAIPrompt.tsx` with MCP names) + `dsh-flowleap-prompt` plugin that loads it | the first system message of a dsh session equals the exported text; a diff gate fails when agent-v2 changes the prompt and the artifact is stale |
+| S1 | DONE 2026-10-21. `packages/bundle/flowleap-web` + `packages/host/flowleap-prompt`; run `pnpm dsh --profile flowleap-web --no-open` (not `... web`: `web` is a profile name). MCP over stdio via `flowleap mcp` (54 tools), skill pack via `FLOWLEAP_SKILLS_DIR` (32 of 33 skills), providers anthropic + openrouter + mistral by env key | Live run passed: Sonnet 5.5 via OpenRouter called `get_legal_status`, `get_register_biblio`, `get_bibliography` and answered EP2110298B1 correctly with caveats; 157K tokens for the turn |
+| S2 | DONE 2026-10-21 as draft PR agent-v2#847: `patentPromptExport.spec.tsx` renders `PatentAIInstructions` with the 15 MCP-twin tools and writes `extensions/copilot/assets/prompt-export/patent-agent.{md,json}`; the same spec is the drift gate. The bundle carries a copy at `prompt/patent-agent.md`; re-copy after each export (source commit in the git log) | 8,010 words; 56 references to tools the harness lacks remain (`vscode_askQuestions` 8, `fetch_webpage` 8, `get_patent_details` 8, `uspto_api_guide` 8, citations 12, guides 6, coding tools 4, `write_patent_results` 1): the TSX passages render unconditionally and need gating on tool availability in agent-v2 |
 | S3 | Brand package (sidebar and hero slots) and settings (DeepSeek account card off) | no DeepSeek mark or copy in the GUI |
 | S4 | Deploy recipe: one VM, nginx + TLS + Clerk gate, `dsh --profile flowleap-web web --public-url --trusted-host`, the ADR 0011 key proxy | an invited attorney signs in from a browser and runs a prior-art search |
 | S5 | `dsh-tool-patent-deliverables`: results writer with validation, drafting gates, drawings | the three skill-grounded cases pass the same gate as the IDE |
@@ -154,3 +154,22 @@ header strip also touched `snapshots/**/*.md` where a snapshot contained the bil
 Also done this session: 28 stale untracked package directories left from the rc.7 checkout (no
 `package.json`, no tracked files) were deleted; they made `constraints` and `verify-tool-catalog`
 fail. A fresh clone does not have them.
+
+## Open after S1 + S2 (2026-10-21)
+
+- **Preset persona.** Every shipped preset mounts `dsh-persona` with "You are a coding agent powered by
+  the {{model}} model", scoped per agent, ahead of the patent prompt. A bundle layer cannot patch a
+  preset's child row. S3 ships a FlowLeap `patent` preset and makes it the registry default.
+- **Prompt gaps.** The 56 references above make the model look for tools it does not have. Fix in
+  agent-v2 (`patentAIPrompt.tsx`): gate each passage on `detectPatentTools`/props, add a plain-text
+  "ask the user" variant for the jurisdiction gate, then re-export. The drift gate catches the rest.
+- **Tokens.** One turn cost 157K tokens: the 8,010-word prompt plus 88 tool schemas (54 MCP + 34
+  dsh) plus results. ADR 0018 decision 4 (at most 30 tools) applies here first: a backend profile
+  parameter on the MCP endpoint, and `toolOrder`/tool restriction in the preset.
+- **Skill pack defect.** `flowleap-patstat-graph/SKILL.md` has an unquoted `: ` in its description,
+  so the dsh frontmatter parser skips it (32 of 33). One-line fix in flowleap-plugins.
+- **Keys.** The laptop shell has only `OPENROUTER_API_KEY`; the default model row names
+  `anthropic/claude-sonnet-5-5`, so the picker shows OpenRouter models only until `ANTHROPIC_API_KEY`
+  is set. Consider making an OpenRouter model the default for the hosted tier (ADR 0015 keys).
+- **Package scope.** The toolchain forces `@deepseek-ai/dsh-*` names and `main: lib/index.js`; the
+  FlowLeap packages are `@deepseek-ai/dsh-flowleap-web` and `@deepseek-ai/dsh-flowleap-prompt`.
