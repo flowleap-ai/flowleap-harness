@@ -73,6 +73,33 @@ Verification status is at the end of this file.
 - **Branding**: `ui-brand-official` is profile-gated. A FlowLeap brand package occupies the
   sidebar and hero slots; see `packages/client/ui-brand-official/README.md` "Replacing the brand".
 
+## Requirements (founder, 2026-10-21)
+
+1. **Deployable to the web.** `dsh web` is already a browser app served by a Node process; deploying
+   it means running that process on a server behind nginx with TLS, `--public-url` and
+   `--trusted-host` (`docs/user/guide/public-deployments.md`), with the FlowLeap Session (Clerk)
+   gate in front. One process serves one user and gives that user a terminal and a file system,
+   so hosting is one isolated instance per user, exactly ADR 0011; a spawner comes when there are
+   more users than hands. This is not a multi-tenant SaaS process and must not be sold as one.
+2. **The same Patent Agent as agent-v2.** The system prompt is
+   `extensions/copilot/src/extension/prompts/node/agent/patentAIPrompt.tsx` in agent-v2
+   (12,913 words of TSX, 27 typed-tool references, sections such as `jurisdictionClarification`
+   and `toolDecisionTree`). It must have one owner: agent-v2 renders it to a text artifact with
+   the MCP tool names (`mcp__flowleap__search_patents` and so on) and dsh loads that artifact as a
+   `complete: true` system-prompt section with `includeHarnessIdentity: false`. Tools come from the
+   hosted FlowLeap MCP server, skills from the flowleap-plugins pack, deliverable tools from the
+   native plugin. ADR 0018 is shrinking the prompt toward 6,000 words; the export inherits that.
+
+## Slices
+
+| # | Slice | Done when |
+|---|---|---|
+| S1 | `packages/bundle/flowleap-web` profile: DeepSeek rows off, `dsh-mcp-client` to the FlowLeap MCP server, `dsh-skill-filesystem` at the plugins pack, `llm-pi-ai` Anthropic + OpenRouter + Mistral | `pnpm dsh --profile flowleap-web web` lists the MCP tools and the skills and answers a patent question |
+| S2 | Prompt export in agent-v2 (`scripts/export-patent-prompt.ts` renders `patentAIPrompt.tsx` with MCP names) + `dsh-flowleap-prompt` plugin that loads it | the first system message of a dsh session equals the exported text; a diff gate fails when agent-v2 changes the prompt and the artifact is stale |
+| S3 | Brand package (sidebar and hero slots) and settings (DeepSeek account card off) | no DeepSeek mark or copy in the GUI |
+| S4 | Deploy recipe: one VM, nginx + TLS + Clerk gate, `dsh --profile flowleap-web web --public-url --trusted-host`, the ADR 0011 key proxy | an invited attorney signs in from a browser and runs a prior-art search |
+| S5 | `dsh-tool-patent-deliverables`: results writer with validation, drafting gates, drawings | the three skill-grounded cases pass the same gate as the IDE |
+
 ## Next steps (the spike from the assessment, option A)
 
 Done when `dsh web` on the laptop runs a profile with: DeepSeek rows removed, the FlowLeap MCP
