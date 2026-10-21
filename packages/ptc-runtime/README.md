@@ -5,8 +5,6 @@ kind: "package-group"
 
 # ptc-runtime/ — PTC execution capability family
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 The `ptc-runtime/` group executes model programs against host-provided async functions. The default Node backend starts a fresh process under the configured sandbox policy. Its opt-in `executionMode: persistent-in-memory` keeps a separate confined REPL for each explicit state owner; memory ends with the process or owner. The experimental Python backend uses a fresh CPython process. Failures return as results for callers to diagnose or present to the model.

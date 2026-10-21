@@ -129,7 +129,10 @@ function validateMetadata(path: string, content: Buffer, sourceBase: string): { 
   return { errors, date: archived }
 }
 
-/** Validate the closed kind tree, implemented/archive metadata, and complete bilingual triplets. */
+/**
+ * Validate the closed kind tree, implemented/archive metadata, and complete bilingual triplets.
+ * FlowLeap fork: an English-only note (no `.zh.md`, no `.i18n.yaml`) is also a complete archive entry.
+ */
 export function validateArchiveArtifacts(artifacts: ReadonlyMap<string, Buffer>): string[] {
   const errors: string[] = []
   const triplets = new Map<string, Triplet>()
@@ -156,6 +159,10 @@ export function validateArchiveArtifacts(artifacts: ReadonlyMap<string, Buffer>)
     const zhPath = `${key}.zh.md`
     const metaPath = `${key}.i18n.yaml`
     const { source, zh, meta } = triplet
+    if (source !== undefined && zh === undefined && meta === undefined) {
+      errors.push(...validateMetadata(sourcePath, source, basename(key)).errors)
+      continue
+    }
     const missing = [
       source === undefined ? sourcePath : undefined,
       zh === undefined ? zhPath : undefined,

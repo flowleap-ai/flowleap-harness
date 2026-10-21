@@ -1,7 +1,6 @@
 /**
  * Enforce the `docs/upgrade-guide/v<version>/<item>/guide.md` layout, metadata,
  * sections, and word ceiling defined by the `dsh-create-upgrade-guide` skill.
- * `verify-translation-pairing` owns the Chinese sibling's pairing record.
  * @module scripts/verify-upgrade-guides
  */
 

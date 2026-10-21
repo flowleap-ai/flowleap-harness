@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-ptc-runtime
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 Use `dsh-ptc-runtime` to execute model programs against host-provided asynchronous functions. Requests return lossless JSON, captured logs, or structured failures; rejected promises indicate caller misuse. Providers isolate distinct state owners and declare whether source is an async function body or REPL statements. A provider may retain memory for an explicit owner until release; it never restores that memory from a Session. Language and isolation descriptors identify syntax and execution substrate, not security guarantees.

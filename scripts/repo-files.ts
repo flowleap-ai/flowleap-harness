@@ -35,6 +35,14 @@ export function isArchivedAgentNotePath(path: string): boolean {
 }
 
 /**
+ * Whether a repository Markdown path is frozen prose the documentation gates leave unscanned.
+ * FlowLeap fork: Chinese pages survive only in hash-sealed carve-outs and are not maintained.
+ */
+export function isFrozenMarkdownPath(path: string): boolean {
+  return isArchivedAgentNotePath(path) || path.endsWith('.zh.md')
+}
+
+/**
  * Whether a pattern segment matches a directory or file name. Supports `*` and
  * `?` inside a segment and mirrors node's glob `dot: false`: a segment whose
  * first character is a wildcard does not match dot names. `**` is handled as a

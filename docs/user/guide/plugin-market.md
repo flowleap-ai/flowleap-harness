@@ -1,7 +1,5 @@
 # Plugin markets
 
-English | [中文](plugin-market.zh.md)
-
 ## Summary
 
 A plugin market is one JSON index file that lists installable DSH bundles with their titles, icons, authors, and versions. Turn on the experimental **Custom plugin markets** bundle to browse markets in a **Discover** tab on the Plugins page and install a listed version after a confirmation. To publish a market, write or generate an index file and serve it, together with its icon files, from any static host.

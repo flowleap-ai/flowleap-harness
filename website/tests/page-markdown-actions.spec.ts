@@ -95,29 +95,26 @@ afterEach(async () => {
 })
 
 describe('page Markdown actions', () => {
-  it.each(['en-US', 'zh-CN'])('preserves the accessible controls and status in %s', async (lang) => {
-    data.lang.value = lang
-    data.frontmatter.value = { rawMarkdownPath: `${lang === 'en-US' ? 'en/' : ''}guide/quickstart.md` }
+  it('preserves the accessible controls and status', async () => {
+    data.frontmatter.value = { rawMarkdownPath: 'en/guide/quickstart.md' }
     await mount()
-    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot(`./expected/page-markdown-actions.${lang}.html`)
-    fireEvent.click(getByRole(host, 'button', { name: lang === 'en-US' ? 'More page actions' : '更多页面操作' }))
+    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot('./expected/page-markdown-actions.en-US.html')
+    fireEvent.click(getByRole(host, 'button', { name: 'More page actions' }))
     await nextTick()
-    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot(`./expected/page-markdown-menu.${lang}.html`)
+    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot('./expected/page-markdown-menu.en-US.html')
   })
 
-  it.each(['en-US', 'zh-CN'])('offers a working raw link before hydration in %s', async (lang) => {
-    data.lang.value = lang
+  it('offers a working raw link before hydration', async () => {
     data.site.value = { base: '/deepseek-harness/' }
-    const path = `${lang === 'en-US' ? 'en/' : ''}guide/quickstart.md`
+    const path = 'en/guide/quickstart.md'
     data.frontmatter.value = { rawMarkdownPath: path }
     host.innerHTML = await renderToString(createSSRApp(Theme.Layout))
     expect(queryAllByRole(host, 'button')).toHaveLength(0)
     const link = getByRole(host, 'link')
     expect(link.getAttribute('href')).toBe(`/deepseek-harness/${path}`)
     expect(link.getAttribute('target')).toBe('_blank')
-    expect(link.getAttribute('aria-label')).toBe(lang === 'en-US'
-      ? 'View as Markdown (opens in a new tab)' : '以 Markdown 格式查看（在新标签页打开）')
-    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot(`./expected/page-markdown-static.${lang}.html`)
+    expect(link.getAttribute('aria-label')).toBe('View as Markdown (opens in a new tab)')
+    await expect(`${host.innerHTML}\n`).toMatchFileSnapshot('./expected/page-markdown-static.en-US.html')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

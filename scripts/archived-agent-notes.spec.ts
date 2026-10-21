@@ -33,6 +33,13 @@ describe('archived Agent Notes', () => {
     expect(validateArchiveArtifacts(fixture())).toEqual([])
   })
 
+  it('accepts an English-only note and still checks its archive metadata', () => {
+    const artifacts = new Map([['process/2026-07-26-single.md', Buffer.from('# Agent Note: Single\n\nStatus: implemented\nArchived: 2026-07-26\n')]])
+    expect(validateArchiveArtifacts(artifacts)).toEqual([])
+    artifacts.set('process/2026-07-26-single.md', Buffer.from('# Agent Note: Single\n\nStatus: proposed\nArchived: 2026-07-26\n'))
+    expect(validateArchiveArtifacts(artifacts).join('\n')).toMatch(/requires `Status: implemented`/)
+  })
+
   it.each(['# Agent Note：示例', '# Historical decision'])('preserves historical formatting: %s', (title) => {
     const artifacts = fixture()
     const base = '2026-07-26-example'

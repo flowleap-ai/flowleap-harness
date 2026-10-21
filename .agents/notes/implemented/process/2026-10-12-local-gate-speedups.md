@@ -2,8 +2,6 @@
 
 Status: implemented
 
-English | [中文](2026-10-12-local-gate-speedups.zh.md)
-
 ## Problem
 
 On the baseline, master at the merge of #6013, local runs of the Git hooks, `pnpm run test`, `test:docs`, and `doc-sync` spend most of their wall time on work that their results do not depend on:
@@ -96,7 +94,7 @@ All numbers are wall times from one shared Linux container with a 64-CPU quota o
 | Gate | Single-parse mechanism | Wall |
 |---|---|---|
 | markdown links ([`verify-md-links.ts`](../../../../scripts/verify-md-links.ts)) | One per-run cache parses each file once for its destinations and anchors and probes each resolved target once | 53.4/51.6 → 25.9/25.1 s |
-| translation pairing ([`verify-translation-pairing.ts`](../../../../scripts/verify-translation-pairing.ts)) | One glob covers every scope pattern; the record reuses the authored tree under the guard below | 51.0/47.1 → 30.3/29.3 s |
+| translation pairing (`verify-translation-pairing.ts`) | One glob covers every scope pattern; the record reuses the authored tree under the guard below | 51.0/47.1 → 30.3/29.3 s |
 | package README model experience, package README limitations | Each check parses a README once and passes the tree to `markdownProseLines()` and `markdownHeadingLines()` | about 12 → 5.9 s each |
 | type equivalence ([`verify-type-equiv.ts`](../../../../scripts/verify-type-equiv.ts)) | A text prefilter skips documents that cannot hold a source-equivalence fence; each manifest TypeScript source is parsed once | 23.0/22.5 → 6.0/5.5 s |
 | Session format references | The persistence renderer passes the trees it parses to the pairing record | 10.2 → 5.3 s |

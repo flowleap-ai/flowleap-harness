@@ -1,7 +1,5 @@
 # Cookbook: Add a built-in plugin feature preview
 
-English | [中文](adding-a-plugin-preview.zh.md)
-
 Plugin Manager owns optional feature illustrations for built-in bundles. Follow this guide when editing its internal `BUNDLE_PREVIEWS` map. Packages cannot declare illustrations through their manifest or exports; third-party plugins have no preview interface.
 
 ## 1. Decide whether an image helps

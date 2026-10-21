@@ -102,12 +102,6 @@ function sourceMap(pages: DocsPage[]): Map<string, Map<DocsLocale, DocsPage>> {
   return map
 }
 
-function counterpartSource(source: string): string {
-  return source.endsWith('.zh.md')
-    ? source.replace(/\.zh\.md$/, '.md')
-    : source.replace(/\.md$/, '.zh.md')
-}
-
 function resolveRepositoryTarget(sourceAbs: string, rawPath: string, repoRoot: string): { absPath: string; line?: number } {
   const decoded = decodePath(rawPath)
   let absPath = resolve(dirname(sourceAbs), decoded)
@@ -165,11 +159,7 @@ export function rewriteMarkdown(source: string, options: RewriteMarkdownOptions)
     if (path === '') return
     const { absPath, line } = resolveRepositoryTarget(sourceAbs, path, options.repoRoot)
     const targetPath = repoPath(absPath, options.repoRoot)
-    const isLanguageSwitcher = targetPath === counterpartSource(options.sourcePath)
-    const targetLocale: DocsLocale = isLanguageSwitcher
-      ? options.locale === 'root' ? 'en' : 'root'
-      : options.locale
-    const page = published.get(targetPath)?.get(targetLocale)
+    const page = published.get(targetPath)?.get(options.locale)
     const nextUrl = page !== undefined
       ? routeTarget(options.route, page.route, suffix)
       : node.type === 'image' && options.placeImage !== undefined
@@ -218,7 +208,7 @@ export function addProjectionFrontmatter(markdown: string, page: Pick<DocsPage, 
   return `---\n${fields}\n---\n\n${markdown}`
 }
 
-/** The switcher line a canonical page carries so its GitHub reader can reach the other language. */
+/** The switcher line a bilingual canonical page carries so its GitHub reader can reach the other language. */
 const LANGUAGE_SWITCHER = /^(?:English \| \[中文\]\([^)]*\)|\[English\]\([^)]*\) \| 中文)$/
 
 /** The repository badge a canonical page carries for its GitHub reader. */
@@ -227,9 +217,9 @@ const REPOSITORY_BADGE = /^\[!\[[^\]]*\]\(https:\/\/img\.shields\.io\/[^)]*\)\]\
 /**
  * Drop the lines that address a canonical page's GitHub reader.
  *
- * The site carries a locale switcher in its navigation bar and links the
- * repository from every page, so projecting these lines would repeat both — the
- * switcher as the first element under each heading.
+ * The site publishes English only and links the repository from every page, so
+ * a switcher a still-bilingual source carries would point off the site, and the
+ * badge would repeat the repository link.
  *
  * @param markdown Rewritten canonical Markdown content.
  * @returns The content without the switcher line or the repository badge.
@@ -401,9 +391,8 @@ function projectPagesInto(
             + ' which is not a regular file inside the repository.',
           )
         }
-        // Beside the page that references it, under its own basename: each
-        // locale's route tree gets its own copy, so one relative URL is correct
-        // from both.
+        // Beside the page that references it, under its own basename, so one
+        // relative URL reaches it from the page and from its raw-Markdown twin.
         const name = basename(real)
         const target = resolve(dirname(output), name)
         claim(target, real)
@@ -541,21 +530,15 @@ export interface LlmsTxtSite {
   description: string
 }
 
-/** Locale groups llms.txt lists, in the order the site's navigation presents them. */
-const llmsTxtLocales: readonly { heading: string; locale: DocsLocale }[] = [
-  { heading: '简体中文', locale: 'root' },
-  { heading: 'English', locale: 'en' },
-]
-
 /**
  * The llms.txt index of every published page's raw-Markdown twin.
  *
  * Links are site-absolute so an agent resolves them against the host it
- * fetched llms.txt from; locale home pages stay out because this file is the
+ * fetched llms.txt from; the home page stays out because this file is the
  * agent-facing entry point itself.
  *
  * @param site Site identity and base path.
- * @returns llms.txt content listing both locale trees.
+ * @returns llms.txt content listing every sidebar page.
  */
 export function llmsTxt(site: LlmsTxtSite): string {
   const lines = [
@@ -563,14 +546,12 @@ export function llmsTxt(site: LlmsTxtSite): string {
     '',
     `> ${site.description}`,
     '',
-    '页面 URL 去掉末尾斜杠再加 `.md` 即为该页原始 Markdown(根路径用 `/index.md`);下方列表是各页精确地址。Drop any trailing slash and append `.md` to a page URL for its raw Markdown (the site root is `/index.md`); the list below carries the exact addresses.',
+    'Drop any trailing slash and append `.md` to a page URL for its raw Markdown (the site root is `/index.md`); the list below carries the exact addresses.',
+    '',
   ]
-  for (const { heading, locale } of llmsTxtLocales) {
-    lines.push('', `## ${heading}`, '')
-    for (const collection of localeCollections[locale]) {
-      for (const page of orderedPages(locale, collection)) {
-        lines.push(`- [${page.label}](${site.base}${page.route}): ${page.section}`)
-      }
+  for (const collection of localeCollections.root) {
+    for (const page of orderedPages('root', collection)) {
+      lines.push(`- [${page.label}](${site.base}${page.route}): ${page.section}`)
     }
   }
   return `${lines.join('\n')}\n`

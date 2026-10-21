@@ -167,7 +167,6 @@ describe('documentation image viewer', () => {
 
   it.each([
     { locale: 'en-US', title: 'DeepSeek API settings', name: 'View image fullscreen: DeepSeek API settings', trigger: 'image' },
-    { locale: 'zh-CN', title: 'DeepSeek API 配置', name: '全屏查看图片：DeepSeek API 配置', trigger: 'button' },
   ])('opens the loaded image with accessible controls in $locale', async ({ locale, title, name, trigger }) => {
     const { image, state } = render()
     language = locale
