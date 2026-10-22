@@ -172,3 +172,19 @@ fail. A fresh clone does not have them.
   is set. Consider making an OpenRouter model the default for the hosted tier (ADR 0015 keys).
 - **Package scope.** The toolchain forces `@deepseek-ai/dsh-*` names and `main: lib/index.js`; the
   FlowLeap packages are `@deepseek-ai/dsh-flowleap-web` and `@deepseek-ai/dsh-flowleap-prompt`.
+
+## Direction set by the founder on 2026-10-22 (needs an ADR before code)
+
+- **Decouple the data path.** Office connectors run inside the app with the firm's own keys: EPO OPS
+  (consumer key + secret), USPTO ODP key, Semantic Scholar key, DPMA later. Build them by extracting
+  the backend's TypeScript clients (`src/lib/ops`, `src/lib/uspto-odp`, academic search) into one
+  shared package used by two hosts, the backend and the dsh plugin. No Python.
+- **OCR runs on the user's Mistral key.** FlowLeap does not provide OCR for this harness; it is a
+  bring-your-own connector like the offices.
+- **Paid, stays behind the backend with the FlowLeap token:** PATSTAT, US full text (BigQuery),
+  enriched citations and examiner baseline, patent images.
+- **White label.** One brand package driven by a `brand.json` (name, logos, accent colour), FlowLeap
+  by default, no DeepSeek text anywhere in the GUI. Package identifiers stay `@deepseek-ai/dsh-*`
+  internally; MIT notices stay in `THIRD_PARTY_NOTICES.md`.
+- **Skills stay methods** (ADR 0018); each connector carries its data knowledge in its tool schemas
+  and result text.
