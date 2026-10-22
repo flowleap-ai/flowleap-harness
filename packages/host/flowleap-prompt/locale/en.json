@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "FlowLeap Patent Agent prompt",
+    "description": "Loads the Patent Agent system prompt exported from flowleap-agent-v2 as the first prompt section."
+  }
+}

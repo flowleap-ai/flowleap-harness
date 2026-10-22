@@ -1,5 +1,5 @@
 ---
-description: "The FlowLeap Patent Agent layer over the dsh web profile: DeepSeek rows off, the FlowLeap MCP server's tools, the flowleap-plugins skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes."
+description: "The FlowLeap Patent Agent layer over the dsh web profile: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the office connectors, the paid FlowLeap tools, the skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes."
 kind: "package-bundle"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: every DeepSeek-specific row is off, the hosted FlowLeap MCP server's 22 paid patent tools register through the signed-in `flowleap` CLI beside the 33 in-process office tools, the flowleap-plugins skill pack joins the skill catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. Run `dsh --profile flowleap-web web`. The boundary: one process serves one user, and the `flowleap` CLI must be on `PATH` and signed in.
+`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: the `patent` preset is the default composition, the FlowLeap brand fills the sidebar, the hero, the title and the product copy from `brand/brand.json`, every DeepSeek-specific row is off, the 22 paid FlowLeap MCP tools register beside the 33 in-process office tools, the flowleap-plugins skill pack joins the catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. One process serves one user; the `flowleap` CLI must be on `PATH` and signed in.
 
 ## Table of Contents
 
@@ -32,12 +32,15 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-flowleap-web
 dsh plugin --profile <name> remove @deepseek-ai/dsh-flowleap-web
 ```
 
-The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile that lists it without those two bundles has nothing to patch and gains only the two inserted rows.
+The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile that lists it without those two bundles has nothing to patch and gains only the inserted rows.
 
 ### What you get
 
 | Row | Package | Effect |
 |---|---|---|
+| `preset-patent` | [`dsh-agent-preset`](../../preset/agent-preset/README.md) | The `patent` composition from `presets/patent.patch.yml`: the `standard` plugin list (bash or pwsh, fs, fs-search, jobs, schedule, skills, goals, planning, compaction, delegation, todo, web, present) without the `dsh-persona` row, named "Patent Agent", first in the picker |
+| `agent-preset-registry` | [`dsh-agent-preset-registry`](../../preset/agent-preset-registry/README.md) | `default: patent`; `standard`, `ptc`, `minimal` and `cordis` stay selectable |
+| `ui-brand-flowleap` | [`dsh-client-ui-brand-flowleap`](../../client/ui-brand-flowleap/README.md) | The brand from `FLOWLEAP_BRAND_PATH`, else this bundle's `brand/brand.json` (FlowLeap Patent AI, the FlowLeap mark): sidebar mark and name, hero mark, document title, and the product copy that named DeepSeek Harness |
 | `mcp-flowleap` | [`dsh-mcp-client`](../../mcp/mcp-client/README.md) | `flowleap mcp` over stdio; `tools.include` narrows the row to the 22 paid tools the backend keeps (PATSTAT, enriched citations, examiner baseline, images, OCR, analytics, `get_fulltext` for US full text), registered as `mcp__flowleap__<tool>`, 120 s per call, a failed connection logs and the harness still starts |
 | `flowleap-prompt` | [`dsh-flowleap-prompt`](../../host/flowleap-prompt/README.md) | The `flowleap:patent-agent` section from `FLOWLEAP_PROMPT_PATH`, else this bundle's `prompt/patent-agent.md` placeholder |
 | `system-prompt` | [`dsh-system-prompt`](../../core/system-prompt/README.md) | `includeHarnessIdentity: false`, no persona prefix |
@@ -45,9 +48,9 @@ The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile th
 | `agent-default-model` | [`dsh-agent-default-model`](../../core/agent-default-model/README.md) | `anthropic` / `claude-sonnet-5-5` |
 | `skill-filesystem` | [`dsh-skill-filesystem`](../../skill/skill-filesystem/README.md) | Re-enabled as the global-layer `flowleap` provider scanning only `FLOWLEAP_SKILLS_DIR`, else the flowleap-plugins checkout path; each preset keeps its own `filesystem` provider for project and user roots |
 
-Disabled rows: `deepseek-llm-api-extensions`, `session-log-deepseek`, `plugin-package-inventory-deepseek`, `deepseek-account`, `llm-deepseek`, `llm-deepseek-account`, `web-search-deepseek`, `web-deepseek-api`, `ui-settings-account`, `account-controller`, `ui-brand-official`, `ui-deepseek-model-label-1017`. Their packages stay in the installation.
+Disabled rows: `deepseek-llm-api-extensions`, `session-log-deepseek`, `plugin-package-inventory-deepseek`, `deepseek-account`, `llm-deepseek`, `llm-deepseek-account`, `web-search-deepseek`, `web-deepseek-api`, `ui-settings-account`, `account-controller`, `ui-brand-official`, `ui-deepseek-model-label-1017`, `ui-settings-web-search`, `ui-settings-session-log`. Their packages stay in the installation.
 
-Environment the layer reads: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` (through the credential seam), `FLOWLEAP_PROMPT_PATH`, `FLOWLEAP_SKILLS_DIR`. The `flowleap` CLI brings its own session token; `flowleap mcp --check` prints its readiness.
+Environment the layer reads: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` (through the credential seam), `FLOWLEAP_PROMPT_PATH`, `FLOWLEAP_SKILLS_DIR`, `FLOWLEAP_BRAND_PATH`. The `flowleap` CLI brings its own session token; `flowleap mcp --check` prints its readiness.
 
 -----
 
@@ -57,15 +60,17 @@ Environment the layer reads: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The patch is id-targeted overrides followed by one `insert` list. Each override replaces the targeted row's whole `config`, so the `system-prompt` row restates only `includeHarnessIdentity` and inherits the empty persona defaults. The `flowleap-prompt` row's `path` is a `!!js` expression: `FLOWLEAP_PROMPT_PATH` when set, otherwise `@deepseek-ai/dsh-flowleap-web/prompt/patent-agent.md` resolved with `createRequire` from the launching installation's `installAnchor`, because a bundle row has no notion of its own directory. `src/index.ts` exports only the placeholder's package-relative path; the bundle mounts no plugin of its own.
+The bundle declares two patch files in `dsh.bundle.patch`, applied in order. `cordis.patch.yml` is id-targeted overrides followed by one `insert` list. Each override replaces the targeted row's whole `config`, so the `system-prompt` row restates only `includeHarnessIdentity` and inherits the empty persona defaults, and the `agent-preset-registry` row restates only `default`. The `flowleap-prompt` and `ui-brand-flowleap` rows' `path` values are `!!js` expressions: the environment variable when set, otherwise the package resource (`prompt/patent-agent.md`, `brand/brand.json`) resolved with `createRequire` from the launching installation's `installAnchor`, because a bundle row has no notion of its own directory. `presets/patent.patch.yml` inserts the `patent` declaration the same way `dsh-web-app` inserts its presets; it omits `dsh-persona` because `deployment:persona-prefix` and `flowleap:patent-agent` both sit at order 0 and tie-break by name, so an empty prefix is what puts the patent identity first. `src/index.ts` exports only the two data files' package-relative paths; the bundle mounts no plugin of its own.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`cordis.patch.yml`](cordis.patch.yml) | The FlowLeap layer over `dsh-base` and `dsh-web-app` |
-| [`prompt/patent-agent.md`](prompt/patent-agent.md) | Placeholder persona until the agent-v2 export lands |
-| [`src/index.ts`](src/index.ts) | `PROMPT_FILE`, the placeholder's package-relative path |
+| [`presets/patent.patch.yml`](presets/patent.patch.yml) | The `patent` agent preset declaration |
+| [`brand/brand.json`](brand/brand.json), [`brand/flowleap-mark.svg`](brand/flowleap-mark.svg) | The default brand and its mark |
+| [`prompt/patent-agent.md`](prompt/patent-agent.md) | The Patent Agent prompt export from agent-v2 |
+| [`src/index.ts`](src/index.ts) | `PROMPT_FILE` and `BRAND_FILE`, the data files' package-relative paths |
 
 </details>
 
@@ -98,8 +103,9 @@ These limits are what the layer needs from its host and what later slices replac
 
 - **Needs the `flowleap` CLI on `PATH`, signed in** — without it the MCP row logs a connection error and the agent has no patent tools; the harness still starts.
 - **The skill-pack default is a checkout path** — `FLOWLEAP_SKILLS_DIR` must point at the pack on any other machine; a release will vendor the pack.
-- **The persona is a placeholder and the presets still say "coding agent"** — every shipped preset mounts a `dsh-persona` row with `You are a coding agent powered by the {{model}} model.`, which a bundle layer cannot edit without replacing the preset's whole plugin list; the model sees that line before the `flowleap:patent-agent` section until the S2 `complete: true` export or a FlowLeap preset replaces it.
-- **No brand and no account card** — the DeepSeek brand and account rows are off and nothing replaces them; the FlowLeap brand package and settings are the S3 slice.
+- **The shipped presets still say "coding agent"** — `standard`, `ptc`, `minimal` and `cordis` keep their `dsh-persona` row, so a user who selects one of them puts `You are a coding agent powered by the {{model}} model.` ahead of the patent prompt; only `patent` omits it.
+- **The patent preset duplicates standard's plugin list** — a change to `dsh-web-app/presets/standard.patch.yml` reaches `presets/patent.patch.yml` only by hand; compare the two after an upstream merge.
+- **DeepSeek text remains in served bundles** — the disabled rows' client bundles and the dictionaries of mounted rows still contain the vendor name; the brand package replaces only what renders in this profile, and the favicon and web manifest stay the shell's.
 - **No `openrouter/auto` and no non-catalog gateway** — add a hand-declared route in the profile patch when needed.
 
 <a id="dev-note"></a>

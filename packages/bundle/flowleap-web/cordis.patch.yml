@@ -44,8 +44,25 @@
 - id: ui-brand-official
   disabled: true
 
+# The DeepSeek search-provider card and the DeepSeek session-log upload
+# consent: both configure services the disabled rows above provide.
+- id: ui-settings-web-search
+  disabled: true
+
+- id: ui-settings-session-log
+  disabled: true
+
 - id: ui-deepseek-model-label-1017
   disabled: true
+
+# ── the patent preset is the default ─────────────────────────────────────────
+# `presets/patent.patch.yml` inserts the `patent` declaration (standard's
+# plugin list without the coding persona); standard, ptc, minimal and cordis
+# stay selectable.
+
+- id: agent-preset-registry
+  config:
+    default: patent
 
 # ── the Patent Agent prompt ──────────────────────────────────────────────────
 # No harness identity and no persona prefix: the flowleap-prompt row below
@@ -156,6 +173,16 @@
     # first-run key wizard; the row id is also the wizard's settings namespace.
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
+
+    # The brand: one brand.json (name, tagline, mark, accent) read by the Host
+    # and rendered by the browser half into the sidebar, the blank-session
+    # hero, the document title and the product copy. FLOWLEAP_BRAND_PATH names
+    # a firm's own file; the default is this bundle's brand/brand.json,
+    # resolved through the dsh installation that launched the profile.
+    - id: ui-brand-flowleap
+      name: '@deepseek-ai/dsh-client-ui-brand-flowleap'
+      config:
+        path: !!js "process.env.FLOWLEAP_BRAND_PATH ?? process.getBuiltinModule('node:module').createRequire(ctx.get('profileContext').installAnchor).resolve('@deepseek-ai/dsh-flowleap-web/brand/brand.json')"
 
     # The persona file: FLOWLEAP_PROMPT_PATH (the agent-v2 export) or this
     # bundle's placeholder, resolved through the dsh installation that

@@ -178,8 +178,8 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
-  // The FlowLeap profile layer ships its placeholder persona file beside the patch.
-  '@deepseek-ai/dsh-flowleap-web': ['prompt/patent-agent.md'],
+  // The FlowLeap profile layer ships its persona file and its default brand beside the patches.
+  '@deepseek-ai/dsh-flowleap-web': ['prompt/patent-agent.md', 'brand/brand.json', 'brand/flowleap-mark.svg'],
   // CUA publishes its client API and attributed native source for local macOS builds.
   '@deepseek-ai/dsh-cua': ['lib/api.js', 'lib/bridge.js', 'lib/native-client.js', 'lib/protocol.js'],
   '@deepseek-ai/dsh-experimental-cua-macos': ['native/bin', 'native/Package.swift', 'native/Sources', 'native/tests/swift', 'native/tests/test_swift.py', 'native/LICENSE.cua-driver', 'native/upstream.json', 'native/README.md', 'native/README.zh.md', 'native/protocol.schema.json'],

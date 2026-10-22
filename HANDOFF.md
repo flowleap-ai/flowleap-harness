@@ -96,7 +96,7 @@ Verification status is at the end of this file.
 |---|---|---|
 | S1 | DONE 2026-10-21. `packages/bundle/flowleap-web` + `packages/host/flowleap-prompt`; run `pnpm dsh --profile flowleap-web --no-open` (not `... web`: `web` is a profile name). MCP over stdio via `flowleap mcp` (54 tools), skill pack via `FLOWLEAP_SKILLS_DIR` (32 of 33 skills), providers anthropic + openrouter + mistral by env key | Live run passed: Sonnet 5.5 via OpenRouter called `get_legal_status`, `get_register_biblio`, `get_bibliography` and answered EP2110298B1 correctly with caveats; 157K tokens for the turn |
 | S2 | DONE 2026-10-21 as draft PR agent-v2#847: `patentPromptExport.spec.tsx` renders `PatentAIInstructions` with the 15 MCP-twin tools and writes `extensions/copilot/assets/prompt-export/patent-agent.{md,json}`; the same spec is the drift gate. The bundle carries a copy at `prompt/patent-agent.md`; re-copy after each export (source commit in the git log) | 8,010 words; 56 references to tools the harness lacks remain (`vscode_askQuestions` 8, `fetch_webpage` 8, `get_patent_details` 8, `uspto_api_guide` 8, citations 12, guides 6, coding tools 4, `write_patent_results` 1): the TSX passages render unconditionally and need gating on tool availability in agent-v2 |
-| S3 | Brand package (sidebar and hero slots) and settings (DeepSeek account card off) | no DeepSeek mark or copy in the GUI |
+| S3 | DONE 2026-10-22. `patent` preset (standard's plugin list, no `dsh-persona`) is the registry default; `packages/client/ui-brand-flowleap` renders `brand/brand.json` into the sidebar, the hero, the `<title>` and the product copy through a new `ctx.locale.override()` seam; `ui-settings-web-search` and `ui-settings-session-log` rows off; plugin cards titled and iconed | Probe: default preset `patent`, assembled prompt starts with `<patentAIIdentity>`, no persona prefix; served index.html has 0 "DeepSeek"/"DSH Local Build" (was 1); served bundles 50 unique "DeepSeek" (was 92), all in dictionaries of still-mounted rows or in the disabled-row-free preload combo |
 | S4 | Deploy recipe: one VM, nginx + TLS + Clerk gate, `dsh --profile flowleap-web web --public-url --trusted-host`, the ADR 0011 key proxy | an invited attorney signs in from a browser and runs a prior-art search |
 | S5 | `dsh-tool-patent-deliverables`: results writer with validation, drafting gates, drawings | the three skill-grounded cases pass the same gate as the IDE |
 
@@ -157,9 +157,10 @@ fail. A fresh clone does not have them.
 
 ## Open after S1 + S2 (2026-10-21)
 
-- **Preset persona.** Every shipped preset mounts `dsh-persona` with "You are a coding agent powered by
-  the {{model}} model", scoped per agent, ahead of the patent prompt. A bundle layer cannot patch a
-  preset's child row. S3 ships a FlowLeap `patent` preset and makes it the registry default.
+- **Preset persona.** CLOSED by S3: `presets/patent.patch.yml` in the bundle is standard's plugin list
+  without `dsh-persona`, and `agent-preset-registry.default: patent`. `deployment:persona-prefix` and
+  `flowleap:patent-agent` both sit at order 0 and tie-break by name, so the empty global prefix is what
+  keeps the patent identity first; the other shipped presets still say "coding agent" when selected.
 - **Prompt gaps.** Closed: agent-v2 #847 (export + drift gate) and #849 (gated passages) are merged to
   main on 2026-10-22; the bundle copy equals the artifact on main. Re-copy after any prompt change.
 - **Tokens.** One turn cost 157K tokens: the 8,010-word prompt plus 88 tool schemas (54 MCP + 34
@@ -204,7 +205,7 @@ fail. A fresh clone does not have them.
   cards with Test connection, first-run wizard with Skip). mupdf (AGPL) is excluded by the
   third-party-notices gate, so figure rasterisation is unavailable in the harness until the owner
   authorises it. Wiring of the 33 package tools follows C2a.
-- **C2 wiring DONE (2026-10-22, `f51b47086a`).** The host plugin registers the 33 office tools from
+- **C2 wiring DONE (2026-10-22, the "register the 33 office tools" commit on this branch).** The host plugin registers the 33 office tools from
   `officeTools()` (vendored copy synced to flowleap-backend `43fe5c9`, the #608 branch); static gates
   61 of 62 (only `uv.lock`). Checked in the browser on a fresh home: the first-run wizard shows the
   four connectors with write-only fields, Test, Save and Skip; Settings has a "Patent data connectors"
@@ -231,3 +232,29 @@ fail. A fresh clone does not have them.
   EUIPO, JPO, IP Australia, TIPO, INPI, Global Dossier (EP/JP/KR/CN wrappers), PRS, The Lens.
   Lesson: connectors are not the moat; the agent, PATSTAT and the workflows are. Candidate: add it
   as an MCP row scoped by `tools.include` to the offices we lack, after a one-day trial.
+
+## S3 (2026-10-22): the harness looks and speaks FlowLeap
+
+- **Brand file** `packages/bundle/flowleap-web/brand/brand.json`, read by the Host half of
+  `@deepseek-ai/dsh-client-ui-brand-flowleap` (`FLOWLEAP_BRAND_PATH` overrides): `productName`,
+  `shortName`, optional `tagline` (hero headline), optional `mark` (SVG/PNG/JPEG/WebP path relative to
+  the file, published to the page as a data URL), `markStyle` `mono` (mask in the text or accent colour,
+  default) or `color`, optional `accent`. The browser half occupies `sidebar.brand.mark`,
+  `sidebar.brand.name` and `conversation.hero.brand.mark`, the Host rewrites the served `<title>` through
+  `webServer.tapIndex()` and injects the record as the `__FLOWLEAP_BRAND__` boot global.
+- **Copy override seam.** `packages/client/locale` gained `override(ns, locale, partial)` (one method, one
+  test): layers over a registered dictionary, newest first, before or after the owner. The brand
+  package's `src/client/locales.ts` lists the overridden keys (`common.brand.localBuild`,
+  `conversation.hero.headline`, `settings.models` welcome and onboarding, `model`, `pluginManager`,
+  `sidebarOffice`, `chat`) for `en` and `zh`.
+- **Still served with the vendor name** (the grep of the served bundles after S3): the dictionaries of
+  `ui-settings-models` (33, the DeepSeek card copy and the original welcome text that the override hides
+  at render), `ui-chat` (5), `ui-attachment` (4), `ui-model-selection`, `ui-plugin-manager`,
+  `ui-sidebar-documentpreview`, `cordis-client-runner` (2 each), and the locale package's own
+  `DSH Local Build` fallback. None of it renders in the profile; removing it means editing upstream
+  dictionaries. `apps/web/public/manifest.webmanifest` (name "DeepSeek Harness", short_name "DSH") and the
+  fish favicons are build-time assets with no runtime seam yet.
+- **Left for a human:** the visual check in a browser (sidebar mark and name, hero mark and tagline, the
+  preview notice text, Settings → Built-in plugins titles and icons); a FlowLeap accent colour in
+  `brand.json` if wanted (the mark follows the text colour today); the favicon and web manifest; keeping
+  `presets/patent.patch.yml` in step with `dsh-web-app/presets/standard.patch.yml` after upstream merges.

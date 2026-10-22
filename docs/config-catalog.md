@@ -531,6 +531,23 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-shortcuts -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
+<a id="deepseek-aidsh-client-ui-brand-flowleap"></a>
+
+## `@deepseek-ai/dsh-client-ui-brand-flowleap`
+
+- `inject`: `webServer`
+- `source`: [`packages/client/ui-brand-flowleap/src/index.ts:32`](../packages/client/ui-brand-flowleap/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: where the brand file lives. */
+export interface Config {
+  /** Absolute path of the `brand.json` file; its `mark` path resolves against the file's directory. */
+  path: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
 

@@ -1,0 +1,30 @@
+/* A monochrome mark: the image is a mask over the current text colour, so
+   one black-on-transparent SVG follows the light and dark themes. */
+.monoMark {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.colorMark {
+  display: inline-block;
+  flex: none;
+  object-fit: contain;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dsw-alias-label-primary);
+}

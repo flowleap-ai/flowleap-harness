@@ -259,6 +259,7 @@
     { "path": "./packages/client/ui-settings/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-flowleap-connectors/tsconfig.host.json" },
+    { "path": "./packages/client/ui-brand-flowleap/tsconfig.host.json" },
 
     { "path": "./packages/host/product-telemetry-otel" },
     { "path": "./packages/boot/config-editor" },
@@ -280,6 +281,7 @@
     { "path": "./packages/client/ui-sidebar-browser/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-flowleap-connectors/tsconfig.host.json" },
+    { "path": "./packages/client/ui-brand-flowleap/tsconfig.host.json" },
     { "path": "./packages/document/office-to-pdf" },
 
     { "path": "./packages/api/account-controller" },

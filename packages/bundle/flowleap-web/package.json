@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-web",
-  "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: DeepSeek rows off, the FlowLeap MCP server's tools, the flowleap-plugins skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
+  "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the in-process office connectors, the paid FlowLeap MCP tools, the flowleap-plugins skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
@@ -13,29 +13,43 @@
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
+  "icon": "./icon.svg",
   "exports": {
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
+    "./presets/*.patch.yml": "./presets/*.patch.yml",
     "./prompt/*.md": "./prompt/*.md",
+    "./brand/*": "./brand/*",
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
+    "icon.svg",
+    "locale/*.json",
     "lib/index.js",
     "cordis.patch.yml",
+    "presets/patent.patch.yml",
     "prompt/patent-agent.md",
+    "brand/brand.json",
+    "brand/flowleap-mark.svg",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
   "dsh": {
     "bundle": {
-      "patch": "./cordis.patch.yml"
+      "patch": [
+        "./cordis.patch.yml",
+        "./presets/patent.patch.yml"
+      ]
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-agent-preset": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-brand-flowleap": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-flowleap-prompt": "workspace:*",
