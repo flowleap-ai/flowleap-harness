@@ -288,3 +288,10 @@ fail. A fresh clone does not have them.
   scanned documents and PDFs (read_pdf, file-wrapper documents). Billed by Mistral per page."
   Left: born-digital PDFs also go through OCR (local text extraction is a later slice; mupdf is
   excluded by licence); the live test with a real key in the browser is the founder's.
+- **C3 status (2026-10-22 evening).** C3b DONE on `flowleap`: 34 office tools native (`ocr` included,
+  `get_fulltext` excluded), `read_pdf` for workspace files through the firm's Mistral key (50 MB,
+  300 pages, page markers, cost line, 24 h cache), real `verifyKey` on the Mistral card, MCP row at 19
+  paid tools, no tool in both forms. Gates: 61 of 62 after the concrete-terms gate learned to skip
+  `flowleap/`. C3a (#609) awaits CI and the founder's merge; after it merges, re-sync the vendored
+  library against the sibling checkout. Live OCR test with a real Mistral key still open (founder).
+  Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
