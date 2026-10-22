@@ -13,6 +13,7 @@
  */
 
 import { readFileSync, statSync } from 'node:fs'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, extname, isAbsolute, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -101,6 +102,82 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('webserver/index-inject', (table) => {
     table.push({ kind: 'global', name: BRAND_GLOBAL, value: brand })
   })
-  const titleMarkup = `<title>${escapeHtmlText(brand.productName)}</title>`
-  ctx.effect(() => ctx.webServer.tapIndex(html => html.replace(/<title>[^<]*<\/title>/u, titleMarkup)), 'ui-brand-flowleap: document title')
+  ctx.effect(() => ctx.webServer.tapIndex(html => rewriteIndexHead(html, brand)), 'ui-brand-flowleap: document head')
+  const mark = brand.mark === undefined ? undefined : decodeDataUrl(brand.mark)
+  if (mark !== undefined) {
+    ctx.effect(() => ctx.webServer.register({
+      kind: 'exact',
+      path: MARK_ROUTE,
+      handler: (_req: IncomingMessage, res: ServerResponse) => {
+        res.writeHead(200, { 'content-type': mark.mediaType, 'content-length': String(mark.bytes.byteLength), 'cache-control': 'public, max-age=3600' })
+        res.end(mark.bytes)
+      },
+    }), 'ui-brand-flowleap: mark route')
+  }
+  const manifest = Buffer.from(brandManifest(brand), 'utf8')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: MANIFEST_ROUTE,
+    handler: (_req: IncomingMessage, res: ServerResponse) => {
+      res.writeHead(200, { 'content-type': 'application/manifest+json', 'content-length': String(manifest.byteLength), 'cache-control': 'public, max-age=3600' })
+      res.end(manifest)
+    },
+  }), 'ui-brand-flowleap: web manifest route')
+}
+
+/** Where the served page finds the brand mark; an exact route beats the static shell's prefix route. */
+export const MARK_ROUTE = '/brand/mark'
+/** The web manifest path the shell's `<link rel="manifest">` already points at. */
+export const MANIFEST_ROUTE = '/manifest.webmanifest'
+
+/**
+ * Split a `data:` URL into its media type and bytes.
+ * @param url - a `data:<type>;base64,<payload>` URL as `readMark` produces.
+ * @returns the media type and the decoded bytes.
+ * @throws when the URL is not a base64 data URL.
+ */
+export function decodeDataUrl(url: string): { mediaType: string; bytes: Buffer } {
+  const match = /^data:(?<mediaType>[^;,]+);base64,(?<payload>.*)$/su.exec(url)
+  const mediaType = match?.groups?.mediaType
+  const payload = match?.groups?.payload
+  if (mediaType === undefined || payload === undefined) throw new Error('ui-brand-flowleap: mark is not a base64 data URL')
+  return { mediaType, bytes: Buffer.from(payload, 'base64') }
+}
+
+/**
+ * Render the web app manifest for the brand: product name, short name, and the mark as the icon.
+ * @param brand - the validated brand record.
+ * @returns the manifest JSON text.
+ */
+export function brandManifest(brand: BrandRecord): string {
+  const mark = brand.mark === undefined ? undefined : decodeDataUrl(brand.mark)
+  return JSON.stringify({
+    name: brand.productName,
+    short_name: brand.shortName,
+    start_url: './',
+    scope: './',
+    display: 'fullscreen',
+    icons: mark === undefined ? [] : [{ src: MARK_ROUTE, sizes: 'any', type: mark.mediaType, purpose: 'any' }],
+  }, null, 2)
+}
+
+/**
+ * Rewrite the served index head: the document title, and the icon links to the brand mark.
+ * @param html - the shell's index document.
+ * @param brand - the validated brand record.
+ * @returns the document with the title replaced and, when the brand has a mark, one icon link in place of the shell's two.
+ */
+export function rewriteIndexHead(html: string, brand: BrandRecord): string {
+  let out = html.replace(/<title>[^<]*<\/title>/u, `<title>${escapeHtmlText(brand.productName)}</title>`)
+  if (brand.mark !== undefined) {
+    const { mediaType } = decodeDataUrl(brand.mark)
+    const icon = `<link rel="icon" type="${mediaType}" href="${MARK_ROUTE}" />\n    `
+    let first = true
+    out = out.replace(/<link rel="icon"[^>]*>\s*/gu, () => {
+      if (!first) return ''
+      first = false
+      return icon
+    })
+  }
+  return out
 }

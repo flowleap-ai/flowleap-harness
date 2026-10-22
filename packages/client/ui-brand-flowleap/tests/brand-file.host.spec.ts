@@ -62,10 +62,15 @@ describe('the ui-brand-flowleap Host half', () => {
     const ctx = new Context()
     contexts.push(ctx)
     const taps: ((html: string) => string)[] = []
-    const webServer: Pick<Context['webServer'], 'tapIndex'> = {
+    const routes: string[] = []
+    const webServer: Pick<Context['webServer'], 'tapIndex' | 'register'> = {
       tapIndex(transform) {
         taps.push(transform)
         return () => { taps.splice(taps.indexOf(transform), 1) }
+      },
+      register(route) {
+        routes.push(route.path)
+        return () => { routes.splice(routes.indexOf(route.path), 1) }
       },
     }
     ctx.provide('webServer', webServer as Context['webServer'])

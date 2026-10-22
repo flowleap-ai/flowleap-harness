@@ -122,7 +122,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define what the brand file controls today; they are current package constraints, not a task backlog.
 
 - **The file is not watched** — the record is read when the row applies; an edited `brand.json` reaches the page after the row reloads and the browser refreshes.
-- **The favicon and the web manifest stay the shell's** — `apps/web/public` ships them at build time; `brand.json` has no field for them yet.
+- **The favicon is the mark as it is** — the Host serves `brand.json`'s `mark` at `/brand/mark` for the tab icon and the web manifest, replacing the shell's light and dark favicons with one file; a mono mark drawn in black is faint on a dark tab bar until the brand ships a mark with its own colour. Without a `mark`, the shell's favicons stay.
 - **Overrides track upstream keys by name** — a renamed or new DeepSeek-naming key in an upstream dictionary is not covered until `locales.ts` lists it; the override of a missing key is inert, never wrong.
 - **English text in both locales** — the overrides write the brand's English text into the `zh` dictionary too; a translated brand needs per-locale fields in `brand.json`.
 
