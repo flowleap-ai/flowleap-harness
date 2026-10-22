@@ -292,6 +292,6 @@ fail. A fresh clone does not have them.
   `get_fulltext` excluded), `read_pdf` for workspace files through the firm's Mistral key (50 MB,
   300 pages, page markers, cost line, 24 h cache), real `verifyKey` on the Mistral card, MCP row at 19
   paid tools, no tool in both forms. Gates: 61 of 62 after the concrete-terms gate learned to skip
-  `flowleap/`. C3a (#609) awaits CI and the founder's merge; after it merges, re-sync the vendored
-  library against the sibling checkout. Live OCR test with a real Mistral key still open (founder).
+  `flowleap/`. C3a MERGED (flowleap-backend #609); the vendored library is pinned to backend main. Backend
+  not yet redeployed (two merges pending deploy: #608, #609). Live OCR test with a real Mistral key still open (founder).
   Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
