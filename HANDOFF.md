@@ -194,3 +194,9 @@ fail. A fresh clone does not have them.
 - **Focus.** Patent workflows over chat: open and read PDFs (born-digital locally, scanned via the
   Mistral OCR connector), deliverables as files, and the firm's own tools (DMS, docketing, Drive,
   SharePoint) over MCP rows configured by the admin.
+- **C2 in flight (2026-10-22).** C2a = backend session moving the office tool definitions into
+  `@flowleap/connectors` under a fixed contract (`ToolDefinition`, `officeTools()`,
+  `toolInputJsonSchema()`), catalog byte-identical, draft PR. C2b/c = harness agent: vendored
+  copy of the library with `scripts/flowleap/sync-connectors.sh --check`, host plugin
+  `dsh-flowleap-connectors` (ConnectorHost over dsh credentials, three interim tools until C2a
+  lands), settings cards per connector with Test connection, first-run key wizard.
