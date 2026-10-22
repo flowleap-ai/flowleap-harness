@@ -121,8 +121,6 @@
     # listed here. `get_fulltext` stays on the MCP side for US full text:
     # the `usFulltext` host capability is absent in the harness, so the native
     # copy answers US claims `not_configured`.
-    # Names the live server does not publish yet (`reference_search`,
-    # `get_legal_jurisdictions` until the #608 deploy) register nothing.
     - id: mcp-flowleap
       name: '@deepseek-ai/dsh-mcp-client'
       config:
@@ -140,9 +138,7 @@
             - search_enriched_citations
             - get_citation_stats
             - examiner_baseline
-            - reference_search
             - patent_analytics
-            - get_legal_jurisdictions
             - get_fulltext
             - patstat_portfolio
             - patstat_docs
