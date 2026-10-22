@@ -194,10 +194,10 @@ fail. A fresh clone does not have them.
 - **Focus.** Patent workflows over chat: open and read PDFs (born-digital locally, scanned via the
   Mistral OCR connector), deliverables as files, and the firm's own tools (DMS, docketing, Drive,
   SharePoint) over MCP rows configured by the admin.
-- **C2 in flight (2026-10-22).** C2a = flowleap-backend draft PR #608: 33 office tools defined in `@flowleap/connectors`
+- **C2 in flight (2026-10-22).** C2a MERGED (flowleap-backend #608, a3704e9): 33 office tools defined in `@flowleap/connectors`
   (`ToolDefinition`, `officeTools()`, `toolInputJsonSchema()`), 19 paid or transport tools stay in
   the backend, US full text is a host capability `usFulltext?`, catalog byte-identical (52 tools),
-  270 package tests + 2,111 backend tests green, CI pending, founder review. C2b/c DONE on `flowleap` (4 commits): `vendor/flowleap-connectors` with
+  270 package tests + 2,111 backend tests green. Backend not yet redeployed. C2b/c DONE on `flowleap` (4 commits): `vendor/flowleap-connectors` with
   `scripts/flowleap/sync-connectors.sh --check` (hash-pinned to a backend commit), host plugin
   `dsh-flowleap-connectors` (ConnectorHost over dsh credential records `flowleap-connectors/<id>`,
   LRU cache, remote `describe/set/unset/test`), client `ui-settings-flowleap-connectors` (four
@@ -224,7 +224,7 @@ fail. A fresh clone does not have them.
   and the profile leaves `get_fulltext` to the MCP row, so no tool exists in both forms: 32 native
   office tools + 20 paid MCP tools + 4 harness tools. The prompt export now keeps native office
   names and prefixes only paid tools (agent-v2 draft PR #857; the bundle copy is from that branch,
-  2 `mcp__flowleap__` mentions left). Open on agent-v2: merge #854 (ADR 0019) and #857.
+  2 `mcp__flowleap__` mentions left). agent-v2 #854 (ADR 0019) and #857 are MERGED; the bundle copy equals agent-v2 main; SYNC.json points at backend main.
 - **Market note (2026-10-22): patent-connector.com** (Funktionslust GmbH, Munich, patent.dev) sells
   the connector layer alone: self-hosted Docker or binary, MCP server + JSON API + free CLI,
   official APIs with the firm's keys, flat fee per organisation. Offices: EPO OPS, USPTO, DPMA,
