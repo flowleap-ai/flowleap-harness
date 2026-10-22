@@ -164,6 +164,8 @@ function syncDocumentLanguage(snapshot: LocaleSnapshot): void {
  */
 export class LocaleRuntime {
   private dicts = new Map<string, Map<string, LocaleDict>>()
+  /** Partial dictionaries layered over {@link dicts}, newest last; consulted before the registered text. */
+  private overrides = new Map<string, Map<string, LocaleDict[]>>()
   private bound = new Map<string, Translate>()
   private catalog = new Map<string, LocaleDefinition>()
   private fallbackChains = new Map<string, readonly LocaleId[]>()
@@ -437,6 +439,46 @@ export class LocaleRuntime {
   }
 
   /**
+   * Layer a partial dictionary over a namespace's registered text for one
+   * locale, without owning the namespace. A deployment uses it to replace
+   * selected product copy (a brand name in an upstream dictionary) while the
+   * owning plugin keeps registering its complete dictionary. Lookup consults
+   * the newest override first, then earlier overrides, then the registered
+   * dictionary, so a later override wins; keys the override omits fall
+   * through unchanged. Registration order against the owner is free: an
+   * override may land before or after the dictionary it layers over, and it
+   * outlives a dictionary re-registration. Registration bumps the revision so
+   * mounted outlets pick it up.
+   * @param ns - namespace whose text is layered over.
+   * @param locale - locale tag the override applies to.
+   * @param dict - the keys to replace and their text.
+   * @returns disposer removing this override (idempotent).
+   * @throws when locale is not a BCP 47-style tag.
+   */
+  override(ns: string, locale: string, dict: LocaleDict): () => void {
+    if (!LOCALE_ID_PATTERN.test(locale)) {
+      throw new Error(`locale id "${locale}" is not a BCP 47-style tag`)
+    }
+    let locales = this.overrides.get(ns)
+    if (!locales) {
+      locales = new Map()
+      this.overrides.set(ns, locales)
+    }
+    const key = localeKey(locale)
+    const layers = locales.get(key) ?? []
+    layers.push(dict)
+    locales.set(key, layers)
+    this.publish(this.snapshot.active, false)
+    return () => {
+      const owner = this.overrides.get(ns)?.get(key)
+      const at = owner === undefined ? -1 : owner.indexOf(dict)
+      if (owner === undefined || at === -1) return
+      owner.splice(at, 1)
+      this.publish(this.snapshot.active, false)
+    }
+  }
+
+  /**
    * Bind a declared namespace to a translate function typed to its
    * dictionary key union (plus the shared common vocabulary) — the same key
    * domain the framework-injected `t` seat carries. The returned reference
@@ -475,8 +517,17 @@ export class LocaleRuntime {
 
   private lookup(ns: string, key: string, chain: readonly LocaleId[]): string | undefined {
     const locales = this.dicts.get(ns)
+    const overrides = this.overrides.get(ns)
     for (const locale of chain) {
-      const value = locales?.get(localeKey(locale))?.[key]
+      const localeId = localeKey(locale)
+      const layers = overrides?.get(localeId)
+      if (layers !== undefined) {
+        for (let at = layers.length - 1; at >= 0; at--) {
+          const value = layers[at]?.[key]
+          if (value !== undefined) return value
+        }
+      }
+      const value = locales?.get(localeId)?.[key]
       if (value !== undefined) return value
     }
     return undefined

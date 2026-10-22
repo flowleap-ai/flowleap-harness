@@ -97,6 +97,26 @@ describe('LocaleRuntime', () => {
     expect(t('k')).toBe('v2')
   })
 
+  it('layers overrides over a registered dictionary, newest first, before or after the owner, and removes them on dispose', () => {
+    const { svc } = make()
+    const t = svc.bind('ns')
+    const r0 = svc.getSnapshot().revision
+    const early = svc.override('ns', 'zh', { k: 'early', only: 'override-only' })
+    expect(svc.getSnapshot().revision).toBe(r0 + 1)
+    const owner = svc.register('ns', 'zh', { k: 'owned', other: 'untouched' })
+    const late = svc.override('ns', 'ZH', { k: 'late' })
+    expect([t('k'), t('other'), t('only')]).toEqual(['late', 'untouched', 'override-only'])
+    late()
+    late()
+    expect(t('k')).toBe('early')
+    owner()
+    svc.register('ns', 'zh', { k: 'owned again', other: 'untouched' })
+    expect(t('k')).toBe('early')
+    early()
+    expect(t('k')).toBe('owned again')
+    expect(() => svc.override('ns', 'not a tag', {})).toThrow('not a BCP 47-style tag')
+  })
+
   it('serves the LocaleFace: snapshot revision moves on switch and registration, subscribers fire, unsubscribe stops them', () => {
     const { svc } = make()
     const seen: number[] = []

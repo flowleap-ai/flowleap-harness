@@ -35,6 +35,10 @@ Native shells may provide `__DSH_LOCALE__` with an asynchronous `read()` and an 
 
 Call `ctx.locale.register(ns, { zh, en })` with a namespace merged into `LocaleNamespaceMap`; the compiler checks every key against the namespace's typed key union and requires both shipped locales. Consumers translate through `ctx.locale.bind(ns)` or the framework-injected `t` seat. A dictionary registered after the UI is already mounted is picked up without a remount.
 
+### Overriding another namespace's text
+
+Call `ctx.locale.override(ns, locale, partial)` to replace selected keys of a namespace another plugin owns, for one locale, without registering a dictionary of your own: a deployment brand package replaces the product name inside upstream copy this way. Lookup consults the newest override first, then earlier overrides, then the registered dictionary; keys the override omits fall through unchanged. The override may register before or after the dictionary it layers over and survives that dictionary's re-registration; its disposer removes only its own layer. Cover every locale the deployment serves, because an override on `en` alone leaves a `zh` dictionary's own text in place for a Chinese browser.
+
 ### Resolving package text
 
 Use `ctx.locale.resolveText(text)` for [`LocalizedText`](../../util/package-manifest/README.md), such as installed plugin titles and descriptions. Literal strings are returned unchanged. Translation maps use lowercase language ids, require an `en` fallback, and follow the active language's declared fallback chain. They do not consult or register namespace dictionaries.
