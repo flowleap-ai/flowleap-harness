@@ -9,7 +9,9 @@ import { historicalSchemaRegion } from './historical-schema-region.ts'
 const root = resolve(import.meta.dirname, '..')
 const blockedTerm = 'prove' + 'nance'
 // FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim.
-const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/'] as const
+// FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim; flowleap/ holds FlowLeap's own
+// design documents, which follow the FlowLeap style, not the dsh documentation standard.
+const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/', 'flowleap/'] as const
 
 /** One blocked term occurrence in a tracked path or text line. */
 export interface ConcreteTermViolation {
