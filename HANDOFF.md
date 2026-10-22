@@ -299,6 +299,7 @@ fail. A fresh clone does not have them.
   on every push to main (`deploy.yml`); #606, #608 and #609 each deployed green, the last at 15:02 UTC. Live OCR test PASSED 2026-10-22: the founder created a workspace `ocr-project` in Downloads, saved a
   Mistral key in the connectors card, and the agent read a scanned PDF through `read_pdf`. The same run
   proved the office tools on the firm's EPO and USPTO keys (native calls, one paid MCP call to
-  `examiner_baseline`). Found: US `get_claims` answers "not configured" without pointing the model at
-  `mcp__flowleap__get_fulltext`; fix the hint text.
+  `examiner_baseline`). Found and fixed in flowleap-backend draft PR #610: a host without a US full-text source now
+  names the paid `get_fulltext` route in the message and in an additive `paidRoute` field; re-sync
+  the vendored library after it merges.
   Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
