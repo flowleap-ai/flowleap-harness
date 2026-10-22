@@ -258,3 +258,13 @@ fail. A fresh clone does not have them.
   preview notice text, Settings → Built-in plugins titles and icons); a FlowLeap accent colour in
   `brand.json` if wanted (the mark follows the text colour today); the favicon and web manifest; keeping
   `presets/patent.patch.yml` in step with `dsh-web-app/presets/standard.patch.yml` after upstream merges.
+- **Knowledge Pool design (2026-10-22):**
+  [flowleap/docs/2026-10-22-knowledge-pool-design.md](flowleap/docs/2026-10-22-knowledge-pool-design.md).
+  Shared firm memory as one MCP server per firm (the only writer), Markdown pages in git partitioned by
+  wall (one repository for the firm tier, one per client), SQLite FTS5 search, per-caller index in the
+  server instructions, deterministic write screens, compile job inside the service with a nightly cost
+  cap, 33 edge cases, MVP = firm tier with human review. Eight open questions for the founder in
+  section 13; the ADR follows the answers.
+- **S3 verified in the browser (2026-10-22):** tab title, sidebar mark, hero tagline, "Patent Agent"
+  default preset, FlowLeap-voice Preview notice. Left: favicon and web manifest still say DeepSeek
+  (build-time assets), `brand.json` has no `accent` yet, the other presets keep the coding persona.
