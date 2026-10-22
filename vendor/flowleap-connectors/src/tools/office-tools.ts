@@ -11,8 +11,9 @@
  *  one behaviour and the backend's surfaces share one cache.
  *
  *  What stays with the backend (ADR 0019 decision 3, the paid boundary):
- *  PATSTAT, the examiner baseline, the enriched citations, patent images,
- *  the BigQuery analytics and OCR as a tool, plus server_info.
+ *  PATSTAT, the examiner baseline, the enriched citations, patent images and
+ *  the BigQuery analytics, plus server_info. OCR is an office tool since C3a:
+ *  it runs on the host's own Mistral key (./ocr-tool.ts).
  *
  *  History: these entries were the backend's src/tools/registry.ts (the
  *  agent-first facade, docs/PATENT_CONNECTOR_CLI_GAP_ANALYSIS.md).
@@ -30,6 +31,7 @@ import type { ToolDefinition } from './definition.js';
 import { patentDocumentReference, withDocumentReference } from './document-reference.js';
 import { withExtendedFamilyCoverage } from './family-coverage.js';
 import { literatureTools } from './literature.js';
+import { ocrTool } from './ocr-tool.js';
 import { detectPatentProvider } from './provider.js';
 import {
 	searchPatentsHandler,
@@ -890,9 +892,14 @@ const definitions: ToolDefinition[] = [
 		},
 	}),
 
-	// patent_analytics (BigQuery) and ocr (the backend's Mistral key) stay with
-	// the backend (ADR 0019 decision 3; OCR in the harness is the firm's own
-	// connector, ADR 0019 C3). The analyze_claim tool was retired under ADR 0012.
+	// patent_analytics (BigQuery) stays with the backend (ADR 0019 decision 3).
+	// The analyze_claim tool was retired under ADR 0012.
+
+	// ------------------------------------------------------------------ OCR
+	// ocr (./ocr-tool.ts, ADR 0019 C3a): the package's Mistral client on the
+	// host's own key — the backend's MISTRAL_API_KEY, the firm's key in the
+	// harness (FlowLeap provides no OCR there).
+	ocrTool,
 
 	// -------------------------------------------- US lookups (PRD 0013 T06)
 	...usLookupTools,

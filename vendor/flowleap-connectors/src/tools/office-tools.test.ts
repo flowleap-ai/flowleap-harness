@@ -40,13 +40,13 @@ function contextOver(fetch: ReturnType<typeof recordedOps>['fetch']): ToolContex
 const byName = new Map(officeTools().map((definition) => [definition.name, definition]));
 
 describe('officeTools()', () => {
-	it('lists the 33 office tools once each, every one with its credential, title and an object schema', () => {
+	it('lists the 34 office tools once each, every one with its credential, title and an object schema', () => {
 		const tools = officeTools();
-		expect(tools).toHaveLength(33);
+		expect(tools).toHaveLength(34);
 		expect(new Set(tools.map((t) => t.name)).size).toBe(tools.length);
 		for (const definition of tools) {
 			expect(definition.description.length, definition.name).toBeGreaterThan(20);
-			expect(['epoOps', 'usptoOdp', 'semanticScholar', 'none'], definition.name).toContain(definition.access);
+			expect(['epoOps', 'usptoOdp', 'semanticScholar', 'mistral', 'none'], definition.name).toContain(definition.access);
 			expect(definition.annotations, definition.name).toMatchObject({ readOnlyHint: true, destructiveHint: false });
 			expect(definition.annotations?.title.trim().length, definition.name).toBeGreaterThan(0);
 			expect(toolInputJsonSchema(definition), definition.name).toMatchObject({ type: 'object' });
@@ -63,6 +63,7 @@ describe('officeTools()', () => {
 			'get_application_documents', 'read_application_document',
 			'get_patent_summary', 'compare_patents', 'get_prosecution_timeline', 'get_patent_term',
 			'search_uspto_portfolio_by_customer_number',
+			'ocr',
 			'get_us_grant', 'get_us_application', 'get_family',
 			'search_academic', 'search_npl', 'get_npl_work',
 		]);
@@ -75,6 +76,8 @@ describe('officeTools()', () => {
 		expect(access('search_academic')).toBe('semanticScholar');
 		expect(access('search_npl')).toBe('none');
 		expect(access('get_search_syntax')).toBe('none');
+		// OCR spends the host's own Mistral key (ADR 0019 C3a).
+		expect(access('ocr')).toBe('mistral');
 	});
 
 	it('runs a pure tool with no host call at all', async () => {

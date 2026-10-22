@@ -9,7 +9,14 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createConnectors, DataKeysRequiredError, ErrorCodes, ProviderKeyInvalidError, UpstreamError } from '../index.js';
+import {
+	createConnectors,
+	DataKeysRequiredError,
+	ErrorCodes,
+	OcrNotConfiguredError,
+	ProviderKeyInvalidError,
+	UpstreamError,
+} from '../index.js';
 import { createFakeHost, userCredentials } from './fake-host.js';
 
 const FIXED_NOW = Date.UTC(2026, 9, 22, 12, 0, 0);
@@ -162,9 +169,11 @@ describe('@flowleap/connectors over a fake host', () => {
 		expect(odp).toBeDefined();
 	});
 
-	it('answers the registered ocr_unavailable code when the host has no OCR', async () => {
-		// The IFW document reader downloads through ODP, then needs the host's OCR. A host
-		// without one (or whose OCR has no key) is a 503 with a code from the closed registry.
+	it('answers the registered ocr_unavailable code when no OCR resolves on the host', async () => {
+		// The IFW document reader downloads through ODP, then needs OCR: the host's own
+		// `ocr` capability, else the package's Mistral client on the host's `mistral`
+		// credential (ADR 0019 C3a). A host with neither (or whose own OCR has no key)
+		// is a 503 with a code from the closed registry.
 		expect(ErrorCodes.ocr_unavailable).toBe('ocr_unavailable');
 		const pdf = async () => new Response(Buffer.from('%PDF-1.4 fake'), { status: 200 });
 
@@ -177,7 +186,7 @@ describe('@flowleap/connectors over a fake host', () => {
 			createFakeHost({
 				fetch: pdf,
 				now: FIXED_NOW,
-				ocr: { run: async () => { throw new Error('MISTRAL_API_KEY is not set'); } },
+				ocr: { run: async () => { throw new OcrNotConfiguredError(); } },
 			}),
 		);
 		const unkeyed = await keyless.odp.getODPDocumentText('16000001', 'DOC1').catch((error) => error);

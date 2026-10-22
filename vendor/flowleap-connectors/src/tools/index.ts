@@ -13,6 +13,7 @@ export type {
 } from './definition.js';
 export { toolInputJsonSchema } from './definition.js';
 export { officeTools, patentNumberInput, usApplicationNumberInput } from './office-tools.js';
+export { ocrTool } from './ocr-tool.js';
 export {
 	ToolError,
 	tool,

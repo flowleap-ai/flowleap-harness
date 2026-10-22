@@ -19,7 +19,8 @@
  *  the read-through cache, caller-gone abort). Since slice C2a the office
  *  TOOLS are here as well: `officeTools()` is the list both hosts register
  *  (./tools/), each a `ToolDefinition` whose handler runs over a
- *  `ToolContext` holding these clients.
+ *  `ToolContext` holding these clients. Since C3a the Mistral OCR client is
+ *  here too (`ocr`), on the host's `mistral` credential.
  *--------------------------------------------------------------------------------------------*/
 
 import { createContext, type ConnectorContext } from './context.js';
@@ -28,6 +29,7 @@ import * as academic from './academic-search/index.js';
 import * as fulltextRouter from './fulltext-router.js';
 import * as nplResolve from './npl-resolve/index.js';
 import * as nplSearch from './npl-search/index.js';
+import * as ocr from './ocr/index.js';
 import * as opsAuth from './ops/auth.js';
 import * as direct from './ops/direct.js';
 import * as opsFetch from './ops/fetch.js';
@@ -74,6 +76,7 @@ export {
 	TrialDataBudgetExhaustedError,
 	ClientGoneError,
 	type PatentProvider,
+	type KeyedProvider,
 } from './errors.js';
 export {
 	cachedProviderRead,
@@ -175,6 +178,19 @@ export type {
 	NplWorkSummary,
 	ParsedNplReference,
 } from './npl-resolve/index.js';
+
+// ── OCR (ADR 0019 C3a): the Mistral client on the host's `mistral` credential ──
+export {
+	OcrInputError,
+	OcrNotConfiguredError,
+	OCR_MODEL,
+	OCR_CACHE_TTL,
+	OCR_SUPPORTED_FORMATS,
+	MISTRAL_API_BASE,
+	ocrInputSchema,
+	resolveOcr,
+} from './ocr/index.js';
+export type { OcrInput, OcrRequestInput, OcrResponse, OcrPage, OcrImage, OcrKeyVerdict } from './ocr/index.js';
 
 // ── The tool contract and the office tools (ADR 0019 C2a) ───────────────────
 export * from './tools/index.js';
@@ -298,11 +314,25 @@ function openalexClient(ctx: ConnectorContext) {
 	});
 }
 
+/**
+ * Mistral OCR (ADR 0019 C3a) on the host's `mistral` credential: the OCR run
+ * (24h through the host cache), the settings-card key test, and whether this
+ * host can OCR at all.
+ */
+function ocrClient(ctx: ConnectorContext) {
+	return bindAll(ctx, {
+		runOcr: ocr.runOcr,
+		verifyKey: ocr.verifyKey,
+		isConfigured: ocr.isOcrConfigured,
+	});
+}
+
 export type OpsClient = ReturnType<typeof opsClient>;
 export type OdpClient = ReturnType<typeof odpClient>;
 export type AcademicClient = ReturnType<typeof academicClient>;
 export type FulltextClient = ReturnType<typeof fulltextClient>;
 export type OpenalexClient = ReturnType<typeof openalexClient>;
+export type OcrClient = ReturnType<typeof ocrClient>;
 
 export interface Connectors {
 	readonly host: ConnectorHost;
@@ -315,6 +345,8 @@ export interface Connectors {
 	readonly fulltext: FulltextClient;
 	/** OpenAlex (ADR 0019 C2a). */
 	readonly openalex: OpenalexClient;
+	/** Mistral OCR on the host's `mistral` credential (ADR 0019 C3a). */
+	readonly ocr: OcrClient;
 }
 
 /**
@@ -332,5 +364,6 @@ export function createConnectors(host: ConnectorHost): Connectors {
 		academic: academicClient(context),
 		fulltext: fulltextClient(context),
 		openalex: openalexClient(context),
+		ocr: ocrClient(context),
 	};
 }

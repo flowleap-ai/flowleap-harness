@@ -1,6 +1,6 @@
 {
   "name": "@flowleap/connectors",
-  "description": "FlowLeap patent-data connectors, vendored from flowleap-backend packages/connectors: the EPO OPS, USPTO ODP and academic (Semantic Scholar, arXiv) clients behind the ConnectorHost interface (ADR 0019)",
+  "description": "FlowLeap patent-data connectors, vendored from flowleap-backend packages/connectors: the EPO OPS, USPTO ODP, academic (Semantic Scholar, arXiv) and Mistral OCR clients behind the ConnectorHost interface (ADR 0019)",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"

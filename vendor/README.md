@@ -23,7 +23,7 @@ Upstream workspace: `cordis-workspace` (local checkout: `~/repos/cordis-workspac
 | `timer/` | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | 1.1.2 | https://github.com/deepseek-harness/cordis (`packages/timer`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
 | `hmr/` | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | 1.0.15 | https://github.com/deepseek-harness/cordis (`packages/hmr`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
 | `logger-console/` | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | 1.0.0 | https://github.com/deepseek-harness/cordis (`packages/logger-console`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
-| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`); synced by `scripts/flowleap/sync-connectors.sh`, pinned in `vendor/flowleap-connectors/SYNC.json` | `43fe5c9ef330b7bf0c134980a03ab1d1ec46b2c3` |
+| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`); synced by `scripts/flowleap/sync-connectors.sh`, pinned in `vendor/flowleap-connectors/SYNC.json` | `78c15456a2943bc87fb2013f3d540777e3b0f5a0` (the flowleap-backend #609 branch, ADR 0019 C3a) |
 
 Third-party dependencies of the vendored packages stay on npm: `@standard-schema/spec`, `js-yaml`, `chokidar`, `picomatch`, `@babel/code-frame`, `supports-color`, `node-addon-require-builtin`.
 

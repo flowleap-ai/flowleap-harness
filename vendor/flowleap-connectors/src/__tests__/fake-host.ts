@@ -45,7 +45,7 @@ export interface FakeHost extends ConnectorHost {
 	refuse?: (event: ConnectorEvent) => void;
 }
 
-export function userCredentials<P extends 'epoOps' | 'usptoOdp' | 'semanticScholar'>(
+export function userCredentials<P extends ConnectorProvider>(
 	credentials: ConnectorCredentialMap[P],
 	stored = false,
 ): CredentialLookup<P> {

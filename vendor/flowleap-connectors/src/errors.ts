@@ -15,6 +15,15 @@ import { ErrorCodes } from './contract/error-codes.js';
 export type PatentProvider = 'epo' | 'uspto';
 
 /**
+ * Every provider a host holds a USER-owned key for, so a rejected key names
+ * it: the two patent offices, and Mistral for OCR (ADR 0019 C3a — the firm's
+ * own key in the harness). The backend's Patent-Data Key machinery (stored
+ * keys, key sources, the keys page) is per patent office and never sees
+ * `mistral`.
+ */
+export type KeyedProvider = PatentProvider | 'mistral';
+
+/**
  * Custom error for rate limit (429) responses
  */
 export class RateLimitError extends Error {
@@ -92,8 +101,8 @@ export class UpstreamError extends Error {
 }
 
 /**
- * A patent-data provider rejected the USER-supplied credential (bad EPO consumer
- * key/secret, bad USPTO API key). Deliberately distinct from sign-in failures (401 →
+ * A provider rejected the USER-supplied credential (bad EPO consumer key/secret,
+ * bad USPTO API key, bad Mistral key). Deliberately distinct from sign-in failures (401 →
  * re-sign-in) and the subscription gate (402): the recovery action is "update your
  * patent-data keys". The canonical HTTP mapping —
  * `400 { error: { code: 'patent_provider_key_invalid', provider } }` — lives with the
@@ -104,7 +113,7 @@ export class UpstreamError extends Error {
 export class ProviderKeyInvalidError extends Error {
 	readonly code = ErrorCodes.patent_provider_key_invalid;
 	constructor(
-		readonly provider: PatentProvider,
+		readonly provider: KeyedProvider,
 		message: string,
 		readonly stored = false,
 	) {

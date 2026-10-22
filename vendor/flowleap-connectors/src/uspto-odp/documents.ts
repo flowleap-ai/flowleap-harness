@@ -9,13 +9,14 @@
  * The documents listing has its OWN envelope (`{ count, documentBag }`), unlike
  * the sibling sub-resources which share `{ count, patentFileWrapperDataBag }`.
  *
- * Text extraction chains download → the host's OCR (`host.ocr`, the backend's
- * Mistral OCR in src/lib/ocr/): most IFW
+ * Text extraction chains download → OCR (`resolveOcr`, ../ocr/index.ts: the
+ * host's own `ocr` capability when it supplies one, else the package's Mistral
+ * client on the host's `mistral` credential, ADR 0019 C3a): most IFW
  * documents are scanned images with no text layer, so OCR is the only reliable
  * path to their content. The download follows ODP's 302 redirect to a signed
  * data-documents.uspto.gov URL (fetch follows it transparently). OCR results
- * ride the OCR module's 24h content-hash cache; the read_application_document
- * tool (src/tools/registry.ts, #334) adds the outer app+documentIdentifier
+ * ride the OCR client's 24h content-hash cache; the read_application_document
+ * tool (../tools/office-tools.ts, #334) adds the outer app+documentIdentifier
  * cache so cache hits skip the download entirely (IFW documents are immutable
  * once filed).
  */
@@ -24,6 +25,7 @@ import type { ConnectorContext } from '../context.js';
 import { ErrorCodes } from '../contract/error-codes.js';
 import { APIError, UpstreamError } from '../errors.js';
 import { fetchWithRetry } from '../fetch-with-retry.js';
+import { OcrNotConfiguredError, resolveOcr } from '../ocr/index.js';
 import { getUSPTOOdpAuthHeader, isUSPTOOdpConfigured, resolveOdpCredentials, throwIfUserKeyRejected, type OdpCredentialLookup } from './auth.js';
 import { parseODPError, type ODPSearchError } from './patent-search.js';
 
@@ -198,8 +200,8 @@ async function downloadODPDocumentPdf(
  * Throws typed errors for the unified-envelope chokepoint (mapProviderError):
  * UpstreamError for ODP-side failures (503 odp_api_key_missing, 404
  * document_not_found, 413 document_too_large, parsed upstream errors, 503
- * ocr_unavailable when MISTRAL_API_KEY is unset); RateLimitError/APIError from
- * download or OCR propagate as themselves.
+ * ocr_unavailable when no OCR resolves on this host or its OCR has no key);
+ * RateLimitError/APIError from download or OCR propagate as themselves.
  */
 export async function getODPDocumentText(
 	ctx: ConnectorContext,
@@ -217,7 +219,7 @@ export async function getODPDocumentText(
 
 	const pdf = await downloadODPDocumentPdf(ctx, lookup, applicationNumberText, documentIdentifier);
 
-	const ocrCapability = ctx.host.ocr;
+	const ocrCapability = await resolveOcr(ctx);
 	if (!ocrCapability) {
 		throw new UpstreamError(503, ErrorCodes.ocr_unavailable, 'OCR is not available on this host.');
 	}
@@ -228,9 +230,8 @@ export async function getODPDocumentText(
 			filename: `${documentIdentifier}.pdf`,
 		});
 	} catch (error) {
-		const message = error instanceof Error ? error.message : 'OCR failed';
-		if (message.includes('MISTRAL_API_KEY')) {
-			throw new UpstreamError(503, ErrorCodes.ocr_unavailable, message);
+		if (error instanceof OcrNotConfiguredError) {
+			throw new UpstreamError(503, ErrorCodes.ocr_unavailable, error.message);
 		}
 		throw error;
 	}

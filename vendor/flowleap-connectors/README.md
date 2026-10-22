@@ -1,6 +1,6 @@
 # @flowleap/connectors (vendored)
 
-The FlowLeap patent-data office clients — EPO OPS, USPTO ODP and the academic search (Semantic Scholar, arXiv) — behind the `ConnectorHost` interface (ADR 0019). The source of truth is `flowleap-backend/packages/connectors`; it is not on npm, so this directory is a pinned copy the way `vendor/cordis` is, and [`@deepseek-ai/dsh-flowleap-connectors`](../../packages/host/flowleap-connectors/README.md) is the harness host that runs it in the attorney's own process with the firm's keys.
+The FlowLeap patent-data office clients — EPO OPS, USPTO ODP, the academic search (Semantic Scholar, arXiv) and the Mistral OCR client — behind the `ConnectorHost` interface (ADR 0019). The source of truth is `flowleap-backend/packages/connectors`; it is not on npm, so this directory is a pinned copy the way `vendor/cordis` is, and [`@deepseek-ai/dsh-flowleap-connectors`](../../packages/host/flowleap-connectors/README.md) is the harness host that runs it in the attorney's own process with the firm's keys.
 
 ## Layout
 

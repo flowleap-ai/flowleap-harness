@@ -16,7 +16,7 @@
 
 import type { DataKeysRequiredError, ProviderKeyInvalidError } from './errors.js';
 
-/** The providers a host holds credentials for. `mistral` is reserved for OCR. */
+/** The providers a host holds credentials for. `mistral` is the OCR key (ADR 0019 C3a). */
 export type ConnectorProvider = 'epoOps' | 'usptoOdp' | 'semanticScholar' | 'mistral';
 
 export interface EpoOpsCredentials {
@@ -32,8 +32,9 @@ export interface SemanticScholarCredentials {
 	readonly apiKey?: string;
 }
 
+/** The Mistral API key the OCR client spends (./ocr/). A host without one answers `missing`. */
 export interface MistralCredentials {
-	readonly apiKey?: string;
+	readonly apiKey: string;
 }
 
 export interface ConnectorCredentialMap {
@@ -101,7 +102,16 @@ export type ConnectorEvent =
 	/** How the request is ending, when the client knows better than a status code. */
 	| { readonly kind: 'outcome'; readonly outcome: 'timeout' | 'backoff' };
 
-/** The OCR capability the IFW document reader needs (the OCR itself stays with the host). */
+/**
+ * A host's OWN OCR, overriding the package's Mistral client for the IFW
+ * document reader (`read_application_document`): when present it runs
+ * instead of the client, whatever the `mistral` credential says (./ocr/
+ * `resolveOcr`). A host that only holds a Mistral key supplies nothing here.
+ * The `ocr` tool itself always runs the package client over that key, since
+ * it returns the full page and image shape this capability does not carry.
+ * Throw `OcrNotConfiguredError` when the OCR has no key: the reader answers
+ * `ocr_unavailable`.
+ */
 export interface ConnectorOcr {
 	run(input: { file: string; filename: string }): Promise<{
 		pageCount: number;

@@ -24,10 +24,11 @@ import type { Connectors } from '../index.js';
  * The credential a tool needs: the office key its primary read spends.
  * `search_patents` is `epoOps` (its default provider); its `provider=uspto`
  * arm spends the ODP key instead, and the opt-in EPO enrichment of the ODP
- * tools (`enrich[]`) spends the OPS key beside it. `none`: no key at all
- * (OpenAlex, the query grammar reference).
+ * tools (`enrich[]`) spends the OPS key beside it. `mistral`: the OCR key
+ * (the `ocr` tool; `read_application_document` spends it beside its ODP key).
+ * `none`: no key at all (OpenAlex, the query grammar reference).
  */
-export type ToolAccess = 'epoOps' | 'usptoOdp' | 'semanticScholar' | 'none';
+export type ToolAccess = 'epoOps' | 'usptoOdp' | 'semanticScholar' | 'mistral' | 'none';
 
 /**
  * MCP tool annotations. Every FlowLeap tool is read-only, so the two hints are
