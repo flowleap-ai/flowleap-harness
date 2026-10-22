@@ -33,6 +33,15 @@ import type { CredentialLookup } from '../host.js';
 /** Cache TTL for OCR results, in seconds (24 hours — OCR output never changes for the same file). */
 export const OCR_CACHE_TTL = 86400;
 
+/**
+ * The shape version of a cached OCR result (AGENTS.md Gotchas: every cached payload
+ * carries one in its key). Since C3a the result rides the host's cache — on the backend
+ * the hybrid memory+Valkey tier, where an entry outlives a deploy — so a change to what
+ * `runOcr` returns bumps this constant in the SAME commit, or the warm tier keeps serving
+ * the old shape for the full TTL.
+ */
+export const OCR_RESPONSE_SHAPE_VERSION = 1;
+
 /** The Mistral Document AI model this client drives (the API alias). */
 export const OCR_MODEL = 'mistral-ocr-latest';
 
@@ -251,12 +260,13 @@ export async function runOcr(ctx: ConnectorContext, input: OcrRequestInput): Pro
 		);
 	}
 
-	// Create cache key from file content hash or URL — the same bytes as before
-	// the extraction, so entries written by the backend keep their keys.
+	// Cache key from the file content hash or the URL, under the shape version:
+	// `ocr:v<shape>:<md5 of { input }>`. (The pre-C3a backend key had no version; its
+	// entries lived in the process-local cache only and died with each deploy.)
 	const cacheInput = file
 		? crypto.createHash('md5').update(file).digest('hex')
 		: url;
-	const cacheKey = getCacheKey('ocr', { input: cacheInput });
+	const cacheKey = getCacheKey(`ocr:v${OCR_RESPONSE_SHAPE_VERSION}`, { input: cacheInput });
 
 	// Check cache first
 	const cached = await host.cache?.get<OcrResponse>(cacheKey);
@@ -373,7 +383,14 @@ export async function runOcr(ctx: ConnectorContext, input: OcrRequestInput): Pro
  * red card with a reason. Not cached.
  */
 export async function verifyKey(ctx: ConnectorContext): Promise<OcrKeyVerdict> {
-	const lookup = await ctx.host.credentials('mistral');
+	// The lookup is the host's credential store (a locked keychain can throw): a red card too.
+	let lookup: CredentialLookup<'mistral'>;
+	try {
+		lookup = await ctx.host.credentials('mistral');
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		return { ok: false, message: `The Mistral API key could not be read: ${reason}` };
+	}
 	if (lookup.status !== 'available' || !lookup.credentials.apiKey) {
 		return { ok: false, message: 'No Mistral API key is configured.' };
 	}

@@ -20,6 +20,7 @@ export {
 	OcrNotConfiguredError,
 	OCR_MODEL,
 	OCR_CACHE_TTL,
+	OCR_RESPONSE_SHAPE_VERSION,
 	OCR_SUPPORTED_FORMATS,
 	MISTRAL_API_BASE,
 	type OcrRequestInput,

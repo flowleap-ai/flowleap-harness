@@ -26,6 +26,7 @@ import {
 	OcrInputError,
 	OcrNotConfiguredError,
 	OCR_CACHE_TTL,
+	OCR_RESPONSE_SHAPE_VERSION,
 	OCR_MODEL,
 	OCR_SUPPORTED_FORMATS,
 	MISTRAL_API_BASE,
@@ -117,10 +118,11 @@ describe('runOcr — happy path', () => {
 			document: { type: 'document_url', document_url: 'https://example.com/spec.pdf' },
 			include_image_base64: true,
 		});
-		// Stored in the host cache for 24h, under the pre-extraction key.
+		// Stored in the host cache for 24h, under the versioned key.
 		expect(host.store.size).toBe(1);
 		const [key, stored] = [...host.store.entries()][0];
-		expect(key).toMatch(/^ocr:[0-9a-f]{32}$/);
+		// The key carries the shape version (AGENTS.md Gotchas): the entry outlives a deploy on the backend.
+		expect(key).toMatch(new RegExp(`^ocr:v${OCR_RESPONSE_SHAPE_VERSION}:[0-9a-f]{32}$`));
 		expect(stored).toMatchObject({ success: true, pageCount: 2 });
 		expect(OCR_CACHE_TTL).toBe(86400);
 	});
@@ -379,6 +381,19 @@ describe('verifyKey — the settings-card test call', () => {
 		expect(upstream.requests[0].url).toBe(`${MISTRAL_API_BASE}/v1/models`);
 		expect(upstream.requests[0].init.method).toBe('GET');
 		expect(upstream.lastHeaders()).toMatchObject({ authorization: 'Bearer test-mistral-key' });
+	});
+
+	it('a credential store that throws is a red verdict with the reason, never a throw', async () => {
+		// The harness reads the key from its credential store, which can fail (a locked
+		// keychain): the settings card still gets a red card, not an exception.
+		(host as { credentials: FakeHost['credentials'] }).credentials = async () => {
+			throw new Error('keychain locked');
+		};
+		await expect(verifyKey(ctx)).resolves.toEqual({
+			ok: false,
+			message: 'The Mistral API key could not be read: keychain locked',
+		});
+		expect(upstream.requests).toHaveLength(0);
 	});
 
 	it('a rejected key is a red verdict with the status, never a throw', async () => {

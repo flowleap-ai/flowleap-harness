@@ -3,8 +3,8 @@
   "upstreamVersion": "0.1.0",
   "backendRepository": "https://github.com/abdullahatrash/flowleap-backend",
   "backendPath": "packages/connectors",
-  "backendCommit": "78c15456a2943bc87fb2013f3d540777e3b0f5a0",
+  "backendCommit": "595fcede84213b999734798bb27a4bd9558cfcf9",
   "backendDirty": false,
-  "contentHash": "e0231c65f32cfad9ca6914f673c97968cd85a4e1cc881f72c1b729790e3f7305",
-  "syncedAt": "2026-10-22T14:19:41Z"
+  "contentHash": "816ba6036791b6d7b8b9566d9e54ae27aea1894ae4a16d95d243150c9635e747",
+  "syncedAt": "2026-10-22T15:08:30Z"
 }
