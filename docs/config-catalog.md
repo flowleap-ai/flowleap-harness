@@ -1384,6 +1384,8 @@ export interface Config {
 export interface Config {
   /** Entries the in-memory result cache holds before evicting the least recently used one. */
   cacheEntries: number
+  /** Office tools from the library that this host does not register, by backend name. */
+  excludeTools: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->

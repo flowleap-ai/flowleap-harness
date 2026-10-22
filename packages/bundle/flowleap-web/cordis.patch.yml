@@ -148,6 +148,9 @@
       name: '@deepseek-ai/dsh-flowleap-connectors'
       config:
         cacheEntries: 500
+        # get_fulltext stays on the MCP row: its US arm needs the usFulltext host capability,
+        # which the harness does not provide, so the paid backend copy answers instead.
+        excludeTools: [get_fulltext]
 
     # Settings > Patent data connectors (one card per connector) and the
     # first-run key wizard; the row id is also the wizard's settings namespace.

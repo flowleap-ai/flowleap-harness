@@ -117,7 +117,7 @@ describe('registerOfficeTools', () => {
     new MemoryCredentials(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5 })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
     expect(ctx.tools.schemas()).toHaveLength(33)
     expect(ctx.get('flowleapConnectors')).toBeDefined()
     expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'])

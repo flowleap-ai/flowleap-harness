@@ -42,22 +42,25 @@ export const inject = ['tools', 'credentials']
 export interface Config {
   /** Entries the in-memory result cache holds before evicting the least recently used one. */
   cacheEntries: number
+  /** Office tools from the library that this host does not register, by backend name. */
+  excludeTools: string[]
 }
 
 /** Runtime schema for the row. */
 export const Config: z<Config> = z.object({
   cacheEntries: z.number().step(1).min(1).default(500),
+  excludeTools: z.array(String).default([]),
 })
 
 /**
  * Mount the library, register the office tools, and expose the Remote.
  * @param ctx - the mounting context, carrying `tools` and `credentials`.
- * @param config - cache size.
+ * @param config - cache size and the office tools to leave out.
  */
 export function apply(ctx: Context, config: Config): void {
   const store = createCredentialStore(ctx.credentials)
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
   const connectors = createConnectors(bound.host)
-  ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools()), 'flowleap-connectors: office tools')
+  ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools().filter(definition => !config.excludeTools.includes(definition.name))), 'flowleap-connectors: office tools')
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
 }
