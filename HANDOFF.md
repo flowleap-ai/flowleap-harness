@@ -173,7 +173,7 @@ fail. A fresh clone does not have them.
 - **Package scope.** The toolchain forces `@deepseek-ai/dsh-*` names and `main: lib/index.js`; the
   FlowLeap packages are `@deepseek-ai/dsh-flowleap-web` and `@deepseek-ai/dsh-flowleap-prompt`.
 
-## Direction set by the founder on 2026-10-22 (ADR 0019 ACCEPTED 2026-10-22: https://github.com/abdullahatrash/flowleap-agent-v2/pull/854; C1 = next, in flowleap-backend)
+## Direction set by the founder on 2026-10-22 (ADR 0019 ACCEPTED 2026-10-22: https://github.com/abdullahatrash/flowleap-agent-v2/pull/854; C1 running in flowleap-backend as a linked session)
 
 - **Decouple the data path.** Office connectors run inside the app with the firm's own keys: EPO OPS
   (consumer key + secret), USPTO ODP key, Semantic Scholar key, DPMA later. Build them by extracting
