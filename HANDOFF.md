@@ -266,7 +266,9 @@ fail. A fresh clone does not have them.
   cap, 33 edge cases, MVP = firm tier with human review. Eight open questions for the founder in
   section 13; the ADR follows the answers.
 - **S3 verified in the browser (2026-10-22):** tab title, sidebar mark, hero tagline, "Patent Agent"
-  default preset, FlowLeap-voice Preview notice. Favicon and web manifest now come from `brand.json` (the Host serves the mark at `/brand/mark` and
+  default preset, FlowLeap-voice Preview notice. Later the same day: the running indicator is a slot
+  (`conversation.chat.running.icon`), the brand package fills it with the pulsing FlowLeap mark and the
+  copy reads "Working for Ns ···"; verified live on a scratch instance. Favicon and web manifest now come from `brand.json` (the Host serves the mark at `/brand/mark` and
   a FlowLeap manifest; verified in the served index). Left: `brand.json` has no `accent` yet, the
   other presets keep the coding persona.
 - **C3 in flight (2026-10-22).** C3a = flowleap-backend draft PR #609: the Mistral OCR client lives in
