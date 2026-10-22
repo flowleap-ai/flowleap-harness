@@ -204,3 +204,17 @@ fail. A fresh clone does not have them.
   cards with Test connection, first-run wizard with Skip). mupdf (AGPL) is excluded by the
   third-party-notices gate, so figure rasterisation is unavailable in the harness until the owner
   authorises it. Wiring of the 33 package tools follows C2a.
+- **C2 wiring DONE (2026-10-22, `f51b47086a`).** The host plugin registers the 33 office tools from
+  `officeTools()` (vendored copy synced to flowleap-backend `43fe5c9`, the #608 branch); static gates
+  61 of 62 (only `uv.lock`). Checked in the browser on a fresh home: the first-run wizard shows the
+  four connectors with write-only fields, Test, Save and Skip; Settings has a "Patent data connectors"
+  section with one card each. Not yet exercised with real keys: the founder's EPO OPS, USPTO ODP and
+  Semantic Scholar keys are entered through the wizard, then one `search_patents` and one
+  `get_us_grant` prove the in-process path.
+- **Now urgent, C4.** The MCP row still serves all 54 backend tools beside the 33 native ones, so the
+  model sees `search_patents` twice (native and `mcp__flowleap__`). Narrow the MCP row to the paid set
+  (PATSTAT, enriched citations, examiner baseline, images, US full text) by a backend profile
+  parameter or a client-side allowlist on the row, and re-export the prompt (C6) with the native names
+  so `mcp__flowleap__search_patents` becomes `search_patents` in the text.
+- After #608 merges: `scripts/flowleap/sync-connectors.sh` against the sibling checkout, so SYNC.json
+  points at a main commit.
