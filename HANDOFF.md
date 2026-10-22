@@ -188,3 +188,9 @@ fail. A fresh clone does not have them.
   internally; MIT notices stay in `THIRD_PARTY_NOTICES.md`.
 - **Skills stay methods** (ADR 0018); each connector carries its data knowledge in its tool schemas
   and result text.
+- **Business model.** Self-hosted by the firm; FlowLeap installs and configures, gives 15 days of
+  initial support, then a monthly retainer. Every slice must be operable by a firm admin who is not
+  FlowLeap: installer, first-run key wizard, a doctor command, a log bundle, an update channel.
+- **Focus.** Patent workflows over chat: open and read PDFs (born-digital locally, scanned via the
+  Mistral OCR connector), deliverables as files, and the firm's own tools (DMS, docketing, Drive,
+  SharePoint) over MCP rows configured by the admin.
