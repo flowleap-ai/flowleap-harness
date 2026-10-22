@@ -322,6 +322,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects the user-settings seam onto the generated Remote namespace: the read is always redacted and every refusal is classified here, not on the seam Definition.',
   },
   {
+    key: 'flowleapConnectors',
+    pkg: 'flowleap-connectors',
+    title: 'FlowLeap connector credentials Remote',
+    mode: 'service',
+    consumers: ['client-ui-settings-flowleap-connectors'],
+    note: 'Reports presence of the firm\'s patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'workspaceFiles',
     pkg: 'api-workspace-files',
     title: 'Host workspace file Remote service',

@@ -258,6 +258,7 @@
     { "path": "./packages/client/ui-conversation/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
+    { "path": "./packages/client/ui-settings-flowleap-connectors/tsconfig.host.json" },
 
     { "path": "./packages/host/product-telemetry-otel" },
     { "path": "./packages/boot/config-editor" },
@@ -278,6 +279,7 @@
     { "path": "./packages/client/ui-sidebar-documentpreview/tsconfig.host.json" },
     { "path": "./packages/client/ui-sidebar-browser/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
+    { "path": "./packages/client/ui-settings-flowleap-connectors/tsconfig.host.json" },
     { "path": "./packages/document/office-to-pdf" },
 
     { "path": "./packages/api/account-controller" },
@@ -294,6 +296,7 @@
     { "path": "./vendor/hmr" },
     { "path": "./packages/boot/hmr" },
     { "path": "./vendor/logger-console" },
+    { "path": "./vendor/flowleap-connectors" },
     { "path": "./packages/util/brand" },
     { "path": "./packages/util/package-manifest" },
     { "path": "./packages/util/plugin-market-index" },
@@ -519,6 +522,7 @@
     { "path": "./packages/host/directory-picker-auto" },
     { "path": "./packages/host/directory-picker-browse" },
     { "path": "./packages/host/directory-picker-native" },
+    { "path": "./packages/host/flowleap-connectors" },
     { "path": "./packages/host/flowleap-prompt" },
     { "path": "./packages/host/frontend-static" },
     { "path": "./packages/host/open-in-app" },

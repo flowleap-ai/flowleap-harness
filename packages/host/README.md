@@ -34,6 +34,7 @@ The packages play the host roles; each package README owns its contract and conf
 | [`plugin-inventory/`](plugin-inventory/README.md) | Read-only projection of current Loader entries | Remote `pluginInventory/list` |
 | [`product-telemetry-otel/`](product-telemetry-otel/README.md) | Explicit product usage events over OTLP/HTTP | `ctx.productTelemetry` |
 | [`flowleap-prompt/`](flowleap-prompt/README.md) | File-backed FlowLeap persona section | contributes to `ctx.systemPrompt` |
+| [`flowleap-connectors/`](flowleap-connectors/README.md) | In-process FlowLeap patent-data connectors: office tools over the firm's own keys | Remote `flowleapConnectors/*`, contributes to `ctx.tools` |
 
 -----
 

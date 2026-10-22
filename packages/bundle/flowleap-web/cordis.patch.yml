@@ -105,6 +105,21 @@
         toolCallTimeoutMs: 120000
         failOnStartupError: false
 
+    # In-process patent-data connectors (ADR 0019 C2): the @flowleap/connectors
+    # library over this process's credential store, with the office tools
+    # (`search_patents`, `get_bibliography`, `search_academic`, no prefix) on
+    # the tool registry and the `flowleapConnectors` Remote behind the cards.
+    # Keys live in the credential store under `flowleap-connectors/<id>`.
+    - id: flowleap-connectors
+      name: '@deepseek-ai/dsh-flowleap-connectors'
+      config:
+        cacheEntries: 500
+
+    # Settings > Patent data connectors (one card per connector) and the
+    # first-run key wizard; the row id is also the wizard's settings namespace.
+    - id: ui-settings-flowleap-connectors
+      name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
+
     # The persona file: FLOWLEAP_PROMPT_PATH (the agent-v2 export) or this
     # bundle's placeholder, resolved through the dsh installation that
     # launched the profile.

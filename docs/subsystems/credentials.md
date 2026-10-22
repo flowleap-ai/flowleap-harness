@@ -365,6 +365,48 @@ abstract getDeviceIdentity(): Promise<{ deviceId?: string; userId?: AccountUserI
 
 Source: [`packages/credentials/deepseek-account/src/index.ts`](../../packages/credentials/deepseek-account/src/index.ts)
 
+<a id="ctxflowleapconnectors--flowleapconnectorscontroller"></a>
+
+### `ctx.flowleapConnectors` — `FlowleapConnectorsController`
+
+Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
+
+```ts cordis-catalog
+/**
+ * Presence of every connector, for the settings cards and the first-run wizard.
+ * @returns one view per connector id; never a value.
+ */
+@Remote async describe(): Promise<Record<string, ConnectorPresence>>
+
+/**
+ * Store one connector's fields. The values cross the wire in this direction only.
+ * @param id - the connector.
+ * @param values - its fields, each non-empty.
+ * @throws RemoteError `gateway/bad-request` for an unknown connector or field, `flowleap-connectors/rejected` when the store refuses.
+ */
+@Remote async set(id: string, values: Record<string, string>): Promise<void>
+
+/**
+ * Remove one connector's record; removing an absent record is a no-op.
+ * @param id - the connector.
+ * @throws RemoteError `gateway/bad-request` for an unknown connector, `flowleap-connectors/rejected` when the store refuses.
+ */
+@Remote async unset(id: string): Promise<void>
+
+/**
+ * Run one cheap authenticated call with the stored key: an OPS access-token
+ * mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar
+ * search. Mistral has no connector call yet and reports presence only.
+ * @param id - the connector.
+ * @param signal - cancels the upstream call.
+ * @returns whether the call succeeded and a human-readable message.
+ * @throws RemoteError `gateway/bad-request` for an unknown connector.
+ */
+@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>
+```
+
+Source: [`packages/host/flowleap-connectors/src/controller.ts`](../../packages/host/flowleap-connectors/src/controller.ts)
+
 <a id="authorization-events"></a>
 
 ### `authorization/*` events
