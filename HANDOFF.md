@@ -197,7 +197,10 @@ fail. A fresh clone does not have them.
 - **C2 in flight (2026-10-22).** C2a = flowleap-backend draft PR #608: 33 office tools defined in `@flowleap/connectors`
   (`ToolDefinition`, `officeTools()`, `toolInputJsonSchema()`), 19 paid or transport tools stay in
   the backend, US full text is a host capability `usFulltext?`, catalog byte-identical (52 tools),
-  270 package tests + 2,111 backend tests green, CI pending, founder review. C2b/c = harness agent: vendored
-  copy of the library with `scripts/flowleap/sync-connectors.sh --check`, host plugin
-  `dsh-flowleap-connectors` (ConnectorHost over dsh credentials, three interim tools until C2a
-  lands), settings cards per connector with Test connection, first-run key wizard.
+  270 package tests + 2,111 backend tests green, CI pending, founder review. C2b/c DONE on `flowleap` (4 commits): `vendor/flowleap-connectors` with
+  `scripts/flowleap/sync-connectors.sh --check` (hash-pinned to a backend commit), host plugin
+  `dsh-flowleap-connectors` (ConnectorHost over dsh credential records `flowleap-connectors/<id>`,
+  LRU cache, remote `describe/set/unset/test`), client `ui-settings-flowleap-connectors` (four
+  cards with Test connection, first-run wizard with Skip). mupdf (AGPL) is excluded by the
+  third-party-notices gate, so figure rasterisation is unavailable in the harness until the owner
+  authorises it. Wiring of the 33 package tools follows C2a.
