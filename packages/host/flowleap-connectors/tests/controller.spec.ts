@@ -1,0 +1,76 @@
+import { Context } from '@deepseek-ai/cordis'
+import { createConnectors } from '@flowleap/connectors'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  FlowleapConnectorsController, createConnectorHost, createCredentialStore,
+} from '@deepseek-ai/dsh-flowleap-connectors'
+import { MemoryCredentials } from './memory-credentials.ts'
+
+async function bench() {
+  const ctx = new Context()
+  const credentials = new MemoryCredentials(ctx)
+  const store = createCredentialStore(credentials)
+  const fetchSpy = vi.fn<typeof fetch>(() => Promise.reject(new Error('no network in this spec')))
+  const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
+  const connectors = createConnectors(bound.host)
+  await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
+  return { ctx, credentials, controller: ctx.flowleapConnectors, fetchSpy }
+}
+
+describe('the flowleapConnectors Remote', () => {
+  it('describes presence per connector, stores and removes records, and never returns a value', async () => {
+    const { controller, credentials } = await bench()
+    expect(await controller.describe()).toEqual({
+      'epo-ops': { configured: false, writable: true, fields: ['consumerKey', 'consumerSecret'] },
+      'uspto-odp': { configured: false, writable: true, fields: ['apiKey'] },
+      'semantic-scholar': { configured: false, writable: true, fields: ['apiKey'] },
+      mistral: { configured: false, writable: true, fields: ['apiKey'] },
+    })
+    await controller.set('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const described = await controller.describe()
+    expect(described['epo-ops']).toEqual({ configured: true, source: 'stored', writable: true, fields: ['consumerKey', 'consumerSecret'] })
+    expect(JSON.stringify(described)).not.toContain('ck')
+    expect(credentials.records.size).toBe(1)
+    await controller.unset('epo-ops')
+    expect((await controller.describe())['epo-ops']).toMatchObject({ configured: false })
+  })
+
+  it('refuses unknown connectors and incomplete fields as gateway/bad-request or flowleap-connectors/rejected', async () => {
+    const { controller } = await bench()
+    await expect(controller.set('dpma', { apiKey: 'x' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.unset('dpma')).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.test('dpma', new AbortController().signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.set('epo-ops', { consumerKey: 'ck' })).rejects.toMatchObject({
+      code: 'flowleap-connectors/rejected', message: 'EPO OPS: field "consumerSecret" is required', details: { id: 'epo-ops' },
+    })
+  })
+
+  it('reports a missing key as a failed test without calling anything', async () => {
+    const { controller, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    expect(await controller.test('epo-ops', signal)).toEqual({ ok: false, message: 'EPO OPS key not configured' })
+    expect(await controller.test('uspto-odp', signal)).toEqual({ ok: false, message: 'USPTO ODP key not configured' })
+    expect(await controller.test('semantic-scholar', signal)).toEqual({ ok: false, message: 'Semantic Scholar key not configured' })
+    expect(await controller.test('mistral', signal)).toEqual({ ok: false, message: 'Mistral key not configured' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('runs one cheap call per stored connector and folds an upstream refusal into a failed test', async () => {
+    const { controller, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    await controller.set('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    await controller.set('mistral', { apiKey: 'mk' })
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ access_token: 'tok', expires_in: '1200' }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    })))
+    expect(await controller.test('epo-ops', signal)).toEqual({ ok: true, message: 'EPO OPS: access token issued' })
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://ops.epo.org/3.2/auth/accesstoken')
+    expect(await controller.test('mistral', signal)).toMatchObject({ ok: true })
+
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response('denied', { status: 401 })))
+    await controller.set('uspto-odp', { apiKey: 'bad' })
+    const rejected = await controller.test('uspto-odp', signal)
+    expect(rejected.ok).toBe(false)
+    expect(rejected.message).toContain('USPTO ODP')
+  })
+})
