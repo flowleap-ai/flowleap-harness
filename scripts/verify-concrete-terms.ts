@@ -8,7 +8,8 @@ import { historicalSchemaRegion } from './historical-schema-region.ts'
 
 const root = resolve(import.meta.dirname, '..')
 const blockedTerm = 'prove' + 'nance'
-const excludedPrefixes = ['vendor/', '.agents/notes/archived/'] as const
+// FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim.
+const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/'] as const
 
 /** One blocked term occurrence in a tracked path or text line. */
 export interface ConcreteTermViolation {

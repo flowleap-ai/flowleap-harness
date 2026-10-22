@@ -42,6 +42,7 @@ import {
 	TrialDataBudgetExhaustedError,
 	UpstreamError,
 	UpstreamUnavailableError,
+	type PatentProvider,
 } from './errors.js';
 import type { ConnectorHost } from './host.js';
 
@@ -65,6 +66,14 @@ export interface ProviderReadFailure {
 	/** Extra response headers (e.g. Retry-After on 429). */
 	headers: Record<string, string>;
 	body: UnifiedErrorBody;
+	/**
+	 * The error the thunk threw, when the failure came from one (ADR 0019 C2a).
+	 * In memory only — the wire carries `body`. A tool that re-raises a typed
+	 * key or rate-limit condition throws THIS object, so it keeps every field
+	 * the host set on it (a rejected stored key's `stored` flag, #518) without
+	 * reading the host's request context.
+	 */
+	cause?: unknown;
 }
 
 export type ProviderReadResult<T> =
@@ -128,7 +137,7 @@ export async function cachedProviderRead<T>(
 			throw error;
 		}
 		// Upstream failures are never cached.
-		return { ok: false, ...mapProviderError(host, error) };
+		return { ok: false, ...mapProviderError(host, error), cause: error };
 	}
 
 	if (shouldCache && !shouldCache(data)) {
@@ -257,4 +266,51 @@ function envelope(
 		headers: {},
 		body: { success: false, error: errorBody, status },
 	};
+}
+
+/**
+ * Re-raise a failed provider read as the typed error it came from, for the
+ * tool contract: a typed key or rate-limit condition reaches the route layer
+ * as its error class (DataKeysRequiredError, ProviderKeyInvalidError,
+ * RateLimitError), which the host maps canonically (the backend: 400
+ * data_keys_required / 400 patent_provider_key_invalid / 429 with
+ * Retry-After); everything else as a plain Error carrying the upstream message.
+ *
+ * The thunk's own error (`failure.cause`) is thrown when it is one of those
+ * classes, so nothing the host set on it is lost. A failure built without a
+ * cause (a hand-made envelope) is reconstructed from its body; `stored` then
+ * says whether the rejected key of that office was a stored one (the backend
+ * answers it from its request context; default: not stored).
+ */
+export function throwProviderReadError(
+	failure: ProviderReadFailure,
+	stored: (provider: PatentProvider) => boolean = () => false,
+): never {
+	const { cause } = failure;
+	if (
+		cause instanceof DataKeysRequiredError ||
+		cause instanceof ProviderKeyInvalidError ||
+		cause instanceof RateLimitError
+	) {
+		throw cause;
+	}
+	const { code, message } = failure.body.error;
+	const provider = (failure.body.error.provider as PatentProvider) ?? 'epo';
+
+	if (code === ErrorCodes.data_keys_required) {
+		throw new DataKeysRequiredError(provider);
+	}
+	if (code === ErrorCodes.patent_provider_key_invalid) {
+		throw new ProviderKeyInvalidError(provider, message, stored(provider));
+	}
+	if (code === ErrorCodes.rate_limit_exceeded && typeof failure.body.error.service === 'string') {
+		// A genuine RateLimitError (it carries its service); message-sniffed 429s
+		// stay plain Errors, exactly as they were thrown before.
+		throw new RateLimitError(
+			failure.body.error.service,
+			failure.body.error.retry_after as number | undefined,
+			message,
+		);
+	}
+	throw new Error(message);
 }

@@ -2,11 +2,11 @@ import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
-import { createConnectors } from '@flowleap/connectors'
+import { createConnectors, officeTools } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import * as FlowleapConnectors from '@deepseek-ai/dsh-flowleap-connectors'
 import {
-  createConnectorHost, createCredentialStore, interimOfficeTools, registerOfficeTools, toolInputJsonSchema,
+  createConnectorHost, createCredentialStore, modelInputSchema, registerOfficeTools,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { MemoryCredentials } from './memory-credentials.ts'
 
@@ -31,32 +31,37 @@ let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
 
 describe('registerOfficeTools', () => {
-  it('registers the three interim office tools under their backend names with Zod-derived schemas, and unregisters them together', async () => {
+  it('registers the library\'s 33 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
     const { ctx, connectors, bound } = await bench()
-    const dispose = registerOfficeTools(ctx, connectors, bound, interimOfficeTools())
-    expect(ctx.tools.schemas().map(schema => schema.name)).toEqual(['search_patents', 'get_bibliography', 'search_academic'])
-    const schema = toolInputJsonSchema(interimOfficeTools()[1]!)
-    expect(schema).toMatchObject({ type: 'object', required: ['patentNumber'] })
-    expect(JSON.stringify(schema)).toContain('"patentNumber":{"type":"string","minLength":1,"description":"Publication number, for example `EP1234567A1`')
-    expect(ctx.tools.schemas()[2]?.parameters).toMatchObject({ properties: { sources: { type: 'array', items: { enum: ['scholar', 'arxiv'] } } } })
+    const dispose = registerOfficeTools(ctx, connectors, bound, officeTools())
+    const names = ctx.tools.schemas().map(schema => schema.name)
+    expect(names).toHaveLength(33)
+    expect(names).toEqual(officeTools().map(definition => definition.name))
+    expect(names.slice(0, 4)).toEqual(['search_patents', 'get_search_syntax', 'search_register', 'get_bibliography'])
+    expect(names).toEqual(expect.arrayContaining(['get_claims', 'get_legal_status', 'get_us_grant', 'search_academic', 'search_npl', 'get_npl_work']))
+    const bibliography = officeTools().find(definition => definition.name === 'get_bibliography')!
+    const schema = modelInputSchema(bibliography)
+    expect(schema).toMatchObject({ type: 'object' })
+    expect(schema).not.toHaveProperty('$schema')
+    expect(ctx.tools.schemas().find(tool => tool.name === 'get_bibliography')?.parameters).toEqual(schema)
     dispose()
     expect(ctx.tools.schemas()).toEqual([])
   })
 
   it('rolls back on a name conflict', async () => {
     const { ctx, connectors, bound } = await bench()
-    const [first] = interimOfficeTools()
+    const [first] = officeTools()
     const keep = registerOfficeTools(ctx, connectors, bound, [first!])
-    expect(() => registerOfficeTools(ctx, connectors, bound, interimOfficeTools())).toThrow('already registered')
+    expect(() => registerOfficeTools(ctx, connectors, bound, officeTools())).toThrow('already registered')
     expect(ctx.tools.schemas().map(schema => schema.name)).toEqual(['search_patents'])
     keep()
   })
 
   it('answers a call without a stored key with text naming the settings card, without touching the network', async () => {
     const { ctx, connectors, bound, fetchSpy } = await bench()
-    registerOfficeTools(ctx, connectors, bound, interimOfficeTools())
+    registerOfficeTools(ctx, connectors, bound, officeTools())
     const result = await ctx.tools.execute({
-      callId: callId(), name: 'get_bibliography', arguments: { patentNumber: 'EP1234567A1' }, signal: new AbortController().signal,
+      callId: callId(), name: 'get_bibliography', arguments: { patent_number: 'EP1234567A1' }, signal: new AbortController().signal,
     })
     expect(result.isError).toBe(false)
     expect(result.value).toEqual({
@@ -71,13 +76,17 @@ describe('registerOfficeTools', () => {
       callId: callId(), name: 'search_patents', arguments: { query: 'ti=battery' }, signal: new AbortController().signal,
     })
     expect(textOf(search.content[0])).toContain('EPO OPS key not configured')
+    const grant = await ctx.tools.execute({
+      callId: callId(), name: 'get_us_grant', arguments: { patent_number: '10000000' }, signal: new AbortController().signal,
+    })
+    expect(textOf(grant.content[0])).toContain('USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP')
   })
 
   it('rejects invalid arguments as a tool error before the handler runs', async () => {
     const { ctx, connectors, bound, fetchSpy } = await bench()
-    registerOfficeTools(ctx, connectors, bound, interimOfficeTools())
+    registerOfficeTools(ctx, connectors, bound, officeTools())
     const result = await ctx.tools.execute({
-      callId: callId(), name: 'search_patents', arguments: { query: '' }, signal: new AbortController().signal,
+      callId: callId(), name: 'search_patents', arguments: {}, signal: new AbortController().signal,
     })
     expect(result.isError).toBe(true)
     expect(textOf(result.content[0])).toContain('invalid arguments')
@@ -93,13 +102,13 @@ describe('registerOfficeTools', () => {
         status: 200, headers: { 'content-type': 'application/json' },
       }))
     })
-    registerOfficeTools(ctx, connectors, bound, interimOfficeTools())
+    registerOfficeTools(ctx, connectors, bound, officeTools())
     const signal = new AbortController().signal
     const result = await ctx.tools.execute({
-      callId: callId(), name: 'search_academic', arguments: { query: 'solid electrolyte', sources: ['scholar'], maxResults: 1 }, signal,
+      callId: callId(), name: 'search_academic', arguments: { query: 'solid electrolyte', sources: ['semantic-scholar'], max_results: 1 }, signal,
     })
     expect(result.isError).toBe(false)
-    expect(result.value).toMatchObject({ total: 1, papers: [{ title: 'Solid electrolytes', source: 'scholar' }] })
+    expect(result.value).toMatchObject({ query: 'solid electrolyte', total: 1, papers: [{ title: 'Solid electrolytes', source: 'scholar' }] })
     expect(seenSignals).toEqual([signal])
   })
 
@@ -109,7 +118,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5 })
-    expect(ctx.tools.schemas().map(schema => schema.name)).toEqual(['search_patents', 'get_bibliography', 'search_academic'])
+    expect(ctx.tools.schemas()).toHaveLength(33)
     expect(ctx.get('flowleapConnectors')).toBeDefined()
     expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'])
     await fiber.dispose()

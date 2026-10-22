@@ -2,7 +2,7 @@
  * In-process FlowLeap patent-data connectors (ADR 0019, slice C2). One row mounts
  * the `@flowleap/connectors` library over the dsh seams: `ctx.credentials`
  * records hold the firm's EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys,
- * the office tools register on `ctx.tools` under their backend names, and the
+ * the library's 33 office tools register on `ctx.tools` under their backend names, and the
  * `flowleapConnectors` Remote serves the settings cards and the first-run wizard.
  *
  * See packages/host/flowleap-connectors/README.md.
@@ -13,11 +13,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-tools'
-import { createConnectors } from '@flowleap/connectors'
+import { createConnectors, officeTools } from '@flowleap/connectors'
 import { FlowleapConnectorsController } from './controller.ts'
 import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
-import { interimOfficeTools } from './interim-tools.ts'
 import { registerOfficeTools } from './tools.ts'
 
 export { FlowleapConnectorsController } from './controller.ts'
@@ -29,9 +28,8 @@ export {
 export type { ConnectorCredentialStore } from './credentials.ts'
 export { LruCache, createConnectorHost } from './host.ts'
 export type { BoundConnectorHost, ConnectorHostOptions } from './host.ts'
-export { interimOfficeTools } from './interim-tools.ts'
-export { missingCredential, registerOfficeTools, toDshTool, toolInputJsonSchema } from './tools.ts'
-export type { MissingCredentialResult, OfficeToolAnnotations, OfficeToolDefinition, OfficeToolContext } from './tools.ts'
+export { missingCredential, modelInputSchema, registerOfficeTools, toDshTool } from './tools.ts'
+export type { MissingCredentialResult } from './tools.ts'
 export * from './types.ts'
 
 /** Cordis plugin name; also the credential record scope. */
@@ -60,8 +58,6 @@ export function apply(ctx: Context, config: Config): void {
   const store = createCredentialStore(ctx.credentials)
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
   const connectors = createConnectors(bound.host)
-  // INTERIM: `interimOfficeTools()` stands in for `officeTools()` from
-  // `@flowleap/connectors` until slice C2a lands; the seam does not change.
-  ctx.effect(() => registerOfficeTools(ctx, connectors, bound, interimOfficeTools()), 'flowleap-connectors: office tools')
+  ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools()), 'flowleap-connectors: office tools')
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
 }

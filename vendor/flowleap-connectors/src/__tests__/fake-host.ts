@@ -29,6 +29,7 @@ export interface FakeHostOptions {
 	consoleLogger?: boolean;
 	settings?: ConnectorHost['settings'];
 	ocr?: ConnectorHost['ocr'];
+	usFulltext?: ConnectorHost['usFulltext'];
 }
 
 export interface FakeHost extends ConnectorHost {
@@ -104,6 +105,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
 		},
 		signal: () => host.callerSignal,
 		ocr: options.ocr,
+		usFulltext: options.usFulltext,
 		settings: options.settings,
 	};
 	return host;

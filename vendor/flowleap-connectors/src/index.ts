@@ -16,12 +16,18 @@
  *  here too: the result and error contract, the pure utilities (publication
  *  numbers, the representative publication, XML decoding, extraction, the
  *  register hint, rasterization) and the shared plumbing (fetch with retry,
- *  the read-through cache, caller-gone abort).
+ *  the read-through cache, caller-gone abort). Since slice C2a the office
+ *  TOOLS are here as well: `officeTools()` is the list both hosts register
+ *  (./tools/), each a `ToolDefinition` whose handler runs over a
+ *  `ToolContext` holding these clients.
  *--------------------------------------------------------------------------------------------*/
 
 import { createContext, type ConnectorContext } from './context.js';
 import type { ConnectorHost } from './host.js';
 import * as academic from './academic-search/index.js';
+import * as fulltextRouter from './fulltext-router.js';
+import * as nplResolve from './npl-resolve/index.js';
+import * as nplSearch from './npl-search/index.js';
 import * as opsAuth from './ops/auth.js';
 import * as direct from './ops/direct.js';
 import * as opsFetch from './ops/fetch.js';
@@ -39,6 +45,9 @@ export type {
 	ConnectorLogger,
 	ConnectorEvent,
 	ConnectorOcr,
+	ConnectorUsFulltext,
+	UsFulltext,
+	UsFulltextResult,
 	ConnectorSettings,
 	ConnectorProvider,
 	ConnectorCredentialMap,
@@ -69,6 +78,7 @@ export {
 export {
 	cachedProviderRead,
 	mapProviderError,
+	throwProviderReadError,
 	type UnifiedErrorBody,
 	type ProviderReadFailure,
 	type ProviderReadResult,
@@ -76,6 +86,7 @@ export {
 } from './cached-provider-read.js';
 export { fetchWithRetry, parseRetryAfter, type FetchWithRetryOptions } from './fetch-with-retry.js';
 export { getCacheKey } from './cache-key.js';
+export { runWithCacheVisibility, recordCacheRead } from './cache-visibility.js';
 export { isClientGone, throwIfClientGone, abortableSleep, withClientAbort } from './client-abort.js';
 
 // ── Pure utilities ──────────────────────────────────────────────────────────
@@ -125,6 +136,48 @@ export type {
 	AcademicSourceReport,
 	AcademicSearchData,
 } from './academic-search/index.js';
+
+// ── The text tier and the literature (ADR 0019 C2a) ─────────────────────────
+export * from './office-coverage.js';
+export type { EuroPctFallback, FulltextWorkaround, RoutedClaims, RoutedDescription } from './fulltext-router.js';
+export {
+	OPENALEX_BASE,
+	OPENALEX_MAILTO,
+	OPENALEX_WORK_FIELDS,
+	NPL_PUBLICATION_TYPES,
+	openAlexTypeFilter,
+	parseWork,
+} from './npl-search/index.js';
+export type {
+	NplPublicationType,
+	NplSearchFilter,
+	NplSearchParams,
+	NplSearchResponse,
+	ScholarlyWork,
+} from './npl-search/index.js';
+export {
+	NPL_RESOLVE_SHAPE_VERSION,
+	NPL_ROWS_RESOLVED_PER_CALL,
+	MATCH_THRESHOLD,
+	SKIPPED,
+	parseNplReference,
+	pickTitleMatch,
+	resolveNplReferences,
+	summarizeResolution,
+	titleContainment,
+	titleSimilarity,
+	titleTokens,
+} from './npl-resolve/index.js';
+export type {
+	NplCandidate,
+	NplResolution,
+	NplResolutionStats,
+	NplWorkSummary,
+	ParsedNplReference,
+} from './npl-resolve/index.js';
+
+// ── The tool contract and the office tools (ADR 0019 C2a) ───────────────────
+export * from './tools/index.js';
 
 // ── The factory ─────────────────────────────────────────────────────────────
 
@@ -228,9 +281,28 @@ function academicClient(ctx: ConnectorContext) {
 	});
 }
 
+/** The text tier (ADR 0024): claims and description routed by office, the US arm through `host.usFulltext`. */
+function fulltextClient(ctx: ConnectorContext) {
+	return bindAll(ctx, {
+		getClaimsRouted: fulltextRouter.getClaimsRouted,
+		getDescriptionRouted: fulltextRouter.getDescriptionRouted,
+	});
+}
+
+/** OpenAlex: the NPL search and the cited-reference resolution. No key. */
+function openalexClient(ctx: ConnectorContext) {
+	return bindAll(ctx, {
+		runNplSearch: nplSearch.runNplSearch,
+		resolveNplReference: nplResolve.resolveNplReference,
+		withResolvedNpl: nplResolve.withResolvedNpl,
+	});
+}
+
 export type OpsClient = ReturnType<typeof opsClient>;
 export type OdpClient = ReturnType<typeof odpClient>;
 export type AcademicClient = ReturnType<typeof academicClient>;
+export type FulltextClient = ReturnType<typeof fulltextClient>;
+export type OpenalexClient = ReturnType<typeof openalexClient>;
 
 export interface Connectors {
 	readonly host: ConnectorHost;
@@ -239,6 +311,10 @@ export interface Connectors {
 	readonly ops: OpsClient;
 	readonly odp: OdpClient;
 	readonly academic: AcademicClient;
+	/** The text tier router (ADR 0019 C2a). */
+	readonly fulltext: FulltextClient;
+	/** OpenAlex (ADR 0019 C2a). */
+	readonly openalex: OpenalexClient;
 }
 
 /**
@@ -254,5 +330,7 @@ export function createConnectors(host: ConnectorHost): Connectors {
 		ops: opsClient(context),
 		odp: odpClient(context),
 		academic: academicClient(context),
+		fulltext: fulltextClient(context),
+		openalex: openalexClient(context),
 	};
 }

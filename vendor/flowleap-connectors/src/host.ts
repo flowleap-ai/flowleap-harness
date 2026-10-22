@@ -110,6 +110,34 @@ export interface ConnectorOcr {
 	}>;
 }
 
+/** A US publication's claims from the host's full-text source. */
+export interface UsFulltext {
+	/** The source's own publication number, e.g. the BigQuery DOCDB form "US-2026069159-A1". */
+	publicationNumber: string;
+	/** Individual claims (best-effort split), or [] when unavailable. */
+	claims: string[];
+}
+
+/**
+ * What the US full-text source answers: the claims, or why not. `disabled`
+ * is the source switched off (the router answers `not_configured`);
+ * `not_us` a non-US number; `no_key` a US number the source cannot key (a
+ * design, plant or reissue series); `not_found` a US number it does not hold.
+ */
+export type UsFulltextResult =
+	| { ok: true; data: UsFulltext }
+	| { ok: false; reason: 'disabled' | 'not_us' | 'no_key' | 'not_found' };
+
+/**
+ * The US full-text capability (ADR 0019 C2a): the text tier's BigQuery arm
+ * (ADR 0024). The backend wires its materialized claims table; a host
+ * without it answers US claims `FULLTEXT_UNAVAILABLE` with reason
+ * `not_configured`. EP and WO text needs no capability: it is an OPS read.
+ */
+export interface ConnectorUsFulltext {
+	read(docId: string): Promise<UsFulltextResult>;
+}
+
 export interface ConnectorSettings {
 	/**
 	 * The wall-clock budget of one logical OPS request, retries included, in
@@ -140,6 +168,8 @@ export interface ConnectorHost {
 	 */
 	signal?(): AbortSignal | undefined;
 	readonly ocr?: ConnectorOcr;
+	/** The US full-text source (ADR 0024). Absent: US claims are `not_configured`. */
+	readonly usFulltext?: ConnectorUsFulltext;
 	readonly settings?: ConnectorSettings;
 	/**
 	 * Extra fields a host adds to the error envelope of a typed key error — the
