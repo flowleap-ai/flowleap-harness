@@ -198,7 +198,7 @@ fail. A fresh clone does not have them.
 - **C2 in flight (2026-10-22).** C2a MERGED (flowleap-backend #608, a3704e9): 33 office tools defined in `@flowleap/connectors`
   (`ToolDefinition`, `officeTools()`, `toolInputJsonSchema()`), 19 paid or transport tools stay in
   the backend, US full text is a host capability `usFulltext?`, catalog byte-identical (52 tools),
-  270 package tests + 2,111 backend tests green. Backend not yet redeployed. C2b/c DONE on `flowleap` (4 commits): `vendor/flowleap-connectors` with
+  270 package tests + 2,111 backend tests green; deployed by the push-to-main workflow. C2b/c DONE on `flowleap` (4 commits): `vendor/flowleap-connectors` with
   `scripts/flowleap/sync-connectors.sh --check` (hash-pinned to a backend commit), host plugin
   `dsh-flowleap-connectors` (ConnectorHost over dsh credential records `flowleap-connectors/<id>`,
   LRU cache, remote `describe/set/unset/test`), client `ui-settings-flowleap-connectors` (four
@@ -292,6 +292,6 @@ fail. A fresh clone does not have them.
   `get_fulltext` excluded), `read_pdf` for workspace files through the firm's Mistral key (50 MB,
   300 pages, page markers, cost line, 24 h cache), real `verifyKey` on the Mistral card, MCP row at 19
   paid tools, no tool in both forms. Gates: 61 of 62 after the concrete-terms gate learned to skip
-  `flowleap/`. C3a MERGED (flowleap-backend #609); the vendored library is pinned to backend main. Backend
-  not yet redeployed (two merges pending deploy: #608, #609). Live OCR test with a real Mistral key still open (founder).
+  `flowleap/`. C3a MERGED (flowleap-backend #609); the vendored library is pinned to backend main. The backend deploys automatically
+  on every push to main (`deploy.yml`); #606, #608 and #609 each deployed green, the last at 15:02 UTC. Live OCR test with a real Mistral key still open (founder).
   Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
