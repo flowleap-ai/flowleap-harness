@@ -31,6 +31,7 @@ import { ActivityPill, UsagePill } from '../src/client/chat/StatsPills.tsx'
 import { createFlowMotion, type InputFoldDriver } from '../src/client/chat/flow-motion.ts'
 import { CHAT_FLOW_INJECT, CHAT_NODE_INJECT } from '../src/client/apply.ts'
 import { UserContent } from '../src/client/chat/UserContent.tsx'
+import { RunningWhaleTail } from '../src/client/chat/RunningWhaleTail.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   interface ConversationTurnDataMap {
@@ -161,6 +162,9 @@ describe('Chat apply wiring', () => {
     expect(view?.children?.['conversation.chat.message.images']).toBeUndefined()
     expect(view?.children?.['conversation.chat.user.images']).toBeUndefined()
     expect(flow?.children?.['conversation.chat.node']).toBeDefined()
+    expect(flow?.children?.['conversation.chat.running.icon']).toMatchObject({ kind: 'single', scope: 'root' })
+    expect(b.runtime.slots.entries('conversation.chat.running.icon').map(entry => [entry.component, entry.options.priority]))
+      .toEqual([[RunningWhaleTail, 100]])
     expect(flow?.children?.['conversation.chat.message.images']).toBeUndefined()
     expect(flow?.children?.['conversation.chat.user.images']).toBeUndefined()
     expect(userContent.children?.['conversation.chat.message.images']).toBeUndefined()
@@ -170,6 +174,7 @@ describe('Chat apply wiring', () => {
     await b.chat.dispose()
     expect(b.runtime.slots.spec('conversation.chat.flow')).toBeUndefined()
     expect(b.runtime.slots.spec('conversation.chat.node')).toBeUndefined()
+    expect(b.runtime.slots.spec('conversation.chat.running.icon')).toBeUndefined()
     expect(b.runtime.slots.spec('conversation.chat.message.images')).toBeUndefined()
     expect(b.runtime.slots.spec('conversation.chat.user.images')).toBeUndefined()
     expect(() => b.runtime.factoryOf('conversation.chat.user.content')).toThrow('no definition')

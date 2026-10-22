@@ -75,6 +75,12 @@ export interface QuotaNoticeState {
   seq: number
 }
 
+/** Owner currency of the decorative icon before the running status text. */
+export interface RunningIconOwnerProps {
+  /** Host class fixing the icon box: size, containment, and flex placement. The occupant puts it on its root element. */
+  readonly className?: string | undefined
+}
+
 /** Original model-provided reasoning offered to the expanded Body Slot. */
 export interface ReasoningBodyOwnerProps {
   /** Complete or streaming reasoning text. */
@@ -340,7 +346,7 @@ export interface ChatFlowOwnerProps extends Pick<ChatNodeOwnerProps,
 /** Full props of the Chat-owned flow renderer. */
 export type ChatFlowSlotProps =
   PropsRuntime<'conversation.chat.flow'>
-  & PropsRenderSlots<'conversation.chat.node'>
+  & PropsRenderSlots<'conversation.chat.node' | 'conversation.chat.running.icon'>
   & PropsRenderFactories
   & PropsStore<ChatStore>
   & InjectFace<ChatFlowDataInjected>
@@ -427,6 +433,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * values replace it. Contributions must preserve access to the original text.
      */
     'conversation.chat.reasoning.body': { kind: 'single'; scope: 'session'; owner: ReasoningBodyOwnerProps }
+    /**
+     * Decorative icon before the running status text at the bottom of a live
+     * Turn. The owner supplies the icon box class; the occupant renders a
+     * presentation-only element with it. The official entry has priority 100
+     * and renders the animated whale; smaller priority values replace it.
+     */
+    'conversation.chat.running.icon': { kind: 'single'; scope: 'root'; owner: RunningIconOwnerProps }
     /**
      * Ordered feature contributions before a completed Turn's action row. Each
      * entry receives the Turn, closing sequence, and file opener. A fresh `id`

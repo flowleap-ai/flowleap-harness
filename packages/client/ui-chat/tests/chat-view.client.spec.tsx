@@ -38,6 +38,7 @@ import { derivePresentationPolicy, type CollapseTiming } from '../src/client/pre
 import { CHAT_FLOW_INJECT, CHAT_NODE_INJECT } from '../src/client/apply.ts'
 import { ChatView } from '../src/client/chat/ChatView.tsx'
 import { ChatFlow } from '../src/client/chat/ChatFlow.tsx'
+import { RunningWhaleTail } from '../src/client/chat/RunningWhaleTail.tsx'
 import { en, zh } from '../src/client/locale.ts'
 import { AssistantNodeView } from '../src/client/chat/AssistantNodeView.tsx'
 import { CommandNodeView, ManualCompactionNodeView } from '../src/client/chat/CommandNodeView.tsx'
@@ -443,6 +444,9 @@ function makeHarness(
   }) => {
     if (key === 'conversation.chat.node') {
       return renderNodeSlot(key, owner as RoutedChatNodeOwner, opts as Parameters<NodeRenderer>[2])
+    }
+    if (key === 'conversation.chat.running.icon') {
+      return <RunningWhaleTail {...owner} />
     }
     throw new Error(`Undeclared flow child: ${key}`)
   }

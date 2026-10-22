@@ -18,6 +18,23 @@
   object-fit: contain;
 }
 
+/* The running status mark breathes while the Turn runs; a reader who prefers
+   reduced motion sees it still. */
+.runningMark {
+  animation: brand-running-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runningMark {
+    animation: none;
+  }
+}
+
+@keyframes brand-running-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .name {
   display: inline-flex;
   align-items: center;

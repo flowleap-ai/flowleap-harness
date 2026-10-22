@@ -5,19 +5,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import { RunningStatus } from '../src/client/chat/RunningStatus.tsx'
+import { RunningWhaleTail } from '../src/client/chat/RunningWhaleTail.tsx'
+import type { RunningIconOwnerProps } from '../src/client/contract/slots.ts'
 import { zh } from '../src/client/locale.ts'
 
 const t = makeTranslate(zh, commonZh)
+/** The default occupant of the running icon Slot, rendered where the status asks for it. */
+const renderSlot: Parameters<typeof RunningStatus>[0]['renderSlot'] = (_key, owner) => <RunningWhaleTail className={(owner as RunningIconOwnerProps).className} />
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(5_000) })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 function statusHarness(startTime?: number) {
-  const view = render(<RunningStatus startTime={startTime} t={t} />)
+  const view = render(<RunningStatus startTime={startTime} t={t} renderSlot={renderSlot} />)
   return {
     ...view,
     content: () => view.container.querySelector('[data-chat-running] > :last-child'),
-    set: (nextStartTime?: number) => { view.rerender(<RunningStatus startTime={nextStartTime} t={t} />) },
+    set: (nextStartTime?: number) => { view.rerender(<RunningStatus startTime={nextStartTime} t={t} renderSlot={renderSlot} />) },
   }
 }
 
@@ -29,6 +33,7 @@ describe('RunningStatus', () => {
     view.set(1_000)
     expect(view.content()?.textContent).toMatch(/^深度求索中，用时 \d+秒 ···$/)
     expect(view.content()?.querySelectorAll('[data-shimmer="true"]')).toHaveLength(1)
+    expect(view.content()?.querySelector('svg[viewBox="0 0 16 16"]')?.parentElement?.className).toContain('runningIcon')
     expect(vi.getTimerCount()).toBe(1)
     view.set()
     expect(view.content()?.textContent).toBe('深度求索中')

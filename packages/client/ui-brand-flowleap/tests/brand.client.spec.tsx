@@ -6,13 +6,15 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '../src/client/index.ts'
 import { BRAND_GLOBAL, parseBrandRecord, type BrandRecord } from '../src/brand.ts'
-import { BrandMark, HeroBrandMark, SidebarBrandMark, SidebarBrandName } from '../src/client/Brand.tsx'
+import { BrandMark, HeroBrandMark, RunningBrandMark, SidebarBrandMark, SidebarBrandName } from '../src/client/Brand.tsx'
 import { brandCopy } from '../src/client/locales.ts'
 
 const MARK = 'data:image/svg+xml;base64,PHN2Zy8+'
 const BRAND: BrandRecord = { productName: 'Acme Patents', shortName: 'Acme', tagline: 'Search first.', mark: MARK, markStyle: 'mono', accent: '#123456' }
 
-const HOLES = ['sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark'] as const
+const MARK_HOLES = ['sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark'] as const
+const RUNNING_HOLE = 'conversation.chat.running.icon'
+const HOLES = [...MARK_HOLES, RUNNING_HOLE] as const
 
 afterEach(() => {
   cleanup()
@@ -54,21 +56,25 @@ describe('the ui-brand-flowleap browser half', () => {
     expect(error).toHaveBeenCalledOnce()
   })
 
-  it('fills the three brand slots, overrides the product copy in both locales, and unwinds on teardown', async () => {
+  it('fills the four brand slots, overrides the product copy in both locales, and unwinds on teardown', async () => {
     const subject = await bench()
     subject.locale.register('common', 'en', { 'brand.localBuild': 'DSH Local Build' })
     subject.locale.register('common', 'zh', { 'brand.localBuild': 'DSH 本地构建' })
     subject.locale.register('conversation', 'en', { 'hero.headline': 'Into the Unknown' })
     subject.locale.register('conversation', 'zh', { 'hero.headline': '探索未至之境' })
+    subject.locale.register('chat', 'en', { 'chat.deepDiving': 'Deep diving', 'chat.deepDivingFor': 'Deep diving for {duration} ···' })
+    subject.locale.register('chat', 'zh', { 'chat.deepDiving': '深度求索中', 'chat.deepDivingFor': '深度求索中，用时 {duration} ···' })
     vi.stubGlobal(BRAND_GLOBAL, BRAND)
     const fiber = subject.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(1)
     const common = subject.locale.bind('common')
     const conversation = subject.locale.bind('conversation')
-    expect([common('brand.localBuild'), conversation('hero.headline')]).toEqual(['Acme Patents', 'Search first.'])
+    const chat = subject.locale.bind('chat')
+    const copy = () => [common('brand.localBuild'), conversation('hero.headline'), chat('chat.deepDiving'), chat('chat.deepDivingFor', { duration: '19s' })]
+    expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
     subject.locale.setLocale('zh')
-    expect([common('brand.localBuild'), conversation('hero.headline')]).toEqual(['Acme Patents', 'Search first.'])
+    expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
 
     subject.disposeHoles()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
@@ -78,7 +84,15 @@ describe('the ui-brand-flowleap browser half', () => {
 
     await fiber.dispose()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
-    expect([common('brand.localBuild'), conversation('hero.headline')]).toEqual(['DSH 本地构建', '探索未至之境'])
+    expect(copy()).toEqual(['DSH 本地构建', '探索未至之境', '深度求索中', '深度求索中，用时 19s ···'])
+  })
+
+  it('leaves the running icon to the shell when the brand has no mark', async () => {
+    const subject = await bench()
+    const { mark: _mark, ...markless } = BRAND
+    vi.stubGlobal(BRAND_GLOBAL, markless)
+    await subject.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(HOLES.map(hole => subject.slots.entries(hole).length)).toEqual([1, 1, 1, 0])
   })
 
   it('leaves the headline alone without a tagline and names the product in every other override', () => {
@@ -111,6 +125,12 @@ describe('the ui-brand-flowleap browser half', () => {
     const none = render(<BrandMark size={16} brand={markless} />)
     expect(none.container.childElementCount).toBe(0)
     none.unmount()
+
+    const running = render(<RunningBrandMark className="host" brand={BRAND} />)
+    const pulse = running.container.firstElementChild as HTMLElement
+    expect([pulse.tagName, pulse.style.width, pulse.style.maskImage, pulse.classList.contains('host'), /runningMark/u.test(pulse.className)])
+      .toEqual(['SPAN', '', `url("${MARK}")`, true, true])
+    running.unmount()
 
     const name = render(<SidebarBrandName brand={BRAND} />)
     expect(name.container.textContent).toBe('Acme Patents')

@@ -537,7 +537,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-brand-flowleap`
 
 - `inject`: `webServer`
-- `source`: [`packages/client/ui-brand-flowleap/src/index.ts:32`](../packages/client/ui-brand-flowleap/src/index.ts)
+- `source`: [`packages/client/ui-brand-flowleap/src/index.ts:33`](../packages/client/ui-brand-flowleap/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the brand file lives. */

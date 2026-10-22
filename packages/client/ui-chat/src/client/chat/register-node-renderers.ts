@@ -10,6 +10,7 @@ import {
   TurnMaxTokensNodeView, UnknownNodeView, UserMessageNodeView,
 } from './MessageItem.tsx'
 import { DefaultReasoningBody, ReasoningContent } from './ReasoningContent.tsx'
+import { RunningWhaleTail } from './RunningWhaleTail.tsx'
 import { SystemPromptNodeView } from './SystemPromptRow.tsx'
 import { TurnProcessNodeView } from './TurnProcessNodeView.tsx'
 import { TurnTailNodeView } from './TurnTailNodeView.tsx'
@@ -37,6 +38,10 @@ export function registerChatNodeRenderers(
     name: 'conversation.chat.reasoning.body',
     priority: 100,
   }, DefaultReasoningBody))
+  ctx.slots.inject('conversation.chat.running.icon', () => ctx.slots.register({
+    name: 'conversation.chat.running.icon',
+    priority: 100,
+  }, RunningWhaleTail))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'user', locale: NS }, UserMessageNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(

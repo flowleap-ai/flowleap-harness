@@ -1,5 +1,5 @@
 ---
-description: "White-label brand for the Web client from one brand.json: the sidebar mark and name, the blank-session mark, the document title and the product copy; FlowLeap Patent AI by default, for deployments that are not DeepSeek Harness."
+description: "White-label brand for the Web client from one brand.json: the sidebar mark and name, the blank-session mark, the running status icon, the document title and the product copy; FlowLeap Patent AI by default, for deployments that are not DeepSeek Harness."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-client-ui-brand-flowleap` gives a deployment its own identity from one file. The Host half reads `brand.json` (product name, short name, tagline, mark image, accent colour), the browser half puts the mark and name into the sidebar, the mark into the blank-session hero, the product name into the document title, and layers the product name over the upstream copy that still names DeepSeek Harness. The `flowleap-web` profile mounts it with FlowLeap Patent AI; a firm edits `brand.json` to rebrand. It has no runtime state and does not affect model requests.
+`dsh-client-ui-brand-flowleap` gives a deployment its own identity from one file. The Host half reads `brand.json` (product name, short name, tagline, mark image, accent colour), the browser half puts the mark and name into the sidebar, the mark into the blank-session hero and into the running status at the bottom of a live turn, the product name into the document title, and layers the product name over the upstream copy that still names DeepSeek Harness. The `flowleap-web` profile mounts it with FlowLeap Patent AI; a firm edits `brand.json` to rebrand. It has no runtime state and does not affect model requests.
 
 ## Table of Contents
 
@@ -58,7 +58,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 | `productName` | yes | Document title base, sidebar name, and the name used inside the overridden copy |
 | `shortName` | yes | Short form kept for narrow surfaces |
 | `tagline` | no | Blank-session headline; absent keeps the shell's own headline |
-| `mark` | no | Image path relative to the file: SVG, PNG, JPEG or WebP, at most 256 KiB; absent keeps the shell's fallback mark |
+| `mark` | no | Image path relative to the file: SVG, PNG, JPEG or WebP, at most 256 KiB; absent keeps the shell's fallback mark in the sidebar and the hero, and the shell's own running icon |
 | `markStyle` | no | `mono` (default) draws the image as a mask filled with the surrounding text colour, so a black-on-transparent SVG follows both themes; `color` draws the image as is |
 | `accent` | no | CSS colour a `mono` mark is filled with instead of the text colour |
 
@@ -66,7 +66,7 @@ The file is read when the row applies; a missing or invalid file fails the row a
 
 ### What the browser shows
 
-The sidebar renders the mark at 24 px and the product name where the shell shows its fish and local-build label; the blank-session hero renders the mark at 34 px before the headline; the tab title becomes `<Session title> — <productName>`, and the served page already carries `<title>productName</title>` before the client mounts. The copy overrides replace, in both shipped locales, the English strings that name DeepSeek Harness or DSH in rows the FlowLeap profile still mounts: the sidebar label and title base (`common`), the blank-session headline (`conversation`, when a tagline is set), the first-run preview notice and key onboarding (`settings.models`), the account model group and the session-lock message (`model`), restart and compatibility notices (`pluginManager`), the office preview notice (`sidebarOffice`), and turn-failure messages (`chat`). Everything else in those dictionaries stays the owning package's text.
+The sidebar renders the mark at 24 px and the product name where the shell shows its fish and local-build label; the blank-session hero renders the mark at 34 px before the headline; the running status at the bottom of a live turn renders the mark in the shell's own icon box with a slow opacity pulse (still under `prefers-reduced-motion: reduce`) and reads "Working for 19s ···" instead of the shell's "Deep diving" line; the tab title becomes `<Session title> — <productName>`, and the served page already carries `<title>productName</title>` before the client mounts. The copy overrides replace, in both shipped locales, the English strings that name DeepSeek Harness or DSH in rows the FlowLeap profile still mounts: the sidebar label and title base (`common`), the blank-session headline (`conversation`, when a tagline is set), the first-run preview notice and key onboarding (`settings.models`), the account model group and the session-lock message (`model`), restart and compatibility notices (`pluginManager`), the office preview notice (`sidebarOffice`), and the running status wording and turn-failure messages (`chat`). Everything else in those dictionaries stays the owning package's text.
 
 -----
 
@@ -76,7 +76,7 @@ The sidebar renders the mark at 24 px and the product name where the shell shows
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half validates the path, reads and validates `brand.json`, resolves `mark` against the file's directory into a `data:` URL, and keeps the record in memory. It appends `{ kind: 'global', name: '__FLOWLEAP_BRAND__', value }` on every `webserver/index-inject` emit and registers one `webServer.tapIndex()` transform that replaces the served page's `<title>`. The browser half reads the global, re-validates it with the shared `parseBrandRecord`, and installs the three slot occupants as declaration-aware registration sets (nested `ctx.slots.inject()`), each receiving the record through the registration's `inject` face. Copy overrides go through `ctx.locale.override(ns, locale, dict)` for `en` and `zh`, one effect per namespace and locale; the table lives in [`src/client/locales.ts`](src/client/locales.ts). A page without the global, such as one the Host did not render, registers nothing.
+The Host half validates the path, reads and validates `brand.json`, resolves `mark` against the file's directory into a `data:` URL, and keeps the record in memory. It appends `{ kind: 'global', name: '__FLOWLEAP_BRAND__', value }` on every `webserver/index-inject` emit and registers one `webServer.tapIndex()` transform that replaces the served page's `<title>`. The browser half reads the global, re-validates it with the shared `parseBrandRecord`, and installs the slot occupants as declaration-aware registration sets (nested `ctx.slots.inject()`), each receiving the record through the registration's `inject` face; the running icon occupant (`conversation.chat.running.icon`, declared by ui-chat) is registered only when the record has a `mark`, so a markless brand keeps the shell's whale. Copy overrides go through `ctx.locale.override(ns, locale, dict)` for `en` and `zh`, one effect per namespace and locale; the table lives in [`src/client/locales.ts`](src/client/locales.ts). A page without the global, such as one the Host did not render, registers nothing.
 
 ### Source map
 
@@ -85,7 +85,7 @@ The Host half validates the path, reads and validates `brand.json`, resolves `ma
 | [`src/brand.ts`](src/brand.ts) | The shared `BrandRecord`, the global name, and `parseBrandRecord` |
 | [`src/index.ts`](src/index.ts) | Host half: `readBrandFile`, the injection row, the title transform |
 | [`src/client/index.ts`](src/client/index.ts) | Browser half: slot occupants and copy overrides |
-| [`src/client/Brand.tsx`](src/client/Brand.tsx) | `BrandMark` (mask or image) and the three occupants |
+| [`src/client/Brand.tsx`](src/client/Brand.tsx) | `BrandMark` (mask or image) and the four occupants |
 | [`src/client/locales.ts`](src/client/locales.ts) | The overridden namespaces and keys |
 | [`tests/brand-file.host.spec.ts`](tests/brand-file.host.spec.ts) | File reading, validation, injection and title rewrite |
 | [`tests/brand.client.spec.tsx`](tests/brand.client.spec.tsx) | Slot occupancy, overrides in both locales, mark rendering |
@@ -100,6 +100,7 @@ The Host half validates the path, reads and validates `brand.json`, resolves `ma
 - [ui-brand-official](../ui-brand-official/README.md) — the DeepSeek occupants this package replaces.
 - [ui-sidebar](../ui-sidebar/README.md) — declares `sidebar.brand.mark` and `sidebar.brand.name`.
 - [ui-conversation](../ui-conversation/README.md) — declares `conversation.hero.brand.mark`.
+- [ui-chat](../ui-chat/README.md) — declares `conversation.chat.running.icon` and the `chat` dictionary the running copy comes from.
 - [locale](../locale/README.md) — `override()` and the lookup order it joins.
 - [webserver](../../host/webserver/README.md) — index injections and `tapIndex`.
 - [dsh-flowleap-web](../../bundle/flowleap-web/README.md) — the profile layer that mounts this row at its default `brand.json`.

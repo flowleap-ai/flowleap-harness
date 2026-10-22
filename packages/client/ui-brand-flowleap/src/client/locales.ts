@@ -71,10 +71,12 @@ export function brandCopy(brand: BrandRecord): readonly CopyOverride[] {
     },
     // dsh-client-ui-sidebar-documentpreview (office): the unavailable notice.
     { ns: 'sidebarOffice', dict: { unavailable: `Office previews are unavailable. Enable the document preview service on the computer running ${product}.` } },
-    // dsh-client-ui-chat: turn failure messages that name the process or the vendor account.
+    // dsh-client-ui-chat: the running status wording, and turn failure messages that name the process or the vendor account.
     {
       ns: 'chat',
       dict: {
+        'chat.deepDiving': 'Working',
+        'chat.deepDivingFor': 'Working for {duration} ···',
         'message.failure.interrupted': `The ${product} process exited before this turn finished (for example, it was killed, crashed, or timed out while shutting down), so the turn was closed when ${product} restarted. Unfinished tool calls have unknown outcomes.`,
         'message.failure.accountSignedOut': 'Stopped because you signed out of the model provider account.',
         'message.failure.accountSignInRequired': 'Sign in to the model provider and ensure the request destination supports account authentication.',

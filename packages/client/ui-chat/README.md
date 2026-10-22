@@ -111,6 +111,8 @@ Running group titles, reasoning previews, tool and command rows, the active retr
 
 The running status shows a whale whose APNG mask inherits the text color. CSS selects the static SVG when reduced motion or forced colors are active, or alpha masks are unsupported. The build embeds the image in the plugin stylesheet; React does not pass image data through DOM styles.
 
+The root-scoped `conversation.chat.running.icon` single Slot, declared by the `conversation.chat.flow` entry, holds the decorative icon before the running status text. The owner passes its icon box class as `className`; the occupant puts it on its root element so the icon keeps the row's size, containment, and flex placement. The official whale entry registers at priority 100; a brand or deployment package replaces it with a smaller priority number. The status text and the live clock stay with the owner, so a replacement changes the picture only; the wording comes from the `chat.deepDiving` and `chat.deepDivingFor` dictionary keys, which a locale override can restate.
+
 Scroll-edge fades initialize when `ResizeObserver` reports the open group's layout; opening the group performs no immediate scroll-dimension read in a layout effect.
 
 Each group owns local `useDisclosure` state that survives mode changes while its component stays mounted.

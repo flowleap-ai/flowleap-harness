@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarBrandMarkOwnerProps, SidebarBrandNameOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { RunningIconOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { BrandRecord } from '../brand.ts'
 import css from './Brand.module.css'
 
@@ -11,8 +12,8 @@ export interface BrandInjected {
   brand: BrandRecord
 }
 
-/** Props of the mark occupants: the host's requested geometry plus the brand. */
-export type BrandMarkProps = { size: number; className?: string | undefined } & InjectFace<BrandInjected>
+/** Props of the mark occupants: the host's requested geometry plus the brand. A host class alone sizes the mark when `size` is absent. */
+export type BrandMarkProps = { size?: number | undefined; className?: string | undefined } & InjectFace<BrandInjected>
 
 /**
  * Draw the brand mark at the host's requested size. A `mono` mark is a mask
@@ -30,8 +31,7 @@ export function BrandMark({ size, className, brand }: BrandMarkProps) {
   }
   const mask = `url("${brand.mark}")`
   const style: CSSProperties = {
-    width: size,
-    height: size,
+    ...(size === undefined ? {} : { width: size, height: size }),
     maskImage: mask,
     WebkitMaskImage: mask,
     ...(brand.accent === undefined ? {} : { color: brand.accent }),
@@ -64,4 +64,14 @@ export function SidebarBrandName({ brand }: SidebarBrandNameOwnerProps & InjectF
  */
 export function HeroBrandMark({ size, className, brand }: HeroBrandMarkOwnerProps & InjectFace<BrandInjected>) {
   return <BrandMark size={size} className={className} brand={brand} />
+}
+
+/**
+ * The running status icon occupant: the mark in the status row's own icon box,
+ * pulsing while the Turn runs unless the reader prefers reduced motion.
+ * @param props - the host's icon box class plus the brand.
+ * @returns the mark sized by the host class.
+ */
+export function RunningBrandMark({ className, brand }: RunningIconOwnerProps & InjectFace<BrandInjected>) {
+  return <BrandMark className={[className, css.runningMark].filter(part => part !== undefined).join(' ')} brand={brand} />
 }
