@@ -55,7 +55,7 @@ describe('the flowleapConnectors Remote', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('runs one cheap call per stored connector and folds an upstream refusal into a failed test', async () => {
+  it('runs one cheap call per stored connector, verifies the Mistral key with one GET, and folds an upstream refusal into a failed test', async () => {
     const { controller, fetchSpy } = await bench()
     const signal = new AbortController().signal
     await controller.set('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
@@ -65,12 +65,16 @@ describe('the flowleapConnectors Remote', () => {
     })))
     expect(await controller.test('epo-ops', signal)).toEqual({ ok: true, message: 'EPO OPS: access token issued' })
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://ops.epo.org/3.2/auth/accesstoken')
-    expect(await controller.test('mistral', signal)).toMatchObject({ ok: true })
+    expect(await controller.test('mistral', signal)).toEqual({ ok: true, message: 'Mistral: Mistral accepted the key.' })
+    const [mistralUrl, mistralInit] = fetchSpy.mock.calls[1] ?? []
+    expect(mistralUrl).toBe('https://api.mistral.ai/v1/models')
+    expect(new Headers(mistralInit?.headers).get('authorization')).toBe('Bearer mk')
 
     fetchSpy.mockImplementation(() => Promise.resolve(new Response('denied', { status: 401 })))
     await controller.set('uspto-odp', { apiKey: 'bad' })
     const rejected = await controller.test('uspto-odp', signal)
     expect(rejected.ok).toBe(false)
     expect(rejected.message).toContain('USPTO ODP')
+    expect(await controller.test('mistral', signal)).toEqual({ ok: false, message: 'Mistral: Mistral rejected the key (HTTP 401).' })
   })
 })

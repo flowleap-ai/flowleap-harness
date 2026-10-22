@@ -396,7 +396,7 @@ Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
 /**
  * Run one cheap authenticated call with the stored key: an OPS access-token
  * mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar
- * search. Mistral has no connector call yet and reports presence only.
+ * search, or the library's Mistral key verification (one authenticated GET).
  * @param id - the connector.
  * @param signal - cancels the upstream call.
  * @returns whether the call succeeded and a human-readable message.

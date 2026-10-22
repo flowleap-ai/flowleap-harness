@@ -266,7 +266,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
-| `@deepseek-ai/dsh-flowleap-connectors` | yes | In-process FlowLeap patent-data connectors: the EPO OPS, USPTO ODP and academic clients of @flowleap/connectors over the dsh credential, logging and tool seams, with the flowleapConnectors Remote for the settings cards |
+| `@deepseek-ai/dsh-flowleap-connectors` | yes | In-process FlowLeap patent-data connectors: the EPO OPS, USPTO ODP, academic and Mistral OCR clients of @flowleap/connectors over the dsh credential, logging, filesystem and tool seams, with the native read_pdf tool and the flowleapConnectors Remote for the settings cards |
 | `@deepseek-ai/dsh-flowleap-prompt` | yes | File-backed FlowLeap Patent Agent system-prompt section: reads one Markdown file at apply and registers it as a literal prompt section |
 | `@deepseek-ai/dsh-host-directory-picker-auto` | no | Adaptive chooser of the directory-picker seam: resolves the host situation at boot and mounts the native or browse backend for the DeepSeek Harness web GUI host |
 | `@deepseek-ai/dsh-host-directory-picker-browse` | yes | In-app browsing backend of the directory-picker seam (listing/creation primitives over the host filesystem) |

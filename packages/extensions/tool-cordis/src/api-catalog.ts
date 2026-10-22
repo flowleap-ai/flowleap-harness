@@ -1132,7 +1132,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>',
-        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search. Mistral has no connector call yet and reports presence only.',
+        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search, or the library\'s Mistral key verification (one authenticated GET).',
         parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
         returns: 'whether the call succeeded and a human-readable message.',
         throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],

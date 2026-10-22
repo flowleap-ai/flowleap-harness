@@ -1,4 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
@@ -31,14 +33,15 @@ let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
 
 describe('registerOfficeTools', () => {
-  it('registers the library\'s 33 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
+  it('registers the library\'s 34 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
     const { ctx, connectors, bound } = await bench()
     const dispose = registerOfficeTools(ctx, connectors, bound, officeTools())
     const names = ctx.tools.schemas().map(schema => schema.name)
-    expect(names).toHaveLength(33)
+    expect(names).toHaveLength(34)
     expect(names).toEqual(officeTools().map(definition => definition.name))
     expect(names.slice(0, 4)).toEqual(['search_patents', 'get_search_syntax', 'search_register', 'get_bibliography'])
-    expect(names).toEqual(expect.arrayContaining(['get_claims', 'get_legal_status', 'get_us_grant', 'search_academic', 'search_npl', 'get_npl_work']))
+    expect(names).toEqual(expect.arrayContaining(['get_claims', 'get_legal_status', 'get_us_grant', 'ocr', 'search_academic', 'search_npl', 'get_npl_work']))
+    expect(officeTools().find(definition => definition.name === 'ocr')?.access).toBe('mistral')
     const bibliography = officeTools().find(definition => definition.name === 'get_bibliography')!
     const schema = modelInputSchema(bibliography)
     expect(schema).toMatchObject({ type: 'object' })
@@ -80,6 +83,12 @@ describe('registerOfficeTools', () => {
       callId: callId(), name: 'get_us_grant', arguments: { patent_number: '10000000' }, signal: new AbortController().signal,
     })
     expect(textOf(grant.content[0])).toContain('USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP')
+    const ocr = await ctx.tools.execute({
+      callId: callId(), name: 'ocr', arguments: { file: 'JVBERi0=', filename: 'scan.pdf' }, signal: new AbortController().signal,
+    })
+    expect(ocr.isError).toBe(false)
+    expect(textOf(ocr.content[0])).toBe('Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('rejects invalid arguments as a tool error before the handler runs', async () => {
@@ -118,11 +127,30 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
-    expect(ctx.tools.schemas()).toHaveLength(33)
+    // Without a filesystem and a session directory the office tools register alone: no read_pdf.
+    expect(ctx.tools.schemas()).toHaveLength(34)
+    expect(ctx.tools.schemas().map(schema => schema.name)).not.toContain('read_pdf')
     expect(ctx.get('flowleapConnectors')).toBeDefined()
     expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'])
     await fiber.dispose()
     expect(ctx.tools.schemas()).toEqual([])
     expect(ctx.get('flowleapConnectors')).toBeUndefined()
+  })
+
+  it('adds read_pdf beside the office tools once fs and workingDirectory are mounted, honouring excludeTools', async () => {
+    const ctx = new Context()
+    new MemoryCredentials(ctx)
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
+    provideWorkingDirectoryFixture(ctx, process.cwd())
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })
+    const names = ctx.tools.schemas().map(schema => schema.name)
+    expect(names).toHaveLength(34)
+    expect(names).toContain('read_pdf')
+    expect(names).toContain('ocr')
+    expect(names).not.toContain('get_fulltext')
+    await fiber.dispose()
+    expect(ctx.tools.schemas()).toEqual([])
   })
 })

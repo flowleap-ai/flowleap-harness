@@ -11,10 +11,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
-  DataKeysRequiredError, ProviderKeyInvalidError, ToolError, toolInputJsonSchema,
-  type Connectors, type ToolAccess, type ToolContext, type ToolDefinition,
+  DataKeysRequiredError, OcrNotConfiguredError, ProviderKeyInvalidError, ToolError, toolInputJsonSchema,
+  type Connectors, type KeyedProvider, type ToolAccess, type ToolContext, type ToolDefinition,
 } from '@flowleap/connectors'
-import { CONNECTOR_LABELS, CONNECTOR_OF_PROVIDER, PROVIDER_OF_CONNECTOR } from './credentials.ts'
+import { CONNECTOR_LABELS, PROVIDER_OF_CONNECTOR } from './credentials.ts'
 import type { BoundConnectorHost } from './host.ts'
 import type { ConnectorId } from './types.ts'
 
@@ -33,12 +33,20 @@ const CONNECTOR_OF_ACCESS: Readonly<Record<ToolAccess, ConnectorId | undefined>>
   epoOps: 'epo-ops',
   usptoOdp: 'uspto-odp',
   semanticScholar: 'semantic-scholar',
+  mistral: 'mistral',
   none: undefined,
 }
 
 /** Library error codes that mean "no usable key", by the connector they name. */
 const MISSING_KEY_CODES: Readonly<Record<string, ConnectorId>> = {
   odp_api_key_missing: 'uspto-odp',
+}
+
+/** The connector behind each provider the library names in its typed key errors. */
+const CONNECTOR_OF_KEYED_PROVIDER: Readonly<Record<KeyedProvider, ConnectorId>> = {
+  epo: 'epo-ops',
+  uspto: 'uspto-odp',
+  mistral: 'mistral',
 }
 
 /**
@@ -70,7 +78,8 @@ export function modelInputSchema(definition: Pick<ToolDefinition, 'input'>): Rec
 
 /**
  * Whether a tool's key must be present before its handler runs. Semantic
- * Scholar is excluded: the academic search runs without a key, slower.
+ * Scholar is excluded: the academic search runs without a key, slower. Mistral
+ * is gated like the offices: `ocr` spends the firm's key on every page.
  * @param access - the tool's declared access.
  * @returns the connector to check, or `undefined` when the call may proceed without one.
  */
@@ -81,8 +90,9 @@ function gatedConnector(access: ToolAccess | undefined): ConnectorId | undefined
 
 /** Map a library failure to the missing-credential answer, or `undefined` when it is another failure. */
 function missingCredentialOf(error: unknown): MissingCredentialResult | undefined {
-  if (error instanceof DataKeysRequiredError) return missingCredential(CONNECTOR_OF_PROVIDER[error.provider === 'epo' ? 'epoOps' : 'usptoOdp'])
-  if (error instanceof ProviderKeyInvalidError) return missingCredential(CONNECTOR_OF_PROVIDER[error.provider === 'epo' ? 'epoOps' : 'usptoOdp'], true)
+  if (error instanceof DataKeysRequiredError) return missingCredential(CONNECTOR_OF_KEYED_PROVIDER[error.provider])
+  if (error instanceof ProviderKeyInvalidError) return missingCredential(CONNECTOR_OF_KEYED_PROVIDER[error.provider], true)
+  if (error instanceof OcrNotConfiguredError) return missingCredential('mistral')
   if (error instanceof ToolError) {
     const connector = MISSING_KEY_CODES[error.code]
     if (connector !== undefined) return missingCredential(connector)
@@ -90,8 +100,12 @@ function missingCredentialOf(error: unknown): MissingCredentialResult | undefine
   return undefined
 }
 
-/** Render a canonical value as model-facing text: the message of a key refusal, otherwise JSON. */
-function renderText(value: JsonValue): string {
+/**
+ * Render a canonical value as model-facing text: the message of a key refusal, otherwise JSON.
+ * @param value - the canonical value.
+ * @returns the text the model reads.
+ */
+export function renderText(value: JsonValue): string {
   if (typeof value === 'string') return value
   if (typeof value === 'object' && value !== null && !Array.isArray(value)
     && value['error'] === 'missing_credentials' && typeof value['message'] === 'string') {

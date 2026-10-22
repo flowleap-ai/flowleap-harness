@@ -4,7 +4,10 @@
  * `Date.now`, and the caller's cancellation signal carried through
  * `AsyncLocalStorage` so one shared library instance (one OPS token cache, one
  * throttle) serves every tool call and connection test. No `onOutcome` (nothing
- * to account for in the attorney's own process) and no `ocr` yet.
+ * to account for in the attorney's own process) and no `ocr` capability: the
+ * library's own Mistral client runs on the stored `mistral` record instead
+ * (`resolveOcr` falls through to it), so `ocr`, `read_pdf` and
+ * `read_application_document` all spend the firm's key.
  * @module
  */
 

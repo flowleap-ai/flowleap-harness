@@ -115,9 +115,10 @@
     #
     # ADR 0019 decision 3: this row carries only the paid set the backend keeps
     # (flowleap-backend #608) — PATSTAT, enriched citations, examiner baseline,
-    # images, OCR, analytics. The office tools (`search_patents`,
-    # `get_bibliography`, …) come from `dsh-flowleap-connectors` below and are
-    # not listed here. `get_fulltext` stays on the MCP side for US full text:
+    # images, analytics. The office tools (`search_patents`,
+    # `get_bibliography`, …) and OCR (`ocr`, `read_pdf`, on the firm's Mistral
+    # key since C3) come from `dsh-flowleap-connectors` below and are not
+    # listed here. `get_fulltext` stays on the MCP side for US full text:
     # the `usFulltext` host capability is absent in the harness, so the native
     # copy answers US claims `not_configured`.
     # Names the live server does not publish yet (`reference_search`,
@@ -135,7 +136,6 @@
           include:
             - server_info
             - get_patent_image
-            - ocr
             - search_office_action_citations
             - search_enriched_citations
             - get_citation_stats
@@ -158,8 +158,9 @@
 
     # In-process patent-data connectors (ADR 0019 C2): the @flowleap/connectors
     # library over this process's credential store, with the office tools
-    # (`search_patents`, `get_bibliography`, `search_academic`, no prefix) on
-    # the tool registry and the `flowleapConnectors` Remote behind the cards.
+    # (`search_patents`, `get_bibliography`, `search_academic`, `ocr`, no prefix)
+    # and the native `read_pdf` (workspace file → Mistral OCR on the firm's key)
+    # on the tool registry and the `flowleapConnectors` Remote behind the cards.
     # Keys live in the credential store under `flowleap-connectors/<id>`.
     - id: flowleap-connectors
       name: '@deepseek-ai/dsh-flowleap-connectors'

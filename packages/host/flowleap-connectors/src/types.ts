@@ -5,7 +5,7 @@
  * @module @deepseek-ai/dsh-flowleap-connectors/types
  */
 
-/** The four connectors this plugin holds credentials for; `mistral` is reserved for OCR. */
+/** The four connectors this plugin holds credentials for; `mistral` pays for OCR (`ocr`, `read_pdf`, file-wrapper documents). */
 export const CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const
 
 /** One connector id. */

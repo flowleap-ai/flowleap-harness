@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-Open **Settings** and select **Patent data connectors** to add the firm's EPO OPS consumer key and secret, USPTO ODP key, Semantic Scholar key, and Mistral key (for OCR). Each connector is one card: write-only fields, a **Configured** or **Not configured** tag, **Save**, **Remove**, and **Test connection** with the outcome inline. On a first run with no connector configured, a blocking wizard offers the same fields with **Test**, **Save**, and **Skip for now**, and never returns once saved or skipped. The page calls [`dsh-flowleap-connectors`](../../host/flowleap-connectors/README.md) through `ctx.remote.flowleapConnectors`.
+Open **Settings** and select **Patent data connectors** to add the firm's EPO OPS consumer key and secret, USPTO ODP key, Semantic Scholar key, and Mistral key (for OCR of scanned documents and PDFs through `read_pdf` and the file-wrapper reader; Mistral bills per page). Each connector is one card: write-only fields, a **Configured** or **Not configured** tag, **Save**, **Remove**, and **Test connection** with the outcome inline. On a first run with no connector configured, a blocking wizard offers the same fields with **Test**, **Save**, and **Skip for now**, and never returns once saved or skipped. The page calls [`dsh-flowleap-connectors`](../../host/flowleap-connectors/README.md) through `ctx.remote.flowleapConnectors`.
 
 ## Table of Contents
 

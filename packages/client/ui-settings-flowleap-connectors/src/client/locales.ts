@@ -27,7 +27,7 @@ export const en: Record<ConnectorsLocaleKey, string> = {
   semanticScholarName: 'Semantic Scholar',
   semanticScholarHint: 'Optional API key from semanticscholar.org. Raises the rate limit of academic search; arXiv needs no key.',
   mistralName: 'Mistral',
-  mistralHint: 'API key for OCR of scanned documents. Reserved: OCR is not wired into this harness yet.',
+  mistralHint: 'Mistral API key for OCR of scanned documents and PDFs (read_pdf, file-wrapper documents). Billed by Mistral per page.',
   consumerKey: 'Consumer key',
   consumerSecret: 'Consumer secret',
   apiKey: 'API key',

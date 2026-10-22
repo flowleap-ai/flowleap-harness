@@ -108,7 +108,7 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   /**
    * Run one cheap authenticated call with the stored key: an OPS access-token
    * mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar
-   * search. Mistral has no connector call yet and reports presence only.
+   * search, or the library's Mistral key verification (one authenticated GET).
    * @param id - the connector.
    * @param signal - cancels the upstream call.
    * @returns whether the call succeeded and a human-readable message.
@@ -149,8 +149,10 @@ export class FlowleapConnectorsController extends TypertRemoteService {
           ? { ok: true, message: `${label}: search answered` }
           : { ok: false, message: `${label}: ${report?.message ?? report?.status ?? 'no answer'}` }
       }
-      case 'mistral':
-        return { ok: true, message: `${label}: key stored; OCR is not wired in this harness yet, so nothing was called` }
+      case 'mistral': {
+        const verdict = await this.connectors.ocr.verifyKey()
+        return { ok: verdict.ok, message: `${label}: ${verdict.message}` }
+      }
     }
   }
 

@@ -2,7 +2,9 @@
  * In-process FlowLeap patent-data connectors (ADR 0019, slice C2). One row mounts
  * the `@flowleap/connectors` library over the dsh seams: `ctx.credentials`
  * records hold the firm's EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys,
- * the library's 33 office tools register on `ctx.tools` under their backend names, and the
+ * the library's 34 office tools (`ocr` among them, on the firm's Mistral key) register on
+ * `ctx.tools` under their backend names, the native `read_pdf` tool reads a workspace file
+ * through that OCR when `fs` and `workingDirectory` are mounted, and the
  * `flowleapConnectors` Remote serves the settings cards and the first-run wizard.
  *
  * See packages/host/flowleap-connectors/README.md.
@@ -12,11 +14,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { createConnectors, officeTools } from '@flowleap/connectors'
 import { FlowleapConnectorsController } from './controller.ts'
 import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
+import { registerReadPdfTool } from './read-pdf.ts'
 import { registerOfficeTools } from './tools.ts'
 
 export { FlowleapConnectorsController } from './controller.ts'
@@ -28,7 +33,12 @@ export {
 export type { ConnectorCredentialStore } from './credentials.ts'
 export { LruCache, createConnectorHost } from './host.ts'
 export type { BoundConnectorHost, ConnectorHostOptions } from './host.ts'
-export { missingCredential, modelInputSchema, registerOfficeTools, toDshTool } from './tools.ts'
+export {
+  READ_PDF_COST_LINE, READ_PDF_EXTENSIONS, READ_PDF_MAX_BYTES, READ_PDF_MAX_PAGES, READ_PDF_NAME,
+  estimatePdfPages, pagesMarkdown, readPdfTool, registerReadPdfTool, renderReadPdf,
+} from './read-pdf.ts'
+export type { ReadPdfArgs, ReadPdfValue } from './read-pdf.ts'
+export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
 export type { MissingCredentialResult } from './tools.ts'
 export * from './types.ts'
 
@@ -53,7 +63,7 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Mount the library, register the office tools, and expose the Remote.
+ * Mount the library, register the office tools and `read_pdf`, and expose the Remote.
  * @param ctx - the mounting context, carrying `tools` and `credentials`.
  * @param config - cache size and the office tools to leave out.
  */
@@ -62,5 +72,9 @@ export function apply(ctx: Context, config: Config): void {
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
   const connectors = createConnectors(bound.host)
   ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools().filter(definition => !config.excludeTools.includes(definition.name))), 'flowleap-connectors: office tools')
+  // read_pdf needs a filesystem and the session directory; a composition without them keeps the office tools alone.
+  ctx.inject(['fs', 'workingDirectory'], (fileCtx) => {
+    fileCtx.effect(() => registerReadPdfTool(fileCtx, connectors, bound), 'flowleap-connectors: read_pdf')
+  })
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
 }
