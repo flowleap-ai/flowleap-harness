@@ -63,6 +63,8 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `reconnect.initialDelayMs` | `500` | First reconnect delay; doubles per consecutive failed attempt |
 | `reconnect.maxDelayMs` | `30,000` | Backoff ceiling; also the uptime after which the attempt budget resets |
 | `reconnect.maxAttempts` | `10` | Consecutive failed attempts per outage before giving up |
+| `tools.include` | — | Raw tool names (as the server lists them) that register; a non-empty list registers only these |
+| `tools.exclude` | — | Raw tool names that never register, even when `tools.include` lists them |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-mcp-client) is the exhaustive source for every accepted field.
 
@@ -77,6 +79,10 @@ The model sees each tool under a stable server-qualified name: `mcp__<serverName
 - A server that lists the same tool twice gets its tool list rejected as invalid, and the previous tool set stays active.
 - The SDK owns discovery pagination and its page limit. A discovery failure preserves the previous tools; malformed cursor chains follow the SDK's behavior.
 - An update that conflicts with an already-registered tool name is rejected entirely — you never get a partial tool set from that server.
+
+#### Filtering tools
+
+Set `tools.include` or `tools.exclude` on a server entry to register only part of its tool list — for example when another plugin already offers some of the same tools natively and the model should not see them twice. Names are the server's raw names, compared exactly; a non-empty `include` registers only those names, `exclude` removes names from whatever remains. The filter applies on every discovery and re-sync; the server's instructions text, its resources, and its prompts are not filtered.
 
 ### Calling tools and reading results
 

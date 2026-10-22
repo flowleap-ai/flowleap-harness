@@ -20,11 +20,12 @@ import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { DEFAULT_MAX_INSTRUCTION_BYTES, RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
 import { registerServerContext } from './server-context.ts'
+import type { ToolFilterConfig } from './tools.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
 export { createMcpToolDefinition } from './tools.ts'
-export type { McpResult, McpToolDefinitionOptions } from './tools.ts'
+export type { McpResult, McpToolDefinitionOptions, ToolFilterConfig } from './tools.ts'
 export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -74,6 +75,8 @@ export interface StdioConfig {
   maxInstructionBytes?: number
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
+  /** Which discovered tools register, by exact raw name; omission registers every tool. */
+  tools?: ToolFilterConfig
 }
 
 /** Config for connecting to an MCP server over Streamable HTTP (SSE). */
@@ -98,6 +101,8 @@ export interface StreamableHttpConfig {
   maxInstructionBytes?: number
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
+  /** Which discovered tools register, by exact raw name; omission registers every tool. */
+  tools?: ToolFilterConfig
 }
 
 /** Configuration for one stdio or Streamable HTTP MCP server. */
@@ -116,6 +121,11 @@ const Reconnect: z<ReconnectConfig> = z.object({
   maxAttempts: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(RECONNECT_DEFAULTS.maxAttempts),
 })
 
+const ToolFilter: z<ToolFilterConfig> = z.object({
+  include: z.array(String),
+  exclude: z.array(String),
+})
+
 export const Config = z.union([
   z.object({
     transport: z.const('stdio'),
@@ -128,6 +138,7 @@ export const Config = z.union([
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     reconnect: Reconnect,
+    tools: ToolFilter,
   }),
   z.object({
     transport: z.const('streamable-http'),
@@ -138,6 +149,7 @@ export const Config = z.union([
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     reconnect: Reconnect,
+    tools: ToolFilter,
   }),
 ]) as z<ConfigInput, Config>
 

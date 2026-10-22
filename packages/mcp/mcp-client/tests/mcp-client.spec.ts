@@ -194,6 +194,19 @@ describe('syncTools', () => {
     expect(ctx.tools.get('add')).toBeUndefined()
   })
 
+  it('registers only the tools the include list admits', async () => {
+    const client = createMockClient([
+      { name: 'search', inputSchema: { type: 'object' } },
+      { name: 'fetch', inputSchema: { type: 'object' } },
+      { name: 'admin', inputSchema: { type: 'object' } },
+    ])
+
+    const disposers = await syncTools(client as never, ctx, { ...defaultOpts, tools: { include: ['search', 'fetch'] } }, new Map())
+
+    expect([...disposers.keys()]).toEqual(['mcp__srv__search', 'mcp__srv__fetch'])
+    expect(ctx.tools.get('mcp__srv__admin')).toBeUndefined()
+  })
+
   it('lets two servers publish the same raw name side by side', async () => {
     const clientA = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])
     const clientB = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])

@@ -24,12 +24,25 @@ import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools'
 import type { JsonSchemaNode } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
+/**
+ * Which discovered tools register, by exact raw name as the server lists them.
+ * Resources, prompts, and the server's instructions text are not filtered.
+ */
+export interface ToolFilterConfig {
+  /** When non-empty, only these raw tool names register. */
+  include?: string[]
+  /** These raw tool names never register, even when `include` lists them. */
+  exclude?: string[]
+}
+
 /** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
   /** Whether a registry conflict is contained or rejects this synchronization. */
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Optional raw-name filter applied before registration. */
+  tools?: ToolFilterConfig
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -87,14 +100,28 @@ export function publicToolName(serverName: string, rawName: string): string {
 }
 
 /**
+ * Whether the configured filter admits one discovered tool.
+ *
+ * @param filter - Raw-name include and exclude lists; undefined admits everything.
+ * @param rawName - The MCP server's own tool name.
+ * @returns True when the tool registers.
+ */
+function admitsTool(filter: ToolFilterConfig | undefined, rawName: string): boolean {
+  if (filter === undefined) return true
+  if (filter.include !== undefined && filter.include.length > 0 && !filter.include.includes(rawName)) return false
+  return !(filter.exclude?.includes(rawName) ?? false)
+}
+
+/**
  * Sync the MCP server's tool list into the harness ToolRuntime.
  *
  * Two phases keep the swap safe:
  *
- * 1. Fetch: let the SDK aggregate `tools/list` and build the full next
- *    generation of `ToolDefinition`s under public names. Any failure here
- *    (network error or duplicate raw name) rejects
- *    and leaves the previous generation registered untouched.
+ * 1. Fetch: let the SDK aggregate `tools/list`, drop the tools the optional
+ *    `tools` filter does not admit, and build the full next generation of
+ *    `ToolDefinition`s under public names. Any failure here (network error
+ *    or duplicate raw name) rejects and leaves the previous generation
+ *    registered untouched.
  * 2. Swap: dispose the previous generation, register the new one. A registry
  *    conflict here can only mean a foreign registration squats on this
  *    server's `mcp__<serverName>__` namespace — the partial generation is
@@ -122,6 +149,7 @@ export async function syncTools(
     ? { tools: [] }
     : await client.listTools(undefined, { cacheMode: 'refresh' })
   for (const tool of response.tools) {
+    if (!admitsTool(opts.tools, tool.name)) continue
     const publicName = publicToolName(opts.serverName, tool.name)
     if (definitions.has(publicName)) {
       throw new Error(

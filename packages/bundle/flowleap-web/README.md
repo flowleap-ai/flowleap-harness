@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: every DeepSeek-specific row is off, the hosted FlowLeap MCP server's 54 patent tools register through the signed-in `flowleap` CLI, the flowleap-plugins skill pack joins the skill catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. Run `dsh --profile flowleap-web web`. The boundary: one process serves one user, and the `flowleap` CLI must be on `PATH` and signed in.
+`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: every DeepSeek-specific row is off, the hosted FlowLeap MCP server's 22 paid patent tools register through the signed-in `flowleap` CLI beside the 33 in-process office tools, the flowleap-plugins skill pack joins the skill catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. Run `dsh --profile flowleap-web web`. The boundary: one process serves one user, and the `flowleap` CLI must be on `PATH` and signed in.
 
 ## Table of Contents
 
@@ -38,7 +38,7 @@ The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile th
 
 | Row | Package | Effect |
 |---|---|---|
-| `mcp-flowleap` | [`dsh-mcp-client`](../../mcp/mcp-client/README.md) | `flowleap mcp` over stdio; tools register as `mcp__flowleap__<tool>`, 120 s per call, a failed connection logs and the harness still starts |
+| `mcp-flowleap` | [`dsh-mcp-client`](../../mcp/mcp-client/README.md) | `flowleap mcp` over stdio; `tools.include` narrows the row to the 22 paid tools the backend keeps (PATSTAT, enriched citations, examiner baseline, images, OCR, analytics, `get_fulltext` for US full text), registered as `mcp__flowleap__<tool>`, 120 s per call, a failed connection logs and the harness still starts |
 | `flowleap-prompt` | [`dsh-flowleap-prompt`](../../host/flowleap-prompt/README.md) | The `flowleap:patent-agent` section from `FLOWLEAP_PROMPT_PATH`, else this bundle's `prompt/patent-agent.md` placeholder |
 | `system-prompt` | [`dsh-system-prompt`](../../core/system-prompt/README.md) | `includeHarnessIdentity: false`, no persona prefix |
 | `llm-pi-ai` | [`dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.md) | `anthropic`, `openrouter`, `mistral` routes keyed by `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` |
