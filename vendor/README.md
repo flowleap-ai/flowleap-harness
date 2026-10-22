@@ -23,6 +23,7 @@ Upstream workspace: `cordis-workspace` (local checkout: `~/repos/cordis-workspac
 | `timer/` | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | 1.1.2 | https://github.com/deepseek-harness/cordis (`packages/timer`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
 | `hmr/` | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | 1.0.15 | https://github.com/deepseek-harness/cordis (`packages/hmr`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
 | `logger-console/` | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | 1.0.0 | https://github.com/deepseek-harness/cordis (`packages/logger-console`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
+| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`); synced by `scripts/flowleap/sync-connectors.sh`, pinned in `vendor/flowleap-connectors/SYNC.json` | `91696e26fe2acc65cbd301f2b5c8cc3ac48688c5` |
 
 Third-party dependencies of the vendored packages stay on npm: `@standard-schema/spec`, `js-yaml`, `chokidar`, `picomatch`, `@babel/code-frame`, `supports-color`, `node-addon-require-builtin`.
 
@@ -61,6 +62,8 @@ Keep this log exhaustive — every divergence from upstream must be listed.
 23. **`loader/src/config/entry.ts` module identity**: retains each entry's raw import result as `moduleNamespace`, before plugin export normalization. HMR matches that object to Node's cached module namespace and updates it after a successful reload. `EntryTree.import()` keeps its existing arguments and return value; `loader/README.md` documents the additive field.
 
 24. **`timer/locale/{en,zh}.json` display metadata**: local English and Chinese titles and descriptions for the Settings plugin inventory. `timer/package.json` exports and publishes these locale resources.
+
+25. **`flowleap-connectors/`** (FlowLeap fork): the `src/` tree is a verbatim copy of flowleap-backend `packages/connectors/src`, so nothing in it is edited here; `scripts/flowleap/sync-connectors.sh --check` fails on any edit. The harness owns `package.json`, `tsconfig.json`, `tsdown.config.ts` and `src/harness/mupdf.ts`, and keeps the upstream manifests under `upstream/`. `mupdf` (AGPL-3.0-or-later) is not installed: `tsconfig.base.json` maps the `mupdf` specifier and `tsdown.config.ts` aliases it to the stand-in, which throws on use, so figure rasterization is unavailable in the harness until the licensing decision in `vendor/flowleap-connectors/README.md` is taken. The upstream ambient shim `src/types/mupdf.d.ts` is excluded from the compilation for that reason; the package's own tests and fixtures are copied but not compiled or run here.
 
 ## Sync procedure
 

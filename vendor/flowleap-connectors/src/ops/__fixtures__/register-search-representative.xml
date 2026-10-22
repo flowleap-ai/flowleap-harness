@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns:reg="http://www.epo.org/register" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:cpc="http://www.epo.org/cpcexport" xmlns:cpcdef="http://www.epo.org/cpcdefinition">
+    <ops:register-search total-result-count="845">
+        <ops:query syntax="CQL">re=Kreuels</ops:query>
+        <ops:range begin="1" end="2"/>
+        <reg:register-documents dtd-version="1.3.3" produced-by="RO">
+            <reg:register-document date-produced="20261011" dtd-version="1.3.3" lang="en" produced-by="RO" status="Examination is in progress">
+                <reg:ep-patent-statuses>
+                    <reg:ep-patent-status change-date="20260904" status-code="14">Examination is in progress</reg:ep-patent-status>
+                    <reg:ep-patent-status change-date="20260220" status-code="15">Request for examination was made</reg:ep-patent-status>
+                    <reg:ep-patent-status change-date="20251128" status-code="16">The application has been published</reg:ep-patent-status>
+                </reg:ep-patent-statuses>
+                <reg:bibliographic-data country="EP" id="EP25183540P" lang="en" status="Examination is in progress">
+                    <reg:publication-reference change-gazette-num="2026/01">
+                        <reg:document-id lang="de">
+                            <reg:country>EP</reg:country>
+                            <reg:doc-number>4671722</reg:doc-number>
+                            <reg:kind>A1</reg:kind>
+                            <reg:date>20251231</reg:date>
+                        </reg:document-id>
+                    </reg:publication-reference>
+                    <reg:classifications-ipcr change-date="20251128" change-gazette-num="2026/01">
+                        <reg:classification-ipcr id="CLASSIFICATION_1321486">
+                            <reg:text>G01M9/06</reg:text>
+                        </reg:classification-ipcr>
+                    </reg:classifications-ipcr>
+                    <reg:application-reference change-gazette-num="2026/01">
+                        <reg:document-id>
+                            <reg:country>EP</reg:country>
+                            <reg:doc-number>25183540</reg:doc-number>
+                            <reg:date>20250618</reg:date>
+                        </reg:document-id>
+                    </reg:application-reference>
+                    <reg:language-of-filing>de</reg:language-of-filing>
+                    <reg:priority-claims change-date="20251128" change-gazette-num="2026/01">
+                        <reg:priority-claim kind="national" sequence="1">
+                            <reg:country>DE</reg:country>
+                            <reg:doc-number>202410117673</reg:doc-number>
+                            <reg:date>20240624</reg:date>
+                        </reg:priority-claim>
+                    </reg:priority-claims>
+                    <reg:parties>
+                        <reg:applicants change-date="20251128" change-gazette-num="2026/01">
+                            <reg:applicant app-type="applicant" designation="all" sequence="1">
+<reg:addressbook cdsid="0102108631">
+    <reg:name>Syntegon Technology GmbH</reg:name>
+    <reg:address>
+        <reg:address-1>Mercedesstr. 41</reg:address-1>
+        <reg:address-2>70372 Stuttgart</reg:address-2>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+<reg:nationality>
+    <reg:country></reg:country>
+</reg:nationality>
+<reg:residence>
+    <reg:country></reg:country>
+</reg:residence>
+                            </reg:applicant>
+                        </reg:applicants>
+                        <reg:inventors change-date="20251128" change-gazette-num="2026/01">
+                            <reg:inventor sequence="01">
+<reg:addressbook>
+    <reg:name>Eisenschmid, Ralph</reg:name>
+    <reg:address>
+        <reg:address-1>71672 Marbach</reg:address-1>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:inventor>
+                        </reg:inventors>
+                        <reg:agents change-date="20251128" change-gazette-num="N/P">
+                            <reg:agent rep-type="agent" sequence="1">
+<reg:addressbook cdsid="0102054046">
+    <reg:name>Kreuels, Justus</reg:name>
+    <reg:address>
+        <reg:address-1>Kreuels Henrichs Pannen</reg:address-1>
+        <reg:address-2>Patent- und Rechtsanwaltspartnerschaft mbB</reg:address-2>
+        <reg:address-3>Tersteegenstraße 28</reg:address-3>
+        <reg:address-4>40474 Düsseldorf</reg:address-4>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:agent>
+                        </reg:agents>
+                        <reg:agents change-date="20251128" change-gazette-num="2026/01">
+                            <reg:agent rep-type="agent" sequence="1">
+<reg:addressbook cdsid="0102054046">
+    <reg:name>Kreuels, Justus</reg:name>
+    <reg:address>
+        <reg:address-1>Kreuels Henrichs Patent-</reg:address-1>
+        <reg:address-2>und Rechtsanwaltspartnerschaft mbB</reg:address-2>
+        <reg:address-3>Platz der Ideen 2</reg:address-3>
+        <reg:address-4>40476 Düsseldorf</reg:address-4>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:agent>
+                        </reg:agents>
+                    </reg:parties>
+                    <reg:designation-of-states change-date="20251128" change-gazette-num="2026/01">
+                        <reg:designation-pct>
+                            <reg:regional>
+<reg:region>
+    <reg:country>EP</reg:country>
+</reg:region>
+<reg:country>AL</reg:country>
+<reg:country>AT</reg:country>
+<reg:country>BE</reg:country>
+<reg:country>BG</reg:country>
+<reg:country>CH</reg:country>
+<reg:country>CY</reg:country>
+<reg:country>CZ</reg:country>
+<reg:country>DE</reg:country>
+<reg:country>DK</reg:country>
+<reg:country>EE</reg:country>
+<reg:country>ES</reg:country>
+<reg:country>FI</reg:country>
+<reg:country>FR</reg:country>
+<reg:country>GB</reg:country>
+<reg:country>GR</reg:country>
+<reg:country>HR</reg:country>
+<reg:country>HU</reg:country>
+<reg:country>IE</reg:country>
+<reg:country>IS</reg:country>
+<reg:country>IT</reg:country>
+<reg:country>LI</reg:country>
+<reg:country>LT</reg:country>
+<reg:country>LU</reg:country>
+<reg:country>LV</reg:country>
+<reg:country>MC</reg:country>
+<reg:country>ME</reg:country>
+<reg:country>MK</reg:country>
+<reg:country>MT</reg:country>
+<reg:country>NL</reg:country>
+<reg:country>NO</reg:country>
+<reg:country>PL</reg:country>
+<reg:country>PT</reg:country>
+<reg:country>RO</reg:country>
+<reg:country>RS</reg:country>
+<reg:country>SE</reg:country>
+<reg:country>SI</reg:country>
+<reg:country>SK</reg:country>
+<reg:country>SM</reg:country>
+<reg:country>TR</reg:country>
+                            </reg:regional>
+                        </reg:designation-pct>
+                    </reg:designation-of-states>
+                    <reg:invention-title lang="de" change-date="20251128" change-gazette-num="2026/01">VORRICHTUNG ZUR SICHTBARMACHUNG VON GASSTRÖMUNGEN IN EINEM RAUM, INSBESONDERE IN EINEM REINRAUM</reg:invention-title>
+                    <reg:invention-title lang="en" change-date="20251128" change-gazette-num="2026/01">DEVICE FOR THE VISUALISATION OF GAS FLOWS IN A ROOM, ESPECIALLY IN A CLEAN ROOM</reg:invention-title>
+                    <reg:invention-title lang="fr" change-date="20251128" change-gazette-num="2026/01">DISPOSITIF POUR RENDRE VISIBLE LES ÉCOULEMENTS DE GAZ DANS UNE PIÈCE, EN PARTICULIER DANS UNE SALLE BLANCHE</reg:invention-title>
+                    <reg:dates-rights-effective>
+                        <reg:request-for-examination change-gazette-num="2026/13">
+                            <reg:date>20260219</reg:date>
+                        </reg:request-for-examination>
+                        <reg:first-examination-report-despatched>
+                            <reg:date>20260908</reg:date>
+                        </reg:first-examination-report-despatched>
+                    </reg:dates-rights-effective>
+                    <reg:references-cited>
+                        <reg:citation id="cit_2887451" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DJPH11101709&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>JP</reg:country>
+    <reg:doc-number>H11101709</reg:doc-number>
+</reg:document-id>
+<reg:text>(MITSUBISHI HEAVY IND LTD et al.)  [X]  1-4,6,10,13 * paragraph  [0003]  - paragraph  [0025]; figures 1-11 *[I]  5,8-9,11-12 [A]  7</reg:text>
+                            </reg:patcit>
+                            <reg:category>XIA</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887452" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DCN113188749&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>CN</reg:country>
+    <reg:doc-number>113188749</reg:doc-number>
+</reg:document-id>
+<reg:text>(中国民航大学)  [X]  1-2,4,6,10,13 * paragraph  [0027]  - paragraph  [0031]; figures 1-4 *[A]  7</reg:text>
+                            </reg:patcit>
+                            <reg:category>XA</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887453" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DDE19641351&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>DE</reg:country>
+    <reg:doc-number>19641351</reg:doc-number>
+</reg:document-id>
+<reg:text>(DEUTSCH ZENTR LUFT &amp; RAUMFAHRT et al.)  [A]  1-13 * the whole document *</reg:text>
+                            </reg:patcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887454" cited-phase="search" office="EP">
+                            <reg:nplcit>
+<reg:text>FRANSSON J H M ET AL: "Flow around a porous cylinder subject to continuous suction or blowing", JOURNAL OF FLUIDS AND STRUCTURES, ACADEMIC PRESS, AMSTERDAM, NL, vol. 19, no. 8, 1 November 2004 (2004-11-01), pages 1031 - 1048, XP004647434, ISSN: 0889-9746, DOI: 10.1016/J.JFLUIDSTRUCTS.2004.06.005 [A]  1-13 * the whole document *</reg:text>
+                            </reg:nplcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                    </reg:references-cited>
+                    <reg:search-reports-information>
+                        <reg:search-report-information office="EP" search-type="national" declaration-of-no-search="not-determined" change-gazette-num="2026/01">
+                            <reg:search-report-publication>
+<reg:document-id lang="de">
+    <reg:country>EP</reg:country>
+    <reg:doc-number>4671722</reg:doc-number>
+    <reg:kind>A1</reg:kind>
+    <reg:date>20251231</reg:date>
+</reg:document-id>
+                            </reg:search-report-publication>
+                        </reg:search-report-information>
+                        <reg:search-report-information office="EP" search-type="national-supplementary" declaration-of-no-search="not-determined">
+                            <reg:date-search-report-mailed>
+<reg:date>20251113</reg:date>
+                            </reg:date-search-report-mailed>
+                        </reg:search-report-information>
+                    </reg:search-reports-information>
+                </reg:bibliographic-data>
+            </reg:register-document>
+            <reg:register-document date-produced="20261011" dtd-version="1.3.3" lang="en" produced-by="RO" status="Grant of patent is intended">
+                <reg:ep-patent-statuses>
+                    <reg:ep-patent-status change-date="20260913" status-code="12">Grant of patent is intended</reg:ep-patent-status>
+                    <reg:ep-patent-status change-date="20260220" status-code="15">Request for examination was made</reg:ep-patent-status>
+                    <reg:ep-patent-status change-date="20251128" status-code="16">The application has been published</reg:ep-patent-status>
+                </reg:ep-patent-statuses>
+                <reg:bibliographic-data country="EP" id="EP25183541P" lang="en" status="Grant of patent is intended">
+                    <reg:publication-reference change-gazette-num="2026/01">
+                        <reg:document-id lang="de">
+                            <reg:country>EP</reg:country>
+                            <reg:doc-number>4671723</reg:doc-number>
+                            <reg:kind>A1</reg:kind>
+                            <reg:date>20251231</reg:date>
+                        </reg:document-id>
+                    </reg:publication-reference>
+                    <reg:classifications-ipcr change-date="20251128" change-gazette-num="2026/01">
+                        <reg:classification-ipcr id="CLASSIFICATION_1321487">
+                            <reg:text>G01M9/06, B64C21/06</reg:text>
+                        </reg:classification-ipcr>
+                    </reg:classifications-ipcr>
+                    <reg:application-reference change-gazette-num="2026/01">
+                        <reg:document-id>
+                            <reg:country>EP</reg:country>
+                            <reg:doc-number>25183541</reg:doc-number>
+                            <reg:date>20250618</reg:date>
+                        </reg:document-id>
+                    </reg:application-reference>
+                    <reg:language-of-filing>de</reg:language-of-filing>
+                    <reg:priority-claims change-date="20251128" change-gazette-num="2026/01">
+                        <reg:priority-claim kind="national" sequence="1">
+                            <reg:country>DE</reg:country>
+                            <reg:doc-number>202410117674</reg:doc-number>
+                            <reg:date>20240624</reg:date>
+                        </reg:priority-claim>
+                    </reg:priority-claims>
+                    <reg:parties>
+                        <reg:applicants change-date="20251128" change-gazette-num="2026/01">
+                            <reg:applicant app-type="applicant" designation="all" sequence="1">
+<reg:addressbook cdsid="0102108631">
+    <reg:name>Syntegon Technology GmbH</reg:name>
+    <reg:address>
+        <reg:address-1>Mercedesstr. 41</reg:address-1>
+        <reg:address-2>70372 Stuttgart</reg:address-2>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+<reg:nationality>
+    <reg:country></reg:country>
+</reg:nationality>
+<reg:residence>
+    <reg:country></reg:country>
+</reg:residence>
+                            </reg:applicant>
+                        </reg:applicants>
+                        <reg:inventors change-date="20251128" change-gazette-num="2026/01">
+                            <reg:inventor sequence="01">
+<reg:addressbook>
+    <reg:name>Eisenschmid, Ralph</reg:name>
+    <reg:address>
+        <reg:address-1>71672 Marbach</reg:address-1>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:inventor>
+                        </reg:inventors>
+                        <reg:agents change-date="20251128" change-gazette-num="N/P">
+                            <reg:agent rep-type="agent" sequence="1">
+<reg:addressbook cdsid="0102054046">
+    <reg:name>Kreuels, Justus</reg:name>
+    <reg:address>
+        <reg:address-1>Kreuels Henrichs Pannen</reg:address-1>
+        <reg:address-2>Patent- und Rechtsanwaltspartnerschaft mbB</reg:address-2>
+        <reg:address-3>Tersteegenstraße 28</reg:address-3>
+        <reg:address-4>40474 Düsseldorf</reg:address-4>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:agent>
+                        </reg:agents>
+                        <reg:agents change-date="20251128" change-gazette-num="2026/01">
+                            <reg:agent rep-type="agent" sequence="1">
+<reg:addressbook cdsid="0102054046">
+    <reg:name>Kreuels, Justus</reg:name>
+    <reg:address>
+        <reg:address-1>Kreuels Henrichs Patent-</reg:address-1>
+        <reg:address-2>und Rechtsanwaltspartnerschaft mbB</reg:address-2>
+        <reg:address-3>Platz der Ideen 2</reg:address-3>
+        <reg:address-4>40476 Düsseldorf</reg:address-4>
+        <reg:country>DE</reg:country>
+    </reg:address>
+</reg:addressbook>
+                            </reg:agent>
+                        </reg:agents>
+                    </reg:parties>
+                    <reg:designation-of-states change-date="20251128" change-gazette-num="2026/01">
+                        <reg:designation-pct>
+                            <reg:regional>
+<reg:region>
+    <reg:country>EP</reg:country>
+</reg:region>
+<reg:country>AL</reg:country>
+<reg:country>AT</reg:country>
+<reg:country>BE</reg:country>
+<reg:country>BG</reg:country>
+<reg:country>CH</reg:country>
+<reg:country>CY</reg:country>
+<reg:country>CZ</reg:country>
+<reg:country>DE</reg:country>
+<reg:country>DK</reg:country>
+<reg:country>EE</reg:country>
+<reg:country>ES</reg:country>
+<reg:country>FI</reg:country>
+<reg:country>FR</reg:country>
+<reg:country>GB</reg:country>
+<reg:country>GR</reg:country>
+<reg:country>HR</reg:country>
+<reg:country>HU</reg:country>
+<reg:country>IE</reg:country>
+<reg:country>IS</reg:country>
+<reg:country>IT</reg:country>
+<reg:country>LI</reg:country>
+<reg:country>LT</reg:country>
+<reg:country>LU</reg:country>
+<reg:country>LV</reg:country>
+<reg:country>MC</reg:country>
+<reg:country>ME</reg:country>
+<reg:country>MK</reg:country>
+<reg:country>MT</reg:country>
+<reg:country>NL</reg:country>
+<reg:country>NO</reg:country>
+<reg:country>PL</reg:country>
+<reg:country>PT</reg:country>
+<reg:country>RO</reg:country>
+<reg:country>RS</reg:country>
+<reg:country>SE</reg:country>
+<reg:country>SI</reg:country>
+<reg:country>SK</reg:country>
+<reg:country>SM</reg:country>
+<reg:country>TR</reg:country>
+                            </reg:regional>
+                        </reg:designation-pct>
+                    </reg:designation-of-states>
+                    <reg:invention-title lang="de" change-date="20251128" change-gazette-num="2026/01">VORRICHTUNG ZUR SICHTBARMACHUNG VON GASSTRÖMUNGEN IN EINEM RAUM, INSBESONDERE IN EINEM REINRAUM</reg:invention-title>
+                    <reg:invention-title lang="en" change-date="20251128" change-gazette-num="2026/01">DEVICE FOR THE VISUALISATION OF GAS FLOWS IN A ROOM, ESPECIALLY IN A CLEAN ROOM</reg:invention-title>
+                    <reg:invention-title lang="fr" change-date="20251128" change-gazette-num="2026/01">DISPOSITIF POUR RENDRE VISIBLE LES ÉCOULEMENTS DE GAZ DANS UNE PIÈCE, EN PARTICULIER DANS UNE SALLE BLANCHE</reg:invention-title>
+                    <reg:dates-rights-effective>
+                        <reg:request-for-examination change-gazette-num="2026/13">
+                            <reg:date>20260219</reg:date>
+                        </reg:request-for-examination>
+                        <reg:first-examination-report-despatched>
+                            <reg:date>20260914</reg:date>
+                        </reg:first-examination-report-despatched>
+                    </reg:dates-rights-effective>
+                    <reg:references-cited>
+                        <reg:citation id="cit_2887455" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DJPH11101709&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>JP</reg:country>
+    <reg:doc-number>H11101709</reg:doc-number>
+</reg:document-id>
+<reg:text>(MITSUBISHI HEAVY IND LTD et al.)  [I]  1-9,11-13 * paragraph  [0003]  - paragraph  [0025]; figures 1-11 *[A]  10</reg:text>
+                            </reg:patcit>
+                            <reg:category>IA</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887456" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DCN113188749&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>CN</reg:country>
+    <reg:doc-number>113188749</reg:doc-number>
+</reg:document-id>
+<reg:text>(中国民航大学)  [I]  1-9,11-13 * paragraph  [0027]  - paragraph  [0031]; figures 1-4 *[A]  10</reg:text>
+                            </reg:patcit>
+                            <reg:category>IA</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887457" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DDE19641351&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>DE</reg:country>
+    <reg:doc-number>19641351</reg:doc-number>
+</reg:document-id>
+<reg:text>(DEUTSCH ZENTR LUFT &amp; RAUMFAHRT et al.)  [I]  1-9,11-13 * column  2, line  52  - column  3, line  43; figures 1-3 *[A]  10</reg:text>
+                            </reg:patcit>
+                            <reg:category>IA</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887458" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DEP2886452&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>EP</reg:country>
+    <reg:doc-number>2886452</reg:doc-number>
+</reg:document-id>
+<reg:text>(AIRBUS OPERATIONS GMBH et al.)  [A]  1-13 * paragraph  [0055]  - paragraph  [0061]; figures 5-8 *</reg:text>
+                            </reg:patcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887459" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DGB610620&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>GB</reg:country>
+    <reg:doc-number>610620</reg:doc-number>
+</reg:document-id>
+<reg:text>(SYDNEY GOLDSTEIN et al.)  [A]  1-13 * the whole document *</reg:text>
+                            </reg:patcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887460" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DGB792243&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>GB</reg:country>
+    <reg:doc-number>792243</reg:doc-number>
+</reg:document-id>
+<reg:text>(COMMW OF AUSTRALIA et al.)  [A]  1-13 * the whole document *</reg:text>
+                            </reg:patcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887461" cited-phase="search" office="EP">
+                            <reg:patcit url="https://worldwide.espacenet.com/patent/search?q=pn%3DGB470211&amp;called_by=EuropeanRegister">
+<reg:document-id>
+    <reg:country>GB</reg:country>
+    <reg:doc-number>470211</reg:doc-number>
+</reg:document-id>
+<reg:text>(PROVENCALE DE CONST AERONAUTIQ et al.)  [A]  1-13 * the whole document *</reg:text>
+                            </reg:patcit>
+                            <reg:category>A</reg:category>
+                        </reg:citation>
+                        <reg:citation id="cit_2887462" cited-phase="search" office="EP">
+                            <reg:nplcit>
+<reg:text>FRANSSON J H M ET AL: "Flow around a porous cylinder subject to continuous suction or blowing", JOURNAL OF FLUIDS AND STRUCTURES, ACADEMIC PRESS, AMSTERDAM, NL, vol. 19, no. 8, 1 November 2004 (2004-11-01), pages 1031 - 1048, XP004647434, ISSN: 0889-9746, DOI: 10.1016/J.JFLUIDSTRUCTS.2004.06.005 [I]  1-9,11-13 * paragraph  [0002]; figures 1,2 *</reg:text>
+                            </reg:nplcit>
+                            <reg:category>I</reg:category>
+                        </reg:citation>
+                    </reg:references-cited>
+                    <reg:search-reports-information>
+                        <reg:search-report-information office="EP" search-type="national" declaration-of-no-search="not-determined" change-gazette-num="2026/01">
+                            <reg:search-report-publication>
+<reg:document-id lang="de">
+    <reg:country>EP</reg:country>
+    <reg:doc-number>4671723</reg:doc-number>
+    <reg:kind>A1</reg:kind>
+    <reg:date>20251231</reg:date>
+</reg:document-id>
+                            </reg:search-report-publication>
+                        </reg:search-report-information>
+                        <reg:search-report-information office="EP" search-type="national-supplementary" declaration-of-no-search="not-determined">
+                            <reg:date-search-report-mailed>
+<reg:date>20251119</reg:date>
+                            </reg:date-search-report-mailed>
+                        </reg:search-report-information>
+                    </reg:search-reports-information>
+                </reg:bibliographic-data>
+            </reg:register-document>
+        </reg:register-documents>
+    </ops:register-search>
+</ops:world-patent-data>

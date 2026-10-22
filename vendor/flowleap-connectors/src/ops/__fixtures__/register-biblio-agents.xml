@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic EP Register biblio in the OPS register+xml shape: two agents
+     blocks (a change of representative) and one opponent. -->
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns:reg="http://www.epo.org/register">
+  <reg:register-search>
+    <reg:register-documents>
+      <reg:register-document status="The patent has been granted">
+        <reg:bibliographic-data id="EPA" lang="en">
+          <reg:publication-reference>
+            <reg:document-id lang="en"><reg:country>EP</reg:country><reg:doc-number>1000000</reg:doc-number><reg:kind>B1</reg:kind><reg:date>20030409</reg:date></reg:document-id>
+          </reg:publication-reference>
+          <reg:application-reference>
+            <reg:document-id><reg:country>EP</reg:country><reg:doc-number>99203729</reg:doc-number><reg:date>19991108</reg:date></reg:document-id>
+          </reg:application-reference>
+          <reg:parties>
+            <reg:applicants change-gazette-num="2000/20">
+              <reg:applicant sequence="1" app-type="applicant" designation="all">
+                <reg:addressbook><reg:name>Example Machines B.V.</reg:name><reg:address><reg:address-1>Industrieweg 1</reg:address-1><reg:country>NL</reg:country></reg:address></reg:addressbook>
+              </reg:applicant>
+            </reg:applicants>
+            <reg:agents change-gazette-num="2000/20">
+              <reg:agent sequence="1" rep-type="agent">
+                <reg:addressbook><reg:name>Old Firm &amp; Partners</reg:name><reg:address><reg:address-1>Oude Straat 2</reg:address-1><reg:address-2>2500 AA Den Haag</reg:address-2><reg:country>NL</reg:country></reg:address></reg:addressbook>
+              </reg:agent>
+            </reg:agents>
+            <reg:agents change-gazette-num="2002/31">
+              <reg:agent sequence="1" rep-type="agent">
+                <reg:addressbook><reg:name>Muster Patentanwälte PartG mbB</reg:name><reg:address><reg:address-1>Leopoldstraße 4</reg:address-1><reg:address-2>80802 München</reg:address-2><reg:country>DE</reg:country></reg:address></reg:addressbook>
+              </reg:agent>
+              <reg:agent sequence="2" rep-type="agent">
+                <reg:addressbook><reg:name>Erika Muster</reg:name><reg:address><reg:address-1>Leopoldstraße 4</reg:address-1><reg:address-2>80802 München</reg:address-2><reg:country>DE</reg:country></reg:address></reg:addressbook>
+              </reg:agent>
+            </reg:agents>
+          </reg:parties>
+          <reg:invention-title lang="en">Apparatus for flattening a strip</reg:invention-title>
+          <reg:opposition-data change-gazette-num="2004/12">
+            <reg:opponent sequence="01">
+              <reg:addressbook><reg:name>Rival Industries AG</reg:name><reg:address><reg:address-1>Hauptstrasse 9</reg:address-1><reg:address-2>8000 Zürich</reg:address-2><reg:country>CH</reg:country></reg:address></reg:addressbook>
+              <reg:opponent-status status="ADMISSIBLE"><reg:date>20040120</reg:date></reg:opponent-status>
+              <reg:date-opposition-filed><reg:date>20040105</reg:date></reg:date-opposition-filed>
+            </reg:opponent>
+          </reg:opposition-data>
+        </reg:bibliographic-data>
+      </reg:register-document>
+    </reg:register-documents>
+  </reg:register-search>
+</ops:world-patent-data>

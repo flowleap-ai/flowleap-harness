@@ -1,0 +1,906 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="../../../../../style/exchange.xsl"?>
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <exchange-documents>
+        <exchange-document system="ops.epo.org" family-id="07674946" country="EP" doc-number="1234567" kind="A2">
+            <bibliographic-data>
+                <publication-reference>
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>1234567</doc-number>
+                        <kind>A2</kind>
+                        <date>20020828</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP1234567</doc-number>
+                        <date>20020828</date>
+                    </document-id>
+                </publication-reference>
+                <classification-ipc>
+                    <text>A61K6/083</text>
+                </classification-ipc>
+                <classifications-ipcr>
+                    <classification-ipcr sequence="1">
+                        <text>A61C  13/   003            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="2">
+                        <text>A61C  13/   087            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="3">
+                        <text>A61C   5/    08            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="4">
+                        <text>A61K   6/    00            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="5">
+                        <text>A61K   6/   027            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="6">
+                        <text>A61K   6/   083            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="7">
+                        <text>C08F   2/    44            A I                    </text>
+                    </classification-ipcr>
+                </classifications-ipcr>
+                <patent-classifications>
+                    <patent-classification sequence="1">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="2">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="3">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="4">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="5">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="6">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="7">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="8">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="9">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="10">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                </patent-classifications>
+                <application-reference doc-id="15901381">
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>02003250</doc-number>
+                        <kind>A</kind>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP20020003250</doc-number>
+                        <date>20020221</date>
+                    </document-id>
+                    <document-id document-id-type="original">
+                        <doc-number>02003250</doc-number>
+                    </document-id>
+                </application-reference>
+                <priority-claims>
+                    <priority-claim sequence="1" kind="national">
+                        <document-id document-id-type="epodoc">
+                            <doc-number>DE20011008261</doc-number>
+                            <date>20010221</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>10108261</doc-number>
+                        </document-id>
+                    </priority-claim>
+                </priority-claims>
+                <parties>
+                    <applicants>
+                        <applicant sequence="1" data-format="epodoc">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG [LI]</name>
+                            </applicant-name>
+                        </applicant>
+                        <applicant sequence="1" data-format="original">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG</name>
+                            </applicant-name>
+                        </applicant>
+                    </applicants>
+                    <inventors>
+                        <inventor sequence="1" data-format="epodoc">
+                            <inventor-name>
+                                <name>VOGEL KARIN [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="epodoc">
+                            <inventor-name>
+                                <name>NEUBERT ROLAND [AT]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="epodoc">
+                            <inventor-name>
+                                <name>SALZ ULRICH [DE]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="epodoc">
+                            <inventor-name>
+                                <name>RHEINBERGER VOLKER [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="1" data-format="original">
+                            <inventor-name>
+                                <name>VOGEL, KARIN</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="original">
+                            <inventor-name>
+                                <name>NEUBERT, ROLAND</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="original">
+                            <inventor-name>
+                                <name>SALZ, ULRICH</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="original">
+                            <inventor-name>
+                                <name>RHEINBERGER, VOLKER</name>
+                            </inventor-name>
+                        </inventor>
+                    </inventors>
+                </parties>
+                <invention-title lang="de">Füllstoff auf der Basis von partikulärem Komposit</invention-title>
+                <invention-title lang="fr">Matériau de remplissage à base d'un composite particulaire.</invention-title>
+                <invention-title lang="en">Filling material based on particulate composite</invention-title>
+            </bibliographic-data>
+            <abstract lang="de">
+                <p>Partikuläres Kompositmaterial mit einer mittleren Partikelgröße von 20 bis 50 µm und einem maximalen Gehalt an Partikeln mit einer Größe von &lt; 10 µm von 10 Gew.-% und dessen Verwendung zur Herstellung von Dentalwerkstoffen. &lt;IMAGE></p>
+            </abstract>
+        </exchange-document>
+        <exchange-document system="ops.epo.org" family-id="07674946" country="EP" doc-number="1234567" kind="A3">
+            <bibliographic-data>
+                <publication-reference>
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>1234567</doc-number>
+                        <kind>A3</kind>
+                        <date>20021106</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP1234567</doc-number>
+                        <date>20021106</date>
+                    </document-id>
+                </publication-reference>
+                <classification-ipc>
+                    <text>A61K6/083</text>
+                </classification-ipc>
+                <classifications-ipcr>
+                    <classification-ipcr sequence="1">
+                        <text>A61C  13/   003            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="2">
+                        <text>A61C  13/   087            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="3">
+                        <text>A61C   5/    08            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="4">
+                        <text>A61K   6/    00            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="5">
+                        <text>A61K   6/   027            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="6">
+                        <text>A61K   6/   083            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="7">
+                        <text>C08F   2/    44            A I                    </text>
+                    </classification-ipcr>
+                </classifications-ipcr>
+                <patent-classifications>
+                    <patent-classification sequence="1">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="2">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="3">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="4">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="5">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="6">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="7">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="8">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="9">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="10">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                </patent-classifications>
+                <application-reference doc-id="15901381">
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>02003250</doc-number>
+                        <kind>A</kind>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP20020003250</doc-number>
+                        <date>20020221</date>
+                    </document-id>
+                    <document-id document-id-type="original">
+                        <doc-number>02003250</doc-number>
+                    </document-id>
+                </application-reference>
+                <priority-claims>
+                    <priority-claim sequence="1" kind="national">
+                        <document-id document-id-type="epodoc">
+                            <doc-number>DE20011008261</doc-number>
+                            <date>20010221</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>10108261</doc-number>
+                        </document-id>
+                    </priority-claim>
+                </priority-claims>
+                <parties>
+                    <applicants>
+                        <applicant sequence="1" data-format="epodoc">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG [LI]</name>
+                            </applicant-name>
+                        </applicant>
+                        <applicant sequence="1" data-format="original">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG</name>
+                            </applicant-name>
+                        </applicant>
+                    </applicants>
+                    <inventors>
+                        <inventor sequence="1" data-format="epodoc">
+                            <inventor-name>
+                                <name>VOGEL KARIN [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="epodoc">
+                            <inventor-name>
+                                <name>NEUBERT ROLAND [AT]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="epodoc">
+                            <inventor-name>
+                                <name>SALZ ULRICH [DE]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="epodoc">
+                            <inventor-name>
+                                <name>RHEINBERGER VOLKER [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="1" data-format="original">
+                            <inventor-name>
+                                <name>VOGEL, KARIN</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="original">
+                            <inventor-name>
+                                <name>NEUBERT, ROLAND</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="original">
+                            <inventor-name>
+                                <name>SALZ, ULRICH</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="original">
+                            <inventor-name>
+                                <name>RHEINBERGER, VOLKER</name>
+                            </inventor-name>
+                        </inventor>
+                    </inventors>
+                </parties>
+                <invention-title lang="de">Füllstoff auf der Basis von partikulärem Komposit</invention-title>
+                <invention-title lang="fr">Matériau de remplissage à base d'un composite particulaire.</invention-title>
+                <invention-title lang="en">Filling material based on particulate composite</invention-title>
+                <references-cited>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US6274644</doc-number>
+                                <date>20010814</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>6274644</doc-number>
+                                <kind>B1</kind>
+                                <date>20010814</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-passage>
+                            <passage>* column  1, lines  39-43 *</passage>
+                            <passage>* column  2, lines  6-11 *</passage>
+                            <passage>* figure 1 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US5356951</doc-number>
+                                <name>YEARN JOHN A  ET AL</name>
+                                <date>19941018</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>5356951</doc-number>
+                                <kind>A</kind>
+                                <name>YEARN JOHN A  ET AL</name>
+                                <date>19941018</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>1-7,10-17,26,27</rel-claims>
+                        <rel-passage>
+                            <passage>* column  2, lines  25-41 *</passage>
+                            <passage>* column  3, lines  44-67 *</passage>
+                            <passage>* column  4, lines  3-38 *</passage>
+                            <passage>* claim 4 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="2">
+                        <patcit dnum-type="publication number" num="2">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>WO9965453</doc-number>
+                                <name>KOBASHIGAWA ALVIN I ;KERR CORP (US</name>
+                                <date>19991223</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>WO</country>
+                                <doc-number>9965453</doc-number>
+                                <kind>A1</kind>
+                                <name>KOBASHIGAWA ALVIN I ;KERR CORP (US</name>
+                                <date>19991223</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1-7,9-17,19,22-27</rel-claims>
+                        <rel-passage>
+                            <passage>* page  1, paragraph  3 *</passage>
+                            <passage>* page  2  - page  3 *</passage>
+                            <passage>* page  10, line  6 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="3">
+                        <patcit dnum-type="publication number" num="3">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>DE19918974</doc-number>
+                                <name>DEGUSSA</name>
+                                <date>19991216</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>DE</country>
+                                <doc-number>19918974</doc-number>
+                                <kind>A1</kind>
+                                <name>DEGUSSA</name>
+                                <date>19991216</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1,10,12,20,21</rel-claims>
+                        <rel-passage>
+                            <passage>* page  4, lines  12-15 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="4">
+                        <patcit dnum-type="publication number" num="4">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>DE3502594</doc-number>
+                                <name>DENTAIRE IVOCLAR ETS</name>
+                                <date>19860731</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>DE</country>
+                                <doc-number>3502594</doc-number>
+                                <kind>A1</kind>
+                                <name>DENTAIRE IVOCLAR ETS</name>
+                                <date>19860731</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1,8,10,12,17,18</rel-claims>
+                        <rel-passage>
+                            <passage>* page  5, paragraph  3 *</passage>
+                            <passage>* page  6, paragraphs  3,4 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="5">
+                        <patcit dnum-type="publication number" num="5">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>EP0394798</doc-number>
+                                <name>DEGUSSA</name>
+                                <date>19901031</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>EP</country>
+                                <doc-number>0394798</doc-number>
+                                <kind>A2</kind>
+                                <name>DEGUSSA</name>
+                                <date>19901031</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1,4,6,10,12,13,15,16,27</rel-claims>
+                        <rel-passage>
+                            <passage>* page  2, lines  1-12 *</passage>
+                            <passage>* page  3, lines  5-21 *</passage>
+                            <passage>* page  4, lines  52-56 *</passage>
+                            <passage>* page  6, lines  37-41 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="6">
+                        <patcit dnum-type="publication number" num="6">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>WO0061073</doc-number>
+                                <name>DENTSPLY INT INC</name>
+                                <date>20001019</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>WO</country>
+                                <doc-number>0061073</doc-number>
+                                <kind>A1</kind>
+                                <name>DENTSPLY INT INC</name>
+                                <date>20001019</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1,27</rel-claims>
+                        <rel-passage>
+                            <passage>* page  1, paragraph  1 *</passage>
+                            <passage>* claim - *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="7">
+                        <patcit dnum-type="publication number" num="7">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>EP0475239</doc-number>
+                                <name>IVOCLAR AG</name>
+                                <date>19920318</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>EP</country>
+                                <doc-number>0475239</doc-number>
+                                <kind>A2</kind>
+                                <name>IVOCLAR AG</name>
+                                <date>19920318</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1,3,4,6,7,10,12,13,15-17,26,27</rel-claims>
+                        <category>D</category>
+                        <rel-claims>1,3,4,6,7,10,12,13,15-17,26,27</rel-claims>
+                        <rel-passage>
+                            <passage>* column  1, lines  35-41 *</passage>
+                            <passage>* column  3, lines  14-31 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="8">
+                        <patcit dnum-type="publication number" num="8">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>DE2705220</doc-number>
+                                <name>MINNESOTA MINING &amp;amp; MFG</name>
+                                <date>19770811</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>DE</country>
+                                <doc-number>2705220</doc-number>
+                                <kind>A1</kind>
+                                <name>MINNESOTA MINING &amp;amp; MFG</name>
+                                <date>19770811</date>
+                            </document-id>
+                        </patcit>
+                        <category>A</category>
+                        <rel-claims>1-4,6,10-13,15,16,27</rel-claims>
+                        <category>D</category>
+                        <rel-claims>1-4,6,10-13,15,16,27</rel-claims>
+                        <rel-passage>
+                            <passage>* page  4, lines  16-18 *</passage>
+                            <passage>* page  9, line  13  - page  10, line  27 *</passage>
+                            <passage>* page  11, lines  7-15 *</passage>
+                            <passage>* page  14, lines  21-28 *</passage>
+                        </rel-passage>
+                    </citation>
+                </references-cited>
+            </bibliographic-data>
+            <abstract lang="de">
+                <p>Partikuläres Kompositmaterial mit einer mittleren Partikelgröße von 20 bis 50 µm und einem maximalen Gehalt an Partikeln mit einer Größe von &lt; 10 µm von 10 Gew.-% und dessen Verwendung zur Herstellung von Dentalwerkstoffen. &lt;IMAGE></p>
+            </abstract>
+        </exchange-document>
+        <exchange-document system="ops.epo.org" family-id="07674946" country="EP" doc-number="1234567" kind="B1">
+            <bibliographic-data>
+                <publication-reference>
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>1234567</doc-number>
+                        <kind>B1</kind>
+                        <date>20070411</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP1234567</doc-number>
+                        <date>20070411</date>
+                    </document-id>
+                </publication-reference>
+                <classification-ipc>
+                    <text>A61K6/083</text>
+                </classification-ipc>
+                <classifications-ipcr>
+                    <classification-ipcr sequence="1">
+                        <text>A61C  13/   003            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="2">
+                        <text>A61C  13/   087            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="3">
+                        <text>A61C   5/    08            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="4">
+                        <text>A61K   6/    00            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="5">
+                        <text>A61K   6/   027            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="6">
+                        <text>A61K   6/   083            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="7">
+                        <text>C08F   2/    44            A I                    </text>
+                    </classification-ipcr>
+                </classifications-ipcr>
+                <patent-classifications>
+                    <patent-classification sequence="1">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="2">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>31</main-group>
+                        <subgroup>04</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="3">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="4">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>77</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="5">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="6">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>A</section>
+                        <class>61</class>
+                        <subclass>K</subclass>
+                        <main-group>6</main-group>
+                        <subgroup>887</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="7">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="8">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>3</main-group>
+                        <subgroup>284</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="9">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="10">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>C</section>
+                        <class>02</class>
+                        <subclass>F</subclass>
+                        <main-group>5</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                </patent-classifications>
+                <application-reference doc-id="15901381">
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>02003250</doc-number>
+                        <kind>A</kind>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP20020003250</doc-number>
+                        <date>20020221</date>
+                    </document-id>
+                    <document-id document-id-type="original">
+                        <doc-number>02003250</doc-number>
+                    </document-id>
+                </application-reference>
+                <priority-claims>
+                    <priority-claim sequence="1" kind="national">
+                        <document-id document-id-type="epodoc">
+                            <doc-number>DE20011008261</doc-number>
+                            <date>20010221</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>10108261</doc-number>
+                        </document-id>
+                    </priority-claim>
+                </priority-claims>
+                <parties>
+                    <applicants>
+                        <applicant sequence="1" data-format="epodoc">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG [LI]</name>
+                            </applicant-name>
+                        </applicant>
+                        <applicant sequence="1" data-format="original">
+                            <applicant-name>
+                                <name>IVOCLAR VIVADENT AG</name>
+                            </applicant-name>
+                        </applicant>
+                    </applicants>
+                    <inventors>
+                        <inventor sequence="1" data-format="epodoc">
+                            <inventor-name>
+                                <name>VOGEL KARIN [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="epodoc">
+                            <inventor-name>
+                                <name>NEUBERT ROLAND [AT]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="epodoc">
+                            <inventor-name>
+                                <name>SALZ ULRICH [DE]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="epodoc">
+                            <inventor-name>
+                                <name>RHEINBERGER VOLKER [LI]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="1" data-format="original">
+                            <inventor-name>
+                                <name>VOGEL, KARIN</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="original">
+                            <inventor-name>
+                                <name>NEUBERT, ROLAND</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="3" data-format="original">
+                            <inventor-name>
+                                <name>SALZ, ULRICH</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="4" data-format="original">
+                            <inventor-name>
+                                <name>RHEINBERGER, VOLKER</name>
+                            </inventor-name>
+                        </inventor>
+                    </inventors>
+                </parties>
+                <invention-title lang="de">Füllstoff auf der Basis von partikulärem Komposit</invention-title>
+                <invention-title lang="fr">Matériau de remplissage à base d'un composite particulaire.</invention-title>
+                <invention-title lang="en">Filling material based on particulate composite</invention-title>
+            </bibliographic-data>
+            <abstract lang="de">
+                <p>Partikuläres Kompositmaterial mit einer mittleren Partikelgröße von 20 bis 50 µm und einem maximalen Gehalt an Partikeln mit einer Größe von &lt; 10 µm von 10 Gew.-% und dessen Verwendung zur Herstellung von Dentalwerkstoffen. &lt;IMAGE></p>
+            </abstract>
+        </exchange-document>
+    </exchange-documents>
+</ops:world-patent-data>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Real OPS priority-claims blocks, copied verbatim from
+  /published-data/publication/epodoc/<doc>/biblio (#432). Four documents chosen
+  for what they prove about the document-id variants, not for their subject:
+    US2009261648  docdb + epodoc, NO original
+    EP1000000     all three, a non-US (NL) priority
+    US11000000    two claims — a provisional (kind P) and a regular filing,
+                  the second with no original
+    WO2019055630  original carries the office's complete "62/558,339"
+-->
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org">
+  <exchange-documents>
+    <exchange-document country="US" doc-number="2009261648" kind="A1">
+      <bibliographic-data>
+      <priority-claims>
+        <priority-claim sequence="1" kind="national">
+          <document-id document-id-type="docdb">
+            <country>US</country>
+            <doc-number>10374408</doc-number>
+            <kind>A</kind>
+            <date>20080416</date>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>US20080103744</doc-number>
+            <date>20080416</date>
+          </document-id>
+        </priority-claim>
+      </priority-claims>
+      </bibliographic-data>
+    </exchange-document>
+    <exchange-document country="US" doc-number="11000000" kind="A1">
+      <bibliographic-data>
+      <priority-claims>
+        <priority-claim sequence="1" kind="national">
+          <document-id document-id-type="docdb">
+            <country>US</country>
+            <doc-number>201862731230</doc-number>
+            <kind>P</kind>
+            <date>20180914</date>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>US201862731230P</doc-number>
+            <date>20180914</date>
+          </document-id>
+          <document-id document-id-type="original">
+            <doc-number>62731230</doc-number>
+          </document-id>
+        </priority-claim>
+        <priority-claim sequence="2" kind="national">
+          <document-id document-id-type="docdb">
+            <country>US</country>
+            <doc-number>201916568903</doc-number>
+            <kind>A</kind>
+            <date>20190912</date>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>US201916568903</doc-number>
+            <date>20190912</date>
+          </document-id>
+        </priority-claim>
+      </priority-claims>
+      </bibliographic-data>
+    </exchange-document>
+    <exchange-document country="WO" doc-number="2019055630" kind="A1">
+      <bibliographic-data>
+      <priority-claims>
+        <priority-claim sequence="1" kind="national">
+          <document-id document-id-type="docdb">
+            <country>US</country>
+            <doc-number>201762558339</doc-number>
+            <kind>P</kind>
+            <date>20170913</date>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>US201762558339P</doc-number>
+            <date>20170913</date>
+          </document-id>
+          <document-id document-id-type="original">
+            <doc-number>62/558,339</doc-number>
+          </document-id>
+        </priority-claim>
+      </priority-claims>
+      </bibliographic-data>
+    </exchange-document>
+    <exchange-document country="EP" doc-number="1000000" kind="A1">
+      <bibliographic-data>
+      <priority-claims>
+        <priority-claim sequence="1" kind="national">
+          <document-id document-id-type="docdb">
+            <country>NL</country>
+            <doc-number>1010536</doc-number>
+            <kind>A</kind>
+            <date>19981112</date>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>NL19981010536</doc-number>
+            <date>19981112</date>
+          </document-id>
+          <document-id document-id-type="original">
+            <doc-number>1010536</doc-number>
+          </document-id>
+        </priority-claim>
+      </priority-claims>
+      </bibliographic-data>
+    </exchange-document>
+  </exchange-documents>
+</ops:world-patent-data>

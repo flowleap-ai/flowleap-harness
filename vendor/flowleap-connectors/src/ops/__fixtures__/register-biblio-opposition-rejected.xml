@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- EP3414489, OPS register biblio read of 2026-10-15 (#583), trimmed: a rejected opposition. The register
+     holds TWO opposition-data blocks. The first (change-date 20210924) names opponent 01 with status and
+     filing date. The second (change-date 20230320) is the current block and holds only date-rejected: no
+     opponent. The applicant and opponent address lines are left out. -->
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns:reg="http://www.epo.org/register">
+  <reg:register-search total-result-count="1">
+    <reg:query syntax="CQL">publication=EP3414489</reg:query>
+    <reg:register-documents dtd-version="1.3.3" produced-by="RO">
+      <reg:register-document date-produced="20261015" dtd-version="1.3.3" lang="en" produced-by="RO" status="Opposition rejected">
+        <reg:bibliographic-data country="EP" id="EP17708016P" lang="en" status="Opposition rejected">
+          <reg:publication-reference change-gazette-num="2018/51">
+            <reg:document-id lang="en"><reg:country>EP</reg:country><reg:doc-number>3414489</reg:doc-number><reg:kind>A1</reg:kind><reg:date>20181219</reg:date></reg:document-id>
+          </reg:publication-reference>
+          <reg:application-reference>
+            <reg:document-id><reg:country>EP</reg:country><reg:doc-number>17708016</reg:doc-number><reg:date>20170206</reg:date></reg:document-id>
+          </reg:application-reference>
+          <reg:invention-title lang="en" change-gazette-num="2018/51">LED LUMINAIRE HAVING ENHANCED THERMAL MANAGEMENT</reg:invention-title>
+          <reg:parties>
+            <reg:applicants change-gazette-num="2019/31">
+              <reg:applicant sequence="1" app-type="applicant" designation="all">
+                <reg:addressbook><reg:name>Ideal Industries Lighting LLC</reg:name></reg:addressbook>
+              </reg:applicant>
+              <reg:applicant sequence="2" app-type="applicant" designation="all">
+                <reg:addressbook><reg:name>Cree, Inc.</reg:name></reg:addressbook>
+              </reg:applicant>
+            </reg:applicants>
+            <reg:agents change-date="20211018" change-gazette-num="N/P">
+              <reg:agent sequence="1" rep-type="agent">
+                <reg:addressbook><reg:name>Boult Wade Tennant LLP</reg:name><reg:address><reg:address-1>Salisbury Square House</reg:address-1><reg:address-2>8 Salisbury Square</reg:address-2><reg:address-3>London EC4Y 8AP</reg:address-3><reg:country>GB</reg:country></reg:address></reg:addressbook>
+              </reg:agent>
+            </reg:agents>
+          </reg:parties>
+          <reg:opposition-data change-date="20210924" change-gazette-num="2021/43">
+            <reg:opponent sequence="01">
+              <reg:addressbook><reg:name>Boniberger, Bernhard</reg:name></reg:addressbook>
+              <reg:agent rep-type="agent" sequence="1">
+                <reg:addressbook><reg:name>Patent- und Rechtsanwälte Behrmann Wagner PartG mbB</reg:name></reg:addressbook>
+              </reg:agent>
+              <reg:opponent-status status="ADMISSIBLE"><reg:date>20210922</reg:date></reg:opponent-status>
+              <reg:date-opposition-filed><reg:date>20210920</reg:date></reg:date-opposition-filed>
+            </reg:opponent>
+          </reg:opposition-data>
+          <reg:opposition-data change-date="20230320" change-gazette-num="2023/32">
+            <reg:date-rejected><reg:date>20230131</reg:date></reg:date-rejected>
+          </reg:opposition-data>
+        </reg:bibliographic-data>
+      </reg:register-document>
+    </reg:register-documents>
+  </reg:register-search>
+</ops:world-patent-data>

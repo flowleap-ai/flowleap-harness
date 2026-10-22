@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="../../../../style/family.xsl"?>
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <ops:patent-family legal="false" total-result-count="7">
+    <ops:publication-reference>
+      <document-id document-id-type="epodoc">
+        <doc-number>EP2110298</doc-number>
+      </document-id>
+    </ops:publication-reference>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>2110298</doc-number>
+          <kind>A2</kind>
+          <date>20091021</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>EP2110298</doc-number>
+          <date>20091021</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="56549757" is-representative="YES">
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>09250131</doc-number>
+          <kind>A</kind>
+          <date>20090119</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>2110298</doc-number>
+          <kind>A3</kind>
+          <date>20120404</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>EP2110298</doc-number>
+          <date>20120404</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="56549757" is-representative="YES">
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>09250131</doc-number>
+          <kind>A</kind>
+          <date>20090119</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>2110298</doc-number>
+          <kind>B1</kind>
+          <date>20140806</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>EP2110298</doc-number>
+          <date>20140806</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="56549757" is-representative="YES">
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>09250131</doc-number>
+          <kind>A</kind>
+          <date>20090119</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>2009261648</doc-number>
+          <kind>A1</kind>
+          <date>20091022</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>US2009261648</doc-number>
+          <date>20091022</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="267837275">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>7722129</doc-number>
+          <kind>B2</kind>
+          <date>20100525</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>US7722129</doc-number>
+          <date>20100525</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="267837275">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>2010194184</doc-number>
+          <kind>A1</kind>
+          <date>20100805</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>US2010194184</doc-number>
+          <date>20100805</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="318225823">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>75653110</doc-number>
+          <kind>A</kind>
+          <date>20100408</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+        <priority-linkage-type>3</priority-linkage-type>
+      </priority-claim>
+      <priority-claim sequence="2" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>75653110</doc-number>
+          <kind>A</kind>
+          <date>20100408</date>
+        </document-id>
+        <priority-active-indicator>NO</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+    <ops:family-member family-id="40846074">
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>8056987</doc-number>
+          <kind>B2</kind>
+          <date>20111115</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>US8056987</doc-number>
+          <date>20111115</date>
+        </document-id>
+      </publication-reference>
+      <application-reference doc-id="318225823">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>75653110</doc-number>
+          <kind>A</kind>
+          <date>20100408</date>
+        </document-id>
+      </application-reference>
+      <priority-claim sequence="1" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>10374408</doc-number>
+          <kind>A</kind>
+          <date>20080416</date>
+        </document-id>
+        <priority-active-indicator>YES</priority-active-indicator>
+        <priority-linkage-type>3</priority-linkage-type>
+      </priority-claim>
+      <priority-claim sequence="2" kind="national">
+        <document-id document-id-type="docdb">
+          <country>US</country>
+          <doc-number>75653110</doc-number>
+          <kind>A</kind>
+          <date>20100408</date>
+        </document-id>
+        <priority-active-indicator>NO</priority-active-indicator>
+      </priority-claim>
+    </ops:family-member>
+  </ops:patent-family>
+</ops:world-patent-data>

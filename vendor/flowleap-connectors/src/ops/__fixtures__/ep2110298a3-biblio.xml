@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="../../../../../style/exchange.xsl"?>
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <exchange-documents>
+        <exchange-document system="ops.epo.org" family-id="40846074" country="EP" doc-number="2110298" kind="A3">
+            <bibliographic-data>
+                <publication-reference>
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>2110298</doc-number>
+                        <kind>A3</kind>
+                        <date>20120404</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP2110298</doc-number>
+                        <date>20120404</date>
+                    </document-id>
+                </publication-reference>
+                <classifications-ipcr>
+                    <classification-ipcr sequence="1">
+                        <text>B62K  25/    02            A I                    </text>
+                    </classification-ipcr>
+                </classifications-ipcr>
+                <patent-classifications>
+                    <patent-classification sequence="1">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>B</section>
+                        <class>62</class>
+                        <subclass>K</subclass>
+                        <main-group>25</main-group>
+                        <subgroup>02</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="2">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>B</section>
+                        <class>62</class>
+                        <subclass>K</subclass>
+                        <main-group>25</main-group>
+                        <subgroup>02</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="3">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>B</section>
+                        <class>62</class>
+                        <subclass>K</subclass>
+                        <main-group>2206</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="4">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>B</section>
+                        <class>62</class>
+                        <subclass>K</subclass>
+                        <main-group>2206</main-group>
+                        <subgroup>00</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                </patent-classifications>
+                <application-reference doc-id="56549757">
+                    <document-id document-id-type="docdb">
+                        <country>EP</country>
+                        <doc-number>09250131</doc-number>
+                        <kind>A</kind>
+                        <date>20090119</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>EP20090250131</doc-number>
+                        <date>20090119</date>
+                    </document-id>
+                    <document-id document-id-type="original">
+                        <doc-number>09250131.1</doc-number>
+                    </document-id>
+                </application-reference>
+                <priority-claims>
+                    <priority-claim sequence="1" kind="national">
+                        <document-id document-id-type="docdb">
+                            <country>US</country>
+                            <doc-number>10374408</doc-number>
+                            <kind>A</kind>
+                            <date>20080416</date>
+                        </document-id>
+                        <document-id document-id-type="epodoc">
+                            <doc-number>US20080103744</doc-number>
+                            <date>20080416</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>103744</doc-number>
+                        </document-id>
+                    </priority-claim>
+                </priority-claims>
+                <parties>
+                    <applicants>
+                        <applicant sequence="1" data-format="epodoc">
+                            <applicant-name>
+                                <name>TREK BICYCLE CORP [US]</name>
+                            </applicant-name>
+                        </applicant>
+                        <applicant sequence="1" data-format="original">
+                            <applicant-name>
+                                <name>TREK BICYCLE CORPORATION</name>
+                            </applicant-name>
+                        </applicant>
+                    </applicants>
+                    <inventors>
+                        <inventor sequence="1" data-format="epodoc">
+                            <inventor-name>
+                                <name>CUSACK DOUGLAS A [US]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="1" data-format="original">
+                            <inventor-name>
+                                <name>CUSACK, DOUGLAS A.</name>
+                            </inventor-name>
+                        </inventor>
+                    </inventors>
+                </parties>
+                <invention-title lang="de">Schnellspanner für Fahrradachse</invention-title>
+                <invention-title lang="fr">Ensemble de libération rapide de roue de bicyclette</invention-title>
+                <invention-title lang="en">Bicycle wheel quick release assembly</invention-title>
+                <references-cited>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>EP1602570</doc-number>
+                                <date>20051207</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>EP</country>
+                                <doc-number>1602570</doc-number>
+                                <kind>A1</kind>
+                                <date>20051207</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>13</rel-claims>
+                        <category>A</category>
+                        <rel-claims>1,5,9</rel-claims>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US4964287</doc-number>
+                                <name>GAUL RICHARD K [US]</name>
+                                <date>19901023</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>4964287</doc-number>
+                                <kind>A</kind>
+                                <name>GAUL RICHARD K [US]</name>
+                                <date>19901023</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>1-3,5,7,8</rel-claims>
+                        <category>A</category>
+                        <rel-claims>9</rel-claims>
+                        <rel-passage>
+                            <passage>* the whole document *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="2">
+                        <patcit dnum-type="publication number" num="2">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US2007052285</doc-number>
+                                <name>MONTAGUE DAVID [US] ET AL</name>
+                                <date>20070308</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>2007052285</doc-number>
+                                <kind>A1</kind>
+                                <name>MONTAGUE DAVID [US] ET AL</name>
+                                <date>20070308</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>5</rel-claims>
+                        <category>A</category>
+                        <rel-claims>1,9</rel-claims>
+                        <rel-passage>
+                            <passage>* figure -, claim 26 *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="3">
+                        <patcit dnum-type="publication number" num="3">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US5135330</doc-number>
+                                <name>CHEN CHUN-HSUNG [TW]</name>
+                                <date>19920804</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>5135330</doc-number>
+                                <kind>A</kind>
+                                <name>CHEN CHUN-HSUNG [TW]</name>
+                                <date>19920804</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>1-5</rel-claims>
+                        <category>A</category>
+                        <rel-claims>9,13</rel-claims>
+                        <rel-passage>
+                            <passage>* the whole document *</passage>
+                        </rel-passage>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="4">
+                        <patcit dnum-type="publication number" num="4">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US4763957</doc-number>
+                                <name>POEHLMANN PAUL W [US] ET AL</name>
+                                <date>19880816</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>4763957</doc-number>
+                                <kind>A</kind>
+                                <name>POEHLMANN PAUL W [US] ET AL</name>
+                                <date>19880816</date>
+                            </document-id>
+                        </patcit>
+                        <category>X</category>
+                        <rel-claims>13</rel-claims>
+                        <category>A</category>
+                        <rel-claims>1,5,9</rel-claims>
+                        <rel-passage>
+                            <passage>* figures 6-10 *</passage>
+                        </rel-passage>
+                    </citation>
+                </references-cited>
+            </bibliographic-data>
+            <abstract lang="en">
+                <p>[0001]    A quick release assembly (12) for a bicycle wheel that includes a pair of heads (108,110) disposed at generally opposite ends of a skewer rod (93). One of the heads includes a cam surface that is translatable relative to the head. The quick release includes an operator (112) having a handle portion and a stem portion (146). The stem portion (146) includes a cam that cooperates with the cam surface formed in one of the heads such that operation of the handle alters the distance between the heads from a first orientation wherein the heads secure a wheel to a bicycle, a second orientation wherein the heads loosely secure the wheel to the bicycle and a third orientation wherein the wheel assembly can be freely removed from the bicycle.</p>
+            </abstract>
+        </exchange-document>
+    </exchange-documents>
+</ops:world-patent-data>

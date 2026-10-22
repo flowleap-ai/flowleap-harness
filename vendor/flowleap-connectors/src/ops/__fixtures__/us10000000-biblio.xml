@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="../../../../../style/exchange.xsl"?>
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <exchange-documents>
+        <exchange-document system="ops.epo.org" family-id="55456961" country="US" doc-number="10000000" kind="B2">
+            <bibliographic-data>
+                <publication-reference>
+                    <document-id document-id-type="docdb">
+                        <country>US</country>
+                        <doc-number>10000000</doc-number>
+                        <kind>B2</kind>
+                        <date>20180619</date>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>US10000000</doc-number>
+                        <date>20180619</date>
+                    </document-id>
+                </publication-reference>
+                <classifications-ipcr>
+                    <classification-ipcr sequence="1">
+                        <text>G01S   7/  4863            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="2">
+                        <text>G01S   7/  4865            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="3">
+                        <text>G01S   7/  4914            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="4">
+                        <text>G01S  13/    89            A I                    </text>
+                    </classification-ipcr>
+                    <classification-ipcr sequence="5">
+                        <text>G01S   7/    48            A I                    </text>
+                    </classification-ipcr>
+                </classifications-ipcr>
+                <patent-classifications>
+                    <patent-classification sequence="1">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>13</main-group>
+                        <subgroup>89</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>IL</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="2">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4863</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>IL</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="3">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4863</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="4">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4863</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="5">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4865</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="6">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4865</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>IL</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="7">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4914</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>IL</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="8">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4914</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="9">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4914</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="10">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4917</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>IL</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="11">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4917</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>US</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="12">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>7</main-group>
+                        <subgroup>4917</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                    <patent-classification sequence="13">
+                        <classification-scheme office="EP" scheme="CPCI"/>
+                        <section>G</section>
+                        <class>01</class>
+                        <subclass>S</subclass>
+                        <main-group>17</main-group>
+                        <subgroup>894</subgroup>
+                        <classification-value>I</classification-value>
+                        <generating-office>EP</generating-office>
+                    </patent-classification>
+                </patent-classifications>
+                <application-reference doc-id="469404924">
+                    <document-id document-id-type="docdb">
+                        <country>US</country>
+                        <doc-number>201514643719</doc-number>
+                        <kind>A</kind>
+                    </document-id>
+                    <document-id document-id-type="epodoc">
+                        <doc-number>US201514643719</doc-number>
+                        <date>20150310</date>
+                    </document-id>
+                    <document-id document-id-type="original">
+                        <doc-number>14643719</doc-number>
+                    </document-id>
+                </application-reference>
+                <priority-claims>
+                    <priority-claim sequence="1" kind="national">
+                        <document-id document-id-type="epodoc">
+                            <doc-number>US201514643719</doc-number>
+                            <date>20150310</date>
+                        </document-id>
+                    </priority-claim>
+                </priority-claims>
+                <parties>
+                    <applicants>
+                        <applicant sequence="1" data-format="epodoc">
+                            <applicant-name>
+                                <name>RAYTHEON CO [US]</name>
+                            </applicant-name>
+                        </applicant>
+                        <applicant sequence="1" data-format="original">
+                            <applicant-name>
+                                <name>Raytheon Company</name>
+                            </applicant-name>
+                        </applicant>
+                    </applicants>
+                    <inventors>
+                        <inventor sequence="1" data-format="epodoc">
+                            <inventor-name>
+                                <name>MARRON JOSEPH [US]</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="1" data-format="original">
+                            <inventor-name>
+                                <name>Marron Joseph</name>
+                            </inventor-name>
+                        </inventor>
+                        <inventor sequence="2" data-format="original">
+                            <inventor-name>
+                                <name>Marron, Joseph</name>
+                            </inventor-name>
+                        </inventor>
+                    </inventors>
+                </parties>
+                <invention-title lang="en">COHERENT LADAR USING INTRA-PIXEL QUADRATURE DETECTION</invention-title>
+                <references-cited>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US5751830</doc-number>
+                                <date>19980501</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>5751830</doc-number>
+                                <kind>A</kind>
+                                <date>19980501</date>
+                            </document-id>
+                        </patcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="2">
+                        <patcit dnum-type="publication number" num="2">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US2003076485</doc-number>
+                                <date>20030401</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>2003076485</doc-number>
+                                <kind>A1</kind>
+                                <date>20030401</date>
+                            </document-id>
+                        </patcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="3">
+                        <patcit dnum-type="publication number" num="3">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>WO2005080928</doc-number>
+                                <date>20050901</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>WO</country>
+                                <doc-number>2005080928</doc-number>
+                                <kind>A1</kind>
+                                <date>20050901</date>
+                            </document-id>
+                        </patcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="4">
+                        <nplcit num="1">
+                            <text>- Li; “Time-of-Flight Camera—An Introduction”; Texas Instruments White Paper; SLOA190B; Jan. 2014; revised May 2014; 10 pp.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="5">
+                        <nplcit num="2">
+                            <text>- Niclass, et al. “Single-Photon Synchronous Detection”; IEEE Journal of Solid-State Circuits; vol. 44, No. 7; Jul. 2009; 13 pp.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="6">
+                        <nplcit num="3">
+                            <text>- Marron, et al.; “Coherent Detection with an Asynchronous Geiger Mode Receiver”; Proc. MSS Active Meeting, Washington, D.C.; 2014.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="7">
+                        <nplcit num="4">
+                            <text>- Joseph C. Marron et al., “Atmospheric turbulence correction using digital holographic detection: experimental results”, Optics Express, vol. 17, No. 14, Jul. 6, 2009, p. 11638-11651.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="8">
+                        <nplcit num="5">
+                            <text>- Notification of Transmittal of the International Search Report and the Written Opinion of the International Searching Authority, or the Declaration dated Jun. 9, 2016 in connection with International Patent Application No. PCT/US2016/019088.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="undefined" cited-by="applicant" sequence="9">
+                        <nplcit num="6">
+                            <text>- Marron et al. “Coherent Detection with an Asynchronous Geiger Mode Array”; Applications of Lasers for Sensing and Free Space Communications 2015; Arlington, Virginia; Jun. 7-11, 2015; 3 pages.</text>
+                        </nplcit>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="1">
+                        <patcit dnum-type="publication number" num="1">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US5093563</doc-number>
+                                <date>19920301</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>5093563</doc-number>
+                                <kind>A</kind>
+                                <date>19920301</date>
+                            </document-id>
+                        </patcit>
+                    </citation>
+                    <citation cited-phase="national-search-report" cited-by="examiner" sequence="2">
+                        <patcit dnum-type="publication number" num="2">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>US2006227317</doc-number>
+                                <date>20061001</date>
+                            </document-id>
+                            <document-id document-id-type="docdb">
+                                <country>US</country>
+                                <doc-number>2006227317</doc-number>
+                                <kind>A1</kind>
+                                <date>20061001</date>
+                            </document-id>
+                        </patcit>
+                    </citation>
+                </references-cited>
+            </bibliographic-data>
+            <abstract lang="en">
+                <p>A frequency modulated (coherent) laser detection and ranging system includes a read-out integrated circuit formed with a two-dimensional array of detector elements each including a photosensitive region receiving both return light reflected from a target and light from a local oscillator, and local processing circuitry sampling the output of the photosensitive region four times during each sample period clock cycle to obtain quadrature components. A data bus coupled to one or more outputs of each of the detector elements receives the quadrature components from each of the detector elements for each sample period and serializes the received quadrature components. A processor coupled to the data bus receives the serialized quadrature components and determines an amplitude and a phase for at least one interfering frequency corresponding to interference between the return light and the local oscillator light using the quadrature components.</p>
+            </abstract>
+        </exchange-document>
+    </exchange-documents>
+</ops:world-patent-data>
