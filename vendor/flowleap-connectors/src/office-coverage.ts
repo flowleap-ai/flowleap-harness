@@ -88,6 +88,49 @@ export function textSourceLabel(source: TextSource): string {
 	return SOURCE_LABEL[source];
 }
 
+/** The tool that reads one text section — the same name in every host (ADR 0019 decision 5). */
+export const TEXT_SECTION_TOOL: Readonly<Record<TextSection, 'get_claims' | 'get_description'>> = {
+	claims: 'get_claims',
+	description: 'get_description',
+};
+
+/**
+ * Who runs each text source. An office's own API runs on any host that holds the key
+ * (on a self-hosted harness, the firm's). FlowLeap's own service runs on the backend
+ * only, and is paid (ADR 0019 decision 3: US full text from BigQuery stays behind the
+ * backend).
+ */
+export const TEXT_SOURCE_OWNER: Readonly<Record<TextSource, 'office' | 'flowleap'>> = {
+	epo_ops: 'office',
+	bigquery: 'flowleap',
+};
+
+/** How a harness MCP row names the backend's tools (ADR 0019 decision 5, `mcp__flowleap__patstat_query`). */
+export const FLOWLEAP_MCP_TOOL_PREFIX = 'mcp__flowleap__';
+
+/** The paid route a host without a section's source names: the backend's tool, over the FlowLeap MCP row. */
+export interface PaidTextRoute {
+	/** The backend's tool of the same name as this host's (the one with the source). */
+	tool: 'get_claims' | 'get_description';
+	/** That tool as the harness MCP row names it. */
+	mcpTool: string;
+	source: TextSource;
+	docId: string;
+}
+
+/**
+ * The paid route for one section of one office when THIS host has no source for it:
+ * the backend's tool of the same name, reached over the FlowLeap MCP row. Null when
+ * the table has no source for the office, or when its source is an office API (then
+ * the host lacks a key, not a service, and there is no paid route to name).
+ */
+export function paidTextRoute(section: TextSection, office: string, docId: string): PaidTextRoute | null {
+	const source = textSourceFor(section, office);
+	if (!source || TEXT_SOURCE_OWNER[source] !== 'flowleap') return null;
+	const tool = TEXT_SECTION_TOOL[section];
+	return { tool, mcpTool: `${FLOWLEAP_MCP_TOOL_PREFIX}${tool}`, source, docId };
+}
+
 /** "EP, WO and US" (or "EP, WO or US") for a list of offices. */
 export function officeList(offices: readonly string[], conjunction: 'and' | 'or' = 'and'): string {
 	if (offices.length <= 1) return offices.join('');

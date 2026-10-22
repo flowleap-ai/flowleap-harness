@@ -49,6 +49,26 @@ describe('fulltext router', () => {
 
 	// B6: the disabled-vs-not_found distinction is the point of these tests, so
 	// they assert on the structured `reason` field (never message text).
+	it("names the backend's get_claims over the FlowLeap MCP row when the host has no US full-text source at all", async () => {
+		// The paid route comes from the office-coverage table (US claims: BigQuery,
+		// FlowLeap's own service), never from a literal: the backend's tool of the
+		// same name, which the harness reaches as mcp__flowleap__get_claims. Not
+		// get_fulltext — that is the EPO OPS availability probe and serves no US text.
+		const bare = createContext(createFakeHost({}));
+		const res = await routed.getClaimsRouted(bare, 'US5135330A');
+		expect(res.ok).toBe(false);
+		if (res.ok) return;
+		expect(res.body.error.reason).toBe('not_configured');
+		expect(res.body.error.message).toContain('mcp__flowleap__get_claims');
+		expect(res.body.error.message).not.toContain('get_fulltext');
+		expect(res.body.error.paidRoute).toEqual({
+			tool: 'get_claims',
+			mcpTool: 'mcp__flowleap__get_claims',
+			source: 'bigquery',
+			docId: 'US5135330A',
+		});
+	});
+
 	it('returns FULLTEXT_UNAVAILABLE with reason not_configured when the BigQuery source is off', async () => {
 		usFulltext.mockResolvedValue({ ok: false, reason: 'disabled' });
 		const res = await getClaimsRouted('US20260069159.A1');

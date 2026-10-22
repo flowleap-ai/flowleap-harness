@@ -114,7 +114,8 @@ describe('officeTools()', () => {
 		expect(failure).toMatchObject({
 			status: 404,
 			code: ErrorCodes.FULLTEXT_UNAVAILABLE,
-			details: { reason: 'not_configured' },
+			// The paid route rides under details, so a harness acts on the field (ADR 0014).
+			details: { reason: 'not_configured', paidRoute: { tool: 'get_claims', mcpTool: 'mcp__flowleap__get_claims' } },
 		});
 	});
 });

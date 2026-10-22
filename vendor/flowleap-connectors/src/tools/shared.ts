@@ -130,7 +130,8 @@ export function flexibleId(min: number) {
  *    (the backend's respondIfKnownError: 400 data_keys_required / 400
  *    patent_provider_key_invalid / 429 rate_limit_exceeded with Retry-After);
  *  - FULLTEXT_UNAVAILABLE passes through verbatim (with its `reason` and, on
- *    `no_source`, the `workaround` under details) — the registry docs promise
+ *    `no_source`, the `workaround`, on a host without the source, the
+ *    `paidRoute`, under details) — the registry docs promise
  *    that code as a data-coverage verdict, so the generic 404→NOT_FOUND
  *    mapping must not swallow it;
  *  - upstream 404/429 keep the legacy tool codes NOT_FOUND / RATE_LIMITED;
@@ -155,13 +156,18 @@ export function unwrapRead<T>(result: ProviderReadResult<T>): T {
 	}
 	if (code === ErrorCodes.FULLTEXT_UNAVAILABLE) {
 		// The router's structured fields ride under `details`: `reason` and, on
-		// `no_source` only, the family-member `workaround` (ADR 0024, #581).
-		const { reason, workaround } = result.body.error as { reason?: string; workaround?: unknown };
+		// `no_source` only, the family-member `workaround` (ADR 0024, #581); on a
+		// host without the section's source, the `paidRoute` (ADR 0019 decision 3).
+		const { reason, workaround, paidRoute } = result.body.error as {
+			reason?: string;
+			workaround?: unknown;
+			paidRoute?: unknown;
+		};
 		throw new ToolError(
 			result.status,
 			ErrorCodes.FULLTEXT_UNAVAILABLE,
 			message,
-			reason ? { reason, ...(workaround ? { workaround } : {}) } : undefined
+			reason ? { reason, ...(workaround ? { workaround } : {}), ...(paidRoute ? { paidRoute } : {}) } : undefined
 		);
 	}
 	if (result.status === 404) throw new ToolError(404, ErrorCodes.NOT_FOUND, message);

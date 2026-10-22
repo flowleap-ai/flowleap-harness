@@ -14,9 +14,11 @@
  *
  *  In the package since ADR 0019 C2a, so get_claims and get_description are
  *  defined once for both hosts. The BigQuery arm is a host capability
- *  (`ConnectorHost.usFulltext`, ./host.ts): the backend wires its table, a
- *  host without it answers US claims `not_configured` — a configuration gap,
- *  which is what it is.
+ *  (`ConnectorHost.usFulltext`, ./host.ts): the backend wires its table; a
+ *  host without it answers US claims `not_configured` and names the paid
+ *  route (the backend's get_claims over the FlowLeap MCP row), because on a
+ *  self-hosted harness that gap is by design (ADR 0019 decision 3), not a
+ *  misconfiguration the firm can fix.
  *--------------------------------------------------------------------------------------------*/
 
 import { recordCacheRead } from './cache-visibility.js';
@@ -30,9 +32,12 @@ import {
 	familyMemberWorkaroundNote,
 	officeCoverageSentence,
 	officeList,
+	paidTextRoute,
 	servedTextOffices,
 	textSourceFor,
 	textSourceLabel,
+	type PaidTextRoute,
+	type TextSection,
 } from './office-coverage.js';
 import type { ProviderReadResult, ProviderReadFailure } from './cached-provider-read.js';
 import type { ClaimsResponse, DescriptionData, FamilyMember } from './ops/types.js';
@@ -42,8 +47,10 @@ import type { ClaimsResponse, DescriptionData, FamilyMember } from './ops/types.
  * structured field alongside the frozen FULLTEXT_UNAVAILABLE code, so clients
  * can tell a switched-off feature from a genuine coverage gap without
  * matching message text:
- *  - 'not_configured': a source exists for this office but is not configured
- *    on this server (BigQuery US full text disabled);
+ *  - 'not_configured': the table has a source for this office and section,
+ *    but this host cannot read it — the backend with BigQuery US full text
+ *    switched off, or a host with no US source at all (a self-hosted harness;
+ *    the failure then also names the paid route in `paidRoute`);
  *  - 'no_source': no source covers this office/section at all.
  */
 type FulltextUnavailableReason = 'not_configured' | 'no_source';
@@ -100,10 +107,33 @@ function notConfigured(docId: string, section: string): ProviderReadFailure {
 	);
 }
 
+/**
+ * This host has no source for this section of this office at all (a self-hosted
+ * harness running the office connectors on the firm's keys): the text is a paid
+ * FlowLeap service, read by the backend's tool of the SAME name over the FlowLeap
+ * MCP row (ADR 0019 decisions 3 and 5). The office-coverage table names that route
+ * (`paidTextRoute`); the message names it so the model takes the paid route instead
+ * of giving up on the text, and `paidRoute` carries it as a field (ADR 0014: clients
+ * act on fields). Falls back to the plain not_configured when the table names no
+ * paid route for the pair.
+ */
+function noHostSource(docId: string, section: TextSection, office: string): ProviderReadFailure {
+	const route = paidTextRoute(section, office, docId);
+	if (!route) return notConfigured(docId, section);
+	return fulltextFailure(
+		'not_configured',
+		`This host has no ${textSourceLabel(route.source)} source. ${office} ${section} for ${docId} are a paid FlowLeap service, ` +
+			`read by the backend's ${route.tool} (not this host's ${route.tool}): call ${route.mcpTool} with this number.`,
+		undefined,
+		route,
+	);
+}
+
 function fulltextFailure(
 	reason: FulltextUnavailableReason,
 	message: string,
 	workaround?: FulltextWorkaround,
+	paidRoute?: PaidTextRoute,
 ): ProviderReadFailure {
 	return {
 		ok: false,
@@ -118,6 +148,9 @@ function fulltextFailure(
 				message,
 				// Additive (ADR 0014): present on `no_source` only.
 				...(workaround ? { workaround } : {}),
+				// Additive: present only when this host has no source for the pair and the
+				// table names a paid route (the backend's tool over the FlowLeap MCP row).
+				...(paidRoute ? { paidRoute } : {}),
 			},
 		},
 	};
@@ -275,7 +308,7 @@ export async function getClaimsRouted(
 			return { ok: true, cached: false, data: { docId: res.data.publicationNumber, lang: 'en', claims: res.data.claims } };
 		}
 		if (res.reason === 'disabled') {
-			return notConfigured(docId, 'claims');
+			return ctx.host.usFulltext === undefined ? noHostSource(docId, 'claims', country) : notConfigured(docId, 'claims');
 		}
 		if (res.reason === 'not_found') {
 			return notHeld(docId, 'claims');

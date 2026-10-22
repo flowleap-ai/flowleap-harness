@@ -11,6 +11,7 @@ import {
 	officeCoverageSentence,
 	familyMemberWorkaroundParagraph,
 	familyMemberWorkaroundNote,
+	paidTextRoute,
 } from './office-coverage.js';
 
 // The module is the ONE place that says which office has text (ADR 0024).
@@ -116,5 +117,24 @@ describe('office coverage (ADR 0024)', () => {
 		expect(note).not.toContain(';');
 		// The note and the structured limits are the same text: neither can drift from the other.
 		for (const limit of FAMILY_MEMBER_WORKAROUND.limits) expect(note).toContain(limit);
+	});
+});
+
+describe('the paid text route (ADR 0019 decision 3)', () => {
+	it("names the backend's tool of the same name over the FlowLeap MCP row for a FlowLeap-run source", () => {
+		expect(paidTextRoute('claims', 'US', 'US5135330A')).toEqual({
+			tool: 'get_claims',
+			mcpTool: 'mcp__flowleap__get_claims',
+			source: 'bigquery',
+			docId: 'US5135330A',
+		});
+	});
+
+	it('names no paid route for an office-run source, nor where the table has none', () => {
+		// EP claims come from EPO OPS: a host without them lacks a key, not a service.
+		expect(paidTextRoute('claims', 'EP', 'EP1000000B1')).toBeNull();
+		// US description: the table has no source at all (the BigQuery table is claims-only).
+		expect(paidTextRoute('description', 'US', 'US5135330A')).toBeNull();
+		expect(paidTextRoute('claims', 'JP', 'JP2020000001A')).toBeNull();
 	});
 });
