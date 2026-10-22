@@ -294,5 +294,9 @@ fail. A fresh clone does not have them.
   300 pages, page markers, cost line, 24 h cache), real `verifyKey` on the Mistral card, MCP row at 19
   paid tools, no tool in both forms. Gates: 61 of 62 after the concrete-terms gate learned to skip
   `flowleap/`. C3a MERGED (flowleap-backend #609); the vendored library is pinned to backend main. The backend deploys automatically
-  on every push to main (`deploy.yml`); #606, #608 and #609 each deployed green, the last at 15:02 UTC. Live OCR test with a real Mistral key still open (founder).
+  on every push to main (`deploy.yml`); #606, #608 and #609 each deployed green, the last at 15:02 UTC. Live OCR test PASSED 2026-10-22: the founder created a workspace `ocr-project` in Downloads, saved a
+  Mistral key in the connectors card, and the agent read a scanned PDF through `read_pdf`. The same run
+  proved the office tools on the firm's EPO and USPTO keys (native calls, one paid MCP call to
+  `examiner_baseline`). Found: US `get_claims` answers "not configured" without pointing the model at
+  `mcp__flowleap__get_fulltext`; fix the hint text.
   Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
