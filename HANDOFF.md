@@ -225,3 +225,9 @@ fail. A fresh clone does not have them.
   office tools + 20 paid MCP tools + 4 harness tools. The prompt export now keeps native office
   names and prefixes only paid tools (agent-v2 draft PR #857; the bundle copy is from that branch,
   2 `mcp__flowleap__` mentions left). Open on agent-v2: merge #854 (ADR 0019) and #857.
+- **Market note (2026-10-22): patent-connector.com** (Funktionslust GmbH, Munich, patent.dev) sells
+  the connector layer alone: self-hosted Docker or binary, MCP server + JSON API + free CLI,
+  official APIs with the firm's keys, flat fee per organisation. Offices: EPO OPS, USPTO, DPMA,
+  EUIPO, JPO, IP Australia, TIPO, INPI, Global Dossier (EP/JP/KR/CN wrappers), PRS, The Lens.
+  Lesson: connectors are not the moat; the agent, PATSTAT and the workflows are. Candidate: add it
+  as an MCP row scoped by `tools.include` to the offices we lack, after a one-day trial.
