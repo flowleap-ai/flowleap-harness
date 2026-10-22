@@ -274,3 +274,17 @@ fail. A fresh clone does not have them.
   byte-identical; CI pending. C3b = harness agent: vendored sync to the #609 branch, 34 native tools,
   real Mistral key test on the card, native `read_pdf` (workspace file → Mistral OCR, page markers,
   cost line), `ocr` removed from the MCP include list.
+- **C3b DONE on `flowleap` (2026-10-22).** Vendored library synced to the #609 branch (78c1545; no new
+  dependency, mupdf still excluded). The host plugin registers the 34 office tools (`ocr` is
+  `access: 'mistral'`, gated like the offices: without a key it names the Mistral card) and the native
+  `read_pdf` (`{ path, pages? }`, registered inside `ctx.inject(['fs', 'workingDirectory'])`: the file
+  is read through `ctx.fs` and refused outside the session's working directory, 50 MB and 300-page caps,
+  base64 to `connectors.ocr.runOcr`, result = header line with model and page count, the line "OCR
+  through the firm's Mistral key; pages billed by Mistral", then `--- page N ---` blocks; the `pages`
+  range selects pages of the whole-document OCR, cached 24 h by the library). `host.ocr` stays absent so
+  `resolveOcr` falls through to the package client on the firm's key for `read_application_document`
+  too. The Remote `test('mistral')` calls `connectors.ocr.verifyKey()` (GET /v1/models). `ocr` left
+  the `mcp-flowleap` include list (21 names, 19 live). Card and wizard copy: "Mistral API key for OCR of
+  scanned documents and PDFs (read_pdf, file-wrapper documents). Billed by Mistral per page."
+  Left: born-digital PDFs also go through OCR (local text extraction is a later slice; mupdf is
+  excluded by licence); the live test with a real key in the browser is the founder's.
