@@ -218,3 +218,10 @@ fail. A fresh clone does not have them.
   so `mcp__flowleap__search_patents` becomes `search_patents` in the text.
 - After #608 merges: `scripts/flowleap/sync-connectors.sh` against the sibling checkout, so SYNC.json
   points at a main commit.
+- **C4 + C6 DONE (2026-10-22).** `dsh-mcp-client` gained `tools.include`/`tools.exclude`; the
+  `mcp-flowleap` row lists the 22 paid tools (the live backend publishes 20 of them until
+  `reference_search` and `get_legal_jurisdictions` deploy). The host plugin gained `excludeTools`
+  and the profile leaves `get_fulltext` to the MCP row, so no tool exists in both forms: 32 native
+  office tools + 20 paid MCP tools + 4 harness tools. The prompt export now keeps native office
+  names and prefixes only paid tools (agent-v2 draft PR #857; the bundle copy is from that branch,
+  2 `mcp__flowleap__` mentions left). Open on agent-v2: merge #854 (ADR 0019) and #857.
