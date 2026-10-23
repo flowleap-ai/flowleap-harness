@@ -3,9 +3,11 @@
  * the `@flowleap/connectors` library over the dsh seams: `ctx.credentials`
  * records hold the firm's EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys,
  * the library's 34 office tools (`ocr` among them, on the firm's Mistral key) register on
- * `ctx.tools` under their backend names, the native `read_pdf` tool reads a workspace file
- * through that OCR when `fs` and `workingDirectory` are mounted, and the
- * `flowleapConnectors` Remote serves the settings cards and the first-run wizard.
+ * `ctx.tools` under their backend names, the native `compare_claims` tool charts a user
+ * claim against patents whose claims it fetches through the same text router, the native
+ * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`
+ * are mounted, and the `flowleapConnectors` Remote serves the settings cards and the
+ * first-run wizard.
  *
  * See packages/host/flowleap-connectors/README.md.
  * @module @deepseek-ai/dsh-flowleap-connectors
@@ -18,12 +20,18 @@ import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { createConnectors, officeTools } from '@flowleap/connectors'
+import { registerCompareClaimsTool } from './compare-claims.ts'
 import { FlowleapConnectorsController } from './controller.ts'
 import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
 import { registerReadPdfTool } from './read-pdf.ts'
 import { registerOfficeTools } from './tools.ts'
 
+export {
+  COMPARE_CLAIMS_MAX_PATENTS, COMPARE_CLAIMS_NAME, COMPARE_CLAIMS_TEXT_BUDGET,
+  compareClaimsTool, decomposeClaim, formatComparisonPackage, registerCompareClaimsTool, selectIndependentClaim,
+} from './compare-claims.ts'
+export type { ClaimElement, CompareClaimsArgs, CompareClaimsValue, FetchedClaims } from './compare-claims.ts'
 export { FlowleapConnectorsController } from './controller.ts'
 export type { FlowleapConnectorsControllerOptions } from './controller.ts'
 export {
@@ -63,7 +71,7 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Mount the library, register the office tools and `read_pdf`, and expose the Remote.
+ * Mount the library, register the office tools, `compare_claims` and `read_pdf`, and expose the Remote.
  * @param ctx - the mounting context, carrying `tools` and `credentials`.
  * @param config - cache size and the office tools to leave out.
  */
@@ -72,6 +80,8 @@ export function apply(ctx: Context, config: Config): void {
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
   const connectors = createConnectors(bound.host)
   ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools().filter(definition => !config.excludeTools.includes(definition.name))), 'flowleap-connectors: office tools')
+  // compare_claims is native, not an office tool: excludeTools does not reach it, and it needs no filesystem.
+  ctx.effect(() => registerCompareClaimsTool(ctx, connectors, bound), 'flowleap-connectors: compare_claims')
   // read_pdf needs a filesystem and the session directory; a composition without them keeps the office tools alone.
   ctx.inject(['fs', 'workingDirectory'], (fileCtx) => {
     fileCtx.effect(() => registerReadPdfTool(fileCtx, connectors, bound), 'flowleap-connectors: read_pdf')

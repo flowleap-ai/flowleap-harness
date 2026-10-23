@@ -127,8 +127,9 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
-    // Without a filesystem and a session directory the office tools register alone: no read_pdf.
-    expect(ctx.tools.schemas()).toHaveLength(34)
+    // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
+    expect(ctx.tools.schemas()).toHaveLength(35)
+    expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
     expect(ctx.tools.schemas().map(schema => schema.name)).not.toContain('read_pdf')
     expect(ctx.get('flowleapConnectors')).toBeDefined()
     expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'])
@@ -146,8 +147,9 @@ describe('registerOfficeTools', () => {
     provideWorkingDirectoryFixture(ctx, process.cwd())
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })
     const names = ctx.tools.schemas().map(schema => schema.name)
-    expect(names).toHaveLength(34)
+    expect(names).toHaveLength(35)
     expect(names).toContain('read_pdf')
+    expect(names).toContain('compare_claims')
     expect(names).toContain('ocr')
     expect(names).not.toContain('get_fulltext')
     await fiber.dispose()
