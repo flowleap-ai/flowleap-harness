@@ -166,6 +166,18 @@
         # which the harness does not provide, so the paid backend copy answers instead.
         excludeTools: [get_fulltext]
 
+    # The deliverable tools (S5 D1): write_patent_results with the IDE's report
+    # templates, evidence validation against this session's recorded tool
+    # results (the ledger listens on tools/result for the office and paid MCP
+    # tools above), the working record and the delivery card. The second read
+    # judges on the session's own model; `secondReadModel: provider/model`
+    # pins another route.
+    - id: flowleap-deliverables
+      name: '@deepseek-ai/dsh-flowleap-deliverables'
+      config:
+        secondRead: render
+        secondReadModel: ''
+
     # Settings > Patent data connectors (one card per connector) and the
     # first-run key wizard; the row id is also the wizard's settings namespace.
     - id: ui-settings-flowleap-connectors

@@ -35,6 +35,7 @@ The packages play the host roles; each package README owns its contract and conf
 | [`product-telemetry-otel/`](product-telemetry-otel/README.md) | Explicit product usage events over OTLP/HTTP | `ctx.productTelemetry` |
 | [`flowleap-prompt/`](flowleap-prompt/README.md) | File-backed FlowLeap persona section | contributes to `ctx.systemPrompt` |
 | [`flowleap-connectors/`](flowleap-connectors/README.md) | In-process FlowLeap patent-data connectors: office tools over the firm's own keys | Remote `flowleapConnectors/*`, contributes to `ctx.tools` |
+| [`flowleap-deliverables/`](flowleap-deliverables/README.md) | FlowLeap deliverable tools: `write_patent_results` with report templates, evidence validation, working record, evidence ledger and delivery card | contributes to `ctx.tools`, observes `tools/result`, appends `deliverables/presented` |
 
 -----
 

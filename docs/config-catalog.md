@@ -1407,6 +1407,37 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-deliverables -->
+<a id="deepseek-aidsh-flowleap-deliverables"></a>
+
+## `@deepseek-ai/dsh-flowleap-deliverables`
+
+- `inject`: `tools` · `fs` · `workingDirectory`
+- `source`: [`packages/host/flowleap-deliverables/src/index.ts:68`](../packages/host/flowleap-deliverables/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /**
+   * How much of the second read the user sees: `off` disables it; `log` records the verdicts beside
+   * the evidence companion and in the working record; `render` (the IDE default) also names in the
+   * tool result what the independent read did not confirm. One model call per coverage row.
+   */
+  secondRead: SecondReadMode
+  /** The `provider/model` route the second read judges with; empty means the session's own logged route. */
+  secondReadModel: string
+}
+
+/**
+ * How much of the second read the user sees. `off` disables it; `log` and `render` both record the
+ * verdicts in a file beside the evidence companion and state them in the working record, and
+ * `render` additionally names in the tool result what an independent read did not confirm, so the
+ * model has to decide whether to revise a row or defend it.
+ */
+export type SecondReadMode = 'off' | 'log' | 'render'
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-deliverables -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
 <a id="deepseek-aidsh-flowleap-prompt"></a>
 
