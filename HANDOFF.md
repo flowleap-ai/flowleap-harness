@@ -390,3 +390,9 @@ fail. A fresh clone does not have them.
   (pack, firm, workspace, personal) with path, model-invocable flag, Open folder, Disable, New skill;
   the same grouping in the `/` picker. Firm tier = a shared read-only volume in `customSkillDirs` on the
   server shape; laptops need a pull (git or the Knowledge Pool). About two days.
+- **Skills must stay methods (founder, 2026-10-23).** Measured on the loaded pack: of 33 skills, 19 name
+  harness tools and 20 name CLI commands (`flowleap patstat portfolio` and so on); 9 are pure method. A
+  CLI-naming skill can push the agent into bash instead of the typed tool. S5 ports tools, not skills,
+  and is the ADR 0018 harness side; the pack clean-up is ADR 0018's programme in flowleap-plugins (one
+  PR per heavy skill, method only, no tool or command names). S5 acceptance adds: the three
+  skill-grounded cases pass in the harness with the skills folder empty.
