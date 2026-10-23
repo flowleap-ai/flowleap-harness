@@ -144,7 +144,14 @@ describe('write_patent_results', () => {
       template: (parameters.properties['template'] as { enum: string[] }).enum.length,
       words: schema?.description.split(/\s+/).length,
       noIde: !/VS Code|Approve Claims|evidenceLookup/.test(schema?.description ?? ''),
-    }).toEqual({ names: ['export_draft_docx', 'get_claims', 'inventor_questions', WRITE_PATENT_RESULTS_NAME], required: ['filePath', 'content'], properties: 25, template: 11, words: 152, noIde: true })
+    }).toEqual({
+      names: ['export_draft_docx', 'get_claims', 'inventor_questions', 'remove_claim', 'start_application_draft', 'validate_draft', WRITE_PATENT_RESULTS_NAME],
+      required: ['filePath', 'content'],
+      properties: 25,
+      template: 11,
+      words: 152,
+      noIde: true,
+    })
   })
 
   it('saves a free-form document, creates the parent folder, presents the file, and never calls present itself', async () => {
@@ -172,21 +179,25 @@ describe('write_patent_results', () => {
     expect(textOf(result.content[0])).toBe(`Error: Patent result writes must stay within the working directory ${dir}.`)
   })
 
-  it('refuses the drafting templates until D3 and a content template without a body, and rejects malformed arguments', async () => {
+  it('refuses a drafting save outside the folder contract or without its frontmatter, a content template without a body, and rejects malformed arguments', async () => {
     const { write } = await bench()
+    const outside = await write({ filePath: 'outputs/draft-application.md', content: '# Draft', template: 'draft-application' })
     const draft = await write({ filePath: 'drafting/m1/draft-application.md', content: '# Draft', template: 'draft-application' })
     const empty = await write({ filePath: 'memo.md', content: '', template: 'fto-memo' })
     const bad = await write({ filePath: 'x.md' })
     expect({
-      draft: textOf(draft.content[0]),
+      outside: textOf(outside.content[0]),
+      draft: textOf(draft.content[0]).split(' Open in ')[0],
       empty: textOf(empty.content[0]).startsWith('Report was not saved. '),
       bad: [bad.isError, textOf(bad.content[0]).includes('content must be a string')],
+      // The refused drafting save writes no draft; like every drafting tool it creates style/README.md once.
       files: await readdir(dir),
     }).toEqual({
-      draft: 'Draft was not saved. The draft-application template is not available in this harness yet: the Application Drafting tools arrive with a later slice. Save reports with the report templates.',
+      outside: 'Draft was not saved. The draft-application template saves to drafting/<matter>/draft-application.md inside a workspace folder.',
+      draft: 'Draft was not saved. The draft frontmatter (or the model and provider fields) must name the office, the model and the provider. Missing: office (US or EPO), model, provider.',
       empty: true,
       bad: [true, true],
-      files: [],
+      files: ['style'],
     })
   })
 

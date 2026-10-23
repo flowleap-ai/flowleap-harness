@@ -1,0 +1,190 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`waiveChoices and withWaivers > offers one option per open Error and "All N" for a rule with more than two; writes the reason under each item, nothing on an empty reason or a waived item 1`] = `
+{
+  "bulkLines": 10,
+  "bulkWaived": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+  ],
+  "choices": [
+    [
+      "Line 7: antecedent-basis",
+      [
+        7,
+      ],
+      "Claim 2: "the clamp body" has ",
+    ],
+    [
+      "Line 8: antecedent-basis",
+      [
+        8,
+      ],
+      "Claim 3: "the clamp body" has ",
+    ],
+    [
+      "Line 9: antecedent-basis",
+      [
+        9,
+      ],
+      "Claim 4: "the clamp body" has ",
+    ],
+    [
+      "Line 10: antecedent-basis",
+      [
+        10,
+      ],
+      "Claim 5: "the clamp body" has ",
+    ],
+    [
+      "Line 11: antecedent-basis",
+      [
+        11,
+      ],
+      "Claim 6: "the clamp body" has ",
+    ],
+    [
+      "Line 12: antecedent-basis",
+      [
+        12,
+      ],
+      "Claim 7: "the clamp body" has ",
+    ],
+    [
+      "Line 13: antecedent-basis",
+      [
+        13,
+      ],
+      "Claim 8: "the clamp body" has ",
+    ],
+    [
+      "Line 14: antecedent-basis",
+      [
+        14,
+      ],
+      "Claim 9: "the clamp body" has ",
+    ],
+    [
+      "Line 15: antecedent-basis",
+      [
+        15,
+      ],
+      "Claim 10: "the clamp body" has",
+    ],
+    [
+      "Line 16: antecedent-basis",
+      [
+        16,
+      ],
+      "Claim 11: "the clamp body" has",
+    ],
+    [
+      "Line 17: defined-term",
+      [
+        17,
+      ],
+      "Line 12 writes "clamp-body"; t",
+    ],
+    [
+      "All 10 Errors of antecedent-basis",
+      [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+      ],
+      "one reason, written under each",
+    ],
+  ],
+  "empty": undefined,
+  "noOpenError": [],
+  "single": "- \`defined-term\` (draft-application.md, line 12): Line 12 writes "clamp-body"; the defined term is "clamp body".
+  - Note: client spelling?
+  - Waived:
+  - Waived: Client spelling.",
+  "targetByLine": [
+    17,
+  ],
+  "targetByRule": [
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+  ],
+  "targetUnknown": [
+    [],
+    [],
+    [],
+  ],
+  "twoLines": {
+    "text": "# Findings
+
+Errors and Inventor Questions block export until they are resolved or waived. To waive one, add a line \`  - Waived: <reason>\` under it. Notes never block. Advisory items come from the model review; they are advice, not a pass.
+
+## Errors
+
+- \`antecedent-basis\` (claims.md, line 3, claim 2): Claim 2: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 2 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 4, claim 3): Claim 3: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 3 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 5, claim 4): Claim 4: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 4 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 6, claim 5): Claim 5: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 5 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 7, claim 6): Claim 6: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 6 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 8, claim 7): Claim 7: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 7 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 9, claim 8): Claim 8: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 8 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 10, claim 9): Claim 9: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 9 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 11, claim 10): Claim 10: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 10 or in the claims it depends on.
+- \`antecedent-basis\` (claims.md, line 12, claim 11): Claim 11: "the clamp body" has no antecedent basis ("a clamp body") earlier in claim 11 or in the claims it depends on.
+- \`defined-term\` (draft-application.md, line 12): Line 12 writes "clamp-body"; the defined term is "clamp body".
+  - Note: client spelling?
+  - Waived:
+  - Waived: two lines
+- \`source-marker\` (draft-application.md, line 20): The paragraph at line 20 has no source marker.
+  - Waived: Boilerplate.
+
+## Inventor Questions
+
+- \`inventor-question\` (draft-application.md, line 40): Inventor Question IQ-1 is open: What is the clamp made of?
+
+## Notes
+
+- \`claim-count\` (claims.md): 11 claims in total.
+
+## Advisory
+
+None.
+",
+    "waived": [
+      {
+        "fileLine": 17,
+        "finding": {
+          "file": "draft-application.md",
+          "line": 12,
+          "message": "Line 12 writes "clamp-body"; the defined term is "clamp body".",
+          "rule": "defined-term",
+          "severity": "Error",
+        },
+      },
+    ],
+  },
+  "waivedItem": undefined,
+}
+`;

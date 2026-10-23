@@ -186,7 +186,7 @@ describe(EXPORT_DRAFT_DOCX_NAME, () => {
       presented: presented(session),
     }).toEqual({
       isError: false,
-      text: 'The draft was not exported. Review `drafting/gated/claims.md:3`, then change `false` to `true` on line 3.',
+      text: 'The draft was not exported. Review `drafting/gated/claims.md:3`, then change `false` to `true` on line 3, or answer the Approve Claims card in the chat, or type `/approve-claims gated`.',
       files: ['checklist.md'],
       presented: [],
     })
