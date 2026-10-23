@@ -340,3 +340,9 @@ fail. A fresh clone does not have them.
   title, mark, hero, patent preset, FlowLeap plugin cards, connector cards. Milestone 2: Developer ID
   signing and notarisation in the org repo's CI, Windows build, an update feed and publisher, release
   workflow.
+- **S3 follow-up (founder, 2026-10-23):** Settings → Built-in plugins shows raw module ids
+  (`@deepseek-ai/dsh-*`) and package descriptions that say "DeepSeek Harness"; a firm admin reads that
+  as a data-flow concern. Fix in the brand package: display labels without the scope (full id behind an
+  advanced toggle for support), product-name substitution in descriptions at render, and one honest
+  About line "Built on DeepSeek Harness (MIT)" as the licence attribution. Also observed: one desktop
+  session cost 671K tokens over five turns; preset-level tool narrowing (ADR 0018 d4) is still open.
