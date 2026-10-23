@@ -331,3 +331,12 @@ fail. A fresh clone does not have them.
     token and cookie stay as the second lock in every variant.
   - **B2 desktop computer use**: laptop shape only, reusing B1's policy plugin, when a firm names the
     desktop application it needs driven; the headless browser (B1) runs identically on both shapes.
+- **S4a DONE, milestone 1 (2026-10-23).** `make desktop-flowleap` builds an unsigned macOS arm64 app and
+  dmg (256 MB) from `apps/desktop/config/product.flowleap.json` (`DSH_DESKTOP_PRODUCT=flowleap`): product
+  name, appId `co.flowleap.patent-ai`, protocol `flowleap-patent-ai://`, FlowLeap icons, profile
+  `profiles/flowleap-desktop` from the `flowleap-web` template; DeepSeek account, Welcome window,
+  platform pages, telemetry, mandatory update policy and the updater are gated off by the product record
+  (upstream default record keeps upstream behaviour). Verified launched: no sign-in window, FlowLeap
+  title, mark, hero, patent preset, FlowLeap plugin cards, connector cards. Milestone 2: Developer ID
+  signing and notarisation in the org repo's CI, Windows build, an update feed and publisher, release
+  workflow.
