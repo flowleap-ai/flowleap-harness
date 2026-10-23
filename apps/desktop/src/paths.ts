@@ -9,14 +9,21 @@ export interface DesktopPaths {
   readonly lock: string
 }
 
+/** Profile directory of the upstream product. */
+export const DEFAULT_DESKTOP_PROFILE_DIRECTORY = 'desktop'
+
 /**
  * Resolve every Electron-owned path without changing the shared data roots.
  * @param dshHome - Harness home shared with npm-installed dsh.
+ * @param profileDirectory - the product's profile directory under `profiles`; products keep separate profiles.
  * @returns immutable desktop path set.
  */
-export function resolveDesktopPaths(dshHome: string = resolveDshHome()): DesktopPaths {
+export function resolveDesktopPaths(
+  dshHome: string = resolveDshHome(),
+  profileDirectory: string = DEFAULT_DESKTOP_PROFILE_DIRECTORY,
+): DesktopPaths {
   return {
-    profile: join(dshHome, 'profiles', 'desktop'),
-    lock: join(dshHome, 'profiles', 'desktop', 'lock'),
+    profile: join(dshHome, 'profiles', profileDirectory),
+    lock: join(dshHome, 'profiles', profileDirectory, 'lock'),
   }
 }

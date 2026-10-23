@@ -1,5 +1,8 @@
 /** Typed English and Chinese copy owned by the Electron shell. */
 
+/** Product name of the upstream shell; every dictionary names it and {@link brandDesktopLocale} substitutes it. */
+export const UPSTREAM_PRODUCT_NAME = 'DeepSeek Harness'
+
 export const en = {
   cliCommandMenu: 'Manage dsh Command…',
   cliCommandTitle: 'Manage dsh Command',
@@ -366,6 +369,20 @@ export function resolveDesktopStartupLocale(preference: string | null, languages
     if (primary === 'zh' || primary === 'en') return resolveDesktopLocale(primary)
   }
   return resolveDesktopLocale('en')
+}
+
+/**
+ * Rebrand a dictionary: every message naming the upstream product names this product instead.
+ * The upstream name returns the dictionary unchanged, so the shipped product pays nothing.
+ * @param locale - a resolved dictionary.
+ * @param productName - the product name of this shell.
+ * @returns the same locale id with substituted messages.
+ */
+export function brandDesktopLocale(locale: DesktopLocale, productName: string): DesktopLocale {
+  if (productName === UPSTREAM_PRODUCT_NAME) return locale
+  const messages = Object.fromEntries(Object.entries(locale.messages)
+    .map(([key, message]) => [key, message.replaceAll(UPSTREAM_PRODUCT_NAME, productName)])) as DesktopMessages
+  return { id: locale.id, messages }
 }
 
 /** Replace named placeholders in one locale-owned message. */

@@ -1,0 +1,19 @@
+{
+  "name": "deepseek",
+  "productName": "DeepSeek Harness",
+  "shortName": "DeepSeek Harness",
+  "appId": null,
+  "artifactSlug": "deepseek-harness",
+  "protocolScheme": "dsh",
+  "profile": { "directory": "desktop", "template": "web" },
+  "about": "",
+  "icons": "resources",
+  "microphoneUsage": "DeepSeek Harness uses your microphone to transcribe speech into message drafts.",
+  "locales": ["en", "zh_CN"],
+  "account": true,
+  "platform": true,
+  "welcome": true,
+  "telemetry": true,
+  "updates": { "feedUrl": "deployment" },
+  "mandatoryUpdatePolicy": "deployment"
+}

@@ -57,16 +57,33 @@ function migrateProfileSettings(projectDir: string): void {
   }
 }
 
+/**
+ * The bundle list of one shipped profile template.
+ * @param template - a `PROFILE_TEMPLATES` key, such as `web` or `flowleap-web`.
+ * @returns the ordered bundle names.
+ */
+export function desktopProfileBundles(template: string): readonly string[] {
+  const selected = PROFILE_TEMPLATES[template]
+  if (selected === undefined) throw new Error(`desktop project: unknown profile template ${JSON.stringify(template)}`)
+  return selected.bundles
+}
+
 /** Initializes the Desktop profile and disables third-party bundles during recovery. */
 export class DesktopProjectManager {
+  private readonly bundles: readonly string[]
+
   /**
    * @param paths - Electron-owned package state and reserved desktop profile paths.
    * @param runtime - location of the bundled application runtime.
+   * @param template - the shipped profile template whose bundles initialize the profile; the Web profile by default.
    */
   constructor(
     readonly paths: DesktopPaths,
     readonly runtime: { readonly dsh: string },
-  ) {}
+    template = 'web',
+  ) {
+    this.bundles = desktopProfileBundles(template)
+  }
 
   /**
    * Back up the profile patch and disable third-party bundles without loading application resources.
@@ -74,7 +91,7 @@ export class DesktopProjectManager {
    * @returns Backup path after the locked profile write, or undefined if the patch was absent.
    */
   async disableAllPlugins(): Promise<string | undefined> {
-    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, WEB_PROFILE.bundles))
+    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, this.bundles))
   }
 
   /**
@@ -85,7 +102,7 @@ export class DesktopProjectManager {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
-      createPluginProfile(this.paths.profile)
+      createPluginProfile(this.paths.profile, this.bundles)
       removeLinkProjections(this.paths.profile)
     })
   }
@@ -170,7 +187,11 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
 }
 
-/** Create the first external plugin profile without running a package manager. */
-export function createPluginProfile(projectDir: string): void {
-  initProfile(projectDir, WEB_PROFILE.bundles)
+/**
+ * Create the first external plugin profile without running a package manager.
+ * @param projectDir - the profile directory.
+ * @param bundles - the bundle layers of a fresh profile; an existing manifest keeps its own list.
+ */
+export function createPluginProfile(projectDir: string, bundles: readonly string[] = WEB_PROFILE.bundles): void {
+  initProfile(projectDir, bundles)
 }

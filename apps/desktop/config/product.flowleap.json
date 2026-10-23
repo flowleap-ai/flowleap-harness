@@ -1,0 +1,19 @@
+{
+  "name": "flowleap",
+  "productName": "FlowLeap Patent AI",
+  "shortName": "FlowLeap",
+  "appId": "co.flowleap.patent-ai",
+  "artifactSlug": "flowleap-patent-ai",
+  "protocolScheme": "flowleap-patent-ai",
+  "profile": { "directory": "flowleap-desktop", "template": "flowleap-web" },
+  "about": "Patent research, analysis and drafting on your own keys. Office connectors, OCR and models run on the firm's keys; FlowLeap installs and supports the application.",
+  "icons": "resources/flowleap",
+  "microphoneUsage": "FlowLeap Patent AI uses your microphone to transcribe speech into message drafts.",
+  "locales": ["en"],
+  "account": false,
+  "platform": false,
+  "welcome": false,
+  "telemetry": false,
+  "updates": { "feedUrl": "" },
+  "mandatoryUpdatePolicy": "off"
+}
