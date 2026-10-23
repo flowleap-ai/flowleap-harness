@@ -408,3 +408,17 @@ fail. A fresh clone does not have them.
   merge). In flight: D1
   `packages/host/flowleap-deliverables` (writer, templates, validation, working record, ledger,
   delivery card) and `compare_claims` in the connectors plugin.
+- **S5 D1 DONE + acceptance PASSED (2026-10-23).** `packages/host/flowleap-deliverables` (10,207 lines:
+  templates, provenance, candidate review, Find Better, Fallback Ladder, second read, receipt, evidence
+  ledger with structured and derived modes, `write_patent_results`, delivery card via
+  `deliverables/presented`, steer once) + `compare_claims` native in the connectors plugin. Live run on
+  the founder's keys, Sonnet 5.5 via OpenRouter, prior art on EP2110298B1 claim 1: first save refused
+  ("Candidate draft was not saved … Feature support for …"), the agent read more evidence and the retry
+  saved `outputs/acceptance-s5/ep2110298b1-prior-art.md`, `.working-record.md`, `.evidence.json`,
+  `.second-read.json`; Report and Working record cards shown; second read judged 11 elements, 1 not
+  confirmed, recorded in the working record; 2 min 43 s, 15 steps, 1.9M tokens of usage (89% cache
+  hits). Observed: the agent reported US claims as paid but did not call `mcp__flowleap__get_fulltext`
+  (the #610 hint is in the vendored copy; the prompt's US routing may need one line). Vendor README
+  manifest row fixed and tracked by the sync script; THIRD_PARTY_NOTICES regenerated; prompt artifact
+  from agent-v2 #858 in the bundle. Next: D2 (docx + inventor questions, Zlib on the licence list),
+  then D3 (drafting state machine and gates).
