@@ -358,3 +358,10 @@ fail. A fresh clone does not have them.
   with zero raw key hits. Not live-verified: the Tailscale leg (Host passthrough and cookie flags on a
   real tailnet). Open: a tag on flowleap-plugins for a reproducible pack pin, image dedupe, no pnpm in
   the image.
+- **Model hosting options (founder, 2026-10-23), to document in `deploy/README.md`:** (1) the firm's own
+  keys to a cloud model provider; (2) the firm's cloud model service (`amazon-bedrock`, Azure, Vertex are
+  pi-ai providers reading the provider's credential files); (3) a local box such as an NVIDIA DGX Spark
+  (Ubuntu, 128 GB unified memory, about 7,400 EUR) running vLLM or Ollama behind the OpenAI protocol as a
+  custom provider, with the S4b compose on the same machine. Measure tool-calling quality at 70B-class
+  before promising "local AI". The Knowledge Pool's open questions stay open until the first firm answers
+  them; the MVP (firm tier, human review, no walls) does not depend on them.
