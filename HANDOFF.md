@@ -318,3 +318,16 @@ fail. A fresh clone does not have them.
   ship and for firm web tools without an API. Never a filing portal (MyEPO, Online Filing, Patent
   Center, ePCT: 2FA and legal deadlines; EPO filing has an API). Desktop computer use is not useful on a
   headless firm server.
+- **Planned after S4 (2026-10-23):**
+  - **S4c Terraform**: one module per cloud (AWS EC2+EBS, GCP Compute+PD, Azure VM+disk) that creates one
+    VM per firm with a `/data` disk, no public ingress, cloud-init that installs Docker, joins Tailscale
+    and starts the compose file, daily snapshots; outputs the tailnet hostname and per-attorney login
+    URLs. Needs a pullable image (private GHCR with a per-firm token) and never carries office or model
+    keys in variables or state. No Kubernetes.
+  - **Auth**: v1 = Tailscale identity header (`tailscale serve`) checked against the instance owner,
+    auto-exchanging the launch token; v2 = an OIDC proxy (oauth2-proxy or Pomerium) in the compose file
+    against the firm's IdP, which also feeds the Knowledge Pool's walls; v3 = a FlowLeap gateway with
+    login, identity-to-instance routing and a spawner (ADR 0011's deferred piece). The per-instance
+    token and cookie stay as the second lock in every variant.
+  - **B2 desktop computer use**: laptop shape only, reusing B1's policy plugin, when a firm names the
+    desktop application it needs driven; the headless browser (B1) runs identically on both shapes.
