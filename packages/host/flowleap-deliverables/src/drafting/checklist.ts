@@ -1,0 +1,481 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * The Drafting Checklist (`checklist.md`) of a matter: six numbered steps with the numbers and
+ * names of the application-drafting skill steps (1 Intake, 2 Claims, 3 Draft, 4 Validate,
+ * 5 Inventor Questions, 6 Export), each `[x]` only when the files say so; step 3 has two lines, the
+ * Draft Outline for the Approved Claims and then the draft (PRD 0022); each open step with the
+ * file, the line and the text to write, then the notes that never block (figures, required
+ * sections, style exemplars), and one "Next step for you:" line. Code writes it from the files
+ * after every drafting tool call; the model never writes it.
+ *
+ * The file opens with the loop (PRD 0026 S1): the steps in order, what re-opens what, and the
+ * name of the Prompts view page that shows the loop before the first matter.
+ *
+ * ```
+ * # Drafting checklist: hinge (EPO)
+ *
+ * The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+ * ...
+ *
+ * - [x] 1. Feature List confirmed: feature-list.md has `confirmed: true`
+ * - [ ] 5. Answer the Inventor Questions: 9 open
+ *       → Fill each **Answer:** in `inventor-answers.md:9` and line 17, or send the file to the inventor
+ *       → Then tell the agent: "Apply the answers"
+ *
+ * Not blocking:
+ * - Figures: 10 in figures.md, 3 drawn in drawings/
+ *
+ * Next step for you: step 5.
+ * ```
+ */
+
+import { isInventorQuestion } from './finding.ts';
+import { FindingsFileItem, parseFindingsFileItems } from './findings-file.ts';
+import { missingParts } from './filing-documents.ts';
+import { DRAFT_OUTLINE_SAVE, DRAFTING_FILE_NAMES, DRAFTING_STYLE_FOLDER, DRAWINGS_FOLDER } from './folder-contract.ts';
+import { DraftingGateFlag, DraftingOffice, parseDraftingFrontmatter, readGateFlag, readOffice } from './frontmatter.ts';
+import { currentAnswer, currentRound, isAnswered, parseInventorAnswers } from './inventor-answers.ts';
+import { parseInventorQuestions } from './source-markers.ts';
+import { parseFigureSections } from './spec-validators.ts';
+import { MAX_STYLE_EXEMPLARS, STYLE_INSTRUCTION } from './style-folder.ts';
+
+/** The file contents and states of one matter that the checklist reads; absent = the file does not exist. */
+export interface DraftingChecklistFiles {
+	readonly matter: string;
+	readonly featureList?: string;
+	readonly claims?: string;
+	/** True when `claims.md` is approved but its body changed after the approval (`approvedHash`). */
+	readonly claimsChangedSinceApproval?: boolean;
+	/** `draft-outline.md`. */
+	readonly draftOutline?: string;
+	/** True when `draft-outline.md` was made for other claims than the current `claims.md` (its `claims` hash). */
+	readonly outlineStale?: boolean;
+	readonly draft?: string;
+	/** True when the saved draft was generated against other claims than the current `claims.md`. */
+	readonly draftStale?: boolean;
+	readonly figures?: string;
+	/** The Figures drawn in `drawings/` (one `FIG-N.svg` each); absent when not counted. */
+	readonly drawnFigures?: number;
+	readonly inventorAnswers?: string;
+	readonly findings?: string;
+	/** True when `findings.md` was written by a validator run over the current draft and claims. */
+	readonly findingsCurrent: boolean;
+	/** True when the export files were written from the current draft. */
+	readonly exported: boolean;
+	/** The style exemplars in the workspace `style/` folder; absent when not counted. */
+	readonly styleExemplars?: number;
+}
+
+/** The step numbers of the checklist: the numbers of the application-drafting skill steps. */
+export const CHECKLIST_STEP = { featureList: 1, claims: 2, draft: 3, errors: 4, inventorQuestions: 5, export: 6 } as const;
+
+/** The names of the checklist notes, which never block; the full review copy points to them. */
+export const CHECKLIST_NOTE = { figures: 'Figures', sections: 'Required sections', style: 'Style exemplars' } as const;
+
+/** One step of the checklist. */
+export interface DraftingChecklistStep {
+	readonly step: number;
+	readonly done: boolean;
+	/** The name of the step, e.g. "Answer the Inventor Questions". */
+	readonly title: string;
+	/** The state after the name, e.g. "9 open". */
+	readonly detail: string;
+	/** What to do, one line each; empty for a done step. */
+	readonly actions: readonly string[];
+	/** The open earlier steps this step waits for. */
+	readonly blockedBy: readonly number[];
+	/** For an open gate step: the edit that opens the gate, to name it with another path (see {@link gateActionText}). */
+	readonly gate?: DraftingGateEdit;
+}
+
+/**
+ * The one edit that opens a gate, for the attorney: change the value on a line to `true`, write
+ * `true` after an empty field, add the line, or add the three lines at the top of a file that has
+ * none.
+ */
+export interface DraftingGateEdit {
+	readonly flag: DraftingGateFlag;
+	/** The 1-based line to open the file at. */
+	readonly line: number;
+	/** `change`: the line has another value; `fill`: the line has no value; `add`: the line is missing; `block`: the top lines are missing. */
+	readonly kind: 'change' | 'fill' | 'add' | 'block';
+	/** The value written on the line now, for `change`. */
+	readonly value?: string;
+}
+
+/** One note of the checklist: a state that never blocks, with what to do about it. */
+export interface DraftingChecklistNote {
+	readonly name: string;
+	readonly detail: string;
+	readonly actions: readonly string[];
+}
+
+/** The checklist of one matter. */
+export interface DraftingChecklist {
+	readonly matter: string;
+	readonly office?: DraftingOffice;
+	readonly steps: readonly DraftingChecklistStep[];
+	readonly notes: readonly DraftingChecklistNote[];
+}
+
+function stepList(steps: readonly number[]): string {
+	const numbers = steps.map(String);
+	return numbers.length === 1 ? `step ${numbers[0]}` : `steps ${numbers.slice(0, -1).join(', ')} and ${numbers.at(-1)}`;
+}
+
+function lineList(lines: readonly number[]): string {
+	return lines.length === 1 ? `line ${lines[0]}` : `lines ${lines.join(', ')}`;
+}
+
+/**
+ * A file with the lines an action points to, the first as `` `file:line` `` (the chat and the
+ * editor open the file at that line), e.g. "`inventor-answers.md:9`" or "`findings.md:7` and
+ * lines 8, 12".
+ */
+function fileLines(file: string, lines: readonly number[]): string {
+	const [first, ...rest] = lines;
+	return `\`${file}:${first}\`${rest.length ? ` and ${lineList(rest)}` : ''}`;
+}
+
+/** `` `file:line` `` in an action line: a bare file name of the matter folder and a 1-based line. */
+const FILE_LINE = /`(?<file>[^`:\s/\\]+):(?<line>[1-9]\d*)`/g;
+
+/**
+ * What the attorney does for a step, as one sentence for a tool result, with every
+ * `` `file:line` `` renamed through `pathOf` (the tool result names the workspace path, the
+ * checklist in the matter folder the bare name).
+ * @param entry - the checklist step.
+ * @param pathOf - maps a bare file name to the path the sentence names.
+ * @returns one sentence, empty when the step has no action.
+ */
+export function stepActionText(entry: DraftingChecklistStep, pathOf: (file: string) => string): string {
+	return entry.actions
+		.map(action => action.replace(/^→\s*/, ''))
+		.map(action => /[.!?]$/.test(action) ? action : `${action}.`)
+		.join(' ')
+		.replace(FILE_LINE, (_match, file: string, line: string) => `\`${pathOf(file)}:${line}\``);
+}
+
+/**
+ * The 1-based line of a frontmatter field, or `undefined` when the frontmatter has no such field.
+ * @param text - the file text.
+ * @param field - the top-level frontmatter field.
+ * @returns the 1-based line, or `undefined`.
+ */
+export function fieldLine(text: string, field: string): number | undefined {
+	const { bodyStartLine } = parseDraftingFrontmatter(text);
+	const lines = text.replace(/\r\n/g, '\n').split('\n').slice(0, bodyStartLine - 1);
+	const index = lines.findIndex(content => new RegExp(`^${field}\\s*:`).test(content));
+	return index < 0 ? undefined : index + 1;
+}
+
+function step(number: number, title: string, detail: string, actions: readonly string[] = [], blockedBy: readonly number[] = []): DraftingChecklistStep {
+	return { step: number, done: false, title, detail: blockedBy.length ? `blocked by ${stepList(blockedBy)}` : detail, actions: blockedBy.length ? [] : actions, blockedBy };
+}
+
+function done(number: number, title: string, detail: string): DraftingChecklistStep {
+	return { step: number, done: true, title, detail, actions: [], blockedBy: [] };
+}
+
+/**
+ * The edit that opens the gate `flag` in a file with the text `text`.
+ * @param text - the gate file.
+ * @param flag - the gate flag.
+ * @returns the edit: change a word, fill a value or add the line.
+ */
+export function gateEdit(text: string, flag: DraftingGateFlag): DraftingGateEdit {
+	const line = fieldLine(text, flag);
+	if (line === undefined) {
+		return parseDraftingFrontmatter(text).bodyStartLine > 1 ? { flag, line: 1, kind: 'add' } : { flag, line: 1, kind: 'block' };
+	}
+	const content = text.replace(/\r\n/g, '\n').split('\n')[line - 1];
+	const value = /^[^:]*:\s*(?<value>.*?)\s*(?:\s#.*)?$/.exec(content)?.groups?.value ?? '';
+	return value ? { flag, line, kind: 'change', value } : { flag, line, kind: 'fill' };
+}
+
+/** The labels of the gate actions at the top of the gate files (the gate CodeLens). */
+const GATE_BUTTON: Record<DraftingGateFlag, string> = { confirmed: 'Confirm Feature List', approved: 'Approve Claims' };
+
+/**
+ * The sentence that tells the attorney how to open a gate: the file with its line as
+ * `path:<line>` (the chat opens the file at that line), the action at the top of the file, and the
+ * one word to change by hand, e.g. "Review `drafting/x/claims.md:3`, then click **Approve Claims**
+ * at the top of the file, or change `false` to `true` on line 3."
+ * @param path - the gate file as the sentence names it.
+ * @param edit - the edit that opens the gate.
+ * @returns the sentence.
+ */
+export function gateActionText(path: string, edit: DraftingGateEdit): string {
+	if (edit.kind === 'change' && edit.value === 'true') {
+		// `true` on the line while the gate is open: the file changed after the approval, and the next drafting tool call writes `false`.
+		return `Review \`${path}:${edit.line}\`: it changed after the approval on line ${edit.line}. The next drafting step changes \`true\` to \`false\` there; then click **${GATE_BUTTON[edit.flag]}** at the top of the file, or change \`false\` to \`true\`.`;
+	}
+	const review = `Review \`${path}:${edit.line}\`, then click **${GATE_BUTTON[edit.flag]}** at the top of the file, or`;
+	switch (edit.kind) {
+		case 'change':
+			return `${review} change \`${edit.value}\` to \`true\` on line ${edit.line}.`;
+		case 'fill':
+			return `${review} write \`true\` after \`${edit.flag}:\` on line ${edit.line}.`;
+		case 'add':
+			return `${review} add the line \`${edit.flag}: true\` under the \`---\` on line 1.`;
+		case 'block':
+			return `${review} add three lines above line 1: \`---\`, then \`${edit.flag}: true\`, then \`---\`.`;
+	}
+}
+
+/** The open step of a gate the attorney opens: names the file, the line and the word to change. */
+function gateStep(number: number, title: string, file: string, text: string, flag: DraftingGateFlag, detail?: string): DraftingChecklistStep {
+	const edit = gateEdit(text, flag);
+	return { ...step(number, title, detail ?? `${file} has no \`${flag}: true\``, [`→ ${gateActionText(file, edit)}`]), gate: edit };
+}
+
+/**
+ * The sentence that tells the attorney to name the office in a file.
+ * @param path - the file that names the office.
+ * @returns the sentence.
+ */
+export function officeAction(path: string): string {
+	return `In \`${path}:1\`, add the line \`office: US\` or \`office: EPO\` under the \`---\` on line 1.`;
+}
+
+/** The numbers of the open steps, each once: step 3 has two lines. */
+const openSteps = (steps: readonly DraftingChecklistStep[]) => [...new Set(steps.filter(entry => !entry.done).map(entry => entry.step))];
+
+/**
+ * Reads the checklist of a matter from its files.
+ * @param input - the files of the matter and what the tools know about them.
+ * @returns the checklist with its steps.
+ */
+export function readDraftingChecklist(input: DraftingChecklistFiles): DraftingChecklist {
+	const { featureList: featureListStep, claims: claimsStep, draft: draftStep, errors: errorsStep, export: exportStep } = CHECKLIST_STEP;
+	const featureFields = input.featureList !== undefined ? parseDraftingFrontmatter(input.featureList).fields : {};
+	const office = (input.draft !== undefined ? readOffice(parseDraftingFrontmatter(input.draft).fields) : undefined) ?? readOffice(featureFields);
+	const steps: DraftingChecklistStep[] = [];
+
+	const featureTitle = 'Confirm the Feature List';
+	if (input.featureList === undefined) {
+		steps.push(step(featureListStep, featureTitle, `${DRAFTING_FILE_NAMES.featureList} does not exist`, ['→ Tell the agent: "Build the Feature List from the disclosure"']));
+	} else if (readGateFlag(featureFields, 'confirmed') !== 'set') {
+		steps.push(gateStep(featureListStep, featureTitle, DRAFTING_FILE_NAMES.featureList, input.featureList, 'confirmed'));
+	} else if (!readOffice(featureFields)) {
+		steps.push(step(featureListStep, featureTitle, `${DRAFTING_FILE_NAMES.featureList} names no office`, [`→ ${officeAction(DRAFTING_FILE_NAMES.featureList)}`]));
+	} else {
+		steps.push(done(featureListStep, 'Feature List confirmed', `${DRAFTING_FILE_NAMES.featureList} has \`confirmed: true\``));
+	}
+
+	const claimsTitle = 'Approve the claims';
+	if (input.claims === undefined) {
+		steps.push(step(claimsStep, claimsTitle, `${DRAFTING_FILE_NAMES.claims} does not exist`, ['→ Tell the agent: "Draft the claims"'], openSteps(steps)));
+	} else if (readGateFlag(parseDraftingFrontmatter(input.claims).fields, 'approved') !== 'set') {
+		steps.push(gateStep(claimsStep, claimsTitle, DRAFTING_FILE_NAMES.claims, input.claims, 'approved'));
+	} else if (input.claimsChangedSinceApproval) {
+		steps.push(gateStep(claimsStep, claimsTitle, DRAFTING_FILE_NAMES.claims, input.claims, 'approved', `${DRAFTING_FILE_NAMES.claims} changed after it was approved`));
+	} else {
+		steps.push(done(claimsStep, 'Claims approved', `${DRAFTING_FILE_NAMES.claims} has \`approved: true\``));
+	}
+
+	steps.push(outlineStep(input, openSteps(steps)));
+	const outlineOpen = !steps.at(-1)?.done;
+
+	// The draft line waits for the earlier steps; when only the outline is open, for the outline line above it.
+	const draftBlockers = openSteps(steps.slice(0, -1));
+	const draftTitle = 'Write the draft';
+	const draftStepOf = (detail: string, action: string) => draftBlockers.length || !outlineOpen
+		? step(draftStep, draftTitle, detail, [action], draftBlockers)
+		// Blocked by its own step number only so that the refusal pointer and the next step skip this line;
+		// the detail names the outline line, because "blocked by step 3" on a step-3 line reads as a loop.
+		: { ...step(draftStep, draftTitle, '', [], [draftStep]), detail: `blocked by the outline (${DRAFTING_FILE_NAMES.draftOutline})` };
+	if (input.draft === undefined) {
+		steps.push(draftStepOf(`${DRAFTING_FILE_NAMES.draft} does not exist`, '→ Tell the agent: "Draft the application"'));
+	} else if (input.draftStale) {
+		steps.push(draftStepOf(`${DRAFTING_FILE_NAMES.draft} was written for other claims than ${DRAFTING_FILE_NAMES.claims}`, '→ Tell the agent: "Draft the application again"'));
+	} else {
+		steps.push(done(draftStep, 'Draft written', DRAFTING_FILE_NAMES.draft));
+	}
+
+	const noDraft = input.draft === undefined ? [draftStep] : [];
+	const findingsItems = input.findings !== undefined ? parseFindingsFileItems(input.findings) : [];
+	const errorsTitle = 'Fix or waive the Errors';
+	const validate = '→ Tell the agent: "Validate the draft"';
+	if (noDraft.length) {
+		steps.push(step(errorsStep, errorsTitle, '', [], noDraft));
+	} else if (input.findings === undefined) {
+		steps.push(step(errorsStep, errorsTitle, 'not checked yet', [validate]));
+	} else if (!input.findingsCurrent) {
+		steps.push(step(errorsStep, errorsTitle, `${DRAFTING_FILE_NAMES.findings} is older than the draft or the claims`, [validate]));
+	} else {
+		const errors = findingsItems.filter(item => item.finding.severity === 'Error' && !isInventorQuestion(item.finding) && !item.finding.waived);
+		steps.push(errors.length
+			? step(errorsStep, errorsTitle, `${errors.length} open (${DRAFTING_FILE_NAMES.findings} ${lineList(errors.map(item => item.fileLine))})`, [
+				`→ To waive, click **Waive…** on the item in ${fileLines(DRAFTING_FILE_NAMES.findings, errors.map(item => item.fileLine))}, or add under it:   - Waived: <your reason>`,
+				`→ To fix, tell the agent: "Fix the Errors in ${DRAFTING_FILE_NAMES.findings}"`,
+			])
+			: done(errorsStep, 'Errors fixed or waived', `none open in ${DRAFTING_FILE_NAMES.findings}`));
+	}
+
+	steps.push(questionsStep(input, findingsItems, noDraft));
+
+	const blockers = openSteps(steps);
+	steps.push(input.exported && !blockers.length
+		? done(exportStep, 'Exported to Word', [DRAFTING_FILE_NAMES.descriptionDocx, DRAFTING_FILE_NAMES.claimsDocx, DRAFTING_FILE_NAMES.abstractDocx].join(', '))
+		: step(exportStep, 'Export to Word', 'ready', ['→ Tell the agent: "Export to Word"'], blockers));
+
+	return { matter: input.matter, ...(office ? { office } : {}), steps, notes: checklistNotes(input, office) };
+}
+
+/**
+ * The first line of step 3: the Draft Outline exists and was made for the current claims, which
+ * are approved. It waits for the earlier steps, also when an outline exists: without Approved
+ * Claims no outline is written for them. The draft save refuses without it (PRD 0022 decision 1),
+ * so the draft line after it waits for it.
+ */
+function outlineStep(input: DraftingChecklistFiles, blockedBy: readonly number[]): DraftingChecklistStep {
+	const number = CHECKLIST_STEP.draft;
+	const file = DRAFTING_FILE_NAMES.draftOutline;
+	const title = 'Write the outline';
+	const plan = (request: string) => `→ Tell the agent: "${request}" (it saves ${file} ${DRAFT_OUTLINE_SAVE})`;
+	if (blockedBy.length) {
+		return step(number, title, '', [], blockedBy);
+	}
+	if (input.draftOutline === undefined) {
+		return step(number, title, `${file} does not exist`, [plan('Plan the draft')]);
+	}
+	if (input.outlineStale) {
+		return step(number, title, `${file} was made for other claims than ${DRAFTING_FILE_NAMES.claims}`, [plan('Plan the draft again')]);
+	}
+	return done(number, 'Outline written for the approved claims', file);
+}
+
+/** Step 5: the Inventor Questions open, answered but not yet applied, or removed from the draft without an answer. */
+function questionsStep(input: DraftingChecklistFiles, findingsItems: readonly FindingsFileItem[], noDraft: readonly number[]): DraftingChecklistStep {
+	const number = CHECKLIST_STEP.inventorQuestions;
+	const title = 'Answer the Inventor Questions';
+	if (input.draft === undefined) {
+		return step(number, title, '', [], noDraft);
+	}
+	const waived = new Set(findingsItems.filter(item => isInventorQuestion(item.finding) && item.finding.waived).map(item => item.finding.question));
+	const sections = parseInventorAnswers(input.inventorAnswers ?? '');
+	const inDraft = parseInventorQuestions(input.draft).map(question => question.id);
+	const ids = [...inDraft, ...sections.filter(section => !inDraft.includes(section.id) && !isAnswered(currentAnswer(section))).map(section => section.id)]
+		.filter(id => !waived.has(id));
+	if (!ids.length) {
+		return done(number, 'Inventor Questions answered and applied', waived.size
+			? `${waived.size} waived in ${DRAFTING_FILE_NAMES.findings}, none open`
+			: `none open in ${DRAFTING_FILE_NAMES.draft}`);
+	}
+	const section = (id: string) => sections.find(candidate => candidate.id === id);
+	const answered = ids.filter(id => inDraft.includes(id) && isAnswered(currentAnswer(section(id))));
+	const open = ids.filter(id => !answered.includes(id));
+	const removed = open.filter(id => !inDraft.includes(id));
+	const apply = '"Apply the answers"';
+	const detail = [
+		open.length ? `${open.length} open` : undefined,
+		removed.length ? `${removed.length} removed from the draft without an answer (${removed.join(', ')})` : undefined,
+		answered.length ? `${answered.length} answered but not yet in the draft (${answered.join(', ')})` : undefined,
+	].filter(Boolean).join(', ');
+	if (!open.length) {
+		return step(number, title, detail, [`→ Tell the agent: ${apply}`]);
+	}
+	if (input.inventorAnswers === undefined) {
+		return step(number, title, detail, [`→ ${DRAFTING_FILE_NAMES.inventorAnswers} does not exist. Tell the agent: "Save the draft" to write it`]);
+	}
+	const slots = open.map(id => currentRound(section(id))?.answerLine).filter((line): line is number => line !== undefined);
+	return step(number, title, detail, [
+		`→ Fill each **Answer:** in ${slots.length ? fileLines(DRAFTING_FILE_NAMES.inventorAnswers, slots) : DRAFTING_FILE_NAMES.inventorAnswers}, or send the file to the inventor`,
+		`→ Then tell the agent: ${apply}`,
+	]);
+}
+
+/** The notes of the checklist: figures (with the drawn count when Figures are drawn), required sections of the office, style exemplars. */
+function checklistNotes(input: DraftingChecklistFiles, office: DraftingOffice | undefined): DraftingChecklistNote[] {
+	const notes: DraftingChecklistNote[] = [];
+	const figures = parseFigureSections(input.figures ?? '').figures;
+	const figureCount = figures.reduce((sum, figure) => sum + figure.count, 0);
+	notes.push(input.figures === undefined || !figureCount
+		? { name: CHECKLIST_NOTE.figures, detail: input.figures === undefined ? `${DRAFTING_FILE_NAMES.figures} does not exist` : `none in ${DRAFTING_FILE_NAMES.figures}`, actions: [`→ When the application has drawings, add one heading per figure to ${DRAFTING_FILE_NAMES.figures} (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"`] }
+		: { name: CHECKLIST_NOTE.figures, detail: `${figureCount} in ${DRAFTING_FILE_NAMES.figures}${input.drawnFigures ? `, ${input.drawnFigures} drawn in ${DRAWINGS_FOLDER}/` : ''}`, actions: [] });
+	if (input.draft !== undefined && office) {
+		const missing = missingParts(input.draft, office, figureCount > 0);
+		notes.push(missing.length
+			? { name: CHECKLIST_NOTE.sections, detail: `missing in ${DRAFTING_FILE_NAMES.draft}: ${missing.join(', ')}`, actions: [`→ Tell the agent: "Add the missing sections: ${missing.join(', ')}"`] }
+			: { name: CHECKLIST_NOTE.sections, detail: `all in ${DRAFTING_FILE_NAMES.draft}`, actions: [] });
+	}
+	if (input.styleExemplars !== undefined) {
+		const count = input.styleExemplars;
+		notes.push({ name: CHECKLIST_NOTE.style, detail: `${count} file${count === 1 ? '' : 's'} in ${DRAFTING_STYLE_FOLDER}/${count > MAX_STYLE_EXEMPLARS ? ` (only the first ${MAX_STYLE_EXEMPLARS} are read)` : ''}`, actions: [`→ ${STYLE_INSTRUCTION}`] });
+	}
+	return notes;
+}
+
+/**
+ * The open steps a tool refusal points to: every open step before the export that waits for no other step.
+ * @param checklist - the checklist.
+ * @param path - the checklist file as the sentence names it.
+ * @returns the sentence naming the open steps.
+ */
+export function checklistPointer(checklist: DraftingChecklist, path: string): string {
+	const open = checklist.steps.filter(entry => !entry.done && !entry.blockedBy.length && entry.step !== CHECKLIST_STEP.export);
+	return open.length
+		? `Open in ${path}: ${open.map(entry => `step ${entry.step} (${entry.title})`).join(', ')}.`
+		: `See ${path}.`;
+}
+
+/**
+ * The first open step that waits for no other step, or `undefined` when every step is done.
+ * @param checklist - the checklist.
+ * @returns the step, or `undefined`.
+ */
+export function nextChecklistStep(checklist: DraftingChecklist): DraftingChecklistStep | undefined {
+	return checklist.steps.find(entry => !entry.done && !entry.blockedBy.length);
+}
+
+/** The title of the Prompts view page that shows the loop before the first matter (PRD 0026 S3). */
+const LOOP_PAGE = 'Drafting with drawings: the loop';
+
+/**
+ * The map of the loop at the top of `checklist.md` (PRD 0026 S1): the steps in order, what
+ * re-opens what, and the Prompts view page. At most six lines; the attorney reads them, so no
+ * technical term for the file format and no command name.
+ */
+const LOOP_HEADER: readonly string[] = [
+	'The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.',
+	`A change to ${DRAFTING_FILE_NAMES.claims} re-opens the claims approval.`,
+	`After a change to ${DRAFTING_FILE_NAMES.figures}, the next check of the figures runs the coverage again.`,
+	'A new render of a drawn Figure needs a new review cycle.',
+	'A waived Error stays waived until the Error changes.',
+	`The Prompts view page "${LOOP_PAGE}" shows this loop before the first matter.`,
+];
+
+/**
+ * Renders `checklist.md`.
+ * @param checklist - the checklist.
+ * @returns the Markdown text.
+ */
+export function renderChecklist(checklist: DraftingChecklist): string {
+	const next = nextChecklistStep(checklist);
+	const lines = [
+		`# Drafting checklist: ${checklist.matter}${checklist.office ? ` (${checklist.office})` : ''}`,
+		'',
+		...LOOP_HEADER,
+		'',
+		'Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.',
+		'',
+		...checklist.steps.flatMap(entry => [
+			`- [${entry.done ? 'x' : ' '}] ${entry.step}. ${entry.title}${entry.detail ? `: ${entry.detail}` : ''}`,
+			...entry.actions.map(action => `      ${action}`),
+		]),
+		...(checklist.notes.length ? [
+			'',
+			'Not blocking:',
+			'',
+			...checklist.notes.flatMap(note => [`- ${note.name}: ${note.detail}`, ...note.actions.map(action => `      ${action}`)]),
+		] : []),
+		'',
+		next ? `Next step for you: step ${next.step}.` : 'Next step for you: none. Review the Word files: they are a draft for attorney review, not a filing.',
+	];
+	return lines.join('\n') + '\n';
+}

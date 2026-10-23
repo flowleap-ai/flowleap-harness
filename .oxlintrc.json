@@ -359,7 +359,11 @@
       "files": [
         "packages/host/flowleap-deliverables/src/report/{templates,p*,second-read,candidate-review,find-better,fallback-ladder,document-reference}.ts",
         "packages/host/flowleap-deliverables/src/ledger/types.ts",
-        "packages/host/flowleap-deliverables/tests/{templates,p*,second-read,fallback-ladder,working-record}.spec.ts"
+        "packages/host/flowleap-deliverables/src/drafting/*.ts",
+        "packages/host/flowleap-deliverables/src/docx/*.ts",
+        "packages/host/flowleap-deliverables/tests/{templates,p*,second-read,fallback-ladder,working-record}.spec.ts",
+        "packages/host/flowleap-deliverables/tests/drafting-*.ts",
+        "packages/host/flowleap-deliverables/tests/docx-*.ts"
       ],
       "rules": {
         "@stylistic/indent": "off",
@@ -374,7 +378,10 @@
         "typescript/no-unnecessary-type-conversion": "off",
         "typescript/no-non-null-assertion": "off",
         "typescript/no-unsafe-member-access": "off",
-        "typescript/no-confusing-void-expression": "off"
+        "typescript/no-confusing-void-expression": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unsafe-assignment": "off"
       },
       "plugins": [
         "typescript"

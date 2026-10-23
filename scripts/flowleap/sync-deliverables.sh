@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Record where the copied IDE deliverable code came from (S5 D1).
+# Record where the copied IDE deliverable code came from (S5 D1, D2).
 #
 # `packages/host/flowleap-deliverables/src/report/**`, `src/ledger/types.ts`,
-# `src/guard/completion.ts` and the writer schema are copies of flowleap-agent-v2
-# files with their imports rewritten onto this package. The IDE stays the owner
+# `src/guard/completion.ts`, the writer schema, `src/drafting/**`, `src/docx/**`
+# and the two drafting tool shells are copies of flowleap-agent-v2 files with
+# their imports rewritten onto this package. The IDE stays the owner
 # of those rules (port plan section 6, "No coupling to agent-v2"). SOURCE.json
 # records the agent-v2 commit the copies came from and, per file, the IDE path,
 # the IDE file's SHA-256 at that commit, and the local path.
@@ -43,6 +44,62 @@ pairs=(
   "$ide/tools/vscode-node/test/patentFallbackLadder.spec.ts=tests/fallback-ladder.spec.ts"
   "$ide/tools/vscode-node/test/patentWorkingRecord.spec.ts=tests/working-record.spec.ts"
   "$ide/tools/node/test/priorArtReportCompletion.spec.ts=tests/completion.spec.ts"
+  # S5 D2: the Application Drafting layer, the Word builders and the two tool shells.
+  "$ide/tools/common/drafting/checklist.ts=src/drafting/checklist.ts"
+  "$ide/tools/common/drafting/claimValidators.ts=src/drafting/claim-validators.ts"
+  "$ide/tools/common/drafting/claims.ts=src/drafting/claims.ts"
+  "$ide/tools/common/drafting/draftDiff.ts=src/drafting/draft-diff.ts"
+  "$ide/tools/common/drafting/figureRules.ts=src/drafting/figure-rules.ts"
+  "$ide/tools/common/drafting/figureValidators.ts=src/drafting/figure-validators.ts"
+  "$ide/tools/common/drafting/figures.ts=src/drafting/figures.ts"
+  "$ide/tools/common/drafting/filingDocuments.ts=src/drafting/filing-documents.ts"
+  "$ide/tools/common/drafting/filingManifest.ts=src/drafting/filing-manifest.ts"
+  "$ide/tools/common/drafting/finding.ts=src/drafting/finding.ts"
+  "$ide/tools/common/drafting/findingsFile.ts=src/drafting/findings-file.ts"
+  "$ide/tools/common/drafting/folderContract.ts=src/drafting/folder-contract.ts"
+  "$ide/tools/common/drafting/frontmatter.ts=src/drafting/frontmatter.ts"
+  "$ide/tools/common/drafting/fullReviewCopy.ts=src/drafting/full-review-copy.ts"
+  "$ide/tools/common/drafting/inventorAnswers.ts=src/drafting/inventor-answers.ts"
+  "$ide/tools/common/drafting/outline.ts=src/drafting/outline.ts"
+  "$ide/tools/common/drafting/outlineValidators.ts=src/drafting/outline-validators.ts"
+  "$ide/tools/common/drafting/sourceMarkers.ts=src/drafting/source-markers.ts"
+  "$ide/tools/common/drafting/specValidators.ts=src/drafting/spec-validators.ts"
+  "$ide/tools/common/drafting/styleFolder.ts=src/drafting/style-folder.ts"
+  "$ide/tools/common/drafting/validateDraft.ts=src/drafting/validate-draft.ts"
+  "$ide/tools/common/drafting/workingRecord.ts=src/drafting/working-record.ts"
+  "$ide/tools/vscode-node/draftingWorkspace.ts=src/drafting/workspace.ts"
+  "$ide/tools/vscode-node/draftDocx.ts=src/docx/draft.ts"
+  "$ide/tools/vscode-node/inventorQuestionsDocx.ts=src/docx/inventor-questions.ts"
+  "$ide/tools/vscode-node/exportDraftDocxTool.ts=src/tools/export-draft-docx.ts"
+  "$ide/tools/vscode-node/inventorQuestionsTool.ts=src/tools/inventor-questions.ts"
+  "$ide/tools/common/test/draftingChecklist.spec.ts=tests/drafting-checklist.spec.ts"
+  "$ide/tools/common/test/draftingClaimValidators.spec.ts=tests/drafting-claim-validators.spec.ts"
+  "$ide/tools/common/test/draftingClaims.spec.ts=tests/drafting-claims.spec.ts"
+  "$ide/tools/common/test/draftingDraftDiff.spec.ts=tests/drafting-draft-diff.spec.ts"
+  "$ide/tools/common/test/draftingFigureValidators.spec.ts=tests/drafting-figure-validators.spec.ts"
+  "$ide/tools/common/test/draftingFigures.spec.ts=tests/drafting-figures.spec.ts"
+  "$ide/tools/common/test/draftingFilingManifest.spec.ts=tests/drafting-filing-manifest.spec.ts"
+  "$ide/tools/common/test/draftingFindingsFile.spec.ts=tests/drafting-findings-file.spec.ts"
+  "$ide/tools/common/test/draftingFolderContract.spec.ts=tests/drafting-folder-contract.spec.ts"
+  "$ide/tools/common/test/draftingFrontmatter.spec.ts=tests/drafting-frontmatter.spec.ts"
+  "$ide/tools/common/test/draftingImportBoundary.spec.ts=tests/drafting-import-boundary.spec.ts"
+  "$ide/tools/common/test/draftingInventorAnswers.spec.ts=tests/drafting-inventor-answers.spec.ts"
+  "$ide/tools/common/test/draftingOutline.spec.ts=tests/drafting-outline.spec.ts"
+  "$ide/tools/common/test/draftingOutlineValidators.spec.ts=tests/drafting-outline-validators.spec.ts"
+  "$ide/tools/common/test/draftingSourceMarkers.spec.ts=tests/drafting-source-markers.spec.ts"
+  "$ide/tools/common/test/draftingSpecValidators.spec.ts=tests/drafting-spec-validators.spec.ts"
+  "$ide/tools/common/test/draftingValidateDraft.spec.ts=tests/drafting-validate-draft.spec.ts"
+  "$ide/tools/common/test/draftingWorkingRecord.spec.ts=tests/drafting-working-record.spec.ts"
+  "$ide/tools/common/test/draftingTestClaims.ts=tests/drafting-test-claims.ts"
+  "$ide/tools/vscode-node/test/draftDocx.spec.ts=tests/docx-draft.spec.ts"
+  "$ide/tools/vscode-node/test/inventorQuestionsDocx.spec.ts=tests/docx-inventor-questions.spec.ts"
+  "$ide/tools/vscode-node/test/inventorQuestionsDocxTestUtils.ts=tests/docx-test-utils.ts"
+  "$ide/tools/common/test/fixtures/pipe-clamp/claims.md=tests/fixtures/pipe-clamp/claims.md"
+  "$ide/tools/common/test/fixtures/pipe-clamp/draft-application.md=tests/fixtures/pipe-clamp/draft-application.md"
+  "$ide/tools/common/test/fixtures/pipe-clamp/draft-outline.md=tests/fixtures/pipe-clamp/draft-outline.md"
+  "$ide/tools/common/test/fixtures/pipe-clamp/feature-list.md=tests/fixtures/pipe-clamp/feature-list.md"
+  "$ide/tools/common/test/fixtures/pipe-clamp/figures.md=tests/fixtures/pipe-clamp/figures.md"
+  "$ide/tools/common/test/fixtures/pipe-clamp/inventor-answers.md=tests/fixtures/pipe-clamp/inventor-answers.md"
 )
 
 mode=sync

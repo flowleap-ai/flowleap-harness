@@ -1,0 +1,361 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { describe, expect, it } from 'vitest';
+import { checklistPointer, DraftingChecklistFiles, readDraftingChecklist, renderChecklist, stepActionText } from '../src/drafting/checklist.ts';
+import { DraftFinding } from '../src/drafting/finding.ts';
+import { renderFindingsFile } from '../src/drafting/findings-file.ts';
+import { updateInventorAnswers } from '../src/drafting/inventor-answers.ts';
+import { parseInventorQuestions } from '../src/drafting/source-markers.ts';
+
+const featureList = (confirmed = 'true') => `---\noffice: EPO\nconfirmed: ${confirmed}\n---\n| F1 | A lever. |\n`;
+const claims = (approved = 'true') => `---\napproved: ${approved}\n---\n1. A hinge.\n`;
+/** The checklist reads only whether draft-outline.md exists; the binding to the claims comes in `outlineStale`. */
+const outline = '---\noffice: EPO\nclaims: 0f0f\n---\n# Draft Outline\n';
+const draft = `---\noffice: EPO\n---\n# Hinge\n\n<!-- src: feature:F1 -->\nA lever.\n\n## Inventor Questions\n\n> **Inventor Question IQ-1:** Which steel grade?\n\n> **Inventor Question IQ-2:** How thick?\n`;
+
+const errors: DraftFinding[] = [
+	{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 3, message: 'The paragraph at line 3 has no source marker (<!-- src: ... -->).' },
+	{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 7, message: 'Line 7 writes "control-unit"; the defined term is "control unit".' },
+	{ severity: 'Error', rule: 'inventor-question', file: 'draft-application.md', line: 11, message: 'Inventor Question IQ-1 is open: Which steel grade?' },
+];
+
+const answers = (fill: Record<string, string> = {}) => {
+	let text = updateInventorAnswers(undefined, 'hinge', parseInventorQuestions(draft), new Set());
+	for (const [id, answer] of Object.entries(fill)) {
+		text = text.replace(new RegExp(`(## ${id}\\n[\\s\\S]*?\\*\\*Answer:\\*\\*\\n)`), `$1${answer}\n`);
+	}
+	return text;
+};
+
+const render = (files: Partial<DraftingChecklistFiles>) => renderChecklist(readDraftingChecklist({ matter: 'hinge', findingsCurrent: false, exported: false, ...files }));
+
+describe('Application Drafting checklist', () => {
+
+	it('nothing started: step 1 is next and the later steps wait', () => {
+		expect(render({})).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [ ] 1. Confirm the Feature List: feature-list.md does not exist
+			      → Tell the agent: "Build the Feature List from the disclosure"
+			- [ ] 2. Approve the claims: blocked by step 1
+			- [ ] 3. Write the outline: blocked by steps 1 and 2
+			- [ ] 3. Write the draft: blocked by steps 1 and 2
+			- [ ] 4. Fix or waive the Errors: blocked by step 3
+			- [ ] 5. Answer the Inventor Questions: blocked by step 3
+			- [ ] 6. Export to Word: blocked by steps 1, 2, 3, 4 and 5
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+
+			Next step for you: step 1.
+			"
+		`);
+	});
+
+	it('gates open: names the file, the line and the text to write', () => {
+		expect(render({ featureList: featureList('false'), claims: claims().replace('approved: true\n', '') })).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge (EPO)
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [ ] 1. Confirm the Feature List: feature-list.md has no \`confirmed: true\`
+			      → Review \`feature-list.md:3\`, then click **Confirm Feature List** at the top of the file, or change \`false\` to \`true\` on line 3.
+			- [ ] 2. Approve the claims: claims.md has no \`approved: true\`
+			      → Review \`claims.md:1\`, then click **Approve Claims** at the top of the file, or add the line \`approved: true\` under the \`---\` on line 1.
+			- [ ] 3. Write the outline: blocked by steps 1 and 2
+			- [ ] 3. Write the draft: blocked by steps 1 and 2
+			- [ ] 4. Fix or waive the Errors: blocked by step 3
+			- [ ] 5. Answer the Inventor Questions: blocked by step 3
+			- [ ] 6. Export to Word: blocked by steps 1, 2, 3, 4 and 5
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+
+			Next step for you: step 1.
+			"
+		`);
+	});
+
+	it('Inventor Questions open and Errors open, with the answer slot lines and findings.md lines', () => {
+		expect(render({ featureList: featureList(), claims: claims(), draftOutline: outline, draft, inventorAnswers: answers(), findings: renderFindingsFile(errors), findingsCurrent: true })).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge (EPO)
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [x] 1. Feature List confirmed: feature-list.md has \`confirmed: true\`
+			- [x] 2. Claims approved: claims.md has \`approved: true\`
+			- [x] 3. Outline written for the approved claims: draft-outline.md
+			- [x] 3. Draft written: draft-application.md
+			- [ ] 4. Fix or waive the Errors: 2 open (findings.md lines 7, 8)
+			      → To waive, click **Waive…** on the item in \`findings.md:7\` and line 8, or add under it:   - Waived: <your reason>
+			      → To fix, tell the agent: "Fix the Errors in findings.md"
+			- [ ] 5. Answer the Inventor Questions: 2 open
+			      → Fill each **Answer:** in \`inventor-answers.md:11\` and line 19, or send the file to the inventor
+			      → Then tell the agent: "Apply the answers"
+			- [ ] 6. Export to Word: blocked by steps 4 and 5
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+			- Required sections: missing in draft-application.md: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract
+			      → Tell the agent: "Add the missing sections: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract"
+
+			Next step for you: step 4.
+			"
+		`);
+	});
+
+	it('answered but not applied, findings.md older than the draft', () => {
+		expect(render({ featureList: featureList(), claims: claims(), draftOutline: outline, draft, inventorAnswers: answers({ 'IQ-1': 'Grade 304.', 'IQ-2': 'Not stated' }), findings: renderFindingsFile(errors) })).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge (EPO)
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [x] 1. Feature List confirmed: feature-list.md has \`confirmed: true\`
+			- [x] 2. Claims approved: claims.md has \`approved: true\`
+			- [x] 3. Outline written for the approved claims: draft-outline.md
+			- [x] 3. Draft written: draft-application.md
+			- [ ] 4. Fix or waive the Errors: findings.md is older than the draft or the claims
+			      → Tell the agent: "Validate the draft"
+			- [ ] 5. Answer the Inventor Questions: 1 open, 1 answered but not yet in the draft (IQ-1)
+			      → Fill each **Answer:** in \`inventor-answers.md:20\`, or send the file to the inventor
+			      → Then tell the agent: "Apply the answers"
+			- [ ] 6. Export to Word: blocked by steps 4 and 5
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+			- Required sections: missing in draft-application.md: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract
+			      → Tell the agent: "Add the missing sections: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract"
+
+			Next step for you: step 4.
+			"
+		`);
+	});
+
+	it('Errors waived and Inventor Questions applied: export is next', () => {
+		const waived = errors.map(finding => ({ ...finding, waived: { reason: 'Accepted by the attorney.' } }));
+		const applied = draft.replace(/\n## Inventor Questions[\s\S]*$/, '\n');
+		expect(render({ featureList: featureList(), claims: claims(), draftOutline: outline, draft: applied, inventorAnswers: answers({ 'IQ-1': 'Grade 304.', 'IQ-2': 'Four millimetres.' }), findings: renderFindingsFile(waived), findingsCurrent: true })).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge (EPO)
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [x] 1. Feature List confirmed: feature-list.md has \`confirmed: true\`
+			- [x] 2. Claims approved: claims.md has \`approved: true\`
+			- [x] 3. Outline written for the approved claims: draft-outline.md
+			- [x] 3. Draft written: draft-application.md
+			- [x] 4. Errors fixed or waived: none open in findings.md
+			- [x] 5. Inventor Questions answered and applied: 1 waived in findings.md, none open
+			- [ ] 6. Export to Word: ready
+			      → Tell the agent: "Export to Word"
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+			- Required sections: missing in draft-application.md: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract
+			      → Tell the agent: "Add the missing sections: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract"
+
+			Next step for you: step 6.
+			"
+		`);
+	});
+
+	it('exported: every step is done', () => {
+		const applied = draft.replace(/\n## Inventor Questions[\s\S]*$/, '\n');
+		expect(render({ featureList: featureList(), claims: claims(), draftOutline: outline, draft: applied, findings: renderFindingsFile([]), findingsCurrent: true, exported: true })).toMatchInlineSnapshot(`
+			"# Drafting checklist: hinge (EPO)
+
+			The loop, in order: Feature List, claims, outline, draft, findings, figures, drawings, export.
+			A change to claims.md re-opens the claims approval.
+			After a change to figures.md, the next check of the figures runs the coverage again.
+			A new render of a drawn Figure needs a new review cycle.
+			A waived Error stays waived until the Error changes.
+			The Prompts view page "Drafting with drawings: the loop" shows this loop before the first matter.
+
+			Code writes this file from the files of this folder after every drafting tool call. Do not edit it: edit the file each step names. The step numbers are the steps of the application-drafting skill.
+
+			- [x] 1. Feature List confirmed: feature-list.md has \`confirmed: true\`
+			- [x] 2. Claims approved: claims.md has \`approved: true\`
+			- [x] 3. Outline written for the approved claims: draft-outline.md
+			- [x] 3. Draft written: draft-application.md
+			- [x] 4. Errors fixed or waived: none open in findings.md
+			- [x] 5. Inventor Questions answered and applied: none open in draft-application.md
+			- [x] 6. Exported to Word: draft-application.description.docx, draft-application.claims.docx, draft-application.abstract.docx
+
+			Not blocking:
+
+			- Figures: figures.md does not exist
+			      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"
+			- Required sections: missing in draft-application.md: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract
+			      → Tell the agent: "Add the missing sections: Technical Field, Background Art, Summary of the Invention, Description of Embodiments, Claims, Abstract"
+
+			Next step for you: none. Review the Word files: they are a draft for attorney review, not a filing.
+			"
+		`);
+	});
+
+	it('a refusal points to the open checklist steps', () => {
+		const checklist = readDraftingChecklist({ matter: 'hinge', featureList: featureList(), claims: claims(), draftOutline: outline, draft, inventorAnswers: answers(), findings: renderFindingsFile(errors), findingsCurrent: true, exported: false });
+		expect(checklistPointer(checklist, 'drafting/hinge/checklist.md')).toBe('Open in drafting/hinge/checklist.md: step 4 (Fix or waive the Errors), step 5 (Answer the Inventor Questions).');
+	});
+
+	it('the notes never block: figures, required sections and style exemplars, each with what to do', () => {
+		const notes = (files: Partial<DraftingChecklistFiles>) => render(files).split('\n').filter((line, index, lines) => index > lines.indexOf('Not blocking:') && line && !line.startsWith('Next step'));
+		const noSections = `---\noffice: EPO\n---\n# Hinge\n\n## Summary\n\n<!-- src: feature:F1 -->\nA lever.\n`;
+		expect({
+			nothing: notes({ styleExemplars: 7 }),
+			gaps: notes({ featureList: featureList(), claims: claims(), draftOutline: outline, draft: noSections, figures: '# Figures\n\n## FIG. 1\n\n- 10: lever\n\n## FIGS. 2 to 4\n', drawnFigures: 3, styleExemplars: 1 }),
+		}).toEqual({
+			nothing: [
+				'- Figures: figures.md does not exist',
+				'      → When the application has drawings, add one heading per figure to figures.md (e.g. "## FIG. 1") with its parts, or tell the agent: "Build figures.md from the disclosure"',
+				'- Style exemplars: 7 files in style/ (only the first 5 are read)',
+				'      → Put 1 to 5 of your own filed applications or claim sets in style/ (.md, .docx, .pdf). FlowLeap copies their voice and structure only, never their facts. Leave the folder empty to use the office template style.',
+			],
+			gaps: [
+				'- Figures: 4 in figures.md, 3 drawn in drawings/',
+				'- Required sections: missing in draft-application.md: Technical Field, Background Art, Brief Description of the Drawings, Description of Embodiments, Claims, Abstract',
+				'      → Tell the agent: "Add the missing sections: Technical Field, Background Art, Brief Description of the Drawings, Description of Embodiments, Claims, Abstract"',
+				'- Style exemplars: 1 file in style/',
+				'      → Put 1 to 5 of your own filed applications or claim sets in style/ (.md, .docx, .pdf). FlowLeap copies their voice and structure only, never their facts. Leave the folder empty to use the office template style.',
+			],
+		});
+	});
+
+	it('claims changed since approval, a draft for other claims and an export of an older draft are not done, and export is not ready', () => {
+		const steps = (files: Partial<DraftingChecklistFiles>) => readDraftingChecklist({ matter: 'hinge', findingsCurrent: true, exported: false, ...files }).steps.map(entry => `${entry.step} ${entry.done ? 'x' : ' '} ${entry.detail}`);
+		const applied = draft.replace(/\n## Inventor Questions[\s\S]*$/, '\n');
+		const base = { featureList: featureList(), claims: claims(), draftOutline: outline, draft: applied, findings: renderFindingsFile([]) };
+		expect({
+			claimsChanged: steps({ ...base, claimsChangedSinceApproval: true, exported: true }),
+			claimsChangedAction: readDraftingChecklist({ matter: 'hinge', findingsCurrent: true, exported: false, ...base, claimsChangedSinceApproval: true }).steps[1]!.actions,
+			draftStale: steps({ ...base, draftStale: true }),
+			exportedOlderDraft: steps({ ...base, exported: false }).at(-1),
+		}).toEqual({
+			claimsChanged: [
+				'1 x feature-list.md has `confirmed: true`',
+				'2   claims.md changed after it was approved',
+				'3   blocked by step 2',
+				'3 x draft-application.md',
+				'4 x none open in findings.md',
+				'5 x none open in draft-application.md',
+				'6   blocked by steps 2 and 3',
+			],
+			claimsChangedAction: ['→ Review `claims.md:2`: it changed after the approval on line 2. The next drafting step changes `true` to `false` there; then click **Approve Claims** at the top of the file, or change `false` to `true`.'],
+			draftStale: [
+				'1 x feature-list.md has `confirmed: true`',
+				'2 x claims.md has `approved: true`',
+				'3 x draft-outline.md',
+				'3   draft-application.md was written for other claims than claims.md',
+				'4 x none open in findings.md',
+				'5 x none open in draft-application.md',
+				'6   blocked by step 3',
+			],
+			exportedOlderDraft: '6   ready',
+		});
+	});
+
+	it('a question removed from the draft while its narrowed question has no answer stays open in step 5', () => {
+		const answers = updateInventorAnswers(undefined, 'hinge', parseInventorQuestions(draft), new Set())
+			.replace('**Question:** Which steel grade?\n\n**Belongs:** see the question\n\n**Answer:**\n', '**Question:** Which steel grade?\n\n**Belongs:** see the question\n\n**Answer:**\nStainless; hardness unknown.\n\n**Narrowed question:** What hardness?\n\n**Answer:**\n');
+		const withoutIq1 = draft.replace('> **Inventor Question IQ-1:** Which steel grade?\n\n', '');
+		const step5 = readDraftingChecklist({ matter: 'hinge', featureList: featureList(), claims: claims(), draftOutline: outline, draft: withoutIq1, inventorAnswers: answers, findings: renderFindingsFile([]), findingsCurrent: true, exported: false }).steps.find(entry => entry.step === 5);
+		if (!step5) {
+			throw new Error('The checklist has no step 5.');
+		}
+		expect([step5.detail, ...step5.actions]).toEqual([
+			'2 open, 1 removed from the draft without an answer (IQ-1)',
+			'→ Fill each **Answer:** in `inventor-answers.md:24` and line 16, or send the file to the inventor',
+			'→ Then tell the agent: "Apply the answers"',
+		]);
+	});
+
+	it('the next-step sentence of a tool result names every `file:line` of the step as a workspace path', () => {
+		const checklist = readDraftingChecklist({ matter: 'hinge', featureList: featureList(), claims: claims(), draftOutline: outline, draft, inventorAnswers: answers(), findings: renderFindingsFile(errors), findingsCurrent: true, exported: false });
+		const pathOf = (file: string) => `drafting/hinge/${file}`;
+		expect(checklist.steps.filter(entry => !entry.done && entry.actions.length).map(entry => stepActionText(entry, pathOf))).toEqual([
+			'To waive, click **Waive…** on the item in `drafting/hinge/findings.md:7` and line 8, or add under it:   - Waived: <your reason>. To fix, tell the agent: "Fix the Errors in findings.md".',
+			'Fill each **Answer:** in `drafting/hinge/inventor-answers.md:11` and line 19, or send the file to the inventor. Then tell the agent: "Apply the answers".',
+		]);
+	});
+
+	it('step 3 has two lines read from the files: the outline for the approved claims, then the draft', () => {
+		const step3 = (files: Partial<DraftingChecklistFiles>) => readDraftingChecklist({ matter: 'hinge', findingsCurrent: false, exported: false, featureList: featureList(), claims: claims(), ...files }).steps
+			.filter(entry => entry.step === 3)
+			.flatMap(entry => [`3 ${entry.done ? 'x' : ' '} ${entry.title}: ${entry.detail}`, ...entry.actions]);
+		expect({
+			noOutline: step3({}),
+			staleOutline: step3({ draftOutline: outline, outlineStale: true, draft }),
+			outlineOnly: step3({ draftOutline: outline }),
+			claimsOpen: step3({ claims: claims('false'), draftOutline: outline, outlineStale: true }),
+		}).toEqual({
+			noOutline: [
+				'3   Write the outline: draft-outline.md does not exist',
+				'→ Tell the agent: "Plan the draft" (it saves draft-outline.md with write_patent_results, template draft-outline)',
+				'3   Write the draft: blocked by the outline (draft-outline.md)',
+			],
+			staleOutline: [
+				'3   Write the outline: draft-outline.md was made for other claims than claims.md',
+				'→ Tell the agent: "Plan the draft again" (it saves draft-outline.md with write_patent_results, template draft-outline)',
+				'3 x Draft written: draft-application.md',
+			],
+			outlineOnly: [
+				'3 x Outline written for the approved claims: draft-outline.md',
+				'3   Write the draft: draft-application.md does not exist',
+				'→ Tell the agent: "Draft the application"',
+			],
+			claimsOpen: [
+				'3   Write the outline: blocked by step 2',
+				'3   Write the draft: blocked by step 2',
+			],
+		});
+	});
+});

@@ -1,0 +1,284 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { describe, expect, it } from 'vitest';
+import { parseClaims } from '../src/drafting/claims.ts';
+import { parseInventorAnswers } from '../src/drafting/inventor-answers.ts';
+import { parseDraftParagraphs } from '../src/drafting/source-markers.ts';
+import { checkAbstractLength, checkDefinedTerms, checkEpoAbstractFigure, checkInventorQuestions, checkReferenceNumerals, checkSourceMarkers, figureHeadingCount, hasFigures, parseFigureParts, parseFigureSections, readReferenceSigns } from '../src/drafting/spec-validators.ts';
+
+function draft(...lines: string[]) {
+	return parseDraftParagraphs(lines.join('\n'));
+}
+
+const words = (count: number) => Array.from({ length: count }, (_, i) => `word${i}`).join(' ');
+
+const figures = [
+	'# Figures',
+	'',
+	'## FIG. 1: perspective view of the hinge',
+	'- 10: hinge',
+	'- 12: housing',
+	'| 14 | coil spring |',
+].join('\n');
+
+describe('Application Drafting specification validators', () => {
+
+	it('abstract length: pass at 150 words', () => {
+		const text = draft('# Abstract', '', `<!-- src: template --> ${words(150)}`);
+		expect([checkAbstractLength(text, 'US'), checkAbstractLength(text, 'EPO')]).toEqual([[], []]);
+	});
+
+	it('abstract length: Error over 150 words for US, Note for EPO; Error when the Abstract is missing', () => {
+		const long = draft('# Abstract of the Disclosure', '', '<!-- src: template -->', words(100), '', `<!-- src: feature:F1 --> ${words(51)}`);
+		expect([
+			checkAbstractLength(long, 'US'),
+			checkAbstractLength(long, 'EPO'),
+			checkAbstractLength(draft('# Description', '', 'Text.'), 'EPO'),
+		]).toEqual([
+			[{ severity: 'Error', rule: 'abstract-length', file: 'draft-application.md', line: 1, message: 'The Abstract has 151 words; it must have at most 150 (37 CFR 1.72(b)).' }],
+			[{ severity: 'Note', rule: 'abstract-length', file: 'draft-application.md', line: 1, message: 'The Abstract has 151 words; Rule 47(3) EPC asks for preferably at most 150.' }],
+			[{ severity: 'Error', rule: 'abstract-length', file: 'draft-application.md', message: 'The draft has no Abstract section (a heading that contains "Abstract").' }],
+		]);
+	});
+
+	it('EPO abstract figure: pass when the Abstract names a figure and puts reference signs in parentheses, and without figures', () => {
+		expect([
+			checkEpoAbstractFigure(draft('# Abstract', '', '<!-- src: template -->', 'A hinge (10) has a housing (12) and a coil spring (14). (Fig. 1)'), figures),
+			checkEpoAbstractFigure(draft('# Abstract', '', '<!-- src: template -->', 'A hinge has a housing.'), ''),
+		]).toEqual([[], []]);
+	});
+
+	it('EPO abstract figure: Note when the Abstract names no figure or has features without signs in parentheses (Rule 47(4) EPC)', () => {
+		expect(checkEpoAbstractFigure(draft('# Abstract', '', '<!-- src: template -->', 'A hinge (10) has a housing 12 and a coil spring.'), figures)).toEqual([
+			{ severity: 'Note', rule: 'epo-abstract-figure', file: 'draft-application.md', line: 1, message: 'The Abstract names no figure to publish with it. Rule 47(4) EPC: name the figure, e.g. "(Fig. 1)".' },
+			{ severity: 'Note', rule: 'epo-abstract-figure', file: 'draft-application.md', line: 1, message: 'The Abstract mentions "housing", "coil spring" without their reference signs in parentheses. Rule 47(4) EPC: follow each main feature shown in a figure by its reference sign in parentheses, e.g. "housing (12)".' },
+		]);
+	});
+
+	it('defined terms: pass when a defined term keeps its spelling', () => {
+		expect(checkDefinedTerms(draft('A control unit (hereinafter "control unit") is used.', '', 'The control unit is small.'))).toEqual([]);
+	});
+
+	it('defined terms: Error for another spelling of a defined term', () => {
+		expect(checkDefinedTerms(draft('A unit is referred to as "control unit".', '', 'The control-unit is small.', '', '"Sensor module" means the part.', '', 'The sensormodule and the Sensor module work.'))).toEqual([
+			{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 3, message: 'Line 3 writes "control-unit"; the defined term is "control unit".' },
+			{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 7, message: 'Line 7 writes "sensormodule"; the defined term is "Sensor module".' },
+		]);
+	});
+
+	it('defined terms: one-word terms and case variants of a capitalised term', () => {
+		expect([
+			checkDefinedTerms(draft('A unit (hereinafter "Controller") is used.', '', 'The Controller is small. A controller-board holds the Controller.')),
+			checkDefinedTerms(draft('A unit (hereinafter "Controller") is used.', '', 'The controller is small.', '', '"Sensor Module" means the part.', '', 'The sensor module and the Sensor-Module work.')),
+			checkDefinedTerms(draft('"bolt" means the pin.', '', 'Bolt 12 holds. The bolt holds.')),
+		]).toEqual([
+			[],
+			[
+				{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 3, message: 'Line 3 writes "controller"; the defined term is "Controller".' },
+				{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 7, message: 'Line 7 writes "sensor module"; the defined term is "Sensor Module".' },
+				{ severity: 'Error', rule: 'defined-term', file: 'draft-application.md', line: 7, message: 'Line 7 writes "Sensor-Module"; the defined term is "Sensor Module".' },
+			],
+			[],
+		]);
+	});
+
+	it('figure parts: parses list items and table rows with their lines', () => {
+		expect(parseFigureParts(figures)).toEqual([
+			{ numeral: '10', part: 'hinge', line: 4 },
+			{ numeral: '12', part: 'housing', line: 5 },
+			{ numeral: '14', part: 'coil spring', line: 6 },
+		]);
+	});
+
+	it('figure parts: reads the part name without its Feature List links and proposal marker', () => {
+		expect(parseFigureParts('## FIG. 1\n- 12: housing [F2]\n- 14: bracket [F3, F5] (proposed from sketches/sketch-2.png)\n| 16 | coil spring (proposed) |\n')).toEqual([
+			{ numeral: '12', part: 'housing', features: ['F2'], line: 2 },
+			{ numeral: '14', part: 'bracket', features: ['F3', 'F5'], proposed: { source: 'sketches/sketch-2.png' }, line: 3 },
+			{ numeral: '16', part: 'coil spring', proposed: {}, line: 4 },
+		]);
+	});
+
+	it('reference numerals: the numeral sets of drawings and text cite the office rule; for EPO the claims count as text', () => {
+		const linked = '## FIG. 1\n- 10: hinge [F1]\n- 12: housing [F2] (proposed)\n- 14: coil spring\n- 16: pin\n';
+		const text = draft('The hinge 10 has a housing 12, a spring 14 and a damper 18.');
+		const claims = parseClaims('1. A hinge (10) with a pin (16), a latch (20) and 2 arms.\n2. The hinge of claim 1, wherein the latch (20) is steel.');
+		expect({
+			US: checkReferenceNumerals(text, linked, 'US', claims),
+			EPO: checkReferenceNumerals(text, linked, 'EPO', claims),
+		}).toEqual({
+			US: [
+				{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 uses numeral 18 ("damper 18"), which figures.md does not list (37 CFR 1.84(p)(5)).' },
+				{ severity: 'Error', rule: 'reference-numeral', file: 'figures.md', line: 5, message: 'Numeral 16 ("pin") in figures.md does not appear in the draft text (37 CFR 1.84(p)(5)).' },
+			],
+			EPO: [
+				{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 uses numeral 18 ("damper 18"), which figures.md does not list (OJ EPO 2025 A49 Art. 1(2)(i)).' },
+				{ severity: 'Error', rule: 'reference-numeral', file: 'claims.md', line: 1, claim: 1, message: 'Claim 1 uses reference sign 20 ("latch (20)"), which figures.md does not list (OJ EPO 2025 A49 Art. 1(2)(i)).' },
+			],
+		});
+	});
+
+	it('reference numerals: pass when text and figures.md agree', () => {
+		expect(checkReferenceNumerals(draft(
+			'# Brief Description of the Drawings',
+			'',
+			'FIG. 1 shows the hinge 10 of about 5 mm, set at 90 degrees, as in claim 1 and in 2024.',
+			'',
+			'The housing 12 holds the spring 14 (see FIGS. 1 and 2).',
+		), figures)).toEqual([]);
+	});
+
+	it('reference numerals: Error for unknown, unused, mismatched and doubled numerals', () => {
+		const doubled = `${figures}\n- 12: lever\n- 16: housing`;
+		expect(checkReferenceNumerals(draft(
+			'The hinge 10 has a lever 12 and a damper 18.',
+		), doubled)).toEqual([
+			{ severity: 'Error', rule: 'reference-numeral', file: 'figures.md', line: 7, message: 'Numeral 12 names two parts in figures.md: "housing" and "lever". Use one numeral per part.' },
+			{ severity: 'Error', rule: 'reference-numeral', file: 'figures.md', line: 8, message: 'Part "housing" has two numerals in figures.md: 12 and 16. Use one numeral per part.' },
+			{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 uses numeral 18 ("damper 18"), which figures.md does not list.' },
+			{ severity: 'Error', rule: 'reference-numeral', file: 'figures.md', line: 6, message: 'Numeral 14 ("coil spring") in figures.md does not appear in the draft text.' },
+			{ severity: 'Error', rule: 'reference-numeral', file: 'figures.md', line: 8, message: 'Numeral 16 ("housing") in figures.md does not appear in the draft text.' },
+		]);
+	});
+
+	it('reference numerals: Error when the text names a numeral as another part', () => {
+		expect(checkReferenceNumerals(draft('The hinge 10 has a housing 12 and a lever 14.'), figures)).toEqual([
+			{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 writes "lever 14", but figures.md names numeral 14 "coil spring".' },
+		]);
+	});
+
+	it('reference numerals: "step", "block", "operation" and "box" name a numeral of a flowchart or block diagram figure (#782)', () => {
+		// FIG. 3 of the D7 pipe-clamp matter (test/fixtures/pipe-clamp/figures.md), a flowchart whose steps are named by what they do.
+		const flowchart = [
+			'## FIG. 3',
+			'',
+			'Flowchart of the method of securing a pipe in the clamp (the method claim; disclosure §5).',
+			'',
+			'- 44: placing the pipe in the saddle groove [F19]',
+			'- 46: pivoting the cap about the hinge pin onto the pipe [F19]',
+			'- 48: compressing the spring with the cap [F19]',
+			'- 50: pushing the locking pin through the latch lug and the cap latch lug [F19]',
+			'- 52: releasing the cap, the locking pin holding the cap closed against the spring [F19]',
+		].join('\n');
+		const blockDiagram = '## FIG. 4: block diagram of the controller\n- 60: sensor\n- 62: processor\n';
+		expect({
+			steps: checkReferenceNumerals(draft('In step 44, the pipe is placed in the saddle groove. Step 46 pivots the cap; operation 48 compresses the spring; block 50 pushes the locking pin; in box 52 the cap is released.'), flowchart),
+			named: checkReferenceNumerals(draft('The steps 44, 46, 48, 50 and 52 follow: placing 44, pivoting 46, compressing 48, pushing 50, releasing 52.'), flowchart),
+			blocks: checkReferenceNumerals(draft('Block 60 feeds block 62.'), blockDiagram),
+			wrongWord: checkReferenceNumerals(draft('In step 44 the pipe is placed; the lever 46 pivots; the damper 48 compresses; step 50 pushes; step 52 releases.'), flowchart),
+		}).toEqual({
+			steps: [],
+			named: [],
+			blocks: [],
+			wrongWord: [
+				{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 writes "lever 46", but figures.md names numeral 46 "pivoting the cap about the hinge pin onto the pipe".' },
+				{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 writes "damper 48", but figures.md names numeral 48 "compressing the spring with the cap".' },
+			],
+		});
+	});
+
+	it('reference numerals: "step" before a numeral of a part figure is still the wrong word (#782)', () => {
+		expect(checkReferenceNumerals(draft('The hinge 10 has a housing 12; in step 14 the coil spring is set.'), figures)).toEqual([
+			{ severity: 'Error', rule: 'reference-numeral', file: 'draft-application.md', line: 1, message: 'Line 1 writes "step 14", but figures.md names numeral 14 "coil spring".' },
+		]);
+	});
+
+	it('source markers: pass when every text paragraph outside the claims has a source', () => {
+		expect(checkSourceMarkers(draft('# Description', '', '<!-- src: feature:F1 -->', 'Text.', '', '# Claims', '', '1. A hinge.'))).toEqual([]);
+	});
+
+	it('source markers: Error for a paragraph without a source or with an invalid marker', () => {
+		expect(checkSourceMarkers(draft('# Description', '', 'No source.', '', '<!-- src: feature -->', 'Bad marker.'))).toEqual([
+			{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 3, message: 'The paragraph at line 3 has no source marker (<!-- src: ... -->).' },
+			{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 6, message: 'The paragraph at line 6 has an invalid source marker: Unknown source "feature". Use feature:<row>, disclosure:<span>, figure:FIG. <n>, inventor:IQ-<n>, instruction, template or model-proposed.' },
+		]);
+	});
+
+	it('source markers: a figure source must name a figure heading of figures.md (FIG. 2 also names FIG. 2a)', () => {
+		const figureHeadings = '# Figures\n\n## FIG. 1: perspective view\n- 10: hinge\n\n## FIG. 2a\n- 12: housing\n';
+		const text = draft('# Description', '', '<!-- src: figure:FIG. 1 -->', 'Shown.', '', '<!-- src: figure:Fig. 2 -->', 'Shown too.', '', '<!-- src: figure:FIG. 3, feature:F1 -->', 'Not a figure.', '', '<!-- src: figure:the side view -->', 'Not a figure name.');
+		expect([checkSourceMarkers(text, [], figureHeadings), checkSourceMarkers(text)]).toEqual([
+			[
+				{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 10, message: 'The paragraph at line 10 cites figure:FIG. 3, but figures.md has no figure heading FIG. 3.' },
+				{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 13, message: 'The paragraph at line 13 cites figure:the side view, but figures.md has no figure heading the side view.' },
+			],
+			[4, 7, 10, 13].map(line => ({ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line, message: expect.stringContaining('but figures.md has no figure heading') })),
+		]);
+	});
+
+	it('inventor questions: pass when none is open', () => {
+		expect(checkInventorQuestions('# Description\n\n<!-- src: template -->\nText.')).toEqual([]);
+	});
+
+	it('inventor questions: Error for each open Inventor Question', () => {
+		expect(checkInventorQuestions('## Inventor Questions\n\n> **Inventor Question IQ-1:** What is the spring made of?')).toEqual([
+			{ severity: 'Error', rule: 'inventor-question', file: 'draft-application.md', line: 3, question: 'IQ-1', message: 'Inventor Question IQ-1 is open: What is the spring made of?' },
+		]);
+	});
+
+	it('inventor answers: the marker needs a filled answer, and an answered question still in the draft says to apply it', () => {
+		const answers = parseInventorAnswers([
+			'## IQ-1', '', '**Question:** What is the spring made of?', '', '**Answer:**', 'Spring steel.',
+			'', '## IQ-2', '', '**Question:** Is the hinge removable?', '', '**Answer:** Not stated.',
+		].join('\n'));
+		const text = [
+			'# Description', '',
+			'<!-- src: inventor:IQ-1 -->', 'The spring is spring steel.', '',
+			'<!-- src: inventor:IQ-2 -->', 'The hinge is removable.', '',
+			'## Inventor Questions', '',
+			'> **Inventor Question IQ-1:** What is the spring made of?', '',
+			'> **Inventor Question IQ-2:** Is the hinge removable?',
+		].join('\n');
+		expect({ markers: checkSourceMarkers(parseDraftParagraphs(text), answers), questions: checkInventorQuestions(text, answers).map(finding => finding.message) }).toEqual({
+			markers: [
+				{ severity: 'Error', rule: 'source-marker', file: 'draft-application.md', line: 7, message: 'The paragraph at line 7 cites inventor:IQ-2, but inventor-answers.md has no answer to IQ-2.' },
+			],
+			questions: [
+				'Inventor Question IQ-1 is answered in inventor-answers.md; apply it to the draft: What is the spring made of?',
+				'Inventor Question IQ-2 is open: Is the hinge removable?',
+			],
+		});
+	});
+
+	it('figure headings: a range or list counts each figure; a heading without a figure name is no figure', () => {
+		const figures = '# Figures\n\n- 8: base\n\n## FIG. 1\n\n- 10: frame\n\n## FIGS. 7 to 10\n\n- 14: cam\n\n## FIG. 11\n\nFlow diagram of the method.\n\n- 18: start\n\n## Parts named in the answers, figure not stated\n\n- 16: spring\n';
+		expect({
+			counts: ['FIG. 1', 'FIGS. 7 to 10', 'Figs. 7-10', 'FIGS. 7 and 8', 'FIGS. 1, 3 and 5', 'Figure 2: side view', 'Figures', 'Parts named in the answers, figure not stated', 'a figure 8 track'].map(figureHeadingCount),
+			sections: parseFigureSections(figures).figures.map(section => [section.label, section.count, section.diagram, section.parts.map(part => part.numeral)]),
+			drawn: parseFigureSections(figures).drawnParts.map(part => part.numeral),
+			hasFigures: [hasFigures(figures), hasFigures('# Figures\n'), hasFigures('- 12: housing\n')],
+		}).toEqual({
+			counts: [1, 4, 4, 2, 3, 1, 0, 0, 0],
+			sections: [['FIG. 1', 1, false, ['10']], ['FIGS. 7 to 10', 4, false, ['14']], ['FIG. 11', 1, true, ['18']]],
+			drawn: ['10', '14', '18'],
+			hasFigures: [true, false, true],
+		});
+	});
+
+	it('EPO abstract figure: not fooled by headings that name no figure, nor by parts under them', () => {
+		const abstract = draft('# Title', '', '## Abstract', '', '<!-- src: feature:F1 -->', 'A frame (10) holds a spring.');
+		expect([
+			checkEpoAbstractFigure(abstract, '# Figures\n\n## Parts named in the answers, figure not stated\n\n- 16: spring\n'),
+			checkEpoAbstractFigure(abstract, '# Figures\n\n## FIG. 1\n\n- 10: frame\n\n## Parts named in the answers, figure not stated\n\n- 16: spring\n').map(finding => finding.message),
+		]).toEqual([
+			[],
+			['The Abstract names no figure to publish with it. Rule 47(4) EPC: name the figure, e.g. "(Fig. 1)".'],
+		]);
+	});
+
+	it('inventor questions: a question removed from the draft while its narrowed question has no answer is an Error', () => {
+		const answers = parseInventorAnswers([
+			'## IQ-1', '', '**Question:** What is the spring made of?', '', '**Answer:**', 'Steel; the grade is not known.', '', '**Narrowed question:** What steel grade?', '', '**Answer:**',
+			'', '## IQ-2', '', '**Question:** Is the hinge removable?', '', '**Answer:** Yes.',
+		].join('\n'));
+		expect(checkInventorQuestions('# Description\n\n<!-- src: inventor:IQ-1 -->\nThe spring is steel.', answers)).toEqual([
+			{ severity: 'Error', rule: 'inventor-question', file: 'inventor-answers.md', line: 10, question: 'IQ-1', message: 'Inventor Question IQ-1 is no longer in the draft, but its narrowed question has no answer in inventor-answers.md. Put the question back in the draft, or waive it. Question: What steel grade?' },
+		]);
+	});
+
+	it('reference numerals: a number after a word such as grade, type or model is no reference sign', () => {
+		expect(readReferenceSigns('The lever 14 is grade 304 steel of type 2, model 7, series 300, class 8, size 10, sample 3 and the housing (12).').map(sign => `${sign.word} ${sign.numeral}`)).toEqual(['lever 14', 'housing 12']);
+	});
+});

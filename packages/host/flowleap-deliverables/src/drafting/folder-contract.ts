@@ -1,0 +1,163 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * The folder contract of Application Drafting (PRD 0020):
+ *
+ * ```
+ * style/                                 workspace-level style exemplars (voice only, never a source)
+ *   README.md                            how to use the folder; written by the tools when missing, never an exemplar
+ * drafting/<matter>/
+ *   feature-list.md                      Feature List; frontmatter: office, confirmed
+ *   figures.md                           figure list with parts and reference numerals; frontmatter: numerals, pageSize, drawingSheets
+ *   claims.md                            Approved Claims; frontmatter: approved
+ *   draft-outline.md                     Draft Outline: the plan, one row per Outline Item; frontmatter: office, claims (SHA-256)
+ *   draft-application.md                 Draft Application; frontmatter: office, model, provider, version
+ *   draft-application.generated.md       snapshot at generation, diffed at export
+ *   draft-application.working-record.md  Working Record
+ *   findings.md                          Findings, waivers with reasons, open Inventor Questions
+ *   inventor-answers.md                  the inventor's answers to the Inventor Questions, one section each
+ *   inventor-questions.docx              the open Inventor Questions as a table for the inventor; the inventor writes the answers in it
+ *   checklist.md                         Drafting Checklist, written by code after every drafting tool call
+ *   draft-application.description.docx   export, markers stripped, one file per document type:
+ *   draft-application.claims.docx          description, claims, abstract (drawings are not generated)
+ *   draft-application.abstract.docx
+ *   draft-application.full.docx          export: full review copy, the whole application in one file, not for filing
+ *   filing-manifest.md                   export: claims, drawing sheets, abstract figure, estimated pages
+ *   drawings/                            the Drawing Set (PRD 0023); sheet-1.svg, sheet-2.svg, ... one file per Drawing Sheet
+ * ```
+ *
+ * All paths are workspace-relative and use `/`.
+ */
+
+/** The workspace-level folder of style exemplars. */
+export const DRAFTING_STYLE_FOLDER = 'style';
+
+/**
+ * The document types of the export, in filing order. Each is its own .docx: in the EPO Online
+ * Filing each is a separate upload, and each starts on a new page.
+ */
+export const DRAFT_DOCUMENT_TYPES = ['description', 'claims', 'abstract'] as const;
+
+/** One document type of the export. */
+export type DraftDocumentType = typeof DRAFT_DOCUMENT_TYPES[number];
+
+/** The file names of one matter's drafting files in its folder; also the `file` of a Finding. */
+export const DRAFTING_FILE_NAMES = {
+	featureList: 'feature-list.md',
+	figures: 'figures.md',
+	claims: 'claims.md',
+	draftOutline: 'draft-outline.md',
+	draft: 'draft-application.md',
+	generatedSnapshot: 'draft-application.generated.md',
+	workingRecord: 'draft-application.working-record.md',
+	findings: 'findings.md',
+	inventorAnswers: 'inventor-answers.md',
+	inventorQuestionsDocx: 'inventor-questions.docx',
+	checklist: 'checklist.md',
+	descriptionDocx: 'draft-application.description.docx',
+	claimsDocx: 'draft-application.claims.docx',
+	abstractDocx: 'draft-application.abstract.docx',
+	fullReviewCopy: 'draft-application.full.docx',
+	filingManifest: 'filing-manifest.md',
+} as const;
+
+/** The folder of the Drawing Set in a matter folder. */
+export const DRAWINGS_FOLDER = 'drawings';
+
+/**
+ * True for the file name of one Drawing Sheet in `drawings/`: `sheet-1.svg`, `sheet-2.svg`, ...
+ * @param name - a file name.
+ * @returns true for a Drawing Sheet file.
+ */
+export function isDrawingSheetFile(name: string): boolean {
+	return /^sheet-[1-9]\d*\.svg$/.test(name);
+}
+
+/**
+ * How the Draft Outline is saved, for tool results, refusals and checklist actions:
+ * "Save the outline ${DRAFT_OUTLINE_SAVE}, to drafting/<matter>/draft-outline.md".
+ */
+export const DRAFT_OUTLINE_SAVE = 'with write_patent_results, template draft-outline';
+
+/** The workspace-relative paths of one matter's drafting files. */
+export interface DraftingFolder {
+	readonly matter: string;
+	readonly folder: string;
+	readonly featureList: string;
+	readonly figures: string;
+	readonly claims: string;
+	/** The Draft Outline: the plan the draft is written from (PRD 0022). */
+	readonly draftOutline: string;
+	readonly draft: string;
+	readonly generatedSnapshot: string;
+	readonly workingRecord: string;
+	readonly findings: string;
+	readonly inventorAnswers: string;
+	/** The open Inventor Questions as a Word table for the inventor, and the answered copy the inventor returns. */
+	readonly inventorQuestionsDocx: string;
+	readonly checklist: string;
+	/** The export, one .docx per document type. */
+	readonly docx: Readonly<Record<DraftDocumentType, string>>;
+	/** The full review copy written beside the export: the whole application in one file, not for filing. */
+	readonly fullReviewCopy: string;
+	/** The filing manifest written beside the export. */
+	readonly filingManifest: string;
+	/** The folder of the Drawing Set: one `sheet-N.svg` per Drawing Sheet (PRD 0023). */
+	readonly drawings: string;
+}
+
+/**
+ * Resolves the drafting folder of a matter. Returns `undefined` when the matter name is empty,
+ * starts with a dot, or contains a path separator (the folder must stay under `drafting/`).
+ * @param matter - the matter name.
+ * @returns the folder paths, or `undefined`.
+ */
+export function resolveDraftingFolder(matter: string): DraftingFolder | undefined {
+	const name = matter.trim();
+	if (!name || name.startsWith('.') || /[\/\\]/.test(name)) {
+		return undefined;
+	}
+	const folder = `drafting/${name}`;
+	return {
+		matter: name,
+		folder,
+		featureList: `${folder}/${DRAFTING_FILE_NAMES.featureList}`,
+		figures: `${folder}/${DRAFTING_FILE_NAMES.figures}`,
+		claims: `${folder}/${DRAFTING_FILE_NAMES.claims}`,
+		draftOutline: `${folder}/${DRAFTING_FILE_NAMES.draftOutline}`,
+		draft: `${folder}/${DRAFTING_FILE_NAMES.draft}`,
+		generatedSnapshot: `${folder}/${DRAFTING_FILE_NAMES.generatedSnapshot}`,
+		workingRecord: `${folder}/${DRAFTING_FILE_NAMES.workingRecord}`,
+		findings: `${folder}/${DRAFTING_FILE_NAMES.findings}`,
+		inventorAnswers: `${folder}/${DRAFTING_FILE_NAMES.inventorAnswers}`,
+		inventorQuestionsDocx: `${folder}/${DRAFTING_FILE_NAMES.inventorQuestionsDocx}`,
+		checklist: `${folder}/${DRAFTING_FILE_NAMES.checklist}`,
+		docx: {
+			description: `${folder}/${DRAFTING_FILE_NAMES.descriptionDocx}`,
+			claims: `${folder}/${DRAFTING_FILE_NAMES.claimsDocx}`,
+			abstract: `${folder}/${DRAFTING_FILE_NAMES.abstractDocx}`,
+		},
+		fullReviewCopy: `${folder}/${DRAFTING_FILE_NAMES.fullReviewCopy}`,
+		filingManifest: `${folder}/${DRAFTING_FILE_NAMES.filingManifest}`,
+		drawings: `${folder}/${DRAWINGS_FOLDER}`,
+	};
+}
+
+/**
+ * The matter of a workspace-relative path to one drafting file of a matter
+ * (`drafting/<matter>/<file>`), or `undefined` for any other path and for a matter name
+ * {@link resolveDraftingFolder} refuses.
+ * @param path - a workspace-relative path.
+ * @param file - the drafting file name to match.
+ * @returns the matter, or `undefined`.
+ */
+export function matchDraftingPath(path: string, file: string): string | undefined {
+	const [top, matter, name, ...rest] = path.split('/');
+	if (top !== 'drafting' || name !== file || rest.length || matter === undefined) {
+		return undefined;
+	}
+	return resolveDraftingFolder(matter)?.matter === matter ? matter : undefined;
+}

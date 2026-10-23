@@ -1,0 +1,102 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { parseClaims } from './claims.ts';
+import { checkAntecedentBasis, checkClaimCount, checkClaimNumbering, checkClaimOneSentence, checkClaimReferencesToDescription, checkDependencyTargets, checkEpoClaimReferenceSigns, checkEpoOneIndependentPerCategory, checkLiteralBasis, checkRelativeTerms, checkUsMultipleDependency } from './claim-validators.ts';
+import { checkClaimedFeatureCoverage, checkFigureProposals, checkFiguresSettings, checkNumeralScheme } from './figure-validators.ts';
+import { checkPageCount, filingManifest } from './filing-manifest.ts';
+import { DraftFinding, errorsFirst } from './finding.ts';
+import { DRAFT_OUTLINE_SAVE, DRAFTING_FILE_NAMES } from './folder-contract.ts';
+import { DraftingOffice } from './frontmatter.ts';
+import { parseInventorAnswers } from './inventor-answers.ts';
+import { parseDraftOutline } from './outline.ts';
+import { checkDraftAgainstOutline, checkOutline } from './outline-validators.ts';
+import { parseDraftParagraphs } from './source-markers.ts';
+import { checkAbstractLength, checkDefinedTerms, checkEpoAbstractFigure, checkInventorQuestions, checkReferenceNumerals, checkSourceMarkers, isAbstractParagraph, isClaimsParagraph } from './spec-validators.ts';
+
+/** The inputs of the Draft Outline rules (PRD 0022). */
+export interface DraftOutlineRulesInput {
+	/** `draft-outline.md`; absent when the file does not exist. */
+	readonly text?: string;
+	/** The SHA-256 of the Approved Claims, as the tools compute it. */
+	readonly approvedClaimsHash: string;
+	/** `feature-list.md`. */
+	readonly featureList: string;
+}
+
+/** The file contents of one draft folder that the validators read. */
+export interface DraftValidationInput {
+	readonly office: DraftingOffice;
+	/** `draft-application.md`. */
+	readonly draft: string;
+	/** `claims.md`. */
+	readonly claims: string;
+	/** `figures.md`; absent or empty when the application has no figures. */
+	readonly figures?: string;
+	/** `inventor-answers.md`; absent when the draft has no Inventor Questions yet. */
+	readonly inventorAnswers?: string;
+	/** The inputs of the Draft Outline rules; absent = those rules do not run. */
+	readonly outline?: DraftOutlineRulesInput;
+}
+
+/**
+ * The Draft Outline rules (E1): the plan against the claims and the matter files, and the draft
+ * against the plan. Without `draft-outline.md`, one `outline-claims` Error: the draft has no plan
+ * for the Approved Claims.
+ */
+function outlineFindings(input: DraftValidationInput, outline: DraftOutlineRulesInput): DraftFinding[] {
+	if (outline.text === undefined) {
+		return [{ severity: 'Error', rule: 'outline-claims', file: DRAFTING_FILE_NAMES.draftOutline, message: `${DRAFTING_FILE_NAMES.draftOutline} does not exist: there is no Draft Outline for the Approved Claims. Save the outline ${DRAFT_OUTLINE_SAVE}.` }];
+	}
+	return [
+		...checkOutline({ outline: outline.text, claims: input.claims, approvedClaimsHash: outline.approvedClaimsHash, featureList: outline.featureList, figures: input.figures, inventorAnswers: input.inventorAnswers }),
+		...checkDraftAgainstOutline({ outline: outline.text, draft: input.draft }),
+	];
+}
+
+/**
+ * Runs the deterministic validator set of the office over one draft (ADR 0012 decision 4), the
+ * `figures.md` rules (PRD 0023), and the Draft Outline rules when `outline` is given; the
+ * claimed-feature coverage of `figures.md` needs the outline too. Errors first (claims, then
+ * draft text and figures, then the outline), then Notes. No model call; Advisory items are added
+ * by the caller.
+ * @param input - the office, the draft, the claims, the figures, the answers and the outline.
+ * @returns the findings, Errors first.
+ */
+export function validateDraft(input: DraftValidationInput): DraftFinding[] {
+	const claims = parseClaims(input.claims);
+	const paragraphs = parseDraftParagraphs(input.draft);
+	const description = paragraphs
+		.filter(paragraph => paragraph.kind === 'text' && !isAbstractParagraph(paragraph) && !isClaimsParagraph(paragraph))
+		.map(paragraph => paragraph.text)
+		.join('\n\n');
+	const figures = input.figures ?? '';
+	const answers = parseInventorAnswers(input.inventorAnswers ?? '');
+	const epo = input.office === 'EPO';
+	const findings = [
+		...checkClaimNumbering(claims),
+		...checkDependencyTargets(claims),
+		...(epo ? checkEpoOneIndependentPerCategory(claims) : checkUsMultipleDependency(claims)),
+		...checkClaimOneSentence(claims),
+		...checkClaimReferencesToDescription(claims, input.office),
+		...checkAntecedentBasis(claims),
+		...checkLiteralBasis(claims, description),
+		...checkAbstractLength(paragraphs, input.office),
+		...checkDefinedTerms(paragraphs),
+		...checkReferenceNumerals(paragraphs, figures, input.office, claims),
+		...checkFiguresSettings(figures, input.office),
+		...checkNumeralScheme(figures),
+		...checkFigureProposals(figures),
+		...(input.outline?.text !== undefined ? checkClaimedFeatureCoverage({ office: input.office, figures, outline: parseDraftOutline(input.outline.text), featureList: input.outline.featureList, claims }) : []),
+		...checkSourceMarkers(paragraphs, answers, figures),
+		...checkInventorQuestions(input.draft, answers),
+		...checkClaimCount(claims, input.office),
+		...checkPageCount(filingManifest(input)),
+		...checkRelativeTerms(claims),
+		...(epo ? [...checkEpoClaimReferenceSigns(claims, figures), ...checkEpoAbstractFigure(paragraphs, figures)] : []),
+		...(input.outline ? outlineFindings(input, input.outline) : []),
+	];
+	return errorsFirst(findings);
+}
