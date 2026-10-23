@@ -273,7 +273,8 @@ function renderBoundedClaims(claims: readonly string[]): string {
  * Assemble the user claim and the fetched prior-art claims into a comparison package: an
  * element-by-element claim chart (deterministic decomposition of each patent's independent claim),
  * the bounded full claim text per patent, and an analysis rubric for the model. The IDE's text, with
- * the tool names it points to resolved to this host's (`get_claims`, `get_description`); the IDE's `get_us_grant` hint is dropped because the paid-route sentence in the failure reason is the correct instruction here.
+ * the tool names it points to resolved to this host's (`get_claims`, `get_description`); the IDE's `get_us_grant` hint is
+ * dropped because the paid-route sentence in the failure reason is the correct instruction here.
  * @param userClaim - the user's claim or invention description.
  * @param fetched - one entry per requested patent, in request order; at least one with claims.
  * @returns the Markdown package.
