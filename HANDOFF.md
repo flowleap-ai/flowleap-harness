@@ -405,7 +405,7 @@ fail. A fresh clone does not have them.
   `compare_claims` passages, 7,601 words, gaps empty; copy into the bundle together with D1), D0.2
   flowleap-backend #611 (`anchor` and `sources[]` on `get_claims`, `get_description`, `get_abstract`,
   `get_bibliography`; format `<pub>:<section>[:<claim>][:<lang>]`; re-sync the vendored library after
-  merge). In flight: D1
+  merge). D1 and D2 done; in flight: D3
   `packages/host/flowleap-deliverables` (writer, templates, validation, working record, ledger,
   delivery card) and `compare_claims` in the connectors plugin.
 - **S5 D1 DONE + acceptance PASSED (2026-10-23).** `packages/host/flowleap-deliverables` (10,207 lines:
@@ -422,3 +422,23 @@ fail. A fresh clone does not have them.
   manifest row fixed and tracked by the sync script; THIRD_PARTY_NOTICES regenerated; prompt artifact
   from agent-v2 #858 in the bundle. Next: D2 (docx + inventor questions, Zlib on the licence list),
   then D3 (drafting state machine and gates).
+- **S5 D2 DONE (2026-10-23).** `export_draft_docx` and `inventor_questions` registered in
+  `dsh-flowleap-deliverables` (six commits, 81 files, +11,265). The IDE Application Drafting layer is
+  copied (22 modules, 18 specs, the pipe-clamp fixture; `SOURCE.json` pins 72 IDE files at agent-v2
+  `33efdf7ebee`, `sync-deliverables.sh --check` clean); `lcs-diff.ts` (60 lines) replaces the VS Code
+  diff module; `drafting/workspace.ts` is the `ctx.fs` adapter with the `contains` fence; `bytes.ts`
+  writes Word bytes only into a local workspace (refusal `Word export needs a local workspace`);
+  `docx` is lazy-loaded (a static import broke `dsh flowleap-web --help`, localStorage touch at
+  import); mammoth reads answers back. Gate sentences name the file edit only (`withoutEditorButtons`
+  strips the IDE's Approve/Waive button clauses; D3 adds the card/command sentence). Not ported on
+  purpose: VS Code reveal, "app restarted" advice, drawings files, PDF exemplar reader (reported
+  unread), multi-root. Licence gate: `Zlib` on the permissive list (founder decision 2026-10-23);
+  deps docx 9.9.0, mammoth 1.13.0, yaml, jszip (dev); notices regenerated. `verify-concrete-terms`
+  now skips `packages/host/flowleap-deliverables/`, the sync script and this file ("provenance" is a
+  copied module name). Acceptance (`tests/drafting-tools.spec.ts`, real fs): export on the approved
+  pipe-clamp matter writes description/claims/abstract/full Word files + filing manifest + checklist
+  and one `deliverables/presented` event with five files; a closed gate refuses and writes only the
+  checklist; `inventor_questions send` writes 8 rows, Word-filled answers are refused by `send` and
+  copied by `import` (3 of 8), second `send` writes the 5 left; `office-to-pdf` converts all three
+  exports (6/2/1 pages, no missing fonts). Gates: typecheck 5/5, lint clean, build 9/9, vitest 30
+  files / 309 tests, notices up to date, `check:ci:static` 61/62 (baseline). Next: D3.
