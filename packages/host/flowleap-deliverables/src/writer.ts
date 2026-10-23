@@ -10,9 +10,11 @@
  * `writePatentResultsTool.ts` (see SOURCE.json) onto the dsh seams: `ctx.fs`
  * for every read and write, the ledger of `./ledger` for the recorded
  * evidence, `./judge.ts` for the second read, `./present.ts` for the delivery
- * card. The validation strings, the receipt and the result text are the IDE's;
- * the two drafting templates are refused until S5 D3 ports the Application
- * Drafting layer.
+ * card. The validation strings, the receipt and the result text are the IDE's.
+ * The two drafting templates save through `./drafting/draft-application-save.ts`
+ * and `./drafting/draft-outline-save.ts` into `drafting/<matter>/` (the folder
+ * contract, `matchDraftingPath`), with the refusal and the delivery card of the
+ * IDE's `saveDraftingFile` (S5 D3).
  *
  * One format change against the IDE: the companions have stable names,
  * `<report>.evidence.json` and `<report>.second-read.json`, replaced by each
@@ -29,6 +31,10 @@ import { FsError, type FsTarget } from '@deepseek-ai/dsh-fs'
 import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
+import { saveDraftApplication } from './drafting/draft-application-save.ts'
+import { saveDraftOutline } from './drafting/draft-outline-save.ts'
+import { DRAFTING_FILE_NAMES, matchDraftingPath, resolveDraftingFolder } from './drafting/folder-contract.ts'
+import { DraftingWorkspace, workspaceFiles, type DraftingSaveResult } from './drafting/workspace.ts'
 import type { PatentLedger } from './ledger/store.ts'
 import type { PatentExecutionSnapshot } from './ledger/types.ts'
 import type { SecondReadJudge } from './judge.ts'
@@ -44,6 +50,18 @@ import { DRAFTING_TEMPLATES, REPORT_TEMPLATES, WRITE_PATENT_RESULTS_DESCRIPTION,
 
 /** The templates that save a file of an Application Drafting matter, outside the report templates. */
 type DraftingTemplate = typeof DRAFTING_TEMPLATES[number]
+
+/** The file, the label and the save of a drafting template: the IDE's `DRAFTING_TEMPLATES` table. */
+interface DraftingTemplateSave {
+  readonly file: string
+  readonly label: string
+  readonly save: (workspace: DraftingWorkspace, input: WritePatentResultsInput) => Promise<DraftingSaveResult>
+}
+
+const DRAFTING_SAVES: Readonly<Record<DraftingTemplate, DraftingTemplateSave>> = {
+  'draft-application': { file: DRAFTING_FILE_NAMES.draft, label: 'Draft', save: saveDraftApplication },
+  'draft-outline': { file: DRAFTING_FILE_NAMES.draftOutline, label: 'Draft Outline', save: (workspace, input) => saveDraftOutline(workspace, input.content) },
+}
 
 function isDraftingTemplate(template: string | undefined): template is DraftingTemplate {
   return template !== undefined && (DRAFTING_TEMPLATES as readonly string[]).includes(template)
@@ -63,6 +81,16 @@ export interface WritePatentResultsInput extends PatentCandidateReview {
   readonly objective?: string
   /** Short summary of databases, codes, and key queries used (prior-art and landscape reports). */
   readonly searchStrategy?: string
+  /** draft-application: the office, when the content's frontmatter does not name it. */
+  readonly office?: string
+  /** draft-application: the model the disclosure went to, when the frontmatter does not name it. */
+  readonly model?: string
+  /** draft-application: the provider the disclosure went to, when the frontmatter does not name it. */
+  readonly provider?: string
+  /** draft-application: the version of the invention disclosure the draft is made from. */
+  readonly disclosureVersion?: string
+  /** draft-application: a short summary of the prompts and instructions the draft was made with. */
+  readonly promptsSummary?: string
 }
 
 /**
@@ -192,13 +220,13 @@ function findBetterSummaryContract(review: PatentCandidateReview): string {
 }
 
 /**
- * The refusal of a drafting template until D3 lands.
+ * The refusal of a drafting save whose path is not `drafting/<matter>/<file>` of the working directory.
  * @param template - the drafting template the model asked for.
- * @returns the refusal text.
+ * @returns the refusal text, the IDE's.
  */
-export function draftingNotAvailable(template: DraftingTemplate): string {
-  const label = template === 'draft-application' ? 'Draft' : 'Draft Outline'
-  return `${label} was not saved. The ${template} template is not available in this harness yet: the Application Drafting tools arrive with a later slice. Save reports with the report templates.`
+export function draftingPathRefusal(template: DraftingTemplate): string {
+  const { file, label } = DRAFTING_SAVES[template]
+  return `${label} was not saved. The ${template} template saves to drafting/<matter>/${file} inside a workspace folder.`
 }
 
 /** The services the writer runs on. */
@@ -324,10 +352,48 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
     await ctx.fs.writeText(target, text, undefined, signal)
   }
 
+  /**
+   * The saves of an Application Drafting matter (the IDE's `saveDraftingFile`), never wrapped in a
+   * report template and never blocked by findings (ADR 0012): `draft-application` writes the draft
+   * as the model gave it, with its frontmatter on line 1; `draft-outline` writes the Draft Outline
+   * with the office and the Approved Claims hash in its frontmatter (PRD 0022). The written file is
+   * presented; the IDE opened it in the editor instead.
+   */
+  const saveDraftingFile = async (
+    input: WritePatentResultsInput, template: DraftingTemplate, exec: ToolRunContext,
+  ): Promise<WritePatentResultsValue> => {
+    const { file, label, save } = DRAFTING_SAVES[template]
+    const cwd = exec.agent === undefined
+      ? ctx.workingDirectory.defaultDirectory
+      : await ctx.workingDirectory.ensure(exec.agent, exec.signal)
+    const root = await ctx.fs.resolve(cwd, { signal: exec.signal })
+    const target = await resolveInside(input.filePath, cwd, root, exec.signal)
+    const matter = target === undefined ? undefined : matchDraftingPath(reportWorkspacePath(cwd, ctx.fs.processPath(target)), file)
+    const folder = matter === undefined ? undefined : resolveDraftingFolder(matter)
+    if (target === undefined || folder === undefined) {
+      return refusal(draftingPathRefusal(template))
+    }
+    try {
+      const workspace = new DraftingWorkspace(await workspaceFiles(ctx, cwd, exec.signal), folder, { now })
+      const outcome = await save(workspace, input)
+      if (!outcome.saved) {
+        return refusal(`${label} was not saved. ${outcome.reason}`)
+      }
+      const reportPath = ctx.fs.processPath(target)
+      deps.info(`flowleap-deliverables: wrote ${input.filePath} (${template})`)
+      deps.present.queue(exec, [{ path: reportPath, description: label }])
+      return { saved: true, text: `${outcome.message}\n${DELIVERED_LINE}`, report: reportPath }
+    } catch (error) {
+      const message = error instanceof FsError ? `${error.message} (${error.code})` : error instanceof Error ? error.message : 'Unknown error occurred'
+      deps.warn(`flowleap-deliverables: ${WRITE_PATENT_RESULTS_NAME} ${template} failed: ${message}`)
+      return refusal(`Error: ${message}`)
+    }
+  }
+
   const execute = async (input: WritePatentResultsInput, exec: ToolRunContext): Promise<WritePatentResultsValue> => {
     const { filePath, content, template } = input
     if (isDraftingTemplate(template)) {
-      return refusal(draftingNotAvailable(template))
+      return saveDraftingFile(input, template, exec)
     }
 
     // prior-art-report and find-better-report always generate their body from structured coverage;

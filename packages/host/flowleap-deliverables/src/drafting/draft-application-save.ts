@@ -1,0 +1,184 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/**
+ * The `draft-application` save of `write_patent_results`: the IDE's
+ * `draftApplicationSave.ts` (SOURCE.json) with its imports rewritten onto this
+ * package and the clock taken from the workspace, so a test pins the record
+ * times. The gates refuse with the file edit, the card and the command (see
+ * `workspace.ts`); the save itself never asks.
+ * @module
+ */
+
+import { DraftingFrontmatterFields, DraftingFrontmatterValue, parseDraftingFrontmatter, readOffice, writeDraftingFrontmatter } from './frontmatter.ts';
+import { appliedAnswerLabel, currentAnswer, isAnswered, newlyAppliedAnswers, parseInventorAnswers, updateInventorAnswers } from './inventor-answers.ts';
+import { parseInventorQuestions } from './source-markers.ts';
+import { addRecordLine, APPROVAL_CLEARED, APPROVED_CLAIMS_HASH, INVENTOR_ANSWER_APPLIED, OUTLINE_HASH, OUTLINE_RESAVED, readRecordField, readRecordFields, renderDraftWorkingRecord, resaveWorkingRecord, setRecordField, VERSION_CLAIMS_HASH } from './working-record.ts';
+import { sha256Hex } from '../report/text.ts';
+import { DraftingSaveResult, DraftingWorkspace } from './workspace.ts';
+
+/** The `write_patent_results` input of a `draft-application` save. */
+export interface DraftApplicationSaveInput {
+	readonly content: string;
+	/** Office, model and provider fill the frontmatter fields the content does not have. */
+	readonly office?: string;
+	readonly model?: string;
+	readonly provider?: string;
+	readonly disclosureVersion?: string;
+	readonly promptsSummary?: string;
+}
+
+function text(value: DraftingFrontmatterValue): string | undefined {
+	return typeof value === 'string' && value.trim() ? value.trim() : typeof value === 'number' ? String(value) : undefined;
+}
+
+function positiveInteger(value: DraftingFrontmatterValue): number | undefined {
+	const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+	return Number.isInteger(number) && number > 0 ? number : undefined;
+}
+
+/** The archived name of a drafting file of an earlier version: `draft-application.v1.md`. */
+function versionedPath(path: string, version: number): string {
+	return path.replace(/\/draft-application\./, `/draft-application.v${version}.`);
+}
+
+/**
+ * Saves a Draft Application (the `draft-application` template of `write_patent_results`): the
+ * draft with its frontmatter on line 1 (`office`, `model`, `provider`, `version`), the generated
+ * snapshot, and the Working Record with its header and source map.
+ *
+ * The save refuses while `confirmed` is not `true` in `feature-list.md` or `approved` is not `true`
+ * in `claims.md` (ADR 0012: the specification is generated only against approved claims), and
+ * while `draft-outline.md` is missing or was made for other claims (PRD 0022 decision 1: a code
+ * precondition, not a gate). Findings never block the save. The Working Record names the SHA-256
+ * of the outline the draft was saved with (`Outline SHA-256`), set again at every save.
+ *
+ * The generated snapshot of a version is written once, at the first save of that version; a later
+ * save of the same version keeps it, so the export still diffs the attorney's edits against what
+ * was generated, and updates the Working Record (a `Re-saved` line and a fresh source map). When
+ * the draft is generated against other claims than the snapshot was, the version goes up by one
+ * and the previous draft, snapshot and record are kept as `draft-application.v<n>.*`.
+ *
+ * The save writes the Inventor Questions of the draft to `inventor-answers.md` (new questions
+ * added, filled answers kept) and records in the Working Record each inventor's answer the save
+ * applies: the draft text that cites it (`inventor:IQ-n`) changed against the previous save. After the save, also after a refusal, it writes the
+ * Drafting Checklist.
+ * @param workspace - the matter.
+ * @param input - the model's `write_patent_results` arguments of the save.
+ * @returns the refusal, or what was written.
+ */
+export async function saveDraftApplication(workspace: DraftingWorkspace, input: DraftApplicationSaveInput): Promise<DraftingSaveResult> {
+	return workspace.withChecklistLine(await save(workspace, input));
+}
+
+async function save(workspace: DraftingWorkspace, input: DraftApplicationSaveInput): Promise<DraftingSaveResult> {
+	const { folder } = workspace;
+	const { fields } = parseDraftingFrontmatter(input.content);
+	const office = readOffice({ office: text(fields.office) ?? input.office });
+	const model = text(fields.model) ?? text(input.model);
+	const provider = text(fields.provider) ?? text(input.provider);
+	if (!office || !model || !provider) {
+		const missing = [!office ? 'office (US or EPO)' : undefined, !model ? 'model' : undefined, !provider ? 'provider' : undefined].filter(Boolean);
+		return { saved: false, reason: `The draft frontmatter (or the model and provider fields) must name the ${office ? 'model and the provider the disclosure went to' : 'office, the model and the provider'}. Missing: ${missing.join(', ')}.` };
+	}
+
+	const featureList = await workspace.requireConfirmedFeatureList();
+	if (typeof featureList === 'string') {
+		return { saved: false, reason: featureList };
+	}
+	const approval = await workspace.requireApprovedClaims();
+	if (typeof approval === 'string') {
+		return { saved: false, reason: approval };
+	}
+	const outline = await workspace.requireOutline(approval.hash);
+	if (typeof outline === 'string') {
+		return { saved: false, reason: outline };
+	}
+	const outlineHash = sha256Hex(outline.text);
+
+	const currentHash = approval.hash;
+	const previousRecord = await workspace.read(folder.workingRecord) ?? '';
+	const previousDraft = await workspace.read(folder.draft);
+	const approvedHash = readRecordField(previousRecord, APPROVED_CLAIMS_HASH);
+	const versionHash = approvedHash ?? currentHash;
+	const snapshot = await workspace.read(folder.generatedSnapshot);
+	const previousVersion = snapshot !== undefined ? positiveInteger(parseDraftingFrontmatter(snapshot).fields.version) ?? 1 : undefined;
+	const previousVersionHash = readRecordField(previousRecord, VERSION_CLAIMS_HASH);
+	const claimsChanged = previousVersion !== undefined && !!previousVersionHash && previousVersionHash !== versionHash;
+	const requested = positiveInteger(fields.version);
+	const version = previousVersion !== undefined && claimsChanged ? Math.max(previousVersion + 1, requested ?? 0) : requested ?? previousVersion ?? 1;
+	const firstSaveOfVersion = previousVersion === undefined || version !== previousVersion;
+
+	const archived: string[] = [];
+	if (previousVersion !== undefined && firstSaveOfVersion) {
+		for (const path of [folder.draft, folder.generatedSnapshot, folder.workingRecord]) {
+			const previous = await workspace.read(path);
+			if (previous !== undefined) {
+				await workspace.write(versionedPath(path, previousVersion), previous);
+				archived.push(versionedPath(path, previousVersion));
+			}
+		}
+	}
+
+	const ordered: DraftingFrontmatterFields = { office, model, provider, version };
+	const document = writeDraftingFrontmatter({ ...ordered, ...Object.fromEntries(Object.entries(fields).filter(([key]) => !(key in ordered))) }, input.content);
+	const savedAt = workspace.clock().toISOString();
+	await workspace.write(folder.draft, document);
+	if (firstSaveOfVersion) {
+		await workspace.write(folder.generatedSnapshot, document);
+	}
+	let record: string;
+	if (firstSaveOfVersion || !previousRecord.trim()) {
+		record = renderDraftWorkingRecord({
+			matter: folder.matter,
+			office,
+			model,
+			provider,
+			version,
+			disclosureVersion: text(input.disclosureVersion),
+			promptsSummary: text(input.promptsSummary),
+			savedAt,
+			approvedClaimsHash: approvedHash,
+			versionClaimsHash: versionHash,
+			outlineHash,
+		}, document);
+		// The approval history of the claims and the outline re-saves stay with the record of the draft built on them.
+		for (const label of [APPROVAL_CLEARED, OUTLINE_RESAVED]) {
+			record = readRecordFields(previousRecord, label).reduce((updated, value) => addRecordLine(updated, label, value), record);
+		}
+	} else {
+		record = setRecordField(resaveWorkingRecord(previousRecord, document, savedAt), OUTLINE_HASH, outlineHash);
+	}
+
+	// The answers this save applies: the draft text that cites them changed. Each applied round is recorded once.
+	const previousAnswers = await workspace.read(folder.inventorAnswers);
+	const sections = parseInventorAnswers(previousAnswers ?? '');
+	const applied = newlyAppliedAnswers(previousDraft, document);
+	const recorded = readRecordFields(record, INVENTOR_ANSWER_APPLIED).map(value => value.replace(/ at \S+$/, ''));
+	for (const id of applied) {
+		const section = sections.find(candidate => candidate.id === id);
+		const label = section && isAnswered(currentAnswer(section)) ? appliedAnswerLabel(id, section.rounds.length) : undefined;
+		if (label && !recorded.includes(label)) {
+			record = addRecordLine(record, INVENTOR_ANSWER_APPLIED, `${label} at ${savedAt}`);
+		}
+	}
+	await workspace.write(folder.workingRecord, record);
+
+	const questions = parseInventorQuestions(document);
+	const newQuestions = questions.filter(question => !sections.some(section => section.id === question.id));
+	if (questions.length || previousAnswers !== undefined) {
+		await workspace.write(folder.inventorAnswers, updateInventorAnswers(previousAnswers, folder.matter, questions, applied));
+	}
+
+	const notes = [
+		`Saved ${folder.draft} (version ${version}, office ${office}). Generated snapshot: ${folder.generatedSnapshot}${firstSaveOfVersion ? '' : ` (kept from the first save of version ${version})`}. Working record: ${folder.workingRecord}.`,
+		archived.length ? `${claimsChanged ? `The claims changed since version ${previousVersion}: this` : 'This'} is version ${version}; the previous files are kept as ${archived.join(', ')}.` : undefined,
+		!approvedHash ? `No approved claims were recorded: call start_application_draft before drafting, so the draft is tied to the approved ${folder.claims}.` : undefined,
+		questions.length ? `Inventor Questions: ${questions.length} in the draft${newQuestions.length ? `, ${newQuestions.length} new` : ''}; the answer slots are in ${folder.inventorAnswers}.` : undefined,
+		approvedHash && approvedHash !== currentHash ? `${folder.claims} was approved again after start_application_draft: this draft is tied to the claims start_application_draft returned. Call start_application_draft, regenerate and save to draft against the current claims.` : undefined,
+		'Findings are not checked at save. Call validate_draft next.',
+	];
+	return { saved: true, message: notes.filter(Boolean).join('\n') };
+}
