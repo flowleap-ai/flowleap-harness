@@ -374,3 +374,19 @@ fail. A fresh clone does not have them.
   server from the connectors package, our prompt appended as system prompt; option in Settings → Models
   with one sentence on whose terms apply; API keys and the firm's cloud stay the default. One to two
   weeks; risks: two stacked prompts, less tool-routing control, vendor terms.
+- **S5 plan (2026-10-23):**
+  [flowleap/docs/2026-10-23-s5-deliverables-port-plan.md](flowleap/docs/2026-10-23-s5-deliverables-port-plan.md).
+  One plugin `dsh-flowleap-deliverables` with six tools (`compare_claims` joins the connectors plugin);
+  ~10,000 lines move with import rewrites, ~2,000 lines of VS Code glue are rewritten onto `ctx.fs`,
+  `tools/result`, `ctx.userQuestions.ask()`, `ctx.commands`; delivery card via the existing
+  `deliverables/presented` event. Phases: D0 prerequisites (prompt export adds the six names; evidence
+  anchors in the connector library's `get_claims`/`get_description`/`get_abstract`; Zlib on the licence
+  gate's permissive list), D1 writer + record + validation + card (4-5 days, 4 lanes), D2 docx + inventor
+  questions document (2.5-3 days), D3 drafting state machine + gates as question cards (3-4 days).
+  Riskiest: the evidence ledger (no tool records retrievals in the harness yet), binary writes and the
+  `pako` Zlib licence, gates without an editor. Five founder questions in section 8.
+- **S6 skills UX (founder, 2026-10-23), after S5 or in parallel:** a `/create-skill` skill (asks purpose and
+  tier, drafts to the pack rules, saves, confirms the catalog), a Settings → Skills page grouped by root
+  (pack, firm, workspace, personal) with path, model-invocable flag, Open folder, Disable, New skill;
+  the same grouping in the `/` picker. Firm tier = a shared read-only volume in `customSkillDirs` on the
+  server shape; laptops need a pull (git or the Knowledge Pool). About two days.
