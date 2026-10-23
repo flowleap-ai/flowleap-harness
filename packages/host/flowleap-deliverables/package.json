@@ -31,7 +31,11 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
+    "docx": "9.9.0",
+    "mammoth": "1.13.0",
+    "yaml": "^2.9.0",
     "zod": "4.4.3"
   },
   "peerDependencies": {
@@ -62,6 +66,7 @@
     "@deepseek-ai/dsh-tool-present": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/dsh-working-directory": "workspace:*"
+    "@deepseek-ai/dsh-working-directory": "workspace:*",
+    "jszip": "3.10.1"
   }
 }
