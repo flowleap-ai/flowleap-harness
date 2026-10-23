@@ -1,11 +1,12 @@
 /**
  * The FlowLeap deliverable tools (S5): `write_patent_results` with the IDE's
  * report templates, evidence validation, working record, evidence ledger and
- * delivery card, ported from flowleap-agent-v2 onto the dsh seams. One row
- * mounts the ledger recorder on `tools/result`, the writer on `ctx.tools`, the
- * delivery card through `deliverables/presented`, the second-read judge on
- * `ctx.llm`, and the one-time "report not written" steer on
- * `agent/turn-stopping`.
+ * delivery card (D1), and `export_draft_docx` and `inventor_questions` with the
+ * IDE's Application Drafting layer and Word builders (D2), ported from
+ * flowleap-agent-v2 onto the dsh seams. One row mounts the ledger recorder on
+ * `tools/result`, the three tools on `ctx.tools`, the delivery card through
+ * `deliverables/presented`, the second-read judge on `ctx.llm`, and the
+ * one-time "report not written" steer on `agent/turn-stopping`.
  *
  * See packages/host/flowleap-deliverables/README.md.
  * @module @deepseek-ai/dsh-flowleap-deliverables
@@ -24,8 +25,16 @@ import { registerRecorder, type RecorderMode } from './ledger/recorder.ts'
 import { ledgerDomainSpec, ledgerPersistence, PatentLedger } from './ledger/store.ts'
 import { PresentQueue, registerPresent } from './present.ts'
 import { registerDeliverableTools } from './register.ts'
+import { exportDraftDocxTool } from './tools/export-draft-docx.ts'
+import { inventorQuestionsTool } from './tools/inventor-questions.ts'
 import { writePatentResultsTool, type SecondReadMode } from './writer.ts'
 
+export { DOCUMENT_MODE, hostPathOf, LOCAL_WORKSPACE_NEEDED, writeWorkspaceBytes } from './bytes.ts'
+export type { BytesFileSystem } from './bytes.ts'
+export {
+  forgetRefusals, MAX_DRAFTING_FILE_BYTES, withoutEditorButtons, workspaceFiles,
+} from './drafting/workspace.ts'
+export type { DraftingFiles, DraftingWorkspaceOptions } from './drafting/workspace.ts'
 export { checkPriorArtReportCompletion, GENERIC_WRITE_TOOLS, RETRIEVAL_TOOLS } from './guard/completion.ts'
 export type { GuardRound, ReceiptFileReader, ReportCompletionTurn } from './guard/completion.ts'
 export { receiptFileReader, registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
@@ -50,6 +59,13 @@ export * from './report/receipt.ts'
 export * from './report/second-read.ts'
 export * from './report/templates.ts'
 export { escape, escapeRegExpCharacters, sha256Hex } from './report/text.ts'
+export { EXPORT_DRAFT_DOCX_DESCRIPTION, EXPORT_DRAFT_DOCX_NAME, EXPORT_DRAFT_DOCX_PARAMETERS, exportDraftDocxTool } from './tools/export-draft-docx.ts'
+export {
+  INVENTOR_QUESTIONS_DESCRIPTION, INVENTOR_QUESTIONS_NAME, INVENTOR_QUESTIONS_PARAMETERS, inventorQuestionsTool, parseInventorQuestionsArgs,
+} from './tools/inventor-questions.ts'
+export type { InventorQuestionsInput } from './tools/inventor-questions.ts'
+export { delivered, isDraftingToolValue, matterArgument, openMatter, refused } from './tools/shell.ts'
+export type { DraftingToolDependencies, DraftingToolValue } from './tools/shell.ts'
 export {
   draftingNotAvailable, evidencePath, parseWriterArgs, secondReadPath, workingRecordPath, writePatentResultsTool,
 } from './writer.ts'
@@ -61,7 +77,7 @@ export {
 /** Cordis plugin name. */
 export const name = 'flowleap-deliverables'
 
-/** The tool registry the writer joins, and the filesystem and session directory every save runs under. */
+/** The tool registry the three tools join, and the filesystem and session directory every save runs under. */
 export const inject = ['tools', 'fs', 'workingDirectory']
 
 /** Plugin config. */
@@ -83,7 +99,7 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Mount the ledger, the recorder, the writer, the delivery card and the completion guard.
+ * Mount the ledger, the recorder, the writer, the two drafting tools, the delivery card and the completion guard.
  * @param ctx - the mounting context, carrying `tools`, `fs` and `workingDirectory`.
  * @param config - the second-read mode and model.
  */
@@ -128,12 +144,13 @@ export function apply(ctx: Context, config: Config): void {
   registerPresent(ctx, present, sessionId => trackers.openTurn(sessionId))
   registerCompletionGuard(ctx, trackers)
   ctx.on('session/disposed', (session) => { ledger.forget(session.id) })
-  ctx.effect(() => registerDeliverableTools(ctx, [writePatentResultsTool(ctx, {
-    ledger,
-    judge: () => judge,
-    present,
-    secondRead: () => config.secondRead,
-    warn: (message) => { ctx.logger.warn(message) },
-    info: (message) => { ctx.logger.info(message) },
-  })]), 'flowleap-deliverables: tools')
+  const log = {
+    warn: (message: string) => { ctx.logger.warn(message) },
+    info: (message: string) => { ctx.logger.info(message) },
+  }
+  ctx.effect(() => registerDeliverableTools(ctx, [
+    writePatentResultsTool(ctx, { ledger, judge: () => judge, present, secondRead: () => config.secondRead, ...log }),
+    exportDraftDocxTool(ctx, { present, ...log }),
+    inventorQuestionsTool(ctx, { present, ...log }),
+  ]), 'flowleap-deliverables: tools')
 }

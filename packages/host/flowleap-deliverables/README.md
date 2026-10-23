@@ -1,5 +1,5 @@
 ---
-description: "FlowLeap deliverable tools for the harness: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record and evidence companion, the evidence ledger recorder, the delivery card and the report-not-written steer; for users of the FlowLeap profile and maintainers porting the IDE's deliverable code."
+description: "FlowLeap deliverable tools for the harness: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record and evidence companion, the evidence ledger recorder, the delivery card and the report-not-written steer; export_draft_docx and inventor_questions with the Application Drafting layer and the Word builders; for users of the FlowLeap profile and maintainers porting the IDE's deliverable code."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-deliverables` is the harness side of the Patent AI deliverables (port plan S5, D1). One row registers `write_patent_results` with the IDE's report templates and validation, records every data-tool result of a Session in an evidence ledger, writes the report with its `<stem>.working-record.md` and `<report>.evidence.json` companions, shows report and record on the Web delivery card, judges each saved row with a second read on the session's model, and steers a turn once when it ends without the report it owed. The code is copied from `flowleap-agent-v2` ([`SOURCE.json`](SOURCE.json) pins the commit); the VS Code glue is rewritten onto the dsh seams.
+`dsh-flowleap-deliverables` is the harness side of the Patent AI deliverables (port plan S5, D1 and D2). One row registers `write_patent_results` with the IDE's report templates and validation, records every data-tool result of a Session in an evidence ledger, writes the report with its working record and evidence companion, shows both on the delivery card, judges each saved row with a second read, and steers a turn that ends without its report. The same row registers `export_draft_docx` and `inventor_questions`: the IDE's Application Drafting layer over `ctx.fs`, writing Word files through the host filesystem. [`SOURCE.json`](SOURCE.json) pins the copied `flowleap-agent-v2` commit.
 
 ## Table of Contents
 
@@ -72,6 +72,22 @@ Every successful save ends with `Delivered to the user; do not call `present` fo
 
 The IDE writes `<report>.<uuid>.evidence.json` and sweeps superseded companions; `ctx.fs` has no delete, so the harness uses stable names. The receipt binds the report digest and the evidence digest, so nothing is lost.
 
+### `export_draft_docx` and `inventor_questions`
+
+Both tools work on one matter folder, `drafting/<matter>/` under the working directory (the IDE's folder contract, PRD 0020). The tool names and input schemas are the IDE's; `matter` is the folder name under `drafting/`, refused when it is empty, starts with a dot or holds a path separator.
+
+| Call | What happens |
+|---|---|
+| `export_draft_docx { matter }` | Reads the `approved` gate of `claims.md` (an `approved: true` without `approvedHash` is bound to the claims body; a changed body withdraws the approval and records it), requires `draft-application.md`, `draft-application.generated.md` and `claims.md`, re-runs the validators and writes `findings.md` (waivers kept); refuses while an Error or an Inventor Question is open and unwaived, naming each item and the open steps of `checklist.md`. Else it logs the attorney's edits against the generated snapshot in the Working Record, writes `draft-application.description.docx`, `.claims.docx` and `.abstract.docx` with the office page setup (EPO: Rule 49 EPC, A4, page numbers top, line numbers every five lines; US: 37 CFR 1.52, letter, page numbers bottom), `filing-manifest.md` (claims, drawing sheets, abstract figure, estimated pages) and `draft-application.full.docx` (the review copy, marked not for filing), records the export hash, writes `checklist.md` and presents the five files |
+| `inventor_questions { matter, action: "send" }` | Writes `inventor-questions.docx` from `inventor-answers.md`: a heading, one sentence for the inventor and a four-column table (No., Question, Where the answer goes, Your answer) with one row per open question; refuses when no question is open, or when the existing document holds answers not imported yet; presents the file |
+| `inventor_questions { matter, action: "import", file? }` | Reads the answered `.docx` (default `drafting/<matter>/inventor-questions.docx`; a `.md` in the format of `inventor-answers.md` is accepted) and copies each answer into the empty current `**Answer:**` slot of its question, never over a filled one; the result names the ids filled, kept and unknown; presents `inventor-answers.md` when it changed |
+
+Every call rewrites `drafting/<matter>/checklist.md` and ends with the Drafting Checklist line (the next step for the attorney, or the open steps after a refusal) and the chat advice (`Stay in this chat.`, or a new chat after the same refusal twice). The gate sentences name the file edit only: `Review \`drafting/<matter>/claims.md:3\`, then change \`false\` to \`true\` on line 3.` The IDE's editor buttons ("click **Approve Claims** at the top of the file", "click **Waive…**") have no counterpart here; the question card and the slash command arrive with S5 D3.
+
+### Word files and the host filesystem
+
+`ctx.fs` writes UTF-8 text only, so the Word files go through the host filesystem: the target is resolved and fenced through `ctx.fs`, its process path is taken as the host path only when `processPathFromHostPath()` maps it back to the same file (the rule `ui-deliverables` uses before a native open), and the bytes are published atomically with `dsh-atomic-write`, mode `0644`. A Session whose filesystem is not the host's (SSH, a sandbox) is refused: `Word export needs a local workspace: …`. There is no in-browser editor: the attorney opens a presented `.docx` on the delivery card (the right-Sidebar preview converts it to PDF through [`office-to-pdf`](../../document/office-to-pdf/README.md)), edits the exported Word file in Word, or asks the agent to change the draft and export again.
+
 ### The evidence ledger
 
 `tools/result` is observed for the data tools, and each settled call becomes one record in the owning Session's ledger (host state in `ctx.storageDomain`, domain `flowleap_deliverables_ledger`, one append-only list per Session id; no Session event). Two modes, decided per result:
@@ -114,11 +130,15 @@ Three strings differ from the IDE on purpose: the refusals that named `get_paten
 | [`src/writer.ts`](src/writer.ts), [`src/writer-schema.ts`](src/writer-schema.ts) | the tool shell on `ctx.fs`; the IDE's input schema verbatim and the contract-only description |
 | [`src/judge.ts`](src/judge.ts) | the second read on `ctx.llm.prepareCall()` |
 | [`src/present.ts`](src/present.ts) | the delivery queue and the `deliverables/presented` append |
+| [`src/tools/`](src/tools/) | `export_draft_docx` and `inventor_questions` (the IDE's tool shells on the dsh seams) and what they share (`shell.ts`) |
+| [`src/drafting/`](src/drafting/) | the IDE's Application Drafting layer, 22 pure modules copied with import rewrites (`lcs-diff.ts` replaces the VS Code diff module), and `workspace.ts`, the `DraftingWorkspace` file I/O rewritten onto `ctx.fs` |
+| [`src/docx/`](src/docx/) | the IDE's Word builders on `docx` (loaded on the first build, see `lib.ts`) and the `mammoth` reader of the answered questions |
+| [`src/bytes.ts`](src/bytes.ts) | the guarded host-path byte write |
 | [`src/report/`](src/report/) | the IDE's report core: templates, provenance, second-read prompt and parsing, candidate review, Find Better, Fallback Ladder, receipt, document reference, text helpers |
 | [`src/ledger/`](src/ledger/) | the IDE's ledger vocabulary (`types.ts`), the per-Session store over `ctx.storageDomain` (`store.ts`), the recorder and its two modes (`recorder.ts`) |
 | [`src/guard/`](src/guard/) | the completion check (`completion.ts`), the Session-event fold (`turn-tracker.ts`), the steer (`steer.ts`) |
 | [`SOURCE.json`](SOURCE.json), [`scripts/flowleap/sync-deliverables.sh`](../../../scripts/flowleap/sync-deliverables.sh) | the agent-v2 pin per copied file and the drift check |
-| [`tests/`](tests/) | the IDE's template, provenance, second-read, fallback-ladder, working-record and completion specs ported; the recorder over a fake `tools/result` stream in both modes; the store across a restart; the writer over the real local filesystem with the refused quote, the corrected retry, the presented event and the steer |
+| [`tests/`](tests/) | the IDE's template, provenance, second-read, fallback-ladder, working-record and completion specs ported; the recorder over a fake `tools/result` stream in both modes; the store across a restart; the writer over the real local filesystem with the refused quote, the corrected retry, the presented event and the steer; the 18 drafting specs and the two Word round-trip specs of the IDE (`drafting-*.spec.ts`, `docx-*.spec.ts`, the pipe-clamp fixture matter); the two drafting tools over the real local filesystem (`drafting-tools.spec.ts`) and the byte write's fence and refusal (`bytes.spec.ts`) |
 
 </details>
 
@@ -162,6 +182,20 @@ One fixed declaration per request while the row is mounted (the schema is the ID
 
 Prefix-stable: the declaration does not change between requests of one process. The anchor block and the steer are appended to results and turns, never to the prompt prefix.
 
+### `export_draft_docx` and `inventor_questions`
+
+#### What the model sees
+
+Two declarations with the IDE's input schemas: `export_draft_docx` takes `matter`; `inventor_questions` takes `matter`, `action` (`send` | `import`) and an optional `file`. The descriptions carry the contract (about 190 and 200 words): what each call writes, what it refuses and that the written files are delivered. A result is the IDE's text: `Exported the description, the claims and the abstract as separate files: …` with the manifest counts and the kept, changed, deleted and added paragraphs; `Wrote drafting/<matter>/inventor-questions.docx: a table of 8 open Inventor Question(s) (IQ-1, …)`; `Copied 3 answer(s) from … in the inventor's words: IQ-1, IQ-3, IQ-6.`; or a refusal that names the blocking items or the gate edit, each ending with the checklist line and the chat advice. A success ends with `Delivered to the user; do not call \`present\` for these files.`
+
+#### Token effect
+
+Two fixed declarations per request while the row is mounted (about 400 words together). A result is five to twelve lines; a refusal lists one line per blocking finding. No model call is made by either tool.
+
+#### KV Cache effect
+
+Prefix-stable: the declarations do not change between requests of one process.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
@@ -169,7 +203,10 @@ Prefix-stable: the declaration does not change between requests of one process. 
 These limits define what the row does not do yet; they are current package constraints, not a task backlog.
 
 - **Derived mode until the vendored library carries `sources`** — the recorder derives anchors from `documentReference` fields and appends the labels itself; re-syncing `vendor/flowleap-connectors` to flowleap-backend #611 switches it to structured mode without a code change.
-- **No drafting templates** — `draft-application` and `draft-outline` are refused; the Application Drafting layer, the gates and the Word export are S5 D2 and D3.
+- **No drafting templates and no gate actions yet** — `draft-application` and `draft-outline` are still refused by `write_patent_results`, and `start_application_draft`, `validate_draft` and `remove_claim` are not registered; the gates are the file edits alone (`confirmed: true`, `approved: true`, `  - Waived: <reason>`), with the question card and the slash commands arriving in S5 D3. A fixture matter whose flags are set by hand exports today.
+- **Word files need the host filesystem** — a Session on SSH or in a sandbox gets `Word export needs a local workspace`; the alternative, a `writeBytes` method on the `FileSystem` contract, is not taken for S5.
+- **No PDF style exemplars** — `style/*.pdf` is listed and reported as unread; `.md` and `.docx` exemplars are read.
+- **No restart advice** — the IDE's "Start a new chat: the app restarted" line is dropped; the harness has no extension host and `ctx.fs` reports no modification time.
 - **No web evidence sources** — a `web_fetch` result is recorded as analytics text only; the IDE's `patentWebEvidence` (page text as `textSource: 'web'` sources) is not ported, so a quote from a fetched patent page does not count as a source.
 - **No figures** — `get_patent_image` results are not recorded, so a coverage element with `basis: figure` finds no figure source.
 - **Plain anchors** — a citation renders as its anchor label, not as a link; the harness has no patent reader pane.
@@ -184,6 +221,6 @@ These limits define what the row does not do yet; they are current package const
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The copied IDE modules (`src/report/*` except `receipt.ts` and `text.ts`, `src/ledger/types.ts`) keep the IDE's tabs, semicolons and idioms so a re-port stays a plain diff against agent-v2; `.oxlintrc.json` lists them with the stylistic rules off, and this package's `tsconfig.json` relaxes `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`, which the IDE does not set. `scripts/flowleap/sync-deliverables.sh --check` lists the IDE files that changed since the pin in `SOURCE.json`; a listed file is a rule to re-port by hand. The structured-mode test in `tests/ledger.spec.ts` uses the exact field names flowleap-backend #611 returns, so it passes unchanged once the vendored library is re-synced.
+The copied IDE modules (`src/report/*` except `receipt.ts` and `text.ts`, `src/ledger/types.ts`, `src/drafting/*` except `workspace.ts` and `lcs-diff.ts`, `src/docx/*` except `lib.ts`) keep the IDE's tabs, semicolons and idioms so a re-port stays a plain diff against agent-v2; `.oxlintrc.json` lists them with the stylistic rules off, and this package's `tsconfig.json` relaxes `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`, which the IDE does not set. The copies carry `@param` and `@returns` lines the IDE does not have (`verify-export-jsdoc`). `scripts/flowleap/sync-deliverables.sh --check` lists the IDE files that changed since the pin in `SOURCE.json` (72 files after D2); a listed file is a rule to re-port by hand. The structured-mode test in `tests/ledger.spec.ts` uses the exact field names flowleap-backend #611 returns, so it passes unchanged once the vendored library is re-synced. `docx` is imported on the first Word build, not with the plugin: it touches `localStorage` at import, which Node 25+ reports on stderr and `verify-cli-help` reads as a failure of `dsh flowleap-web --help`. `pako` (`MIT AND Zlib`, under `jszip`) is why `Zlib` is on the licence gate's permissive list (founder decision of 2026-10-23).
 
 </details>

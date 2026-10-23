@@ -144,7 +144,7 @@ describe('write_patent_results', () => {
       template: (parameters.properties['template'] as { enum: string[] }).enum.length,
       words: schema?.description.split(/\s+/).length,
       noIde: !/VS Code|Approve Claims|evidenceLookup/.test(schema?.description ?? ''),
-    }).toEqual({ names: ['get_claims', WRITE_PATENT_RESULTS_NAME], required: ['filePath', 'content'], properties: 25, template: 11, words: 152, noIde: true })
+    }).toEqual({ names: ['export_draft_docx', 'get_claims', 'inventor_questions', WRITE_PATENT_RESULTS_NAME], required: ['filePath', 'content'], properties: 25, template: 11, words: 152, noIde: true })
   })
 
   it('saves a free-form document, creates the parent folder, presents the file, and never calls present itself', async () => {

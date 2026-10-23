@@ -1413,7 +1413,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-deliverables`
 
 - `inject`: `tools` · `fs` · `workingDirectory`
-- `source`: [`packages/host/flowleap-deliverables/src/index.ts:68`](../packages/host/flowleap-deliverables/src/index.ts)
+- `source`: [`packages/host/flowleap-deliverables/src/index.ts:84`](../packages/host/flowleap-deliverables/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
