@@ -396,3 +396,9 @@ fail. A fresh clone does not have them.
   and is the ADR 0018 harness side; the pack clean-up is ADR 0018's programme in flowleap-plugins (one
   PR per heavy skill, method only, no tool or command names). S5 acceptance adds: the three
   skill-grounded cases pass in the harness with the skills folder empty.
+- **S5 STARTED (2026-10-23) with the founder's defaults:** gates as question cards plus slash commands;
+  Zlib allowed on the licence list (apply with D2); evidence anchors in the connector library; second
+  read stays on render; no in-browser editor in v1. In flight: D0.1 prompt export adds the deliverable
+  tool names (agent-v2 draft PR), D0.2 anchors in `packages/connectors` (flowleap-backend draft PR), D1
+  `packages/host/flowleap-deliverables` (writer, templates, validation, working record, ledger,
+  delivery card) and `compare_claims` in the connectors plugin.
