@@ -35,6 +35,15 @@
       "path": "../../fs/fs"
     },
     {
+      "path": "../../interaction/commands"
+    },
+    {
+      "path": "../../interaction/user-approval"
+    },
+    {
+      "path": "../../interaction/user-questions"
+    },
+    {
       "path": "../../llm/llm"
     },
     {

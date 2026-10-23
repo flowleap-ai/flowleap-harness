@@ -1,12 +1,16 @@
 /**
  * The FlowLeap deliverable tools (S5): `write_patent_results` with the IDE's
  * report templates, evidence validation, working record, evidence ledger and
- * delivery card (D1), and `export_draft_docx` and `inventor_questions` with the
- * IDE's Application Drafting layer and Word builders (D2), ported from
+ * delivery card (D1), `export_draft_docx` and `inventor_questions` with the
+ * IDE's Application Drafting layer and Word builders (D2), and
+ * `start_application_draft`, `validate_draft` and `remove_claim` with the
+ * attorney gates as question cards and slash commands (D3), ported from
  * flowleap-agent-v2 onto the dsh seams. One row mounts the ledger recorder on
- * `tools/result`, the three tools on `ctx.tools`, the delivery card through
- * `deliverables/presented`, the second-read judge on `ctx.llm`, and the
- * one-time "report not written" steer on `agent/turn-stopping`.
+ * `tools/result`, the six tools on `ctx.tools`, the delivery card through
+ * `deliverables/presented`, the second-read judge on `ctx.llm`, the gate cards
+ * on `ctx.userQuestions`, the claim-removal confirmation on `ctx.approval`,
+ * the gate commands on `ctx.commands`, and the one-time "report not written"
+ * steer on `agent/turn-stopping`.
  *
  * See packages/host/flowleap-deliverables/README.md.
  * @module @deepseek-ai/dsh-flowleap-deliverables
@@ -19,6 +23,11 @@ import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-storage-domain'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-working-directory'
+import type {} from '@deepseek-ai/dsh-user-questions'
+import type {} from '@deepseek-ai/dsh-user-approval'
+import type {} from '@deepseek-ai/dsh-commands'
+import { registerGateCommands } from './gates/commands.ts'
+import type { GateApprover, GateAsker, GateSeams } from './gates/questions.ts'
 import { registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
 import { createJudge, NO_LLM_JUDGE, type SecondReadJudge } from './judge.ts'
 import { registerRecorder, type RecorderMode } from './ledger/recorder.ts'
@@ -27,6 +36,9 @@ import { PresentQueue, registerPresent } from './present.ts'
 import { registerDeliverableTools } from './register.ts'
 import { exportDraftDocxTool } from './tools/export-draft-docx.ts'
 import { inventorQuestionsTool } from './tools/inventor-questions.ts'
+import { removeClaimTool } from './tools/remove-claim.ts'
+import { startApplicationDraftTool } from './tools/start-application-draft.ts'
+import { validateDraftTool } from './tools/validate-draft.ts'
 import { writePatentResultsTool, type SecondReadMode } from './writer.ts'
 
 export { DOCUMENT_MODE, hostPathOf, LOCAL_WORKSPACE_NEEDED, writeWorkspaceBytes } from './bytes.ts'
@@ -38,6 +50,16 @@ export type { DraftingFiles, DraftingWorkspaceOptions } from './drafting/workspa
 export { checkPriorArtReportCompletion, GENERIC_WRITE_TOOLS, RETRIEVAL_TOOLS } from './guard/completion.ts'
 export type { GuardRound, ReceiptFileReader, ReportCompletionTurn } from './guard/completion.ts'
 export { receiptFileReader, registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
+export { registerGateCommands } from './gates/commands.ts'
+export type { GateCommandDependencies, GateCommandRegistry } from './gates/commands.ts'
+export { GATE_COMMAND, GATE_LABEL, WAIVE_COMMAND, waiveChoices, waiveTarget, withGateFlag, withWaivers } from './gates/edits.ts'
+export type { WaiveChoice } from './gates/edits.ts'
+export {
+  askGate, askWaiver, confirmRemoval, GATE_QUESTION_ID, NOT_YET, WAIVE_QUESTION_ID,
+} from './gates/questions.ts'
+export type { GateApprover, GateAsker, GateClosedReason, GateOutcome, GateSeams, RemovalConfirmation } from './gates/questions.ts'
+export { decisionSourceText, GATE_RECORD_LABEL, gateRecordValue, recordGateDecision, recordWaivers, WAIVED_RECORD_LABEL } from './gates/record.ts'
+export type { DecisionSource } from './gates/record.ts'
 export { STEER_SOURCE_KIND, TurnTracker } from './guard/turn-tracker.ts'
 export { createJudge, NO_LLM_JUDGE, parseJudgeRoute, SECOND_READ_RETRY_DELAY, SECOND_READ_ROW_LIMIT } from './judge.ts'
 export type { JudgeOptions, JudgeRoute, SecondReadJudge } from './judge.ts'
@@ -64,10 +86,20 @@ export {
   INVENTOR_QUESTIONS_DESCRIPTION, INVENTOR_QUESTIONS_NAME, INVENTOR_QUESTIONS_PARAMETERS, inventorQuestionsTool, parseInventorQuestionsArgs,
 } from './tools/inventor-questions.ts'
 export type { InventorQuestionsInput } from './tools/inventor-questions.ts'
-export { delivered, isDraftingToolValue, matterArgument, openMatter, refused } from './tools/shell.ts'
+export { REMOVE_CLAIM_DESCRIPTION, REMOVE_CLAIM_NAME, REMOVE_CLAIM_PARAMETERS, removalCost, removeClaimTool, parseRemoveClaimArgs, renumberingSentence } from './tools/remove-claim.ts'
+export type { RemoveClaimInput } from './tools/remove-claim.ts'
+export { delivered, gateSeams, isDraftingToolValue, matterArgument, NO_GATE_SEAMS, openMatter, refused } from './tools/shell.ts'
 export type { DraftingToolDependencies, DraftingToolValue } from './tools/shell.ts'
 export {
-  draftingNotAvailable, evidencePath, parseWriterArgs, secondReadPath, workingRecordPath, writePatentResultsTool,
+  approvedClaims, confirmedFeatureList, START_APPLICATION_DRAFT_DESCRIPTION, START_APPLICATION_DRAFT_NAME,
+  START_APPLICATION_DRAFT_PARAMETERS, startApplicationDraftTool,
+} from './tools/start-application-draft.ts'
+export {
+  offerWaivers, parseValidateDraftArgs, VALIDATE_DRAFT_DESCRIPTION, VALIDATE_DRAFT_NAME, VALIDATE_DRAFT_PARAMETERS, validateDraftTool,
+} from './tools/validate-draft.ts'
+export type { AdvisoryItem, ValidateDraftInput } from './tools/validate-draft.ts'
+export {
+  draftingPathRefusal, evidencePath, parseWriterArgs, secondReadPath, workingRecordPath, writePatentResultsTool,
 } from './writer.ts'
 export type { SecondReadMode, WritePatentResultsInput, WritePatentResultsValue, WriterDependencies } from './writer.ts'
 export {
@@ -77,7 +109,7 @@ export {
 /** Cordis plugin name. */
 export const name = 'flowleap-deliverables'
 
-/** The tool registry the three tools join, and the filesystem and session directory every save runs under. */
+/** The tool registry the six tools join, and the filesystem and session directory every save runs under. */
 export const inject = ['tools', 'fs', 'workingDirectory']
 
 /** Plugin config. */
@@ -99,7 +131,8 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Mount the ledger, the recorder, the writer, the two drafting tools, the delivery card and the completion guard.
+ * Mount the ledger, the recorder, the writer, the five drafting tools with their gates, the gate
+ * commands, the delivery card and the completion guard.
  * @param ctx - the mounting context, carrying `tools`, `fs` and `workingDirectory`.
  * @param config - the second-read mode and model.
  */
@@ -109,6 +142,10 @@ export function apply(ctx: Context, config: Config): void {
   const present = new PresentQueue()
   const modes = new Map<RecorderMode, number>()
   let judge: SecondReadJudge = NO_LLM_JUDGE
+  let ask: GateAsker | undefined
+  let approve: GateApprover | undefined
+  let approvalPolicy: GateSeams['approvalPolicy'] = () => undefined
+  const gates: GateSeams = { ask: () => ask, approve: () => approve, approvalPolicy: session => approvalPolicy(session) }
 
   // The ledger persists when storage is mounted; a composition without it keeps the records in memory.
   ctx.inject(['storageDomain'], (storeCtx) => {
@@ -136,6 +173,29 @@ export function apply(ctx: Context, config: Config): void {
     }, 'flowleap-deliverables: second-read judge')
   })
 
+  // The gate cards need the user-questions answerer waterfall; without it every gate stays a file edit.
+  ctx.inject(['userQuestions'], (askCtx) => {
+    askCtx.effect(() => {
+      ask = request => askCtx.userQuestions.ask(request)
+      return () => { ask = undefined }
+    }, 'flowleap-deliverables: gate question cards')
+  })
+  // remove_claim confirms through the approval seam when its policy asks; `never` falls back to the card.
+  ctx.inject(['approval'], (approvalCtx) => {
+    approvalCtx.effect(() => {
+      approve = request => approvalCtx.approval.request(request)
+      approvalPolicy = session => approvalCtx.approval.overrideOf(session) ?? approvalCtx.approval.config.policy ?? 'ask'
+      return () => { approve = undefined; approvalPolicy = () => undefined }
+    }, 'flowleap-deliverables: remove_claim approval')
+  })
+  // The strict path: /confirm-features, /approve-claims and /waive, when a command registry is composed.
+  ctx.inject(['commands'], (commandCtx) => {
+    commandCtx.effect(() => registerGateCommands(commandCtx, {
+      registry: commandCtx.commands,
+      info: (message) => { commandCtx.logger.info(message) },
+    }), 'flowleap-deliverables: gate commands')
+  })
+
   registerRecorder(ctx, ledger, (mode, tool) => {
     const seen = modes.get(mode) ?? 0
     modes.set(mode, seen + 1)
@@ -150,7 +210,10 @@ export function apply(ctx: Context, config: Config): void {
   }
   ctx.effect(() => registerDeliverableTools(ctx, [
     writePatentResultsTool(ctx, { ledger, judge: () => judge, present, secondRead: () => config.secondRead, ...log }),
-    exportDraftDocxTool(ctx, { present, ...log }),
-    inventorQuestionsTool(ctx, { present, ...log }),
+    startApplicationDraftTool(ctx, { present, gates, ...log }),
+    validateDraftTool(ctx, { present, gates, ...log }),
+    exportDraftDocxTool(ctx, { present, gates, ...log }),
+    inventorQuestionsTool(ctx, { present, gates, ...log }),
+    removeClaimTool(ctx, { present, gates, ...log }),
   ]), 'flowleap-deliverables: tools')
 }

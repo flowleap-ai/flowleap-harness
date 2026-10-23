@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Record where the copied IDE deliverable code came from (S5 D1, D2).
+# Record where the copied IDE deliverable code came from (S5 D1, D2, D3).
 #
 # `packages/host/flowleap-deliverables/src/report/**`, `src/ledger/types.ts`,
-# `src/guard/completion.ts`, the writer schema, `src/drafting/**`, `src/docx/**`
-# and the two drafting tool shells are copies of flowleap-agent-v2 files with
+# `src/guard/completion.ts`, the writer schema, `src/drafting/**`, `src/docx/**`,
+# the drafting tool shells and the gate edits are copies of flowleap-agent-v2 files with
 # their imports rewritten onto this package. The IDE stays the owner
 # of those rules (port plan section 6, "No coupling to agent-v2"). SOURCE.json
 # records the agent-v2 commit the copies came from and, per file, the IDE path,
@@ -72,6 +72,17 @@ pairs=(
   "$ide/tools/vscode-node/inventorQuestionsDocx.ts=src/docx/inventor-questions.ts"
   "$ide/tools/vscode-node/exportDraftDocxTool.ts=src/tools/export-draft-docx.ts"
   "$ide/tools/vscode-node/inventorQuestionsTool.ts=src/tools/inventor-questions.ts"
+  # S5 D3: the drafting saves, the three tool shells and the gates (the pure parts of the lens and the contribution).
+  "$ide/tools/vscode-node/draftApplicationSave.ts=src/drafting/draft-application-save.ts"
+  "$ide/tools/vscode-node/draftOutlineSave.ts=src/drafting/draft-outline-save.ts"
+  "$ide/tools/vscode-node/startApplicationDraftTool.ts=src/tools/start-application-draft.ts"
+  "$ide/tools/vscode-node/validateDraftTool.ts=src/tools/validate-draft.ts"
+  "$ide/tools/vscode-node/removeClaimTool.ts=src/tools/remove-claim.ts"
+  "$ide/tools/vscode-node/draftingGateLens.ts=src/gates/edits.ts"
+  "$ide/tools/vscode-node/draftingGateContribution.ts=src/gates/commands.ts src/gates/questions.ts"
+  "$ide/tools/vscode-node/test/applicationDraftingTools.spec.ts=tests/drafting-gates-tools.spec.ts"
+  "$ide/tools/vscode-node/test/draftingGateLens.spec.ts=tests/gates-edits.spec.ts"
+  "$ide/tools/vscode-node/test/draftingGateContribution.spec.ts=tests/gates-commands.spec.ts"
   "$ide/tools/common/test/draftingChecklist.spec.ts=tests/drafting-checklist.spec.ts"
   "$ide/tools/common/test/draftingClaimValidators.spec.ts=tests/drafting-claim-validators.spec.ts"
   "$ide/tools/common/test/draftingClaims.spec.ts=tests/drafting-claims.spec.ts"

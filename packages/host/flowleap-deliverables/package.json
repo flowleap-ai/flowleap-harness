@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-deliverables",
-  "description": "FlowLeap deliverable tools: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record, the evidence ledger and the delivery card; export_draft_docx and inventor_questions with the Application Drafting layer and the Word builders; ported from flowleap-agent-v2 onto the dsh filesystem, tool-result, storage and model seams",
+  "description": "FlowLeap deliverable tools: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record, the evidence ledger and the delivery card; export_draft_docx and inventor_questions with the Application Drafting layer and the Word builders; start_application_draft, validate_draft and remove_claim with the attorney gates as question cards and slash commands; ported from flowleap-agent-v2 onto the dsh filesystem, tool-result, storage, model, user-questions, approval and command seams",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
@@ -41,12 +41,15 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-commands": "workspace:*",
     "@deepseek-ai/dsh-fs": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-storage-domain": "workspace:*",
     "@deepseek-ai/dsh-tool-present": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-working-directory": "workspace:*"
   },
@@ -55,6 +58,7 @@
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-loop": "workspace:*",
     "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
+    "@deepseek-ai/dsh-commands": "workspace:*",
     "@deepseek-ai/dsh-fs": "workspace:*",
     "@deepseek-ai/dsh-fs-local": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
@@ -65,6 +69,8 @@
     "@deepseek-ai/dsh-system-prompt": "workspace:*",
     "@deepseek-ai/dsh-tool-present": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "jszip": "3.10.1"
