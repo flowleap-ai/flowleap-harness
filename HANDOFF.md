@@ -346,3 +346,15 @@ fail. A fresh clone does not have them.
   advanced toggle for support), product-name substitution in descriptions at render, and one honest
   About line "Built on DeepSeek Harness (MIT)" as the licence attribution. Also observed: one desktop
   session cost 671K tokens over five turns; preset-level tool narrowing (ADR 0018 d4) is still open.
+- **S4b DONE (2026-10-23).** `deploy/`: three-stage `Dockerfile` (Node 26 slim runtime, `flowleap` CLI
+  v0.12.0 pinned by tag with checksum, skill pack from flowleap-plugins, `DSH_HOME=/data`, health check,
+  boot smoke in the build), `docker-compose.yml` with one `harness-<name>` + `ts-<name>` Tailscale sidecar
+  pair per attorney (loopback only, HTTPS via `tailscale serve`, Funnel off), `entrypoint.sh`,
+  `healthcheck.sh`, `tailscale-serve.json`, `.env.example`, and `deploy/README.md` for the firm's IT.
+  Support tooling: `pnpm run flowleap:doctor` (`scripts/flowleap/doctor.ts`, `--json`, never a value) and
+  `scripts/flowleap/log-bundle.sh` (scrubbed tarball, refuses credential paths, aborts if a key pattern
+  survives). Verified: image `flowleap-harness:dev` 945 MB builds in 4 to 6 min warm; container serves
+  the FlowLeap index behind the token-cookie exchange; doctor and bundle run locally and in-container
+  with zero raw key hits. Not live-verified: the Tailscale leg (Host passthrough and cookie flags on a
+  real tailnet). Open: a tag on flowleap-plugins for a reproducible pack pin, image dedupe, no pnpm in
+  the image.
