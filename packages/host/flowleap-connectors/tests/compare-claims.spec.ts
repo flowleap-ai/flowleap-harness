@@ -220,13 +220,13 @@ describe('compare_claims', () => {
     })
     const text = textOf(mixed.content[0])
     expect(text).toContain('| Claim Element | EP-1000000-A1 |\n| --- |')
-    expect(text).toContain(`#### US-7654321-B2\nClaims unavailable (404 - ${US_PAID_ROUTE}). For a US document, try get_us_grant with the bare numeric patent number.`)
+    expect(text).toContain(`#### US-7654321-B2\nClaims unavailable (404 - ${US_PAID_ROUTE}).`)
 
     const alone = await call({ userClaim: 'A modular battery.', patentNumbers: ['US-7654321-B2'] })
     expect(alone.isError).toBe(false)
     expect(textOf(alone.content[0])).toBe(
       `Could not retrieve claims for any of the requested patents:\n- US-7654321-B2: 404 - ${US_PAID_ROUTE}\n\n`
-      + 'Claims are not published for every office and document. Fetch them with get_claims, or for a US document with get_us_grant, then compare manually.',
+      + 'Claims are not published for every office and document. Fetch them with get_claims, then compare manually.',
     )
     expect(fetchSpy).not.toHaveBeenCalled()
   })

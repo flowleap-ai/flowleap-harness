@@ -273,7 +273,7 @@ function renderBoundedClaims(claims: readonly string[]): string {
  * Assemble the user claim and the fetched prior-art claims into a comparison package: an
  * element-by-element claim chart (deterministic decomposition of each patent's independent claim),
  * the bounded full claim text per patent, and an analysis rubric for the model. The IDE's text, with
- * the tool names it points to resolved to this host's (`get_claims`, `get_description`, `get_us_grant`).
+ * the tool names it points to resolved to this host's (`get_claims`, `get_description`); the IDE's `get_us_grant` hint is dropped because the paid-route sentence in the failure reason is the correct instruction here.
  * @param userClaim - the user's claim or invention description.
  * @param fetched - one entry per requested patent, in request order; at least one with claims.
  * @returns the Markdown package.
@@ -301,7 +301,7 @@ export function formatComparisonPackage(userClaim: string, fetched: readonly Fet
     if (entry.claims !== null && entry.claims.length > 0) {
       lines.push(renderBoundedClaims(entry.claims))
     } else {
-      lines.push(`Claims unavailable (${entry.failureReason ?? 'no claims returned'}). For a US document, try get_us_grant with the bare numeric patent number.`)
+      lines.push(`Claims unavailable (${entry.failureReason ?? 'no claims returned'}).`)
     }
     lines.push('')
   }
@@ -326,7 +326,7 @@ function noClaimsAnswer(fetched: readonly FetchedClaims[]): string {
   const failures = fetched.map(entry => `- ${entry.patentNumber}: ${entry.failureReason ?? 'no claims returned'}`).join('\n')
   return `Could not retrieve claims for any of the requested patents:\n${failures}\n\n`
     + 'Claims are not published for every office and document. Fetch them with get_claims, '
-    + 'or for a US document with get_us_grant, then compare manually.'
+    + 'then compare manually.'
 }
 
 /** Validate the raw arguments; the registry hands them over as parsed JSON. */

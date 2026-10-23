@@ -115,3 +115,8 @@ cat > "$sync_file" <<JSON
 }
 JSON
 echo "sync-connectors: copied flowleap-backend $backend_commit packages/connectors (hash $source_hash) into vendor/flowleap-connectors"
+
+# Keep the vendor manifest row's commit cell equal to the pin (gen-third-party-notices parses the row).
+if [ "${1:-}" != "--check" ]; then
+  perl -pi -e 's{^(\| `flowleap-connectors/` \| .* \| )`[0-9a-f]+`( \|)$}{${1}`'"$(python3 -I -c "import json;print(json.load(open('vendor/flowleap-connectors/SYNC.json'))['backendCommit'])")"'`$2}' vendor/README.md
+fi
