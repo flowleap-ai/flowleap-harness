@@ -15,6 +15,7 @@ import { parseArgs } from 'node:util'
 import {
   CLIENT_BUILD_RECORD_PATH,
   CLIENT_BUILD_PROFILE_SELECTOR,
+  CLIENT_BUILD_TITLE_SELECTOR,
   clientBuildProcessEnvironment,
   repositoryClientBuildEnvironment,
   resolveClientBuildEnvironment,
@@ -169,7 +170,12 @@ async function main(): Promise<number> {
   }
 
   const repositoryEnvironment = repositoryClientBuildEnvironment(root, process.env)
-  const clientEnvironment = resolveClientBuildEnvironment(repositoryEnvironment, profile ?? process.env[CLIENT_BUILD_PROFILE_SELECTOR])
+  // The title selector is not a public value, so the repository environment drops it; the profile resolver reads it.
+  const titleSelector = process.env[CLIENT_BUILD_TITLE_SELECTOR]
+  const clientEnvironment = resolveClientBuildEnvironment(
+    { ...repositoryEnvironment, ...(titleSelector === undefined ? {} : { [CLIENT_BUILD_TITLE_SELECTOR]: titleSelector }) },
+    profile ?? process.env[CLIENT_BUILD_PROFILE_SELECTOR],
+  )
   const environment = environmentOverlay(process.env, clientBuildProcessEnvironment(process.env, clientEnvironment))
   rmSync(resolve(root, CLIENT_BUILD_RECORD_PATH), { force: true })
   const gates = buildGates(root, scope, environment)

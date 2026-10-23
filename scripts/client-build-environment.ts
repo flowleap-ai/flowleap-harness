@@ -25,6 +25,26 @@ const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
 /** Public variable carrying the source commit embedded in client artifacts. */
 const CLIENT_COMMIT_HASH_VARIABLE = 'DSH_CLIENT_COMMIT_HASH'
 
+/**
+ * Non-public selector naming the product title of an official build of another product.
+ * FlowLeap fork: a white-label desktop build (`apps/desktop/config/product.<name>.json`) is an
+ * official build under its own name, so its packaging sets this selector; like the profile
+ * selector it is never inlined, and inherited `DSH_CLIENT_*` values stay isolated.
+ */
+export const CLIENT_BUILD_TITLE_SELECTOR = 'DSH_BUILD_CLIENT_TITLE'
+
+/**
+ * The official profile's pinned values, titled for the selected product.
+ * @param environment - environment that may carry the title selector.
+ * @returns the complete pinned value set; the upstream title without a selector.
+ */
+function officialPublicValues(environment: NodeJS.ProcessEnv): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
+  const title = environment[CLIENT_BUILD_TITLE_SELECTOR]
+  return title === undefined || title.trim() === ''
+    ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT
+    : { ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT, DSH_CLIENT_TITLE: title }
+}
+
 /** Public variable carrying the repository package version embedded in client artifacts. */
 const CLIENT_VERSION_VARIABLE = 'DSH_CLIENT_VERSION'
 
@@ -145,7 +165,7 @@ export function officialClientBuildEnvironment(
   return {
     DSH_CLIENT_COMMIT_HASH: repositoryCommitHash(root, environment),
     DSH_CLIENT_VERSION: repositoryVersion(root),
-    ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
+    ...officialPublicValues(environment),
   }
 }
 
@@ -201,7 +221,7 @@ export function resolveClientBuildEnvironment(
     return {
       DSH_CLIENT_COMMIT_HASH: commitHash,
       DSH_CLIENT_VERSION: version,
-      ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
+      ...officialPublicValues(environment),
     }
   }
   throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official"`)

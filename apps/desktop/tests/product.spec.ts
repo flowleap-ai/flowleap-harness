@@ -17,6 +17,7 @@ import { desktopProfileBundles } from '../src/project-manager.ts'
 import { localMacOSPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { readDesktopProduct } from '../scripts/desktop-product.mjs'
 import { composeIconSvg, ICON_TILES } from '../scripts/render-product-icons.ts'
+import { resolveClientBuildEnvironment } from '../../../scripts/client-build-environment.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 
@@ -86,6 +87,14 @@ describe('desktop product files', () => {
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
     expect(config.mac).toMatchObject({ icon: expect.stringMatching(/resources[\\/]flowleap[\\/]icon-macos\.png$/u) as string })
     expect(() => createElectronBuilderConfig({ ...local, DSH_DESKTOP_APP_ID: 'com.other.app' }, 'darwin', 'arm64')).toThrow('does not match product')
+  })
+
+  it('titles the official client build after the product through the non-public selector', () => {
+    const official = { DSH_BUILD_CLIENT_PROFILE: 'official', DSH_CLIENT_COMMIT_HASH: 'abcdef1', DSH_CLIENT_VERSION: '1.2.3' }
+    expect(resolveClientBuildEnvironment(official).DSH_CLIENT_TITLE).toBe('DeepSeek Harness')
+    expect(resolveClientBuildEnvironment({ ...official, DSH_BUILD_CLIENT_TITLE: 'FlowLeap Patent AI' })).toEqual({
+      DSH_CLIENT_BUILD_PROFILE: 'official', DSH_CLIENT_COMMIT_HASH: 'abcdef1', DSH_CLIENT_TITLE: 'FlowLeap Patent AI', DSH_CLIENT_VERSION: '1.2.3',
+    })
   })
 
   it('composes a tile with the mark centred inside the tray glyph group', () => {

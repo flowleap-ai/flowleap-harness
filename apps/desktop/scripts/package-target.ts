@@ -24,7 +24,7 @@ import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
-import { desktopProductFilename, readDesktopProduct, resolveDesktopProductName } from './desktop-product.mjs'
+import { DEFAULT_DESKTOP_PRODUCT_NAME, desktopProductFilename, readDesktopProduct, resolveDesktopProductName } from './desktop-product.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -350,6 +350,9 @@ async function main(): Promise<void> {
       unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
     })
   const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  // A white-label product titles the client artifacts the official build embeds; the upstream product keeps its pin.
+  const product = readDesktopProduct(resolveDesktopProductName(environment))
+  if (product.name !== DEFAULT_DESKTOP_PRODUCT_NAME) environment.DSH_BUILD_CLIENT_TITLE = product.productName
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
   const buildVersion = await resolveRequestedBuildVersion(invocation, productVersion, environment)
