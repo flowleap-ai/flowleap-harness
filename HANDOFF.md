@@ -23,6 +23,10 @@ one isolated instance per user), ADR 0006 (plugins monorepo and MCP registry).
 
 - `master` tracks upstream `origin/master` and is never edited. Base: the merge of upstream
   `release/dsh-0.2.1-rc.2` on 2026-10-17 (dsh 0.2.1-rc.2).
+- Hosted at https://github.com/flowleap-ai/flowleap-harness (private, default branch `flowleap`) since
+  2026-10-23. Remotes: `origin` = upstream deepseek-ai/deepseek-harness (fetch only, for `master`),
+  `flowleap` = the org repository (push `master` and `flowleap` there). The pre-push hook runs the
+  typecheck.
 - `flowleap` is the working branch. Everything FlowLeap lands here. Keep history shared with
   upstream so `git merge origin/master` works. (The August 2026 attempt at
   `../flowleap-patent-harness` was a snapshot import with no shared history, based on rc.7, and
