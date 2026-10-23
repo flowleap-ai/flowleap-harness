@@ -1,0 +1,21 @@
+# Build context for deploy/Dockerfile (BuildKit reads the ignore file that sits
+# beside the Dockerfile). The builder stage installs and builds from source, so
+# everything generated locally stays out. `*.md` matches root-level files only.
+# `snapshots/` stays in: the host type check imports fixtures from it.
+.git
+.github
+.pnpm-store
+.dsh-build
+.agents
+.claude
+docs
+flowleap
+outputs
+tmp
+coverage
+**/node_modules
+**/lib
+**/dist
+**/*.tsbuildinfo
+apps/desktop/.desktop-build
+*.md

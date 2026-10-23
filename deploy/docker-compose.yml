@@ -1,0 +1,120 @@
+# FlowLeap Patent AI harness on one firm server: one harness container per
+# attorney, each behind its own Tailscale sidecar, nothing on the public
+# interface. Read deploy/README.md before the first `docker compose up`.
+#
+# Per attorney there are two services and two volumes:
+#   ts-<name>       the Tailscale node that owns the tailnet name and the HTTPS
+#                   certificate (tailscale serve → http://127.0.0.1:3080)
+#   harness-<name>  the harness process, sharing the sidecar's network namespace
+#                   (network_mode: service:ts-<name>), so it listens on loopback
+#                   and only the tailnet can reach it
+#   ts-<name>-state, harness-<name>-data
+#
+# To add an attorney, copy the two `alice` blocks, replace `alice` everywhere,
+# and add the two volumes. The tailnet DNS suffix (TAILNET) and the auth key
+# (TS_AUTHKEY) come from the .env file beside this compose file:
+#   TAILNET=tail1234.ts.net
+#   TS_AUTHKEY=tskey-auth-...   (a reusable, pre-approved key; tag it tag:harness)
+#
+# The first run of each attorney prints the login URL with its launch token to
+# the container log: docker compose logs harness-alice | grep 'dsh web:'
+
+x-harness: &harness
+  image: ${HARNESS_IMAGE:-flowleap-harness:0.2.1-rc.2}
+  restart: unless-stopped
+  init: false
+  read_only: false
+  environment: &harness-env
+    BIND_HOST: loopback
+    PORT: "3080"
+    # Model and office keys are entered in the GUI (Settings → Models, Settings →
+    # Patent data connectors) and live in the credential store on the /data
+    # volume. A key exported here applies only while no key is stored for it.
+    DSH_TELEMETRY_MODE: DISABLED
+  healthcheck:
+    test: ["CMD", "harness-healthcheck"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 60s
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+x-tailscale: &tailscale
+  image: tailscale/tailscale:v1.98.10
+  restart: unless-stopped
+  cap_add:
+    - NET_ADMIN
+  devices:
+    - /dev/net/tun:/dev/net/tun
+  environment: &tailscale-env
+    TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY in .env}
+    TS_STATE_DIR: /var/lib/tailscale
+    TS_USERSPACE: "false"
+    TS_EXTRA_ARGS: --advertise-tags=tag:harness
+    # tailscale serve: HTTPS on 443 of the node's own tailnet name, proxied to
+    # the harness on loopback of the shared network namespace. Funnel stays off,
+    # so the name resolves only inside the tailnet.
+    TS_SERVE_CONFIG: /config/serve.json
+  volumes:
+    - ./tailscale-serve.json:/config/serve.json:ro
+
+services:
+  # ── attorney: alice ────────────────────────────────────────────────────────
+  ts-alice:
+    <<: *tailscale
+    hostname: harness-alice
+    container_name: ts-alice
+    environment:
+      <<: *tailscale-env
+      TS_HOSTNAME: harness-alice
+    volumes:
+      - ./tailscale-serve.json:/config/serve.json:ro
+      - ts-alice-state:/var/lib/tailscale
+
+  harness-alice:
+    <<: *harness
+    container_name: harness-alice
+    network_mode: service:ts-alice
+    depends_on:
+      - ts-alice
+    environment:
+      <<: *harness-env
+      PUBLIC_URL: https://harness-alice.${TAILNET:?set TAILNET in .env}/
+      TRUSTED_HOST: harness-alice.${TAILNET}
+    volumes:
+      - harness-alice-data:/data
+
+  # ── attorney: bob ──────────────────────────────────────────────────────────
+  ts-bob:
+    <<: *tailscale
+    hostname: harness-bob
+    container_name: ts-bob
+    environment:
+      <<: *tailscale-env
+      TS_HOSTNAME: harness-bob
+    volumes:
+      - ./tailscale-serve.json:/config/serve.json:ro
+      - ts-bob-state:/var/lib/tailscale
+
+  harness-bob:
+    <<: *harness
+    container_name: harness-bob
+    network_mode: service:ts-bob
+    depends_on:
+      - ts-bob
+    environment:
+      <<: *harness-env
+      PUBLIC_URL: https://harness-bob.${TAILNET}/
+      TRUSTED_HOST: harness-bob.${TAILNET}
+    volumes:
+      - harness-bob-data:/data
+
+volumes:
+  ts-alice-state:
+  harness-alice-data:
+  ts-bob-state:
+  harness-bob-data:
