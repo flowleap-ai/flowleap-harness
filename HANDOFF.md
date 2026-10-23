@@ -405,7 +405,7 @@ fail. A fresh clone does not have them.
   `compare_claims` passages, 7,601 words, gaps empty; copy into the bundle together with D1), D0.2
   flowleap-backend #611 (`anchor` and `sources[]` on `get_claims`, `get_description`, `get_abstract`,
   `get_bibliography`; format `<pub>:<section>[:<claim>][:<lang>]`; re-sync the vendored library after
-  merge). D1 and D2 done; in flight: D3
+  merge). D1, D2 and D3 done; S5 code complete
   `packages/host/flowleap-deliverables` (writer, templates, validation, working record, ledger,
   delivery card) and `compare_claims` in the connectors plugin.
 - **S5 D1 DONE + acceptance PASSED (2026-10-23).** `packages/host/flowleap-deliverables` (10,207 lines:
@@ -442,3 +442,33 @@ fail. A fresh clone does not have them.
   copied by `import` (3 of 8), second `send` writes the 5 left; `office-to-pdf` converts all three
   exports (6/2/1 pages, no missing fonts). Gates: typecheck 5/5, lint clean, build 9/9, vitest 30
   files / 309 tests, notices up to date, `check:ci:static` 61/62 (baseline). Next: D3.
+- **S5 D3 DONE + live acceptance PASSED (2026-10-23).** `start_application_draft`, `validate_draft`,
+  `remove_claim` registered beside the D1/D2 tools (seven commits, 37 files, +4,176). Gates: question
+  cards as the main path (`src/gates/questions.ts`: Confirm Feature List, Approve Claims, Waive Errors
+  as a two-question batch), slash commands as the strict path (`src/gates/commands.ts`:
+  `/confirm-features`, `/approve-claims`, `/waive <matter> <line or rule> <reason>`, no model step),
+  `remove_claim` through `ctx.approval.request` when the policy is `ask`, a one-option card when it is
+  `never`. On yes the tool writes the flag with `writeDraftingFrontmatter` (comments kept), reads it
+  back from the file, then writes one record line with the source (`question card, call <id>` or
+  `command /approve-claims`). Not yet / abort / delegated caller / no answerer: nothing written, the
+  refusal names the edit, the card and the command. The writer saves `draft-application` and
+  `draft-outline` through the IDE save modules (`SOURCE.json` pins 82 IDE files at agent-v2
+  `33efdf7ebee`). Live run (port 3095, fresh empty workspace, Sonnet 5.5 via OpenRouter, browser):
+  Confirm card -> yes -> `confirmed: true` + record line; Approve card -> Not yet -> refusal;
+  `/approve-claims pipe-clamp` with no model step; Waive card with a reason that landed in
+  `findings.md`; claims changed -> approval withdrawn -> new Approve card; export wrote and presented
+  the four Word files + filing manifest (seven-file card). One defect found live and fixed
+  (`6db3916774`: the first draft save dropped the gate record lines). Cost: 4 turns, 52 steps, 6.4M
+  tokens (97% cache). Gates: typecheck 5/5, lint clean, build 9/9, vitest 34 files / 366 tests,
+  notices up to date, `check:ci:static` 61/62 (baseline), sync check clean. Observed: the Web UI
+  default access mode is Workspace Write, not `danger-full-access`, so the approval dialog is the
+  live path for `remove_claim`. Founder veto list (agent decisions): (1) the IDE's `findingKey` strips
+  line numbers, so one waived Error transfers to every same-message Error on the next run (agent-v2
+  rule, now visible at once through the card); (2) `validate_draft` asks the Waive card on every run
+  with unwaived Errors (friction while the agent is still fixing; alternative = ask only in export);
+  (3) a withdrawn approval is askable again on the new claims; (4) record-line carry-over across the
+  first draft save is a harness-only rule inside the copied save module; (5) no bulk "Waive all open
+  Errors" first option. Not run live: `remove_claim`, `/confirm-features`, `/waive` (unit-covered).
+  Evidence in the session scratchpad `acceptance-d3/`. Open for the full S5 acceptance: the three
+  skill-grounded cases (prior art, dossier, FTO) with the skills folder EMPTY; the D3 run already
+  reached the export with no `application-drafting` skill loaded (`FLOWLEAP_SKILLS_DIR` unset).
