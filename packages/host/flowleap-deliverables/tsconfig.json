@@ -1,0 +1,50 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../deliverables/tool-present"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../storage/storage-domain"
+    },
+    {
+      "path": "../../util/values"
+    }
+  ]
+}

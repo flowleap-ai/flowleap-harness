@@ -353,6 +353,35 @@
       "plugins": [
         "typescript"
       ]
+    },
+    {
+      // Copies of flowleap-agent-v2 modules (packages/host/flowleap-deliverables/SOURCE.json) keep the IDE's style and idioms so a re-port stays a plain diff. `p*` is the IDE's appendix module.
+      "files": [
+        "packages/host/flowleap-deliverables/src/report/{templates,p*,second-read,candidate-review,find-better,fallback-ladder,document-reference}.ts",
+        "packages/host/flowleap-deliverables/src/ledger/types.ts",
+        "packages/host/flowleap-deliverables/tests/{templates,p*,second-read,fallback-ladder,working-record}.spec.ts"
+      ],
+      "rules": {
+        "@stylistic/indent": "off",
+        "@stylistic/semi": "off",
+        "@stylistic/quotes": "off",
+        "@stylistic/comma-dangle": "off",
+        "@stylistic/member-delimiter-style": "off",
+        "@stylistic/arrow-parens": "off",
+        "@stylistic/object-curly-spacing": "off",
+        "@stylistic/max-len": "off",
+        "typescript/no-unnecessary-condition": "off",
+        "typescript/no-unnecessary-type-conversion": "off",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-confusing-void-expression": "off"
+      },
+      "plugins": [
+        "typescript"
+      ],
+      "jsPlugins": [
+        "@stylistic/eslint-plugin"
+      ]
     }
   ]
 }

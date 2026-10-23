@@ -1,0 +1,1465 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { parsePatentDocumentReference } from './document-reference.ts';
+import { SecondReadOutcome, secondReadLimitation, unconfirmedVerdicts } from './second-read.ts';
+import { patentCitationLink } from './document-reference.ts';
+import { evidenceSourceIndex, PatentEvidenceSource, PatentExecution, PatentExecutionSnapshot, webPageHost } from '../ledger/types.ts';
+import { escape } from './text.ts';
+import { posix } from 'node:path';
+import type { ReceiptOpenPoint } from './receipt.ts';
+import { deriveFallbackLadder, distinctPublications, documentKey, FallbackCoverage, fallbackCoverage, FallbackLadderDerivation, fallbackLadderErrors, fallbacksNotCovered, hasKindCode, LADDER_UNAVAILABLE, ladderOf, publicationIdentities, roundLedgerStatus, RoundQueryLedgerStatus, rowOpenPoints, rowReferences, shortPhrase, webSourceOpenPoints, webSourcesOf } from './fallback-ladder.ts';
+import { baselineSource, claimComparisons, claimResultSentence, countLine, distinctDocuments, examinerArtHeader, examinerArtLabel, examinerArtReading, FIND_BETTER_STATUS, FindBetterFields, FindBetterSideName, findBetterErrors, flattenSides, incompleteSearch, renderBaseline, renderTracks, sideFeature, sideStatus } from './find-better.ts';
+
+/**
+ * Which structured report the coverage machinery is producing. The checks are identical; only the
+ * wording of the content rule and of the rendered statuses differs, because an invalidity chart's
+ * rows are the challenged patent's claim elements and its sources are the prior art.
+ */
+export type CandidateReviewVariant = 'prior-art' | 'invalidity' | 'find-better';
+
+/** One cited passage of a coverage row, with the source review beside it. */
+interface PatentCoverageEvidence {
+	readonly anchor: string;
+	readonly quote?: string;
+	readonly scope: string;
+	readonly qualifiers: string;
+	readonly quantityBasis: string;
+}
+
+/**
+ * The constituents the feature requires, each with the cited passage — or the recorded drawing
+ * page — that discloses it. A status is otherwise a one-bit judgment: the element map is what
+ * makes it checkable.
+ */
+interface PatentCoverageElementInput {
+	readonly element: string;
+	readonly anchor?: string;
+	readonly disclosedBy?: string;
+	/** `figure` marks an element disclosed by a recorded drawing page; absent means text. */
+	readonly basis?: 'text' | 'figure';
+	/** What the model says the drawing clearly shows; stands in place of `disclosedBy` for a figure. */
+	readonly reading?: string;
+}
+
+/**
+ * find-better-report: one side of an element row — the examiner's best art, or the best art found —
+ * with the same evidence fields an ordinary row carries, checked exactly as an ordinary row is.
+ */
+export interface FindBetterSide {
+	readonly status: 'supported' | 'partial' | 'unresolved';
+	readonly sourceAnchors?: readonly string[];
+	readonly gap: string;
+	readonly evidence?: readonly PatentCoverageEvidence[];
+	readonly elements?: readonly PatentCoverageElementInput[];
+}
+
+/**
+ * The IDE's `PatentCandidateReview` (see SOURCE.json).
+ */
+export interface PatentCandidateReview extends FindBetterFields {
+	readonly coverage?: readonly {
+		readonly feature: string;
+		/** `fallback` (invalidity-claim-chart only): a rung of the Fallback Ladder, charting only the limitation it adds. */
+		readonly kind?: 'feature' | 'combination' | 'fallback';
+		readonly importance: 'essential' | 'optional';
+		readonly status: 'supported' | 'partial' | 'unresolved';
+		/** invalidity-claim-chart: the challenged claim this row is an element of, e.g. `1`. */
+		readonly claimNumber?: string;
+		/** invalidity-claim-chart, kind fallback: the charted independent claim this row falls back from. */
+		readonly fallbackOf?: string;
+		/** invalidity-claim-chart, a description-supported fallback (no claimNumber): the challenged patent's passage that supports it. */
+		readonly basis?: FallbackBasis;
+		/** Required by the tool schema, but an unresolved row may arrive without it; never dereference unguarded. */
+		readonly sourceAnchors?: readonly string[];
+		readonly gap: string;
+		readonly evidence?: readonly PatentCoverageEvidence[];
+		readonly elements?: readonly PatentCoverageElementInput[];
+		/** find-better-report: the examiner's best art on this element. The row's own status and sources are unused. */
+		readonly examiner?: FindBetterSide;
+		/** find-better-report: the best art found on this element. */
+		readonly found?: FindBetterSide;
+	}[];
+	readonly content?: string;
+	readonly limitations?: readonly string[];
+	readonly stopReason?: string;
+	/** invalidity-claim-chart: the patent whose claims are being charted against the cited art. */
+	readonly challengedPublication?: string;
+	/**
+	 * invalidity-claim-chart: the critical date as an ISO date (YYYY-MM-DD). With it, the receipt lists
+	 * every cited document published after it as an open point; without it, that check is skipped.
+	 */
+	readonly criticalDate?: string;
+	/** Report prose the template renders outside the appendix; checked like every other model-written field. */
+	readonly objective?: string;
+	readonly searchStrategy?: string;
+	/** invalidity-claim-chart: rungs of the Fallback Ladder the chart does not chart, each with the reason. */
+	readonly fallbacksNotCharted?: readonly FallbackNotCharted[];
+	/** invalidity-claim-chart: the Search Rounds run for fallbacks the last saved chart left not covered. */
+	readonly rounds?: readonly SearchRound[];
+	/** The technology the report is about; the working record names it so a later session recognizes the matter. */
+	readonly subject?: string;
+	/**
+	 * The concept-synonym table the queries were built from. An attorney judging whether a search was
+	 * competent reads it first, so the client report shows it instead of leaving it in the session.
+	 */
+	readonly concepts?: readonly PatentSearchConcept[];
+	/** The classification codes the search covered, each with its meaning in plain words. */
+	readonly classifications?: readonly PatentClassificationEntry[];
+}
+
+/** The challenged patent's description passage a description-supported fallback rests on, quoted verbatim. */
+interface FallbackBasis {
+	readonly anchor: string;
+	readonly quote: string;
+}
+
+/** A rung of the Fallback Ladder left out of the chart, and why. */
+interface FallbackNotCharted {
+	readonly claimNumber: string;
+	readonly reason: string;
+}
+
+/**
+ * One Search Round: the fallbacks it targeted (claim numbers, or a description fallback's feature),
+ * each query it ran with its tool, and what it changed. Every query must match a recorded execution.
+ */
+interface SearchRound {
+	readonly round: number;
+	readonly targets: readonly string[];
+	/** The ids of the previous receipt's open points the expert chose and this round answers (PRD 0024 C4). */
+	readonly answers?: readonly string[];
+	readonly queries: readonly { readonly tool: string; readonly query: string; readonly count?: number }[];
+	readonly outcome: string;
+}
+
+/** One concept the queries were built from, and the synonyms and variations searched for it. */
+interface PatentSearchConcept {
+	readonly concept: string;
+	readonly synonyms: readonly string[];
+}
+
+/** One classification code the search covered, with its meaning in plain words. */
+interface PatentClassificationEntry {
+	readonly code: string;
+	readonly meaning: string;
+}
+
+/**
+ * Assertive legal conclusions a candidate review must not draw. Matched case-insensitively and on
+ * word boundaries, so "anticipate" never fires on "anticipated" (its own entry) and "novelty gap"
+ * never fires on "novelty gaps".
+ */
+const LEGAL_CONCLUSION_PHRASES: readonly string[] = [
+	'teach away', 'teaches away', 'teaching away', 'core novelty', 'novelty gap', 'novelty gaps',
+	'is novel', 'are novel', 'not novel', 'clearly novel', 'anticipate', 'anticipates', 'anticipated by',
+	'anticipation', 'obvious over', 'would have been obvious', 'obvious combination', 'is obvious', 'obviousness',
+	'non-obvious', 'nonobvious', 'inventive step', 'patentable', 'unpatentable', 'patentability evaluation', 'patentability assessment',
+	'patentability determination', 'patentability conclusion', 'patentability opinion', 'novelty assessment',
+	'novelty evaluation', 'novelty determination', 'novelty conclusion', 'freedom to operate',
+];
+
+/**
+ * What a Find Better report additionally must not say: it compares disclosed-element counts and
+ * states no invalidity, anticipation or obviousness (ADR 0010).
+ */
+const FIND_BETTER_CONCLUSION_PHRASES: readonly string[] = ['invalid', 'invalidates', 'invalidated', 'invalidating', 'invalidity', 'obvious'];
+
+/**
+ * The assertive forms an invalidity chart refuses outright (ADR 0016 decision 4: the chart states
+ * what each document discloses; the legal reading stays in the practitioner's prose). Unlike the
+ * noun forms above, which honest disclaimers also use, these only ever state a conclusion.
+ */
+const ASSERTIVE_CONCLUSION_PHRASES: readonly string[] = ['is obvious', 'are obvious', 'obvious over', 'would have been obvious', 'anticipates', 'anticipated by', 'is not novel', 'are not novel'];
+
+/**
+ * Report the legal conclusions written into model-supplied prose. A disclaimer of the form
+ * "does not establish novelty" is the opposite of a conclusion, so a match whose preceding 60
+ * characters disclaim establishment is exempt.
+ */
+function legalConclusions(fields: readonly (readonly [string, string | undefined])[], phrases: readonly string[] = LEGAL_CONCLUSION_PHRASES): string[] {
+	const findings: string[] = [];
+	for (const [field, value] of fields) {
+		if (!value) { continue; }
+		for (const phrase of phrases) {
+			const pattern = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}\\b`, 'gi');
+			for (const match of value.matchAll(pattern)) {
+				const start = match.index ?? 0;
+				// A disclaimer ("does not establish novelty", "no assessment of anticipation or obviousness is
+				// made", "does not constitute a patentability opinion") is the opposite of a conclusion.
+				const preceding = value.slice(Math.max(0, start - 80), start);
+				if (/\b(?:no|not|never|without)\b(?:\s+\S+){0,3}\s+(?:establish|assess|determin|constitut|evaluat|address|opin|conclud|provid|offer|render|reach|decid|form|impl|represent|draw|mak|made|claim|purport|intend)\w*/i.test(preceding) || /\b(?:no|not)\s+$/i.test(preceding)) { continue; }
+				// A sentence that defers the question to counsel, or disclaims being a legal opinion, is
+				// likewise not a conclusion ("conclusions on novelty should be confirmed by patent counsel").
+				const sentenceStart = Math.max(value.lastIndexOf('.', start - 1), value.lastIndexOf(';', start - 1), value.lastIndexOf('\n', start - 1)) + 1;
+				const sentenceEndIndex = [value.indexOf('.', start), value.indexOf(';', start), value.indexOf('\n', start)].filter(index => index >= 0);
+				const sentence = value.slice(sentenceStart, sentenceEndIndex.length ? Math.min(...sentenceEndIndex) : value.length);
+				if (/\b(?:counsel|attorney|legal (?:question|opinion|advice|determination))\b|\bnot (?:a|an)\b[^.;]{0,60}\bopinion\b/i.test(sentence)) { continue; }
+				findings.push(`"${match[0]}" in ${field}`);
+			}
+		}
+	}
+	return findings;
+}
+
+/** A retrieved document with the recorded facts every automatic disclosure is generated from. */
+interface RetrievedDocument {
+	readonly publication: string;
+	readonly publicationDate: string;
+	readonly publicationTitle: string;
+	/**
+	 * Sections whose text was actually recorded, so an empty retrieval is not reported as available,
+	 * followed by the recorded drawing pages: a figure is not text and is listed as what it is.
+	 */
+	readonly sectionsWithText: readonly string[];
+	/** Claims language, else description language, else `unrecorded`; never inferred from the text. */
+	readonly language: string;
+	/** Where the recorded text came from: `official`, `web (<host>)`, both, or `—` when no text was recorded. */
+	readonly textSource: string;
+	readonly cited: boolean;
+}
+
+/** Anchors the model put in coverage, by either sourceAnchors or evidence. */
+function citedAnchors(review: PatentCandidateReview): Set<string> {
+	return new Set((review.coverage ?? []).flatMap(row => [...(row.sourceAnchors ?? []), ...(row.evidence ?? []).map(item => item.anchor)]));
+}
+
+/** Inventory of documents a succeeded detail or figure retrieval brought into the session. */
+function retrievedDocuments(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot): readonly RetrievedDocument[] {
+	const cited = citedAnchors(review);
+	interface DocumentRecord { date?: string; title?: string; sections: Set<string>; figurePages: Set<number>; languages: Map<string, string>; official: boolean; webHosts: Set<string>; cited: boolean }
+	// The backend echoes ids as `EP0983762.A1` while source references carry `EP0983762A1`, and a
+	// figure anchor may carry no kind code at all (`US4935850:figure:2` beside `US4935850A`). Each
+	// names one publication (#729), so records are keyed and shown by the publication its spelling
+	// names; an A1 and a B1 of one number stay two records with two dates.
+	const retrievals = snapshot.executions.filter(execution => (execution.kind === 'details' || execution.kind === 'figures') && execution.status === 'succeeded' && (execution.kind !== 'figures' || !!execution.sources?.length));
+	const identities = publicationIdentities(retrievals.flatMap(execution => [...(execution.publicationIds ?? []), ...(execution.sources ?? []).map(source => source.reference.publicationNumber)]));
+	const documents = new Map<string, DocumentRecord>();
+	const entry = (publication: string): DocumentRecord => {
+		const key = identities.get(publicationKey(publication)) ?? publicationKey(publication);
+		const existing = documents.get(key);
+		if (existing) { return existing; }
+		const created: DocumentRecord = { sections: new Set<string>(), figurePages: new Set<number>(), languages: new Map<string, string>(), official: false, webHosts: new Set<string>(), cited: false };
+		documents.set(key, created);
+		return created;
+	};
+	// A drawing retrieval brings a document into the session exactly as a text retrieval does; what it
+	// records is pages, not passages. A figures call that returned no drawing retrieved nothing: the
+	// record keeps the call as an audit fact, but an inventory of retrieved documents must not list
+	// it, and the count of retrieved-but-uncited documents must not hold a document no page was ever
+	// returned for.
+	for (const execution of retrievals) {
+		for (const publication of execution.publicationIds ?? []) {
+			const document = entry(publication);
+			document.date ??= execution.publicationDate;
+			document.title ??= execution.publicationTitle;
+		}
+		for (const source of execution.sources ?? []) {
+			const document = entry(source.reference.publicationNumber);
+			if (source.figure) { document.figurePages.add(source.figure.page); }
+			else if (source.text?.trim()) {
+				document.sections.add(source.reference.section);
+				// The text-source column is about full text: an abstract on the bibliography says nothing about it.
+				if (source.reference.section === 'claims' || source.reference.section === 'description') {
+					if (source.textSource === 'web') { document.webHosts.add(webPageHost(source.url)); } else { document.official = true; }
+				}
+			}
+			if (source.language && !document.languages.has(source.reference.section)) { document.languages.set(source.reference.section, source.language); }
+			if (cited.has(source.anchor)) { document.cited = true; }
+		}
+	}
+	return [...documents].map(([publication, document]) => ({
+		publication,
+		publicationDate: document.date ?? 'Unknown',
+		publicationTitle: document.title ?? 'Unknown',
+		sectionsWithText: [...document.sections, ...(document.figurePages.size ? [`figures (${document.figurePages.size === 1 ? 'page' : 'pages'} ${pageRuns([...document.figurePages])})`] : [])],
+		language: document.languages.get('claims') ?? document.languages.get('description') ?? 'unrecorded',
+		textSource: [...(document.official ? ['official'] : []), ...[...document.webHosts].sort().map(host => `web (${host})`)].join('; ') || '—',
+		cited: document.cited,
+	}));
+}
+
+/** Recorded drawing pages as contiguous runs, so eight pages read as `3-10` rather than as a list. */
+function pageRuns(pages: readonly number[]): string {
+	const sorted = [...new Set(pages)].sort((first, second) => first - second);
+	const runs: string[] = [];
+	for (let index = 0; index < sorted.length;) {
+		let end = index;
+		while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) { end++; }
+		runs.push(sorted[index] === sorted[end] ? `${sorted[index]}` : `${sorted[index]}-${sorted[end]}`);
+		index = end + 1;
+	}
+	return runs.join(', ');
+}
+
+/** A recorded language that is neither English nor absent; only such text needs a translation notice. */
+function untranslated(document: RetrievedDocument): boolean {
+	return document.language !== 'unrecorded' && !/^en$/i.test(document.language);
+}
+
+/** CQL classification fields (`ic`, `cpc`, `cl`) plus the plain code names a query may spell out. */
+const CLASSIFICATION_QUERY = /\b(?:cpc|ipc|cpci)\b|\b(?:ic|cl)\s*[=:]/i;
+
+/** Below this many characters an element fragment matches too much text to prove disclosure. */
+const WEAK_FRAGMENT_LENGTH = 12;
+
+/**
+ * Limitations the report states on its own behalf, generated from the execution record rather than
+ * supplied by the model, so an undisclosed gap cannot survive the writer's own summary.
+ */
+function automaticLimitations(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot, documents: readonly RetrievedDocument[]): string[] {
+	const lines: string[] = [];
+	const jurisdictions = searchedJurisdictions(snapshot);
+	const outside = documents.filter(document => outsideScope(document.publication, jurisdictions));
+	if (outside.length) {
+		lines.push(`Outside the searched jurisdictions (${jurisdictions.join(', ')}): ${outside.map(document => document.publication).join(', ')}. These were reached through cited references or direct retrieval, not through the scoped search; findings that rest on them are outside the confirmed scope unless the scope is widened.`);
+	}
+	const uncited = documents.filter(document => !document.cited);
+	if (uncited.length) {
+		lines.push(`${uncited.length} of ${documents.length} retrieved documents are not cited in any coverage row; their text was available locally and was not reviewed for this report.`);
+	}
+	const foreign = documents.filter(untranslated);
+	if (foreign.length) {
+		lines.push(`Retrieved text is not in English for ${foreign.map(document => `${document.publication} (${document.language})`).join(', ')}; any quotation or reading of those documents in this report is the model's own translation and was not independently verified.`);
+	}
+	const sources = sourceIndex(snapshot);
+	const cited = citedAnchors(review);
+	if (cited.size && ![...cited].some(anchor => sources.get(anchor)?.reference.section === 'description')) {
+		const retrieved = documents.filter(document => document.sectionsWithText.includes('description')).map(document => document.publication);
+		lines.push(`No description passage is cited; every finding rests on claim text only. Descriptions were retrieved for: ${retrieved.join(', ') || 'none'}.`);
+	}
+	const searches = searchExecutions(snapshot);
+	// Numbered over the succeeded searches only, in searchSets()'s own order, so "Search set N" names
+	// row N of the client report's table; a failed or cancelled execution earns no number there.
+	const succeededSearches = searches.filter(execution => execution.status === 'succeeded');
+	const tails = succeededSearches.flatMap((execution, index) => execution.total !== undefined && execution.returned !== undefined && execution.total > execution.returned
+		? [`Search set ${index + 1} returned ${execution.returned} of ${execution.total} matches; the remaining ${execution.total - execution.returned} were not retrieved.`]
+		: []);
+	if (tails.length) { lines.push(tails.join(' ')); }
+	const unrun = unretriedQueries(snapshot);
+	if (unrun.length) {
+		lines.push(`${unrun.length} search(es) could not be run and were not retried: ${unrun.join('; ')}. Coverage those queries would have tested is missing from this report.`);
+	}
+	// Only a search that ran covered a class; an attempt that failed covered nothing, so it cannot
+	// suppress the warning that the recorded coverage rests on keywords alone.
+	if (succeededSearches.length && !succeededSearches.some(execution => CLASSIFICATION_QUERY.test(execution.effectiveQuery ?? execution.query ?? ''))) {
+		lines.push('No classification-code (CPC/IPC) query was recorded; the search relied on keywords only.');
+	}
+	const weak = (review.coverage ?? []).filter(row => row.status !== 'unresolved').flatMap(row => (row.elements ?? [])
+		.filter(element => element.disclosedBy !== undefined && element.disclosedBy.trim().length < WEAK_FRAGMENT_LENGTH)
+		.map(element => `${row.feature} / ${element.element}`));
+	if (weak.length) {
+		lines.push(`Element fragments under ${WEAK_FRAGMENT_LENGTH} characters: ${weak.join(', ')}; short fragments prove little.`);
+	}
+	if ((review.coverage ?? []).some(row => (row.elements ?? []).some(element => figurePage(element, sources) !== undefined))) {
+		lines.push('Findings marked "rests on a drawing reading" rest on the model\'s reading of a retrieved figure, not on quoted text; a drawing discloses arrangement, never dimensions unless stated to scale.');
+	}
+	const webRows = (review.coverage ?? []).map(row => webSourcesOf(row, sources)).filter(cited => cited.length);
+	if (webRows.length) {
+		const publications = [...new Set(webRows.flat().map(cited => cited.publication))].sort();
+		lines.push(`${webRows.length} ${webRows.length === 1 ? 'row rests' : 'rows rest'} on web page text, not official full text: ${publications.join(', ')}. Confirm each against the official full text or a certified copy before use.`);
+	}
+	return lines;
+}
+
+/** A structured critical date must be an ISO date that exists, or be left out. */
+function criticalDateErrors(review: PatentCandidateReview): string[] {
+	const value = review.criticalDate?.trim();
+	if (!value) { return []; }
+	return isoDate(value) === value ? [] : [`criticalDate "${value}" is not an ISO date. Give it as YYYY-MM-DD (for example 2005-03-01), or leave criticalDate out and keep the basis in prose.`];
+}
+
+/** A recorded date as `YYYY-MM-DD`: the ledger holds `2008-07-16` or `20080716`; anything else is unknown. */
+function isoDate(value: string | undefined): string | undefined {
+	const match = /^(?<year>\d{4})-?(?<month>\d{2})-?(?<day>\d{2})/.exec(value?.trim() ?? '')?.groups;
+	if (!match) { return undefined; }
+	const date = `${match.year}-${match.month}-${match.day}`;
+	const parsed = new Date(`${date}T00:00:00Z`);
+	return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date ? date : undefined;
+}
+
+/**
+ * The open points of a saved invalidity chart (ADR 0016 amendment, PRD 0024 C4), read from the record
+ * and never from the model, in a stable order the Round Report numbers: rungs partly disclosed or not
+ * found; independent-claim elements not found; cited documents outside the searched jurisdictions;
+ * cited documents published after the structured critical date, or with no recorded date when one is
+ * given; rows that rest on a drawing reading; documents whose cited text is a web page, not official
+ * full text (#750); searches that failed and did not run again. Each has a short id that a Search
+ * Round's `answers` names.
+ * @param review - the candidate review as the model supplied it.
+ * @param snapshot - the session's recorded executions.
+ * @returns the derived value.
+ */
+export function chartOpenPoints(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot): readonly ReceiptOpenPoint[] {
+	const rows = review.coverage ?? [];
+	const references = rowReferences(review);
+	const sources = sourceIndex(snapshot);
+	const points: ReceiptOpenPoint[] = [...rowOpenPoints(review)];
+	const challenged = review.challengedPublication?.trim();
+	const cited = retrievedDocuments(review, snapshot).filter(document => document.cited && (!challenged || documentKey(document.publication) !== documentKey(challenged)))
+		.sort((first, second) => first.publication.localeCompare(second.publication));
+	const jurisdictions = searchedJurisdictions(snapshot);
+	for (const document of cited.filter(document => outsideScope(document.publication, jurisdictions))) {
+		points.push({ id: `scope-${document.publication}`, text: `Cited document ${document.publication} is outside the searched jurisdictions (${jurisdictions.join(', ')}).` });
+	}
+	const criticalDate = isoDate(review.criticalDate);
+	if (criticalDate) {
+		for (const document of cited) {
+			const published = isoDate(document.publicationDate);
+			if (!published) { points.push({ id: `date-${document.publication}`, text: `Cited document ${document.publication} has no recorded publication date, so it was not compared with the critical date ${criticalDate}.` }); }
+			else if (published > criticalDate) { points.push({ id: `date-${document.publication}`, text: `Cited document ${document.publication} was published on ${published}, after the critical date ${criticalDate}.` }); }
+		}
+	}
+	rows.forEach((row, index) => {
+		const suffix = drawingReadingSuffix(row, sources);
+		if (suffix) { points.push({ id: `drawing-${references[index]}`, text: `The row ${suffix.includes('in part') ? 'rests in part on a drawing reading' : 'rests on a drawing reading'}, not on quoted text: ${shortPhrase(row.feature)}` }); }
+	});
+	points.push(...webSourceOpenPoints(review, sources));
+	unretriedQueries(snapshot).forEach((query, index) => points.push({ id: `search-${index + 1}`, text: `A search failed and did not run again: ${shortPhrase(query)}` }));
+	return points;
+}
+
+/** The working record's list of the open points the receipt states, so a later session sees what the expert was asked. */
+function openPointsSection(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot): string[] {
+	const points = chartOpenPoints(review, snapshot);
+	const date = isoDate(review.criticalDate);
+	return ['## Open points (generated)',
+		`Computed by the writer from the record. The Round Report asks the expert about each one, in this order. ${date ? `Critical date: ${date}.` : 'No structured critical date was given, so the publication dates of the cited documents were not checked.'}`,
+		...(points.length ? points.map(point => `- [${point.id}] ${inline(point.text)}`) : ['No open points.']),
+		''];
+}
+
+/** The recorded searches, in the order they were run; the client report shows only the succeeded ones. */
+function searchExecutions(snapshot: PatentExecutionSnapshot): readonly PatentExecution[] {
+	return snapshot.executions.filter(execution => execution.kind === 'search');
+}
+
+/** The query text a failed record is named by, so a search that never ran can still be reported. */
+function requestedQuery(execution: PatentExecution): string {
+	return execution.query?.trim() || 'query not recorded';
+}
+
+/** The feature a search said it tests, once trimmed; absent when the model named none. */
+function searchPurpose(execution: PatentExecution): string | undefined {
+	return execution.purpose?.trim() || undefined;
+}
+
+/**
+ * The distinct queries that failed or were cancelled and never ran successfully afterwards, each
+ * named by the feature it was meant to test when the model stated one. A query whose identical text
+ * later succeeded was retried, so it costs no coverage and is not reported.
+ */
+function unretriedQueries(snapshot: PatentExecutionSnapshot): readonly string[] {
+	const searches = searchExecutions(snapshot);
+	const succeeded = new Set(searches.filter(execution => execution.status === 'succeeded').map(requestedQuery));
+	// Keyed on the query text, so one query attempted twice is one missing coverage entry; the first
+	// stated purpose wins, and a later attempt that names one fills a gap the first attempt left.
+	const unretried = new Map<string, string | undefined>();
+	for (const execution of searches) {
+		const query = requestedQuery(execution);
+		if (execution.status === 'succeeded' || succeeded.has(query)) { continue; }
+		const purpose = searchPurpose(execution);
+		if (!unretried.has(query) || (purpose && !unretried.get(query))) { unretried.set(query, purpose); }
+	}
+	return [...unretried].map(([query, purpose]) => purpose ? `${purpose} (${query})` : query);
+}
+
+/** Anchor to recorded source, the single index every pass over a snapshot shares; official text wins over web text. */
+function sourceIndex(snapshot: PatentExecutionSnapshot): Map<string, PatentEvidenceSource> {
+	return evidenceSourceIndex(snapshot.executions.flatMap(execution => execution.sources ?? []));
+}
+
+/** The label under a row that rests on web page text, one line per host (PRD 0024 A8, #750). */
+function webSourceNotes(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>): string[] {
+	return [...new Set(webSourcesOf(row, sources).map(cited => cited.host))].map(host => `Source: web page (${host}), not official full text. Confirm against the original before use.`);
+}
+
+/**
+ * The official-text anchor of each publication section the record holds, keyed on the full
+ * publication number and the section, so a web anchor cited where official text exists can be
+ * pointed at the official one.
+ */
+function officialTextAnchors(sources: Map<string, PatentEvidenceSource>): Map<string, string> {
+	const anchors = new Map<string, string>();
+	for (const source of sources.values()) {
+		if (source.textSource === 'web' || source.figure || !source.text?.trim() || source.reference.claimNumber) { continue; }
+		anchors.set(`${publicationKey(source.reference.publicationNumber)}:${source.reference.section}`, source.anchor);
+	}
+	return anchors;
+}
+
+/**
+ * The official anchor that shadows a web source: the same publication (kind code included) and
+ * section. A web number without a kind code names the document, so any publication of it counts;
+ * a web `EP1809422B1` is never shadowed by an official `EP1809422A1`, whose claims differ.
+ */
+function shadowingOfficialAnchor(official: Map<string, string>, publication: string, section: string): string | undefined {
+	if (hasKindCode(publication)) { return official.get(`${publicationKey(publication)}:${section}`); }
+	for (const [key, anchor] of official) {
+		const [recorded, recordedSection] = key.split(':');
+		if (recordedSection === section && documentKey(recorded) === documentKey(publication)) { return anchor; }
+	}
+	return undefined;
+}
+
+/** Collapse runs of whitespace so a line-wrapped passage still contains its quoted fragment. */
+function normalizeText(value: string): string {
+	return value.replace(/\s+/g, ' ').trim();
+}
+
+/** `EP0983762.A1` and `EP0983762A1` name one document; both reduce to the same key. */
+function publicationKey(publication: string): string {
+	return publication.replace(/[-.\s/]/g, '').toUpperCase();
+}
+
+/**
+ * The office that published a document. Both the ledger's dotted ids and its source references
+ * start with the two-letter country code, so it is read rather than inferred.
+ * @param publication - the publication number.
+ * @returns the derived value.
+ */
+export function publicationCountry(publication: string): string {
+	return publicationKey(publication).slice(0, 2);
+}
+
+/**
+ * The jurisdictions the recorded searches were actually scoped to: the union of the country filters
+ * the succeeded searches applied, falling back to the two-letter codes of the requested countries
+ * when no effective filter was recorded. An empty result means no jurisdiction scope was applied,
+ * so no document can be reported as lying outside one.
+ * @param snapshot - the session's recorded executions.
+ * @returns the derived value.
+ */
+export function searchedJurisdictions(snapshot: PatentExecutionSnapshot): readonly string[] {
+	const codes = new Set<string>();
+	for (const execution of snapshot.executions) {
+		if (execution.kind !== 'search' || execution.status !== 'succeeded') { continue; }
+		const requested = [...(execution.requestedCountries ?? '').matchAll(/[A-Za-z]{2}/g)].map(match => match[0]);
+		for (const code of execution.countryFilter?.length ? execution.countryFilter : requested) {
+			const normalized = code.trim().toUpperCase();
+			if (/^[A-Z]{2}$/.test(normalized)) { codes.add(normalized); }
+		}
+	}
+	return [...codes].sort();
+}
+
+/** A document reached outside the confirmed search scope; never true when no scope was applied. */
+function outsideScope(publication: string, jurisdictions: readonly string[]): boolean {
+	return jurisdictions.length > 0 && !jurisdictions.includes(publicationCountry(publication));
+}
+
+/**
+ * Publications a row's own anchors resolve to that lie outside the searched jurisdictions, so a
+ * finding resting on a document the scoped search never covered says so under the row itself.
+ */
+function rowScopeNotes(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>, jurisdictions: readonly string[]): string[] {
+	if (!jurisdictions.length) { return []; }
+	const publications: string[] = [];
+	for (const anchor of [...(row.sourceAnchors ?? []), ...(row.evidence ?? []).map(item => item.anchor)]) {
+		const publication = sources.get(anchor)?.reference.publicationNumber;
+		if (publication && outsideScope(publication, jurisdictions)) { publications.push(publication); }
+	}
+	return distinctPublications(publications).map(publication => `Scope note (generated): ${publication} is outside the searched jurisdictions (${jurisdictions.join(', ')}).`);
+}
+
+type PatentCoverageRow = NonNullable<PatentCandidateReview['coverage']>[number];
+type PatentCoverageElement = NonNullable<PatentCoverageRow['elements']>[number];
+
+/** An element claims disclosure once either locator is present; a bare topic match claims neither. */
+function claimsDisclosure(element: PatentCoverageElement): boolean {
+	return Boolean(element.anchor?.trim() || element.disclosedBy?.trim() || element.reading?.trim());
+}
+
+/**
+ * The recorded drawing page an element rests on: it must say it rests on one and the page must be a
+ * recorded figure source, so the report never promises a drawing the audit does not hold.
+ */
+function figurePage(element: PatentCoverageElement, sources: Map<string, PatentEvidenceSource>): number | undefined {
+	return element.basis === 'figure' && element.anchor ? sources.get(element.anchor)?.figure?.page : undefined;
+}
+
+/**
+ * What a drawing reading may not state: a number with a unit, a ratio of two numbers, or a word of
+ * proportion. A drawing discloses that an element exists and how the parts are arranged, never a
+ * dimension or a ratio unless it is stated to be to scale (MPEP 2125), so such a reading is rejected
+ * unless the same reading says the drawing is to scale. The unit list holds no bare `in` and no bare
+ * `m`, and the approximation words hold no `about`: a reading names parts by reference numeral, so
+ * "the cam 12 in engagement with the lever" and "pivots about pin 14" are ordinary prose, not
+ * measurements, and rejecting them would cost more honest readings than the unit catches.
+ */
+const FIGURE_MEASUREMENT = /\d+(?:[.,]\d+)?\s*(?:(?:mm|cm|nm|\u00b5m|um|inches|inch|degrees|deg)\b|[\u00b0%])|\d+\s*:\s*\d+|\b(?:ratio|proportion|proportional|twice|half the|times the)\b|\b(?:approximately|roughly)\s+\d/i;
+
+/** A reading that states the drawing is to scale may state what the drawing is drawn to. */
+const DRAWN_TO_SCALE = /\bto scale\b/i;
+
+/**
+ * Check one element's locators against the recorded text, so "supported" rests on a fragment that
+ * actually exists in a cited passage rather than on a passage that merely shares the topic.
+ */
+function elementDisclosureErrors(row: PatentCoverageRow, element: PatentCoverageElement, sources: Map<string, PatentEvidenceSource>): string[] {
+	const errors: string[] = [];
+	const anchor = element.anchor?.trim();
+	const fragment = element.disclosedBy?.trim();
+	if (anchor && sources.get(anchor)?.figure) {
+		return [`Element "${element.element}" of "${row.feature}" cites ${anchor}, a recorded drawing page, as text. A drawing has no quotable text: cite it with basis: figure and a reading of what the figure clearly shows, and no disclosedBy.`];
+	}
+	if (!anchor || !fragment) {
+		errors.push(`Element "${element.element}" of "${row.feature}" cites ${anchor ? 'no literal fragment' : 'no source anchor'}. Give both the anchor and a literal fragment of its recorded text, or omit both and name the element in the gap.`);
+		return errors;
+	}
+	if (!(row.sourceAnchors ?? []).includes(anchor)) {
+		errors.push(`Element "${element.element}" of "${row.feature}" cites ${anchor}, which is not one of that row's sourceAnchors. Cite one of: ${(row.sourceAnchors ?? []).join(', ') || 'none listed'}.`);
+		return errors;
+	}
+	const source = sources.get(anchor);
+	if (!source?.text) {
+		errors.push(`Recorded text for ${anchor} is an older record; retrieve once with get_claims or get_description for that publication so the fragment for element "${element.element}" can be checked.`);
+		return errors;
+	}
+	if (!normalizeText(source.text).toLowerCase().includes(normalizeText(fragment).toLowerCase())) {
+		errors.push(`disclosedBy "${fragment}" for element "${element.element}" is not found in the recorded text of ${anchor}; copy a literal fragment from the get_claims or get_description result.`);
+	}
+	return errors;
+}
+
+/**
+ * Check one element that rests on a drawing. The anchor must be a recorded figure page of this row,
+ * the reading must say what the drawing shows, and it must not state a dimension or a proportion the
+ * drawing does not disclose.
+ */
+function figureElementErrors(row: PatentCoverageRow, element: PatentCoverageElement, sources: Map<string, PatentEvidenceSource>): string[] {
+	const anchor = element.anchor?.trim();
+	const reading = element.reading?.trim();
+	if (!anchor || !reading) {
+		return [`Element "${element.element}" of "${row.feature}" rests on a drawing but ${anchor ? 'states no reading' : 'cites no figure anchor'}. Give the PUB:figure:N anchor printed by get_patent_figures and a reading of what the drawing clearly shows, or drop basis: figure and cite a literal fragment of recorded text.`];
+	}
+	if (element.disclosedBy?.trim()) {
+		return [`Element "${element.element}" of "${row.feature}" rests on a drawing, so it carries no disclosedBy: a figure has no quotable text. Keep the reading and remove disclosedBy.`];
+	}
+	if (!(row.sourceAnchors ?? []).includes(anchor)) {
+		return [`Element "${element.element}" of "${row.feature}" cites ${anchor}, which is not one of that row's sourceAnchors. Cite one of: ${(row.sourceAnchors ?? []).join(', ') || 'none listed'}.`];
+	}
+	if (!sources.get(anchor)?.figure) {
+		return [`Element "${element.element}" of "${row.feature}" cites ${anchor}, which is not a recorded drawing page. Retrieve the drawing once with get_patent_figures(publicationNumber) and cite the PUB:figure:N anchor it prints.`];
+	}
+	if (FIGURE_MEASUREMENT.test(reading) && !DRAWN_TO_SCALE.test(reading)) {
+		return [`Reading "${reading}" for element "${element.element}" states a measurement or proportion. A drawing does not disclose dimensions, proportions or ratios unless it is stated to be to scale (MPEP 2125); state only what the figure clearly shows.`];
+	}
+	return [];
+}
+
+/**
+ * The phrase a row's gap states the reason with when no drawing can settle it. The model states the
+ * reason and the writer never infers it: a writer that decided for itself that a subject is a
+ * composition, or that drawings cannot matter here, would excuse exactly the rows the gate exists
+ * to catch.
+ */
+export const FIGURES_NOT_CONSULTED = 'figures not consulted:';
+
+/** Below this many characters after the phrase, the gap names the escape without stating a reason. */
+const FIGURES_REASON_LENGTH = 10;
+
+/** How many retrieved candidates the gate names before it stops listing them. */
+const FIGURES_CANDIDATE_CAP = 12;
+
+/** Where a saved drawing belongs in a project folder, so a cited page is on disk beside the report. */
+const FIGURES_SAVE_DIR = 'references/figures';
+
+/**
+ * The documents whose drawings could have been read: every distinct publication a succeeded detail
+ * retrieval brought into the session, in the order they were retrieved. The closest candidate is as
+ * often the last one retrieved as the first, so the list is capped rather than trimmed to a guess.
+ * With no succeeded retrieval there is no candidate to name and no gate: a model told to fetch the
+ * drawings of nothing at all could only invent a reason for not having read them.
+ */
+function figureCandidates(snapshot: PatentExecutionSnapshot): string | undefined {
+	const publications = distinctPublications(snapshot.executions
+		.filter(execution => execution.kind === 'details' && execution.status === 'succeeded')
+		.flatMap(execution => execution.publicationIds?.[0] ? [execution.publicationIds[0]] : []));
+	if (!publications.length) { return undefined; }
+	const listed = publications.slice(0, FIGURES_CANDIDATE_CAP).join(', ');
+	return publications.length > FIGURES_CANDIDATE_CAP ? `${listed}, and ${publications.length - FIGURES_CANDIDATE_CAP} more in the working record` : listed;
+}
+
+/**
+ * Refuse an essential unresolved feature row while no drawing of any retrieved document was read in
+ * this session. A drawing can disclose a structural feature the text never states (MPEP 2125), so
+ * "not found" is an unchecked claim until the drawings of the closest candidates were looked at. The
+ * row escapes only by stating the reason itself after {@link FIGURES_NOT_CONSULTED}, anywhere in the
+ * gap: the model states the reason, the writer never infers it. A combination row is a reading of the
+ * other rows rather than of a document, and an optional feature is not worth a retrieval, so neither
+ * is gated. A row whose `kind` was left out is gated like a feature, because only an explicit
+ * combination is exempt.
+ */
+function figuresGateError(row: PatentCoverageRow, candidates: string): string[] {
+	if (row.importance !== 'essential' || row.status !== 'unresolved' || row.kind === 'combination') { return []; }
+	const gap = row.gap ?? '';
+	const stated = gap.toLowerCase().indexOf(FIGURES_NOT_CONSULTED);
+	if (stated >= 0 && gap.slice(stated + FIGURES_NOT_CONSULTED.length).trim().length >= FIGURES_REASON_LENGTH) { return []; }
+	return [`Row "${row.feature}" is essential and unresolved, but no drawing of any retrieved document was read this session. A drawing can disclose a structural feature the text does not (MPEP 2125). Either call get_patent_figures on the closest candidates — retrieved this session: ${candidates} — with saveDir: "${FIGURES_SAVE_DIR}" so the drawing is saved beside the report, and cite what they clearly show with basis: figure, or state in this row's gap why drawings cannot help, with the phrase "${FIGURES_NOT_CONSULTED}" followed by the reason (for example a composition or process subject).`];
+}
+
+/**
+ * Enforce the element map: a supported row discloses every element by cited text or by a recorded
+ * drawing, a partial row discloses some and names the rest, and a supported combination rests on a
+ * single publication.
+ */
+function elementMapErrors(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>): string[] {
+	if (row.status === 'unresolved') { return []; }
+	const elements = row.elements ?? [];
+	if (!elements.length) {
+		return [`Coverage for "${row.feature}" is marked ${row.status} but lists no elements. List each constituent the feature requires with the literal fragment of cited text that discloses it; an element without a fragment makes the row partial at most.`];
+	}
+	const errors: string[] = [];
+	for (const element of elements) {
+		if (!element.element?.trim()) { errors.push(`Every element of "${row.feature}" needs the constituent it names.`); continue; }
+		if (row.status === 'supported' && !claimsDisclosure(element)) {
+			errors.push(`Element "${element.element}" of "${row.feature}" is not disclosed by any cited text, so the row cannot be supported. Either cite the passage that discloses it (anchor + literal fragment) or mark the row partial and name the missing element in the gap.`);
+			continue;
+		}
+		if (row.status === 'supported' || claimsDisclosure(element)) { errors.push(...(element.basis === 'figure' ? figureElementErrors(row, element, sources) : elementDisclosureErrors(row, element, sources))); }
+	}
+	if (row.status === 'partial') {
+		const disclosed = elements.filter(claimsDisclosure).length;
+		if (disclosed === elements.length) { errors.push(`Every element of "${row.feature}" is disclosed. Either mark the row supported, or keep it partial and ADD one element naming what the cited text does not disclose (the missing part of a range, an unmet qualifier, a constituent) with no anchor and no disclosedBy; do not remove the disclosed elements.`); }
+		if (!disclosed) { errors.push(`No element of "${row.feature}" is disclosed by cited text. Either mark the row unresolved, or keep it partial and give at least one element an anchor and a literal disclosedBy fragment; a partial row needs both a disclosed and an undisclosed element.`); }
+	}
+	if (row.kind === 'combination' && row.status === 'supported') {
+		const publications = distinctPublications(elements.flatMap(element => {
+			const publication = element.anchor ? sources.get(element.anchor)?.reference.publicationNumber : undefined;
+			return publication ? [publication] : [];
+		}));
+		if (publications.length > 1) { errors.push(`Elements of "${row.feature}" are disclosed by ${publications.join(' and ')}: separate documents do not establish the combination; mark partial and say which document lacks which element.`); }
+	}
+	return errors;
+}
+
+/**
+ * Numbered claims can be copied from the ledger instead of transcribed by the model.
+ * @param review - the candidate review as the model supplied it.
+ * @param snapshot - the session's recorded executions.
+ * @returns the result.
+ */
+export function materializeCandidateReview<T extends PatentCandidateReview>(review: T, snapshot: PatentExecutionSnapshot): T {
+	const sources = sourceIndex(snapshot);
+	const materialize = (evidence: readonly PatentCoverageEvidence[] | undefined) => evidence?.map(item => {
+		const source = sources.get(item.anchor);
+		if (!source?.reference.claimNumber || !source.text) { return item; }
+		// A numbered claim is always rendered whole: an omitted quote is copied from the record, and a
+		// partial quotation that lies inside the claim expands to the whole claim instead of being rejected.
+		const partial = !!item.quote?.trim() && normalizeText(source.text).includes(normalizeText(item.quote));
+		return { ...item, quote: !item.quote?.trim() || partial ? source.text : item.quote };
+	});
+	// A find-better row's two sides are rows of their own as far as quotation goes.
+	const side = (value: FindBetterSide | undefined) => value && { ...value, evidence: materialize(value.evidence) };
+	return { ...review, coverage: review.coverage?.map(row => ({ ...row, evidence: materialize(row.evidence), ...(row.examiner ? { examiner: side(row.examiner) } : {}), ...(row.found ? { found: side(row.found) } : {}) })) };
+}
+
+/**
+ * Validate explicit review structure and anchor identity, not the truth or entailment of prose.
+ * @param sided - the review with Find Better rows still two-sided.
+ * @param snapshot - the session's recorded executions.
+ * @param citedText - every model-written field joined, for the citation scan.
+ * @param variant - which structured report is being produced.
+ * @returns the result.
+ */
+export function validateCandidateReview(sided: PatentCandidateReview, snapshot: PatentExecutionSnapshot, citedText = '', variant: CandidateReviewVariant = 'prior-art'): string[] {
+	const errors: string[] = [];
+	const sources = sourceIndex(snapshot);
+	const anchors = new Set(sources.keys());
+	const officialAnchors = officialTextAnchors(sources);
+	if (sided.content?.trim()) { errors.push(`For ${variant === 'invalidity' ? 'invalidity-claim-chart with coverage' : variant === 'find-better' ? 'find-better-report' : 'prior-art-report'}, content must be empty. Put source evidence and gaps in coverage; the writer generates the assessment so a separate narrative or matrix cannot contradict downgraded statuses.`); }
+	if (variant === 'find-better') { errors.push(...findBetterErrors(sided, sources)); }
+	if (variant === 'invalidity') { errors.push(...fallbackLadderErrors(sided, snapshot, sources), ...assertiveConclusionErrors(sided), ...criticalDateErrors(sided)); }
+	// Each side of a find-better row is checked as a row of its own; every other review is unchanged.
+	const review = flattenSides(sided);
+	// Only application-owned source URLs are checked; external citations and semantic assertions need review.
+	// The match stops before trailing prose punctuation and closers, so a sentence-final period or a
+	// surrounding bracket is not read as part of the claim number.
+	for (const match of citedText.matchAll(/[a-z][a-z0-9+.-]*:\/\/flowleap\.patent-ai\/patent\?[^\s)>\]}"'`]*[^\s)>\]}"'`.,;:!?]/gi)) {
+		const url = new URL(match[0]);
+		const reference = parsePatentDocumentReference({ publicationNumber: url.searchParams.get('publication'), section: url.searchParams.get('section'), ...(url.searchParams.has('claim') ? { claimNumber: url.searchParams.get('claim') } : {}) });
+		const known = reference && snapshot.executions.some(execution => execution.sources?.some(source => source.reference.publicationNumber === reference.publicationNumber && source.reference.section === reference.section && source.reference.claimNumber === reference.claimNumber));
+		if (!known) { errors.push(`Unresolved patent reader citation: ${match[0]}. Retrieve the exact section/claim or remove the unsupported citation.`); }
+	}
+	if (!review.coverage?.length) { errors.push('Supply coverage for essential features and their combination, including unresolved tracks.'); }
+	// Whether a drawing was read at all is a fact of the session, not of a row: one recorded figures
+	// outcome, whatever its status, lifts the gate for the whole save, because a failed fetch is an
+	// attempt the model can then describe in the gap. A session that retrieved nothing has no
+	// candidate to name and is not gated at all.
+	const figureCandidateList = snapshot.executions.some(execution => execution.kind === 'figures') ? undefined : figureCandidates(snapshot);
+	for (const row of review.coverage ?? []) {
+		if (!row.feature?.trim() || !['essential', 'optional'].includes(row.importance) || !['supported', 'partial', 'unresolved'].includes(row.status)) { errors.push('Every coverage row needs a feature, importance, and valid status.'); }
+		if (row.status !== 'unresolved' && !row.sourceAnchors?.length) { errors.push(`Coverage for "${row.feature}" needs known source anchors or unresolved status.`); }
+		for (const anchor of row.sourceAnchors ?? []) { if (!anchors.has(anchor)) { errors.push(`Unknown source anchor: ${anchor}. Recover known IDs with get_claims or get_description for that publication; do not repeat searches or downgrade a conclusion merely to pass validation.`); } }
+		if (!['feature', 'combination', ...(variant === 'invalidity' ? ['fallback'] : [])].includes(row.kind ?? '')) { errors.push(`Identify coverage kind (${variant === 'invalidity' ? 'feature, combination or fallback' : 'feature or combination'}) for "${row.feature}".`); }
+		for (const anchor of row.sourceAnchors ?? []) {
+			const source = sources.get(anchor);
+			const evidence = row.evidence?.find(item => item.anchor === anchor);
+			if (source?.figure) {
+				// A recorded drawing page holds no text to quote; it is cited through an element instead.
+				if (evidence) { errors.push(`Evidence entry for ${anchor} quotes a recorded drawing page, which holds no text. Remove it and cite the drawing through an element with basis: figure and a reading of what it clearly shows.`); }
+				continue;
+			}
+			if (row.status !== 'unresolved' && source && !['claims', 'description'].includes(source.reference.section)) { errors.push(`Feature support for ${anchor} requires a claim or description passage, not a bibliography/overview citation. Recover the exact source section with get_claims or get_description.`); }
+			// Official text wins: web page text is evidence only where the tools hold no text for that section.
+			const official = source?.textSource === 'web' ? shadowingOfficialAnchor(officialAnchors, source.reference.publicationNumber, source.reference.section) : undefined;
+			if (source && official) { errors.push(`${anchor} is web page text of ${source.reference.publicationNumber}, but the official ${source.reference.section} text is recorded at ${official}. Cite ${official} (read it with get_claims or get_description); web page text is used only where the tools hold no text for that publication and section.`); }
+			if (row.status !== 'unresolved' && !evidence) { errors.push(`Row "${row.feature}" lists ${anchor} in sourceAnchors (or an element cites it) without an evidence entry. Add an evidence entry for ${anchor} with scope, qualifiers and quantityBasis; quote may be omitted for a numbered claim (the writer copies it) and is required verbatim for a description passage.`); }
+			if (evidence) {
+				if (!source?.text) { errors.push(`No recorded text for ${anchor} (older record): retrieve it once with get_claims or get_description so the quotation can be checked.`); }
+				else if (!evidence.quote?.trim()) { errors.push(`Evidence for ${anchor} needs a verbatim quote: a description passage must be quoted exactly as returned (only numbered claims may omit quote). Copy it from the get_claims or get_description result.`); }
+				else if (!normalizeText(source.text).includes(normalizeText(evidence.quote))) { errors.push(`Quotation for ${anchor} is not found in its recorded text. Copy the passage verbatim from the get_claims or get_description result; do not paraphrase or merge lines.`); }
+				if (source?.reference.claimNumber && source.text && normalizeText(evidence.quote ?? '') !== normalizeText(source.text)) { errors.push(`Quote the complete claim for ${anchor}, including dependency language, qualifiers and every constituent; do not extract only a numeric range.`); }
+				if (![evidence.scope, evidence.qualifiers, evidence.quantityBasis].every(value => value?.trim())) { errors.push(`Review scope/dependency, qualifiers and original quantity basis for ${anchor}. Keep original units and all constituents; do not substitute an unverified percentage conversion.`); }
+			}
+		}
+		if (row.evidence?.some(item => !(row.sourceAnchors ?? []).includes(item.anchor))) { errors.push(`Evidence for "${row.feature}" must use that row's sourceAnchors.`); }
+		errors.push(...elementMapErrors(row, sources));
+		if (row.status !== 'supported' && !row.gap?.trim()) { errors.push(`Describe the remaining gap for "${row.feature}".`); }
+		if (figureCandidateList !== undefined) { errors.push(...figuresGateError(row, figureCandidateList)); }
+	}
+	if (!review.coverage?.some(row => row.importance === 'essential')) { errors.push('Identify at least one essential feature or combination.'); }
+	if (!review.limitations?.some(value => value.trim())) { errors.push('Supply the search and evidence limitations.'); }
+	if (!review.stopReason?.trim()) { errors.push('Supply stopReason: explain synthesis, remaining gaps, or the user-requested boundary.'); }
+	if (!review.coverage?.some(row => row.kind === 'combination' && row.importance === 'essential')) { errors.push('Include an explicit essential combination row; it may honestly remain unresolved.'); }
+	return errors;
+}
+
+/**
+ * Phrases in model-written prose that read as legal conclusions. The filter cannot separate a
+ * conclusion from the disclaimer that denies it reliably enough to refuse a save, so the finding is
+ * rendered in the report and reported to the model instead of rejecting the draft. Quotations are
+ * verbatim source text and are never scanned; only prose the model wrote itself is.
+ * @param sided - the review with Find Better rows still two-sided.
+ * @param variant - which structured report is being produced.
+ * @returns the result.
+ */
+export function candidateWordingReview(sided: PatentCandidateReview, variant: CandidateReviewVariant = 'prior-art'): string[] {
+	return legalConclusions(modelWrittenFields(flattenSides(sided)), variant === 'find-better' ? [...LEGAL_CONCLUSION_PHRASES, ...FIND_BETTER_CONCLUSION_PHRASES] : LEGAL_CONCLUSION_PHRASES);
+}
+
+/**
+ * The legal conclusions an invalidity chart refuses to save: the assertive forms in any
+ * model-written field. The noun forms stay a wording review the model may confirm, because a
+ * disclaimer uses them too. One error per finding, so the model sees exactly where to reword.
+ */
+function assertiveConclusionErrors(sided: PatentCandidateReview): string[] {
+	return legalConclusions(modelWrittenFields(flattenSides(sided)), ASSERTIVE_CONCLUSION_PHRASES)
+		.map(finding => `The chart states a legal conclusion: ${finding}. An invalidity chart states what each document discloses (disclosed / partially disclosed / not found in the cited art) and leaves anticipation and obviousness to counsel. Reword that passage to what the passage discloses and which claim element it meets or misses.`);
+}
+
+/** Every field the model writes in its own words, with a label for the finding; quotations are never included. */
+function modelWrittenFields(review: ReturnType<typeof flattenSides>): (readonly [string, string | undefined])[] {
+	return [
+		['objective', review.objective],
+		['searchStrategy', review.searchStrategy],
+		...(review.concepts ?? []).flatMap(entry => [
+			[`concept "${entry.concept}"`, entry.concept] as const,
+			[`synonyms for "${entry.concept}"`, entry.synonyms.join(', ')] as const,
+		]),
+		...(review.classifications ?? []).map(entry => [`classification ${entry.code}`, entry.meaning] as const),
+		...(review.coverage ?? []).flatMap(row => [
+			[`coverage feature for "${row.feature}"`, row.feature] as const,
+			[`coverage gap for "${row.feature}"`, row.gap] as const,
+			...(row.elements ?? []).flatMap(element => element.reading?.trim() ? [[`element reading for "${element.element}"`, element.reading] as const] : []),
+			...(row.evidence ?? []).flatMap(evidence => [
+				[`evidence scope for ${evidence.anchor}`, evidence.scope] as const,
+				[`evidence qualifiers for ${evidence.anchor}`, evidence.qualifiers] as const,
+				[`evidence quantity basis for ${evidence.anchor}`, evidence.quantityBasis] as const,
+			]),
+		]),
+		...(review.limitations ?? []).map((value, index) => [`limitations[${index}]`, value] as const),
+		['stopReason', review.stopReason],
+		// A description fallback's basis.quote is a quotation of the challenged patent and is never scanned.
+		...(review.fallbacksNotCharted ?? []).map(entry => [`fallbacksNotCharted reason for claim ${entry.claimNumber}`, entry.reason] as const),
+		...(review.rounds ?? []).map(round => [`outcome of Search Round ${round.round}`, round.outcome] as const),
+	];
+}
+
+function cell(value: string): string { return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' '); }
+
+/** How each status word reads in an invalidity chart, where a row is one element of a granted claim. */
+const INVALIDITY_STATUS: Readonly<Record<PatentCoverageRow['status'], string>> = {
+	supported: 'disclosed in the cited art',
+	partial: 'partially disclosed',
+	unresolved: 'not found in the cited art',
+};
+
+/** One cited publication, the rows citing it, and whether a disclosed row rests on it by itself. */
+interface ReferenceRole {
+	readonly publication: string;
+	readonly rows: readonly string[];
+	readonly alone: boolean;
+}
+
+/**
+ * The publications coverage cites, read off the statuses the author wrote: a reference is `alone`
+ * where some supported row cites it and no other document. This is a reading of this chart, not an
+ * X/Y/A category and not a conclusion about anticipation or obviousness.
+ * @param review - the candidate review as the model supplied it.
+ * @param sources - the recorded sources by anchor.
+ * @returns the result.
+ */
+export function referenceRoles(review: PatentCandidateReview, sources: Map<string, PatentEvidenceSource>): readonly ReferenceRole[] {
+	// Grouped by the publication each spelling names across the whole chart (#729): a figure anchor
+	// without a kind code joins the dated publication it belongs to; an A1 and a B1 stay two references.
+	const perRow = (review.coverage ?? []).map(row => ({ row, publications: rowPublications(row, sources) }));
+	const identities = publicationIdentities(perRow.flatMap(entry => entry.publications));
+	const roles = new Map<string, { rows: string[]; alone: boolean }>();
+	for (const { row, publications } of perRow) {
+		for (const publication of publications) {
+			const identity = identities.get(publication) ?? publication;
+			const role = roles.get(identity) ?? { rows: [], alone: false };
+			role.rows.push(row.feature);
+			role.alone ||= row.status === 'supported' && publications.length === 1;
+			roles.set(identity, role);
+		}
+	}
+	return [...roles].map(([publication, role]) => ({ publication, rows: role.rows, alone: role.alone }));
+}
+
+/** The publications one row cites through its source anchors, its evidence and its element map, one per publication in the order first cited. */
+function rowPublications(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>): readonly string[] {
+	return distinctPublications([...(row.sourceAnchors ?? []), ...(row.evidence ?? []).map(item => item.anchor), ...(row.elements ?? []).flatMap(element => element.anchor ? [element.anchor] : [])]
+		.flatMap(anchor => {
+			const publication = sources.get(anchor)?.reference.publicationNumber;
+			return publication ? [publication] : [];
+		}));
+}
+
+/**
+ * The distinct challenged claims the rows name, in the order the rows name them.
+ * @param review - the candidate review as the model supplied it.
+ * @returns the result.
+ */
+export function challengedClaims(review: PatentCandidateReview): readonly string[] {
+	return [...new Set((review.coverage ?? []).flatMap(row => row.claimNumber?.trim() ? [row.claimNumber.trim()] : []))];
+}
+
+/** The generated roles table; empty for a prior-art review, which states no reference roles. */
+function referenceRoleTable(review: PatentCandidateReview, sources: Map<string, PatentEvidenceSource>): string[] {
+	const roles = referenceRoles(review, sources);
+	if (!roles.length) { return []; }
+	return ['', '## Reference roles (generated)',
+		'Derived from the statuses in this chart, not a legal category: a reference is listed as disclosing on its own where a row marked disclosed cites it and no other document, and as contributing in combination otherwise. This is not an X/Y/A tag and asserts nothing about anticipation, obviousness or inventive step.',
+		'| Reference | Cited in | Role (generated) |',
+		'| --- | --- | --- |',
+		...roles.map(role => '| ' + [role.publication, role.rows.join('; '), role.alone ? 'discloses element(s) on its own' : 'contributes in combination'].map(cell).join(' | ') + ' |'),
+		''];
+}
+
+/** The rows of one charted claim, with the rows that name no claim kept beside the claim rows they follow. */
+interface ClaimGroup {
+	readonly claim: string | undefined;
+	readonly rows: readonly PatentCoverageRow[];
+}
+
+/**
+ * The non-fallback rows grouped by the claim they chart, in the order each claim is first named. A row
+ * without a claim number stays with the claim before it, so a chart of one claim renders in input order.
+ */
+function claimGroups(rows: readonly PatentCoverageRow[]): readonly ClaimGroup[] {
+	const groups: { claim: string | undefined; rows: PatentCoverageRow[] }[] = [];
+	for (const row of rows) {
+		const claim = row.claimNumber?.trim() || groups[groups.length - 1]?.claim;
+		const group = groups.find(entry => entry.claim === claim);
+		if (group) { group.rows.push(row); } else { groups.push({ claim, rows: [row] }); }
+	}
+	return groups;
+}
+
+/** The fallback rows that fall back from one independent claim. */
+function fallbackRowsOf(review: PatentCandidateReview, claim: string): readonly PatentCoverageRow[] {
+	return (review.coverage ?? []).filter(row => row.kind === 'fallback' && row.fallbackOf?.trim() === claim);
+}
+
+/** Claim numbers as "claim 3" or "claims 3, 5"; a description fallback by its quoted name. */
+function fallbackList(labels: readonly string[]): string {
+	if (!labels.length) { return 'none'; }
+	const claims = labels.filter(label => /^\d+$/.test(label));
+	const descriptions = labels.filter(label => !/^\d+$/.test(label)).map(label => `description fallback "${inline(label)}"`);
+	return [...(claims.length ? [`${claims.length === 1 ? 'claim' : 'claims'} ${claims.join(', ')}`] : []), ...descriptions].join(', ');
+}
+
+/**
+ * The coverage line of one independent claim: its disclosed elements, then its Fallback Coverage counted
+ * off the validated fallback rows ("Claim 1: 2 of 3 elements disclosed; fallbacks: 1 of 3 covered (1
+ * partly); not covered: claim 3"). The counts are read off statuses, never rated.
+ */
+function fallbackCoverageLine(review: PatentCandidateReview, coverage: FallbackCoverage, derivation: FallbackLadderDerivation): string {
+	const elements = (review.coverage ?? []).filter(row => row.kind === 'feature' && row.claimNumber?.trim() === coverage.claimNumber);
+	const head = `Claim ${coverage.claimNumber}: ${elements.filter(row => row.status === 'supported').length} of ${elements.length} elements disclosed`;
+	const charted = [...coverage.covered, ...coverage.partly, ...coverage.notCovered];
+	const total = new Set([...coverage.rungs, ...charted]).size;
+	const unavailable = derivation.kind === 'unavailable' ? `; ${LADDER_UNAVAILABLE}` : '';
+	if (!total) { return `${head}${unavailable || `; fallbacks: none (no dependent claim refers to claim ${coverage.claimNumber})`}.`; }
+	return `${head}${unavailable}; fallbacks: ${coverage.covered.length} of ${total} covered (${coverage.partly.length} partly); not covered: ${fallbackList(coverage.notCovered)}`
+		+ (coverage.notCharted.length ? `; not charted: ${fallbackList(coverage.notCharted)}` : '') + '.';
+}
+
+/** The generated label of a charted rung: the claim and the chain that leads to it from the independent claim. */
+function rungLabel(claim: string, chain: readonly string[] | undefined): string {
+	return chain?.length ? `Claim ${claim} (${chain.join(' → ')})` : `Claim ${claim}`;
+}
+
+/**
+ * One independent claim's Fallback Coverage: the coverage line, then one table row per rung in claim
+ * order with the claim text the ledger recorded (never the model's `feature`), the status and the
+ * references the row cites; a rung the chart does not chart reads "not charted: <reason>".
+ * Description fallbacks follow the rungs. With `details`, each charted fallback is then rendered as an
+ * ordinary row under its generated label, a description fallback with its basis quote first.
+ */
+function fallbackCoverageSection(review: PatentCandidateReview, coverage: FallbackCoverage, derivation: FallbackLadderDerivation, sources: Map<string, PatentEvidenceSource>, rowSection?: (row: PatentCoverageRow) => string[]): string[] {
+	const claim = coverage.claimNumber;
+	const ladder = ladderOf(derivation, claim);
+	const rows = fallbackRowsOf(review, claim);
+	const notCharted = new Map((review.fallbacksNotCharted ?? []).map(entry => [entry.claimNumber.trim(), entry.reason]));
+	const references = (row: PatentCoverageRow) => [...rowPublications(row, sources)].join(', ') || '—';
+	const rungs = (ladder?.rungs ?? []).map(rung => ({ rung, row: rows.find(row => row.claimNumber?.trim() === rung.claimNumber) }));
+	// Without a ladder a claim-numbered fallback row has no recorded claim text to show beside it.
+	const unladdered = rows.filter(row => row.claimNumber?.trim() && !rungs.some(entry => entry.rung.claimNumber === row.claimNumber?.trim()));
+	const descriptions = rows.filter(row => !row.claimNumber?.trim());
+	const table = [
+		...rungs.map(({ rung, row }) => [rungLabel(rung.claimNumber, rung.chain), inline(rung.text), row ? INVALIDITY_STATUS[row.status] : `not charted: ${inline(notCharted.get(rung.claimNumber) ?? '')}`, row ? references(row) : '—']),
+		...unladdered.map(row => [rungLabel(row.claimNumber!.trim(), undefined), 'claim text not established', INVALIDITY_STATUS[row.status], references(row)]),
+		...descriptions.map(row => [`Description fallback: ${inline(row.feature)}`, 'description-supported; basis quote below', INVALIDITY_STATUS[row.status], references(row)]),
+	];
+	const detail = (row: PatentCoverageRow, label: string): string[] => {
+		const section = rowSection?.({ ...row, feature: label }) ?? [];
+		const anchor = row.basis?.anchor?.trim();
+		if (row.claimNumber?.trim() || !anchor) { return section; }
+		const source = sources.get(anchor);
+		return [section[0], `Basis in the challenged patent: ${source ? patentCitationLink(anchor, source.reference) : anchor}`, quotation(row.basis?.quote ?? ''), ...section.slice(1)];
+	};
+	return [
+		`## Fallback coverage (generated) — claim ${cell(claim)}`,
+		fallbackCoverageLine(review, coverage, derivation),
+		'',
+		...(table.length ? [
+			'Each rung is a dependent claim of the challenged patent, read from its recorded claims; a fallback row charts only the limitation that claim adds. Covered means the cited art discloses that limitation in this chart; it is a reading of the statuses, not a legal conclusion.',
+			'| Fallback | Claim text (recorded) | Status | References cited |',
+			'| --- | --- | --- | --- |',
+			...table.map(cells => '| ' + cells.map(cell).join(' | ') + ' |'),
+			'',
+		] : []),
+		...(rowSection ? [
+			...rungs.flatMap(({ rung, row }) => row ? detail(row, `${rungLabel(rung.claimNumber, rung.chain)} — fallback of claim ${claim}`) : []),
+			...unladdered.flatMap(row => detail(row, `${rungLabel(row.claimNumber!.trim(), undefined)} — fallback of claim ${claim}`)),
+			...descriptions.flatMap(row => detail(row, `Description fallback of claim ${claim}: ${row.feature}`)),
+		] : []),
+	];
+}
+
+/**
+ * The coverage body of a structured invalidity chart: per charted claim its rows under "Claim N —
+ * elements", then its Fallback Coverage. Without recorded claims of the challenged patent (the writer refuses such a save) the rows
+ * render as a plain list, exactly as before the ladder existed.
+ */
+function invalidityCoverageSections(review: PatentCandidateReview, derivation: FallbackLadderDerivation, sources: Map<string, PatentEvidenceSource>, rowSection: (row: PatentCoverageRow) => string[]): string[] {
+	if (derivation.kind === 'missing') { return ['## Coverage and remaining search tracks', ...(review.coverage ?? []).flatMap(rowSection)]; }
+	const coverage = fallbackCoverage(review, derivation);
+	// Each claim opens with its own elements heading and closes with its Fallback Coverage; rows that
+	// name no claim before the first claim keep the general heading.
+	return claimGroups((review.coverage ?? []).filter(row => row.kind !== 'fallback')).flatMap(group => {
+		const claimCoverage = group.claim ? coverage.find(entry => entry.claimNumber === group.claim) : undefined;
+		return [
+			group.claim ? `## Claim ${cell(group.claim)} — elements` : '## Coverage and remaining search tracks',
+			...group.rows.flatMap(rowSection),
+			...(claimCoverage ? fallbackCoverageSection(review, claimCoverage, derivation, sources, rowSection) : []),
+		];
+	});
+}
+
+/** How the ledger stands to a round query, in the chart's words. */
+const ROUND_LEDGER_LABEL: Readonly<Record<RoundQueryLedgerStatus, string>> = {
+	matched: 'ledger-matched',
+	unrecorded: 'not recorded by the ledger',
+};
+
+/**
+ * The Search Rounds the chart records: per round its targets, each query with its tool, its result
+ * count and whether the execution ledger holds it, and the model-written outcome. With no round and a
+ * fallback not covered, the section says that no round ran; with every fallback covered it is omitted.
+ */
+function searchRoundsSection(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot, coverage: readonly FallbackCoverage[]): string[] {
+	const rounds = review.rounds ?? [];
+	if (!rounds.length) { return fallbacksNotCovered(coverage) > 0 ? ['## Search rounds', 'No Search Round ran.', ''] : []; }
+	const ledger = roundLedgerStatus(review, snapshot);
+	const target = (value: string) => /^\d+$/.test(value.trim()) ? `claim ${value.trim()}` : `description fallback "${inline(value)}"`;
+	return ['## Search rounds',
+		'Each Search Round runs on the expert\'s answer to the Round Report of a saved chart and targets the open points the expert chose. A query marked ledger-matched matches a tool execution recorded this session; a query marked not recorded by the ledger ran through a tool the ledger does not record and is not confirmed.',
+		...rounds.flatMap((round, index) => [
+			'', `### Search Round ${round.round}`,
+			`Targets: ${(round.targets ?? []).map(target).join(', ') || 'none named'}`,
+			...(round.answers?.length ? [`Answers open points: ${round.answers.map(inline).join(', ')}`] : []),
+			'',
+			'| Tool | Query | Count | Ledger |',
+			'| --- | --- | --- | --- |',
+			...(round.queries ?? []).map((query, position) => '| ' + [query.tool, query.query, query.count === undefined ? 'not stated' : String(query.count), ROUND_LEDGER_LABEL[ledger[index]?.queries[position] ?? 'unrecorded']].map(cell).join(' | ') + ' |'),
+			'',
+			`Outcome (model judgment): ${inline(round.outcome ?? '') || 'none stated'}`,
+		]),
+		''];
+}
+
+/**
+ * The working record's mirror of the chart's Fallback Coverage and Search Rounds: the coverage line and
+ * table of every charted claim, without the row evidence the client report carries.
+ */
+function fallbackRecordSections(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot): string[] {
+	const derivation = deriveFallbackLadder(snapshot, review.challengedPublication);
+	if (derivation.kind === 'missing') { return []; }
+	const sources = sourceIndex(snapshot);
+	const coverage = fallbackCoverage(review, derivation);
+	return [...coverage.flatMap(entry => fallbackCoverageSection(review, entry, derivation, sources)), ...searchRoundsSection(review, snapshot, coverage)];
+}
+
+/** Render retrieved text as literal quotation content, never as Markdown or active source HTML. */
+function quotation(text: string): string {
+	const missingImage = /<img\b[^>]*>/i.test(text);
+	const literal = text.replace(/<img\b[^>]*>/gi, '[Formula/image unavailable in retrieved text]');
+	const escaped = escape(literal).replace(/\r?\n/g, '<br />');
+	// HTML block content is not parsed as Markdown; pre-wrap preserves indentation without code styling.
+	return ['', `<blockquote>\n<p style="white-space: pre-wrap">${escaped}</p>\n</blockquote>`, '',
+		...(missingImage ? ['Formula/image placeholders were replaced by omission notices above. Consult the original document for the missing structures.', ''] : [])].join('\n');
+}
+
+/**
+ * The saved drawing page, linked relative to the report's own directory, so the link resolves
+ * wherever the project folder is later opened. The label keeps the workspace-relative path the
+ * record holds, because that is the path the reader looks for on disk.
+ */
+function savedFigureLink(page: number, file: string, reportWorkspacePath: string): string {
+	const target = posix.relative(posix.dirname(reportWorkspacePath), file);
+	return `[Figure page ${page} (${cell(file)})](${target.split('/').map(encodeURIComponent).join('/')})`;
+}
+
+/**
+ * The row's element map: what the feature requires beside the literal fragment that discloses it,
+ * so a reader can see which constituent each cited passage actually covers.
+ *
+ * @param reportWorkspacePath the report's own workspace-relative path; without it a saved drawing
+ * page is linked to the document it belongs to, exactly as an unsaved one is.
+ */
+function elementMap(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>, reportWorkspacePath: string): string[] {
+	if (!row.elements?.length) { return []; }
+	return ['', '| Element | Disclosed by | Source |', '| --- | --- | --- |',
+		...row.elements.map(element => {
+			const anchor = element.anchor;
+			const fragment = element.disclosedBy?.trim();
+			const source = anchor ? sources.get(anchor) : undefined;
+			const page = figurePage(element, sources);
+			const reading = element.reading?.trim();
+			// A drawing reading is the model's own reading of an image, so it is never rendered as a quote.
+			if (anchor && page !== undefined && reading) {
+				const file = source?.figure?.file;
+				return '| ' + [cell(element.element), `Figure page ${page} — model reading of the drawing, not quoted text: "${cell(reading)}"`,
+					file && reportWorkspacePath ? savedFigureLink(page, file, reportWorkspacePath) : source ? patentCitationLink(anchor, source.reference) : anchor].join(' | ') + ' |';
+			}
+			return '| ' + [cell(element.element),
+				anchor && fragment ? '`' + cell(fragment) + '`' : 'not disclosed in cited text',
+				anchor && fragment ? (source ? patentCitationLink(anchor, source.reference) : anchor) : '—'].join(' | ') + ' |';
+		}), ''];
+}
+
+/**
+ * How much of a row's disclosure rests on a drawing rather than on quoted text. A reader weighing a
+ * status has to see it in the status line, not only in the element map further down. An unresolved
+ * row establishes no disclosure at all, so it rests on nothing and carries no suffix.
+ */
+function drawingReadingSuffix(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>): string {
+	if (row.status === 'unresolved') { return ''; }
+	const disclosed = (row.elements ?? []).filter(claimsDisclosure);
+	const drawings = disclosed.filter(element => figurePage(element, sources) !== undefined);
+	if (!drawings.length) { return ''; }
+	return drawings.length === disclosed.length ? ' · rests on a drawing reading' : ' · rests in part on a drawing reading';
+}
+
+/** Collapse a model-written phrase onto one line so it cannot break the list it is rendered into. */
+function inline(value: string): string {
+	return value.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * What an independent read of the same passages did not confirm for this row. Only elements the
+ * judge disagreed with or could not resolve are shown; the row's status is left as the author wrote
+ * it, because the second read is a reading of the cited text, not an authority over the report.
+ */
+function secondReadNotes(row: PatentCoverageRow, secondRead: SecondReadOutcome | undefined): string[] {
+	if (secondRead?.kind !== 'judged') { return []; }
+	const unconfirmed = unconfirmedVerdicts(secondRead.rows.filter(result => result.feature === row.feature));
+	// An element that rests on a drawing was never sent to the judge; saying so keeps the counts honest.
+	const drawings = (row.elements ?? []).filter(element => element.basis === 'figure');
+	if (!unconfirmed.length && !drawings.length) { return []; }
+	return ['', `Second read (generated, ${secondRead.model}): the following elements were not confirmed by an independent read of the cited text; the row's status is the author's judgment.`,
+		...unconfirmed.map(item => `- ${inline(item.element)}: ${item.verdict} — ${inline(item.reason)}`),
+		...drawings.map(element => `- ${inline(element.element)}: not judged — rests on a drawing reading`), ''];
+}
+
+/** The recorded language of a document, with the translation notice a non-English text needs. */
+function textLanguage(document: RetrievedDocument): string {
+	return document.language + (untranslated(document) ? ' (not in English; any reading of it in this report is the model\'s own translation)' : '');
+}
+
+/**
+ * The documents no coverage row cites: the same table under the client report's
+ * "Retrieved but not cited in coverage" and the working record's "Retrieved but not read".
+ */
+function uncitedDocumentTable(uncited: readonly RetrievedDocument[]): string[] {
+	if (!uncited.length) { return ['Every retrieved document is cited in at least one coverage row.']; }
+	return [
+		'| Publication | Publication date | Title | Sections with text | Text language | Text source |',
+		'| --- | --- | --- | --- | --- | --- |',
+		...uncited.map(document => '| ' + [document.publication, document.publicationDate, document.publicationTitle, document.sectionsWithText.join(', ') || 'none recorded', textLanguage(document), document.textSource].map(cell).join(' | ') + ' |'),
+	];
+}
+
+/**
+ * The tool identity the search sets are attributed to. The ledger records no provider, and
+ * `search_patents` is the only tool that records a search outcome, so the column names what was
+ * recorded rather than a database the record cannot confirm.
+ */
+const SEARCH_SOURCE = 'search_patents';
+
+/**
+ * The client-facing strategy table: one row per search that actually ran. A query that could not be
+ * run is a missing-coverage sentence in Limitations, not a row of `unknown` in a table of evidence.
+ */
+function searchSets(snapshot: PatentExecutionSnapshot, documents: readonly RetrievedDocument[]): string[] {
+	const searches = searchExecutions(snapshot).filter(execution => execution.status === 'succeeded');
+	return ['## Search sets',
+		...(searches.length ? [
+			'| Source | Query | Scope | Hits | Tests |',
+			'| --- | --- | --- | --- | --- |',
+			...searches.map(execution => '| ' + [SEARCH_SOURCE, execution.effectiveQuery ?? execution.query ?? 'unknown', execution.countryFilter?.length ? execution.countryFilter.join(', ') : 'not filtered', String(execution.total ?? 'unknown'), searchPurpose(execution) ?? '—'].map(cell).join(' | ') + ' |'),
+			'',
+		] : []),
+		`${searches.length} search sets run; ${documents.length} documents retrieved.`,
+		''];
+}
+
+/** The concept-synonym table, rendered only when the writer was given one. */
+function conceptTable(review: PatentCandidateReview): string[] {
+	if (!review.concepts?.length) { return []; }
+	return ['## Concepts searched',
+		'| Concept | Synonyms and variations |',
+		'| --- | --- |',
+		...review.concepts.map(entry => '| ' + [entry.concept, entry.synonyms.join(', ')].map(cell).join(' | ') + ' |'),
+		''];
+}
+
+/** The classification map, rendered only when the writer was given one. */
+function classificationTable(review: PatentCandidateReview): string[] {
+	if (!review.classifications?.length) { return []; }
+	return ['## Classifications searched',
+		'| Code | Meaning |',
+		'| --- | --- |',
+		...review.classifications.map(entry => '| ' + [entry.code, entry.meaning].map(cell).join(' | ') + ' |'),
+		''];
+}
+
+/** The sentence the generated wording list is introduced by, in the working record. */
+const WORDING_REVIEW_INTRO = 'The following phrases read as legal conclusions; a candidate review states what each passage discloses and leaves novelty, anticipation, obviousness and teaching-away to counsel. Reword or confirm:';
+
+/** What the mechanical checks did and did not cover; stated once, in the working record. */
+const CHECKED_MECHANICALLY = 'Anchor identity, quotation identity and required fields were checked mechanically. Source review notes are model judgments, not verified facts. Semantic entailment, completeness of invention features, and correctness of conclusions were not automatically verified.';
+
+/**
+ * The client deliverable: the concepts and classifications the search was built from, the sets that
+ * ran, the retrieved documents, the coverage analysis, the stopping rationale and the limitations.
+ * The quality machinery — the full search log, the wording review, the second read and the
+ * provenance boilerplate — lives in the working record this report's last line names, which also
+ * links the detailed tool-outcome and source-metadata evidence.
+ *
+ * @param variant `invalidity` relabels the statuses for a claim chart, adds per charted claim its
+ * Fallback Coverage, and adds the generated reference-roles table and the Search Rounds. Rendering
+ * is byte-identical to a prior-art review when it is omitted.
+ * @param reportWorkspacePath the report's own workspace-relative path, e.g.
+ * `outputs/prior-art-review.md`. A drawing page saved to disk is linked relative to it; without it
+ * such a page is linked to its document, as an unsaved page always is.
+ * @param sided - the review with Find Better rows still two-sided.
+ * @param snapshot - the session's recorded executions.
+ * @param workingRecordFileName - the working record file name.
+ * @returns the rendered text.
+ */
+export function renderCandidateReview(sided: PatentCandidateReview, snapshot: PatentExecutionSnapshot, workingRecordFileName: string, variant: CandidateReviewVariant = 'prior-art', reportWorkspacePath = ''): string {
+	const review = flattenSides(sided);
+	const sources = sourceIndex(snapshot);
+	const documents = retrievedDocuments(review, snapshot);
+	const uncited = documents.filter(document => !document.cited);
+	const automatic = automaticLimitations(review, snapshot, documents);
+	// The scope column only exists once a search actually applied a jurisdiction filter; without one
+	// there is no confirmed scope to place a document inside or outside of.
+	const jurisdictions = searchedJurisdictions(snapshot);
+	const scope = (document: RetrievedDocument) => jurisdictions.length
+		? [outsideScope(document.publication, jurisdictions) ? `outside searched jurisdictions (${publicationCountry(document.publication)})` : 'in scope']
+		: [];
+	// Derived only for an invalidity chart, which is the only report with a Fallback Ladder.
+	const derivation: FallbackLadderDerivation = variant === 'invalidity' ? deriveFallbackLadder(snapshot, review.challengedPublication) : { kind: 'missing' };
+	return [
+		...conceptTable(review),
+		...classificationTable(review),
+		...searchSets(snapshot, documents),
+		'## Retrieved documents',
+		'Retrieval does not establish eligibility as prior art. This inventory may include post-cutoff background documents. Check each publication date and jurisdiction against the requested scope; unknown dates remain unresolved.',
+		'| Publication | Publication date | Title | Text language | Text source |' + (jurisdictions.length ? ' Scope |' : ''),
+		'| --- | --- | --- | --- | --- |' + (jurisdictions.length ? ' --- |' : ''),
+		...documents.map(document => '| ' + [document.publication, document.publicationDate, document.publicationTitle, textLanguage(document), document.textSource, ...scope(document)].map(cell).join(' | ') + ' |'),
+		'',
+		...(variant === 'find-better'
+			? findBetterSections(sided, snapshot, row => coverageRowSection(row, sources, jurisdictions, variant, reportWorkspacePath, '####'))
+			: variant === 'invalidity'
+				? invalidityCoverageSections(review, derivation, sources, row => coverageRowSection(row, sources, jurisdictions, variant, reportWorkspacePath, '###'))
+				: ['## Coverage and remaining search tracks', ...(review.coverage ?? []).flatMap(row => coverageRowSection(row, sources, jurisdictions, variant, reportWorkspacePath, '###'))]),
+		...(variant === 'invalidity' ? referenceRoleTable(review, sources) : []),
+		...(variant === 'invalidity' && derivation.kind !== 'missing' ? searchRoundsSection(review, snapshot, fallbackCoverage(review, derivation)) : []),
+		'', '## Retrieved but not cited in coverage',
+		'Retrieved text that no coverage row cites was not reviewed for this report; its content is unknown, not absent.',
+		...uncitedDocumentTable(uncited),
+		'', '## Search stopping rationale', review.stopReason ?? '',
+		'', '## Limitations', ...(review.limitations ?? []).map(value => '- ' + value),
+		...(automatic.length ? ['', 'Generated from the execution record, not supplied by the model:', ...automatic.map(value => '- ' + value)] : []),
+		'', `Working record: [${workingRecordFileName}](${encodeURIComponent(workingRecordFileName)}) — full search log including queries that could not run, retrieved-but-unread list, wording review, provenance and second read.`,
+	].join('\n');
+}
+
+/** One coverage row: its status line, each cited passage with its source review, the element map and the gap. */
+function coverageRowSection(row: PatentCoverageRow, sources: Map<string, PatentEvidenceSource>, jurisdictions: readonly string[], variant: CandidateReviewVariant, reportWorkspacePath: string, heading: string): string[] {
+	const status = variant === 'invalidity' ? INVALIDITY_STATUS[row.status] : variant === 'find-better' ? FIND_BETTER_STATUS[row.status] : row.status;
+	return [
+		`${heading} ${cell(row.feature)}`,
+		`**${row.kind} · ${row.importance} · ${status}${drawingReadingSuffix(row, sources)}**`,
+		row.status === 'unresolved' ? 'No supported conclusion is established for this row.' : 'Status is a model assessment of the following evidence, not automated entailment.',
+		...(row.sourceAnchors ?? []).flatMap(anchor => {
+			const source = sources.get(anchor);
+			const evidence = row.evidence?.find(item => item.anchor === anchor);
+			return ['', source ? patentCitationLink(anchor, source.reference) : anchor,
+				...(evidence ? [quotation(evidence.quote ?? ''),
+					`Source review (model judgment): scope/dependency — ${evidence.scope}; qualifiers — ${evidence.qualifiers}; original quantity basis — ${evidence.quantityBasis}.`, ''] : [])];
+		}),
+		...elementMap(row, sources, reportWorkspacePath),
+		...webSourceNotes(row, sources).flatMap(note => [note, '']),
+		...rowScopeNotes(row, sources, jurisdictions).flatMap(note => [note, '']),
+		`Remaining gap (model judgment): ${row.gap || 'None declared.'}`, '',
+	];
+}
+
+/** The publications a set of rows cites on one side, by their anchors, in the order first cited. */
+function sidePublications(rows: readonly PatentCoverageRow[], side: FindBetterSideName, sources: Map<string, PatentEvidenceSource>): string[] {
+	return distinctDocuments(rows.flatMap(row => {
+		const value = row[side];
+		return [...(value?.sourceAnchors ?? []), ...(value?.elements ?? []).flatMap(element => element.anchor ? [element.anchor] : [])]
+			.flatMap(anchor => {
+				const publication = sources.get(anchor)?.reference.publicationNumber;
+				return publication ? [publicationKey(publication)] : [];
+			});
+	}));
+}
+
+/**
+ * The body of a Find Better report: the Examiner Baseline, then per independent claim a table of
+ * element | examiner's best art | best art found with each cell a status word, the counted line and
+ * the result sentence, then each side's evidence exactly as an invalidity chart renders a row, and
+ * the tracks log.
+ */
+function findBetterSections(review: PatentCandidateReview, snapshot: PatentExecutionSnapshot, rowSection: (row: PatentCoverageRow) => string[]): string[] {
+	const sources = sourceIndex(snapshot);
+	const sided = review.coverage ?? [];
+	const incomplete = incompleteSearch(review);
+	return [
+		...renderBaseline(review),
+		'## Claim-by-claim comparison',
+		'Each element of each independent claim is read against the examiner\'s best art and against the best art found, on the same rows. A count is the number of element rows marked disclosed after the writer checked their quotations; it is not a rating, and this report states no invalidity, anticipation or obviousness.',
+		'',
+		...claimComparisons(review).flatMap(comparison => {
+			const rows = sided.filter(row => row.claimNumber?.trim() === comparison.claim);
+			const found = sidePublications(rows, 'found', sources);
+			// Only the examiner's best art an examiner-side row cites is named with the count; the rest were never scored.
+			const examiner = examinerArtReading(comparison, sidePublications(rows, 'examiner', sources));
+			const label = (publication: string) => examinerArtLabel(review, publication, snapshot);
+			return [
+				`### Claim ${cell(comparison.claim)}`,
+				`| Element | Examiner's best art (${cell(examinerArtHeader(review, examiner.scored).join(', ') || 'none cited')}) | Best art found (${cell(found.join(', ') || 'none cited')}) |`,
+				'| --- | --- | --- |',
+				...rows.map(row => '| ' + [row.kind === 'combination' ? `${row.feature} (combination, not counted)` : row.feature, sideStatus(row, 'examiner'), sideStatus(row, 'found')].map(cell).join(' | ') + ' |'),
+				'',
+				countLine(comparison),
+				'',
+				claimResultSentence(comparison, found, examiner.scored.map(label), incomplete),
+				'',
+				...(examiner.unscored.length ? [`Examiner's best art named but not scored: ${examiner.unscored.map(label).join(', ')}.`, ''] : []),
+				...rows.flatMap(row => (['examiner', 'found'] as const).flatMap(side => {
+					const value = row[side];
+					return value ? rowSection({ ...row, feature: sideFeature(row.feature, side), status: value.status, sourceAnchors: value.sourceAnchors ?? [], gap: value.gap ?? '', evidence: value.evidence, elements: value.elements }) : [];
+				})),
+			];
+		}),
+		...renderTracks(review, snapshot),
+	];
+}
+
+/** What the working record says about a second read, whichever way it ended. */
+function secondReadSection(review: PatentCandidateReview, secondRead: SecondReadOutcome | undefined, secondReadFileName: string | undefined): string[] {
+	if (!secondRead) { return ['## Second read', 'Second read: not run.']; }
+	const rows = (review.coverage ?? []).flatMap(row => {
+		const notes = secondReadNotes(row, secondRead);
+		return notes.length ? [`### ${cell(row.feature)}`, ...notes] : [];
+	});
+	return ['## Second read', secondReadLimitation(secondRead),
+		...(rows.length ? ['', ...rows] : []),
+		...(secondReadFileName ? [`[Second-read verdicts](${encodeURIComponent(secondReadFileName)})`] : [])];
+}
+
+/**
+ * The working record: the internal companion of a client report, written beside it in the workspace.
+ * It carries what the deliverable deliberately leaves out — every recorded search including the ones
+ * that could not run, the retrieved text nobody read, the wording review, the second read and the
+ * provenance of the mechanical checks — so a later session picking up the same matter can see what
+ * was already searched and what was deliberately left.
+ * @param sided - the review with Find Better rows still two-sided.
+ * @param snapshot - the session's recorded executions.
+ * @param reportFileName - the report file name.
+ * @param evidenceFileName - the evidence companion file name.
+ * @param secondReadFileName - the second-read verdict file name.
+ * @param secondRead - the second-read outcome.
+ * @param variant - which structured report is being produced.
+ * @returns the rendered text.
+ */
+export function renderWorkingRecord(sided: PatentCandidateReview, snapshot: PatentExecutionSnapshot, reportFileName: string, evidenceFileName: string, secondReadFileName: string | undefined, secondRead?: SecondReadOutcome, variant: CandidateReviewVariant = 'prior-art'): string {
+	const review = flattenSides(sided);
+	const documents = retrievedDocuments(review, snapshot);
+	const wording = candidateWordingReview(sided, variant);
+	const figures = snapshot.executions.filter(execution => execution.kind === 'figures').length;
+	return [
+		`# Working record — ${review.subject?.trim() || reportFileName}`,
+		'',
+		`Companion to [${reportFileName}](${encodeURIComponent(reportFileName)}) — internal search log for a later session picking up the same matter. Not part of the client deliverable.`,
+		'',
+		'## Search log',
+		`${searchExecutions(snapshot).length} recorded search outcomes; ${snapshot.executions.filter(execution => execution.kind === 'details').length} recorded detail outcomes${figures ? `; ${figures} recorded figure outcomes` : ''}. These are tool invocations, not counts of documents reviewed.`,
+		'| Outcome | Query actually sent (requested if unknown) | Countries | Total | Returned | Range | Purpose |',
+		'| --- | --- | --- | --- | --- | --- | --- |',
+		...searchExecutions(snapshot).map(execution => '| ' + [execution.status, execution.effectiveQuery ?? `${execution.query ?? 'unknown'} (effective query unknown)`, execution.countryFilter?.join(', ') ?? 'unknown', String(execution.total ?? 'unknown'), String(execution.returned ?? 'unknown'), execution.range ? `${execution.range.begin}-${execution.range.end}` : execution.requestedRange ? `${execution.requestedRange} (requested)` : 'unknown', searchPurpose(execution) ?? '—'].map(cell).join(' | ') + ' |'),
+		'',
+		...(variant === 'invalidity' ? [...fallbackRecordSections(review, snapshot), ...openPointsSection(review, snapshot)] : []),
+		'## Retrieved but not read',
+		...uncitedDocumentTable(documents.filter(document => !document.cited)),
+		'',
+		...secondReadSection(review, secondRead, secondReadFileName),
+		'',
+		'## Wording review',
+		...(wording.length ? [WORDING_REVIEW_INTRO, ...wording.map(value => '- ' + value)] : ['No phrases flagged.']),
+		'',
+		'## Provenance',
+		...(variant === 'find-better' ? [`Examiner Baseline source: ${baselineSource(sided)}. The writer checked its shape, its X/Y categories and that documents[] holds every citation membersWalked counts, not that the offices' records say what it says.`, ''] : []),
+		snapshot.limitation,
+		'',
+		CHECKED_MECHANICALLY,
+		'',
+		`[Detailed execution and source metadata](${encodeURIComponent(evidenceFileName)})`,
+		'',
+	].join('\n');
+}

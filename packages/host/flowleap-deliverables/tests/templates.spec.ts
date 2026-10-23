@@ -1,0 +1,408 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { describe, expect, it } from 'vitest';
+import { buildPatentReport, contentRequirementError, PATENT_REPORT_TEMPLATES } from '../src/report/templates.ts';
+
+describe('writePatentResults report templates', () => {
+
+	it('returns content unchanged when no template is requested (free-form save)', () => {
+		const content = '# My notes\n\nUS-1234567-B2 looks relevant.';
+		expect(buildPatentReport(content, undefined)).toBe(content);
+	});
+
+	it('wraps content in the prior-art-report structure', () => {
+		expect(buildPatentReport('US-1234567-B2 describes a related mechanism; combination coverage remains unresolved.', 'prior-art-report')).toMatchInlineSnapshot(`
+			"# Prior Art Candidate Review
+
+			| Field | Details |
+			| --- | --- |
+			| Matter / Reference | _(to be completed)_ |
+			| Subject Technology | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Objective
+			Objective not supplied.
+
+			## 2. Search Strategy
+			Search strategy not supplied.
+
+			## 3. Candidate Evidence
+			US-1234567-B2 describes a related mechanism; combination coverage remains unresolved.
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the fto-memo structure', () => {
+		expect(buildPatentReport('No in-force blocking claims identified.', 'fto-memo')).toMatchInlineSnapshot(`
+			"# Freedom-to-Operate Memorandum
+
+			| Field | Details |
+			| --- | --- |
+			| Matter / Reference | _(to be completed)_ |
+			| Product / Technology | _(to be completed)_ |
+			| Jurisdiction(s) | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Product / Technology Description
+			_Describe the product or process being cleared._
+
+			## 2. Analysis
+			No in-force blocking claims identified.
+
+			## 3. Blocking References & Risk
+			_In-force claims that may read on the product, with an infringement-risk rating for each._
+
+			## 4. Recommendations
+			_Design-around options, licensing, invalidity positions, or further investigation._
+
+			## 5. Assumptions & Limitations
+			_Scope of the search and any assumptions made._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the office-action-scaffold structure', () => {
+		expect(buildPatentReport('Claim 1 is patentable over Smith under §103.', 'office-action-scaffold')).toMatchInlineSnapshot(`
+			"# Office Action Response
+
+			| Field | Details |
+			| --- | --- |
+			| Application No. | _(to be completed)_ |
+			| Examiner | _(to be completed)_ |
+			| Art Unit | _(to be completed)_ |
+			| Mailing Date | _(to be completed)_ |
+			| Response Due Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Summary of Rejections
+			_List each rejection and objection (statute, claims affected, cited references)._
+
+			## 2. Claim Amendments
+			_Complete listing of ALL claims — not only those amended — each with its status identifier ((Original), (Currently Amended), (Canceled), (Withdrawn), (New), (Previously Presented)) and amendments in marked-up form, per 37 CFR 1.121._
+
+			## 3. Remarks
+			_Address EVERY ground of rejection and objection raised in the office action (37 CFR 1.111(b)); an unanswered ground makes the reply non-responsive._
+			Claim 1 is patentable over Smith under §103.
+
+			## 4. Conclusion
+			_Request for allowance and any remaining issues._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the invalidity-claim-chart structure', () => {
+		expect(buildPatentReport('| Claim Element | US-1234567-B2 | US-7654321-A1 |\n| --- | --- | --- |\n| Preamble | Disclosed | Disclosed |', 'invalidity-claim-chart')).toMatchInlineSnapshot(`
+			"# Invalidity Claim Chart
+
+			| Field | Details |
+			| --- | --- |
+			| Patent No. / Claim(s) at Issue | _(to be completed)_ |
+			| Prior Art Reference(s) | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Overview
+			_Identify the challenged patent, the claim(s) at issue, and the prior art reference(s) applied against them._
+
+			## 2. Prior Art Qualification
+			_For each reference: its publication or public-availability date and the statutory basis on which it qualifies as prior art against the earliest claimed priority date (Patent L.R. 3-3(a))._
+
+			## 3. Element-by-Element Invalidity Chart
+			_Render as a markdown table with one row per claim element and one column per prior art reference, mirroring the element-by-element chart produced by compare_claims: \`| Claim Element | <Reference 1> | <Reference 2> | ... |\`. Each cell quotes or paraphrases the disclosing passage and notes the applicable basis (X/§102 anticipation or Y/§103 obviousness, alone or in combination)._
+			| Claim Element | US-1234567-B2 | US-7654321-A1 |
+			| --- | --- | --- |
+			| Preamble | Disclosed | Disclosed |
+
+			## 4. Basis Summary
+			_For each ground raised, list the statute (§102 or §103), the claim(s) affected, and the reference(s) or combination relied upon — and for EVERY §103 combination, the motivation to combine and its source (Patent L.R. 3-3(b))._
+
+			## 5. Claim Language
+			_Verbatim text of the challenged claim(s), for reference._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the eou-infringement-chart structure', () => {
+		expect(buildPatentReport('| Claim Element | Accused Product Feature | Supporting Evidence |\n| --- | --- | --- |\n| Preamble | Model X | Datasheet p.3 |', 'eou-infringement-chart')).toMatchInlineSnapshot(`
+			"# Evidence-of-Use (EoU) Infringement Chart
+
+			| Field | Details |
+			| --- | --- |
+			| Patent No. / Claim(s) Asserted | _(to be completed)_ |
+			| Accused Product / Service | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Overview
+			_Identify the asserted patent, the claim(s) asserted, and the accused product or service being mapped._
+
+			## 2. Element-by-Element Evidence-of-Use Chart
+			_Render as a markdown table with one row per claim element and columns for the accused product/feature and supporting evidence, mirroring the element-by-element chart produced by compare_claims: \`| Claim Element | Accused Product Feature | Literal / DOE | Supporting Evidence |\` — mark EACH element literal or doctrine-of-equivalents (Patent L.R. 3-1(e)). Cite specifications, teardown reports, marketing materials, or source documentation for each mapped element._
+			| Claim Element | Accused Product Feature | Supporting Evidence |
+			| --- | --- | --- |
+			| Preamble | Model X | Datasheet p.3 |
+
+			## 3. Infringement Theory
+			_For each element marked DOE in the chart: the function-way-result or insubstantial-differences rationale._
+
+			## 4. Evidentiary Sources
+			_Documents, specifications, or public materials relied upon for the evidence-of-use mapping._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the patentability-opinion structure', () => {
+		expect(buildPatentReport('No single reference discloses the claimed feedback loop; combining refs A and B requires impermissible hindsight.', 'patentability-opinion')).toMatchInlineSnapshot(`
+			"# Patentability Opinion
+
+			| Field | Details |
+			| --- | --- |
+			| Matter / Reference | _(to be completed)_ |
+			| Invention Title | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Invention Summary
+			_Describe the invention, its key features, and the claim(s) or claim concepts under evaluation._
+
+			## 2. Prior Art Discussed
+			_References considered, with publication/application numbers and a brief description of each._
+
+			## 3. Novelty and Inventive-Step Analysis
+			No single reference discloses the claimed feedback loop; combining refs A and B requires impermissible hindsight.
+
+			## 4. Per-Claim Assessment
+			_ISA/237 Box V-style grid: \`| Claim | Novelty (Y/N) | Inventive Step (Y/N) | Key Reference(s) |\` — one row per claim or claim concept evaluated._
+
+			## 5. Conclusion and Risk Assessment
+			_Overall patentability conclusion with a risk rating (low/medium/high) and recommended next steps._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the landscape-report structure', () => {
+		expect(buildPatentReport('### Filing Trend (by publication year)\n2024: 812 patents', 'landscape-report')).toMatchInlineSnapshot(`
+			"# Patent Landscape Report
+
+			| Field | Details |
+			| --- | --- |
+			| Technology Area / Scope | _(to be completed)_ |
+			| Search Criteria | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Executive Summary
+			_The key findings in under a page — for many readers this is the only section read (WIPO Pub 946)._
+
+			## 2. Scope & Methodology
+			_Technology area covered, search criteria (keywords, CPC/IPC codes, jurisdictions, date range), data source, and the data cutoff date._
+
+			## 3. Filing Trends, Assignees & Classification Breakdown
+			### Filing Trend (by publication year)
+			2024: 812 patents
+
+			## 4. White-Space Observations
+			_Underexplored technology intersections, declining vs. emerging filing activity, and potential opportunity areas suggested by the data._
+
+			## 5. Issues & Limitations
+			_What the data cannot show: coverage and language limits, publication lag on the most recent 18 months, family-counting caveats, and any classification ambiguities._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('wraps content in the portfolio-due-diligence-memo structure', () => {
+		expect(buildPatentReport('| Asset | Claim Breadth | Forward Citations | Status |\n| --- | --- | --- | --- |\n| US-1234567-B2 | Broad | 42 | In-force |', 'portfolio-due-diligence-memo')).toMatchInlineSnapshot(`
+			"# Portfolio Due Diligence Memorandum
+
+			| Field | Details |
+			| --- | --- |
+			| Target / Portfolio | _(to be completed)_ |
+			| Transaction / Purpose | _(to be completed)_ |
+			| Date | _(to be completed)_ |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Portfolio Overview
+			_Scope of the portfolio reviewed: number of assets, families, jurisdictions, and technology areas._
+
+			## 2. Legal-Status Summary
+			_Status of each asset (granted, pending, abandoned, expired) and maintenance-fee/annuity standing._
+
+			## 3. Key Asset Analysis
+			| Asset | Claim Breadth | Forward Citations | Status |
+			| --- | --- | --- | --- |
+			| US-1234567-B2 | Broad | 42 | In-force |
+
+			## 4. Encumbrances and Risks
+			_Liens, licenses, litigation history, inventorship or ownership issues, and any other encumbrances identified._
+
+			## 5. Valuation-Relevant Observations
+			_Factors bearing on portfolio value: claim breadth, remaining term, citation activity, and market relevance._
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+
+	it('prior-art-report fills supplied fields and keeps placeholders for the rest', () => {
+		const report = buildPatentReport('- EP1 (close art)', 'prior-art-report', {
+			subject: 'Sulfide glass-ceramic solid electrolytes',
+			date: '2026-08-12',
+			preparedBy: 'FlowLeap Patent AI (AI-assisted draft)',
+			objective: 'Find prior art for a sulfide glass-ceramic electrolyte before filing.',
+			searchStrategy: 'EPO OPS CQL; H01M paired with discriminating ta terms; 3 probed queries (54/37/15 hits).',
+		});
+		expect(report).toMatchInlineSnapshot(`
+			"# Prior Art Candidate Review
+
+			| Field | Details |
+			| --- | --- |
+			| Matter / Reference | _(to be completed)_ |
+			| Subject Technology | Sulfide glass-ceramic solid electrolytes |
+			| Date | 2026-08-12 |
+			| Prepared By | FlowLeap Patent AI (AI-assisted draft) |
+
+			## 1. Objective
+			Find prior art for a sulfide glass-ceramic electrolyte before filing.
+
+			## 2. Search Strategy
+			EPO OPS CQL; H01M paired with discriminating ta terms; 3 probed queries (54/37/15 hits).
+
+			## 3. Candidate Evidence
+			- EP1 (close art)
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+	it('refuses a templated save with no body and names what that template\'s body must carry', () => {
+		expect({
+			empty: contentRequirementError('landscape-report', '   '),
+			placeholder: contentRequirementError('landscape-report', '## 3. Filing Trends\n_(to be completed)_\n'),
+			stub: contentRequirementError('fto-memo', 'TBD'),
+			written: contentRequirementError('landscape-report', '| Year | Families |\n| --- | --- |\n| 2019 | 1,240 |'),
+			priorArt: contentRequirementError('prior-art-report', ''),
+			freeForm: contentRequirementError(undefined, ''),
+		}).toEqual({
+			empty: 'landscape-report needs content: the filing-trend table, the top-filers table, the jurisdiction split and the white-space observations, each figure with its counting basis (families / applications / publications / live search hits) and its source (PATSTAT edition, analytics corpus, or the query). Only prior-art-report and find-better-report use empty content with structured fields.',
+			placeholder: 'landscape-report needs content: the filing-trend table, the top-filers table, the jurisdiction split and the white-space observations, each figure with its counting basis (families / applications / publications / live search hits) and its source (PATSTAT edition, analytics corpus, or the query). Only prior-art-report and find-better-report use empty content with structured fields. A placeholder such as "to be completed" is not content.',
+			stub: 'fto-memo needs content: the per-feature analysis, naming each candidate blocking claim, its legal status and its jurisdiction. Only prior-art-report and find-better-report use empty content with structured fields. A placeholder such as "to be completed" is not content.',
+			written: undefined,
+			priorArt: undefined,
+			freeForm: undefined,
+		});
+	});
+
+	it('places generated sections between the template body and the disclaimer', () => {
+		const report = buildPatentReport('| Year | Families |\n| --- | --- |\n| 2019 | 1,240 |', 'landscape-report', { subject: 'Solid electrolytes' }, '## Figure provenance (generated)\n1 figures checked against recorded tool outputs; all found.');
+		expect(report.split('\n').slice(-6)).toEqual([
+			'## Figure provenance (generated)',
+			'1 figures checked against recorded tool outputs; all found.',
+			'',
+			'---',
+			'*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*',
+			'',
+		]);
+	});
+	it('keeps every template\'s numbered scaffold for section text and steps aside for a body that structures itself', () => {
+		const authored = ['## Executive Summary', 'Filing growth is flat.', '', '## Filing Trends', '| Year | Families |', '| --- | --- |', '| 2019 | 1,240 |', '', '## White Space'].join('\n');
+		const sections = '| Year | Families |\n| --- | --- |\n| 2019 | 1,240 |';
+		// `prior-art-report` and `find-better-report` are excluded: their body is generated from structured coverage, not written free-form.
+		const content = PATENT_REPORT_TEMPLATES.filter(template => template !== 'prior-art-report' && template !== 'find-better-report');
+		expect({
+			scaffoldForSectionText: content.filter(template => buildPatentReport(sections, template).includes('## 1.')),
+			scaffoldForAuthoredReport: content.filter(template => buildPatentReport(authored, template).includes('## 1.')),
+			authoredHeadings: buildPatentReport(authored, 'landscape-report').match(/^## .*$/gm),
+			titlesKept: content.every(template => buildPatentReport(authored, template).split('\n')[2] === '| Field | Details |'),
+			priorArtKeepsScaffold: buildPatentReport(authored, 'prior-art-report').includes('## 1. Objective'),
+		}).toEqual({
+			scaffoldForSectionText: content,
+			scaffoldForAuthoredReport: [],
+			authoredHeadings: ['## Executive Summary', '## Filing Trends', '## White Space'],
+			titlesKept: true,
+			priorArtKeepsScaffold: true,
+		});
+	});
+
+	it('gives a structured invalidity chart its own header and offers coverage instead of a body', () => {
+		const generated = ['## Retrieved documents', '| Publication | Publication date |', '', '## Coverage and remaining search tracks', '### Claim 1 — element (a)', '', '## Limitations', '- Synthetic fixture.'].join('\n');
+		expect({
+			structured: buildPatentReport(generated, 'invalidity-claim-chart', { challengedPublication: 'EP2000000A1', claimsAtIssue: '1, 7', criticalDateBasis: 'Priority date 2004-03-01.', date: '2026-09-13', preparedBy: 'FlowLeap Patent AI (AI-assisted draft)' }, undefined, true).split('\n').slice(0, 9),
+			writtenHeader: buildPatentReport(generated, 'invalidity-claim-chart', { matter: 'EP2000000A1', subject: 'EP1000000A1' }).split('\n')[4],
+			missingBody: contentRequirementError('invalidity-claim-chart', ''),
+			withCoverage: contentRequirementError('invalidity-claim-chart', '', true),
+		}).toEqual({
+			structured: [
+				'# Invalidity Claim Chart',
+				'',
+				'| Field | Details |',
+				'| --- | --- |',
+				'| Challenged patent | EP2000000A1 |',
+				'| Claim(s) at issue | 1, 7 |',
+				'| Critical date basis | Priority date 2004-03-01. |',
+				'| Date | 2026-09-13 |',
+				'| Prepared by | FlowLeap Patent AI (AI-assisted draft) |',
+			],
+			writtenHeader: '| Patent No. / Claim(s) at Issue | EP2000000A1 |',
+			missingBody: 'invalidity-claim-chart needs content: the element-by-element table, one row per claim element and one column per reference, each cell quoting the disclosing passage. Either write the chart into content, or supply structured coverage and leave content empty; the writer then generates, validates and receipts the chart.',
+			withCoverage: undefined,
+		});
+	});
+
+	it('renders an authored FTO memo as written, under the memorandum title block', () => {
+		const memo = ['## 1. Product and Features Cleared', 'The charger module.', '', '## 2. Blocking Candidates', '| Patent | Status |', '| --- | --- |', '| EP1000000A1 | In force |', '', '## 3. Risk and Design-Arounds', 'Two features carry medium risk.'].join('\n');
+		expect(buildPatentReport(memo, 'fto-memo', { subject: 'Charger module', date: '2026-09-13' })).toMatchInlineSnapshot(`
+			"# Freedom-to-Operate Memorandum
+
+			| Field | Details |
+			| --- | --- |
+			| Matter / Reference | _(to be completed)_ |
+			| Product / Technology | Charger module |
+			| Jurisdiction(s) | _(to be completed)_ |
+			| Date | 2026-09-13 |
+			| Prepared By | _(to be completed)_ |
+
+			## 1. Product and Features Cleared
+			The charger module.
+
+			## 2. Blocking Candidates
+			| Patent | Status |
+			| --- | --- |
+			| EP1000000A1 | In force |
+
+			## 3. Risk and Design-Arounds
+			Two features carry medium risk.
+
+			---
+			*This document was generated with AI assistance for informational purposes only and does not constitute legal advice. Consult a licensed patent attorney before relying on its contents.*
+			"
+		`);
+	});
+});

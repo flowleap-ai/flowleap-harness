@@ -1,0 +1,26 @@
+{
+  "agentV2Repository": "https://github.com/abdullahatrash/flowleap-agent-v2",
+  "agentV2Commit": "33efdf7ebee4154d9159b4e3df6ae39f9d774db5",
+  "agentV2Dirty": false,
+  "syncedAt": "2026-10-23T08:58:00Z",
+  "note": "Hand-ported copies with import rewrites; the IDE stays the owner of these rules. --check lists the IDE files that changed since the pin.",
+  "files": [
+    { "idePath": "extensions/copilot/src/extension/tools/common/patentReportTemplates.ts", "ideSha256": "76114a140b0db04e171bba1eeb635878563f26a306e1a813b84f0a720bbac209", "localPaths": ["src/report/templates.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/common/patentReportProvenance.ts", "ideSha256": "d81d257af52495e0b4a008018ce9b9c6862f64016de4a18a1ac72e9bdd7114b9", "localPaths": ["src/report/provenance.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/common/patentSecondRead.ts", "ideSha256": "5411d05464315b4de5c1239db4af183cc9d54cb8281fc13609be83b810c86680", "localPaths": ["src/report/second-read.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/patentCandidateReview.ts", "ideSha256": "2aa7ea183e5cb0fcfbeee3ea14e2ed60b78aa355656df2a154bd9d199c4691d3", "localPaths": ["src/report/candidate-review.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/patentFindBetter.ts", "ideSha256": "f8e08a43c0971859bd88cfa6c1e53cdef99eb88653b69692139b096448db9752", "localPaths": ["src/report/find-better.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/patentFallbackLadder.ts", "ideSha256": "f13d7f9788af06abd202e597d22b813917a1baa1d67df946c8a90d2948ff6897", "localPaths": ["src/report/fallback-ladder.ts"] },
+    { "idePath": "extensions/copilot/src/extension/patentai/common/patentDocumentReference.ts", "ideSha256": "1d442c6486d571e50546c6fb07a9fe1b4b5f4fbb6389fa95cd1bd50c6070b0cd", "localPaths": ["src/report/document-reference.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/node/priorArtReportCompletion.ts", "ideSha256": "6df215123c148799d6e602d5807c2da57a01089c596bf3a17b966b5e6d5113f5", "localPaths": ["src/report/receipt.ts", "src/guard/completion.ts"] },
+    { "idePath": "extensions/copilot/src/extension/patentai/vscode-node/patentExecutionLedger.ts", "ideSha256": "02118d52c32205f79da8285273d4e71e6a9bd3cacd4504a9f6b51dcfefa283e0", "localPaths": ["src/ledger/types.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/writePatentResultsTool.ts", "ideSha256": "fc0e66e9e8a02e37efcf799827843f0408e204cc7a1feefe5011da4694e50a12", "localPaths": ["src/writer.ts", "src/judge.ts"] },
+    { "idePath": "extensions/copilot/package.json", "ideSha256": "28cba496a54d3cbbdccfbddc82d50a50f8006aee870ea1054b94952ef67fcee6", "localPaths": ["src/writer-schema.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/common/test/patentReportTemplates.spec.ts", "ideSha256": "89de4cf1ebeafb1bd6cf0d173bb32ea87dae225912df84b0f82efe52828af7bd", "localPaths": ["tests/templates.spec.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/common/test/patentReportProvenance.spec.ts", "ideSha256": "4de2631b9646b98114479dcd077883a6751a66a9489b7136fe33450392984529", "localPaths": ["tests/provenance.spec.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/common/test/patentSecondRead.spec.ts", "ideSha256": "e978910031a16d7dde303ae8e6f3b1049e6272a55e0f42ef212683240d44cf3b", "localPaths": ["tests/second-read.spec.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/test/patentFallbackLadder.spec.ts", "ideSha256": "e9be399b4545a213d318ea0b54ee632e8abfb7238f2b9fa778ec74134281db2a", "localPaths": ["tests/fallback-ladder.spec.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/vscode-node/test/patentWorkingRecord.spec.ts", "ideSha256": "52a447f4bf8b98fdd01eb784f179346d9a181ceeb2f297fc3a1354e117c814a5", "localPaths": ["tests/working-record.spec.ts"] },
+    { "idePath": "extensions/copilot/src/extension/tools/node/test/priorArtReportCompletion.spec.ts", "ideSha256": "fec037c9abbf31a036ed873335010d22529f84bf831658ad83aa3829f05e9e2e", "localPaths": ["tests/completion.spec.ts"] }
+  ]
+}

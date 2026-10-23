@@ -410,6 +410,7 @@
       "@deepseek-ai/dsh-file-reference": ["./packages/context/file-reference/src"],
       "@deepseek-ai/dsh-file-reference-local": ["./packages/context/file-reference-local/src"],
       "@deepseek-ai/dsh-flowleap-connectors": ["./packages/host/flowleap-connectors/src"],
+      "@deepseek-ai/dsh-flowleap-deliverables": ["./packages/host/flowleap-deliverables/src"],
       "@deepseek-ai/dsh-flowleap-prompt": ["./packages/host/flowleap-prompt/src"],
       "@deepseek-ai/dsh-flowleap-web": ["./packages/bundle/flowleap-web/src"],
       "@deepseek-ai/dsh-fs": ["./packages/fs/fs/src"],
