@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { readDesktopProduct, resolveDesktopProductName } from './desktop-product.mjs'
 
 /** Workspace and runtime settings captured for Launch Services cold starts. */
 export interface DevelopmentAppOptions {
@@ -26,6 +27,7 @@ function quote(value: string): string { return `'${value.replaceAll("'", "'\\''"
  */
 export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
   const source = dirname(dirname(dirname(options.electron)))
+  const product = readDesktopProduct(resolveDesktopProductName())
   const bundle = join(options.directory, 'Harness Dev.app')
   const executable = join(bundle, 'Contents', 'MacOS', 'HarnessDev')
   const stamp = join(bundle, 'Contents', 'Resources', 'dsh-development.json')
@@ -40,7 +42,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
       CFBundleName: 'Harness Dev',
       CFBundleDisplayName: 'Harness Dev',
       CFBundleExecutable: 'HarnessDev',
-      CFBundleURLTypes: [{ CFBundleURLName: 'DeepSeek Harness', CFBundleURLSchemes: ['dsh'], CFBundleTypeRole: 'Viewer' }],
+      CFBundleURLTypes: [{ CFBundleURLName: product.productName, CFBundleURLSchemes: [product.protocolScheme], CFBundleTypeRole: 'Viewer' }],
     }
     for (const [key, value] of Object.entries(values)) {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
@@ -60,9 +62,12 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
  * @returns shell program with literal arguments and environment values.
  */
 export function developmentLauncher(options: DevelopmentAppOptions, bundle: string): string {
+  const product = process.env.DSH_DESKTOP_PRODUCT?.trim()
   const environment = {
     DSH_HOME: options.home,
     DSH_DESKTOP_DEV_APP: '1',
+    // The Launch Services cold start has no shell environment; the launcher carries the product selection.
+    ...(product === undefined || product === '' ? {} : { DSH_DESKTOP_PRODUCT: product }),
     DSH_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),
     DSH_DESKTOP_OPEN_DEVTOOLS: options.openDevtools,
     ELECTRON_ENABLE_LOGGING: '1',
