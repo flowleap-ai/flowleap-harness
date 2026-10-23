@@ -1,7 +1,7 @@
 /**
- * What the two drafting tool shells share: the matter argument, the working
+ * What the drafting tool shells share: the matter argument, the working
  * directory, the `DraftingWorkspace` over `ctx.fs`, the text value every
- * drafting tool returns and the delivery-card queue. The IDE's shells return a
+ * drafting tool returns, the delivery-card queue and the gate seams. The IDE's shells return a
  * `LanguageModelToolResult` of one text part and open files with
  * `vscode.open`; here the value is `{ ok, text }` rendered as one text block,
  * and the files go to `PresentQueue` so this plugin's `tools/result` listener
@@ -15,6 +15,7 @@ import type { PresentedFile } from '@deepseek-ai/dsh-tool-present/types'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { DraftingWorkspace, workspaceFiles, type DraftingWorkspaceOptions } from '../drafting/workspace.ts'
+import type { GateSeams } from '../gates/questions.ts'
 import { DELIVERED_LINE, type PresentQueue } from '../present.ts'
 
 /** The canonical value of a drafting tool call: whether it did its work, and the text the model reads. */
@@ -30,10 +31,24 @@ export interface DraftingToolValue {
 /** The services a drafting tool shell runs on. */
 export interface DraftingToolDependencies {
   readonly present: PresentQueue
+  /** The question-card and approval seams of the attorney gates (S5 D3). */
+  readonly gates: GateSeams
   readonly warn: (message: string) => void
   readonly info: (message: string) => void
   /** The clock of the record lines; a test passes its own. */
   readonly now?: () => Date
+}
+
+/** The gate seams of a composition without `dsh-user-questions` and `dsh-user-approval`: every gate stays a file edit. */
+export const NO_GATE_SEAMS: GateSeams = { ask: () => undefined, approve: () => undefined, approvalPolicy: () => undefined }
+
+/**
+ * The gate seams a tool shell hands to the gates: the dependencies' seams with the shell's clock and logger.
+ * @param deps - the tool dependencies.
+ * @returns the seams.
+ */
+export function gateSeams(deps: DraftingToolDependencies): GateSeams {
+  return { ...deps.gates, ...deps.now ? { now: deps.now } : {}, info: deps.info }
 }
 
 /**

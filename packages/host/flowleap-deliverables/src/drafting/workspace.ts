@@ -16,8 +16,8 @@
  * of S5) and the PDF style exemplar reader (a PDF exemplar is reported as
  * unread). The IDE's editor buttons ("click **Approve Claims** at the top of
  * the file", "click **Waive…** on the item") have no counterpart here, so
- * {@link withoutEditorButtons} reduces every gate and waiver sentence to the
- * file edit; S5 D3 adds the question card and the slash command beside it.
+ * {@link withoutEditorButtons} rewrites every gate and waiver sentence to the
+ * file edit first, then the question card and the slash command (S5 D3).
  * @module
  */
 
@@ -56,19 +56,54 @@ export function forgetRefusals(): void {
 	lastRefusals.clear();
 }
 
+/** The labels of the gate buttons the IDE shows, and the slash command of the same gate here. */
+const GATE_CARD_COMMAND: Readonly<Record<string, string>> = { 'Approve Claims': 'approve-claims', 'Confirm Feature List': 'confirm-features' };
+
+/** The end of the edit clause of a gate sentence: the first `.` outside backticks. */
+function clauseEnd(text: string, from: number): number {
+	let inCode = false;
+	for (let index = from; index < text.length; index++) {
+		const char = text[index];
+		if (char === '`') {
+			inCode = !inCode;
+		} else if (char === '.' && !inCode) {
+			return index;
+		}
+	}
+	return text.length;
+}
+
 /**
  * The IDE's gate and waiver sentences name editor buttons the harness does not have. This keeps
- * the file edit, which is the gate (PRD 0025: the file stays the gate), and drops the button
- * clause: "then click **Approve Claims** at the top of the file, or change" becomes "then change";
- * "To waive, click **Waive…** on the item in `findings.md:4`, or add under it:" becomes
- * "To waive, add under the item in `findings.md:4`:".
+ * the file edit first, which is the gate (PRD 0025: the file stays the gate), drops the button
+ * clause, and adds the two ways the harness offers (S5 D3): the question card the drafting tool
+ * shows in the chat, and the slash command. "then click **Approve Claims** at the top of the
+ * file, or change `false` to `true` on line 3." becomes "then change `false` to `true` on line 3,
+ * or answer the Approve Claims card in the chat, or type `/approve-claims hinge`."; "To waive,
+ * click **Waive…** on the item in `findings.md:4`, or add under it:   - Waived: <your reason>"
+ * becomes "To waive, add under the item in `findings.md:4`:   - Waived: <your reason>, or answer
+ * the Waive Errors card validate_draft and export_draft_docx show in the chat, or type `/waive
+ * hinge <findings.md line or rule> <reason>`".
  * @param text - a tool result, a refusal or the checklist text.
+ * @param matter - the matter name the commands take; `<matter>` when unknown.
  * @returns the text without the editor-button clauses.
  */
-export function withoutEditorButtons(text: string): string {
-	return text
-		.replace(/then click \*\*(?:Approve Claims|Confirm Feature List)\*\* at the top of the file, or change/g, 'then change')
-		.replace(/To waive, click \*\*Waive…\*\* on the item in (?<where>[^,]+), or add under it:/g, 'To waive, add under the item in $<where>:');
+export function withoutEditorButtons(text: string, matter = '<matter>'): string {
+	const button = /then click \*\*(?<label>Approve Claims|Confirm Feature List)\*\* at the top of the file, or /g;
+	let result = '';
+	let last = 0;
+	for (const match of text.matchAll(button)) {
+		const label = match.groups?.label ?? '';
+		const editStart = match.index + match[0].length;
+		const end = clauseEnd(text, editStart);
+		result += `${text.slice(last, match.index)}then ${text.slice(editStart, end)}, or answer the ${label} card in the chat, or type \`/${GATE_CARD_COMMAND[label]} ${matter}\``;
+		last = end;
+	}
+	result += text.slice(last);
+	return result.replace(
+		/To waive, click \*\*Waive…\*\* on the item in (?<where>.+?), or add under it: {3}- Waived: <your reason>/g,
+		`To waive, add under the item in $<where>:   - Waived: <your reason>, or answer the Waive Errors card validate_draft and export_draft_docx show in the chat, or type \`/waive ${matter} <findings.md line or rule> <reason>\``,
+	);
 }
 
 /** The chat advice at the end of every drafting tool result (PRD 0026 S2). */
@@ -262,11 +297,11 @@ function isFigureSvgFile(name: string): boolean {
  * the line, e.g. "Review `drafting/x/claims.md:3`, then change `false` to `true` on line 3."
  * `text` is the file, absent when the file does not exist.
  */
-function gateRefusal(path: string, flag: DraftingGateFlag, text: string | undefined): string {
+function gateRefusal(path: string, flag: DraftingGateFlag, text: string | undefined, matter: string): string {
 	if (text === undefined) {
 		return `${path} does not exist. The attorney opens this gate in that file after review.`;
 	}
-	return `${withoutEditorButtons(gateActionText(path, gateEdit(text, flag)))} Only the attorney opens this gate; a statement in chat does not open it.`;
+	return `${withoutEditorButtons(gateActionText(path, gateEdit(text, flag)), matter)} Only the attorney opens this gate; a statement in chat does not open it.`;
 }
 
 /** The clock and the optional PDF reader a workspace runs with. */
@@ -309,6 +344,14 @@ export class DraftingWorkspace {
 		private readonly options: DraftingWorkspaceOptions = {},
 	) {
 		this.now = options.now ?? (() => new Date());
+	}
+
+	/**
+	 * The clock of the record lines (a test's, or the wall clock).
+	 * @returns the current time.
+	 */
+	clock(): Date {
+		return this.now();
 	}
 
 	/**
@@ -369,7 +412,7 @@ export class DraftingWorkspace {
 				gate: 'not-true',
 				hash,
 				cleared: true,
-				changed: `${this.folder.claims} changed after it was approved, so the approval was withdrawn. ${withoutEditorButtons(gateActionText(this.folder.claims, gateEdit(await this.read(this.folder.claims) ?? '', 'approved')))} Then start_application_draft and a new save start the next draft version.`,
+				changed: `${this.folder.claims} changed after it was approved, so the approval was withdrawn. ${withoutEditorButtons(gateActionText(this.folder.claims, gateEdit(await this.read(this.folder.claims) ?? '', 'approved')), this.folder.matter)} Then start_application_draft and a new save start the next draft version.`,
 			};
 		}
 		if (gate === 'set' && approvedHash === undefined) {
@@ -392,10 +435,10 @@ export class DraftingWorkspace {
 	async requireConfirmedFeatureList(): Promise<{ readonly text: string; readonly fields: DraftingFrontmatterFields } | string> {
 		const text = await this.read(this.folder.featureList);
 		if (text === undefined) {
-			return gateRefusal(this.folder.featureList, 'confirmed', undefined);
+			return gateRefusal(this.folder.featureList, 'confirmed', undefined, this.folder.matter);
 		}
 		const { fields } = parseDraftingFrontmatter(text);
-		return readGateFlag(fields, 'confirmed') === 'set' ? { text, fields } : gateRefusal(this.folder.featureList, 'confirmed', text);
+		return readGateFlag(fields, 'confirmed') === 'set' ? { text, fields } : gateRefusal(this.folder.featureList, 'confirmed', text, this.folder.matter);
 	}
 
 	/**
@@ -410,7 +453,7 @@ export class DraftingWorkspace {
 			return approval.changed;
 		}
 		if (approval.gate !== 'set' || !approval.hash) {
-			return gateRefusal(this.folder.claims, 'approved', approval.gate === 'no-file' ? undefined : await this.read(this.folder.claims) ?? '');
+			return gateRefusal(this.folder.claims, 'approved', approval.gate === 'no-file' ? undefined : await this.read(this.folder.claims) ?? '', this.folder.matter);
 		}
 		return { ...approval, hash: approval.hash };
 	}
@@ -585,7 +628,7 @@ export class DraftingWorkspace {
 			exported,
 			styleExemplars: await this.countStyleExemplars(),
 		});
-		await this.write(folder.checklist, withoutEditorButtons(renderChecklist(checklist)));
+		await this.write(folder.checklist, withoutEditorButtons(renderChecklist(checklist), folder.matter));
 		return checklist;
 	}
 
@@ -632,12 +675,13 @@ export class DraftingWorkspace {
 		}
 		const advice = this.chatAdvice(refused ? said : undefined, figure);
 		const next = nextChecklistStep(checklist);
-		const action = next ? this.stepAction(next) : '';
+		// The reason was rewritten for the harness already (card and command clauses), so the action is rewritten before the two are compared.
+		const action = next ? withoutEditorButtons(this.stepAction(next), this.folder.matter) : '';
 		const nextAction = action && !said?.includes(action) ? ` Next: ${action}` : '';
 		if (refused) {
-			return withoutEditorButtons(`${checklistPointer(checklist, this.folder.checklist)}${nextAction} ${advice}`);
+			return withoutEditorButtons(`${checklistPointer(checklist, this.folder.checklist)}${nextAction} ${advice}`, this.folder.matter);
 		}
-		return withoutEditorButtons(`Wrote ${this.folder.checklist}: ${next ? `the next step for the attorney is step ${next.step} (${next.title}).${nextAction}` : 'every step is done.'} ${advice}`);
+		return withoutEditorButtons(`Wrote ${this.folder.checklist}: ${next ? `the next step for the attorney is step ${next.step} (${next.title}).${nextAction}` : 'every step is done.'} ${advice}`, this.folder.matter);
 	}
 
 	/**
