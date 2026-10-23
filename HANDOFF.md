@@ -329,6 +329,9 @@ fail. A fresh clone does not have them.
     against the firm's IdP, which also feeds the Knowledge Pool's walls; v3 = a FlowLeap gateway with
     login, identity-to-instance routing and a spawner (ADR 0011's deferred piece). The per-instance
     token and cookie stay as the second lock in every variant.
+    YubiKey (founder question 2026-10-23): sign-in via the IdP's FIDO2 comes free with v1/v2; later
+    plugins if a firm asks: WebAuthn step-up before gate actions or key changes (same seam as B1's
+    policy plugin), receipt signing with a PIV/OpenPGP key, age-plugin-yubikey for the key store.
   - **B2 desktop computer use**: laptop shape only, reusing B1's policy plugin, when a firm names the
     desktop application it needs driven; the headless browser (B1) runs identically on both shapes.
 - **S4a DONE, milestone 1 (2026-10-23).** `make desktop-flowleap` builds an unsigned macOS arm64 app and
