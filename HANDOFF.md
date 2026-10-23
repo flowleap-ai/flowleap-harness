@@ -307,3 +307,14 @@ fail. A fresh clone does not have them.
   source names the paid `get_fulltext` route in the message and in an additive `paidRoute` field;
   the vendored library is pinned to that main commit.
   Later: born-digital PDF text extraction without OCR (needs a permissive PDF parser).
+- **Computer use (2026-10-23):**
+  [flowleap/docs/2026-10-23-computer-use-cua-assessment.md](flowleap/docs/2026-10-23-computer-use-cua-assessment.md).
+  trycua is already inside dsh (`computer-use-cua-driver-*` pin `@trycua/cua-driver` 0.28.0, MIT; `cua-macos`
+  is dsh's own Swift driver), none of it is mounted in `flowleap-web`, and dsh's approval policy does not
+  cover MCP, computer-use or browser tool calls. Of 11 patent use cases, 8 have an API or a connector.
+  Plan: slice **B1 after S4 and S5**, a read-only headless browser (dsh's Playwright MCP provider, fresh
+  profile per session) behind a new policy plugin (domain allowlist, deny-list of filing and payment
+  hosts, ask before every click or type), for DPMAregister and national-office pages until connectors
+  ship and for firm web tools without an API. Never a filing portal (MyEPO, Online Filing, Patent
+  Center, ePCT: 2FA and legal deadlines; EPO filing has an API). Desktop computer use is not useful on a
+  headless firm server.
