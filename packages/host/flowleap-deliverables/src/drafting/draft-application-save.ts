@@ -8,7 +8,10 @@
  * `draftApplicationSave.ts` (SOURCE.json) with its imports rewritten onto this
  * package and the clock taken from the workspace, so a test pins the record
  * times. The gates refuse with the file edit, the card and the command (see
- * `workspace.ts`); the save itself never asks.
+ * `workspace.ts`); the save itself never asks. One rule is added to the IDE's:
+ * the first save of a version carries the gate record lines (`Feature List
+ * confirmed`, `Claims approved`, `Error waived`) over from the previous record,
+ * since here they are the only record of the attorney's decision.
  * @module
  */
 
@@ -16,8 +19,16 @@ import { DraftingFrontmatterFields, DraftingFrontmatterValue, parseDraftingFront
 import { appliedAnswerLabel, currentAnswer, isAnswered, newlyAppliedAnswers, parseInventorAnswers, updateInventorAnswers } from './inventor-answers.ts';
 import { parseInventorQuestions } from './source-markers.ts';
 import { addRecordLine, APPROVAL_CLEARED, APPROVED_CLAIMS_HASH, INVENTOR_ANSWER_APPLIED, OUTLINE_HASH, OUTLINE_RESAVED, readRecordField, readRecordFields, renderDraftWorkingRecord, resaveWorkingRecord, setRecordField, VERSION_CLAIMS_HASH } from './working-record.ts';
+import { GATE_RECORD_LABEL, WAIVED_RECORD_LABEL } from '../gates/record.ts';
 import { sha256Hex } from '../report/text.ts';
 import { DraftingSaveResult, DraftingWorkspace } from './workspace.ts';
+
+/**
+ * The record lines the first save of a version carries over from the previous record: the IDE's
+ * two (the approval history of the claims and the outline re-saves) plus the attorney's gate
+ * decisions of the harness, whose only record is this file (the IDE's record was the editor save).
+ */
+const CARRIED_RECORD_LABELS = [APPROVAL_CLEARED, OUTLINE_RESAVED, GATE_RECORD_LABEL.confirmed, GATE_RECORD_LABEL.approved, WAIVED_RECORD_LABEL];
 
 /** The `write_patent_results` input of a `draft-application` save. */
 export interface DraftApplicationSaveInput {
@@ -144,8 +155,8 @@ async function save(workspace: DraftingWorkspace, input: DraftApplicationSaveInp
 			versionClaimsHash: versionHash,
 			outlineHash,
 		}, document);
-		// The approval history of the claims and the outline re-saves stay with the record of the draft built on them.
-		for (const label of [APPROVAL_CLEARED, OUTLINE_RESAVED]) {
+		// The approval history of the claims, the outline re-saves and the gate decisions stay with the record of the draft built on them.
+		for (const label of CARRIED_RECORD_LABELS) {
 			record = readRecordFields(previousRecord, label).reduce((updated, value) => addRecordLine(updated, label, value), record);
 		}
 	} else {

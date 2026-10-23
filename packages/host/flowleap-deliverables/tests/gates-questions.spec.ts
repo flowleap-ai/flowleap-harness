@@ -140,6 +140,20 @@ describe('Confirm Feature List and Approve Claims cards', () => {
     })
   })
 
+  it('the gate record lines survive the first draft save, which rebuilds the Working Record', async () => {
+    const bench = await benchWith(gatesClosed)
+    benches.push(bench)
+    bench.seams.answerer = request => ({
+      answers: request.questions.map(question => ({ id: question.id, selected: [question.options![0]!.label] })),
+    })
+    await bench.tools.start()
+    await bench.tools.save(draft())
+    expect((await recordLines(bench)).filter(line => /confirmed|approved:/.test(line))).toEqual([
+      '- **Feature List confirmed:** by the attorney in chat (question card, call call-1) at <time>',
+      '- **Claims approved:** by the attorney in chat (question card, call call-1) at <time>; claims SHA-256 <sha>',
+    ])
+  })
+
   it('export_draft_docx asks the Approve Claims card too and exports after a "yes"', async () => {
     const bench = await benchWith(gatesOpen)
     benches.push(bench)
