@@ -241,6 +241,25 @@ Use the dedicated guides for build and release operations. Shared Windows runner
 - [Windows signing and runner operations](windows-signing/README.md): machine setup, accepted isolation risks, signing credentials, token failures and cache maintenance.
 - [Desktop publication](publishing/README.md): upload credentials, release identity, fixed downloads, update feeds and upload recovery.
 
+<a id="flowleap-product-configuration"></a>
+
+### FlowLeap product configuration
+
+The shell is one of the products under [`config/`](config/): `product.deepseek.json` is the upstream application and the default; `product.flowleap.json` is FlowLeap Patent AI. `DSH_DESKTOP_PRODUCT=<name>` selects the file for a packaging run or an unpackaged launch, and packaging embeds the selected record in the application manifest as `dshDesktopProduct`, so the installed application needs no environment. [`src/product.ts`](src/product.ts) owns the schema; [`scripts/desktop-product.mjs`](scripts/desktop-product.mjs) reads the file for the builder.
+
+The record controls: the product name (window title base, About panel, every shell string that named DeepSeek Harness, the `.app` name), the bundle identifier (`co.flowleap.patent-ai`; a local unsigned build takes it from the file, a signed build must set the same `DSH_DESKTOP_APP_ID`), the deep-link scheme (`flowleap-patent-ai://open`; the internal `dsh-app://` document scheme is unchanged), the icon directory ([`resources/flowleap/`](resources/flowleap/), rendered from the FlowLeap mark by `pnpm run render:product-icons -- --mark <mark.svg> --out <directory>`), the microphone usage text and bundle locales, and the dsh profile: `$DSH_HOME/profiles/flowleap-desktop`, initialized from the shipped `flowleap-web` template (`dsh-base`, `dsh-web-app`, `dsh-flowleap-web`), separate from the upstream `profiles/desktop`. The bundled runtime already carries `dsh-flowleap-web` because `@deepseek-ai/dsh` depends on it.
+
+The vendor behaviours are switches that FlowLeap turns off: `account: false` reads no account state and opens no account stream; `welcome: false` skips the welcome window and opens the workspace once the Host is ready (the connector wizard inside the web application is the first run); `platform: false` rejects the embedded Platform pages; `telemetry: false` reports no shell analytics events; `updates.feedUrl: ""` ships no `app-update.yml`, hides Check for Updates and logs one line at startup (`"deployment"` keeps the upstream release settings, an HTTPS URL is a generic feed); `mandatoryUpdatePolicy: "off"` embeds no policy. Crash reports stay local files under the application logs directory; nothing is uploaded.
+
+Build the unsigned macOS arm64 application from the repository root:
+
+```sh
+make desktop-flowleap        # DSH_DESKTOP_PRODUCT=flowleap pnpm run package:desktop:mac:arm64:unsigned
+make desktop-flowleap-dir    # stop at the unpacked .app
+```
+
+The DMG is `apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/flowleap-patent-ai-<version>-mac-arm64-unsigned.dmg`. Milestone 2 adds Developer ID signing and notarization with FlowLeap's Apple identity, the Windows build, the update feed and its publication, and the release workflow; those secrets live in the FlowLeap organization's CI, not in this repository.
+
 <a id="windows-uninstall-rules"></a>
 
 <a id="windows-installer-interface"></a>
