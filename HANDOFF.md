@@ -365,3 +365,12 @@ fail. A fresh clone does not have them.
   custom provider, with the S4b compose on the same machine. Measure tool-calling quality at 70B-class
   before promising "local AI". The Knowledge Pool's open questions stay open until the first firm answers
   them; the MVP (firm tier, human review, no walls) does not depend on them.
+- **E1 "bring your subscription" (founder, 2026-10-23), after S5:** attorneys use the Claude or ChatGPT
+  seat they already pay for, through the vendor's own tools only (Claude Code, Codex installed and signed
+  in on the machine), never by borrowing a claude.ai login token (dsh's pi-ai can, Anthropic has cut
+  off harnesses that did; the firm would carry the risk). Phase 1 exists: the `subagent-claude-code`
+  and `subagent-codex` bundles on the Plugins page. Phase 2: an engine provider plugin that drives Claude
+  Code or Codex for the whole turn (headless or ACP), our 34 office tools offered to it as a local MCP
+  server from the connectors package, our prompt appended as system prompt; option in Settings → Models
+  with one sentence on whose terms apply; API keys and the firm's cloud stay the default. One to two
+  weeks; risks: two stacked prompts, less tool-routing control, vendor terms.
