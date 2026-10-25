@@ -472,3 +472,31 @@ fail. A fresh clone does not have them.
   Evidence in the session scratchpad `acceptance-d3/`. Open for the full S5 acceptance: the three
   skill-grounded cases (prior art, dossier, FTO) with the skills folder EMPTY; the D3 run already
   reached the export with no `application-drafting` skill loaded (`FLOWLEAP_SKILLS_DIR` unset).
+- **S5 acceptance, three cases with the skills folder EMPTY (2026-10-25): 1 PASS, 2 PARTIAL, 0 FAIL.**
+  Port 3096, Sonnet 5.5 via OpenRouter, fresh workspace, `FLOWLEAP_SKILLS_DIR` AND `DSH_AGENTS_HOME`
+  pointed at empty folders (the preset's own `skill-filesystem` provider still mounts `~/.agents/skills`
+  when only `FLOWLEAP_SKILLS_DIR` is empty; proof: no Skills section in the `/` menu, `skill prior-art`
+  -> unknown). Each case 1m46s to 3m02s, 1.3M to 1.6M tokens, 90 to 93% cache. Prior art PARTIAL:
+  structured save after one refusal and one free-form detour (the steer message forced the template),
+  report + record + evidence + second read, X/Y/A tags, no fabricated numbers, but US4763957A from the
+  examiner baseline silently omitted. Dossier PASS: 12 claims, independents 1/6/10, "at least three
+  lobes" verbatim, DE/FR/GB/NL lapse dates exact, zero forward citations with routes named, US family
+  chain right; one wording slip (OPS docdb id printed as a US serial beside the real one); CH shows a
+  PG25 event in today's OPS data, so the old answer key is stale there. FTO PARTIAL: memo saved first
+  time, DE/FR lapsed from legal-status data, US grant in force, element mapping, risk per market,
+  design-around, limitations; but US expiry asserted from own arithmetic + Google Patents without a
+  term lookup, "comprising" reasoning applied but never named. **Defects to fix (harness side):**
+  (1) the connectors' paid-route hint names `mcp__flowleap__get_claims`, which the `mcp-flowleap` row
+  does not include (only `get_fulltext`), so every US claims read died on "unknown tool" in all three
+  cases: add `get_claims` and `get_description` to `tools.include` (ADR 0019 d5 intends the same-name
+  paid tool) or map the hint; (2) the prompt export carries the STATIC key-state line "EPO OPS key is
+  not set; USPTO ODP key is not set" (agent-v2 `patentAIPrompt.tsx` line ~213 rendered with no keys):
+  the export must omit that paragraph and `dsh-flowleap-connectors` must contribute the live key
+  presence as its own system-prompt section; (3) free-form `write_patent_results` saves get no second
+  read, record or evidence and the file was edited 9 times after the card (no seal); no dossier
+  template; (4) `get_claims` description still says "US claims come from BigQuery" and the word leaks
+  into memos; (5) uspto `range_filters` -> 400; (6) FTO template field "Jurisdiction(s)" left as a
+  placeholder; provenance audit covers only three tools and reports found dates as "not found" (ISO vs
+  yyyymmdd). Evidence in the session scratchpad `acceptance-s5/` (EVIDENCE.md, per-case transcripts,
+  session logs, outputs). Verdict against the rule: the harness carries the three workflows without
+  skills; the misses are route and precision defects, not knowledge gaps.
