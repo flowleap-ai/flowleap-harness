@@ -51,6 +51,10 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 Each connector is one `grant` record, `flowleap-connectors/<id>`, whose payload is the field map; the payload is validated on every read, and a record missing a field reads as not configured. The library asks for a provider's credentials per call, so a key saved in Settings reaches the next call without a restart. Nothing reads keys from the environment: the records are the one source.
 
+### The key-state prompt section
+
+When the composition has a system prompt, the row registers `flowleap:patent-data-keys` at order 1, right after the persona slot. The text says, per connector, only whether a key is stored (`EPO OPS: key is set`), under the heading `Patent-data keys (this host)` that the IDE's prompt export points the model at (agent-v2 `keyStateOwner: 'host'`). It names no office as reachable: the call is the authority. The presence map re-reads on every `credentials/record-updated` event of the `flowleap-connectors` scope, so a key saved in Settings reaches the next turn's prompt. Values never enter the text.
+
 ### The Remote
 
 `ctx.remote.flowleapConnectors` on the Client:
@@ -157,6 +161,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/tools.ts`](src/tools.ts) | `registerOfficeTools`, `modelInputSchema`, the access gate and the missing-credential answer |
 | [`src/compare-claims.ts`](src/compare-claims.ts) | the native `compare_claims` tool: the EPO OPS key gate, the claims fetch through the text router, the IDE's claim decomposition and chart |
 | [`src/read-pdf.ts`](src/read-pdf.ts) | the native `read_pdf` tool: working-directory fence, size and page caps, the OCR call, page markers and the cost line |
+| [`src/key-state.ts`](src/key-state.ts) | the `flowleap:patent-data-keys` prompt section: key presence per connector, refreshed on record changes; the persona export points at its heading |
 | [`src/controller.ts`](src/controller.ts) | the `flowleapConnectors` Remote |
 | [`tests/`](tests/) | record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
 

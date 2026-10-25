@@ -17,6 +17,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { createConnectors, officeTools } from '@flowleap/connectors'
@@ -24,6 +25,7 @@ import { registerCompareClaimsTool } from './compare-claims.ts'
 import { FlowleapConnectorsController } from './controller.ts'
 import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
+import { registerKeyStateSection } from './key-state.ts'
 import { registerReadPdfTool } from './read-pdf.ts'
 import { registerOfficeTools } from './tools.ts'
 
@@ -46,6 +48,11 @@ export {
   estimatePdfPages, pagesMarkdown, readPdfTool, registerReadPdfTool, renderReadPdf,
 } from './read-pdf.ts'
 export type { ReadPdfArgs, ReadPdfValue } from './read-pdf.ts'
+export {
+  KEY_STATE_HEADING, KEY_STATE_SECTION_NAME, KEY_STATE_SECTION_ORDER, NO_KEYS, readKeyPresence, registerKeyStateSection,
+  renderKeyStateSection,
+} from './key-state.ts'
+export type { KeyPresence } from './key-state.ts'
 export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
 export type { MissingCredentialResult } from './tools.ts'
 export * from './types.ts'
@@ -85,6 +92,11 @@ export function apply(ctx: Context, config: Config): void {
   // read_pdf needs a filesystem and the session directory; a composition without them keeps the office tools alone.
   ctx.inject(['fs', 'workingDirectory'], (fileCtx) => {
     fileCtx.effect(() => registerReadPdfTool(fileCtx, connectors, bound), 'flowleap-connectors: read_pdf')
+  })
+  // The live key state as a prompt section: the static persona export defers to it.
+  // A composition without a system prompt keeps the tools alone.
+  ctx.inject(['systemPrompt'], (promptCtx) => {
+    void registerKeyStateSection(promptCtx, store)
   })
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
 }
