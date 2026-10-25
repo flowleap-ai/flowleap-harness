@@ -62,6 +62,13 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
+- **Business model refinement (founder, 2026-10-25, before the next acceptance pass):** one-time
+  payment for the on-premises install plus an optional support retainer; the firm must get ALL the
+  data on its own keys. Open: US claim and description text is the one route still behind the backend
+  (BigQuery): move it firm-side (USPTO bulk or the public BigQuery dataset on the firm's Google
+  account) or keep it as the single hosted text route. PATSTAT stays hosted on the founder's server.
+  Until settled, the MCP row is "the paid set", not "the subscription".
+
 - **UI locale dictionaries.** The web GUI ships `zh` and `en` dictionaries in 220 packages
   (`packages/client/*/locale/{zh,en}.json` and `locales.ts`, where `zh` is the typed key source
   and `en` is checked against it; 290 TypeScript files reference `zh`). They are inert data and
