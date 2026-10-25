@@ -4,8 +4,10 @@
  * save, the working-directory fence, the drafting refusal, a structured save
  * refused for a quote no tool returned and accepted on the corrected retry
  * (report, working record and evidence companion written, `deliverables/presented`
- * appended for the report and the record only), and the one-time
- * "report not written" steer at the turn boundary.
+ * appended for the report and the record only), the one-time
+ * "report not written" steer at the turn boundary, the fto-memo header cell
+ * the save must fill, the dossier template with its provenance appendix, and
+ * the seal on a delivered file (one steer on its first direct edit).
  */
 
 import { mkdtemp, readdir, readFile, realpath, rm } from 'node:fs/promises'
@@ -148,8 +150,8 @@ describe('write_patent_results', () => {
       names: ['export_draft_docx', 'get_claims', 'inventor_questions', 'remove_claim', 'start_application_draft', 'validate_draft', WRITE_PATENT_RESULTS_NAME],
       required: ['filePath', 'content'],
       properties: 26,
-      template: 11,
-      words: 152,
+      template: 12,
+      words: 210,
       noIde: true,
     })
   })
@@ -297,6 +299,48 @@ describe('write_patent_results', () => {
       nested: { provider: 'openrouter', model: 'anthropic/claude-sonnet-5-5' },
       none: [undefined, undefined, undefined],
     })
+  })
+})
+
+describe('the seal on a delivered file', () => {
+  it('saves a dossier as a checked report with its provenance appendix, and steers once when the model edits the delivered file directly', async () => {
+    const { ctx, session, call, write, steered } = await bench()
+    ctx.tools.register(fakeTool('edit', 'edited'))
+    ctx.tools.register(fakeTool('str_replace_editor', 'viewed'))
+    session.append('turn/start', { turn: 1 })
+    await call('get_claims', { patent_number: PUBLICATION })
+    const body = ['## Snapshot', `${PUBLICATION}: 2 claims; claim 1 reads "${CLAIM_1}".`, '', '## Family', 'No family members read.', '', '## Sources and Limitations', 'Claims from the retrieved text; no legal status read.'].join('\n')
+    const saved = await write({ filePath: 'outputs/dossier.md', content: body, template: 'dossier', matter: PUBLICATION, subject: 'Sealed sensor housings' })
+    const document = await readFile(join(dir, 'outputs/dossier.md'), 'utf8')
+    // The delivered file is edited directly: once steered, then silent for that path; another path and a view are never steered.
+    await call('edit', { file_path: 'outputs/dossier.md', old_string: 'No family members read.', new_string: 'No family.' })
+    await call('edit', { file_path: './outputs/../outputs/dossier.md', old_string: 'a', new_string: 'b' })
+    await call('str_replace_editor', { command: 'view', path: 'outputs/dossier.md' })
+    await call('edit', { file_path: 'outputs/other.md', old_string: 'a', new_string: 'b' })
+    expect({
+      result: textOf(saved.content[0]).split('\n').map(line => line.split(';')[0]),
+      title: document.split('\n')[0],
+      generated: document.match(/^## .*\(generated\)$/gm),
+      files: await readdir(join(dir, 'outputs')),
+      steered,
+    }).toEqual({
+      result: [
+        'Successfully wrote patent results to outputs/dossier.md',
+        'FTO provenance: 1 figures checked against recorded tool outputs',
+        DELIVERED_LINE.split(';')[0],
+      ],
+      title: '# Patent Dossier',
+      generated: ['## Figure and date provenance (generated)', '## Quotation provenance (generated)', '## Data provenance (generated)'],
+      files: ['dossier.md'],
+      steered: [`\`outputs/dossier.md\`: ${Deliverables.DIRECT_EDIT_STEER}`],
+    })
+    // A free-form save is sealed the same way, and a write of a path never delivered is not.
+    await write({ filePath: 'notes/free.md', content: 'Notes' })
+    ctx.tools.register(fakeTool('write', 'written'))
+    await call('write', { file_path: 'notes/free.md', content: 'Changed' })
+    await call('write', { file_path: 'notes/never-delivered.md', content: 'New' })
+    expect(steered).toHaveLength(2)
+    expect(steered[1]).toBe(`\`notes/free.md\`: ${Deliverables.DIRECT_EDIT_STEER}`)
   })
 })
 

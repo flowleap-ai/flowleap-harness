@@ -17,6 +17,11 @@
  * and this module wraps opaque model-produced text rather than the structured row/column data the renderer
  * needs. Instead, the template's guidance text instructs the model to produce a table using the identical
  * `| Claim Element | ... |` column convention, so charts read the same wherever they appear.
+ *
+ * Local divergence from the IDE copy (S5 acceptance defect C, 2026-10-25; see the README, "What
+ * differs from the IDE copy"): the `dossier` template, the dossier of one publication (snapshot,
+ * claims, family, legal status, citations, US family chain, sources and limitations), so a dossier
+ * is a checked save with a provenance appendix and not a free-form file.
  */
 export type PatentReportTemplate =
 	| 'prior-art-report'
@@ -27,7 +32,8 @@ export type PatentReportTemplate =
 	| 'eou-infringement-chart'
 	| 'patentability-opinion'
 	| 'landscape-report'
-	| 'portfolio-due-diligence-memo';
+	| 'portfolio-due-diligence-memo'
+	| 'dossier';
 
 /** The template identifiers accepted by the tool's input schema. Keep in sync with package.json. */
 export const PATENT_REPORT_TEMPLATES: readonly PatentReportTemplate[] = [
@@ -40,6 +46,7 @@ export const PATENT_REPORT_TEMPLATES: readonly PatentReportTemplate[] = [
 	'patentability-opinion',
 	'landscape-report',
 	'portfolio-due-diligence-memo',
+	'dossier',
 ];
 
 /** Footer appended to every templated report. */
@@ -94,6 +101,7 @@ const CONTENT_REQUIREMENT: Record<Exclude<PatentReportTemplate, StructuredTempla
 	'patentability-opinion': 'patentability-opinion needs content: the novelty and inventive-step analysis, naming the reference relied on for each claim feature.',
 	'landscape-report': 'landscape-report needs content: the filing-trend table, the top-filers table, the jurisdiction split and the white-space observations, each figure with its counting basis (families / applications / publications / live search hits) and its source (PATSTAT edition, analytics corpus, or the query).',
 	'portfolio-due-diligence-memo': 'portfolio-due-diligence-memo needs content: the key-asset analysis, one entry per asset with its claim breadth, its status and the observation bearing on value.',
+	'dossier': 'dossier needs content: the snapshot of the publication, its claims with claim 1 verbatim, the family with the status and dates of each state, the legal status, the citations, the US family chain, and the sources and limitations.',
 };
 
 /** Closing sentence of every missing-content message: the one template the rule does not apply to. */
@@ -209,6 +217,8 @@ function templateHeader(template: PatentReportTemplate, f: PatentReportFields, s
 			return ['# Patent Landscape Report', '', fieldTable([['Technology Area / Scope', f.subject], ['Search Criteria', f.searchStrategy], ['Date', f.date], ['Prepared By', f.preparedBy]]), ''];
 		case 'portfolio-due-diligence-memo':
 			return ['# Portfolio Due Diligence Memorandum', '', fieldTable([['Target / Portfolio', f.subject], ['Transaction / Purpose', f.matter], ['Date', f.date], ['Prepared By', f.preparedBy]]), ''];
+		case 'dossier':
+			return ['# Patent Dossier', '', fieldTable([['Publication', f.matter], ['Title / Technology', f.subject], ['Date', f.date], ['Prepared By', f.preparedBy]]), ''];
 	}
 }
 
@@ -393,6 +403,36 @@ function templateScaffold(content: string, template: PatentReportTemplate, f: Pa
 				'',
 				'## 5. Valuation-Relevant Observations',
 				'_Factors bearing on portfolio value: claim breadth, remaining term, citation activity, and market relevance._',
+				'',
+			];
+
+		case 'dossier':
+			return [
+				'# Patent Dossier',
+				'',
+				fieldTable([['Publication', f.matter], ['Title / Technology', f.subject], ['Date', f.date], ['Prepared By', f.preparedBy]]),
+				'',
+				'## 1. Snapshot',
+				'_Publication number, title, applicant, filing, priority and grant dates, and the current status, each as a retrieved record states it._',
+				results,
+				'',
+				'## 2. Claims',
+				'_Claim count, the independent claims by number, and claim 1 verbatim from the retrieved claim text; a claim text that was not retrieved is named as not read, never reconstructed._',
+				'',
+				'## 3. Family',
+				'_Every family member with its publication number and, per designated state, its status and the dates it rests on (grant, last fee payment, lapse)._',
+				'',
+				'## 4. Legal Status',
+				'_The events that decide whether the publication is in force, lapsed or expired, each with its date; an expiry is stated only from a retrieved term or adjustment record, or marked as an estimate._',
+				'',
+				'## 5. Citations',
+				'_Backward citations with the search-report categories (X, Y, A) and the claims they were cited against; the forward-citation count with every route checked, a zero named as a zero from the sources reached, not a verified absence._',
+				'',
+				'## 6. US Family Chain',
+				'_The US applications and grants of the family in filing order, each with its serial number, publication, grant date and maintenance standing; a DOCDB application id is never printed as a US serial._',
+				'',
+				'## 7. Sources and Limitations',
+				'_The retrieved records each section rests on, what was not retrieved, and what a register check must still confirm._',
 				'',
 			];
 	}

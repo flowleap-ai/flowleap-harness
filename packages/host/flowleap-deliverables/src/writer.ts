@@ -37,6 +37,7 @@ import { DRAFTING_FILE_NAMES, matchDraftingPath, resolveDraftingFolder } from '.
 import { DraftingWorkspace, workspaceFiles, type DraftingSaveResult } from './drafting/workspace.ts'
 import type { PatentLedger } from './ledger/store.ts'
 import type { PatentExecutionSnapshot } from './ledger/types.ts'
+import type { DeliveredPaths } from './guard/seal.ts'
 import type { SecondReadJudge } from './judge.ts'
 import { DELIVERED_LINE, type PresentQueue } from './present.ts'
 import { CandidateReviewVariant, candidateWordingReview, challengedClaims, chartOpenPoints, materializeCandidateReview, PatentCandidateReview, renderCandidateReview, renderWorkingRecord, validateCandidateReview } from './report/candidate-review.ts'
@@ -242,6 +243,8 @@ export interface WriterDependencies {
   readonly info: (message: string) => void
   /** The clock the report date and the verdict file use; a test passes its own. */
   readonly now?: () => Date
+  /** The seal's register of delivered paths; every saved report (free-form or templated) is marked. */
+  readonly delivered?: DeliveredPaths
 }
 
 /**
@@ -540,6 +543,8 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       }
       const objected = countObjectedSave(`${sessionId ?? ''}|${reportPath}`, secondRead)
       deps.info(`flowleap-deliverables: wrote ${filePath}`)
+      // The file is delivered with a card; a later direct edit of it is steered once (the seal).
+      if (sessionId !== undefined) deps.delivered?.mark(sessionId, reportPath)
 
       // The delivery card: the report and the working record; never the JSON companions.
       const recordPath = ctx.fs.processPath(recordTarget)

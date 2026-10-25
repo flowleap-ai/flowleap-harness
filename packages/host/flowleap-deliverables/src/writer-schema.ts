@@ -6,9 +6,10 @@
  * description is not copied: per-template rules live in the validation result
  * that names the row and the fix (ADR 0018 decision 4).
  *
- * One harness-only property beside the IDE's: `jurisdictions`, which fills the
- * fto-memo header's `Jurisdiction(s)` cell (S5 acceptance defect B; see the
- * README, "What differs from the IDE copy").
+ * Two harness-only additions beside the IDE's: the `jurisdictions` property,
+ * which fills the fto-memo header's `Jurisdiction(s)` cell (S5 acceptance
+ * defect B), and the `dossier` template (defect C); see the README, "What
+ * differs from the IDE copy".
  * @module
  */
 
@@ -16,17 +17,17 @@
 export const WRITE_PATENT_RESULTS_NAME = 'write_patent_results'
 
 /** The report templates the writer renders in this harness. */
-export const REPORT_TEMPLATES = ['prior-art-report', 'fto-memo', 'office-action-scaffold', 'invalidity-claim-chart', 'find-better-report', 'eou-infringement-chart', 'patentability-opinion', 'landscape-report', 'portfolio-due-diligence-memo'] as const
+export const REPORT_TEMPLATES = ['prior-art-report', 'fto-memo', 'office-action-scaffold', 'invalidity-claim-chart', 'find-better-report', 'eou-infringement-chart', 'patentability-opinion', 'landscape-report', 'portfolio-due-diligence-memo', 'dossier'] as const
 
 /** The Application Drafting templates the schema names; they arrive with S5 D3 and are refused until then. */
 export const DRAFTING_TEMPLATES = ['draft-application', 'draft-outline'] as const
 
 /** What the model reads about the tool: the contract, not the per-template rules. */
-export const WRITE_PATENT_RESULTS_DESCRIPTION = 'Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo). '
+export const WRITE_PATENT_RESULTS_DESCRIPTION = 'Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo, dossier). '
   + 'filePath is relative to the working directory or absolute inside it; parent folders are created and an existing file is replaced. '
   + 'prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session\'s data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. '
-  + 'Every other template wraps the content you write. '
-  + 'A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files. '
+  + 'Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). '
+  + 'A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. '
   + 'A refusal names each field to fix; correct it and retry. draft-application and draft-outline are not available in this harness yet.'
 
 /**
@@ -56,10 +57,11 @@ export const WRITE_PATENT_RESULTS_PARAMETERS: Record<string, unknown> = {
         'patentability-opinion',
         'landscape-report',
         'portfolio-due-diligence-memo',
+        'dossier',
         'draft-application',
         'draft-outline',
       ],
-      description: 'Optional report wrapper. prior-art-report is a review of candidate evidence, not an ISR or patentability opinion. Use patentability-opinion only for a requested formal assessment; fto-memo for FTO, office-action-scaffold for responses, invalidity-claim-chart/eou-infringement-chart for their respective element charts (invalidity-claim-chart also takes structured coverage, and then requires empty content), find-better-report for a Find Better run on a granted patent (structured only: coverage with examiner and found sides, baseline, examinerBestArt, tracks; empty content), landscape-report for landscapes, portfolio-due-diligence-memo for portfolios, draft-application for a Draft Application of the application-drafting skill (filePath drafting/<matter>/draft-application.md; content is the whole draft starting with its frontmatter; it is written unchanged, never wrapped, with the generated snapshot and the Working Record beside it; findings never block it, but it refuses while drafting/<matter>/draft-outline.md is missing or made for other claims), draft-outline for the Draft Outline of the application-drafting skill (filePath drafting/<matter>/draft-outline.md; content is the Outline table, one row per Outline Item; the tool sets the office and the Approved Claims SHA-256 in its frontmatter; it refuses while feature-list.md is not confirmed, while claims.md is not approved, or when no Outline Item parses; it returns the outline check without blocking the save). Omit for free-form content.',
+      description: 'Optional report wrapper. prior-art-report is a review of candidate evidence, not an ISR or patentability opinion. Use patentability-opinion only for a requested formal assessment; fto-memo for FTO, office-action-scaffold for responses, invalidity-claim-chart/eou-infringement-chart for their respective element charts (invalidity-claim-chart also takes structured coverage, and then requires empty content), find-better-report for a Find Better run on a granted patent (structured only: coverage with examiner and found sides, baseline, examinerBestArt, tracks; empty content), landscape-report for landscapes, portfolio-due-diligence-memo for portfolios, dossier for the dossier of one publication (content is the dossier body: snapshot, claims, family, legal status, citations, US family chain, sources and limitations), draft-application for a Draft Application of the application-drafting skill (filePath drafting/<matter>/draft-application.md; content is the whole draft starting with its frontmatter; it is written unchanged, never wrapped, with the generated snapshot and the Working Record beside it; findings never block it, but it refuses while drafting/<matter>/draft-outline.md is missing or made for other claims), draft-outline for the Draft Outline of the application-drafting skill (filePath drafting/<matter>/draft-outline.md; content is the Outline table, one row per Outline Item; the tool sets the office and the Approved Claims SHA-256 in its frontmatter; it refuses while feature-list.md is not confirmed, while claims.md is not approved, or when no Outline Item parses; it returns the outline check without blocking the save). Omit for free-form content.',
     },
     matter: {
       type: 'string',
