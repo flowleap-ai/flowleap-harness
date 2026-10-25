@@ -24,7 +24,7 @@ import type { ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { parsePatentDocumentReference, type PatentDocumentReference } from '../report/document-reference.ts'
 import type { NewPatentExecution, PatentLedger } from './store.ts'
 import {
-  evidenceAnchor, readEvidenceSource,
+  evidenceAnchor, HARNESS_STATUS_TOOLS, readEvidenceSource,
   type PatentEvidenceSource, type PatentRecordedTool,
 } from './types.ts'
 
@@ -37,8 +37,17 @@ const TEXT_TOOLS: ReadonlySet<string> = new Set(['get_claims', 'get_description'
 /** Retrieval tools recorded as `details`: the text reads of one publication. */
 const DETAILS_TOOLS: ReadonlySet<string> = new Set([...TEXT_TOOLS, 'get_fulltext'])
 
-/** Status tools, recorded with their full result text so a memo's dates can be traced. */
-const STATUS_TOOLS: ReadonlySet<string> = new Set(['get_legal_status', 'get_patent_family', 'get_patent_term', 'get_register_events'])
+/**
+ * Status tools, recorded with their full result text so a memo's dates and figures can be traced:
+ * the IDE's four and the harness's native status, bibliographic, file-wrapper and term reads
+ * (`HARNESS_STATUS_TOOLS`). An FTO memo reads a lapse date off `get_patent_summary`, a grant date
+ * off `get_family` and the PTA days off `get_patent_term_adjustment`; a result outside this set is
+ * outside the audit, and the memo then tells the attorney a grounded date is unsupported.
+ */
+const STATUS_TOOLS: ReadonlySet<string> = new Set(['get_legal_status', 'get_patent_family', 'get_patent_term', 'get_register_events', ...HARNESS_STATUS_TOOLS])
+
+/** The result text of these details reads is kept whole: a bibliography is dates and names, not a passage, so no source holds them. */
+const TEXT_KEPT_DETAILS: ReadonlySet<string> = new Set(['get_bibliography'])
 
 /** The MCP server the paid tools arrive from; its prefix is stripped before the name is matched. */
 const MCP_PREFIX = /^mcp__[^_]+(?:_[^_]+)*__/u
@@ -184,6 +193,18 @@ function unavailableSections(name: string, value: unknown): string[] | undefined
   return undefined
 }
 
+/**
+ * How many rows a status read returned: legal-status events, family members, file-wrapper records
+ * (`count`), listed documents, or citations; `undefined` when the result counts nothing.
+ */
+function statusRowCount(value: JsonRecord): number | undefined {
+  for (const key of ['events', 'members', 'documents', 'citations', 'transactions', 'assignments']) {
+    const rows = value[key]
+    if (Array.isArray(rows)) return rows.length
+  }
+  return count(value['count'])
+}
+
 /** How a `search_patents` page lists its documents: ids, or hydrated records with a `docId`. */
 function publicationIdsOf(value: unknown): string[] | undefined {
   if (!isRecord(value) || !Array.isArray(value['docs'])) return undefined
@@ -217,7 +238,7 @@ export function executionOf(
   const resultText = contentText(result.content)
   const structured = structuredSources(value)
   const mode: RecorderMode = structured === undefined ? 'derived' : 'structured'
-  const publication = text(record['patent_number']) ?? text(record['publication'])
+  const publication = text(record['patent_number']) ?? text(record['publication']) ?? text(record['application_number'])
 
   if (bare === 'search_patents') {
     const countries = Array.isArray(record['countries']) ? (record['countries'] as unknown[]).filter((entry): entry is string => typeof entry === 'string') : undefined
@@ -250,11 +271,12 @@ export function executionOf(
       unavailableSections: status === 'succeeded' ? unavailableSections(bare, value) : undefined,
       totalClaims: isRecord(value) ? count(value['totalClaims']) : undefined,
       returnedClaims: claims,
+      resultText: status === 'succeeded' && TEXT_KEPT_DETAILS.has(bare) ? resultText : undefined,
     }
     return { execution: compact(execution), mode }
   }
   if (STATUS_TOOLS.has(bare)) {
-    const rows = isRecord(value) ? (Array.isArray(value['events']) ? value['events'].length : Array.isArray(value['members']) ? value['members'].length : undefined) : undefined
+    const rows = isRecord(value) ? statusRowCount(value) : undefined
     const execution: NewPatentExecution = {
       kind: 'status',
       status,

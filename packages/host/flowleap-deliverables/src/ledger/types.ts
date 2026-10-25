@@ -10,6 +10,11 @@
  * storage class: the evidence source and execution records, the recorded tool
  * identities, the text caps, the anchor functions and the untrusted-storage reader.
  * The harness store and recorder live beside it in `store.ts` and `recorder.ts`.
+ *
+ * Local divergence from the IDE copy (S5 acceptance defect A, 2026-10-25; see the README,
+ * "What differs from the IDE copy"): {@link PatentStatusTool} and {@link RECORDED_TOOLS} also name
+ * the harness's native status, bibliographic, US file-wrapper, continuity and term tools, and
+ * {@link LIMITATION} states that scope. The IDE's four status tools are a subset.
  * @module
  */
 
@@ -53,7 +58,35 @@ export type PatentAnalyticsTool = 'patstat_query' | 'patstat_portfolio' | 'paten
  * lapsed on a date, or expires on another; without the returned text those dates are transcriptions
  * with nothing to check them against.
  */
-export type PatentStatusTool = 'get_legal_status' | 'get_patent_family' | 'get_patent_term' | 'get_register_events';
+export type PatentStatusTool = 'get_legal_status' | 'get_patent_family' | 'get_patent_term' | 'get_register_events' | HarnessStatusTool;
+
+/**
+ * The harness's native tools that return dates, statuses and term figures beside the IDE's four
+ * (flowleap-connectors `office-tools.ts` and `us-lookups.ts`): the compound summary, the INPADOC
+ * family, the EP Register record, the US grant and application file wrappers, the continuity chain,
+ * the transactions, assignments, foreign priority and prosecution timeline, the PTA data, the
+ * forward citations, and the file-wrapper document list and reads. An FTO memo or a dossier reads its
+ * lapse, grant and expiry dates and its PTA days off these outputs; recorded with their full text,
+ * the audit finds them there.
+ */
+export type HarnessStatusTool =
+	| 'get_patent_summary'
+	| 'get_family'
+	| 'get_register_biblio'
+	| 'get_us_grant'
+	| 'get_us_application'
+	| 'get_continuity'
+	| 'get_transactions'
+	| 'get_assignments'
+	| 'get_foreign_priority'
+	| 'get_prosecution_timeline'
+	| 'get_patent_term_adjustment'
+	| 'get_citations'
+	| 'get_application_documents'
+	| 'read_application_document';
+
+/** The harness-native status tools by name, the order the limitation sentence lists them in. */
+export const HARNESS_STATUS_TOOLS: readonly HarnessStatusTool[] = ['get_patent_summary', 'get_family', 'get_register_biblio', 'get_us_grant', 'get_us_application', 'get_continuity', 'get_transactions', 'get_assignments', 'get_foreign_priority', 'get_prosecution_timeline', 'get_patent_term_adjustment', 'get_citations', 'get_application_documents', 'read_application_document'];
 
 /** Every retrieval tool identity a record may carry. */
 export type PatentRecordedTool = PatentAnalyticsTool | PatentStatusTool;
@@ -66,7 +99,7 @@ export type PatentRecordedTool = PatentAnalyticsTool | PatentStatusTool;
 export type PatentSaveTool = 'write_patent_results';
 
 /** The retrieval tool identities the reader accepts; anything else is a dropped field, not a new tool. */
-export const RECORDED_TOOLS: readonly PatentRecordedTool[] = ['patstat_query', 'patstat_portfolio', 'patent_analytics_viz', 'patstat_graph', 'patent_api_request', 'fetch_webpage', 'run_in_terminal', 'examiner_baseline', 'read_pdf', 'get_legal_status', 'get_patent_family', 'get_patent_term', 'get_register_events'];
+export const RECORDED_TOOLS: readonly PatentRecordedTool[] = ['patstat_query', 'patstat_portfolio', 'patent_analytics_viz', 'patstat_graph', 'patent_api_request', 'fetch_webpage', 'run_in_terminal', 'examiner_baseline', 'read_pdf', 'get_legal_status', 'get_patent_family', 'get_patent_term', 'get_register_events', ...HARNESS_STATUS_TOOLS];
 
 /** The kinds of outcome the ledger records; `save` is the writer's own mark, not a retrieval. */
 const EXECUTION_KINDS: readonly PatentExecution['kind'][] = ['search', 'details', 'figures', 'analytics', 'status', 'save'];
@@ -140,7 +173,7 @@ export interface PatentExecutionSnapshot {
 }
 
 /** The one limitation sentence every snapshot carries: what the audit covers in this harness and what it cannot say. */
-export const LIMITATION = 'Audit covers recorded search_patents, get_claims, get_description, get_abstract, get_bibliography, get_fulltext, read_pdf, analytics (patstat_query, patstat_portfolio, patent_analytics_viz, patstat_graph, patent_api_request, fetch_webpage, run_in_terminal, examiner_baseline) and legal-status (get_legal_status, get_patent_family, get_patent_term, get_register_events) outcomes in this session only. Earlier versions, other tools, uninvoked or skipped plans, and interrupted calls may be absent. Retrieval is not evidence that passages were read; review status is unknown. Missing totals and source metadata remain unknown.';
+export const LIMITATION = `Audit covers recorded search_patents, get_claims, get_description, get_abstract, get_bibliography, get_fulltext, read_pdf, analytics (patstat_query, patstat_portfolio, patent_analytics_viz, patstat_graph, patent_api_request, fetch_webpage, run_in_terminal, examiner_baseline), legal-status (get_legal_status, get_patent_family, get_patent_term, get_register_events) and status, bibliographic, file-wrapper and term (${HARNESS_STATUS_TOOLS.join(', ')}) outcomes in this session only. Earlier versions, other tools (get_patent_image, compare_patents, search_register, search_npl, search_academic, convert_patent_number, get_search_syntax, get_attorney, ocr), uninvoked or skipped plans, and interrupted calls may be absent. Retrieval is not evidence that passages were read; review status is unknown. Missing totals and source metadata remain unknown.`;
 
 
 /**

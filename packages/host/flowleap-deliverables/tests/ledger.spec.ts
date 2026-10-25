@@ -15,7 +15,8 @@ import ToolRuntime, { type ToolDefinition, type ToolExecutionResult } from '@dee
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { describe, expect, it } from 'vitest'
 import {
-  anchorLabels, evidenceAnchor, executionOf, ledgerDomainSpec, ledgerPersistence, PatentLedger, registerRecorder,
+  anchorLabels, dateProvenance, evidenceAnchor, executionOf, extractDates, extractFigures, figureProvenance, HARNESS_STATUS_TOOLS,
+  ledgerDomainSpec, ledgerPersistence, LIMITATION, PatentLedger, readPatentExecution, registerRecorder,
   type RecorderMode,
 } from '../src/index.ts'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
@@ -143,6 +144,83 @@ describe('executionOf: the per-tool adapters', () => {
     expect(anchorLabels('get_legal_status', success({ docId: 'EP1000000A1', events: [] }))).toBeUndefined()
     const labelled: ToolExecutionResult = { isError: false, value: CLAIMS_DERIVED, content: [{ type: 'text', text: 'claims [source anchor: EP1000000A1:claims:1:en]' }] }
     expect(anchorLabels('get_claims', labelled)).toBeUndefined()
+  })
+})
+
+describe('the audit scope: the harness status, file-wrapper and term tools (S5 acceptance defect A)', () => {
+  /** The compound summary as the connectors return it: OPS dates in `yyyymmdd`, legal-status dates in ISO. */
+  const SUMMARY = {
+    patentNumber: 'EP2110298B1',
+    bibliography: { docId: 'EP2110298.B1', dates: { filing: '20090119', publication: '20140806' } },
+    legalStatus: { events: [{ code: 'PG25', country: 'DE', date: '2024-10-31T00:00:00Z', effectiveDate: '2024-08-01', text: 'LAPSE BECAUSE OF NON-PAYMENT OF DUE FEES' }] },
+    family: { members: [{ publication: 'US7722129B2', date: '20100525' }] },
+    term: { baseExpiryDate: '2029-01-19' },
+  }
+  /** The PTA record as ODP returns it: the total is one JSON member among others, followed by a comma. */
+  const PTA = {
+    count: 1,
+    patentFileWrapperDataBag: [{
+      patentTermAdjustmentData: { aDelayQuantity: 63, adjustmentTotalQuantity: 63, applicantDayDelayQuantity: 0 },
+    }],
+  }
+
+  it('records every harness status tool with its full text and reads it back through the untrusted-storage reader', () => {
+    const summary = executionOf('get_patent_summary', { patent_number: 'EP2110298B1' }, success(SUMMARY))
+    const pta = executionOf('get_patent_term_adjustment', { application_number: '12103744' }, success(PTA))
+    const family = executionOf('get_family', { patent_number: 'EP2110298B1' }, success({ docId: 'EP2110298', members: [{}, {}, {}] }))
+    const biblio = executionOf('get_bibliography', { patent_number: 'EP2110298B1' }, success({
+      docId: 'EP2110298.B1', documentReference: { publicationNumber: 'EP2110298B1', section: 'bibliography' }, dates: { grant: '20140806' },
+    }))
+    expect({
+      summary: [
+        summary?.execution.kind, summary?.execution.tool, summary?.execution.request,
+        summary?.execution.resultText === JSON.stringify(SUMMARY, null, 2),
+      ],
+      pta: [pta?.execution.kind, pta?.execution.tool, pta?.execution.request, pta?.execution.publicationIds, pta?.execution.rowCount],
+      family: [family?.execution.tool, family?.execution.rowCount],
+      biblioText: biblio?.execution.resultText?.includes('"grant": "20140806"'),
+      allRecorded: HARNESS_STATUS_TOOLS.map(tool => executionOf(tool, { patent_number: 'X' }, success({}))?.execution.tool),
+      readBack: HARNESS_STATUS_TOOLS
+        .map(tool => readPatentExecution({ id: 'a', recordedAt: 'b', kind: 'status', status: 'succeeded', tool }))
+        .map(recovered => [recovered?.execution.tool, recovered?.dropped]),
+      limitation: HARNESS_STATUS_TOOLS.every(tool => LIMITATION.includes(tool)),
+    }).toEqual({
+      summary: ['status', 'get_patent_summary', 'EP2110298B1', true],
+      pta: ['status', 'get_patent_term_adjustment', '12103744', ['12103744'], 1],
+      family: ['get_family', 3],
+      biblioText: true,
+      allRecorded: HARNESS_STATUS_TOOLS,
+      readBack: HARNESS_STATUS_TOOLS.map(tool => [tool, false]),
+      limitation: true,
+    })
+  })
+
+  it('audits a memo\'s ISO dates and PTA days as found in those results, and a date no result holds as not found', async () => {
+    const ledger = new PatentLedger()
+    for (const [name, args, value] of [
+      ['get_patent_summary', { patent_number: 'EP2110298B1' }, SUMMARY],
+      ['get_patent_term_adjustment', { application_number: '12103744' }, PTA],
+    ] as const) {
+      await ledger.record('s', executionOf(name, args, success(value))!.execution)
+    }
+    const snapshot = await ledger.read('s')
+    const memo = [
+      '## 1. Status',
+      'DE: lapsed for non-payment, effective 2024-08-01 (announced 2024-10-31). Filed 2009-01-19, granted 2014-08-06; base expiry 2029-01-19.',
+      'US7722129B2: PTA 63 days (adjusted expiry 2028-06-18, own arithmetic). About 11.5 years remain; the fee window closes 2033-05-25.',
+      '',
+      '### 4.1 Mapping',
+      'See the table in 4.1; section 4.2 applies the same reading. Three positions.',
+      '### 4.2 Reading',
+      'As in 4.1.',
+    ].join('\n')
+    expect({
+      figures: figureProvenance(extractFigures(memo), snapshot, memo),
+      dates: dateProvenance(extractDates(memo), snapshot),
+    }).toEqual({
+      figures: { matched: ['63'], derived: [], unmatched: ['11.5'] },
+      dates: { matched: ['2024-08-01', '2024-10-31', '2009-01-19', '2014-08-06', '2029-01-19'], unmatched: ['2028-06-18', '2033-05-25'] },
+    })
   })
 })
 

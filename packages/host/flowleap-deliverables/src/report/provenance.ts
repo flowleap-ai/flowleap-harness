@@ -25,6 +25,12 @@
  * Kept free of `vscode` and of the extension's service graph, like {@link patentSecondRead}: the
  * ledger snapshot is described here by a structural type that the real `PatentExecutionSnapshot` is
  * assignable to, so the shaping is unit-testable in isolation.
+ *
+ * Local divergence from the IDE copy (S5 acceptance defect A, 2026-10-25; see the README, "What
+ * differs from the IDE copy"): {@link extractFigures} also drops a prose reference to one of the
+ * memo's own section numbers ("the table in 4.1"), and `containsNumber` accepts a figure followed by
+ * a list comma (`"adjustmentTotalQuantity": 63,` in a JSON tool result) while still refusing a
+ * thousands group (`63,000`).
  */
 
 /** One retrieved passage of a document, reduced to what a quotation check needs. */
@@ -166,12 +172,14 @@ function isYear(figure: string): boolean {
  */
 export function extractFigures(content: string): readonly string[] {
 	const patentNumbers = new Set([...content.matchAll(PATENT_NUMBER_REFERENCE)].map(match => digits(match[1])));
+	// The memo's own dotted section numbers: a later "see 4.1" names that section, not a measurement.
+	const sectionNumbers = new Set([...content.matchAll(HEADING_NUMBER), ...content.matchAll(OUTLINE_NUMBER)].map(match => match[0].replace(/[^\d.]/g, '').replace(/\.$/, '')).filter(number => number.includes('.')));
 	const masked = content.replace(HEADING_NUMBER, ' ').replace(OUTLINE_NUMBER, ' ').replace(IDENTIFIER_SPAN, ' ').replace(LEGAL_CITATION, ' ').replace(PARAGRAPH_NUMBER, ' ');
 	const seen = new Set<string>();
 	const figures: string[] = [];
 	for (const raw of masked.split(/[\s|]+/)) {
 		const token = raw.replace(/^[^\w]+/, '').replace(/[^\w%]+$/, '');
-		if (!PURE_NUMBER.test(token) || isYear(token) || digits(token).length < 2 || patentNumbers.has(digits(token))) {
+		if (!PURE_NUMBER.test(token) || isYear(token) || digits(token).length < 2 || patentNumbers.has(digits(token)) || sectionNumbers.has(token)) {
 			continue;
 		}
 		const key = digits(token) + (token.endsWith('%') ? '%' : '');
@@ -189,9 +197,13 @@ function grouped(value: string): string {
 	return value.replace(/\B(?=(?:\d{3})+$)/g, ',');
 }
 
-/** Whether `form` stands alone in `text` rather than inside a longer number. */
+/**
+ * Whether `form` stands alone in `text` rather than inside a longer number. A comma followed by a
+ * digit is a thousands group (`63,000`); a comma followed by anything else is the list separator of
+ * a JSON tool result (`"adjustmentTotalQuantity": 63,`), where the figure does stand alone.
+ */
 function containsNumber(text: string, form: string): boolean {
-	return new RegExp(`(?<![\\d.,])${form.replace(/\./g, '\\.')}(?![\\d,]|\\.\\d)`).test(text);
+	return new RegExp(`(?<![\\d.,])${form.replace(/\./g, '\\.')}(?!\\d|,\\d|\\.\\d)`).test(text);
 }
 
 /** A table row, header row or data row, split into trimmed cells. */
