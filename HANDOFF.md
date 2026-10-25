@@ -62,6 +62,15 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
+- **Upstream sync rc.2 -> rc.3/trunk: WAIT (survey 2026-10-25,
+  `flowleap/docs/2026-10-25-upstream-rc3-sync-survey.md`).** The rc.3 tag is rc.2 + 6 commits; the
+  other 1,533 commits are unreleased trunk still settling (i18n to 8 UI languages, tool-executor split,
+  official-bundles move, Node >=24.9). Seams: 6 GREEN, 2 AMBER (client locale/brand slots, desktop
+  packaging), 0 RED; 58 real hand overlaps; the strip needs no new rule; new gate `verify-locale-metadata`
+  will fail on our 6 packages (carve-out planned). About 4 agent-days in its own worktree. Trigger: the
+  next upstream tag after rc.3, or 2026-11-06, whichever comes first; earlier only for OAR subagents (E1)
+  or composer image upload. Procedure in survey section 8.
+
 - **Business model refinement (founder, 2026-10-25, before the next acceptance pass):** one-time
   payment for the on-premises install plus an optional support retainer; the firm must get ALL the
   data on its own keys. Open: US claim and description text is the one route still behind the backend
