@@ -28,7 +28,7 @@ export const WRITE_PATENT_RESULTS_DESCRIPTION = 'Save a patent deliverable as a 
   + 'prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session\'s data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. '
   + 'Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). '
   + 'A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. '
-  + 'A refusal names each field to fix; correct it and retry. draft-application and draft-outline are not available in this harness yet.'
+  + 'A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).'
 
 /**
  * The IDE's input schema, verbatim. The registry validates `output.schema` only,

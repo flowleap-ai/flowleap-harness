@@ -151,7 +151,7 @@ describe('write_patent_results', () => {
       required: ['filePath', 'content'],
       properties: 26,
       template: 12,
-      words: 210,
+      words: 211,
       noIde: true,
     })
   })
