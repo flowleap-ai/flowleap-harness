@@ -516,4 +516,17 @@ fail. A fresh clone does not have them.
   prompt and the export now renders a pointer to that heading instead of the static "Key presence
   only" line; the regenerated artifact (7,376 words) is already in the bundle, so re-copy only if #859
   changes before merge. Gates: typecheck 5/5, lint clean, connectors 6 files / 30 tests,
-  `check:ci:static` 61/62 (baseline). Not yet re-run live; the next acceptance pass proves both.
+  `check:ci:static` 61/62 (baseline). **Re-run live 2026-10-25 (FTO case, port 3097, empty skills):
+  both fixes PASS.** The system prompt carries the host section (`EPO OPS: key is set`, `USPTO ODP: key is
+  set`, `Mistral: key is set`) and the persona pointer; "Key presence only" has 0 hits. The native
+  `get_claims` answered `not_configured` naming `mcp__flowleap__get_claims`; the agent called it for
+  US7722129B2 (16 claims) and US8056987B2 (19 claims) and the memo maps the PRINTED claims verbatim; no
+  file-wrapper detour, no web fetch. Cost fell from 10 steps / 17 calls / 1.3M tokens to 5 steps / 14
+  calls / 581K tokens, 1m27s. Case verdict stays PARTIAL on one line: US expiry = PTA lookup
+  (`get_patent_term_adjustment`, 63 days) + declared own arithmetic, `get_patent_term` not called;
+  "comprising" applied but not named. Unchanged defects: template "Jurisdiction(s)" placeholder;
+  provenance audit covers only `get_claims`/`get_legal_status` so it flags grounded dates as "not
+  found" (15 of 19) in every run; native hint says "no BigQuery source". Recipe gotcha: the dsh
+  workspace registry (`~/.dsh/storages/workspace.json`) keeps an earlier workspace of the same display
+  name selected; `working-directory.defaultDirectory` does not override it; add the new workspace
+  through the picker (Add workspace > Edit path). Evidence: scratchpad `acceptance-s5-rerun/`.
