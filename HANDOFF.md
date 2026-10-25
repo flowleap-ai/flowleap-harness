@@ -560,3 +560,13 @@ fail. A fresh clone does not have them.
   internal source id are unchanged. After the founder merges it: `scripts/flowleap/sync-connectors.sh`
   and commit the re-vendored copy. Not re-run live; the next acceptance pass should check that the model
   sets `jurisdictions` from the refusal and picks `template: dossier` from the description.
+- **Connector library re-vendored twice (2026-10-25):** backend #612 (product wording) and #611 (evidence
+  anchors) are merged and deployed; `vendor/flowleap-connectors` is at backend main `9c1db3c533`
+  (`sync-connectors.sh --check` clean). What #611 gives the harness: `get_bibliography`, `get_abstract`,
+  `get_claims` (section and every claim) and `get_description` results carry `anchor`
+  (`<pub>:<section>[:<claim>][:<lang>]`), the same string the ledger derives, so the model now sees the
+  anchor it must quote under. What it does NOT give: no `sources[]` array on results, so the ledger's
+  structured mode stays dormant and derived mode (byte-identical anchors, full result text captured)
+  remains the live path. No harness change needed; structured mode switches on by itself if the library
+  ever emits `sources[]`. Specs after the re-sync: 41 files / 402 tests across connectors, deliverables
+  and the vendored copy.

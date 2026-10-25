@@ -29,6 +29,7 @@ import type { LegalResponse, PriorityClaim } from '../ops/types.js';
 import { officeList, shortCoverageSentences, textOfficesOf, textSourceLabel } from '../office-coverage.js';
 import type { ToolDefinition } from './definition.js';
 import { patentDocumentReference, withDocumentReference } from './document-reference.js';
+import { withEvidenceAnchor } from './evidence-anchor.js';
 import { withExtendedFamilyCoverage } from './family-coverage.js';
 import { literatureTools } from './literature.js';
 import { ocrTool } from './ocr-tool.js';
@@ -336,7 +337,8 @@ const definitions: ToolDefinition[] = [
 		}),
 		access: 'epoOps',
 		handler: async (input, ctx) => {
-			const read = withDocumentReference(unwrapRead(await ctx.connectors.ops.getBiblio(input.patent_number)));
+			// The bibliography anchor (`PUB:bibliography`, no language) is the one a report cites the abstract under (S5 D0.2).
+			const read = withEvidenceAnchor(withDocumentReference(unwrapRead(await ctx.connectors.ops.getBiblio(input.patent_number))));
 			// The NPL lookup soft-fails per reference (lookup_failed), never failing the read.
 			const biblio = input.resolve_npl ? await ctx.connectors.openalex.withResolvedNpl(read) : read;
 			if (!input.include_designated_states) return biblio;
@@ -369,7 +371,9 @@ const definitions: ToolDefinition[] = [
 		handler: async (input, ctx) => {
 			const data = unwrapRead(await ctx.connectors.ops.getAbstract(input.patent_number));
 			// docId + abstract + the document language (add-only field, #276).
-			return withDocumentReference({ docId: data.docId, lang: data.lang, abstract: data.abstract }, 'abstract');
+			// The abstract anchor carries the returned language (`PUB:abstract:<lang>`): the IDE
+			// prints none for the abstract, so the harness recorder's rule is the one to match (S5 D0.2).
+			return withEvidenceAnchor(withDocumentReference({ docId: data.docId, lang: data.lang, abstract: data.abstract }, 'abstract'), data.lang ?? undefined);
 		},
 	}),
 	tool({
@@ -382,17 +386,19 @@ const definitions: ToolDefinition[] = [
 			// Legacy tool shape: numbered claims + total, with additive navigation targets.
 			const documentReference = patentDocumentReference(data.docId, 'claims');
 			const numberedClaims = data.numberedClaims ?? data.claims.map((text, index) => ({ number: (index + 1).toString(), text }));
-			const claims = numberedClaims.map(claim => ({
-				...claim,
-				documentReference: documentReference
-					? { ...documentReference, claimNumber: claim.number }
-					: null,
-			}));
-			return withDocumentReference({
+			// One anchor per claim, the string the IDE prints beside "Claim N" (S5 D0.2);
+			// unsegmented text has the section anchor only, so no claim anchor is fabricated.
+			const claims = numberedClaims.map(claim =>
+				withEvidenceAnchor({ ...claim, documentReference: documentReference ? { ...documentReference, claimNumber: claim.number } : null }, data.lang)
+			);
+			// The section anchor at the top (`PUB:claims:<lang>`). A host's ledger records the
+			// section (every claim joined) and each claim from these fields; the result does
+			// not repeat the text.
+			return withEvidenceAnchor(withDocumentReference({
 				docId: data.docId, claims, totalClaims: data.unsegmentedText ? null : claims.length, language: data.lang,
 				...(data.unsegmentedText ? { unsegmentedText: data.unsegmentedText } : {}),
 				...(data.fallback ? { fallback: data.fallback } : {}),
-			}, 'claims');
+			}, 'claims'), data.lang);
 		},
 	}),
 	tool({
@@ -402,7 +408,7 @@ const definitions: ToolDefinition[] = [
 		access: 'epoOps',
 		handler: async (input, ctx) => {
 			const data = unwrapRead(await ctx.connectors.fulltext.getDescriptionRouted(input.patent_number, input.language));
-			return withDocumentReference({
+			const result = withDocumentReference({
 				docId: data.docId,
 				description: data.description || null,
 				language: data.language,
@@ -410,6 +416,9 @@ const definitions: ToolDefinition[] = [
 				requestedLanguage: data.requestedLanguage,
 				...(data.fallback ? { fallback: data.fallback } : {}),
 			}, 'description');
+			// The description is one passage under the section anchor (`PUB:description:<lang>`):
+			// the IDE labels every line with the same anchor (S5 D0.2).
+			return withEvidenceAnchor(result, data.language);
 		},
 	}),
 	tool({

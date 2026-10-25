@@ -7,23 +7,41 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createConnectors, ErrorCodes, officeTools, ToolError, toolInputJsonSchema, type ToolContext } from '../index.js';
+import { createConnectors, ErrorCodes, evidenceAnchor, evidenceAnchorLabel, evidenceSource, officeTools, ToolError, toolInputJsonSchema, type ToolContext } from '../index.js';
 import { createFakeHost } from '../__tests__/fake-host.js';
 
 const FIXED_NOW = Date.UTC(2026, 9, 22, 12, 0, 0);
-const biblioXml = readFileSync(new URL('../ops/__fixtures__/ep1234567-biblio.xml', import.meta.url), 'utf8');
+const fixture = (name: string) => readFileSync(new URL(`../ops/__fixtures__/${name}`, import.meta.url), 'utf8');
+const biblioXml = fixture('ep1234567-biblio.xml');
+const b1BiblioXml = fixture('ep1234567-b1-biblio.xml');
+const b1ClaimsXml = fixture('ep1234567-b1-claims.xml');
+/** A two-paragraph English description in the OPS full-text envelope (no recorded fixture holds one). */
+const b1DescriptionXml =
+	'<?xml version="1.0" encoding="UTF-8"?><ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org">' +
+	'<ftxt:fulltext-documents xmlns="http://www.epo.org/fulltext" xmlns:ftxt="http://www.epo.org/fulltext"><ftxt:fulltext-document system="ops.epo.org" fulltext-format="text-only">' +
+	'<bibliographic-data><publication-reference data-format="docdb"><document-id><country>EP</country><doc-number>1234567</doc-number><kind>B1</kind></document-id></publication-reference></bibliographic-data>' +
+	'<description lang="EN"><p>The invention relates to a filling material.</p><p>The composite has an average particle size of 20 to 50 µm.</p></description>' +
+	'</ftxt:fulltext-document></ftxt:fulltext-documents></ops:world-patent-data>';
 
-/** The OPS token mint and one recorded bibliography; everything else is a 404. */
+/** The OPS token mint and the recorded EP1234567 documents; everything else is a 404. */
 function recordedOps() {
 	const urls: string[] = [];
+	const recorded: Record<string, string> = {
+		'/published-data/publication/docdb/EP.1234567.A2/biblio': biblioXml,
+		'/published-data/publication/docdb/EP.1234567.B1/biblio': b1BiblioXml,
+		'/published-data/publication/docdb/EP.1234567.B1/abstract': b1BiblioXml,
+		'/published-data/publication/docdb/EP.1234567.B1/claims': b1ClaimsXml,
+		'/published-data/publication/docdb/EP.1234567.B1/description': b1DescriptionXml,
+	};
 	const fetch = async (input: string | URL): Promise<Response> => {
 		const url = String(input);
 		urls.push(url);
 		if (url === 'https://ops.epo.org/3.2/auth/accesstoken') {
 			return Response.json({ access_token: 'tok-1', expires_in: 1200 });
 		}
-		if (url.endsWith('/published-data/publication/docdb/EP.1234567.A2/biblio')) {
-			return new Response(biblioXml, {
+		const body = Object.entries(recorded).find(([path]) => url.endsWith(path))?.[1];
+		if (body !== undefined) {
+			return new Response(body, {
 				status: 200,
 				headers: { 'x-throttling-control': 'idle (search=green:600, retrieval=green:1200)' },
 			});
@@ -117,5 +135,70 @@ describe('officeTools()', () => {
 			// The paid route rides under details, so a harness acts on the field (ADR 0014).
 			details: { reason: 'not_configured', paidRoute: { tool: 'get_claims', mcpTool: 'mcp__flowleap__get_claims' } },
 		});
+	});
+});
+
+/**
+ * The passage tools print the evidence anchors the IDE prints (S5 D0.2): the
+ * `anchor` beside each section and each claim, and nothing else — a result does
+ * not repeat its passages; a host's ledger derives its record (`evidenceSource`)
+ * from the result's own text, `documentReference` and language, so its anchors
+ * equal the printed ones. The expected anchors are what the IDE's
+ * `evidenceAnchor` answers for the same references; the label is the IDE's.
+ */
+describe('evidence anchors on the passage tools', () => {
+	const run = async <T,>(name: string, args: Record<string, unknown>): Promise<T> => {
+		const definition = byName.get(name)!;
+		return (await definition.handler(definition.input.parse(args), contextOver(recordedOps().fetch))) as T;
+	};
+
+	it('get_claims: one anchor per claim and the section anchor at the top, no repeated text', async () => {
+		const claims = await run<{
+			docId: string; language: string; anchor?: string; sources?: unknown;
+			claims: { number: string; text: string; anchor?: string; documentReference: { publicationNumber: string; section: 'claims'; claimNumber?: string } }[];
+		}>('get_claims', { patent_number: 'EP1234567B1' });
+		expect([claims.docId, claims.language, claims.anchor, claims.claims.length]).toEqual(['EP1234567B1', 'en', 'EP1234567B1:claims:en', 26]);
+		expect(claims.claims[3]).toEqual({
+			number: '4',
+			text: expect.stringMatching(/^4\. Composition according to Claim 3/),
+			documentReference: { publicationNumber: 'EP1234567B1', section: 'claims', claimNumber: '4' },
+			anchor: 'EP1234567B1:claims:4:en',
+		});
+		expect(evidenceAnchorLabel(claims.claims[3].anchor!)).toBe('[source anchor: EP1234567B1:claims:4:en]');
+		// Every claim's anchor is the IDE's function over its own reference and the returned language.
+		for (const claim of claims.claims) expect(claim.anchor).toBe(evidenceAnchor(claim.documentReference, claims.language));
+		// The passages are not repeated: no `sources` field (a host's ledger builds its
+		// records from the claims themselves, and they carry the same anchors).
+		expect(claims).not.toHaveProperty('sources');
+		expect(evidenceSource(claims.claims[3].documentReference, claims.claims[3].text, claims.language)).toMatchObject({
+			anchor: claims.claims[3].anchor,
+			text: claims.claims[3].text,
+			retrieval: 'returned',
+		});
+	});
+
+	it('get_description: the section anchor with the returned language', async () => {
+		const description = await run<{ docId: string; description: string; language: string; anchor?: string; sources?: unknown }>(
+			'get_description', { patent_number: 'EP1234567B1' });
+		expect([description.docId, description.language, description.anchor]).toEqual(['EP1234567B1', 'en', 'EP1234567B1:description:en']);
+		expect(description.description).toBe('The invention relates to a filling material.\n\nThe composite has an average particle size of 20 to 50 µm.');
+		expect(description).not.toHaveProperty('sources');
+	});
+
+	it('get_abstract: the abstract anchor with the returned language, as the harness recorder derives it', async () => {
+		// The IDE prints no abstract anchor (it cites the abstract under the bibliography),
+		// so the harness recorder's rule is the one to match: `<pub>:abstract:<lang>`.
+		const abstract = await run<{ docId: string; lang: string | null; abstract: string; anchor?: string; sources?: unknown }>(
+			'get_abstract', { patent_number: 'EP1234567B1' });
+		expect([abstract.docId, abstract.lang, abstract.anchor]).toEqual(['EP1234567B1', 'de', 'EP1234567B1:abstract:de']);
+		expect(abstract.abstract).toMatch(/^\[0001\]\s+Partikuläres Kompositmaterial/);
+		expect(abstract).not.toHaveProperty('sources');
+	});
+
+	it('get_bibliography: the bibliography anchor the IDE cites the abstract under, no language', async () => {
+		const biblio = await run<{ docId: string; abstract: string | null; anchor?: string; sources?: unknown; documentReference: unknown }>(
+			'get_bibliography', { patent_number: 'EP1234567B1' });
+		expect([biblio.docId, biblio.anchor, biblio.documentReference]).toEqual(['EP1234567.B1', 'EP1234567B1:bibliography', { publicationNumber: 'EP1234567B1', section: 'bibliography' }]);
+		expect(biblio).not.toHaveProperty('sources');
 	});
 });

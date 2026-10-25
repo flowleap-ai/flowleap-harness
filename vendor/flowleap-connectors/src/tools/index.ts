@@ -34,6 +34,7 @@ export {
 	withCitationDocumentReference,
 	type DocumentReference,
 } from './document-reference.js';
+export { evidenceAnchor, evidenceAnchorLabel, evidenceSource, type EvidenceSource, withEvidenceAnchor } from './evidence-anchor.js';
 export { detectPatentProvider, normalizePatentNumber, type DetectedPatentProvider } from './provider.js';
 export {
 	withExtendedFamilyCoverage,
