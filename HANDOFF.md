@@ -474,7 +474,7 @@ fail. A fresh clone does not have them.
   `/approve-claims pipe-clamp` with no model step; Waive card with a reason that landed in
   `findings.md`; claims changed -> approval withdrawn -> new Approve card; export wrote and presented
   the four Word files + filing manifest (seven-file card). One defect found live and fixed
-  (`6db3916774`: the first draft save dropped the gate record lines). Cost: 4 turns, 52 steps, 6.4M
+  (the first draft save dropped the gate record lines; fixed in the D3 commit series). Cost: 4 turns, 52 steps, 6.4M
   tokens (97% cache). Gates: typecheck 5/5, lint clean, build 9/9, vitest 34 files / 366 tests,
   notices up to date, `check:ci:static` 61/62 (baseline), sync check clean. Observed: the Web UI
   default access mode is Workspace Write, not `danger-full-access`, so the approval dialog is the
@@ -539,3 +539,24 @@ fail. A fresh clone does not have them.
   workspace registry (`~/.dsh/storages/workspace.json`) keeps an earlier workspace of the same display
   name selected; `working-directory.defaultDirectory` does not override it; add the new workspace
   through the picker (Add workspace > Edit path). Evidence: scratchpad `acceptance-s5-rerun/`.
+- **Acceptance defect wave 3 to 6 (2026-10-25): harness side DONE, backend side in draft.** (A) The
+  provenance audit now records 14 more native reads (`get_patent_summary`, `get_family`,
+  `get_register_biblio`, `get_us_grant`, `get_us_application`, `get_continuity`, `get_transactions`,
+  `get_assignments`, `get_foreign_priority`, `get_prosecution_timeline`, `get_patent_term_adjustment`,
+  `get_citations`, `get_application_documents`, `read_application_document`), a figure before a JSON
+  list comma counts as found, and a memo's own section numbers are no longer figures; offline re-render
+  of the re-run FTO memo: dates 4 found / 14 not found -> 16 / 2 (the two left are the model's own
+  expiry arithmetic, declared as such), figures 8/2 -> 10/0. (B) An fto-memo save fills the
+  `Jurisdiction(s)` header cell from a new `jurisdictions` input or is refused before any write. (C) A
+  `dossier` template (Snapshot, Claims, Family, Legal Status, Citations, US Family Chain, Sources and
+  Limitations) and the seal: the first `edit`/`write`/`str_replace_editor` of a delivered file steers
+  once per session and path ("re-save it through write_patent_results"); the edit is never blocked.
+  Four copied IDE files now diverge on purpose (ledger types, provenance matcher, writer schema, templates);
+  each divergence is marked in its header and listed in the README with the agent-v2 follow-up to port.
+  Gates: typecheck 5/5, lint clean, build 9/9, vitest 35 files / 372 tests, `check:ci:static` 61/62
+  (baseline). `verify-repository-references` now skips `flowleap/docs/` (research notes cite upstream
+  commits by hash). (D) Wording: flowleap-backend draft PR #612 replaces "BigQuery" with "FlowLeap US
+  full text (paid)" in the connector library's model-facing text; `paidRoute`, `mcpTool` and the
+  internal source id are unchanged. After the founder merges it: `scripts/flowleap/sync-connectors.sh`
+  and commit the re-vendored copy. Not re-run live; the next acceptance pass should check that the model
+  sets `jurisdictions` from the refusal and picks `template: dossier` from the description.
