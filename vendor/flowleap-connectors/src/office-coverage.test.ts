@@ -74,10 +74,12 @@ describe('office coverage (ADR 0024)', () => {
 
 	it('builds short coverage sentences that name exactly the served offices of a section', () => {
 		const claims = shortCoverageSentences('claims');
-		for (const token of ['EP', 'WO', 'US', 'EPO OPS', 'BigQuery', 'FULLTEXT_UNAVAILABLE']) expect(claims).toContain(token);
+		for (const token of ['EP', 'WO', 'US', 'EPO OPS', 'FlowLeap US full text (paid)', 'FULLTEXT_UNAVAILABLE']) expect(claims).toContain(token);
 		const description = shortCoverageSentences('description');
 		for (const token of ['EP', 'WO', 'EPO OPS', 'FULLTEXT_UNAVAILABLE']) expect(description).toContain(token);
-		expect(description).not.toContain('BigQuery');
+		expect(description).not.toContain('FlowLeap US full text');
+		// The US source is a product term in every served sentence: no vendor name reaches the model.
+		for (const sentence of [claims, description]) expect(sentence).not.toContain('BigQuery');
 		// US is a served text office with no description source: the sentence says so beside FULLTEXT_UNAVAILABLE.
 		expect(description).toMatch(/\bUS\b[^.]*FULLTEXT_UNAVAILABLE/);
 		for (const sentence of [claims, description]) {
@@ -88,9 +90,10 @@ describe('office coverage (ADR 0024)', () => {
 
 	it('builds office-coverage sentences that name each served office and the no_source answer, in short sentences', () => {
 		const sentence = officeCoverageSentence();
-		for (const token of ['EP', 'WO', 'US', 'EPO OPS', 'BigQuery', 'FULLTEXT_UNAVAILABLE', 'no_source']) {
+		for (const token of ['EP', 'WO', 'US', 'EPO OPS', 'FlowLeap US full text (paid)', 'FULLTEXT_UNAVAILABLE', 'no_source']) {
 			expect(sentence).toContain(token);
 		}
+		expect(sentence).not.toContain('BigQuery');
 		expect(sentence).not.toMatch(/not wired/i);
 		// ASD-STE100: one statement per sentence, no clauses chained with a semicolon.
 		expect(sentence).not.toContain(';');

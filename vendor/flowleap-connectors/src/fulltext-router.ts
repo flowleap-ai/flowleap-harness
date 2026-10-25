@@ -34,6 +34,7 @@ import {
 	officeList,
 	paidTextRoute,
 	servedTextOffices,
+	textOfficesOf,
 	textSourceFor,
 	textSourceLabel,
 	type PaidTextRoute,
@@ -85,13 +86,13 @@ function unavailable(country: string, docId: string, section: string): ProviderR
 /**
  * The BigQuery US full-text table does not hold this publication. A holding
  * gap, not an office gap: the office is served, so the failure names the
- * table and carries no family-member workaround. The reason stays
+ * source (by its product label) and carries no family-member workaround. The reason stays
  * `no_source` (the frozen values).
  */
 function notHeld(docId: string, section: string): ProviderReadFailure {
 	return fulltextFailure(
 		'no_source',
-		`The ${textSourceLabel('bigquery')} US full-text table does not hold ${section} for publication ${docId}.`,
+		`${textSourceLabel('bigquery')} does not hold ${section} for publication ${docId}.`,
 	);
 }
 
@@ -114,16 +115,17 @@ function notConfigured(docId: string, section: string): ProviderReadFailure {
  * MCP row (ADR 0019 decisions 3 and 5). The office-coverage table names that route
  * (`paidTextRoute`); the message names it so the model takes the paid route instead
  * of giving up on the text, and `paidRoute` carries it as a field (ADR 0014: clients
- * act on fields). Falls back to the plain not_configured when the table names no
- * paid route for the pair.
+ * act on fields). The message is product wording ("US full-text source", "a paid
+ * FlowLeap service"): no vendor or implementation name reaches the model or a memo.
+ * Falls back to the plain not_configured when the table names no paid route for the pair.
  */
 function noHostSource(docId: string, section: TextSection, office: string): ProviderReadFailure {
 	const route = paidTextRoute(section, office, docId);
 	if (!route) return notConfigured(docId, section);
 	return fulltextFailure(
 		'not_configured',
-		`This host has no ${textSourceLabel(route.source)} source. ${office} ${section} for ${docId} are a paid FlowLeap service, ` +
-			`read by the backend's ${route.tool} (not this host's ${route.tool}): call ${route.mcpTool} with this number.`,
+		`This host has no ${officeList([...textOfficesOf(route.source)])} full-text source. ` +
+			`${office} ${section} for ${docId} are a paid FlowLeap service: call ${route.mcpTool} with this number.`,
 		undefined,
 		route,
 	);

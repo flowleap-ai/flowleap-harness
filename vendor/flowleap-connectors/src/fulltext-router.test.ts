@@ -61,6 +61,9 @@ describe('fulltext router', () => {
 		expect(res.body.error.reason).toBe('not_configured');
 		expect(res.body.error.message).toContain('mcp__flowleap__get_claims');
 		expect(res.body.error.message).not.toContain('get_fulltext');
+		// Product wording: the model reads a service, never the vendor behind it (S5 acceptance, 2026-10-25).
+		expect(res.body.error.message).toContain('no US full-text source');
+		expect(res.body.error.message).not.toContain('BigQuery');
 		expect(res.body.error.paidRoute).toEqual({
 			tool: 'get_claims',
 			mcpTool: 'mcp__flowleap__get_claims',

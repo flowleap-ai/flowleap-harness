@@ -31,8 +31,8 @@ const ANALYSIS_INSTRUCTIONS = [
 ]
 
 /** The paid-route text the real router gives a US number on a host without a US full-text source. */
-const US_PAID_ROUTE = 'This host has no BigQuery source. US claims for US7654321B2 are a paid FlowLeap service, '
-  + 'read by the backend\'s get_claims (not this host\'s get_claims): call mcp__flowleap__get_claims with this number.'
+const US_PAID_ROUTE = 'This host has no US full-text source. US claims for US7654321B2 are a paid FlowLeap service: '
+  + 'call mcp__flowleap__get_claims with this number.'
 
 /** Claims by compact docId, as the text router would return them for EP publications. */
 type Recorded = Record<string, string[] | ProviderReadResult<RoutedClaims>>

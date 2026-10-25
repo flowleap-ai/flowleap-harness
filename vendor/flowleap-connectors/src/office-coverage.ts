@@ -39,7 +39,7 @@ export interface OfficeTextSource {
 
 const SOURCE_LABEL: Record<TextSource, string> = {
 	epo_ops: 'EPO OPS',
-	bigquery: 'BigQuery',
+	bigquery: 'FlowLeap US full text',
 };
 
 /** Per section, the offices with text and the source per office. */
@@ -83,7 +83,10 @@ export function textSourceFor(section: TextSection, office: string): TextSource 
 	return TEXT_OFFICE_COVERAGE[section].find(row => row.office === office)?.source ?? null;
 }
 
-/** The human label of a source, as the served sentences name it. */
+/**
+ * The human label of a source, as the served sentences name it. A product term, never
+ * a vendor or an implementation name: the model and the attorney read the label.
+ */
 export function textSourceLabel(source: TextSource): string {
 	return SOURCE_LABEL[source];
 }
@@ -146,10 +149,15 @@ function officesBySource(section: TextSection): Array<[TextSource, string[]]> {
 	return [...bySource.entries()];
 }
 
-/** "EP and WO from EPO OPS and US from BigQuery": one section's offices, grouped by source. */
+/** The source as a served sentence names it: "EPO OPS", or "FlowLeap US full text (paid)" for FlowLeap's own service. */
+function sourcePhrase(source: TextSource): string {
+	return TEXT_SOURCE_OWNER[source] === 'flowleap' ? `${SOURCE_LABEL[source]} (paid)` : SOURCE_LABEL[source];
+}
+
+/** "EP and WO from EPO OPS and US from FlowLeap US full text (paid)": one section's offices, grouped by source. */
 function sectionClause(section: TextSection): string {
 	return officesBySource(section)
-		.map(([source, offices]) => `${officeList(offices)} from ${SOURCE_LABEL[source]}`)
+		.map(([source, offices]) => `${officeList(offices)} from ${sourcePhrase(source)}`)
 		.join(' and ');
 }
 
@@ -182,11 +190,11 @@ const SECTION_VERB: Record<TextSection, string> = { claims: 'come', description:
 /**
  * The short office-coverage sentences of one section, for a tool's short
  * description: "EP and WO claims come from EPO OPS. US claims come from
- * BigQuery. The answer for every other office is FULLTEXT_UNAVAILABLE."
+ * FlowLeap US full text (paid). The answer for every other office is FULLTEXT_UNAVAILABLE."
  */
 export function shortCoverageSentences(section: TextSection): string {
 	const served = officesBySource(section)
-		.map(([source, offices]) => `${officeList(offices)} ${section} ${SECTION_VERB[section]} from ${SOURCE_LABEL[source]}.`);
+		.map(([source, offices]) => `${officeList(offices)} ${section} ${SECTION_VERB[section]} from ${sourcePhrase(source)}.`);
 	const unserved = servedTextOffices().filter(office => textSourceFor(section, office) === null);
 	const subjects = officeList([...unserved, 'every other office']);
 	return `${served.join(' ')} The answer for ${subjects} is FULLTEXT_UNAVAILABLE.`;
