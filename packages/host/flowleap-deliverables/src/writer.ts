@@ -43,6 +43,7 @@ import { CandidateReviewVariant, candidateWordingReview, challengedClaims, chart
 import { deriveFallbackLadder, fallbackCoverage, fallbacksNotCovered, roundAnswerErrors, roundOrderErrors } from './report/fallback-ladder.ts'
 import { baselineIntegrityNote, baselineSource, claimComparisons, countLine, ExaminerBaseline, findBetterMissingInputs, flattenSides, gapCount, ignoredNumericFields, incompleteSearch } from './report/find-better.ts'
 import { extractFigures, figureProvenance, figureSentence, ftoProvenanceResult, renderFtoAppendix, renderLandscapeAppendix } from './report/provenance.ts'
+import { fillHeaderCell, unfilledHeaderCells, unfilledHeaderCellsRefusal, REQUIRED_HEADER_CELLS } from './report/header-cells.ts'
 import { priorArtReportReceipt, ReceiptFallbacks } from './report/receipt.ts'
 import { SecondReadOutcome, unconfirmedVerdicts } from './report/second-read.ts'
 import { buildPatentReport, contentRequirementError, PatentReportTemplate } from './report/templates.ts'
@@ -77,6 +78,8 @@ export interface WritePatentResultsInput extends PatentCandidateReview {
   readonly matter?: string
   /** The technology/product/portfolio the report is about, in a short phrase. */
   readonly subject?: string
+  /** fto-memo: the jurisdictions the memo clears, as a short list; fills the header's `Jurisdiction(s)` cell (harness-only input). */
+  readonly jurisdictions?: string
   /** One or two sentences: the question the work answers (prior-art-report). */
   readonly objective?: string
   /** Short summary of databases, codes, and key queries used (prior-art and landscape reports). */
@@ -484,7 +487,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
         claimsAtIssue: challengedClaims(materialized).join(', '),
         criticalDateBasis: input.objective,
       } : {}
-      const document = buildPatentReport(candidateContent, template, {
+      const rendered = buildPatentReport(candidateContent, template, {
         matter: input.matter,
         subject: input.subject,
         objective: input.objective,
@@ -493,6 +496,15 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
         preparedBy: 'FlowLeap Patent AI (AI-assisted draft)',
         ...invalidityFields,
       }, appendix, structuredBody)
+      // The header cells the request answers are the save's to fill; the harness has no editor in
+      // which the practitioner would fill them later, so a required cell left as the placeholder
+      // refuses the save, naming the cell and the input (S5 acceptance defect B).
+      const document = (template === undefined ? [] : REQUIRED_HEADER_CELLS[template] ?? [])
+        .reduce((text, cell) => fillHeaderCell(text, cell.label, input[cell.input]), rendered)
+      const unfilled = unfilledHeaderCells(document, template)
+      if (template !== undefined && unfilled.length) {
+        return refusal(unfilledHeaderCellsRefusal(template, unfilled))
+      }
 
       const evidenceDocument = snapshot ? JSON.stringify({ schemaVersion: 1, ...snapshot }, null, 2) : undefined
       if (evidenceDocument) {

@@ -147,7 +147,7 @@ describe('write_patent_results', () => {
     }).toEqual({
       names: ['export_draft_docx', 'get_claims', 'inventor_questions', 'remove_claim', 'start_application_draft', 'validate_draft', WRITE_PATENT_RESULTS_NAME],
       required: ['filePath', 'content'],
-      properties: 25,
+      properties: 26,
       template: 11,
       words: 152,
       noIde: true,
@@ -199,6 +199,27 @@ describe('write_patent_results', () => {
       bad: [true, true],
       files: ['style'],
     })
+  })
+
+  it('refuses an fto-memo whose Jurisdiction(s) header cell would ship as the placeholder, and fills it from the jurisdictions input', async () => {
+    const { write } = await bench()
+    const memo = { filePath: 'outputs/memo.md', content: 'DE and FR parts lapsed; US7722129B2 in force.', template: 'fto-memo', subject: 'Quick-release skewer' }
+    const refused = await write(memo)
+    const saved = await write({ ...memo, jurisdictions: 'DE, FR, US' })
+    const document = await readFile(join(dir, 'outputs/memo.md'), 'utf8')
+    expect({
+      refused: [refused.value, textOf(refused.content[0])],
+      saved: textOf(saved.content[0]).split('\n')[0],
+      header: document.split('\n').slice(4, 7),
+      placeholders: document.match(/_\(to be completed\)_/g)?.length,
+    }).toEqual({
+      refused: [{ saved: false, text: textOf(refused.content[0]) }, 'Report was not saved. The fto-memo header cell `Jurisdiction(s)` is still `_(to be completed)_`. Set `jurisdictions` to the markets the memo clears, for example `DE, FR, US`. Retry with the same content and the field set.'],
+      saved: 'Successfully wrote patent results to outputs/memo.md',
+      header: ['| Matter / Reference | _(to be completed)_ |', '| Product / Technology | Quick-release skewer |', '| Jurisdiction(s) | DE, FR, US |'],
+      // The matter reference the user never gave stays the practitioner's.
+      placeholders: 1,
+    })
+    await expect(readdir(join(dir, 'outputs'))).resolves.toEqual(['memo.md'])
   })
 
   it('refuses a structured save whose quote no tool returned, naming the row and the fix, and accepts the corrected retry with report, record, evidence and the delivery card', async () => {

@@ -5,6 +5,10 @@
  * it), and a description that carries the contract alone. The IDE's 670-word
  * description is not copied: per-template rules live in the validation result
  * that names the row and the fix (ADR 0018 decision 4).
+ *
+ * One harness-only property beside the IDE's: `jurisdictions`, which fills the
+ * fto-memo header's `Jurisdiction(s)` cell (S5 acceptance defect B; see the
+ * README, "What differs from the IDE copy").
  * @module
  */
 
@@ -64,6 +68,10 @@ export const WRITE_PATENT_RESULTS_PARAMETERS: Record<string, unknown> = {
     subject: {
       type: 'string',
       description: 'Short phrase naming what the report is about (the technology searched, product cleared, portfolio reviewed). ALWAYS provide this when using a template — it is known from the request.',
+    },
+    jurisdictions: {
+      type: 'string',
+      description: 'fto-memo: the jurisdictions the memo clears, as a short list (for example "DE, FR, US"). The memo header names them; an fto-memo save without it is refused.',
     },
     objective: {
       type: 'string',
