@@ -500,3 +500,13 @@ fail. A fresh clone does not have them.
   yyyymmdd). Evidence in the session scratchpad `acceptance-s5/` (EVIDENCE.md, per-case transcripts,
   session logs, outputs). Verdict against the rule: the harness carries the three workflows without
   skills; the misses are route and precision defects, not knowledge gaps.
+- **Acceptance defects 1 and 2 FIXED (2026-10-25).** (1) `get_claims` joined the `mcp-flowleap`
+  `tools.include` (20 names): the connectors' only paid text route is US claims via BigQuery, named
+  `mcp__flowleap__get_claims`; `get_description` has no US source on either host and stays native
+  only. (2) `dsh-flowleap-connectors` registers `flowleap:patent-data-keys` (order 1, heading
+  "Patent-data keys (this host)") from its credential records, re-read on `credentials/record-updated`
+  of its scope; values never enter the text. agent-v2 draft PR #859 adds `keyStateOwner: 'host'` to the
+  prompt and the export now renders a pointer to that heading instead of the static "Key presence
+  only" line; the regenerated artifact (7,376 words) is already in the bundle, so re-copy only if #859
+  changes before merge. Gates: typecheck 5/5, lint clean, connectors 6 files / 30 tests,
+  `check:ci:static` 61/62 (baseline). Not yet re-run live; the next acceptance pass proves both.
