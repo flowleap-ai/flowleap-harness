@@ -523,8 +523,8 @@ fail. A fresh clone does not have them.
   "Patent-data keys (this host)") from its credential records, re-read on `credentials/record-updated`
   of its scope; values never enter the text. agent-v2 draft PR #859 adds `keyStateOwner: 'host'` to the
   prompt and the export now renders a pointer to that heading instead of the static "Key presence
-  only" line; the regenerated artifact (7,376 words) is already in the bundle, so re-copy only if #859
-  changes before merge. Gates: typecheck 5/5, lint clean, connectors 6 files / 30 tests,
+  only" line; the regenerated artifact (7,376 words) is in the bundle and byte-identical to the merged
+  agent-v2 main artifact (#859 MERGED 2026-10-25). Gates: typecheck 5/5, lint clean, connectors 6 files / 30 tests,
   `check:ci:static` 61/62 (baseline). **Re-run live 2026-10-25 (FTO case, port 3097, empty skills):
   both fixes PASS.** The system prompt carries the host section (`EPO OPS: key is set`, `USPTO ODP: key is
   set`, `Mistral: key is set`) and the persona pointer; "Key presence only" has 0 hits. The native
