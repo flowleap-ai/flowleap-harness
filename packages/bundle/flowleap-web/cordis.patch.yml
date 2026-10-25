@@ -118,9 +118,13 @@
     # images, analytics. The office tools (`search_patents`,
     # `get_bibliography`, …) and OCR (`ocr`, `read_pdf`, on the firm's Mistral
     # key since C3) come from `dsh-flowleap-connectors` below and are not
-    # listed here. `get_fulltext` stays on the MCP side for US full text:
-    # the `usFulltext` host capability is absent in the harness, so the native
-    # copy answers US claims `not_configured`.
+    # listed here, with one exception. `get_claims` is ALSO here: the native copy
+    # has no US source (`usFulltext` is absent on a self-hosted harness) and
+    # answers US claims `not_configured` naming the paid route
+    # `mcp__flowleap__get_claims`, the backend's tool of the same name over
+    # this row (ADR 0019 decision 5; S5 acceptance 2026-10-25 found the name
+    # unregistered). `get_description` has no US source on either host, so it
+    # stays native only. `get_fulltext` stays on the MCP side for US full text.
     - id: mcp-flowleap
       name: '@deepseek-ai/dsh-mcp-client'
       config:
@@ -140,6 +144,7 @@
             - examiner_baseline
             - patent_analytics
             - get_fulltext
+            - get_claims
             - patstat_portfolio
             - patstat_docs
             - patstat_query
