@@ -13,7 +13,7 @@ import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AttachmentStore from '@deepseek-ai/dsh-attachment'
-import LlmRuntime, { LlmAdapter, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions, LlmCallConfigAdapterDefaults, LlmModelInfo,
   LlmModelReasoningInfo, LlmProviderInfo, LlmResolvedModelInfo, StreamChunk,
@@ -775,6 +775,42 @@ describe('Web session model selection', () => {
       sessionId, provider: 'deepseek-official', model: 'unlisted-but-served',
     }))).toMatchObject({ ok: false, error: { code: 'session/model-unavailable' } })
     expect(currentSelection(ctx, sessionId)).toEqual({ provider: 'deleted-gateway', model: 'deleted-model' })
+    await ctx.fiber.dispose()
+  })
+
+  it('refuses a prompt whose model its registered route does not serve before it reaches the inbox', async () => {
+    const { ctx, sessionId, agent } = await harness()
+    ctx.llm.registerAdapter(['strict'], new CatalogAdapter(
+      'Strict',
+      [{ provider: 'strict', id: 'listed', name: 'Listed' }],
+      undefined,
+      new LlmError('pi-ai provider "strict" has no configured model "unlisted"', 'UNKNOWN_MODEL'),
+    ))
+    const remote = await createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'strict', model: 'unlisted' }), cwd: '/tmp',
+    })
+    const events = [...agent.session.snapshotEvents()]
+    const followup = vi.fn()
+    const steer = vi.fn()
+    Object.assign(agent, { followup, steer })
+    const refusal = {
+      ok: false,
+      error: {
+        code: 'session/model-unavailable',
+        message: 'pi-ai provider "strict" has no configured model "unlisted". Select an available model before sending a message.',
+        details: { provider: 'strict', model: 'unlisted' },
+      },
+    }
+    expect(await remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [{ type: 'text', text: 'hi' }] })))
+      .toMatchObject(refusal)
+    expect(await remote.prompt(promptRequest({ sessionId, mode: 'steer', content: [{ type: 'text', text: 'hi' }] })))
+      .toMatchObject(refusal)
+    expect(await remote.prompt(promptRequest({
+      sessionId, mode: 'queue', content: [{ type: 'image', mediaType: 'image/png', data: 'AQ==' }],
+    }))).toMatchObject(refusal)
+    expect(followup).not.toHaveBeenCalled()
+    expect(steer).not.toHaveBeenCalled()
+    expect(agent.session.snapshotEvents()).toEqual(events)
     await ctx.fiber.dispose()
   })
 
