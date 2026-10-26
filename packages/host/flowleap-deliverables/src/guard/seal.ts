@@ -2,7 +2,8 @@
  * The seal on a delivered file: every path `write_patent_results` saved for a
  * Session is remembered, and the first direct `edit`, `write` or
  * `str_replace_editor` of that path by the model steers one message into the
- * turn (the D1 `steer.ts` pattern, once per Session and path). The edit is not
+ * turn (the D1 `steer.ts` pattern, once per Session, path and outcome); a
+ * failed edit steers its own sentence (S5 acceptance pass 3, 2026-10-26). The edit is not
  * blocked: the attorney may have asked for it. The steer is the seal: it tells
  * the model that the record, the evidence companion and the delivery card now
  * describe a file that no longer exists, and that a re-save through the writer
@@ -23,6 +24,12 @@ export const DIRECT_EDIT_TOOLS: ReadonlySet<string> = new Set(['edit', 'write', 
 
 /** The one sentence steered into the turn after the model edits a delivered file directly. */
 export const DIRECT_EDIT_STEER = 'This file was delivered to the attorney with a card. Re-save it through write_patent_results so the record, evidence and card stay true; direct edits leave the card stale.'
+
+/** The one sentence steered into the turn after a direct edit of a delivered file fails. */
+export const FAILED_EDIT_STEER = 'This file was delivered to the attorney with a card, and the edit did not change it. To correct it, re-save the whole file through write_patent_results; a correction given only in the chat does not reach the delivered file.'
+
+/** Whether the direct edit changed the file. */
+type EditOutcome = 'changed' | 'failed'
 
 /** The delivered paths of the live Sessions, and which of them were steered already. */
 export class DeliveredPaths {
@@ -54,13 +61,14 @@ export class DeliveredPaths {
   }
 
   /**
-   * Claim the one steer of a delivered path.
+   * Claim the one steer of a delivered path for an edit outcome.
    * @param sessionId - the owning Session.
    * @param processPath - the canonical process path.
-   * @returns `true` the first time for a Session and path, `false` after.
+   * @param outcome - whether the edit changed the file.
+   * @returns `true` the first time for a Session, path and outcome, `false` after.
    */
-  claimSteer(sessionId: string, processPath: string): boolean {
-    const key = `${sessionId}\n${processPath}`
+  claimSteer(sessionId: string, processPath: string, outcome: EditOutcome): boolean {
+    const key = `${sessionId}\n${processPath}\n${outcome}`
     if (this.steered.has(key)) return false
     this.steered.add(key)
     return true
@@ -94,8 +102,9 @@ export function editedPath(name: string, args: unknown): string | undefined {
 }
 
 /**
- * Attach the seal: after a successful direct edit of a delivered path, steer the one sentence into
- * the turn, once per Session and path. The `tools/post-execute` projection is awaited by the
+ * Attach the seal: after a direct edit of a delivered path, steer one sentence into the turn, once
+ * per Session, path and outcome. A failed edit is steered too: the file still holds the text the
+ * model meant to correct, and only a re-save through the writer corrects it. The `tools/post-execute` projection is awaited by the
  * registry, so the steer is queued before the edit's result reaches the model; the decision is
  * returned unchanged.
  * @param ctx - the plugin context, with `fs` and `workingDirectory` active.
@@ -107,13 +116,14 @@ export function registerEditSeal(ctx: Context, delivered: DeliveredPaths, onStee
     const decision = await next()
     const agent = exec.agent
     const path = editedPath(exec.name, exec.arguments)
-    if (agent === undefined || path === undefined || result.isError) return decision
+    if (agent === undefined || path === undefined) return decision
+    const outcome: EditOutcome = result.isError ? 'failed' : 'changed'
     try {
       const cwd = await ctx.workingDirectory.ensure(agent, exec.signal)
       const target = await ctx.fs.resolve(path, { cwd, signal: exec.signal })
       const processPath = ctx.fs.processPath(target)
-      if (!delivered.has(agent.session.id, processPath) || !delivered.claimSteer(agent.session.id, processPath)) return decision
-      const text = `\`${path}\`: ${DIRECT_EDIT_STEER}`
+      if (!delivered.has(agent.session.id, processPath) || !delivered.claimSteer(agent.session.id, processPath, outcome)) return decision
+      const text = `\`${path}\`: ${outcome === 'failed' ? FAILED_EDIT_STEER : DIRECT_EDIT_STEER}`
       onSteer?.(agent, text)
       agent.steer(createUserMessage({ content: [{ type: 'text', text }], source: { kind: STEER_SOURCE_KIND } }))
     } catch (error) {

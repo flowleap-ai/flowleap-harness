@@ -30,7 +30,9 @@
  * differs from the IDE copy"): {@link extractFigures} also drops a prose reference to one of the
  * memo's own section numbers ("the table in 4.1"), and `containsNumber` accepts a figure followed by
  * a list comma (`"adjustmentTotalQuantity": 63,` in a JSON tool result) while still refusing a
- * thousands group (`63,000`).
+ * thousands group (`63,000`). {@link ftoProvenanceResult} also takes the document it names, so a
+ * dossier or another non-FTO save is not told about an "FTO" memo (S5 acceptance pass 3,
+ * 2026-10-26).
  */
 
 /** One retrieved passage of a document, reduced to what a quotation check needs. */
@@ -816,20 +818,31 @@ export function renderFtoAppendix(content: string, snapshot: ProvenanceSnapshot)
 	].join('\n');
 }
 
+/** The document a provenance result describes: an FTO memo, or any other templated report. */
+export type ProvenanceDocument = 'fto-memo' | 'report';
+
+/** The result line's label and the noun that names the saved document. */
+const PROVENANCE_WORDING: Record<ProvenanceDocument, { readonly label: string; readonly noun: string }> = {
+	'fto-memo': { label: 'FTO provenance', noun: 'memo' },
+	'report': { label: 'Provenance', noun: 'report' },
+};
+
 /**
- * What the model is told about the memo it just saved: the untraced figures, dates and quotations it
- * has to source or correct in a follow-up save. The memo states the same thing; this is what reaches
- * the model while it can still act on it.
+ * What the model is told about the document it just saved: the untraced figures, dates and
+ * quotations it has to source or correct in a follow-up save. The document states the same thing;
+ * this is what reaches the model while it can still act on it.
  * @param content - the model-written report body.
  * @param snapshot - the session's recorded executions.
+ * @param document - which document the result names; an FTO memo by default.
  * @returns the rendered text.
  */
-export function ftoProvenanceResult(content: string, snapshot: ProvenanceSnapshot): string {
+export function ftoProvenanceResult(content: string, snapshot: ProvenanceSnapshot, document: ProvenanceDocument = 'fto-memo'): string {
 	const figures = figureProvenance(extractFigures(content), snapshot, content);
 	const dates = dateProvenance(extractDates(content), snapshot);
 	const quotations = quotationProvenance(extractClaimQuotations(content), snapshot);
 	const untraced = figures.unmatched.length + dates.unmatched.length + quotations.unmatched.length;
-	return `\nFTO provenance: ${figureSentence(figures)} ${dateSentence(dates)} ${quotationSentence(quotations)}`
+	const { label, noun } = PROVENANCE_WORDING[document];
+	return `\n${label}: ${figureSentence(figures)} ${dateSentence(dates)} ${quotationSentence(quotations)}`
 		+ (untraced ? ' Source each figure, date and quotation that was not found in a follow-up save, or replace it with one a recorded output supports.' : '')
-		+ ' The memo lists them in its generated provenance sections.';
+		+ ` The ${noun} lists them in its generated provenance sections.`;
 }

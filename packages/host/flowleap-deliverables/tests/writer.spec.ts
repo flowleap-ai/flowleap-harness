@@ -7,7 +7,8 @@
  * appended for the report and the record only), the one-time
  * "report not written" steer at the turn boundary, the fto-memo header cell
  * the save must fill, the dossier template with its provenance appendix, and
- * the seal on a delivered file (one steer on its first direct edit).
+ * the seal on a delivered file (one steer on its first changed and its first
+ * failed direct edit).
  */
 
 import { mkdtemp, readdir, readFile, realpath, rm } from 'node:fs/promises'
@@ -211,12 +212,12 @@ describe('write_patent_results', () => {
     const document = await readFile(join(dir, 'outputs/memo.md'), 'utf8')
     expect({
       refused: [refused.value, textOf(refused.content[0])],
-      saved: textOf(saved.content[0]).split('\n')[0],
+      saved: textOf(saved.content[0]).split('\n').slice(0, 2).map(line => line.split(':')[0]),
       header: document.split('\n').slice(4, 7),
       placeholders: document.match(/_\(to be completed\)_/g)?.length,
     }).toEqual({
       refused: [{ saved: false, text: textOf(refused.content[0]) }, 'Report was not saved. The fto-memo header cell `Jurisdiction(s)` is still `_(to be completed)_`. Set `jurisdictions` to the markets the memo clears, for example `DE, FR, US`. Retry with the same content and the field set.'],
-      saved: 'Successfully wrote patent results to outputs/memo.md',
+      saved: ['Successfully wrote patent results to outputs/memo.md', 'FTO provenance'],
       header: ['| Matter / Reference | _(to be completed)_ |', '| Product / Technology | Quick-release skewer |', '| Jurisdiction(s) | DE, FR, US |'],
       // The matter reference the user never gave stays the practitioner's.
       placeholders: 1,
@@ -303,16 +304,20 @@ describe('write_patent_results', () => {
 })
 
 describe('the seal on a delivered file', () => {
-  it('saves a dossier as a checked report with its provenance appendix, and steers once when the model edits the delivered file directly', async () => {
+  it('saves a dossier as a checked report with its provenance appendix, and steers once per outcome when the model edits the delivered file directly', async () => {
     const { ctx, session, call, write, steered } = await bench()
-    ctx.tools.register(fakeTool('edit', 'edited'))
+    // An edit of text the file does not hold fails, as the real edit tool fails on an unread file.
+    ctx.tools.register({ ...fakeTool('edit', 'edited'), execute: (args: unknown) => (args as { old_string?: string }).old_string === 'missing' ? Promise.reject(new Error('cannot modify')) : Promise.resolve('edited' as never) })
     ctx.tools.register(fakeTool('str_replace_editor', 'viewed'))
     session.append('turn/start', { turn: 1 })
     await call('get_claims', { patent_number: PUBLICATION })
-    const body = ['## Snapshot', `${PUBLICATION}: 2 claims; claim 1 reads "${CLAIM_1}".`, '', '## Family', 'No family members read.', '', '## Sources and Limitations', 'Claims from the retrieved text; no legal status read.'].join('\n')
+    const body = ['## Snapshot', `${PUBLICATION}: 2 claims; claim 1 reads "${CLAIM_1}".`, '', '## Family', 'No family members read.', '', '## US Family Chain', 'No US member read.', '', '## Sources and Limitations', 'Claims from the retrieved text; no legal status read.'].join('\n')
     const saved = await write({ filePath: 'outputs/dossier.md', content: body, template: 'dossier', matter: PUBLICATION, subject: 'Sealed sensor housings' })
     const document = await readFile(join(dir, 'outputs/dossier.md'), 'utf8')
-    // The delivered file is edited directly: once steered, then silent for that path; another path and a view are never steered.
+    // The delivered file is edited directly: a failed edit and a changed file are each steered once, then
+    // silent for that path; another path and a view are never steered.
+    await call('edit', { file_path: 'outputs/dossier.md', old_string: 'missing', new_string: 'b' })
+    await call('edit', { file_path: 'outputs/dossier.md', old_string: 'missing', new_string: 'c' })
     await call('edit', { file_path: 'outputs/dossier.md', old_string: 'No family members read.', new_string: 'No family.' })
     await call('edit', { file_path: './outputs/../outputs/dossier.md', old_string: 'a', new_string: 'b' })
     await call('str_replace_editor', { command: 'view', path: 'outputs/dossier.md' })
@@ -326,21 +331,21 @@ describe('the seal on a delivered file', () => {
     }).toEqual({
       result: [
         'Successfully wrote patent results to outputs/dossier.md',
-        'FTO provenance: 1 figures checked against recorded tool outputs',
+        'Provenance: 1 figures checked against recorded tool outputs',
         DELIVERED_LINE.split(';')[0],
       ],
       title: '# Patent Dossier',
       generated: ['## Figure and date provenance (generated)', '## Quotation provenance (generated)', '## Data provenance (generated)'],
       files: ['dossier.md'],
-      steered: [`\`outputs/dossier.md\`: ${Deliverables.DIRECT_EDIT_STEER}`],
+      steered: [`\`outputs/dossier.md\`: ${Deliverables.FAILED_EDIT_STEER}`, `\`outputs/dossier.md\`: ${Deliverables.DIRECT_EDIT_STEER}`],
     })
     // A free-form save is sealed the same way, and a write of a path never delivered is not.
     await write({ filePath: 'notes/free.md', content: 'Notes' })
     ctx.tools.register(fakeTool('write', 'written'))
     await call('write', { file_path: 'notes/free.md', content: 'Changed' })
     await call('write', { file_path: 'notes/never-delivered.md', content: 'New' })
-    expect(steered).toHaveLength(2)
-    expect(steered[1]).toBe(`\`notes/free.md\`: ${Deliverables.DIRECT_EDIT_STEER}`)
+    expect(steered).toHaveLength(3)
+    expect(steered[2]).toBe(`\`notes/free.md\`: ${Deliverables.DIRECT_EDIT_STEER}`)
   })
 })
 

@@ -51,7 +51,7 @@ export {
 export type { DraftingFiles, DraftingWorkspaceOptions } from './drafting/workspace.ts'
 export { checkPriorArtReportCompletion, GENERIC_WRITE_TOOLS, RETRIEVAL_TOOLS } from './guard/completion.ts'
 export type { GuardRound, ReceiptFileReader, ReportCompletionTurn } from './guard/completion.ts'
-export { DeliveredPaths, DIRECT_EDIT_STEER, DIRECT_EDIT_TOOLS, editedPath, registerEditSeal } from './guard/seal.ts'
+export { DeliveredPaths, DIRECT_EDIT_STEER, DIRECT_EDIT_TOOLS, editedPath, FAILED_EDIT_STEER, registerEditSeal } from './guard/seal.ts'
 export { receiptFileReader, registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
 export { registerGateCommands } from './gates/commands.ts'
 export type { GateCommandDependencies, GateCommandRegistry } from './gates/commands.ts'

@@ -555,7 +555,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
 
       // A save that carries a generated provenance appendix is a checked report, not a free-form
       // artifact, so it states what was traced instead of that nothing was.
-      const provenanceResult = !provenance ? '' : template === 'landscape-report' ? landscapeResult(content, provenance) : ftoProvenanceResult(content, provenance)
+      const provenanceResult = !provenance ? '' : template === 'landscape-report' ? landscapeResult(content, provenance) : ftoProvenanceResult(content, provenance, template === 'fto-memo' ? 'fto-memo' : 'report')
       // The comparison is a count over validated rows; a number the model typed has no field to land
       // in, so it is dropped and named rather than silently lost.
       const ignored = findBetter ? ignoredNumericFields(input) : []

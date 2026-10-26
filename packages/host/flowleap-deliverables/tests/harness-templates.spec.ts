@@ -36,20 +36,28 @@ describe('the dossier template', () => {
     })
   })
 
-  it('steps aside for an authored dossier, refuses an empty or placeholder body, and is listed by both the template copy and the writer schema', () => {
+  it('steps aside for an authored dossier, refuses an empty or placeholder body or an authored body without a US Family Chain heading, and is listed by both the template copy and the writer schema', () => {
     const authored = ['## Snapshot', 'EP2110298B1.', '', '## Claims', '12 claims; independents 1, 6, 10.', '', '## Family', '| State | Status |'].join('\n')
     const document = buildPatentReport(authored, 'dossier', { matter: 'EP2110298B1' }, '## Figure and date provenance (generated)\nnone')
     expect({
       authoredHeadings: document.match(/^## .*$/gm),
       empty: contentRequirementError('dossier', ''),
       placeholder: contentRequirementError('dossier', 'To be completed')?.endsWith('A placeholder such as "to be completed" is not content.'),
-      body: contentRequirementError('dossier', authored),
+      noChain: contentRequirementError('dossier', authored),
+      usMembersOnly: contentRequirementError('dossier', `${authored}\n\n## Forward citations of the US family members\nNone.`),
+      chain: contentRequirementError('dossier', `${authored}\n\n### 6. US Family Chain\nNo US member in the family.`),
+      continuity: contentRequirementError('dossier', `${authored}\n\n## US continuity\nUS7722129B2, then US8056987B2.`),
+      scaffolded: contentRequirementError('dossier', 'EP2110298B1, granted 2014-08-06.'),
       listed: [PATENT_REPORT_TEMPLATES.includes('dossier'), [...REPORT_TEMPLATES]],
     }).toEqual({
       authoredHeadings: ['## Snapshot', '## Claims', '## Family', '## Figure and date provenance (generated)'],
       empty: 'dossier needs content: the snapshot of the publication, its claims with claim 1 verbatim, the family with the status and dates of each state, the legal status, the citations, the US family chain, and the sources and limitations. Only prior-art-report and find-better-report use empty content with structured fields.',
       placeholder: true,
-      body: undefined,
+      noChain: 'dossier needs a US Family Chain section: a heading that names the US family chain, with the US applications and grants of the family in filing order, each with its serial number, publication, grant date and maintenance standing. When the family has no US member, write the heading and say so under it.',
+      usMembersOnly: 'dossier needs a US Family Chain section: a heading that names the US family chain, with the US applications and grants of the family in filing order, each with its serial number, publication, grant date and maintenance standing. When the family has no US member, write the heading and say so under it.',
+      chain: undefined,
+      continuity: undefined,
+      scaffolded: undefined,
       listed: [true, [...PATENT_REPORT_TEMPLATES]],
     })
   })

@@ -21,7 +21,9 @@
  * Local divergence from the IDE copy (S5 acceptance defect C, 2026-10-25; see the README, "What
  * differs from the IDE copy"): the `dossier` template, the dossier of one publication (snapshot,
  * claims, family, legal status, citations, US family chain, sources and limitations), so a dossier
- * is a checked save with a provenance appendix and not a free-form file.
+ * is a checked save with a provenance appendix and not a free-form file. An authored dossier body
+ * (its own sections in place of the scaffold) is refused without a US Family Chain heading (S5
+ * acceptance pass 3, 2026-10-26).
  */
 export type PatentReportTemplate =
 	| 'prior-art-report'
@@ -156,8 +158,22 @@ export function contentRequirementError(template: PatentReportTemplate | undefin
 	// A section body that is only a stub is the same failure one heading further down: the body was
 	// never written. Headings themselves are the template's, so only the text under them is judged.
 	const bodies = [content, ...content.split(/^#{1,6} .*$/m).slice(1)];
-	return bodies.some(body => PLACEHOLDER_BODY.test(bareText(body))) ? `${requirement} A placeholder such as "to be completed" is not content.` : undefined;
+	if (bodies.some(body => PLACEHOLDER_BODY.test(bareText(body)))) {
+		return `${requirement} A placeholder such as "to be completed" is not content.`;
+	}
+	// An authored dossier replaces the scaffold, so the scaffold's US Family Chain section must be one
+	// of its own headings; a family with no US member says so under that heading.
+	if (template === 'dossier' && isAuthoredReport(content) && !US_FAMILY_CHAIN_HEADING.test(content)) {
+		return DOSSIER_US_FAMILY_CHAIN;
+	}
+	return undefined;
 }
+
+/** A heading that names the US family chain (or the US continuity) of the publication. */
+const US_FAMILY_CHAIN_HEADING = /^#{1,6} [^\n]*\bUS\b[^\n]*\b(?:chain|continuity)\b/im;
+
+/** The refusal of an authored dossier without that heading. */
+const DOSSIER_US_FAMILY_CHAIN = 'dossier needs a US Family Chain section: a heading that names the US family chain, with the US applications and grants of the family in filing order, each with its serial number, publication, grant date and maintenance standing. When the family has no US member, write the heading and say so under it.';
 
 /**
  * Wrap the model-produced `content` in the professional structure named by `template`, and append the
