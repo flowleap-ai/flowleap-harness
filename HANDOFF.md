@@ -16,14 +16,23 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (24
   decisions, including off-site access, mobile continuation and support access) with the architecture and phases P0 to P6 in
   [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
-  The next step is **P0**: a new `flowleap-os` repository, an installer with install and restore, a release
-  pipeline, the S5 cases automated, and a Hetzner test firm (the founder buys the server).
+  **P0 is DONE (2026-10-26):** the private repository `flowleap-ai/flowleap-os` has the installer, a release
+  pipeline with a loopback-only zot registry and per-firm update keys, the seam A driver with all three S5
+  cases, nightly encrypted backups with a tested fresh-VM restore, an updater with automatic rollback, and the
+  release gate. The Hetzner test firm runs the gated release. The next step is **P1** (control-plane core).
+  Spec: issue flowleap-ai/flowleap-harness#11; work is tracked as sub-issues of it.
 - **Known defects:** Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the
   prior-art case takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
 - **Default model rows:** the OpenRouter id of Sonnet 5.5 is `anthropic/claude-sonnet-5.5` (with a dot); the
   Anthropic route id is `claude-sonnet-5-5`. A row that names a model its route does not list shows "Select
   model", and the first send is refused with `session/model-unavailable` (issue 12).
-- **Not run on the synced code:** the FTO and prior-art cases, the desktop build, the Docker image.
+- **Not run on the synced code:** the desktop build. The three S5 cases pass on the synced code through the
+  seam A driver on the test firm (P0, tickets 15 and 16).
+- **Test firm:** Hetzner CPX22 in Falkenstein (SSH key only, ufw: SSH only); details in issue 13. Backups go to
+  Storage Box u702313 (the restic key is in the founder's password manager). Its default model route is
+  OpenRouter (`DEFAULT_MODEL` in `/etc/flowleap/firm.env`), because the founder's Anthropic credits are limited.
+- **Merge gate while GitHub Actions cannot run** (a billing stop on the organisation): the coordinator's review
+  plus local checks, reported as a comment on each PR (founder decision 2026-10-26).
 
 ## What this is
 
@@ -701,3 +710,18 @@ fail. A fresh clone does not have them.
   prompt at admission with `session/model-unavailable`; the composer shows the reason and keeps the draft. A route
   without its key still reaches request execution (`MISSING_CREDENTIAL`, message logged). Tests: Host spec in
   `session-models.host.spec.ts` and the web e2e `apps/web/tests/default-model-unlisted.e2e.ts`.
+- **Firm OS P0 DONE (2026-10-26).** Coordinated as one session per ticket, each reviewed and merged by the
+  coordinator on local checks (GitHub Actions do not run in the organisation). Harness: #12 (a new Web session
+  refuses a prompt to a model its route does not serve; PR #21) and the agent-loop follow-up (PR #22).
+  flowleap-os (private, flowleap-ai): #14 installer for one attorney runtime (about 250 MB RAM per runtime),
+  #18 release pipeline with checks, a zot registry and per-firm update keys with revoke (PR #2), #15 and #16
+  seam A driver judging dossier, FTO and prior art from session logs and saved files (PRs #1, #3; live 11/11,
+  11/11, 12/12; prior art used 4.5M tokens), #17 nightly encrypted restic backups to a Hetzner Storage Box and a
+  runbook-only restore on a fresh VM, boot to passing dossier in 20 min 31 s (PR #4), #19 updater that waits
+  for idle, backs up first and rolls back a broken release in 41 s (PR #5), #20 release gate on the founder's
+  cheaper design: OpenRouter, dossier on every candidate, FTO and prior art only on stable promotion, a monthly
+  manual fresh-VM restore until a Hetzner API token exists (PR #6; candidate 1835 PASS with 854,560 tokens, a
+  broken candidate blocked with 0 tokens). Open: issue 13 (firm address name, Hetzner Cloud Firewall), issues
+  23 and 24 (runtime gaps: image patch overlays, a read-only firm key source, doctor key path, default
+  workspace on first visit, admission pause before restart, data rollback, page reconnect, no shell sandbox
+  in the container). P1 also inherits the public registry host and automated restore VMs.
