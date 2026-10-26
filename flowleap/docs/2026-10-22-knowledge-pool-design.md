@@ -1,6 +1,9 @@
 # Knowledge Pool: shared firm memory for the self-hosted Patent AI harness
 
-Research date: 2026-10-22. Status: design, input to an ADR. No code. Number labels: **[M]** measured
+Research date: 2026-10-22. Status: design, input to an ADR. No code. **Revised on 2026-10-26 by
+[ADR 0001](adr/0001-self-hosted-firm-os.md) decision 11:** no client and matter tiers (audiences come from
+artifact sharing), methods move to the firm skills library, and pages are built by code from approved
+fact records. Read the ADR first; the sections below keep their research value. Number labels: **[M]** measured
 by us on 2026-10-22, **[P]** published (source in section 14), **[A]** assumption.
 
 The coordinator's sketch holds, with six changes: walls are storage partitions, not only filters;

@@ -656,3 +656,13 @@ fail. A fresh clone does not have them.
   `"applicationMetaData.filingDate 1900-01-01 2008-04-16"`) instead of passing it on to a bare 400 (S5 defect 5).
   `vendor/flowleap-connectors` is at backend main after the merge (`sync-connectors.sh --check` clean); vendored,
   connectors and deliverables specs 42 files / 406 tests pass. Not yet checked live in a harness run.
+- **Self-hosted firm OS designed (2026-10-26).** A design interview with the founder (52 questions)
+  settled the infrastructure: a firm control plane (Entra sign-in, vault, model gateway with budgets,
+  egress proxy, spawner, scheduler, Artifacts library, Knowledge Pool, firm skills library, audit,
+  updates, backups) in front of one isolated dsh runtime per attorney, on one host the firm owns.
+  Decisions: [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md)
+  (the first record of this product's own ADR series; agent-v2 ADR 0011 does not apply here).
+  Architecture, data map, flows and the build phases P0 to P6:
+  [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
+  The control plane goes into a new repository `flowleap-os`; this repository stays the attorney runtime.
+  Next: P0 (repository, a Hetzner test firm, installer with restore, release pipeline, S5 cases automated).
