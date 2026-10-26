@@ -53,7 +53,7 @@ Import this package's `/client` declarations type-only, then register through `c
 
 ### Unroutable sessions
 
-Catalog availability does not block sending with a saved selection; request execution reports missing credentials or unavailable models. Refreshes and refresh failures retain the last displayed selection and groups. A Host reset clears that display. Sign-out hides the account provider from the picker while preserving the saved provider/model ID and reasoning effort. Signing in restores the catalog name when that model is available again. Existing session logs remain unchanged.
+Catalog availability does not block sending with a saved selection; request execution reports missing credentials. Prompt admission refuses a model that its registered route does not serve, so the composer shows the refusal and keeps the draft. Refreshes and refresh failures retain the last displayed selection and groups. A Host reset clears that display. Sign-out hides the account provider from the picker while preserving the saved provider/model ID and reasoning effort. Signing in restores the catalog name when that model is available again. Existing session logs remain unchanged.
 
 ### Selection failures
 

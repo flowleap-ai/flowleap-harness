@@ -814,6 +814,35 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
+  it('keeps an adapter Remote rejection and names a non-Error failure when admission resolves the model', async () => {
+    const { ctx, sessionId, agent } = await harness()
+    ctx.llm.registerAdapter(['string-error'], new class extends CatalogAdapter {
+      override resolveModel(): Promise<LlmResolvedModelInfo> {
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- non-Error provider normalization is the scenario.
+        return Promise.reject('string selection failure')
+      }
+    }('String Error', [{ provider: 'string-error', id: 'plain', name: 'Plain' }]))
+    let selection = { provider: 'remote-rejected', model: 'any' }
+    const remote = await createSessionTestRemote(ctx, { defaultModelSelection: () => selection, cwd: '/tmp' })
+    const followup = vi.fn()
+    Object.assign(agent, { followup })
+    const prompt = () => remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [{ type: 'text', text: 'hi' }] }))
+    expect(await prompt()).toMatchObject({
+      ok: false, error: { code: 'gateway/internal', message: 'fixture rejected the selection' },
+    })
+    selection = { provider: 'string-error', model: 'plain' }
+    expect(await prompt()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'session/model-unavailable',
+        message: 'string selection failure. Select an available model before sending a message.',
+        details: selection,
+      },
+    })
+    expect(followup).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
   it('admits a removed model without changing its saved selection', async () => {
     const { ctx, sessionId, agent } = await harness({ provider: 'deepseek-official', model: 'removed-model' })
     const remote = await createSessionTestRemote(ctx, {
