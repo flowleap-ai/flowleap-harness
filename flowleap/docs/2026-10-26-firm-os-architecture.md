@@ -7,8 +7,8 @@ which order they are built.
 ## 1. The system on one host
 
 ```
-                         firm network (VPN or tailnet), no inbound from the internet
-  attorney ─ browser / installed web app / thin desktop client
+        firm network (tailnet or VPN; optional Entra Application Proxy), no inbound from the internet
+  attorney ─ browser / installed web app / thin desktop client / phone (PWA), office or off-site
   outside agents ─ Claude Desktop extension, Claude Code, Codex (through the MCP door)
             ▼
  ┌──────────────────────────────── firm host (one VM or server) ───────────────────────────────┐
@@ -100,6 +100,16 @@ the agent.
 door behind the Entra sign-in, so it runs as that attorney, with that attorney's audiences, budget and
 Microsoft 365 permissions. Nothing is reachable from the internet.
 
+**Off-site.** At home the attorney's laptop or phone is already on the firm tailnet (the Tailscale app, signed
+in with the Entra account, running in the background), so the same firm address works as in the office. A
+browser-only firm publishes the host through Entra Application Proxy instead; the attorney then meets the
+Entra sign-in and MFA before any FlowLeap page.
+
+**Mobile continuation.** Anna starts a prior-art chat at her desk and leaves. When the agent stops at a
+question card, her phone shows "Your chat 'Trek prior art' needs an answer" (no client content). She opens
+the installed PWA, which is a second screen on the same chat on the firm host, answers the card, and the
+agent continues on the server.
+
 **Update.** In the maintenance window the updater pulls the new images with the firm's update key, takes a
 backup, migrates the control-plane databases, restarts each runtime when its attorney is idle, and runs the
 health check; on failure it rolls back to the previous images and the backup.
@@ -124,6 +134,8 @@ backed-up store, takes over the firm address, and runs the health check and one 
   `save-to-knowledge-pool` skill.
 - Usage reporting and the gateway's virtual key as the model provider.
 - A mount point for the firm skills library ahead of the pack.
+- A service worker and web push in the web client for the phone PWA (notifications without client content),
+  and a check that question cards, the chat view and the mode indicator work at phone width.
 - Known defect to fix first: a new Web session opens with "Select model" and Return then sends nothing.
 
 ## 5. Build phases
@@ -133,11 +145,11 @@ Each phase ends in something a person can check on the FlowLeap test firm.
 | Phase | Content | Done when |
 |---|---|---|
 | **P0 Foundations** | Repository `flowleap-os`; the Hetzner test firm; installer skeleton with install and restore; release pipeline that builds this repository's image; the S5 cases automated headless | A clean VM installs, restores from a backup, and passes the three S5 cases with one command |
-| **P1 Control plane core** | Entra sign-in proxy; spawner with sleep and wake; vault; model gateway (adopted proxy after a licence check); egress proxy with allowlist, log and office cache; audit trail; backups; updater with rollback; admin console with users, keys status, budgets and spend | Two test attorneys sign in with Entra, work at the same time on their own runtimes, see their spend, and a release updates without stopping an active chat |
+| **P1 Control plane core** | Entra sign-in proxy; off-site access through the tailnet (default) and the Entra Application Proxy recipe; spawner with sleep and wake; vault; model gateway (adopted proxy after a licence check); egress proxy with allowlist, log and office cache; audit trail; backups; updater with rollback; admin console with users, keys status, budgets and spend | Two test attorneys sign in with Entra, work at the same time on their own runtimes, see their spend, and a release updates without stopping an active chat |
 | **P2 Runtime changes** | Per-chat proxy credential; offline preset with cache-only office tools; mode indicator; usage reporting; the "Select model" fix; the branded install manifest | An offline chat drafts from a shared report with a local or substitute model, and the proxy log shows no outbound request for it |
 | **P3 Artifacts and Microsoft 365** | Artifacts service and library view; Share; comments; versions; "Open in my workspace". Token broker and the Microsoft 365 plugin (read, save, draft) | One attorney shares an FTO memo with a group; a colleague in the group opens it and copies it; a colleague outside the group does not see it. An attorney reads a SharePoint file they may open, cannot read one they may not, and finds an email draft in Outlook |
 | **P4 Knowledge Pool and skills library** | Inbox, compiler, fact records, editor review, pages and index, nightly rebuild check, MCP tools, the skill; firm skills library with examples and proposals | A shared memo produces facts that an editor approves; a second attorney's agent finds them through `knowledge_search`; a hard delete removes them after the rebuild |
-| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); the MCP door for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint |
+| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); the phone PWA with web push (mobile continuation); the MCP door for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint; an attorney at home gets a push notice on the phone, answers a question card in the PWA, and the chat continues on the server |
 | **P6 FlowLeap Data** | PATSTAT licence check; the separate paid service; the connector plugin; firm key and metering | A firm key unlocks PATSTAT tools in the runtime and the dashboard shows their use |
 
 P0 comes first because every later phase needs the test firm and the automated acceptance to prove that an
@@ -151,5 +163,7 @@ pipeline of P0 makes each sync a normal release.
 - The EPO PATSTAT licence terms for offering PATSTAT data as a service.
 - OpenAI's help pages on ChatGPT connectors (they were read only through search extracts).
 - How dsh's web server takes a launch token from a reverse proxy without exposing it to the browser.
+- Which Microsoft 365 plans include Entra Application Proxy, and its limits for a WebSocket application.
+- Web push on iOS: it works only for a PWA added to the Home Screen; check the current iOS behaviour.
 - The Microsoft Graph permission set for delegated read, save, mail-read and draft access, and whether a
   firm's Entra admin must consent once for the app registration.

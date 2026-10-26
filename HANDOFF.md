@@ -13,8 +13,8 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
 - **Base:** `flowleap` is on upstream trunk (merged 2026-10-26), with all 8 upstream UI languages and the
   FlowLeap copy translated into each. `master` on the org remote equals upstream trunk.
 - **Next product:** the self-hosted firm OS, decided in
-  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (22
-  decisions) with the architecture and phases P0 to P6 in
+  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (24
+  decisions, including off-site access, mobile continuation and support access) with the architecture and phases P0 to P6 in
   [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
   The next step is **P0**: a new `flowleap-os` repository, an installer with install and restore, a release
   pipeline, the S5 cases automated, and a Hetzner test firm (the founder buys the server).

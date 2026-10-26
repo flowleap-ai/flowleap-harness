@@ -91,14 +91,16 @@ policies and training, not in code.
 14. **Firm audit trail.** The control plane records firm-level actions: sign-ins, shares and unshares,
     pool approvals and deletions, budget and key changes, support sessions, updates, and the mode of
     each chat. Not chat content (that stays in each chat's own log).
-15. **Operations.** FlowLeap installs remotely at onboarding, on a one-command installer and a browser
-    setup wizard that a firm can later run alone. A personal update key gives access to FlowLeap's
-    private image registry while the retainer runs; when it ends, the installed version keeps working
-    and no new versions arrive. Rejected: a licence check that stops the product. Updates install in
+15. **Operations and support access.** FlowLeap installs remotely at onboarding, on a one-command installer
+    and a browser setup wizard that a firm can later run alone. A personal update key gives access to
+    FlowLeap's private image registry while the retainer runs; when it ends, the installed version keeps
+    working and no new versions arrive. Rejected: a licence check that stops the product. Updates install in
     the firm's maintenance window, each instance restarts only when idle, with a backup first and an
-    automatic rollback on a failed health check; channels "stable" and "current". Support access is a
-    channel the firm opens per incident, with a time limit, an audit record, and no access to client
-    documents by default; a health signal without client content goes out and can be switched off.
+    automatic rollback on a failed health check; channels "stable" and "current". **Support access**
+    (FlowLeap reaching the firm host to fix a problem) is a channel the firm administrator opens per
+    incident, with a time limit, an audit record, and no access to client documents by default; a health
+    signal without client content goes out and can be switched off. This record never calls it "remote
+    access": that word has three meanings here (decisions 15, 23 and 24).
 16. **Data protection.** Full disk encryption of the host, the encrypted vault, and nightly encrypted
     backups (kept 30 days) to the firm's own target with a key that only the firm holds. A departing
     attorney's instance is archived read-only for the retention period, with folders transferable to a
@@ -142,6 +144,24 @@ policies and training, not in code.
 22. **Release quality.** A FlowLeap test firm on a Hetzner server runs every release before any firm gets
     it: the installer, sign-in, an update from the previous version with data migration, a restore, and
     the S5 cases (dossier, FTO, prior art) automated. Only then is the release published.
+23. **Off-site access** (attorneys working from home, a hotel or a client site). The host stays without
+    inbound access from the internet. By default each device joins the firm's tailnet (the Tailscale app on
+    laptop and phone, signed in with the firm's Entra account, connected in the background; only traffic to
+    the firm host uses it), and the attorney opens the same firm address as in the office. For a firm that
+    wants browser-only access without an app, the host is published through an identity-aware gateway on an
+    outbound tunnel (Microsoft Entra Application Proxy, or Cloudflare Tunnel with Access): no open port, and
+    no page is reachable before the firm's Entra sign-in, MFA and Conditional Access. The firm's own VPN
+    works the same way as the tailnet.
+24. **Mobile continuation** (continue or watch a chat from a phone). A chat runs on the firm host, not on a
+    device, so a phone is one more screen on the same chat and needs no relay; it uses off-site access
+    (decision 23) and the firm sign-in. The phone client is the web app installed as a PWA ("Add to Home
+    Screen"); no native store app in version 1. Web push notifications tell the attorney that a chat is
+    finished, a question card waits, a scheduled job has a result, or a budget warning fired; a notification
+    carries no client content (it passes through Apple's or Google's push service), and the attorney switches
+    each type on or off. In version 1 the phone reads chats, reports and shared artifacts, answers question
+    cards, sends a follow-up or starts a chat, and shows the online and offline indicator; uploads from the
+    phone, Word editing and the administrator dashboard stay on the desktop. The full local desktop app
+    (solo attorneys) has no mobile continuation in version 1, because its chats run on the laptop.
 
 ## Not decided here
 
