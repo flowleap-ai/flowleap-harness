@@ -52,6 +52,8 @@ one isolated instance per user), ADR 0006 (plugins monorepo and MCP registry).
    `.agents/notes/archived/**` (976 Chinese files). Removing them means rewriting
    `scripts/persistence-*.ts` and `scripts/archived-agent-notes.ts` with their specs. Not worth it
    until it hurts.
+   Also kept: `packages/**/docs/DETAIL.zh.md`, the Chinese plugin detail pages that
+   `locale/zh.json` `meta.detail` names (UI resources, not documentation twins).
 3. **`scripts/flowleap/strip-zh.sh`** re-applies the file deletions and header strip. Run it after
    every `git merge origin/master`; it is idempotent and skips the carve-outs. The code edits
    (gates, generators, website, rules) are ordinary commits and merge on their own.
@@ -62,14 +64,15 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
-- **Upstream sync rc.2 -> rc.3/trunk: WAIT (survey 2026-10-25,
-  `flowleap/docs/2026-10-25-upstream-rc3-sync-survey.md`).** The rc.3 tag is rc.2 + 6 commits; the
-  other 1,533 commits are unreleased trunk still settling (i18n to 8 UI languages, tool-executor split,
-  official-bundles move, Node >=24.9). Seams: 6 GREEN, 2 AMBER (client locale/brand slots, desktop
-  packaging), 0 RED; 58 real hand overlaps; the strip needs no new rule; new gate `verify-locale-metadata`
-  will fail on our 6 packages (carve-out planned). About 4 agent-days in its own worktree. Trigger: the
-  next upstream tag after rc.3, or 2026-11-06, whichever comes first; earlier only for OAR subagents (E1)
-  or composer image upload. Procedure in survey section 8.
+- **Upstream sync to trunk `22ddee3792` (2026-10-26, founder decision): merged on branch
+  `claude/sync-upstream-trunk-06e46b`, not yet in `flowleap`.** Procedure from
+  `flowleap/docs/2026-10-25-upstream-rc3-sync-survey.md` section 8; every decision is in
+  `flowleap/docs/2026-10-26-upstream-trunk-sync-decisions.tsv`. Real conflicts were 22, not 58 (git
+  auto-merged the rest). Gates: typecheck, lint, build, docs:check, test:snapshot, test:expected, the
+  FlowLeap suites pass; check:ci:static 63 of 64 (only `uv.lock`). Live smoke on `flowleap-web` passed.
+  Not done: desktop build, Docker image, the three S5 acceptance cases (survey steps 11 and 12).
+  Open: keep or disable `entry-customization` (it also lists folded Conversation Views); the new
+  upstream skill `dsh-pr-description` still names Chinese level and stage labels.
 
 - **Business model refinement (founder, 2026-10-25, before the next acceptance pass):** one-time
   payment for the on-premises install plus an optional support retainer; the firm must get ALL the
