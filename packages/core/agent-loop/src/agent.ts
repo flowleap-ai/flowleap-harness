@@ -435,39 +435,22 @@ export class ReactLoopAgent implements Agent {
     const renderedPrompt = renderPrompt(assembly)
     let firstAttempt = true
     while (true) {
-      const { config, preparedCall } = await this.prepareRequest(turn, step, decision.selection, signal)
-      const currentContext = this.loopCtx.systemPrompt.refreshContext(assembly, {
-        ...assembleContextFor(this, signal), modelSelection: decision.selection,
-      })
-      const sections = renderContextSections(currentContext)
-      const context = this.runtimeContext.project(joinContextSections(sections), sections)
-      signal.throwIfAborted()
       const startsRequestSeries = firstAttempt && decision.startsRequestSeries === true
-      const commits = this.systemPrompt.project(renderedPrompt, {
-        inHistory: preparedCall?.systemPromptUpdate === 'in-history',
-        startsSeries: startsRequestSeries
-          || this.requestSurfaceGeneration !== this.session.surface.contentGeneration
-          || (preparedCall?.toolUpdate === undefined && this.toolsChanged(assembly.tools)),
-      })
-      for (const { message, intent } of commits) {
-        this.session.append('system/message', { turn, step, message }, intent)
-      }
-      let contextAdmitted = false
-      if (firstAttempt) {
-        for (const message of decision.messages) {
-          if (message.source.kind === 'runtime-context') {
-            if (context !== undefined && !contextAdmitted) {
-              this.session.append('user/message', context, { surfaceOp: 'append' })
-              contextAdmitted = true
-            }
-          } else {
-            this.session.append('user/message', message, { surfaceOp: 'append' })
-          }
+      let prepared: Awaited<ReturnType<typeof this.prepareRequest>>
+      try {
+        prepared = await this.prepareRequest(turn, step, decision.selection, signal)
+      } catch (error: unknown) {
+        // Claimed users outlive a failed first preparation; cancellation still commits neither.
+        if (!firstAttempt || signal.aborted) throw error
+        try {
+          this.admit(decision, renderedPrompt, undefined, { firstAttempt: true, startsRequestSeries }, signal)
+        } catch (admissionError: unknown) {
+          throw new AggregateError([error, admissionError], 'Request preparation failed and its claimed input could not be recorded', { cause: error })
         }
+        throw error
       }
-      if (context !== undefined && !contextAdmitted) {
-        this.session.append('user/message', context, { surfaceOp: 'append' })
-      }
+      const { config, preparedCall } = prepared
+      this.admit(decision, renderedPrompt, preparedCall, { firstAttempt, startsRequestSeries }, signal)
       firstAttempt = false
       const request = this.buildRequest(config, preparedCall, assembly.tools, { turn, step }, startsRequestSeries, signal)
       const live = new AssistantStreamAttempt(
@@ -599,6 +582,54 @@ export class ReactLoopAgent implements Agent {
         if (!live.ended) live.abandon()
         throw error
       }
+    }
+  }
+
+  /**
+   * Reconcile the bound prompt, refresh runtime context, and append the accepted users on the first attempt.
+   * @param preparedCall - bound route, or `undefined` when no adapter prepared the call; prompt admission then consolidates.
+   */
+  private admit(
+    decision: Extract<PreparedStep, { kind: 'enter' }>,
+    renderedPrompt: ReturnType<typeof renderPrompt>,
+    preparedCall: PreparedLlmCall | undefined,
+    attempt: { firstAttempt: boolean; startsRequestSeries: boolean },
+    signal: AbortSignal,
+  ): void {
+    /* v8 ignore next -- private callers establish the running phase before admitting input */
+    if (this.phase.kind !== 'running') throw new Error(`agent "${this.id}": admission outside running phase`)
+    const { turn, step } = this.phase
+    const { assembly } = decision
+    const currentContext = this.loopCtx.systemPrompt.refreshContext(assembly, {
+      ...assembleContextFor(this, signal), modelSelection: decision.selection,
+    })
+    const sections = renderContextSections(currentContext)
+    const context = this.runtimeContext.project(joinContextSections(sections), sections)
+    signal.throwIfAborted()
+    const commits = this.systemPrompt.project(renderedPrompt, {
+      inHistory: preparedCall?.systemPromptUpdate === 'in-history',
+      startsSeries: attempt.startsRequestSeries
+        || this.requestSurfaceGeneration !== this.session.surface.contentGeneration
+        || (preparedCall?.toolUpdate === undefined && this.toolsChanged(assembly.tools)),
+    })
+    for (const { message, intent } of commits) {
+      this.session.append('system/message', { turn, step, message }, intent)
+    }
+    let contextAdmitted = false
+    if (attempt.firstAttempt) {
+      for (const message of decision.messages) {
+        if (message.source.kind === 'runtime-context') {
+          if (context !== undefined && !contextAdmitted) {
+            this.session.append('user/message', context, { surfaceOp: 'append' })
+            contextAdmitted = true
+          }
+        } else {
+          this.session.append('user/message', message, { surfaceOp: 'append' })
+        }
+      }
+    }
+    if (context !== undefined && !contextAdmitted) {
+      this.session.append('user/message', context, { surfaceOp: 'append' })
     }
   }
 
