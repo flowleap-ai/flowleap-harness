@@ -275,6 +275,36 @@ describe('agent loop', () => {
     expect(combined?.cause).toBe(streamFailure)
   })
 
+  it('preserves the preparation failure when its claimed input cannot be recorded', async () => {
+    const preparationFailure = new LlmError('no configured model', 'UNKNOWN_MODEL')
+    const admissionFailure = new Error('user admission rejected')
+    const ctx = await harness(new MockAdapter([]))
+    const agent = await ctx.agentLoop.create(SessionId('double-preparation-failure'), {
+      provider: 'mock',
+      model: 'mock',
+    })
+    vi.spyOn(ctx.llm, 'prepareCall').mockRejectedValueOnce(preparationFailure)
+    const append = agent.session.append.bind(agent.session)
+    Object.defineProperty(agent.session, 'append', {
+      configurable: true,
+      value: (...args: Parameters<typeof agent.session.append>): ReturnType<typeof agent.session.append> => {
+        if (args[0] === 'user/message') throw admissionFailure
+        return Reflect.apply(append, agent.session, args) as ReturnType<typeof agent.session.append>
+      },
+    })
+    const errors: unknown[] = []
+    ctx.on('agent/error', ({ agent: subject, error }) => {
+      if (subject === agent) errors.push(error)
+    })
+
+    send(agent, 'record this')
+    await waitForIdle(ctx, agent)
+
+    const combined = errors.find((error): error is AggregateError => error instanceof AggregateError)
+    expect(combined?.errors).toEqual([preparationFailure, admissionFailure])
+    expect(combined?.cause).toBe(preparationFailure)
+  })
+
   it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
     'rejects invalid AgentOptions.maxTokens %s before publication',
     async (maxTokens) => {
@@ -1313,8 +1343,8 @@ describe('agent loop', () => {
     send(agent, 'hi')
     await waitForIdle(ctx, agent)
     expect(adapter.requests).toEqual([])
-    expect(agent.session.snapshotEvents().filter(event => ['request/header', 'user/message', 'system/message'].includes(event.type)))
-      .toEqual([])
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'request/header')).toEqual([])
+    expect(userTexts(agent)).toEqual(['hi'])
     expect(agent.session.snapshotEvents().at(-1)).toMatchObject({
       type: 'turn/end', data: { reason: { kind: 'error', error: {
         message: `agent "a1": agent/request proposed "${field === 'provider' ? 'other/mock' : 'mock/other'}" after step preparation fixed "mock/mock"; use agent.model.select() before step preparation`,

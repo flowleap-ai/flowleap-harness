@@ -462,7 +462,7 @@ describe('prepared-route prompt admission', () => {
     { selected: undefined, proposed: ReasoningEffortId('high') },
     { selected: ReasoningEffortId('high'), proposed: ReasoningEffortId('low') },
     { selected: ReasoningEffortId('high'), proposed: undefined },
-  ])('rejects an agent/request effort change from $selected to $proposed before input admission', async ({ selected, proposed }) => {
+  ])('rejects an agent/request effort change from $selected to $proposed before the request is built', async ({ selected, proposed }) => {
     const adapter = new MockAdapter([textResponse('never')], {
       efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }, { id: ReasoningEffortId('high'), name: 'High' }],
       defaultEffort: ReasoningEffortId('low'),
@@ -479,12 +479,34 @@ describe('prepared-route prompt admission', () => {
     await send(h.agent, 'reject the changed effort')
     expect(adapter.requests).toEqual([])
     const events = h.agent.session.snapshotEvents()
-    expect(events.filter(event => ['request/header', 'user/message', 'system/message'].includes(event.type))).toEqual([])
+    expect(events.filter(event => event.type === 'request/header')).toEqual([])
+    expect(events.filter(event => event.type === 'user/message').map(event => event.data.content))
+      .toEqual([[{ type: 'text', text: 'reject the changed effort' }]])
     expect(events.at(-1)).toMatchObject({
       type: 'turn/end', data: { reason: { kind: 'error', error: {
         message: `agent "admission": agent/request proposed reasoning effort "${proposed ?? 'adapter default'}" after step preparation fixed "${selected ?? 'adapter default'}"; use agent.model.select() before step preparation`,
       } } },
     })
+  })
+
+  it('commits the prompt and claimed users before a failed first preparation ends the turn', async () => {
+    const h = await harness()
+    vi.spyOn(h.ctx.llm, 'prepareCall').mockRejectedValueOnce(new LlmError('no configured model', 'UNKNOWN_MODEL'))
+
+    await send(h.agent, 'first')
+    const failed = h.agent.session.snapshotEvents()
+    expect(failed.map(event => event.type).filter(type => type !== 'agent/inbox/spliced')).toEqual([
+      'turn/start', 'step/start', 'system/message', 'user/message', 'step/end', 'turn/end',
+    ])
+    expect(failed.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'error', error: { code: 'UNKNOWN_MODEL' } } } })
+    expect(h.capable.requests).toHaveLength(0)
+
+    await send(h.agent, 'second')
+    const messages = h.capable.requests[0]!.messages
+    expect(messages.map(message => message.role)).toEqual(['system', 'user', 'user'])
+    expect(messages.slice(1).map(message => message.content)).toEqual([
+      [{ type: 'text', text: 'first' }], [{ type: 'text', text: 'second' }],
+    ])
   })
 
   it('retains the captured selection for a retry and uses a pending choice on the next step', async () => {
