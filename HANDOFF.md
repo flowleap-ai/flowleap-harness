@@ -570,3 +570,20 @@ fail. A fresh clone does not have them.
   remains the live path. No harness change needed; structured mode switches on by itself if the library
   ever emits `sources[]`. Specs after the re-sync: 41 files / 402 tests across connectors, deliverables
   and the vendored copy.
+- **S5 acceptance pass 3 (2026-10-26): wave 3 to 6 checks PASS.** Branch `flowleap` after the #859 docs commit,
+  `build:artifacts` rerun first, port 3098, Sonnet 5.5 via OpenRouter, fresh workspace `matter-review`,
+  `FLOWLEAP_SKILLS_DIR` and `DSH_AGENTS_HOME` empty (no Skills section in the `/` menu); the same prompts
+  as 2026-10-25. Dossier (6 steps, 14 calls, 1.5M tokens, 1m38s): the FIRST save is `write_patent_results`
+  `template: "dossier"` with no refusal; the file has Snapshot, Claims (12, verbatim), Family and where in
+  force, Legal status, Who cites it, Sources and limitations, and the generated provenance (dates 64/64
+  found, figures 42/43; the one miss is an HTTP `404`). FTO (5 steps, 12 calls, 1.3M tokens): the FIRST
+  save is `template: "fto-memo"` with `jurisdictions: "DE, FR, US"`, so the header cell reads
+  `Jurisdiction(s) | DE, FR, US`; no refusal happened, so the refusal-then-retry path stays covered by
+  `tests/writer.spec.ts` only. `mcp__flowleap__get_claims` read both US grants; dates 12/13 found (the miss
+  is the model's own expiry, 2028-04-16 + 63 days PTA). New findings: (1) the dossier has no own "US Family
+  Chain" heading (the chain sits in section 3) and the template did not refuse; (2) after the save the
+  model tried to `edit` a garbled sentence, the edit failed on read-before-write (not the seal), and the
+  model left the sentence in the delivered file and gave the correction in chat instead of re-saving
+  through `write_patent_results`; (3) the provenance line on a dossier save starts "FTO provenance:"
+  (`report/provenance.ts` `ftoProvenanceResult`). Evidence: session scratchpad `s5-pass3/` (session logs,
+  dumps, outputs).
