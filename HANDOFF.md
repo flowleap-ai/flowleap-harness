@@ -71,7 +71,11 @@ Verification status is at the end of this file.
   auto-merged the rest). Gates: typecheck, lint, build, docs:check, test:snapshot, test:expected, the
   FlowLeap suites pass; check:ci:static 63 of 64 (only `uv.lock`). Live smoke on `flowleap-web` passed.
   Not done: desktop build, Docker image, the three S5 acceptance cases (survey steps 11 and 12).
-  Open: keep or disable `entry-customization` (it also lists folded Conversation Views); the new
+  Language rules (founder, 2026-10-26): Chinese docs stay stripped; all 8 upstream UI languages stay
+  (en, zh, ja, es, fr, de, ru, pt); the brand copy, the tagline and the connector settings are translated
+  in all 8; `verify-locale-metadata` keeps the FlowLeap carve-out; the desktop product declares the 8.
+  Open: keep or disable `entry-customization` (it also lists folded Conversation Views); Settings >
+  Built-in plugins still lists the disabled DeepSeek rows by package name in every language; the new
   upstream skill `dsh-pr-description` still names Chinese level and stage labels.
 
 - **Business model refinement (founder, 2026-10-25, before the next acceptance pass):** one-time
