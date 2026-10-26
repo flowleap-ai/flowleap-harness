@@ -1219,6 +1219,38 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapConnectors',
+    summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<Record<string, ConnectorPresence>>',
+        description: 'Presence of every connector, for the settings cards and the first-run wizard.',
+        parameters: [],
+        returns: 'one view per connector id; never a value.',
+      },
+      {
+        signature: '@Remote async set(id: string, values: Record<string, string>): Promise<void>',
+        description: 'Store one connector\'s fields. The values cross the wire in this direction only.',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'values', description: 'its fields, each non-empty.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector or field, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async unset(id: string): Promise<void>',
+        description: 'Remove one connector\'s record; removing an absent record is a no-op.',
+        parameters: [{ name: 'id', description: 'the connector.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>',
+        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search, or the library\'s Mistral key verification (one authenticated GET).',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
+        returns: 'whether the call succeeded and a human-readable message.',
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
+      },
+    ],
+  },
+  {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
     description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
@@ -5427,6 +5459,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionTrustRequest',
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+  },
+  {
+    name: 'ConnectorPresence',
+    declaration: 'export interface ConnectorPresence {\n    configured: boolean;\n    source?: \'stored\';\n    writable: boolean;\n    fields: string[];\n}',
+  },
+  {
+    name: 'ConnectorTestResult',
+    declaration: 'export interface ConnectorTestResult {\n    ok: boolean;\n    message: string;\n}',
   },
   {
     name: 'ContentBlockMap',

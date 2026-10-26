@@ -70,6 +70,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-agent-preset` | no | Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor |
 | `@deepseek-ai/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@deepseek-ai/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
+| `@deepseek-ai/dsh-client-ui-brand-flowleap` | yes | White-label brand occupants for the Web client driven by one brand.json: sidebar mark and name, blank-session hero mark, document title, and product copy overrides; FlowLeap Patent AI by default |
 | `@deepseek-ai/dsh-client-ui-brand-official` | no | Official DeepSeek Harness brand occupants for the Web client's sidebar slots |
 | `@deepseek-ai/dsh-client-ui-chat` | no | Chat Conversation target, node definitions, renderers, and details surface |
 | `@deepseek-ai/dsh-client-ui-commands` | no | Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry |
@@ -99,6 +100,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-settings` | no | Settings domain base plugin: shared configuration forms and the canonical settings slot-type contract |
 | `@deepseek-ai/dsh-client-ui-settings-account` | yes | Manage DeepSeek login and open Platform billing pages |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | no | Settings page of the agent loop on the dsh web client's Plugins page: the parallel tool-call cap of the agent-loop namespace |
+| `@deepseek-ai/dsh-client-ui-settings-flowleap-connectors` | no | Patent data connectors settings section and first-run key wizard: one write-only card per FlowLeap connector (EPO OPS, USPTO ODP, Semantic Scholar, Mistral) over the flowleapConnectors Remote |
 | `@deepseek-ai/dsh-client-ui-settings-general` | no | Settings ownerless-copy and product onboarding plugin: the General section, shell trigger/header chrome content, settings dictionaries, and the versioned welcome notice |
 | `@deepseek-ai/dsh-client-ui-settings-models` | yes | Models settings and shared product-onboarding dialogs over existing settings and credential joins |
 | `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` | no | Read-only Cordis Loader inventory tab in Web Plugins settings |
@@ -278,6 +280,9 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@deepseek-ai/dsh-flowleap-connectors` | yes | In-process FlowLeap patent-data connectors: the EPO OPS, USPTO ODP, academic and Mistral OCR clients of @flowleap/connectors over the dsh credential, logging, filesystem and tool seams, with the native read_pdf tool and the flowleapConnectors Remote for the settings cards |
+| `@deepseek-ai/dsh-flowleap-deliverables` | yes | FlowLeap deliverable tools: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record, the evidence ledger and the delivery card; export_draft_docx and inventor_questions with the Application Drafting layer and the Word builders; start_application_draft, validate_draft and remove_claim with the attorney gates as question cards and slash commands; ported from flowleap-agent-v2 onto the dsh filesystem, tool-result, storage, model, user-questions, approval and command seams |
+| `@deepseek-ai/dsh-flowleap-prompt` | yes | File-backed FlowLeap Patent Agent system-prompt section: reads one Markdown file at apply and registers it as a literal prompt section |
 | `@deepseek-ai/dsh-host-directory-picker-auto` | no | Adaptive chooser of the directory-picker seam: resolves the host situation at boot and mounts the native or browse backend for the DeepSeek Harness web GUI host |
 | `@deepseek-ai/dsh-host-directory-picker-browse` | yes | In-app browsing backend of the directory-picker seam (listing/creation primitives over the host filesystem) |
 | `@deepseek-ai/dsh-host-directory-picker-native` | no | Native-OS-chooser backend of the directory-picker seam for the DeepSeek Harness web GUI host |

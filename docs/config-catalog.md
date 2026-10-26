@@ -5,7 +5,7 @@
 
 Every `config:` block a `cordis.yml` entry can set: for each loadable harness package, the verbatim config declaration (JSDoc included) its `apply` function or service constructor receives, with every referenced type pasted alongside (package-local types) or linked (everything else). The paste is the plugin's full declared config type — a field the runtime schema deliberately excludes is a runtime-only seam (its own JSDoc says so) and is not settable from `cordis.yml`. This is the **deployment**-axis reference — the wiring a plugin author works against is the generated Cordis API region on each [subsystem page](subsystems/core.md), the model-facing tool schemas are the [tool catalog](tool-catalog.md), and [subsystems/](subsystems/core.md) documents the types these declarations reference.
 
-Both language versions of this file are GENERATED from source (`scripts/gen-config-catalog.ts`) and verified fresh by `pnpm run verify-config-catalog` (part of `doc-sync`) — do not edit them by hand. Declaration blocks use a `ts config-catalog` fence (skipped by doc-typecheck, since a lone declaration referencing imports is not standalone-compilable). The generator also cross-checks the runtime schemastery schema against the pasted declaration — every schema-validated key, nested keys included, must be locatable on the declared config type — so the paste cannot hide a loader-accepted field.
+This file is GENERATED from source (`scripts/gen-config-catalog.ts`) and verified fresh by `pnpm run verify-config-catalog` (part of `doc-sync`) — do not edit it by hand. Declaration blocks use a `ts config-catalog` fence (skipped by doc-typecheck, since a lone declaration referencing imports is not standalone-compilable). The generator also cross-checks the runtime schemastery schema against the pasted declaration — every schema-validated key, nested keys included, must be locatable on the declared config type — so the paste cannot hide a loader-accepted field.
 
 Each package entry labels its data with three identifiers: `inject` lists the service keys the plugin injects, so its `cordis.yml` tree must also load providers for those services; `refs` lists the referenced types that are not pasted here; `source` links the file that declares the config. Scope is the harness tier (`packages/`); the vendored cordis plugins a config tree may also load (the console logger, …) are pinned upstream source ([vendoring policy](../vendor/README.md)) and not catalogued here.
 
@@ -553,6 +553,23 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-shortcuts -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
+<a id="deepseek-aidsh-client-ui-brand-flowleap"></a>
+
+## `@deepseek-ai/dsh-client-ui-brand-flowleap`
+
+- `inject`: `webServer`
+- `source`: [`packages/client/ui-brand-flowleap/src/index.ts:33`](../packages/client/ui-brand-flowleap/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: where the brand file lives. */
+export interface Config {
+  /** Absolute path of the `brand.json` file; its `mark` path resolves against the file's directory. */
+  path: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
@@ -1442,6 +1459,73 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
+<a id="deepseek-aidsh-flowleap-connectors"></a>
+
+## `@deepseek-ai/dsh-flowleap-connectors`
+
+- `inject`: `tools` · `credentials`
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:67`](../packages/host/flowleap-connectors/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Entries the in-memory result cache holds before evicting the least recently used one. */
+  cacheEntries: number
+  /** Office tools from the library that this host does not register, by backend name. */
+  excludeTools: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-deliverables -->
+<a id="deepseek-aidsh-flowleap-deliverables"></a>
+
+## `@deepseek-ai/dsh-flowleap-deliverables`
+
+- `inject`: `tools` · `fs` · `workingDirectory`
+- `source`: [`packages/host/flowleap-deliverables/src/index.ts:122`](../packages/host/flowleap-deliverables/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /**
+   * How much of the second read the user sees: `off` disables it; `log` records the verdicts beside
+   * the evidence companion and in the working record; `render` (the IDE default) also names in the
+   * tool result what the independent read did not confirm. One model call per coverage row.
+   */
+  secondRead: SecondReadMode
+  /** The `provider/model` route the second read judges with; empty means the session's own logged route. */
+  secondReadModel: string
+}
+
+/**
+ * How much of the second read the user sees. `off` disables it; `log` and `render` both record the
+ * verdicts in a file beside the evidence companion and state them in the working record, and
+ * `render` additionally names in the tool result what an independent read did not confirm, so the
+ * model has to decide whether to revise a row or defend it.
+ */
+export type SecondReadMode = 'off' | 'log' | 'render'
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-deliverables -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
+<a id="deepseek-aidsh-flowleap-prompt"></a>
+
+## `@deepseek-ai/dsh-flowleap-prompt`
+
+- `inject`: `systemPrompt`
+- `source`: [`packages/host/flowleap-prompt/src/index.ts:38`](../packages/host/flowleap-prompt/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: where the persona Markdown lives. */
+export interface Config {
+  /** Absolute path of the Markdown file whose whole content becomes the section text. */
+  path: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-fs-local -->
 <a id="deepseek-aidsh-fs-local"></a>
 
@@ -2255,7 +2339,7 @@ export interface LspLocalServerConfig {
 ## `@deepseek-ai/dsh-mcp-client`
 
 - `inject`: `tools`
-- `source`: [`packages/mcp/mcp-client/src/index.ts:104`](../packages/mcp/mcp-client/src/index.ts)
+- `source`: [`packages/mcp/mcp-client/src/index.ts:109`](../packages/mcp/mcp-client/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for one stdio or Streamable HTTP MCP server. */
@@ -2287,6 +2371,8 @@ export interface StdioConfig {
   maxInstructionBytes?: number
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
+  /** Which discovered tools register, by exact raw name; omission registers every tool. */
+  tools?: ToolFilterConfig
 }
 
 /** Config for connecting to an MCP server over Streamable HTTP (SSE). */
@@ -2311,6 +2397,8 @@ export interface StreamableHttpConfig {
   maxInstructionBytes?: number
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
+  /** Which discovered tools register, by exact raw name; omission registers every tool. */
+  tools?: ToolFilterConfig
 }
 
 /** Automatic reconnect policy for one MCP server connection. */
@@ -2323,6 +2411,17 @@ export interface ReconnectConfig {
   maxDelayMs?: number
   /** Consecutive failed attempts per outage before giving up for good (default 10). */
   maxAttempts?: number
+}
+
+/**
+ * Which discovered tools register, by exact raw name as the server lists them.
+ * Resources, prompts, and the server's instructions text are not filtered.
+ */
+export interface ToolFilterConfig {
+  /** When non-empty, only these raw tool names register. */
+  include?: string[]
+  /** These raw tool names never register, even when `include` lists them. */
+  exclude?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-mcp-client -->
@@ -4738,6 +4837,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-settings-flowleap-connectors` | — | [`packages/client/ui-settings-flowleap-connectors/src/index.ts`](../packages/client/ui-settings-flowleap-connectors/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` | — | [`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugins` | — | [`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts) |
@@ -4876,6 +4976,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-experimental-voice-input-bundle` | — | [`packages/experimental/voice-input-bundle/src/index.ts`](../packages/experimental/voice-input-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-webworker-packer` | — | [`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-webworker-runtime` | — | [`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts) |
+| `@deepseek-ai/dsh-flowleap-web` | — | [`packages/bundle/flowleap-web/src/index.ts`](../packages/bundle/flowleap-web/src/index.ts) |
 | `@deepseek-ai/dsh-home-paths` | — | [`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts) |
 | `@deepseek-ai/dsh-hook-protocol` | — | [`packages/experimental/hook-protocol/src/index.ts`](../packages/experimental/hook-protocol/src/index.ts) |
 | `@deepseek-ai/dsh-http-proxy` | — | [`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts) |
