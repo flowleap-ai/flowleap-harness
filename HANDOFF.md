@@ -2,7 +2,26 @@
 
 Read this first, then `AGENTS.md` (the upstream operating guide: commands, gates, architecture).
 This file is the FlowLeap state: what this fork is for, what changed, what is open. Last updated
-2026-10-21 (first session). Earlier sessions live in `git log -- HANDOFF.md`.
+2026-10-26. Earlier sessions live in `git log -- HANDOFF.md`.
+
+## Current state (2026-10-26)
+
+- **Product:** the `flowleap-web` profile runs the Patent Agent prompt, 34 native office tools on the firm's
+  own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
+  drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
+  (dossier, FTO, prior art); the dossier case also passes on the synced code.
+- **Base:** `flowleap` is on upstream trunk (merged 2026-10-26), with all 8 upstream UI languages and the
+  FlowLeap copy translated into each. `master` on the org remote equals upstream trunk.
+- **Next product:** the self-hosted firm OS, decided in
+  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (22
+  decisions) with the architecture and phases P0 to P6 in
+  [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
+  The next step is **P0**: a new `flowleap-os` repository, an installer with install and restore, a release
+  pipeline, the S5 cases automated, and a Hetzner test firm (the founder buys the server).
+- **Known defects:** a new Web session opens with "Select model" and Return then sends nothing (still on
+  trunk); Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the prior-art case
+  takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
+- **Not run on the synced code:** the FTO and prior-art cases, the desktop build, the Docker image.
 
 ## What this is
 
@@ -64,13 +83,14 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
-- **Upstream sync to trunk as of 2026-10-26 (upstream PR #7075, founder decision): merged on branch
-  `claude/sync-upstream-trunk-06e46b`, not yet in `flowleap`.** Procedure from
+- **Upstream sync to trunk as of 2026-10-26 (upstream PR #7075, founder decision): DONE, merged into
+  `flowleap` and pushed on 2026-10-26** (fast-forward from branch `claude/sync-upstream-trunk-06e46b`). Procedure from
   `flowleap/docs/2026-10-25-upstream-rc3-sync-survey.md` section 8; every decision is in
   `flowleap/docs/2026-10-26-upstream-trunk-sync-decisions.tsv`. Real conflicts were 22, not 58 (git
   auto-merged the rest). Gates: typecheck, lint, build, docs:check, test:snapshot, test:expected, the
   FlowLeap suites pass; check:ci:static 63 of 64 (only `uv.lock`). Live smoke on `flowleap-web` passed.
-  Not done: desktop build, Docker image, the three S5 acceptance cases (survey steps 11 and 12).
+  Not done: desktop build, Docker image, the FTO and prior-art S5 cases (survey steps 11 and 12); the
+  dossier case passed on the synced build before the merge.
   Language rules (founder, 2026-10-26): Chinese docs stay stripped; all 8 upstream UI languages stay
   (en, zh, ja, es, fr, de, ru, pt); the brand copy, the tagline and the connector settings are translated
   in all 8; `verify-locale-metadata` keeps the FlowLeap carve-out; the desktop product declares the 8.
@@ -83,16 +103,13 @@ Verification status is at the end of this file.
   data on its own keys. Open: US claim and description text is the one route still behind the backend
   (BigQuery): move it firm-side (USPTO bulk or the public BigQuery dataset on the firm's Google
   account) or keep it as the single hosted text route. PATSTAT stays hosted on the founder's server.
-  Until settled, the MCP row is "the paid set", not "the subscription".
+  Until settled, the MCP row is "the paid set", not "the subscription". ADR 0001 decision 18 (2026-10-26)
+  plans PATSTAT and the other paid data as "FlowLeap Data", a separate paid service with one firm key;
+  the EPO PATSTAT licence terms for offering it as a service must be checked first.
 
-- **UI locale dictionaries.** The web GUI ships `zh` and `en` dictionaries in 220 packages
-  (`packages/client/*/locale/{zh,en}.json` and `locales.ts`, where `zh` is the typed key source
-  and `en` is checked against it; 290 TypeScript files reference `zh`). They are inert data and
-  the GUI is English for an English browser, but every new UI string needs a `zh` entry and
-  `ctx.locale.register(ns, { zh, en })` requires both. Options: (a) leave as is; (b) make `zh`
-  optional in `packages/client/locale` so new namespaces ship `en` only, a one-package change;
-  (c) remove `zh` everywhere, a 290-file refactor with permanent upstream merge conflicts. Start
-  with (b) when the first FlowLeap client plugin needs copy.
+- **UI locale dictionaries (settled 2026-10-26).** Upstream trunk ships 8 UI languages (en, zh, ja, es,
+  fr, de, ru, pt) and the founder kept all 8. Every new FlowLeap UI string needs a real translation in all
+  8; `check:i18n` rejects a copied English string. The documentation stays English only.
 - **DeepSeek-specific plugins** (`llm-deepseek*`, `credentials/deepseek-account*`,
   `web-search-deepseek`, `ui-brand-official`, `ui-deepseek-model-label-*`,
   `plugin-package-inventory-deepseek`) stay in the tree; the FlowLeap profile just does not mount
@@ -665,4 +682,8 @@ fail. A fresh clone does not have them.
   Architecture, data map, flows and the build phases P0 to P6:
   [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
   The control plane goes into a new repository `flowleap-os`; this repository stays the attorney runtime.
+  Later the same day: everything the agent does is a dsh plugin in the runtime (ADR 0001 decision 20), and
+  Microsoft 365 is the `dsh-flowleap-m365` plugin with a token broker, using each attorney's own permissions
+  and writing emails and calendar entries as drafts only (decision 21); the MCP door for Claude Desktop,
+  Claude Code and Codex is behind the same sign-in (decision 19).
   Next: P0 (repository, a Hetzner test firm, installer with restore, release pipeline, S5 cases automated).
