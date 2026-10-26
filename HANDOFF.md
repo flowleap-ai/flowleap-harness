@@ -650,3 +650,9 @@ fail. A fresh clone does not have them.
   Report card), 7 steps, 933K tokens. The "Select model" default defect is still present on trunk. Not run on
   the synced code: FTO, prior art, the desktop build and the Docker image. Evidence: session scratchpad
   `s5-sync-dossier/`.
+- **Connector library re-vendored for the USPTO range fix (2026-10-26).** flowleap-backend PR #613 is merged:
+  `search_patents` with `provider: "uspto"` now sends `range_filters`, `sort` and `facets` to the Open Data
+  Portal as arrays, and refuses a malformed value with the expected form (`"<field> <from> <to>"`, for example
+  `"applicationMetaData.filingDate 1900-01-01 2008-04-16"`) instead of passing it on to a bare 400 (S5 defect 5).
+  `vendor/flowleap-connectors` is at backend main after the merge (`sync-connectors.sh --check` clean); vendored,
+  connectors and deliverables specs 42 files / 406 tests pass. Not yet checked live in a harness run.

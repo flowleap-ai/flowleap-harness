@@ -33,11 +33,25 @@ export interface ODPSearchRequest {
 	// NOTE (issue #155): no `filters`. USPTO ODP rejects the legacy
 	// "fieldName value" string form with 400; the search route strips it and
 	// callers express equality constraints as fielded `q` terms (path:value).
-	rangeFilters?: string;
-	sort?: string;
+	// The three below are arrays on the wire: ODP answers 400 to a string in
+	// any of them (tools/odp-search-input.ts parses the tool's string forms).
+	rangeFilters?: ODPRangeFilter[];
+	sort?: ODPSortField[];
 	fields?: string[];
-	facets?: string;
+	facets?: string[];
 	pagination?: { limit?: number; offset?: number };
+}
+
+/** One ODP range: both ends required, inclusive (dates YYYY-MM-DD or integers). */
+export interface ODPRangeFilter {
+	field: string;
+	valueFrom: string;
+	valueTo: string;
+}
+
+export interface ODPSortField {
+	field: string;
+	order: 'asc' | 'desc';
 }
 
 export interface ODPApplicationMetaData {

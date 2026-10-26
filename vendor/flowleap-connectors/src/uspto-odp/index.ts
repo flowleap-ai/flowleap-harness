@@ -19,6 +19,8 @@ export type {
 
 export type {
 	ODPSearchRequest,
+	ODPRangeFilter,
+	ODPSortField,
 	ODPApplicationMetaData,
 	ODPApplicationRecord,
 	ODPSearchResponse,

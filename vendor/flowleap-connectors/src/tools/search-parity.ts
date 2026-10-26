@@ -16,8 +16,10 @@
  *     search, however it failed — and the response counts the degraded records
  *     in `detailsUnavailable` so a partial page announces itself.
  *
- *   - USPTO (provider=uspto): the FULL ODPSearchRequest forwarded — q,
- *     range_filters, sort, fields, facets, pagination — plus the opt-in EPO
+ *   - USPTO (provider=uspto): the FULL ODPSearchRequest — q, range_filters,
+ *     sort, fields, facets, pagination; range_filters, sort and facets are
+ *     parsed from their string forms into ODP's arrays (./odp-search-input.ts)
+ *     — plus the opt-in EPO
  *     enrichment fan-out (enrich: abstract/claims/family/legal/ipc) landing
  *     under the namespaced epoEnrichment block per granted record, exactly as
  *     POST /v1/patent-search-uspto/search applies it.
@@ -39,6 +41,15 @@ import { parseEnrichKeys } from '../uspto-odp/enrichment.js';
 import type { ODPSearchRequest } from '../uspto-odp/patent-search.js';
 import type { ToolContext } from './definition.js';
 import { patentDocumentReference, withDocumentReference } from './document-reference.js';
+import {
+	FACETS_FORM,
+	parseFacets,
+	parseRangeFilter,
+	parseSort,
+	RANGE_FILTERS_FORM,
+	SORT_FORM,
+	type Parsed,
+} from './odp-search-input.js';
 import { unwrapRead, cachedOdpRead, ODP_SEARCH_TTL } from './shared.js';
 
 // ============================================================================
@@ -46,6 +57,20 @@ import { unwrapRead, cachedOdpRead, ODP_SEARCH_TTL } from './shared.js';
 // ============================================================================
 
 const ENRICH_KEYS = ['abstract', 'claims', 'family', 'legal', 'ipc'] as const;
+
+/** A malformed string is refused at the input (422 INVALID_INPUT), never sent to get ODP's bare 400. */
+function refineWith<T>(parse: (value: string) => Parsed<T>) {
+	return (value: string, refinement: z.RefinementCtx) => {
+		const parsed = parse(value);
+		if (!parsed.ok) refinement.addIssue({ code: 'custom', message: parsed.message });
+	};
+}
+
+/** The schema refined the value, so a parse here cannot fail. */
+function parsedValue<T>(parsed: Parsed<T>): T {
+	if (!parsed.ok) throw new Error(parsed.message);
+	return parsed.value;
+}
 
 export const searchPatentsInput = z.object({
 	query: z.string().min(1).describe('CQL (epo_ops) or Lucene (uspto) query'),
@@ -74,17 +99,23 @@ export const searchPatentsInput = z.object({
 	offset: z.number().int().min(0).default(0).describe('uspto only'),
 	range_filters: z
 		.string()
+		.superRefine(refineWith(parseRangeFilter))
 		.optional()
-		.describe('uspto only: ODP rangeFilters expression, forwarded verbatim'),
+		.describe(`uspto only: one inclusive range, ${RANGE_FILTERS_FORM}`),
 	sort: z
 		.string()
+		.superRefine(refineWith(parseSort))
 		.optional()
-		.describe('uspto only: ODP sort expression, e.g. "applicationMetaData.filingDate desc"'),
+		.describe(`uspto only: ${SORT_FORM}`),
 	fields: z
 		.array(z.string())
 		.optional()
 		.describe('uspto only: ODP field projection (defaults to the standard compact field set)'),
-	facets: z.string().optional().describe('uspto only: ODP facets expression, forwarded verbatim'),
+	facets: z
+		.string()
+		.superRefine(refineWith(parseFacets))
+		.optional()
+		.describe(`uspto only: the fields to count values of, ${FACETS_FORM}`),
 	enrich: z
 		.array(z.enum(ENRICH_KEYS))
 		.optional()
@@ -102,8 +133,9 @@ export const SEARCH_PATENTS_DESCRIPTION =
 	'epo_ops results are hydrated by default (title, abstract, applicants, publication date per ' +
 	'document); pass details=false for bare references, and countries=["EP","WO"] to restrict to ' +
 	'those publication countries — the filter rides the CQL, so `total` counts the filtered set ' +
-	'and `effectiveQuery` echoes the CQL sent. uspto accepts the full ODP request — range_filters, ' +
-	'sort, fields, facets — plus enrich=["abstract","claims","family","legal","ipc"] to attach EPO-sourced data ' +
+	'and `effectiveQuery` echoes the CQL sent. uspto accepts range_filters (one range, e.g. ' +
+	'"applicationMetaData.filingDate 1900-01-01 2008-04-16" for filings before a 2008-04-17 priority date), ' +
+	'sort (e.g. "applicationMetaData.filingDate desc"), fields and facets, plus enrich=["abstract","claims","family","legal","ipc"] to attach EPO-sourced data ' +
 	'under each granted record\'s epoEnrichment block.';
 
 // ============================================================================
@@ -190,10 +222,11 @@ export async function searchPatentsHandler(input: SearchPatentsInput, ctx: ToolC
 			q: input.query,
 			pagination: { limit: input.limit, offset: input.offset },
 		};
-		if (input.range_filters !== undefined) request.rangeFilters = input.range_filters;
-		if (input.sort !== undefined) request.sort = input.sort;
+		// ODP takes these three as arrays only (./odp-search-input.ts).
+		if (input.range_filters !== undefined) request.rangeFilters = [parsedValue(parseRangeFilter(input.range_filters))];
+		if (input.sort !== undefined) request.sort = [parsedValue(parseSort(input.sort))];
 		if (input.fields !== undefined) request.fields = input.fields;
-		if (input.facets !== undefined) request.facets = input.facets;
+		if (input.facets !== undefined) request.facets = parsedValue(parseFacets(input.facets));
 
 		// Read-through cached (#334) under the shared 'odp-search' namespace —
 		// repeats never touch the 60 req/min ODP key. The cache key is the FULL
