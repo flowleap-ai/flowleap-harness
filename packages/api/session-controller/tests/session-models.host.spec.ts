@@ -13,7 +13,7 @@ import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AttachmentStore from '@deepseek-ai/dsh-attachment'
-import LlmRuntime, { LlmAdapter, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions, LlmCallConfigAdapterDefaults, LlmModelInfo,
   LlmModelReasoningInfo, LlmProviderInfo, LlmResolvedModelInfo, StreamChunk,
@@ -775,6 +775,71 @@ describe('Web session model selection', () => {
       sessionId, provider: 'deepseek-official', model: 'unlisted-but-served',
     }))).toMatchObject({ ok: false, error: { code: 'session/model-unavailable' } })
     expect(currentSelection(ctx, sessionId)).toEqual({ provider: 'deleted-gateway', model: 'deleted-model' })
+    await ctx.fiber.dispose()
+  })
+
+  it('refuses a prompt whose model its registered route does not serve before it reaches the inbox', async () => {
+    const { ctx, sessionId, agent } = await harness()
+    ctx.llm.registerAdapter(['strict'], new CatalogAdapter(
+      'Strict',
+      [{ provider: 'strict', id: 'listed', name: 'Listed' }],
+      undefined,
+      new LlmError('pi-ai provider "strict" has no configured model "unlisted"', 'UNKNOWN_MODEL'),
+    ))
+    const remote = await createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'strict', model: 'unlisted' }), cwd: '/tmp',
+    })
+    const events = [...agent.session.snapshotEvents()]
+    const followup = vi.fn()
+    const steer = vi.fn()
+    Object.assign(agent, { followup, steer })
+    const refusal = {
+      ok: false,
+      error: {
+        code: 'session/model-unavailable',
+        message: 'pi-ai provider "strict" has no configured model "unlisted". Select an available model before sending a message.',
+        details: { provider: 'strict', model: 'unlisted' },
+      },
+    }
+    expect(await remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [{ type: 'text', text: 'hi' }] })))
+      .toMatchObject(refusal)
+    expect(await remote.prompt(promptRequest({ sessionId, mode: 'steer', content: [{ type: 'text', text: 'hi' }] })))
+      .toMatchObject(refusal)
+    expect(await remote.prompt(promptRequest({
+      sessionId, mode: 'queue', content: [{ type: 'image', mediaType: 'image/png', data: 'AQ==' }],
+    }))).toMatchObject(refusal)
+    expect(followup).not.toHaveBeenCalled()
+    expect(steer).not.toHaveBeenCalled()
+    expect(agent.session.snapshotEvents()).toEqual(events)
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps an adapter Remote rejection and names a non-Error failure when admission resolves the model', async () => {
+    const { ctx, sessionId, agent } = await harness()
+    ctx.llm.registerAdapter(['string-error'], new class extends CatalogAdapter {
+      override resolveModel(): Promise<LlmResolvedModelInfo> {
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- non-Error provider normalization is the scenario.
+        return Promise.reject('string selection failure')
+      }
+    }('String Error', [{ provider: 'string-error', id: 'plain', name: 'Plain' }]))
+    let selection = { provider: 'remote-rejected', model: 'any' }
+    const remote = await createSessionTestRemote(ctx, { defaultModelSelection: () => selection, cwd: '/tmp' })
+    const followup = vi.fn()
+    Object.assign(agent, { followup })
+    const prompt = () => remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [{ type: 'text', text: 'hi' }] }))
+    expect(await prompt()).toMatchObject({
+      ok: false, error: { code: 'gateway/internal', message: 'fixture rejected the selection' },
+    })
+    selection = { provider: 'string-error', model: 'plain' }
+    expect(await prompt()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'session/model-unavailable',
+        message: 'string selection failure. Select an available model before sending a message.',
+        details: selection,
+      },
+    })
+    expect(followup).not.toHaveBeenCalled()
     await ctx.fiber.dispose()
   })
 

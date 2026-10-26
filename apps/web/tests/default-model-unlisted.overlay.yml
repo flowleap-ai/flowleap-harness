@@ -1,0 +1,6 @@
+# The default names a route this scenario declares and a model that route
+# does not serve.
+- id: agent-default-model
+  config:
+    provider: origin-gateway
+    model: origin-missing

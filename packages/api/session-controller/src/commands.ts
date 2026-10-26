@@ -12,9 +12,9 @@ import type {
 import type { FileUploadReceiptId, StagedAttachment } from '@deepseek-ai/dsh-client-file-upload/types'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
 import {
-  ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
+  LlmError, ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
 } from '@deepseek-ai/dsh-llm'
-import type { MessageSource } from '@deepseek-ai/dsh-llm'
+import type { LlmResolvedModelInfo, MessageSource } from '@deepseek-ai/dsh-llm'
 import { buildForkSeed } from '@deepseek-ai/dsh-session/fork'
 import { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
@@ -296,7 +296,7 @@ export class SessionCommandController {
   }
 
   /**
-   * Admit one prompt after Agent and attachment validation; the Remote method
+   * Admit one prompt after Agent, model, and attachment validation; the Remote method
    * has already validated the content and built the durable message source.
    * @param request - Session identity, prompt content, and delivery mode.
    * @param source - the `user-rpc` source recorded on the accepted message.
@@ -313,18 +313,14 @@ export class SessionCommandController {
     const hasImage = admission.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
       try {
-        if (hasImage) {
-          const current = agent.model.current()
-          if (current !== undefined) {
-            const model = await this.ctx.llm.resolveModelInfo(current.provider, current.model)
-            if (model.inputModalities !== undefined && !model.inputModalities.includes('image')) {
-              throw new RemoteError(
-                'session/attachment-invalid',
-                `Model "${current.model}" does not support image input.`,
-                { reason: 'MODEL_DOES_NOT_SUPPORT_IMAGES' },
-              )
-            }
-          }
+        const current = agent.model.current()
+        const model = current === undefined ? undefined : await this.resolveSelectedModel(current)
+        if (hasImage && model?.inputModalities !== undefined && !model.inputModalities.includes('image')) {
+          throw new RemoteError(
+            'session/attachment-invalid',
+            `Model "${model.id}" does not support image input.`,
+            { reason: 'MODEL_DOES_NOT_SUPPORT_IMAGES' },
+          )
         }
         const content = await this.ctx.attachments.admitPromptContent(admission.content)
         const message: UserMessage = createUserMessage({ content, source })
@@ -349,6 +345,26 @@ export class SessionCommandController {
       return { accepted: true }
     }
     return hasImage ? this.agents.serializeImageAdmission(agent, admit) : admit()
+  }
+
+  /**
+   * Resolve the selection a prompt will run with. A model its registered
+   * route does not serve refuses the prompt, because the turn would fail
+   * before it logs the user message. An unregistered route is admitted, since
+   * middleware may serve it.
+   */
+  private async resolveSelectedModel(
+    selection: Pick<AgentModelSelection, 'provider' | 'model'>,
+  ): Promise<LlmResolvedModelInfo | undefined> {
+    try {
+      return await this.ctx.llm.resolveModelInfo(selection.provider, selection.model)
+    } catch (error) {
+      if (error instanceof LlmError && error.code === 'NO_ADAPTER') return undefined
+      if (remoteErrorOf(error) !== undefined) throw error
+      const cause = error instanceof Error ? error.message : String(error)
+      throw new RemoteError('session/model-unavailable', `${cause}. Select an available model before sending a message.`,
+        { provider: selection.provider, model: selection.model })
+    }
   }
 
   private async requireModel(selection: Pick<AgentModelSelection, 'provider' | 'model'>): Promise<void> {

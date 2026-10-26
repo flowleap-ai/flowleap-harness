@@ -267,6 +267,7 @@ async function installControllers(
         const selection = defaults.defaultModelSelection()
         return [{ id: selection.provider, name: selection.provider }]
       },
+      resolveModelInfo: async (provider: string, model: string) => ({ provider, id: model, name: model }),
     } as never)
   }
   if (ctx.get('attachments') === undefined) {
