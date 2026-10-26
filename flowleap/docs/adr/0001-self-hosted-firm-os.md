@@ -120,7 +120,12 @@ policies and training, not in code.
     the firm's Claude and ChatGPT seats: local first (a Claude Desktop extension, Claude Code, Codex),
     then the ChatGPT Secure MCP Tunnel, and a public endpoint only if the firm decides it. The MCP door sits
     behind the same Entra sign-in, so an outside agent always acts as a known attorney with that attorney's
-    rights. Seats are metered by their vendor; API keys through the gateway are metered by us.
+    rights. Seats are metered by their vendor; API keys through the gateway are metered by us. Microsoft 365
+    Copilot (a paid add-on per user, unlike the Copilot Chat included with Microsoft 365) is a candidate third
+    way in through the same MCP door, for firms that already pay for it and want to stay inside Word, Outlook
+    and Teams; to be checked before it is promised: Copilot Studio's current MCP support, the plans it needs,
+    and its security limits. Copilot is a general assistant, not a patent agent; the patent tools, workflows
+    and checks stay ours.
 20. **Code layout, and everything the agent does is a plugin.** A new repository, `flowleap-os`, holds the
     control plane, the installer and the deploy files. This repository stays the attorney runtime and builds
     one image. Every capability of the agent is a dsh plugin in the runtime (office data, the writer, Share,

@@ -165,5 +165,7 @@ pipeline of P0 makes each sync a normal release.
 - How dsh's web server takes a launch token from a reverse proxy without exposing it to the browser.
 - Which Microsoft 365 plans include Entra Application Proxy, and its limits for a WebSocket application.
 - Web push on iOS: it works only for a PWA added to the Home Screen; check the current iOS behaviour.
+- Microsoft 365 Copilot as a client of the MCP door: Copilot Studio's MCP support, the licences it needs, and
+  whether a firm's tenant policies allow a connector to a self-hosted server.
 - The Microsoft Graph permission set for delegated read, save, mail-read and draft access, and whether a
   firm's Entra admin must consent once for the app registration.
