@@ -64,7 +64,7 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
-- **Upstream sync to trunk `22ddee3792` (2026-10-26, founder decision): merged on branch
+- **Upstream sync to trunk as of 2026-10-26 (upstream PR #7075, founder decision): merged on branch
   `claude/sync-upstream-trunk-06e46b`, not yet in `flowleap`.** Procedure from
   `flowleap/docs/2026-10-25-upstream-rc3-sync-survey.md` section 8; every decision is in
   `flowleap/docs/2026-10-26-upstream-trunk-sync-decisions.tsv`. Real conflicts were 22, not 58 (git
@@ -628,3 +628,25 @@ fail. A fresh clone does not have them.
   told the user the memo covers "the two markets you picked in the memo's question card". Known limit: the model
   writes the memo body before the card, so a market change costs one re-save. Evidence: session scratchpad
   `s5-pass4/markets-run/` and `markets-run2/`.
+- **S5 prior-art re-run (2026-10-26): PASS.** `flowleap` at the FTO markets card commits, port 3101, Sonnet 5.5 via
+  OpenRouter, fresh workspace `matter-priorart`, `FLOWLEAP_SKILLS_DIR` and `DSH_AGENTS_HOME` empty, the
+  2026-10-25 prompt (claim 1 "hitch pin with at least three lobes", X/Y/A, client report). 1 turn, 19 steps,
+  2.4M tokens (93% cache), about 6 minutes. The 2026-10-25 miss is closed: the model called
+  `mcp__flowleap__examiner_baseline` early and the report names US4763957A (1988-08-16) as A, with the note that
+  the examiner's X and A categories were given against earlier claim sets. The final save is the structured
+  `prior-art-report` (report, working record, evidence, second read: 10 elements judged, 2 not confirmed), no X
+  assigned, Y for the Montague family, US5135330A and US4964287A. The path to it is still long: two free-form
+  saves first, two direct `edit` calls on the delivered file (both failed on read-before-write, and the
+  failed-edit seal sentence fired each time), the "no successful structured finalization" steer, two
+  refusals naming unknown claim anchors, then the save. Still open: the USPTO `range_filters` input answers
+  `400: Bad Request` in both forms the model tried (`"applicationMetaData.filingDate 1900-01-01 2008-04-16"`
+  and the comma form); this is S5 defect 5 of 2026-10-25, in the connector library
+  (flowleap-backend). With this run, all three S5 cases have a current result: dossier PASS, FTO PASS on the
+  markets card run 2, prior art PASS. Evidence: session scratchpad `s5-priorart/`.
+- **Upstream trunk sync merged (2026-10-26).** `flowleap` fast-forwarded to the sync branch (its first commit merges
+  upstream trunk at PR #7075); details in the sync entries above. Live check on the synced build before the merge:
+  the S5 dossier case (port 3102, fresh workspace, skills folders empty) took the same path as pass 4 (US Family
+  Chain refusal, `get_us_grant` for both US grants, retry saved with "## 4. US Family Chain", `Provenance:` line,
+  Report card), 7 steps, 933K tokens. The "Select model" default defect is still present on trunk. Not run on
+  the synced code: FTO, prior art, the desktop build and the Docker image. Evidence: session scratchpad
+  `s5-sync-dossier/`.
