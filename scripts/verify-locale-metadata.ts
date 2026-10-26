@@ -6,6 +6,19 @@ import { PRODUCT_PACKAGE_POLICY } from './product-package-policy.ts'
 import { SHIPPED_LOCALE_IDS, localeTokens, hasInvisibleLocaleCharacters } from './shipped-locales.ts'
 import { collectConfigCatalog } from './gen-config-catalog.ts'
 
+/**
+ * FlowLeap fork: packages whose UI copy is English only. Their `zh.json` repeats the English text
+ * because typed registration requires it; the other shipped languages fall back to English.
+ */
+const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
+  'packages/bundle/flowleap-web/',
+  'packages/host/flowleap-prompt/',
+  'packages/host/flowleap-connectors/',
+  'packages/host/flowleap-deliverables/',
+  'packages/client/ui-brand-flowleap/',
+  'packages/client/ui-settings-flowleap-connectors/',
+] as const
+
 /** Flatten metadata strings and reject values that cannot be translated. */
 function strings(value: unknown, key = ''): Record<string, string> {
   if (typeof value === 'string' && value.trim() !== '') return { [key]: value }
@@ -32,6 +45,7 @@ export function localeMetadataProblems(root: string): string[] {
   const problems: string[] = []
   if (directories.size === 0) return ['no package locale metadata found']
   for (const directory of [...directories].sort()) {
+    if (FLOWLEAP_ENGLISH_ONLY_PACKAGES.some(prefix => directory.startsWith(prefix))) continue
     try {
       const read = (language: string): Record<string, string> => {
         const file = join(root, directory, `${language}.json`)

@@ -9,10 +9,12 @@
 #   docs/experimental-persistence-catalog.*
 #   docs/session-format-status.*           (persistence-finalization)
 #   .agents/notes/archived/**              (verify-archived-agent-notes: sealed md+zh+i18n triplets)
+# Kept because they are UI resources, not documentation twins:
+#   packages/**/docs/DETAIL.zh.md          (the Chinese plugin detail page that locale/zh.json meta.detail names)
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-KEEP='^(docs/persistence-changes/|docs/persistence-catalog\.|docs/experimental-persistence-catalog\.|docs/session-format-status\.|\.agents/notes/archived/)'
+KEEP='^(docs/persistence-changes/|docs/persistence-catalog\.|docs/experimental-persistence-catalog\.|docs/session-format-status\.|\.agents/notes/archived/)|/docs/DETAIL\.zh\.md$'
 
 # 1. Chinese pages and the translation pairing records, outside the carve-outs.
 git ls-files -z -- '*.zh.md' '*.i18n.yaml' | tr '\0' '\n' | { grep -vE "$KEEP" || true; } | tr '\n' '\0' | xargs -0 -r git rm -qf --

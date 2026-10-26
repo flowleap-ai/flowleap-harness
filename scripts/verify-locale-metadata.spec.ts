@@ -43,6 +43,16 @@ it.each([
   expect(localeMetadataProblems(fixture(ja)).join('\n')).toContain(diagnostic)
 })
 
+it('skips the FlowLeap English-only packages and nothing else', () => {
+  const root = fixture()
+  for (const dir of ['packages/client/ui-brand-flowleap/locale', 'packages/client/ui-brand-other/locale']) {
+    mkdirSync(join(root, dir), { recursive: true })
+    writeFileSync(join(root, dir, 'en.json'), JSON.stringify({ meta: { title: 'Brand', description: 'Brand copy.' } }))
+  }
+  expect(localeMetadataProblems(root).join('\n')).toContain('ui-brand-other/locale')
+  expect(localeMetadataProblems(root).join('\n')).not.toContain('ui-brand-flowleap')
+})
+
 it('checks referenced detail documents', () => {
   const root = fixture()
   const directory = join(root, 'packages/demo/plugin/locale')

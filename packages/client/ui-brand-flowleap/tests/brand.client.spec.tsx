@@ -56,7 +56,7 @@ describe('the ui-brand-flowleap browser half', () => {
     expect(error).toHaveBeenCalledOnce()
   })
 
-  it('fills the four brand slots, overrides the product copy in both locales, and unwinds on teardown', async () => {
+  it('fills the four brand slots, overrides the product copy in every selectable locale, and unwinds on teardown', async () => {
     const subject = await bench()
     subject.locale.register('common', 'en', { 'brand.localBuild': 'DSH Local Build' })
     subject.locale.register('common', 'zh', { 'brand.localBuild': 'DSH 本地构建' })
@@ -64,6 +64,8 @@ describe('the ui-brand-flowleap browser half', () => {
     subject.locale.register('conversation', 'zh', { 'hero.headline': '探索未至之境' })
     subject.locale.register('chat', 'en', { 'chat.deepDiving': 'Deep diving', 'chat.deepDivingFor': 'Deep diving for {duration} ···' })
     subject.locale.register('chat', 'zh', { 'chat.deepDiving': '深度求索中', 'chat.deepDivingFor': '深度求索中，用时 {duration} ···' })
+    subject.locale.addLanguage({ id: 'de', label: 'Deutsch', fallback: 'en' })
+    subject.locale.register('common', 'de', { 'brand.localBuild': 'DSH lokaler Build' })
     vi.stubGlobal(BRAND_GLOBAL, BRAND)
     const fiber = subject.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -75,6 +77,9 @@ describe('the ui-brand-flowleap browser half', () => {
     expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
     subject.locale.setLocale('zh')
     expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
+    subject.locale.setLocale('de')
+    expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
+    subject.locale.setLocale('zh')
 
     subject.disposeHoles()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
