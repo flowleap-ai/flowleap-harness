@@ -28,9 +28,10 @@ export interface RequiredHeaderCell {
 }
 
 /**
- * The cells each template must not ship as placeholders: an FTO memo always knows the markets it
- * clears, so its `Jurisdiction(s)` row is the save's to fill. Every other placeholder cell (a
- * matter reference the user never gave, an examiner, an art unit) stays the practitioner's.
+ * The cells each template must not ship as placeholders: an FTO memo clears named markets, so its
+ * `Jurisdiction(s)` row is the save's to fill (with the user's answer to the markets card, see
+ * `markets.ts`). Every other placeholder cell (a matter reference the user never gave, an
+ * examiner, an art unit) stays the practitioner's.
  */
 export const REQUIRED_HEADER_CELLS: Partial<Record<PatentReportTemplate, readonly RequiredHeaderCell[]>> = {
   'fto-memo': [{ label: 'Jurisdiction(s)', input: 'jurisdictions', hint: 'the markets the memo clears, for example `DE, FR, US`' }],

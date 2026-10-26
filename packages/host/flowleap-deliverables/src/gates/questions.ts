@@ -21,7 +21,7 @@
 import type { Session } from '@deepseek-ai/dsh-session'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
-import type { AskUserQuestionAnswer, AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
+import type { AskUserQuestionAnswer, AskUserQuestionAnswerItem, AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
 import { findingLine, type DraftFinding } from '../drafting/finding.ts'
 import { isWaivableError, parseFindingsFileItems } from '../drafting/findings-file.ts'
 import { parseDraftingFrontmatter, readGateFlag, type DraftingGateFlag } from '../drafting/frontmatter.ts'
@@ -81,8 +81,13 @@ function closedBy(error: unknown): GateClosedReason {
   }
 }
 
-/** The answer item of one question of a batch. */
-function answerOf(answer: AskUserQuestionAnswer, id: string) {
+/**
+ * The answer item of one question of a batch.
+ * @param answer - the card's answer.
+ * @param id - the question id.
+ * @returns the item, or `undefined` when the question was not answered.
+ */
+export function answerOf(answer: AskUserQuestionAnswer, id: string): AskUserQuestionAnswerItem | undefined {
   return answer.answers.find(item => item.id === id)
 }
 
@@ -93,7 +98,7 @@ function answerOf(answer: AskUserQuestionAnswer, id: string) {
  * @param questions - the card's questions.
  * @returns the answer, or the closed reason.
  */
-async function askCard(seams: GateSeams, exec: ToolRunContext, questions: AskUserQuestionRequest['questions']): Promise<AskUserQuestionAnswer | GateClosedReason> {
+export async function askCard(seams: GateSeams, exec: ToolRunContext, questions: AskUserQuestionRequest['questions']): Promise<AskUserQuestionAnswer | GateClosedReason> {
   const ask = seams.ask()
   if (ask === undefined) return 'no-answerer'
   if (exec.agent === undefined) return 'no-agent'

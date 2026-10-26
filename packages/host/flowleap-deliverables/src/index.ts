@@ -30,6 +30,7 @@ import type {} from '@deepseek-ai/dsh-commands'
 import { registerGateCommands } from './gates/commands.ts'
 import type { GateApprover, GateAsker, GateSeams } from './gates/questions.ts'
 import { DeliveredPaths, registerEditSeal } from './guard/seal.ts'
+import { ConfirmedMarkets } from './report/markets.ts'
 import { registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
 import { createJudge, NO_LLM_JUDGE, type SecondReadJudge } from './judge.ts'
 import { registerRecorder, type RecorderMode } from './ledger/recorder.ts'
@@ -51,6 +52,7 @@ export {
 export type { DraftingFiles, DraftingWorkspaceOptions } from './drafting/workspace.ts'
 export { checkPriorArtReportCompletion, GENERIC_WRITE_TOOLS, RETRIEVAL_TOOLS } from './guard/completion.ts'
 export type { GuardRound, ReceiptFileReader, ReportCompletionTurn } from './guard/completion.ts'
+export { ConfirmedMarkets, MARKETS_QUESTION_ID, UNCONFIRMED_MARKETS } from './report/markets.ts'
 export { DeliveredPaths, DIRECT_EDIT_STEER, DIRECT_EDIT_TOOLS, editedPath, FAILED_EDIT_STEER, registerEditSeal } from './guard/seal.ts'
 export { receiptFileReader, registerCompletionGuard, TurnTrackers } from './guard/steer.ts'
 export { registerGateCommands } from './gates/commands.ts'
@@ -145,6 +147,7 @@ export function apply(ctx: Context, config: Config): void {
   const trackers = new TurnTrackers()
   const present = new PresentQueue()
   const delivered = new DeliveredPaths()
+  const markets = new ConfirmedMarkets()
   const modes = new Map<RecorderMode, number>()
   let judge: SecondReadJudge = NO_LLM_JUDGE
   let ask: GateAsker | undefined
@@ -209,13 +212,15 @@ export function apply(ctx: Context, config: Config): void {
   registerPresent(ctx, present, sessionId => trackers.openTurn(sessionId))
   registerCompletionGuard(ctx, trackers)
   registerEditSeal(ctx, delivered)
-  ctx.on('session/disposed', (session) => { ledger.forget(session.id); delivered.forget(session.id) })
+  ctx.on('session/disposed', (session) => { ledger.forget(session.id); delivered.forget(session.id); markets.forget(session.id) })
   const log = {
     warn: (message: string) => { ctx.logger.warn(message) },
     info: (message: string) => { ctx.logger.info(message) },
   }
   ctx.effect(() => registerDeliverableTools(ctx, [
-    writePatentResultsTool(ctx, { ledger, judge: () => judge, present, delivered, secondRead: () => config.secondRead, ...log }),
+    writePatentResultsTool(ctx, {
+      ledger, judge: () => judge, present, delivered, gates, markets, secondRead: () => config.secondRead, ...log,
+    }),
     startApplicationDraftTool(ctx, { present, gates, ...log }),
     validateDraftTool(ctx, { present, gates, ...log }),
     exportDraftDocxTool(ctx, { present, gates, ...log }),

@@ -45,6 +45,8 @@ import { deriveFallbackLadder, fallbackCoverage, fallbacksNotCovered, roundAnswe
 import { baselineIntegrityNote, baselineSource, claimComparisons, countLine, ExaminerBaseline, findBetterMissingInputs, flattenSides, gapCount, ignoredNumericFields, incompleteSearch } from './report/find-better.ts'
 import { extractFigures, figureProvenance, figureSentence, ftoProvenanceResult, renderFtoAppendix, renderLandscapeAppendix } from './report/provenance.ts'
 import { fillHeaderCell, unfilledHeaderCells, unfilledHeaderCellsRefusal, REQUIRED_HEADER_CELLS } from './report/header-cells.ts'
+import { ConfirmedMarkets, marketsCellValue, marketsResultLine, resolveMarkets } from './report/markets.ts'
+import type { GateSeams } from './gates/questions.ts'
 import { priorArtReportReceipt, ReceiptFallbacks } from './report/receipt.ts'
 import { SecondReadOutcome, unconfirmedVerdicts } from './report/second-read.ts'
 import { buildPatentReport, contentRequirementError, PatentReportTemplate } from './report/templates.ts'
@@ -245,6 +247,10 @@ export interface WriterDependencies {
   readonly now?: () => Date
   /** The seal's register of delivered paths; every saved report (free-form or templated) is marked. */
   readonly delivered?: DeliveredPaths
+  /** The question seams of the fto-memo markets card. */
+  readonly gates: GateSeams
+  /** The markets the user confirmed, per Session and report path. */
+  readonly markets: ConfirmedMarkets
 }
 
 /**
@@ -433,6 +439,12 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
     }
     const reportPath = ctx.fs.processPath(target)
     const sessionId = exec.agent?.session.id
+    // The markets an FTO memo clears are the user's answer, asked before any costly step of the save.
+    const markets = template === 'fto-memo' ? await resolveMarkets(deps.gates, exec, deps.markets, reportPath, input.jurisdictions) : undefined
+    if (markets?.kind === 'refused') {
+      return refusal(markets.text)
+    }
+    const cellInput = markets === undefined ? input : { ...input, jurisdictions: marketsCellValue(markets) }
 
     try {
       // A Baseline given by path is read from the workspace once, then checked exactly like an inline one.
@@ -503,7 +515,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       // which the practitioner would fill them later, so a required cell left as the placeholder
       // refuses the save, naming the cell and the input (S5 acceptance defect B).
       const document = (template === undefined ? [] : REQUIRED_HEADER_CELLS[template] ?? [])
-        .reduce((text, cell) => fillHeaderCell(text, cell.label, input[cell.input]), rendered)
+        .reduce((text, cell) => fillHeaderCell(text, cell.label, cellInput[cell.input]), rendered)
       const unfilled = unfilledHeaderCells(document, template)
       if (template !== undefined && unfilled.length) {
         return refusal(unfilledHeaderCellsRefusal(template, unfilled))
@@ -572,7 +584,8 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       }
       const ignoredResult = ignored.length ? `\nIgnored model-supplied numeric field(s): ${ignored.join(', ')}. A Find Better report counts disclosed elements from the validated rows only; no model-supplied number reaches the report.` : ''
       const evidenceProcessPath = ctx.fs.processPath(evidenceTarget)
-      const text = `Successfully wrote patent results to ${filePath}` + provenanceResult + (evidenceDocument ? `${wording.length ? `\nWording review: ${wording.length} phrase(s) flagged in the working record; reword them in a follow-up save if they are conclusions rather than disclaimers.` : ''}${secondReadResult(mode, secondRead, verdictFileName, objected)}${sourceResult}${ignoredResult}\n${findBetter ? findBetterSummaryContract(materialized) : SUMMARY_CONTRACT}\n${priorArtReportReceipt(reportPath, document, evidenceProcessPath, evidenceDocument, fallbacks)}${recordWritten ? `\nWorking record: ${workingRecordPath(filePath)}` : ''}` : provenance ? '' : '\nFree-form artifact: evidence validation was not performed.')
+      const marketsResult = markets === undefined ? '' : marketsResultLine(markets)
+      const text = `Successfully wrote patent results to ${filePath}` + marketsResult + provenanceResult + (evidenceDocument ? `${wording.length ? `\nWording review: ${wording.length} phrase(s) flagged in the working record; reword them in a follow-up save if they are conclusions rather than disclaimers.` : ''}${secondReadResult(mode, secondRead, verdictFileName, objected)}${sourceResult}${ignoredResult}\n${findBetter ? findBetterSummaryContract(materialized) : SUMMARY_CONTRACT}\n${priorArtReportReceipt(reportPath, document, evidenceProcessPath, evidenceDocument, fallbacks)}${recordWritten ? `\nWorking record: ${workingRecordPath(filePath)}` : ''}` : provenance ? '' : '\nFree-form artifact: evidence validation was not performed.')
 				+ `\n${DELIVERED_LINE}`
       return {
         saved: true,

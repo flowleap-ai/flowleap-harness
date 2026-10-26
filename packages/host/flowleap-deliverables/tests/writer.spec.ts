@@ -204,7 +204,7 @@ describe('write_patent_results', () => {
     })
   })
 
-  it('refuses an fto-memo whose Jurisdiction(s) header cell would ship as the placeholder, and fills it from the jurisdictions input', async () => {
+  it('without a question answerer, refuses an fto-memo whose Jurisdiction(s) header cell would ship as the placeholder, and fills it from the jurisdictions input marked as not confirmed', async () => {
     const { write } = await bench()
     const memo = { filePath: 'outputs/memo.md', content: 'DE and FR parts lapsed; US7722129B2 in force.', template: 'fto-memo', subject: 'Quick-release skewer' }
     const refused = await write(memo)
@@ -212,13 +212,13 @@ describe('write_patent_results', () => {
     const document = await readFile(join(dir, 'outputs/memo.md'), 'utf8')
     expect({
       refused: [refused.value, textOf(refused.content[0])],
-      saved: textOf(saved.content[0]).split('\n').slice(0, 2).map(line => line.split(':')[0]),
+      saved: textOf(saved.content[0]).split('\n').slice(0, 3).map(line => line.split(':')[0]),
       header: document.split('\n').slice(4, 7),
       placeholders: document.match(/_\(to be completed\)_/g)?.length,
     }).toEqual({
       refused: [{ saved: false, text: textOf(refused.content[0]) }, 'Report was not saved. The fto-memo header cell `Jurisdiction(s)` is still `_(to be completed)_`. Set `jurisdictions` to the markets the memo clears, for example `DE, FR, US`. Retry with the same content and the field set.'],
-      saved: ['Successfully wrote patent results to outputs/memo.md', 'FTO provenance'],
-      header: ['| Matter / Reference | _(to be completed)_ |', '| Product / Technology | Quick-release skewer |', '| Jurisdiction(s) | DE, FR, US |'],
+      saved: ['Successfully wrote patent results to outputs/memo.md', 'Markets', 'FTO provenance'],
+      header: ['| Matter / Reference | _(to be completed)_ |', '| Product / Technology | Quick-release skewer |', '| Jurisdiction(s) | DE, FR, US (not confirmed by the user) |'],
       // The matter reference the user never gave stays the practitioner's.
       placeholders: 1,
     })

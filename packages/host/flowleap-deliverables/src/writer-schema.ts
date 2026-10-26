@@ -7,8 +7,9 @@
  * that names the row and the fix (ADR 0018 decision 4).
  *
  * Two harness-only additions beside the IDE's: the `jurisdictions` property,
- * which fills the fto-memo header's `Jurisdiction(s)` cell (S5 acceptance
- * defect B), and the `dossier` template (defect C); see the README, "What
+ * the model's proposal for the fto-memo header's `Jurisdiction(s)` cell, which
+ * the user confirms or replaces in the markets card (S5 acceptance defect B and
+ * pass 4), and the `dossier` template (defect C); see the README, "What
  * differs from the IDE copy".
  * @module
  */
@@ -73,7 +74,7 @@ export const WRITE_PATENT_RESULTS_PARAMETERS: Record<string, unknown> = {
     },
     jurisdictions: {
       type: 'string',
-      description: 'fto-memo: the jurisdictions the memo clears, as a short list (for example "DE, FR, US"). The memo header names them; an fto-memo save without it is refused.',
+      description: 'fto-memo: the markets the memo clears, as a short list (for example "DE, FR, US"): the markets the user named, or your proposal when the user named none. Before the first save of a memo the user confirms or replaces them in a question card, and the answer fills the memo header; without a possible answer your value is marked as not confirmed.',
     },
     objective: {
       type: 'string',

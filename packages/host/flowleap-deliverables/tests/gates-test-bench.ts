@@ -23,7 +23,8 @@ import type {} from '@deepseek-ai/dsh-tool-present/types'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import type { AskUserQuestionAnswer, AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
 import {
-  exportDraftDocxTool, forgetRefusals, inventorQuestionsTool, PatentLedger, PresentQueue, registerDeliverableTools, registerGateCommands,
+  ConfirmedMarkets, exportDraftDocxTool, forgetRefusals, inventorQuestionsTool, PatentLedger, PresentQueue, registerDeliverableTools,
+  registerGateCommands,
   registerPresent, removeClaimTool, startApplicationDraftTool, validateDraftTool, writePatentResultsTool, NO_LLM_JUDGE, type GateSeams,
 } from '../src/index.ts'
 
@@ -146,7 +147,9 @@ export async function gateBench() {
   const deps = { present, gates: seams, now: seams.now, ...log }
   registerPresent(ctx, present, () => 1)
   registerDeliverableTools(ctx, [
-    writePatentResultsTool(ctx, { ledger, judge: () => NO_LLM_JUDGE, present, secondRead: () => 'off', now: seams.now, ...log }),
+    writePatentResultsTool(ctx, {
+      ledger, judge: () => NO_LLM_JUDGE, present, gates: seams, markets: new ConfirmedMarkets(), secondRead: () => 'off', now: seams.now, ...log,
+    }),
     startApplicationDraftTool(ctx, deps),
     validateDraftTool(ctx, deps),
     exportDraftDocxTool(ctx, deps),
