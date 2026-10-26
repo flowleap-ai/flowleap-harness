@@ -9,7 +9,7 @@
   "about": "Patent research, analysis and drafting on your own keys. Office connectors, OCR and models run on the firm's keys; FlowLeap installs and supports the application.",
   "icons": "resources/flowleap",
   "microphoneUsage": "FlowLeap Patent AI uses your microphone to transcribe speech into message drafts.",
-  "locales": ["en"],
+  "locales": ["en", "zh_CN", "ja", "es", "fr", "de", "ru", "pt"],
   "account": false,
   "platform": false,
   "welcome": false,

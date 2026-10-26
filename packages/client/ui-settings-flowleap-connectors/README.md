@@ -41,7 +41,7 @@ The wizard registers as a `settings.onboarding` step after the welcome notice. I
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half declares one live Config field, `wizardDismissed`, and calls `settings.configure({ auto: false })` so the row has a namespace but no generated page. The browser half keeps one `ConnectorsStore` over `ctx.remote.flowleapConnectors` (`describe`, `set`, `unset`, `test`) whose snapshot carries a card per connector: presence from the Host, the draft, the operation in flight, the last test outcome, and the last refusal. `WizardStore` follows the row's `ConfigForm` the way the Models welcome notice does and writes the dismissal through `scope.set`. The section registers into `settings.section` with `locale: NS`, so its copy arrives through the framework `t` seat; the wizard step injects the same bound translate. The connector ids and fields are spelled in the browser half because a client bundle imports no Host value; the Host's `describe()` confirms the fields per connector.
+The Host half declares one live Config field, `wizardDismissed`, and calls `settings.configure({ auto: false })` so the row has a namespace but no generated page. The browser half keeps one `ConnectorsStore` over `ctx.remote.flowleapConnectors` (`describe`, `set`, `unset`, `test`) whose snapshot carries a card per connector: presence from the Host, the draft, the operation in flight, the last test outcome, and the last refusal. `WizardStore` follows the row's `ConfigForm` the way the Models welcome notice does and writes the dismissal through `scope.set`. The section registers into `settings.section` with `locale: NS`, so its copy arrives through the framework `t` seat in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt); the wizard step injects the same bound translate. The connector ids and fields are spelled in the browser half because a client bundle imports no Host value; the Host's `describe()` confirms the fields per connector.
 
 ### Source map
 
@@ -84,7 +84,6 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **English only** — the locale registry requires `{ zh, en }`, so the English dictionary is registered for both locales; a Chinese browser reads English copy here until a translation exists.
 - **Whole-record saves** — a connector with two fields (EPO OPS) must have both typed to save, because the Host replaces the record; there is no per-field update.
 - **No reveal toggle** — the fields reuse the shared `SettingsSecretField`, not the Models page's package-private `ApiKeyInput`, so a typed value cannot be revealed before saving.
 - **Test runs the stored key** — the connection test checks what the Host holds; the wizard's **Test** therefore saves the typed fields first.

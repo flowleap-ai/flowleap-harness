@@ -18,7 +18,7 @@ import { ConnectorsSection, type ConnectorsSectionInjected } from './ConnectorsS
 import { ConnectorsWizard, type ConnectorsWizardInjected } from './ConnectorsWizard.tsx'
 import { ConnectorsStore } from './connectors-store.ts'
 import { WizardStore, type WizardSection } from './wizard-store.ts'
-import { en, zh, type ConnectorsLocaleKey } from './locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh, type ConnectorsLocaleKey } from './locales.ts'
 import { WIZARD_SETTINGS_NAMESPACE } from '../wizard-settings.ts'
 
 export type { ConnectorsSectionInjected, ConnectorsSectionProps } from './ConnectorsSection.tsx'
@@ -46,7 +46,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.flowleapConnectors',
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-flowleap-connectors: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-flowleap-connectors: dictionaries')
   const t = ctx.locale.bind(NS) as ConnectorsWizardInjected['t']
   const controller = new ConnectorsStore(ctx)
   const wizardController = new WizardStore(ctx.configForms.get<WizardSection>(WIZARD_SETTINGS_NAMESPACE))

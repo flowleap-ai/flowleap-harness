@@ -5,12 +5,12 @@ import { cleanup, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '../src/client/index.ts'
-import { BRAND_GLOBAL, parseBrandRecord, type BrandRecord } from '../src/brand.ts'
+import { BRAND_GLOBAL, BRAND_LOCALES, parseBrandRecord, type BrandRecord } from '../src/brand.ts'
 import { BrandMark, HeroBrandMark, RunningBrandMark, SidebarBrandMark, SidebarBrandName } from '../src/client/Brand.tsx'
 import { brandCopy } from '../src/client/locales.ts'
 
 const MARK = 'data:image/svg+xml;base64,PHN2Zy8+'
-const BRAND: BrandRecord = { productName: 'Acme Patents', shortName: 'Acme', tagline: 'Search first.', mark: MARK, markStyle: 'mono', accent: '#123456' }
+const BRAND: BrandRecord = { productName: 'Acme Patents', shortName: 'Acme', tagline: { en: 'Search first.', de: 'Zuerst suchen.' }, mark: MARK, markStyle: 'mono', accent: '#123456' }
 
 const MARK_HOLES = ['sidebar.brand.mark', 'sidebar.brand.name', 'conversation.hero.brand.mark'] as const
 const RUNNING_HOLE = 'conversation.chat.running.icon'
@@ -76,9 +76,9 @@ describe('the ui-brand-flowleap browser half', () => {
     const copy = () => [common('brand.localBuild'), conversation('hero.headline'), chat('chat.deepDiving'), chat('chat.deepDivingFor', { duration: '19s' })]
     expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
     subject.locale.setLocale('zh')
-    expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
+    expect(copy()).toEqual(['Acme Patents', 'Search first.', '处理中', '处理中，用时 19s ···'])
     subject.locale.setLocale('de')
-    expect(copy()).toEqual(['Acme Patents', 'Search first.', 'Working', 'Working for 19s ···'])
+    expect(copy()).toEqual(['Acme Patents', 'Zuerst suchen.', 'In Arbeit', 'In Arbeit seit 19s ···'])
     subject.locale.setLocale('zh')
 
     subject.disposeHoles()
@@ -102,11 +102,27 @@ describe('the ui-brand-flowleap browser half', () => {
 
   it('leaves the headline alone without a tagline and names the product in every other override', () => {
     const { tagline: _tagline, ...untagged } = BRAND
-    const namespaces = brandCopy(untagged).map(entry => entry.ns)
-    expect(namespaces).toEqual(['common', 'settings.models', 'model', 'pluginManager', 'sidebarOffice', 'chat'])
-    expect(brandCopy(BRAND).map(entry => entry.ns)).toContain('conversation')
-    const texts = brandCopy(BRAND).flatMap(entry => Object.values(entry.dict))
-    expect(texts.some(text => /DeepSeek|DSH/u.test(text))).toBe(false)
+    const namespaces = brandCopy(untagged, 'en').map(entry => entry.ns)
+    expect(namespaces).toEqual(['common', 'settings.models', 'model', 'pluginManager', 'sidebarOffice', 'settings.agentPreset', 'chat'])
+    expect(brandCopy(BRAND, 'en').map(entry => entry.ns)).toContain('conversation')
+    for (const locale of BRAND_LOCALES) {
+      const texts = brandCopy(BRAND, locale).flatMap(entry => Object.values(entry.dict))
+      expect(texts.some(text => /DeepSeek|DSH/u.test(text)), locale).toBe(false)
+    }
+  })
+
+  it('translates every override for each shipped language, keeping the placeholders of the English text', () => {
+    const english = new Map(brandCopy(BRAND, 'en').flatMap(entry => Object.entries(entry.dict).map(([key, text]) => [`${entry.ns}:${key}`, text])))
+    const placeholders = (text: string) => (text.match(/\{\w+\}/gu) ?? []).sort().join(',')
+    for (const locale of BRAND_LOCALES.filter(id => id !== 'en')) {
+      const translated = new Map(brandCopy(BRAND, locale).flatMap(entry => Object.entries(entry.dict).map(([key, text]) => [`${entry.ns}:${key}`, text])))
+      expect([...translated.keys()], locale).toEqual([...english.keys()])
+      for (const [key, text] of translated) {
+        expect(placeholders(text), `${locale} ${key}`).toBe(placeholders(english.get(key) ?? ''))
+        const kept = key === 'common:brand.localBuild' || (key === 'conversation:hero.headline' && locale !== 'de')
+        if (!kept) expect(text, `${locale} ${key}`).not.toBe(english.get(key))
+      }
+    }
   })
 
   it('draws a mono mark as a mask in the accent colour, a colour mark as an image, and nothing without a mark', () => {
@@ -145,7 +161,11 @@ describe('the ui-brand-flowleap browser half', () => {
     expect(parseBrandRecord({ productName: 'P', shortName: 'S' }, 'x')).toEqual({ productName: 'P', shortName: 'S', markStyle: 'mono' })
     expect(() => parseBrandRecord('text', 'x')).toThrow('x must be a JSON object')
     expect(() => parseBrandRecord({ productName: 'P', shortName: ' ' }, 'x')).toThrow('shortName must be a non-empty string')
-    expect(() => parseBrandRecord({ productName: 'P', shortName: 'S', tagline: 3 }, 'x')).toThrow('tagline must be a non-empty string')
+    expect(() => parseBrandRecord({ productName: 'P', shortName: 'S', tagline: 3 }, 'x')).toThrow('tagline must be a non-empty string or an object of locale texts')
+    expect(parseBrandRecord({ productName: 'P', shortName: 'S', tagline: 'T' }, 'x').tagline).toEqual({ en: 'T' })
+    expect(parseBrandRecord({ productName: 'P', shortName: 'S', tagline: { en: 'T', fr: 'F' } }, 'x').tagline).toEqual({ en: 'T', fr: 'F' })
+    expect(() => parseBrandRecord({ productName: 'P', shortName: 'S', tagline: { fr: 'F' } }, 'x')).toThrow('tagline.en must be a non-empty string')
+    expect(() => parseBrandRecord({ productName: 'P', shortName: 'S', tagline: { en: 'T', xx: 'X' } }, 'x')).toThrow('unknown locale xx')
     expect(() => parseBrandRecord({ productName: 'P', shortName: 'S', markStyle: 1 }, 'x')).toThrow('markStyle must be one of')
   })
 })

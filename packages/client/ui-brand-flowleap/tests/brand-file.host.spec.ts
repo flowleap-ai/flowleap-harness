@@ -35,7 +35,7 @@ describe('the ui-brand-flowleap Host half', () => {
       productName: 'Acme Patents', shortName: 'Acme', tagline: 'Search.', mark: './mark.svg', accent: '#123456', extra: true,
     })
     expect(Brand.readBrandFile(path)).toEqual({
-      productName: 'Acme Patents', shortName: 'Acme', tagline: 'Search.', mark: MARK_URL, markStyle: 'mono', accent: '#123456',
+      productName: 'Acme Patents', shortName: 'Acme', tagline: { en: 'Search.' }, mark: MARK_URL, markStyle: 'mono', accent: '#123456',
     })
     expect(Brand.readBrandFile(brandFile('minimal.json', { productName: 'P', shortName: 'S', markStyle: 'color' })))
       .toEqual({ productName: 'P', shortName: 'S', markStyle: 'color' })

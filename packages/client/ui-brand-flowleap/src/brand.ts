@@ -9,6 +9,15 @@
 /** `globalThis` property the Host's index injection assigns the brand record to. */
 export const BRAND_GLOBAL = '__FLOWLEAP_BRAND__'
 
+/** The shipped UI languages; the brand copy carries a translation for each. */
+export const BRAND_LOCALES = ['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt'] as const
+
+/** One shipped UI language. */
+export type BrandLocale = typeof BRAND_LOCALES[number]
+
+/** Text per UI language; English is required and stands in for a language the brand does not translate. */
+export type BrandText = { readonly en: string } & Readonly<Partial<Record<BrandLocale, string>>>
+
 /** How the browser draws the mark image. */
 export type BrandMarkStyle =
   /** A monochrome mark: drawn as a mask filled with the surrounding text colour, or the accent when set. */
@@ -22,8 +31,8 @@ export interface BrandRecord {
   readonly productName: string
   /** Short name for narrow surfaces and copy that names the product in passing. */
   readonly shortName: string
-  /** One line under the mark on a blank session; absent keeps the shell's own headline. */
-  readonly tagline?: string
+  /** One line under the mark on a blank session, per UI language; absent keeps the shell's own headline. */
+  readonly tagline?: BrandText
   /** The mark as a `data:` URL; absent keeps the shell's fallback mark. */
   readonly mark?: string
   /** How {@link mark} is drawn. */
@@ -47,6 +56,28 @@ function optionalText(value: unknown, path: string): string | undefined {
   return value === undefined ? undefined : text(value, path)
 }
 
+/** A string is the English text; an object maps shipped locales to text and must carry `en`. */
+function optionalBrandText(value: unknown, path: string): BrandText | undefined {
+  if (value === undefined) return undefined
+  if (typeof value === 'string') return { en: text(value, path) }
+  if (!isObject(value)) throw new Error(`${path} must be a non-empty string or an object of locale texts`)
+  for (const key of Object.keys(value)) {
+    if (!(BRAND_LOCALES as readonly string[]).includes(key)) throw new Error(`${path}: unknown locale ${key}; expected ${BRAND_LOCALES.join(', ')}`)
+  }
+  const translated = Object.fromEntries(BRAND_LOCALES.flatMap(locale => value[locale] === undefined ? [] : [[locale, text(value[locale], `${path}.${locale}`)]]))
+  return { ...translated, en: text(value.en, `${path}.en`) }
+}
+
+/**
+ * Pick the brand text for one UI language.
+ * @param value - the validated text.
+ * @param locale - the UI language.
+ * @returns the translation, or the English text when the brand has none for that language.
+ */
+export function brandText(value: BrandText, locale: BrandLocale): string {
+  return value[locale] ?? value.en
+}
+
 /**
  * Validate a brand record read from an untrusted carrier: the parsed
  * `brand.json` with its mark already resolved to a data URL, or the injected
@@ -66,7 +97,7 @@ export function parseBrandRecord(value: unknown, label: string): BrandRecord {
   if (mark !== undefined && !mark.startsWith('data:image/')) throw new Error(`${label}: mark must be an image data URL`)
   const accent = optionalText(value.accent, `${label}: accent`)
   if (accent !== undefined && /[;{}<>"'\\]/u.test(accent)) throw new Error(`${label}: accent must be one CSS colour value`)
-  const tagline = optionalText(value.tagline, `${label}: tagline`)
+  const tagline = optionalBrandText(value.tagline, `${label}: tagline`)
   return {
     productName: text(value.productName, `${label}: productName`),
     shortName: text(value.shortName, `${label}: shortName`),

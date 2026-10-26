@@ -2,7 +2,8 @@
  * FlowLeap brand plugin, browser half: reads the brand record the Host
  * injected into the boot page, occupies the sidebar mark and name slots, the
  * blank-session hero mark and the running status icon with it, and layers the
- * product name over the upstream copy that still names the harness. Without an
+ * product name over the upstream copy that still names the harness, translated
+ * for each shipped UI language. Without an
  * injected record (a page the Host did not render) it registers nothing and
  * the shell keeps its own fallbacks.
  */
@@ -14,7 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 // Type-only: the ctx.locale service merge.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import { BRAND_GLOBAL, parseBrandRecord, type BrandRecord } from '../brand.ts'
+import { BRAND_GLOBAL, BRAND_LOCALES, parseBrandRecord, type BrandRecord } from '../brand.ts'
 import { HeroBrandMark, RunningBrandMark, SidebarBrandMark, SidebarBrandName, type BrandInjected } from './Brand.tsx'
 import { brandCopy } from './locales.ts'
 
@@ -60,11 +61,9 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.inject('conversation.chat.running.icon', () =>
       ctx.slots.register({ name: 'conversation.chat.running.icon', inject: injected }, RunningBrandMark))
   }
-  // Every selectable language reads the brand's English text, so no shipped dictionary shows the upstream product copy.
-  const locales = ctx.locale.getLocale().locales.map(locale => locale.id)
-  for (const { ns, dict } of brandCopy(brand)) {
-    for (const locale of locales) {
-      ctx.effect(() => ctx.locale.override(ns, locale, dict), `ui-brand-flowleap: ${ns} copy`)
+  for (const locale of BRAND_LOCALES) {
+    for (const { ns, dict } of brandCopy(brand, locale)) {
+      ctx.effect(() => ctx.locale.override(ns, locale, dict), `ui-brand-flowleap: ${ns} ${locale} copy`)
     }
   }
 }

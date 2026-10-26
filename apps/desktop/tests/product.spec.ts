@@ -81,7 +81,7 @@ describe('desktop product files', () => {
       protocols: [{ name: 'FlowLeap Patent AI', schemes: ['flowleap-patent-ai'] }],
       artifactName: 'flowleap-patent-ai-${version}-${os}-${arch}-unsigned.${ext}',
       publish: null,
-      mac: { extendInfo: { CFBundleLocalizations: ['en'] } },
+      mac: { extendInfo: { CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'] } },
     })
     expect(config.extraMetadata).toMatchObject({ [DESKTOP_PRODUCT_MANIFEST_KEY]: { name: 'flowleap' } })
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')

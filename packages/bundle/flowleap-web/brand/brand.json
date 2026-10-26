@@ -1,7 +1,16 @@
 {
   "productName": "FlowLeap Patent AI",
   "shortName": "FlowLeap",
-  "tagline": "Patent research, analysis and drafting on your own keys",
+  "tagline": {
+    "en": "Patent research, analysis and drafting on your own keys",
+    "zh": "使用你自己的密钥进行专利检索、分析和撰写",
+    "ja": "ご自身のキーで、特許の調査・分析・明細書作成を",
+    "es": "Investigación, análisis y redacción de patentes con sus propias claves",
+    "fr": "Recherche, analyse et rédaction de brevets avec vos propres clés",
+    "de": "Patentrecherche, -analyse und -ausarbeitung mit Ihren eigenen Schlüsseln",
+    "ru": "Патентный поиск, анализ и подготовка заявок на ваших собственных ключах",
+    "pt": "Pesquisa, análise e redação de patentes com suas próprias chaves"
+  },
   "mark": "./flowleap-mark.svg",
   "markStyle": "mono"
 }
