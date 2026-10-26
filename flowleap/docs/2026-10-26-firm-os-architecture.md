@@ -9,7 +9,7 @@ which order they are built.
 ```
                          firm network (VPN or tailnet), no inbound from the internet
   attorney ─ browser / installed web app / thin desktop client
-            │  Claude Desktop extension, Claude Code, Codex (local MCP)
+  outside agents ─ Claude Desktop extension, Claude Code, Codex (through the MCP door)
             ▼
  ┌──────────────────────────────── firm host (one VM or server) ───────────────────────────────┐
  │  SIGN-IN PROXY (Entra ID OIDC)  ── in front of every service below                          │
@@ -24,18 +24,21 @@ which order they are built.
  │   artifacts ──── immutable shared copies, audiences, versions, comments                     │
  │   knowledge pool ─ inbox, single compiler, fact records, pages, index, MCP tools             │
  │   skills library ─ git, mounted read-only in every runtime                                   │
+ │   token broker ─ short-lived Microsoft 365 token per signed-in attorney (delegated access)   │
+ │   MCP door ───── the runtime's tools for outside agents, behind the same sign-in             │
  │   audit trail ── firm-level actions                                                           │
  │   updater, backup (restic), health signal, support channel                                    │
  │                                                                                              │
  │  ATTORNEY RUNTIMES (this repository's image), one per attorney, isolated                     │
  │   dsh + flowleap-web profile: Patent Agent / Patent Agent Offline presets,                   │
- │   office connectors, deliverables, Share action, pool tools, usage reporting                │
+ │   plugins: office connectors, deliverables, Share, pool tools, Microsoft 365, usage reporting │
  │   private disk: workspaces (folders) and chats (sessions)                                    │
  └──────────────────────────────────────────────────────────────────────────────────────────────┘
             │ outbound only, through the gateway or the egress proxy
             ▼
    models (cloud API, firm's Azure/Bedrock EU, or a local GPU host) · EPO, USPTO, other offices ·
-   FlowLeap Data · Semantic Scholar, OpenAlex · search API · Entra ID · update registry · backup target
+   FlowLeap Data · Semantic Scholar, OpenAlex · search API · Microsoft 365 (Graph) · Entra ID ·
+   update registry · backup target
 ```
 
 ## 2. Where data lives
@@ -50,9 +53,11 @@ which order they are built.
 | Control plane (users, budgets, settings, audit) | SQLite | Control plane | Yes | Yes |
 | Vault | Encrypted file | Administrator only | Yes | Yes, encrypted |
 | Office cache | Proxy cache | Egress proxy | Expires | No |
+| Firm's Microsoft 365 (SharePoint, OneDrive, Outlook) | Microsoft's cloud, as today | The attorney, through the plugin with their own permissions | Yes | The firm's own Microsoft 365 backup |
 | Laptop | Downloaded files only | The attorney | Untracked | No |
 
-A shared service never points at a file in an attorney's workspace. Sharing copies.
+A shared service never points at a file in an attorney's workspace. Sharing copies. A file read from SharePoint
+into a workspace is a copy too; the original stays in Microsoft 365 under the firm's own rules.
 
 ## 3. Main flows
 
@@ -85,6 +90,16 @@ facts become records; the compiler renders the affected pages and updates the in
 service resolves the user's Entra groups, returns only facts and pages in those audiences, each with its
 source artifact, date and "checked" or "own estimate".
 
+**Microsoft 365.** The attorney asks for the client's claims on SharePoint. The Microsoft 365 plugin asks the
+token broker for a token for this attorney, calls Microsoft Graph through the egress proxy, and reads the file
+with the attorney's own permissions. A report can be saved back to a folder the same way. Mail is read from a
+folder the attorney chose; an email is written as a draft in the attorney's Drafts folder and never sent by
+the agent.
+
+**An outside agent.** An attorney in Claude Desktop calls a FlowLeap tool. The call enters through the MCP
+door behind the Entra sign-in, so it runs as that attorney, with that attorney's audiences, budget and
+Microsoft 365 permissions. Nothing is reachable from the internet.
+
 **Update.** In the maintenance window the updater pulls the new images with the firm's update key, takes a
 backup, migrates the control-plane databases, restarts each runtime when its attorney is idle, and runs the
 health check; on failure it rolls back to the previous images and the backup.
@@ -101,6 +116,10 @@ backed-up store, takes over the firm address, and runs the health check and one 
 - The online and offline indicator in the composer, the chat header and the chat list (a brand slot,
   translated into the 8 UI languages).
 - A Share action on the delivery card and on files, calling the artifacts API.
+- The Microsoft 365 plugin (`dsh-flowleap-m365`): search and read files, save reports, read a chosen mail
+  folder, draft emails, propose calendar entries; tokens from the broker, never stored in the runtime.
+- The rule for every new capability: a dsh plugin in the runtime, switchable on the Plugins page, talking to
+  a control-plane service when it needs shared state or a secret.
 - The pool tools (`knowledge_search`, `knowledge_propose`, `knowledge_remember`) and the
   `save-to-knowledge-pool` skill.
 - Usage reporting and the gateway's virtual key as the model provider.
@@ -116,9 +135,9 @@ Each phase ends in something a person can check on the FlowLeap test firm.
 | **P0 Foundations** | Repository `flowleap-os`; the Hetzner test firm; installer skeleton with install and restore; release pipeline that builds this repository's image; the S5 cases automated headless | A clean VM installs, restores from a backup, and passes the three S5 cases with one command |
 | **P1 Control plane core** | Entra sign-in proxy; spawner with sleep and wake; vault; model gateway (adopted proxy after a licence check); egress proxy with allowlist, log and office cache; audit trail; backups; updater with rollback; admin console with users, keys status, budgets and spend | Two test attorneys sign in with Entra, work at the same time on their own runtimes, see their spend, and a release updates without stopping an active chat |
 | **P2 Runtime changes** | Per-chat proxy credential; offline preset with cache-only office tools; mode indicator; usage reporting; the "Select model" fix; the branded install manifest | An offline chat drafts from a shared report with a local or substitute model, and the proxy log shows no outbound request for it |
-| **P3 Artifacts** | Artifacts service and library view; Share; comments; versions; "Open in my workspace" | One attorney shares an FTO memo with a group; a colleague in the group opens it and copies it; a colleague outside the group does not see it |
+| **P3 Artifacts and Microsoft 365** | Artifacts service and library view; Share; comments; versions; "Open in my workspace". Token broker and the Microsoft 365 plugin (read, save, draft) | One attorney shares an FTO memo with a group; a colleague in the group opens it and copies it; a colleague outside the group does not see it. An attorney reads a SharePoint file they may open, cannot read one they may not, and finds an email draft in Outlook |
 | **P4 Knowledge Pool and skills library** | Inbox, compiler, fact records, editor review, pages and index, nightly rebuild check, MCP tools, the skill; firm skills library with examples and proposals | A shared memo produces facts that an editor approves; a second attorney's agent finds them through `knowledge_search`; a hard delete removes them after the rebuild |
-| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); local MCP for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint |
+| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); the MCP door for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint |
 | **P6 FlowLeap Data** | PATSTAT licence check; the separate paid service; the connector plugin; firm key and metering | A firm key unlocks PATSTAT tools in the runtime and the dashboard shows their use |
 
 P0 comes first because every later phase needs the test firm and the automated acceptance to prove that an
@@ -132,3 +151,5 @@ pipeline of P0 makes each sync a normal release.
 - The EPO PATSTAT licence terms for offering PATSTAT data as a service.
 - OpenAI's help pages on ChatGPT connectors (they were read only through search extracts).
 - How dsh's web server takes a launch token from a reverse proxy without exposing it to the browser.
+- The Microsoft Graph permission set for delegated read, save, mail-read and draft access, and whether a
+  firm's Entra admin must consent once for the app registration.

@@ -116,20 +116,34 @@ policies and training, not in code.
     shell that opens the firm server with Entra sign-in, notifications, file drop and self-update). The
     full local desktop app (S4a) stays for solo attorneys. The firm OS is also an **MCP server** for
     the firm's Claude and ChatGPT seats: local first (a Claude Desktop extension, Claude Code, Codex),
-    then the ChatGPT Secure MCP Tunnel, and a public endpoint only if the firm decides it. Seats are
-    metered by their vendor; API keys through the gateway are metered by us.
-20. **Code layout.** A new repository, `flowleap-os`, holds the control plane, the installer and the
-    deploy files. This repository stays the attorney runtime and builds one image, plus the small
-    agent-side plugins (usage reporting, the Share action, the pool tools, the offline preset). Maintained
+    then the ChatGPT Secure MCP Tunnel, and a public endpoint only if the firm decides it. The MCP door sits
+    behind the same Entra sign-in, so an outside agent always acts as a known attorney with that attorney's
+    rights. Seats are metered by their vendor; API keys through the gateway are metered by us.
+20. **Code layout, and everything the agent does is a plugin.** A new repository, `flowleap-os`, holds the
+    control plane, the installer and the deploy files. This repository stays the attorney runtime and builds
+    one image. Every capability of the agent is a dsh plugin in the runtime (office data, the writer, Share,
+    the pool tools, Microsoft 365, usage reporting, the offline preset); the control-plane services are only
+    what those plugins talk to. A firm switches a capability on or off on the Plugins page, and a new firm
+    system (Google Workspace, iManage, a docketing system) is a new plugin, not new architecture. Maintained
     open-source parts are adopted where they delete owned code (an LLM proxy for the gateway, oauth2-proxy
     or Pomerium for sign-in, restic for backups), each after a licence check that excludes paid-edition
     features. Storage is content-hashed files plus one SQLite database per service, each service the only
     writer of its database; Postgres and object storage later, behind the same interfaces.
-21. **Release quality.** A FlowLeap test firm on a Hetzner server runs every release before any firm gets
+21. **Microsoft 365.** A plugin in each runtime (`dsh-flowleap-m365`) reaches SharePoint, OneDrive, Outlook
+    and the calendar through Microsoft Graph, with one app registration in the firm's Entra ID. A token broker
+    in the control plane gives the plugin a short-lived token for the signed-in attorney, so every call runs
+    with **that attorney's own Microsoft 365 permissions** (delegated access) and the firm's existing access
+    rules stay true. In version 1 the plugin reads and searches files, saves reports and Word exports to a
+    folder, reads mail in a folder the attorney chooses, writes emails as drafts in the attorney's Drafts
+    folder, and proposes calendar entries as drafts. It never sends an email or makes a final calendar change:
+    what leaves the firm in the attorney's name is the attorney's action. Offline chats do not load it.
+    Rejected: firm-wide application permissions (all mailboxes and all of SharePoint, with our product as the
+    gatekeeper of the firm's data).
+22. **Release quality.** A FlowLeap test firm on a Hetzner server runs every release before any firm gets
     it: the installer, sign-in, an update from the previous version with data migration, a restore, and
     the S5 cases (dossier, FTO, prior art) automated. Only then is the release published.
 
 ## Not decided here
 
-Docketing connectors, iManage and NetDocuments, external sharing links, a public MCP endpoint, spend per
+Docketing connectors, iManage and NetDocuments, Google Workspace, external sharing links, a public MCP endpoint, spend per
 client or project, a standby host, and Kubernetes. Each gets its own record when a firm needs it.
