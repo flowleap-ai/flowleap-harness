@@ -18,9 +18,11 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
   The next step is **P0**: a new `flowleap-os` repository, an installer with install and restore, a release
   pipeline, the S5 cases automated, and a Hetzner test firm (the founder buys the server).
-- **Known defects:** a new Web session opens with "Select model" and Return then sends nothing (still on
-  trunk); Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the prior-art case
-  takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
+- **Known defects:** Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the
+  prior-art case takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
+- **Default model rows:** the OpenRouter id of Sonnet 5.5 is `anthropic/claude-sonnet-5.5` (with a dot); the
+  Anthropic route id is `claude-sonnet-5-5`. A row that names a model its route does not list shows "Select
+  model", and the first send is refused with `session/model-unavailable` (issue 12).
 - **Not run on the synced code:** the FTO and prior-art cases, the desktop build, the Docker image.
 
 ## What this is
@@ -214,7 +216,8 @@ fail. A fresh clone does not have them.
   so the dsh frontmatter parser skips it (32 of 33). One-line fix in flowleap-plugins.
 - **Keys.** The laptop shell has only `OPENROUTER_API_KEY`; the default model row names
   `anthropic/claude-sonnet-5-5`, so the picker shows OpenRouter models only until `ANTHROPIC_API_KEY`
-  is set. Consider making an OpenRouter model the default for the hosted tier (ADR 0015 keys).
+  is set. Consider making an OpenRouter model the default for the hosted tier (ADR 0015 keys). A patch that
+  selects OpenRouter names `provider: openrouter`, `model: anthropic/claude-sonnet-5.5`.
 - **Package scope.** The toolchain forces `@deepseek-ai/dsh-*` names and `main: lib/index.js`; the
   FlowLeap packages are `@deepseek-ai/dsh-flowleap-web` and `@deepseek-ai/dsh-flowleap-prompt`.
 
@@ -687,3 +690,14 @@ fail. A fresh clone does not have them.
   and writing emails and calendar entries as drafts only (decision 21); the MCP door for Claude Desktop,
   Claude Code and Codex is behind the same sign-in (decision 19).
   Next: P0 (repository, a Hetzner test firm, installer with restore, release pipeline, S5 cases automated).
+- **Issue 12: a new Web session starts with the default model (2026-10-26).** Root cause of "Select model": the
+  S5 acceptance patches named `openrouter` / `anthropic/claude-sonnet-5-5`, but the OpenRouter route lists
+  `anthropic/claude-sonnet-5.5`; the profile's own default (`anthropic` / `claude-sonnet-5-5`) needs
+  `ANTHROPIC_API_KEY`. With a listed model the composer shows it before the first message and Return starts the
+  turn (live, port 3152: "Anthropic: Claude Sonnet 5.5", turn completed in 3 s). The old "Return sends nothing" was
+  upstream's composer block for an unroutable model, removed upstream on 2026-09-23 ("isolate provider authentication and preserve model selections") and gone since the trunk sync.
+  One defect remained: a prompt to a model its route does not list was claimed from the inbox and then lost when
+  the step failed with `UNKNOWN_MODEL` (no `user/message` in the log). The session controller now refuses such a
+  prompt at admission with `session/model-unavailable`; the composer shows the reason and keeps the draft. A route
+  without its key still reaches request execution (`MISSING_CREDENTIAL`, message logged). Tests: Host spec in
+  `session-models.host.spec.ts` and the web e2e `apps/web/tests/default-model-unlisted.e2e.ts`.
