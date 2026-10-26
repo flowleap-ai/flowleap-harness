@@ -26,23 +26,21 @@ const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
 const CLIENT_COMMIT_HASH_VARIABLE = 'DSH_CLIENT_COMMIT_HASH'
 
 /**
- * Non-public selector naming the product title of an official build of another product.
- * FlowLeap fork: a white-label desktop build (`apps/desktop/config/product.<name>.json`) is an
- * official build under its own name, so its packaging sets this selector; like the profile
- * selector it is never inlined, and inherited `DSH_CLIENT_*` values stay isolated.
+ * Non-public selector naming the product title of an official or local build of another product.
+ * FlowLeap fork: a white-label desktop build (`apps/desktop/config/product.<name>.json`) is built
+ * under its own name, signed (`official`) or unsigned (`local`), so its packaging sets this selector;
+ * like the profile selector it is never inlined, and inherited `DSH_CLIENT_*` values stay isolated.
  */
 export const CLIENT_BUILD_TITLE_SELECTOR = 'DSH_BUILD_CLIENT_TITLE'
 
 /**
- * The official profile's pinned values, titled for the selected product.
+ * The product title the title selector names.
  * @param environment - environment that may carry the title selector.
- * @returns the complete pinned value set; the upstream title without a selector.
+ * @returns `DSH_CLIENT_TITLE` set to the selected title, or no value without a selector.
  */
-function officialPublicValues(environment: NodeJS.ProcessEnv): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
+function selectedTitle(environment: NodeJS.ProcessEnv): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
   const title = environment[CLIENT_BUILD_TITLE_SELECTOR]
-  return title === undefined || title.trim() === ''
-    ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT
-    : { ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT, DSH_CLIENT_TITLE: title }
+  return title === undefined || title.trim() === '' ? {} : { DSH_CLIENT_TITLE: title }
 }
 
 /** Public variable carrying the repository package version embedded in client artifacts. */
@@ -58,6 +56,7 @@ const CLIENT_ARTIFACT_PATTERNS = [
   'packages/*/*/lib/client.js.map',
   'packages/*/*/lib/client.*.js',
   'packages/*/*/lib/client.*.js.map',
+  'packages/*/*/lib/assets/**/*',
 ] as const
 
 /** Public values embedded in one set of client artifacts. */
@@ -165,7 +164,8 @@ export function officialClientBuildEnvironment(
   return {
     DSH_CLIENT_COMMIT_HASH: repositoryCommitHash(root, environment),
     DSH_CLIENT_VERSION: repositoryVersion(root),
-    ...officialPublicValues(environment),
+    ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
+    ...selectedTitle(environment),
   }
 }
 
@@ -200,6 +200,8 @@ function clientBuildEnvironment(environment: NodeJS.ProcessEnv): ClientBuildEnvi
 
 /**
  * Resolve the exact public environment selected for a complete client build.
+ * Named profiles discard inherited public overrides. Local builds retain the supplied
+ * commit, version, and true dirty marker; repositoryClientBuildEnvironment supplies that metadata.
  * @param environment - parent process environment.
  * @param profile - explicit profile, or the non-public selector when omitted.
  * @returns the inherited public values when no profile is selected, otherwise the named profile.
@@ -209,22 +211,26 @@ export function resolveClientBuildEnvironment(
   profile: string | undefined = environment[CLIENT_BUILD_PROFILE_SELECTOR],
 ): ClientBuildEnvironment {
   if (profile === undefined) return clientBuildEnvironment(environment)
-  if (profile === 'official') {
+  if (profile === 'official' || profile === 'local') {
     const commitHash = environment[CLIENT_COMMIT_HASH_VARIABLE]
     const version = environment[CLIENT_VERSION_VARIABLE]
     if (commitHash === undefined) {
-      throw new Error(`${CLIENT_COMMIT_HASH_VARIABLE} is required for the official client build profile`)
+      throw new Error(`${CLIENT_COMMIT_HASH_VARIABLE} is required for the ${profile} client build profile`)
     }
     if (version === undefined) {
-      throw new Error(`${CLIENT_VERSION_VARIABLE} is required for the official client build profile`)
+      throw new Error(`${CLIENT_VERSION_VARIABLE} is required for the ${profile} client build profile`)
     }
     return {
       DSH_CLIENT_COMMIT_HASH: commitHash,
       DSH_CLIENT_VERSION: version,
-      ...officialPublicValues(environment),
+      ...(profile === 'official' ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT : {
+        DSH_CLIENT_BUILD_PROFILE: 'local',
+        ...(environment.DSH_CLIENT_GIT_DIRTY === 'true' ? { DSH_CLIENT_GIT_DIRTY: 'true' } : {}),
+      }),
+      ...selectedTitle(environment),
     }
   }
-  throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official"`)
+  throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official" or "local"`)
 }
 
 /**

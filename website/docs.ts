@@ -111,7 +111,7 @@ const homeAndGuide = pages([
   {
     source: 'docs/user/guide/plugin-market.md',
     route: 'guide/plugin-market.md',
-    label: 'Plugin markets',
+    label: 'Plugin indexes',
     sidebar: 'guide',
     section: 'Integrations',
     order: 2,
