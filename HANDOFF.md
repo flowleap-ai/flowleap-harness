@@ -605,3 +605,19 @@ fail. A fresh clone does not have them.
   Recipe gotcha: a new Web session opens with "Select model" even with `agent-default-model` patched, and
   Return in an empty-model composer sends nothing; select the model in the picker first. Evidence: session
   scratchpad `s5-pass4/` (session logs, dumps, outputs).
+- **FTO markets come from the user (founder decision 2026-10-26, option 1 of the pass 4 observation).** An
+  fto-memo save asks the user one `Markets` question card before it writes
+  (`packages/host/flowleap-deliverables/src/report/markets.ts`): the model's `jurisdictions` is the proposed
+  option, the user may type other markets, the answer fills `Jurisdiction(s)` and is reused for the Session and
+  path while the model proposes nothing or the same markets (a different proposal asks again). An empty answer
+  or a cancelled card refuses the save; with no possible answer (no question service, a delegated caller) the
+  proposal is written with "(not confirmed by the user)". The save result states the answer to the model, which
+  never sees the card. Live, FTO prompt without markets, answer typed "DE, FR" against the proposal "US; EP
+  (all designated states)": run 1 (result line only "as the user confirmed in chat") failed: the model called
+  the header wrong, tried `edit` (failed on read-before-write; the pass 3 failed-edit seal sentence fired live
+  and the model re-saved through the writer) and told the user the header was wrong. Run 2, with the result line
+  naming the card answer and the proposal: the model narrowed the analysis to DE and FR, re-saved with
+  `jurisdictions: "DE, FR"` (no second card), moved the US patent to an annex "outside confirmed markets", and
+  told the user the memo covers "the two markets you picked in the memo's question card". Known limit: the model
+  writes the memo body before the card, so a market change costs one re-save. Evidence: session scratchpad
+  `s5-pass4/markets-run/` and `markets-run2/`.
