@@ -587,3 +587,21 @@ fail. A fresh clone does not have them.
   through `write_patent_results`; (3) the provenance line on a dossier save starts "FTO provenance:"
   (`report/provenance.ts` `ftoProvenanceResult`). Evidence: session scratchpad `s5-pass3/` (session logs,
   dumps, outputs).
+- **S5 acceptance pass 4 (2026-10-26): the three pass 3 fixes, 2 PASS live, 1 not reached.** Branch `flowleap`
+  at the pass 3 fix commit, `build:artifacts` rerun first, port 3099, Sonnet 5.5 via OpenRouter, fresh
+  workspace `matter-pass4`, `FLOWLEAP_SKILLS_DIR` and `DSH_AGENTS_HOME` empty (no Skills section in the `/`
+  menu). Dossier (the pass 3 prompt; turn 1 7 steps, 931K tokens): the FIRST save was refused with the new
+  "dossier needs a US Family Chain section" message; the model then called `get_us_grant` for US7722129B2 and
+  US8056987B2 and the retry saved with "## 5. US Family Chain"; the result line reads `Provenance:` (was
+  "FTO provenance:"). Correction turn ("rename the heading … change nothing else"; 45 s): the model did NOT
+  call `edit`; it read the file and re-saved the whole body through `write_patent_results` (the writer
+  description already says a delivered file is re-saved), so the failed-edit seal sentence was not reached
+  live and stays covered by `tests/writer.spec.ts` only. FTO without a markets line (8 steps, 1.2M tokens):
+  the FIRST save set `jurisdictions` to "EP (all 35 designated states, incl. DE, FR, GB, NL), US", taken
+  from where the patents are in force, so the `jurisdictions` refusal again did not fire; `FTO provenance:`
+  stays on the fto-memo result. New observation: with no markets named, the model neither asked for the
+  user's markets nor marked the Jurisdiction(s) cell as an assumption (its product assumptions A1 to A3 are
+  marked); decide whether the cell should mean "markets cleared" (ask) or "where the patents are in force".
+  Recipe gotcha: a new Web session opens with "Select model" even with `agent-default-model` patched, and
+  Return in an empty-model composer sends nothing; select the model in the picker first. Evidence: session
+  scratchpad `s5-pass4/` (session logs, dumps, outputs).
