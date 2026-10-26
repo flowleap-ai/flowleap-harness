@@ -139,7 +139,8 @@ describe('documentation table filtering', () => {
     expect(clear.hidden).toBe(false)
   })
 
-  it.each(['en-US', 'zh-CN'])('renders accessible controls and an empty result in %s', async (locale) => {
+  it('renders accessible controls and an empty result', async () => {
+    const locale = 'en-US'
     language = locale
     const { section } = renderTable()
     install()

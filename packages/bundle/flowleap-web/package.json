@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-web",
   "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the in-process office connectors, the paid FlowLeap MCP tools, the flowleap-plugins skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
-  "version": "0.2.1-rc.2",
+  "version": "0.2.1-rc.3",
   "publishConfig": {
     "access": "public"
   },

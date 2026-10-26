@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-connectors",
   "description": "In-process FlowLeap patent-data connectors: the EPO OPS, USPTO ODP, academic and Mistral OCR clients of @flowleap/connectors over the dsh credential, logging, filesystem and tool seams, with the native read_pdf tool and the flowleapConnectors Remote for the settings cards",
-  "version": "0.2.1-rc.2",
+  "version": "0.2.1-rc.3",
   "publishConfig": {
     "access": "public"
   },
