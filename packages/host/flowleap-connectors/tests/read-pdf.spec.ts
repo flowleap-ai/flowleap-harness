@@ -14,6 +14,8 @@ import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { createConnectors } from '@flowleap/connectors'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -54,6 +56,7 @@ async function bench() {
   const credentials = new MemoryCredentials(ctx)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(LocalFileSystem, { cwd: dir })
   provideWorkingDirectoryFixture(ctx, dir)
   const store = createCredentialStore(credentials)
@@ -62,7 +65,7 @@ async function bench() {
   const connectors = createConnectors(bound.host)
   registerReadPdfTool(ctx, connectors, bound)
   let calls = 0
-  const call = (args: unknown) => ctx.tools.execute({
+  const call = (args: unknown) => executeModelToolFixture(ctx, {
     callId: `call-${String(++calls)}` as ToolCallId, name: 'read_pdf', arguments: args, signal: new AbortController().signal,
     agent: { session: { header: { cwd: dir } } } as never,
   })

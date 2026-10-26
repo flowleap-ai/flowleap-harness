@@ -79,7 +79,7 @@ export const DEFAULT_DESKTOP_PRODUCT: DesktopProduct = {
   about: '',
   icons: 'resources',
   microphoneUsage: 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.',
-  locales: ['en', 'zh_CN'],
+  locales: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
   account: true,
   platform: true,
   welcome: true,

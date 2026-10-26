@@ -12,13 +12,15 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture, unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { ToolCallId, type ContentBlock, type UserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type {} from '@deepseek-ai/dsh-tool-present/types'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import type { AskUserQuestionAnswer, AskUserQuestionRequest } from '@deepseek-ai/dsh-user-questions'
@@ -136,6 +138,7 @@ export async function gateBench() {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(LocalFileSystem, { cwd: dir })
   await ctx.plugin(SessionStore)
   provideWorkingDirectoryFixture(ctx, dir)
@@ -162,6 +165,7 @@ export async function gateBench() {
     id: session.id,
     options: {},
     session,
+    model: unsupportedModel(),
     inbox: unsupportedInbox(),
     status: 'idle',
     ctx,
@@ -176,7 +180,7 @@ export async function gateBench() {
   let calls = 0
   const call = async (name: string, args: unknown) => {
     const callId = ToolCallId(`call-${String(++calls)}`)
-    const result = await ctx.tools.execute({ callId, name, arguments: args, signal: new AbortController().signal, agent })
+    const result = await executeModelToolFixture(ctx, { callId, name, arguments: args, signal: new AbortController().signal, agent })
     return textOf(result.content[0])
   }
   const read = (path: string) => readFile(join(dir, path), 'utf8')

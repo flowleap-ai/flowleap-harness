@@ -15,12 +15,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture, unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { ToolCallId, type ContentBlock, type UserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type {} from '@deepseek-ai/dsh-tool-present/types'
 import * as mammoth from 'mammoth'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -53,6 +55,7 @@ async function bench() {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(LocalFileSystem, { cwd: dir })
   await ctx.plugin(SessionStore)
   provideWorkingDirectoryFixture(ctx, dir)
@@ -62,6 +65,7 @@ async function bench() {
     id: session.id,
     options: {},
     session,
+    model: unsupportedModel(),
     inbox: unsupportedInbox(),
     status: 'idle',
     ctx,
@@ -74,7 +78,7 @@ async function bench() {
     whenIdle: () => Promise.resolve(),
   }
   const call = async (name: string, args: unknown) => {
-    const result = await ctx.tools.execute({ callId: ToolCallId(`call-${String(++calls)}`), name, arguments: args, signal: new AbortController().signal, agent })
+    const result = await executeModelToolFixture(ctx, { callId: ToolCallId(`call-${String(++calls)}`), name, arguments: args, signal: new AbortController().signal, agent })
     return { isError: result.isError, text: textOf(result.content[0]) }
   }
   return { ctx, session, call }

@@ -16,12 +16,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { createToolResultMessage, createUserMessage, ToolCallId, type ContentBlock, type UserMessage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolDefinition } from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type {} from '@deepseek-ai/dsh-tool-present/types'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -73,6 +75,7 @@ async function bench(config: Partial<Deliverables.Config> = {}) {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(LocalFileSystem, { cwd: dir })
   await ctx.plugin(SessionStore)
   provideWorkingDirectoryFixture(ctx, dir)
@@ -84,6 +87,7 @@ async function bench(config: Partial<Deliverables.Config> = {}) {
     id: session.id,
     options: {},
     session,
+    model: unsupportedModel(),
     inbox: unsupportedInbox(),
     status: 'idle',
     ctx,
@@ -95,7 +99,7 @@ async function bench(config: Partial<Deliverables.Config> = {}) {
     runMaintenance: task => task(new AbortController().signal),
     whenIdle: () => Promise.resolve(),
   }
-  const call = (name: string, args: unknown) => ctx.tools.execute({
+  const call = (name: string, args: unknown) => executeModelToolFixture(ctx, {
     callId: ToolCallId(`call-${String(++calls)}`), name, arguments: args, signal: new AbortController().signal, agent,
   })
   const write = (args: unknown) => call(WRITE_PATENT_RESULTS_NAME, args)

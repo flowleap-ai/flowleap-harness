@@ -10,6 +10,8 @@ import { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { ErrorCodes, createConnectors, type Connectors, type ProviderReadResult, type RoutedClaims } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -42,6 +44,7 @@ async function bench(recorded: Recorded = {}) {
   const credentials = new MemoryCredentials(ctx)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   const store = createCredentialStore(credentials)
   const fetchSpy = vi.fn<typeof fetch>(() => Promise.reject(new Error('no network in this spec')))
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
@@ -67,7 +70,7 @@ async function bench(recorded: Recorded = {}) {
   }
   registerCompareClaimsTool(ctx, connectors, bound)
   let calls = 0
-  const call = (args: unknown, signal = new AbortController().signal) => ctx.tools.execute({
+  const call = (args: unknown, signal = new AbortController().signal) => executeModelToolFixture(ctx, {
     callId: `call-${String(++calls)}` as ToolCallId, name: COMPARE_CLAIMS_NAME, arguments: args, signal,
   })
   return { ctx, store, fetchSpy, routed, call }

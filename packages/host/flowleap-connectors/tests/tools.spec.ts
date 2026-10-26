@@ -3,6 +3,8 @@ import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-test
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { createConnectors, officeTools } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
@@ -17,6 +19,7 @@ async function bench() {
   const credentials = new MemoryCredentials(ctx)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   const store = createCredentialStore(credentials)
   const fetchSpy = vi.fn<typeof fetch>(() => Promise.reject(new Error('no network in this spec')))
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
@@ -63,7 +66,7 @@ describe('registerOfficeTools', () => {
   it('answers a call without a stored key with text naming the settings card, without touching the network', async () => {
     const { ctx, connectors, bound, fetchSpy } = await bench()
     registerOfficeTools(ctx, connectors, bound, officeTools())
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'get_bibliography', arguments: { patent_number: 'EP1234567A1' }, signal: new AbortController().signal,
     })
     expect(result.isError).toBe(false)
@@ -75,15 +78,15 @@ describe('registerOfficeTools', () => {
     expect(result.content).toEqual([{ type: 'text', text: 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.' }])
     expect(fetchSpy).not.toHaveBeenCalled()
 
-    const search = await ctx.tools.execute({
+    const search = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'search_patents', arguments: { query: 'ti=battery' }, signal: new AbortController().signal,
     })
     expect(textOf(search.content[0])).toContain('EPO OPS key not configured')
-    const grant = await ctx.tools.execute({
+    const grant = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'get_us_grant', arguments: { patent_number: '10000000' }, signal: new AbortController().signal,
     })
     expect(textOf(grant.content[0])).toContain('USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP')
-    const ocr = await ctx.tools.execute({
+    const ocr = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'ocr', arguments: { file: 'JVBERi0=', filename: 'scan.pdf' }, signal: new AbortController().signal,
     })
     expect(ocr.isError).toBe(false)
@@ -94,7 +97,7 @@ describe('registerOfficeTools', () => {
   it('rejects invalid arguments as a tool error before the handler runs', async () => {
     const { ctx, connectors, bound, fetchSpy } = await bench()
     registerOfficeTools(ctx, connectors, bound, officeTools())
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'search_patents', arguments: {}, signal: new AbortController().signal,
     })
     expect(result.isError).toBe(true)
@@ -113,7 +116,7 @@ describe('registerOfficeTools', () => {
     })
     registerOfficeTools(ctx, connectors, bound, officeTools())
     const signal = new AbortController().signal
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'search_academic', arguments: { query: 'solid electrolyte', sources: ['semantic-scholar'], max_results: 1 }, signal,
     })
     expect(result.isError).toBe(false)
@@ -126,6 +129,7 @@ describe('registerOfficeTools', () => {
     new MemoryCredentials(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(NativeToolExecutor)
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
     expect(ctx.tools.schemas()).toHaveLength(35)
@@ -143,6 +147,7 @@ describe('registerOfficeTools', () => {
     new MemoryCredentials(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(NativeToolExecutor)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
     provideWorkingDirectoryFixture(ctx, process.cwd())
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })

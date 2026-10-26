@@ -2,9 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import * as Brand from '../src/index.ts'
+
+const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
 
 const MARK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path d="M0 0h2v2z"/></svg>'
 const MARK_URL = `data:image/svg+xml;base64,${Buffer.from(MARK).toString('base64')}`
@@ -76,7 +78,7 @@ describe('the ui-brand-flowleap Host half', () => {
     ctx.provide('webServer', webServer as Context['webServer'])
     const fiber = await ctx.plugin(Brand, { path })
     const table: IndexInjection[] = []
-    ctx.emit('webserver/index-inject', table)
+    ctx.emit('webserver/index-inject', table, PAGE_PEER)
     expect(table).toEqual([{ kind: 'global', name: Brand.BRAND_GLOBAL, value: {
       productName: 'Acme <Patents> & Co', shortName: 'Acme', mark: MARK_URL, markStyle: 'mono',
     } }])
@@ -84,7 +86,7 @@ describe('the ui-brand-flowleap Host half', () => {
     expect(taps.map(tap => tap(html))).toEqual(['<html><head><title>Acme &lt;Patents&gt; &amp; Co</title></head><body></body></html>'])
     await fiber.dispose()
     const after: IndexInjection[] = []
-    ctx.emit('webserver/index-inject', after)
+    ctx.emit('webserver/index-inject', after, PAGE_PEER)
     expect(after).toEqual([])
     expect(taps).toEqual([])
   })

@@ -12,6 +12,8 @@ import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ToolDefinition, type ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { describe, expect, it } from 'vitest'
 import {
@@ -229,6 +231,7 @@ async function bench(value: JsonValue, name = 'get_claims') {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   const ledger = new PatentLedger(() => new Date('2026-10-23T10:00:00Z'))
   const modes: [RecorderMode, string][] = []
   registerRecorder(ctx, ledger, (mode, tool) => { modes.push([mode, tool]) })
@@ -241,7 +244,7 @@ async function bench(value: JsonValue, name = 'get_claims') {
   }
   ctx.tools.register(definition)
   const agent = { id: 'session-1', session: { id: 'session-1' } } as never
-  const call = (args: unknown) => ctx.tools.execute({ callId: 'c1' as ToolCallId, name, arguments: args, signal: new AbortController().signal, agent })
+  const call = (args: unknown) => executeModelToolFixture(ctx, { callId: 'c1' as ToolCallId, name, arguments: args, signal: new AbortController().signal, agent })
   return { ctx, ledger, modes, call }
 }
 
