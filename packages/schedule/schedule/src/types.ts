@@ -489,16 +489,19 @@ export interface ScheduleAdmissionRequest {
 /**
  * Decision for one due occurrence. `deliver` sends `prompt` as this occurrence's reminder
  * content and saves it as the delivery's prompt snapshot; the stored record keeps its own
- * prompt. `skip` advances the target as a delivery would, without a message, a Session
+ * prompt. A `deliver` with `sessionId` sends the occurrence to that Session instead of the
+ * task's: it is delivered alone, never batched with other due tasks of the task's Session,
+ * `schedule/resolve-agent` receives the target, and the receipt and history stay on the task.
+ * `skip` advances the target as a delivery would, without a message, a Session
  * restoration, or a receipt; a skipped one-shot becomes inactive.
  */
 export type ScheduleAdmission =
-  | { readonly kind: 'deliver'; readonly prompt: string }
+  | { readonly kind: 'deliver'; readonly prompt: string; readonly sessionId?: SessionId }
   | { readonly kind: 'skip' }
 
 /** One task whose delivery and task write both committed. */
 export interface ScheduleDelivered {
-  /** Session that received the message. */
+  /** Session that received the message: the task's own, or the admission's redirect target. */
   readonly sessionId: SessionId
   /** Delivered task. */
   readonly id: ScheduleId
