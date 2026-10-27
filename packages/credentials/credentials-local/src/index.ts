@@ -3,7 +3,8 @@
  * over the environment in this precedence order:
  *
  * ```text
- * $DSH_HOME/.credentials.yaml        (provider-managed, written by set/unset)
+ * config.readOnlyPath                (optional; host-provided, never written)
+ * > $DSH_HOME/.credentials.yaml      (provider-managed, written by set/unset)
  * > inherited process environment    (fallback; this provider never writes it)
  * > <invocation cwd>/.env            (fallback; this provider never writes it)
  * > $DSH_HOME/.env                   (fallback; this provider never writes it)
@@ -14,6 +15,12 @@
  * environment, CI secrets included, applies only while the file stores no
  * value for the reference. See
  * `.agents/notes/implemented/architecture/2026-10-09-stored-credential-precedence.md`.
+ *
+ * The optional read-only document is the keys a host provides to this runtime,
+ * such as a firm's keys mounted read-only into a container. It is read once at
+ * start, it wins over the managed store, and a reference or record it holds
+ * refuses every write, so a key saved through a configuration page can never
+ * replace a host-provided key.
  *
  * The invoking project may supply a key, because the product trusts the
  * project it is launched in. It ranks below the managed store, so a key stored
@@ -60,12 +67,20 @@ import type { LaunchEnvironmentEntry } from '@deepseek-ai/dsh-launch-environment
 /** Basename of the credentials document inside the harness home. */
 export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
-/** Plugin config: file location and hot-reload behavior. */
+/** Plugin config: file locations and hot-reload behavior. */
 export interface Config {
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
   dshHome?: string
+  /**
+   * Host-provided credentials document in the same layout, read once at start
+   * and never written; absent means no such layer. Its references and records
+   * win over the managed document and refuse `set`, `unset`, `modifyRecord`,
+   * and `deleteRecord`. The file must exist and be readable only by its owner;
+   * a changed file takes effect at the next start.
+   */
+  readOnlyPath?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
@@ -75,6 +90,7 @@ export interface Config {
 /** Fully resolved provider parameters; defaulting happens here, never inline. */
 interface ResolvedSpec {
   filename: string
+  readOnlyFilename?: string
   watch: boolean
   debounceMs: number
 }
@@ -88,10 +104,14 @@ interface ResolvedSpec {
 export function resolveSpec(config: Config): ResolvedSpec {
   return {
     filename: resolve(config.path ?? join(resolveDshHome(config.dshHome), CREDENTIALS_FILENAME)),
+    ...config.readOnlyPath === undefined ? {} : { readOnlyFilename: resolve(config.readOnlyPath) },
     watch: config.watch ?? true,
     debounceMs: config.debounceMs ?? 100,
   }
 }
+
+/** The {@link ResolvedCredential.source} and {@link CredentialInfo.source} of a read-only document entry. */
+export const READ_ONLY_SOURCE = 'read-only'
 
 /** Permission bits outside the owner; a credentials document must have none of them. */
 const GROUP_OTHER_BITS = 0o077
@@ -518,6 +538,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   static Config: z<Config> = z.object({
     path: z.string(),
     dshHome: z.string(),
+    readOnlyPath: z.string(),
     watch: z.boolean().default(true),
     debounceMs: z.number().min(0).default(100),
   })
@@ -533,6 +554,8 @@ export class LocalCredentialProvider extends CredentialProvider {
   private values = new Map<string, string>()
   /** Parsed record snapshot; replaced wholesale on every reload. */
   private records = new Map<string, CredentialRecord>()
+  /** The read-only document's references and records, read once at start; empty without `readOnlyPath`. */
+  private readOnly: Pick<CredentialsDocument, 'refs' | 'records'> = { refs: new Map(), records: new Map() }
   /**
    * Single exclusive operation chain: watcher reloads and line edits run one
    * at a time in queue order (settled tail), so an edit can never render from
@@ -577,6 +600,7 @@ export class LocalCredentialProvider extends CredentialProvider {
       this.closed = true
       await this.operations
     }
+    await this.loadReadOnly()
     await this.loadInitial()
     if (!this.spec.watch) return
     const watcher = chokidarWatch(await canonicalizeWatchPath(this.spec.filename), {
@@ -622,6 +646,8 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined> {
+    const provided = this.readOnly.refs.get(ref)
+    if (provided !== undefined) return Promise.resolve({ value: provided, source: READ_ONLY_SOURCE })
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ value: stored, source: 'file' })
     const inherited = this.inherited(ref)
@@ -632,9 +658,10 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override describe(ref: CredentialRef): Promise<CredentialInfo> {
+    if (this.readOnly.refs.has(ref)) return Promise.resolve({ configured: true, source: READ_ONLY_SOURCE, writable: false })
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ configured: true, source: 'file', writable: true })
-    // Every reference is writable: a set writes the managed file, which
+    // Every other reference is writable: a set writes the managed file, which
     // outranks every fallback, and an unset exposes the fallback again.
     if (this.inherited(ref) !== undefined) return Promise.resolve({ configured: true, source: 'env', writable: true })
     const fallback = this.dotenvFallback(ref)
@@ -643,6 +670,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override async set(ref: CredentialRef, value: string): Promise<void> {
+    this.assertWritable(this.readOnly.refs, ref)
     if (value.length === 0) {
       throw new Error(`credentials-local: an empty value cannot be stored for "${ref}"; use unset`)
     }
@@ -650,25 +678,28 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override async unset(ref: CredentialRef): Promise<void> {
+    this.assertWritable(this.readOnly.refs, ref)
     await this.write(ref, undefined)
   }
 
   override readRecord(key: CredentialKey): Promise<CredentialRecord | undefined> {
-    return Promise.resolve(this.records.get(key))
+    return Promise.resolve(this.readOnly.records.get(key) ?? this.records.get(key))
   }
 
   override describeRecord(key: CredentialKey): Promise<CredentialRecordInfo> {
+    const provided = this.readOnly.records.get(key)
+    if (provided !== undefined) return Promise.resolve({ configured: true, kind: provided.kind, writable: false })
     const stored = this.records.get(key)
-    // Presence is the whole fact here: no layer ranks above this document for
-    // a record, so nothing can shadow one, and an api-key record carrying
-    // neither a key nor environment values is a deliberate statement rather
-    // than a blank.
+    // Presence is the whole fact here: no environment layer exists for a
+    // record, and an api-key record carrying neither a key nor environment
+    // values is a deliberate statement rather than a blank.
     if (stored === undefined) return Promise.resolve({ configured: false, writable: true })
     return Promise.resolve({ configured: true, kind: stored.kind, writable: true })
   }
 
   override listRecords(): Promise<readonly CredentialRecordEntry[]> {
-    return Promise.resolve([...this.records].map(([key, record]) => ({
+    const merged = new Map([...this.records, ...this.readOnly.records])
+    return Promise.resolve([...merged].map(([key, record]) => ({
       // The parser has already proven every stored key addressable.
       key: parseCredentialKey(key),
       kind: record.kind,
@@ -679,6 +710,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     key: CredentialKey,
     mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
   ): Promise<CredentialRecord | undefined> {
+    this.assertWritable(this.readOnly.records, key)
     if (this.isClosed()) throw new Error(`credentials-local is disposed: cannot modify "${key}"`)
     return this.enqueue(async () => {
       if (this.isClosed()) {
@@ -711,6 +743,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override async deleteRecord(key: CredentialKey): Promise<void> {
+    this.assertWritable(this.readOnly.records, key)
     if (this.isClosed()) throw new Error(`credentials-local is disposed: cannot delete "${key}"`)
     await this.enqueue(async () => {
       if (this.isClosed()) {
@@ -727,6 +760,18 @@ export class LocalCredentialProvider extends CredentialProvider {
         this.notifyRecordUpdated(key)
       }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
     })
+  }
+
+  /**
+   * Refuse a write to a reference or record the read-only document holds: the
+   * managed entry would be shadowed, so the write could never take effect.
+   * @throws Error naming the entry and the read-only document.
+   */
+  private assertWritable(entries: ReadonlyMap<string, unknown>, name: string): void {
+    if (!entries.has(name)) return
+    throw new Error(
+      `credentials-local: "${name}" is provided read-only by ${String(this.spec.readOnlyFilename)}; it cannot be changed here`,
+    )
   }
 
   /** Queue one exclusive document operation behind every earlier one. */
@@ -776,6 +821,28 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   /**
+   * Boot read of the read-only document. Unlike the managed document, an
+   * absent file fails activation: a configured host-provided layer that is
+   * missing means the host did not provide its keys, which must not read as
+   * "no keys". It is parsed by the same strict rules and never migrated.
+   */
+  private async loadReadOnly(): Promise<void> {
+    const filename = this.spec.readOnlyFilename
+    if (filename === undefined) return
+    await assertOwnerOnly(filename)
+    let text: string
+    try {
+      text = await readFile(filename, 'utf8')
+    } catch (error) {
+      if (!isENOENT(error)) throw error
+      throw new Error(`credentials-local: the read-only credentials document ${filename} does not exist`, { cause: error })
+    }
+    const document = parseCredentialsDocument(text, filename)
+    this.warnIgnoredKeys(document, filename)
+    this.readOnly = document
+  }
+
+  /**
    * Boot read: an absent file is an empty store; an invalid one fails the
    * plugin's activation, because a credentials document that exists but
    * cannot be trusted must never be treated as "no credentials stored". The
@@ -794,7 +861,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     }
     if (renderFlatLayoutMigration(text) !== undefined) text = await this.migrateFlatDocument()
     const document = parseCredentialsDocument(text, this.spec.filename)
-    this.warnIgnoredKeys(document)
+    this.warnIgnoredKeys(document, this.spec.filename)
     this.values = document.refs
     this.records = document.records
     this.text = text
@@ -869,7 +936,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     const next = text === undefined
       ? { refs: new Map<string, string>(), records: new Map<string, CredentialRecord>(), ignoredKeys: [] }
       : parseCredentialsDocument(text, this.spec.filename)
-    this.warnIgnoredKeys(next)
+    this.warnIgnoredKeys(next, this.spec.filename)
     const changedRefs = this.changedRefs(this.values, next.refs)
     const changedRecords = this.changedRecords(this.records, next.records)
     this.text = text
@@ -880,12 +947,12 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   /** Report top-level keys that resolve nothing; only key names are printed, never values. */
-  private warnIgnoredKeys(document: CredentialsDocument): void {
+  private warnIgnoredKeys(document: CredentialsDocument, filename: string): void {
     if (document.ignoredKeys.length === 0) return
     this.ctx.logger.warn(
       'credentials-local: ignoring unknown top-level keys %s in %s; only `refs` and `records` entries resolve',
       document.ignoredKeys.map(key => JSON.stringify(key)).join(', '),
-      this.spec.filename,
+      filename,
     )
   }
 

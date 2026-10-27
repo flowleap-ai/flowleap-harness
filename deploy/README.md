@@ -80,9 +80,9 @@ The compose file is the template. One attorney is two services:
       - harness-alice-data:/data   # sessions, settings, keys
 ```
 
-`tailscale-serve.json` tells the sidecar to serve HTTPS on port 443 of its tailnet name and proxy to `http://127.0.0.1:3080`, the harness in the shared network namespace. Funnel (public exposure) is off. The harness itself is started by `deploy/entrypoint.sh` as `dsh --profile flowleap-web --no-open --port 3080 --public-url $PUBLIC_URL --trusted-host $TRUSTED_HOST`, with `DSH_HOME=/data`.
+`tailscale-serve.json` tells the sidecar to serve HTTPS on port 443 of its tailnet name and proxy to `http://127.0.0.1:3080`, the harness in the shared network namespace. Funnel (public exposure) is off. The harness itself is started by `deploy/entrypoint.sh` as `dsh --profile flowleap-web --no-open --port 3080 --public-url $PUBLIC_URL --trusted-host $TRUSTED_HOST`, with `DSH_HOME=/data`. To change the profile for one deployment, set `PATCH_FILES` to one or more overlay files (`dsh --patch`), separated by spaces and mounted into the container; the entrypoint passes each as `--patch <file>` before `--profile`, in order, and refuses to start when one is not a readable file. The doctor and the log bundle apply the same `PATCH_FILES`.
 
-Two checks worth doing once per tailnet, with the first instance: open the instance in a browser and confirm the page loads and a chat turn answers (the harness checks the `Host` header of every browser request against `TRUSTED_HOST`), and run `docker exec harness-alice harness-doctor` and read the `profile row` and `connector` lines.
+Two checks worth doing once per tailnet, with the first instance: open the instance in a browser and confirm the page loads and a chat turn answers (the harness checks the `Host` header of every browser request against `TRUSTED_HOST`), and run `docker exec harness-alice harness-doctor` and read the `profile row`, `key store`, and `connector` lines.
 
 ## First run of an attorney
 
@@ -164,7 +164,7 @@ Restore into an empty volume with the same command and `tar -xzf` the other way 
 
 ## Where keys live and what leaves the server
 
-Keys never sit in the compose file or the image. They live in `/data/.credentials.yaml` of each instance (office keys, model key saved in the GUI, cookie secret), in `/data/home` (the FlowLeap token the CLI stores) and optionally in `/data/.env` (model keys as environment variables). The settings screens show whether a key is set, never its value, and so do the doctor and the log bundle.
+Keys never sit in the compose file or the image. They live in `/data/.credentials.yaml` of each instance (office keys, model key saved in the GUI, cookie secret), in `/data/home` (the FlowLeap token the CLI stores) and optionally in `/data/.env` (model keys as environment variables). A deployment that manages the keys for its attorneys, such as the firm OS, mounts one credential file read-only and names it in an overlay as the `credentials` row's `readOnlyPath` ([keys a host provides read-only](../packages/credentials/credentials-local/README.md#keys-a-host-provides-read-only)); those keys then win, the settings screens show them as read-only, and the instance's own store keeps only its own secrets. The settings screens show whether a key is set, never its value, and so do the doctor and the log bundle.
 
 What leaves the server, and to whom:
 
@@ -190,7 +190,7 @@ docker exec harness-alice harness-doctor          # plain text
 docker exec harness-alice harness-doctor --json   # the same as JSON
 ```
 
-It prints the harness version and commit, Node and pnpm versions, the profile and whether each FlowLeap row is present, each connector as `configured: yes` or `no (missing …)`, the FlowLeap CLI's own readiness check (`flowleap mcp --check`), the pin of the vendored connector library, the brand, and disk free on `/data`. Add `--log <file>` to append the last 50 error lines of a log you saved, or `--url https://harness-alice.<tailnet>/ --token <launch token>` to test the login exchange from where the doctor runs.
+It prints the harness version and commit, Node and pnpm versions, the profile and whether each FlowLeap row is present, the credential stores the composed `credentials` row names (the read-only one first), each connector as `configured: yes (<store> store)` or `no (missing …)`, the name of each stored key with the store that supplies it (and each `*_API_KEY` name of the container environment), the FlowLeap CLI's own readiness check (`flowleap mcp --check`), the pin of the vendored connector library, the brand, and disk free on `/data`. Add `--log <file>` to append the last 50 error lines of a log you saved, or `--url https://harness-alice.<tailnet>/ --token <launch token>` to test the login exchange from where the doctor runs.
 
 ### The log bundle
 

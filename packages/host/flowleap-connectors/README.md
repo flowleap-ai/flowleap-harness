@@ -49,7 +49,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 | `semantic-scholar` | `apiKey` (optional for the search; raises its rate limit) | academic search beside arXiv, which needs no key |
 | `mistral` | `apiKey` | OCR of scanned documents and PDFs: the `ocr` and `read_pdf` tools and the file-wrapper reader (`read_application_document`); pages billed by Mistral |
 
-Each connector is one `grant` record, `flowleap-connectors/<id>`, whose payload is the field map; the payload is validated on every read, and a record missing a field reads as not configured. The library asks for a provider's credentials per call, so a key saved in Settings reaches the next call without a restart. Nothing reads keys from the environment: the records are the one source.
+Each connector is one `grant` record, `flowleap-connectors/<id>`, whose payload is the field map; the payload is validated on every read, and a record missing a field reads as not configured. The library asks for a provider's credentials per call, so a key saved in Settings reaches the next call without a restart. Nothing reads keys from the environment: the records are the one source. A host can provide the firm's records read-only through the credential provider's [`readOnlyPath`](../../credentials/credentials-local/README.md#keys-a-host-provides-read-only): such a record wins over a stored one, its card reports it as not writable, and a save or removal from the card is refused with `flowleap-connectors/rejected`, so a key typed in the browser cannot replace a firm key.
 
 ### The key-state prompt section
 

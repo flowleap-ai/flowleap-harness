@@ -2221,6 +2221,15 @@ it.each(['file', 'env', 'project-env', 'user-env'] as const)('shows only the bla
   else expect(screen.getAllByText(hint)).toHaveLength(1)
 })
 
+it('offers no key entry for a key the deployment provides read-only', () => {
+  renderPiAiEditor('openai', piAiNamespaceWith('openai', { apiKeyEnv: 'OPENAI_API_KEY' }), {
+    credential: { configured: true, source: 'read-only', writable: false },
+  })
+  const input = screen.getByLabelText<HTMLInputElement>(en.keyInput)
+  expect(input.disabled).toBe(true)
+  expect(screen.getAllByText(en.keyReadOnly)).toHaveLength(1)
+})
+
 it.each([
   ['unconfigured', { apiKeyEnv: 'OPENAI_API_KEY' }, { configured: false, source: 'env', writable: true }],
   ['unknown source', { apiKeyEnv: 'OPENAI_API_KEY' }, { configured: true, source: 'oauth', writable: true }],
