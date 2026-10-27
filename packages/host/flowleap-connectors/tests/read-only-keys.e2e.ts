@@ -37,7 +37,6 @@ describe('firm keys from a read-only credentials document', () => {
     expect(outcome).toMatchObject({
       setFirmConnector: 'flowleap-connectors/rejected',
       setOwnConnector: 'stored',
-      setFirmModelKey: expect.stringContaining('"OPENROUTER_API_KEY" is provided read-only'),
       modelKey: { value: 'firm-model-key', source: 'read-only' },
       presence: {
         'epo-ops': { configured: true, writable: false },
@@ -45,6 +44,7 @@ describe('firm keys from a read-only credentials document', () => {
         'semantic-scholar': { configured: false, writable: true },
       },
     })
+    expect(String(outcome['setFirmModelKey'])).toContain('"OPENROUTER_API_KEY" is provided read-only')
     expect(managed).toContain('flowleap-connectors/uspto-odp')
     expect(managed).not.toContain('browser')
     expect(managed).not.toContain('OPENROUTER_API_KEY')
