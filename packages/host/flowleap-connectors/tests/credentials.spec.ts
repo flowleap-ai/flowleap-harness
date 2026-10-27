@@ -53,6 +53,22 @@ describe('the connector credential records', () => {
     expect(await store.describe('uspto-odp')).toMatchObject({ configured: false })
   })
 
+  it('passes a Mistral baseUrl from a deployment record to the library, and keeps the card fields to apiKey', async () => {
+    const { credentials, store } = bench()
+    credentials.records.set(parseCredentialKey('flowleap-connectors/mistral'), {
+      kind: 'grant', payload: { apiKey: 'virtual', baseUrl: ' http://flowleap-gateway:4000 ' },
+    })
+    expect(await lookupCredentials(store, 'mistral')).toEqual({
+      status: 'available', credentials: { apiKey: 'virtual', baseUrl: 'http://flowleap-gateway:4000' }, owner: 'user', stored: true,
+    })
+    expect(await store.describe('mistral')).toEqual({ configured: true, source: 'stored', writable: true, fields: ['apiKey'] })
+
+    await store.write('mistral', { apiKey: 'own' })
+    expect(await lookupCredentials(store, 'mistral')).toEqual({ status: 'available', credentials: { apiKey: 'own' }, owner: 'user', stored: true })
+    await expect(store.write('mistral', { apiKey: 'k', baseUrl: ' ' })).rejects.toThrow('Mistral: field "baseUrl" is empty')
+    await expect(store.write('uspto-odp', { apiKey: 'k', baseUrl: 'https://x' })).rejects.toThrow('USPTO ODP: unknown field "baseUrl"')
+  })
+
   it('reports the store writability a read-only deployment has', async () => {
     const { credentials, store } = bench()
     credentials.writable = false

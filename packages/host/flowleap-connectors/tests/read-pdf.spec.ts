@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   READ_PDF_COST_LINE, READ_PDF_MAX_PAGES, createConnectorHost, createCredentialStore, estimatePdfPages, registerReadPdfTool,
 } from '@deepseek-ai/dsh-flowleap-connectors'
+import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import { MemoryCredentials } from './memory-credentials.ts'
 
 /** A three-page PDF skeleton: enough `/Type /Page` dictionaries for the pre-upload estimate; the OCR answer is recorded. */
@@ -69,7 +70,7 @@ async function bench() {
     callId: `call-${String(++calls)}` as ToolCallId, name: 'read_pdf', arguments: args, signal: new AbortController().signal,
     agent: { session: { header: { cwd: dir } } } as never,
   })
-  return { ctx, store, fetchSpy, call }
+  return { ctx, credentials, store, fetchSpy, call }
 }
 
 /** The text of a model-facing content block, or the block's type when it carries no text. */
@@ -161,6 +162,18 @@ describe('read_pdf', () => {
     expect(textOf(capped.content[0])).toContain(`declares ${String(READ_PDF_MAX_PAGES + 1)} pages, more than the ${String(READ_PDF_MAX_PAGES)}-page limit`)
     const absent = await call({ path: 'nowhere.pdf' })
     expect(textOf(absent.content[0])).toContain('not found')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('reports an invalid Mistral baseUrl as a read_pdf error naming the base URL, not as a missing key, before any upload', async () => {
+    const { credentials, fetchSpy, call } = await bench()
+    credentials.records.set(parseCredentialKey('flowleap-connectors/mistral'), {
+      kind: 'grant', payload: { apiKey: 'virtual', baseUrl: 'http://gateway.example.com' },
+    })
+    await writeFile(join(dir, 'scan.png'), Buffer.from('89504e470d0a1a0a', 'hex'))
+    const result = await call({ path: 'scan.png' })
+    expect(result.isError).toBe(true)
+    expect(textOf(result.content[0])).toContain('read_pdf: The Mistral base URL "http://gateway.example.com" is not allowed')
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
