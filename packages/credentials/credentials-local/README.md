@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. A host can also mount a read-only file of keys, such as a firm's keys, which wins over everything and which the product never writes. Credential lookup follows a fixed precedence: the read-only file wins when configured, then the stored file, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
+`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and survive restarts. A host can also provide keys in a read-only file, such as a firm's keys, which the product never writes. Lookup order: the read-only file, the stored file, the launch environment, the project's `.env`, then the harness-home `.env`. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
 
 ## Table of Contents
 

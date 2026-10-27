@@ -70,7 +70,7 @@ async function boot(config: Config, ctx = new Context()): Promise<Context> {
   return ctx
 }
 
-function bootFailure(config: Config): Promise<unknown> {
+function bootFailure(config: Config): PromiseLike<unknown> {
   return new Context().plugin(LocalCredentialProvider, config)
 }
 
