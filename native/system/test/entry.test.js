@@ -33,6 +33,8 @@ assert.deepEqual(
   ['--ro', '/', '--ro', '/opt', '--rw', '/tmp/work'],
 );
 assert.deepEqual(grantArgs({ readWrite: ['/a'], readOnly: ['/b'] }), ['--ro', '/b', '--rw', '/a']);
+assert.deepEqual(grantArgs({ readOnly: ['/'], network: 'deny' }), ['--ro', '/', '--no-net']);
+assert.deepEqual(grantArgs({ readOnly: ['/'], network: 'inherit' }), ['--ro', '/']);
 
 // --- launcherPath: resolves the platform package next to its package.json ---
 const platformPackage = `@deepseek-ai/node-addon-system-${process.platform}-${process.arch}`;
@@ -73,6 +75,9 @@ if (process.platform !== 'win32') {
   assert.equal(probe(fake('partial', 'echo "landlock: partially enforced (older ABI)"; exit 0')), 'partial');
   assert.equal(probe(fake('failing', `exit ${LAUNCHER_FAILURE_EXIT}`)), 'unusable');
   assert.equal(probe(fake('hanging', 'sleep 10'), { timeoutMs: 200 }), 'unusable');
+  const networkProbe = fake('network', '[ "$*" = "--probe --no-net" ] || exit 125; echo "landlock: fully enforced"');
+  assert.equal(probe(networkProbe, { network: 'deny' }), 'full');
+  assert.equal(probe(networkProbe), 'unusable');
 
   fs.rmSync(fakeDir, { recursive: true, force: true });
 }
