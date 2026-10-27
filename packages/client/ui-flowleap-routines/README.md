@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-A chat that a routine run marked **Needs review** shows a badge on its Sidebar row. The **Needs review** entry in the Sidebar opens a page that lists the marked chats, newest mark first, each with the chat title, the routine task title, and the time the chat was marked. Select a row to open the chat, or select **Mark as done** to clear the mark. The open chat's header shows **Mark as done** while that chat is marked. The **Automation tasks** page gets a **Needs review** filter tab that lists the tasks whose runs marked a chat that still needs review. The marks come from [`dsh-flowleap-routines`](../../host/flowleap-routines/README.md) through `ctx.remote.flowleapRoutines`.
+A chat that a routine run marked **Needs review** shows a badge on its Sidebar row. The **Needs review** entry in the Sidebar opens a page that lists the marked chats, newest first, with the chat title, the task title, and the time. Select a row to open the chat, or select **Mark as done** to clear the mark. The open chat's header shows **Mark as done** while that chat is marked. The **Automation tasks** page gets a **Needs review** filter tab for the tasks whose runs marked such a chat. The marks come from [`dsh-flowleap-routines`](../../host/flowleap-routines/README.md) through `ctx.remote.flowleapRoutines`.
 
 ## Table of Contents
 

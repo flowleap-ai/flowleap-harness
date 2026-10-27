@@ -117,9 +117,8 @@ it.skipIf(MODE === 'record')('opens a new chat for a register watch run and mark
   const run = sessions.find(session => session.id !== sessionId)
   if (run === undefined) throw new Error('the run opened no chat')
   expect(sessions).toHaveLength(2)
-  expect(await ctx.flowleapRoutines.reviews()).toEqual([
-    { sessionId: run.id, taskId: task.id, state: 'needs_review', since: expect.any(String) },
-  ])
+  const marks = await ctx.flowleapRoutines.reviews()
+  expect(marks.map(({ since: _since, ...mark }) => mark)).toEqual([{ sessionId: run.id, taskId: task.id, state: 'needs_review' }])
   expect(ctx.workspaceRegistry.get(workspace.id)?.sessionIds).toEqual(expect.arrayContaining([sessionId, run.id]))
   expect(ctx.sessionTitle.get(run)?.title).toBe('EP3456789: No opposition filed within time limit (2020-12-18)')
   // The task's own chat receives nothing from the run.

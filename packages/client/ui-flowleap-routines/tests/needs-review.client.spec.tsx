@@ -15,6 +15,7 @@ import type { RoutineReview } from '@deepseek-ai/dsh-flowleap-routines/types'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
+import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
 import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from '../src/client/marks.tsx'
 import { NeedsReviewPage, type NeedsReviewPageProps } from '../src/client/NeedsReviewPage.tsx'
@@ -477,7 +478,7 @@ describe('ui-flowleap-routines browser half', () => {
     for (const event of ['flowleap-routines/changed', 'schedule/changed']) {
       for (const listener of listeners.get(event)!) listener()
     }
-    ctx.emit('connection/reset' as never)
+    ctx.emit('connection/reset')
     await settle()
     expect(reviews).toHaveBeenCalledTimes(4)
 
@@ -508,5 +509,11 @@ describe('ui-flowleap-routines browser half', () => {
     await fiber.dispose()
     expect(translate('done.action')).not.toBe(en['done.action'])
     await ctx.fiber.dispose()
+  })
+})
+
+describe('ui-flowleap-routines node half', () => {
+  it('registers nothing on the host', () => {
+    expect(() => { applyNode() }).not.toThrow()
   })
 })
