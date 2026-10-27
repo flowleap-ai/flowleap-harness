@@ -15,6 +15,7 @@
     { "path": "../../fs/fs" },
     { "path": "../../session/working-directory" },
     { "path": "../../typert/protocol" },
+    { "path": "../../util/brand" },
     { "path": "../../util/values" }
   ]
 }

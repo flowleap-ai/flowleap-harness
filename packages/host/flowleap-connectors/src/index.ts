@@ -7,7 +7,8 @@
  * claim against patents whose claims it fetches through the same text router, the native
  * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`
  * are mounted, and the `flowleapConnectors` Remote serves the settings cards and the
- * first-run wizard.
+ * first-run wizard. The `flowleapRegister` service reads the register events of one EP
+ * publication or US application for Host plugins, without a tool call.
  *
  * See packages/host/flowleap-connectors/README.md.
  * @module @deepseek-ai/dsh-flowleap-connectors
@@ -27,6 +28,7 @@ import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
 import { registerKeyStateSection } from './key-state.ts'
 import { registerReadPdfTool } from './read-pdf.ts'
+import { FlowleapRegister } from './register.ts'
 import { registerOfficeTools } from './tools.ts'
 
 export {
@@ -53,6 +55,8 @@ export {
   renderKeyStateSection,
 } from './key-state.ts'
 export type { KeyPresence } from './key-state.ts'
+export { FlowleapRegister, entriesFromOdp, entriesFromOps, parseRegisterApplication } from './register.ts'
+export type { FlowleapRegisterOptions, RegisterApplication, RegisterEntry, RegisterSource } from './register.ts'
 export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
 export type { MissingCredentialResult } from './tools.ts'
 export * from './types.ts'
@@ -99,4 +103,5 @@ export function apply(ctx: Context, config: Config): void {
     void registerKeyStateSection(promptCtx, store)
   })
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
+  ctx.plugin(FlowleapRegister, { connectors, bound })
 }

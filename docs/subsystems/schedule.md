@@ -451,6 +451,25 @@ A failure to resolve the Session, enqueue the message, or confirm persistence le
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxflowleapregister--registersource"></a>
+
+### `ctx.flowleapRegister` — `RegisterSource`
+
+Reads the register events of one application.
+
+```ts cordis-catalog
+/**
+ * Read the current register events of one application.
+ * @param application - normalized application.
+ * @param signal - caller cancellation.
+ * @returns every event the office lists, in the office's order.
+ * @throws when the office refuses the read or no key is configured.
+ */
+read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>
+```
+
+Source: [`packages/host/flowleap-connectors/src/register.ts`](../../packages/host/flowleap-connectors/src/register.ts)
+
 <a id="ctxschedule--scheduleservice"></a>
 
 ### `ctx.schedule` — `ScheduleService`
@@ -555,6 +574,25 @@ Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/sche
 
 ### `schedule/*` events
 
+<a id="scheduleadmit--waterfall"></a>
+
+#### `schedule/admit` — waterfall
+
+Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it; a rejection keeps the task due until a later drive.
+
+```ts cordis-catalog
+/**
+ * Decide one due occurrence before its Session is restored. Call next() to deliver
+ * the stored prompt. A listener runs inside the serialized delivery operation, so
+ * management writes wait for it; a rejection keeps the task due until a later drive.
+ * @param request - Due occurrence and its Session binding.
+ * @mode waterfall
+ */
+'schedule/admit'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>
+```
+
+Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)
+
 <a id="schedulechanged--emit"></a>
 
 #### `schedule/changed` — emit
@@ -566,6 +604,24 @@ Durable task set changed; clients refetch global task and Session-active catalog
  * @mode emit
  */
 'schedule/changed'(): void
+```
+
+Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)
+
+<a id="scheduledelivered--emit"></a>
+
+#### `schedule/delivered` — emit
+
+A delivery committed: the Session acknowledged the message and the task write landed. A crash between those two writes can repeat the delivery without this event.
+
+```ts cordis-catalog
+/**
+ * A delivery committed: the Session acknowledged the message and the task write landed.
+ * A crash between those two writes can repeat the delivery without this event.
+ * @param delivery - Task, Session, and saved receipt.
+ * @mode emit
+ */
+'schedule/delivered'(delivery: ScheduleDelivered): void
 ```
 
 Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)

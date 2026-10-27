@@ -138,6 +138,10 @@ OCR through the firm's Mistral key; pages billed by Mistral.
 
 The library caches an OCR result for 24 hours by content hash, so a later call with another `pages` range costs nothing and says `from the 24 h cache`. The whole document is OCRed on the first call whatever the range; the range selects the pages returned. A key Mistral rejects answers the replace-the-key text; a Mistral rate limit or API failure is a tool error prefixed `read_pdf:`.
 
+### The register reader
+
+`ctx.flowleapRegister.read(application, signal?)` returns the current register events of one application as office-neutral entries (`date` as `YYYY-MM-DD`, `code`, `description`), for Host plugins that read the registers without a model call, such as the [register watch](../flowleap-routines/README.md). `parseRegisterApplication` normalizes the application: `EP` and seven digits is an EP publication (a kind code is dropped), read as EP Register events on the EPO OPS key; `US` and eight digits is a US application number, read as USPTO ODP transactions on the USPTO ODP key. A US patent number has the same form, so the reader reads it as an application number. The read throws when the key is missing or the office refuses it; repeated identical events stay in the list.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -163,6 +167,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/read-pdf.ts`](src/read-pdf.ts) | the native `read_pdf` tool: working-directory fence, size and page caps, the OCR call, page markers and the cost line |
 | [`src/key-state.ts`](src/key-state.ts) | the `flowleap:patent-data-keys` prompt section: key presence per connector, refreshed on record changes; the persona export points at its heading |
 | [`src/controller.ts`](src/controller.ts) | the `flowleapConnectors` Remote |
+| [`src/register.ts`](src/register.ts) | the `flowleapRegister` service: application normalization and the EP Register and USPTO transaction reads |
 | [`tests/`](tests/) | record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
 
 </details>

@@ -1251,6 +1251,20 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapRegister',
+    summary: 'Reads the register events of one application.',
+    description: 'Reads the register events of one application.',
+    methods: [
+      {
+        signature: 'read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>',
+        description: 'Read the current register events of one application.',
+        parameters: [{ name: 'application', description: 'normalized application.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'every event the office lists, in the office\'s order.',
+        throws: ['when the office refuses the read or no key is configured.'],
+      },
+    ],
+  },
+  {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
     description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
@@ -4673,12 +4687,28 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'schedule/admit',
+    mode: 'waterfall',
+    signature: '\'schedule/admit\'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>',
+    summary: 'Decide one due occurrence before its Session is restored.',
+    description: 'Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it; a rejection keeps the task due until a later drive.',
+    parameters: [{ name: 'request', description: 'Due occurrence and its Session binding.' }],
+  },
+  {
     name: 'schedule/changed',
     mode: 'emit',
     signature: '\'schedule/changed\'(): void',
     summary: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     description: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     parameters: [],
+  },
+  {
+    name: 'schedule/delivered',
+    mode: 'emit',
+    signature: '\'schedule/delivered\'(delivery: ScheduleDelivered): void',
+    summary: 'A delivery committed: the Session acknowledged the message and the task write landed.',
+    description: 'A delivery committed: the Session acknowledged the message and the task write landed. A crash between those two writes can repeat the delivery without this event.',
+    parameters: [{ name: 'delivery', description: 'Task, Session, and saved receipt.' }],
   },
   {
     name: 'schedule/resolve-agent',
@@ -7069,6 +7099,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
   },
   {
+    name: 'RegisterApplication',
+    declaration: 'export type RegisterApplication = Branded<\'RegisterApplication\'>;',
+  },
+  {
+    name: 'RegisterEntry',
+    declaration: 'export interface RegisterEntry {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
     name: 'Registry',
     declaration: 'export type Registry = string | null;',
   },
@@ -7281,6 +7319,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
+    name: 'ScheduleAdmission',
+    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n} | {\n    readonly kind: \'skip\';\n};',
+  },
+  {
+    name: 'ScheduleAdmissionRequest',
+    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly sessionId: SessionId;\n    readonly record: ScheduleRecord;\n}',
+  },
+  {
     name: 'ScheduleCatalogEntry',
     declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly sessionId: SessionId;\n    readonly status: \'active\' | \'inactive\';\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
   },
@@ -7299,6 +7345,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ScheduleDeleteResult',
     declaration: 'export type ScheduleDeleteResult = {\n    readonly id: ScheduleId;\n    readonly deleted: true;\n} | {\n    readonly id: ScheduleId;\n    readonly deleted: false;\n    readonly code: \'schedule_not_found\';\n};',
+  },
+  {
+    name: 'ScheduleDelivered',
+    declaration: 'export interface ScheduleDelivered {\n    readonly sessionId: SessionId;\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryRequest',

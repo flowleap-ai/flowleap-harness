@@ -1,0 +1,43 @@
+# Test-only patch over the shipped headless profile: a scripted model, the
+# Schedule service, a register reader that serves recorded responses from
+# ./register.json, and the routines row as the flowleap-web bundle mounts it.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: register-watch-mock
+        model: register-watch-mock
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- insert:
+    - id: register-watch-mock-llm
+      name: './mock-llm.ts'
+
+    - id: recorded-register
+      name: './recorded-register.ts'
+
+    - id: schedule
+      name: '@deepseek-ai/dsh-schedule'
+
+    - id: flowleap-routines
+      name: '@deepseek-ai/dsh-flowleap-routines'
+      config:
+        minReadIntervalHours: 12
+        maxApplications: 20

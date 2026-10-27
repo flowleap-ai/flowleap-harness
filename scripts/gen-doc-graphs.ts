@@ -359,6 +359,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reports presence of the firm\'s patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapRegister',
+    pkg: 'flowleap-connectors',
+    title: 'FlowLeap register reader',
+    mode: 'service',
+    consumers: ['flowleap-routines'],
+    note: 'Reads the register events of one EP publication or US application on the firm\'s office keys without a tool call; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'workspaceFiles',
     pkg: 'api-workspace-files',
     title: 'Host workspace file Remote service',
