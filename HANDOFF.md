@@ -13,10 +13,11 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
 - **Base:** `flowleap` is on upstream trunk (merged 2026-10-26), with all 8 upstream UI languages and the
   FlowLeap copy translated into each. `master` on the org remote equals upstream trunk.
 - **Next product:** the self-hosted firm OS, decided in
-  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (26
+  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (27
   decisions, including off-site access, mobile continuation and support access; on 2026-10-27 a study of
   EveryApp added credential injection in the egress proxy, the MCP door's own OAuth server, tool risk levels,
-  argument digests in the audit trail and a security invariant register) with the architecture and phases P0 to P6 in
+  argument digests in the audit trail and a security invariant register; decision 27 adds routines, work
+  that a register event starts, on top of the existing scheduler) with the architecture and phases P0 to P6 in
   [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
   **P0 is DONE (2026-10-26):** the private repository `flowleap-ai/flowleap-os` has the installer, a release
   pipeline with a loopback-only zot registry and per-firm update keys, the seam A driver with all three S5

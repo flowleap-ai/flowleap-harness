@@ -19,6 +19,7 @@ so the design must fit any host. The decisions below come from a design intervie
 [2026-10-26-firm-os-architecture.md](../2026-10-26-firm-os-architecture.md). Decisions 5, 14, 15, 19 and 21
 were changed and decisions 25 and 26 added on 2026-10-27, after a study of EveryApp
 (github.com/every-app/every-app, MIT), a gateway that holds every key and token for the apps behind it.
+Decision 27 was added the same day.
 
 ## Principle
 
@@ -195,6 +196,20 @@ policies and training, not in code.
     sentence, the attack it stops, the code that enforces it, the test that proves it, and a status (proved,
     partial, not proved). A release gate (decision 22) fails when a row names a test that does not exist or
     does not pass, so the register cannot drift from the code. Rows start with decisions 5, 6, 7, 21 and 25.
+27. **Routines: work that an event starts.** Agentic work means an event starts the routine part and the
+    attorney decides on the result; a chat that waits for a prompt is assistance. This is built on the
+    existing scheduler (`dsh-schedule`): the agent creates a task in chat, and the Automation tasks page lists
+    it. Three additions: (1) a **register watch**: a task can name applications, the host reads their
+    register events through the office connectors once a day without the model, and the task runs only when
+    an event is new, with the new events in its instruction; (2) a task can open **a new chat for each run**,
+    titled by the application and the event; (3) a run marks its chat **"Needs review"**, and the sidebar
+    and the Automation tasks page filter by that mark. The method of a routine is a skill from the firm
+    skills library, named in the task's instruction; the first is the office action analysis. The additions
+    live in a FlowLeap plugin that uses the scheduler's extension points (`schedule/resolve-agent`); where an
+    extension point is missing, a small one is added to the scheduler and offered upstream, so the upstream
+    sync stays cheap. A routine works under the attorney's identity and never sends anything (decision 21).
+    Later, each in its own phase: connectors for other firm systems, time saved per routine, phone
+    notifications, the control plane waking a sleeping runtime for a routine, and Outlook as an event.
 
 ## Not decided here
 
