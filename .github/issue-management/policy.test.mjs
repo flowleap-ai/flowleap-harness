@@ -210,7 +210,7 @@ test('keeps the pull request template aligned with the dsh-pr-description skill'
   const source = readFileSync(new URL('../pull_request_template.md', import.meta.url), 'utf8')
   const skillPath = '.agents/skills/dsh-pr-description/SKILL.md'
   const skill = readFileSync(new URL(`../../${skillPath}`, import.meta.url), 'utf8')
-  assert.ok(source.startsWith(`<!-- 本 PR 正文按 ${skillPath} 填写。 -->\n`), 'the template points to the skill')
+  assert.ok(source.startsWith(`<!-- Fill this PR body per ${skillPath} -->\n`), 'the template points to the skill')
   assert.deepEqual(source.match(/^## .+$/gm), [
     '## Motivation',
     '## Changes',
@@ -228,9 +228,9 @@ test('keeps the pull request template aligned with the dsh-pr-description skill'
   const skillStages = [...stagesSection.matchAll(/^\*\*(.+?)\*\*:/gm)].map(([, stage]) => stage)
   assert.ok(skillStages.length > 0, 'the skill lists stages')
   for (const stage of skillStages) {
-    assert.match(stage, /^[a-z]+ [\u4e00-\u9fff]+$/, `stage name pairs one English word with a Chinese name: ${stage}`)
+    assert.match(stage, /^[a-z]+$/, `stage name is one English word (the fork is English only): ${stage}`)
   }
-  const reviewStage = 'review 评审处理'
+  const reviewStage = 'review'
   assert.equal(skillStages.at(-1), reviewStage, 'review is the last stage')
 
   const skillProse = skill.replace(/```[\s\S]*?```/g, '')
@@ -268,10 +268,10 @@ test('keeps the pull request template aligned with the dsh-pr-description skill'
     assert.match(markdown, /^## AI Usage$/m, `the ${label} uses the AI Usage heading`)
     assert.match(markdown, /^<!-- ai-declaration:start -->$/m, `the ${label} starts the declaration block`)
     assert.match(markdown, /^<!-- ai-declaration:end -->$/m, `the ${label} ends the declaration block`)
-    assert.ok(markdown.includes('| 阶段 | 级别 | AI 参与度 | 决策记录 |'), `the ${label} shows the stage table header`)
+    assert.ok(markdown.includes('| Stage | Level | AI share | Decision record |'), `the ${label} shows the stage table header`)
     assert.ok(markdown.includes(versionLink), `the ${label} uses the pinned specification version`)
   }
-  const exampleRows = [...example.matchAll(/^\| .+? \| ([a-z]+) [^|]+ \| (\d+)% \| .+$/gm)]
+  const exampleRows = [...example.matchAll(/^\| [a-z]+ \| ([a-z]+) \| (\d+)% \| .+$/gm)]
   assert.ok(exampleRows.length > 0, 'the example has stage rows')
   const levelOrder = ['hint', 'assist', 'pair', 'copilot', 'auto']
   const highestExampleLevel = exampleRows
@@ -285,29 +285,29 @@ test('keeps the pull request template aligned with the dsh-pr-description skill'
   assert.equal(source.match(/<!-- ai-declaration:end -->/g)?.length, 1)
   assert.ok(
     declarationBlock.includes(
-      '[![AI-DECLARATION: 待填级别](https://img.shields.io/badge/䷼%20AI--DECLARATION-待填级别-e5e7eb?labelColor=e5e7eb)](https://ai-declaration.md)',
+      '[![AI-DECLARATION: TBD](https://img.shields.io/badge/䷼%20AI--DECLARATION-TBD-e5e7eb?labelColor=e5e7eb)](https://ai-declaration.md)',
     ),
     'the block has the placeholder badge link',
   )
   assert.ok(
-    declarationBlock.includes(`**AI declaration** (${versionLink}): \`待填级别\``),
+    declarationBlock.includes(`**AI declaration** (${versionLink}): \`TBD\``),
     'the block pins the declaration',
   )
 
   const usageSection = source.slice(source.indexOf('## AI Usage'))
   assert.ok(usageSection.includes('<!-- ai-declaration:start -->'), 'the AI declaration block is in AI Usage')
-  assert.ok(usageSection.includes('| 阶段 | 级别 | AI 参与度 | 决策记录 |'), 'the stage table is in AI Usage')
+  assert.ok(usageSection.includes('| Stage | Level | AI share | Decision record |'), 'the stage table is in AI Usage')
   assert.ok(source.includes('|:--|:--|--:|:--|'), 'the template right-aligns AI involvement')
   assert.deepEqual(
-    [...source.matchAll(/^\| (.+?) \| (?:待填级别|n\/a 暂不适用) \| (?:\?%|—) \| .+$/gm)].map(([, stage]) => stage),
+    [...source.matchAll(/^\| (.+?) \| (?:TBD|n\/a) \| (?:\?%|—) \| .+$/gm)].map(([, stage]) => stage),
     skillStages,
     'the template has one row per skill stage, in skill order',
   )
   for (const stage of skillStages.slice(0, -1)) {
-    assert.ok(source.includes(`| ${stage} | 待填级别 | ?% | 待填说明 |`), `${stage} has a placeholder row`)
+    assert.ok(source.includes(`| ${stage} | TBD | ?% | to fill |`), `${stage} has a placeholder row`)
   }
   assert.ok(
-    source.includes(`| ${reviewStage} | n/a 暂不适用 | — | 尚无已处理的评审意见。 |`),
+    source.includes(`| ${reviewStage} | n/a | — | No review comments have been handled yet. |`),
     'the review row starts as n/a, as the skill requires at PR creation',
   )
   for (const [label, text] of [
