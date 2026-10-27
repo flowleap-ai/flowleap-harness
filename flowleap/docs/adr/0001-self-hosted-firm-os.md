@@ -16,7 +16,9 @@ launch token or cookie is the identity, and there are no user accounts. The S4b 
 gives one container per attorney with a copy of every key in each container. No pilot firm exists yet,
 so the design must fit any host. The decisions below come from a design interview with the founder on
 2026-10-26 (52 questions); the architecture and the build phases are in
-[2026-10-26-firm-os-architecture.md](../2026-10-26-firm-os-architecture.md).
+[2026-10-26-firm-os-architecture.md](../2026-10-26-firm-os-architecture.md). Decisions 5, 14, 15, 19 and 21
+were changed and decisions 25 and 26 added on 2026-10-27, after a study of EveryApp
+(github.com/every-app/every-app, MIT), a gateway that holds every key and token for the apps behind it.
 
 ## Principle
 
@@ -42,8 +44,12 @@ policies and training, not in code.
    account as the fallback. The network layer (VPN or tailnet) is only the network. Rejected:
    Tailscale identity alone, and FlowLeap accounts (Clerk), which put FlowLeap in the sign-in path.
 5. **Keys.** A vault that only the administrator writes. The **model gateway** holds the model keys;
-   each attorney instance gets a personal virtual key and never the real one. Office keys are injected
-   into each instance read-only at start. FlowLeap's paid data uses one firm key (decision 18).
+   each attorney instance gets a personal virtual key and never the real one. **No other key or token
+   enters an instance either**: the egress proxy adds the office keys, the FlowLeap Data firm key
+   (decision 18) and the attorney's Microsoft 365 token (decision 21) to the outgoing request, and removes
+   any credential the instance put on it. A plugin declares each credentialed service it calls; the proxy
+   refuses a call to an undeclared service and to paths that act on the whole account. A prompt injection
+   or a faulty plugin can then misuse a call while the chat runs, but it cannot copy a key out.
 6. **Network.** No instance has a direct route to the internet. Model traffic goes only through the
    gateway; all other outbound traffic goes through one **egress proxy** with an allowlist per group
    (models, patent offices, FlowLeap data, literature, operations), a log of host and time (never
@@ -89,10 +95,15 @@ policies and training, not in code.
     models; key status without values; users (activity, suspend, archive); system (version, updates,
     backups, disk, health). Every figure comes from the gateway and the control plane.
 14. **Firm audit trail.** The control plane records firm-level actions: sign-ins, shares and unshares,
-    pool approvals and deletions, budget and key changes, support sessions, updates, and the mode of
-    each chat. Not chat content (that stays in each chat's own log).
+    pool approvals and deletions, budget and key changes, MCP connections and their revocation, support
+    sessions, updates, and the mode of each chat. Each tool call through the MCP door is one record with
+    the attorney, the tool and a keyed digest (HMAC) of the arguments, so a later dispute can check a
+    claimed call without the log holding its content. Not chat content (that stays in each chat's own log).
 15. **Operations and support access.** FlowLeap installs remotely at onboarding, on a one-command installer
-    and a browser setup wizard that a firm can later run alone. A personal update key gives access to
+    and a browser setup wizard that a firm can later run alone. Each installer step can run again with
+    the same result and resumes where it stopped; with `--json` the installer writes one event per step,
+    and names each step that only a person can do (Entra admin consent, DNS, the backup key), so a coding
+    agent can drive the install. Secrets never go on a command line or into a chat. A personal update key gives access to
     FlowLeap's private image registry while the retainer runs; when it ends, the installed version keeps
     working and no new versions arrive. Rejected: a licence check that stops the product. Updates install in
     the firm's maintenance window, each instance restarts only when idle, with a backup first and an
@@ -120,7 +131,12 @@ policies and training, not in code.
     the firm's Claude and ChatGPT seats: local first (a Claude Desktop extension, Claude Code, Codex),
     then the ChatGPT Secure MCP Tunnel, and a public endpoint only if the firm decides it. The MCP door sits
     behind the same Entra sign-in, so an outside agent always acts as a known attorney with that attorney's
-    rights. Seats are metered by their vendor; API keys through the gateway are metered by us. Microsoft 365
+    rights. Clients such as Claude Desktop need OAuth 2.1 with client registration, so the control plane
+    runs its own authorization server for the MCP door only: PKCE (S256) required, clients registered by a
+    client metadata document or by rate-limited dynamic registration, and Entra as the sign-in. On the consent
+    page the attorney chooses the tools and read-only or read and write (decision 25). Every request checks
+    the connection, the user and the suspension again, so a revocation works at once; an attorney sees and
+    revokes their connections, and suspending an attorney revokes all of them. Seats are metered by their vendor; API keys through the gateway are metered by us. Microsoft 365
     Copilot (a paid add-on per user, unlike the Copilot Chat included with Microsoft 365) is a candidate third
     way in through the same MCP door, for firms that already pay for it and want to stay inside Word, Outlook
     and Teams; to be checked before it is promised: Copilot Studio's current MCP support, the plans it needs,
@@ -138,12 +154,14 @@ policies and training, not in code.
     writer of its database; Postgres and object storage later, behind the same interfaces.
 21. **Microsoft 365.** A plugin in each runtime (`dsh-flowleap-m365`) reaches SharePoint, OneDrive, Outlook
     and the calendar through Microsoft Graph, with one app registration in the firm's Entra ID. A token broker
-    in the control plane gives the plugin a short-lived token for the signed-in attorney, so every call runs
+    in the control plane gives the egress proxy (not the plugin, decision 5) a short-lived token for the signed-in
+    attorney, so every call runs
     with **that attorney's own Microsoft 365 permissions** (delegated access) and the firm's existing access
     rules stay true. In version 1 the plugin reads and searches files, saves reports and Word exports to a
     folder, reads mail in a folder the attorney chooses, writes emails as drafts in the attorney's Drafts
     folder, and proposes calendar entries as drafts. It never sends an email or makes a final calendar change:
-    what leaves the firm in the attorney's name is the attorney's action. Offline chats do not load it.
+    what leaves the firm in the attorney's name is the attorney's action. The egress proxy enforces this: it
+    refuses the Graph send and final calendar endpoints, so no plugin code or injected prompt can bypass it. Offline chats do not load it.
     Rejected: firm-wide application permissions (all mailboxes and all of SharePoint, with our product as the
     gatekeeper of the firm's data).
 22. **Release quality.** A FlowLeap test firm on a Hetzner server runs every release before any firm gets
@@ -167,6 +185,16 @@ policies and training, not in code.
     cards, sends a follow-up or starts a chat, and shows the online and offline indicator; uploads from the
     phone, Word editing and the administrator dashboard stay on the desktop. The full local desktop app
     (solo attorneys) has no mobile continuation in version 1, because its chats run on the laptop.
+25. **Tool risk levels.** Every tool, in a plugin or at the MCP door, declares one risk level: read, write
+    (changes something the attorney can undo) or destructive. A tool without a level counts as write. A
+    read-only MCP connection does not see write or destructive tools, and the MCP door does not offer
+    destructive tools in version 1. A hidden tool is absent from the tool list, and a call to it answers
+    "unknown tool", so its existence does not leak. The attorney chooses the level of each connection; the
+    product does not choose for them.
+26. **Security invariant register.** Each security rule of the firm OS is one row: an id, one testable
+    sentence, the attack it stops, the code that enforces it, the test that proves it, and a status (proved,
+    partial, not proved). A release gate (decision 22) fails when a row names a test that does not exist or
+    does not pass, so the register cannot drift from the code. Rows start with decisions 5, 6, 7, 21 and 25.
 
 ## Not decided here
 

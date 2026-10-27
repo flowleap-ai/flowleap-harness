@@ -20,19 +20,21 @@ which order they are built.
  │   spawner ────── start, sleep and wake one runtime per attorney; archive on leave            │
  │   scheduler ──── wakes a runtime for a scheduled job, runs it as that attorney               │
  │   model gateway ─ virtual key per attorney, budgets, spend log, routes to cloud or local     │
- │   egress proxy ── allowlist per group, host log, office cache, per-chat credential           │
+ │   egress proxy ── allowlist per group, host log, office cache, per-chat credential,          │
+ │                   adds office, FlowLeap Data and Graph credentials to each request           │
  │   artifacts ──── immutable shared copies, audiences, versions, comments                     │
  │   knowledge pool ─ inbox, single compiler, fact records, pages, index, MCP tools             │
  │   skills library ─ git, mounted read-only in every runtime                                   │
- │   token broker ─ short-lived Microsoft 365 token per signed-in attorney (delegated access)   │
- │   MCP door ───── the runtime's tools for outside agents, behind the same sign-in             │
- │   audit trail ── firm-level actions                                                           │
+ │   token broker ─ short-lived Microsoft 365 token per attorney, given only to the egress proxy│
+ │   MCP door ───── OAuth server for outside agents (Entra sign-in, consent, tool risk levels)  │
+ │   audit trail ── firm-level actions, MCP tool calls as argument digests                      │
  │   updater, backup (restic), health signal, support channel                                    │
  │                                                                                              │
  │  ATTORNEY RUNTIMES (this repository's image), one per attorney, isolated                     │
  │   dsh + flowleap-web profile: Patent Agent / Patent Agent Offline presets,                   │
  │   plugins: office connectors, deliverables, Share, pool tools, Microsoft 365, usage reporting │
- │   private disk: workspaces (folders) and chats (sessions)                                    │
+ │   private disk: workspaces (folders) and chats (sessions); no key or token except the        │
+ │   gateway virtual key and the chat's proxy credential                                        │
  └──────────────────────────────────────────────────────────────────────────────────────────────┘
             │ outbound only, through the gateway or the egress proxy
             ▼
@@ -70,8 +72,9 @@ the allowed models, adds the real key, sends the call to the provider or the loc
 tokens and cost per attorney.
 
 **An office call.** The runtime's connector calls EPO through the egress proxy, with the chat's proxy
-credential. The proxy checks the allowlist and the chat's mode, answers from the cache when the data is
-cached and fresh, and logs the host and time.
+credential and no EPO key. The proxy checks the allowlist and the chat's mode, answers from the cache when
+the data is cached and fresh, otherwise adds the firm's EPO key from the vault and sends the request, and
+logs the host and time.
 
 **An offline chat.** The attorney chooses "Patent Agent Offline". The runtime starts the chat with the
 offline preset (offline prompt, local model, server-only tools, office tools in cache-only mode) and a
@@ -90,15 +93,19 @@ facts become records; the compiler renders the affected pages and updates the in
 service resolves the user's Entra groups, returns only facts and pages in those audiences, each with its
 source artifact, date and "checked" or "own estimate".
 
-**Microsoft 365.** The attorney asks for the client's claims on SharePoint. The Microsoft 365 plugin asks the
-token broker for a token for this attorney, calls Microsoft Graph through the egress proxy, and reads the file
-with the attorney's own permissions. A report can be saved back to a folder the same way. Mail is read from a
-folder the attorney chose; an email is written as a draft in the attorney's Drafts folder and never sent by
-the agent.
+**Microsoft 365.** The attorney asks for the client's claims on SharePoint. The Microsoft 365 plugin calls
+Microsoft Graph through the egress proxy without a token. The proxy gets a token for this attorney from the
+token broker, adds it, and the file is read with the attorney's own permissions. A report can be saved back to
+a folder the same way. Mail is read from a folder the attorney chose; an email is written as a draft in the
+attorney's Drafts folder. The proxy refuses the Graph send and final calendar endpoints, so the agent cannot
+send.
 
-**An outside agent.** An attorney in Claude Desktop calls a FlowLeap tool. The call enters through the MCP
-door behind the Entra sign-in, so it runs as that attorney, with that attorney's audiences, budget and
-Microsoft 365 permissions. Nothing is reachable from the internet.
+**An outside agent.** An attorney adds the firm's MCP address in Claude Desktop. The MCP door's authorization
+server registers the client, sends the attorney to the Entra sign-in, and shows a consent page where the
+attorney picks the tools and read-only or read and write. A FlowLeap tool call then runs as that attorney,
+with that attorney's audiences, budget and Microsoft 365 permissions, and only sees the tools the connection
+allows. Each request checks the connection again, and the audit trail records the call as a digest of its
+arguments. Nothing is reachable from the internet.
 
 **Off-site.** At home the attorney's laptop or phone is already on the firm tailnet (the Tailscale app, signed
 in with the Entra account, running in the background), so the same firm address works as in the office. A
@@ -121,13 +128,17 @@ backed-up store, takes over the firm address, and runs the health check and one 
 
 - A per-chat proxy credential, used by the runtime's own HTTP calls, the connectors, plugins and MCP
   subprocesses of that chat.
+- The office connectors and the FlowLeap Data connector send requests without keys; each plugin declares the
+  credentialed services it calls, and the proxy adds the credential.
+- A risk level (read, write, destructive) on every tool, read by the MCP door and the security invariant
+  register.
 - The "Patent Agent Offline" preset: offline prompt section, server-only tool list, cache-only mode for
   the office connectors (answers carry the retrieval date).
 - The online and offline indicator in the composer, the chat header and the chat list (a brand slot,
   translated into the 8 UI languages).
 - A Share action on the delivery card and on files, calling the artifacts API.
 - The Microsoft 365 plugin (`dsh-flowleap-m365`): search and read files, save reports, read a chosen mail
-  folder, draft emails, propose calendar entries; tokens from the broker, never stored in the runtime.
+  folder, draft emails, propose calendar entries; it never sees a token (the proxy adds it).
 - The rule for every new capability: a dsh plugin in the runtime, switchable on the Plugins page, talking to
   a control-plane service when it needs shared state or a secret.
 - The pool tools (`knowledge_search`, `knowledge_propose`, `knowledge_remember`) and the
@@ -145,11 +156,11 @@ Each phase ends in something a person can check on the FlowLeap test firm.
 | Phase | Content | Done when |
 |---|---|---|
 | **P0 Foundations** | Repository `flowleap-os`; the Hetzner test firm; installer skeleton with install and restore; release pipeline that builds this repository's image; the S5 cases automated headless | A clean VM installs, restores from a backup, and passes the three S5 cases with one command |
-| **P1 Control plane core** | Entra sign-in proxy; off-site access through the tailnet (default) and the Entra Application Proxy recipe; spawner with sleep and wake; vault; model gateway (adopted proxy after a licence check); egress proxy with allowlist, log and office cache; audit trail; backups; updater with rollback; admin console with users, keys status, budgets and spend | Two test attorneys sign in with Entra, work at the same time on their own runtimes, see their spend, and a release updates without stopping an active chat |
+| **P1 Control plane core** | Entra sign-in proxy; off-site access through the tailnet (default) and the Entra Application Proxy recipe; spawner with sleep and wake; vault; model gateway (adopted proxy after a licence check); egress proxy with allowlist, log, office cache and credential injection; audit trail; the security invariant register and its release gate; backups; updater with rollback; admin console with users, keys status, budgets and spend | Two test attorneys sign in with Entra, work at the same time on their own runtimes, see their spend, and a release updates without stopping an active chat |
 | **P2 Runtime changes** | Per-chat proxy credential; offline preset with cache-only office tools; mode indicator; usage reporting; the "Select model" fix; the branded install manifest | An offline chat drafts from a shared report with a local or substitute model, and the proxy log shows no outbound request for it |
 | **P3 Artifacts and Microsoft 365** | Artifacts service and library view; Share; comments; versions; "Open in my workspace". Token broker and the Microsoft 365 plugin (read, save, draft) | One attorney shares an FTO memo with a group; a colleague in the group opens it and copies it; a colleague outside the group does not see it. An attorney reads a SharePoint file they may open, cannot read one they may not, and finds an email draft in Outlook |
 | **P4 Knowledge Pool and skills library** | Inbox, compiler, fact records, editor review, pages and index, nightly rebuild check, MCP tools, the skill; firm skills library with examples and proposals | A shared memo produces facts that an editor approves; a second attorney's agent finds them through `knowledge_search`; a hard delete removes them after the rebuild |
-| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); the phone PWA with web push (mobile continuation); the MCP door for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint; an attorney at home gets a push notice on the phone, answers a question card in the PWA, and the chat continues on the server |
+| **P5 Ways in** | Thin desktop client (signed, macOS and Windows); the phone PWA with web push (mobile continuation); the MCP door (its own OAuth authorization server, consent page, tool risk levels, revocable connections) for Claude Desktop, Claude Code and Codex; ChatGPT Secure MCP Tunnel | An attorney uses the firm OS tools from a Claude Team seat in Claude Desktop without any public endpoint; an attorney at home gets a push notice on the phone, answers a question card in the PWA, and the chat continues on the server |
 | **P6 FlowLeap Data** | PATSTAT licence check; the separate paid service; the connector plugin; firm key and metering | A firm key unlocks PATSTAT tools in the runtime and the dashboard shows their use |
 
 P0 comes first because every later phase needs the test firm and the automated acceptance to prove that an
@@ -169,3 +180,20 @@ pipeline of P0 makes each sync a normal release.
   whether a firm's tenant policies allow a connector to a self-hosted server.
 - The Microsoft Graph permission set for delegated read, save, mail-read and draft access, and whether a
   firm's Entra admin must consent once for the app registration.
+- Whether Entra ID supports dynamic client registration or client metadata documents for MCP clients; the
+  MCP door's own authorization server assumes it does not.
+- Which egress proxy can add a per-request credential from the vault and refuse paths per service (a
+  forward proxy with TLS interception, or connectors that call the proxy as a plain HTTP gateway).
+
+## 7. Parts to reuse from EveryApp
+
+EveryApp (github.com/every-app/every-app, MIT licence, copyright Every App, Inc.) runs a similar gateway on
+Cloudflare. Its Cloudflare-specific parts (Workers, D1, KV, its OAuth library, its deploy code) do not
+transfer to one VM. These files are small and port to Node, with the licence notice kept:
+
+| File | Use |
+|---|---|
+| `packages/toolbus/src/policy.ts` | Tool risk levels and hidden tools (decision 25) |
+| `packages/toolbus/src/digest.ts` | Keyed argument digest for the audit trail (decision 14) |
+| `apps/every-app-gateway/src/server/secrets/sealed.ts` | AES-GCM sealing with a derived key, WebCrypto only, for the vault |
+| `docs/threat-model.md` (register format) | Rows of the security invariant register (decision 26) |
