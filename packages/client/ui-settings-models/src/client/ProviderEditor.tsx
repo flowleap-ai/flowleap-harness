@@ -384,11 +384,14 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const detectedVisibleRef = detectedRef === undefined || !visibleRefs.includes(detectedRef) ? undefined : detectedRef
     const missingRefs = checkedRefs.length > 0 && checkedRefs.every(([, info]) => info?.configured === false)
     const savedCredential = detected?.[1]?.source === 'file'
-    const credentialHint = keyDraft.length > 0 || savedCredential || keyHint === undefined || props.credentialRequired === true
-      ? undefined
-      : t(detectedRef === undefined ? missingRefs ? 'keyFallbackMissing' : 'keyFallbackUnchecked'
-        : detectedVisibleRef === undefined ? 'keyFallbackDetectedHidden' : 'keyFallbackDetected')
-        .replace('{hint}', () => detectedVisibleRef ?? keyHint)
+    // A key the deployment provides read-only refuses every write, so the field offers none.
+    const credentialLocked = props.credential?.configured === true && !props.credential.writable
+    const credentialHint = credentialLocked ? t('keyReadOnly')
+      : keyDraft.length > 0 || savedCredential || keyHint === undefined || props.credentialRequired === true
+        ? undefined
+        : t(detectedRef === undefined ? missingRefs ? 'keyFallbackMissing' : 'keyFallbackUnchecked'
+          : detectedVisibleRef === undefined ? 'keyFallbackDetectedHidden' : 'keyFallbackDetected')
+          .replace('{hint}', () => detectedVisibleRef ?? keyHint)
     const keyHelp = visibleRefs.length === 0
       ? undefined
       : t('keyHelp').replace('{env}', () => visibleRefs.join(' / '))
@@ -431,7 +434,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
               aria-describedby={credentialHint === undefined ? undefined : `${props.provider}-credential-hint`}
               required={props.credentialRequired === true}
               autoFocus={props.autoFocusCredential === true}
-              disabled={disabled}
+              disabled={disabled || credentialLocked}
               onChange={(event) => { setKeyDraft(event.target.value) }}
             />
             {credentialHint === undefined ? null : <p id={`${props.provider}-credential-hint`} className={styles[missingRefs ? 'notice' : detectedRef === undefined ? 'advancedHint' : 'savedNotice']}>{credentialHint}</p>}

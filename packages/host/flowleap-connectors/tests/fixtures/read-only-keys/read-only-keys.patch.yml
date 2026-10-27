@@ -1,0 +1,41 @@
+# Test-only patch over the shipped headless profile: the credential store with
+# a read-only document beside the managed one, as a firm OS host mounts it, and
+# the office connectors that read their keys from it.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: credentials
+  disabled: false
+  config:
+    path: !!js process.cwd() + '/runtime/credentials.yaml'
+    readOnlyPath: !!js process.cwd() + '/firm/credentials.yaml'
+    watch: false
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: read-only-keys-mock
+        model: read-only-keys-mock
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- insert:
+    - id: read-only-keys-mock-llm
+      name: './mock-llm.ts'
+
+    - id: flowleap-connectors
+      name: '@deepseek-ai/dsh-flowleap-connectors'
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: !!js process.cwd()

@@ -3,9 +3,11 @@
  * to FlowLeap support without reading it for secrets first.
  *
  * The report covers the harness version and commit, Node and pnpm, the profile
- * and the FlowLeap rows of `--dump-config`, connector presence (configured
- * yes/no, never a value: the credential store is read the way the host
- * plugin's `describe()` reads it), `flowleap mcp --check`, the vendored
+ * and the FlowLeap rows of `--dump-config` (with the `PATCH_FILES` overlays the
+ * image entrypoint applies), the keys the runtime uses (connector presence and
+ * reference names with the store that supplies each, never a value: the stores
+ * are the ones the composed `credentials` row names, read with the provider's
+ * precedence), `flowleap mcp --check`, the vendored
  * connector library pin, the brand, disk free under `DSH_HOME`, and the last
  * error lines of a harness log when a path is given. Every line passes the
  * scrub before it is printed; `--scrub` applies the same scrub to stdin for the
@@ -108,14 +110,28 @@ interface DoctorOptions {
   profile: string
   dshHome: string
   root: string
+  /** Overlay files applied to `--dump-config`, as the image entrypoint applies `PATCH_FILES`. */
+  patches: string[]
   logPath?: string
   url?: string
   token?: string
 }
 
+/** The two credential stores of `dsh-credentials-local`, in precedence order. */
+type StoreRole = 'read-only' | 'managed'
+
+/** One credential store the composed `credentials` row names. */
+interface StoreState {
+  role: StoreRole
+  path: string
+  state: 'read' | 'absent' | 'unreadable'
+}
+
 /** One connector's presence: never a value. */
 interface ConnectorPresence {
   configured: boolean
+  /** The store whose record the runtime uses; absent while not configured. */
+  source?: StoreRole
   fields: readonly string[]
   missingFields: string[]
 }
@@ -126,7 +142,12 @@ interface DoctorReport {
   harness: { version: string; commit: string; root: string; builtAt?: string }
   runtime: { node: string; pnpm: string; platform: string }
   profile: { name: string; dshHome: string; rows: Record<string, 'present' | 'absent'>; dumpConfigError?: string }
-  connectors: { store: string; storeState: 'read' | 'absent' | 'unreadable'; presence: Record<string, ConnectorPresence> }
+  keys: {
+    stores: StoreState[]
+    connectors: Record<string, ConnectorPresence>
+    /** Every stored reference name with the store that supplies it. */
+    refs: Record<string, StoreRole>
+  }
   flowleapCli: { version: string; mcpCheck: string }
   vendoredLibrary: { backendCommit: string; contentHash: string; upstreamVersion: string; syncedAt: string } | { error: string }
   brand: { productName: string; path: string } | { error: string }
@@ -264,11 +285,12 @@ function resolveThroughDsh(root: string, specifier: string): string | undefined 
  * @param root - the harness root.
  * @param profile - the profile name.
  * @param dshHome - the harness home the dump reads and initializes.
- * @returns per-row presence, with the dump's error when it failed.
+ * @param patches - overlay files, applied in order after the profile.
+ * @returns per-row presence, with the dump's error when it failed, and the dump text.
  */
-function profileRows(root: string, profile: string, dshHome: string): DoctorReport['profile'] {
+function profileRows(root: string, profile: string, dshHome: string, patches: readonly string[]): { profile: DoctorReport['profile']; dump: string } {
   const [command, args] = dshCommand(root)
-  const result = spawnSync(command, [...args, '--profile', profile, '--dump-config'], {
+  const result = spawnSync(command, [...args, ...patches.flatMap(patch => ['--patch', patch]), '--profile', profile, '--dump-config'], {
     cwd: root,
     encoding: 'utf8',
     timeout: 120_000,
@@ -281,49 +303,131 @@ function profileRows(root: string, profile: string, dshHome: string): DoctorRepo
     ? result.status === 0 ? undefined : (result.stderr.trim() === '' ? `exit status ${String(result.status)}` : result.stderr.trim())
     : result.error.message
   return {
-    name: profile,
-    dshHome,
-    rows,
-    ...failure === undefined ? {} : { dumpConfigError: failure },
+    profile: {
+      name: profile,
+      dshHome,
+      rows,
+      ...failure === undefined ? {} : { dumpConfigError: failure },
+    },
+    dump: result.stdout,
   }
 }
 
 /**
- * Connector presence from the credential store, the way the host plugin's
- * `describe()` decides it: a `grant` record under `flowleap-connectors/<id>`
- * whose payload carries every declared field non-empty. Values are read to
- * test emptiness and dropped at once; nothing but booleans leaves this function.
- * @param dshHome - the harness home holding `.credentials.yaml`.
- * @returns the store path, whether it was read, and one presence per connector.
+ * The config of the composed `credentials` row, cut out of the `--dump-config`
+ * text: the entry's own block, parsed alone because other rows may carry
+ * `!!js` tags a plain YAML reader refuses.
+ * @param dump - the `--dump-config` output.
+ * @returns the row's `path` and `readOnlyPath` when they are plain strings.
  */
-function connectorPresence(dshHome: string): DoctorReport['connectors'] {
-  const store = join(dshHome, '.credentials.yaml')
-  const presence: Record<string, ConnectorPresence> = {}
-  for (const [id, fields] of Object.entries(CONNECTOR_FIELDS)) presence[id] = { configured: false, fields, missingFields: [...fields] }
-  if (!existsSync(store)) return { store, storeState: 'absent', presence }
-  let records: Record<string, unknown> = {}
+function credentialsRowConfig(dump: string): { path?: string; readOnlyPath?: string } {
+  const lines = dump.split('\n')
+  const start = lines.findIndex(line => /^\s*- id: credentials\s*$/.test(line))
+  if (start === -1) return {}
+  const indent = (lines[start] ?? '').indexOf('-')
+  const block = [lines[start] ?? '']
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() !== '' && !line.trim().startsWith('#') && line.search(/\S/) <= indent) break
+    block.push(line)
+  }
   try {
-    const document: unknown = loadYaml(readFileSync(store, 'utf8'))
-    if (typeof document === 'object' && document !== null && 'records' in document) {
-      const section = (document as { records?: unknown }).records
-      if (typeof section === 'object' && section !== null) records = section as Record<string, unknown>
+    const parsed: unknown = loadYaml(block.map(line => line.slice(indent)).join('\n'))
+    const config = Array.isArray(parsed) ? (parsed[0] as { config?: unknown } | undefined)?.config : undefined
+    if (typeof config !== 'object' || config === null) return {}
+    const { path, readOnlyPath } = config as Record<string, unknown>
+    return {
+      ...typeof path === 'string' ? { path } : {},
+      ...typeof readOnlyPath === 'string' ? { readOnlyPath } : {},
     }
   } catch {
-    return { store, storeState: 'unreadable', presence }
+    return {}
   }
+}
+
+/** The two sections of one credentials document; values are kept only long enough to test emptiness. */
+interface StoreSections {
+  refs: Record<string, unknown>
+  records: Record<string, unknown>
+}
+
+/**
+ * Read one credentials document.
+ * @param path - the document.
+ * @returns its state and, when read, its two sections.
+ */
+function readStore(path: string): { state: StoreState['state']; sections?: StoreSections } {
+  if (!existsSync(path)) return { state: 'absent' }
+  try {
+    const document: unknown = loadYaml(readFileSync(path, 'utf8'))
+    const fields = typeof document === 'object' && document !== null ? document as Record<string, unknown> : {}
+    const section = (name: string): Record<string, unknown> => {
+      const value = fields[name]
+      return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+    }
+    return { state: 'read', sections: { refs: section('refs'), records: section('records') } }
+  } catch {
+    return { state: 'unreadable' }
+  }
+}
+
+/**
+ * The fields of one connector record that are missing or empty.
+ * @param record - the stored record, of any type.
+ * @param fields - the fields the connector needs.
+ * @returns the missing fields, or `undefined` when the value is no `grant` record at all.
+ */
+function missingConnectorFields(record: unknown, fields: readonly string[]): string[] | undefined {
+  if (typeof record !== 'object' || record === null) return undefined
+  const { kind, payload } = record as { kind?: unknown; payload?: unknown }
+  if (kind !== 'grant' || typeof payload !== 'object' || payload === null) return undefined
+  const values = payload as Record<string, unknown>
+  return fields.filter((field) => {
+    const value = values[field]
+    return typeof value !== 'string' || value.trim() === ''
+  })
+}
+
+/**
+ * The keys the runtime uses, with the precedence of `dsh-credentials-local`:
+ * the read-only document (`readOnlyPath`) wins over the managed one (`path`,
+ * else `.credentials.yaml` under the harness home). A connector is configured
+ * the way the host plugin's `describe()` decides it: a `grant` record under
+ * `flowleap-connectors/<id>` whose payload carries every declared field
+ * non-empty. Values are read to test emptiness and dropped at once; nothing
+ * but names and booleans leaves this function.
+ * @param dump - the `--dump-config` output of the composed profile.
+ * @param dshHome - the harness home, for the managed document's default path.
+ * @returns the stores, one presence per connector, and the reference names.
+ */
+function keysInUse(dump: string, dshHome: string): DoctorReport['keys'] {
+  const config = credentialsRowConfig(dump)
+  const candidates: Array<{ role: StoreRole; path: string }> = [
+    ...config.readOnlyPath === undefined ? [] : [{ role: 'read-only' as const, path: resolve(config.readOnlyPath) }],
+    { role: 'managed', path: resolve(config.path ?? join(dshHome, '.credentials.yaml')) },
+  ]
+  const stores = candidates.map(store => ({ ...store, ...readStore(store.path) }))
+  const connectors: Record<string, ConnectorPresence> = {}
   for (const [id, fields] of Object.entries(CONNECTOR_FIELDS)) {
-    const record = records[`${CREDENTIAL_SCOPE}/${id}`]
-    if (typeof record !== 'object' || record === null) continue
-    const { kind, payload } = record as { kind?: unknown; payload?: unknown }
-    if (kind !== 'grant' || typeof payload !== 'object' || payload === null) continue
-    const values = payload as Record<string, unknown>
-    const missingFields = fields.filter((field) => {
-      const value = values[field]
-      return typeof value !== 'string' || value.trim() === ''
-    })
-    presence[id] = { configured: missingFields.length === 0, fields, missingFields }
+    // The first store holding the record supplies it, complete or not, as in the provider.
+    const store = stores.find(candidate => candidate.sections?.records[`${CREDENTIAL_SCOPE}/${id}`] !== undefined)
+    const missing = store === undefined
+      ? undefined
+      : missingConnectorFields(store.sections?.records[`${CREDENTIAL_SCOPE}/${id}`], fields)
+    connectors[id] = missing === undefined || store === undefined
+      ? { configured: false, fields, missingFields: [...fields] }
+      : { configured: missing.length === 0, ...missing.length === 0 ? { source: store.role } : {}, fields, missingFields: missing }
   }
-  return { store, storeState: 'read', presence }
+  const refs: Record<string, StoreRole> = {}
+  for (const store of [...stores].reverse()) {
+    for (const [name, value] of Object.entries(store.sections?.refs ?? {})) {
+      if (typeof value === 'string' && value !== '') refs[name] = store.role
+    }
+  }
+  return {
+    stores: stores.map(({ role, path, state }) => ({ role, path, state })),
+    connectors,
+    refs: Object.fromEntries(Object.entries(refs).sort(([left], [right]) => left.localeCompare(right))),
+  }
 }
 
 /**
@@ -426,6 +530,7 @@ async function probeInstance(url: string, token: string): Promise<NonNullable<Do
  * @returns the report, not yet scrubbed.
  */
 async function collect(options: DoctorOptions): Promise<DoctorReport> {
+  const { profile, dump } = profileRows(options.root, options.profile, options.dshHome, options.patches)
   const report: DoctorReport = {
     generatedAt: new Date().toISOString(),
     harness: harnessIdentity(options.root),
@@ -434,8 +539,8 @@ async function collect(options: DoctorOptions): Promise<DoctorReport> {
       pnpm: runQuiet('pnpm', ['--version'], { timeoutMs: 20_000 }).split('\n')[0] ?? 'unavailable',
       platform: `${process.platform} ${process.arch}`,
     },
-    profile: profileRows(options.root, options.profile, options.dshHome),
-    connectors: connectorPresence(options.dshHome),
+    profile,
+    keys: keysInUse(dump, options.dshHome),
     flowleapCli: {
       version: runQuiet('flowleap', ['--version'], { timeoutMs: 20_000 }),
       mcpCheck: runQuiet('flowleap', ['mcp', '--check'], { timeoutMs: 90_000 }),
@@ -480,10 +585,13 @@ function renderText(report: DoctorReport): string {
   add('profile', 'dsh home', report.profile.dshHome)
   if (report.profile.dumpConfigError !== undefined) add('profile', 'dump-config', `failed: ${report.profile.dumpConfigError.split('\n')[0] ?? ''}`)
   for (const [id, state] of Object.entries(report.profile.rows)) add('profile row', id, state)
-  add('connectors', 'store', `${report.connectors.store} (${report.connectors.storeState})`)
-  for (const [id, presence] of Object.entries(report.connectors.presence)) {
-    add('connector', id, presence.configured ? 'configured: yes' : `configured: no (missing ${presence.missingFields.join(', ')})`)
+  for (const store of report.keys.stores) add('key store', store.role, `${store.path} (${store.state})`)
+  for (const [id, presence] of Object.entries(report.keys.connectors)) {
+    add('connector', id, presence.configured
+      ? `configured: yes (${String(presence.source)} store)`
+      : `configured: no (missing ${presence.missingFields.join(', ')})`)
   }
+  for (const [name, role] of Object.entries(report.keys.refs)) add('key', name, `${role} store`)
   add('flowleap cli', 'version', report.flowleapCli.version.split('\n')[0] ?? '')
   for (const line of report.flowleapCli.mcpCheck.split('\n')) add('flowleap mcp --check', '', line)
   if ('error' in report.vendoredLibrary) {
@@ -542,6 +650,7 @@ function parseCommandLine(argv: string[]): { mode: 'scrub'; config: boolean } | 
       json: values.json,
       profile: values.profile,
       dshHome: resolve(dshHome),
+      patches: (process.env.PATCH_FILES ?? '').split(/\s+/).filter(patch => patch !== ''),
       root: values.root === undefined ? defaultRoot() : resolve(values.root),
       ...values.log === undefined ? {} : { logPath: resolve(values.log) },
       ...values.url === undefined ? {} : { url: values.url },

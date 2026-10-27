@@ -817,15 +817,23 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-credentials-local`
 
-- `source`: [`packages/credentials/credentials-local/src/index.ts:64`](../packages/credentials/credentials-local/src/index.ts)
+- `source`: [`packages/credentials/credentials-local/src/index.ts:71`](../packages/credentials/credentials-local/src/index.ts)
 
 ```ts config-catalog
-/** Plugin config: file location and hot-reload behavior. */
+/** Plugin config: file locations and hot-reload behavior. */
 export interface Config {
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
   dshHome?: string
+  /**
+   * Host-provided credentials document in the same layout, read once at start
+   * and never written; absent means no such layer. Its references and records
+   * win over the managed document and refuse `set`, `unset`, `modifyRecord`,
+   * and `deleteRecord`. The file must exist and be readable only by its owner;
+   * a changed file takes effect at the next start.
+   */
+  readOnlyPath?: string
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */

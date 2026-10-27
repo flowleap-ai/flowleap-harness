@@ -67,7 +67,7 @@ import type { LaunchEnvironmentEntry } from '@deepseek-ai/dsh-launch-environment
 /** Basename of the credentials document inside the harness home. */
 export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
-/** Plugin config: file location and hot-reload behavior. */
+/** Plugin config: file locations and hot-reload behavior. */
 export interface Config {
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string

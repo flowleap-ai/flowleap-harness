@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
+`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. A host can also mount a read-only file of keys, such as a firm's keys, which wins over everything and which the product never writes. Credential lookup follows a fixed precedence: the read-only file wins when configured, then the stored file, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
 
 ## Table of Contents
 
@@ -41,6 +41,7 @@ Use it as the default local store: the product's base composition loads it, and 
 |---|---|---|
 | `path` | `<harness home>/.credentials.yaml` | Where the credential file lives |
 | `dshHome` | `$DSH_HOME` or `~/.dsh` | Harness home used when `path` is omitted |
+| `readOnlyPath` | none | A host-provided credential file in the same layout, read once at start and never written |
 | `watch` | `true` | Reload the file automatically when it changes on disk |
 | `debounceMs` | `100` | Wait this long after a change before reloading, in milliseconds |
 
@@ -70,12 +71,28 @@ Keys are resolved in one fixed order — the first place that has a value wins:
 
 | Place | Writable? | Wins over |
 |---|---|---|
-| The stored file | yes (`set`/`unset`) | everything |
+| The read-only file (`readOnlyPath`) | no | everything |
+| The stored file | yes (`set`/`unset`) | everything below it |
 | The environment you launched in (`DEEPSEEK_API_KEY=… dsh`) | not here | both `.env` files |
 | Your project's `.env` (`<invocation cwd>/.env`) | not here | your home `.env` |
 | Your home `.env` (`$DSH_HOME/.env`) | not here | nothing |
 
-The stored file wins because a credential explicitly saved through the product must take effect consistently for every provider ([decision](../../../.agents/notes/implemented/architecture/2026-10-09-stored-credential-precedence.md)). The launching environment — `DEEPSEEK_API_KEY=… dsh`, a CI secret, or a container `-e` — is the fallback when no stored value exists; a project `.env` then outranks the harness-home `.env`. A save always writes the winning layer, so `describe` reports `writable: true` for every reference, and its `source` names the place that currently supplies the value. The environment layer is the launcher's snapshot taken at launch ([environment snapshot](../../util/launch-environment/README.md)), so a variable exported after startup is not seen.
+The stored file wins because a credential explicitly saved through the product must take effect consistently for every provider ([decision](../../../.agents/notes/implemented/architecture/2026-10-09-stored-credential-precedence.md)). The launching environment — `DEEPSEEK_API_KEY=… dsh`, a CI secret, or a container `-e` — is the fallback when no stored value exists; a project `.env` then outranks the harness-home `.env`. A save writes the stored file, so `describe` reports `writable: true` for every reference the read-only file does not hold, and its `source` names the place that currently supplies the value (`read-only`, `file`, `env`, `project-env`, or `user-env`). The environment layer is the launcher's snapshot taken at launch ([environment snapshot](../../util/launch-environment/README.md)), so a variable exported after startup is not seen.
+
+### Keys a host provides read-only
+
+A deployment that gives each runtime keys it must not change, such as a firm's model and office keys, mounts one credential file read-only and names it in `readOnlyPath`; the stored file then keeps only the runtime's own secrets:
+
+```yaml
+- id: credentials
+  config:
+    path: /run/flowleap/runtime/credentials.yaml          # per-runtime secrets, written by the runtime
+    readOnlyPath: /run/flowleap/firm-keys/credentials.yaml  # the firm's keys, mounted read-only
+```
+
+The read-only file has the layout of the stored file below, with `refs` and `records`. Each reference and record in it wins over the stored file and the environment, `describe` and `describeRecord` report it with `writable: false` (and `source: read-only` for a reference), and `set`, `unset`, `modifyRecord`, and `deleteRecord` refuse it with an error that names the file. So a key typed into a configuration page cannot replace a host-provided key: the Models page offers no key entry for it, and the connector cards show the store as read-only. `listRecords` lists the records of both files once each.
+
+The file is read once at start, so a changed key takes effect at the next start. The file must exist and be readable only by its owner (mode `0400` or `0600`), and it is parsed by the same strict rules as the stored file: a missing, invalid, or group-readable file stops the start instead of reading as "no keys". Mount its directory rather than the file itself, so that a host which replaces the file by renaming a new one gives the next start the new file.
 
 ### The credential file
 
@@ -116,6 +133,7 @@ Only your OS user can read the file: the product creates it with owner-only perm
 
 - **A key the launching environment supplies is a fallback** — saving a value stores a higher-priority credential; removing it reveals the launch environment again. To make an exported key apply, delete its entry under `refs` in the file.
 - **An empty value cannot be saved** — storing an empty string is refused; remove the key instead.
+- **A key in the read-only file cannot be saved or removed** — the error names the read-only file; change the key there and restart.
 - **The store refuses to load a file it cannot trust** — a file any other user can read, malformed YAML, or an unreachable path fails at startup; on a live reload the last good content keeps serving with a warning.
 - **Changes made at the same time are both kept** — if you edit the file while the product writes, your change is folded in rather than overwritten.
 
@@ -195,6 +213,7 @@ These limits define when the provider is a poor fit or needs special operational
 
 - **Same-reference concurrent writes are last-write-wins** — the writer lock and the read-modify-write keep concurrent writers from dropping each other's entries, but two writers editing one reference still resolve to the later write; there is no revision check.
 - **A same-UID process can read the document** — the file-effect sandbox modes do not deny reads, and an OS-keychain provider is deferred.
+- **The read-only file is read only at start** — a host that rotates a key in it must restart the runtime.
 - **Environment changes are invisible** — the snapshot is frozen at launch, so a variable exported after startup reaches neither resolution nor `describe`; changing an environment-sourced credential takes a restart.
 - **Atomic, not crash-durable** — inherited from `dsh-atomic-write`; the store re-reads on boot.
 
