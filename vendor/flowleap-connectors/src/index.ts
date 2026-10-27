@@ -183,6 +183,7 @@ export type {
 export {
 	OcrInputError,
 	OcrNotConfiguredError,
+	OcrConfigurationError,
 	OCR_MODEL,
 	OCR_CACHE_TTL,
 	OCR_RESPONSE_SHAPE_VERSION,

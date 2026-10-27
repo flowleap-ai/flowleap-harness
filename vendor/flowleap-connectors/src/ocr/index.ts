@@ -5,7 +5,7 @@
  *    host's `mistral` credential (./ocr.ts), bound as `createConnectors(host).ocr`
  *  - ocrInputSchema — the single zod validation source of the `ocr` tool
  *  - resolveOcr — the resolution order every internal caller of OCR follows
- *  - OcrInputError / OcrNotConfiguredError, OCR_MODEL / OCR_SUPPORTED_FORMATS
+ *  - OcrInputError / OcrNotConfiguredError / OcrConfigurationError, OCR_MODEL / OCR_SUPPORTED_FORMATS
  *--------------------------------------------------------------------------------------------*/
 
 import type { ConnectorContext } from '../context.js';
@@ -18,6 +18,7 @@ export {
 	isOcrConfigured,
 	OcrInputError,
 	OcrNotConfiguredError,
+	OcrConfigurationError,
 	OCR_MODEL,
 	OCR_CACHE_TTL,
 	OCR_RESPONSE_SHAPE_VERSION,

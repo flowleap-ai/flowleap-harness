@@ -25,6 +25,7 @@ import {
 	isOcrConfigured,
 	OcrInputError,
 	OcrNotConfiguredError,
+	OcrConfigurationError,
 	OCR_CACHE_TTL,
 	OCR_RESPONSE_SHAPE_VERSION,
 	OCR_MODEL,
@@ -374,6 +375,46 @@ describe('runOcr — Mistral error normalization', () => {
 	});
 });
 
+/** The test context with the Mistral credential replaced. */
+function withMistral(credentials: { apiKey: string; baseUrl?: string }): ConnectorContext {
+	host = createFakeHost({ fetch: upstream.fetch, now: FIXED_NOW, credentials: { mistral: hostCredentials<'mistral'>(credentials) } });
+	return createContext(host);
+}
+
+describe('runOcr — the base URL from the credential', () => {
+	it('calls the credential\'s baseUrl, a trailing slash dropped, with the same key and body', async () => {
+		upstream.answer(() => Response.json({ pages: [{ index: 0, markdown: 'gateway' }] }));
+		const gateway = withMistral({ apiKey: 'virtual-key', baseUrl: 'http://flowleap-gateway:4000/' });
+		const result = await runOcr(gateway, { url: 'https://example.com/spec.pdf' });
+		expect(result.markdown).toBe('gateway');
+		expect(upstream.requests[0].url).toBe('http://flowleap-gateway:4000/v1/ocr');
+		expect(upstream.lastHeaders()).toMatchObject({ authorization: 'Bearer virtual-key' });
+		expect(upstream.requests[0].body).toMatchObject({ model: OCR_MODEL, include_image_base64: true });
+	});
+
+	it('accepts an https base with a path', async () => {
+		await runOcr(withMistral({ apiKey: 'k', baseUrl: 'https://gateway.example.com/mistral' }), { url: 'https://example.com/a.pdf' });
+		expect(upstream.requests[0].url).toBe('https://gateway.example.com/mistral/v1/ocr');
+	});
+
+	it.each([
+		['not a URL', 'gateway:4000', 'is not allowed'],
+		['an unparsable value', 'http://', 'is not a valid URL'],
+		['http to a dotted host name', 'http://gateway.example.com', 'is not allowed'],
+		['http to an IP address', 'http://10.0.0.5:4000', 'is not allowed'],
+		['another scheme', 'ftp://flowleap-gateway', 'is not allowed'],
+		['user info', 'https://user:secret@gateway.example.com', 'must not contain user info'],
+		['a query', 'https://gateway.example.com?x=1', 'must not contain user info, a query'],
+	])('%s → OcrConfigurationError before anything is sent, never the default base', async (_case, baseUrl, message) => {
+		const bad = withMistral({ apiKey: 'k', baseUrl });
+		const error = await runOcr(bad, { url: 'https://example.com/a.pdf' }).catch((caught: unknown) => caught);
+		expect(error).toBeInstanceOf(OcrConfigurationError);
+		expect(error).not.toBeInstanceOf(OcrNotConfiguredError);
+		expect((error as Error).message).toContain(message);
+		expect(upstream.requests).toHaveLength(0);
+	});
+});
+
 describe('verifyKey — the settings-card test call', () => {
 	it('GETs /v1/models with the bearer key and answers ok', async () => {
 		upstream.answer(() => Response.json({ object: 'list', data: [] }));
@@ -417,6 +458,43 @@ describe('verifyKey — the settings-card test call', () => {
 			throw new Error('ENOTFOUND api.mistral.ai');
 		});
 		await expect(verifyKey(ctx)).resolves.toMatchObject({ ok: false, message: expect.stringContaining('ENOTFOUND') });
+	});
+});
+
+describe('verifyKey — through a baseUrl', () => {
+	it('POSTs one 1x1 PNG page to <base>/v1/ocr, since a gateway key allows no /v1/models', async () => {
+		const gateway = withMistral({ apiKey: 'virtual-key', baseUrl: 'http://flowleap-gateway:4000' });
+		await expect(verifyKey(gateway)).resolves.toEqual({ ok: true, message: 'Mistral accepted the key.' });
+		expect(upstream.requests).toHaveLength(1);
+		expect(upstream.requests[0].url).toBe('http://flowleap-gateway:4000/v1/ocr');
+		expect(upstream.requests[0].init.method).toBe('POST');
+		expect(upstream.lastHeaders()).toMatchObject({ authorization: 'Bearer virtual-key', 'content-type': 'application/json' });
+		expect(upstream.requests[0].body).toEqual({
+			model: OCR_MODEL,
+			document: { type: 'image_url', image_url: expect.stringMatching(/^data:image\/png;base64,/) },
+		});
+	});
+
+	it('an explicit https://api.mistral.ai base keeps the free GET /v1/models', async () => {
+		await verifyKey(withMistral({ apiKey: 'k', baseUrl: 'https://api.mistral.ai/' }));
+		expect(upstream.requests[0].url).toBe(`${MISTRAL_API_BASE}/v1/models`);
+		expect(upstream.requests[0].init.method).toBe('GET');
+	});
+
+	it('an invalid baseUrl is a red verdict naming the base URL, and nothing is sent', async () => {
+		await expect(verifyKey(withMistral({ apiKey: 'k', baseUrl: 'http://gateway.example.com' }))).resolves.toEqual({
+			ok: false,
+			message: 'The Mistral base URL "http://gateway.example.com" is not allowed: use https, or http only to a host name without dots.',
+		});
+		expect(upstream.requests).toHaveLength(0);
+	});
+
+	it('a gateway that rejects the key is a red verdict with the status', async () => {
+		upstream.answer(() => new Response('{}', { status: 401 }));
+		await expect(verifyKey(withMistral({ apiKey: 'k', baseUrl: 'http://flowleap-gateway:4000' }))).resolves.toEqual({
+			ok: false,
+			message: 'Mistral rejected the key (HTTP 401).',
+		});
 	});
 });
 

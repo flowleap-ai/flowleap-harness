@@ -7,7 +7,8 @@
  *  host's cache — OCR output never changes for the same input.
  *
  *  Host-neutral (ADR 0019): the key is the host's `mistral` credential, the
- *  network is `host.fetch` against Mistral's REST API (`POST /v1/ocr`), the
+ *  network is `host.fetch` against Mistral's REST API (`POST /v1/ocr`) or the
+ *  credential's `baseUrl` (a model gateway that forwards it), the
  *  cache is `host.cache`, the log is `host.logger`. No SDK: the one call the
  *  client makes is a JSON POST with a bearer token, and the harness carries no
  *  dependency for it. Two consumers share the client and its cache: the `ocr`
@@ -15,11 +16,12 @@
  *  (../uspto-odp/documents.ts, through ./index.ts `resolveOcr`).
  *
  *  Failures the caller can fix are OcrInputError (with a stable `code`); a
- *  host without a Mistral key is OcrNotConfiguredError; Mistral's own answers
+ *  host without a Mistral key is OcrNotConfiguredError, and a host with an
+ *  invalid `baseUrl` is OcrConfigurationError; Mistral's own answers
  *  are the package's typed errors — RateLimitError on 429, ProviderKeyInvalidError
  *  when Mistral rejects a USER-owned key (401/403), APIError for every other
  *  non-2xx. `verifyKey` is the settings-card test call: one cheap authenticated
- *  GET that answers `{ ok, message }` and never throws.
+ *  request that answers `{ ok, message }` and never throws.
  *--------------------------------------------------------------------------------------------*/
 
 import crypto from 'node:crypto';
@@ -28,7 +30,7 @@ import { withClientAbort } from '../client-abort.js';
 import type { ConnectorContext } from '../context.js';
 import { APIError, ProviderKeyInvalidError, RateLimitError } from '../errors.js';
 import { parseRetryAfter } from '../fetch-with-retry.js';
-import type { CredentialLookup } from '../host.js';
+import type { CredentialLookup, MistralCredentials } from '../host.js';
 
 /** Cache TTL for OCR results, in seconds (24 hours — OCR output never changes for the same file). */
 export const OCR_CACHE_TTL = 86400;
@@ -45,8 +47,16 @@ export const OCR_RESPONSE_SHAPE_VERSION = 1;
 /** The Mistral Document AI model this client drives (the API alias). */
 export const OCR_MODEL = 'mistral-ocr-latest';
 
-/** Mistral's REST API. The OCR call and the key test both go here. */
+/** Mistral's REST API: the base of the OCR call and the key test when the credential names no `baseUrl`. */
 export const MISTRAL_API_BASE = 'https://api.mistral.ai';
+
+/**
+ * The document `verifyKey` reads on a `baseUrl` other than Mistral's: a 1x1
+ * PNG, one OCR page. A model gateway's key usually allows `/v1/ocr` only, not
+ * the free `GET /v1/models`, so the test spends that one page there.
+ */
+const VERIFY_PROBE_IMAGE =
+	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEAsTj2FAAAAABJRU5ErkJggg==';
 
 /** File extensions the client accepts, in the order the health probe reports. */
 export const OCR_SUPPORTED_FORMATS = [
@@ -129,6 +139,48 @@ export class OcrNotConfiguredError extends Error {
 		super(message);
 		this.name = 'OcrNotConfiguredError';
 	}
+}
+
+/**
+ * The host's Mistral credential names a `baseUrl` that is not allowed: OCR
+ * cannot run here until the host's configuration is corrected. Not an
+ * OcrNotConfiguredError, so no caller reports it as a missing key.
+ */
+export class OcrConfigurationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'OcrConfigurationError';
+	}
+}
+
+/**
+ * The API base of one Mistral credential, without a trailing slash:
+ * `MISTRAL_API_BASE` when it names no `baseUrl`. Throws OcrConfigurationError
+ * for a `baseUrl` that is not `https`, or `http` to a host name without dots
+ * (a container network name), or that carries user info, a query or a fragment.
+ */
+function mistralApiBase(credentials: MistralCredentials): string {
+	const { baseUrl } = credentials;
+	if (baseUrl === undefined) return MISTRAL_API_BASE;
+	let url: URL;
+	try {
+		url = new URL(baseUrl);
+	} catch {
+		// The URL parser's TypeError has no detail worth adding to the message below.
+		throw new OcrConfigurationError(`The Mistral base URL "${baseUrl}" is not a valid URL.`);
+	}
+	const allowed = url.protocol === 'https:' || (url.protocol === 'http:' && /^[a-z0-9-]+$/i.test(url.hostname));
+	if (!allowed) {
+		throw new OcrConfigurationError(
+			`The Mistral base URL "${baseUrl}" is not allowed: use https, or http only to a host name without dots.`,
+		);
+	}
+	if (url.username || url.password || url.search || url.hash) {
+		throw new OcrConfigurationError(
+			`The Mistral base URL "${baseUrl}" is not allowed: it must not contain user info, a query or a fragment.`,
+		);
+	}
+	return url.href.replace(/\/+$/, '');
 }
 
 /** Mistral's `POST /v1/ocr` response, the fields this client reads (snake_case on the wire). */
@@ -277,8 +329,9 @@ export async function runOcr(ctx: ConnectorContext, input: OcrRequestInput): Pro
 
 	host.logger.info(`[OCR] Processing ${isPdf ? 'PDF' : isImage ? 'image' : 'document'}: ${docName}`);
 
-	// The key before the upload: a host without one answers the typed error and spends nothing.
+	// The key and its base before the upload: a host without them answers the typed error and spends nothing.
 	const lookup = await requireMistralCredential(ctx);
+	const apiBase = mistralApiBase(lookup.credentials);
 
 	// Build the document object for Mistral's API: a public URL, or a data URL
 	// carrying the base64 content; images go as image_url, everything else as
@@ -290,7 +343,7 @@ export async function runOcr(ctx: ConnectorContext, input: OcrRequestInput): Pro
 	// current Document AI model). No retry and no timeout of our own: an OCR
 	// run on a large document takes tens of seconds, and a retry would upload
 	// it again. Aborted only when the caller is gone.
-	const response = await host.fetch(`${MISTRAL_API_BASE}/v1/ocr`, {
+	const response = await host.fetch(`${apiBase}/v1/ocr`, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${lookup.credentials.apiKey}`,
@@ -377,10 +430,11 @@ export async function runOcr(ctx: ConnectorContext, input: OcrRequestInput): Pro
 }
 
 /**
- * The settings-card test call: one cheap authenticated read (`GET /v1/models`)
- * on the host's Mistral key. Answers `{ ok, message }` and never throws — a
- * missing key, a rejected key, a rate limit and a network failure are all a
- * red card with a reason. Not cached.
+ * The settings-card test call on the host's Mistral key: the free
+ * `GET /v1/models` on Mistral's own API, or a one-page `POST /v1/ocr` of a
+ * 1x1 PNG on any other `baseUrl`. Answers `{ ok, message }` and never
+ * throws — a missing key, an invalid base URL, a rejected key, a rate limit
+ * and a network failure are all a red card with a reason. Not cached.
  */
 export async function verifyKey(ctx: ConnectorContext): Promise<OcrKeyVerdict> {
 	// The lookup is the host's credential store (a locked keychain can throw): a red card too.
@@ -394,11 +448,28 @@ export async function verifyKey(ctx: ConnectorContext): Promise<OcrKeyVerdict> {
 	if (lookup.status !== 'available' || !lookup.credentials.apiKey) {
 		return { ok: false, message: 'No Mistral API key is configured.' };
 	}
+	let apiBase: string;
+	try {
+		apiBase = mistralApiBase(lookup.credentials);
+	} catch (error) {
+		return { ok: false, message: error instanceof Error ? error.message : String(error) };
+	}
+	const headers = { Authorization: `Bearer ${lookup.credentials.apiKey}`, Accept: 'application/json' };
+	const probe: { path: string; init: RequestInit } =
+		apiBase === MISTRAL_API_BASE
+			? { path: '/v1/models', init: { method: 'GET', headers } }
+			: {
+				path: '/v1/ocr',
+				init: {
+					method: 'POST',
+					headers: { ...headers, 'Content-Type': 'application/json' },
+					body: JSON.stringify({ model: OCR_MODEL, document: { type: 'image_url', image_url: VERIFY_PROBE_IMAGE } }),
+				},
+			};
 	let response: Response;
 	try {
-		response = await ctx.host.fetch(`${MISTRAL_API_BASE}/v1/models`, {
-			method: 'GET',
-			headers: { Authorization: `Bearer ${lookup.credentials.apiKey}`, Accept: 'application/json' },
+		response = await ctx.host.fetch(`${apiBase}${probe.path}`, {
+			...probe.init,
 			signal: withClientAbort(ctx.host, undefined),
 		});
 	} catch (error) {

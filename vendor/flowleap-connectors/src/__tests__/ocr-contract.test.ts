@@ -178,6 +178,29 @@ describe('OCR over a fake host with a mistral credential', () => {
 		expect(upstream.requests).toHaveLength(0);
 	});
 
+	it('an invalid Mistral base URL answers the tool and the IFW reader 503 with the configuration message, never a missing key', async () => {
+		const upstream = recordedMistral();
+		const misconfigured = createConnectors(
+			createFakeHost({
+				fetch: upstream.fetch,
+				now: FIXED_NOW,
+				credentials: { mistral: hostCredentials<'mistral'>({ apiKey: 'k', baseUrl: 'http://gateway.example.com' }) },
+			}),
+		);
+		const message = 'The Mistral base URL "http://gateway.example.com" is not allowed: use https, or http only to a host name without dots.';
+		const refused = await ocrTool
+			.handler(ocrTool.input.parse({ url: 'https://example.com/spec.pdf' }), { connectors: misconfigured })
+			.catch((error) => error);
+		expect(refused).toBeInstanceOf(ToolError);
+		expect(refused).toMatchObject({ status: 503, code: ErrorCodes.SERVICE_UNAVAILABLE, message });
+		await expect(misconfigured.odp.getODPDocumentText('16000001', 'DOC1')).rejects.toMatchObject({
+			status: 503,
+			code: ErrorCodes.ocr_unavailable,
+			message,
+		});
+		expect(upstream.requests.filter((r) => r.url.includes('/v1/ocr'))).toHaveLength(0);
+	});
+
 	it('verifyKey is one authenticated GET /v1/models: green on 200, red with the status otherwise', async () => {
 		const upstream = recordedMistral();
 		const green = createConnectors(
