@@ -11,11 +11,11 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { isRecurringScheduleRecord, renderReminderFraming, renderRecurringReminderBatchFraming, resolveRecurringOccurrence } from './domain.ts'
 import type { DeliveryRetentionBounds, RecurringScheduleRecord, ScheduleAdmission, ScheduleDeliveryReceipt, ScheduleRecord } from './types.ts'
+import type { ScheduleTask } from './storage.ts'
+import { appendDelivery } from './delivery-history.ts'
 
 /** The `deliver` admission of one member. */
 type DeliverAdmission = Extract<ScheduleAdmission, { kind: 'deliver' }>
-import type { ScheduleTask } from './storage.ts'
-import { appendDelivery } from './delivery-history.ts'
 
 /** Largest delay Node timers represent without clamping. */
 export const MAX_TIMER_DELAY_MS = 2_147_483_647

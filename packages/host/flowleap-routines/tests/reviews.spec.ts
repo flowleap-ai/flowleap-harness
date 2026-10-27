@@ -123,14 +123,28 @@ describe('a new chat for each run', () => {
     } finally { warn.mockRestore() }
   })
 
-  it('sends the run to the task chat without a Session controller, and logs it', async () => {
+  it('keeps a new-chat run due while no Session controller is mounted', async () => {
+    const pool = new MemoryMediaPool()
+    const first = await host(pool, { chats: true })
+    expect((await createWatch(first, ['EP 3 456 789'], { newChat: true })).isError).toBe(false)
+    await first.ctx.fiber.dispose()
+    contexts.splice(contexts.indexOf(first.ctx), 1)
+    const second = await host(pool)
+    second.register.state.set('EP3456789', EP_EVENTS)
+    await vi.advanceTimersByTimeAsync(2 * DAY)
+    expect(second.agent.followup).not.toHaveBeenCalled()
+    const [watch] = await second.ctx.schedule.catalog()
+    expect(watch?.status).toBe('active')
+    expect(watch?.lastDelivery).toBeUndefined()
+    expect(Date.parse(watch!.scheduledAt)).toBeLessThan(Date.now())
+  })
+
+  it('refuses new_chat_per_run where no chat can open, and resolves an omitted one to off', async () => {
     const test = await host(new MemoryMediaPool())
-    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
-    try {
-      await runOnce(test)
-      expect(test.agent.followup).toHaveBeenCalledOnce()
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no Session controller to open a chat'))
-    } finally { warn.mockRestore() }
+    const refused = await createWatch(test, ['EP 3 456 789'], { newChat: true })
+    expect(refused.value).toMatchObject({ code: 'new_chat_unavailable' })
+    await runOnce(test)
+    expect(test.agent.followup).toHaveBeenCalledOnce()
   })
 
   it('behaves as before when both options are off', async () => {

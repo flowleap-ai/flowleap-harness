@@ -28,7 +28,7 @@ export interface RegisterWatchView {
 
 /** A refused creation. */
 export interface RegisterWatchError {
-  /** `invalid_application`, `register_unavailable`, `empty_register`, `subagent_session`, or `internal_error`. */
+  /** `invalid_application`, `new_chat_unavailable`, `register_unavailable`, `empty_register`, `subagent_session`, or `internal_error`. */
   readonly code: string
   /** What to change. */
   readonly message: string
@@ -122,7 +122,7 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
       },
       new_chat_per_run: {
         type: 'boolean',
-        description: 'Each run opens a new chat in the workspace of this session, titled by the application and the event; false sends the run as a message in this session. Default true.',
+        description: 'Each run opens a new chat in the workspace of this session, titled by the application and the event; false sends the run as a message in this session. Default true where the app can open chats.',
       },
       needs_review: {
         type: 'boolean',
@@ -138,6 +138,9 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
       }
       const applications = parseApplications(args.applications, maxApplications)
       if ('code' in applications) return applications
+      if (args.new_chat_per_run === true && watches.chats === undefined) {
+        return { code: 'new_chat_unavailable', message: 'This app cannot open a new chat for each run. Omit new_chat_per_run or set it to false.' }
+      }
       const reads = await watches.baseline(applications, exec.signal)
       if (!Array.isArray(reads)) {
         return { code: 'register_unavailable', message: `The register of ${reads.application} could not be read (${reads.failure}). Try again later.` }
@@ -154,7 +157,7 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
         title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`, daily: args.daily,
       }, exec.signal)
       try {
-        const baseline = await watches.start(record.id, reads, resolveOptions(args))
+        const baseline = await watches.start(record.id, reads, resolveOptions(args, watches.chats !== undefined))
         return { id: record.id, title: record.title, prompt: record.prompt, daily: args.daily, applications: baseline }
       } catch (error: unknown) {
         // A task without its watch row would deliver the stored instruction every day.
@@ -190,12 +193,16 @@ function parseApplications(inputs: readonly string[], max: number): RegisterAppl
 }
 
 /**
- * The two options as stored: an omitted option is on, so a routine looks like work arriving.
+ * The two options as stored: an omitted option is on, so a routine looks like work arriving; an omitted
+ * `new_chat_per_run` is off where this app cannot open chats.
  * @param args - the tool arguments.
+ * @param canOpenChats - whether this app can open a chat for a run.
  * @returns the options.
  */
-export function resolveOptions(args: { new_chat_per_run?: boolean; needs_review?: boolean }): WatchOptions {
-  return { newChat: args.new_chat_per_run ?? true, needsReview: args.needs_review ?? true }
+export function resolveOptions(
+  args: { new_chat_per_run?: boolean; needs_review?: boolean }, canOpenChats: boolean,
+): WatchOptions {
+  return { newChat: args.new_chat_per_run ?? canOpenChats, needsReview: args.needs_review ?? true }
 }
 
 function internalError(): RegisterWatchError {

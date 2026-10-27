@@ -326,7 +326,7 @@
           },
           "new_chat_per_run": {
             "type": "boolean",
-            "description": "Each run opens a new chat in the workspace of this session, titled by the application and the event; false sends the run as a message in this session. Default true."
+            "description": "Each run opens a new chat in the workspace of this session, titled by the application and the event; false sends the run as a message in this session. Default true where the app can open chats."
           },
           "needs_review": {
             "type": "boolean",

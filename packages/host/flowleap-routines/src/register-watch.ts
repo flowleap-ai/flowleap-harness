@@ -163,7 +163,7 @@ export class RegisterWatches {
    * after its prompt, or becomes a skip when none is new. Tasks without a watch keep the later decision.
    * All reads of one run share the read deadline and stop with the Schedule runtime. A failed read does not stop the run;
    * without a new entry it is logged and the run is skipped. A `newChat` watch delivers the run to a chat opened for this
-   * occurrence; without a chat opener the run is logged and goes to the task's chat.
+   * occurrence; without a chat opener the admission rejects, so the occurrence stays due.
    * @param request - due occurrence.
    * @param next - the later admission listeners.
    * @returns the admission.
@@ -199,10 +199,8 @@ export class RegisterWatches {
     this.pending.set(request.record.id, { ...watch, applications })
     const prompt = renderRunInstruction(later.prompt, reports, failures, this.options.bounds)
     if (!watch.newChat) return { kind: 'deliver', prompt }
-    if (this.chats === undefined) {
-      this.logger.warn(`register watch ${request.record.id}: no Session controller to open a chat; the run goes to the task's chat`)
-      return { kind: 'deliver', prompt }
-    }
+    // The rejection keeps the occurrence due; the Schedule admits it again when its Session controller is ready.
+    if (this.chats === undefined) throw new Error(`register watch ${request.record.id}: no Session controller to open the run's chat yet`)
     const sessionId = await this.chats.open(request.record.id, request.record.scheduledAt, request.sessionId, runChatTitle(reports))
     return { kind: 'deliver', prompt, sessionId }
   }
