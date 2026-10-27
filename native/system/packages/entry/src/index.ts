@@ -49,7 +49,16 @@ export interface LauncherGrants {
   readonly readOnly?: readonly string[]
   /** Roots granted full filesystem access beneath (the launcher's `--rw`). */
   readonly readWrite?: readonly string[]
+  /**
+   * `deny` refuses every socket family except AF_UNIX (the launcher's
+   * `--no-net`), so the command reaches no IP network, loopback included.
+   * `inherit` (the default) leaves the network as the launcher found it.
+   */
+  readonly network?: LauncherNetwork
 }
+
+/** The network access of a confined run: as inherited, or no IP network. */
+export type LauncherNetwork = 'inherit' | 'deny'
 
 /**
  * Path of the launcher binary for this host: resolved from the per-platform
@@ -82,6 +91,11 @@ export function launcherPath(
   }
 }
 
+/** The launcher flags for one network access. */
+function networkArgs(network: LauncherNetwork = 'inherit'): string[] {
+  return network === 'deny' ? ['--no-net'] : []
+}
+
 /**
  * The launcher grant arguments for one set of filesystem grants — everything
  * before the `--` argv separator. A caller spawns
@@ -89,12 +103,13 @@ export function launcherPath(
  * spellings stay private to this package.
  * @param grants - the read-only and read-write roots to allow.
  * @returns the `--ro <path>` / `--rw <path>` argument list, read-only roots
- *   first, in the caller's order.
+ *   first, in the caller's order, then `--no-net` when the network is denied.
  */
 export function grantArgs(grants: LauncherGrants): string[] {
   return [
     ...(grants.readOnly ?? []).flatMap(root => ['--ro', root]),
     ...(grants.readWrite ?? []).flatMap(root => ['--rw', root]),
+    ...networkArgs(grants.network),
   ]
 }
 
@@ -110,14 +125,16 @@ export function grantArgs(grants: LauncherGrants): string[] {
  * and cache the verdict.
  * @param launcher - the launcher path to probe; defaults to
  *   {@link launcherPath}'s resolution for this host.
- * @param options - `timeoutMs` bounds the probe child (default 2000).
+ * @param options - `timeoutMs` bounds the probe child (default 2000);
+ *   `network: 'deny'` also requires the network filter to install and to
+ *   refuse an IP socket, else the probe reads `unusable`.
  * @returns the enforcement verdict for this host.
  */
 export function probe(
   launcher: string = launcherPath(),
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; network?: LauncherNetwork } = {},
 ): LandlockEnforcement {
-  const result = spawnSync(launcher, ['--probe'], {
+  const result = spawnSync(launcher, ['--probe', ...networkArgs(options.network)], {
     timeout: options.timeoutMs ?? 2000,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],

@@ -12,13 +12,16 @@
  *
  * CLI contract (mirrors the `bwrap` runner argv shape the executor wraps):
  *
- *   landlock-run [--ro <path>]... [--rw <path>]... -- <argv>...
- *   landlock-run --probe
+ *   landlock-run [--ro <path>]... [--rw <path>]... [--no-net] -- <argv>...
+ *   landlock-run --probe [--no-net]
  *
  * `--ro` grants read+execute beneath the path; `--rw` grants full filesystem
  * access beneath the path. Everything else is denied (Landlock is an
- * allow-list). `--probe` builds a maximal ruleset and reports whether the
- * running kernel actually enforces it — the executor's functional probe.
+ * allow-list). `--no-net` also installs a seccomp filter that refuses every
+ * socket family except AF_UNIX, so the command reaches no IP network,
+ * loopback included. `--probe` builds a maximal ruleset (and, with
+ * `--no-net`, the filter) and reports whether the running kernel actually
+ * enforces it — the executor's functional probe.
  *
  * Fail-closed: if the ruleset cannot be created or is NOT enforced by the
  * kernel, the launcher exits non-zero WITHOUT exec'ing the command. A partial
@@ -37,6 +40,7 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
+#include <sys/socket.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -105,6 +109,56 @@ struct landlock_path_beneath_attr {
 #endif
 
 /*
+ * The seccomp-BPF UAPI, defined locally for the same reasons as the Landlock
+ * UAPI above (musl's headers do not carry <linux/filter.h> or
+ * <linux/seccomp.h>). Values are verbatim from the kernel headers.
+ */
+struct sock_filter {
+  uint16_t code;
+  uint8_t jt;
+  uint8_t jf;
+  uint32_t k;
+};
+
+struct sock_fprog {
+  unsigned short len;
+  struct sock_filter *filter;
+};
+
+#define BPF_LD_W_ABS  0x20 /* BPF_LD | BPF_W | BPF_ABS */
+#define BPF_JEQ_K     0x15 /* BPF_JMP | BPF_JEQ | BPF_K */
+#define BPF_JGE_K     0x35 /* BPF_JMP | BPF_JGE | BPF_K */
+#define BPF_RET_K     0x06 /* BPF_RET | BPF_K */
+
+#define SECCOMP_MODE_FILTER 2
+#define SECCOMP_RET_ALLOW   UINT32_C(0x7fff0000)
+#define SECCOMP_RET_ERRNO   UINT32_C(0x00050000)
+
+/* Offsets into `struct seccomp_data`: nr, arch, then args[6] from byte 16. */
+#define SECCOMP_DATA_NR   0
+#define SECCOMP_DATA_ARCH 4
+#define SECCOMP_DATA_ARG0 16 /* low 32 bits on a little-endian ABI */
+
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#error "the network filter reads the low word of args[0] at a little-endian offset"
+#endif
+
+#if defined(__x86_64__)
+#define AUDIT_ARCH_NATIVE UINT32_C(0xC000003E) /* AUDIT_ARCH_X86_64 */
+#elif defined(__aarch64__)
+#define AUDIT_ARCH_NATIVE UINT32_C(0xC00000B7) /* AUDIT_ARCH_AARCH64 */
+#else
+#error "no seccomp audit arch for this architecture"
+#endif
+
+/* x86_64's x32 ABI marks its syscall numbers with this bit. */
+#define X32_SYSCALL_BIT UINT32_C(0x40000000)
+
+#ifndef __NR_io_uring_setup
+#define __NR_io_uring_setup 425
+#endif
+
+/*
  * Every fatal launcher error prints `landlock-run: <message>` to stderr
  * and exits 125 — a code the wrapped command itself is unlikely to use, so
  * the executor can tell launcher failures from command failures.
@@ -132,6 +186,7 @@ static int fail_usage(const char *message, const char *detail) {
 /* Parsed CLI: either a probe, or grants plus the command argv after `--`. */
 struct cli {
   int probe;
+  int no_net;
   const char **ro;
   size_t ro_count;
   const char **rw;
@@ -153,10 +208,13 @@ static int parse(int argc, char **argv, struct cli *cli) {
   while (index < argc) {
     const char *arg = argv[index];
     if (strcmp(arg, "--probe") == 0) {
-      if (argc != 2) {
-        return fail_usage("--probe takes no other arguments", NULL);
+      if (cli->probe) {
+        return fail_usage("--probe takes no other arguments except --no-net", NULL);
       }
       cli->probe = 1;
+      index += 1;
+    } else if (strcmp(arg, "--no-net") == 0) {
+      cli->no_net = 1;
       index += 1;
     } else if (strcmp(arg, "--ro") == 0 || strcmp(arg, "--rw") == 0) {
       if (index + 1 >= argc) {
@@ -174,6 +232,9 @@ static int parse(int argc, char **argv, struct cli *cli) {
     } else {
       return fail_usage("unknown argument: ", arg);
     }
+  }
+  if (cli->probe && (cli->ro_count > 0 || cli->rw_count > 0 || cli->command != NULL)) {
+    return fail_usage("--probe takes no other arguments except --no-net", NULL);
   }
   if (!cli->probe && (cli->command == NULL || cli->command[0] == NULL)) {
     return fail_usage("missing `-- <argv>...` command", NULL);
@@ -261,6 +322,53 @@ static int restrict_self(const struct cli *cli, int *partial) {
   return 0;
 }
 
+/*
+ * Install the `--no-net` seccomp filter on the current thread (after
+ * `no_new_privs`, which `restrict_self` sets). It allows socket(2) only for
+ * AF_UNIX and refuses every other family with EACCES, so neither TCP, UDP,
+ * nor ICMP reaches any address, loopback included. It also refuses
+ * io_uring_setup(2), whose IORING_OP_SOCKET would create a socket without
+ * socket(2), and every syscall of a foreign ABI (x86 i386 `socketcall`, x32),
+ * which this filter's syscall numbers do not describe; both with ENOSYS.
+ * Returns 0, else the exit code.
+ */
+static int deny_network(void) {
+  struct sock_filter filter[] = {
+    /* 0 */ { BPF_LD_W_ABS, 0, 0, SECCOMP_DATA_ARCH },
+    /* 1 */ { BPF_JEQ_K, 0, 8, AUDIT_ARCH_NATIVE },
+    /* 2 */ { BPF_LD_W_ABS, 0, 0, SECCOMP_DATA_NR },
+    /* 3 */ { BPF_JGE_K, 6, 0, X32_SYSCALL_BIT },
+    /* 4 */ { BPF_JEQ_K, 5, 0, __NR_io_uring_setup },
+    /* 5 */ { BPF_JEQ_K, 0, 2, __NR_socket },
+    /* 6 */ { BPF_LD_W_ABS, 0, 0, SECCOMP_DATA_ARG0 },
+    /* 7 */ { BPF_JEQ_K, 0, 1, AF_UNIX },
+    /* 8 */ { BPF_RET_K, 0, 0, SECCOMP_RET_ALLOW },
+    /* 9 */ { BPF_RET_K, 0, 0, SECCOMP_RET_ERRNO | EACCES },
+    /* 10 */ { BPF_RET_K, 0, 0, SECCOMP_RET_ERRNO | ENOSYS },
+  };
+  struct sock_fprog program = { .len = sizeof filter / sizeof filter[0], .filter = filter };
+  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program, 0, 0) != 0) {
+    return fail("network filter error", strerror(errno));
+  }
+  return 0;
+}
+
+/*
+ * The `--probe --no-net` check that the installed filter really refuses an
+ * IP socket and still allows a Unix one. Returns 0, else the exit code.
+ */
+static int probe_network_denied(void) {
+  int inet = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  if (inet >= 0) {
+    close(inet);
+    return fail("network filter error", "an AF_INET socket was created under the filter");
+  }
+  int unix_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  if (unix_fd < 0) return fail("network filter error", strerror(errno));
+  close(unix_fd);
+  return 0;
+}
+
 int main(int argc, char **argv) {
   struct cli cli = { 0 };
   int code = parse(argc, argv, &cli);
@@ -278,6 +386,11 @@ int main(int argc, char **argv) {
     int partial = 0;
     code = restrict_self(&probe, &partial);
     if (code != 0) return code;
+    if (cli.no_net) {
+      code = deny_network();
+      if (code == 0) code = probe_network_denied();
+      if (code != 0) return code;
+    }
     printf("landlock: %s\n", partial ? "partially enforced (older ABI)" : "fully enforced");
     return 0;
   }
@@ -285,6 +398,10 @@ int main(int argc, char **argv) {
   int partial = 0;
   code = restrict_self(&cli, &partial);
   if (code != 0) return code;
+  if (cli.no_net) {
+    code = deny_network();
+    if (code != 0) return code;
+  }
   if (partial) {
     /* Older ABI: some handled accesses are not governed (e.g. truncate
      * before ABI 3). Still confined for everything the kernel supports —

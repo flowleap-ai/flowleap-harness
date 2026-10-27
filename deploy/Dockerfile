@@ -48,7 +48,7 @@ ENV CI=true \
     PATH=/pnpm:$PATH \
     NODE_OPTIONS=--max-old-space-size=6144
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git python3 make g++ \
+  && apt-get install -y --no-install-recommends ca-certificates git python3 make g++ musl-tools \
   && rm -rf /var/lib/apt/lists/* \
   && npm install -g "pnpm@${PNPM_VERSION}"
 WORKDIR /src
@@ -57,6 +57,11 @@ RUN --mount=type=cache,id=flowleap-harness-pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store \
   && pnpm install --frozen-lockfile
 RUN DSH_CLIENT_COMMIT_HASH="${HARNESS_COMMIT}" pnpm run build
+# The shell sandbox: `pnpm run build` builds only the Node-API addon, so build
+# every system binary of this platform here, the static `landlock-run`
+# launcher included (it needs musl-gcc). Without it, the runtime has no
+# sandbox backend and every confined `bash` call fails closed.
+RUN pnpm exec tsx native/system/scripts/build.ts
 # The doctor as one bundled module (js-yaml inlined), built while the development
 # dependencies (tsdown) are still installed: the production deploy below prunes them.
 RUN node_modules/.bin/tsdown scripts/flowleap/doctor.ts --no-config --no-dts --format esm --platform node --target node26 \

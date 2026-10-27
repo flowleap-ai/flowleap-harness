@@ -34,7 +34,7 @@ function start(x: { execute(spec: ShellExecSpec): Promise<ShellExecution> }, spe
  * intentional because bwrap replaces `/tmp`, which cannot prove the workspace-root boundary.
  */
 
-const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
+const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }, 'inherit'), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
 const bwrapUsable = probe.status === 0
 
 let ctx: Context | undefined

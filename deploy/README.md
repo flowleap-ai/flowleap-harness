@@ -177,7 +177,11 @@ What leaves the server, and to whom:
 | Tailscale | the Tailscale control plane | node registration and key exchange; the attorney's traffic itself goes point to point inside the tailnet |
 | Telemetry | none | `DSH_TELEMETRY_MODE=DISABLED` is set in the image |
 
-The web search and page fetch tools of the harness are present in the profile; when the agent uses them, the query or URL goes to the search provider or the site. The firm's own systems (DMS, docketing, Drive, SharePoint) are not connected unless you add an MCP row to the profile; FlowLeap configures those with you.
+The web search and page fetch tools of the harness are present in the profile; when the agent uses them, the query or URL goes to the search provider or the site.
+
+### The shell sandbox
+
+The agent's `bash` commands run confined by Landlock: a command writes only inside its workspace folder and `/tmp`, and it has no IP network, loopback included, so a command cannot send data out or call the harness itself. Web access goes through the web search and page fetch tools. A command that needs more runs unconfined only after the attorney approves it on an approval card. The image carries the `landlock-run` launcher; it needs a Linux kernel 5.13 or newer with Landlock enabled (`cat /sys/kernel/security/lsm` lists `landlock`) and Docker's default security settings. Do not add `--privileged`, `seccomp=unconfined`, or `apparmor=unconfined` to the container: Landlock and its seccomp network filter need no extra privilege, and these settings only widen what an attack can reach. On a kernel without Landlock, every confined command fails with `SANDBOX_UNAVAILABLE` and never runs unconfined by itself. The firm's own systems (DMS, docketing, Drive, SharePoint) are not connected unless you add an MCP row to the profile; FlowLeap configures those with you.
 
 ## Support
 

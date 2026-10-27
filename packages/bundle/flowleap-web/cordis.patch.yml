@@ -106,6 +106,16 @@
     customSkillDirs:
       - !!js process.env.FLOWLEAP_SKILLS_DIR ?? '/Users/abdullahatrash/flowleap/flowleap-plugins/plugins/flowleap/skills'
 
+# ── the shell sandbox ────────────────────────────────────────────────────────
+# A confined command reaches no IP network: web access goes through the web
+# tools, and an unconfined run (danger-full-access) needs the attorney's
+# approval. This protects against a prompt injection that sends data out
+# through a shell command.
+
+- id: sandbox
+  config:
+    network: deny
+
 # ── FlowLeap rows ────────────────────────────────────────────────────────────
 
 - insert:

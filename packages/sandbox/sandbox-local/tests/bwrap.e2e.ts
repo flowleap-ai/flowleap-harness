@@ -18,7 +18,7 @@ import { checkExtraWrites, checkRedirectedRoot } from './extra-roots.ts'
  * ephemeral `/tmp`, so workspace-write actually proves the workspace-root rebind.
  */
 
-const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
+const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }, 'inherit'), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
 const bwrapUsable = probe.status === 0
 
 let ctx: Context | undefined

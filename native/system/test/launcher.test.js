@@ -60,6 +60,7 @@ const run = (args, options = {}) => spawnSync(launcher, args, { encoding: 'utf8'
     ['--probe', '--ro', '/'],
     ['--probe', '--'],
     ['--probe', '--probe'],
+    ['--probe', '--no-net', '--ro', '/'],
   ]) {
     const probeWithExtras = run(args);
     assert.equal(probeWithExtras.status, LAUNCHER_FAILURE_EXIT);
@@ -83,6 +84,12 @@ const expectedNotice = enforcement === 'partial' ? `${PARTIAL_NOTICE}\n` : '';
   const probeRun = run(['--probe']);
   assert.equal(probeRun.status, 0);
   assert.match(probeRun.stdout, /^landlock: (fully enforced|partially enforced \(older ABI\))\n$/);
+}
+
+{
+  const networkProbe = run(['--probe', '--no-net']);
+  assert.equal(networkProbe.status, 0, networkProbe.stderr);
+  assert.equal(probe(launcher, { network: 'deny' }), enforcement);
 }
 
 // --- confined exec: the command runs, its exit code passes through ---
@@ -120,6 +127,31 @@ const expectedNotice = enforcement === 'partial' ? `${PARTIAL_NOTICE}\n` : '';
   const nestedRun = run([...grantArgs({ readOnly: ['/'] }), '--', '/bin/sh', '-c', `/bin/sh -c 'echo x > ${nested}'; true`]);
   assert.equal(nestedRun.status, 0, nestedRun.stderr);
   assert.ok(!fs.existsSync(nested), 'a denied write from a nested child must not land either');
+
+  fs.rmSync(work, { recursive: true, force: true });
+}
+
+// --- --no-net: no IP socket of any type, loopback included; Unix sockets still work ---
+{
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'nalr-launcher-net-'));
+  const node = (grants, script) => run([...grantArgs(grants), '--', process.execPath, '-e', script]);
+  const tcp = `const s=require("net").createServer().listen(0,"127.0.0.1",()=>{require("net").connect(s.address().port,"127.0.0.1").on("connect",()=>{console.log("connected");process.exit(0)}).on("error",e=>{console.log(e.code);process.exit(3)})}).on("error",e=>{console.log(e.code);process.exit(3)})`;
+  const udp = 'require("dgram").createSocket("udp4").on("error",e=>{console.log(e.code);process.exit(3)}).bind(0,"127.0.0.1",()=>{console.log("bound");process.exit(0)})';
+  const unix = `require("net").createServer().listen(${JSON.stringify(path.join(work, 'unix.sock'))},()=>{console.log("listening");process.exit(0)}).on("error",e=>{console.log(e.code);process.exit(3)})`;
+
+  const allowedTcp = node({ readOnly: ['/'] }, tcp);
+  assert.equal(allowedTcp.stdout, 'connected\n', 'without --no-net the loopback connect succeeds');
+
+  const deniedTcp = node({ readOnly: ['/'], network: 'deny' }, tcp);
+  assert.equal(deniedTcp.status, 3, deniedTcp.stderr);
+  assert.equal(deniedTcp.stdout, 'EACCES\n', 'a TCP socket is refused under --no-net');
+
+  const deniedUdp = node({ readOnly: ['/'], network: 'deny' }, udp);
+  assert.equal(deniedUdp.status, 3, deniedUdp.stderr);
+  assert.equal(deniedUdp.stdout, 'EACCES\n', 'a UDP socket is refused under --no-net');
+
+  const allowedUnix = node({ readOnly: ['/'], readWrite: [work], network: 'deny' }, unix);
+  assert.equal(allowedUnix.stdout, 'listening\n', `a Unix socket still works under --no-net: ${allowedUnix.stderr}`);
 
   fs.rmSync(work, { recursive: true, force: true });
 }

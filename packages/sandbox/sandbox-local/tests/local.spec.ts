@@ -74,11 +74,11 @@ const SEATBELT_RO_PROFILE = '(version 1) (allow default) (deny file-write*) (all
 
 describe('profile dialects', () => {
   it('bwrap read-only: whole tree read-only with fresh /dev and private PID-scoped /proc, no writable mounts', () => {
-    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent'])
+    expect(bwrapProfileArgs(RO, 'inherit')).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent'])
   })
 
   it('bwrap workspace-write: adds an ephemeral /tmp and rebinds the workspace root', () => {
-    expect(bwrapProfileArgs(WW)).toEqual([
+    expect(bwrapProfileArgs(WW, 'inherit')).toEqual([
       '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent',
       '--tmpfs', '/tmp', '--bind', '/ws', '/ws',
     ])
@@ -87,11 +87,11 @@ describe('profile dialects', () => {
   it('landlock read-only: readable tree plus a writable /dev/null, nothing else', () => {
     // /dev/null specifically, NOT /dev: a whole-/dev grant would let confined
     // commands write real host paths beneath it (/dev/shm) under read-only.
-    expect(landlockProfileArgs(RO)).toEqual(['--ro', '/', '--rw', '/dev/null'])
+    expect(landlockProfileArgs(RO, 'inherit')).toEqual(['--ro', '/', '--rw', '/dev/null'])
   })
 
   it('landlock workspace-write: adds the host /tmp and the workspace root', () => {
-    expect(landlockProfileArgs(WW)).toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', '/ws'])
+    expect(landlockProfileArgs(WW, 'inherit')).toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', '/ws'])
   })
 
   it('bwrap workspace-write binds each explicit extra root beside the workspace', () => {
@@ -100,7 +100,7 @@ describe('profile dialects', () => {
     tempDirs.push(ws, extra)
     const realWs = realpathSync.native(ws)
     const realExtra = realpathSync.native(extra)
-    expect(bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: ws, additionalWritableRoots: [extra] })).toEqual([
+    expect(bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: ws, additionalWritableRoots: [extra] }, 'inherit')).toEqual([
       '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent',
       '--tmpfs', '/tmp', '--bind', realWs, realWs, '--bind', realExtra, realExtra,
     ])
@@ -110,20 +110,20 @@ describe('profile dialects', () => {
     const ws = mkdtempSync(join(tmpdir(), 'dsh-ws-'))
     const extra = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-extra-')))
     tempDirs.push(ws, extra)
-    expect(landlockProfileArgs({ mode: 'workspace-write', workspaceRoot: ws, additionalWritableRoots: [extra] })).toEqual([
+    expect(landlockProfileArgs({ mode: 'workspace-write', workspaceRoot: ws, additionalWritableRoots: [extra] }, 'inherit')).toEqual([
       '--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', realpathSync.native(ws), '--rw', realpathSync.native(extra),
     ])
   })
 
   it('read-only ignores extra roots in every backend dialect', () => {
     const policy: SandboxPolicy = { mode: 'read-only', workspaceRoot: '/ws', additionalWritableRoots: ['/extra'] }
-    expect(bwrapProfileArgs(policy)).not.toContain('--bind')
-    expect(landlockProfileArgs(policy)).toEqual(['--ro', '/', '--rw', '/dev/null'])
-    expect(seatbeltProfileArgs(policy)).toEqual(['-p', SEATBELT_RO_PROFILE])
+    expect(bwrapProfileArgs(policy, 'inherit')).not.toContain('--bind')
+    expect(landlockProfileArgs(policy, 'inherit')).toEqual(['--ro', '/', '--rw', '/dev/null'])
+    expect(seatbeltProfileArgs(policy, 'inherit')).toEqual(['-p', SEATBELT_RO_PROFILE])
   })
 
   it('seatbelt read-only: allow-default with every file write denied except the /dev/null literal', () => {
-    expect(seatbeltProfileArgs(RO)).toEqual(['-p', SEATBELT_RO_PROFILE])
+    expect(seatbeltProfileArgs(RO, 'inherit')).toEqual(['-p', SEATBELT_RO_PROFILE])
   })
 
   it('seatbelt workspace-write: one more allow for the canonicalized workspace root, /tmp, and the user temp dir', () => {
@@ -134,7 +134,7 @@ describe('profile dialects', () => {
     // where they resolve to the same directory.
     const roots = [...new Set(['/ws', realpathSync('/tmp'), realpathSync(tmpdir())])]
     const allow = `(allow file-write* ${roots.map(root => `(subpath "${root}")`).join(' ')})`
-    expect(seatbeltProfileArgs(WW)).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow}`])
+    expect(seatbeltProfileArgs(WW, 'inherit')).toEqual(['-p', `${SEATBELT_RO_PROFILE} ${allow}`])
   })
 
   it('seatbelt workspace-write grants every explicit extra root', () => {
@@ -145,15 +145,48 @@ describe('profile dialects', () => {
       mode: 'workspace-write',
       workspaceRoot: ws,
       additionalWritableRoots: [extra],
-    })[1] as string
+    }, 'inherit')[1] as string
     expect(profile).toContain(`(subpath "${realpathSync.native(extra)}")`)
   })
 
   it('seatbelt workspace-write dedups a workspace root that already IS the temp dir', () => {
-    const profile = seatbeltProfileArgs({ mode: 'workspace-write', workspaceRoot: tmpdir() })[1] as string
+    const profile = seatbeltProfileArgs({ mode: 'workspace-write', workspaceRoot: tmpdir() }, 'inherit')[1] as string
     const grant = `(subpath "${realpathSync(tmpdir())}")`
     expect(profile).toContain(grant)
     expect(profile.split(grant)).toHaveLength(2)
+  })
+
+  it('network deny: bwrap unshares the network, the launcher adds --no-net, Seatbelt denies IP networking', () => {
+    expect(bwrapProfileArgs(RO, 'deny')).toEqual([
+      '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--unshare-net',
+    ])
+    expect(landlockProfileArgs(WW, 'deny')).toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/tmp', '--rw', '/ws', '--no-net'])
+    expect(seatbeltProfileArgs(RO, 'deny')).toEqual(['-p', `${SEATBELT_RO_PROFILE} (deny network* (local ip) (remote ip))`])
+  })
+})
+
+describe('network config', () => {
+  it('defaults to inherit: the wrap carries no network flag', async () => {
+    const { sandbox } = await setup({}, { platform: 'linux', probeBwrap: () => true })
+    expect((await sandbox.confine(['true'], RO)).argv).not.toContain('--unshare-net')
+  })
+
+  it('deny reaches the selected runner and its probe', async () => {
+    const probeLandlock = vi.fn(() => 'partial' as const)
+    const launcher = fakeLauncher()
+    const { sandbox } = await setup({ network: 'deny' }, { platform: 'linux', probeBwrap: () => false, probeLandlock, landlockLauncher: launcher })
+    const confined = await sandbox.confine(['true'], RO)
+    expect(confined.argv).toEqual([launcher, ...landlockProfileArgs(RO, 'deny'), '--', 'true'])
+    expect(confined.enforcement).toBe('partial')
+  })
+
+  it('deny reaches a configured runnerCommand as the bwrap network flag', async () => {
+    const { sandbox } = await setup({ network: 'deny', runnerCommand: ['fake-runner'], runnerFailureSignatures: ['fake-runner: '] })
+    expect((await sandbox.confine(['true'], RO)).argv).toEqual(['fake-runner', ...bwrapProfileArgs(RO, 'deny'), '--', 'true'])
+  })
+
+  it('rejects an unknown network value at load', async () => {
+    await expect(setup({ network: 'proxy' as 'deny' })).rejects.toThrow()
   })
 })
 
@@ -168,7 +201,7 @@ describe('runnerCommand config', () => {
     }, { probeBwrap, probeLandlock, probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: ['fake-runner', '--flag', ...bwrapProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
+      argv: ['fake-runner', '--flag', ...bwrapProfileArgs(WW, 'inherit'), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       // An operator runner's kernel mechanism is unknown: both Linux
       // file-denial dialects, never bare EPERM.
@@ -216,7 +249,7 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: ['bwrap', ...bwrapProfileArgs(RO), '--', 'true'],
+      argv: ['bwrap', ...bwrapProfileArgs(RO, 'inherit'), '--', 'true'],
       enforcement: 'full',
       denialSignatures: ['read-only file system'],
       runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }],
@@ -231,7 +264,7 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: [launcher, ...landlockProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
+      argv: [launcher, ...landlockProfileArgs(WW, 'inherit'), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       denialSignatures: ['permission denied'],
       runnerFailureRules: [{
@@ -251,7 +284,7 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'darwin', probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], RO)
     expect(confined).toEqual({
-      argv: ['sandbox-exec', ...seatbeltProfileArgs(RO), '--', 'bash', '-c', 'echo hi'],
+      argv: ['sandbox-exec', ...seatbeltProfileArgs(RO, 'inherit'), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
@@ -416,7 +449,7 @@ describe('the default seatbelt probe (sandbox-exec contract)', () => {
     const { sandbox } = await setup({}, { chain: ['bwrap', 'seatbelt'], probeBwrap: () => false, seatbeltExec: exec })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: [exec, ...seatbeltProfileArgs(RO), '--', 'true'],
+      argv: [exec, ...seatbeltProfileArgs(RO, 'inherit'), '--', 'true'],
       enforcement: 'full',
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
