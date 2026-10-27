@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   FlowleapConnectorsController, createConnectorHost, createCredentialStore,
 } from '@deepseek-ai/dsh-flowleap-connectors'
+import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import { MemoryCredentials } from './memory-credentials.ts'
 
 async function bench() {
@@ -76,5 +77,25 @@ describe('the flowleapConnectors Remote', () => {
     expect(rejected.ok).toBe(false)
     expect(rejected.message).toContain('USPTO ODP')
     expect(await controller.test('mistral', signal)).toEqual({ ok: false, message: 'Mistral: Mistral rejected the key (HTTP 401).' })
+  })
+
+  it('tests a Mistral record with a gateway baseUrl by one OCR page at that base, and reports an invalid baseUrl without a call', async () => {
+    const { controller, credentials, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    const mistral = parseCredentialKey('flowleap-connectors/mistral')
+    credentials.records.set(mistral, { kind: 'grant', payload: { apiKey: 'virtual', baseUrl: 'http://flowleap-gateway:4000' } })
+    fetchSpy.mockImplementation(() => Promise.resolve(Response.json({ pages: [{ index: 0, markdown: '' }] })))
+    expect(await controller.test('mistral', signal)).toEqual({ ok: true, message: 'Mistral: Mistral accepted the key.' })
+    const [url, init] = fetchSpy.mock.calls[0] ?? []
+    expect(url).toBe('http://flowleap-gateway:4000/v1/ocr')
+    expect(init?.method).toBe('POST')
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer virtual')
+
+    credentials.records.set(mistral, { kind: 'grant', payload: { apiKey: 'virtual', baseUrl: 'ftp://flowleap-gateway' } })
+    expect(await controller.test('mistral', signal)).toEqual({
+      ok: false,
+      message: 'Mistral: The Mistral base URL "ftp://flowleap-gateway" is not allowed: use https, or http only to a host name without dots.',
+    })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 })

@@ -35,6 +35,12 @@ export interface SemanticScholarCredentials {
 /** The Mistral API key the OCR client spends (./ocr/). A host without one answers `missing`. */
 export interface MistralCredentials {
 	readonly apiKey: string;
+	/**
+	 * The API base the OCR client calls instead of `https://api.mistral.ai`, for
+	 * example a model gateway that holds the real key. `https`, or `http` to a
+	 * host name without dots (a Compose service such as `http://flowleap-gateway:4000`).
+	 */
+	readonly baseUrl?: string;
 }
 
 export interface ConnectorCredentialMap {

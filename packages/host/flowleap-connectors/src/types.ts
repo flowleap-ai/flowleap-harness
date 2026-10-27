@@ -20,6 +20,19 @@ export const CONNECTOR_FIELDS: Readonly<Record<ConnectorId, readonly string[]>> 
 }
 
 /**
+ * Fields a stored record may also carry, which the settings card does not ask
+ * for: a deployment writes them in its credential document. `baseUrl` sends
+ * Mistral OCR and its connection test to that base (a model gateway); the
+ * library validates the value on each read.
+ */
+export const CONNECTOR_OPTIONAL_FIELDS: Readonly<Record<ConnectorId, readonly string[]>> = {
+  'epo-ops': [],
+  'uspto-odp': [],
+  'semantic-scholar': [],
+  mistral: ['baseUrl'],
+}
+
+/**
  * Whether a raw string is a {@link ConnectorId}.
  * @param value - candidate id from a wire request.
  * @returns true for one of {@link CONNECTOR_IDS}.

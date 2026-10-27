@@ -18,7 +18,7 @@
 import { ClientGoneError } from '../client-abort.js';
 import { ErrorCodes } from '../contract/error-codes.js';
 import { APIError, ProviderKeyInvalidError, RateLimitError } from '../errors.js';
-import { OcrInputError, OcrNotConfiguredError, ocrInputSchema } from '../ocr/index.js';
+import { OcrConfigurationError, OcrInputError, OcrNotConfiguredError, ocrInputSchema } from '../ocr/index.js';
 import type { ToolDefinition } from './definition.js';
 import { ToolError, tool } from './shared.js';
 
@@ -45,8 +45,8 @@ export const ocrTool: ToolDefinition = tool({
 			if (error instanceof APIError) {
 				throw new ToolError(error.statusCode, ErrorCodes.OCR_ERROR, error.message);
 			}
-			// A host without a Mistral key is 503 (the backend: MISTRAL_API_KEY unset), anything else 500.
-			if (error instanceof OcrNotConfiguredError) {
+			// A host without a Mistral key, or with an invalid Mistral base URL, is 503; anything else 500.
+			if (error instanceof OcrNotConfiguredError || error instanceof OcrConfigurationError) {
 				throw new ToolError(503, ErrorCodes.SERVICE_UNAVAILABLE, error.message);
 			}
 			throw new ToolError(500, ErrorCodes.INTERNAL_ERROR, error instanceof Error ? error.message : 'OCR failed');

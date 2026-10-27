@@ -25,7 +25,7 @@ import type { ConnectorContext } from '../context.js';
 import { ErrorCodes } from '../contract/error-codes.js';
 import { APIError, UpstreamError } from '../errors.js';
 import { fetchWithRetry } from '../fetch-with-retry.js';
-import { OcrNotConfiguredError, resolveOcr } from '../ocr/index.js';
+import { OcrConfigurationError, OcrNotConfiguredError, resolveOcr } from '../ocr/index.js';
 import { getUSPTOOdpAuthHeader, isUSPTOOdpConfigured, resolveOdpCredentials, throwIfUserKeyRejected, type OdpCredentialLookup } from './auth.js';
 import { parseODPError, type ODPSearchError } from './patent-search.js';
 
@@ -230,7 +230,7 @@ export async function getODPDocumentText(
 			filename: `${documentIdentifier}.pdf`,
 		});
 	} catch (error) {
-		if (error instanceof OcrNotConfiguredError) {
+		if (error instanceof OcrNotConfiguredError || error instanceof OcrConfigurationError) {
 			throw new UpstreamError(503, ErrorCodes.ocr_unavailable, error.message);
 		}
 		throw error;

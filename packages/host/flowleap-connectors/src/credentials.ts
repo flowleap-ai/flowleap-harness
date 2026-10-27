@@ -3,7 +3,7 @@
  * one `flowleap-connectors/<id>` record per connector, written by the settings
  * card and read per call by the connector host. The record is a `grant` whose
  * payload is the field map the connector needs (`{ consumerKey, consumerSecret }`
- * for EPO OPS, `{ apiKey }` for the others); the payload is validated on every
+ * for EPO OPS, `{ apiKey }` for the others, plus an optional Mistral `baseUrl`); the payload is validated on every
  * read because it crosses the durable-storage boundary.
  * @module
  */
@@ -12,7 +12,7 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { ConnectorCredentialMap, ConnectorProvider, CredentialLookup } from '@flowleap/connectors'
 import { z } from 'zod'
-import { CONNECTOR_FIELDS, type ConnectorId, type ConnectorPresence } from './types.ts'
+import { CONNECTOR_FIELDS, CONNECTOR_OPTIONAL_FIELDS, type ConnectorId, type ConnectorPresence } from './types.ts'
 
 /** The record scope: this plugin's registered name. */
 export const CREDENTIAL_SCOPE = 'flowleap-connectors'
@@ -60,7 +60,7 @@ export interface ConnectorCredentialStore {
   /**
    * Store one connector's fields, replacing any stored record.
    * @param id - the connector.
-   * @param values - every field of {@link CONNECTOR_FIELDS} for `id`, each non-empty.
+   * @param values - every field of {@link CONNECTOR_FIELDS} for `id`, and any of {@link CONNECTOR_OPTIONAL_FIELDS}, each non-empty.
    * @throws TypeError when a field is missing, empty, or not one of the connector's fields.
    */
   write(id: ConnectorId, values: Record<string, string>): Promise<void>
@@ -76,7 +76,7 @@ export interface ConnectorCredentialStore {
  * @param id - the connector.
  * @param values - candidate fields.
  * @returns the same fields, trimmed, with nothing else attached.
- * @throws TypeError naming the first missing, empty, or unexpected field.
+ * @throws TypeError naming the first missing, empty, or unexpected field; an optional field that is present must be non-empty.
  */
 export function validateConnectorFields(id: ConnectorId, values: Record<string, string>): Record<string, string> {
   const expected = CONNECTOR_FIELDS[id]
@@ -88,8 +88,16 @@ export function validateConnectorFields(id: ConnectorId, values: Record<string, 
     }
     result[field] = value
   }
+  for (const field of CONNECTOR_OPTIONAL_FIELDS[id]) {
+    const value = values[field]?.trim()
+    if (value === undefined) continue
+    if (value.length === 0) throw new TypeError(`${CONNECTOR_LABELS[id]}: field "${field}" is empty`)
+    result[field] = value
+  }
   for (const field of Object.keys(values)) {
-    if (!expected.includes(field)) throw new TypeError(`${CONNECTOR_LABELS[id]}: unknown field "${field}"`)
+    if (!expected.includes(field) && !CONNECTOR_OPTIONAL_FIELDS[id].includes(field)) {
+      throw new TypeError(`${CONNECTOR_LABELS[id]}: unknown field "${field}"`)
+    }
   }
   return result
 }
@@ -153,10 +161,13 @@ export async function lookupCredentials<P extends ConnectorProvider>(
   return { status: 'available', credentials: CREDENTIAL_BUILDERS[provider](fields), owner: 'user', stored: true }
 }
 
-/** The library's credential object for each provider, from a validated field map (every field present and non-empty). */
+/** The library's credential object for each provider, from a validated field map (every required field present and non-empty). */
 const CREDENTIAL_BUILDERS: { readonly [K in ConnectorProvider]: (fields: Record<string, string>) => ConnectorCredentialMap[K] } = {
   epoOps: fields => ({ consumerKey: fields['consumerKey'] ?? '', consumerSecret: fields['consumerSecret'] ?? '' }),
   usptoOdp: fields => ({ apiKey: fields['apiKey'] ?? '' }),
   semanticScholar: fields => ({ apiKey: fields['apiKey'] ?? '' }),
-  mistral: fields => ({ apiKey: fields['apiKey'] ?? '' }),
+  mistral: fields => ({
+    apiKey: fields['apiKey'] ?? '',
+    ...fields['baseUrl'] === undefined ? {} : { baseUrl: fields['baseUrl'] },
+  }),
 }

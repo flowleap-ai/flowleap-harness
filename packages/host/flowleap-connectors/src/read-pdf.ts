@@ -18,7 +18,7 @@ import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deeps
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import {
-  APIError, OCR_MODEL, OcrInputError, OcrNotConfiguredError, ProviderKeyInvalidError, RateLimitError,
+  APIError, OCR_MODEL, OcrConfigurationError, OcrInputError, OcrNotConfiguredError, ProviderKeyInvalidError, RateLimitError,
   type Connectors, type OcrResponse,
 } from '@flowleap/connectors'
 import type { BoundConnectorHost } from './host.ts'
@@ -158,7 +158,8 @@ function parseArgs(args: unknown): ReadPdfArgs {
 function toolFailure(error: unknown): MissingCredentialResult | Error {
   if (error instanceof OcrNotConfiguredError) return missingCredential('mistral')
   if (error instanceof ProviderKeyInvalidError && error.provider === 'mistral') return missingCredential('mistral', true)
-  if (error instanceof OcrInputError || error instanceof RateLimitError || error instanceof APIError) {
+  if (error instanceof OcrInputError || error instanceof OcrConfigurationError
+    || error instanceof RateLimitError || error instanceof APIError) {
     return new Error(`${READ_PDF_NAME}: ${error.message}`, { cause: error })
   }
   return error instanceof Error ? error : new Error(String(error))
