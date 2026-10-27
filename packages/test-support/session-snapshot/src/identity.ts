@@ -75,6 +75,8 @@ export function redactSessionSnapshotIds(logs: readonly string[]): string[] {
     if (typeof value === 'string') {
       for (const match of value.matchAll(/\bas message ([0-9a-f-]{36})\b/gi)) claim(match[1], 'message')
       for (const match of value.matchAll(/\bAnonymous user: ([0-9a-f-]{36})\b/gi)) claim(match[1], 'id')
+      // Schedule task ids travel inside tool-result JSON text, where no `id` key reaches them.
+      for (const match of value.matchAll(/\bschedule-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi)) claim(match[0], 'id')
       return
     }
     if (Array.isArray(value)) {

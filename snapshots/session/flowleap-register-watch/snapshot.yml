@@ -1,0 +1,9 @@
+version: 1
+scenario: flowleap-register-watch
+profile: headless
+composition: flowleap-register-watch
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-register-watch
+  pin: true
