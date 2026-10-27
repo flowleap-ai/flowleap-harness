@@ -220,7 +220,7 @@ describe('the Needs review mark', () => {
     await runOnce(test)
     const review = test.chats!.opened[0]!
     expect(held).toBe(true)
-    review.status = 'idle'
+    Object.assign(review, { status: 'idle' })
     test.ctx.emit('agent/status', { agent: review, status: 'idle' })
     release()
     await vi.advanceTimersByTimeAsync(0)

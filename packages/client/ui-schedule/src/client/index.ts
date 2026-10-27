@@ -63,7 +63,7 @@ import { TaskTabBindings } from './task-tab-bindings.ts'
 import { TaskManagerPage, type TaskManagerInjected } from './TaskManagerPage.tsx'
 import type { TaskDetailInjected } from './TaskDetail.tsx'
 import { TaskManagerIcon } from './TaskManagerIcon.tsx'
-import { filterEntryIds, MANAGER_FILTER_SLOT } from './manager-filter.ts'
+import { filterEntryIds } from './manager-filter.ts'
 import { sessionLinkState } from './session-link.ts'
 import { en, ja, es, fr, de, ru, pt, NS, zh, type ScheduleCatalogKey } from './locales.ts'
 import { en as managerEn, ja as managerJa, es as managerEs, fr as managerFr, de as managerDe, ru as managerRu, pt as managerPt, zh as managerZh, type TaskManagerKey } from './task-manager-locales.ts'
@@ -205,7 +205,7 @@ export function apply(ctx: ClientContext): void {
       name: 'main',
       key: PANEL_ID,
       locale: MANAGER_NS,
-      children: { [MANAGER_FILTER_SLOT]: { kind: 'list', scope: 'root', inline: true } },
+      children: { 'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true } },
       inject: (): TaskManagerInjected => ({
         ...detail,
         hooks: { ...detail.hooks, filters },

@@ -48,8 +48,10 @@ function mount(taskIds: readonly string[], filters: readonly string[] = ['review
     records: [watch, digest, ended], status: 'ready', deleting: [], settled: true, readRequest: 0, readSettled: 0,
   }
   let current = taskIds
-  const renderSlot: TaskManagerPageProps['renderSlot'] = (_key, owner, opts) =>
+  // The page renders only this slot, so the double answers with the one entry it registers.
+  const renderFilter = (_key: string, owner: ScheduleManagerFilterOwnerProps, opts?: { readonly only?: string }) =>
     opts?.only === 'review' ? <ReviewFilter {...owner} taskIds={current} /> : null
+  const renderSlot = renderFilter as TaskManagerPageProps['renderSlot']
   const props = (ids: readonly string[]): TaskManagerPageProps => ({
     useCatalog: select => select(snapshot),
     useFilters: select => select(ids),
