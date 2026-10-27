@@ -87,6 +87,12 @@ policies and training, not in code.
     with their dates. Every shared artifact proposes facts automatically. The audience of a fact is the
     audience of its source. Tools: `knowledge_search`, `knowledge_propose`, `knowledge_remember`;
     a skill teaches the method. This replaces the client and matter tiers of the 2026-10-22 design.
+    The pool service also keeps a **library search** index of the text of shared artifacts and of reference
+    sets the firm adds (for example the EPO Guidelines): `knowledge_search` returns checked facts and
+    document passages, each passage marked "from a document, not checked" with its source and date, and
+    visible only to the audience of its artifact. It starts as full-text search; an embedding index with a
+    local model comes later, so offline chats can search and no firm text leaves the host for indexing.
+    Retrieval is a tool the agent calls, not a separate chatbot.
 12. **Firm skills library.** One versioned (git) library on the server, mounted read-only in every
     instance beside the FlowLeap pack. Firm skills win over pack skills of the same method (agent-v2
     ADR 0018). Knowledge editors and the administrator write; attorneys propose. It ships with 3 to 5
