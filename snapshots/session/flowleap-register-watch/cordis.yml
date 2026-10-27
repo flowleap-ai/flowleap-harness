@@ -1,0 +1,18 @@
+# The register watch tool over a recorded EP Register response: the Schedule
+# service, a register reader that serves the recorded response, and the
+# routines row as the flowleap-web bundle mounts it.
+- insert:
+    - id: flowleap-register-fixture
+      name: './flowleap-register-fixture.mjs'
+
+    - id: schedule
+      name: '@deepseek-ai/dsh-schedule'
+
+    - id: flowleap-routines
+      name: '@deepseek-ai/dsh-flowleap-routines'
+      config:
+        minReadIntervalHours: 12
+        maxApplications: 20
+        readDeadlineSeconds: 120
+        maxEventsPerRun: 50
+        maxEventTextLength: 300

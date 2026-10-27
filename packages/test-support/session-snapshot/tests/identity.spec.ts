@@ -99,6 +99,14 @@ describe('session snapshot identity redaction', () => {
     expect(redacted?.endsWith('\n')).toBe(false)
   })
 
+  it('redacts Schedule task ids inside tool-result text', () => {
+    const task = 'schedule-cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    const source = JSON.stringify({ type: 'tool/result', data: { text: `{"id":"${task}"} and again ${task}` } })
+    const [redacted] = redactSessionSnapshotIds([source])
+    expect(redacted).toContain('{\\"id\\":\\"{{id:1}}\\"} and again {{id:1}}')
+    expect(redactSessionSnapshotIds([redacted!])).toEqual([redacted])
+  })
+
   it('keeps a canonical token first seen through a generic id key', () => {
     const canonical = '{{message:7}}'
     const nextMessage = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
