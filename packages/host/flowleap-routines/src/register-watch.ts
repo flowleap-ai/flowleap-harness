@@ -74,6 +74,7 @@ export function deadlineSignal(parent: AbortSignal, ms: number): { signal: Abort
  */
 function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- The deadline and the Schedule stop both abort with an Error.
     const abort = () => { reject(signal.reason) }
     if (signal.aborted) abort()
     signal.addEventListener('abort', abort, { once: true })
