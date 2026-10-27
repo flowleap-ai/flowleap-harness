@@ -476,11 +476,54 @@ export type ScheduleDeliveryHistoryResult =
   }
   | { readonly id: ScheduleId; readonly code: 'schedule_not_found' | 'delivery_cursor_not_found' }
 
+/** One due occurrence that `schedule/admit` listeners decide on before Session restoration. */
+export interface ScheduleAdmissionRequest {
+  /** Original Session the occurrence would be delivered to. */
+  readonly sessionId: SessionId
+  /** Stored task record; its `scheduledAt` is the due target. */
+  readonly record: ScheduleRecord
+}
+
+/**
+ * Decision for one due occurrence. `deliver` sends `prompt` as this occurrence's reminder
+ * content and saves it as the delivery's prompt snapshot; the stored record keeps its own
+ * prompt. `skip` advances the target as a delivery would, without a message, a Session
+ * restoration, or a receipt; a skipped one-shot becomes inactive.
+ */
+export type ScheduleAdmission =
+  | { readonly kind: 'deliver'; readonly prompt: string }
+  | { readonly kind: 'skip' }
+
+/** One task whose delivery and task write both committed. */
+export interface ScheduleDelivered {
+  /** Session that received the message. */
+  readonly sessionId: SessionId
+  /** Delivered task. */
+  readonly id: ScheduleId
+  /** Saved receipt of this delivery. */
+  readonly receipt: ScheduleDeliveryReceipt
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /** Durable task set changed; clients refetch global task and Session-active catalogs.
      * @mode emit
      */
     'schedule/changed'(): void
+    /**
+     * Decide one due occurrence before its Session is restored. Call next() to deliver
+     * the stored prompt. A listener runs inside the serialized delivery operation, so
+     * management writes wait for it; a rejection keeps the task due until a later drive.
+     * @param request - Due occurrence and its Session binding.
+     * @mode waterfall
+     */
+    'schedule/admit'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>
+    /**
+     * A delivery committed: the Session acknowledged the message and the task write landed.
+     * A crash between those two writes can repeat the delivery without this event.
+     * @param delivery - Task, Session, and saved receipt.
+     * @mode emit
+     */
+    'schedule/delivered'(delivery: ScheduleDelivered): void
   }
 }

@@ -776,3 +776,74 @@ describe('Schedule dispatch failures and concurrent changes', () => {
     expect(test.resolve).not.toHaveBeenCalled()
   })
 })
+
+describe('schedule/admit and schedule/delivered', () => {
+  it('advances a skipped daily occurrence without a Session restoration, a message, or a receipt', async () => {
+    const record = createDailyScheduleRecord(ScheduleId('watch'), 'Watch', {
+      time: '08:00:02', time_zone: 'Asia/Shanghai',
+    }, Date.now(), 'Watch')
+    const tasks = [task(record)]
+    const test = await setup(tasks)
+    const delivered = vi.fn()
+    test.ctx.on('schedule/delivered', delivered)
+    test.ctx.on('schedule/admit', async () => ({ kind: 'skip' }))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(test.resolve).not.toHaveBeenCalled()
+    expect(test.followup).not.toHaveBeenCalled()
+    expect(delivered).not.toHaveBeenCalled()
+    expect(tasks).toEqual([{ ...task(record), record: { ...record, scheduledAt: '2026-09-17T00:00:02.000Z' } }])
+  })
+
+  it('ends a skipped one-shot without a receipt', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
+    const test = await setup(tasks)
+    test.ctx.on('schedule/admit', async () => ({ kind: 'skip' }))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(test.followup).not.toHaveBeenCalled()
+    expect(tasks[0]).toEqual({ ...task(tasks[0]!.record), status: 'inactive' })
+  })
+
+  it('sends and saves the admitted prompt, keeps the stored prompt, and announces the committed delivery', async () => {
+    const record = createDailyScheduleRecord(ScheduleId('watch'), 'Watch', {
+      time: '08:00:02', time_zone: 'Asia/Shanghai',
+    }, Date.now(), 'Watch')
+    const other = createEveryScheduleRecord(ScheduleId('other'), 'Other', 60, Date.now() - 58_000, 'Other')
+    const tasks = [task(record), task(other)]
+    const test = await setup(tasks)
+    const delivered = vi.fn()
+    test.ctx.on('schedule/delivered', delivered)
+    test.ctx.on('schedule/admit', async (request, next) =>
+      request.record.id === record.id ? { kind: 'deliver', prompt: 'Watch\nNew event' } : next())
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(test.followup).toHaveBeenCalledOnce()
+    const message = test.followup.mock.calls[0]![0]
+    const text = message.content.map(block => block.type === 'text' ? block.text : '').join('')
+    expect(text).toContain(JSON.stringify('Watch\nNew event'))
+    expect(text).toContain('"reminder_prompt":"Other"')
+    expect(tasks[0]?.record.prompt).toBe('Watch')
+    expect(tasks[0]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Watch\nNew event')
+    expect(tasks[1]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Other')
+    const receipt = { scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z', messageId: message.id }
+    expect(delivered.mock.calls).toEqual([
+      [{ sessionId: SessionId('original'), id: record.id, receipt }],
+      [{ sessionId: SessionId('original'), id: other.id, receipt }],
+    ])
+  })
+
+  it('keeps a committed delivery when a schedule/delivered listener throws', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
+    const test = await setup(tasks)
+    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      test.ctx.on('schedule/delivered', () => { throw new Error('listener broke') })
+      test.runtime.requestDrive()
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(tasks[0]?.status).toBe('inactive')
+      expect(tasks[0]?.lastDelivery?.messageId).toBe(test.followup.mock.calls[0]![0].id)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('schedule/delivered listener failed'))
+    } finally { warn.mockRestore() }
+  })
+})
