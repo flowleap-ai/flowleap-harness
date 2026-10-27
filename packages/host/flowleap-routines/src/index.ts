@@ -21,16 +21,16 @@ import { RegisterWatches } from './register-watch.ts'
 import { routinesDomain } from './storage.ts'
 import { registerWatchTool } from './tool.ts'
 
-export { RegisterWatches, failureMessage } from './register-watch.ts'
-export type { ApplicationRead, WatchBaseline } from './register-watch.ts'
+export { RegisterWatches, classifyFailure, deadlineSignal } from './register-watch.ts'
+export type { ApplicationRead, RegisterWatchOptions, WatchBaseline } from './register-watch.ts'
 export { routinesDomain } from './storage.ts'
 export type { ReadRecord, TaskId, WatchRecord } from './storage.ts'
 export { REGISTER_WATCH_CREATE_NAME, registerWatchTool } from './tool.ts'
 export type { RegisterWatchError, RegisterWatchView } from './tool.ts'
 export {
-  countEntries, entryKey, mergeSeen, newEntries, renderRunInstruction, watchedLine,
+  cleanField, countEntries, entryKey, mergeSeen, newEntries, renderRunInstruction, watchedLine,
 } from './watch.ts'
-export type { RegisterFailure, RegisterReport, SeenEntries } from './watch.ts'
+export type { RegisterFailure, RegisterFailureClass, RegisterReport, RunTextBounds, SeenEntries } from './watch.ts'
 
 /** Cordis plugin name. */
 export const name = 'flowleap-routines'
@@ -44,18 +44,27 @@ export interface Config {
   minReadIntervalHours: number
   /** Most applications one watch names; each is one register read in the scheduler's delivery operation. */
   maxApplications: number
+  /** Longest time all register reads of one run, or of one watch creation, may take, in seconds; the scheduler waits for them. */
+  readDeadlineSeconds: number
+  /** Most new events one run lists; the rest are counted. */
+  maxEventsPerRun: number
+  /** Most characters of one event's office text in a run. */
+  maxEventTextLength: number
 }
 
 /** Runtime schema for the row. */
 export const Config: z<Config> = z.object({
   minReadIntervalHours: z.number().min(12).default(12),
   maxApplications: z.number().step(1).min(1).default(20),
+  readDeadlineSeconds: z.number().min(1).max(3600).default(120),
+  maxEventsPerRun: z.number().step(1).min(1).max(1000).default(50),
+  maxEventTextLength: z.number().step(1).min(20).max(2000).default(300),
 })
 
 /**
  * Open the routines domain and contribute the admission, delivery, and change listeners and `register_watch_create`.
  * @param ctx - the mounting context, carrying `schedule`, `storageDomain`, `flowleapRegister`, and `tools`.
- * @param config - read interval and application cap.
+ * @param config - read interval, read deadline, application cap, and run text bounds.
  */
 export function apply(ctx: Context, config: Config): void {
   const opened = ctx.storageDomain.open(routinesDomain)
@@ -64,7 +73,11 @@ export function apply(ctx: Context, config: Config): void {
     const domain = await opened
     return () => domain.close()
   }, 'flowleap-routines: storage')
-  const watches = new RegisterWatches(opened, ctx.flowleapRegister, config.minReadIntervalHours * 3_600_000, ctx.logger)
+  const watches = new RegisterWatches(opened, ctx.flowleapRegister, {
+    minReadIntervalMs: config.minReadIntervalHours * 3_600_000,
+    readDeadlineMs: config.readDeadlineSeconds * 1000,
+    bounds: { maxEvents: config.maxEventsPerRun, maxTextLength: config.maxEventTextLength },
+  }, ctx.logger)
   ctx.on('schedule/admit', (request, next) => watches.admit(request, next))
   ctx.on('schedule/delivered', (delivery) => {
     watches.delivered(delivery).catch((error: unknown) => {

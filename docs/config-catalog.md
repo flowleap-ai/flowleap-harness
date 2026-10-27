@@ -1549,6 +1549,12 @@ export interface Config {
   minReadIntervalHours: number
   /** Most applications one watch names; each is one register read in the scheduler's delivery operation. */
   maxApplications: number
+  /** Longest time all register reads of one run, or of one watch creation, may take, in seconds; the scheduler waits for them. */
+  readDeadlineSeconds: number
+  /** Most new events one run lists; the rest are counted. */
+  maxEventsPerRun: number
+  /** Most characters of one event's office text in a run. */
+  maxEventTextLength: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-routines -->

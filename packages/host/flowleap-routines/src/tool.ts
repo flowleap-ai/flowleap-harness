@@ -19,15 +19,15 @@ export interface RegisterWatchView {
   readonly title: string
   /** Stored instruction, ending with the watched applications. */
   readonly prompt: string
-  /** First run, RFC 3339 UTC. */
-  readonly scheduledAt: string
+  /** Local time and time zone of the daily read, as requested. */
+  readonly daily: { readonly time: string; readonly time_zone: string }
   /** Register state when the watch started; these entries are never reported. */
   readonly applications: WatchBaseline[]
 }
 
 /** A refused creation. */
 export interface RegisterWatchError {
-  /** `invalid_application`, `subagent_session`, or `internal_error`. */
+  /** `invalid_application`, `register_unavailable`, `empty_register`, `subagent_session`, or `internal_error`. */
   readonly code: string
   /** What to change. */
   readonly message: string
@@ -42,7 +42,12 @@ const OUTPUT_SCHEMA = {
         id: { type: 'string', required: true },
         title: { type: 'string', required: true },
         prompt: { type: 'string', required: true },
-        scheduledAt: { type: 'string', required: true },
+        daily: {
+          type: 'object',
+          required: true,
+          additionalProperties: false,
+          properties: { time: { type: 'string', required: true }, time_zone: { type: 'string', required: true } },
+        },
         applications: {
           type: 'array',
           required: true,
@@ -122,14 +127,24 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
       }
       const applications = parseApplications(args.applications, maxApplications)
       if ('code' in applications) return applications
-      // A failed register read or an invalid daily time rejects the call before the task exists.
       const reads = await watches.baseline(applications, exec.signal)
+      if (!Array.isArray(reads)) {
+        return { code: 'register_unavailable', message: `The register of ${reads.application} could not be read (${reads.failure}). Try again later.` }
+      }
+      const empty = reads.filter(({ read }) => read.entries.length === 0).map(({ application }) => application)
+      if (empty.length > 0) {
+        return {
+          code: 'empty_register',
+          message: `The register lists no events for ${empty.join(', ')}. Check the number: a US number must be an application number.`,
+        }
+      }
+      // An invalid daily time rejects the call before the task exists.
       const record = await ctx.schedule.create(agent.session.id, {
         title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`, daily: args.daily,
       }, exec.signal)
       try {
         const baseline = await watches.start(record.id, reads)
-        return { id: record.id, title: record.title, prompt: record.prompt, scheduledAt: record.scheduledAt, applications: baseline }
+        return { id: record.id, title: record.title, prompt: record.prompt, daily: args.daily, applications: baseline }
       } catch (error: unknown) {
         // A task without its watch row would deliver the stored instruction every day.
         await ctx.schedule.delete({ sessionId: agent.session.id, id: record.id })
