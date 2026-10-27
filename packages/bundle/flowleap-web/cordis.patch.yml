@@ -212,6 +212,12 @@
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
 
+    # The Needs review mark of the routines row above: a Sidebar row badge, a
+    # Needs review page, Mark as done in the chat header, and a Needs review
+    # tab on the Automation tasks page.
+    - id: ui-flowleap-routines
+      name: '@deepseek-ai/dsh-client-ui-flowleap-routines'
+
     # The brand: one brand.json (name, tagline, mark, accent) read by the Host
     # and rendered by the browser half into the sidebar, the blank-session
     # hero, the document title and the product copy. FLOWLEAP_BRAND_PATH names
