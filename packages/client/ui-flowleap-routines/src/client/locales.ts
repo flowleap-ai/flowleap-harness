@@ -1,0 +1,199 @@
+/** `flowleapRoutines` namespace dictionaries: the Needs review badge, page, filter tab, and Mark as done action. */
+
+/** Dictionary namespace owned by this plugin. */
+export const NS = 'flowleapRoutines'
+
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'time.locale': 'zh-CN',
+  'panel': '待审阅',
+  'title': '待审阅',
+  'summary': '例行任务运行过的聊天。审阅后将其标记为已完成',
+  'badge.label': '待审阅',
+  'count.label': '{count} 个聊天待审阅',
+  'list.label': '待审阅的聊天',
+  'list.loading': '正在加载待审阅的聊天…',
+  'list.error': '无法加载待审阅的聊天。',
+  'list.retry': '重试',
+  'empty.title': '没有待审阅的聊天',
+  'empty.description': '例行任务运行后，其聊天会显示在这里',
+  'row.open': '打开聊天：{title}',
+  'row.untitled': '无标题聊天',
+  'row.task': '任务：{task}',
+  'done.action': '标记为已完成',
+  'done.pending': '正在标记…',
+  'done.label': '将“{title}”标记为已完成',
+  'done.error': '无法标记为已完成。请重试',
+  'filter.label': '待审阅',
+} as const
+
+/** Key domain of the namespace. */
+export type FlowleapRoutinesKey = keyof typeof zh
+
+/** English dictionary, key-identical to the Chinese source of truth. */
+export const en: Record<FlowleapRoutinesKey, string> = {
+  'time.locale': 'en-US',
+  'panel': 'Needs review',
+  'title': 'Needs review',
+  'summary': 'Chats that a routine ran in. Mark each one as done after you review it.',
+  'badge.label': 'Needs review',
+  'count.label': '{count} chats need review',
+  'list.label': 'Chats that need review',
+  'list.loading': 'Loading chats that need review…',
+  'list.error': 'Could not load the chats that need review.',
+  'list.retry': 'Retry',
+  'empty.title': 'No chats need review',
+  'empty.description': 'When a routine runs, its chat shows here.',
+  'row.open': 'Open chat: {title}',
+  'row.untitled': 'Untitled chat',
+  'row.task': 'Task: {task}',
+  'done.action': 'Mark as done',
+  'done.pending': 'Marking…',
+  'done.label': 'Mark "{title}" as done',
+  'done.error': 'Could not mark as done. Try again.',
+  'filter.label': 'Needs review',
+}
+
+/** Japanese dictionary, checked against the English keys. */
+export const ja = {
+  'time.locale': 'ja-JP',
+  'panel': '要レビュー',
+  'title': '要レビュー',
+  'summary': 'ルーティンが実行されたチャットです。レビュー後に完了にしてください。',
+  'badge.label': '要レビュー',
+  'count.label': '要レビューのチャット {count}件',
+  'list.label': '要レビューのチャット',
+  'list.loading': '要レビューのチャットを読み込み中…',
+  'list.error': '要レビューのチャットを読み込めませんでした。',
+  'list.retry': '再試行',
+  'empty.title': '要レビューのチャットはありません',
+  'empty.description': 'ルーティンが実行されると、そのチャットがここに表示されます。',
+  'row.open': 'チャットを開く: {title}',
+  'row.untitled': '無題のチャット',
+  'row.task': 'タスク: {task}',
+  'done.action': '完了にする',
+  'done.pending': '処理中…',
+  'done.label': '「{title}」を完了にする',
+  'done.error': '完了にできませんでした。もう一度お試しください。',
+  'filter.label': '要レビュー',
+} satisfies Record<keyof typeof en, string>
+
+/** Spanish dictionary, checked against the English keys. */
+export const es = {
+  'time.locale': 'es-ES',
+  'panel': 'Pendiente de revisión',
+  'title': 'Pendiente de revisión',
+  'summary': 'Chats en los que se ejecutó una rutina. Márcalos como hechos después de revisarlos.',
+  'badge.label': 'Pendiente de revisión',
+  'count.label': '{count} chats pendientes de revisión',
+  'list.label': 'Chats pendientes de revisión',
+  'list.loading': 'Cargando chats pendientes de revisión…',
+  'list.error': 'No se pudieron cargar los chats pendientes de revisión.',
+  'list.retry': 'Reintentar',
+  'empty.title': 'No hay chats pendientes de revisión',
+  'empty.description': 'Cuando se ejecuta una rutina, su chat aparece aquí.',
+  'row.open': 'Abrir chat: {title}',
+  'row.untitled': 'Chat sin título',
+  'row.task': 'Tarea: {task}',
+  'done.action': 'Marcar como hecho',
+  'done.pending': 'Marcando…',
+  'done.label': 'Marcar «{title}» como hecho',
+  'done.error': 'No se pudo marcar como hecho. Inténtalo de nuevo.',
+  'filter.label': 'Pendiente de revisión',
+} satisfies Record<keyof typeof en, string>
+
+/** French dictionary, checked against the English keys. */
+export const fr = {
+  'time.locale': 'fr-FR',
+  'panel': 'À relire',
+  'title': 'À relire',
+  'summary': 'Conversations dans lesquelles une routine a été exécutée. Marquez-les comme terminées après relecture.',
+  'badge.label': 'À relire',
+  'count.label': '{count} conversations à relire',
+  'list.label': 'Conversations à relire',
+  'list.loading': 'Chargement des conversations à relire…',
+  'list.error': 'Impossible de charger les conversations à relire.',
+  'list.retry': 'Réessayer',
+  'empty.title': 'Aucune conversation à relire',
+  'empty.description': 'Quand une routine s’exécute, sa conversation apparaît ici.',
+  'row.open': 'Ouvrir la conversation : {title}',
+  'row.untitled': 'Conversation sans titre',
+  'row.task': 'Tâche : {task}',
+  'done.action': 'Marquer comme terminé',
+  'done.pending': 'Marquage…',
+  'done.label': 'Marquer « {title} » comme terminé',
+  'done.error': 'Impossible de marquer comme terminé. Réessayez.',
+  'filter.label': 'À relire',
+} satisfies Record<keyof typeof en, string>
+
+/** German dictionary, checked against the English keys. */
+export const de = {
+  'time.locale': 'de-DE',
+  'panel': 'Zu prüfen',
+  'title': 'Zu prüfen',
+  'summary': 'Chats, in denen eine Routine lief. Markieren Sie jeden nach der Prüfung als erledigt.',
+  'badge.label': 'Zu prüfen',
+  'count.label': '{count} Chats zu prüfen',
+  'list.label': 'Zu prüfende Chats',
+  'list.loading': 'Zu prüfende Chats werden geladen…',
+  'list.error': 'Zu prüfende Chats konnten nicht geladen werden.',
+  'list.retry': 'Erneut versuchen',
+  'empty.title': 'Keine Chats zu prüfen',
+  'empty.description': 'Wenn eine Routine läuft, erscheint ihr Chat hier.',
+  'row.open': 'Chat öffnen: {title}',
+  'row.untitled': 'Chat ohne Titel',
+  'row.task': 'Aufgabe: {task}',
+  'done.action': 'Als erledigt markieren',
+  'done.pending': 'Wird markiert…',
+  'done.label': '„{title}“ als erledigt markieren',
+  'done.error': 'Konnte nicht als erledigt markiert werden. Versuchen Sie es erneut.',
+  'filter.label': 'Zu prüfen',
+} satisfies Record<keyof typeof en, string>
+
+/** Russian dictionary, checked against the English keys. */
+export const ru = {
+  'time.locale': 'ru-RU',
+  'panel': 'Нужна проверка',
+  'title': 'Нужна проверка',
+  'summary': 'Чаты, в которых выполнялась рутина. После проверки отметьте каждый как готовый.',
+  'badge.label': 'Нужна проверка',
+  'count.label': 'Чатов на проверку: {count}',
+  'list.label': 'Чаты на проверку',
+  'list.loading': 'Загрузка чатов на проверку…',
+  'list.error': 'Не удалось загрузить чаты на проверку.',
+  'list.retry': 'Повторить',
+  'empty.title': 'Нет чатов на проверку',
+  'empty.description': 'Когда выполняется рутина, её чат появляется здесь.',
+  'row.open': 'Открыть чат: {title}',
+  'row.untitled': 'Чат без названия',
+  'row.task': 'Задача: {task}',
+  'done.action': 'Отметить как готовое',
+  'done.pending': 'Отмечаем…',
+  'done.label': 'Отметить «{title}» как готовое',
+  'done.error': 'Не удалось отметить как готовое. Повторите попытку.',
+  'filter.label': 'Нужна проверка',
+} satisfies Record<keyof typeof en, string>
+
+/** Portuguese dictionary, checked against the English keys. */
+export const pt = {
+  'time.locale': 'pt-BR',
+  'panel': 'Aguardando revisão',
+  'title': 'Aguardando revisão',
+  'summary': 'Conversas em que uma rotina foi executada. Marque cada uma como concluída após revisá-la.',
+  'badge.label': 'Aguardando revisão',
+  'count.label': '{count} conversas aguardando revisão',
+  'list.label': 'Conversas aguardando revisão',
+  'list.loading': 'Carregando conversas aguardando revisão…',
+  'list.error': 'Não foi possível carregar as conversas aguardando revisão.',
+  'list.retry': 'Tentar novamente',
+  'empty.title': 'Nenhuma conversa aguardando revisão',
+  'empty.description': 'Quando uma rotina é executada, a conversa dela aparece aqui.',
+  'row.open': 'Abrir conversa: {title}',
+  'row.untitled': 'Conversa sem título',
+  'row.task': 'Tarefa: {task}',
+  'done.action': 'Marcar como concluída',
+  'done.pending': 'Marcando…',
+  'done.label': 'Marcar "{title}" como concluída',
+  'done.error': 'Não foi possível marcar como concluída. Tente novamente.',
+  'filter.label': 'Aguardando revisão',
+} satisfies Record<keyof typeof en, string>

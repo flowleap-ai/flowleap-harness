@@ -1,0 +1,181 @@
+/* The Needs review page shares the Automation tasks page frame: the 960px
+   column, the 28px heading inset (plus the macOS titlebar clearance), and its
+   13px row metadata, so the two sibling first-level pages line up. */
+.page {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font-size: 14px;
+  line-height: 1.6;
+  --dsh-scrollbar-width: 9px;
+  --dsh-scrollbar-thumb-border: 2px;
+}
+
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 4vw, 48px) 48px;
+}
+
+.heading {
+  padding-top: 28px;
+  margin-bottom: 24px;
+}
+
+:global([data-platform='darwin']) .heading {
+  padding-top: calc(28px + var(--dsh-frame-top-clearance, 0px));
+}
+
+.heading h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+}
+
+.heading p {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.open {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 0;
+  height: auto;
+  padding: 8px;
+  border-radius: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.glyph {
+  flex: none;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rowContent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowTitle {
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 23px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowSummary {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+}
+
+.rowSummary > * + *::before {
+  content: ' · ';
+  padding: 0 2px;
+}
+
+.done {
+  flex: none;
+}
+
+.notice {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--dsw-specific-sidebar-fill);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+}
+
+.empty h2,
+.empty p {
+  margin: 0;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Sidebar row badge: the row's trailing icon cell. */
+.badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The panel launcher's count over the corner of its glyph. */
+.panelIcon {
+  position: relative;
+  display: inline-flex;
+}
+
+.count {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-base);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

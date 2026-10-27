@@ -371,6 +371,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'flowleap-routines',
     title: 'FlowLeap routines Remote',
     mode: 'service',
+    consumers: ['client-ui-flowleap-routines'],
     note: 'Lists the chats a routine run marked "Needs review" and clears one mark on an explicit done; mounted by the flowleap-web profile only.',
   },
   {
