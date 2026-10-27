@@ -50,7 +50,7 @@ if [[ -n $container ]]; then
   scrub() { docker exec -i "$container" harness-doctor --scrub "$@"; }
   # The container's PATCH_FILES overlays, as its entrypoint applies them.
   dump_config() {
-    docker exec "$container" bash -c 'p=(); for f in ${PATCH_FILES:-}; do p+=(--patch "$f"); done; exec node "$DSH_BIN" "${p[@]}" "$@"' \
+    docker exec "$container" bash -c 'read -r -a fs <<< "${PATCH_FILES:-}"; p=(); for f in ${fs[@]+"${fs[@]}"}; do p+=(--patch "$f"); done; exec node "$DSH_BIN" ${p[@]+"${p[@]}"} "$@"' \
       bash --profile "$profile" --dump-config
   }
   host_label=$container
@@ -58,9 +58,10 @@ elif [[ -f ${HARNESS_ROOT:-/nonexistent}/flowleap/doctor.mjs ]]; then
   doctor() { node "$HARNESS_ROOT/flowleap/doctor.mjs" --dsh-home "$dsh_home" --profile "$profile" "$@"; }
   scrub() { node "$HARNESS_ROOT/flowleap/doctor.mjs" --scrub "$@"; }
   dump_config() {
-    local p=() f
-    for f in ${PATCH_FILES:-}; do p+=(--patch "$f"); done
-    node "${DSH_BIN:-$HARNESS_ROOT/node_modules/@deepseek-ai/dsh/lib/bin.js}" "${p[@]}" --profile "$profile" --dump-config
+    local p=() f fs
+    read -r -a fs <<< "${PATCH_FILES:-}"
+    for f in ${fs[@]+"${fs[@]}"}; do p+=(--patch "$f"); done
+    node "${DSH_BIN:-$HARNESS_ROOT/node_modules/@deepseek-ai/dsh/lib/bin.js}" ${p[@]+"${p[@]}"} --profile "$profile" --dump-config
   }
   host_label=$(hostname -s)
 else

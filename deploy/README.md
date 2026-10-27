@@ -190,7 +190,7 @@ docker exec harness-alice harness-doctor          # plain text
 docker exec harness-alice harness-doctor --json   # the same as JSON
 ```
 
-It prints the harness version and commit, Node and pnpm versions, the profile and whether each FlowLeap row is present, the credential stores the composed `credentials` row names (the read-only one first), each connector as `configured: yes (<store> store)` or `no (missing …)`, the name of each stored key with the store that supplies it, the FlowLeap CLI's own readiness check (`flowleap mcp --check`), the pin of the vendored connector library, the brand, and disk free on `/data`. Add `--log <file>` to append the last 50 error lines of a log you saved, or `--url https://harness-alice.<tailnet>/ --token <launch token>` to test the login exchange from where the doctor runs.
+It prints the harness version and commit, Node and pnpm versions, the profile and whether each FlowLeap row is present, the credential stores the composed `credentials` row names (the read-only one first), each connector as `configured: yes (<store> store)` or `no (missing …)`, the name of each stored key with the store that supplies it (and each `*_API_KEY` name of the container environment), the FlowLeap CLI's own readiness check (`flowleap mcp --check`), the pin of the vendored connector library, the brand, and disk free on `/data`. Add `--log <file>` to append the last 50 error lines of a log you saved, or `--url https://harness-alice.<tailnet>/ --token <launch token>` to test the login exchange from where the doctor runs.
 
 ### The log bundle
 

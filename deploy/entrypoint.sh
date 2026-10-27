@@ -24,7 +24,8 @@ mkdir -p "$DSH_HOME" "${HOME:-$DSH_HOME/home}"
 
 # The launcher reads --patch only before the first application flag.
 args=()
-for patch in ${PATCH_FILES:-}; do
+read -r -a patch_files <<< "${PATCH_FILES:-}"
+for patch in ${patch_files[@]+"${patch_files[@]}"}; do
   [[ -f $patch && -r $patch ]] || { echo "harness-entrypoint: PATCH_FILES names $patch, which is not a readable file" >&2; exit 1; }
   args+=(--patch "$patch")
 done

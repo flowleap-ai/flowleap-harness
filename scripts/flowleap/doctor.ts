@@ -145,8 +145,11 @@ interface DoctorReport {
   keys: {
     stores: StoreState[]
     connectors: Record<string, ConnectorPresence>
-    /** Every stored reference name with the store that supplies it. */
-    refs: Record<string, StoreRole>
+    /**
+     * Every stored reference name with the store that supplies it, then every `*_API_KEY`
+     * name of the doctor's environment (inside the image the runtime's) that no store holds.
+     */
+    refs: Record<string, StoreRole | 'environment'>
   }
   flowleapCli: { version: string; mcpCheck: string }
   vendoredLibrary: { backendCommit: string; contentHash: string; upstreamVersion: string; syncedAt: string } | { error: string }
@@ -417,7 +420,10 @@ function keysInUse(dump: string, dshHome: string): DoctorReport['keys'] {
       ? { configured: false, fields, missingFields: [...fields] }
       : { configured: missing.length === 0, ...missing.length === 0 ? { source: store.role } : {}, fields, missingFields: missing }
   }
-  const refs: Record<string, StoreRole> = {}
+  const refs: Record<string, StoreRole | 'environment'> = {}
+  for (const [name, value] of Object.entries(process.env)) {
+    if (name.endsWith('_API_KEY') && value !== undefined && value !== '') refs[name] = 'environment'
+  }
   for (const store of [...stores].reverse()) {
     for (const [name, value] of Object.entries(store.sections?.refs ?? {})) {
       if (typeof value === 'string' && value !== '') refs[name] = store.role
@@ -591,7 +597,7 @@ function renderText(report: DoctorReport): string {
       ? `configured: yes (${String(presence.source)} store)`
       : `configured: no (missing ${presence.missingFields.join(', ')})`)
   }
-  for (const [name, role] of Object.entries(report.keys.refs)) add('key', name, `${role} store`)
+  for (const [name, role] of Object.entries(report.keys.refs)) add('key', name, role === 'environment' ? 'environment' : `${role} store`)
   add('flowleap cli', 'version', report.flowleapCli.version.split('\n')[0] ?? '')
   for (const line of report.flowleapCli.mcpCheck.split('\n')) add('flowleap mcp --check', '', line)
   if ('error' in report.vendoredLibrary) {
