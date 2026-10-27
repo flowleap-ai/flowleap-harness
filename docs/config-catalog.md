@@ -1539,8 +1539,8 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-flowleap-routines`
 
-- `inject`: `schedule` · `storageDomain` · `flowleapRegister` · `tools`
-- `source`: [`packages/host/flowleap-routines/src/index.ts:42`](../packages/host/flowleap-routines/src/index.ts)
+- `inject`: `schedule` · `storageDomain` · `flowleapRegister` · `tools` · `agents`
+- `source`: [`packages/host/flowleap-routines/src/index.ts:58`](../packages/host/flowleap-routines/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */

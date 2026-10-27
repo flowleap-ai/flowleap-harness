@@ -9,7 +9,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { RegisterApplication, RegisterSource } from '@deepseek-ai/dsh-flowleap-connectors'
 import type { ScheduleAdmission, ScheduleAdmissionRequest, ScheduleDelivered } from '@deepseek-ai/dsh-schedule'
 import type { Domain } from '@deepseek-ai/dsh-storage-domain'
-import type { ReadRecord, routinesDomain, TaskId, WatchRecord } from './storage.ts'
+import { runChatTitle, type RunChats } from './new-chat.ts'
+import type { ReadRecord, routinesDomain, TaskId, WatchOptions, WatchRecord } from './storage.ts'
 import {
   mergeSeen, newEntries, renderRunInstruction, type RegisterFailure, type RegisterFailureClass, type RegisterReport, type RunTextBounds,
 } from './watch.ts'
@@ -88,6 +89,8 @@ export class RegisterWatches {
   private readonly pending = new Map<string, WatchRecord>()
   /** Orders watch starts, delivery commits, and prunes, so a prune never races a newer watch or a pending commit. */
   private chain: Promise<unknown> = Promise.resolve()
+  /** Opens the chat of a `newChat` run; absent in a composition without a Session controller or a workspace registry. */
+  chats: RunChats | undefined
 
   /**
    * @param domain - the `flowleap_routines` domain while it opens; every operation waits for it.
@@ -133,11 +136,13 @@ export class RegisterWatches {
    * Save a watch whose current entries count as seen.
    * @param id - the scheduled task that runs the watch.
    * @param reads - the baseline reads.
+   * @param options - the two watch options as the tool resolved them.
    * @returns the baseline per application.
    */
-  async start(id: TaskId, reads: readonly ApplicationRead[]): Promise<WatchBaseline[]> {
+  async start(id: TaskId, reads: readonly ApplicationRead[], options: WatchOptions): Promise<WatchBaseline[]> {
     const watch: WatchRecord = {
       applications: reads.map(({ application, read }) => ({ application, seen: mergeSeen({}, read.entries) })),
+      ...options,
     }
     const domain = await this.domain
     await this.serialize(() => domain.table('watches').put(id, watch))
@@ -145,10 +150,20 @@ export class RegisterWatches {
   }
 
   /**
+   * The stored watch of one task.
+   * @param id - the scheduled task.
+   * @returns the watch, or `undefined` for a task without one.
+   */
+  async get(id: TaskId): Promise<WatchRecord | undefined> {
+    return (await this.domain).table('watches').get(id)
+  }
+
+  /**
    * Decide one due occurrence after the later listeners: a skip stays a skip; a delivery of a watch task gets the new entries
    * after its prompt, or becomes a skip when none is new. Tasks without a watch keep the later decision.
    * All reads of one run share the read deadline and stop with the Schedule runtime. A failed read does not stop the run;
-   * without a new entry it is logged and the run is skipped.
+   * without a new entry it is logged and the run is skipped. A `newChat` watch delivers the run to a chat opened for this
+   * occurrence; without a chat opener the run is logged and goes to the task's chat.
    * @param request - due occurrence.
    * @param next - the later admission listeners.
    * @returns the admission.
@@ -181,8 +196,15 @@ export class RegisterWatches {
       deadline.dispose()
     }
     if (reports.length === 0) return { kind: 'skip' }
-    this.pending.set(request.record.id, { applications })
-    return { kind: 'deliver', prompt: renderRunInstruction(later.prompt, reports, failures, this.options.bounds) }
+    this.pending.set(request.record.id, { ...watch, applications })
+    const prompt = renderRunInstruction(later.prompt, reports, failures, this.options.bounds)
+    if (!watch.newChat) return { kind: 'deliver', prompt }
+    if (this.chats === undefined) {
+      this.logger.warn(`register watch ${request.record.id}: no Session controller to open a chat; the run goes to the task's chat`)
+      return { kind: 'deliver', prompt }
+    }
+    const sessionId = await this.chats.open(request.record.id, request.record.scheduledAt, request.sessionId, runChatTitle(reports))
+    return { kind: 'deliver', prompt, sessionId }
   }
 
   /**
@@ -190,6 +212,7 @@ export class RegisterWatches {
    * @param delivery - the committed delivery.
    */
   async delivered(delivery: ScheduleDelivered): Promise<void> {
+    this.chats?.settle(delivery.id, delivery.receipt.scheduledAt)
     const domain = await this.domain
     await this.serialize(async () => {
       const watch = this.pending.get(delivery.id)

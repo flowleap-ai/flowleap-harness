@@ -1,134 +1,19 @@
-import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Service, type Context } from '@deepseek-ai/cordis'
-import {
-  entriesFromOdp, entriesFromOps, type RegisterApplication, type RegisterEntry, type RegisterSource,
-} from '@deepseek-ai/dsh-flowleap-connectors'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ScheduleRecord } from '@deepseek-ai/dsh-schedule'
-import type { RegisterEventsResponse } from '@flowleap/connectors'
-import { executeToolFixture } from '@deepseek-ai/dsh-tool-testkit'
-import type { KvUnit, KvUnitDescriptor, StorageBackend } from '@deepseek-ai/dsh-storage'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
-import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
-import { agentFor, harness, type HarnessAgent } from '../../../schedule/schedule/tests/harness.ts'
+import { MemoryMediaPool } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
+import { agentFor, harness } from '../../../schedule/schedule/tests/harness.ts'
 import * as Routines from '../src/index.ts'
+import {
+  contexts, createWatch, DAY, disposeContexts, EP_EVENTS, gatedBackend, host, jsonLine, sentPrompt, sentText, US_EVENTS,
+} from './helpers.ts'
 
-const fixtures = new URL('../../flowleap-connectors/tests/fixtures/register/', import.meta.url)
-const EP_EVENTS = entriesFromOps((JSON.parse(readFileSync(new URL('ep3456789a1-events.json', fixtures), 'utf8')) as RegisterEventsResponse).events)
-const US_EVENTS = entriesFromOdp(JSON.parse(readFileSync(new URL('us17123456-transactions.json', fixtures), 'utf8')))
-
-/** The register as the recorded responses show it, with the newest EP event not yet listed. */
-class RecordedRegister extends Service implements RegisterSource {
-  readonly state = new Map<string, RegisterEntry[]>([
-    ['EP3456789', EP_EVENTS.slice(1)],
-    ['US17123456', US_EVENTS],
-  ])
-  readonly offline = new Set<string>()
-  readonly read = vi.fn(async (application: RegisterApplication): Promise<readonly RegisterEntry[]> => {
-    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- A foreign reader can reject with a non-Error value.
-    if (this.offline.has(application)) return Promise.reject('register offline')
-    const entries = this.state.get(application)
-    if (entries === undefined) throw new Error(`no register entry for ${application}`)
-    return entries
-  })
-
-  constructor(ctx: Context) {
-    super(ctx, 'flowleapRegister')
-  }
-}
-
-const contexts: Context[] = []
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T00:00:00Z')) })
 afterEach(async () => {
-  for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
+  await disposeContexts()
   vi.useRealTimers()
 })
-
-/**
- * Memory backend whose `flowleap_routines` writes pass through hooks, so a case can reject one.
- * @param pool - media the backend serves.
- * @param traps - hook per primitive.
- * @returns the backend for `harness`.
- */
-function gatedBackend(pool: MemoryMediaPool, traps: {
-  putRecord?: (table: string) => Promise<void> | undefined
-  deleteRecords?: (table: string) => Promise<void> | undefined
-}): StorageBackend {
-  const memory = new MemoryStorageBackend(pool)
-  return {
-    close: () => memory.close(),
-    kv: {
-      open: async (descriptor: KvUnitDescriptor): Promise<KvUnit> => {
-        const unit = await memory.kv.open(descriptor)
-        if (descriptor.name !== 'flowleap_routines') return unit
-        return {
-          loadAll: () => unit.loadAll(),
-          putRecord: async (table, key, value) => {
-            await traps.putRecord?.(table)
-            await unit.putRecord(table, key, value)
-          },
-          deleteRecord: (table, key) => unit.deleteRecord(table, key),
-          deleteRecords: async (table, keys) => {
-            await traps.deleteRecords?.(table)
-            await unit.deleteRecords(table, keys)
-          },
-          setGlobal: value => unit.setGlobal(value),
-          close: () => unit.close(),
-        }
-      },
-    },
-  }
-}
-
-async function host(pool: MemoryMediaPool, backend?: StorageBackend) {
-  const test = await harness(backend === undefined ? { pool } : { pool, backend })
-  contexts.push(test.ctx)
-  const agent: HarnessAgent = agentFor(test.ctx)
-  test.resolve.mockResolvedValue({ agent })
-  await test.ctx.plugin(RecordedRegister)
-  const register = test.ctx.get('flowleapRegister')
-  if (!(register instanceof RecordedRegister)) throw new Error('recorded register not mounted')
-  const routines = await test.ctx.plugin(Routines, {
-    minReadIntervalHours: 12, maxApplications: 2, readDeadlineSeconds: 30, maxEventsPerRun: 50, maxEventTextLength: 300,
-  })
-  return { ...test, agent, register, routines }
-}
-
-async function createWatch(test: Awaited<ReturnType<typeof host>>, applications: string[], options: {
-  agent?: HarnessAgent | null
-  timeZone?: string
-} = {}) {
-  const agent = options.agent === null ? undefined : options.agent ?? test.agent
-  return executeToolFixture(test.ctx, {
-    callId: ToolCallId('watch-call'), signal: new AbortController().signal, name: 'register_watch_create',
-    ...(agent === undefined ? {} : { agent }),
-    arguments: {
-      applications, title: 'Office actions', prompt: 'When a new office action arrives, prepare the analysis.',
-      daily: { time: '07:00:00', time_zone: options.timeZone ?? 'UTC' },
-    },
-  })
-}
-
-/** The instruction a run received: the reminder prompt inside the Schedule batch framing. */
-function sentPrompt(agent: HarnessAgent, call: number): string {
-  const text = sentText(agent, call)
-  const reminders = JSON.parse(text.slice(text.indexOf('reminders_json: ') + 'reminders_json: '.length)) as { reminder_prompt: string }[]
-  return reminders[0]!.reminder_prompt
-}
-
-/** One JSON line of a run instruction, parsed. */
-function jsonLine(prompt: string, key: string): unknown {
-  const line = prompt.split('\n').find(candidate => candidate.startsWith(`${key}: `))
-  return line === undefined ? undefined : JSON.parse(line.slice(key.length + 2))
-}
-
-function sentText(agent: HarnessAgent, call: number): string {
-  return agent.followup.mock.calls[call]![0].content.map(block => block.type === 'text' ? block.text : '').join('')
-}
-
-const DAY = 86_400_000
 
 describe('register watch', () => {
   it('creates one daily task that names the applications and counts the current events as seen', async () => {
@@ -169,9 +54,9 @@ describe('register watch', () => {
 
   it('deletes the task when its watch row cannot be saved', async () => {
     const pool = new MemoryMediaPool()
-    const test = await host(pool, gatedBackend(pool, {
+    const test = await host(pool, { backend: gatedBackend(pool, {
       putRecord: table => table === 'watches' ? Promise.reject(new Error('disk full')) : undefined,
-    }))
+    }) })
     const created = await createWatch(test, ['EP 3 456 789'])
     expect(created.isError).toBe(true)
     expect(await test.ctx.schedule.catalog()).toEqual([])
@@ -200,9 +85,9 @@ describe('register watch', () => {
   it('logs a delivered run whose seen events cannot be saved, and reports them again', async () => {
     const pool = new MemoryMediaPool()
     let failWatches = false
-    const test = await host(pool, gatedBackend(pool, {
+    const test = await host(pool, { backend: gatedBackend(pool, {
       putRecord: table => failWatches && table === 'watches' ? Promise.reject(new Error('disk full')) : undefined,
-    }))
+    }) })
     const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
     try {
       await createWatch(test, ['EP 3 456 789'])
@@ -216,9 +101,9 @@ describe('register watch', () => {
 
   it('logs a prune that cannot remove a watch', async () => {
     const pool = new MemoryMediaPool()
-    const test = await host(pool, gatedBackend(pool, {
+    const test = await host(pool, { backend: gatedBackend(pool, {
       deleteRecords: table => table === 'watches' ? Promise.reject(new Error('disk full')) : undefined,
-    }))
+    }) })
     const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
     try {
       await createWatch(test, ['EP 3 456 789'])

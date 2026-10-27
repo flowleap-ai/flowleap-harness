@@ -5,7 +5,9 @@
  * through `ctx.flowleapRegister` without a model call, skips the run through
  * `schedule/admit` when no event is new, and otherwise sends the stored
  * instruction with the new events. Seen events are saved after
- * `schedule/delivered`, so an event is reported once.
+ * `schedule/delivered`, so an event is reported once. A watch can open a new
+ * chat for each run and mark the chat that received a run "Needs review"; the
+ * `flowleapRoutines` Remote lists and clears the marks.
  *
  * See packages/host/flowleap-routines/README.md.
  * @module @deepseek-ai/dsh-flowleap-routines
@@ -13,20 +15,34 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-schedule'
 import type {} from '@deepseek-ai/dsh-storage-domain'
 import type {} from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-workspace'
+import { FlowleapRoutinesController } from './controller.ts'
+import { RunChats } from './new-chat.ts'
 import { RegisterWatches } from './register-watch.ts'
+import { ReviewMarks } from './reviews.ts'
 import { routinesDomain } from './storage.ts'
 import { registerWatchTool } from './tool.ts'
+import type {} from './types.ts'
 
+export { FlowleapRoutinesController } from './controller.ts'
+export type { FlowleapRoutinesControllerOptions } from './controller.ts'
+export { MAX_CHAT_TITLE_LENGTH, RunChats, runChatTitle } from './new-chat.ts'
+export type { RunChatHost } from './new-chat.ts'
 export { RegisterWatches, classifyFailure, deadlineSignal } from './register-watch.ts'
 export type { ApplicationRead, RegisterWatchOptions, WatchBaseline } from './register-watch.ts'
+export { ReviewMarks } from './reviews.ts'
+export type { AgentLookup } from './reviews.ts'
 export { routinesDomain } from './storage.ts'
-export type { ReadRecord, TaskId, WatchRecord } from './storage.ts'
-export { REGISTER_WATCH_CREATE_NAME, registerWatchTool } from './tool.ts'
+export type { ReadRecord, ReviewRecord, TaskId, WatchOptions, WatchRecord } from './storage.ts'
+export { REGISTER_WATCH_CREATE_NAME, registerWatchTool, resolveOptions } from './tool.ts'
 export type { RegisterWatchError, RegisterWatchView } from './tool.ts'
+export type { ReviewState, RoutineReview } from './types.ts'
 export {
   cleanField, countEntries, entryKey, mergeSeen, newEntries, renderRunInstruction, watchedLine,
 } from './watch.ts'
@@ -35,8 +51,8 @@ export type { RegisterFailure, RegisterFailureClass, RegisterReport, RunTextBoun
 /** Cordis plugin name. */
 export const name = 'flowleap-routines'
 
-/** The scheduler the watches run on, their storage, the register reader, and the tool registry. */
-export const inject = ['schedule', 'storageDomain', 'flowleapRegister', 'tools']
+/** The scheduler the watches run on, their storage, the register reader, the tool registry, and the live Agents. */
+export const inject = ['schedule', 'storageDomain', 'flowleapRegister', 'tools', 'agents']
 
 /** Plugin config. */
 export interface Config {
@@ -62,8 +78,9 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Open the routines domain and contribute the admission, delivery, and change listeners and `register_watch_create`.
- * @param ctx - the mounting context, carrying `schedule`, `storageDomain`, `flowleapRegister`, and `tools`.
+ * Open the routines domain and contribute the admission, delivery, change, status, and Session listeners,
+ * `register_watch_create`, the chat opener, and the `flowleapRoutines` Remote.
+ * @param ctx - the mounting context, carrying `schedule`, `storageDomain`, `flowleapRegister`, `tools`, and `agents`.
  * @param config - read interval, read deadline, application cap, and run text bounds.
  */
 export function apply(ctx: Context, config: Config): void {
@@ -78,17 +95,40 @@ export function apply(ctx: Context, config: Config): void {
     readDeadlineMs: config.readDeadlineSeconds * 1000,
     bounds: { maxEvents: config.maxEventsPerRun, maxTextLength: config.maxEventTextLength },
   }, ctx.logger)
+  const reviews = new ReviewMarks(opened, ctx.agents, () => { ctx.emit('flowleap-routines/changed') })
+  const warn = (what: string) => (error: unknown) => { ctx.logger.warn(`register watch: ${what}: ${String(error)}`) }
+  // A Host stop ended every run that was still working; the attorney still reviews what it did.
+  reviews.convertRunning().catch(warn('marks of ended runs not converted'))
   ctx.on('schedule/admit', (request, next) => watches.admit(request, next))
   ctx.on('schedule/delivered', (delivery) => {
     watches.delivered(delivery).catch((error: unknown) => {
       // The run was delivered; its events stay unseen and are reported again at the next run.
       ctx.logger.warn(`register watch ${delivery.id}: seen events not saved: ${String(error)}`)
     })
+    watches.get(delivery.id).then(async (watch) => {
+      if (watch?.needsReview === true) await reviews.started(delivery.sessionId, delivery.id)
+    }).catch(warn(`${delivery.id} not marked`))
+  })
+  ctx.on('agent/status', ({ agent, status }) => {
+    if (status === 'idle') reviews.idle(agent.session.id).catch(warn(`${agent.session.id} mark not updated`))
+  })
+  ctx.on('session/event', (session, event) => {
+    if (event.type !== 'user/message' || event.data.source.kind !== 'user') return
+    reviews.clear(session.id).catch(warn(`${session.id} mark not cleared`))
   })
   ctx.on('schedule/changed', () => {
-    watches.prune(async () => new Set((await ctx.schedule.catalog()).map(entry => entry.id))).catch((error: unknown) => {
-      ctx.logger.warn(`register watch: prune failed: ${String(error)}`)
-    })
+    watches.prune(async () => new Set((await ctx.schedule.catalog()).map(entry => entry.id))).catch(warn('prune failed'))
   })
   ctx.effect(() => registerWatchTool(ctx, watches, config.maxApplications), 'flowleap-routines: register_watch_create')
+  // A composition without a Session controller or a workspace registry (headless) has one chat; runs go there.
+  ctx.inject(['sessionController', 'workspaceRegistry', 'sessions'], (chatCtx) => {
+    chatCtx.effect(() => {
+      watches.chats = new RunChats({
+        sessionController: chatCtx.sessionController, workspaceRegistry: chatCtx.workspaceRegistry,
+        sessions: chatCtx.sessions, logger: chatCtx.logger,
+      })
+      return () => { watches.chats = undefined }
+    }, 'flowleap-routines: run chats')
+  })
+  ctx.plugin(FlowleapRoutinesController, { reviews })
 }
