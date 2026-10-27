@@ -127,6 +127,58 @@ describe('reviews source', () => {
   })
 })
 
+const unavailable = (): RemoteResult<never> => ({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })
+
+/** A promise the test settles by hand. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+
+describe('reviews source failures', () => {
+  it('reports a failed marks read and recovers on retry', async () => {
+    let fail = true
+    const r = remote({ reviews: vi.fn(async () => (fail ? unavailable() : ok(marks))) })
+    const source = createReviewsSource(r.deps)
+    const stop = source.hooks.reviews.subscribe(() => {})
+    await settle()
+    expect(source.hooks.reviews.getSnapshot().status).toBe('error')
+    fail = false
+    await act(async () => { await source.onRetry() })
+    expect(source.hooks.reviews.getSnapshot().status).toBe('ready')
+    stop()
+  })
+
+  it('discards a rejected read that settles after the last unsubscribe', async () => {
+    const pendingRead = deferred<RemoteResult<RoutineReview[]>>()
+    const r = remote({ reviews: vi.fn(() => pendingRead.promise) })
+    const source = createReviewsSource(r.deps)
+    const stop = source.hooks.reviews.subscribe(() => {})
+    stop()
+    pendingRead.reject(new Error('transport closed'))
+    await settle()
+    expect(source.hooks.reviews.getSnapshot().status).toBe('loading')
+  })
+
+  it('ignores a second Mark as done for a chat in flight and reports a rejected request', async () => {
+    const request = deferred<RemoteResult<void>>()
+    const r = remote({ done: vi.fn(() => request.promise) })
+    const source = createReviewsSource(r.deps)
+    const stop = source.hooks.reviews.subscribe(() => {})
+    await settle()
+    const first = source.onDone(alpha)
+    await expect(source.onDone(alpha)).resolves.toBe(false)
+    expect(source.hooks.reviews.getSnapshot().pending).toEqual([alpha])
+    request.reject(new Error('transport closed'))
+    await expect(first).resolves.toBe(false)
+    expect(source.hooks.reviews.getSnapshot().pending).toEqual([])
+    expect(r.deps.done).toHaveBeenCalledTimes(1)
+    stop()
+  })
+})
+
 /** A ready source over the fixture marks, for the components. */
 async function readySource(overrides: Partial<ReviewsDependencies> = {}) {
   const r = remote(overrides)
@@ -240,6 +292,85 @@ describe('Needs review surfaces', () => {
   })
 })
 
+describe('Needs review surfaces, edge states', () => {
+  it('caps the panel count at 99+', async () => {
+    const many = Array.from({ length: 100 }, (_, index) => review(`chat-${index}` as SessionId, 'watch', '2026-10-27T09:00:00.000Z'))
+    const { useReviews, stop } = await readySource({ reviews: vi.fn(async () => ok(many)) })
+    const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
+    expect(container.querySelector('[data-needs-review-count]')?.textContent).toBe('99+')
+    stop()
+  })
+
+  it('keeps Mark as done busy while the request is in flight and reports a failure', async () => {
+    const request = deferred<RemoteResult<void>>()
+    const { useReviews, source, stop, r } = await readySource({ done: vi.fn(() => request.promise) })
+    render(<MarkDoneAction sessionId={beta} useReviews={useReviews} onDone={source.onDone} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: en['done.action'] }))
+    const busy = screen.getByRole('button', { name: en['done.pending'] })
+    expect(busy.getAttribute('aria-busy')).toBe('true')
+    fireEvent.click(busy)
+    expect(r.deps.done).toHaveBeenCalledTimes(1)
+    await act(async () => { request.resolve(unavailable()); await Promise.resolve() })
+    expect((await screen.findByRole('alert')).textContent).toBe(en['done.error'])
+    fireEvent.click(screen.getByRole('button', { name: en['done.action'] }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    stop()
+  })
+
+  it('selects its tasks as soon as the tab is selected and styles the selected tab', async () => {
+    const { useReviews, stop } = await readySource()
+    const select = vi.fn()
+    render(<NeedsReviewFilter selected select={select} className="tab" selectedClassName="on" useReviews={useReviews} t={t} />)
+    expect(select).toHaveBeenCalled()
+    const tab = screen.getByRole('button', { name: en['filter.label'] })
+    expect(tab.className).toBe('tab on')
+    expect(tab.getAttribute('aria-pressed')).toBe('true')
+    stop()
+  })
+
+  it('names a chat without a title and omits an unknown task', async () => {
+    const orphan = [review(alpha, 'deleted-task', '2026-10-26T09:00:00.000Z')]
+    const { source, stop } = await readySource({ reviews: vi.fn(async () => ok(orphan)) })
+    render(<NeedsReviewPage {...pageProps(source, noSessions)} />)
+    const open = screen.getByRole('button', { name: `Open chat: ${en['row.untitled']}` })
+    expect(open.textContent).not.toContain('Task:')
+    stop()
+  })
+
+  it('shows a loading state before the first read settles', () => {
+    const source = createReviewsSource(remote({ reviews: () => new Promise(() => {}) }).deps)
+    source.hooks.reviews.subscribe(() => {})
+    render(<NeedsReviewPage {...pageProps(source, noSessions)} />)
+    expect(screen.getByRole('status', { name: en['list.loading'] })).toBeDefined()
+  })
+
+  it('offers a retry after a failed read', async () => {
+    let fail = true
+    const { source, stop, r } = await readySource({ reviews: vi.fn(async () => (fail ? unavailable() : ok(marks))) })
+    render(<NeedsReviewPage {...pageProps(source, noSessions)} />)
+    expect(screen.getByRole('alert').textContent).toBe(en['list.error'])
+    fail = false
+    fireEvent.click(screen.getByRole('button', { name: en['list.retry'] }))
+    await settle()
+    expect(r.deps.reviews).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).toBeNull()
+    stop()
+  })
+
+  it('reports a failed Mark as done and ignores a click while it is in flight', async () => {
+    const request = deferred<RemoteResult<void>>()
+    const { source, stop, r } = await readySource({ done: vi.fn(() => request.promise) })
+    render(<NeedsReviewPage {...pageProps(source, noSessions)} />)
+    const [first] = screen.getAllByRole('button', { name: /^Mark ".*" as done$/ })
+    fireEvent.click(first!)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Mark ".*" as done$/ })[0]!)
+    expect(r.deps.done).toHaveBeenCalledTimes(1)
+    await act(async () => { request.resolve(unavailable()); await Promise.resolve() })
+    expect((await screen.findByRole('alert')).textContent).toBe(en['done.error'])
+    stop()
+  })
+})
+
 class RemoteStub extends Service {
   constructor(ctx: Context, readonly $on: (event: string, listener: () => void) => () => void) {
     super(ctx, 'remote')
@@ -292,6 +423,76 @@ describe('ui-flowleap-routines browser half', () => {
       for (const seat of SEATS) expect(ctx.slots.entries(seat)).toEqual([])
       await ctx.fiber.dispose()
     }
+  })
+
+  it('wires every surface to the Remote namespaces and Session navigation', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SlotRegistry).await()
+    new StaticRemoteAccess(ctx, () => true)
+    const listeners = new Map<string, Set<() => void>>()
+    new RemoteStub(ctx, (event, listener) => {
+      const set = listeners.get(event) ?? new Set()
+      set.add(listener)
+      listeners.set(event, set)
+      return () => { set.delete(listener) }
+    })
+    const reviews = vi.fn(async () => ok(marks))
+    const catalog = vi.fn(async () => ok(tasks))
+    const done = vi.fn(async () => ok(undefined))
+    await ctx.plugin({ apply(provider: Context) {
+      provider.provide('remote.flowleapRoutines', { reviews, done } as never)
+      provider.provide('remote.schedule', { catalog } as never)
+    } }).await()
+    const openSession = vi.fn()
+    ctx.provide('uiWorkspace', { openSession } as never)
+    ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
+    await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
+    ctx.slots.register({
+      name: 'root',
+      children: {
+        'sidebar.session.row.trailing': { kind: 'list', scope: 'root', inline: true },
+        'sidebar.panellist': { kind: 'list', scope: 'root' },
+        main: { kind: 'keyed', scope: 'root' },
+        'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+        'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true },
+      },
+    } as never, () => null)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    type Injected = Record<string, unknown> & { hooks?: ReviewsSource['hooks']; onDone?: ReviewsSource['onDone']; onOpenSession?: (id: SessionId) => void }
+    const injected = (seat: typeof SEATS[number]): Injected => {
+      const entry = ctx.slots.entries(seat)[0]!
+      return entry.inject!()
+    }
+    const label = ctx.slots.entries('sidebar.panellist')[0]!.options.label as () => string
+    expect(label()).toBe(en.panel)
+
+    const page = injected('main')
+    const stop = page.hooks!.reviews.subscribe(() => {})
+    await settle()
+    expect(reviews).toHaveBeenCalledTimes(1)
+    expect(catalog).toHaveBeenCalledTimes(1)
+    expect(listeners.get('flowleap-routines/changed')?.size).toBe(1)
+    expect(listeners.get('schedule/changed')?.size).toBe(1)
+    for (const event of ['flowleap-routines/changed', 'schedule/changed']) {
+      for (const listener of listeners.get(event)!) listener()
+    }
+    ctx.emit('connection/reset' as never)
+    await settle()
+    expect(reviews).toHaveBeenCalledTimes(4)
+
+    page.onOpenSession!(alpha)
+    expect(openSession).toHaveBeenCalledWith(alpha)
+    await act(async () => { await injected('conversation.session.header.utilities').onDone!(alpha) })
+    expect(done).toHaveBeenCalledWith(alpha)
+    expect(injected('sidebar.session.row.trailing').hooks).toBeDefined()
+    expect(injected('sidebar.panellist').hooks).toBeDefined()
+    expect(injected('schedule.manager.filter').hooks).toBeDefined()
+
+    stop()
+    expect(listeners.get('flowleap-routines/changed')?.size).toBe(0)
+    await fiber.dispose()
+    await ctx.fiber.dispose()
   })
 
   it('registers key-identical dictionaries and releases them with its fiber', async () => {
