@@ -107,6 +107,8 @@ flowchart LR
   pkg_client_ui_settings_flowleap_connectors["client-ui-settings-flowleap-connectors"]
   svc_flowleapRegister["ctx.flowleapRegister<br/>FlowLeap register reader"]
   pkg_flowleap_routines["flowleap-routines"]
+  svc_flowleapRoutines["ctx.flowleapRoutines<br/>FlowLeap routines Remote"]
+  pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
   pkg_api_workspace_files["api-workspace-files"]
   svc_workspaceFiles["ctx.workspaceFiles<br/>Host workspace file Remote service"]
   pkg_workspace_changes["workspace-changes"]
@@ -372,6 +374,7 @@ flowchart LR
   pkg_file_reference_local --> svc_fileReferences
   pkg_flowleap_connectors --> svc_flowleapConnectors
   pkg_flowleap_connectors --> svc_flowleapRegister
+  pkg_flowleap_routines --> svc_flowleapRoutines
   pkg_fs --> svc_fs
   pkg_fs_local --> svc_fs
   pkg_fs_sandbox --> svc_fs
@@ -516,6 +519,7 @@ flowchart LR
   svc_fileUploads --> pkg_api_session_controller
   svc_flowleapConnectors --> pkg_client_ui_settings_flowleap_connectors
   svc_flowleapRegister --> pkg_flowleap_routines
+  svc_flowleapRoutines --> pkg_client_ui_flowleap_routines
   svc_fs --> pkg_tool_fs
   svc_headlessStartup --> pkg_headless
   svc_hmr --> pkg_app_boot
@@ -674,6 +678,7 @@ flowchart LR
 | `ctx.settingsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the user-settings seam onto the generated Remote namespace: the read is always redacted and every refusal is classified here, not on the seam Definition. |
 | `ctx.flowleapConnectors` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-settings-flowleap-connectors`](../packages/client/ui-settings-flowleap-connectors) | - | Reports presence of the firm's patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only. |
 | `ctx.flowleapRegister` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-routines`](../packages/host/flowleap-routines) | - | Reads the register events of one EP publication or US application on the firm's office keys without a tool call; mounted by the flowleap-web profile only. |
+| `ctx.flowleapRoutines` | `service` | [`flowleap-routines`](../packages/host/flowleap-routines) | - | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | - | Lists the chats a routine run marked "Needs review" and clears one mark on an explicit done; mounted by the flowleap-web profile only. |
 | `ctx.workspaceFiles` | `core` | [`api-workspace-files`](../packages/api/workspace-files) | - | - | - | Serves stat, paged text, byte windows, directory listings, and the change feed for files inside a Session's workspace root, confined by lstat, containment, and a stat re-check. |
 | `ctx.workspaceChanges` | `core` | [`workspace-changes`](../packages/deliverables/workspace-changes) | - | - | - | Serves the summary each workspace/changes event announced and each listed file's turn-start and turn-end comparison, by Session and event sequence, until that Session is disposed; the log carries only the turn. |
 | `ctx.terminalController` | `core` | [`api-terminal-controller`](../packages/api/terminal-controller) | - | - | - | Owns user terminal processes, default shell resolution and bounded screen recovery through the subprocess provider and typed Remote transport. |

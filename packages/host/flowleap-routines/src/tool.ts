@@ -6,6 +6,7 @@ import { MAX_TITLE_LENGTH } from '@deepseek-ai/dsh-schedule'
 import { delegationDepthOf } from '@deepseek-ai/dsh-subagent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { RegisterWatches, WatchBaseline } from './register-watch.ts'
+import type { WatchOptions } from './storage.ts'
 import { watchedLine } from './watch.ts'
 
 /** Tool name. */
@@ -27,7 +28,7 @@ export interface RegisterWatchView {
 
 /** A refused creation. */
 export interface RegisterWatchError {
-  /** `invalid_application`, `register_unavailable`, `empty_register`, `subagent_session`, or `internal_error`. */
+  /** `invalid_application`, `new_chat_unavailable`, `register_unavailable`, `empty_register`, `subagent_session`, or `internal_error`. */
   readonly code: string
   /** What to change. */
   readonly message: string
@@ -77,7 +78,9 @@ const DESCRIPTION =
   'Watch the patent registers of applications with one daily task in the current session. '
   + 'Each day the host reads the register events of each application without you; the task runs only when an event is new, '
   + 'and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. '
-  + 'Manage the task with schedule_list, schedule_update, and schedule_delete.'
+  + 'Manage the task with schedule_list, schedule_update, and schedule_delete. '
+  + 'By default each run opens a new chat titled by the event and marks it "Needs review" when it finishes; '
+  + 'new_chat_per_run and needs_review turn either off.'
 
 /**
  * Register `register_watch_create` in the scope that holds the Schedule service.
@@ -117,6 +120,14 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
           time_zone: { type: 'string', required: true, description: 'UTC or IANA Area/Location, for example Europe/Berlin.' },
         },
       },
+      new_chat_per_run: {
+        type: 'boolean',
+        description: 'Each run opens a new chat in the workspace of this session, titled by the application and the event; false sends the run as a message in this session. Default true where the app can open chats.',
+      },
+      needs_review: {
+        type: 'boolean',
+        description: 'A finished run marks the chat that received it "Needs review" until the user answers or marks it done; false leaves no mark. Default true.',
+      },
     },
     output: { schema: OUTPUT_SCHEMA, render: renderValue },
     async execute(args, exec): Promise<RegisterWatchView | RegisterWatchError> {
@@ -127,6 +138,9 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
       }
       const applications = parseApplications(args.applications, maxApplications)
       if ('code' in applications) return applications
+      if (args.new_chat_per_run === true && !watches.chats.available()) {
+        return { code: 'new_chat_unavailable', message: 'This app cannot open a new chat for each run. Omit new_chat_per_run or set it to false.' }
+      }
       const reads = await watches.baseline(applications, exec.signal)
       if (!Array.isArray(reads)) {
         return { code: 'register_unavailable', message: `The register of ${reads.application} could not be read (${reads.failure}). Try again later.` }
@@ -143,7 +157,7 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
         title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`, daily: args.daily,
       }, exec.signal)
       try {
-        const baseline = await watches.start(record.id, reads)
+        const baseline = await watches.start(record.id, reads, resolveOptions(args, watches.chats.available()))
         return { id: record.id, title: record.title, prompt: record.prompt, daily: args.daily, applications: baseline }
       } catch (error: unknown) {
         // A task without its watch row would deliver the stored instruction every day.
@@ -176,6 +190,19 @@ function parseApplications(inputs: readonly string[], max: number): RegisterAppl
   if (applications.length === 0) return { code: 'invalid_application', message: 'Name at least one application.' }
   if (applications.length > max) return { code: 'invalid_application', message: `Name at most ${max} applications in one watch.` }
   return applications
+}
+
+/**
+ * The two options as stored: an omitted option is on, so a routine looks like work arriving; an omitted
+ * `new_chat_per_run` is off where this app cannot open chats.
+ * @param args - the tool arguments.
+ * @param canOpenChats - whether this app can open a chat for a run.
+ * @returns the options.
+ */
+export function resolveOptions(
+  args: { new_chat_per_run?: boolean; needs_review?: boolean }, canOpenChats: boolean,
+): WatchOptions {
+  return { newChat: args.new_chat_per_run ?? canOpenChats, needsReview: args.needs_review ?? true }
 }
 
 function internalError(): RegisterWatchError {

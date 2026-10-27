@@ -82,6 +82,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-settings-subagent/`](ui-settings-subagent/README.md) | Provides the Subagent settings page on the Plugins page | — |
 | [`ui-settings-web-search/`](ui-settings-web-search/README.md) | Provides the web-search settings page on the Plugins page | — |
 | [`ui-settings-flowleap-connectors/`](ui-settings-flowleap-connectors/README.md) | Provides the Patent data connectors settings section and first-run key wizard | — |
+| [`ui-flowleap-routines/`](ui-flowleap-routines/README.md) | Shows the Needs review mark of FlowLeap routine runs: row badge, page, Mark as done, and the Automation tasks filter | — |
 | [`ui-plugin-manager/`](ui-plugin-manager/README.md) | Contributes the sidebar Plugins panel: install, enable, disable, retry, and compose installed packages | — |
 | [`ui-entry-customization/`](ui-entry-customization/README.md) | Adds region-local More menus that pin or unpin plugin launchers and start a plugin draft | — |
 | [`ui-plugin-market/`](ui-plugin-market/README.md) | Contributes the Discover tab to the Plugins page: browse market indexes and install their bundles | — |

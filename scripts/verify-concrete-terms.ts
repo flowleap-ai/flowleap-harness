@@ -9,11 +9,11 @@ import { historicalSchemaRegion } from './historical-schema-region.ts'
 const root = resolve(import.meta.dirname, '..')
 const blockedTerm = 'prove' + 'nance'
 // FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim.
-// FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim; flowleap/ holds FlowLeap's own
+// FlowLeap fork: the prompt artifact is owned by agent-v2 and copied verbatim (its snapshot pin too); flowleap/ holds FlowLeap's own
 // design documents, which follow the FlowLeap style, not the dsh documentation standard.
 // FlowLeap fork: `packages/host/flowleap-deliverables/` and its sync script hold copies of agent-v2 modules (SOURCE.json) and keep
 // the IDE's vocabulary, which names its appendix module by the blocked term; HANDOFF.md is the fork's own handoff log.
-const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/', 'flowleap/', 'packages/host/flowleap-deliverables/', 'scripts/flowleap/sync-deliverables.sh', 'HANDOFF.md'] as const
+const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/', 'snapshots/web/flowleap-routine-run/', 'flowleap/', 'packages/host/flowleap-deliverables/', 'scripts/flowleap/sync-deliverables.sh', 'HANDOFF.md'] as const
 
 /** One blocked term occurrence in a tracked path or text line. */
 export interface ConcreteTermViolation {

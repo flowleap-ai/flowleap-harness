@@ -470,6 +470,31 @@ read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly R
 
 Source: [`packages/host/flowleap-connectors/src/register.ts`](../../packages/host/flowleap-connectors/src/register.ts)
 
+<a id="ctxflowleaproutines--flowleaproutinescontroller"></a>
+
+### `ctx.flowleapRoutines` — `FlowleapRoutinesController`
+
+Host service backing the generated `ctx.remote.flowleapRoutines` namespace.
+
+```ts cordis-catalog
+/**
+ * The marked chats the caller may see.
+ * @returns one view per mark, without the chats remote access denies the caller.
+ */
+@Remote async reviews(): Promise<RoutineReview[]>
+
+/**
+ * Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource
+ * the `sessionId` parameter names.
+ * @param sessionId - the chat.
+ */
+@Remote async done(sessionId: SessionId): Promise<void>
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/host/flowleap-routines/src/controller.ts`](../../packages/host/flowleap-routines/src/controller.ts)
+
 <a id="ctxschedule--scheduleservice"></a>
 
 ### `ctx.schedule` — `ScheduleService`
@@ -569,6 +594,26 @@ async create(sessionId: SessionId, request: ScheduleCreateRequest, signal?: Abor
 Types: [SessionId](core.md)
 
 Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/schedule/src/index.ts)
+
+<a id="flowleap-routines-events"></a>
+
+### `flowleap-routines/*` events
+
+<a id="flowleap-routineschanged--emit"></a>
+
+#### `flowleap-routines/changed` — emit
+
+A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.
+
+```ts cordis-catalog
+/**
+ * A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.
+ * @mode emit
+ */
+'flowleap-routines/changed'(): void
+```
+
+Source: [`packages/host/flowleap-routines/src/types.ts`](../../packages/host/flowleap-routines/src/types.ts)
 
 <a id="schedule-events"></a>
 

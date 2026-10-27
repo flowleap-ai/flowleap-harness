@@ -101,13 +101,14 @@ export function watchedLine(applications: readonly RegisterApplication[]): strin
 }
 
 /**
- * One line of office text: control characters become spaces, and the text is cut at `max` characters.
+ * One line of office text: control characters and the bidirectional overrides and isolates (U+202A–U+202E,
+ * U+2066–U+2069), which can show text out of order, become spaces, and the text is cut at `max` characters.
  * @param text - office text.
  * @param max - most characters kept.
  * @returns the cleaned text.
  */
 export function cleanField(text: string, max: number): string {
-  const flat = text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim()
+  const flat = text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g, ' ').trim()
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
 }
 

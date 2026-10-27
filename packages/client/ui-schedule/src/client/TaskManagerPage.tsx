@@ -1,15 +1,16 @@
 /** Cross-session retained reminders with local search and selection. */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconClockOutlineRegular, IconCloseOutlineRegular, IconEllipsisOutlineRegular, IconPlusOutlineRegular,
   IconSearchOutlineRegular, IconTrashOutlineRegular, Input, Menu, Modal, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { CatalogSnapshot } from './catalog-source.ts'
 import { CatalogFeedback } from './CatalogFeedback.tsx'
+import type { ScheduleManagerFilterOwnerProps } from './manager-filter.ts'
 import { TaskDetail, useTaskDetail, type TaskDetailInjected } from './TaskDetail.tsx'
 import { useRelativeClock } from './relative-clock.ts'
 import { formatScheduleFrequency, nextRunParts, taskName, zoneLabel } from './schedule-format.ts'
@@ -19,8 +20,12 @@ import css from './TaskManagerPage.module.css'
 
 /** Injected catalog and task actions for the management page. */
 export interface TaskManagerInjected extends TaskDetailInjected {
-  /** Host task catalog with its query and deletion state. */
-  readonly hooks: { readonly catalog: HostObservable<CatalogSnapshot<ScheduleCatalogEntry>> }
+  readonly hooks: {
+    /** Host task catalog with its query and deletion state. */
+    readonly catalog: HostObservable<CatalogSnapshot<ScheduleCatalogEntry>>
+    /** List ids of the `schedule.manager.filter` entries, in ascending `order`. */
+    readonly filters: HostObservable<readonly string[]>
+  }
   /**
    * Start a new Session, where a reminder is created by asking the model to
    * schedule it. The page deliberately has no creation form of its own.
@@ -41,9 +46,16 @@ export interface TaskManagerInjected extends TaskDetailInjected {
 /** Root-scoped task catalog props derived from the framework and injected actions. */
 export type TaskManagerPageProps = PropsRuntime<'main'>
   & InjectFace<TaskManagerInjected>
+  & PropsRenderSlots<'schedule.manager.filter'>
   & PropsLocale<'schedule.manager'>
 
 type StatusFilter = 'all' | ScheduleCatalogEntry['status']
+
+/** The selected `schedule.manager.filter` entry and the tasks it shows. */
+interface EntryFilter {
+  readonly id: string
+  readonly taskIds: ReadonlySet<ScheduleId>
+}
 
 /**
  * Render retained tasks with authoritative deletion and timing-only edits.
@@ -51,11 +63,21 @@ type StatusFilter = 'all' | ScheduleCatalogEntry['status']
  * @returns the searchable task list beside the selected task's detail.
  */
 export function TaskManagerPage(props: TaskManagerPageProps) {
-  const { useCatalog, onNewTask, onClearEnded, onRetry, t } = props
+  const { useCatalog, useFilters, renderSlot, onNewTask, onClearEnded, onRetry, t } = props
   const catalog = useCatalog(snapshot => snapshot)
   const { records, status } = catalog
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [entryFilterState, setEntryFilter] = useState<EntryFilter | null>(null)
+  const filterIds = useFilters(ids => ids)
+  // An entry that unregisters while selected leaves the page on its status tab.
+  const entryFilter = entryFilterState !== null && filterIds.includes(entryFilterState.id) ? entryFilterState : null
+  const filterEntries = useMemo(() => filterIds.map(id => ({
+    id,
+    select: (taskIds: ReadonlySet<ScheduleId>) => {
+      setEntryFilter(current => current?.id === id && current.taskIds === taskIds ? current : { id, taskIds })
+    },
+  })), [filterIds])
   const [selectedId, setSelectedId] = useState<ScheduleId | null>(null)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [clearMenu, setClearMenu] = useState(false)
@@ -85,16 +107,18 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase()
     return records.filter(record => (
-      (statusFilter === 'all' || record.status === statusFilter)
+      (entryFilter === null
+        ? statusFilter === 'all' || record.status === statusFilter
+        : entryFilter.taskIds.has(record.id))
       && (record.prompt.toLowerCase().includes(query)
         || record.sessionId.toLowerCase().includes(query)
         || taskName(record).toLowerCase().includes(query))
     )).toSorted((left, right) =>
       Date.parse(left.scheduledAt) - Date.parse(right.scheduledAt))
-  }, [records, search, statusFilter])
+  }, [records, search, statusFilter, entryFilter])
 
   // An inactive-only filter is its own empty state: no task is inactive, rather than no task matched.
-  const emptyTitle = statusFilter === 'inactive' && search.trim() === ''
+  const emptyTitle = entryFilter === null && statusFilter === 'inactive' && search.trim() === ''
     ? 'list.emptyInactive'
     : records.length === 0 ? 'list.empty' : 'list.noMatches'
   // The list's frequency line omits a rule zone equal to the host's and otherwise
@@ -195,13 +219,25 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
                   <button
                     key={value}
                     type="button"
-                    className={clsx(css.filterTab, statusFilter === value && css.filterTabActive)}
-                    aria-pressed={statusFilter === value}
-                    onClick={() => { setStatusFilter(value) }}
+                    className={clsx(css.filterTab, entryFilter === null && statusFilter === value && css.filterTabActive)}
+                    aria-pressed={entryFilter === null && statusFilter === value}
+                    onClick={() => {
+                      setStatusFilter(value)
+                      setEntryFilter(null)
+                    }}
                   >
                     {t(value === 'all' ? 'statusFilter.all' : `status.${value}`)}
                   </button>
                 ))}
+                {filterEntries.map(({ id, select }) => {
+                  const owner: ScheduleManagerFilterOwnerProps = {
+                    selected: entryFilter?.id === id,
+                    select,
+                    className: css.filterTab as string,
+                    selectedClassName: css.filterTabActive as string,
+                  }
+                  return <Fragment key={id}>{renderSlot('schedule.manager.filter', owner, { only: id })}</Fragment>
+                })}
               </div>
             </div>
             <div className={css.searchTools}>

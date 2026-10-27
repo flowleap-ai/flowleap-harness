@@ -59,6 +59,7 @@
     "apps/web/tests/message-feedback-protocol.snapshot.ts",
     "apps/web/tests/preset-migration.snapshot.ts",
     "apps/web/tests/subagent-fork-schedule.snapshot.ts",
+    "apps/web/tests/flowleap-routine-run.snapshot.ts",
     "apps/web/tests/live-interactions.e2e.ts",
     "apps/web/tests/question-composer.e2e.ts",
     "apps/web/tests/question-ptc.e2e.ts",

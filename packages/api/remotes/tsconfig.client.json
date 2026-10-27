@@ -116,6 +116,9 @@
     },
     {
       "path": "../../host/flowleap-connectors"
+    },
+    {
+      "path": "../../host/flowleap-routines"
     }
   ]
 }

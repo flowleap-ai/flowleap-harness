@@ -11,6 +11,8 @@ class RegisterWatchAdapter extends LlmAdapter {
       const args = JSON.stringify({
         applications: ['EP 3 456 789'], title: 'Office actions', prompt: 'When a new office action arrives, prepare the analysis.',
         daily: { time: '07:00:00', time_zone: 'UTC' },
+        // The headless profile has one chat and no Session controller: the run goes there, without a mark.
+        new_chat_per_run: false, needs_review: false,
       })
       const id = ToolCallId(`call-${options.messages.length}`)
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }

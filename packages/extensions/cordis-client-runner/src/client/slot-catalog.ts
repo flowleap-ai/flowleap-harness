@@ -1913,6 +1913,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'conversation.session.header\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
+      'client-ui-flowleap-routines MarkDoneAction id \'flowleap-needs-review\'',
       'client-ui-open-in-app SessionOpenInAppAction id \'open-in-app\'',
       'client-ui-schedule ScheduleCatalogAction id \'schedule-catalog\'',
       'session-log-export SessionLogDownloadHeaderAction id \'session-log-download\'',
@@ -2299,6 +2300,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'root\' (client-ui-layout), so it exists while that entry is mounted',
     occupants: [
       'client-ui-conversation ConversationPanel key \'conversation\'',
+      'client-ui-flowleap-routines NeedsReviewPage',
       'client-ui-plugin-manager PluginManagerPage',
       'client-ui-schedule TaskManagerPage',
     ],
@@ -2898,6 +2900,60 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'root\', () => ctx.slots.register(\n      { name: \'root\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
     source: 'packages/client/ui-renderer/src/client/registry.ts:44',
+  },
+  {
+    key: 'schedule.manager.filter',
+    kind: 'list',
+    scope: 'root',
+    summary: 'Extra filter tabs after the Enabled, Inactive, and All status tabs of the Automation tasks page, in ascending `order`.',
+    doc: 'Extra filter tabs after the Enabled, Inactive, and All status tabs of the Automation tasks page, in ascending\n`order`. Declared by this package\'s `main` entry for the `schedules` panel. Each entry renders one\n`<button type="button">` with `aria-pressed={selected}` and its own label, styled with the owner\'s class names,\nand supplies the task ids it filters by through `select`.',
+    registerOptions: [
+      {
+        name: 'id',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it.',
+      },
+      {
+        name: 'order',
+        requirement: 'optional',
+        type: 'number',
+        doc: 'Position among the entries, ascending (default 0).',
+      },
+      {
+        name: 'label',
+        requirement: 'optional',
+        type: 'string | (() => string)',
+        doc: 'Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering.',
+      },
+    ],
+    ownerProps: [
+      '/** Owner share of one extra filter tab; the page renders each entry alone with its own share. */\nexport interface ScheduleManagerFilterOwnerProps {\n  /** Whether this entry is the page\'s current filter. */\n  readonly selected: boolean\n  /**\n   * Make this entry the page\'s current filter over the given tasks. Call it on click, and again while `selected`\n   * whenever the set changes; the page then lists only the catalog records whose id is in the set, and search still\n   * applies. Choosing a built-in status tab clears the selection.\n   * @param taskIds - the tasks this filter shows.\n   */\n  readonly select: (taskIds: ReadonlySet<ScheduleId>) => void\n  /** Class name of every filter tab on the page. */\n  readonly className: string\n  /** Class name the page adds to the selected filter tab. */\n  readonly selectedClassName: string\n}',
+    ],
+    ownerPropsReferences: [
+      'ScheduleId',
+    ],
+    standardProps: [
+      'useRemoteAccess: (action: RemoteEndpoint) => boolean',
+      'useResource: UseResource',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionStatus: UseSessionStatus',
+      'useSessionRetainInfo: UseSessionRetainInfo',
+      'useSessionAccess: (sessionId: SessionId, action: RemoteEndpoint) => boolean',
+      'useWorkspaceAccess: (workspaceId: WorkspaceId, action: RemoteEndpoint) => boolean',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'main\' (client-ui-schedule), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-flowleap-routines NeedsReviewFilter id \'flowleap-needs-review\'',
+    ],
+    replaceRisk: 'none',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'schedule.manager.filter\', () => ctx.slots.register(\n      { name: \'schedule.manager.filter\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-schedule/src/client/manager-filter.ts:34',
   },
   {
     key: 'settings.action',
@@ -3836,6 +3892,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
     occupants: [
+      'client-ui-flowleap-routines NeedsReviewPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',
       'client-ui-schedule TaskManagerIcon',
     ],
@@ -4707,7 +4764,9 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     hookContext: '',
     slotInject: '',
     declaredBy: 'an entry in \'sidebar.workspaces\' (client-ui-workspace), so it exists while that entry is mounted',
-    occupants: [],
+    occupants: [
+      'client-ui-flowleap-routines NeedsReviewBadge id \'flowleap-needs-review\'',
+    ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.session.row.trailing\', () => ctx.slots.register(\n      { name: \'sidebar.session.row.trailing\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
     source: 'packages/client/ui-workspace/src/client/contract/slots.ts:146',

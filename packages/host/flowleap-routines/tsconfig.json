@@ -9,10 +9,16 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../flowleap-connectors" },
+    { "path": "../../api/remote-access/tsconfig.host.json" },
+    { "path": "../../api/session-controller/tsconfig.host.json" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
     { "path": "../../core/tools" },
     { "path": "../../llm/llm" },
     { "path": "../../schedule/schedule" },
     { "path": "../../storage/storage-domain" },
-    { "path": "../../subagent/subagent" }
+    { "path": "../../subagent/subagent" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../workspace/workspace" }
   ]
 }

@@ -862,6 +862,82 @@ describe('schedule/admit and schedule/delivered', () => {
     }])
   })
 
+  it('delivers a redirected member alone to its target, keeps the receipt on the task, and batches the rest as before', async () => {
+    const watch = createDailyScheduleRecord(ScheduleId('watch'), 'Watch', {
+      time: '08:00:02', time_zone: 'Asia/Shanghai',
+    }, Date.now(), 'Watch')
+    const other = createEveryScheduleRecord(ScheduleId('other'), 'Other', 60, Date.now() - 58_000, 'Other')
+    const third = createEveryScheduleRecord(ScheduleId('third'), 'Third', 60, Date.now() - 58_000, 'Third')
+    const tasks = [task(watch), task(other), task(third)]
+    const test = await setup(tasks)
+    const review = agentFor(test.ctx, 'review-1')
+    test.resolve.mockImplementation(async sessionId => ({ agent: sessionId === review.id ? review : test.agent }))
+    const delivered = vi.fn()
+    test.ctx.on('schedule/delivered', delivered)
+    test.ctx.on('schedule/admit', async (request, next) =>
+      request.record.id === watch.id ? { kind: 'deliver', prompt: 'Watch\nNew event', sessionId: review.id } : next())
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(test.resolve.mock.calls.map(([sessionId]) => sessionId)).toEqual([SessionId('original'), review.id])
+    expect(test.followup).toHaveBeenCalledOnce()
+    const shared = test.followup.mock.calls[0]![0].content.map(block => block.type === 'text' ? block.text : '').join('')
+    expect(shared).toContain('"reminder_prompt":"Other"')
+    expect(shared).toContain('"reminder_prompt":"Third"')
+    expect(shared).not.toContain('Watch')
+    expect(review.followup).toHaveBeenCalledOnce()
+    const redirected = review.followup.mock.calls[0]![0]
+    const text = redirected.content.map(block => block.type === 'text' ? block.text : '').join('')
+    expect(text).toContain(JSON.stringify('Watch\nNew event'))
+    expect(text).not.toContain('Other')
+    expect(tasks[0]).toMatchObject({ sessionId: SessionId('original'), status: 'active' })
+    expect(tasks[0]?.lastDelivery?.messageId).toBe(redirected.id)
+    expect(tasks[0]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Watch\nNew event')
+    const receipt = { scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z' }
+    expect(delivered.mock.calls).toEqual([
+      [{ sessionId: SessionId('original'), id: other.id, receipt: { ...receipt, messageId: test.followup.mock.calls[0]![0].id } }],
+      [{ sessionId: SessionId('original'), id: third.id, receipt: { ...receipt, messageId: test.followup.mock.calls[0]![0].id } }],
+      [{ sessionId: review.id, id: watch.id, receipt: { ...receipt, messageId: redirected.id } }],
+    ])
+  })
+
+  it('redirects a one-shot without restoring its own Session', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
+    const test = await setup(tasks)
+    const review = agentFor(test.ctx, 'review-1')
+    test.resolve.mockResolvedValue({ agent: review })
+    const delivered = vi.fn()
+    test.ctx.on('schedule/delivered', delivered)
+    test.ctx.on('schedule/admit', async (_request, next) => ({ ...await next(), sessionId: review.id }))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(test.resolve.mock.calls.map(([sessionId]) => sessionId)).toEqual([review.id])
+    expect(test.followup).not.toHaveBeenCalled()
+    expect(review.followup).toHaveBeenCalledOnce()
+    expect(tasks[0]).toMatchObject({ sessionId: SessionId('original'), status: 'inactive' })
+    expect(delivered).toHaveBeenCalledWith(expect.objectContaining({ sessionId: review.id, id: ScheduleId('once') }))
+  })
+
+  it('stops between a shared batch and a redirected member at disposal', async () => {
+    const watch = createEveryScheduleRecord(ScheduleId('watch'), 'Watch', 60, Date.now() - 58_000, 'Watch')
+    const other = createEveryScheduleRecord(ScheduleId('other'), 'Other', 60, Date.now() - 58_000, 'Other')
+    const tasks = [task(other), task(watch)]
+    const test = await setup(tasks)
+    const review = agentFor(test.ctx, 'review-1')
+    test.ctx.on('schedule/admit', async (request, next) =>
+      request.record.id === watch.id ? { kind: 'deliver', prompt: 'Watch', sessionId: review.id } : next())
+    const flushing = Promise.withResolvers<undefined>()
+    test.flush.mockReturnValueOnce(flushing.promise)
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    const stopped = test.runtime.dispose()
+    flushing.resolve(undefined)
+    await stopped
+    expect(test.followup).toHaveBeenCalledOnce()
+    expect(tasks[0]?.lastDelivery).toBeDefined()
+    expect(review.followup).not.toHaveBeenCalled()
+    expect(test.resolve.mock.calls.map(([sessionId]) => sessionId)).toEqual([SessionId('original')])
+  })
+
   it('aborts the admission signal at disposal and commits nothing after it', async () => {
     const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
     const test = await setup(tasks)
