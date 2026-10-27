@@ -1473,7 +1473,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:67`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:71`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1533,6 +1533,25 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-routines -->
+<a id="deepseek-aidsh-flowleap-routines"></a>
+
+## `@deepseek-ai/dsh-flowleap-routines`
+
+- `inject`: `schedule` · `storageDomain` · `flowleapRegister` · `tools`
+- `source`: [`packages/host/flowleap-routines/src/index.ts:42`](../packages/host/flowleap-routines/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Shortest time between two register reads of one application, in hours; at least 12, the EPO OPS fair-use bound of two reads a day. */
+  minReadIntervalHours: number
+  /** Most applications one watch names; each is one register read in the scheduler's delivery operation. */
+  maxApplications: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-routines -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-fs-local -->
 <a id="deepseek-aidsh-fs-local"></a>
