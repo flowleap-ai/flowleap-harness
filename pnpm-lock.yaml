@@ -1517,6 +1517,9 @@ importers:
       '@deepseek-ai/dsh-flowleap-connectors':
         specifier: workspace:*
         version: link:../../host/flowleap-connectors
+      '@deepseek-ai/dsh-flowleap-routines':
+        specifier: workspace:*
+        version: link:../../host/flowleap-routines
       '@deepseek-ai/dsh-goal':
         specifier: workspace:*
         version: link:../../goal/goal
@@ -12059,6 +12062,12 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
+      '@deepseek-ai/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
       '@deepseek-ai/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
@@ -12089,6 +12098,12 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@deepseek-ai/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
       '@flowleap/connectors':
         specifier: workspace:~
         version: link:../../../vendor/flowleap-connectors

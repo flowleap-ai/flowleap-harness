@@ -1265,6 +1265,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapRoutines',
+    summary: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    methods: [
+      {
+        signature: '@Remote async reviews(): Promise<RoutineReview[]>',
+        description: 'The marked chats the caller may see.',
+        parameters: [],
+        returns: 'one view per mark, without the chats remote access denies the caller.',
+      },
+      {
+        signature: '@Remote async done(sessionId: string): Promise<void>',
+        description: 'Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource the `sessionId` parameter names.',
+        parameters: [{ name: 'sessionId', description: 'the chat.' }],
+      },
+    ],
+  },
+  {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
     description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
@@ -4567,6 +4585,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'inspection', description: 'committed canonical prefix, including the feedback as its last event.' }],
   },
   {
+    name: 'flowleap-routines/changed',
+    mode: 'emit',
+    signature: '\'flowleap-routines/changed\'(): void',
+    summary: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
+    description: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
+    parameters: [],
+  },
+  {
     name: 'fs/edit-intent',
     mode: 'waterfall',
     signature: '\'fs/edit-intent\'(target: FsTarget, actor: object | undefined, next: () => { version: FsVersion } | undefined | Promise<{ version: FsVersion } | undefined>): Promise<{ version: FsVersion } | undefined>',
@@ -7275,6 +7301,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'ReviewState',
+    declaration: 'export type ReviewState = \'running\' | \'needs_review\';',
+  },
+  {
+    name: 'RoutineReview',
+    declaration: 'export interface RoutineReview {\n    readonly sessionId: SessionId;\n    readonly taskId: string;\n    readonly state: ReviewState;\n    readonly since: string;\n}',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -7320,7 +7354,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ScheduleAdmission',
-    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n} | {\n    readonly kind: \'skip\';\n};',
+    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n    readonly sessionId?: SessionId;\n} | {\n    readonly kind: \'skip\';\n};',
   },
   {
     name: 'ScheduleAdmissionRequest',
