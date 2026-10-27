@@ -98,7 +98,7 @@ describe('reviews source', () => {
   })
 
   it('keeps marks without task names when the catalog read fails, and reports a failed marks read', async () => {
-    const r = remote({ catalog: vi.fn(async () => ({ ok: false, error: new RemoteError('denied') }) as RemoteResult<ScheduleCatalogEntry[]>) })
+    const r = remote({ catalog: vi.fn(async (): Promise<RemoteResult<ScheduleCatalogEntry[]>> => ({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })) })
     const source = createReviewsSource(r.deps)
     const stop = source.hooks.reviews.subscribe(() => {})
     await settle()
@@ -120,7 +120,7 @@ describe('reviews source', () => {
     await expect(source.onDone(alpha)).resolves.toBe(true)
     expect(r.deps.done).toHaveBeenCalledWith(alpha)
     expect(r.deps.reviews).toHaveBeenCalledTimes(2)
-    vi.mocked(r.deps.done).mockResolvedValueOnce({ ok: false, error: new RemoteError('denied') })
+    vi.mocked(r.deps.done).mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })
     await expect(source.onDone(alpha)).resolves.toBe(false)
     expect(source.hooks.reviews.getSnapshot().pending).toEqual([])
     stop()
@@ -176,12 +176,12 @@ describe('Needs review surfaces', () => {
 
   it('shows the count on the panel glyph only when a chat needs review', async () => {
     const { useReviews, stop } = await readySource()
-    const { container } = render(<NeedsReviewPanelIcon size={16} active={false} useReviews={useReviews} t={t} />)
+    const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
     expect(container.querySelector('[data-needs-review-count]')?.textContent).toBe('2')
     stop()
     const empty = await readySource({ reviews: vi.fn(async () => ok([])) })
     cleanup()
-    const view = render(<NeedsReviewPanelIcon size={16} active={false} useReviews={empty.useReviews} t={t} />)
+    const view = render(<NeedsReviewPanelIcon size={16} useReviews={empty.useReviews} />)
     expect(view.container.querySelector('[data-needs-review-count]')).toBeNull()
     empty.stop()
   })

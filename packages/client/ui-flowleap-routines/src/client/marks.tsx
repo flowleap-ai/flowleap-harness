@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, IconCheckOutlineRegular, IconChecklistOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-schedule/client'
+import type { ScheduleManagerFilterOwnerProps } from '@deepseek-ai/dsh-client-ui-schedule/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { ScheduleId } from '@deepseek-ai/dsh-schedule/client'
@@ -24,7 +24,7 @@ export type ReviewsActionInjected = Pick<ReviewsSource, 'hooks' | 'onDone'>
 type Copy = PropsLocale<typeof NS>
 
 /** Props of the Sidebar row badge. */
-export type NeedsReviewBadgeProps = PropsRuntime<'sidebar.session.row.trailing'> & Copy & InjectFace<ReviewsInjected>
+export type NeedsReviewBadgeProps = Pick<PropsRuntime<'sidebar.session.row.trailing'>, 'sessionId'> & Copy & InjectFace<ReviewsInjected>
 
 /**
  * Render the badge while the row's chat is marked `needs_review`.
@@ -43,7 +43,7 @@ export function NeedsReviewBadge({ sessionId, useReviews, t }: NeedsReviewBadgeP
 }
 
 /** Props of the panel launcher glyph. */
-export type NeedsReviewPanelIconProps = PropsRuntime<'sidebar.panellist'> & Copy & InjectFace<ReviewsInjected>
+export type NeedsReviewPanelIconProps = Pick<PropsRuntime<'sidebar.panellist'>, 'size'> & InjectFace<ReviewsInjected>
 
 /**
  * Render the launcher glyph with the count of marked chats; the Sidebar owns the launcher's accessible name.
@@ -62,7 +62,8 @@ export function NeedsReviewPanelIcon({ size, useReviews }: NeedsReviewPanelIconP
 }
 
 /** Props of the Session header Mark as done button. */
-export type MarkDoneActionProps = PropsRuntime<'conversation.session.header.utilities'> & Copy & InjectFace<ReviewsActionInjected>
+export type MarkDoneActionProps = Pick<PropsRuntime<'conversation.session.header.utilities'>, 'sessionId'> & Copy
+  & InjectFace<ReviewsActionInjected>
 
 /**
  * Render Mark as done while the open chat is marked `needs_review`.
@@ -96,7 +97,7 @@ export function MarkDoneAction({ sessionId, useReviews, onDone, t }: MarkDoneAct
 }
 
 /** Props of the Automation tasks filter tab. */
-export type NeedsReviewFilterProps = PropsRuntime<'schedule.manager.filter'> & Copy & InjectFace<ReviewsInjected>
+export type NeedsReviewFilterProps = ScheduleManagerFilterOwnerProps & Copy & InjectFace<ReviewsInjected>
 
 /**
  * Render the Needs review filter tab. The tab filters by the catalog tasks whose runs marked a chat that still needs
