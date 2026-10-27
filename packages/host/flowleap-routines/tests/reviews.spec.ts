@@ -202,6 +202,31 @@ describe('the Needs review mark', () => {
     expect(await test.ctx.flowleapRoutines.reviews()).toHaveLength(1)
   })
 
+  it('turns a running mark to needs_review when the Agent goes idle while the mark is written', async () => {
+    const pool = new MemoryMediaPool()
+    let release: () => void = () => {}
+    let held = false
+    const test = await host(pool, {
+      chats: true,
+      backend: gatedBackend(pool, {
+        putRecord: (table) => {
+          if (table !== 'reviews' || held) return undefined
+          held = true
+          return new Promise<void>((resolve) => { release = resolve })
+        },
+      }),
+    })
+    test.chats!.nextStatus = 'running'
+    await runOnce(test)
+    const review = test.chats!.opened[0]!
+    expect(held).toBe(true)
+    review.status = 'idle'
+    test.ctx.emit('agent/status', { agent: review, status: 'idle' })
+    release()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(await test.ctx.flowleapRoutines.reviews()).toMatchObject([{ sessionId: review.id, state: 'needs_review' }])
+  })
+
   it('converts running marks to needs_review when the Host starts', async () => {
     const pool = new MemoryMediaPool()
     const first = await host(pool, { chats: true })

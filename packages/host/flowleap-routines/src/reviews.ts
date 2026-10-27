@@ -26,8 +26,13 @@ export interface AgentLookup {
   get(id: SessionId): Agent | undefined
 }
 
-/** Owns the `reviews` table and announces each committed change. */
+/**
+ * Owns the `reviews` table and announces each committed change. Every change runs in one queue, so an Agent that goes idle
+ * while its run is being marked is seen by the mark that follows.
+ */
 export class ReviewMarks {
+  private chain: Promise<unknown> = Promise.resolve()
+
   /**
    * @param domain - the `flowleap_routines` domain while it opens; every operation waits for it.
    * @param agents - the live Agents.
@@ -46,8 +51,10 @@ export class ReviewMarks {
    * @param taskId - the task whose run it received.
    */
   async started(sessionId: SessionId, taskId: TaskId): Promise<void> {
-    const running = this.agents.get(sessionId)?.status === 'running'
-    await this.put(sessionId, { taskId, state: running ? 'running' : 'needs_review', since: now() })
+    await this.serialize(async () => {
+      const running = this.agents.get(sessionId)?.status === 'running'
+      await this.put(sessionId, { taskId, state: running ? 'running' : 'needs_review', since: now() })
+    })
   }
 
   /**
@@ -55,9 +62,11 @@ export class ReviewMarks {
    * @param sessionId - the idle chat.
    */
   async idle(sessionId: SessionId): Promise<void> {
-    const review = (await this.domain).table('reviews').get(sessionId)
-    if (review?.state !== 'running') return
-    await this.put(sessionId, { ...review, state: 'needs_review', since: now() })
+    await this.serialize(async () => {
+      const review = (await this.domain).table('reviews').get(sessionId)
+      if (review?.state !== 'running') return
+      await this.put(sessionId, { ...review, state: 'needs_review', since: now() })
+    })
   }
 
   /**
@@ -65,12 +74,14 @@ export class ReviewMarks {
    * still reviews what it did.
    */
   async convertRunning(): Promise<void> {
-    const reviews = (await this.domain).table('reviews')
-    const running = [...reviews.entries()].filter(([, review]) => review.state === 'running')
-    if (running.length === 0) return
-    const since = now()
-    for (const [sessionId, review] of running) await reviews.put(sessionId, { ...review, state: 'needs_review', since })
-    this.changed()
+    await this.serialize(async () => {
+      const reviews = (await this.domain).table('reviews')
+      const running = [...reviews.entries()].filter(([, review]) => review.state === 'running')
+      if (running.length === 0) return
+      const since = now()
+      for (const [sessionId, review] of running) await reviews.put(sessionId, { ...review, state: 'needs_review', since })
+      this.changed()
+    })
   }
 
   /**
@@ -79,11 +90,13 @@ export class ReviewMarks {
    * @returns whether a mark was cleared.
    */
   async clear(sessionId: SessionId): Promise<boolean> {
-    const reviews = (await this.domain).table('reviews')
-    if (reviews.get(sessionId) === undefined) return false
-    await reviews.delete(sessionId)
-    this.changed()
-    return true
+    return this.serialize(async () => {
+      const reviews = (await this.domain).table('reviews')
+      if (reviews.get(sessionId) === undefined) return false
+      await reviews.delete(sessionId)
+      this.changed()
+      return true
+    })
   }
 
   /**
@@ -93,6 +106,12 @@ export class ReviewMarks {
   async list(): Promise<RoutineReview[]> {
     const reviews = (await this.domain).table('reviews')
     return [...reviews.entries()].map(([sessionId, review]) => ({ sessionId, ...review }))
+  }
+
+  private serialize<T>(work: () => Promise<T>): Promise<T> {
+    const pending = this.chain.then(work)
+    this.chain = pending.catch(() => undefined) // The caller receives the failure; the queue continues.
+    return pending
   }
 
   private async put(sessionId: SessionId, review: ReviewRecord): Promise<void> {
