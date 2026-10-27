@@ -137,6 +137,12 @@ describe('the read-only document', () => {
       .rejects.toThrow(/read-only credentials document .* does not exist/)
   })
 
+  it('fails activation when the path cannot be read as a file', async () => {
+    const paths = await fixture(null)
+    await mkdir(paths.readOnly, { mode: 0o700 })
+    await expect(bootFailure({ path: paths.managed, readOnlyPath: paths.readOnly, watch: false })).rejects.toThrow(/EISDIR/)
+  })
+
   it('fails activation when the file is invalid', async () => {
     const paths = await fixture('version: 1\nrefs:\n  DSH_CRED_FIRM: ""\n')
     await expect(bootFailure({ path: paths.managed, readOnlyPath: paths.readOnly, watch: false })).rejects.toThrow(/DSH_CRED_FIRM/)
