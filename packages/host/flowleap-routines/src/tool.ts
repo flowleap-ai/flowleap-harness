@@ -138,7 +138,7 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
       }
       const applications = parseApplications(args.applications, maxApplications)
       if ('code' in applications) return applications
-      if (args.new_chat_per_run === true && watches.chats === undefined) {
+      if (args.new_chat_per_run === true && !watches.chats.available()) {
         return { code: 'new_chat_unavailable', message: 'This app cannot open a new chat for each run. Omit new_chat_per_run or set it to false.' }
       }
       const reads = await watches.baseline(applications, exec.signal)
@@ -157,7 +157,7 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
         title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`, daily: args.daily,
       }, exec.signal)
       try {
-        const baseline = await watches.start(record.id, reads, resolveOptions(args, watches.chats !== undefined))
+        const baseline = await watches.start(record.id, reads, resolveOptions(args, watches.chats.available()))
         return { id: record.id, title: record.title, prompt: record.prompt, daily: args.daily, applications: baseline }
       } catch (error: unknown) {
         // A task without its watch row would deliver the stored instruction every day.

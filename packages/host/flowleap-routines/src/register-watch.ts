@@ -89,20 +89,19 @@ export class RegisterWatches {
   private readonly pending = new Map<string, WatchRecord>()
   /** Orders watch starts, delivery commits, and prunes, so a prune never races a newer watch or a pending commit. */
   private chain: Promise<unknown> = Promise.resolve()
-  /** Opens the chat of a `newChat` run; absent in a composition without a Session controller or a workspace registry. */
-  chats: RunChats | undefined
-
   /**
    * @param domain - the `flowleap_routines` domain while it opens; every operation waits for it.
    * @param source - register reader.
    * @param options - read interval, read deadline, and run text bounds.
    * @param logger - plugin logger for failed reads.
+   * @param chats - opens the chat of a `newChat` run.
    */
   constructor(
     private readonly domain: Promise<Domain<typeof routinesDomain>>,
     private readonly source: RegisterSource,
     private readonly options: RegisterWatchOptions,
     private readonly logger: Context['logger'],
+    readonly chats: RunChats,
   ) {}
 
   /**
@@ -162,8 +161,8 @@ export class RegisterWatches {
    * Decide one due occurrence after the later listeners: a skip stays a skip; a delivery of a watch task gets the new entries
    * after its prompt, or becomes a skip when none is new. Tasks without a watch keep the later decision.
    * All reads of one run share the read deadline and stop with the Schedule runtime. A failed read does not stop the run;
-   * without a new entry it is logged and the run is skipped. A `newChat` watch delivers the run to a chat opened for this
-   * occurrence; without a chat opener the admission rejects, so the occurrence stays due.
+   * without a new entry it is logged and the run is skipped. A `newChat` watch delivers the run to the chat opened for its
+   * pending run; while no Session controller is mounted it logs and delivers to the task's chat.
    * @param request - due occurrence.
    * @param next - the later admission listeners.
    * @returns the admission.
@@ -199,20 +198,23 @@ export class RegisterWatches {
     this.pending.set(request.record.id, { ...watch, applications })
     const prompt = renderRunInstruction(later.prompt, reports, failures, this.options.bounds)
     if (!watch.newChat) return { kind: 'deliver', prompt }
-    // The rejection keeps the occurrence due; the Schedule admits it again when its Session controller is ready.
-    if (this.chats === undefined) throw new Error(`register watch ${request.record.id}: no Session controller to open the run's chat yet`)
     const sessionId = await this.chats.open(request.record.id, request.record.scheduledAt, request.sessionId, runChatTitle(reports))
-    return { kind: 'deliver', prompt, sessionId }
+    if (sessionId !== undefined) return { kind: 'deliver', prompt, sessionId }
+    // Before the Web Session controller is ready the Schedule cannot restore the task's chat either, so this delivery
+    // fails and the Schedule admits the run again when the controller is ready; a composition without one runs it here.
+    this.logger.warn(`register watch ${request.record.id}: no Session controller to open a chat; the run goes to the task's chat`)
+    return { kind: 'deliver', prompt }
   }
 
   /**
-   * Save the seen entries a committed delivery reported; a delivery without a pending watch row saves nothing.
+   * Forget the chat a committed delivery used, and save the seen entries it reported; a delivery without a pending watch
+   * row saves no entries.
    * @param delivery - the committed delivery.
    */
   async delivered(delivery: ScheduleDelivered): Promise<void> {
-    this.chats?.settle(delivery.id, delivery.receipt.scheduledAt)
     const domain = await this.domain
     await this.serialize(async () => {
+      await this.chats.settle([delivery.id])
       const watch = this.pending.get(delivery.id)
       if (watch === undefined) return
       this.pending.delete(delivery.id)
@@ -221,7 +223,8 @@ export class RegisterWatches {
   }
 
   /**
-   * Remove watches whose task no longer exists, with their pending rows and the reads no remaining watch names.
+   * Remove watches whose task no longer exists, with their pending rows, their open run chats, and the reads no remaining
+   * watch names.
    * @param readTasks - reads the ids of every stored task inside the queue.
    */
   async prune(readTasks: () => Promise<ReadonlySet<string>>): Promise<void> {
@@ -233,6 +236,7 @@ export class RegisterWatches {
       if (gone.length === 0) return
       for (const [id] of gone) this.pending.delete(id)
       await watches.deleteMany(gone.map(([id]) => id))
+      await this.chats.settle(gone.map(([id]) => id))
       // Only reads of removed watches go: a read saved for a watch that is still starting has no watch row yet.
       const named = new Set([...watches.entries()].flatMap(([, watch]) => watch.applications.map(({ application }) => application)))
       const unused = [...new Set(gone.flatMap(([, watch]) => watch.applications.map(({ application }) => application)))]

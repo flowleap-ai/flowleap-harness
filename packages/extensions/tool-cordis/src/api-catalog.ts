@@ -1276,7 +1276,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'one view per mark, without the chats remote access denies the caller.',
       },
       {
-        signature: '@Remote async done(sessionId: string): Promise<void>',
+        signature: '@Remote async done(sessionId: SessionId): Promise<void>',
         description: 'Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource the `sessionId` parameter names.',
         parameters: [{ name: 'sessionId', description: 'the chat.' }],
       },

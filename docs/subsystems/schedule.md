@@ -488,8 +488,10 @@ Host service backing the generated `ctx.remote.flowleapRoutines` namespace.
  * the `sessionId` parameter names.
  * @param sessionId - the chat.
  */
-@Remote async done(sessionId: string): Promise<void>
+@Remote async done(sessionId: SessionId): Promise<void>
 ```
+
+Types: [SessionId](core.md)
 
 Source: [`packages/host/flowleap-routines/src/controller.ts`](../../packages/host/flowleap-routines/src/controller.ts)
 

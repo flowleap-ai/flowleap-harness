@@ -1,11 +1,11 @@
 /**
  * Durable routine state: the watched applications, options, and seen entries per task; the latest read per
- * application; and the "Needs review" mark per chat that received a run.
+ * application; the "Needs review" mark per chat that received a run; and the chat of each task's pending run.
  */
 import { z } from 'zod'
 import { parseRegisterApplication, type RegisterApplication } from '@deepseek-ai/dsh-flowleap-connectors'
 import type { ScheduleRecord } from '@deepseek-ai/dsh-schedule'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import type { ReviewState } from './types.ts'
 
@@ -64,6 +64,19 @@ export const reviewSchema = z.object({
 /** Stored review value. */
 export type ReviewRecord = z.infer<typeof reviewSchema>
 
+/** The chat a task's pending run was given: the task id is its key, and `schedule/delivered` deletes it. */
+export const runChatSchema = z.object({
+  /** The task's target when the chat was opened; a committed delivery moves the target, so a later run opens a new chat. */
+  scheduledAt: z.iso.datetime(),
+  /** The chat that receives the run. */
+  sessionId: z.string().min(1).transform(value => SessionId(value)),
+  /** RFC 3339 UTC time the chat was opened. */
+  openedAt: z.iso.datetime(),
+}).strict()
+
+/** Stored run chat value. */
+export type RunChatRecord = z.infer<typeof runChatSchema>
+
 /** The `flowleap_routines` domain; a malformed row rejects opening it. */
 export const routinesDomain = defineDomain({
   name: 'flowleap_routines', version: 1,
@@ -71,5 +84,6 @@ export const routinesDomain = defineDomain({
     watches: domainTable<string, WatchRecord>(watchSchema),
     reads: domainTable<RegisterApplication, ReadRecord>(readSchema),
     reviews: domainTable<SessionId, ReviewRecord>(reviewSchema),
+    run_chats: domainTable<string, RunChatRecord>(runChatSchema),
   },
 })

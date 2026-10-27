@@ -6,7 +6,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remote-access'
-import { SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { ReviewMarks } from './reviews.ts'
 import type { RoutineReview } from './types.ts'
@@ -55,8 +55,8 @@ export class FlowleapRoutinesController extends TypertRemoteService {
    * @param sessionId - the chat.
    */
   @Remote
-  async done(sessionId: string): Promise<void> {
-    await this.marks.clear(SessionId(sessionId))
+  async done(sessionId: SessionId): Promise<void> {
+    await this.marks.clear(sessionId)
   }
 }
 

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
+import { SessionId, type Session } from '@deepseek-ai/dsh-session'
 import { MemoryMediaPool } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import type { HarnessAgent } from '../../../schedule/schedule/tests/harness.ts'
 import * as Routines from '../src/index.ts'
 import type { RunChatHost } from '../src/index.ts'
+import { agentFor, harness } from '../../../schedule/schedule/tests/harness.ts'
 import { contexts, createWatch, DAY, disposeContexts, EP_EVENTS, gatedBackend, host, sentPrompt } from './helpers.ts'
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T00:00:00Z')) })
@@ -45,6 +45,11 @@ describe('run chat title', () => {
     expect(Routines.runChatTitle([])).toBe('Register event')
   })
 
+  it('turns bidirectional overrides and isolates into spaces, so the title shows in its stored order', () => {
+    const entries = [{ date: '2026-11-05', code: 'X', description: 'Notice\u202Efdp.exe\u202C of \u2066grant\u2069' }]
+    expect(Routines.runChatTitle([{ application, entries }])).toBe('EP3456789: Notice fdp.exe  of  grant  (2026-11-05)')
+  })
+
   it('flattens control characters and cuts the title to the maximum with the count kept', () => {
     const entries = [
       { date: '2026-11-05', code: 'X', description: `Line one\nline two ${'x'.repeat(200)}` },
@@ -73,28 +78,36 @@ describe('a new chat for each run', () => {
     expect(entry?.lastDelivery).toBeDefined()
   })
 
-  it('opens one chat per occurrence in the directory of a task chat outside every workspace, or the default directory', async () => {
+  it('opens one chat per pending run in the directory of a task chat outside every workspace, or the default directory', async () => {
     let opened = 0
     const create = vi.fn<RunChatHost['sessionController']['create']>(async () => {
       opened += 1
       return { sessionId: SessionId(`chat-${String(opened)}`) }
     })
     const rename = vi.fn<RunChatHost['sessionController']['rename']>(async request => ({ title: request.title, seq: 1 }))
-    const ctx = new Context()
-    await ctx.plugin(SessionStore)
-    const live = new Map<string, Session>([['original', ctx.sessions.create(SessionId('original'), { meta: { cwd: '/work/firm' } })]])
-    const chats = new Routines.RunChats({
+    const test = await harness({ pool: new MemoryMediaPool() })
+    contexts.push(test.ctx)
+    const live = new Map<string, Session>([['original', test.ctx.sessions.create(SessionId('task-chat'), { meta: { cwd: '/work/firm' } })]])
+    let mounted = false
+    const chatHost: RunChatHost = {
       sessionController: { create, rename }, workspaceRegistry: { list: () => [] },
-      sessions: { get: id => live.get(id) }, logger: ctx.logger,
-    })
+      sessions: { get: id => live.get(id) }, logger: test.ctx.logger,
+    }
+    const chats = new Routines.RunChats(test.ctx.storageDomain.open(Routines.routinesDomain), () => mounted ? chatHost : undefined)
     const task = 'task-1' as Routines.TaskId
-    expect(await chats.open(task, '2026-11-04T07:00:00.000Z', SessionId('original'), 'T')).toBe(SessionId('chat-1'))
-    expect(await chats.open(task, '2026-11-04T07:00:00.000Z', SessionId('original'), 'T')).toBe(SessionId('chat-1'))
+    const first = '2026-11-04T07:00:00.000Z'
+    expect(chats.available()).toBe(false)
+    expect(await chats.open(task, first, SessionId('original'), 'T')).toBeUndefined()
+    mounted = true
+    expect(chats.available()).toBe(true)
+    expect(await chats.open(task, first, SessionId('original'), 'T')).toBe(SessionId('chat-1'))
+    expect(await chats.open(task, first, SessionId('original'), 'T')).toBe(SessionId('chat-1'))
     expect(create).toHaveBeenCalledExactlyOnceWith({ cwd: '/work/firm' })
     expect(rename).toHaveBeenCalledExactlyOnceWith({ sessionId: SessionId('chat-1'), title: 'T' })
-    chats.settle(task, '2026-11-04T07:00:00.000Z')
-    expect(await chats.open(task, '2026-11-04T07:00:00.000Z', SessionId('ghost'), 'T')).toBe(SessionId('chat-2'))
+    // A link of an earlier target belongs to a delivered run whose link was not forgotten.
+    expect(await chats.open(task, '2026-11-05T07:00:00.000Z', SessionId('ghost'), 'T')).toBe(SessionId('chat-2'))
     expect(create).toHaveBeenLastCalledWith({})
+    await chats.settle([task, 'task-without-chat'])
     expect(await chats.open(task, '2026-11-05T07:00:00.000Z', SessionId('original'), 'T')).toBe(SessionId('chat-3'))
   })
 
@@ -123,20 +136,63 @@ describe('a new chat for each run', () => {
     } finally { warn.mockRestore() }
   })
 
-  it('keeps a new-chat run due while no Session controller is mounted', async () => {
+  it('runs a new-chat watch in the task chat, with a log line, where no Session controller is mounted', async () => {
     const pool = new MemoryMediaPool()
     const first = await host(pool, { chats: true })
     expect((await createWatch(first, ['EP 3 456 789'], { newChat: true })).isError).toBe(false)
     await first.ctx.fiber.dispose()
     contexts.splice(contexts.indexOf(first.ctx), 1)
     const second = await host(pool)
-    second.register.state.set('EP3456789', EP_EVENTS)
+    const warn = vi.spyOn(second.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      second.register.state.set('EP3456789', EP_EVENTS)
+      await vi.advanceTimersByTimeAsync(2 * DAY)
+      expect(second.agent.followup).toHaveBeenCalledOnce()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("no Session controller to open a chat; the run goes to the task's chat"))
+    } finally { warn.mockRestore() }
+  })
+
+  it('sends a run admitted again after a Host stop to the chat it opened before the stop', async () => {
+    const pool = new MemoryMediaPool()
+    const first = await host(pool, { chats: true })
+    expect((await createWatch(first, ['EP 3 456 789'])).isError).toBe(false)
+    first.register.state.set('EP3456789', EP_EVENTS)
+    // The chat opens, then the delivery fails, and the Host stops before the run is delivered.
+    first.flush.mockImplementation(async () => { throw new Error('disk full') })
     await vi.advanceTimersByTimeAsync(2 * DAY)
-    expect(second.agent.followup).not.toHaveBeenCalled()
-    const [watch] = await second.ctx.schedule.catalog()
-    expect(watch?.status).toBe('active')
-    expect(watch?.lastDelivery).toBeUndefined()
-    expect(Date.parse(watch!.scheduledAt)).toBeLessThan(Date.now())
+    expect(first.chats!.create).toHaveBeenCalledOnce()
+    const [entry] = await first.ctx.schedule.catalog()
+    expect(entry?.lastDelivery).toBeUndefined()
+    await first.ctx.fiber.dispose()
+    contexts.splice(contexts.indexOf(first.ctx), 1)
+
+    // Before the due run's target: the Schedule harness drives overdue tasks before this plugin mounts.
+    vi.setSystemTime(new Date('2026-11-03T06:00:00Z'))
+    const second = await host(pool, { chats: true })
+    const before = agentFor(second.ctx, 'review-1')
+    second.resolve.mockImplementation(async sessionId => sessionId === before.id ? { agent: before } : { agent: second.agent })
+    await vi.advanceTimersByTimeAsync(2 * 3_600_000)
+    expect(second.chats!.create).not.toHaveBeenCalled()
+    expect(before.followup).toHaveBeenCalledOnce()
+    const watch = (await second.ctx.schedule.catalog()).find(candidate => candidate.title === 'Office actions')
+    expect(watch?.lastDelivery).toBeDefined()
+  })
+
+  it('opens a new chat for the next run when the delivered run could not forget its chat', async () => {
+    const pool = new MemoryMediaPool()
+    const test = await host(pool, {
+      chats: true, backend: gatedBackend(pool, { deleteRecords: table => table === 'run_chats' ? Promise.reject(new Error('disk full')) : undefined }),
+    })
+    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      await runOnce(test)
+      expect(test.chats!.create).toHaveBeenCalledOnce()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('seen events not saved: Error: disk full'))
+      test.register.state.set('EP3456789', [{ date: '2026-11-04', code: 'CTNF', description: 'Non-Final Rejection' }, ...EP_EVENTS])
+      await vi.advanceTimersByTimeAsync(DAY)
+      expect(test.chats!.create).toHaveBeenCalledTimes(2)
+      expect(test.chats!.opened[1]!.followup).toHaveBeenCalledOnce()
+    } finally { warn.mockRestore() }
   })
 
   it('refuses new_chat_per_run where no chat can open, and resolves an omitted one to off', async () => {
@@ -263,9 +319,9 @@ describe('the Needs review mark', () => {
     expect(await test.ctx.flowleapRoutines.reviews()).toMatchObject([{ taskId: id }])
     const changed = vi.fn()
     test.ctx.on('flowleap-routines/changed', changed)
-    await test.ctx.flowleapRoutines.done('review-9')
+    await test.ctx.flowleapRoutines.done(SessionId('review-9'))
     expect(changed).not.toHaveBeenCalled()
-    await test.ctx.flowleapRoutines.done('review-1')
+    await test.ctx.flowleapRoutines.done(SessionId('review-1'))
     expect(changed).toHaveBeenCalledOnce()
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([])
   })

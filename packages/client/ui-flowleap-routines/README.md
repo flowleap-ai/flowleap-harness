@@ -74,7 +74,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Launcher count is visual only** — the Sidebar resolves a launcher's accessible label when its entries or the locale change, not when the count changes, so the count is not part of the launcher's accessible name.
+- **Launcher count is visual only** — the Sidebar marks a launcher glyph `aria-hidden` and resolves the launcher's accessible label when its entries or the locale change, not when the count changes, so the count is not part of the launcher's accessible name. An announced count needs a count seat in `ui-sidebar`; the **Needs review** page lists the marked chats.
 - **Header failure is announced, not shown** — a failed **Mark as done** in the Session header is announced to assistive technology and the button stays for a retry; the page shows the failure as a visible notice.
 - **Opening an archived chat** — a row opens its chat through ordinary Session navigation; the page does not check whether the chat is archived first.
 

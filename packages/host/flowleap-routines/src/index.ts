@@ -90,11 +90,20 @@ export function apply(ctx: Context, config: Config): void {
     const domain = await opened
     return () => domain.close()
   }, 'flowleap-routines: storage')
+  // The Session controller and the workspace registry are optional services of the Web composition; a run reads them when
+  // it needs a chat, so a run admitted before they mount and again after finds them.
+  const chats = new RunChats(opened, () => {
+    const sessionController = ctx.get('sessionController')
+    const workspaceRegistry = ctx.get('workspaceRegistry')
+    const sessions = ctx.get('sessions')
+    if (sessionController === undefined || workspaceRegistry === undefined || sessions === undefined) return undefined
+    return { sessionController, workspaceRegistry, sessions, logger: ctx.logger }
+  })
   const watches = new RegisterWatches(opened, ctx.flowleapRegister, {
     minReadIntervalMs: config.minReadIntervalHours * 3_600_000,
     readDeadlineMs: config.readDeadlineSeconds * 1000,
     bounds: { maxEvents: config.maxEventsPerRun, maxTextLength: config.maxEventTextLength },
-  }, ctx.logger)
+  }, ctx.logger, chats)
   const reviews = new ReviewMarks(opened, ctx.agents, () => { ctx.emit('flowleap-routines/changed') })
   const warn = (what: string) => (error: unknown) => { ctx.logger.warn(`register watch: ${what}: ${String(error)}`) }
   // A Host stop ended every run that was still working; the attorney still reviews what it did.
@@ -120,15 +129,5 @@ export function apply(ctx: Context, config: Config): void {
     watches.prune(async () => new Set((await ctx.schedule.catalog()).map(entry => entry.id))).catch(warn('prune failed'))
   })
   ctx.effect(() => registerWatchTool(ctx, watches, config.maxApplications), 'flowleap-routines: register_watch_create')
-  // A composition without a Session controller or a workspace registry (headless) has one chat; runs go there.
-  ctx.inject(['sessionController', 'workspaceRegistry', 'sessions'], (chatCtx) => {
-    chatCtx.effect(() => {
-      watches.chats = new RunChats({
-        sessionController: chatCtx.sessionController, workspaceRegistry: chatCtx.workspaceRegistry,
-        sessions: chatCtx.sessions, logger: chatCtx.logger,
-      })
-      return () => { watches.chats = undefined }
-    }, 'flowleap-routines: run chats')
-  })
   ctx.plugin(FlowleapRoutinesController, { reviews })
 }
