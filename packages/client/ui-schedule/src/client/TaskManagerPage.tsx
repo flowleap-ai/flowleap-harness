@@ -72,9 +72,12 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
   const filterIds = useFilters(ids => ids)
   // An entry that unregisters while selected leaves the page on its status tab.
   const entryFilter = entryFilterState !== null && filterIds.includes(entryFilterState.id) ? entryFilterState : null
-  const selectEntry = useMemo(() => new Map(filterIds.map(id => [id, (taskIds: ReadonlySet<ScheduleId>) => {
-    setEntryFilter(current => current?.id === id && current.taskIds === taskIds ? current : { id, taskIds })
-  }])), [filterIds])
+  const filterEntries = useMemo(() => filterIds.map(id => ({
+    id,
+    select: (taskIds: ReadonlySet<ScheduleId>) => {
+      setEntryFilter(current => current?.id === id && current.taskIds === taskIds ? current : { id, taskIds })
+    },
+  })), [filterIds])
   const [selectedId, setSelectedId] = useState<ScheduleId | null>(null)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [clearMenu, setClearMenu] = useState(false)
@@ -226,10 +229,10 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
                     {t(value === 'all' ? 'statusFilter.all' : `status.${value}`)}
                   </button>
                 ))}
-                {filterIds.map((id) => {
+                {filterEntries.map(({ id, select }) => {
                   const owner: ScheduleManagerFilterOwnerProps = {
                     selected: entryFilter?.id === id,
-                    select: selectEntry.get(id) ?? (() => {}),
+                    select,
                     className: css.filterTab as string,
                     selectedClassName: css.filterTabActive as string,
                   }

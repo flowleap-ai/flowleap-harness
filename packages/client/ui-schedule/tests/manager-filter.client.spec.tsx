@@ -11,7 +11,7 @@ import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TaskManagerPage, type TaskManagerPageProps } from '../src/client/TaskManagerPage.tsx'
 import type { CatalogSnapshot } from '../src/client/catalog-source.ts'
-import { filterEntryIds, MANAGER_FILTER_SLOT, type ScheduleManagerFilterOwnerProps } from '../src/client/manager-filter.ts'
+import { filterEntryIds, MANAGER_FILTER_SLOT, type FilterEntrySource, type ScheduleManagerFilterOwnerProps } from '../src/client/manager-filter.ts'
 import { en } from '../src/client/task-manager-locales.ts'
 
 afterEach(() => { cleanup() })
@@ -163,5 +163,13 @@ describe('filterEntryIds', () => {
     await Promise.resolve()
     expect(changes).toBeGreaterThan(registered)
     stop()
+  })
+
+  it('skips entries without an id and sorts entries without an order first', () => {
+    const source: FilterEntrySource = {
+      entriesOfSlot: () => [{ options: { id: 'ordered', order: 5 } }, { options: { id: 'unordered' } }, { options: {} }],
+      subscribe: () => () => {},
+    }
+    expect(filterEntryIds(source).getSnapshot()).toEqual(['unordered', 'ordered'])
   })
 })
