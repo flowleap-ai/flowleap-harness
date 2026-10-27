@@ -112,6 +112,8 @@ function mount(
   }
   const props: TaskManagerPageProps = {
     useCatalog: select => select(snapshot),
+    useFilters: select => select([]),
+    renderSlot: () => null,
     useSessions: select => select(sessions),
     useWorkspaces: select => select(workspaces),
     usePanelInfo: select => select({ activePanelId: null }),
