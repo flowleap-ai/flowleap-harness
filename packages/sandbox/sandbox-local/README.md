@@ -43,6 +43,7 @@ Load the sandbox service and mount the provider; the defaults below are the sele
 | `runnerCommand` | `[]` | Custom runner argv; bwrap-compatible profile arguments are appended, full enforcement is asserted, and built-in selection and probes are skipped |
 | `runnerFailureSignatures` | `[]` | Case-insensitive stderr substrings identifying the custom runner's own failure dialect; required with `runnerCommand` |
 | `probeTimeoutMs` | `5,000` | Timeout for each functional probe of a competing runner candidate |
+| `network` | `inherit` | `deny` gives every confined command no IP network, loopback included; Unix sockets stay available; Windows ACL rejects it at load |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-sandbox-local) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -53,6 +54,8 @@ With the provider mounted, a command runs under the mode you resolve per call. E
 ### Failures and recovery
 
 An unsupported platform or an unusable runner fails closed: `confine()` rejects with `SANDBOX_UNAVAILABLE` and names the runner options for the platform, and the consumer surfaces that error rather than running the command unconfined. A runner that starts but refuses its profile is identified by its fatal stderr signature and exit code, so a broken sandbox is not mistaken for a denied command. The `runnerCommand` override is an operator assertion: it skips functional probes and assumes the configured runner implements the bwrap-compatible profile honestly.
+
+With `network: deny`, bwrap adds `--unshare-net` (a private network namespace with only its own loopback), the Landlock launcher adds `--no-net` (a seccomp filter that refuses every socket family except `AF_UNIX`), and Seatbelt adds `(deny network* (local ip) (remote ip))`. Each runner's functional probe runs with the same network profile, so a host that cannot deny the network has no usable runner and fails closed. A command that needs the network gets an error from its socket call, for example `EACCES` under Landlock. `danger-full-access` bypasses this provider and keeps the network. In a Docker container, the Landlock launcher needs no extra privilege: Landlock and seccomp filters are unprivileged under `no_new_privs`, and Docker's default seccomp profile allows both. bwrap needs user namespaces and mounts, which Docker's default seccomp and AppArmor profiles refuse.
 
 Seatbelt, bwrap, and Landlock include the policy's explicit `additionalWritableRoots` under `workspace-write`. Read-only ignores those grants. Invalid extra directories raise `SANDBOX_INVALID_ROOT` before the command starts.
 
@@ -132,6 +135,7 @@ These limits define when the provider is a poor fit or needs special operational
 - **Windows ACL enforcement is partial** — NTFS hard links alias one file object across workspace and external paths, reads stay unconfined, and a tree another AppContainer tool has ACL'd with a package SID is unreadable to the Low-integrity child. The provider reports `enforcement: 'partial'` rather than overstating that boundary as full.
 - **Landlock may be partial** — older supported kernel ABIs confine only the access classes they expose, reported as `enforcement: 'partial'` rather than overstated as full.
 - **Seatbelt depends on deprecated `sandbox-exec`** — macOS still ships it, but this provider cannot replace or probe that private policy engine if Apple removes it.
+- **`network: deny` keeps Unix sockets** — a local daemon that listens on a Unix socket, such as a host DNS resolver, can still carry data out for a confined command. Under Landlock ABI 6 and later, abstract Unix sockets also stay reachable, because the launcher does not use Landlock scoping.
 - **Runner selection is cached for the provider lifetime** — installing, removing, or repairing a runner requires reloading the plugin before selection changes.
 - **`runnerCommand` is an operator assertion** — a configured custom runner skips functional probes and is assumed to implement the bwrap-compatible profile honestly; if it is itself a Bash script, its interpreter startup runs before that script applies confinement.
 

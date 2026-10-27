@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-Use `dsh-bash-sandbox` to run each Bash command with file-access confinement instead of the harness process's full authority. Results report the selected mode, denied file operations, and whether the runner fully enforced that mode. If no runner can enforce a confined mode, the command fails with `SANDBOX_UNAVAILABLE` rather than running unconfined. Choose it when deployments need file isolation; network access and process visibility remain outside its guarantees.
+Use `dsh-bash-sandbox` to run each Bash command with file-access confinement instead of the harness process's full authority. Results report the selected mode, denied file operations, and whether the runner fully enforced that mode. If no runner can enforce a confined mode, the command fails with `SANDBOX_UNAVAILABLE` rather than running unconfined. Choose it when deployments need file isolation; network access depends on the sandbox provider's configuration and process visibility remains outside its guarantees.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ Mount this executor instead of `dsh-bash-local` when commands must not run with 
 
 ### When to choose it
 
-Choose it when a deployment needs file-level confinement for Bash commands: the configured policy decides the default mode and workspace root, and each session can run under a different mode per call through the tool's escalation flow. The modes govern file effects only — network stays unrestricted and process visibility is backend-specific. For unconfined execution, or when no sandbox backend is available on the platform, mount `dsh-bash-local` instead.
+Choose it when a deployment needs file-level confinement for Bash commands: the configured policy decides the default mode and workspace root, and each session can run under a different mode per call through the tool's escalation flow. The modes govern file effects only; network access is the provider's choice (the [`dsh-sandbox-local`](../../sandbox/sandbox-local/README.md) `network` field, `inherit` by default) and process visibility is backend-specific. For unconfined execution, or when no sandbox backend is available on the platform, mount `dsh-bash-local` instead.
 
 ### Modes and file effects
 
@@ -165,7 +165,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 These limits define when this executor is not a general security boundary. They are current package constraints, not a roadmap.
 
-- **Confinement covers file effects only** — network restriction and a uniform process-visibility guarantee are absent, so the modes are not a general-purpose security sandbox.
+- **Confinement covers file effects only** — network restriction is a provider setting outside the modes, and a uniform process-visibility guarantee is absent, so the modes are not a general-purpose security sandbox.
 - **Denials are inferred from failed-command stderr** — backend signatures make the inference portable, but a matching application error can be classified as a denial and a denial omitted from the retained tail can be missed.
 - **An asynchronously observed background runner failure has no immediate error channel** — it is recorded on the settled process and surfaces when the caller reads the generic task with `job_output`; a synchronous subprocess throw is contained into the same settled-killed handle, with the runner-attributed failure carried by the `result()` rejection.
 - **`danger-full-access` deliberately bypasses `ctx.sandbox`** — it is an explicit unconfined mode, not a wider sandbox profile.

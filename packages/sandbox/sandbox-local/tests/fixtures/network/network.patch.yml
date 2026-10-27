@@ -1,0 +1,34 @@
+# Test-only patch over the shipped headless profile: a scripted model and the
+# shell sandbox with network "deny", as the flowleap-web bundle sets it.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: sandbox-network-mock
+        model: sandbox-network-mock
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: sandbox
+  config:
+    network: deny
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- insert:
+    - id: sandbox-network-mock-llm
+      name: './mock-llm.ts'

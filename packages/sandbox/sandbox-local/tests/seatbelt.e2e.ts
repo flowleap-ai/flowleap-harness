@@ -18,7 +18,7 @@ import { checkExtraWrites, checkRedirectedRoot } from './extra-roots.ts'
  * workspace-write proves the workspace-root grant itself.
  */
 
-const probe = spawnSync('sandbox-exec', [...seatbeltProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
+const probe = spawnSync('sandbox-exec', [...seatbeltProfileArgs({ mode: 'read-only', workspaceRoot: '/' }, 'inherit'), '--', 'true'], { timeout: 5_000, stdio: 'ignore' })
 const seatbeltUsable = probe.status === 0
 const gitUsable = spawnSync('git', ['--version'], { timeout: 5_000, stdio: 'ignore' }).status === 0
 

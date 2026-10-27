@@ -2835,7 +2835,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-sandbox-local`
 
-- `source`: [`packages/sandbox/sandbox-local/src/index.ts:45`](../packages/sandbox/sandbox-local/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-local/src/index.ts:48`](../packages/sandbox/sandbox-local/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -2860,7 +2860,24 @@ export interface Config {
   runnerFailureSignatures?: string[]
   /** Positive timeout for each functional probe; zero would mean unbounded to Node. */
   probeTimeoutMs?: number
+  /**
+   * IP network access of every confined command (default `inherit`). `deny`
+   * gives commands no IP network, loopback included: bwrap adds a private
+   * network namespace, the Landlock launcher a seccomp socket filter, and
+   * Seatbelt an IP network deny rule; each runner's probe also proves it.
+   * Unix sockets stay available. The Windows ACL runner cannot deny the
+   * network, so `deny` there fails at load. `danger-full-access` runs are
+   * not confined and keep the network.
+   */
+  network?: SandboxNetwork
 }
+
+/**
+ * The IP network access of every confined command: `inherit` leaves the
+ * host's network reachable, `deny` gives the command no IP network,
+ * loopback included. Unix sockets stay available under both.
+ */
+export type SandboxNetwork = 'inherit' | 'deny'
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-sandbox-local -->
 

@@ -40,6 +40,9 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@deepseek-ai/dsh-sandbox-windows-acl'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
+import type { SandboxNetwork } from './profiles.ts'
+
+export type { SandboxNetwork } from './profiles.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
 export interface Config {
@@ -63,11 +66,21 @@ export interface Config {
   runnerFailureSignatures?: string[]
   /** Positive timeout for each functional probe; zero would mean unbounded to Node. */
   probeTimeoutMs?: number
+  /**
+   * IP network access of every confined command (default `inherit`). `deny`
+   * gives commands no IP network, loopback included: bwrap adds a private
+   * network namespace, the Landlock launcher a seccomp socket filter, and
+   * Seatbelt an IP network deny rule; each runner's probe also proves it.
+   * Unix sockets stay available. The Windows ACL runner cannot deny the
+   * network, so `deny` there fails at load. `danger-full-access` runs are
+   * not confined and keep the network.
+   */
+  network?: SandboxNetwork
 }
 
 /** Probe whether `bwrap` can create the profile; the provider caches the bounded result. */
-function defaultProbeBwrap(timeoutMs: number): boolean {
-  const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], {
+function defaultProbeBwrap(network: SandboxNetwork, timeoutMs: number): boolean {
+  const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }, network), '--', 'true'], {
     timeout: timeoutMs,
     stdio: 'ignore',
   })
@@ -83,8 +96,8 @@ function defaultProbeBwrap(timeoutMs: number): boolean {
  * rungs' absent binaries. Apple marks the CLI deprecated but ships it on
  * every macOS; if it ever disappears, this probe is what fails closed.
  */
-function defaultProbeSeatbelt(seatbeltExec: string, timeoutMs: number): boolean {
-  const probe = spawnSync(seatbeltExec, [...seatbeltProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], {
+function defaultProbeSeatbelt(seatbeltExec: string, network: SandboxNetwork, timeoutMs: number): boolean {
+  const probe = spawnSync(seatbeltExec, [...seatbeltProfileArgs({ mode: 'read-only', workspaceRoot: '/' }, network), '--', 'true'], {
     timeout: timeoutMs,
     stdio: 'ignore',
   })
@@ -255,6 +268,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     runnerCommand: z.array(z.string()).default([]),
     runnerFailureSignatures: z.array(z.string()).default([]),
     probeTimeoutMs: z.natural().default(5_000),
+    network: z.union([z.const('inherit'), z.const('deny')]).default('inherit'),
   })
 
   /** Test hook (mirrors the bash executors' `internals`). */
@@ -263,6 +277,7 @@ export class LocalSandboxProvider extends SandboxProvider {
   private readonly runnerCommand: string[] | undefined
   private readonly configuredRunnerFailureSignatures: string[]
   private readonly probeTimeoutMs: number
+  private readonly network: SandboxNetwork
   /** Cached chain verdict; undefined until the first confined wrap needs it. */
   private selectedRunner: SelectedRunner | 'unavailable' | undefined
   /**
@@ -295,6 +310,11 @@ export class LocalSandboxProvider extends SandboxProvider {
     this.configuredRunnerFailureSignatures = runnerFailureSignatures
     this.probeTimeoutMs = config.probeTimeoutMs as number
     assertPositiveFinite('probeTimeoutMs', this.probeTimeoutMs)
+    this.network = config.network as SandboxNetwork
+    /* v8 ignore next 3 -- Windows-only refusal; the Linux coverage lane cannot take this branch */
+    if (process.platform === 'win32' && this.runnerCommand === undefined && this.network === 'deny') {
+      throw new Error('sandbox-local: network "deny" is not supported by the Windows ACL runner')
+    }
     // An operator-supplied runner does not use the ACL backend. The registry
     // remains optional and may be mounted after this provider.
     /* v8 ignore next 3 -- Windows-only registration; the Linux coverage lane cannot take this branch */
@@ -327,7 +347,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     policy = { ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot) }
     if (this.runnerCommand !== undefined) {
       return Promise.resolve<ConfinedArgv>({
-        argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
+        argv: [...this.runnerCommand, ...bwrapProfileArgs(policy, this.network), '--', ...argv],
         enforcement: 'full',
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
         runnerFailureRules: [{ fatalSignatures: this.configuredRunnerFailureSignatures }],
@@ -346,9 +366,9 @@ export class LocalSandboxProvider extends SandboxProvider {
   /** The selected rung's runner invocation (program + profile arguments) for one policy. */
   private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy): string[] {
     switch (runner) {
-      case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy)]
-      case 'landlock': return [this.landlockLauncher(), ...landlockProfileArgs(policy)]
-      case 'seatbelt': return [this.seatbeltExec(), ...seatbeltProfileArgs(policy)]
+      case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy, this.network)]
+      case 'landlock': return [this.landlockLauncher(), ...landlockProfileArgs(policy, this.network)]
+      case 'seatbelt': return [this.seatbeltExec(), ...seatbeltProfileArgs(policy, this.network)]
       case 'windows-acl': return this.windowsAclRunnerArgv(policy)
       default: return assertNever(runner)
     }
@@ -533,15 +553,16 @@ export class LocalSandboxProvider extends SandboxProvider {
     // AppContainer-ACL boundaries.
     switch (runner) {
       case 'bwrap': {
-        const probe = this.internals.probeBwrap ?? (() => defaultProbeBwrap(this.probeTimeoutMs))
+        const probe = this.internals.probeBwrap ?? (() => defaultProbeBwrap(this.network, this.probeTimeoutMs))
         return probe() ? 'full' : 'unusable'
       }
       case 'landlock': {
-        const probe = this.internals.probeLandlock ?? (launcher => defaultProbeLandlock(launcher, { timeoutMs: this.probeTimeoutMs }))
+        const probe = this.internals.probeLandlock
+          ?? (launcher => defaultProbeLandlock(launcher, { timeoutMs: this.probeTimeoutMs, network: this.network }))
         return probe(this.landlockLauncher())
       }
       case 'seatbelt': {
-        const probe = this.internals.probeSeatbelt ?? (exec => defaultProbeSeatbelt(exec, this.probeTimeoutMs))
+        const probe = this.internals.probeSeatbelt ?? (exec => defaultProbeSeatbelt(exec, this.network, this.probeTimeoutMs))
         return probe(this.seatbeltExec()) ? 'full' : 'unusable'
       }
       case 'windows-acl': {
