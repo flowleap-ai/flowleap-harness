@@ -846,4 +846,37 @@ describe('schedule/admit and schedule/delivered', () => {
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('schedule/delivered listener failed'))
     } finally { warn.mockRestore() }
   })
+
+  it('retires a skipped recurring task at its final representable occurrence', async () => {
+    const records = [task(createEveryScheduleRecord(ScheduleId('last'), 'Last', 300,
+      Date.parse('9999-12-31T23:49:59.999Z'), 'Last'))]
+    const original = records[0]!
+    vi.setSystemTime(new Date('9999-12-31T23:59:59.999Z'))
+    const test = await setup(records)
+    test.ctx.on('schedule/admit', async () => ({ kind: 'skip' }))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(test.followup).not.toHaveBeenCalled()
+    expect(records).toEqual([{
+      ...original, status: 'inactive', record: { ...original.record, scheduledAt: '9999-12-31T23:59:59.999Z' },
+    }])
+  })
+
+  it('aborts the admission signal at disposal and commits nothing after it', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
+    const test = await setup(tasks)
+    const entered = Promise.withResolvers<undefined>()
+    test.ctx.on('schedule/admit', async (request) => {
+      entered.resolve(undefined)
+      await new Promise((resolve) => { request.signal.addEventListener('abort', resolve) })
+      return { kind: 'skip' }
+    })
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    await entered.promise
+    await test.runtime.dispose()
+    expect(test.commit).not.toHaveBeenCalled()
+    expect(test.resolve).not.toHaveBeenCalled()
+    expect(tasks[0]?.status).toBe('active')
+  })
 })

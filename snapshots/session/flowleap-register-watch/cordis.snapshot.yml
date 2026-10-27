@@ -1,0 +1,32 @@
+# Keyless replay counterpart: the recorded register stays a fixture; only the
+# model adapter is replaced by replay.
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  disabled: true
+
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+              - id: deepseek-v4-pro
+
+- insert:
+    - id: flowleap-register-fixture
+      name: './flowleap-register-fixture.mjs'
+
+    - id: schedule
+      name: '@deepseek-ai/dsh-schedule'
+
+    - id: flowleap-routines
+      name: '@deepseek-ai/dsh-flowleap-routines'
+      config:
+        minReadIntervalHours: 12
+        maxApplications: 20
+        readDeadlineSeconds: 120
+        maxEventsPerRun: 50
+        maxEventTextLength: 300

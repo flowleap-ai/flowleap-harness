@@ -196,12 +196,16 @@
     # Routines (ADR 0001 decision 27): `register_watch_create` makes a daily
     # scheduled task that reads the watched EP and US registers through the
     # connectors row above without a model call, and runs only when an event
-    # is new. Two reads a day per application at most (EPO OPS fair use).
+    # is new. Two reads a day per application at most (EPO OPS fair use); the
+    # reads of one run end at the deadline, and the run lists bounded office text.
     - id: flowleap-routines
       name: '@deepseek-ai/dsh-flowleap-routines'
       config:
         minReadIntervalHours: 12
         maxApplications: 20
+        readDeadlineSeconds: 120
+        maxEventsPerRun: 50
+        maxEventTextLength: 300
 
     # Settings > Patent data connectors (one card per connector) and the
     # first-run key wizard; the row id is also the wizard's settings namespace.

@@ -4691,7 +4691,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
     mode: 'waterfall',
     signature: '\'schedule/admit\'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>',
     summary: 'Decide one due occurrence before its Session is restored.',
-    description: 'Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it; a rejection keeps the task due until a later drive.',
+    description: 'Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive.',
     parameters: [{ name: 'request', description: 'Due occurrence and its Session binding.' }],
   },
   {
@@ -7324,7 +7324,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ScheduleAdmissionRequest',
-    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly sessionId: SessionId;\n    readonly record: ScheduleRecord;\n}',
+    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly sessionId: SessionId;\n    readonly record: ScheduleRecord;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'ScheduleCatalogEntry',
