@@ -199,3 +199,7 @@ The five default labels. See `flowleap/docs/agents/triage-labels.md`.
 ### Domain docs
 
 Single context, FlowLeap. See `flowleap/docs/agents/domain.md`.
+
+### Verification
+
+Prove each product-visible change live with [verify](.agents/skills/verify/SKILL.md); fix that skill in the same PR when it is wrong.

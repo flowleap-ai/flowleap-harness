@@ -1,0 +1,28 @@
+# Verification overlay for the flowleap-web profile (`dsh --patch`).
+# The default model becomes Claude Haiku 5.5 on OpenRouter: the cheapest
+# reliable tool-calling route, keyed by OPENROUTER_API_KEY.
+# The firm's connector keys come read-only from the copy that `web.sh start`
+# writes, so a run cannot change the founder's keys. The writable store stays
+# in the scratch DSH_HOME.
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: anthropic/claude-haiku-5.5
+
+- id: credentials
+  config:
+    path: !!js dshHomePath('.credentials.yaml')
+    readOnlyPath: !!js process.env.DSH_VERIFY_FIRM_KEYS
+
+# Plain JSONL Session logs, so scripts/session-log.mjs and jq read them directly.
+# An override replaces the row's whole config, so `root` restates the base value.
+- id: session-persistence-jsonl
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+
+# The first-use Default workspace lands in the run's workspace directory,
+# not in ~/Documents.
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js process.cwd()
