@@ -578,13 +578,14 @@ Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/sche
 
 #### `schedule/admit` — waterfall
 
-Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it; a rejection keeps the task due until a later drive.
+Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive.
 
 ```ts cordis-catalog
 /**
  * Decide one due occurrence before its Session is restored. Call next() to deliver
  * the stored prompt. A listener runs inside the serialized delivery operation, so
- * management writes wait for it; a rejection keeps the task due until a later drive.
+ * management writes wait for it: bound its work and stop on `request.signal`. A
+ * rejection keeps the task due until a later drive.
  * @param request - Due occurrence and its Session binding.
  * @mode waterfall
  */

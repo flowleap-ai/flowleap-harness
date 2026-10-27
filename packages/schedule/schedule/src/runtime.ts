@@ -10,23 +10,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { isRecurringScheduleRecord, renderReminderFraming, renderRecurringReminderBatchFraming, resolveRecurringOccurrence } from './domain.ts'
-import type { RecurringOccurrence } from './domain.ts'
-import type { DeliveryRetentionBounds, RecurringScheduleRecord, ScheduleAdmission, ScheduleDeliveryReceipt } from './types.ts'
+import type { DeliveryRetentionBounds, RecurringScheduleRecord, ScheduleAdmission, ScheduleDeliveryReceipt, ScheduleRecord } from './types.ts'
 import type { ScheduleTask } from './storage.ts'
 import { appendDelivery } from './delivery-history.ts'
-
-/**
- * The stored target and status after one recurring occurrence, delivered or skipped.
- * @param record - Recurring record whose occurrence was handled.
- * @param occurrence - The handled occurrence and its successor.
- * @returns The record at its next target, or at the handled one and inactive when none remains.
- */
-function advanced(record: RecurringScheduleRecord, occurrence: RecurringOccurrence): Pick<ScheduleTask, 'record' | 'status'> {
-  return {
-    record: { ...record, scheduledAt: occurrence.nextScheduledAt ?? occurrence.occurrenceAt },
-    status: occurrence.nextScheduledAt === undefined ? 'inactive' : 'active',
-  }
-}
 
 /** Largest delay Node timers represent without clamping. */
 export const MAX_TIMER_DELAY_MS = 2_147_483_647
@@ -36,6 +22,8 @@ export class ScheduleRuntime {
   private timer: ReturnType<typeof setTimeout> | undefined
   private running: Promise<void> | undefined
   private stopping = false
+  /** Aborted at disposal, so `schedule/admit` listeners stop their work. */
+  private readonly stop = new AbortController()
   private requested = false
 
   /**
@@ -89,6 +77,7 @@ export class ScheduleRuntime {
   /** Stop the timer and drain an accepted delivery before storage closes. */
   async dispose(): Promise<void> {
     this.stopping = true
+    this.stop.abort(new Error('Schedule runtime is stopping'))
     this.clearTimer()
     // requestDrive reports execution failures; teardown only waits for quiescence.
     await this.running?.catch(() => undefined)
@@ -102,7 +91,12 @@ export class ScheduleRuntime {
    */
   private advance(task: ScheduleTask, now: number): ScheduleTask {
     if (!isRecurringScheduleRecord(task.record)) return { ...task, status: 'inactive' }
-    return { ...task, ...advanced(task.record, resolveRecurringOccurrence(task.record, now)) }
+    const occurrence = resolveRecurringOccurrence(task.record, now)
+    return {
+      ...task,
+      record: { ...task.record, scheduledAt: occurrence.nextScheduledAt ?? occurrence.occurrenceAt },
+      status: occurrence.nextScheduledAt === undefined ? 'inactive' : 'active',
+    }
   }
 
   /**
@@ -139,40 +133,44 @@ export class ScheduleRuntime {
       let admitted = group
       const committed = new Set<ScheduleTask['record']['id']>()
       try {
-        const admissions: { readonly member: ScheduleTask; readonly prompt: string }[] = []
+        const prompts = new Map<ScheduleTask['record']['id'], string>()
         for (const member of group) {
           const admission = await this.ctx.waterfall('schedule/admit',
-            { sessionId: member.sessionId, record: member.record },
+            { sessionId: member.sessionId, record: member.record, signal: this.stop.signal },
             () => Promise.resolve<ScheduleAdmission>({ kind: 'deliver', prompt: member.record.prompt }))
+          // oxlint-disable-next-line typescript/no-unnecessary-condition -- Disposal can run while a listener is awaited.
+          if (this.stopping) return
           if (admission.kind === 'deliver') {
-            admissions.push({ member, prompt: admission.prompt })
+            prompts.set(member.record.id, admission.prompt)
             continue
           }
           await this.commit(this.advance(member, Date.now()))
           committed.add(member.record.id)
         }
-        admitted = admissions.map(({ member }) => member)
+        admitted = group.filter(member => prompts.has(member.record.id))
         if (admitted.length === 0) continue
+        // The admitted prompt replaces the stored one in the message and the saved snapshot only.
+        /* v8 ignore start -- every admitted member has an admitted prompt; the fallback only satisfies the Map type. */
+        const withPrompt = <R extends ScheduleRecord>(record: R): R => ({ ...record, prompt: prompts.get(record.id) ?? record.prompt })
+        /* v8 ignore stop */
         const agent = await this.ctx.waterfall('schedule/resolve-agent', task.sessionId,
           () => this.resolveAgent(task.sessionId))
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- Disposal can run while Session restoration is awaited.
         if (this.stopping) return
         const now = Date.now()
         // Session restoration can span a wall-clock rollback; future members keep their timer obligation.
-        const due = admissions.filter(({ member }) => Date.parse(member.record.scheduledAt) <= now)
-        admitted = due.map(({ member }) => member)
-        if (due.length === 0) continue
-        // The admitted prompt replaces the stored one in the message and the saved snapshot only.
-        const occurrences = due
-          .filter((admission): admission is { member: ScheduleTask & { record: RecurringScheduleRecord }; prompt: string } =>
-            isRecurringScheduleRecord(admission.member.record))
-          .map(({ member, prompt }) => ({ task: member, prompt, occurrence: resolveRecurringOccurrence(member.record, now) }))
-        const leader = task.record
-        const text = isRecurringScheduleRecord(leader)
-          ? renderRecurringReminderBatchFraming(occurrences.map(({ task: member, prompt, occurrence }) => ({
-            record: { ...member.record, prompt }, occurrenceAt: occurrence.occurrenceAt,
+        admitted = admitted.filter(member => Date.parse(member.record.scheduledAt) <= now)
+        if (admitted.length === 0) continue
+        const recurring = admitted.filter((member): member is ScheduleTask & { record: RecurringScheduleRecord } =>
+          isRecurringScheduleRecord(member.record))
+        const occurrences = recurring.map(member => ({
+          task: member, occurrence: resolveRecurringOccurrence(member.record, now),
+        }))
+        const text = isRecurringScheduleRecord(task.record)
+          ? renderRecurringReminderBatchFraming(occurrences.map(({ task: member, occurrence }) => ({
+            record: withPrompt(member.record), occurrenceAt: occurrence.occurrenceAt,
           })))
-          : due.map(({ prompt }) => renderReminderFraming({ ...leader, prompt })).join('')
+          : renderReminderFraming(withPrompt(task.record))
         const message = createUserMessage({
           content: [{ type: 'text', text }], source: { kind: 'schedule' },
         })
@@ -182,23 +180,24 @@ export class ScheduleRuntime {
         if (!flushed) throw new Error('Session persistence did not acknowledge the reminder')
         const deliveredAt = new Date(Date.now()).toISOString()
         if (!isRecurringScheduleRecord(task.record)) {
-          // A one-shot group is the task alone.
-          for (const { prompt } of due) {
-            const receipt = { scheduledAt: task.record.scheduledAt, deliveredAt, messageId: message.id }
-            const sent = { ...task, record: { ...task.record, prompt } }
-            await this.commit({ ...task, status: 'inactive', ...appendDelivery(sent, receipt, this.retention) })
-            committed.add(task.record.id)
-            this.announceDelivered(task, receipt)
-          }
-        }
-        for (const { task: member, prompt, occurrence } of occurrences) {
-          const receipt = { scheduledAt: occurrence.occurrenceAt, deliveredAt, messageId: message.id }
-          const sent = { ...member, record: { ...member.record, prompt } }
+          const receipt = { scheduledAt: task.record.scheduledAt, deliveredAt, messageId: message.id }
           await this.commit({
-            ...member, ...advanced(member.record, occurrence), ...appendDelivery(sent, receipt, this.retention),
+            ...task, status: 'inactive',
+            ...appendDelivery({ ...task, record: withPrompt(task.record) }, receipt, this.retention),
+          })
+          committed.add(task.record.id)
+          this.announceDelivered(task, receipt)
+        }
+        for (const { task: member, occurrence } of occurrences) {
+          await this.commit({
+            ...member,
+            record: { ...member.record, scheduledAt: occurrence.nextScheduledAt ?? occurrence.occurrenceAt },
+            status: occurrence.nextScheduledAt === undefined ? 'inactive' : 'active',
+            ...appendDelivery({ ...member, record: withPrompt(member.record) },
+              { scheduledAt: occurrence.occurrenceAt, deliveredAt, messageId: message.id }, this.retention),
           })
           committed.add(member.record.id)
-          this.announceDelivered(member, receipt)
+          this.announceDelivered(member, { scheduledAt: occurrence.occurrenceAt, deliveredAt, messageId: message.id })
         }
       } catch (error: unknown) {
         // Successful commits and targets made future by clock rollback keep their timer obligation.
