@@ -15,7 +15,7 @@ Live proof does not replace tests. Keep the focused tests, the keyless snapshots
 |---|---|
 | [`scripts/web.sh`](scripts/web.sh) | `start`, `doctor`, `stop` for one instance in one run directory |
 | [`scripts/session-log.mjs`](scripts/session-log.mjs) | Summary of a Session log: route, user text, tool calls with result heads, turn end, token use, last answer |
-| [`verify.patch.yml`](verify.patch.yml) | Overlay: OpenRouter Haiku as default model, the founder's credential store, plain JSONL logs, Default workspace in the run directory |
+| [`verify.patch.yml`](verify.patch.yml) | Overlay: OpenRouter Haiku as default model, the firm keys as a read-only credential file, plain JSONL logs, Default workspace in the run directory |
 | [`features/`](features/README.md) | One recipe per FlowLeap surface |
 
 ## Launch
@@ -30,7 +30,7 @@ Live proof does not replace tests. Keep the focused tests, the keyless snapshots
 
 The command prints `ready: http://127.0.0.1:3180/?token=…` when the page loads. The token is the access key of the instance. Use it in the browser. Do not put it in a PR, a note, or a commit.
 
-The instance runs with `--profile flowleap-web`, the overlay [`apps/web/tests/pin-browse-picker.overlay.yml`](../../../apps/web/tests/pin-browse-picker.overlay.yml) (the in-page directory picker, which a browser tool can drive), and [`verify.patch.yml`](verify.patch.yml). `DSH_HOME` is `$RUN/home`, so profiles, settings, Sessions, and schedule storage are new for each run. The server log is `$RUN/server.log`.
+The instance runs with `--profile flowleap-web`, the overlay [`apps/web/tests/pin-browse-picker.overlay.yml`](../../../apps/web/tests/pin-browse-picker.overlay.yml) (the in-page directory picker, which a browser tool can drive), and [`verify.patch.yml`](verify.patch.yml). `DSH_HOME` is `$RUN/home`, so profiles, settings, Sessions, schedule storage, and the writable credential store are new for each run. `start` copies the `flowleap-connectors/*` records of the founder's credential file to `$RUN/firm-keys.yaml` (mode 600), and the overlay gives that copy to the credential store as `readOnlyPath`. The server log is `$RUN/server.log`.
 
 After a Host change, stop and start again. For a client-only change, run `pnpm run dev:web --skip-build --no-serve` beside the instance: the server reloads the page when a bundle changes.
 
@@ -50,7 +50,7 @@ Use the session's browser tool (in Claude Code, the built-in browser pane). Use 
 
 | Element | Role and name |
 |---|---|
-| First-run dialog | dialog `Preview notice`, button `Continue` |
+| First-run dialog | dialog `Preview notice`, button `Continue`; it can show a few seconds after the page loads |
 | Composer | textbox `Describe what you want to build, / commands, @ files or sessions` (new Session), textbox `Message or run a task, / commands, @ files or sessions` (open Session) |
 | Send | Enter in the composer, or button `Send message` |
 | Model | button `Select model, current Anthropic: Claude Haiku 5.5, …` (the OpenRouter display name) |
@@ -84,19 +84,19 @@ The Patent Agent system prompt and the tool list are about 60,000 to 70,000 inpu
 .claude/skills/verify/scripts/web.sh stop "$RUN"
 ```
 
-This stops only the PID that `start` wrote. Do not stop processes by name, because the founder's own `dsh web` can run on port 3080. When the evidence is in the PR, delete `$RUN/home` and `$RUN/workspace`. Keep `$RUN/evidence` until the PR merges.
+This stops only the PID that `start` wrote, and deletes `$RUN/firm-keys.yaml`. Do not stop processes by name, because the founder's own `dsh web` can run on port 3080. When the evidence is in the PR, delete `$RUN/home` and `$RUN/workspace`. Keep `$RUN/evidence` until the PR merges.
 
 ## What needs the founder
 
 | Need | Where it is | Without it |
 |---|---|---|
 | `OPENROUTER_API_KEY` | The founder's shell environment | No live turn. `web.sh start` stops |
-| Firm keys: EPO OPS, USPTO ODP, Mistral (Semantic Scholar is not set) | `~/.dsh/.credentials.yaml`, which the overlay reads; set `DSH_VERIFY_CREDENTIALS` to use another file | The office tools answer `missing_credentials`; the connector cards show `Not configured` |
+| Firm keys: EPO OPS, USPTO ODP, Mistral (Semantic Scholar is not set) | `~/.dsh/.credentials.yaml`; set `DSH_VERIFY_CREDENTIALS` to use another file | The office tools answer `missing_credentials`; the connector cards show `Not configured` |
 | `flowleap` CLI signed in | `flowleap auth login` on the founder's Mac (it opens a browser) | No `mcp__flowleap__*` tools |
 | `DEEPSEEK_API_KEY` | Not available | `pnpm dsh --profile headless` and `pnpm run test:e2e` cannot run live; `test:snapshot:record` cannot record |
 | New or changed keys | Only the founder enters them | Ask the founder |
 
-Do not save, remove, or test-replace keys in Settings > Patent data connectors during a verification run. The overlay points the credential store at the founder's file, so `Save` and `Remove` change the real keys. `Test connection` only reads.
+A run reads the firm keys and cannot change them. The connector cards show `The credential store is read-only in this deployment.`, and `Save` and `Remove` are disabled. `Test connection` only reads. Do not mount the whole founder file as `readOnlyPath`: it also holds the `client-connection/browser-session` record, which the server must write, so startup fails.
 
 ## When this skill is wrong
 

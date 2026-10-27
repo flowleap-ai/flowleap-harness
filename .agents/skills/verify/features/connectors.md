@@ -20,14 +20,14 @@ Preconditions:
 - The baseline in [README.md](./README.md).
 - For `connectors-paid-tool`: doctor shows `PASS flowleap CLI: signed in`.
 
-- **Cards.** Choose button `Settings`, then `Patent data connectors`. The page text lists `EPO OPS`, `USPTO ODP`, `Semantic Scholar`, `Mistral`, each with `Configured` or `Not configured`. With the founder's store, EPO OPS, USPTO ODP and Mistral are `Configured`.
+- **Cards.** Choose button `Settings`, then `Patent data connectors`. The page text lists `EPO OPS`, `USPTO ODP`, `Semantic Scholar`, `Mistral`, each with `Configured` or `Not configured`. With the founder's keys, EPO OPS, USPTO ODP and Mistral are `Configured`.
 - **Test connection.** Choose the first button `Test connection` (the EPO OPS card). The status `EPO OPS: access token issued` shows, and the card shows `Connection test passed`. The USPTO ODP and Mistral cards have their own `Test connection` buttons.
 - **Paid tool.** In a new Session, send `Call mcp__flowleap__patstat_resolve with q "Toshiba" once. Then reply with only the first candidate name.` The log summary shows `tool (turn 1): mcp__flowleap__patstat_resolve` and a JSON result head with `candidates`.
 - **Proof.** Save a screenshot of the card status and the log summary in `$RUN/evidence/`.
 
 ## Gotchas
 
-- `Save` and `Remove` change the founder's real credential file. Do not use them in a verification run.
+- The firm keys are read-only in a verification run. Each configured card shows `The credential store is read-only in this deployment.`, and `Save` and `Remove` are disabled.
 - The settings dialog covers the page. Close it with button `Close` before you use the composer.
 - `Test connection` sends a request to the office. Do not repeat it in a loop: EPO OPS has a fair-use limit.
 - A doctor `WARN flowleap CLI` line means the paid tools are absent. Report `connectors-paid-tool` as not verified.

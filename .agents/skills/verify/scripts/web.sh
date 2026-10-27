@@ -5,6 +5,10 @@
 #   web.sh doctor <run-dir>         read-only: is this run's instance worth driving?
 #   web.sh stop <run-dir>           stop the instance this run started; keeps <run-dir>/evidence
 #
+# start copies the flowleap-connectors/* records of the founder's credential file
+# (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
+# which the overlay mounts as readOnlyPath; stop deletes that copy.
+#
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
 set -euo pipefail
 
@@ -16,6 +20,7 @@ mkdir -p "$run"
 run=$(cd "$run" && pwd)
 pid_file="$run/server.pid"
 log="$run/server.log"
+firm_keys="$run/firm-keys.yaml"
 
 alive() { [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; }
 url() { grep -Eo 'https?://(127\.0\.0\.1|\[::1\]|localhost):[0-9]+/?[^ ]*' "$log" 2>/dev/null | head -1 || true; }
@@ -27,11 +32,21 @@ case "$cmd" in
     [[ -d "$repo/apps/web/dist" ]] || { echo "no apps/web/dist: run 'pnpm run build:artifacts' first" >&2; exit 1; }
     [[ -n "${OPENROUTER_API_KEY:-}" ]] || { echo "OPENROUTER_API_KEY is not set" >&2; exit 1; }
     mkdir -p "$run/home" "$run/workspace" "$run/evidence"
+    # Only the connector records: the server must write its own browser-session record.
+    (umask 077 && cd "$repo/packages/credentials/credentials-local" && node --input-type=module -e "
+      import { readFileSync, writeFileSync } from 'node:fs'
+      import { parse, stringify } from 'yaml'
+      const source = process.env.DSH_VERIFY_CREDENTIALS ?? process.env.HOME + '/.dsh/.credentials.yaml'
+      const store = parse(readFileSync(source, 'utf8'))
+      const records = Object.fromEntries(Object.entries(store.records ?? {}).filter(([key]) => key.startsWith('flowleap-connectors/')))
+      writeFileSync(process.argv[1], stringify({ version: store.version, records, refs: {} }))
+      console.log('firm keys: ' + Object.keys(records).join(', '))
+    " "$firm_keys")
     # The server cwd is the scratch workspace, so tsx and its tsconfig paths resolve from the checkout.
     tsx=$(cd "$repo" && node --input-type=module -e "console.log(import.meta.resolve('tsx/esm'))")
     (
       cd "$run/workspace"
-      TSX_TSCONFIG_PATH="$repo/tsconfig.json" DSH_HOME="$run/home" DSH_AGENTS_HOME="$run/home/agents" \
+      DSH_VERIFY_FIRM_KEYS="$firm_keys" TSX_TSCONFIG_PATH="$repo/tsconfig.json" DSH_HOME="$run/home" DSH_AGENTS_HOME="$run/home/agents" \
         exec node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile flowleap-web \
         --patch "$repo/apps/web/tests/pin-browse-picker.overlay.yml" \
         --patch "$skill_dir/verify.patch.yml" \
@@ -83,7 +98,7 @@ case "$cmd" in
     else
       echo "no live instance for $run"
     fi
-    rm -f "$pid_file"
+    rm -f "$pid_file" "$firm_keys"
     echo "evidence kept in $run/evidence"
     ;;
   *) echo "unknown command: $cmd" >&2; exit 2 ;;
