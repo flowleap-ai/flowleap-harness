@@ -40,6 +40,10 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
+  /* Notice text can come from a provider header: at most four lines show, and a long word wraps. */
+  max-height: calc(4 * 18px + 8px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .card {

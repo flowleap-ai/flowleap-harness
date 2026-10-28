@@ -183,7 +183,9 @@ export interface PiAiProviderProfile {
   /**
    * Response headers whose value the route reports as a notice to the user of
    * the Session (`llm/response-notice`), for example a gateway's budget
-   * warning. Matched without case; the value never reaches the model.
+   * warning. Matched without case; the first value present in this order wins,
+   * and a response with none of them clears the notice. The value never
+   * reaches the model.
    */
   noticeHeaders?: string[]
 }
@@ -506,7 +508,7 @@ export function resolveProfiles(
       requestImageMaxBytes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
-      ...rest.noticeHeaders === undefined ? {} : { noticeHeaders: rest.noticeHeaders.map(header => header.toLowerCase()) },
+      ...rest.noticeHeaders === undefined ? {} : { noticeHeaders: [...new Set(rest.noticeHeaders.map(header => header.toLowerCase()))] },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
       modelErrors: catalog?.modelErrors ?? new Map(),

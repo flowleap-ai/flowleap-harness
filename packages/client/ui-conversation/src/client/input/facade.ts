@@ -134,6 +134,11 @@ export class SessionInputShell implements SessionInput {
   readonly state: SnapshotStore<InputState>
   /** Latest surfaced notice (null after clear); the bar renders errors as banners and information inline. */
   readonly notices: SnapshotStore<InputNotice | null> = createSnapshotStore<InputNotice | null>(null)
+  /**
+   * Latest provider response notice of this Session (a gateway's budget warning), or null. It has its own store so
+   * that a model call never replaces a command result in `notices`, and a response without a notice clears it.
+   */
+  readonly responseNotice: SnapshotStore<string | null> = createSnapshotStore<string | null>(null)
   /** The shell-owned editor (text + chip truth); the composer binds its contenteditable to it. */
   get editor(): LexicalEditor {
     return this.draftEditor.editor

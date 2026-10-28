@@ -196,6 +196,7 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
       })
     },
     useNotices: bindSnapshotSelector(shell.notices),
+    useResponseNotice: bindSnapshotSelector(shell.responseNotice),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(controller.launcher),
     renderSlot: (() => null) as InputBarProps['renderSlot'],

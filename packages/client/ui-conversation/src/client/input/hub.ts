@@ -185,16 +185,17 @@ export class InputHub implements SessionInputResolver {
   }
 
   /**
-   * Show an info notice in the composer of an addressable Session; a Session
-   * this client has no binding for shows nothing.
+   * Set or clear the provider response notice in the composer of an
+   * addressable Session; a Session this client has no binding for shows
+   * nothing. Command notices are not changed.
    * @param id - session id.
-   * @param text - the notice text.
-   * @returns whether a composer took the notice.
+   * @param text - the notice text, or null to clear it.
+   * @returns whether a composer took the change.
    */
-  notifySession(id: SessionId, text: string): boolean {
+  setResponseNotice(id: SessionId, text: string | null): boolean {
     const binding = this.sessions().binding(id)
     if (binding === undefined) return false
-    this.shellFor(binding).notify('info', text)
+    this.shellFor(binding).responseNotice.set(text)
     return true
   }
 

@@ -121,13 +121,15 @@ describe('llm-pi-ai real dormant composition', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
   })
 
-  it('reports a route notice header to the Session user and keeps it out of the model output', async () => {
+  it('reports a route notice header to the Session user, clears it on a response without one, and keeps it out of the model output', async () => {
     vi.stubEnv('PI_COMPOSITION_KEY', '')
     const warning = 'You used 85 % of your monthly model budget: 42.50 USD of 50.00 USD in 2026-10 (UTC).'
     const server = await mockServer([
       { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': warning } },
       { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': warning } },
       { events: textEvents },
+      { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': `  ${'é'.repeat(LlmPiAi.RESPONSE_NOTICE_MAX_CHARS + 10)}  ` } },
+      { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': warning } },
     ])
     const { ctx, settingsPath } = await loadComposition()
     const notices: unknown[] = []
@@ -139,7 +141,7 @@ describe('llm-pi-ai real dormant composition', () => {
       '      deepseek:',
       '        apiKeyEnv: PI_COMPOSITION_KEY',
       `        baseURL: ${server.url}`,
-      '        noticeHeaders: [x-flowleap-budget-warning]',
+      '        noticeHeaders: [x-flowleap-budget-warning, X-Flowleap-Budget-Warning]',
       '',
     ].join('\n'))
     await vi.waitFor(() => {
@@ -147,13 +149,23 @@ describe('llm-pi-ai real dormant composition', () => {
     }, { timeout: 5000 })
 
     const sessionId = 'session-budget' as never
+    const route = { sessionId, provider: 'deepseek', model: 'deepseek-flash' }
     const result = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
     expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
-    expect(notices).toEqual([{ sessionId, provider: 'deepseek', model: 'deepseek-flash', text: warning }])
-    // A request without a Session has no user to tell; a response without the header has nothing to tell.
+    expect(notices).toEqual([{ ...route, text: warning }])
+    // A request without a Session has no user to tell; a Session response without the header clears the notice.
     await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
     await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
-    expect(notices).toHaveLength(1)
+    expect(notices).toEqual([{ ...route, text: warning }, { ...route, text: null }])
+    await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
+    const capped = (notices[2] as { text: string }).text
+    expect(Array.from(capped)).toHaveLength(LlmPiAi.RESPONSE_NOTICE_MAX_CHARS)
+    expect(capped.endsWith('…')).toBe(true)
+    // A failing listener does not fail the model request.
+    ctx.on('llm/response-notice', () => { throw new Error('listener failed') })
+    const after = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
+    expect(after.message.content).toEqual([{ type: 'text', text: 'hello' }])
+    expect(notices).toHaveLength(4)
   })
 
   it('offers OpenAI sign-in by API key only, while other subscription logins stay', async () => {

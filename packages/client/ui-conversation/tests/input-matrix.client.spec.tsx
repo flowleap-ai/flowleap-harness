@@ -86,6 +86,7 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     useBusyEnter: bindSnapshotSelector(createSnapshotStore<'queue' | 'steer'>('queue')),
     useStopShortcut: bindSnapshotSelector(createSnapshotStore<readonly string[]>([])),
     useNotices: bindSnapshotSelector(shell.notices),
+    useResponseNotice: bindSnapshotSelector(shell.responseNotice),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),
     renderSlot: (() => null) as InputBarProps['renderSlot'],

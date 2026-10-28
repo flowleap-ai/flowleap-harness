@@ -47,7 +47,7 @@ export const InputBar = memo(function InputBar({
   useSession, useInput, inputActions, keyboard, addFiles, removeAttachment, resolveDraftAttachments,
   retryFileUpload,
   toggleCommandMenu, stop, t,
-  renderSlot, useBusyEnter, useFileUploads, useNotices, useLexicon, useMenuLauncher, useStopShortcut,
+  renderSlot, useBusyEnter, useFileUploads, useNotices, useResponseNotice, useLexicon, useMenuLauncher, useStopShortcut,
   useAccess,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
   workspacePickerOpen = false, onRequestWorkspace,
@@ -55,6 +55,7 @@ export const InputBar = memo(function InputBar({
 }: InputBarProps) {
   const input = useInput(s => s)
   const notice = useNotices(s => s)
+  const responseNotice = useResponseNotice(s => s)
   const busyEnter = useBusyEnter(s => s)
   const stopKeys = useStopShortcut(keys => keys)
   // A page whose access snapshot excludes prompting, stopping, or uploading to this Session is offered
@@ -428,6 +429,11 @@ export const InputBar = memo(function InputBar({
       {notice?.level === 'info' && (
         <div className={css.notice} role="status">
           {notice.text}
+        </div>
+      )}
+      {responseNotice !== null && (
+        <div className={css.notice} role="status">
+          {responseNotice}
         </div>
       )}
       {/* Trigger clicks land on the card, not the editor: the toolbar row's

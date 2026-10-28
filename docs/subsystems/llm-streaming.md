@@ -1214,15 +1214,17 @@ Source: [`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
 
 #### `llm/response-notice` — emit
 
-A provider response of a Session's request carried a notice for the user of that Session, such as a gateway's budget warning. The notice is for the user only: it is not in the Session log and never reaches the model.
+A provider response of a Session's request on a route that reports notices, such as a gateway's budget warning. `text` is the notice for the user of that Session, or `null` when the response carries none, which clears the earlier notice. The notice is for the user only: it is not in the Session log and never reaches the model.
 
 ```ts cordis-catalog
 /**
- * A provider response of a Session's request carried a notice for the user
- * of that Session, such as a gateway's budget warning. The notice is for
- * the user only: it is not in the Session log and never reaches the model.
+ * A provider response of a Session's request on a route that reports
+ * notices, such as a gateway's budget warning. `text` is the notice for the
+ * user of that Session, or `null` when the response carries none, which
+ * clears the earlier notice. The notice is for the user only: it is not in
+ * the Session log and never reaches the model.
  * @mode emit
- * @param notice - the Session, the route and model of the request, and the notice text.
+ * @param notice - the Session, the route and model of the request, and the notice text or `null`.
  */
 'llm/response-notice'(notice: LlmResponseNotice): void
 ```

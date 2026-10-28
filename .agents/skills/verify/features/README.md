@@ -31,6 +31,7 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 - [Patent Agent turn](./patent-agent-turn.md): a live turn on the Patent Agent preset, and one office tool call. `turn-ping` was proven on 2026-10-27.
 - [Patent data connectors](./connectors.md): the settings cards, Test connection, and the paid FlowLeap tools. `connectors-test` (EPO OPS) was proven on 2026-10-27.
 - [Agent builder](./agent-builder.md): the `New agent` form, the agent in the picker, a chat that cites its own file, the connector restriction, edit and delete. `agent-create`, `agent-picker`, `agent-chat-context`, `agent-chat-search`, `agent-connectors`, `agent-edit` and `agent-delete` were proven on 2026-10-28.
+- [Budget warning](./budget-warning.md): the model gateway's budget notice in the composer, through a local gateway double. `budget-notice-show` and `budget-notice-clear` were proven on 2026-10-29.
 - [Routines](./routines.md): the register watch from chat and its task on the Automation tasks page. `routines-page-empty` was proven on 2026-10-27.
 
 Not mapped yet: deliverables (`write_patent_results`, Word export, the delivery card), the skill pack, and the brand. Add a file when a change touches one of them.

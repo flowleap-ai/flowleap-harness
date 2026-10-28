@@ -85,7 +85,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `requestImageMaxBytes` | `1 MiB` | Encoded-byte target for each request image before base64 expansion |
 | `maxRequestImageBytes` | `20 MiB` | Aggregate base64 image-payload bound; a request whose retained images exceed it fails with `IMAGE_OFFLOAD_REQUIRED` |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
-| `noticeHeaders` | none | Response headers (matched without case) whose value the route reports to the Session's user as `llm/response-notice`, through pi-ai's `onResponse`; the value never reaches the model or the Session log |
+| `noticeHeaders` | none | Response headers (matched without case, duplicates removed) that the route reports to the Session's user as `llm/response-notice`, through pi-ai's `onResponse`: each response of a Session's request emits the first nonempty value in this order, trimmed and cut to 500 characters (`RESPONSE_NOTICE_MAX_CHARS`, ending in an ellipsis), or `null` when it carries none, which clears the notice. A listener error is logged as a warning and does not fail the request. The value never reaches the model or the Session log |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
 

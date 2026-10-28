@@ -58,7 +58,7 @@ Disabled rows: `deepseek-llm-api-extensions`, `session-log-deepseek`, `plugin-pa
 
 ### The budget warning of the model gateway
 
-The firm's model gateway sends `x-flowleap-budget-warning` from 80 % of a monthly budget (flowleap-harness#32). The `anthropic` and `openrouter` routes name it in `noticeHeaders`, so `llm-pi-ai` emits `llm/response-notice` for the Session, the Host forwards it to the peers that may read that Session, and the composer shows "Notice from the model gateway: <text>" in the attorney's language. The gateway text itself is English. The model never sees the warning and the Session log does not hold it. A firm overlay that restates the `llm-pi-ai` row restates `noticeHeaders` too.
+The firm's model gateway sends `x-flowleap-budget-warning` from 80 % of a monthly budget (flowleap-harness#32). The `anthropic` and `openrouter` routes name it in `noticeHeaders`, so `llm-pi-ai` emits `llm/response-notice` for the Session, the Host forwards it to the peers that may read that Session, and the composer shows "Notice from the model gateway: <text>" in the attorney's language, apart from command results. The next response without the header (after a monthly reset or a budget raise) removes the notice. The gateway text itself is English. The model never sees the warning and the Session log does not hold it. A firm overlay that restates the `llm-pi-ai` row restates `noticeHeaders` too.
 
 Environment the layer reads: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` (through the credential seam), `FLOWLEAP_PROMPT_PATH`, `FLOWLEAP_SKILLS_DIR`, `FLOWLEAP_BRAND_PATH`. The `flowleap` CLI brings its own session token; `flowleap mcp --check` prints its readiness.
 

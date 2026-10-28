@@ -78,6 +78,10 @@ const ABSENT_NOTICES = {
   getSnapshot: (): InputNotice | null => null,
   subscribe: () => () => {},
 }
+const ABSENT_RESPONSE_NOTICE = {
+  getSnapshot: (): string | null => null,
+  subscribe: () => () => {},
+}
 const ABSENT_BLOCK = {
   getSnapshot: (): ComposerBlock | undefined => undefined,
   subscribe: () => () => {},
@@ -300,9 +304,10 @@ export function apply(ctx: Context, config: Config = Config({})): void {
 
   const inputHub = new InputHub(ctx, t)
   // A provider response notice (a gateway budget warning) shows in its Session's composer; the model never sees it.
-  ctx.inject(['remote'], (scope) => {
+  // A response without a notice clears it.
+  ctx.inject(['remote', 'sessions'], (scope) => {
     scope.effect(() => scope.remote.$on('llm/response-notice', (notice) => {
-      inputHub.notifySession(notice.sessionId, t('model.responseNotice', { text: notice.text }))
+      inputHub.setResponseNotice(notice.sessionId, notice.text === null ? null : t('model.responseNotice', { text: notice.text }))
     }), 'ui-conversation: provider response notices')
   })
   const composerBlocks = new ComposerBlockRegistry()
@@ -493,6 +498,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
             busyEnter: submissionPolicy.busyEnter,
             fileUploads: ABSENT_FILE_UPLOADS,
             notices: ABSENT_NOTICES,
+            responseNotice: ABSENT_RESPONSE_NOTICE,
             lexicon: ABSENT_LEXICON,
             menuLauncher: ABSENT_MENU_LAUNCHER,
           },
@@ -572,6 +578,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
           busyEnter: submissionPolicy.busyEnter,
           fileUploads: conversation.fileUploads,
           notices: shell.notices,
+          responseNotice: shell.responseNotice,
           lexicon: shell.lexicon,
           menuLauncher: inputTriggers?.launcher ?? ABSENT_MENU_LAUNCHER,
         },

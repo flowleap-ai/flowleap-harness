@@ -74,7 +74,7 @@ import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { registerPiAiFlows } from './login.ts'
 import { providerDefaultsOf } from './provider-data.ts'
 
-export { PiAiAdapter } from './adapter.ts'
+export { PiAiAdapter, RESPONSE_NOTICE_MAX_CHARS } from './adapter.ts'
 export type { PiAiAdapterOptions, PiAiResponseNotice } from './adapter.ts'
 export { Config } from './config.ts'
 export type {
@@ -225,7 +225,12 @@ export function apply(ctx: Context, config: Config): void {
       ref,
     ),
     onResponseNotice: ({ sessionId, provider, model, text }) => {
-      ctx.emit('llm/response-notice', { sessionId, provider, model, text })
+      // A listener failure must not fail the model request that pi-ai awaits this hook in.
+      try {
+        ctx.emit('llm/response-notice', { sessionId, provider, model, text })
+      } catch (error) {
+        ctx.logger.warn(`llm-pi-ai: a llm/response-notice listener failed for route "${provider}/${model}": ${String(error)}`)
+      }
     },
     onReplayDegrade: ({ provider, model, reason }) => {
       ctx.logger.warn(

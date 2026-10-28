@@ -29,11 +29,13 @@ declare module '@deepseek-ai/cordis' {
      */
     'llm/models-updated'(provider: string): void
     /**
-     * A provider response of a Session's request carried a notice for the user
-     * of that Session, such as a gateway's budget warning. The notice is for
-     * the user only: it is not in the Session log and never reaches the model.
+     * A provider response of a Session's request on a route that reports
+     * notices, such as a gateway's budget warning. `text` is the notice for the
+     * user of that Session, or `null` when the response carries none, which
+     * clears the earlier notice. The notice is for the user only: it is not in
+     * the Session log and never reaches the model.
      * @mode emit
-     * @param notice - the Session, the route and model of the request, and the notice text.
+     * @param notice - the Session, the route and model of the request, and the notice text or `null`.
      */
     'llm/response-notice'(notice: LlmResponseNotice): void
   }
@@ -47,8 +49,8 @@ export interface LlmResponseNotice {
   readonly provider: string
   /** Model id of the request. */
   readonly model: string
-  /** The notice text, as the provider sent it. */
-  readonly text: string
+  /** The notice text, trimmed and length-capped by the route; `null` clears the Session's notice. */
+  readonly text: string | null
 }
 
 export type {

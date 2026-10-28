@@ -114,14 +114,20 @@ export interface PiAiAdapterOptions {
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
   /**
-   * Receive the value of one of the route's `noticeHeaders` on a provider
-   * response of a Session's request. Called once per header and response,
-   * before the response body streams; the value never reaches the model.
+   * Receive the notice state of each provider response to a Session's request
+   * on a route with `noticeHeaders`: the first header value in `noticeHeaders`
+   * order, or `null` when the response carries none of them. Called once per
+   * response, before the response body streams; the value never reaches the
+   * model. The caller contains its own errors, because pi-ai awaits this hook
+   * inside the request.
    */
   onResponseNotice?: (notice: PiAiResponseNotice) => void
 }
 
-/** One `noticeHeaders` value of a provider response. */
+/** Most characters of a notice text; a longer header value is cut and ends in an ellipsis. */
+export const RESPONSE_NOTICE_MAX_CHARS = 500
+
+/** The `noticeHeaders` state of one provider response. */
 export interface PiAiResponseNotice {
   /** The Session whose request got the response. */
   readonly sessionId: NonNullable<GenerateOptions['sessionId']>
@@ -129,10 +135,23 @@ export interface PiAiResponseNotice {
   readonly provider: string
   /** Model id of the request. */
   readonly model: string
-  /** The header name, lower case, as the route's `noticeHeaders` names it. */
-  readonly header: string
-  /** The header value. */
-  readonly text: string
+  /**
+   * The first nonempty `noticeHeaders` value of the response, trimmed and cut to
+   * {@link RESPONSE_NOTICE_MAX_CHARS}; `null` when the response carries none, which clears an earlier notice.
+   */
+  readonly text: string | null
+}
+
+/**
+ * Trim a header value and cut it to {@link RESPONSE_NOTICE_MAX_CHARS} characters.
+ * @param value - the raw header value.
+ * @returns the notice text, or `undefined` for an absent or blank value.
+ */
+function noticeText(value: string | undefined): string | undefined {
+  const text = value?.trim()
+  if (text === undefined || text.length === 0) return undefined
+  const chars = Array.from(text)
+  return chars.length <= RESPONSE_NOTICE_MAX_CHARS ? text : `${chars.slice(0, RESPONSE_NOTICE_MAX_CHARS - 1).join('')}…`
 }
 
 /**
@@ -155,10 +174,8 @@ function noticeOption(
   return {
     onResponse: (response) => {
       const received = new Map(Object.entries(response.headers).map(([name, value]) => [name.toLowerCase(), value]))
-      for (const header of headers) {
-        const text = received.get(header)?.trim()
-        if (text !== undefined && text.length > 0) observe({ sessionId, provider: profile.provider, model: options.model, header, text })
-      }
+      const text = headers.map(header => noticeText(received.get(header))).find(value => value !== undefined)
+      observe({ sessionId, provider: profile.provider, model: options.model, text: text ?? null })
     },
   }
 }

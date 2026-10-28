@@ -5215,9 +5215,9 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'llm/response-notice',
     mode: 'emit',
     signature: '\'llm/response-notice\'(notice: LlmResponseNotice): void',
-    summary: 'A provider response of a Session\'s request carried a notice for the user of that Session, such as a gateway\'s budget warning.',
-    description: 'A provider response of a Session\'s request carried a notice for the user of that Session, such as a gateway\'s budget warning. The notice is for the user only: it is not in the Session log and never reaches the model.',
-    parameters: [{ name: 'notice', description: 'the Session, the route and model of the request, and the notice text.' }],
+    summary: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning.',
+    description: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning. `text` is the notice for the user of that Session, or `null` when the response carries none, which clears the earlier notice. The notice is for the user only: it is not in the Session log and never reaches the model.',
+    parameters: [{ name: 'notice', description: 'the Session, the route and model of the request, and the notice text or `null`.' }],
   },
   {
     name: 'llm/stream',
@@ -7173,7 +7173,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmResponseNotice',
-    declaration: 'export interface LlmResponseNotice {\n    readonly sessionId: Branded<\'SessionId\'>;\n    readonly provider: string;\n    readonly model: string;\n    readonly text: string;\n}',
+    declaration: 'export interface LlmResponseNotice {\n    readonly sessionId: Branded<\'SessionId\'>;\n    readonly provider: string;\n    readonly model: string;\n    readonly text: string | null;\n}',
   },
   {
     name: 'LlmRuntime',
