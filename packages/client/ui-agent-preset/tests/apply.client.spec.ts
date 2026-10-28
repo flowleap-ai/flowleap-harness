@@ -461,6 +461,18 @@ describe('ui-agent-preset apply', () => {
     expect(calls.length).toBe(afterRelevant)
   })
 
+  it('re-reads the roster when a preset is registered or unregistered at runtime', async () => {
+    const { ctx, slots, calls, remote } = await bench()
+    ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
+    declareRoot(slots)
+    await ctx.plugin({ inject: [...inject], apply }).await()
+    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
+    await section.load()
+    const before = calls.length
+    remote.emit('agent-preset/roster-changed', [])
+    await vi.waitFor(() => { expect(calls.length).toBe(before + 3) })
+  })
+
   it('re-reads both surfaces when the connection comes back', async () => {
     const { ctx, slots, calls } = await bench()
     declareRoot(slots)

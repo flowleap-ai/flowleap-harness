@@ -29,6 +29,8 @@ import css from './AgentPresetSeat.module.css'
 export interface AgentPresetMenuActionProps {
   /** Close the preset menu before starting the contributed action. */
   readonly onDismiss: () => void
+  /** The preset the chip shows for the session about to start; empty before the roster loads. */
+  readonly currentId: string
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -216,7 +218,7 @@ export function AgentPresetSeat({
           </button>
         )}
       >
-        {renderSlot('agentPreset.menu.actions', { onDismiss: () => { setOpen(false) } })}
+        {renderSlot('agentPreset.menu.actions', { onDismiss: () => { setOpen(false) }, currentId: state.current })}
       </Menu>}
       {toast !== null && (
         <Toast

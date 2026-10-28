@@ -165,6 +165,8 @@ export function apply(ctx: ClientContext): void {
         if (ns !== AGENT_PRESET_SETTINGS_NS) return
         refresh()
       }),
+      // A plugin that registers presets at runtime (an agent builder) adds or removes roster rows.
+      ctx.remote.$on('agent-preset/roster-changed', refresh),
       ctx.on('connection/reset', refresh),
     ]
     reconcile()

@@ -43,7 +43,9 @@ On Desktop, the optional [product analytics](../product-analytics/README.md) ser
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`agentPresets/list` supplies the roster and marks the current default, and `agentPresets/read` one declaration's YAML for the viewer; default changes write the `agent-preset-registry` settings namespace. The picker, blank-session synchronization and read-only session label use recorded preset identities. Connection resets and settings updates refresh the roster.
+`agentPresets/list` supplies the roster and marks the current default, and `agentPresets/read` one declaration's YAML for the viewer; default changes write the `agent-preset-registry` settings namespace. The picker, blank-session synchronization and read-only session label use recorded preset identities. Connection resets, settings updates and the forwarded `agent-preset/roster-changed` event refresh the roster, so a preset that a Host plugin registers at runtime shows in the picker without a restart.
+
+The `agentPreset.menu.actions` list slot adds rows after the presets in the new-session menu. Its owner props are `onDismiss()`, which closes the menu, and `currentId`, the preset the chip shows for the session about to start (empty before the roster loads); the FlowLeap agent builder uses it to offer Edit agent for the chosen agent.
 
 `CreatePluginMenuItem` contributes to `plugins.add.actions` using the shared roster store. Its selection calls the owner's `onDismiss()` before the same `startCreatorDraft` callback exposed to Settings as `creatorDraft`. That callback stages `cordis` through `AgentPresetSeatController`, except when the main blank Session lists a different preset (navigation then opens another blank and leaves that one unchanged), and opens the task through `uiWorkspace.startSession` with explicit draft preservation and `agentPreset: 'cordis'`, so the Host composes the reused blank or new Session under Creator; without a target Workspace, the staged choice applies when a Session binding becomes available. The choice is consumed once applied. Both Coding Tools states use the same picker and selection store, and `AgentPresetSeat` renders refusals through the shared `Toast` component.
 
@@ -71,7 +73,7 @@ Selection changes affect only later tasks; existing plugins and prompts remain u
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Web creates and edits no preset: the configuration viewer is read-only, and a bundle installed through Creator mode declares a new preset or overrides a shipped one by row id, replacing its complete child list.
+- This package creates and edits no preset: the configuration viewer is read-only, and a bundle installed through Creator mode declares a new preset or overrides a shipped one by row id, replacing its complete child list. Another plugin can add presets at runtime and contribute its own menu rows through `agentPreset.menu.actions`, as the FlowLeap agent builder does.
 
 <a id="dev-note"></a>
 ### Dev Note

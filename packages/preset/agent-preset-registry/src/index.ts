@@ -105,6 +105,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
       if (disposed) return
       disposed = true
       this.definitions.delete(definition.id)
+      this.owner.emit('agent-preset/roster-changed')
       await record.ready
       if (record.generation !== undefined) {
         record.generation.retired = true
@@ -113,7 +114,17 @@ export class AgentPresetRegistry extends TypertRemoteService {
     }
     record.ready = this.activate(record)
     await record.ready
+    // A definition disposed during activation already announced its removal.
+    if (!disposed) this.owner.emit('agent-preset/roster-changed')
     return unregister
+  }
+
+  /** Read one registered definition as its declaring plugin submitted it.
+   * @param id - preset identity.
+   * @returns the definition, or undefined when no declaration supplies the id.
+   */
+  definition(id: string): PresetDefinition | undefined {
+    return this.definitions.get(id)?.config
   }
 
   private async activate(record: Definition): Promise<void> {

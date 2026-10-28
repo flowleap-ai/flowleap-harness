@@ -7,6 +7,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote-events'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-deepseek-account/types'
 import type {} from '@deepseek-ai/dsh-flowleap-routines/types'
@@ -25,6 +26,7 @@ import type { TypertForwardableEventEntry } from '@deepseek-ai/dsh-typert-protoc
  * identity or none, and collection changes travel on follow streams instead.
  */
 export const API_REMOTE_FORWARDED_EVENTS = [
+  { event: 'agent-preset/roster-changed', mode: 'emit' },
   { event: 'agent-preset/selected', mode: 'emit' },
   { event: 'approval/request', mode: 'waterfall' },
   { event: 'api-session/activity', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },

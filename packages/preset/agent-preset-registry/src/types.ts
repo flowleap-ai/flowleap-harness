@@ -64,6 +64,12 @@ declare module '@deepseek-ai/cordis' {
      * @param agentPreset - the preset recorded by the committed selection.
      */
     'agent-preset/selected'(sessionId: SessionId, agentPreset: string): void
+    /**
+     * A preset definition was registered (after its activation settled) or unregistered.
+     * Clients refetch `agentPresets.list()`.
+     * @mode emit
+     */
+    'agent-preset/roster-changed'(): void
   }
 }
 
