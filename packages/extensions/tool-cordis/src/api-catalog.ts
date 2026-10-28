@@ -1219,6 +1219,70 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapConnectors',
+    summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<Record<string, ConnectorPresence>>',
+        description: 'Presence of every connector, for the settings cards and the first-run wizard.',
+        parameters: [],
+        returns: 'one view per connector id; never a value.',
+      },
+      {
+        signature: '@Remote async set(id: string, values: Record<string, string>): Promise<void>',
+        description: 'Store one connector\'s fields. The values cross the wire in this direction only.',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'values', description: 'its fields, each non-empty.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector or field, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async unset(id: string): Promise<void>',
+        description: 'Remove one connector\'s record; removing an absent record is a no-op.',
+        parameters: [{ name: 'id', description: 'the connector.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>',
+        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search, or the library\'s Mistral key verification (one authenticated GET).',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
+        returns: 'whether the call succeeded and a human-readable message.',
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapRegister',
+    summary: 'Reads the register events of one application.',
+    description: 'Reads the register events of one application.',
+    methods: [
+      {
+        signature: 'read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>',
+        description: 'Read the current register events of one application.',
+        parameters: [{ name: 'application', description: 'normalized application.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'every event the office lists, in the office\'s order.',
+        throws: ['when the office refuses the read or no key is configured.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapRoutines',
+    summary: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    methods: [
+      {
+        signature: '@Remote async reviews(): Promise<RoutineReview[]>',
+        description: 'The marked chats the caller may see.',
+        parameters: [],
+        returns: 'one view per mark, without the chats remote access denies the caller.',
+      },
+      {
+        signature: '@Remote async done(sessionId: SessionId): Promise<void>',
+        description: 'Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource the `sessionId` parameter names.',
+        parameters: [{ name: 'sessionId', description: 'the chat.' }],
+      },
+    ],
+  },
+  {
     key: 'forge',
     summary: 'Registry of forge providers.',
     description: 'Registry of forge providers. Watchers of one change request share a single polling loop; each forge has at most one fetch in flight, which batches every due change request of that forge.',
@@ -4896,6 +4960,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'inspection', description: 'committed canonical prefix, including the feedback as its last event.' }],
   },
   {
+    name: 'flowleap-routines/changed',
+    mode: 'emit',
+    signature: '\'flowleap-routines/changed\'(): void',
+    summary: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
+    description: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
+    parameters: [],
+  },
+  {
     name: 'forge/providers-changed',
     mode: 'parallel',
     signature: '\'forge/providers-changed\'(forge: string): void | Promise<void>',
@@ -5040,12 +5112,28 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'schedule/admit',
+    mode: 'waterfall',
+    signature: '\'schedule/admit\'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>',
+    summary: 'Decide one due occurrence before its Session is restored.',
+    description: 'Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive.',
+    parameters: [{ name: 'request', description: 'Due occurrence and its Session binding.' }],
+  },
+  {
     name: 'schedule/changed',
     mode: 'emit',
     signature: '\'schedule/changed\'(): void',
     summary: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     description: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     parameters: [],
+  },
+  {
+    name: 'schedule/delivered',
+    mode: 'emit',
+    signature: '\'schedule/delivered\'(delivery: ScheduleDelivered): void',
+    summary: 'A delivery committed: the Session acknowledged the message and the task write landed.',
+    description: 'A delivery committed: the Session acknowledged the message and the task write landed. A crash between those two writes can repeat the delivery without this event.',
+    parameters: [{ name: 'delivery', description: 'Task, Session, and saved receipt.' }],
   },
   {
     name: 'schedule/resolve-agent',
@@ -5870,6 +5958,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionTrustRequest',
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+  },
+  {
+    name: 'ConnectorPresence',
+    declaration: 'export interface ConnectorPresence {\n    configured: boolean;\n    source?: \'stored\';\n    writable: boolean;\n    fields: string[];\n}',
+  },
+  {
+    name: 'ConnectorTestResult',
+    declaration: 'export interface ConnectorTestResult {\n    ok: boolean;\n    message: string;\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -7656,6 +7752,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
   },
   {
+    name: 'RegisterApplication',
+    declaration: 'export type RegisterApplication = Branded<\'RegisterApplication\'>;',
+  },
+  {
+    name: 'RegisterEntry',
+    declaration: 'export interface RegisterEntry {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
     name: 'Registry',
     declaration: 'export type Registry = string | null;',
   },
@@ -7848,6 +7952,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
   },
   {
+    name: 'ReviewState',
+    declaration: 'export type ReviewState = \'running\' | \'needs_review\';',
+  },
+  {
+    name: 'RoutineReview',
+    declaration: 'export interface RoutineReview {\n    readonly sessionId: SessionId;\n    readonly taskId: string;\n    readonly state: ReviewState;\n    readonly since: string;\n}',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -7892,6 +8004,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
+    name: 'ScheduleAdmission',
+    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n    readonly sessionId?: SessionId;\n} | {\n    readonly kind: \'skip\';\n};',
+  },
+  {
+    name: 'ScheduleAdmissionRequest',
+    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly sessionId: SessionId;\n    readonly record: ScheduleRecord;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
     name: 'ScheduleCatalogEntry',
     declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly sessionId: SessionId;\n    readonly status: \'active\' | \'inactive\';\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
   },
@@ -7910,6 +8030,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ScheduleDeleteResult',
     declaration: 'export type ScheduleDeleteResult = {\n    readonly id: ScheduleId;\n    readonly deleted: true;\n} | {\n    readonly id: ScheduleId;\n    readonly deleted: false;\n    readonly code: \'schedule_not_found\';\n};',
+  },
+  {
+    name: 'ScheduleDelivered',
+    declaration: 'export interface ScheduleDelivered {\n    readonly sessionId: SessionId;\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryRequest',

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-brand-flowleap",
   "description": "White-label brand occupants for the Web client driven by one brand.json: sidebar mark and name, blank-session hero mark, document title, and product copy overrides; FlowLeap Patent AI by default",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-alpha.2",
   "publishConfig": {
     "access": "public"
   },

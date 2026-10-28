@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-deliverables",
   "description": "FlowLeap deliverable tools: write_patent_results with the Patent AI report templates, evidence validation against the session's recorded tool results, the working record, the evidence ledger and the delivery card; export_draft_docx and inventor_questions with the Application Drafting layer and the Word builders; start_application_draft, validate_draft and remove_claim with the attorney gates as question cards and slash commands; ported from flowleap-agent-v2 onto the dsh filesystem, tool-result, storage, model, user-questions, approval and command seams",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-alpha.2",
   "publishConfig": {
     "access": "public"
   },
