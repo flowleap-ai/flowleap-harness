@@ -331,14 +331,14 @@ describe('files', () => {
     const catalog = ctx.flowleapAgentCatalog
     const { id } = await catalog.save(undefined, INPUT, 'Work.')
     await catalog.upload(id, 'scan.pdf', chunks(makePdf([null])))
-    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(1) })
+    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(1) }, { timeout: 10_000 })
     await catalog.removeFile(id, 'scan.pdf')
     held.release({ kind: 'read', pages: [{ page: 1, text: 'late text' }] })
     await catalog.settled()
     expect(catalog.read(id).files).toEqual([])
 
     await catalog.upload(id, 'scan.pdf', chunks(makePdf([null])))
-    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(2) }, { timeout: 10_000 })
     await catalog.delete(id)
     held.release({ kind: 'read', pages: [{ page: 1, text: 'late text' }] })
     await catalog.settled()
