@@ -12,12 +12,23 @@ describe('extractText', () => {
     expect(ocr.pages).not.toHaveBeenCalled()
   })
 
-  it('fills a page without a text layer from OCR and keeps the text-layer pages', async () => {
-    const ocr = ocrDouble(() => ({ kind: 'read', pages: [{ page: 1, text: 'ocr one' }, { page: 2, text: ' ocr two ' }] }))
-    expect(await extractText('a.pdf', makePdf([['Typed page'], null]), ocr)).toEqual({
-      kind: 'text', unit: 'page', locations: [{ at: 1, text: 'Typed page' }, { at: 2, text: 'ocr two' }],
+  it('sends only the pages without a text layer to OCR and maps its pages back', async () => {
+    const sent: number[] = []
+    const ocr = ocrDouble((bytes) => {
+      sent.push(new TextDecoder().decode(bytes).match(/\/Type\s*\/Page\b/g)?.length ?? 0)
+      return { kind: 'read', pages: [{ page: 1, text: ' ocr two ' }, { page: 2, text: 'ocr four' }, { page: 3, text: 'no such page' }] }
     })
-    expect(ocr.pages).toHaveBeenCalledTimes(1)
+    expect(await extractText('a.pdf', makePdf([['Typed page'], null, ['Page three'], null]), ocr)).toEqual({
+      kind: 'text', unit: 'page', locations: [{ at: 1, text: 'Typed page' }, { at: 2, text: 'ocr two' }, { at: 3, text: 'Page three' }, { at: 4, text: 'ocr four' }],
+    })
+    expect(sent).toEqual([2])
+  })
+
+  it('sends an all-scanned PDF to OCR as it is', async () => {
+    const pdf = makePdf([null, null])
+    const ocr = ocrDouble(() => ({ kind: 'read', pages: [{ page: 2, text: 'second' }] }))
+    expect(await extractText('a.pdf', pdf, ocr)).toEqual({ kind: 'text', unit: 'page', locations: [{ at: 2, text: 'second' }] })
+    expect(ocr.pages.mock.calls[0]?.[0]).toEqual(pdf)
   })
 
   it('keeps the text-layer pages when OCR fails, and fails an all-scanned PDF', async () => {

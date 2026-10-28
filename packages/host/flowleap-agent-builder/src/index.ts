@@ -32,7 +32,7 @@ export {
   renderAgentYaml,
 } from './definition.ts'
 export type { AgentDefinition, FileNameProblem } from './definition.ts'
-export { extractText, pdfTextLayer } from './extract.ts'
+export { extractText } from './extract.ts'
 export type { Extraction, LocationText } from './extract.ts'
 export { AGENT_INDEX_SCHEMA_VERSION, AgentIndex, ftsExpression } from './index-db.ts'
 export type { LocationRow, SearchHit } from './index-db.ts'

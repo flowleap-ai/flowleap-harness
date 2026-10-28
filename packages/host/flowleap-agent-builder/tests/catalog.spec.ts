@@ -45,7 +45,7 @@ describe('connector restriction', () => {
 
 describe('files', () => {
   it('reads a text-layer PDF from its text layer and a scanned page through OCR, once per content', async () => {
-    const ocr = ocrDouble(() => ({ kind: 'read', pages: [{ page: 1, text: 'ignored' }, { page: 2, text: 'Scanned: the applicant replied in time.' }] }))
+    const ocr = ocrDouble(() => ({ kind: 'read', pages: [{ page: 1, text: 'Scanned: the applicant replied in time.' }] }))
     const ctx = await runtime({ ocr })
     await mountBuilder(ctx, { root: await tempDir('dsh-agents-') })
     const { id } = await ctx.flowleapAgentCatalog.save(undefined, { ...INPUT }, 'Work.')
