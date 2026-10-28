@@ -14,12 +14,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 import type { AgentId } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
 import { AgentFormDialog } from './AgentFormDialog.tsx'
 import { EditAgentMenuItem } from './EditAgentMenuItem.tsx'
-import { AgentFormController } from './form-store.ts'
+import { AgentFormController, type AgentUploadError, type AgentUploadResult } from './form-store.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapAgentBuilderKey } from './locales.ts'
 import { NewAgentMenuItem } from './NewAgentMenuItem.tsx'
 
 export type { FlowleapAgentBuilderKey } from './locales.ts'
-export type { AgentBuilderDeps, AgentDraft, AgentFileRow, AgentFileRowState, AgentFormError, AgentFormState } from './form-store.ts'
+export type {
+  AgentBuilderDeps, AgentDraft, AgentFileRow, AgentFileRowState, AgentFormError, AgentFormState, AgentUploadError, AgentUploadResult,
+} from './form-store.ts'
 export { AgentFormController } from './form-store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -38,20 +40,59 @@ export const AGENT_UPLOAD_ROUTE = 'api/flowleap-agents/upload'
 /** Required services: slots, copy, the Remote namespace, and access. */
 export const inject = ['slots', 'locale', 'remote', 'remote.flowleapAgents', 'remoteAccess']
 
+const UPLOADED: AgentUploadResult = { ok: true }
+
+/** The Host's `details.reason` (a `FileNameProblem`) for a file type that it does not accept. */
+const UPLOAD_TYPE_REASON = 'type'
+
+function uploadFailure(error: AgentUploadError): AgentUploadResult {
+  return { ok: false, error }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+/**
+ * Read the route's JSON answer, `{ ok: true, value }` or `{ ok: false, error: { code, details } }`; any other value is a
+ * `server` failure.
+ */
+function uploadOutcome(answer: unknown): AgentUploadResult {
+  if (!isRecord(answer)) return uploadFailure('server')
+  if (answer.ok === true) return isRecord(answer.value) ? UPLOADED : uploadFailure('server')
+  const error = answer.error
+  if (answer.ok !== false || !isRecord(error) || typeof error.code !== 'string') return uploadFailure('server')
+  const reason = isRecord(error.details) ? error.details.reason : undefined
+  if (error.code !== 'flowleap-agents/invalid') return uploadFailure('refused')
+  if (reason === 'too large') return uploadFailure('too-large')
+  if (reason === UPLOAD_TYPE_REASON) return uploadFailure('type')
+  return uploadFailure('refused')
+}
+
 /**
  * Send one file to the Host upload route, relative to the document like the other app routes.
  * @param id - the agent.
  * @param file - the browser file.
- * @returns an error text, or undefined when the Host stored the file.
+ * @returns the outcome; a network failure or an abort resolves to a `network` failure.
  */
-export async function uploadAgentFile(id: AgentId, file: File): Promise<string | undefined> {
+export async function uploadAgentFile(id: AgentId, file: File): Promise<AgentUploadResult> {
   const query = new URLSearchParams({ agent: id, name: file.name })
-  const response = await fetch(`${AGENT_UPLOAD_ROUTE}?${query.toString()}`, {
-    method: 'POST', body: file, credentials: 'include', headers: { 'content-type': 'application/octet-stream' },
-  })
-  if (response.status !== 200) return `HTTP ${String(response.status)}`
-  const result = await response.json() as { ok: boolean; error?: { message?: string } }
-  return result.ok ? undefined : result.error?.message ?? 'upload failed'
+  let response: Response
+  try {
+    response = await fetch(`${AGENT_UPLOAD_ROUTE}?${query.toString()}`, {
+      method: 'POST', body: file, credentials: 'include', headers: { 'content-type': 'application/octet-stream' },
+    })
+  } catch {
+    return uploadFailure('network')
+  }
+  if (response.status !== 200) return uploadFailure('server')
+  let answer: unknown
+  try {
+    answer = await response.json()
+  } catch {
+    return uploadFailure('server')
+  }
+  return uploadOutcome(answer)
 }
 
 /**

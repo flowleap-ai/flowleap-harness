@@ -7,7 +7,7 @@ import {
   Button, Checkbox, FileTypeIcon, IconCloseOutlineRegular, IconTrashOutlineRegular, Input, Modal, RiskConfirmation, fileSizeText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AgentMode, ConnectorChoiceId } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
-import type { AgentDraft, AgentFileRowState, AgentFormError, AgentFormState } from './form-store.ts'
+import type { AgentDraft, AgentFileRowState, AgentFormError, AgentFormState, AgentUploadError } from './form-store.ts'
 import type { FlowleapAgentBuilderKey } from './locales.ts'
 import css from './AgentBuilder.module.css'
 
@@ -55,11 +55,18 @@ const MODE_KEY: Record<AgentMode, FlowleapAgentBuilderKey> = {
   search: 'mode.search',
 }
 
-const ERROR_KEY: Record<AgentFormError, FlowleapAgentBuilderKey> = {
+const ERROR_KEY: Record<Exclude<AgentFormError['kind'], 'upload'>, FlowleapAgentBuilderKey> = {
   load: 'error.load',
   save: 'error.save',
-  upload: 'error.upload',
   delete: 'error.delete',
+}
+
+const UPLOAD_ERROR_KEY: Record<AgentUploadError, FlowleapAgentBuilderKey> = {
+  network: 'upload.network',
+  server: 'upload.server',
+  'too-large': 'upload.too-large',
+  type: 'upload.type',
+  refused: 'upload.refused',
 }
 
 /**
@@ -106,7 +113,11 @@ export function AgentFormDialog({
     >
       <div className={css.form}>
         {state.error !== null && (
-          <p className={css.error} role="alert">{t(ERROR_KEY[state.error.kind], { detail: state.error.detail })}</p>
+          <p className={css.error} role="alert">
+            {state.error.kind === 'upload'
+              ? t('error.upload', { name: state.error.file, reason: t(UPLOAD_ERROR_KEY[state.error.reason]) })
+              : t(ERROR_KEY[state.error.kind], { detail: state.error.detail })}
+          </p>
         )}
         {state.agentMode !== undefined && (
           <p className={css.mode}>

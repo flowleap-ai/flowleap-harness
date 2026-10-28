@@ -31,8 +31,20 @@ export interface AgentDraft {
   readonly connectors: readonly ConnectorChoiceId[]
 }
 
-/** Why the form shows an error line. */
-export type AgentFormError = 'load' | 'save' | 'upload' | 'delete'
+/**
+ * Why an upload failed, as the attorney can act on it: `network` when the request did not reach the Host or was aborted,
+ * `server` for an HTTP status other than 200 or an answer that is not the route's JSON, `too-large` and `type` for the
+ * Host's size limit and file types, and `refused` for any other Host refusal.
+ */
+export type AgentUploadError = 'network' | 'server' | 'too-large' | 'type' | 'refused'
+
+/** Outcome of one upload. */
+export type AgentUploadResult = { readonly ok: true } | { readonly ok: false; readonly error: AgentUploadError }
+
+/** Why the form shows an error line: a Host error text, or a failed upload with its file. */
+export type AgentFormError =
+  | { readonly kind: 'load' | 'save' | 'delete'; readonly detail: string }
+  | { readonly kind: 'upload'; readonly file: string; readonly reason: AgentUploadError }
 
 /** Form state: closed, or open on one draft. */
 export type AgentFormState =
@@ -52,7 +64,7 @@ export type AgentFormState =
     readonly busy: boolean
     /** True while the delete confirmation is open. */
     readonly confirmingDelete: boolean
-    readonly error: { readonly kind: AgentFormError; readonly detail: string } | null
+    readonly error: AgentFormError | null
   }
 
 type OpenState = Extract<AgentFormState, { kind: 'open' }>
@@ -65,8 +77,8 @@ export interface AgentBuilderDeps {
   readonly save: (input: AgentInput) => Promise<RemoteResult<AgentView>>
   readonly delete: (id: AgentId) => Promise<RemoteResult<void>>
   readonly removeFile: (id: AgentId, name: string) => Promise<RemoteResult<void>>
-  /** Send one file to the upload route; resolves to an error text, or undefined on success. */
-  readonly upload: (id: AgentId, file: File) => Promise<string | undefined>
+  /** Send one file to the upload route; resolves, also on a network failure, to the outcome. */
+  readonly upload: (id: AgentId, file: File) => Promise<AgentUploadResult>
 }
 
 const CLOSED: AgentFormState = { kind: 'closed' }
@@ -231,37 +243,47 @@ export class AgentFormController {
   }
 
   /**
-   * Save the draft: create or change the agent, then upload each file added since the last Save. The form stays open on
-   * the saved agent, so the file rows show their index state.
+   * Save the draft: create or change the agent, then upload each file added since the last Save. A create, or a Save
+   * with uploads, leaves the form open on the saved agent, so the file rows show their index state; any other successful
+   * Save closes the form. The form is never left busy, also when a dependency rejects.
    * @returns resolution after the uploads.
    */
   readonly save = async (): Promise<void> => {
     const current = this.open()
     if (current === undefined || current.busy) return
     const epoch = this.epoch
-    const { name, description, instructions, connectors } = current.draft
     this.patch({ busy: true, error: null })
+    try {
+      await this.store(current, epoch)
+    } finally {
+      if (epoch === this.epoch) this.patch({ busy: false })
+    }
+  }
+
+  private async store(current: OpenState, epoch: number): Promise<void> {
+    const { name, description, instructions, connectors } = current.draft
     const input = { ...current.id === undefined ? {} : { id: current.id }, name, description, instructions, connectors }
     const result = await this.deps.save(input)
     if (epoch !== this.epoch) return
     if (!result.ok) {
-      this.patch({ busy: false, error: { kind: 'save', detail: failure(result) } })
+      this.patch({ error: { kind: 'save', detail: failure(result) } })
       return
     }
     const saved = result.value
+    const uploads = [...this.pending]
     this.patch({ mode: 'edit', id: saved.id, agentMode: saved.mode })
-    for (const [fileName, file] of [...this.pending]) {
-      const error = await this.deps.upload(saved.id, file)
+    for (const [fileName, file] of uploads) {
+      const upload = await this.deps.upload(saved.id, file)
       if (epoch !== this.epoch) return
-      if (error !== undefined) {
-        this.patch({ busy: false, error: { kind: 'upload', detail: `${fileName}: ${error}` } })
+      if (!upload.ok) {
+        this.patch({ error: { kind: 'upload', file: fileName, reason: upload.error } })
         return
       }
       this.pending.delete(fileName)
     }
-    this.patch({ busy: false })
     void this.loadAgents()
-    await this.refresh(saved.id)
+    if (current.mode === 'edit' && uploads.length === 0) this.close()
+    else await this.refresh(saved.id)
   }
 
   /** Open the delete confirmation. */
