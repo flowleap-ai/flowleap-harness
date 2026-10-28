@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { OcrRead } from '@deepseek-ai/dsh-flowleap-connectors'
 import { FILE_TEXT_NOTICE, extractText, listFiles, resolveOptions, serve, type AgentId } from '../src/index.ts'
-import { agentOn, callTool, chunks, logLines, makePdf, mountBuilder, ocrDouble, runtime, tempDir } from './harness.ts'
+import { agentOn, callTool, chunks, inThread, logLines, makePdf, mountBuilder, ocrDouble, runtime, tempDir } from './harness.ts'
 
 const INPUT = { name: 'Responder', description: 'Drafts.', connectors: [] }
 
@@ -34,7 +34,7 @@ function heldOcr() {
 async function mountRaw(ctx: Context, root: string) {
   const options = resolveOptions({
     root, contextLimitTokens: 50_000, maxFileBytes: 1024, basePreset: 'patent', presetOrder: 100, maxSearchResults: 8,
-    maxReadLocations: 10, maxReadChars: 1000,
+    maxReadLocations: 10, maxReadChars: 1000, extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512,
   })
   const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()
@@ -415,8 +415,8 @@ describe('flowleapAgents Remote', () => {
 describe('extractText', () => {
   it('fails a DOCX without text and an all-scanned PDF whose OCR reads blank pages', async () => {
     const docx = await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph('')] }] }))
-    expect(await extractText('empty.docx', new Uint8Array(docx), undefined)).toMatchObject({ kind: 'failed', reason: 'no-text' })
+    expect(await extractText('empty.docx', new Uint8Array(docx), inThread, undefined)).toMatchObject({ kind: 'failed', reason: 'no-text' })
     const blank = ocrDouble(() => ({ kind: 'read', pages: [{ page: 1, text: '  ' }] }))
-    expect(await extractText('scan.pdf', makePdf([null]), blank)).toEqual({ kind: 'failed', reason: 'no-text', message: 'the PDF holds no text' })
+    expect(await extractText('scan.pdf', makePdf([null]), inThread, blank)).toEqual({ kind: 'failed', reason: 'no-text', message: 'the PDF holds no text' })
   })
 })

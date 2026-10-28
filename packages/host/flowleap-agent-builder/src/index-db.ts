@@ -54,7 +54,7 @@ function unitOf(row: Row): LocationUnit {
   return text(row, 'unit') === 'paragraph' ? 'paragraph' : 'page'
 }
 
-const FAILURES: readonly AgentFileFailure[] = ['no-text', 'ocr-unavailable', 'ocr-failed', 'unreadable']
+const FAILURES: readonly AgentFileFailure[] = ['no-text', 'ocr-unavailable', 'ocr-failed', 'unreadable', 'too-large', 'timeout']
 
 function stateOf(row: Row): AgentFileState {
   const state = text(row, 'state')

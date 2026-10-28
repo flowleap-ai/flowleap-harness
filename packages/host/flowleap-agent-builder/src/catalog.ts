@@ -15,6 +15,8 @@ import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { FLOWLEAP_MCP_PREFIX } from './connectors.ts'
 import { fileNameProblem, newAgentId, type AgentDefinition, type FileNameProblem } from './definition.ts'
 import { extractText } from './extract.ts'
+import type { ParseResult } from './parse.ts'
+import { parseInWorker } from './parse-thread.ts'
 import { AgentIndex, type LocationRow, type SearchHit } from './index-db.ts'
 import { agentMode, renderContextFiles, renderInstructions, renderSearchFiles } from './mode.ts'
 import {
@@ -57,6 +59,12 @@ export interface CatalogOptions {
   readonly maxReadLocations: number
   /** Most characters of page text one `read_agent_file` call returns. */
   readonly maxReadChars: number
+  /** Wall-clock limit of reading one file in the extraction Worker, in milliseconds. */
+  readonly extractTimeoutMs: number
+  /** Most pages one PDF may have. */
+  readonly maxPages: number
+  /** V8 heap limit of the extraction Worker, in MB. */
+  readonly extractMemoryMb: number
   /** Loader name of the per-agent row; the plugin sets {@link AGENT_ROW_MODULE}. */
   readonly agentRow: string
 }
@@ -100,6 +108,8 @@ export class AgentCatalog extends Service {
   private started = false
   private base: PresetDefinition | undefined
   private waitingReported = false
+  /** The tail of the Worker parses; one runs at a time, so the Host holds at most one Worker heap. */
+  private parsing: Promise<unknown> = Promise.resolve()
   private readonly loaded: Promise<void>
 
   /**
@@ -509,11 +519,24 @@ export class AgentCatalog extends Service {
       this.emit()
     }
     const bytes = new Uint8Array(await readFile(join(agent.folder.dir, FILES_DIR, name)))
-    const extraction = await extractText(name, bytes, this.ctx.get('flowleapOcr'), this.abort.signal)
+    let extraction: Awaited<ReturnType<typeof extractText>>
+    try {
+      extraction = await extractText(name, bytes, (file, content) => this.parse(file, content), this.ctx.get('flowleapOcr'), this.abort.signal)
+    } catch (_aborted) {
+      // The Worker parse rejects only when close aborts it; the row stays `indexing`, and the next start reads the file again.
+      return
+    }
     if (this.abort.signal.aborted || agent.deleted) return
     if (!agent.index.complete(name, stored.sha256, extraction)) return
     void this.refresh(agent.folder.id)
     this.emit()
+  }
+
+  private parse(name: string, bytes: Uint8Array): Promise<ParseResult> {
+    const limits = { timeoutMs: this.options.extractTimeoutMs, memoryMb: this.options.extractMemoryMb, maxPages: this.options.maxPages }
+    const run = this.parsing.then(() => parseInWorker({ name, bytes }, limits, this.abort.signal))
+    this.parsing = run.catch(() => undefined)
+    return run
   }
 
   /**

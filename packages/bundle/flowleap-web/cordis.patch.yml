@@ -242,6 +242,9 @@
         maxSearchResults: 8
         maxReadLocations: 10
         maxReadChars: 40000
+        extractTimeoutMs: 120000
+        maxPages: 2000
+        extractMemoryMb: 512
 
     # The agent builder form: a New agent row in the new-session agent picker
     # and the agent form (name, description, instructions, files, connectors).

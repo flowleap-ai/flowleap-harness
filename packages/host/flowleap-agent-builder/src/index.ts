@@ -37,7 +37,11 @@ export {
   FILE_TEXT_CLOSE, FILE_TEXT_NOTICE, FILE_TEXT_OPEN, fenceFileText, locationLabel, locationMarker, neutralizeFileText,
 } from './file-text.ts'
 export type { FencedLocation } from './file-text.ts'
-export type { Extraction, LocationText } from './extract.ts'
+export type { Extraction, ParseStep } from './extract.ts'
+export { parseFile } from './parse.ts'
+export type { FileFailure, LocationText, ParseRequest, ParseResult } from './parse.ts'
+export { parseInWorker, workerLimits } from './parse-thread.ts'
+export type { ParseLimits } from './parse-thread.ts'
 export { AGENT_INDEX_SCHEMA_VERSION, AgentIndex, ftsExpression } from './index-db.ts'
 export type { LocationRow, SearchHit } from './index-db.ts'
 export {
@@ -89,6 +93,22 @@ export interface Config {
    * of a typical 3000-character PDF page.
    */
   maxReadChars: number
+  /**
+   * Wall-clock limit of reading one file in the extraction Worker, Worker start included, in milliseconds; over it the
+   * Worker ends and the file fails with `timeout`. The default 120000 leaves room for a `maxPages` PDF on a slow disk.
+   */
+  extractTimeoutMs: number
+  /**
+   * Most pages one PDF may have; a PDF with more fails with `too-large` before its pages are read. The default 2000
+   * holds a long prosecution history while it bounds the page loop.
+   */
+  maxPages: number
+  /**
+   * V8 heap limit of the extraction Worker, in MB (the old generation; the young generation gets one eighth of it); a
+   * file that needs more fails with `too-large`. The default 512 is about ten times the default `maxFileBytes`, room for
+   * pdfjs and mammoth to hold a 50 MB file and its decoded structures, while a DOCX zip bomb cannot reach the Host heap.
+   */
+  extractMemoryMb: number
 }
 
 /** Runtime schema for the row. */
@@ -102,6 +122,9 @@ export const Config: z<Config> = z.object({
   maxSearchResults: z.number().step(1).min(1).max(50).default(8),
   maxReadLocations: z.number().step(1).min(1).max(100).default(10),
   maxReadChars: z.number().step(1).min(1).default(40_000),
+  extractTimeoutMs: z.number().step(1).min(1).default(120_000),
+  maxPages: z.number().step(1).min(1).default(2000),
+  extractMemoryMb: z.number().step(1).min(16).default(512),
 })
 
 /**
@@ -121,6 +144,9 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
     maxSearchResults: config.maxSearchResults,
     maxReadLocations: config.maxReadLocations,
     maxReadChars: config.maxReadChars,
+    extractTimeoutMs: config.extractTimeoutMs,
+    maxPages: config.maxPages,
+    extractMemoryMb: config.extractMemoryMb,
     agentRow: AGENT_ROW_MODULE,
   }
 }

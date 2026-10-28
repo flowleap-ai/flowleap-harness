@@ -38,6 +38,9 @@ Mount the row in a composition with the agent preset registry, the base preset, 
     maxSearchResults: 8
     maxReadLocations: 10
     maxReadChars: 40000
+    extractTimeoutMs: 120000
+    maxPages: 2000
+    extractMemoryMb: 512
 ```
 
 | Field | Default | Meaning |
@@ -50,6 +53,9 @@ Mount the row in a composition with the agent preset registry, the base preset, 
 | `presetOrder` | `100` | Roster order of the agent presets; the shipped presets use 0 to 3 |
 | `maxSearchResults` | `8` | Most passages one `search_agent_files` call returns |
 | `maxReadLocations` | `10` | Most pages or paragraphs one `read_agent_file` call returns |
+| `extractTimeoutMs` | `120000` | Wall-clock limit of reading one file in the extraction Worker, Worker start included; over it the file fails with `timeout`. Room for a `maxPages` PDF on a slow disk |
+| `maxPages` | `2000` | Most pages one PDF may have; a PDF with more fails with `too-large` before its pages are read. Holds a long prosecution history |
+| `extractMemoryMb` | `512` | Memory limit of the extraction Worker: its V8 old generation (the young generation gets one eighth of it), and the sum of its heap and external memory, which the Host samples every 25 ms; over it the file fails with `too-large`. About ten times the default `maxFileBytes` |
 | `maxReadChars` | `40000` | Most characters of page text one `read_agent_file` call returns; about 10000 tokens, so the default 10 pages of a typical 3000-character page fit, and one TXT or MD page cannot fill the context |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-agent-builder) is the exhaustive source for every accepted field.
@@ -62,7 +68,7 @@ A folder holds `agent.yaml` (name, description, connectors), `instructions.md`, 
 
 ### Files
 
-The upload route accepts PDF, DOCX, TXT and MD files with a plain name of at most 240 UTF-8 bytes, so the temporary name of a partial upload fits the 255-byte file-name limit. It creates a missing `files/` folder, and a failed write answers an error and removes the partial file. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call that receives only those pages (a PDF of them built with pdfjs `extractPages`, or the whole PDF when no page has a text layer), DOCX by paragraph through `mammoth`, and TXT and MD as one page. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`). At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`. The index is derived data: an `index.sqlite` that cannot be opened (damaged, or a newer schema) is logged, renamed to `index.sqlite.unreadable-<ms>`, and replaced by an empty index, and the files are read again. An agent whose index can be neither opened nor moved is logged and not loaded; the other agents load.
+The upload route accepts PDF, DOCX, TXT and MD files with a plain name of at most 240 UTF-8 bytes, so the temporary name of a partial upload fits the 255-byte file-name limit. It creates a missing `files/` folder, and a failed write answers an error and removes the partial file. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call that receives only those pages (a PDF of them built with pdfjs `extractPages`, or the whole PDF when no page has a text layer), DOCX by paragraph through `mammoth`, and TXT and MD as one page. The parse runs in a fresh `worker_threads` Worker (`lib/worker.cjs` when built, the `src/worker.ts` entry through tsx from source), one file at a time, so the Host holds at most one Worker heap; the Mistral OCR call stays in the Host. Over `extractTimeoutMs` or `extractMemoryMb` the Host ends the Worker and the file fails with `timeout` or `too-large`. Close and plugin disposal end a running Worker without waiting for it; that file stays `indexing` and is read again at the next start. pdfjs-dist 6.3.289 has no `isEvalSupported` option and no code path that evaluates PDF content as JavaScript. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`, `too-large`, `timeout`); the form shows every failure as "Cannot read". At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`. The index is derived data: an `index.sqlite` that cannot be opened (damaged, or a newer schema) is logged, renamed to `index.sqlite.unreadable-<ms>`, and replaced by an empty index, and the files are read again. An agent whose index can be neither opened nor moved is logged and not loaded; the other agents load.
 
 ### Mode
 
@@ -184,6 +190,7 @@ The tool list is stable for a Session unless the MCP row connects or disconnects
 <a id="known-limitations-and-deferred-work"></a>
 
 - **The flowleap-os follow-up for firm agents.** flowleap-os must mount the firm agents folder into each runtime, read only, at one fixed path, and set `firmRoot` to that path in the runtime profile's `flowleap-agent-builder` row. It must also give the firm admin a writable copy of the same folder (for example the admin's own runtime with `root` on it, or an admin upload path in flowleap-os) and a way to publish it. Each firm folder must follow the folder format above; this Host never writes there, and it keeps the derived indexes below `<root>/.firm/`.
+- **Sampled Worker memory.** The V8 heap limits do not count array buffers and external strings, so the Host samples the Worker's heap and external memory every 25 ms; a Worker can pass `extractMemoryMb` by what it allocates within one period before it ends.
 - **No sharing** — agents belong to their creator; sharing is #56.
 - **One OCR call per scanned PDF** — the pages without a text layer go to Mistral OCR in one call. When OCR fails or no key is stored, the text-layer pages stay indexed and the other pages have no text; only a PDF with no text at all fails.
 - **The base preset is copied at registration** — a later change of the base preset reaches the agent presets at the next change of each agent or at the next start.

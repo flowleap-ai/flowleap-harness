@@ -47,6 +47,10 @@ export type AgentFileFailure =
   | 'ocr-failed'
   /** The file cannot be parsed as its type. */
   | 'unreadable'
+  /** Reading the file passes the page limit or the memory limit of the extraction Worker. */
+  | 'too-large'
+  /** Reading the file passes the time limit of the extraction Worker. */
+  | 'timeout'
 
 /** Index state of one file: one lifecycle from `indexing` to `indexed` or `failed`. */
 export type AgentFileState =

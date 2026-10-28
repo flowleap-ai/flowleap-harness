@@ -12755,6 +12755,9 @@ importers:
       docx:
         specifier: 9.9.0
         version: 9.9.0
+      execa:
+        specifier: ^10.0.1
+        version: 10.0.1
 
   packages/host/flowleap-connectors:
     dependencies:

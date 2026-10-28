@@ -17,7 +17,7 @@ import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
 import { onTestFinished, vi } from 'vitest'
 import * as AgentRow from '../src/agent-row.ts'
-import { resolveOptions, serve, type Config } from '../src/index.ts'
+import { parseFile, resolveOptions, serve, type Config, type ParseStep } from '../src/index.ts'
 
 /** A tool definition with a fixed text answer, as a stand-in for a connector tool. */
 export function stubTool(name: string) {
@@ -43,6 +43,9 @@ export async function tempDir(prefix: string): Promise<string> {
   onTestFinished(() => rm(dir, { recursive: true, force: true }))
   return dir
 }
+
+/** The parse step on the test thread, so coverage sees it. */
+export const inThread: ParseStep = (name, bytes) => parseFile({ name, bytes, maxPages: 2000 })
 
 /** An OCR double that counts its calls. */
 export function ocrDouble(read: (bytes: Uint8Array) => OcrRead) {
@@ -93,7 +96,8 @@ export async function mountBuilder(ctx: Context, config: Partial<Config> & { roo
   ctx.loader.builtins['flowleap-agent'] = AgentRow
   const options = resolveOptions({
     contextLimitTokens: 50_000, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
-    maxSearchResults: 8, maxReadLocations: 10, maxReadChars: 40_000, ...config,
+    maxSearchResults: 8, maxReadLocations: 10, maxReadChars: 40_000,
+    extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512, ...config,
   })
   const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()
