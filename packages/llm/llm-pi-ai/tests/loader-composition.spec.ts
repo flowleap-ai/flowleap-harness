@@ -121,6 +121,41 @@ describe('llm-pi-ai real dormant composition', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
   })
 
+  it('reports a route notice header to the Session user and keeps it out of the model output', async () => {
+    vi.stubEnv('PI_COMPOSITION_KEY', '')
+    const warning = 'You used 85 % of your monthly model budget: 42.50 USD of 50.00 USD in 2026-10 (UTC).'
+    const server = await mockServer([
+      { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': warning } },
+      { events: textEvents, headers: { 'X-Flowleap-Budget-Warning': warning } },
+      { events: textEvents },
+    ])
+    const { ctx, settingsPath } = await loadComposition()
+    const notices: unknown[] = []
+    ctx.on('llm/response-notice', (notice) => { notices.push(notice) })
+    await writeFile(settingsPath, [
+      '- id: llm-pi-ai',
+      '  config:',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+      `        baseURL: ${server.url}`,
+      '        noticeHeaders: [x-flowleap-budget-warning]',
+      '',
+    ].join('\n'))
+    await vi.waitFor(() => {
+      expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek'])
+    }, { timeout: 5000 })
+
+    const sessionId = 'session-budget' as never
+    const result = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
+    expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
+    expect(notices).toEqual([{ sessionId, provider: 'deepseek', model: 'deepseek-flash', text: warning }])
+    // A request without a Session has no user to tell; a response without the header has nothing to tell.
+    await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
+    await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [], sessionId })
+    expect(notices).toHaveLength(1)
+  })
+
   it('offers OpenAI sign-in by API key only, while other subscription logins stay', async () => {
     const { ctx } = await loadComposition()
     const methods = (provider: string): string[] | undefined => ctx.authorization.list()

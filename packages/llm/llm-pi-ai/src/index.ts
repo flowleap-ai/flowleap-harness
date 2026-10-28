@@ -75,7 +75,7 @@ import { registerPiAiFlows } from './login.ts'
 import { providerDefaultsOf } from './provider-data.ts'
 
 export { PiAiAdapter } from './adapter.ts'
-export type { PiAiAdapterOptions } from './adapter.ts'
+export type { PiAiAdapterOptions, PiAiResponseNotice } from './adapter.ts'
 export { Config } from './config.ts'
 export type {
   Options,
@@ -224,6 +224,9 @@ export function apply(ctx: Context, config: Config): void {
       hostPath => ctx.get('fs')?.processPathFromHostPath(hostPath),
       ref,
     ),
+    onResponseNotice: ({ sessionId, provider, model, text }) => {
+      ctx.emit('llm/response-notice', { sessionId, provider, model, text })
+    },
     onReplayDegrade: ({ provider, model, reason }) => {
       ctx.logger.warn(
         `llm-pi-ai: unusable replay state on assistant history for route "${provider}/${model}";`

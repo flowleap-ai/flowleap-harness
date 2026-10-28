@@ -308,3 +308,10 @@ it('unsubscribes the lexicon and refuses the old binding after Session disposal'
   expect(b.shell.requestDraftInitialization({ prompt: 'late edit', clearPreviousDraft: true })).toBe('blocked')
   expect(() => b.hub.requestDraftInitialization(b.binding, { prompt: 'late edit' })).toThrow('retained Session binding')
 })
+
+it('shows a provider notice as an info notice in its Session composer, and ignores an unknown Session', async () => {
+  const b = await fixture(null)
+  expect(b.hub.notifySession(b.id, 'Notice from the model gateway: 85 %')).toBe(true)
+  expect(b.shell.notices.getSnapshot()).toMatchObject({ level: 'info', text: 'Notice from the model gateway: 85 %' })
+  expect(b.hub.notifySession(SessionId('draft-hub-unknown'), 'x')).toBe(false)
+})

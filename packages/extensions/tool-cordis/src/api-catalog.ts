@@ -5212,6 +5212,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'provider', description: 'route whose model catalog changed.' }],
   },
   {
+    name: 'llm/response-notice',
+    mode: 'emit',
+    signature: '\'llm/response-notice\'(notice: LlmResponseNotice): void',
+    summary: 'A provider response of a Session\'s request carried a notice for the user of that Session, such as a gateway\'s budget warning.',
+    description: 'A provider response of a Session\'s request carried a notice for the user of that Session, such as a gateway\'s budget warning. The notice is for the user only: it is not in the Session log and never reaches the model.',
+    parameters: [{ name: 'notice', description: 'the Session, the route and model of the request, and the notice text.' }],
+  },
+  {
     name: 'llm/stream',
     mode: 'waterfall',
     signature: '\'llm/stream\'(this: LlmRuntime, options: GenerateOptions, next: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk>',
@@ -7162,6 +7170,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LlmResolvedModelInfo',
     declaration: 'export interface LlmResolvedModelInfo extends LlmModelInfo {\n    context?: LlmModelContext;\n    defaultMaxTokens?: number;\n    reasoning?: LlmModelReasoningInfo;\n    systemPromptUpdate?: SystemPromptUpdate;\n    toolUpdate?: ToolUpdate;\n}',
+  },
+  {
+    name: 'LlmResponseNotice',
+    declaration: 'export interface LlmResponseNotice {\n    readonly sessionId: Branded<\'SessionId\'>;\n    readonly provider: string;\n    readonly model: string;\n    readonly text: string;\n}',
   },
   {
     name: 'LlmRuntime',

@@ -299,6 +299,12 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   })
 
   const inputHub = new InputHub(ctx, t)
+  // A provider response notice (a gateway budget warning) shows in its Session's composer; the model never sees it.
+  ctx.inject(['remote'], (scope) => {
+    scope.effect(() => scope.remote.$on('llm/response-notice', (notice) => {
+      inputHub.notifySession(notice.sessionId, t('model.responseNotice', { text: notice.text }))
+    }), 'ui-conversation: provider response notices')
+  })
   const composerBlocks = new ComposerBlockRegistry()
 
   ctx.inject(['commandUi'], (scope) => {

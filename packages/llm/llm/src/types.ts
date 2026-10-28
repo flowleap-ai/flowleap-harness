@@ -28,7 +28,27 @@ declare module '@deepseek-ai/cordis' {
      * @param provider - route whose model catalog changed.
      */
     'llm/models-updated'(provider: string): void
+    /**
+     * A provider response of a Session's request carried a notice for the user
+     * of that Session, such as a gateway's budget warning. The notice is for
+     * the user only: it is not in the Session log and never reaches the model.
+     * @mode emit
+     * @param notice - the Session, the route and model of the request, and the notice text.
+     */
+    'llm/response-notice'(notice: LlmResponseNotice): void
   }
+}
+
+/** One provider-response notice for the user of a Session. */
+export interface LlmResponseNotice {
+  /** The Session whose request got the response. */
+  readonly sessionId: Branded<'SessionId'>
+  /** Route key of the request. */
+  readonly provider: string
+  /** Model id of the request. */
+  readonly model: string
+  /** The notice text, as the provider sent it. */
+  readonly text: string
 }
 
 export type {

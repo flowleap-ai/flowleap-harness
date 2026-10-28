@@ -185,6 +185,20 @@ export class InputHub implements SessionInputResolver {
   }
 
   /**
+   * Show an info notice in the composer of an addressable Session; a Session
+   * this client has no binding for shows nothing.
+   * @param id - session id.
+   * @param text - the notice text.
+   * @returns whether a composer took the notice.
+   */
+  notifySession(id: SessionId, text: string): boolean {
+    const binding = this.sessions().binding(id)
+    if (binding === undefined) return false
+    this.shellFor(binding).notify('info', text)
+    return true
+  }
+
+  /**
    * Resident shell by session id (service-face path; the provide channel has
    * normally created it already — this covers direct id-addressed access).
    * @param id - session id.

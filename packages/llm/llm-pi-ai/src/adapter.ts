@@ -113,6 +113,54 @@ export interface PiAiAdapterOptions {
    * conversion because its stored replay state is unusable by this build.
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
+  /**
+   * Receive the value of one of the route's `noticeHeaders` on a provider
+   * response of a Session's request. Called once per header and response,
+   * before the response body streams; the value never reaches the model.
+   */
+  onResponseNotice?: (notice: PiAiResponseNotice) => void
+}
+
+/** One `noticeHeaders` value of a provider response. */
+export interface PiAiResponseNotice {
+  /** The Session whose request got the response. */
+  readonly sessionId: NonNullable<GenerateOptions['sessionId']>
+  /** Route key of the request. */
+  readonly provider: string
+  /** Model id of the request. */
+  readonly model: string
+  /** The header name, lower case, as the route's `noticeHeaders` names it. */
+  readonly header: string
+  /** The header value. */
+  readonly text: string
+}
+
+/**
+ * The pi-ai `onResponse` hook that reports a route's notice headers, or none
+ * when the route names no header, the request has no Session, or no observer
+ * listens.
+ * @param profile - the route profile.
+ * @param options - the request.
+ * @param observe - the observer.
+ * @returns the hook option to spread into the stream options.
+ */
+function noticeOption(
+  profile: ResolvedPiAiProviderProfile,
+  options: GenerateOptions,
+  observe: ((notice: PiAiResponseNotice) => void) | undefined,
+): Pick<SimpleStreamOptions, 'onResponse'> {
+  const headers = profile.noticeHeaders
+  const sessionId = options.sessionId
+  if (headers === undefined || headers.length === 0 || sessionId === undefined || observe === undefined) return {}
+  return {
+    onResponse: (response) => {
+      const received = new Map(Object.entries(response.headers).map(([name, value]) => [name.toLowerCase(), value]))
+      for (const header of headers) {
+        const text = received.get(header)?.trim()
+        if (text !== undefined && text.length > 0) observe({ sessionId, provider: profile.provider, model: options.model, header, text })
+      }
+    },
+  }
 }
 
 /** The two auth injectables a pi-ai collection is built with. */
@@ -415,6 +463,7 @@ export class PiAiAdapter extends LlmAdapter {
         }, onReplayDegrade, updates.systemPromptUpdate === 'in-history')
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
+        ...noticeOption(profile, options, this.config.onResponseNotice),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
