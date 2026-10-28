@@ -38,7 +38,8 @@ export type {
   ChatFlowDataInjected, ChatFlowHookContext, ChatFlowInjected, ChatFlowOwnerProps, ChatFlowSlotProps, UseGroupHeaderAction,
   CommandRowOwnerProps, CommandRowProps, MessageImagesProps, OpenFileOptions, PresentationInjected,
   QuotaNoticeCode, QuotaNoticeHostProps, QuotaNoticeInjected, QuotaNoticeOwnerProps, QuotaNoticeState,
-  ReasoningBodyOwnerProps, ReasoningContentInput, RunningIconOwnerProps, UserContentAttachment, UserContentData, UserContentInput,
+  ReasoningBodyOwnerProps, ReasoningContentInput, RunningIconOwnerProps, UserContentAttachment, UserContentData,
+  UserContentInput, UserBeforeOwnerProps,
   TurnProcessOwnerProps, TurnTailOwnerProps, UseChat, UseChatNodeTurnData, UseDisclosure, UsePresentation, UseGroupAction,
 } from './contract/slots.ts'
 export type {

@@ -18,3 +18,6 @@ docs/persistence-changes/historical-formats/*.schema.json linguist-generated=tru
 # flowleap-backend packages/connectors; its upstream test files carry trailing
 # whitespace the sync must not touch, so the whitespace gate skips them.
 vendor/flowleap-connectors/src/**/*.test.ts whitespace=-trailing-space
+
+# Unified patch blank context lines require their leading space.
+patches/*.patch whitespace=-blank-at-eol
