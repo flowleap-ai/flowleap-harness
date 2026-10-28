@@ -98,6 +98,6 @@ it.skipIf(MODE === 'record')('runs an agent preset that searches its own PDF wit
   agent.followup(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
   await agent.whenIdle()
   const result = agent.session.snapshotEvents().find(event => event.type === 'tool/result')
-  expect(JSON.stringify(result)).toContain('[1] Playbook.pdf, page 2')
+  expect(JSON.stringify(result)).toContain('<<<agent-files>>>\\n=== Playbook.pdf | page 2 ===')
   expect(await readPersistedEvents(scaffold, sessionId)).toEqual(agent.session.snapshotEvents())
 }, 90_000)

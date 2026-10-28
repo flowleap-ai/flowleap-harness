@@ -9,7 +9,7 @@ import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { z } from 'zod'
 import type { LocationRow, SearchHit } from './index-db.ts'
-import { locationLabel } from './mode.ts'
+import { fenceFileText, locationMarker, type FencedLocation } from './file-text.ts'
 
 /** Name of the search tool. */
 export const SEARCH_AGENT_FILES_NAME = 'search_agent_files'
@@ -69,20 +69,21 @@ function parse<T>(schema: z.ZodType<T>, tool: string, args: unknown): T {
 }
 
 /**
- * Render search hits as model-facing text: one numbered passage per hit after a line with the file and the location.
+ * Render search hits as model-facing text: inside the file-text fence, one passage per hit after a marker line with the
+ * file and the location.
  * @param query - the query.
  * @param hits - the hits.
  * @returns the text.
  */
 export function renderHits(query: string, hits: readonly SearchHit[]): string {
   if (hits.length === 0) return `No passage in the agent files matches "${query}". Try other words, or read a file with ${READ_AGENT_FILE_NAME}.`
-  const lines = hits.map((hit, index) => `[${String(index + 1)}] ${hit.file}, ${locationLabel(hit.unit, hit.at)}\n${hit.passage}`)
-  return `${String(hits.length)} ${hits.length === 1 ? 'passage' : 'passages'} for "${query}" (cite the file and the page or paragraph):\n\n${lines.join('\n\n')}`
+  const passages = hits.map(hit => ({ marker: locationMarker(hit.file, hit.unit, hit.at), text: hit.passage }))
+  return `${String(hits.length)} ${hits.length === 1 ? 'passage' : 'passages'} for "${query}".\n\n${fenceFileText(passages)}`
 }
 
 /**
- * Render read locations as model-facing text. The page text of the whole answer is at most `maxChars` characters; an
- * answer cut at the limit ends with the arguments of the call that reads on.
+ * Render read locations as model-facing text, inside the file-text fence. The page text of the whole answer is at most
+ * `maxChars` characters; an answer cut at the limit ends with the arguments of the call that reads on.
  * @param file - file name.
  * @param rows - the locations.
  * @param total - the file's location count.
@@ -93,7 +94,7 @@ export function renderHits(query: string, hits: readonly SearchHit[]): string {
 export function renderRead(file: string, rows: readonly LocationRow[], total: number, maxChars: number, start = 0): string {
   const [first] = rows
   if (first === undefined) return `${file} has no text in that range; it has ${String(total)} indexed locations.`
-  const parts: string[] = []
+  const parts: FencedLocation[] = []
   let budget = maxChars
   let next: { readonly page: number; readonly start: number } | undefined
   for (const [index, row] of rows.entries()) {
@@ -104,8 +105,7 @@ export function renderRead(file: string, rows: readonly LocationRow[], total: nu
     const offset = index === 0 ? start : 0
     const text = row.text.slice(offset, offset + budget)
     budget -= text.length
-    const from = offset === 0 ? '' : `, from character ${String(offset)}`
-    parts.push(`=== ${file} | ${locationLabel(row.unit, row.at)}${from} ===\n${text}`)
+    parts.push({ marker: locationMarker(file, row.unit, row.at, offset), text })
     if (offset + text.length < row.text.length) {
       next = { page: row.at, start: offset + text.length }
       break
@@ -115,7 +115,7 @@ export function renderRead(file: string, rows: readonly LocationRow[], total: nu
   const tail = next === undefined
     ? ''
     : `\n\n[This answer stops at the limit of ${String(maxChars)} characters. Read on with ${READ_AGENT_FILE_NAME} ${JSON.stringify({ file, page: next.page, ...next.start === 0 ? {} : { start: next.start } })}.]`
-  return `${head}\n\n${parts.join('\n\n')}${tail}`
+  return `${head}\n\n${fenceFileText(parts)}${tail}`
 }
 
 /**

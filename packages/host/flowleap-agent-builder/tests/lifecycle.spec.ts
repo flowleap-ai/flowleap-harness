@@ -6,7 +6,7 @@ import { Document, Packer, Paragraph } from 'docx'
 import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { OcrRead } from '@deepseek-ai/dsh-flowleap-connectors'
-import { extractText, listFiles, resolveOptions, serve, type AgentId } from '../src/index.ts'
+import { FILE_TEXT_NOTICE, extractText, listFiles, resolveOptions, serve, type AgentId } from '../src/index.ts'
 import { agentOn, callTool, chunks, logLines, makePdf, mountBuilder, ocrDouble, runtime, tempDir } from './harness.ts'
 
 const INPUT = { name: 'Responder', description: 'Drafts.', connectors: [] }
@@ -301,7 +301,7 @@ describe('files', () => {
     const agent = await agentOn(ctx, 's1', id)
     expect(await callTool(ctx, agent, 'read_agent_file', { file: 'guide.docx', page: 2 })).toMatchObject({
       isError: false,
-      value: 'guide.docx: 2 paragraphs with text.\n\n=== guide.docx | paragraph 2 ===\nUse ac\n\n'
+      value: `guide.docx: 2 paragraphs with text.\n\n${FILE_TEXT_NOTICE}\n<<<agent-files>>>\n=== guide.docx | paragraph 2 ===\nUse ac\n<<</agent-files>>>\n\n`
         + '[This answer stops at the limit of 6 characters. Read on with read_agent_file {"file":"guide.docx","page":2,"start":6}.]',
     })
   })

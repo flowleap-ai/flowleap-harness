@@ -3,8 +3,9 @@
  * @module
  */
 
+import { fenceFileText, locationMarker } from './file-text.ts'
 import type { LocationRow } from './index-db.ts'
-import type { AgentMode, LocationUnit } from './types.ts'
+import type { AgentMode } from './types.ts'
 
 /** Characters counted as one token in the estimate. */
 export const CHARS_PER_TOKEN = 4
@@ -29,16 +30,6 @@ export function agentMode(chars: number, limitTokens: number): AgentMode {
   return estimateTokens(chars) <= limitTokens ? 'context' : 'search'
 }
 
-/**
- * Name one location for a citation.
- * @param unit - what the number counts.
- * @param at - the 1-based number.
- * @returns for example `page 3` or `paragraph 12`.
- */
-export function locationLabel(unit: LocationUnit, at: number): string {
-  return `${unit} ${String(at)}`
-}
-
 /** Heading of the instructions section. */
 export const INSTRUCTIONS_HEADING = 'Agent instructions (written by the attorney who made this agent)'
 
@@ -54,19 +45,16 @@ export function renderInstructions(name: string, instructions: string): string {
 
 /**
  * Render the files section of the context mode: every location, in the order of `rows` (file name, then page), each
- * after a marker line that names the file and the location.
+ * after a marker line that names the file and the location, all inside the file-text fence.
  * @param rows - all indexed locations.
  * @returns the section text.
  */
 export function renderContextFiles(rows: readonly LocationRow[]): string {
-  const body = rows.map(row => `=== ${row.file} | ${locationLabel(row.unit, row.at)} ===\n${row.text}`).join('\n\n')
   return [
     'Agent files (full text):',
     'The attorney gave this agent the files below. They are not in the workspace, so do not open them with file tools: '
-    + 'the text that follows is their full content. Each part starts with a line "=== <file> | page N ===" (or "paragraph N" for a Word file). '
-    + 'When you use a passage, cite the file name and the page or paragraph.',
-    '',
-    body,
+    + 'the text that follows is their full content. Each part starts with a line "=== <file> | page N ===" (or "paragraph N" for a Word file).',
+    fenceFileText(rows.map(row => ({ marker: locationMarker(row.file, row.unit, row.at), text: row.text }))),
   ].join('\n')
 }
 

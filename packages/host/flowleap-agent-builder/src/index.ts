@@ -33,11 +33,15 @@ export {
 } from './definition.ts'
 export type { AgentDefinition, FileNameProblem } from './definition.ts'
 export { extractText } from './extract.ts'
+export {
+  FILE_TEXT_CLOSE, FILE_TEXT_NOTICE, FILE_TEXT_OPEN, fenceFileText, locationLabel, locationMarker, neutralizeFileText,
+} from './file-text.ts'
+export type { FencedLocation } from './file-text.ts'
 export type { Extraction, LocationText } from './extract.ts'
 export { AGENT_INDEX_SCHEMA_VERSION, AgentIndex, ftsExpression } from './index-db.ts'
 export type { LocationRow, SearchHit } from './index-db.ts'
 export {
-  CHARS_PER_TOKEN, INSTRUCTIONS_HEADING, agentMode, estimateTokens, locationLabel, renderContextFiles, renderInstructions,
+  CHARS_PER_TOKEN, INSTRUCTIONS_HEADING, agentMode, estimateTokens, renderContextFiles, renderInstructions,
   renderSearchFiles,
 } from './mode.ts'
 export {

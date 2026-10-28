@@ -114,7 +114,7 @@ describe('files', () => {
     const searchAgent = await agentOn(ctx, 'c2', id)
     expect(ctx.tools.schemas(searchAgent).map(schema => schema.name).sort()).toEqual(['read_agent_file', 'search_agent_files'])
     expect(await callTool(ctx, searchAgent, 'search_agent_files', { query: '0123456789abcdefghij' })).toMatchObject({
-      isError: false, value: expect.stringContaining('[1] a.txt, page 1') as string,
+      isError: false, value: expect.stringContaining('<<<agent-files>>>\n=== a.txt | page 1 ===') as string,
     })
     expect(ctx.tools.schemas(contextAgent).map(schema => schema.name)).toEqual([])
   })
