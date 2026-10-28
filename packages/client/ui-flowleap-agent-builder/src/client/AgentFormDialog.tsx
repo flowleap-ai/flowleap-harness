@@ -4,9 +4,10 @@ import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import {
-  Button, Checkbox, FileTypeIcon, IconCloseOutlineRegular, IconTrashOutlineRegular, Input, Modal, fileSizeText,
+  Button, Checkbox, FileTypeIcon, IconCloseOutlineRegular, IconTrashOutlineRegular, Input, Modal, RiskConfirmation, fileSizeText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { AgentDraft, AgentFileRow, AgentFormState, ConnectorChoice } from './form-store.ts'
+import type { AgentMode, ConnectorChoiceId } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
+import type { AgentDraft, AgentFileRowState, AgentFormError, AgentFormState } from './form-store.ts'
 import type { FlowleapAgentBuilderKey } from './locales.ts'
 import css from './AgentBuilder.module.css'
 
@@ -15,21 +16,49 @@ export interface AgentFormDialogInjected {
   hooks: {
     agentForm: SnapshotStore<AgentFormState>
   }
-  connectors: readonly ConnectorChoice[]
   close: () => void
-  edit: (patch: Partial<AgentDraft>) => void
-  toggleConnector: (id: string, selected: boolean) => void
+  edit: (patch: Partial<Pick<AgentDraft, 'name' | 'description' | 'instructions'>>) => void
+  toggleConnector: (id: ConnectorChoiceId, selected: boolean) => void
   addFiles: (files: readonly File[]) => void
-  removeFile: (name: string) => void
+  removeFile: (name: string) => Promise<void>
+  save: () => Promise<void>
+  requestDelete: () => void
+  cancelDelete: () => void
+  confirmDelete: () => Promise<void>
 }
 
 type AgentFormDialogProps = PropsRuntime<'shell.overlay'>
   & PropsLocale<'flowleapAgentBuilder'> & InjectFace<AgentFormDialogInjected>
 
-const FILE_STATE_KEY: Record<AgentFileRow['state'], FlowleapAgentBuilderKey> = {
+const FILE_STATE_KEY: Record<AgentFileRowState, FlowleapAgentBuilderKey> = {
+  pending: 'file.pending',
   indexed: 'file.indexed',
   indexing: 'file.indexing',
   failed: 'file.failed',
+}
+
+interface ConnectorKeys {
+  readonly title: FlowleapAgentBuilderKey
+  readonly description: FlowleapAgentBuilderKey
+}
+
+const CONNECTOR_KEYS: Record<ConnectorChoiceId, ConnectorKeys> = {
+  'epo-ops': { title: 'connector.epo-ops.title', description: 'connector.epo-ops.description' },
+  'uspto-odp': { title: 'connector.uspto-odp.title', description: 'connector.uspto-odp.description' },
+  flowleap: { title: 'connector.flowleap.title', description: 'connector.flowleap.description' },
+  'semantic-scholar': { title: 'connector.semantic-scholar.title', description: 'connector.semantic-scholar.description' },
+}
+
+const MODE_KEY: Record<AgentMode, FlowleapAgentBuilderKey> = {
+  context: 'mode.context',
+  search: 'mode.search',
+}
+
+const ERROR_KEY: Record<AgentFormError, FlowleapAgentBuilderKey> = {
+  load: 'error.load',
+  save: 'error.save',
+  upload: 'error.upload',
+  delete: 'error.delete',
 }
 
 /**
@@ -38,15 +67,16 @@ const FILE_STATE_KEY: Record<AgentFileRow['state'], FlowleapAgentBuilderKey> = {
  * @returns the modal form, or null while closed.
  */
 export function AgentFormDialog({
-  t, useAgentForm, connectors, close, edit, toggleConnector, addFiles, removeFile,
+  t, useAgentForm, close, edit, toggleConnector, addFiles, removeFile, save, requestDelete, cancelDelete, confirmDelete,
 }: AgentFormDialogProps) {
   const state = useAgentForm(value => value)
   const ids = useId()
   const picker = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
   if (state.kind !== 'open') return null
-  const { draft, mode } = state
-  const ready = draft.name.trim() !== '' && draft.instructions.trim() !== ''
+  const { draft, mode, connectors, busy } = state
+  const ready = draft.name.trim() !== '' && draft.instructions.trim() !== '' && !busy
 
   return (
     <Modal
@@ -60,19 +90,29 @@ export function AgentFormDialog({
       footer={(
         <div className={css.footer}>
           {mode === 'edit' && (
-            <Button variant="ghost" className={css.delete} icon={<IconTrashOutlineRegular size={14} />}>
+            <Button variant="ghost" className={css.delete} disabled={busy} icon={<IconTrashOutlineRegular size={14} />}
+              onClick={() => { setAcknowledged(false); requestDelete() }}>
               {t('action.delete')}
             </Button>
           )}
           <span className={css.footerSpacer} />
-          <Button variant="outline" onClick={close}>{t('action.cancel')}</Button>
-          <Button variant="primary" disabled={!ready} onClick={close}>
-            {t(mode === 'create' ? 'action.create' : 'action.save')}
+          <Button variant="outline" onClick={close}>{t(mode === 'create' ? 'action.cancel' : 'action.close')}</Button>
+          <Button variant="primary" disabled={!ready} onClick={() => { void save() }}>
+            {t(busy ? 'action.saving' : mode === 'create' ? 'action.create' : 'action.save')}
           </Button>
         </div>
       )}
     >
       <div className={css.form}>
+        {state.error !== null && (
+          <p className={css.error} role="alert">{t(ERROR_KEY[state.error.kind], { detail: state.error.detail })}</p>
+        )}
+        {state.agentMode !== undefined && (
+          <p className={css.mode}>
+            <span className={css.modeLabel}>{t('mode.label')}</span>
+            <span>{t(MODE_KEY[state.agentMode])}</span>
+          </p>
+        )}
         <div className={css.field}>
           <label className={css.label} htmlFor={`${ids}-name`}>{t('name.label')}</label>
           <Input id={`${ids}-name`} data-modal-autofocus className={css.input as string}
@@ -132,7 +172,7 @@ export function AgentFormDialog({
                     <span className={css.fileSize}>{fileSizeText(file.bytes)}</span>
                     <span className={css[`state-${file.state}`]}>{t(FILE_STATE_KEY[file.state])}</span>
                     <button type="button" className={css.remove} aria-label={t('files.remove', { name: file.name })}
-                      onClick={() => { removeFile(file.name) }}>
+                      onClick={() => { void removeFile(file.name) }}>
                       <IconCloseOutlineRegular size={12} />
                     </button>
                   </li>
@@ -150,12 +190,12 @@ export function AgentFormDialog({
                 <Checkbox
                   checked={row.configured && draft.connectors.includes(row.id)}
                   disabled={!row.configured}
-                  label={t(`connector.${row.id}.title` as FlowleapAgentBuilderKey)}
+                  label={t(CONNECTOR_KEYS[row.id].title)}
                   onChange={(next) => { toggleConnector(row.id, next) }}
                 />
                 <span className={css.connectorDescription}>
                   {row.configured
-                    ? t(`connector.${row.id}.description` as FlowleapAgentBuilderKey)
+                    ? t(CONNECTOR_KEYS[row.id].description)
                     : t('connectors.notConfigured')}
                 </span>
               </li>
@@ -163,6 +203,19 @@ export function AgentFormDialog({
           </ul>
         </section>
       </div>
+      <RiskConfirmation
+        open={state.confirmingDelete}
+        title={t('delete.title', { name: draft.name })}
+        description={t('delete.description')}
+        acknowledgeLabel={t('delete.acknowledge')}
+        cancelLabel={t('action.cancel')}
+        closeLabel={t('form.close')}
+        confirmLabel={t('action.delete')}
+        acknowledged={acknowledged}
+        onAcknowledgedChange={setAcknowledged}
+        onCancel={cancelDelete}
+        onConfirm={() => { void confirmDelete() }}
+      />
     </Modal>
   )
 }
