@@ -10,7 +10,7 @@
  */
 
 import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
-import { unwatchFile, watchFile, type Stats } from 'node:fs'
+import { statSync, unwatchFile, watchFile, type Stats } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import chokidar from 'chokidar'
@@ -56,6 +56,11 @@ export interface Config {
   agentsHome?: string
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
+  /**
+   * Fail the entry at load when a `customSkillDirs` root is not an existing
+   * directory. Defaults to false: a missing custom root then reads as empty.
+   */
+  requireCustomSkillDirs?: boolean
   /** Whether host-local skill roots are watched for catalog changes. */
   watch?: boolean
   /** Whether Chokidar uses polling instead of native filesystem events. */
@@ -78,6 +83,7 @@ export const Config: Schema<Config> = z.object({
   dshHome: z.string(),
   agentsHome: z.string(),
   customSkillDirs: z.array(z.string()).default([]),
+  requireCustomSkillDirs: z.boolean().default(false),
   watch: z.boolean().default(true),
   watchUsePolling: z.boolean().default(false),
   watchStabilityThresholdMs: z.number().default(DEFAULT_WATCH_STABILITY_THRESHOLD_MS),
@@ -131,6 +137,8 @@ interface ResolvedWatchConfig {
 
 /** Register the local filesystem skill provider on `ctx.skills`. */
 export function apply(ctx: Context, config: Config = {}): void {
+  const required = config.requireCustomSkillDirs === true ? config.customSkillDirs : undefined
+  for (const root of required ?? []) assertSkillDirectory(resolve(root))
   let provider!: FileSystemSkillProvider
   ctx.skills.registerProvider((control) => {
     provider = new FileSystemSkillProvider(ctx, control, config)
@@ -143,6 +151,19 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (mutationToolName(actor) === undefined) return
     provider.observeHostMutation(target.displayPath)
   })
+}
+
+/**
+ * Refuse a required custom skill root that is not an existing directory.
+ * @param root - the resolved root.
+ * @throws Error naming the root and the setting that requires it.
+ */
+function assertSkillDirectory(root: string): void {
+  if (statSync(root, { throwIfNoEntry: false })?.isDirectory() === true) return
+  throw new Error(
+    `skill-filesystem: custom skill directory "${root}" does not exist or is not a directory;`
+    + ' requireCustomSkillDirs needs every customSkillDirs root to exist',
+  )
 }
 
 /** Provider that maps local project/user skill roots into `ctx.skills`. */

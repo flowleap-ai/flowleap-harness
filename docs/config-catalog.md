@@ -3541,6 +3541,11 @@ export interface Config {
   agentsHome?: string
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
+  /**
+   * Fail the entry at load when a `customSkillDirs` root is not an existing
+   * directory. Defaults to false: a missing custom root then reads as empty.
+   */
+  requireCustomSkillDirs?: boolean
   /** Whether host-local skill roots are watched for catalog changes. */
   watch?: boolean
   /** Whether Chokidar uses polling instead of native filesystem events. */

@@ -92,6 +92,7 @@ This stops only the PID that `start` wrote, and deletes `$RUN/firm-keys.yaml`. D
 |---|---|---|
 | `OPENROUTER_API_KEY` | The founder's shell environment | No live turn. `web.sh start` stops |
 | Firm keys: EPO OPS, USPTO ODP, Mistral (Semantic Scholar is not set) | `~/.dsh/.credentials.yaml`; set `DSH_VERIFY_CREDENTIALS` to use another file | The office tools answer `missing_credentials`; the connector cards show `Not configured` |
+| FlowLeap skill pack | `~/flowleap/flowleap-plugins/plugins/flowleap/skills`; set `FLOWLEAP_SKILLS_DIR` to use another folder | `web.sh start` stops: the `flowleap-web` skill pack row fails at load when its folder does not exist |
 | `flowleap` CLI signed in | `flowleap auth login` on the founder's Mac (it opens a browser) | No `mcp__flowleap__*` tools |
 | `DEEPSEEK_API_KEY` | Not available | `pnpm dsh --profile headless` and `pnpm run test:e2e` cannot run live; `test:snapshot:record` cannot record |
 | New or changed keys | Only the founder enters them | Ask the founder |

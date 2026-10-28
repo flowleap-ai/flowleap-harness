@@ -52,7 +52,7 @@ The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile th
 | `system-prompt` | [`dsh-system-prompt`](../../core/system-prompt/README.md) | `includeHarnessIdentity: false`, no persona prefix |
 | `llm-pi-ai` | [`dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.md) | `anthropic`, `openrouter`, `mistral` routes keyed by `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` |
 | `agent-default-model` | [`dsh-agent-default-model`](../../core/agent-default-model/README.md) | `anthropic` / `claude-sonnet-5-5` |
-| `skill-filesystem` | [`dsh-skill-filesystem`](../../skill/skill-filesystem/README.md) | Re-enabled as the global-layer `flowleap` provider scanning only `FLOWLEAP_SKILLS_DIR`, else the flowleap-plugins checkout path; each preset keeps its own `filesystem` provider for project and user roots |
+| `skill-filesystem` | [`dsh-skill-filesystem`](../../skill/skill-filesystem/README.md) | Re-enabled as the global-layer `flowleap` provider scanning only `FLOWLEAP_SKILLS_DIR`, else `/opt/flowleap/skills` (the release image's pack); `requireCustomSkillDirs: true`, so a folder that does not exist fails the row at load; each preset keeps its own `filesystem` provider for project and user roots |
 
 Disabled rows: `deepseek-llm-api-extensions`, `session-log-deepseek`, `plugin-package-inventory-deepseek`, `deepseek-account`, `llm-deepseek`, `llm-deepseek-account`, `web-search-deepseek`, `web-deepseek-api`, `ui-settings-account`, `account-controller`, `ui-brand-official`, `ui-deepseek-model-label-1017`, `ui-settings-web-search`, `ui-settings-session-log`. Their packages stay in the installation.
 
@@ -108,7 +108,7 @@ The bundle adds no request tokens of its own; the mounted rows' packages state t
 These limits are what the layer needs from its host and what later slices replace.
 
 - **Needs the `flowleap` CLI on `PATH`, signed in** — without it the MCP row logs a connection error and the agent has no patent tools; the harness still starts.
-- **The skill-pack default is a checkout path** — `FLOWLEAP_SKILLS_DIR` must point at the pack on any other machine; a release will vendor the pack.
+- **Outside the release image the skill pack needs `FLOWLEAP_SKILLS_DIR`** — the default `/opt/flowleap/skills` exists only in the image. Point the variable at a flowleap-plugins checkout's `plugins/flowleap/skills`, or at an empty folder for no FlowLeap skill; without it the skill pack row fails at load, names the folder in the startup warning, and the harness runs without FlowLeap skills.
 - **The shipped presets still say "coding agent"** — `standard`, `ptc`, `minimal` and `cordis` keep their `dsh-persona` row, so a user who selects one of them puts `You are a coding agent powered by the {{model}} model.` ahead of the patent prompt; only `patent` omits it.
 - **The patent preset duplicates standard's plugin list** — a change to `dsh-web-app/presets/standard.patch.yml` reaches `presets/patent.patch.yml` only by hand; compare the two after an upstream merge.
 - **DeepSeek text remains in served bundles** — the disabled rows' client bundles and the dictionaries of mounted rows still contain the vendor name; the brand package replaces only what renders in this profile, and the favicon and web manifest stay the shell's.
