@@ -2879,6 +2879,12 @@ export interface Config {
    * `deployment-locked`, for a product whose administrator installs plugins outside the application.
    */
   installBundles?: boolean
+  /**
+   * The only bundle package names this deployment lets the profile select. Absent or `null`: every bundle
+   * `withheldBundles` does not name. Selecting another one (`setBundleEnabled(name, true)` or an activating install)
+   * fails with `deployment-locked`; deselecting a selected bundle is not affected.
+   */
+  offeredBundles?: string[] | null
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->

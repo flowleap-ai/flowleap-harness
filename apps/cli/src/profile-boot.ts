@@ -23,7 +23,7 @@ import {
   installFailLoud,
   loadOverlayPatches,
   loadProfile,
-  reportDroppedPatches,
+  reportProfileLocks,
   reportSkippedBundles,
   PluginPackages,
   PROFILE_PATCH_FILENAME,
@@ -196,7 +196,7 @@ export function prepareProfile(name: string, userLayer = true, fromDefaultProfil
   if (fromDefaultProfile !== undefined) initializeProfileFromDefault(name, fromDefaultProfile)
   const profile = loadProfile(NAME, name, INSTALL_ANCHOR, undefined, { userLayer })
   reportSkippedBundles(NAME, profile)
-  reportDroppedPatches(NAME, profile)
+  reportProfileLocks(NAME, profile, homePatchPath())
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
   return profile
 }

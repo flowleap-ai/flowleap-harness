@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
+  BundleLockError,
   composeEntries,
   createRuntimeResolution,
   getDshRuntimeVersion,
@@ -21,10 +22,11 @@ import {
   loadProfileDirectory,
   PROFILE_COMPATIBILITY_FILENAME,
   PROFILE_PATCH_FILENAME,
+  profileLocks,
   readProfileManifest,
   readProfilePatches,
   removeLinkProjections,
-  reportDroppedPatches,
+  reportProfileLocks,
   reportSkippedBundles,
   resolveBundleDir,
   resolveProfileDir,
@@ -101,7 +103,15 @@ it('skips an unsupported saved bundle before composing any runtime overrides and
 
 describe('dsh.bundle.lockedRows', () => {
   const LOCKED_BASE = '- insert:\n  - id: llm\n    name: llm-plugin\n    config: { fixed: true }\n  - id: other\n    name: other-plugin\n'
-  const USER_ROWS = '- id: llm\n  config: { fixed: false }\n- id: other\n  config: { edited: true }\n- insert:\n  - id: added\n    name: added-plugin\n'
+  const USER_ROWS = [
+    '- id: llm\n  config: { fixed: false }',
+    '- id: llm\n  insert: null\n  config: { fixed: false }',
+    '- insert:\n  - id: second-llm\n    name: llm-plugin\n    config: { fixed: false }',
+    '- insert:\n  - id: group\n    name: cordis/group\n    config:\n      - id: llm\n        name: other-plugin',
+    '- id: other\n  config: { edited: true }',
+    '- insert:\n  - id: added\n    name: added-plugin',
+    '',
+  ].join('\n')
 
   it('drops the profile and home user patches that target a locked row, and keeps launch overlays', () => {
     const anchor = stageInstallation({ base: { patch: LOCKED_BASE, lockedRows: ['llm'] } })
@@ -112,7 +122,9 @@ describe('dsh.bundle.lockedRows', () => {
     writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: llm\n  disabled: true\n')
     const profile = loadProfileDirectory('test', dir, anchor)
     expect(profile.layers[0]?.lockedRows).toEqual(['llm'])
-    expect(profile.droppedPatches).toEqual(['llm'])
+    // Every form that would change the locked row is dropped: its id with or without insert, another row of its
+    // plugin, and a nested row with its id.
+    expect(profile.droppedPatches).toEqual(['llm', 'llm', 'insert llm-plugin', 'llm'])
     expect(profile.patches.map(patch => patch.id ?? 'insert')).toEqual(['other', 'insert'])
     const context = {
       name: 'locked', dir, patchPath: profile.patchPath, installAnchor: anchor, cwd: dir, home,
@@ -129,23 +141,40 @@ describe('dsh.bundle.lockedRows', () => {
       .toMatchObject({ config: { fixed: 'overlay' } })
     const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
     try {
-      reportDroppedPatches('dsh', profile)
-      expect(write).toHaveBeenCalledWith(expect.stringContaining('ignoring the "llm" row of'))
+      reportProfileLocks('dsh', profile, join(home, PROFILE_PATCH_FILENAME))
+      expect(write).toHaveBeenCalledWith(expect.stringContaining(`ignoring the "insert llm-plugin" row of ${profile.patchPath}`))
+      expect(write).toHaveBeenCalledWith(expect.stringContaining(`ignoring the "llm" row of ${join(home, PROFILE_PATCH_FILENAME)}`))
       write.mockClear()
-      reportDroppedPatches('dsh', { patchPath: profile.patchPath })
+      reportProfileLocks('dsh', { layers: profile.layers, patchPath: profile.patchPath }, join(home, 'absent.yml'))
       expect(write).not.toHaveBeenCalled()
     } finally {
       write.mockRestore()
     }
   })
 
-  it('skips a bundle whose lockedRows is not a list of entry ids', () => {
-    const anchor = stageInstallation({ bad: { patch: LOCKED_BASE, lockedRows: ['llm', ''] } })
-    const dir = join(tmp(), 'profile')
-    initProfile(dir, ['bad'])
+  it('fails the load when lockedRows is not a list of entry ids', () => {
+    for (const lockedRows of [['llm', ''], 'llm']) {
+      const anchor = stageInstallation({ bad: { patch: LOCKED_BASE, lockedRows } })
+      const dir = join(tmp(), 'profile')
+      initProfile(dir, ['bad'])
+      expect(() => loadProfileDirectory('test', dir, anchor)).toThrow(BundleLockError)
+    }
+  })
+
+  it('warns about a locked id that matches no bundle row', () => {
+    const anchor = stageInstallation({ base: { patch: LOCKED_BASE, lockedRows: ['llm', 'missing'] } })
+    const home = tmp()
+    const dir = join(home, 'profiles', 'locked')
+    initProfile(dir, ['base'])
     const profile = loadProfileDirectory('test', dir, anchor)
-    expect(profile.layers).toEqual([])
-    expect(profile.skippedBundles[0]?.reason).toContain('dsh.bundle.lockedRows must be a list of Loader entry ids')
+    expect(profileLocks(profile.layers)).toMatchObject({ unmatched: ['missing'] })
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      reportProfileLocks('dsh', profile, join(home, PROFILE_PATCH_FILENAME))
+      expect(write).toHaveBeenCalledWith('dsh: dsh.bundle.lockedRows names "missing", which no profile bundle row has\n')
+    } finally {
+      write.mockRestore()
+    }
   })
 })
 

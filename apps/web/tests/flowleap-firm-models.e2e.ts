@@ -135,6 +135,11 @@ it('refuses route, key, and sign-in changes, also over user patches from before 
   expect(enable.ok && (enable.value as { error?: { code: string } }).error?.code).toBe('deployment-locked')
   const install = await remote(scaffold, 'pluginManager/installBundle', { spec: '@deepseek-ai/dsh-experimental-liveshare' })
   expect(install.ok && (install.value as { error?: { code: string } }).error?.code).toBe('deployment-locked')
+  // Deselecting flowleap-web would remove every lock; selecting a bundle the Plugins page hides is refused too.
+  for (const [name, enabled] of [['@deepseek-ai/dsh-flowleap-web', false], ['@deepseek-ai/dsh-sdk-app', true]] as const) {
+    const change = await remote(scaffold, 'pluginManager/setBundleEnabled', { name, enabled })
+    expect(change.ok && (change.value as { error?: { code: string } }).error?.code, name).toBe('deployment-locked')
+  }
   // No user key for a model route.
   for (const ref of ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_API_KEY']) {
     const refused = await remote(scaffold, 'credentials/set', { ref, value: 'sk-own-key' })

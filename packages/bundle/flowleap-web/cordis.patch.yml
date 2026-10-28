@@ -55,12 +55,15 @@
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and
-# refuses to switch them on. Attorneys do not install or update packages: the
-# firm administrator does that through flowleap-os (installBundles: false).
+# refuses to switch them on. Attorneys do not install, update, or switch on
+# packages: the firm administrator does that through flowleap-os
+# (installBundles: false, offeredBundles: []). The Plugins page hides the SDK
+# bundles only in the client, so the Host refuses every new selection.
 
 - id: plugin-manager
   config:
     installBundles: false
+    offeredBundles: []
     withheldBundles:
       - '@deepseek-ai/dsh-experimental-liveshare'
       - '@deepseek-ai/dsh-experimental-forge-bundle'

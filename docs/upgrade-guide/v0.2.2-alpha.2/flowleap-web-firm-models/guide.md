@@ -11,8 +11,8 @@ Before, an attorney on `flowleap-web` could add a model route, change an endpoin
 - `llm-pi-ai` sets `fixedRoutes: true`: settings changes of routes are refused, and there is no subscription sign-in and no endpoint discovery.
 - `credentials` sets `lockedRefs` for `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, and `MISTRAL_API_KEY`: a key typed in the browser is refused, and a key stored before is ignored.
 - The Models page (`ui-settings-models` `managed: true`) shows the routes with a notice and no Edit or Add button.
-- The bundle locks `llm-pi-ai`, `credentials`, `ui-settings-models`, `plugin-manager`, and the DeepSeek route and sign-in rows (`dsh.bundle.lockedRows`). A row for one of them in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` or `$DSH_HOME/cordis.patch.yml` is ignored, and startup prints `ignoring the "<id>" row of <file>` for the profile file. A Models page save from before this release is such a row.
-- `plugin-manager` sets `installBundles: false`: installs and updates answer `deployment-locked`.
+- The bundle locks `llm-pi-ai`, `credentials`, `ui-settings-models`, `plugin-manager`, and the DeepSeek route and sign-in rows (`dsh.bundle.lockedRows`). A row for one of them, or an insert of another row of their plugins, in `$DSH_HOME/profiles/<profile>/cordis.patch.yml` or `$DSH_HOME/cordis.patch.yml` is ignored, and startup prints `ignoring the "<id>" row of <file>`. A Models page save from before this release is such a row.
+- `plugin-manager` sets `installBundles: false` and `offeredBundles: []`: installs, updates, new bundle selections, and deselecting `flowleap-web` answer `deployment-locked`.
 
 The `web` profile does not change.
 

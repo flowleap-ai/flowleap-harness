@@ -113,12 +113,15 @@ it.each(['live', 'startup'] as const)('refuses an unsupported bundle before savi
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: false })
 })
 
+/** Leave only `core` selected, so `extra` is installed but not selected. */
+function selectCoreOnly(dir: string): void {
+  const manifest = readProfileManifest('test', dir)
+  manifest.dsh = { profile: { bundles: ['core'] } }
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+}
+
 it('hides a withheld bundle and refuses to select it, but deselects one the profile already selects', async () => {
-  const deselected = (dir: string) => {
-    const manifest = readProfileManifest('test', dir)
-    manifest.dsh = { profile: { bundles: ['core'] } }
-    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
-  }
+  const deselected = selectCoreOnly
   const { manager, dir, ctx } = await fixture('live', false, undefined, { withheldBundles: ['extra'] }, undefined, deselected)
   const before = readFileSync(join(dir, 'package.json'), 'utf8')
   expect((await manager.listBundles()).some(row => row.name === 'extra')).toBe(false)
@@ -134,8 +137,8 @@ it('hides a withheld bundle and refuses to select it, but deselects one the prof
 
 it('refuses a row a bundle locks, and package installs and updates while installBundles is false', async () => {
   const locked = (dir: string) => {
-    const path = join(dir, 'node_modules/core/package.json')
-    const metadata = readProfileManifest('test', join(dir, 'node_modules/core'))
+    const path = join(dir, 'node_modules/extra/package.json')
+    const metadata = readProfileManifest('test', join(dir, 'node_modules/extra'))
     metadata.dsh = { bundle: { patch: './cordis.patch.yml', lockedRows: ['managed'] } }
     writeFileSync(path, JSON.stringify(metadata))
   }
@@ -149,6 +152,21 @@ it('refuses a row a bundle locks, and package installs and updates while install
   expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(patchBefore)
   expect(await manager.installBundle('extra-two')).toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
   expect(await manager.updateBundle('extra', '2.0.0')).toMatchObject({ step: 'check', result: { application: 'failed', error: { code: 'deployment-locked' } } })
+  // Deselecting the bundle that declares the lock would remove it.
+  expect((await manager.listBundles()).find(bundle => bundle.name === 'extra')).toMatchObject({ readOnlyReason: 'deployment-locked', removable: false })
+  expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain('extra')
+})
+
+it('selects only an offered bundle and still deselects one', async () => {
+  const deselected = selectCoreOnly
+  const refused = await fixture('live', false, undefined, { offeredBundles: [] }, undefined, deselected)
+  expect(await refused.manager.setBundleEnabled('extra', true)).toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
+  expect(readProfileManifest('test', refused.dir).dsh?.profile?.bundles).toEqual(['core'])
+  const offered = await fixture('live', false, undefined, { offeredBundles: ['extra'] }, undefined, deselected)
+  expect(await offered.manager.setBundleEnabled('extra', true)).toMatchObject({ changed: true, application: 'applied' })
+  const selected = await fixture('live', false, undefined, { offeredBundles: [] })
+  expect(await selected.manager.setBundleEnabled('extra', false)).toMatchObject({ changed: true, application: 'applied' })
 })
 
 it('allows supported bundle activation and permits deselecting an unsupported saved bundle', async () => {

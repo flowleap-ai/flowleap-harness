@@ -19,7 +19,7 @@ import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '
 import Group from '@deepseek-ai/cordis-plugin-group'
 import { dshHomePath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
-export { readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
+export { readBundlePatches, readProfilePatches, reportProfileLocks, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
 export { getDshRuntimeVersion, evaluatePluginCompatibility, pluginCompatibilityWarning, type PluginCompatibility } from './plugin-compatibility.ts'
 export {
@@ -61,18 +61,18 @@ export {
   composeEntries,
   createRuntimeResolution,
   ProfileRuntimeResolution,
+  BundleLockError,
   bundleLockedRows,
   bundlePatchFiles,
   bundlePatchPaths,
   initProfile,
-  lockedRowsOf,
+  profileLocks,
   removeLinkProjections,
   loadProfile,
   loadProfileDirectory,
   PROFILE_PATCH_FILENAME,
   PROFILES_DIR,
   readProfileManifest,
-  reportDroppedPatches,
   reportSkippedBundles,
   resolveBundleDir,
   resolveProfileDir,
@@ -80,6 +80,7 @@ export {
   writeProfileManifest,
   type Profile,
   type ProfileLayer,
+  type ProfileLocks,
   type SkippedBundle,
   type ProfileManifest,
   type LinkedRoot,

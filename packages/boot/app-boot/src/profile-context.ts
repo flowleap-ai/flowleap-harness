@@ -1,6 +1,6 @@
 /** Launcher-owned profile locations and composition inputs. */
 import { join } from 'node:path'
-import { composeEntries, loadProfileDirectory, lockedRowsOf, PROFILE_PATCH_FILENAME, withoutLockedPatches, type Profile } from './profile.ts'
+import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, profileLocks, withoutLockedPatches, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 
@@ -74,18 +74,42 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
   const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, { userLayer: false })
   // User layers never configure a row a bundle locks; launch overlays still may.
-  const locked = lockedRowsOf(profile.layers)
+  const locks = profileLocks(profile.layers)
   const user = [
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
   ]
   const patches = structuredClone([
     ...readBundlePatches(binName, context, profile),
-    ...withoutLockedPatches(user, locked).kept,
+    ...withoutLockedPatches(user, locks).kept,
     ...context.overlays,
   ])
   const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
     composeEntries([patches]).some(row => row.id === TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) patches.push(telemetryPatch)
   return patches
+}
+
+/**
+ * Print what the profile's bundle locks do at this start: each dropped row of the profile patch file and of the
+ * home patch file, and each locked id that matches no bundle row. Loading never prints, so launchers call this once.
+ * @param binName - the diagnostic prefix.
+ * @param profile - the loaded profile.
+ * @param homePatchPath - the home-level user patch file.
+ */
+export function reportProfileLocks(
+  binName: string, profile: Pick<Profile, 'layers' | 'patchPath' | 'droppedPatches'>, homePatchPath: string,
+): void {
+  const locks = profileLocks(profile.layers)
+  const home = withoutLockedPatches(loadOptionalPatches(binName, homePatchPath) ?? [], locks).dropped
+  for (const [path, dropped] of [[profile.patchPath, profile.droppedPatches ?? []], [homePatchPath, home]] as const) {
+    for (const label of dropped) {
+      process.stderr.write(
+        `${binName}: ignoring the ${JSON.stringify(label)} row of ${path}: a profile bundle locks this row (dsh.bundle.lockedRows); remove the row\n`,
+      )
+    }
+  }
+  for (const id of locks.unmatched) {
+    process.stderr.write(`${binName}: dsh.bundle.lockedRows names ${JSON.stringify(id)}, which no profile bundle row has\n`)
+  }
 }

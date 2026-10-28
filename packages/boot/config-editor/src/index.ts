@@ -7,7 +7,7 @@ import { entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-i
 import yaml from 'js-yaml'
 import type { Entry, EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-hmr'
-import { composeEntries, loadProfileDirectory, lockedRowsOf, readProfilePatches, reconcileProfilePatches } from '@deepseek-ai/dsh-app-boot'
+import { composeEntries, loadProfileDirectory, profileLocks, readProfilePatches, reconcileProfilePatches } from '@deepseek-ai/dsh-app-boot'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { isMap, isSeq, parseDocument, Scalar, visit } from 'yaml'
 
@@ -98,7 +98,7 @@ export class ConfigEditor extends Service {
         const current = structuredClone((entry.options.config ?? {}) as Record<string, unknown>)
         const profileDir = loadProfileDirectory('dsh', this.ownerContext.profileContext.dir, this.ownerContext.profileContext.installAnchor)
         // The profile patch never configures a row a bundle locks: the next load would drop the write.
-        if (typeof entry.options.id === 'string' && lockedRowsOf(profileDir.layers).has(entry.options.id)) {
+        if (typeof entry.options.id === 'string' && profileLocks(profileDir.layers).rows.has(entry.options.id)) {
           throw new Error(`Configuration for "${entry.options.id}" is fixed by a profile bundle (dsh.bundle.lockedRows)`)
         }
         const inherited = this.inherited(entry, profileDir)

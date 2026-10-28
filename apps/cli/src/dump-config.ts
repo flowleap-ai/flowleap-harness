@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path'
 import {
   loadOptionalPatches,
   loadOverlayPatches,
-  lockedRowsOf,
+  profileLocks,
   renderConfigDump,
   withoutLockedPatches,
   type ConfigDumpLayer,
@@ -66,7 +66,7 @@ export function collectConfigDumpLayers(
     const homePatchFile = homePatchPath()
     const homePatches = loadOptionalPatches(NAME, homePatchFile)
     if (homePatches !== undefined) {
-      layers.push({ label: homePatchFile, patches: withoutLockedPatches(homePatches, lockedRowsOf(loaded.layers)).kept })
+      layers.push({ label: homePatchFile, patches: withoutLockedPatches(homePatches, profileLocks(loaded.layers)).kept })
     }
     for (const file of patches) {
       const absolute = resolve(file)
