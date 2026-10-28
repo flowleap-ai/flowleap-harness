@@ -39,6 +39,8 @@ export interface Config {
   maxSearchResults: number
   /** Most pages one `read_agent_file` call returns. */
   maxReadLocations: number
+  /** Most characters of page text one `read_agent_file` call returns. */
+  maxReadChars: number
 }
 
 /** Runtime schema for the row. */
@@ -46,6 +48,7 @@ export const Config: z<Config> = z.object({
   agent: z.string().required(),
   maxSearchResults: z.number().step(1).min(1).max(50).required(),
   maxReadLocations: z.number().step(1).min(1).max(100).required(),
+  maxReadChars: z.number().step(1).min(1).required(),
 })
 
 /**
@@ -71,7 +74,7 @@ export function apply(ctx: Context, config: Config): void {
       read: (file: string, from: number, to: number) => ctx.flowleapAgentCatalog.readFile(id, file, from, to),
     }
     ctx.effect(() => ctx.tools.register(searchAgentFilesTool(reader)), 'flowleap-agent: search_agent_files')
-    ctx.effect(() => ctx.tools.register(readAgentFileTool(reader, config.maxReadLocations)), 'flowleap-agent: read_agent_file')
+    ctx.effect(() => ctx.tools.register(readAgentFileTool(reader, config.maxReadLocations, config.maxReadChars)), 'flowleap-agent: read_agent_file')
   }
   restrictConnectors(ctx, deniedTool(revision.connectors))
 }

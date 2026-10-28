@@ -23,7 +23,7 @@ describe('agent file tools', () => {
   })
 
   it('reads at most the bounded number of locations and refuses an unknown file', async () => {
-    const tool = readAgentFileTool(reader, 2)
+    const tool = readAgentFileTool(reader, 2, 1000)
     expect(await tool.execute({ file: 'guide.docx', page: 3, to: 9 }, exec)).toBe('guide.docx: 40 paragraphs with text.\n\n=== guide.docx | paragraph 3 ===\nP3\n\n=== guide.docx | paragraph 4 ===\nP4')
     expect(await tool.execute({ file: 'guide.docx', page: 5, to: 1 }, exec)).toContain('paragraph 5 ===\nP5')
     await expect(tool.execute({ file: 'x.pdf', page: 1 }, exec)).rejects.toThrow('no indexed file is named "x.pdf"')
@@ -37,6 +37,19 @@ describe('agent file tools', () => {
 
   it('renders empty results', () => {
     expect(renderHits('q', [])).toContain('No passage')
-    expect(renderRead('a.pdf', [], 3)).toBe('a.pdf has no text in that range; it has 3 indexed locations.')
+    expect(renderRead('a.pdf', [], 3, 10)).toBe('a.pdf has no text in that range; it has 3 indexed locations.')
+  })
+
+  it('bounds the page text of one read and tells how to read on', async () => {
+    const rows = [{ file: 'n.txt', at: 1, unit: 'page' as const, text: 'abcdef' }, { file: 'n.txt', at: 2, unit: 'page' as const, text: 'gh' }]
+    expect(renderRead('n.txt', rows, 2, 8)).toBe('n.txt: 2 pages with text.\n\n=== n.txt | page 1 ===\nabcdef\n\n=== n.txt | page 2 ===\ngh')
+    expect(renderRead('n.txt', rows, 2, 6)).toBe('n.txt: 2 pages with text.\n\n=== n.txt | page 1 ===\nabcdef\n\n'
+      + '[This answer stops at the limit of 6 characters. Read on with read_agent_file {"file":"n.txt","page":2}.]')
+    expect(renderRead('n.txt', rows, 2, 4)).toContain('=== n.txt | page 1 ===\nabcd\n\n'
+      + '[This answer stops at the limit of 4 characters. Read on with read_agent_file {"file":"n.txt","page":1,"start":4}.]')
+    const inRange = (from: number, to: number) => ({ rows: rows.filter(row => row.at >= from && row.at <= to), total: 2 })
+    const tiny = readAgentFileTool({ search: () => [], read: (_file, from, to) => inRange(from, to) }, 10, 1)
+    expect(await tiny.execute({ file: 'n.txt', page: 1, start: 4 }, exec)).toBe('n.txt: 2 pages with text.\n\n=== n.txt | page 1, from character 4 ===\ne\n\n'
+      + '[This answer stops at the limit of 1 characters. Read on with read_agent_file {"file":"n.txt","page":1,"start":5}.]')
   })
 })

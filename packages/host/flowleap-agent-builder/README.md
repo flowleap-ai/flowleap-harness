@@ -37,6 +37,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
     presetOrder: 100
     maxSearchResults: 8
     maxReadLocations: 10
+    maxReadChars: 40000
 ```
 
 | Field | Default | Meaning |
@@ -49,6 +50,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
 | `presetOrder` | `100` | Roster order of the agent presets; the shipped presets use 0 to 3 |
 | `maxSearchResults` | `8` | Most passages one `search_agent_files` call returns |
 | `maxReadLocations` | `10` | Most pages or paragraphs one `read_agent_file` call returns |
+| `maxReadChars` | `40000` | Most characters of page text one `read_agent_file` call returns; about 10000 tokens, so the default 10 pages of a typical 3000-character page fit, and one TXT or MD page cannot fill the context |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-agent-builder) is the exhaustive source for every accepted field.
 
@@ -60,7 +62,7 @@ A folder holds `agent.yaml` (name, description, connectors), `instructions.md`, 
 
 ### Files
 
-The upload route accepts PDF, DOCX, TXT and MD files with a plain name. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call for the document, DOCX by paragraph through `mammoth`, and TXT and MD as one page. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`). At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`.
+The upload route accepts PDF, DOCX, TXT and MD files with a plain name of at most 240 UTF-8 bytes, so the temporary name of a partial upload fits the 255-byte file-name limit. It creates a missing `files/` folder, and a failed write answers an error and removes the partial file. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call for the document, DOCX by paragraph through `mammoth`, and TXT and MD as one page. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`). At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`. The index is derived data: an `index.sqlite` that cannot be opened (damaged, or a newer schema) is logged, renamed to `index.sqlite.unreadable-<ms>`, and replaced by an empty index, and the files are read again. An agent whose index can be neither opened nor moved is logged and not loaded; the other agents load.
 
 ### Mode
 
@@ -73,7 +75,7 @@ The row hides every global tool of a connector that the agent did not choose: an
 <a id="the-remote"></a>
 ### The Remote
 
-`ctx.remote.flowleapAgents` has `list()`, `read(id)` (fields, files with state, mode, `readOnly`), `connectors()` (each choice with `configured`: a stored key, or for `flowleap` registered `mcp__flowleap__*` tools), `save(input)` (create without `id`, else change; each field is validated and a connector must be a known choice), `delete(id)` and `removeFile(id, name)`. Firm agents refuse changes with `flowleap-agents/read-only`. `flowleap-agents/changed` announces each change, including each file state change. Every endpoint is owner-only for a Live Share viewer. The upload is `POST /api/flowleap-agents/upload?agent=<id>&name=<file>` with an `application/octet-stream` body; the Connection lets only the owner reach it, and the answer is `{ ok: true, value: <file row> }` or `{ ok: false, error }`.
+`ctx.remote.flowleapAgents` has `list()`, `read(id)` (fields, files with state, mode, `readOnly`), `connectors()` (each choice with `configured`: a stored key, or for `flowleap` registered `mcp__flowleap__*` tools), `save(input)` (create without `id`, else change; each field is validated and a connector must be a known choice), `delete(id)` and `removeFile(id, name)`. Firm agents refuse changes with `flowleap-agents/read-only`. The writes of one agent (save, upload, file removal, delete) run one at a time in call order. A delete marks the agent before it waits, so a write that starts later refuses with `flowleap-agents/not-found`; it renames the folder to a dot name, which is the point where the agent is gone, and then removes its preset, its index and the renamed folder. When the rename fails, the agent stays as it was. Each write changes the disk first and then the memory and the change event. When the base preset registers again with a new definition, every agent preset registers again over it. `flowleap-agents/changed` announces each change, including each file state change. Every endpoint is owner-only for a Live Share viewer. The upload is `POST /api/flowleap-agents/upload?agent=<id>&name=<file>` with an `application/octet-stream` body; the Connection lets only the owner reach it, and the answer is `{ ok: true, value: <file row> }` or `{ ok: false, error }`.
 
 -----
 
@@ -153,7 +155,7 @@ The context mode puts the file text into the system prompt, so it is part of the
 
 #### What the model sees
 
-In the `search` mode only. `search_agent_files(query)` searches the agent's files by words (each word is a literal; a passage that holds any word matches, best first by BM25) and returns at most `maxSearchResults` numbered passages, each after a line `[n] <file>, page N`. `read_agent_file(file, page[, to])` returns at most `maxReadLocations` pages or paragraphs, each after a marker line `=== <file> | page N ===`. A file name that is not indexed is a tool error.
+In the `search` mode only. `search_agent_files(query)` searches the agent's files by words (each word is a literal; a passage that holds any word matches, best first by BM25) and returns at most `maxSearchResults` numbered passages, each after a line `[n] <file>, page N`. `read_agent_file(file, page[, to][, start])` returns at most `maxReadLocations` pages or paragraphs and at most `maxReadChars` characters of page text, each page after a marker line `=== <file> | page N ===`. An answer cut at the character limit ends with the arguments of the call that reads on; `start` is the 0-based character of the first page where that call starts. A file name that is not indexed is a tool error.
 
 #### Token effect
 

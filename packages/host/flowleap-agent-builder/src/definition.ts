@@ -83,15 +83,23 @@ export function newAgentId(name: string): AgentId {
 }
 
 /** Why a file name is refused. */
-export type FileNameProblem = 'empty' | 'path' | 'type'
+export type FileNameProblem = 'empty' | 'long' | 'path' | 'type'
 
 /**
- * Check an uploaded file name: no path parts, no control characters, and one of the accepted extensions.
+ * Longest file name, in UTF-8 bytes: the 255-byte name limit of the common file systems less the 15 bytes the
+ * temporary upload name adds (a leading dot, a dot and 8 hex digits, and `.part`).
+ */
+export const MAX_FILE_NAME_BYTES = 240
+
+/**
+ * Check an uploaded file name: not too long in UTF-8 bytes, no path parts, no control characters, and one of the
+ * accepted extensions.
  * @param name - the name the client sent.
  * @returns the problem, or undefined for a safe name.
  */
 export function fileNameProblem(name: string): FileNameProblem | undefined {
-  if (name.trim() === '' || name.length > 200) return 'empty'
+  if (name.trim() === '') return 'empty'
+  if (Buffer.byteLength(name, 'utf8') > MAX_FILE_NAME_BYTES) return 'long'
   if (/[/\\\0-\x1f]/.test(name) || name === '.' || name === '..' || name.startsWith('.')) return 'path'
   const lower = name.toLowerCase()
   if (!AGENT_FILE_EXTENSIONS.some(extension => lower.endsWith(extension))) return 'type'

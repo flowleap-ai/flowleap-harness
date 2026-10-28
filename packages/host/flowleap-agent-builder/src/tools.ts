@@ -40,6 +40,8 @@ export interface AgentFileToolBounds {
   readonly maxSearchResults: number
   /** Most locations one read returns. */
   readonly maxReadLocations: number
+  /** Most characters of page text one read returns. */
+  readonly maxReadChars: number
 }
 
 const searchArgs = z.strictObject({ query: z.string().trim().min(1).max(500) })
@@ -47,6 +49,7 @@ const readArgs = z.strictObject({
   file: z.string().min(1),
   page: z.number().int().min(1),
   to: z.number().int().min(1).optional(),
+  start: z.number().int().min(0).optional(),
 })
 
 /** Both tools answer with model-facing text. */
@@ -77,16 +80,41 @@ export function renderHits(query: string, hits: readonly SearchHit[]): string {
 }
 
 /**
- * Render read locations as model-facing text.
+ * Render read locations as model-facing text. The page text of the whole answer is at most `maxChars` characters; an
+ * answer cut at the limit ends with the arguments of the call that reads on.
  * @param file - file name.
  * @param rows - the locations.
  * @param total - the file's location count.
+ * @param maxChars - most characters of page text in the answer.
+ * @param start - 0-based character of the first location where the answer starts.
  * @returns the text.
  */
-export function renderRead(file: string, rows: readonly LocationRow[], total: number): string {
-  if (rows.length === 0) return `${file} has no text in that range; it has ${String(total)} indexed locations.`
-  const body = rows.map(row => `=== ${file} | ${locationLabel(row.unit, row.at)} ===\n${row.text}`).join('\n\n')
-  return `${file}: ${String(total)} ${rows[0]?.unit ?? 'page'}s with text.\n\n${body}`
+export function renderRead(file: string, rows: readonly LocationRow[], total: number, maxChars: number, start = 0): string {
+  const [first] = rows
+  if (first === undefined) return `${file} has no text in that range; it has ${String(total)} indexed locations.`
+  const parts: string[] = []
+  let budget = maxChars
+  let next: { readonly page: number; readonly start: number } | undefined
+  for (const [index, row] of rows.entries()) {
+    if (budget === 0) {
+      next = { page: row.at, start: 0 }
+      break
+    }
+    const offset = index === 0 ? start : 0
+    const text = row.text.slice(offset, offset + budget)
+    budget -= text.length
+    const from = offset === 0 ? '' : `, from character ${String(offset)}`
+    parts.push(`=== ${file} | ${locationLabel(row.unit, row.at)}${from} ===\n${text}`)
+    if (offset + text.length < row.text.length) {
+      next = { page: row.at, start: offset + text.length }
+      break
+    }
+  }
+  const head = `${file}: ${String(total)} ${first.unit}s with text.`
+  const tail = next === undefined
+    ? ''
+    : `\n\n[This answer stops at the limit of ${String(maxChars)} characters. Read on with ${READ_AGENT_FILE_NAME} ${JSON.stringify({ file, page: next.page, ...next.start === 0 ? {} : { start: next.start } })}.]`
+  return `${head}\n\n${parts.join('\n\n')}${tail}`
 }
 
 /**
@@ -127,19 +155,22 @@ export function searchAgentFilesTool(reader: AgentFileReader): ToolDefinition {
  * Build the read tool over one agent's index.
  * @param reader - the index reads.
  * @param maxLocations - most locations one call returns.
+ * @param maxChars - most characters of page text one call returns.
  * @returns the definition.
  */
-export function readAgentFileTool(reader: AgentFileReader, maxLocations: number): ToolDefinition {
+export function readAgentFileTool(reader: AgentFileReader, maxLocations: number, maxChars: number): ToolDefinition {
   return {
     name: READ_AGENT_FILE_NAME,
     description: 'Read pages of one file the attorney gave this agent, by file name and page (a paragraph number for a Word file). '
-      + `Returns at most ${String(maxLocations)} pages per call, each after a line with the file and the page to cite.`,
+      + `Returns at most ${String(maxLocations)} pages and ${String(maxChars)} characters per call, each page after a line with the file and the page to cite. `
+      + 'An answer cut at the character limit ends with the arguments that read on.',
     parameters: {
       type: 'object',
       properties: {
         file: { type: 'string', description: `The file name exactly as ${SEARCH_AGENT_FILES_NAME} or the agent file list gives it.` },
         page: { type: 'integer', minimum: 1, description: 'First page (or paragraph) to read, 1-based.' },
         to: { type: 'integer', minimum: 1, description: 'Optional last page (or paragraph) to read, inclusive.' },
+        start: { type: 'integer', minimum: 0, description: 'Optional 0-based character of the first page where reading starts, as a cut answer gives it.' },
       },
       required: ['file', 'page'],
       additionalProperties: false,
@@ -152,11 +183,11 @@ export function readAgentFileTool(reader: AgentFileReader, maxLocations: number)
     }),
     execute(args): Promise<JsonValue> {
       return Promise.resolve().then(() => {
-        const { file, page, to } = parse(readArgs, READ_AGENT_FILE_NAME, args)
+        const { file, page, to, start } = parse(readArgs, READ_AGENT_FILE_NAME, args)
         const last = Math.min(Math.max(to ?? page, page), page + maxLocations - 1)
         const read = reader.read(file, page, last)
         if (read === undefined) throw new Error(`${READ_AGENT_FILE_NAME}: no indexed file is named "${file}"`)
-        return renderRead(file, read.rows, read.total)
+        return renderRead(file, read.rows, read.total, maxChars, start)
       })
     },
   }

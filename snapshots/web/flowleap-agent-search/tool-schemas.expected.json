@@ -857,7 +857,7 @@
     },
     {
       "name": "read_agent_file",
-      "description": "Read pages of one file the attorney gave this agent, by file name and page (a paragraph number for a Word file). Returns at most 10 pages per call, each after a line with the file and the page to cite.",
+      "description": "Read pages of one file the attorney gave this agent, by file name and page (a paragraph number for a Word file). Returns at most 10 pages and 40000 characters per call, each page after a line with the file and the page to cite. An answer cut at the character limit ends with the arguments that read on.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -874,6 +874,11 @@
             "type": "integer",
             "minimum": 1,
             "description": "Optional last page (or paragraph) to read, inclusive."
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional 0-based character of the first page where reading starts, as a cut answer gives it."
           }
         },
         "required": [

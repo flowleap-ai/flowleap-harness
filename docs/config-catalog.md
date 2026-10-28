@@ -1590,7 +1590,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-agent-builder`
 
 - `inject`: `agentPresets` · `connection`
-- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:61`](../packages/host/flowleap-agent-builder/src/index.ts)
+- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:62`](../packages/host/flowleap-agent-builder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1614,6 +1614,12 @@ export interface Config {
   maxSearchResults: number
   /** Most pages one `read_agent_file` call returns. */
   maxReadLocations: number
+  /**
+   * Most characters of page text one `read_agent_file` call returns; a TXT or MD file is one page, so one page can be
+   * the whole file. The default 40000 (about 10000 tokens by the `ceil(chars / 4)` estimate) holds the default 10 pages
+   * of a typical 3000-character PDF page.
+   */
+  maxReadChars: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->

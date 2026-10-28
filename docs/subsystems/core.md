@@ -938,9 +938,11 @@ async connectors(): Promise<ConnectorChoice[]>
 async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>
 
 /**
- * Delete one agent: its preset, its index and its folder.
+ * Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the
+ * agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved,
+ * the agent stays as it was.
  * @param id - the agent.
- * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.
  */
 async delete(id: AgentId): Promise<void>
 
@@ -959,7 +961,8 @@ async removeFile(id: AgentId, name: string): Promise<void>
  * @param name - the file name.
  * @param chunks - the request body.
  * @returns the file as stored, in its state after the upload.
- * @throws RemoteError `flowleap-agents/invalid` for a refused name or a body larger than the limit.
+ * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body
+ *   larger than the limit (`reason` is `too large`); the file-system error of a failed write.
  */
 async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>
 

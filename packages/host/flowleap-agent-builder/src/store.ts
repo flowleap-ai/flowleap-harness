@@ -5,10 +5,10 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
-import { createReadStream, createWriteStream } from 'node:fs'
+import { createReadStream, createWriteStream, type WriteStream } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { finished } from 'node:stream/promises'
+import { finished, pipeline } from 'node:stream/promises'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { isAgentId, parseAgentYaml, renderAgentYaml, type AgentDefinition } from './definition.ts'
@@ -64,7 +64,7 @@ export async function readAgentFolders(
   const agents: AgentFolder[] = []
   const problems: AgentFolderProblem[] = []
   for (const name of entries) {
-    // Dot folders hold the derived indexes of firm agents.
+    // Dot folders hold the derived indexes of firm agents and deleted agents not yet removed.
     if (name.startsWith('.')) continue
     const dir = join(root, name)
     if (!isAgentId(name)) {
@@ -95,11 +95,15 @@ export async function writeAgentFolder(dir: string, definition: AgentDefinition,
 }
 
 /**
- * Remove one agent folder and everything in it.
+ * Move one agent folder aside to a dot name in the same root, in one rename. A dot folder is not an agent, so the
+ * rename is the point where the agent is gone from disk; a failed rename leaves the folder as it was.
  * @param dir - the agent folder.
+ * @returns the moved folder, which the caller removes.
  */
-export async function removeAgentFolder(dir: string): Promise<void> {
-  await rm(dir, { recursive: true, force: true })
+export async function moveAgentFolderAside(dir: string): Promise<string> {
+  const aside = join(dirname(dir), `.deleted-${basename(dir)}-${randomBytes(4).toString('hex')}`)
+  await rename(dir, aside)
+  return aside
 }
 
 /**
@@ -148,33 +152,42 @@ export class FileTooLargeError extends Error {
 
 /**
  * Store one uploaded file: write the stream to a temporary sibling, count the bytes against the limit over the whole
- * stream, and rename it into place only when the stream ends within the limit.
+ * stream, and rename it into place only when the stream ends within the limit. The files folder is created when it is
+ * missing. A write failure (for example a full disk) rejects; it never escapes as an unhandled stream error.
  * @param target - the final path in the files folder.
  * @param chunks - the request body.
  * @param maxBytes - the limit.
  * @returns the size and hash.
- * @throws FileTooLargeError when the stream passes the limit; the temporary file is removed.
+ * @throws FileTooLargeError when the stream passes the limit; the temporary file is removed on every failure.
  */
 export async function storeUpload(target: string, chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<StoredFile> {
   // A dot name keeps the partial file out of listFiles().
-  const temporary = join(dirname(target), `.${basename(target)}.${randomBytes(4).toString('hex')}.part`)
+  const temporary = join(dirname(target), `.${basename(target)}.${randomBytes(4).toString('hex')}${PART_SUFFIX}`)
   const hash = createHash('sha256')
-  const out = createWriteStream(temporary, { flags: 'wx', mode: 0o600 })
   let bytes = 0
+  let out: WriteStream | undefined
   try {
-    for await (const chunk of chunks) {
-      bytes += chunk.byteLength
-      if (bytes > maxBytes) throw new FileTooLargeError(maxBytes)
-      hash.update(chunk)
-      if (!out.write(chunk)) await new Promise<void>((resolve) => { out.once('drain', () => { resolve() }) })
-    }
-    out.end()
-    await finished(out)
+    await mkdir(dirname(target), { recursive: true, mode: 0o700 })
+    out = createWriteStream(temporary, { flags: 'wx', mode: 0o600 })
+    await pipeline(chunks, async function* (source: AsyncIterable<Uint8Array>) {
+      for await (const chunk of source) {
+        bytes += chunk.byteLength
+        if (bytes > maxBytes) throw new FileTooLargeError(maxBytes)
+        hash.update(chunk)
+        yield chunk
+      }
+    }, out)
     await rename(temporary, target)
     return { bytes, sha256: hash.digest('hex') }
   } catch (error) {
-    out.destroy()
+    // pipeline destroys the stream, but its file open can still be pending; remove the file only after the stream closed.
+    const stream = out
+    // events.once would reject on the stream's own 'error' event, which pipeline already reported.
+    if (stream !== undefined && !stream.closed) await new Promise<void>((resolve) => { stream.once('close', () => { resolve() }) })
     await rm(temporary, { force: true })
     throw error
   }
 }
+
+/** Suffix of a partial upload; with the leading dot and 8 hex digits, a temporary name is 15 bytes longer than its file. */
+export const PART_SUFFIX = '.part'

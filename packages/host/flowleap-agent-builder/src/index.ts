@@ -27,7 +27,8 @@ export { FLOWLEAP_MCP_PREFIX, deniedTool, officeToolChoices, restrictConnectors 
 export { FlowleapAgentsController } from './controller.ts'
 export type { FlowleapAgentsControllerOptions } from './controller.ts'
 export {
-  MAX_DESCRIPTION_LENGTH, MAX_INSTRUCTIONS_LENGTH, MAX_NAME_LENGTH, fileNameProblem, isAgentId, newAgentId, parseAgentYaml,
+  MAX_DESCRIPTION_LENGTH, MAX_FILE_NAME_BYTES, MAX_INSTRUCTIONS_LENGTH, MAX_NAME_LENGTH, fileNameProblem, isAgentId, newAgentId,
+  parseAgentYaml,
   renderAgentYaml,
 } from './definition.ts'
 export type { AgentDefinition, FileNameProblem } from './definition.ts'
@@ -40,8 +41,8 @@ export {
   renderSearchFiles,
 } from './mode.ts'
 export {
-  AGENT_YAML, FILES_DIR, FileTooLargeError, INDEX_SQLITE, INSTRUCTIONS_MD, hashFile, listFiles, readAgentFolders,
-  removeAgentFolder, storeUpload, writeAgentFolder,
+  AGENT_YAML, FILES_DIR, FileTooLargeError, INDEX_SQLITE, INSTRUCTIONS_MD, PART_SUFFIX, hashFile, listFiles, readAgentFolders,
+  moveAgentFolderAside, storeUpload, writeAgentFolder,
 } from './store.ts'
 export type { AgentFolder, AgentFolderProblem, StoredFile } from './store.ts'
 export {
@@ -78,6 +79,12 @@ export interface Config {
   maxSearchResults: number
   /** Most pages one `read_agent_file` call returns. */
   maxReadLocations: number
+  /**
+   * Most characters of page text one `read_agent_file` call returns; a TXT or MD file is one page, so one page can be
+   * the whole file. The default 40000 (about 10000 tokens by the `ceil(chars / 4)` estimate) holds the default 10 pages
+   * of a typical 3000-character PDF page.
+   */
+  maxReadChars: number
 }
 
 /** Runtime schema for the row. */
@@ -90,6 +97,7 @@ export const Config: z<Config> = z.object({
   presetOrder: z.number().default(100),
   maxSearchResults: z.number().step(1).min(1).max(50).default(8),
   maxReadLocations: z.number().step(1).min(1).max(100).default(10),
+  maxReadChars: z.number().step(1).min(1).default(40_000),
 })
 
 /**
@@ -108,6 +116,7 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
     presetOrder: config.presetOrder,
     maxSearchResults: config.maxSearchResults,
     maxReadLocations: config.maxReadLocations,
+    maxReadChars: config.maxReadChars,
     agentRow: AGENT_ROW_MODULE,
   }
 }

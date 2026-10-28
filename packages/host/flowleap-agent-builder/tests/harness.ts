@@ -28,6 +28,15 @@ export function stubTool(name: string) {
   })
 }
 
+/** Collect the warn and error log lines of a context. */
+export function logLines(ctx: Context): string[] {
+  const lines: string[] = []
+  ctx.logger.exporter({ levels: { default: 3 }, export(message) {
+    if (message.type === 'warn' || message.type === 'error') lines.push(message.args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' '))
+  } })
+  return lines
+}
+
 /** A temporary folder removed after the test. */
 export async function tempDir(prefix: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), prefix))
@@ -46,6 +55,8 @@ export interface RuntimeOptions {
   readonly tools?: readonly string[]
   readonly ocr?: OcrSource
   readonly routes?: string[]
+  /** Receives the fetch handler of each registered route. */
+  readonly handlers?: ((request: Request) => Promise<Response>)[]
 }
 
 /** The core runtime with the preset registry, a `patent` base preset and the connection and remote-access doubles. */
@@ -65,7 +76,11 @@ export async function runtime(options: RuntimeOptions = {}): Promise<Context> {
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(AgentPresets, { default: 'patent' })
   for (const name of options.tools ?? []) ctx.tools.register(stubTool(name))
-  ctx.provide('connection', { fetch: { register: (route: { path: string }) => { options.routes?.push(route.path); return () => Promise.resolve() } } } as never)
+  ctx.provide('connection', { fetch: { register: (route: { path: string; fetch: (request: Request) => Promise<Response> }) => {
+    options.routes?.push(route.path)
+    options.handlers?.push(route.fetch)
+    return () => Promise.resolve()
+  } } } as never)
   ctx.provide('remoteAccess', { allows: () => true } as never)
   if (options.ocr !== undefined) ctx.provide('flowleapOcr', options.ocr)
   await ctx.plugin({ inject: ['agentPresets'], async* apply(child: Context) { yield await child.agentPresets.register({ id: 'patent', order: 0, plugins: [] }) } })
@@ -78,7 +93,7 @@ export async function mountBuilder(ctx: Context, config: Partial<Config> & { roo
   ctx.loader.builtins['flowleap-agent'] = AgentRow
   const options = resolveOptions({
     contextLimitTokens: 50_000, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
-    maxSearchResults: 8, maxReadLocations: 10, ...config,
+    maxSearchResults: 8, maxReadLocations: 10, maxReadChars: 40_000, ...config,
   })
   const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()

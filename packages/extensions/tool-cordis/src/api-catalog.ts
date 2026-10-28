@@ -1282,9 +1282,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async delete(id: AgentId): Promise<void>',
-        description: 'Delete one agent: its preset, its index and its folder.',
+        description: 'Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved, the agent stays as it was.',
         parameters: [{ name: 'id', description: 'the agent.' }],
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.'],
       },
       {
         signature: 'async removeFile(id: AgentId, name: string): Promise<void>',
@@ -1297,7 +1297,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again.',
         parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
         returns: 'the file as stored, in its state after the upload.',
-        throws: ['RemoteError `flowleap-agents/invalid` for a refused name or a body larger than the limit.'],
+        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body larger than the limit (`reason` is `too large`); the file-system error of a failed write.'],
       },
       {
         signature: 'async settled(): Promise<void>',

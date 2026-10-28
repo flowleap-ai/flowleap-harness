@@ -5,20 +5,20 @@
  * @module
  */
 
-import { mkdir, readFile, rm } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, rename, rm } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-tools'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { FLOWLEAP_MCP_PREFIX } from './connectors.ts'
-import { fileNameProblem, newAgentId, type AgentDefinition } from './definition.ts'
+import { fileNameProblem, newAgentId, type AgentDefinition, type FileNameProblem } from './definition.ts'
 import { extractText } from './extract.ts'
 import { AgentIndex, type LocationRow, type SearchHit } from './index-db.ts'
 import { agentMode, renderContextFiles, renderInstructions, renderSearchFiles } from './mode.ts'
 import {
-  FILES_DIR, FileTooLargeError, INDEX_SQLITE, hashFile, listFiles, readAgentFolders, removeAgentFolder, storeUpload, writeAgentFolder,
+  FILES_DIR, FileTooLargeError, INDEX_SQLITE, hashFile, listFiles, moveAgentFolderAside, readAgentFolders, storeUpload, writeAgentFolder,
   type AgentFolder, type StoredFile,
 } from './store.ts'
 import { READ_AGENT_FILE_NAME, SEARCH_AGENT_FILES_NAME } from './tools.ts'
@@ -55,6 +55,8 @@ export interface CatalogOptions {
   readonly maxSearchResults: number
   /** Most pages one `read_agent_file` call returns. */
   readonly maxReadLocations: number
+  /** Most characters of page text one `read_agent_file` call returns. */
+  readonly maxReadChars: number
   /** Loader name of the per-agent row; the plugin sets {@link AGENT_ROW_MODULE}. */
   readonly agentRow: string
 }
@@ -76,6 +78,14 @@ export interface AgentRevision {
 interface LoadedAgent {
   folder: AgentFolder
   readonly index: AgentIndex
+  /** Set when a delete starts, before its first await; every later write of the agent refuses it. */
+  deleted: boolean
+  /** The tail of the agent's write operations; each one runs after the one before it settles. */
+  queue: Promise<void>
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /** Service owning the agent folders, their indexes and their presets. */
@@ -87,6 +97,7 @@ export class AgentCatalog extends Service {
   private readonly work = new Set<Promise<void>>()
   private readonly abort = new AbortController()
   private started = false
+  private base: PresetDefinition | undefined
   private waitingReported = false
   private readonly loaded: Promise<void>
 
@@ -106,7 +117,7 @@ export class AgentCatalog extends Service {
   protected async [Service.init](): Promise<void> {
     this.ctx.effect(() => () => this.close(), 'flowleap-agent-builder: agents')
     await this.loaded
-    this.ctx.on('agent-preset/roster-changed', () => { this.start() })
+    this.ctx.on('agent-preset/roster-changed', () => { this.rosterChanged() })
     this.start()
   }
 
@@ -127,11 +138,32 @@ export class AgentCatalog extends Service {
         this.ctx.logger.warn(`flowleap agent ${folder.dir} not loaded: the id ${folder.id} is already taken by ${taken.folder.dir}`)
         continue
       }
-      const indexPath = this.indexPath(folder)
-      await mkdir(join(indexPath, '..'), { recursive: true, mode: 0o700 })
-      const agent: LoadedAgent = { folder, index: AgentIndex.open(indexPath) }
+      let index: AgentIndex
+      try {
+        index = await this.openIndex(this.indexPath(folder))
+      } catch (error) {
+        this.ctx.logger.warn(`flowleap agent ${folder.dir} not loaded: ${messageOf(error)}`)
+        continue
+      }
+      const agent = loadedAgent(folder, index)
       this.agents.set(folder.id, agent)
       this.track(this.reconcile(agent))
+    }
+  }
+
+  /**
+   * Open the index of one agent. The index is derived from `files/`, so a file that cannot be opened (damaged, or a newer
+   * schema) is moved aside and replaced by an empty index, and reconcile reads the files again.
+   */
+  private async openIndex(path: string): Promise<AgentIndex> {
+    await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+    try {
+      return AgentIndex.open(path)
+    } catch (error) {
+      const aside = `${path}.unreadable-${String(Date.now())}`
+      await rename(path, aside)
+      this.ctx.logger.warn(`flowleap agents: the index ${path} cannot be opened (${messageOf(error)}); it moved to ${aside}, and the files are read again`)
+      return AgentIndex.open(path)
     }
   }
 
@@ -156,7 +188,7 @@ export class AgentCatalog extends Service {
 
   private track(work: Promise<void>): void {
     const tracked = work.catch((error: unknown) => {
-      this.ctx.logger.warn(`flowleap agents: ${error instanceof Error ? error.message : String(error)}`)
+      this.ctx.logger.warn(`flowleap agents: ${messageOf(error)}`)
     }).finally(() => { this.work.delete(tracked) })
     this.work.add(tracked)
   }
@@ -167,6 +199,7 @@ export class AgentCatalog extends Service {
     await this.loaded.catch(() => undefined)
     this.started = false
     await Promise.all([...this.work])
+    await Promise.all([...this.agents.values()].map(agent => agent.queue))
     await Promise.all([...this.presets.values()].map(async (tail) => { await (await tail)?.() }))
     this.presets.clear()
     for (const agent of this.agents.values()) agent.index.close()
@@ -175,8 +208,8 @@ export class AgentCatalog extends Service {
 
   /** Register every agent preset once the base preset is on the roster. */
   private start(): void {
-    if (this.started || this.abort.signal.aborted) return
-    if (this.ctx.agentPresets.definition(this.options.basePreset) === undefined) {
+    const base = this.ctx.agentPresets.definition(this.options.basePreset)
+    if (base === undefined) {
       if (!this.waitingReported) {
         this.waitingReported = true
         this.ctx.logger.warn(`flowleap agents: waiting for the base preset "${this.options.basePreset}"; no agent preset is registered until it is declared`)
@@ -184,6 +217,22 @@ export class AgentCatalog extends Service {
       return
     }
     this.started = true
+    this.base = base
+    for (const id of this.agents.keys()) void this.refresh(id)
+  }
+
+  /**
+   * Start once the base preset is declared; when the base preset registers again with a new definition, register every
+   * agent preset again over it.
+   */
+  private rosterChanged(): void {
+    if (!this.started) {
+      this.start()
+      return
+    }
+    const base = this.ctx.agentPresets.definition(this.options.basePreset)
+    if (base === undefined || base === this.base) return
+    this.base = base
     for (const id of this.agents.keys()) void this.refresh(id)
   }
 
@@ -201,7 +250,7 @@ export class AgentCatalog extends Service {
       if (agent === undefined || base === undefined || !this.started) return undefined
       return await this.ctx.agentPresets.register(this.presetOf(agent, base))
     }).catch((error: unknown) => {
-      this.ctx.logger.warn(`flowleap agent ${id}: preset not registered: ${error instanceof Error ? error.message : String(error)}`)
+      this.ctx.logger.warn(`flowleap agent ${id}: preset not registered: ${messageOf(error)}`)
       return undefined
     })
     this.presets.set(id, next)
@@ -217,6 +266,7 @@ export class AgentCatalog extends Service {
       order: this.options.presetOrder,
       plugins: [...base.plugins, { id: 'flowleap-agent', name: this.options.agentRow, config: {
         agent: id, maxSearchResults: this.options.maxSearchResults, maxReadLocations: this.options.maxReadLocations,
+        maxReadChars: this.options.maxReadChars,
       } }],
     }
   }
@@ -227,12 +277,13 @@ export class AgentCatalog extends Service {
 
   private get(id: AgentId): LoadedAgent {
     const agent = this.agents.get(id)
-    if (agent === undefined) throw new RemoteError('flowleap-agents/not-found', `No agent has the id ${id}`, { id })
+    if (agent === undefined) throw notFound(id)
     return agent
   }
 
   private writable(id: AgentId): LoadedAgent {
     const agent = this.get(id)
+    alive(agent)
     if (agent.folder.readOnly) throw new RemoteError('flowleap-agents/read-only', `The agent ${id} belongs to the firm folder and cannot be changed here`, { id })
     return agent
   }
@@ -340,36 +391,53 @@ export class AgentCatalog extends Service {
   async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView> {
     if (id !== undefined) {
       const agent = this.writable(id)
-      await writeAgentFolder(agent.folder.dir, definition, instructions)
-      agent.folder = { ...agent.folder, definition, instructions }
-      void this.refresh(id)
-      this.emit()
-      return this.read(id)
+      return await serialize(agent, async () => {
+        alive(agent)
+        await writeAgentFolder(agent.folder.dir, definition, instructions)
+        agent.folder = { ...agent.folder, definition, instructions }
+        void this.refresh(id)
+        this.emit()
+        return this.read(id)
+      })
     }
     let created = newAgentId(definition.name)
     while (this.agents.has(created)) created = newAgentId(definition.name)
     const dir = join(this.options.root, created)
     await writeAgentFolder(dir, definition, instructions)
     const folder: AgentFolder = { id: created, dir, readOnly: false, definition, instructions }
-    this.agents.set(created, { folder, index: AgentIndex.open(this.indexPath(folder)) })
+    this.agents.set(created, loadedAgent(folder, await this.openIndex(this.indexPath(folder))))
     await this.refresh(created)
     this.emit()
     return this.read(created)
   }
 
   /**
-   * Delete one agent: its preset, its index and its folder.
+   * Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the
+   * agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved,
+   * the agent stays as it was.
    * @param id - the agent.
-   * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.
+   * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.
    */
   async delete(id: AgentId): Promise<void> {
     const agent = this.writable(id)
-    this.agents.delete(id)
-    await this.refresh(id)
-    this.presets.delete(id)
-    agent.index.close()
-    await removeAgentFolder(agent.folder.dir)
-    this.emit()
+    agent.deleted = true
+    await serialize(agent, async () => {
+      let aside: string
+      try {
+        aside = await moveAgentFolderAside(agent.folder.dir)
+      } catch (error) {
+        agent.deleted = false
+        throw error
+      }
+      this.agents.delete(id)
+      await this.refresh(id)
+      this.presets.delete(id)
+      agent.index.close()
+      this.emit()
+      await rm(aside, { recursive: true, force: true }).catch((error: unknown) => {
+        this.ctx.logger.warn(`flowleap agent ${id}: the deleted folder ${aside} was not removed: ${messageOf(error)}`)
+      })
+    })
   }
 
   /**
@@ -381,10 +449,13 @@ export class AgentCatalog extends Service {
   async removeFile(id: AgentId, name: string): Promise<void> {
     const agent = this.writable(id)
     if (fileNameProblem(name) !== undefined) throw new RemoteError('flowleap-agents/invalid', `"${name}" is not a file name of this agent`, { field: 'name', reason: 'unknown file' })
-    agent.index.remove(name)
-    await rm(join(agent.folder.dir, FILES_DIR, name), { force: true })
-    void this.refresh(id)
-    this.emit()
+    await serialize(agent, async () => {
+      alive(agent)
+      await rm(join(agent.folder.dir, FILES_DIR, name), { force: true })
+      agent.index.remove(name)
+      void this.refresh(id)
+      this.emit()
+    })
   }
 
   /**
@@ -394,15 +465,20 @@ export class AgentCatalog extends Service {
    * @param name - the file name.
    * @param chunks - the request body.
    * @returns the file as stored, in its state after the upload.
-   * @throws RemoteError `flowleap-agents/invalid` for a refused name or a body larger than the limit.
+   * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body
+   *   larger than the limit (`reason` is `too large`); the file-system error of a failed write.
    */
   async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView> {
     const agent = this.writable(id)
     const problem = fileNameProblem(name)
-    if (problem !== undefined) {
-      const reason = problem === 'type' ? 'only PDF, DOCX, TXT and MD files are accepted' : 'the name must be a plain file name'
-      throw new RemoteError('flowleap-agents/invalid', `"${name}": ${reason}`, { field: 'name', reason })
-    }
+    if (problem !== undefined) throw new RemoteError('flowleap-agents/invalid', `"${name}": ${FILE_NAME_MESSAGES[problem]}`, { field: 'name', reason: problem })
+    return await serialize(agent, async () => {
+      alive(agent)
+      return await this.store(agent, name, chunks)
+    })
+  }
+
+  private async store(agent: LoadedAgent, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView> {
     let stored: StoredFile
     try {
       stored = await storeUpload(join(agent.folder.dir, FILES_DIR, name), chunks, this.options.maxFileBytes)
@@ -430,7 +506,7 @@ export class AgentCatalog extends Service {
     }
     const bytes = new Uint8Array(await readFile(join(agent.folder.dir, FILES_DIR, name)))
     const extraction = await extractText(name, bytes, this.ctx.get('flowleapOcr'), this.abort.signal)
-    if (this.abort.signal.aborted || this.agents.get(agent.folder.id) !== agent) return
+    if (this.abort.signal.aborted || agent.deleted) return
     if (!agent.index.complete(name, stored.sha256, extraction)) return
     void this.refresh(agent.folder.id)
     this.emit()
@@ -445,4 +521,31 @@ export class AgentCatalog extends Service {
     while (this.work.size > 0) await Promise.all([...this.work])
     await Promise.all([...this.presets.values()])
   }
+}
+
+const FILE_NAME_MESSAGES: Readonly<Record<FileNameProblem, string>> = {
+  empty: 'the name is empty',
+  long: 'the name is too long',
+  path: 'the name must be a plain file name',
+  type: 'only PDF, DOCX, TXT and MD files are accepted',
+}
+
+function loadedAgent(folder: AgentFolder, index: AgentIndex): LoadedAgent {
+  return { folder, index, deleted: false, queue: Promise.resolve() }
+}
+
+function notFound(id: AgentId): RemoteError<'flowleap-agents/not-found'> {
+  return new RemoteError('flowleap-agents/not-found', `No agent has the id ${id}`, { id })
+}
+
+/** Refuse a write of an agent whose delete has started. */
+function alive(agent: LoadedAgent): void {
+  if (agent.deleted) throw notFound(agent.folder.id)
+}
+
+/** Run one write operation of an agent after the operations queued before it settle. */
+function serialize<T>(agent: LoadedAgent, operation: () => Promise<T>): Promise<T> {
+  const run = agent.queue.then(operation)
+  agent.queue = run.then(() => undefined, () => undefined)
+  return run
 }
