@@ -40,6 +40,7 @@ interface BrandCopyText {
   readonly reasonIncompatibleVersionUnnamed: string
   readonly reasonIncompatibleInstall: string
   readonly reasonIncompatibleInstalled: string
+  readonly reasonUnsupportedPlatform: string
   readonly officeUnavailable: string
   readonly running: string
   readonly runningFor: string
@@ -74,6 +75,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `This plugin is incompatible with the running ${product} version; running it may cause crashes or data loss.`,
     reasonIncompatibleInstall: `Install a plugin version compatible with this ${product}.`,
     reasonIncompatibleInstalled: `Uninstall it and install a version compatible with this ${product}.`,
+    reasonUnsupportedPlatform: `This plugin does not support the operating system running ${product}.`,
     officeUnavailable: `Office previews are unavailable. Enable the document preview service on the computer running ${product}.`,
     running: 'Working',
     runningFor: 'Working for {duration} ···',
@@ -105,6 +107,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `此插件与正在运行的 ${product} 版本不兼容；运行它可能导致崩溃或数据丢失。`,
     reasonIncompatibleInstall: `请安装与此 ${product} 兼容的插件版本。`,
     reasonIncompatibleInstalled: `请卸载它，并安装与此 ${product} 兼容的版本。`,
+    reasonUnsupportedPlatform: `此插件不支持运行 ${product} 的主机操作系统`,
     officeUnavailable: `Office 预览不可用。请在运行 ${product} 的计算机上启用文档预览服务。`,
     running: '处理中',
     runningFor: '处理中，用时 {duration} ···',
@@ -136,6 +139,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `このプラグインは実行中の ${product} のバージョンと互換性がありません。実行するとクラッシュやデータ損失が起きる可能性があります。`,
     reasonIncompatibleInstall: `この ${product} と互換性のあるプラグインのバージョンをインストールしてください。`,
     reasonIncompatibleInstalled: `アンインストールして、この ${product} と互換性のあるバージョンをインストールしてください。`,
+    reasonUnsupportedPlatform: `このプラグインは${product}を実行しているホストOSに対応していません。`,
     officeUnavailable: `Office のプレビューは利用できません。${product} を実行しているコンピューターでドキュメントプレビューサービスを有効にしてください。`,
     running: '処理中',
     runningFor: '処理中 {duration} ···',
@@ -167,6 +171,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `Este complemento no es compatible con la versión de ${product} en ejecución; ejecutarlo puede provocar bloqueos o pérdida de datos.`,
     reasonIncompatibleInstall: `Instale una versión del complemento compatible con este ${product}.`,
     reasonIncompatibleInstalled: `Desinstálelo e instale una versión compatible con este ${product}.`,
+    reasonUnsupportedPlatform: `Este complemento no es compatible con el sistema operativo que ejecuta ${product}.`,
     officeUnavailable: `Las vistas previas de Office no están disponibles. Active el servicio de vista previa de documentos en el equipo que ejecuta ${product}.`,
     running: 'Trabajando',
     runningFor: 'Trabajando durante {duration} ···',
@@ -198,6 +203,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `Ce plugin est incompatible avec la version de ${product} en cours d'exécution ; son exécution peut provoquer des plantages ou des pertes de données.`,
     reasonIncompatibleInstall: `Installez une version du plugin compatible avec ce ${product}.`,
     reasonIncompatibleInstalled: `Désinstallez-le et installez une version compatible avec ce ${product}.`,
+    reasonUnsupportedPlatform: `Ce plugin ne prend pas en charge le système d’exploitation sur lequel ${product} s’exécute.`,
     officeUnavailable: `Les aperçus Office ne sont pas disponibles. Activez le service d'aperçu des documents sur l'ordinateur qui exécute ${product}.`,
     running: 'En cours',
     runningFor: 'En cours depuis {duration} ···',
@@ -229,6 +235,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `Dieses Plugin ist nicht mit der laufenden ${product}-Version kompatibel; die Ausführung kann zu Abstürzen oder Datenverlust führen.`,
     reasonIncompatibleInstall: `Installieren Sie eine Plugin-Version, die mit diesem ${product} kompatibel ist.`,
     reasonIncompatibleInstalled: `Deinstallieren Sie es und installieren Sie eine Version, die mit diesem ${product} kompatibel ist.`,
+    reasonUnsupportedPlatform: `Dieses Plugin unterstützt das Betriebssystem, auf dem ${product} läuft, nicht.`,
     officeUnavailable: `Office-Vorschauen sind nicht verfügbar. Aktivieren Sie den Dokumentvorschaudienst auf dem Computer, auf dem ${product} läuft.`,
     running: 'In Arbeit',
     runningFor: 'In Arbeit seit {duration} ···',
@@ -260,6 +267,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `Этот плагин несовместим с запущенной версией ${product}; его запуск может привести к сбоям или потере данных.`,
     reasonIncompatibleInstall: `Установите версию плагина, совместимую с этим ${product}.`,
     reasonIncompatibleInstalled: `Удалите его и установите версию, совместимую с этим ${product}.`,
+    reasonUnsupportedPlatform: `Этот плагин не поддерживает операционную систему, в которой работает ${product}.`,
     officeUnavailable: `Предпросмотр Office недоступен. Включите службу предпросмотра документов на компьютере, на котором работает ${product}.`,
     running: 'Выполняется',
     runningFor: 'Выполняется {duration} ···',
@@ -291,6 +299,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleVersionUnnamed: `Este plug-in é incompatível com a versão do ${product} em execução; executá-lo pode causar falhas ou perda de dados.`,
     reasonIncompatibleInstall: `Instale uma versão do plug-in compatível com este ${product}.`,
     reasonIncompatibleInstalled: `Desinstale-o e instale uma versão compatível com este ${product}.`,
+    reasonUnsupportedPlatform: `Este plugin não oferece suporte ao sistema operacional em que o ${product} está sendo executado.`,
     officeUnavailable: `As pré-visualizações do Office não estão disponíveis. Ative o serviço de pré-visualização de documentos no computador que executa o ${product}.`,
     running: 'Em andamento',
     runningFor: 'Em andamento há {duration} ···',
@@ -347,6 +356,7 @@ export function brandCopy(brand: BrandRecord, locale: BrandLocale): readonly Cop
         reasonIncompatibleVersionUnnamed: copy.reasonIncompatibleVersionUnnamed,
         reasonIncompatibleInstall: copy.reasonIncompatibleInstall,
         reasonIncompatibleInstalled: copy.reasonIncompatibleInstalled,
+        reasonUnsupportedPlatform: copy.reasonUnsupportedPlatform,
       },
     },
     // dsh-client-ui-sidebar-documentpreview (office): the unavailable notice.

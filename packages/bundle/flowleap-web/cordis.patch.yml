@@ -52,8 +52,16 @@
 - id: ui-settings-session-log
   disabled: true
 
-- id: ui-deepseek-model-label-1017
-  disabled: true
+# ── optional bundles this product does not offer ────────────────────────────
+# Live Share shows Sessions to share viewers, and Forge works with GitHub. A
+# firm runtime must not offer either, so the Plugins page hides them and
+# refuses to switch them on.
+
+- id: plugin-manager
+  config:
+    withheldBundles:
+      - '@deepseek-ai/dsh-experimental-liveshare'
+      - '@deepseek-ai/dsh-experimental-forge-bundle'
 
 # ── the patent preset is the default ─────────────────────────────────────────
 # `presets/patent.patch.yml` inserts the `patent` declaration (standard's

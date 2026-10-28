@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-routines",
   "description": "FlowLeap routines on the dsh-schedule scheduler: the register watch, a daily task that reads EP and US register events without a model call and runs only when an event is new, with a new chat per run and the Needs review mark",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-alpha.2",
   "publishConfig": {
     "access": "public"
   },
