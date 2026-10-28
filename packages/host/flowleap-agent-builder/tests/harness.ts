@@ -97,7 +97,7 @@ export async function mountBuilder(ctx: Context, config: Partial<Config> & { roo
   const options = resolveOptions({
     contextLimitTokens: 50_000, charsPerToken: 4, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
     maxSearchResults: 8, maxReadLocations: 10, maxReadChars: 40_000,
-    extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512, ...config,
+    extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512, storageLowFlagPath: `${config.root}.disk-low`, ...config,
   })
   const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()

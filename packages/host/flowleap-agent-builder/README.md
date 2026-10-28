@@ -42,6 +42,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
     extractTimeoutMs: 120000
     maxPages: 2000
     extractMemoryMb: 512
+    storageLowFlagPath: /run/flowleap/host/disk-low
 ```
 
 | Field | Default | Meaning |
@@ -57,6 +58,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
 | `maxReadLocations` | `10` | Most pages or paragraphs one `read_agent_file` call returns |
 | `extractTimeoutMs` | `120000` | Wall-clock limit of reading one file in the extraction Worker, Worker start included; over it the file fails with `timeout`. Room for a `maxPages` PDF on a slow disk |
 | `maxPages` | `2000` | Most pages one PDF may have; a PDF with more fails with `too-large` before its pages are read. Holds a long prosecution history |
+| `storageLowFlagPath` | `/run/flowleap/host/disk-low` | The firm host's "disk low" flag file inside the runtime. While it exists, an upload answers `flowleap-agents/invalid` with `reason: 'storage low'` and stores nothing; reads, agent edits and chats go on |
 | `extractMemoryMb` | `512` | Memory limit of the extraction Worker: its V8 old generation (the young generation gets one eighth of it), and the sum of its heap and external memory, which the Host samples every 25 ms; over it the file fails with `too-large`. About ten times the default `maxFileBytes` |
 | `maxReadChars` | `40000` | Most characters of page text one `read_agent_file` call returns, at most `200000` (about 50000 tokens); about 10000 tokens, so the default 10 pages of a typical 3000-character page fit, and one TXT or MD page cannot fill the context |
 

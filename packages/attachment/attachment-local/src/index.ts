@@ -1,9 +1,10 @@
 /** Local durable attachment backend rooted below `DSH_HOME`. @module @deepseek-ai/dsh-attachment-local */
 
+import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import { AttachmentError, AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {
   FileAttachmentRef,
   ImageAttachmentLimits,
@@ -86,6 +87,11 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /**
+   * The host's "storage low" flag file. While the file exists, user uploads are refused with `STORAGE_LOW`; reads and
+   * attachments a tool stores go on. Absent: no flag, every upload is accepted.
+   */
+  storageLowFlagPath?: string
 }
 
 function abortReason(signal: AbortSignal): Error {
@@ -161,6 +167,7 @@ export class LocalAttachmentStore extends AttachmentStore {
     normalizedImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_NORMALIZED_IMAGE_MAX_BYTES),
     imageCompressionConcurrency: z.number().step(1).min(1).max(MAX_IMAGE_COMPRESSION_CONCURRENCY)
       .default(DEFAULT_IMAGE_COMPRESSION_CONCURRENCY),
+    storageLowFlagPath: z.string().min(1),
   })
 
   /** Absolute versioned storage root. */
@@ -173,6 +180,7 @@ export class LocalAttachmentStore extends AttachmentStore {
   private readonly cacheRoot: string
   private readonly compression: CompressionLimiter
   private readonly requestInflight = new Map<string, SharedRequest<RequestImageAttachment>>()
+  private readonly storageLowFlagPath: string | undefined
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
@@ -202,6 +210,16 @@ export class LocalAttachmentStore extends AttachmentStore {
     }
     this.imageCompressionConcurrency = compressionConcurrency
     this.compression = new CompressionLimiter(compressionConcurrency)
+    this.storageLowFlagPath = config.storageLowFlagPath
+  }
+
+  override async assertUploadsAccepted(): Promise<void> {
+    if (this.storageLowFlagPath === undefined) return
+    // ENOENT, the normal case, means storage is not low; a flag this process cannot reach also reads as no flag.
+    const low = await access(this.storageLowFlagPath).then(() => true, () => false)
+    if (low) {
+      throw new AttachmentError('The firm server is low on disk space. Ask your administrator.', 'STORAGE_LOW')
+    }
   }
 
   async validateImage(input: SaveImageAttachment): Promise<void> {

@@ -78,7 +78,10 @@ export function ComposerAttachments({
                     {...upload?.status === 'uploading' && upload.total !== undefined && upload.total > 0
                       ? { progress: upload.loaded / upload.total }
                       : {}}
-                    labels={fileCardLabels(t, attachment.file.name)}
+                    labels={upload?.status === 'error' && upload.reason !== undefined
+                      // A Host refusal names its reason in place of the generic failure.
+                      ? { ...fileCardLabels(t, attachment.file.name), failed: uploadFailureText(upload.reason) }
+                      : fileCardLabels(t, attachment.file.name)}
                     onRemove={() => { onRemoveAttachment(attachment.id) }}
                     onRetry={() => { onRetryFile(attachment.id) }}
                   />

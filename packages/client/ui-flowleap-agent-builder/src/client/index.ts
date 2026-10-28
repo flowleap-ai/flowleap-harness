@@ -66,6 +66,7 @@ function uploadOutcome(answer: unknown): AgentUploadResult {
   if (error.code !== 'flowleap-agents/invalid') return uploadFailure('refused')
   if (reason === 'too large') return uploadFailure('too-large')
   if (reason === UPLOAD_TYPE_REASON) return uploadFailure('type')
+  if (reason === 'storage low') return uploadFailure('storage-low')
   return uploadFailure('refused')
 }
 

@@ -4,7 +4,7 @@ import { Context, FiberState } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import { createInboxStub } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import AttachmentStore, { AttachmentId } from '@deepseek-ai/dsh-attachment'
+import AttachmentStore, { AttachmentError, AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type {
   FileAttachmentRef, ImageAttachmentLimits, ImageAttachmentRef, SaveFileAttachment, SaveFileStreamAttachment,
   SaveImageAttachment,
@@ -340,6 +340,25 @@ describe('Session file uploads', () => {
     await expect(uploads.uploadImageStream({ sessionId: SESSION, data: overLimit, mediaType: 'image/png' }))
       .rejects.toMatchObject({ code: 'session/attachment-invalid', details: { reason: 'IMAGE_TOO_LARGE' } })
     expect(saveImages).not.toHaveBeenCalled()
+  })
+
+  it('refuses file and image uploads before storing while the store refuses uploads, and accepts them after', async () => {
+    const { ctx, uploads, saveFileStream, saveImages } = await uploadHarness()
+    const low = vi.spyOn(ctx.attachments, 'assertUploadsAccepted')
+      .mockRejectedValue(new AttachmentError('The firm server is low on disk space. Ask your administrator.', 'STORAGE_LOW'))
+    const refusal = {
+      code: 'session/attachment-invalid',
+      message: 'The firm server is low on disk space. Ask your administrator.',
+      details: { reason: 'STORAGE_LOW' },
+    }
+    await expect(uploads.uploadStream({ sessionId: SESSION, data: chunks([1, 2]) })).rejects.toMatchObject(refusal)
+    await expect(uploads.uploadImageStream({ sessionId: SESSION, data: chunks([1]), mediaType: 'image/png' }))
+      .rejects.toMatchObject(refusal)
+    expect(saveFileStream).not.toHaveBeenCalled()
+    expect(saveImages).not.toHaveBeenCalled()
+    low.mockRestore()
+    await expect(uploads.uploadStream({ sessionId: SESSION, data: chunks([1, 2]) }))
+      .resolves.toMatchObject({ file: { bytes: 2 } })
   })
 
   it('keeps the stream name optional and maps storage failures through the same error vocabulary', async () => {

@@ -236,6 +236,7 @@ export class FileUploads extends TypertRemoteService {
   private async store<T>(agent: Agent, save: () => Promise<T>): Promise<T> {
     this.assertOrdinaryAgent(agent)
     try {
+      await this.ctx.attachments.assertUploadsAccepted()
       return await save()
     } catch (error) {
       if (remoteErrorOf(error) !== undefined) throw error

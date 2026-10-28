@@ -32,6 +32,7 @@ describe('attachment rejection copy', () => {
     expect(attachmentErrorText(t, 'IMAGES_TOO_LARGE', limits)).toBe('图片总大小超过 100MB，请移除部分图片')
     expect(attachmentErrorText(t, 'IMAGE_DIMENSION_TOO_LARGE', limits)).toBe('图片宽高不能超过 2000px，请缩小后重试')
     expect(attachmentErrorText(enT, 'TOO_MANY_IMAGES', limits)).toBe('A message can include up to 20 images')
+    expect(attachmentErrorText(enT, 'STORAGE_LOW')).toBe('The firm server is low on disk space, so uploads are off. Ask your administrator.')
   })
 
   it('folds unknown reasons and limit reasons without projected limits into the send-failed line', () => {

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { rm, writeFile } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import { handleAgentUpload } from '../src/index.ts'
 import { mountBuilder, runtime, stubTool, tempDir } from './harness.ts'
 
@@ -65,6 +67,35 @@ describe('upload route', () => {
     await catalog.settled()
     expect(catalog.read(id).files.map(file => [file.name, file.state.kind])).toEqual([['a.txt', 'indexed']])
   })
+
+  it('refuses an upload while the disk low flag exists, and stores it again once the flag is gone', async () => {
+    const ctx = await runtime()
+    const root = await tempDir('dsh-agents-')
+    const flag = join(root, '..', `${basename(root)}.disk-low`)
+    await mountBuilder(ctx, { root, storageLowFlagPath: flag })
+    const { id } = await ctx.flowleapAgents.save(INPUT)
+    const catalog = ctx.flowleapAgentCatalog
+    await writeFile(flag, '')
+    try {
+      const refused = await handleAgentUpload(catalog, post(`agent=${id}&name=a.txt`, 'alpha'))
+      expect(await refused.json()).toEqual({
+        ok: false,
+        error: {
+          code: 'flowleap-agents/invalid',
+          message: 'The firm server is low on disk space. Ask your administrator.',
+          details: { field: 'file', reason: 'storage low' },
+        },
+      })
+      expect(catalog.read(id).files).toEqual([])
+      // Reads and agent edits go on while the flag exists.
+      expect(await ctx.flowleapAgents.save({ ...INPUT, id, name: 'Renamed' })).toMatchObject({ name: 'Renamed' })
+    } finally {
+      await rm(flag, { force: true })
+    }
+    const stored = await handleAgentUpload(catalog, post(`agent=${id}&name=a.txt`, 'alpha'))
+    expect(await stored.json()).toMatchObject({ ok: true, value: { name: 'a.txt', bytes: 5 } })
+    await catalog.settled()
+  })
 })
 
 describe('plugin', () => {
@@ -72,7 +103,7 @@ describe('plugin', () => {
     const { apply, resolveOptions, AGENT_ROW_MODULE } = await import('../src/index.ts')
     const config = {
       contextLimitTokens: 1, charsPerToken: 4, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1, maxReadChars: 1,
-      extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16,
+      extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16, storageLowFlagPath: '/run/flowleap/host/disk-low',
     }
     expect(resolveOptions(config, { DSH_HOME: '/home/a/.dsh' })).toMatchObject({ root: '/home/a/.dsh/agents', agentRow: AGENT_ROW_MODULE })
     expect(resolveOptions({ ...config, root: '/r', firmRoot: '/f' })).toMatchObject({ root: '/r', firmRoot: '/f' })

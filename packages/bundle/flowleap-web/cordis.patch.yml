@@ -114,6 +114,17 @@
     customSkillDirs:
       - !!js process.env.FLOWLEAP_SKILLS_DIR ?? '/Users/abdullahatrash/flowleap/flowleap-plugins/plugins/flowleap/skills'
 
+# ── uploads while the firm server's disk is low ──────────────────────────────
+# The firm host writes /run/flowleap/host/disk-low (read-only in the runtime)
+# while its disk is low, and removes it when space comes back
+# (flowleap-harness#62). While the file exists, chat attachments are refused
+# with STORAGE_LOW; reads, chats and the attachments a tool stores go on. The
+# agent builder row below reads the same flag.
+
+- id: attachment-local
+  config:
+    storageLowFlagPath: /run/flowleap/host/disk-low
+
 # ── the shell sandbox ────────────────────────────────────────────────────────
 # A confined command reaches no IP network: web access goes through the web
 # tools, and an unconfined run (danger-full-access) needs the attorney's
@@ -231,7 +242,8 @@
     # instructions, its files (in the system prompt up to the limit, else a
     # search and a read tool over an FTS5 index) and only the chosen
     # connectors. firmRoot names a read-only folder of firm agents; the Host
-    # never writes there.
+    # never writes there. While the firm host's disk low flag exists, an upload
+    # is refused (flowleap-harness#62).
     - id: flowleap-agent-builder
       name: '@deepseek-ai/dsh-flowleap-agent-builder'
       config:
@@ -246,6 +258,7 @@
         extractTimeoutMs: 120000
         maxPages: 2000
         extractMemoryMb: 512
+        storageLowFlagPath: /run/flowleap/host/disk-low
 
     # The agent builder form: a New agent row in the new-session agent picker
     # and the agent form (name, description, instructions, files, connectors).

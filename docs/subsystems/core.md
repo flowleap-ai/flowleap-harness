@@ -962,8 +962,9 @@ async removeFile(id: AgentId, name: string): Promise<void>
  * @param name - the file name.
  * @param chunks - the request body.
  * @returns the file as stored, in its state after the upload.
- * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body
- *   larger than the limit (`reason` is `too large`); the file-system error of a failed write.
+ * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}), a body
+ *   larger than the limit (`reason` is `too large`), or while the host's disk is low (`reason` is `storage low`); the
+ *   file-system error of a failed write.
  */
 async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>
 
