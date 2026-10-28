@@ -1584,13 +1584,75 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->
+<a id="deepseek-aidsh-flowleap-agent-builder"></a>
+
+## `@deepseek-ai/dsh-flowleap-agent-builder`
+
+- `inject`: `agentPresets` · `connection`
+- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:71`](../packages/host/flowleap-agent-builder/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The agents root; absent for `$DSH_HOME/agents`. */
+  root?: string
+  /** The read-only firm agents folder; its agents load when it exists, and this Host never writes there. */
+  firmRoot?: string
+  /**
+   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / charsPerToken)`), that goes into the system
+   * prompt in full; above it the agent searches its files.
+   */
+  contextLimitTokens: number
+  /**
+   * Characters counted as one token in the mode estimate. The default 4 is close for English, French and German prose;
+   * a deployment whose agent files are mostly Chinese, Japanese or Korean sets 1, because those scripts take about one
+   * token per character, and 4 would put four times the limit into the prompt.
+   */
+  charsPerToken: number
+  /** Largest file one upload stores, in bytes. */
+  maxFileBytes: number
+  /** The preset whose plugin list each agent preset copies. */
+  basePreset: string
+  /** Roster order of the agent presets; the shipped presets use 0 to 3. */
+  presetOrder: number
+  /** Most hits one `search_agent_files` call returns. */
+  maxSearchResults: number
+  /** Most pages one `read_agent_file` call returns. */
+  maxReadLocations: number
+  /**
+   * Most characters of page text one `read_agent_file` call returns; a TXT or MD file is one page, so one page can be
+   * the whole file. The default 40000 (about 10000 tokens by the `ceil(chars / 4)` estimate) holds the default 10 pages
+   * of a typical 3000-character PDF page. At most {@link MAX_READ_CHARS}.
+   */
+  maxReadChars: number
+  /**
+   * Wall-clock limit of reading one file in the extraction Worker, Worker start included, in milliseconds; over it the
+   * Worker ends and the file fails with `timeout`. The default 120000 leaves room for a `maxPages` PDF on a slow disk.
+   */
+  extractTimeoutMs: number
+  /**
+   * Most pages one PDF may have; a PDF with more fails with `too-large` before its pages are read. The default 2000
+   * holds a long prosecution history while it bounds the page loop.
+   */
+  maxPages: number
+  /**
+   * V8 heap limit of the extraction Worker, in MB (the old generation; the young generation gets one eighth of it); a
+   * file that needs more fails with `too-large`. The default 512 is about ten times the default `maxFileBytes`, room for
+   * pdfjs and mammoth to hold a 50 MB file and its decoded structures, while a DOCX zip bomb cannot reach the Host heap.
+   */
+  extractMemoryMb: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
 <a id="deepseek-aidsh-flowleap-connectors"></a>
 
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:71`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:75`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -4995,6 +5057,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-directory-picker-native` | — | [`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | — | [`packages/client/ui-flowleap-agent-builder/src/index.ts`](../packages/client/ui-flowleap-agent-builder/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-routines` | — | [`packages/client/ui-flowleap-routines/src/index.ts`](../packages/client/ui-flowleap-routines/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-goal` | — | [`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | — | [`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts) |

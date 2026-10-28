@@ -180,6 +180,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.',
       },
       {
+        signature: 'definition(id: string): PresetDefinition | undefined',
+        description: 'Read one registered definition as its declaring plugin submitted it.',
+        parameters: [{ name: 'id', description: 'preset identity.' }],
+        returns: 'the definition, or undefined when no declaration supplies the id.',
+      },
+      {
         signature: 'inspectCompositions(ctx?: Context): AgentPresetInspection[]',
         description: 'Inspect retained revisions, or the exact revision an Agent joined.',
         parameters: [{ name: 'ctx', description: 'optional Agent context; omission includes all retained revisions.' }],
@@ -1219,6 +1225,134 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapAgentCatalog',
+    summary: 'Service owning the agent folders, their indexes and their presets.',
+    description: 'Service owning the agent folders, their indexes and their presets.',
+    methods: [
+      {
+        signature: 'ready(): Promise<void>',
+        description: 'Settles when the agent folders are loaded; the Remote waits for it before its first answer.',
+        parameters: [],
+        returns: 'the load.',
+      },
+      {
+        signature: 'revision(id: AgentId): AgentRevision',
+        description: 'The current revision of one agent for its preset row.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the revision.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: 'search(id: AgentId, query: string, limit: number): SearchHit[]',
+        description: 'Search one agent\'s indexed files.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'query', description: 'the words.' }, { name: 'limit', description: 'most hits.' }],
+        returns: 'hits, best first.',
+      },
+      {
+        signature: 'readFile(id: AgentId, file: string, from: number, to: number): { readonly rows: LocationRow[]; readonly total: number } | undefined',
+        description: 'Read locations of one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'file', description: 'the file name.' }, { name: 'from', description: 'first location.' }, { name: 'to', description: 'last location, inclusive.' }],
+        returns: 'the locations and the location count, or undefined for an unknown file.',
+      },
+      {
+        signature: 'list(): AgentSummary[]',
+        description: 'Every agent, by name.',
+        parameters: [],
+        returns: 'the summaries.',
+      },
+      {
+        signature: 'read(id: AgentId): AgentView',
+        description: 'One agent with its fields, files and mode.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: 'async connectors(): Promise<ConnectorChoice[]>',
+        description: 'The connector rows an agent can choose, each with whether it can answer on this Host.',
+        parameters: [],
+        returns: 'one row per choice.',
+      },
+      {
+        signature: 'async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>',
+        description: 'Create an agent or change one. The caller validated the fields.',
+        parameters: [{ name: 'id', description: 'the agent to change, or undefined to create one.' }, { name: 'definition', description: 'the `agent.yaml` fields.' }, { name: 'instructions', description: 'the instructions.' }],
+        returns: 'the agent after the change.',
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
+      },
+      {
+        signature: 'async delete(id: AgentId): Promise<void>',
+        description: 'Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved, the agent stays as it was.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.'],
+      },
+      {
+        signature: 'async removeFile(id: AgentId, name: string): Promise<void>',
+        description: 'Remove one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+      {
+        signature: 'async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>',
+        description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file whose name differs only in case, and the agent keeps the new name.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
+        returns: 'the file as stored, in its state after the upload.',
+        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body larger than the limit (`reason` is `too large`); the file-system error of a failed write.'],
+      },
+      {
+        signature: 'async settled(): Promise<void>',
+        description: 'Wait until every upload read and preset change started so far has settled.',
+        parameters: [],
+        returns: 'settles when the background work is done.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapAgents',
+    summary: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
+    methods: [
+      {
+        signature: '@Remote async list(): Promise<AgentSummary[]>',
+        description: 'Every agent of this Host, the firm agents included.',
+        parameters: [],
+        returns: 'the summaries, by name.',
+      },
+      {
+        signature: '@Remote async read(id: AgentId): Promise<AgentView>',
+        description: 'One agent with its fields, files and mode.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: '@Remote connectors(): Promise<ConnectorChoice[]>',
+        description: 'The connector rows the form offers, each with whether it can answer on this Host.',
+        parameters: [],
+        returns: 'one row per choice.',
+      },
+      {
+        signature: '@Remote async save(input: { id?: AgentId; name: string; description: string; instructions: string; connectors: string[] }): Promise<AgentView>',
+        description: 'Create an agent (no `id`) or change one. The connectors must be ids that `connectors()` lists.',
+        parameters: [{ name: 'input', description: 'the form fields.' }],
+        returns: 'the agent after the change.',
+        throws: ['RemoteError `flowleap-agents/invalid` for a bad field, `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
+      },
+      {
+        signature: '@Remote async delete(id: AgentId): Promise<void>',
+        description: 'Delete one agent with its files.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+      {
+        signature: '@Remote async removeFile(id: AgentId, name: string): Promise<void>',
+        description: 'Remove one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+    ],
+  },
+  {
     key: 'flowleapConnectors',
     summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
     description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
@@ -1247,6 +1381,20 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
         returns: 'whether the call succeeded and a human-readable message.',
         throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapOcr',
+    summary: 'What a consumer needs from the service.',
+    description: 'What a consumer needs from the service.',
+    methods: [
+      {
+        signature: 'pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRead>',
+        description: 'Read the page text of one document.',
+        parameters: [{ name: 'bytes', description: 'the document (PDF or image).' }, { name: 'filename', description: 'the file name Mistral receives.' }, { name: 'signal', description: 'cancels the upstream call.' }],
+        returns: 'the pages, or `not-configured` without a usable key.',
+        throws: ['Error for an upstream failure other than a missing or refused key.'],
       },
     ],
   },
@@ -4672,6 +4820,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.error - persistence, setup, or publication failure.' }],
   },
   {
+    name: 'agent-preset/roster-changed',
+    mode: 'emit',
+    signature: '\'agent-preset/roster-changed\'(): void',
+    summary: 'A preset definition was registered (after its activation settled) or unregistered.',
+    description: 'A preset definition was registered (after its activation settled) or unregistered. Clients refetch `agentPresets.list()`.',
+    parameters: [],
+  },
+  {
     name: 'agent-preset/selected',
     mode: 'emit',
     signature: '\'agent-preset/selected\'(sessionId: SessionId, agentPreset: string): void',
@@ -4958,6 +5114,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Observe a durable cold feedback mutation without publishing a live Session.',
     description: 'Observe a durable cold feedback mutation without publishing a live Session. Observers run before write ownership is released and must not await another message-feedback operation for this Session. The payload is borrowed read-only; deep-clone it before transferring ownership (for example, to Session.fromRestore).',
     parameters: [{ name: 'inspection', description: 'committed canonical prefix, including the feedback as its last event.' }],
+  },
+  {
+    name: 'flowleap-agents/changed',
+    mode: 'emit',
+    signature: '\'flowleap-agents/changed\'(): void',
+    summary: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
+    description: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
+    parameters: [],
   },
   {
     name: 'flowleap-routines/changed',
@@ -5472,12 +5636,36 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentCancelCause = {\n    readonly kind: \'user\';\n} | {\n    readonly kind: \'parent\';\n} | {\n    readonly kind: \'hook\';\n    readonly reason: string;\n} | {\n    readonly kind: \'disposed\';\n};',
   },
   {
+    name: 'AgentDefinition',
+    declaration: 'export interface AgentDefinition {\n    readonly name: string;\n    readonly description: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
+  },
+  {
     name: 'AgentFactory',
     declaration: 'export interface AgentFactory {\n    createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>;\n    resume(ownerCtx: Context, options: ResumeAgentOptions): Promise<AgentHandle>;\n}',
   },
   {
+    name: 'AgentFileFailure',
+    declaration: 'export type AgentFileFailure = \'no-text\' | \'ocr-unavailable\' | \'ocr-failed\' | \'unreadable\' | \'too-large\' | \'timeout\';',
+  },
+  {
+    name: 'AgentFileState',
+    declaration: 'export type AgentFileState = {\n    readonly kind: \'indexing\';\n} | {\n    readonly kind: \'indexed\';\n} | {\n    readonly kind: \'failed\';\n    readonly reason: AgentFileFailure;\n    readonly message: string;\n};',
+  },
+  {
+    name: 'AgentFileView',
+    declaration: 'export interface AgentFileView {\n    readonly name: string;\n    readonly bytes: number;\n    readonly state: AgentFileState;\n    readonly locations: number;\n    readonly unit: LocationUnit;\n}',
+  },
+  {
     name: 'AgentHandle',
     declaration: 'export interface AgentHandle {\n    agent: Agent;\n    dispose(): Promise<void>;\n}',
+  },
+  {
+    name: 'AgentId',
+    declaration: 'export type AgentId = Branded<\'FlowleapAgentId\'>;',
+  },
+  {
+    name: 'AgentMode',
+    declaration: 'export type AgentMode = \'context\' | \'search\';',
   },
   {
     name: 'AgentOptions',
@@ -5512,6 +5700,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentResolver = (sessionId: SessionId) => Promise<Agent>;',
   },
   {
+    name: 'AgentRevision',
+    declaration: 'export interface AgentRevision {\n    readonly id: AgentId;\n    readonly instructionsText: string;\n    readonly filesText?: string;\n    readonly mode: AgentMode;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
+  },
+  {
     name: 'AgentSetup',
     declaration: 'export type AgentSetup = (agentCtx: Context, agent: Agent) => AgentSetupCommit | Promise<AgentSetupCommit | void> | void;',
   },
@@ -5522,6 +5714,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentStatus',
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
+  },
+  {
+    name: 'AgentSummary',
+    declaration: 'export interface AgentSummary {\n    readonly id: AgentId;\n    readonly name: string;\n    readonly description: string;\n    readonly readOnly: boolean;\n}',
+  },
+  {
+    name: 'AgentView',
+    declaration: 'export interface AgentView extends AgentSummary {\n    readonly instructions: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n    readonly files: readonly AgentFileView[];\n    readonly mode: AgentMode;\n}',
   },
   {
     name: 'AnalyticsPreset',
@@ -5958,6 +6158,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionTrustRequest',
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+  },
+  {
+    name: 'ConnectorChoice',
+    declaration: 'export interface ConnectorChoice {\n    readonly id: ConnectorChoiceId;\n    readonly configured: boolean;\n}',
+  },
+  {
+    name: 'ConnectorChoiceId',
+    declaration: 'export type ConnectorChoiceId = (typeof CONNECTOR_CHOICE_IDS)[number];',
   },
   {
     name: 'ConnectorPresence',
@@ -6968,6 +7176,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type LocalizedText = string | {\n    readonly en: string;\n    readonly [locale: string]: string;\n};',
   },
   {
+    name: 'LocationRow',
+    declaration: 'export interface LocationRow {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'LocationUnit',
+    declaration: 'export type LocationUnit = \'page\' | \'paragraph\';',
+  },
+  {
     name: 'LogExporterOptions',
     declaration: 'export type LogExporterOptions = Omit<OTLPExporterNodeConfigBase, \'selfObsMeterProvider\'> & {\n    url: string;\n};',
   },
@@ -7290,6 +7506,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
+  },
+  {
+    name: 'OcrPageText',
+    declaration: 'export interface OcrPageText {\n    readonly page: number;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'OcrRead',
+    declaration: 'export type OcrRead = {\n    readonly kind: \'read\';\n    readonly pages: readonly OcrPageText[];\n} | {\n    readonly kind: \'not-configured\';\n};',
   },
   {
     name: 'OfficeExtension',
@@ -8098,6 +8322,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchFileMatches',
     declaration: 'export interface SearchFileMatches {\n    path: string;\n    matches: SearchLineMatch[];\n}',
+  },
+  {
+    name: 'SearchHit',
+    declaration: 'export interface SearchHit {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly passage: string;\n}',
   },
   {
     name: 'SearchLineMatch',

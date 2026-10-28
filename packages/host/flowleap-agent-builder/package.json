@@ -1,0 +1,98 @@
+{
+  "name": "@deepseek-ai/dsh-flowleap-agent-builder",
+  "description": "FlowLeap agent builder: agents from instructions, files and chosen connectors, one agent preset for each agent folder, with a full-text index over the agent's files",
+  "version": "0.2.2-alpha.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/host/flowleap-agent-builder"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./agent": {
+      "types": "./lib/types/agent-row.d.ts",
+      "default": "./lib/types/agent-row.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "locale/*.json",
+    "lib/index.js",
+    "lib/worker.cjs",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-atomic-write": "workspace:*",
+    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-home-paths": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:~",
+    "@flowleap/connectors": "workspace:~",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.3.289",
+    "yaml": "^2.9.0",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-util-values": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/cordis-plugin-group": "workspace:~",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-agent-loop": "workspace:*",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
+    "@deepseek-ai/dsh-scope": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-session-projection": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-tool-executor-native": "workspace:*",
+    "@deepseek-ai/dsh-tool-testkit": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-util-values": "workspace:*",
+    "docx": "9.9.0",
+    "execa": "^10.0.1"
+  }
+}

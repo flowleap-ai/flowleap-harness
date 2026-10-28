@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   IconAgentPresetOutlineRegular, IconChevronDownOutlineRegular, IconWarningOutlineRegular, Menu, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -24,6 +24,21 @@ import type { AgentPresetSeatState } from './seat-store.ts'
 import { presetDisplayText } from './locales.ts'
 import { requiresCodingTools } from './settings-store.ts'
 import css from './AgentPresetSeat.module.css'
+
+/** Owner props of one `agentPreset.menu.actions` row. */
+export interface AgentPresetMenuActionProps {
+  /** Close the preset menu before starting the contributed action. */
+  readonly onDismiss: () => void
+  /** The preset the chip shows for the session about to start; empty before the roster loads. */
+  readonly currentId: string
+}
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    /** Additional MenuItemButton rows after the presets in the new-session preset menu, such as a way to create a preset. */
+    'agentPreset.menu.actions': { kind: 'list'; scope: 'root'; owner: AgentPresetMenuActionProps }
+  }
+}
 
 /** Registration-side business face for the hero chip. */
 export interface AgentPresetSeatInjected {
@@ -71,6 +86,7 @@ function introStaggerMs(count: number): number {
 export type AgentPresetSeatProps =
   PropsRuntime<'conversation.hero.agentPreset'>
   & PropsLocale<'settings.agentPreset'>
+  & PropsRenderSlots<'agentPreset.menu.actions'>
   & InjectFace<AgentPresetSeatInjected>
 
 /**
@@ -79,7 +95,7 @@ export type AgentPresetSeatProps =
  * @returns The chip and any pending selection refusal, or null outside the main view.
  */
 export function AgentPresetSeat({
-  sessionId, useSessionRetainInfo, load, select, dismissRefusal, introduced, useAgentPresetSeat, useDeveloperTools, t,
+  sessionId, useSessionRetainInfo, load, select, dismissRefusal, introduced, useAgentPresetSeat, useDeveloperTools, renderSlot, t,
 }: AgentPresetSeatProps) {
   const developerTools = useDeveloperTools(value => value)
   const state = useAgentPresetSeat(snapshot => snapshot)
@@ -201,7 +217,9 @@ export function AgentPresetSeat({
             <IconChevronDownOutlineRegular className={css.chevron} />
           </button>
         )}
-      />}
+      >
+        {renderSlot('agentPreset.menu.actions', { onDismiss: () => { setOpen(false) }, currentId: state.current })}
+      </Menu>}
       {toast !== null && (
         <Toast
           key={toast.seq}

@@ -66,6 +66,7 @@
     "tests/preset-migration.snapshot.ts",
     "tests/subagent-fork-schedule.snapshot.ts",
     "tests/flowleap-routine-run.snapshot.ts",
+    "tests/flowleap-agent-search.snapshot.ts",
     "tests/live-interactions.e2e.ts",
     "tests/question-composer.e2e.ts",
     "tests/question-composer-recommended.e2e.ts",

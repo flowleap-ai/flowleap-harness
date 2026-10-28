@@ -31,6 +31,7 @@ import terminalRemote from '@deepseek-ai/dsh-api-terminal-controller/remote'
 import workspaceFilesRemote from '@deepseek-ai/dsh-api-workspace-files/remote'
 import flowleapConnectorsRemote from '@deepseek-ai/dsh-flowleap-connectors/remote'
 import flowleapRoutinesRemote from '@deepseek-ai/dsh-flowleap-routines/remote'
+import flowleapAgentsRemote from '@deepseek-ai/dsh-flowleap-agent-builder/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
 export type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
@@ -82,6 +83,8 @@ export type {} from '@deepseek-ai/dsh-flowleap-connectors/remote'
 export type * from '@deepseek-ai/dsh-flowleap-connectors/types'
 export type {} from '@deepseek-ai/dsh-flowleap-routines/remote'
 export type * from '@deepseek-ai/dsh-flowleap-routines/types'
+export type {} from '@deepseek-ai/dsh-flowleap-agent-builder/remote'
+export type * from '@deepseek-ai/dsh-flowleap-agent-builder/types'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
 // compilation face `TypertRemoteEvent` is `never` and every `$on` call fails.
 export type { ApiRemoteForwardedEvent } from '../types.ts'
@@ -201,7 +204,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       messageFeedbackRemote, sessionFeedbackRemote,
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,
-      officeToPdfRemote, userQuestionsRemote, flowleapConnectorsRemote, flowleapRoutinesRemote,
+      officeToPdfRemote, userQuestionsRemote, flowleapConnectorsRemote, flowleapRoutinesRemote, flowleapAgentsRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

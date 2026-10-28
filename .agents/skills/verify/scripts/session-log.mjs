@@ -4,7 +4,7 @@
 //   node session-log.mjs <DSH_HOME | session dir | session*.jsonl[.zstd]> [--json]
 //
 // With a DSH_HOME it reads the newest Session under <DSH_HOME>/sessions.
-// The summary names the route, each turn's end reason, every tool call with its
+// The summary names the preset (the last `agent-preset/selected`, else the header), the route, each turn's end reason, every tool call with its
 // result head, the token usage, and the last assistant text. --json prints the
 // same summary as one JSON object.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -47,6 +47,9 @@ for (const event of events) {
   switch (event.type) {
     case 'session':
       summary.session = { id: event.id, cwd: event.cwd, agentPreset: event.agentPreset, version: event.version }
+      break
+    case 'agent-preset/selected':
+      if (summary.session) summary.session.agentPreset = data.agentPreset
       break
     case 'request/context':
       summary.routes.push(`${data.provider}/${data.model}`)

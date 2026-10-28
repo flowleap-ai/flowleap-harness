@@ -226,6 +226,32 @@
     - id: ui-flowleap-routines
       name: '@deepseek-ai/dsh-client-ui-flowleap-routines'
 
+    # The agent builder (#55): one agent preset for each folder below
+    # $DSH_HOME/agents, built on the patent preset with the agent's
+    # instructions, its files (in the system prompt up to the limit, else a
+    # search and a read tool over an FTS5 index) and only the chosen
+    # connectors. firmRoot names a read-only folder of firm agents; the Host
+    # never writes there.
+    - id: flowleap-agent-builder
+      name: '@deepseek-ai/dsh-flowleap-agent-builder'
+      config:
+        contextLimitTokens: 50000
+        charsPerToken: 4
+        maxFileBytes: 52428800
+        basePreset: patent
+        presetOrder: 100
+        maxSearchResults: 8
+        maxReadLocations: 10
+        maxReadChars: 40000
+        extractTimeoutMs: 120000
+        maxPages: 2000
+        extractMemoryMb: 512
+
+    # The agent builder form: a New agent row in the new-session agent picker
+    # and the agent form (name, description, instructions, files, connectors).
+    - id: ui-flowleap-agent-builder
+      name: '@deepseek-ai/dsh-client-ui-flowleap-agent-builder'
+
     # The brand: one brand.json (name, tagline, mark, accent) read by the Host
     # and rendered by the browser half into the sidebar, the blank-session
     # hero, the document title and the product copy. FLOWLEAP_BRAND_PATH names

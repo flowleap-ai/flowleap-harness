@@ -94,6 +94,7 @@ Existing Agents retain their plugins and prompts. New Agents build their prefixe
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- A plugin that registers presets at runtime reads a declared definition through `definition(id)` (for example to copy a base preset's plugin list); the registry emits `agent-preset/roster-changed` after a registration settles and at each unregistration, and the Web client refreshes the picker on it.
 - Presets are not security sandboxes: YAML and plugins can execute Host code. A user override replaces the complete child list and does not automatically merge future changes to the builtin list. Old revision implementations are not retained across process restarts.
 
 <a id="dev-note"></a>

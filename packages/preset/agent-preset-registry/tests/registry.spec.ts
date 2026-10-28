@@ -412,3 +412,18 @@ it('reports every process-global service published by a preset', async () => {
   await declare(ctx, { id: 'leaks', plugins: [{ name: 'cordis:leaks' }] })
   expect((await ctx.agentPresets.resolve('leaks')).broken).toContain('presetAlpha, presetZulu')
 })
+
+it('announces each roster change and reads a registered definition', async () => {
+  const ctx = await setup()
+  let changes = 0
+  ctx.on('agent-preset/roster-changed', () => { changes++ })
+  const definition = contribution('standard')
+  const dispose = await ctx.agentPresets.register(definition)
+  expect(changes).toBe(1)
+  expect(ctx.agentPresets.definition('standard')).toBe(definition)
+  await dispose()
+  expect(changes).toBe(2)
+  expect(ctx.agentPresets.definition('standard')).toBeUndefined()
+  await dispose()
+  expect(changes).toBe(2)
+})

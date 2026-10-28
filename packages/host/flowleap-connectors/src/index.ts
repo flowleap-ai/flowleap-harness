@@ -8,7 +8,8 @@
  * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`
  * are mounted, and the `flowleapConnectors` Remote serves the settings cards and the
  * first-run wizard. The `flowleapRegister` service reads the register events of one EP
- * publication or US application for Host plugins, without a tool call.
+ * publication or US application for Host plugins, without a tool call, and the `flowleapOcr`
+ * service reads the page text of one document through the same OCR.
  *
  * See packages/host/flowleap-connectors/README.md.
  * @module @deepseek-ai/dsh-flowleap-connectors
@@ -28,6 +29,7 @@ import { createCredentialStore } from './credentials.ts'
 import { createConnectorHost } from './host.ts'
 import { registerKeyStateSection } from './key-state.ts'
 import { registerReadPdfTool } from './read-pdf.ts'
+import { FlowleapOcr } from './ocr.ts'
 import { FlowleapRegister } from './register.ts'
 import { registerOfficeTools } from './tools.ts'
 
@@ -55,6 +57,8 @@ export {
   renderKeyStateSection,
 } from './key-state.ts'
 export type { KeyPresence } from './key-state.ts'
+export { FlowleapOcr } from './ocr.ts'
+export type { FlowleapOcrOptions, OcrPageText, OcrRead, OcrSource } from './ocr.ts'
 export { FlowleapRegister, entriesFromOdp, entriesFromOps, parseRegisterApplication } from './register.ts'
 export type { FlowleapRegisterOptions, RegisterApplication, RegisterEntry, RegisterSource } from './register.ts'
 export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
@@ -104,4 +108,5 @@ export function apply(ctx: Context, config: Config): void {
   })
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
   ctx.plugin(FlowleapRegister, { connectors, bound })
+  ctx.plugin(FlowleapOcr, { connectors, bound })
 }

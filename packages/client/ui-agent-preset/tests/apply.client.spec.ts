@@ -461,6 +461,17 @@ describe('ui-agent-preset apply', () => {
     expect(calls.length).toBe(afterRelevant)
   })
 
+  it('re-reads the roster when a preset is registered or unregistered at runtime', async () => {
+    const { ctx, slots, calls, remote } = await bench()
+    ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
+    declareRoot(slots)
+    await ctx.plugin({ inject: [...inject], apply }).await()
+    const before = calls.length
+    remote.emit('agent-preset/roster-changed', [])
+    // The directory and the unbound seat re-read; the section has not loaded, so it stays idle.
+    await vi.waitFor(() => { expect(calls.length).toBe(before + 2) })
+  })
+
   it('re-reads both surfaces when the connection comes back', async () => {
     const { ctx, slots, calls } = await bench()
     declareRoot(slots)

@@ -588,6 +588,12 @@ presetForSession(session: Session): string | null
  */
 async register(definition: PresetDefinition): Promise<() => Promise<void>>
 
+/** Read one registered definition as its declaring plugin submitted it.
+ * @param id - preset identity.
+ * @returns the definition, or undefined when no declaration supplies the id.
+ */
+definition(id: string): PresetDefinition | undefined
+
 /** Inspect retained revisions, or the exact revision an Agent joined.
  * @param ctx - optional Agent context; omission includes all retained revisions.
  * @returns detached module references and isolation diagnostics; no match returns an empty list.
@@ -860,6 +866,169 @@ roots(): Agent[]
 Types: [Session](session.md)
 
 Source: [`packages/core/agent/src/index.ts`](../../packages/core/agent/src/index.ts)
+
+<a id="ctxflowleapagentcatalog--agentcatalog"></a>
+
+### `ctx.flowleapAgentCatalog` — `AgentCatalog`
+
+Service owning the agent folders, their indexes and their presets.
+
+```ts cordis-catalog
+/**
+ * Settles when the agent folders are loaded; the Remote waits for it before its first answer.
+ * @returns the load.
+ */
+ready(): Promise<void>
+
+/**
+ * The current revision of one agent for its preset row.
+ * @param id - the agent.
+ * @returns the revision.
+ * @throws RemoteError `flowleap-agents/not-found` for an unknown agent.
+ */
+revision(id: AgentId): AgentRevision
+
+/**
+ * Search one agent's indexed files.
+ * @param id - the agent.
+ * @param query - the words.
+ * @param limit - most hits.
+ * @returns hits, best first.
+ */
+search(id: AgentId, query: string, limit: number): SearchHit[]
+
+/**
+ * Read locations of one file of one agent.
+ * @param id - the agent.
+ * @param file - the file name.
+ * @param from - first location.
+ * @param to - last location, inclusive.
+ * @returns the locations and the location count, or undefined for an unknown file.
+ */
+readFile(id: AgentId, file: string, from: number, to: number): { readonly rows: LocationRow[]; readonly total: number } | undefined
+
+/**
+ * Every agent, by name.
+ * @returns the summaries.
+ */
+list(): AgentSummary[]
+
+/**
+ * One agent with its fields, files and mode.
+ * @param id - the agent.
+ * @returns the view.
+ * @throws RemoteError `flowleap-agents/not-found` for an unknown agent.
+ */
+read(id: AgentId): AgentView
+
+/**
+ * The connector rows an agent can choose, each with whether it can answer on this Host.
+ * @returns one row per choice.
+ */
+async connectors(): Promise<ConnectorChoice[]>
+
+/**
+ * Create an agent or change one. The caller validated the fields.
+ * @param id - the agent to change, or undefined to create one.
+ * @param definition - the `agent.yaml` fields.
+ * @param instructions - the instructions.
+ * @returns the agent after the change.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.
+ */
+async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>
+
+/**
+ * Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the
+ * agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved,
+ * the agent stays as it was.
+ * @param id - the agent.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.
+ */
+async delete(id: AgentId): Promise<void>
+
+/**
+ * Remove one file of one agent.
+ * @param id - the agent.
+ * @param name - the file name.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.
+ */
+async removeFile(id: AgentId, name: string): Promise<void>
+
+/**
+ * Store one uploaded file, then index it in the background. A file with the content the index already read is not
+ * read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file
+ * whose name differs only in case, and the agent keeps the new name.
+ * @param id - the agent.
+ * @param name - the file name.
+ * @param chunks - the request body.
+ * @returns the file as stored, in its state after the upload.
+ * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body
+ *   larger than the limit (`reason` is `too large`); the file-system error of a failed write.
+ */
+async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>
+
+/**
+ * Wait until every upload read and preset change started so far has settled.
+ * @returns settles when the background work is done.
+ */
+async settled(): Promise<void>
+```
+
+Source: [`packages/host/flowleap-agent-builder/src/catalog.ts`](../../packages/host/flowleap-agent-builder/src/catalog.ts)
+
+<a id="ctxflowleapagents--flowleapagentscontroller"></a>
+
+### `ctx.flowleapAgents` — `FlowleapAgentsController`
+
+Host service backing the generated `ctx.remote.flowleapAgents` namespace.
+
+```ts cordis-catalog
+/**
+ * Every agent of this Host, the firm agents included.
+ * @returns the summaries, by name.
+ */
+@Remote async list(): Promise<AgentSummary[]>
+
+/**
+ * One agent with its fields, files and mode.
+ * @param id - the agent.
+ * @returns the view.
+ * @throws RemoteError `flowleap-agents/not-found` for an unknown agent.
+ */
+@Remote async read(id: AgentId): Promise<AgentView>
+
+/**
+ * The connector rows the form offers, each with whether it can answer on this Host.
+ * @returns one row per choice.
+ */
+@Remote connectors(): Promise<ConnectorChoice[]>
+
+/**
+ * Create an agent (no `id`) or change one. The connectors must be ids that `connectors()` lists.
+ * @param input - the form fields.
+ * @returns the agent after the change.
+ * @throws RemoteError `flowleap-agents/invalid` for a bad field, `flowleap-agents/not-found` or
+ *   `flowleap-agents/read-only` for an id that cannot change.
+ */
+@Remote async save(input: { id?: AgentId; name: string; description: string; instructions: string; connectors: string[] }): Promise<AgentView>
+
+/**
+ * Delete one agent with its files.
+ * @param id - the agent.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.
+ */
+@Remote async delete(id: AgentId): Promise<void>
+
+/**
+ * Remove one file of one agent.
+ * @param id - the agent.
+ * @param name - the file name.
+ * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.
+ */
+@Remote async removeFile(id: AgentId, name: string): Promise<void>
+```
+
+Source: [`packages/host/flowleap-agent-builder/src/controller.ts`](../../packages/host/flowleap-agent-builder/src/controller.ts)
 
 <a id="agent-events"></a>
 
@@ -1165,6 +1334,23 @@ Source: [`packages/core/agent-loop/src/index.ts`](../../packages/core/agent-loop
 
 ### `agent-preset/*` events
 
+<a id="agent-presetroster-changed--emit"></a>
+
+#### `agent-preset/roster-changed` — emit
+
+A preset definition was registered (after its activation settled) or unregistered. Clients refetch `agentPresets.list()`.
+
+```ts cordis-catalog
+/**
+ * A preset definition was registered (after its activation settled) or unregistered.
+ * Clients refetch `agentPresets.list()`.
+ * @mode emit
+ */
+'agent-preset/roster-changed'(): void
+```
+
+Source: [`packages/preset/agent-preset-registry/src/types.ts`](../../packages/preset/agent-preset-registry/src/types.ts)
+
 <a id="agent-presetselected--emit"></a>
 
 #### `agent-preset/selected` — emit
@@ -1183,4 +1369,25 @@ One session committed a different agent preset to its durable log. Consumers inv
 ```
 
 Source: [`packages/preset/agent-preset-registry/src/types.ts`](../../packages/preset/agent-preset-registry/src/types.ts)
+
+<a id="flowleap-agents-events"></a>
+
+### `flowleap-agents/*` events
+
+<a id="flowleap-agentschanged--emit"></a>
+
+#### `flowleap-agents/changed` — emit
+
+An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.
+
+```ts cordis-catalog
+/**
+ * An agent was created, changed or deleted, or one of its files changed index state; clients refetch
+ * `flowleapAgents.list()` and the agent they show.
+ * @mode emit
+ */
+'flowleap-agents/changed'(): void
+```
+
+Source: [`packages/host/flowleap-agent-builder/src/types.ts`](../../packages/host/flowleap-agent-builder/src/types.ts)
 <!-- END GENERATED cordis-surface -->

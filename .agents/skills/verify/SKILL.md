@@ -64,7 +64,7 @@ Wait for text or a status, not for a fixed time. A turn is done when the answer 
 Put all proof in `$RUN/evidence/`. `web.sh stop` keeps it.
 
 - The Session log is the main proof. It records everything the model saw and did. Run `node .claude/skills/verify/scripts/session-log.mjs "$RUN/home" > "$RUN/evidence/<feature>.session.txt"`. Add `--json` for the full summary. The log file is `$RUN/home/sessions/<project key>/session-<id>/session.v4.jsonl`, one JSON event for each line.
-- Check `routes:`. It must show `openrouter/anthropic/claude-haiku-5.5`. Check `preset=patent`, the tool calls you expect, and `turn N: completed`.
+- Check `routes:`. It must show `openrouter/anthropic/claude-haiku-5.5`. Check `preset=patent` (or the agent id for a Session of a built agent), the tool calls you expect, and `turn N: completed`.
 - Take a screenshot of the state after the action, and save it in `$RUN/evidence/`.
 - For a side effect, show it from a second view. Examples: a task on the Automation tasks page, a file in `$RUN/workspace/deepseek-harness/default-workspace/`, a `Connection test passed` status.
 - In the PR, give the commit, the feature IDs, the route, the token use, and the result. Do not give the URL token, key values, or full tool results with client data.

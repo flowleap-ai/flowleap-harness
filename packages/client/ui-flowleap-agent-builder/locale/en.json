@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Agent builder",
+    "description": "The New agent row in the agent picker and the form that builds an agent from instructions, files and connectors."
+  }
+}

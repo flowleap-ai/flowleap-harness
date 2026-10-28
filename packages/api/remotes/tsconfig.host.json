@@ -94,6 +94,9 @@
     },
     {
       "path": "../../host/flowleap-routines"
+    },
+    {
+      "path": "../../host/flowleap-agent-builder"
     }
   ]
 }
