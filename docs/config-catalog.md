@@ -2780,6 +2780,12 @@ export interface Config {
   detailFetchTimeoutMs?: number
   /** npm file CDNs that offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first. */
   detailNpmFileSources?: NpmFileSource[]
+  /**
+   * Bundle package names this deployment does not offer. `listBundles` leaves each one out while the profile does not
+   * select it, and selecting one (`setBundleEnabled(name, true)` or an activating install) fails with `not-bundle`;
+   * deselecting a bundle the profile already selects still works.
+   */
+  withheldBundles?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->

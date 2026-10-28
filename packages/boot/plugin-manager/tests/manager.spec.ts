@@ -113,6 +113,25 @@ it.each(['live', 'startup'] as const)('refuses an unsupported bundle before savi
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: false })
 })
 
+it('hides a withheld bundle and refuses to select it, but deselects one the profile already selects', async () => {
+  const deselected = (dir: string) => {
+    const manifest = readProfileManifest('test', dir)
+    manifest.dsh = { profile: { bundles: ['core'] } }
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  }
+  const { manager, dir, ctx } = await fixture('live', false, undefined, { withheldBundles: ['extra'] }, undefined, deselected)
+  const before = readFileSync(join(dir, 'package.json'), 'utf8')
+  expect((await manager.listBundles()).some(row => row.name === 'extra')).toBe(false)
+  expect(await manager.setBundleEnabled('extra', true)).toMatchObject({ changed: false, application: 'failed', error: { code: 'not-bundle' } })
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
+  expect(ctx.get('managedProbe')).toBeUndefined()
+
+  const selected = await fixture('live', false, undefined, { withheldBundles: ['extra'] })
+  expect((await selected.manager.listBundles()).find(row => row.name === 'extra')).toMatchObject({ enabled: true })
+  expect(await selected.manager.setBundleEnabled('extra', false)).toMatchObject({ changed: true, application: 'applied' })
+  expect((await selected.manager.listBundles()).some(row => row.name === 'extra')).toBe(false)
+})
+
 it('allows supported bundle activation and permits deselecting an unsupported saved bundle', async () => {
   const { manager, dir } = await fixture()
   const path = join(dir, 'node_modules/extra/package.json')

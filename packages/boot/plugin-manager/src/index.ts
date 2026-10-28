@@ -86,6 +86,12 @@ export interface Config {
   detailFetchTimeoutMs?: number
   /** npm file CDNs that offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first. */
   detailNpmFileSources?: NpmFileSource[]
+  /**
+   * Bundle package names this deployment does not offer. `listBundles` leaves each one out while the profile does not
+   * select it, and selecting one (`setBundleEnabled(name, true)` or an activating install) fails with `not-bundle`;
+   * deselecting a bundle the profile already selects still works.
+   */
+  withheldBundles?: string[]
 }
 
 /** The Fetch route serving images beside bundle detail documents. */
@@ -327,6 +333,7 @@ export class PluginManager extends TypertRemoteService {
     detailImageMaxBytes: z.natural().min(1).default(5 * 1024 * 1024),
     detailFetchTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(15000),
     detailNpmFileSources: z.array(z.union(NPM_FILE_SOURCES)).min(1).default([...NPM_FILE_SOURCES]),
+    withheldBundles: z.array(z.string()).default([]),
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
@@ -353,6 +360,7 @@ export class PluginManager extends TypertRemoteService {
   /** Installations by request id, from their call until it settles. */
   private readonly installs = new Map<PluginInstallRequestId, InstallControl>()
   private readonly detail: BundleDetailOptions
+  private readonly withheldBundles: ReadonlySet<string>
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'pluginManager')
@@ -374,6 +382,7 @@ export class PluginManager extends TypertRemoteService {
       fallbackRegistries: (config as Required<Config>).fallbackRegistries.map(normalizeRegistry),
     }
     const required = config as Required<Config>
+    this.withheldBundles = new Set(required.withheldBundles)
     this.detail = {
       profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
       npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
@@ -506,6 +515,7 @@ export class PluginManager extends TypertRemoteService {
       const installed = dependencies.includes(name)
       const optional = OPTIONAL_BUNDLES.includes(name)
       const enabled = selected.includes(name)
+      if (this.withheldBundles.has(name) && !enabled) continue
       const shipped = Object.hasOwn(installation.dependencies ?? {}, name)
       const offered = catalog.get(name)
       const official = optional || offered !== undefined
@@ -1157,6 +1167,7 @@ export class PluginManager extends TypertRemoteService {
   private async selectBundle(name: string, enabled: boolean): Promise<void> {
     const manifest = readProfileManifest('dsh', this.profile.dir)
     const previous = bundleSelection(manifest)
+    if (enabled && !previous.includes(name) && this.withheldBundles.has(name)) throw new ManagementFailure('not-bundle')
     if (enabled || !previous.includes(name)) {
       const metadata = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
       if (metadata === undefined) throw new ManagementFailure('not-bundle')
