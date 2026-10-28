@@ -114,6 +114,11 @@ flowchart LR
   pkg_client_ui_settings_flowleap_connectors["client-ui-settings-flowleap-connectors"]
   svc_flowleapRegister["ctx.flowleapRegister<br/>FlowLeap register reader"]
   pkg_flowleap_routines["flowleap-routines"]
+  svc_flowleapOcr["ctx.flowleapOcr<br/>FlowLeap OCR reader"]
+  pkg_flowleap_agent_builder["flowleap-agent-builder"]
+  svc_flowleapAgentCatalog["ctx.flowleapAgentCatalog<br/>FlowLeap agent catalog"]
+  svc_flowleapAgents["ctx.flowleapAgents<br/>FlowLeap agents Remote"]
+  pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
   svc_flowleapRoutines["ctx.flowleapRoutines<br/>FlowLeap routines Remote"]
   pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
   pkg_api_workspace_files["api-workspace-files"]
@@ -386,7 +391,10 @@ flowchart LR
   pkg_experimental_worktree --> svc_worktrees
   pkg_file_reference --> svc_fileReferences
   pkg_file_reference_local --> svc_fileReferences
+  pkg_flowleap_agent_builder --> svc_flowleapAgentCatalog
+  pkg_flowleap_agent_builder --> svc_flowleapAgents
   pkg_flowleap_connectors --> svc_flowleapConnectors
+  pkg_flowleap_connectors --> svc_flowleapOcr
   pkg_flowleap_connectors --> svc_flowleapRegister
   pkg_flowleap_routines --> svc_flowleapRoutines
   pkg_fs --> svc_fs
@@ -531,7 +539,9 @@ flowchart LR
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
+  svc_flowleapAgents --> pkg_client_ui_flowleap_agent_builder
   svc_flowleapConnectors --> pkg_client_ui_settings_flowleap_connectors
+  svc_flowleapOcr --> pkg_flowleap_agent_builder
   svc_flowleapRegister --> pkg_flowleap_routines
   svc_flowleapRoutines --> pkg_client_ui_flowleap_routines
   svc_forge --> pkg_experimental_client_ui_forge
@@ -698,6 +708,9 @@ flowchart LR
 | `ctx.settingsController` | `core` | [`api-settings-controller`](../packages/api/settings-controller) | - | - | - | Projects the user-settings seam onto the generated Remote namespace: the read is always redacted and every refusal is classified here, not on the seam Definition. |
 | `ctx.flowleapConnectors` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-settings-flowleap-connectors`](../packages/client/ui-settings-flowleap-connectors) | - | Reports presence of the firm's patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only. |
 | `ctx.flowleapRegister` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-routines`](../packages/host/flowleap-routines) | - | Reads the register events of one EP publication or US application on the firm's office keys without a tool call; mounted by the flowleap-web profile only. |
+| `ctx.flowleapOcr` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | Reads the page text of one document through Mistral OCR on the firm's key without a tool call; mounted by the flowleap-web profile only. |
+| `ctx.flowleapAgentCatalog` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | - | - | Owns the agent folders, their file indexes and one agent preset each; read by the per-agent preset row of the same package; mounted by the flowleap-web profile only. |
+| `ctx.flowleapAgents` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | - | Lists, reads, saves and deletes the agents of the agent builder and their files, and names the connector rows an agent can choose; mounted by the flowleap-web profile only. |
 | `ctx.flowleapRoutines` | `service` | [`flowleap-routines`](../packages/host/flowleap-routines) | - | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | - | Lists the chats a routine run marked "Needs review" and clears one mark on an explicit done; mounted by the flowleap-web profile only. |
 | `ctx.workspaceFiles` | `core` | [`api-workspace-files`](../packages/api/workspace-files) | - | - | - | Serves stat, paged text, byte windows, directory listings, and the change feed for files inside a Session's workspace root, confined by lstat, containment, and a stat re-check. |
 | `ctx.workspaceChanges` | `core` | [`workspace-changes`](../packages/deliverables/workspace-changes) | - | - | - | Serves the summary each workspace/changes event announced and each listed file's turn-start and turn-end comparison, by Session and event sequence, until that Session is disposed; the log carries only the turn. |

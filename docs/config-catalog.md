@@ -1584,13 +1584,47 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->
+<a id="deepseek-aidsh-flowleap-agent-builder"></a>
+
+## `@deepseek-ai/dsh-flowleap-agent-builder`
+
+- `inject`: `agentPresets` · `connection`
+- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:61`](../packages/host/flowleap-agent-builder/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The agents root; absent for `$DSH_HOME/agents`. */
+  root?: string
+  /** The read-only firm agents folder; its agents load when it exists, and this Host never writes there. */
+  firmRoot?: string
+  /**
+   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / 4)`), that goes into the system prompt in
+   * full; above it the agent searches its files.
+   */
+  contextLimitTokens: number
+  /** Largest file one upload stores, in bytes. */
+  maxFileBytes: number
+  /** The preset whose plugin list each agent preset copies. */
+  basePreset: string
+  /** Roster order of the agent presets; the shipped presets use 0 to 3. */
+  presetOrder: number
+  /** Most hits one `search_agent_files` call returns. */
+  maxSearchResults: number
+  /** Most pages one `read_agent_file` call returns. */
+  maxReadLocations: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
 <a id="deepseek-aidsh-flowleap-connectors"></a>
 
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:71`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:75`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -4995,6 +5029,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-directory-picker-native` | — | [`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | — | [`packages/client/ui-flowleap-agent-builder/src/index.ts`](../packages/client/ui-flowleap-agent-builder/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-routines` | — | [`packages/client/ui-flowleap-routines/src/index.ts`](../packages/client/ui-flowleap-routines/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-goal` | — | [`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | — | [`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts) |

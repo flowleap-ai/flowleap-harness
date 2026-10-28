@@ -407,6 +407,26 @@ Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
 
 Source: [`packages/host/flowleap-connectors/src/controller.ts`](../../packages/host/flowleap-connectors/src/controller.ts)
 
+<a id="ctxflowleapocr--ocrsource"></a>
+
+### `ctx.flowleapOcr` — `OcrSource`
+
+What a consumer needs from the service.
+
+```ts cordis-catalog
+/**
+ * Read the page text of one document.
+ * @param bytes - the document (PDF or image).
+ * @param filename - the file name Mistral receives.
+ * @param signal - cancels the upstream call.
+ * @returns the pages, or `not-configured` without a usable key.
+ * @throws Error for an upstream failure other than a missing or refused key.
+ */
+pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRead>
+```
+
+Source: [`packages/host/flowleap-connectors/src/ocr.ts`](../../packages/host/flowleap-connectors/src/ocr.ts)
+
 <a id="authorization-events"></a>
 
 ### `authorization/*` events

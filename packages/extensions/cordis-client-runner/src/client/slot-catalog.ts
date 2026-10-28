@@ -80,6 +80,59 @@ export const CLIENT_NOTES: readonly string[] = [
 // detection is told to skip the data rather than the file.
 export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
   {
+    key: 'agentPreset.menu.actions',
+    kind: 'list',
+    scope: 'root',
+    summary: 'Additional MenuItemButton rows after the presets in the new-session preset menu, such as a way to create a preset.',
+    doc: 'Additional MenuItemButton rows after the presets in the new-session preset menu, such as a way to create a preset.',
+    registerOptions: [
+      {
+        name: 'id',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it.',
+      },
+      {
+        name: 'order',
+        requirement: 'optional',
+        type: 'number',
+        doc: 'Position among the entries, ascending (default 0).',
+      },
+      {
+        name: 'label',
+        requirement: 'optional',
+        type: 'string | (() => string)',
+        doc: 'Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering.',
+      },
+    ],
+    ownerProps: [
+      '/** Owner props of one `agentPreset.menu.actions` row. */\nexport interface AgentPresetMenuActionProps {\n  /** Close the preset menu before starting the contributed action. */\n  readonly onDismiss: () => void\n  /** The preset the chip shows for the session about to start; empty before the roster loads. */\n  readonly currentId: string\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useRemoteAccess: (action: RemoteEndpoint) => boolean',
+      'useResource: UseResource',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionStatus: UseSessionStatus',
+      'useSessionRetainInfo: UseSessionRetainInfo',
+      'useSessionAccess: (sessionId: SessionId, action: RemoteEndpoint) => boolean',
+      'useWorkspaceAccess: (workspaceId: WorkspaceId, action: RemoteEndpoint) => boolean',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'conversation.hero.agentPreset\' (client-ui-agent-preset), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-flowleap-agent-builder NewAgentMenuItem id \'flowleap-new-agent\'',
+      'client-ui-flowleap-agent-builder EditAgentMenuItem id \'flowleap-edit-agent\'',
+    ],
+    replaceRisk: 'none',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'agentPreset.menu.actions\', () => ctx.slots.register(\n      { name: \'agentPreset.menu.actions\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-agent-preset/src/client/AgentPresetSeat.tsx:39',
+  },
+  {
     key: 'conversation.approval.detail',
     kind: 'single',
     scope: 'session',
@@ -3651,6 +3704,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
       'client-ui-file-drag FileDragFeedback id \'file-drag.feedback\'',
+      'client-ui-flowleap-agent-builder AgentFormDialog id \'flowleap-agent-form\'',
       'client-ui-open-in-app OpenInAppToast id \'open-in-app.toast\'',
       'client-ui-plugin-manager PluginRefreshToast id \'plugin-manager.refresh-toast\'',
       'client-ui-schedule ScheduleDeleteToast id \'schedule.delete-toast\'',

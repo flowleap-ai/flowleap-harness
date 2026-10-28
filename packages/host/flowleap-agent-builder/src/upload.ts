@@ -41,5 +41,5 @@ export async function handleAgentUpload(catalog: AgentCatalog, request: Request)
   return new Response(JSON.stringify(result), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
 }
 
-// oxlint-disable-next-line require-yield -- an empty request body is a stream with no chunk.
+/** A request without a body is a stream with no chunk. */
 async function* emptyBody(): AsyncIterable<Uint8Array> {}
