@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { COMPARE_CLAIMS_NAME } from '@deepseek-ai/dsh-flowleap-connectors'
+import { deniedTool } from '../src/index.ts'
 import { agentOn, callTool, chunks, makePdf, mountBuilder, ocrDouble, runtime, tempDir } from './harness.ts'
 
 const INPUT = {
@@ -28,6 +30,13 @@ describe('agent presets', () => {
 })
 
 describe('connector restriction', () => {
+  it('denies compare_claims only when neither patent office connector is chosen', () => {
+    expect(deniedTool([])(COMPARE_CLAIMS_NAME)).toBe(true)
+    expect(deniedTool(['uspto-odp'])(COMPARE_CLAIMS_NAME)).toBe(false)
+    expect(deniedTool(['epo-ops'])(COMPARE_CLAIMS_NAME)).toBe(false)
+    expect(deniedTool([])('read_file')).toBe(false)
+  })
+
   it('hides a connector tool that registers after the preset, and the executor refuses it', async () => {
     const ctx = await runtime({ tools: ['get_bibliography'] })
     await mountBuilder(ctx, { root: await tempDir('dsh-agents-') })

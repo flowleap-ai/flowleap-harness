@@ -35,6 +35,11 @@ describe('agent file tools', () => {
     expect(tool.isConcurrencySafe?.({})).toBe(true)
   })
 
+  it('counts passages in the plural', () => {
+    const hit = { file: 'a.md', at: 1, unit: 'page' as const, passage: 'x' }
+    expect(renderHits('q', [hit, hit])).toMatch(/^2 passages for "q"/)
+  })
+
   it('renders empty results', () => {
     expect(renderHits('q', [])).toContain('No passage')
     expect(renderRead('a.pdf', [], 3, 10)).toBe('a.pdf has no text in that range; it has 3 indexed locations.')

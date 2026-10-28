@@ -65,7 +65,7 @@ function renderSeat(
       }
     }),
   }
-  const renderSlot = vi.fn(() => null)
+  const renderSlot = vi.fn((_slot: string, _owner: { onDismiss: () => void }) => null)
   const props = {
     ...actions,
     renderSlot,
@@ -222,6 +222,14 @@ describe('the new-session chip', () => {
     const { renderSlot, store } = renderSeat()
     fireEvent.click(screen.getByRole('button'))
     expect(renderSlot).toHaveBeenCalledWith('agentPreset.menu.actions', { onDismiss: expect.any(Function) as () => void, currentId: store.getSnapshot().current })
+  })
+
+  it('closes the menu when a contributed row dismisses it', () => {
+    const { renderSlot } = renderSeat()
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('true')
+    act(() => { renderSlot.mock.lastCall?.[1].onDismiss() })
+    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
   })
 
   it('disables the trigger while a switch is in flight', () => {

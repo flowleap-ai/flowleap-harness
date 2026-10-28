@@ -44,6 +44,7 @@ export function parseAgentYaml(text: string): AgentDefinition {
   const parsed = definitionSchema.safeParse(parse(text))
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
+    /* v8 ignore next -- a failed zod parse reports at least one issue with a message */
     throw new Error(`agent.yaml: ${issue?.path.join('.') || '(root)'}: ${issue?.message ?? 'invalid'}`)
   }
   return parsed.data

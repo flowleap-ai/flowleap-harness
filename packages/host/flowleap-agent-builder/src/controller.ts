@@ -100,6 +100,7 @@ export class FlowleapAgentsController extends TypertRemoteService {
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
       const field = issue?.path.join('.') || 'input'
+      /* v8 ignore next -- a failed zod parse reports at least one issue with a message */
       const reason = issue?.message ?? 'invalid'
       throw new RemoteError('flowleap-agents/invalid', `${field}: ${reason}`, { field, reason })
     }

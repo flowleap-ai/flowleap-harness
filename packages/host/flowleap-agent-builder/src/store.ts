@@ -76,6 +76,7 @@ export async function readAgentFolders(
       const instructions = await readFile(join(dir, INSTRUCTIONS_MD), 'utf8')
       agents.push({ id: brandString<AgentId>(name), dir, readOnly, definition, instructions })
     } catch (error) {
+      /* v8 ignore next -- readFile and the agent.yaml parser throw Error objects only */
       problems.push({ dir, message: error instanceof Error ? error.message : String(error) })
     }
   }

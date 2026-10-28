@@ -62,6 +62,7 @@ function parse<T>(schema: z.ZodType<T>, tool: string, args: unknown): T {
   const parsed = schema.safeParse(args)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
+    /* v8 ignore next -- a failed zod parse reports at least one issue with a message */
     throw new Error(`${tool}: invalid arguments: ${issue?.path.join('.') || '(root)'}: ${issue?.message ?? 'invalid'}`)
   }
   return parsed.data

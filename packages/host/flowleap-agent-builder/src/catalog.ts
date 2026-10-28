@@ -85,6 +85,7 @@ interface LoadedAgent {
 }
 
 function messageOf(error: unknown): string {
+  /* v8 ignore next -- the fs, sqlite, extraction and preset-registry steps reject with Error objects only */
   return error instanceof Error ? error.message : String(error)
 }
 
@@ -376,6 +377,7 @@ export class AgentCatalog extends Service {
    */
   async connectors(): Promise<ConnectorChoice[]> {
     const presence = await this.ctx.get('flowleapConnectors')?.describe()
+    /* v8 ignore next -- every Host composition provides the tool registry */
     const flowleap = this.ctx.get('tools')?.definitions().some(definition => definition.name.startsWith(FLOWLEAP_MCP_PREFIX)) ?? false
     return CONNECTOR_CHOICE_IDS.map(id => ({ id, configured: id === 'flowleap' ? flowleap : presence?.[id]?.configured === true }))
   }
@@ -401,6 +403,7 @@ export class AgentCatalog extends Service {
       })
     }
     let created = newAgentId(definition.name)
+    /* v8 ignore next -- a 24-bit random suffix repeats only by chance */
     while (this.agents.has(created)) created = newAgentId(definition.name)
     const dir = join(this.options.root, created)
     await writeAgentFolder(dir, definition, instructions)
@@ -494,6 +497,7 @@ export class AgentCatalog extends Service {
       this.track(this.indexFile(agent, name, stored, true))
     }
     this.emit()
+    /* v8 ignore next -- begin() or the matching entry above left a row for this name */
     return agent.index.files().find(file => file.name === name)
       ?? { name, bytes: stored.bytes, state: { kind: 'indexing' }, locations: 0, unit: 'page' }
   }

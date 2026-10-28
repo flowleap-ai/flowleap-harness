@@ -169,6 +169,7 @@ export function AgentFormDialog({
             <span className={css.dropTypes}>{t('files.types')}</span>
             <input ref={picker} type="file" multiple hidden accept=".pdf,.docx,.txt,.md"
               onChange={(event) => {
+                /* v8 ignore next -- an input of type file always has a FileList. */
                 addFiles([...event.target.files ?? []])
                 event.target.value = ''
               }} />

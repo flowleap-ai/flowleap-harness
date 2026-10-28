@@ -47,7 +47,6 @@ function text(row: Row, key: string): string {
 function int(row: Row, key: string): number {
   const value = row[key]
   if (typeof value === 'number') return value
-  if (typeof value === 'bigint') return Number(value)
   throw new Error(`agent index: column ${key} is not a number`)
 }
 
@@ -97,6 +96,7 @@ export class AgentIndex {
   static open(path: string): AgentIndex {
     const db = new DatabaseSync(path)
     try {
+      /* v8 ignore next -- PRAGMA user_version always yields one row */
       const version = int(db.prepare('PRAGMA user_version').get() ?? {}, 'user_version')
       if (version > AGENT_INDEX_SCHEMA_VERSION) {
         throw new Error(`agent index ${path}: schema ${String(version)} is newer than ${String(AGENT_INDEX_SCHEMA_VERSION)}`)
@@ -201,6 +201,7 @@ export class AgentIndex {
    * @returns the sum over indexed files.
    */
   indexedChars(): number {
+    /* v8 ignore next -- an aggregate query always yields one row */
     return int(this.db.prepare('SELECT COALESCE(SUM(chars), 0) AS chars FROM files WHERE state = \'indexed\'').get() ?? {}, 'chars')
   }
 

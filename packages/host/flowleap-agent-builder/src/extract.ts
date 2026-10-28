@@ -40,6 +40,7 @@ export async function extractText(
     if (extension === '.docx') return await extractDocx(bytes)
     return single(new TextDecoder('utf-8').decode(bytes))
   } catch (error) {
+    /* v8 ignore next -- pdfjs, mammoth and TextDecoder throw Error objects only */
     return { kind: 'failed', reason: 'unreadable', message: error instanceof Error ? error.message : String(error) }
   }
 }
@@ -108,6 +109,7 @@ async function ocrPages(
   try {
     return await ocr.pages(await source(), name, signal)
   } catch (error) {
+    /* v8 ignore next -- the OCR service and pdfjs reject with Error objects only */
     return { kind: 'failed', reason: 'ocr-failed', message: error instanceof Error ? error.message : String(error) }
   }
 }
@@ -121,6 +123,7 @@ async function textLayer(document: PdfDocument): Promise<string[]> {
     const content = await page.getTextContent()
     let text = ''
     for (const item of content.items) {
+      /* v8 ignore next -- getTextContent without includeMarkedContent yields text items only */
       if ('str' in item) text += item.str + (item.hasEOL ? '\n' : '')
     }
     pages.push(text.trim())

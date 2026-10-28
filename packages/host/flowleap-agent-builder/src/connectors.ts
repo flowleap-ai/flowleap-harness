@@ -29,6 +29,7 @@ const CHOICE_OF_ACCESS: Readonly<Record<ToolAccess, ConnectorChoiceId | undefine
 export function officeToolChoices(): ReadonlyMap<string, ConnectorChoiceId> {
   const map = new Map<string, ConnectorChoiceId>()
   for (const definition of officeTools()) {
+    /* v8 ignore next -- every vendored office tool declares its access */
     const choice = definition.access === undefined ? undefined : CHOICE_OF_ACCESS[definition.access]
     if (choice !== undefined) map.set(definition.name, choice)
   }
