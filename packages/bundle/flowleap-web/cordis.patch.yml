@@ -52,9 +52,6 @@
 - id: ui-settings-session-log
   disabled: true
 
-- id: ui-deepseek-model-label-1017
-  disabled: true
-
 # ── the patent preset is the default ─────────────────────────────────────────
 # `presets/patent.patch.yml` inserts the `patent` declaration (standard's
 # plugin list without the coding persona); standard, ptc, minimal and cordis
