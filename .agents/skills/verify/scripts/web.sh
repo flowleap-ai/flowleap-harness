@@ -8,6 +8,7 @@
 # start copies the flowleap-connectors/* records of the founder's credential file
 # (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
 # which the overlay mounts as readOnlyPath; stop deletes that copy.
+# DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml.
 #
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
 set -euo pipefail
@@ -50,6 +51,7 @@ case "$cmd" in
         exec node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile flowleap-web \
         --patch "$repo/apps/web/tests/pin-browse-picker.overlay.yml" \
         --patch "$skill_dir/verify.patch.yml" \
+        ${DSH_VERIFY_PATCH:+--patch "$DSH_VERIFY_PATCH"} \
         --no-open --port "$port"
     ) >"$log" 2>&1 &
     echo $! >"$pid_file"

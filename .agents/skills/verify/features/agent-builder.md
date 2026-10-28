@@ -23,7 +23,7 @@ Preconditions:
 
 - The baseline in [README.md](./README.md).
 - A small PDF with a text layer, with one fact on page 2 that the model cannot know, such as a house code. `makePdf` in `packages/host/flowleap-agent-builder/tests/pdf.ts` makes one: run it with `npx tsx` from a script in the scratchpad.
-- For `agent-chat-search`, start the instance with one more overlay that sets `contextLimitTokens: 10` on the `flowleap-agent-builder` row, so that a small file is above the limit.
+- For `agent-chat-search`, start the instance with `DSH_VERIFY_PATCH` set to an overlay that sets `contextLimitTokens: 10` on the `flowleap-agent-builder` row, so that a small file is above the limit. An override replaces the row's whole config, so the overlay restates the other fields of the row in `packages/bundle/flowleap-web/cordis.patch.yml`.
 
 - **Form.** Choose `New agent`. The dialog `New agent` shows. Type the name, the description and the instructions into the three text boxes.
 - **File.** The browser tool cannot use the system file picker. In `javascript_tool`, make a `File` from the PDF bytes (base64), put it in a `DataTransfer`, set it as `files` of `[role=dialog] input[type=file]`, and send a `change` event that bubbles. The row shows the file name and `Uploads on save`.
