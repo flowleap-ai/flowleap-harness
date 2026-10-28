@@ -83,9 +83,25 @@
 # ── providers and the default model ──────────────────────────────────────────
 # Three pi-ai catalog routes; each key is resolved per request through the
 # credential seam, so no secret enters this file.
+#
+# Models run only on the firm's keys (flowleap-harness#61). fixedRoutes refuses
+# a route, endpoint, or key-reference change from settings and offers no
+# subscription sign-in and no endpoint discovery; lockedRefs refuses a key
+# typed on the Models page and ignores one stored before; managed keeps the
+# Models page from offering either. A firm overlay that restates the
+# llm-pi-ai or credentials row restates these keys too.
+
+- id: credentials
+  config:
+    lockedRefs: [ANTHROPIC_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY]
+
+- id: ui-settings-models
+  config:
+    managed: true
 
 - id: llm-pi-ai
   config:
+    fixedRoutes: true
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY

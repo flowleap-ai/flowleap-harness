@@ -1741,6 +1741,28 @@ describe('ModelsSection', () => {
     expect(screen.getByText<HTMLButtonElement>(en.add).disabled).toBe(true)
   })
 
+  it('shows the managed notice and disables mutations when the deployment fixes the routes', async () => {
+    const { face } = await mountSection()
+    const controller = new ModelsSettingsStore(ctxWith(face), settingsSchema, new SettingsDescribeMirror(ctxWith(face)), true)
+    await controller.load()
+    expect(controller.store.getSnapshot()).toMatchObject({ writable: false, managed: true })
+    cleanup()
+    render(<ModelsSection
+      controller={controller}
+      useSnapshot={bindSnapshotSelector(controller.store)}
+      operations={operationsWith(face)}
+      schema={settingsSchema}
+      t={t}
+      renderSlot={() => null}
+    />)
+    expect(screen.getByText(en.managed)).toBeTruthy()
+    expect(screen.queryByText(en.readOnly)).toBeNull()
+    expect(screen.queryByText(en.intro)).toBeNull()
+    expect(screen.queryByText(en.edit)).toBeNull()
+    expect(screen.queryByText(en.add)).toBeNull()
+    expect(screen.getAllByText<HTMLButtonElement>(en.remove).every(button => button.disabled)).toBe(true)
+  })
+
   it('toggles the row editor closed on a second edit click and on cancel', async () => {
     const { mutate } = await mountSection()
     const edit = screen.getByRole('button', { name: openaiCopy(en.editProvider) })

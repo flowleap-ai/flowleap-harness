@@ -226,10 +226,20 @@ export interface Config {
    * and registers them the moment a settings section supplies profiles.
    */
   providers: Volatile<Record<string, PiAiProviderProfile>>
+  /**
+   * The deployment owns the route set: every route names `apiKeyEnv`, a live
+   * change of `providers` is refused, no sign-in flow and no endpoint
+   * discovery is offered, and the provider directory lists only the
+   * configured routes. Not volatile, so no settings form can turn it off.
+   */
+  fixedRoutes: boolean
 }
 
 /** Plain options accepted by the provider resolver. */
-export type Options = { [K in keyof Config]?: Config[K] extends Volatile<infer T> ? T : never }
+export type Options = {
+  /** The provider routes, keyed by provider. */
+  providers?: Record<string, PiAiProviderProfile>
+}
 
 const thinkingBudgets = z.object({
   minimal: z.number(),
@@ -351,7 +361,41 @@ const profile = z.object({
 /** Runtime schema for {@link Config}. */
 export const Config = z.object({
   providers: z.dict(profile).default({}).volatile(),
+  fixedRoutes: z.boolean().default(false),
 })
+
+/**
+ * Reject a fixed route set whose routes do not all name a credential
+ * reference: a route without one would authenticate from a stored sign-in or
+ * from pi-ai's ambient discovery, which the deployment does not control.
+ * @param profiles - the resolved routes of a `fixedRoutes` instance.
+ * @throws Error naming the first route without `apiKeyEnv`.
+ */
+export function assertFixedRoutes(profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>): void {
+  for (const [provider, profile] of profiles) {
+    if (profile.apiKeyEnv === undefined) {
+      throw new Error(
+        `llm-pi-ai: fixedRoutes requires every route to name apiKeyEnv; route "${provider}" names none`,
+      )
+    }
+  }
+}
+
+/**
+ * Reject a live change of a fixed route set. The comparison is on the raw
+ * configuration, so a changed endpoint, key reference, model list, or an
+ * added or removed route are all refused.
+ * @param next - the candidate route configuration.
+ * @param current - the route configuration the instance serves now.
+ * @throws Error that tells the caller where the routes are set.
+ */
+export function assertUnchangedRoutes(next: unknown, current: unknown): void {
+  if (deepEqualJson(next, current)) return
+  throw new Error(
+    'llm-pi-ai: the model routes are fixed in this deployment (fixedRoutes); a route, endpoint, key'
+    + ' reference, or model list cannot be changed from settings — change the deployment configuration',
+  )
+}
 
 /**
  * Reject new or changed provider profiles that cannot be served. Unchanged

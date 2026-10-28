@@ -9,10 +9,13 @@
     provider: openrouter
     model: anthropic/claude-haiku-5.5
 
+# An override replaces the row's whole config, so `lockedRefs` restates the
+# flowleap-web value: the model keys come only from the environment.
 - id: credentials
   config:
     path: !!js dshHomePath('.credentials.yaml')
     readOnlyPath: !!js process.env.DSH_VERIFY_FIRM_KEYS
+    lockedRefs: [ANTHROPIC_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY]
 
 # Plain JSONL Session logs, so scripts/session-log.mjs and jq read them directly.
 # An override replaces the row's whole config, so `root` restates the base value.
