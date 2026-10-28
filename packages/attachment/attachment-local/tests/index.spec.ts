@@ -65,6 +65,16 @@ describe('local attachment service', () => {
     }
   })
 
+  it('accepts only an absolute storage low flag path', () => {
+    expect(LocalAttachmentStore.Config({ dshHome: '/h', storageLowFlagPath: '/run/flowleap/host/disk-low' }))
+      .toMatchObject({ storageLowFlagPath: '/run/flowleap/host/disk-low' })
+    expect(LocalAttachmentStore.Config({ dshHome: '/h', storageLowFlagPath: 'C:\\flags\\disk-low' }))
+      .toMatchObject({ storageLowFlagPath: 'C:\\flags\\disk-low' })
+    for (const storageLowFlagPath of ['disk-low', 'run/flowleap/host/disk-low', '']) {
+      expect(() => LocalAttachmentStore.Config({ dshHome: '/h', storageLowFlagPath })).toThrow()
+    }
+  })
+
   it('refuses uploads while the storage low flag exists', async () => {
     const dshHome = await mkdtemp(join(tmpdir(), 'dsh-attachment-low-'))
     try {
@@ -73,7 +83,7 @@ describe('local attachment service', () => {
       await expect(service.assertUploadsAccepted()).resolves.toBeUndefined()
       await writeFile(flag, '')
       await expect(service.assertUploadsAccepted()).rejects.toMatchObject({
-        code: 'STORAGE_LOW', message: 'The firm server is low on disk space. Ask your administrator.',
+        code: 'STORAGE_LOW', message: 'Uploads are refused while the host is low on storage.',
       })
       await expect(service.admitEncodedFile({ data: 'AQID' })).rejects.toMatchObject({ code: 'STORAGE_LOW' })
       await expect(new LocalAttachmentStore(new Context(), { dshHome }).assertUploadsAccepted()).resolves.toBeUndefined()

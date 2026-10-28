@@ -88,8 +88,9 @@ export interface Config {
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
   /**
-   * The host's "storage low" flag file. While the file exists, user uploads are refused with `STORAGE_LOW`; reads and
-   * attachments a tool stores go on. Absent: no flag, every upload is accepted.
+   * The host's "storage low" flag file, as an absolute path; a relative path fails at load. While the file exists, user
+   * uploads are refused with `STORAGE_LOW`; reads and attachments a tool stores go on. Absent: no flag, every upload is
+   * accepted.
    */
   storageLowFlagPath?: string
 }
@@ -167,7 +168,7 @@ export class LocalAttachmentStore extends AttachmentStore {
     normalizedImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_NORMALIZED_IMAGE_MAX_BYTES),
     imageCompressionConcurrency: z.number().step(1).min(1).max(MAX_IMAGE_COMPRESSION_CONCURRENCY)
       .default(DEFAULT_IMAGE_COMPRESSION_CONCURRENCY),
-    storageLowFlagPath: z.string().min(1),
+    storageLowFlagPath: z.string().pattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/),
   })
 
   /** Absolute versioned storage root. */
@@ -218,7 +219,7 @@ export class LocalAttachmentStore extends AttachmentStore {
     // ENOENT, the normal case, means storage is not low; a flag this process cannot reach also reads as no flag.
     const low = await access(this.storageLowFlagPath).then(() => true, () => false)
     if (low) {
-      throw new AttachmentError('The firm server is low on disk space. Ask your administrator.', 'STORAGE_LOW')
+      throw new AttachmentError('Uploads are refused while the host is low on storage.', 'STORAGE_LOW')
     }
   }
 

@@ -23,7 +23,7 @@ Preconditions:
 - **Set the flag.** `touch "$RUN/disk-low"`. No restart: each upload reads the flag.
 - **Chat.** The browser tool cannot use the system file picker. In `javascript_tool`, make a `File` from a few bytes, put it in a `DataTransfer`, and send it to the composer as a `drop` or a `paste` event. The attachment chip shows the refusal text.
 - **Agent.** Add a file to the agent form as in [agent-builder.md](./agent-builder.md), then `Save`. The form shows `Cannot upload <name>: the firm server is low on disk space. Ask your administrator.`
-- **Clear the flag.** `rm "$RUN/disk-low"`, then retry both uploads. The chip and the file row show no error.
+- **Clear the flag.** `rm "$RUN/disk-low"`, then retry both uploads. A refused chat file card keeps its `Retry uploading <name>` button, so a click uploads it; a refused image must be removed and added again. The chip and the file row show no error.
 - The upload routes give the same answer without the page: `POST /api/session/uploadFileBinary?sessionId=<id>&name=a.txt` answers `session/attachment-invalid` with `reason: STORAGE_LOW`, and `POST /api/flowleap-agents/upload?agent=<id>&name=a.txt` answers `flowleap-agents/invalid` with `reason: storage low`.
 
 ## Gotchas

@@ -400,8 +400,9 @@ export interface Config {
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
   /**
-   * The host's "storage low" flag file. While the file exists, user uploads are refused with `STORAGE_LOW`; reads and
-   * attachments a tool stores go on. Absent: no flag, every upload is accepted.
+   * The host's "storage low" flag file, as an absolute path; a relative path fails at load. While the file exists, user
+   * uploads are refused with `STORAGE_LOW`; reads and attachments a tool stores go on. Absent: no flag, every upload is
+   * accepted.
    */
   storageLowFlagPath?: string
 }
@@ -1648,8 +1649,9 @@ export interface Config {
    */
   extractMemoryMb: number
   /**
-   * The host's "disk low" flag file, as a path inside this runtime. While the file exists, an upload is refused with a
-   * `storage low` reason; reads, chats and other agent edits go on. The firm host writes the file and removes it.
+   * The host's "disk low" flag file, as an absolute path inside this runtime; a relative path fails at load. While the
+   * file exists, an upload is refused with a `storage low` reason; reads, chats and other agent edits go on. The firm
+   * host writes the file and removes it.
    */
   storageLowFlagPath: string
 }
