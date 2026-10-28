@@ -65,8 +65,10 @@ function renderSeat(
       }
     }),
   }
+  const renderSlot = vi.fn(() => null)
   const props = {
     ...actions,
+    renderSlot,
     sessionId: session === undefined ? undefined : SessionId(session.id),
     useDeveloperTools: bindSnapshotSelector(developerTools),
     useAgentPresetSeat: bindSnapshotSelector(store),
@@ -76,7 +78,7 @@ function renderSeat(
     t: translate,
   } as AgentPresetSeatProps
   render(<AgentPresetSeat {...props} />)
-  return { ...actions, developerTools, store }
+  return { ...actions, developerTools, store, renderSlot }
 }
 
 function renderLabel(
@@ -214,6 +216,12 @@ describe('the new-session chip', () => {
 
     expect(actions.select).toHaveBeenCalledWith('mine')
     expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('passes the staged preset to the contributed menu rows', () => {
+    const { renderSlot, store } = renderSeat()
+    fireEvent.click(screen.getByRole('button'))
+    expect(renderSlot).toHaveBeenCalledWith('agentPreset.menu.actions', { onDismiss: expect.any(Function) as () => void, currentId: store.getSnapshot().current })
   })
 
   it('disables the trigger while a switch is in flight', () => {
