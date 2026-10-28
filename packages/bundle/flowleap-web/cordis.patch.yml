@@ -55,10 +55,12 @@
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and
-# refuses to switch them on.
+# refuses to switch them on. Attorneys do not install or update packages: the
+# firm administrator does that through flowleap-os (installBundles: false).
 
 - id: plugin-manager
   config:
+    installBundles: false
     withheldBundles:
       - '@deepseek-ai/dsh-experimental-liveshare'
       - '@deepseek-ai/dsh-experimental-forge-bundle'
@@ -90,6 +92,12 @@
 # typed on the Models page and ignores one stored before; managed keeps the
 # Models page from offering either. A firm overlay that restates the
 # llm-pi-ai or credentials row restates these keys too.
+#
+# package.json dsh.bundle.lockedRows names these rows, the plugin manager row,
+# and the DeepSeek rows: the Loader drops a user patch (profile or home
+# cordis.patch.yml) that targets one of them, so a Models page save from before
+# the lock cannot turn it off, and the plugin manager cannot switch a DeepSeek
+# route or sign-in on.
 
 - id: credentials
   config:

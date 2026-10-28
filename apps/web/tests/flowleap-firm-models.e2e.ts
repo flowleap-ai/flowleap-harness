@@ -1,7 +1,8 @@
 /**
  * The flowleap-web composition runs models only on the deployment's routes and keys (flowleap-harness#61): the Host
  * refuses a route or key edit and offers no subscription sign-in, and every registered route sends its requests to
- * the deployment's gateway.
+ * the deployment's gateway. The lock holds when the Harness home keeps user patches from before it, and the plugin
+ * manager can neither switch a DeepSeek route or sign-in on nor install a package.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -29,7 +30,23 @@ async function remote(scaffold: WebScaffold, method: string, args: object): Prom
   return (await response.json() as RemoteResult).result
 }
 
-it('refuses route, key, and sign-in changes and sends every route to the gateway', async () => {
+/** A Models page save from before the lock: the whole `llm-pi-ai` config with an own route and no `fixedRoutes`. */
+const STALE_USER_ROWS = [
+  '- id: llm-pi-ai',
+  '  config:',
+  '    providers:',
+  '      anthropic:',
+  '        apiKeyEnv: ANTHROPIC_API_KEY',
+  '      openai-codex:',
+  '        apiKeyEnv: OPENAI_CODEX_API_KEY',
+  '- id: llm-deepseek',
+  '  disabled: false',
+  '- id: deepseek-account',
+  '  disabled: false',
+  '',
+].join('\n')
+
+it('refuses route, key, and sign-in changes, also over user patches from before the lock, and sends every route to the gateway', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-flowleap-firm-models-'))
   const gatewayRequests: { path: string; authorization: string | undefined; key: string | undefined }[] = []
   // The gateway double records each request and refuses it, so no route retries or streams.
@@ -79,6 +96,10 @@ it('refuses route, key, and sign-in changes and sends every route to the gateway
     `        baseURL: ${gatewayUrl}`,
     '',
   ].join('\n'))
+  // The Harness home keeps user patches from before the lock, in the profile layer and in the home layer.
+  await mkdir(join(root, 'home', 'profiles', 'scaffold'), { recursive: true })
+  await writeFile(join(root, 'home', 'profiles', 'scaffold', 'cordis.patch.yml'), STALE_USER_ROWS)
+  await writeFile(join(root, 'home', 'cordis.patch.yml'), STALE_USER_ROWS)
   const scaffold = await launchWebScaffold({
     profile: { packages: [{ dir: BUNDLE, enabled: true }, { dir: fixtureBundle, enabled: true }] },
     harnessHome: join(root, 'home'),
@@ -102,8 +123,18 @@ it('refuses route, key, and sign-in changes and sends every route to the gateway
   ]) {
     const refused = await remote(scaffold, 'settings/mutate', { ns: 'llm-pi-ai', ops })
     expect(refused.ok).toBe(false)
-    expect(!refused.ok && refused.error.message).toContain('the model routes are fixed in this deployment')
+    expect(!refused.ok && refused.error.message).toContain('fixed by a profile bundle')
   }
+  // The DeepSeek route and sign-in rows stay off, and the plugin manager refuses to switch them on or install a package.
+  expect([...ctx.loader.entries()].some(entry => entry.options.id === 'llm-deepseek' && entry.fiber !== undefined)).toBe(false)
+  const plugins = await remote(scaffold, 'pluginManager/listPlugins', {})
+  const locked = plugins.ok ? (plugins.value as { entryId: string; readOnlyReason?: string }[])
+    .filter(row => row.readOnlyReason === 'deployment-locked').map(row => row.entryId) : []
+  expect(locked).toEqual(expect.arrayContaining(['llm-pi-ai', 'credentials', 'llm-deepseek', 'deepseek-account'].map(id => `include:${id}`)))
+  const enable = await remote(scaffold, 'pluginManager/setPluginEnabled', { id: 'include:llm-deepseek', enabled: true })
+  expect(enable.ok && (enable.value as { error?: { code: string } }).error?.code).toBe('deployment-locked')
+  const install = await remote(scaffold, 'pluginManager/installBundle', { spec: '@deepseek-ai/dsh-experimental-liveshare' })
+  expect(install.ok && (install.value as { error?: { code: string } }).error?.code).toBe('deployment-locked')
   // No user key for a model route.
   for (const ref of ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_API_KEY']) {
     const refused = await remote(scaffold, 'credentials/set', { ref, value: 'sk-own-key' })

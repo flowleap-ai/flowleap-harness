@@ -10,7 +10,9 @@ export interface Config {
    * The deployment fixes the model routes and keys: the page shows them and
    * offers no add, edit, sign-in, or key entry. The Host operations refuse
    * those writes on their own (`llm-pi-ai` `fixedRoutes`, `credentials-local`
-   * `lockedRefs`); this flag only keeps the page from offering them.
+   * `lockedRefs`); this flag only keeps the page from offering them. While it
+   * is true, an enabled `llm-pi-ai` Loader row without `fixedRoutes: true`
+   * fails this entry at load.
    */
   managed: boolean
 }

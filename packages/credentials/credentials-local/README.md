@@ -42,7 +42,7 @@ Use it as the default local store: the product's base composition loads it, and 
 | `path` | `<harness home>/.credentials.yaml` | Where the credential file lives |
 | `dshHome` | `$DSH_HOME` or `~/.dsh` | Harness home used when `path` is omitted |
 | `readOnlyPath` | none | A host-provided credential file in the same layout, read once at start and never written |
-| `lockedRefs` | `[]` | References only the deployment supplies; `set` and `unset` refuse them, and a stored value for one is ignored |
+| `lockedRefs` | `[]` | References only the deployment supplies; `set` refuses them, a stored value for one is ignored, and `unset` removes such a value |
 | `watch` | `true` | Reload the file automatically when it changes on disk |
 | `debounceMs` | `100` | Wait this long after a change before reloading, in milliseconds |
 
@@ -97,7 +97,7 @@ The file is read once at start, so a changed key takes effect at the next start.
 
 ### Keys only the deployment supplies
 
-`lockedRefs` names references a deployment supplies outside the stored file: from the read-only file, the launching environment, or a `.env` file. `set` and `unset` refuse a locked reference with an error that names it, `describe` reports it with `writable: false` and the place that supplies it, and a value the stored file already holds for it is ignored. So a key typed into a configuration page cannot replace or shadow the deployment's key even when that key comes from the environment. `flowleap-web` locks its model keys this way.
+`lockedRefs` names references a deployment supplies outside the stored file: from the read-only file, the launching environment, or a `.env` file. `set` refuses a locked reference with an error that names it, `unset` removes a value stored before the lock, `describe` reports it with `writable: false` and the place that supplies it, and a value the stored file already holds for it is ignored. So a key typed into a configuration page cannot replace or shadow the deployment's key even when that key comes from the environment. `flowleap-web` locks its model keys this way.
 
 ### The credential file
 

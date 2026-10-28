@@ -132,6 +132,25 @@ it('hides a withheld bundle and refuses to select it, but deselects one the prof
   expect((await selected.manager.listBundles()).some(row => row.name === 'extra')).toBe(false)
 })
 
+it('refuses a row a bundle locks, and package installs and updates while installBundles is false', async () => {
+  const locked = (dir: string) => {
+    const path = join(dir, 'node_modules/core/package.json')
+    const metadata = readProfileManifest('test', join(dir, 'node_modules/core'))
+    metadata.dsh = { bundle: { patch: './cordis.patch.yml', lockedRows: ['managed'] } }
+    writeFileSync(path, JSON.stringify(metadata))
+  }
+  const { manager, dir } = await fixture('live', false, undefined, { installBundles: false }, undefined, locked)
+  const patchBefore = readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')
+  const row = (await manager.listPlugins()).find(item => String(item.entryId).endsWith(':managed'))!
+  expect(row).toMatchObject({ readOnlyReason: 'deployment-locked' })
+  expect(row.patchId).toBeUndefined()
+  expect(await manager.setPluginEnabled(row.entryId, false))
+    .toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
+  expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(patchBefore)
+  expect(await manager.installBundle('extra-two')).toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
+  expect(await manager.updateBundle('extra', '2.0.0')).toMatchObject({ step: 'check', result: { application: 'failed', error: { code: 'deployment-locked' } } })
+})
+
 it('allows supported bundle activation and permits deselecting an unsupported saved bundle', async () => {
   const { manager, dir } = await fixture()
   const path = join(dir, 'node_modules/extra/package.json')

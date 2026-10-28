@@ -97,6 +97,20 @@ describe('ui-settings-models apply', () => {
     }
   })
 
+  it('refuses managed: true while an enabled llm-pi-ai row does not fix its routes', () => {
+    const host = (entries: { id: string; name: string; disabled?: boolean; config?: object }[]) => ({
+      get: (name: string) => name === 'loader' ? { entries: () => entries.map(options => ({ options })) } : undefined,
+      on: vi.fn(),
+    }) as never
+    const managed = hostPlugin.Config({ managed: true })
+    const pi = { id: 'llm-pi-ai', name: '@deepseek-ai/dsh-llm-pi-ai' }
+    expect(() => { hostPlugin.apply(host([{ ...pi, config: { providers: {} } }]), managed) })
+      .toThrow('managed: true requires the @deepseek-ai/dsh-llm-pi-ai row "llm-pi-ai" to set fixedRoutes: true')
+    expect(() => { hostPlugin.apply(host([{ ...pi, config: { fixedRoutes: true } }, { ...pi, id: 'off', disabled: true }]), managed) }).not.toThrow()
+    expect(() => { hostPlugin.apply(host([{ ...pi }]), hostPlugin.Config({})) }).not.toThrow()
+    expect(() => { hostPlugin.apply({ get: () => undefined, on: vi.fn() } as never, managed) }).not.toThrow()
+  })
+
   it('defaults to browser onboarding and rejects malformed bootstrap options', async () => {
     expect(hostPlugin.Config({})).toEqual({ credentialOnboarding: true, managed: false })
     expect(hostPlugin.Config['~standard'].validate({ credentialOnboarding: 'false' })).toHaveProperty('issues')

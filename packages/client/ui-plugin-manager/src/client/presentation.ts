@@ -49,6 +49,7 @@ function registryHost(registry: string): string {
 const CODE_KEYS = {
   'management-required': 'reasonManagementRequired',
   'unaddressable': 'reasonUnaddressable',
+  'deployment-locked': 'reasonDeploymentLocked',
   'unknown-plugin': 'reasonUnknownPlugin',
   'invalid-spec': 'reasonInvalidSpec',
   'already-installed': 'reasonAlreadyInstalled',

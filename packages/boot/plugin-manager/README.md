@@ -26,7 +26,7 @@ Manage the current profile's plugins without editing configuration by hand. Enab
 <a id="use-this-package"></a>
 ## Use this package
 
-Base-backed profiles provide the manager. In Web, the sidebar's **Plugins** page ([ui-plugin-manager](../../client/ui-plugin-manager/README.md)) manages the profile's bundles and their uniquely addressable rows; the Settings Plugin list stays read-only. Agent-preset rows remain read-only. The `plugin_manager` tool exposes the same operations and is enabled in the Standard and Creator presets. Other presets keep it disabled by default. Every tool action requires `danger-full-access` or approval for that call. Under lower sandbox modes, `ask` requests approval; `never`, rejection, cancellation, or an unavailable approval channel prevents execution. An approval leaves the session permission mode unchanged. Profile changes persist across sessions, and installed Host code executes in-process outside the workspace sandbox. Dependency build-script approval remains separate.
+Base-backed profiles provide the manager. In Web, the sidebar's **Plugins** page ([ui-plugin-manager](../../client/ui-plugin-manager/README.md)) manages the profile's bundles and their uniquely addressable rows; the Settings Plugin list stays read-only. Agent-preset rows remain read-only. A row a profile bundle locks (`dsh.bundle.lockedRows`) is listed with `readOnlyReason: 'deployment-locked'`, and `setPluginEnabled()` refuses it, because the next load drops a user patch for that row. The `plugin_manager` tool exposes the same operations and is enabled in the Standard and Creator presets. Other presets keep it disabled by default. Every tool action requires `danger-full-access` or approval for that call. Under lower sandbox modes, `ask` requests approval; `never`, rejection, cancellation, or an unavailable approval channel prevents execution. An approval leaves the session permission mode unchanged. Profile changes persist across sessions, and installed Host code executes in-process outside the workspace sandbox. Dependency build-script approval remains separate.
 
 For a deployment without agent presets, enable the tool in the profile patch. Preset-backed sessions use their preset’s `tool-plugin-manager` entry.
 
@@ -100,6 +100,7 @@ The CLI exposes `dsh plugin --profile <profile> version-exemptions`, `allow-vers
 | `detailFetchTimeoutMs` | `15000` | Deadline of one npm file CDN request for an offered bundle's detail document. |
 | `detailNpmFileSources` | `['jsdelivr', 'unpkg', 'npmmirror']` | npm file CDNs offered bundles are read from, in order; a read's `npmFileSources` moves the CDNs it names first. |
 | `withheldBundles` | `[]` | Bundle package names the deployment does not offer: `listBundles()` leaves each out while the profile does not select it, and selecting one fails with `not-bundle`; deselecting a selected one still works. |
+| `installBundles` | `true` | Whether this deployment installs and updates packages; `false` refuses `installBundle()` and `updateBundle()` with `deployment-locked`, for a product whose administrator installs plugins outside the application |
 
 <a id="bundle-detail-documents"></a>
 ### Bundle detail documents

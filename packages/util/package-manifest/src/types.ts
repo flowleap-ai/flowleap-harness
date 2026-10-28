@@ -75,6 +75,12 @@ export interface DshBundleManifest {
   patch: string | string[]
   /** Show the bundle in GUI lists before the profile enables or installs it; omission means true. */
   listedByDefault?: boolean
+  /**
+   * Loader entry ids that only bundle layers and launch overlays configure. A profile or home user patch that targets
+   * one of them by `id` is dropped at load, so a setting saved before the bundle locked the row, or a later write from a
+   * settings page or the plugin manager, cannot change it. Omission locks nothing.
+   */
+  lockedRows?: string[]
 }
 
 /** The bundle composition declared by a profile directory. */

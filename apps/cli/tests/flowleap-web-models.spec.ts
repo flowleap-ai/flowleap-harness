@@ -9,7 +9,7 @@ import { composeEntries, loadProfile } from '@deepseek-ai/dsh-app-boot'
 
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 
-it.each(['flowleap-web', 'web'])('%s fixes the model routes, the model keys, and the Models page', (name) => {
+it.each(['flowleap-web', 'web'])('%s: only flowleap-web fixes the model routes, the model keys, the Models page, and the plugin manager', (name) => {
   const home = mkdtempSync(join(tmpdir(), 'dsh-flowleap-models-'))
   try {
     const profile = loadProfile('dsh', name, installAnchor, home)
@@ -21,6 +21,8 @@ it.each(['flowleap-web', 'web'])('%s fixes the model routes, the model keys, and
     expect(config('credentials')?.lockedRefs)
       .toEqual(firm ? ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_API_KEY'] : undefined)
     expect(config('ui-settings-models')?.managed).toBe(firm ? true : undefined)
+    expect(config('plugin-manager')?.installBundles).toBe(firm ? false : undefined)
+    expect(profile.layers.some(layer => (layer.lockedRows ?? []).includes('llm-pi-ai'))).toBe(firm)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }

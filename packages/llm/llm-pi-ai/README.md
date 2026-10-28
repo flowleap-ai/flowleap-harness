@@ -110,7 +110,7 @@ Each operation captures the current `providers` Config reference. New or changed
 
 ### Fix the routes for a deployment
 
-`fixedRoutes: true` (default `false`, not volatile) gives the route set to the deployment. Every route must name `apiKeyEnv`, else the entry fails at load. A live change of `providers` from settings is refused with the reason, whether it adds a route, changes an endpoint, a key reference, or a model list. No sign-in flow is registered, no endpoint discovery is offered, and the configurable-provider directory lists only the configured routes. A route the user settings layer already held when the instance started is part of the fixed set; a firm runtime starts from a new profile.
+`fixedRoutes: true` (default `false`, not volatile) gives the route set to the deployment. Every route must name `apiKeyEnv`, else the entry fails at load. A live change of `providers` from settings is refused with the reason, whether it adds a route, changes an endpoint, a key reference, or a model list. No sign-in flow is registered, no endpoint discovery is offered, and the configurable-provider directory lists only the configured routes. `fixedRoutes` lives in the row config, and a user patch that restates the row replaces the whole config, so a deployment also locks the row against user patches (`dsh.bundle.lockedRows`, as `flowleap-web` does). `fixedRoutes` does not check the credential references: pair it with `credentials-local` `lockedRefs` or a read-only credential file for every route's `apiKeyEnv`, or a key typed in the browser still reaches a fixed route.
 
 ### Discover models from endpoints
 

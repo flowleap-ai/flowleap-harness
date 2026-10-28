@@ -24,6 +24,7 @@ import {
   readProfileManifest,
   readProfilePatches,
   removeLinkProjections,
+  reportDroppedPatches,
   reportSkippedBundles,
   resolveBundleDir,
   resolveProfileDir,
@@ -47,7 +48,7 @@ const tmp = (): string => {
 
 /** Stage a fake installed app: package.json with deps and a node_modules holding bundles. */
 function stageInstallation(
-  bundles: Record<string, { patch?: string; deps?: Record<string, string>; platforms?: string[] }>,
+  bundles: Record<string, { patch?: string; deps?: Record<string, string>; platforms?: string[]; lockedRows?: unknown }>,
   appName = 'dsh-app',
 ): string {
   const root = tmp()
@@ -64,7 +65,11 @@ function stageInstallation(
       type: 'module',
       main: './index.js',
       dependencies: spec.deps ?? {},
-      ...spec.patch === undefined ? {} : { dsh: { bundle: { patch: './cordis.patch.yml', ...spec.platforms === undefined ? {} : { platforms: spec.platforms } } } },
+      ...spec.patch === undefined ? {} : { dsh: { bundle: {
+        patch: './cordis.patch.yml',
+        ...spec.platforms === undefined ? {} : { platforms: spec.platforms },
+        ...spec.lockedRows === undefined ? {} : { lockedRows: spec.lockedRows },
+      } } },
     }))
     writeFileSync(join(dir, 'index.js'), `export const packageName = ${JSON.stringify(name)}\n`)
     if (spec.patch !== undefined) writeFileSync(join(dir, 'cordis.patch.yml'), spec.patch)
@@ -92,6 +97,56 @@ it('skips an unsupported saved bundle before composing any runtime overrides and
   expect(profile.skippedBundles[0]?.reason).toContain(`Host is running ${process.platform}`)
   expect(composeEntries(profile.layers.map(layer => layer.patches))).toMatchObject([{ id: 'ptc-runtime', config: { executionMode: 'isolated' } }])
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
+})
+
+describe('dsh.bundle.lockedRows', () => {
+  const LOCKED_BASE = '- insert:\n  - id: llm\n    name: llm-plugin\n    config: { fixed: true }\n  - id: other\n    name: other-plugin\n'
+  const USER_ROWS = '- id: llm\n  config: { fixed: false }\n- id: other\n  config: { edited: true }\n- insert:\n  - id: added\n    name: added-plugin\n'
+
+  it('drops the profile and home user patches that target a locked row, and keeps launch overlays', () => {
+    const anchor = stageInstallation({ base: { patch: LOCKED_BASE, lockedRows: ['llm'] } })
+    const home = tmp()
+    const dir = join(home, 'profiles', 'locked')
+    initProfile(dir, ['base'])
+    writeFileSync(join(dir, PROFILE_PATCH_FILENAME), USER_ROWS)
+    writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: llm\n  disabled: true\n')
+    const profile = loadProfileDirectory('test', dir, anchor)
+    expect(profile.layers[0]?.lockedRows).toEqual(['llm'])
+    expect(profile.droppedPatches).toEqual(['llm'])
+    expect(profile.patches.map(patch => patch.id ?? 'insert')).toEqual(['other', 'insert'])
+    const context = {
+      name: 'locked', dir, patchPath: profile.patchPath, installAnchor: anchor, cwd: dir, home,
+      startedBundles: ['base'], overlays: [{ id: 'llm', config: { fixed: 'overlay' } }], telemetryDisabledEnv: undefined,
+    }
+    const userLayers = composeEntries([readProfilePatches('test', { ...context, overlays: [] })])
+    expect(userLayers.find(row => row.id === 'llm')).toMatchObject({ config: { fixed: true } })
+    expect(userLayers.find(row => row.id === 'llm')?.disabled).toBeUndefined()
+    expect(userLayers.find(row => row.id === 'other')).toMatchObject({ config: { edited: true } })
+    // A user patch handed in by a caller (a settings write in progress) is filtered too.
+    const handed = readProfilePatches('test', { ...context, overlays: [] }, { ...profile, patches: [{ id: 'llm', config: { fixed: false } }] })
+    expect(composeEntries([handed]).find(row => row.id === 'llm')).toMatchObject({ config: { fixed: true } })
+    expect(composeEntries([readProfilePatches('test', context)]).find(row => row.id === 'llm'))
+      .toMatchObject({ config: { fixed: 'overlay' } })
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      reportDroppedPatches('dsh', profile)
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('ignoring the "llm" row of'))
+      write.mockClear()
+      reportDroppedPatches('dsh', { patchPath: profile.patchPath })
+      expect(write).not.toHaveBeenCalled()
+    } finally {
+      write.mockRestore()
+    }
+  })
+
+  it('skips a bundle whose lockedRows is not a list of entry ids', () => {
+    const anchor = stageInstallation({ bad: { patch: LOCKED_BASE, lockedRows: ['llm', ''] } })
+    const dir = join(tmp(), 'profile')
+    initProfile(dir, ['bad'])
+    const profile = loadProfileDirectory('test', dir, anchor)
+    expect(profile.layers).toEqual([])
+    expect(profile.skippedBundles[0]?.reason).toContain('dsh.bundle.lockedRows must be a list of Loader entry ids')
+  })
 })
 
 /** Represent one resolved external bundle as a loaded profile layer. */

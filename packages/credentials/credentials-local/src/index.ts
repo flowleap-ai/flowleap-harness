@@ -83,9 +83,10 @@ export interface Config {
   readOnlyPath?: string
   /**
    * References only the deployment supplies: through `readOnlyPath`, the
-   * inherited environment, or a `.env` fallback. `set` and `unset` refuse
-   * them, `describe` reports them not writable, and a value the managed
-   * document already holds for one is ignored. Empty by default.
+   * inherited environment, or a `.env` fallback. `set` refuses them,
+   * `describe` reports them not writable, and a value the managed document
+   * already holds for one is ignored; `unset` removes such a value. Empty by
+   * default.
    */
   lockedRefs?: string[]
   /** Watch the document and hot-publish external edits; defaults to true. */
@@ -98,7 +99,7 @@ export interface Config {
 interface ResolvedSpec {
   filename: string
   readOnlyFilename?: string
-  lockedRefs: ReadonlySet<string>
+  lockedRefs: ReadonlySet<CredentialRef>
   watch: boolean
   debounceMs: number
 }
@@ -113,7 +114,7 @@ export function resolveSpec(config: Config): ResolvedSpec {
   return {
     filename: resolve(config.path ?? join(resolveDshHome(config.dshHome), CREDENTIALS_FILENAME)),
     ...config.readOnlyPath === undefined ? {} : { readOnlyFilename: resolve(config.readOnlyPath) },
-    lockedRefs: new Set(config.lockedRefs ?? []),
+    lockedRefs: new Set((config.lockedRefs ?? []).map(ref => credentialRef(ref))),
     watch: config.watch ?? true,
     debounceMs: config.debounceMs ?? 100,
   }
@@ -698,7 +699,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override async unset(ref: CredentialRef): Promise<void> {
-    this.assertUnlocked(ref)
+    // A locked reference may still be unset: that removes a value stored before the lock, which resolve ignores.
     this.assertWritable(this.readOnly.refs, ref)
     await this.write(ref, undefined)
   }
@@ -784,15 +785,20 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   /**
-   * Refuse a write to a reference or record the read-only document holds: the
-   * managed entry would be shadowed, so the write could never take effect.
-   * @throws Error naming the entry and the read-only document.
+   * Refuse to store a value for a reference the deployment supplies (`lockedRefs`).
+   * @param ref - the reference to store.
+   * @throws Error naming the reference.
    */
   private assertUnlocked(ref: CredentialRef): void {
     if (!this.spec.lockedRefs.has(ref)) return
     throw new Error(`credentials-local: "${ref}" is supplied by this deployment (lockedRefs); it cannot be changed here`)
   }
 
+  /**
+   * Refuse a write to a reference or record the read-only document holds: the
+   * managed entry would be shadowed, so the write could never take effect.
+   * @throws Error naming the entry and the read-only document.
+   */
   private assertWritable(entries: ReadonlyMap<string, unknown>, name: string): void {
     if (!entries.has(name)) return
     throw new Error(

@@ -231,6 +231,8 @@ export interface Config {
    * change of `providers` is refused, no sign-in flow and no endpoint
    * discovery is offered, and the provider directory lists only the
    * configured routes. Not volatile, so no settings form can turn it off.
+   * The credential references are not checked: the deployment makes each
+   * route's `apiKeyEnv` locked (`credentials-local` `lockedRefs`) or read-only.
    */
   fixedRoutes: boolean
 }

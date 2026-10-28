@@ -37,7 +37,7 @@ async function boot(lockedRefs: string[]): Promise<{ ctx: Context; managed: stri
   return { ctx, managed }
 }
 
-it('resolves a locked reference from the deployment only and refuses to change it', async () => {
+it('resolves a locked reference from the deployment only, refuses to store one, and unsets a stale stored value', async () => {
   const { ctx, managed } = await boot(['DSH_CRED_MODEL', 'DSH_CRED_DOTENV', 'DSH_CRED_UNSET'])
 
   expect(await ctx.credentials.resolve(MODEL)).toEqual({ value: 'deployment-value', source: 'env' })
@@ -45,8 +45,12 @@ it('resolves a locked reference from the deployment only and refuses to change i
   expect(await ctx.credentials.describe(DOTENV)).toEqual({ configured: true, source: 'project-env', writable: false })
   expect(await ctx.credentials.describe(UNSET)).toEqual({ configured: false, writable: false })
   await expect(ctx.credentials.set(MODEL, 'own-key')).rejects.toThrow('"DSH_CRED_MODEL" is supplied by this deployment')
-  await expect(ctx.credentials.unset(UNSET)).rejects.toThrow('"DSH_CRED_UNSET" is supplied by this deployment')
   expect(await readFile(managed, 'utf8')).toBe(MANAGED)
+  // Unset removes a value stored before the lock; resolve ignored it already.
+  await ctx.credentials.unset(MODEL)
+  expect(await readFile(managed, 'utf8')).not.toContain('typed-in-browser')
+  expect(await ctx.credentials.resolve(MODEL)).toEqual({ value: 'deployment-value', source: 'env' })
+  await ctx.credentials.unset(UNSET)
 
   await ctx.credentials.set(OWN, 'rotated')
   expect(await ctx.credentials.resolve(OWN)).toEqual({ value: 'rotated', source: 'file' })

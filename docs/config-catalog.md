@@ -657,7 +657,9 @@ export interface Config {
    * The deployment fixes the model routes and keys: the page shows them and
    * offers no add, edit, sign-in, or key entry. The Host operations refuse
    * those writes on their own (`llm-pi-ai` `fixedRoutes`, `credentials-local`
-   * `lockedRefs`); this flag only keeps the page from offering them.
+   * `lockedRefs`); this flag only keeps the page from offering them. While it
+   * is true, an enabled `llm-pi-ai` Loader row without `fixedRoutes: true`
+   * fails this entry at load.
    */
   managed: boolean
 }
@@ -860,9 +862,10 @@ export interface Config {
   readOnlyPath?: string
   /**
    * References only the deployment supplies: through `readOnlyPath`, the
-   * inherited environment, or a `.env` fallback. `set` and `unset` refuse
-   * them, `describe` reports them not writable, and a value the managed
-   * document already holds for one is ignored. Empty by default.
+   * inherited environment, or a `.env` fallback. `set` refuses them,
+   * `describe` reports them not writable, and a value the managed document
+   * already holds for one is ignored; `unset` removes such a value. Empty by
+   * default.
    */
   lockedRefs?: string[]
   /** Watch the document and hot-publish external edits; defaults to true. */
@@ -2169,6 +2172,8 @@ export interface Config {
    * change of `providers` is refused, no sign-in flow and no endpoint
    * discovery is offered, and the provider directory lists only the
    * configured routes. Not volatile, so no settings form can turn it off.
+   * The credential references are not checked: the deployment makes each
+   * route's `apiKeyEnv` locked (`credentials-local` `lockedRefs`) or read-only.
    */
   fixedRoutes: boolean
 }
@@ -2869,6 +2874,11 @@ export interface Config {
    * deselecting a bundle the profile already selects still works.
    */
   withheldBundles?: string[]
+  /**
+   * Whether this deployment installs and updates packages. False refuses `installBundle` and `updateBundle` with
+   * `deployment-locked`, for a product whose administrator installs plugins outside the application.
+   */
+  installBundles?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->

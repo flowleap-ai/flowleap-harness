@@ -1,6 +1,6 @@
 /** Launcher-owned profile locations and composition inputs. */
 import { join } from 'node:path'
-import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
+import { composeEntries, loadProfileDirectory, lockedRowsOf, PROFILE_PATCH_FILENAME, withoutLockedPatches, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 
@@ -72,10 +72,16 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
  * @returns Detached ordered patches; this function does not update the Loader.
  */
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
-  const patches = structuredClone([
-    ...readBundlePatches(binName, context, initialProfile),
+  const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, { userLayer: false })
+  // User layers never configure a row a bundle locks; launch overlays still may.
+  const locked = lockedRowsOf(profile.layers)
+  const user = [
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
+  ]
+  const patches = structuredClone([
+    ...readBundlePatches(binName, context, profile),
+    ...withoutLockedPatches(user, locked).kept,
     ...context.overlays,
   ])
   const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
