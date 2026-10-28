@@ -10,7 +10,7 @@ import { composeEntries, loadProfile } from '@deepseek-ai/dsh-app-boot'
 
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 
-it('flowleap-web scans FLOWLEAP_SKILLS_DIR, else /opt/flowleap/skills, and requires the folder', () => {
+it('flowleap-web scans a nonempty FLOWLEAP_SKILLS_DIR, else /opt/flowleap/skills, and requires the folder', () => {
   const home = mkdtempSync(join(tmpdir(), 'dsh-flowleap-skills-'))
   try {
     const profile = loadProfile('dsh', 'flowleap-web', installAnchor, home)
@@ -24,6 +24,7 @@ it('flowleap-web scans FLOWLEAP_SKILLS_DIR, else /opt/flowleap/skills, and requi
     const resolveWith = (env: Record<string, string>): unknown =>
       (interpolate({ process: { env } }, config?.customSkillDirs) as unknown[])[0]
     expect(resolveWith({})).toBe('/opt/flowleap/skills')
+    expect(resolveWith({ FLOWLEAP_SKILLS_DIR: '' })).toBe('/opt/flowleap/skills')
     expect(resolveWith({ FLOWLEAP_SKILLS_DIR: '/srv/pack' })).toBe('/srv/pack')
   } finally {
     rmSync(home, { recursive: true, force: true })

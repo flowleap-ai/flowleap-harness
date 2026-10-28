@@ -106,8 +106,8 @@
 # (`<name>/SKILL.md` bundles), so every preset's `tool-skill` catalog merges it
 # with the preset's own roots.
 #
-# FLOWLEAP_SKILLS_DIR names the pack folder; the default is the pack of the
-# release image. The folder must exist, or the row fails at load: outside the
+# FLOWLEAP_SKILLS_DIR names the pack folder; when it is unset or empty, the
+# default is the pack of the release image. The folder must exist, or the row fails at load: outside the
 # image, set FLOWLEAP_SKILLS_DIR to a flowleap-plugins checkout's
 # plugins/flowleap/skills, or to an empty folder for no FlowLeap skill.
 
@@ -118,7 +118,7 @@
     includeDefaultRoots: false
     requireCustomSkillDirs: true
     customSkillDirs:
-      - !!js process.env.FLOWLEAP_SKILLS_DIR ?? '/opt/flowleap/skills'
+      - !!js process.env.FLOWLEAP_SKILLS_DIR || '/opt/flowleap/skills'
 
 # ── the shell sandbox ────────────────────────────────────────────────────────
 # A confined command reaches no IP network: web access goes through the web

@@ -192,6 +192,12 @@ describe('requireCustomSkillDirs', () => {
       .rejects.toThrow(`custom skill directory "${file}" does not exist`)
   })
 
+  it('fails the plugin at load when a required custom root is an empty string', async () => {
+    const home = await tempDir('skill-home')
+    await expect(setupLocal(home, { customSkillDirs: [''], requireCustomSkillDirs: true }))
+      .rejects.toThrow('a customSkillDirs root is an empty string')
+  })
+
   it('loads an existing required root, and reads a missing optional root as empty', async () => {
     const home = await tempDir('skill-home')
     const pack = await tempDir('skill-pack')

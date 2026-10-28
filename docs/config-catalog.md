@@ -3542,8 +3542,9 @@ export interface Config {
   /** Additional skill roots scanned after project roots and before user roots. */
   customSkillDirs?: string[]
   /**
-   * Fail the entry at load when a `customSkillDirs` root is not an existing
-   * directory. Defaults to false: a missing custom root then reads as empty.
+   * Fail the entry at load with {@link CustomSkillDirError} when a
+   * `customSkillDirs` root is an empty string or not an existing directory.
+   * Defaults to false: a missing custom root then reads as empty.
    */
   requireCustomSkillDirs?: boolean
   /** Whether host-local skill roots are watched for catalog changes. */
