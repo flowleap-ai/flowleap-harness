@@ -15,7 +15,8 @@ export interface EditAgentMenuItemInjected {
   openEdit: (id: AgentId) => Promise<void>
 }
 
-type EditAgentMenuItemProps = PropsRuntime<'agentPreset.menu.actions'>
+/** Full component props. */
+export type EditAgentMenuItemProps = PropsRuntime<'agentPreset.menu.actions'>
   & PropsLocale<'flowleapAgentBuilder'> & InjectFace<EditAgentMenuItemInjected>
 
 /**

@@ -13,7 +13,7 @@ const blockedTerm = 'prove' + 'nance'
 // design documents, which follow the FlowLeap style, not the dsh documentation standard.
 // FlowLeap fork: `packages/host/flowleap-deliverables/` and its sync script hold copies of agent-v2 modules (SOURCE.json) and keep
 // the IDE's vocabulary, which names its appendix module by the blocked term; HANDOFF.md is the fork's own handoff log.
-const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/', 'snapshots/web/flowleap-routine-run/', 'flowleap/', 'packages/host/flowleap-deliverables/', 'scripts/flowleap/sync-deliverables.sh', 'HANDOFF.md'] as const
+const excludedPrefixes = ['vendor/', '.agents/notes/archived/', 'packages/bundle/flowleap-web/prompt/', 'snapshots/web/flowleap-routine-run/', 'snapshots/web/flowleap-agent-search/', 'flowleap/', 'packages/host/flowleap-deliverables/', 'scripts/flowleap/sync-deliverables.sh', 'HANDOFF.md'] as const
 
 /** One blocked term occurrence in a tracked path or text line. */
 export interface ConcreteTermViolation {

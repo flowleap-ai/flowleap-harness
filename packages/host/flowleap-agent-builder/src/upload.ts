@@ -28,7 +28,7 @@ export async function handleAgentUpload(catalog: AgentCatalog, request: Request)
   let result: object
   try {
     await catalog.ready()
-    result = { ok: true, value: await catalog.upload(brandString<AgentId>(agent), name, bodyChunks(request.body)) }
+    result = { ok: true, value: await catalog.upload(brandString<AgentId>(agent), name, request.body ?? emptyBody()) }
   } catch (error) {
     const failure = remoteErrorOf(error)
     result = {
@@ -41,16 +41,5 @@ export async function handleAgentUpload(catalog: AgentCatalog, request: Request)
   return new Response(JSON.stringify(result), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
 }
 
-async function* bodyChunks(body: ReadableStream<Uint8Array> | null): AsyncIterable<Uint8Array> {
-  if (body === null) return
-  const reader = body.getReader()
-  try {
-    while (true) {
-      const chunk = await reader.read()
-      if (chunk.done) return
-      yield chunk.value
-    }
-  } finally {
-    reader.releaseLock()
-  }
-}
+// oxlint-disable-next-line require-yield -- an empty request body is a stream with no chunk.
+async function* emptyBody(): AsyncIterable<Uint8Array> {}

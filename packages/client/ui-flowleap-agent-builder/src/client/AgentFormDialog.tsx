@@ -27,7 +27,8 @@ export interface AgentFormDialogInjected {
   confirmDelete: () => Promise<void>
 }
 
-type AgentFormDialogProps = PropsRuntime<'shell.overlay'>
+/** Full component props. */
+export type AgentFormDialogProps = PropsRuntime<'shell.overlay'>
   & PropsLocale<'flowleapAgentBuilder'> & InjectFace<AgentFormDialogInjected>
 
 const FILE_STATE_KEY: Record<AgentFileRowState, FlowleapAgentBuilderKey> = {

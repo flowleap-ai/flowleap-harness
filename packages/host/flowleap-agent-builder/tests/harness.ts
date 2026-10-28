@@ -16,8 +16,8 @@ import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
 import { onTestFinished, vi } from 'vitest'
-import * as AgentBuilder from '../src/index.ts'
-import type { Config } from '../src/index.ts'
+import * as AgentRow from '../src/agent-row.ts'
+import { resolveOptions, serve, type Config } from '../src/index.ts'
 
 /** A tool definition with a fixed text answer, as a stand-in for a connector tool. */
 export function stubTool(name: string) {
@@ -41,8 +41,15 @@ export function ocrDouble(read: (bytes: Uint8Array) => OcrRead) {
   return { pages }
 }
 
+/** Doubles and stand-in tools of the runtime. */
+export interface RuntimeOptions {
+  readonly tools?: readonly string[]
+  readonly ocr?: OcrSource
+  readonly routes?: string[]
+}
+
 /** The core runtime with the preset registry, a `patent` base preset and the connection and remote-access doubles. */
-export async function runtime(options: { readonly tools?: readonly string[]; readonly ocr?: OcrSource } = {}): Promise<Context> {
+export async function runtime(options: RuntimeOptions = {}): Promise<Context> {
   const ctx = new Context()
   onTestFinished(() => ctx.fiber.dispose())
   ctx.baseUrl = import.meta.url
@@ -58,7 +65,7 @@ export async function runtime(options: { readonly tools?: readonly string[]; rea
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(AgentPresets, { default: 'patent' })
   for (const name of options.tools ?? []) ctx.tools.register(stubTool(name))
-  ctx.provide('connection', { fetch: { register: () => () => Promise.resolve() } } as never)
+  ctx.provide('connection', { fetch: { register: (route: { path: string }) => { options.routes?.push(route.path); return () => Promise.resolve() } } } as never)
   ctx.provide('remoteAccess', { allows: () => true } as never)
   if (options.ocr !== undefined) ctx.provide('flowleapOcr', options.ocr)
   await ctx.plugin({ inject: ['agentPresets'], async* apply(child: Context) { yield await child.agentPresets.register({ id: 'patent', order: 0, plugins: [] }) } })
@@ -67,10 +74,13 @@ export async function runtime(options: { readonly tools?: readonly string[]; rea
 
 /** Mount the agent builder with test roots. */
 export async function mountBuilder(ctx: Context, config: Partial<Config> & { root: string }) {
-  const fiber = ctx.plugin(AgentBuilder, {
+  // The Loader resolves a package name through Node to the built lib/; the source row is a Loader builtin here.
+  ctx.loader.builtins['flowleap-agent'] = AgentRow
+  const options = resolveOptions({
     contextLimitTokens: 50_000, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
     maxSearchResults: 8, maxReadLocations: 10, ...config,
   })
+  const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()
   await ctx.flowleapAgentCatalog.settled()
   return fiber
@@ -97,30 +107,4 @@ export async function* chunks(...parts: (string | Uint8Array)[]): AsyncIterable<
   for (const part of parts) yield typeof part === 'string' ? new TextEncoder().encode(part) : part
 }
 
-/**
- * A PDF with one Helvetica text line set per page; a null page has no text layer, like a scanned page.
- * @param pages - the lines of each page.
- * @returns the PDF bytes.
- */
-export function makePdf(pages: readonly (readonly string[] | null)[]): Uint8Array {
-  const objects: string[] = ['<< /Type /Catalog /Pages 2 0 R >>']
-  const kids = pages.map((_, index) => `${String(3 + index * 2)} 0 R`).join(' ')
-  objects.push(`<< /Type /Pages /Kids [${kids}] /Count ${String(pages.length)} >>`)
-  const font = 3 + pages.length * 2
-  pages.forEach((lines, index) => {
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${String(font)} 0 R >> >> /Contents ${String(4 + index * 2)} 0 R >>`)
-    const stream = (lines ?? []).map((line, at) => `BT /F1 12 Tf 72 ${String(720 - at * 16)} Td (${line.replace(/[\\()]/g, m => `\\${m}`)}) Tj ET`).join('\n')
-    objects.push(`<< /Length ${String(stream.length)} >>\nstream\n${stream}\nendstream`)
-  })
-  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
-  let out = '%PDF-1.4\n'
-  const offsets: number[] = []
-  objects.forEach((body, index) => {
-    offsets.push(out.length)
-    out += `${String(index + 1)} 0 obj\n${body}\nendobj\n`
-  })
-  const xref = out.length
-  out += `xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n${offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}`
-  out += `trailer\n<< /Size ${String(objects.length + 1)} /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF\n`
-  return new TextEncoder().encode(out)
-}
+export { makePdf } from './pdf.ts'

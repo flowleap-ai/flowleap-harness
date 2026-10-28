@@ -115,7 +115,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
     record.ready = this.activate(record)
     await record.ready
     // A definition disposed during activation already announced its removal.
-    if (!disposed) this.owner.emit('agent-preset/roster-changed')
+    if (this.definitions.get(definition.id) === record) this.owner.emit('agent-preset/roster-changed')
     return unregister
   }
 

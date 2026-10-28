@@ -16,7 +16,7 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { AgentCatalog, type CatalogOptions } from './catalog.ts'
+import { AGENT_ROW_MODULE, AgentCatalog, type CatalogOptions } from './catalog.ts'
 import { FlowleapAgentsController } from './controller.ts'
 import { handleAgentUpload } from './upload.ts'
 import { AGENT_UPLOAD_PATH } from './types.ts'
@@ -108,6 +108,7 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
     presetOrder: config.presetOrder,
     maxSearchResults: config.maxSearchResults,
     maxReadLocations: config.maxReadLocations,
+    agentRow: AGENT_ROW_MODULE,
   }
 }
 
@@ -117,7 +118,16 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
  * @param config - roots, limits, base preset and roster order.
  */
 export function apply(ctx: Context, config: Config): void {
-  ctx.plugin(AgentCatalog, resolveOptions(config))
+  serve(ctx, resolveOptions(config))
+}
+
+/**
+ * Mount the catalog, the Remote and the upload route over resolved settings.
+ * @param ctx - the mounting context, carrying `agentPresets` and `connection`.
+ * @param options - the resolved settings.
+ */
+export function serve(ctx: Context, options: CatalogOptions): void {
+  ctx.plugin(AgentCatalog, options)
   ctx.inject(['flowleapAgentCatalog'], (scope) => {
     const catalog = scope.flowleapAgentCatalog
     scope.plugin(FlowleapAgentsController, { catalog })

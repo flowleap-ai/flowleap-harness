@@ -466,11 +466,10 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
-    await section.load()
     const before = calls.length
     remote.emit('agent-preset/roster-changed', [])
-    await vi.waitFor(() => { expect(calls.length).toBe(before + 3) })
+    // The directory and the unbound seat re-read; the section has not loaded, so it stays idle.
+    await vi.waitFor(() => { expect(calls.length).toBe(before + 2) })
   })
 
   it('re-reads both surfaces when the connection comes back', async () => {

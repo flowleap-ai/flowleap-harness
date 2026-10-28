@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { handleAgentUpload } from '../src/index.ts'
 import { mountBuilder, runtime, stubTool, tempDir } from './harness.ts'
 
@@ -64,5 +64,21 @@ describe('upload route', () => {
     expect((await handleAgentUpload(catalog, new Request('http://host/api/flowleap-agents/upload'))).status).toBe(405)
     await catalog.settled()
     expect(catalog.read(id).files.map(file => [file.name, file.state.kind])).toEqual([['a.txt', 'indexed']])
+  })
+})
+
+describe('plugin', () => {
+  it('resolves the root below DSH_HOME and registers the upload route', async () => {
+    const { apply, resolveOptions, AGENT_ROW_MODULE } = await import('../src/index.ts')
+    const config = { contextLimitTokens: 1, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1 }
+    expect(resolveOptions(config, { DSH_HOME: '/home/a/.dsh' })).toMatchObject({ root: '/home/a/.dsh/agents', agentRow: AGENT_ROW_MODULE })
+    expect(resolveOptions({ ...config, root: '/r', firmRoot: '/f' })).toMatchObject({ root: '/r', firmRoot: '/f' })
+    const routes: string[] = []
+    const ctx = await runtime({ routes })
+    const root = await tempDir('dsh-agents-')
+    await ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: never) => { apply(child, { ...config, root }) } }).await()
+    await ctx.flowleapAgentCatalog.settled()
+    await vi.waitFor(() => { expect(routes).toEqual(['/api/flowleap-agents/upload']) })
+    expect(await ctx.flowleapAgents.list()).toEqual([])
   })
 })

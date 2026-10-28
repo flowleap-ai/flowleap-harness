@@ -102,7 +102,11 @@ export async function removeAgentFolder(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true })
 }
 
-/** The file names in an agent's files folder, sorted; none when the folder is missing. */
+/**
+ * The file names in an agent's files folder, sorted; dot names (partial uploads) are left out.
+ * @param dir - the agent folder.
+ * @returns the names; none when the folder is missing.
+ */
 export async function listFiles(dir: string): Promise<string[]> {
   try {
     return (await readdir(join(dir, FILES_DIR), { withFileTypes: true }))

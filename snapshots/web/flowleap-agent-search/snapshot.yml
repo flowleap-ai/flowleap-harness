@@ -1,0 +1,8 @@
+version: 1
+scenario: flowleap-agent-search
+profile: web
+composition: flowleap-web
+recording: authored
+header:
+  class: flowleap-web-agent
+  pin: true

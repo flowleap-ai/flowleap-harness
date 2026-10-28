@@ -55,6 +55,8 @@ export interface CatalogOptions {
   readonly maxSearchResults: number
   /** Most pages one `read_agent_file` call returns. */
   readonly maxReadLocations: number
+  /** Loader name of the per-agent row; the plugin sets {@link AGENT_ROW_MODULE}. */
+  readonly agentRow: string
 }
 
 /** What the per-agent row composes for one revision of an agent. */
@@ -213,7 +215,7 @@ export class AgentCatalog extends Service {
       name: agent.folder.definition.name,
       description: agent.folder.definition.description,
       order: this.options.presetOrder,
-      plugins: [...base.plugins, { id: 'flowleap-agent', name: AGENT_ROW_MODULE, config: {
+      plugins: [...base.plugins, { id: 'flowleap-agent', name: this.options.agentRow, config: {
         agent: id, maxSearchResults: this.options.maxSearchResults, maxReadLocations: this.options.maxReadLocations,
       } }],
     }

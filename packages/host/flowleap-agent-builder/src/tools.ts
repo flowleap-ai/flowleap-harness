@@ -49,6 +49,12 @@ const readArgs = z.strictObject({
   to: z.number().int().min(1).optional(),
 })
 
+/** Both tools answer with model-facing text. */
+const TEXT_OUTPUT: ToolDefinition['output'] = {
+  schema: {},
+  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
+}
+
 function parse<T>(schema: z.ZodType<T>, tool: string, args: unknown): T {
   const parsed = schema.safeParse(args)
   if (!parsed.success) {
@@ -102,18 +108,17 @@ export function searchAgentFilesTool(reader: AgentFileReader): ToolDefinition {
       required: ['query'],
       additionalProperties: false,
     },
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
-    },
+    output: TEXT_OUTPUT,
     isConcurrencySafe: () => true,
     presentCall: args => ({
       card: 'generic', kind: 'search',
       title: `Search agent files: ${typeof args === 'object' && args !== null && 'query' in args ? String(args.query) : ''}`,
     }),
     execute(args): Promise<JsonValue> {
-      const { query } = parse(searchArgs, SEARCH_AGENT_FILES_NAME, args)
-      return Promise.resolve(renderHits(query, reader.search(query)))
+      return Promise.resolve().then(() => {
+        const { query } = parse(searchArgs, SEARCH_AGENT_FILES_NAME, args)
+        return renderHits(query, reader.search(query))
+      })
     },
   }
 }
@@ -139,21 +144,20 @@ export function readAgentFileTool(reader: AgentFileReader, maxLocations: number)
       required: ['file', 'page'],
       additionalProperties: false,
     },
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
-    },
+    output: TEXT_OUTPUT,
     isConcurrencySafe: () => true,
     presentCall: args => ({
       card: 'generic', kind: 'read',
       title: `Read agent file: ${typeof args === 'object' && args !== null && 'file' in args ? String(args.file) : ''}`,
     }),
     execute(args): Promise<JsonValue> {
-      const { file, page, to } = parse(readArgs, READ_AGENT_FILE_NAME, args)
-      const last = Math.min(Math.max(to ?? page, page), page + maxLocations - 1)
-      const read = reader.read(file, page, last)
-      if (read === undefined) return Promise.reject(new Error(`${READ_AGENT_FILE_NAME}: no indexed file is named "${file}"`))
-      return Promise.resolve(renderRead(file, read.rows, read.total))
+      return Promise.resolve().then(() => {
+        const { file, page, to } = parse(readArgs, READ_AGENT_FILE_NAME, args)
+        const last = Math.min(Math.max(to ?? page, page), page + maxLocations - 1)
+        const read = reader.read(file, page, last)
+        if (read === undefined) throw new Error(`${READ_AGENT_FILE_NAME}: no indexed file is named "${file}"`)
+        return renderRead(file, read.rows, read.total)
+      })
     },
   }
 }
