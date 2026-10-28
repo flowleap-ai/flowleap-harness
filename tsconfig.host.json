@@ -580,6 +580,7 @@
     { "path": "./packages/host/flowleap-deliverables" },
     { "path": "./packages/host/flowleap-prompt" },
     { "path": "./packages/host/flowleap-routines" },
+    { "path": "./packages/host/flowleap-agent-builder" },
     { "path": "./packages/host/frontend-static" },
     { "path": "./packages/host/open-in-app" },
     { "path": "./packages/host/plugin-inventory" },

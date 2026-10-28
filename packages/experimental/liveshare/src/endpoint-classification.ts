@@ -111,6 +111,12 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'flowleapConnectors/set': 'owner-only', // FlowLeap: the firm's connector keys; secrets never reach a reader
   'flowleapConnectors/test': 'owner-only', // FlowLeap: the firm's connector keys; secrets never reach a reader
   'flowleapConnectors/unset': 'owner-only', // FlowLeap: the firm's connector keys; secrets never reach a reader
+  'flowleapAgents/connectors': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapAgents/delete': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapAgents/list': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapAgents/read': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapAgents/removeFile': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapAgents/save': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapRoutines/done': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapRoutines/reviews': 'owner-only', // FlowLeap: the owner's routine review queue
   'settings/describe': 'owner-only', // owner settings
