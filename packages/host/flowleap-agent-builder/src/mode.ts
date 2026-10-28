@@ -62,7 +62,8 @@ export function renderContextFiles(rows: readonly LocationRow[]): string {
   const body = rows.map(row => `=== ${row.file} | ${locationLabel(row.unit, row.at)} ===\n${row.text}`).join('\n\n')
   return [
     'Agent files (full text):',
-    'The full text of this agent\'s files follows. Each part starts with a line "=== <file> | page N ===" (or "paragraph N" for a Word file). '
+    'The attorney gave this agent the files below. They are not in the workspace, so do not open them with file tools: '
+    + 'the text that follows is their full content. Each part starts with a line "=== <file> | page N ===" (or "paragraph N" for a Word file). '
     + 'When you use a passage, cite the file name and the page or paragraph.',
     '',
     body,

@@ -141,7 +141,7 @@ The section is fixed for a preset revision. A change of the agent registers a ne
 
 #### What the model sees
 
-A section `flowleap:agent-files` at order 3 while the agent has indexed files. In the `context` mode: `Agent files (full text):`, a line that says how to cite, then every page or paragraph after a marker line `=== <file> | page N ===` (or `paragraph N`), ordered by file name and then by page. In the `search` mode: `Agent files (search):`, the count and names of the indexed files, and a line that names the two tools and how to cite.
+A section `flowleap:agent-files` at order 3 while the agent has indexed files. In the `context` mode: `Agent files (full text):`, a line that says the files are not in the workspace, that the text that follows is their full content and must not be opened with file tools, and how to cite, then every page or paragraph after a marker line `=== <file> | page N ===` (or `paragraph N`), ordered by file name and then by page. In the `search` mode: `Agent files (search):`, the count and names of the indexed files, and a line that names the two tools and how to cite.
 
 #### Token effect
 
