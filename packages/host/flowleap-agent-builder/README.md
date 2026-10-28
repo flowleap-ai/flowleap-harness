@@ -32,6 +32,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
   name: '@deepseek-ai/dsh-flowleap-agent-builder'
   config:
     contextLimitTokens: 50000
+    charsPerToken: 4
     maxFileBytes: 52428800
     basePreset: patent
     presetOrder: 100
@@ -47,7 +48,8 @@ Mount the row in a composition with the agent preset registry, the base preset, 
 |---|---|---|
 | `root` | `$DSH_HOME/agents` | The writable agents root; the plugin resolves the default with `resolveDshHome()` |
 | `firmRoot` | none | A read-only folder of firm agents; its agents load when it exists, show as read only, and are never written |
-| `contextLimitTokens` | `50000` | Largest indexed text of one agent, in estimated tokens (`ceil(chars / 4)`), that goes into the system prompt in full; at the limit the mode is still `context` |
+| `contextLimitTokens` | `50000` | Largest indexed text of one agent, in estimated tokens (`ceil(chars / charsPerToken)`), that goes into the system prompt in full; at the limit the mode is still `context` |
+| `charsPerToken` | `4` | Characters counted as one token in the mode estimate, from 0.5 to 16. 4 is close for English, French and German prose; a deployment whose agent files are mostly Chinese, Japanese or Korean sets 1, because those scripts take about one token per character |
 | `maxFileBytes` | `52428800` | Largest upload, counted over the whole request stream |
 | `basePreset` | `patent` | The preset whose plugin list each agent preset copies |
 | `presetOrder` | `100` | Roster order of the agent presets; the shipped presets use 0 to 3 |
@@ -56,7 +58,7 @@ Mount the row in a composition with the agent preset registry, the base preset, 
 | `extractTimeoutMs` | `120000` | Wall-clock limit of reading one file in the extraction Worker, Worker start included; over it the file fails with `timeout`. Room for a `maxPages` PDF on a slow disk |
 | `maxPages` | `2000` | Most pages one PDF may have; a PDF with more fails with `too-large` before its pages are read. Holds a long prosecution history |
 | `extractMemoryMb` | `512` | Memory limit of the extraction Worker: its V8 old generation (the young generation gets one eighth of it), and the sum of its heap and external memory, which the Host samples every 25 ms; over it the file fails with `too-large`. About ten times the default `maxFileBytes` |
-| `maxReadChars` | `40000` | Most characters of page text one `read_agent_file` call returns; about 10000 tokens, so the default 10 pages of a typical 3000-character page fit, and one TXT or MD page cannot fill the context |
+| `maxReadChars` | `40000` | Most characters of page text one `read_agent_file` call returns, at most `200000` (about 50000 tokens); about 10000 tokens, so the default 10 pages of a typical 3000-character page fit, and one TXT or MD page cannot fill the context |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-agent-builder) is the exhaustive source for every accepted field.
 
@@ -68,7 +70,7 @@ A folder holds `agent.yaml` (name, description, connectors), `instructions.md`, 
 
 ### Files
 
-The upload route accepts PDF, DOCX, TXT and MD files with a plain name of at most 240 UTF-8 bytes, so the temporary name of a partial upload fits the 255-byte file-name limit. It creates a missing `files/` folder, and a failed write answers an error and removes the partial file. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call that receives only those pages (a PDF of them built with pdfjs `extractPages`, or the whole PDF when no page has a text layer), DOCX by paragraph through `mammoth`, and TXT and MD as one page. The parse runs in a fresh `worker_threads` Worker (`lib/worker.cjs` when built, the `src/worker.ts` entry through tsx from source), one file at a time, so the Host holds at most one Worker heap; the Mistral OCR call stays in the Host. Over `extractTimeoutMs` or `extractMemoryMb` the Host ends the Worker and the file fails with `timeout` or `too-large`. Close and plugin disposal end a running Worker without waiting for it; that file stays `indexing` and is read again at the next start. pdfjs-dist 6.3.289 has no `isEvalSupported` option and no code path that evaluates PDF content as JavaScript. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`, `too-large`, `timeout`); the form shows every failure as "Cannot read". At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`. The index is derived data: an `index.sqlite` that cannot be opened (damaged, or a newer schema) is logged, renamed to `index.sqlite.unreadable-<ms>`, and replaced by an empty index, and the files are read again. An agent whose index can be neither opened nor moved is logged and not loaded; the other agents load.
+The upload route accepts PDF, DOCX, TXT and MD files with a plain name of at most 240 UTF-8 bytes, so the temporary name of a partial upload fits the 255-byte file-name limit. File names compare without case (after NFC normalization), as on the macOS and Windows file systems: an upload of `a.pdf` replaces `A.pdf`, on disk and in the index, and the agent keeps the new name. It creates a missing `files/` folder, and a failed write answers an error and removes the partial file. Each file is read once, when it is stored, and again only when its SHA-256 changes: the PDF text layer through `pdfjs-dist`, the pages without a text layer through one Mistral OCR call that receives only those pages (a PDF of them built with pdfjs `extractPages`, or the whole PDF when no page has a text layer), DOCX by paragraph through `mammoth`, and TXT and MD as one page. The parse runs in a fresh `worker_threads` Worker (`lib/worker.cjs` when built, the `src/worker.ts` entry through tsx from source), one file at a time, so the Host holds at most one Worker heap; the Mistral OCR call stays in the Host. Over `extractTimeoutMs` or `extractMemoryMb` the Host ends the Worker and the file fails with `timeout` or `too-large`. Close and plugin disposal end a running Worker without waiting for it; that file stays `indexing` and is read again at the next start. pdfjs-dist 6.3.289 has no `isEvalSupported` option and no code path that evaluates PDF content as JavaScript. The index records each file in `files(name, bytes, sha256, state, unit, pages, chars, reason, error)` and its text in the FTS5 table `pages(file, page, text)`. A file moves from `indexing` to `indexed` or `failed` with a reason (`no-text`, `ocr-unavailable`, `ocr-failed`, `unreadable`, `too-large`, `timeout`); the form shows every failure as "Cannot read". At start the plugin reads files whose content the index has not read, and files a Host stop interrupted. A firm agent's index lives below `<root>/.firm/<id>/`. The index is derived data: an `index.sqlite` that cannot be opened (damaged, or a newer schema) is logged, renamed to `index.sqlite.unreadable-<ms>`, and replaced by an empty index, and the files are read again. An agent whose index can be neither opened nor moved is logged and not loaded; the other agents load.
 
 ### Mode
 
@@ -88,7 +90,7 @@ The row hides every global tool of a connector that the agent did not choose: an
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-`AgentCatalog` (`ctx.flowleapAgentCatalog`) loads the folders, owns one open index per agent, and serializes the preset changes of each agent: a change disposes the old registration, then registers the new revision. The registry keeps a retired revision until its last Agent goes, so a live Session keeps the instructions, mode and file text it began with. The plugin registers no preset until the base preset is on the roster; it waits for `agent-preset/roster-changed`. The per-agent row (`@deepseek-ai/dsh-flowleap-agent-builder/agent`) reads its revision once, at activation, and does not await the registry inside its activation.
+`AgentCatalog` (`ctx.flowleapAgentCatalog`) loads the folders, owns one open index per agent, and serializes the preset changes of each agent: a change disposes the old registration, then registers the new revision. The registry keeps a retired revision until its last Agent goes, so a live Session keeps the instructions, mode and context-mode file text it began with. `search_agent_files` and `read_agent_file` read the live index, so in the search mode a running chat finds files added after it started, and no longer finds removed files. The plugin registers no preset until the base preset is on the roster; it waits for `agent-preset/roster-changed`. The per-agent row (`@deepseek-ai/dsh-flowleap-agent-builder/agent`) reads its revision once, at activation, and does not await the registry inside its activation.
 
 <details>
 <summary>Source map</summary>
@@ -194,7 +196,8 @@ The tool list is stable for a Session unless the MCP row connects or disconnects
 - **No sharing** — agents belong to their creator; sharing is #56.
 - **One OCR call per scanned PDF** — the pages without a text layer go to Mistral OCR in one call. When OCR fails or no key is stored, the text-layer pages stay indexed and the other pages have no text; only a PDF with no text at all fails.
 - **The base preset is copied at registration** — a later change of the base preset reaches the agent presets at the next change of each agent or at the next start.
-- **The token estimate is `ceil(chars / 4)`** — it is low for CJK text, so a CJK agent can be larger in the system prompt than the limit suggests.
+- **The token estimate is `ceil(chars / charsPerToken)`** — one ratio for all text; an agent whose files mix scripts can be larger or smaller in the system prompt than the limit suggests.
+- **Each agent change remounts a copy of the base preset.** An upload, a file removal or a save registers a new preset revision with the full `basePreset` plugin list; the cost of that remount with many agents is not measured.
 - **A short gap at each change** — between the disposal of the old revision and the registration of the new one, the preset is not on the roster, and a Session created in that gap cannot select it.
 - **Search is words, not meaning** — no embeddings in version 1.
 

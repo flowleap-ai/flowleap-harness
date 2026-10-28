@@ -956,7 +956,8 @@ async removeFile(id: AgentId, name: string): Promise<void>
 
 /**
  * Store one uploaded file, then index it in the background. A file with the content the index already read is not
- * read again.
+ * read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file
+ * whose name differs only in case, and the agent keeps the new name.
  * @param id - the agent.
  * @param name - the file name.
  * @param chunks - the request body.

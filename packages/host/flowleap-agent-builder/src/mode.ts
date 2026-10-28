@@ -7,27 +7,26 @@ import { fenceFileText, locationMarker } from './file-text.ts'
 import type { LocationRow } from './index-db.ts'
 import type { AgentMode } from './types.ts'
 
-/** Characters counted as one token in the estimate. */
-export const CHARS_PER_TOKEN = 4
-
 /**
- * Estimate the tokens of a text from its length: `ceil(chars / 4)`. The estimate does not run a tokenizer, so it is
- * the same for every model; it is close for English prose and low for CJK text.
+ * Estimate the tokens of a text from its length: `ceil(chars / charsPerToken)`. The estimate does not run a tokenizer,
+ * so it is the same for every model.
  * @param chars - characters of the text.
+ * @param charsPerToken - the configured characters per token.
  * @returns the estimated tokens.
  */
-export function estimateTokens(chars: number): number {
-  return Math.ceil(chars / CHARS_PER_TOKEN)
+export function estimateTokens(chars: number, charsPerToken: number): number {
+  return Math.ceil(chars / charsPerToken)
 }
 
 /**
  * Choose the mode from the indexed text size: `context` while the estimate is at or below the limit, else `search`.
  * @param chars - characters of all indexed text of the agent.
  * @param limitTokens - the configured `contextLimitTokens`.
+ * @param charsPerToken - the configured `charsPerToken`.
  * @returns the mode.
  */
-export function agentMode(chars: number, limitTokens: number): AgentMode {
-  return estimateTokens(chars) <= limitTokens ? 'context' : 'search'
+export function agentMode(chars: number, limitTokens: number, charsPerToken: number): AgentMode {
+  return estimateTokens(chars, charsPerToken) <= limitTokens ? 'context' : 'search'
 }
 
 /** Heading of the instructions section. */

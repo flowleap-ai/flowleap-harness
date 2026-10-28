@@ -47,6 +47,8 @@ export interface CatalogOptions {
   readonly firmRoot?: string
   /** Largest indexed text, in estimated tokens, that the context mode puts into the system prompt. */
   readonly contextLimitTokens: number
+  /** Characters counted as one token in the mode estimate. */
+  readonly charsPerToken: number
   /** Largest upload, in bytes. */
   readonly maxFileBytes: number
   /** The preset whose plugin list each agent preset copies. */
@@ -324,7 +326,7 @@ export class AgentCatalog extends Service {
   }
 
   private modeOf(agent: LoadedAgent): AgentMode {
-    return agentMode(agent.index.indexedChars(), this.options.contextLimitTokens)
+    return agentMode(agent.index.indexedChars(), this.options.contextLimitTokens, this.options.charsPerToken)
   }
 
   /**
@@ -473,7 +475,8 @@ export class AgentCatalog extends Service {
 
   /**
    * Store one uploaded file, then index it in the background. A file with the content the index already read is not
-   * read again.
+   * read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file
+   * whose name differs only in case, and the agent keeps the new name.
    * @param id - the agent.
    * @param name - the file name.
    * @param chunks - the request body.
@@ -492,15 +495,19 @@ export class AgentCatalog extends Service {
   }
 
   private async store(agent: LoadedAgent, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView> {
+    const files = join(agent.folder.dir, FILES_DIR)
+    const variant = (await listFiles(agent.folder.dir)).find(file => file !== name && sameFileName(file, name))
     let stored: StoredFile
     try {
-      stored = await storeUpload(join(agent.folder.dir, FILES_DIR, name), chunks, this.options.maxFileBytes)
+      const replaces = variant === undefined ? undefined : join(files, variant)
+      stored = await storeUpload(join(files, name), chunks, this.options.maxFileBytes, replaces)
     } catch (error) {
       if (error instanceof FileTooLargeError) {
         throw new RemoteError('flowleap-agents/invalid', `"${name}": ${error.message}`, { field: 'file', reason: 'too large' })
       }
       throw error
     }
+    if (variant !== undefined) agent.index.remove(variant)
     const entry = agent.index.entry(name)
     if (entry?.sha256 !== stored.sha256 || entry.state === 'indexing') {
       agent.index.begin(name, stored.bytes, stored.sha256)
@@ -555,6 +562,11 @@ const FILE_NAME_MESSAGES: Readonly<Record<FileNameProblem, string>> = {
   long: 'the name is too long',
   path: 'the name must be a plain file name',
   type: 'only PDF, DOCX, TXT and MD files are accepted',
+}
+
+/** Whether two file names name one file on a case-insensitive file system: equal after NFC and lower case. */
+function sameFileName(a: string, b: string): boolean {
+  return a.normalize('NFC').toLowerCase() === b.normalize('NFC').toLowerCase()
 }
 
 function loadedAgent(folder: AgentFolder, index: AgentIndex): LoadedAgent {

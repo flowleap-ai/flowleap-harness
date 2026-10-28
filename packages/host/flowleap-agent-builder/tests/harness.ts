@@ -95,7 +95,7 @@ export async function mountBuilder(ctx: Context, config: Partial<Config> & { roo
   // The Loader resolves a package name through Node to the built lib/; the source row is a Loader builtin here.
   ctx.loader.builtins['flowleap-agent'] = AgentRow
   const options = resolveOptions({
-    contextLimitTokens: 50_000, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
+    contextLimitTokens: 50_000, charsPerToken: 4, maxFileBytes: 1024 * 1024, basePreset: 'patent', presetOrder: 100,
     maxSearchResults: 8, maxReadLocations: 10, maxReadChars: 40_000,
     extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512, ...config,
   })

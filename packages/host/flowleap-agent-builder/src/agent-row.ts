@@ -13,7 +13,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from './catalog.ts'
 import { deniedTool, restrictConnectors } from './connectors.ts'
-import { readAgentFileTool, searchAgentFilesTool } from './tools.ts'
+import { MAX_READ_CHARS, readAgentFileTool, searchAgentFilesTool } from './tools.ts'
 import type { AgentId } from './types.ts'
 
 /** Cordis plugin name. */
@@ -48,7 +48,7 @@ export const Config: z<Config> = z.object({
   agent: z.string().required(),
   maxSearchResults: z.number().step(1).min(1).max(50).required(),
   maxReadLocations: z.number().step(1).min(1).max(100).required(),
-  maxReadChars: z.number().step(1).min(1).required(),
+  maxReadChars: z.number().step(1).min(1).max(MAX_READ_CHARS).required(),
 })
 
 /**

@@ -19,6 +19,7 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { AGENT_ROW_MODULE, AgentCatalog, type CatalogOptions } from './catalog.ts'
 import { FlowleapAgentsController } from './controller.ts'
 import { handleAgentUpload } from './upload.ts'
+import { MAX_READ_CHARS } from './tools.ts'
 import { AGENT_UPLOAD_PATH } from './types.ts'
 
 export { AGENT_ROW_MODULE, AgentCatalog } from './catalog.ts'
@@ -45,7 +46,7 @@ export type { ParseLimits } from './parse-thread.ts'
 export { AGENT_INDEX_SCHEMA_VERSION, AgentIndex, ftsExpression } from './index-db.ts'
 export type { LocationRow, SearchHit } from './index-db.ts'
 export {
-  CHARS_PER_TOKEN, INSTRUCTIONS_HEADING, agentMode, estimateTokens, renderContextFiles, renderInstructions,
+  INSTRUCTIONS_HEADING, agentMode, estimateTokens, renderContextFiles, renderInstructions,
   renderSearchFiles,
 } from './mode.ts'
 export {
@@ -54,7 +55,7 @@ export {
 } from './store.ts'
 export type { AgentFolder, AgentFolderProblem, StoredFile } from './store.ts'
 export {
-  READ_AGENT_FILE_NAME, SEARCH_AGENT_FILES_NAME, readAgentFileTool, renderHits, renderRead, searchAgentFilesTool,
+  MAX_READ_CHARS, READ_AGENT_FILE_NAME, SEARCH_AGENT_FILES_NAME, readAgentFileTool, renderHits, renderRead, searchAgentFilesTool,
 } from './tools.ts'
 export type { AgentFileReader, AgentFileToolBounds } from './tools.ts'
 export { handleAgentUpload } from './upload.ts'
@@ -73,10 +74,16 @@ export interface Config {
   /** The read-only firm agents folder; its agents load when it exists, and this Host never writes there. */
   firmRoot?: string
   /**
-   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / 4)`), that goes into the system prompt in
-   * full; above it the agent searches its files.
+   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / charsPerToken)`), that goes into the system
+   * prompt in full; above it the agent searches its files.
    */
   contextLimitTokens: number
+  /**
+   * Characters counted as one token in the mode estimate. The default 4 is close for English, French and German prose;
+   * a deployment whose agent files are mostly Chinese, Japanese or Korean sets 1, because those scripts take about one
+   * token per character, and 4 would put four times the limit into the prompt.
+   */
+  charsPerToken: number
   /** Largest file one upload stores, in bytes. */
   maxFileBytes: number
   /** The preset whose plugin list each agent preset copies. */
@@ -90,7 +97,7 @@ export interface Config {
   /**
    * Most characters of page text one `read_agent_file` call returns; a TXT or MD file is one page, so one page can be
    * the whole file. The default 40000 (about 10000 tokens by the `ceil(chars / 4)` estimate) holds the default 10 pages
-   * of a typical 3000-character PDF page.
+   * of a typical 3000-character PDF page. At most {@link MAX_READ_CHARS}.
    */
   maxReadChars: number
   /**
@@ -116,12 +123,13 @@ export const Config: z<Config> = z.object({
   root: z.string(),
   firmRoot: z.string(),
   contextLimitTokens: z.number().step(1).min(0).default(50_000),
+  charsPerToken: z.number().min(0.5).max(16).default(4),
   maxFileBytes: z.number().step(1).min(1).default(50 * 1024 * 1024),
   basePreset: z.string().default('patent'),
   presetOrder: z.number().default(100),
   maxSearchResults: z.number().step(1).min(1).max(50).default(8),
   maxReadLocations: z.number().step(1).min(1).max(100).default(10),
-  maxReadChars: z.number().step(1).min(1).default(40_000),
+  maxReadChars: z.number().step(1).min(1).max(MAX_READ_CHARS).default(40_000),
   extractTimeoutMs: z.number().step(1).min(1).default(120_000),
   maxPages: z.number().step(1).min(1).default(2000),
   extractMemoryMb: z.number().step(1).min(16).default(512),
@@ -138,6 +146,7 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
     root: config.root ?? join(resolveDshHome(undefined, env), 'agents'),
     ...config.firmRoot === undefined ? {} : { firmRoot: config.firmRoot },
     contextLimitTokens: config.contextLimitTokens,
+    charsPerToken: config.charsPerToken,
     maxFileBytes: config.maxFileBytes,
     basePreset: config.basePreset,
     presetOrder: config.presetOrder,

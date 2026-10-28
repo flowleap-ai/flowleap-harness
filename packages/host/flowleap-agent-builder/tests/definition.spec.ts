@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { agentMode, estimateTokens, renderContextFiles, fileNameProblem, ftsExpression, isAgentId, newAgentId, parseAgentYaml, renderAgentYaml } from '../src/index.ts'
+import { Config as RowConfig } from '../src/agent-row.ts'
+import { Config, MAX_READ_CHARS, agentMode, estimateTokens, renderContextFiles, fileNameProblem, ftsExpression, isAgentId, newAgentId, parseAgentYaml, renderAgentYaml } from '../src/index.ts'
 
 describe('agent.yaml', () => {
   it('round-trips the three fields', () => {
@@ -39,11 +40,26 @@ describe('ids and file names', () => {
 })
 
 describe('mode', () => {
-  it('estimates ceil(chars / 4) tokens and keeps the context mode at the exact limit', () => {
-    expect(estimateTokens(0)).toBe(0)
-    expect(estimateTokens(5)).toBe(2)
-    expect(agentMode(40, 10)).toBe('context')
-    expect(agentMode(41, 10)).toBe('search')
+  it('estimates ceil(chars / charsPerToken) tokens and keeps the context mode at the exact limit', () => {
+    expect(estimateTokens(0, 4)).toBe(0)
+    expect(estimateTokens(5, 4)).toBe(2)
+    expect(agentMode(40, 10, 4)).toBe('context')
+    expect(agentMode(41, 10, 4)).toBe('search')
+    expect(agentMode(10, 10, 1)).toBe('context')
+    expect(agentMode(11, 10, 1)).toBe('search')
+  })
+
+  it('bounds maxReadChars and charsPerToken in the plugin and row schemas', () => {
+    const plugin = {
+      contextLimitTokens: 1, charsPerToken: 4, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1,
+      maxReadChars: 1, extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16,
+    }
+    expect(Config({ ...plugin, maxReadChars: MAX_READ_CHARS })).toMatchObject({ maxReadChars: 200_000, charsPerToken: 4 })
+    expect(() => Config({ ...plugin, maxReadChars: MAX_READ_CHARS + 1 })).toThrow()
+    expect(() => Config({ ...plugin, charsPerToken: 0.25 })).toThrow()
+    const row = { agent: 'a', maxSearchResults: 1, maxReadLocations: 1 }
+    expect(RowConfig({ ...row, maxReadChars: MAX_READ_CHARS })).toMatchObject({ maxReadChars: 200_000 })
+    expect(() => RowConfig({ ...row, maxReadChars: MAX_READ_CHARS + 1 })).toThrow()
   })
 
   it('quotes each query word as data', () => {

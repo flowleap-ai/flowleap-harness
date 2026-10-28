@@ -1294,7 +1294,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>',
-        description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again.',
+        description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file whose name differs only in case, and the agent keeps the new name.',
         parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
         returns: 'the file as stored, in its state after the upload.',
         throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body larger than the limit (`reason` is `too large`); the file-system error of a failed write.'],

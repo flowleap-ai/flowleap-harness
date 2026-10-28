@@ -236,6 +236,7 @@
       name: '@deepseek-ai/dsh-flowleap-agent-builder'
       config:
         contextLimitTokens: 50000
+        charsPerToken: 4
         maxFileBytes: 52428800
         basePreset: patent
         presetOrder: 100

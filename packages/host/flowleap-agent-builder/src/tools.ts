@@ -11,6 +11,12 @@ import { z } from 'zod'
 import type { LocationRow, SearchHit } from './index-db.ts'
 import { fenceFileText, locationMarker, type FencedLocation } from './file-text.ts'
 
+/**
+ * Upper bound of the `maxReadChars` config: 200000 characters, about 50000 tokens at 4 characters per token, so one read
+ * result cannot take most of a model context window.
+ */
+export const MAX_READ_CHARS = 200_000
+
 /** Name of the search tool. */
 export const SEARCH_AGENT_FILES_NAME = 'search_agent_files'
 /** Name of the read tool. */

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { COMPARE_CLAIMS_NAME } from '@deepseek-ai/dsh-flowleap-connectors'
@@ -95,6 +95,35 @@ describe('files', () => {
     await ctx.flowleapAgentCatalog.upload(id, 'scan.pdf', chunks(makePdf([null])))
     await ctx.flowleapAgentCatalog.settled()
     expect(ctx.flowleapAgentCatalog.read(id).files[0]!.state).toMatchObject({ kind: 'failed', reason: 'ocr-unavailable' })
+  })
+
+  it('counts CJK text at the configured characters per token for the mode switch', async () => {
+    const text = '発明の進歩性について審査官に回答する'
+    expect(text).toHaveLength(18)
+    const modes: string[] = []
+    for (const charsPerToken of [4, 1]) {
+      const ctx = await runtime()
+      await mountBuilder(ctx, { root: await tempDir('dsh-agents-'), contextLimitTokens: 10, charsPerToken })
+      const { id } = await ctx.flowleapAgentCatalog.save(undefined, { ...INPUT }, 'Work.')
+      await ctx.flowleapAgentCatalog.upload(id, 'ja.txt', chunks(text))
+      await ctx.flowleapAgentCatalog.settled()
+      modes.push(ctx.flowleapAgentCatalog.read(id).mode)
+    }
+    expect(modes).toEqual(['context', 'search'])
+  })
+
+  it('replaces a file whose name differs only in case, on disk and in the index', async () => {
+    const ctx = await runtime()
+    const root = await tempDir('dsh-agents-')
+    await mountBuilder(ctx, { root })
+    const { id } = await ctx.flowleapAgentCatalog.save(undefined, { ...INPUT }, 'Work.')
+    await ctx.flowleapAgentCatalog.upload(id, 'Notes.txt', chunks('old text'))
+    await ctx.flowleapAgentCatalog.settled()
+    await ctx.flowleapAgentCatalog.upload(id, 'notes.TXT', chunks('new text'))
+    await ctx.flowleapAgentCatalog.settled()
+    expect(ctx.flowleapAgentCatalog.read(id).files.map(file => file.name)).toEqual(['notes.TXT'])
+    expect(await readdir(join(root, id, 'files'))).toEqual(['notes.TXT'])
+    expect(ctx.flowleapAgentCatalog.search(id, 'text', 8)).toEqual([{ file: 'notes.TXT', at: 1, unit: 'page', passage: 'new text' }])
   })
 
   it('switches to the search mode above the limit and gives the search and read tools', async () => {

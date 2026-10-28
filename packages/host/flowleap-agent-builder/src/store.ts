@@ -158,10 +158,14 @@ export class FileTooLargeError extends Error {
  * @param target - the final path in the files folder.
  * @param chunks - the request body.
  * @param maxBytes - the limit.
+ * @param replaces - a file that the new file replaces, removed right before the rename; on a case-insensitive file
+ *   system it can be the same file under another case.
  * @returns the size and hash.
  * @throws FileTooLargeError when the stream passes the limit; the temporary file is removed on every failure.
  */
-export async function storeUpload(target: string, chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<StoredFile> {
+export async function storeUpload(
+  target: string, chunks: AsyncIterable<Uint8Array>, maxBytes: number, replaces?: string,
+): Promise<StoredFile> {
   // A dot name keeps the partial file out of listFiles().
   const temporary = join(dirname(target), `.${basename(target)}.${randomBytes(4).toString('hex')}${PART_SUFFIX}`)
   const hash = createHash('sha256')
@@ -178,6 +182,7 @@ export async function storeUpload(target: string, chunks: AsyncIterable<Uint8Arr
         yield chunk
       }
     }, out)
+    if (replaces !== undefined) await rm(replaces, { force: true })
     await rename(temporary, target)
     return { bytes, sha256: hash.digest('hex') }
   } catch (error) {

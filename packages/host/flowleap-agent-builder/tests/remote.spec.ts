@@ -71,7 +71,7 @@ describe('plugin', () => {
   it('resolves the root below DSH_HOME and registers the upload route', async () => {
     const { apply, resolveOptions, AGENT_ROW_MODULE } = await import('../src/index.ts')
     const config = {
-      contextLimitTokens: 1, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1, maxReadChars: 1,
+      contextLimitTokens: 1, charsPerToken: 4, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1, maxReadChars: 1,
       extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16,
     }
     expect(resolveOptions(config, { DSH_HOME: '/home/a/.dsh' })).toMatchObject({ root: '/home/a/.dsh/agents', agentRow: AGENT_ROW_MODULE })

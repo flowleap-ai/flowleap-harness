@@ -1590,7 +1590,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-agent-builder`
 
 - `inject`: `agentPresets` · `connection`
-- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:70`](../packages/host/flowleap-agent-builder/src/index.ts)
+- `source`: [`packages/host/flowleap-agent-builder/src/index.ts:71`](../packages/host/flowleap-agent-builder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1600,10 +1600,16 @@ export interface Config {
   /** The read-only firm agents folder; its agents load when it exists, and this Host never writes there. */
   firmRoot?: string
   /**
-   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / 4)`), that goes into the system prompt in
-   * full; above it the agent searches its files.
+   * Largest indexed text of one agent, in estimated tokens (`ceil(chars / charsPerToken)`), that goes into the system
+   * prompt in full; above it the agent searches its files.
    */
   contextLimitTokens: number
+  /**
+   * Characters counted as one token in the mode estimate. The default 4 is close for English, French and German prose;
+   * a deployment whose agent files are mostly Chinese, Japanese or Korean sets 1, because those scripts take about one
+   * token per character, and 4 would put four times the limit into the prompt.
+   */
+  charsPerToken: number
   /** Largest file one upload stores, in bytes. */
   maxFileBytes: number
   /** The preset whose plugin list each agent preset copies. */
@@ -1617,7 +1623,7 @@ export interface Config {
   /**
    * Most characters of page text one `read_agent_file` call returns; a TXT or MD file is one page, so one page can be
    * the whole file. The default 40000 (about 10000 tokens by the `ceil(chars / 4)` estimate) holds the default 10 pages
-   * of a typical 3000-character PDF page.
+   * of a typical 3000-character PDF page. At most {@link MAX_READ_CHARS}.
    */
   maxReadChars: number
   /**
