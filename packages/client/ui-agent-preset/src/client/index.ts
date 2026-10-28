@@ -54,7 +54,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
-export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
+export type { AgentPresetMenuActionProps, AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
 export type { AgentPresetSectionInjected, AgentPresetSectionProps } from './AgentPresetSection.tsx'
 export type { AgentPresetSeatState } from './seat-store.ts'
 export type { AgentPresetSectionState, PresetView } from './section-store.ts'
@@ -227,6 +227,7 @@ export function apply(ctx: ClientContext): void {
         name: 'conversation.hero.agentPreset',
         locale: 'settings.agentPreset',
         inject: seatInjected,
+        children: { 'agentPreset.menu.actions': { kind: 'list', scope: 'root' } },
       }, AgentPresetSeat)
       const label = scope.slots.register({
         name: 'conversation.session.header.actions',
