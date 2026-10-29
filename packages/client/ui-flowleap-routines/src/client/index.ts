@@ -2,9 +2,10 @@
  * Browser half of the FlowLeap "Needs review" mark: a chat that a routine run marked shows a badge on its Sidebar
  * row, lists on the Needs review page, offers Mark as done in its Session header, and selects its task through the
  * Automation tasks page's `schedule.manager.filter` tab. Every surface reads one shared source over
- * `flowleapRoutines.reviews()` and `schedule.catalog()`, which reads again on `flowleap-routines/changed`,
- * `schedule/changed`, and `connection/reset`. A `running` mark is not shown. On the FlowLeap dashboard it adds the
- * "Waiting for review" metric card and the "Needs your review" panel.
+ * `flowleapRoutines.reviews()`, `schedule.catalog()`, and `flowleapRoutines.watches()`, which reads again on
+ * `flowleap-routines/changed`, `schedule/changed`, and `connection/reset`. A `running` mark is not shown. On the FlowLeap
+ * dashboard it adds the "Waiting for review" and "Cases watched" metric cards, the "Needs your review" and "Coming up"
+ * panels, and the Routines group of the search results.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -19,7 +20,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRoutinesKey } from './locales.ts'
 import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from './marks.tsx'
 import { NeedsReviewPage } from './NeedsReviewPage.tsx'
-import { NeedsYourReviewWidget, WaitingForReviewMetric } from './dashboard.tsx'
+import { CasesWatchedMetric, ComingUpWidget, NeedsYourReviewWidget, RoutineSearch, WaitingForReviewMetric } from './dashboard.tsx'
 import { createReviewsSource } from './reviews-source.ts'
 
 export type { FlowleapRoutinesKey } from './locales.ts'
@@ -49,6 +50,7 @@ export function apply(ctx: ClientContext): void {
     const source = createReviewsSource({
       reviews: () => ctx.remote.flowleapRoutines.reviews(),
       catalog: () => ctx.remote.schedule.catalog(),
+      watches: () => ctx.remote.flowleapRoutines.watches(),
       done: sessionId => ctx.remote.flowleapRoutines.done(sessionId),
       subscribeChanged: (listener) => {
         const routines = ctx.remote.$on('flowleap-routines/changed', listener)
@@ -76,14 +78,24 @@ export function apply(ctx: ClientContext): void {
       name: 'dashboard.metric', id: 'flowleap-waiting-for-review', order: 10, locale: NS, label: () => t('dashboard.metric'),
       inject: shared,
     }, WaitingForReviewMetric))
+    const opening = () => ({
+      hooks: source.hooks,
+      onOpenSession: (sessionId: SessionId) => { ctx.uiWorkspace.openSession(sessionId) },
+      onOpenAll: () => { ctx.layout.selectPanel(PANEL_ID) },
+    })
     yield ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
       name: 'dashboard.widget', id: 'flowleap-needs-your-review', order: 10, locale: NS, label: () => t('dashboard.widget'),
-      inject: () => ({
-        hooks: source.hooks,
-        onOpenSession: (sessionId: SessionId) => { ctx.uiWorkspace.openSession(sessionId) },
-        onOpenAll: () => { ctx.layout.selectPanel(PANEL_ID) },
-      }),
+      inject: opening,
     }, NeedsYourReviewWidget))
+    yield ctx.slots.inject('dashboard.metric', () => ctx.slots.register({
+      name: 'dashboard.metric', id: 'flowleap-cases-watched', order: 20, locale: NS, label: () => t('cases.metric'), inject: shared,
+    }, CasesWatchedMetric))
+    yield ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
+      name: 'dashboard.widget', id: 'flowleap-coming-up', order: 20, locale: NS, label: () => t('comingUp.widget'), inject: opening,
+    }, ComingUpWidget))
+    yield ctx.slots.inject('dashboard.search', () => ctx.slots.register({
+      name: 'dashboard.search', id: 'flowleap-routines', order: 30, locale: NS, label: () => t('search.heading'), inject: opening,
+    }, RoutineSearch))
     yield ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
       name: 'conversation.session.header.utilities', id: 'flowleap-needs-review', order: -6, locale: NS,
       inject: () => ({ hooks: source.hooks, onDone: source.onDone }),

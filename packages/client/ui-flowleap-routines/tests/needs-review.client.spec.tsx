@@ -11,7 +11,7 @@ import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-c
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { RoutineReview } from '@deepseek-ai/dsh-flowleap-routines/types'
+import type { RoutineReview, RoutineWatch } from '@deepseek-ai/dsh-flowleap-routines/types'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
@@ -20,6 +20,7 @@ import { en, NS, zh } from '../src/client/locales.ts'
 import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from '../src/client/marks.tsx'
 import { NeedsReviewPage, type NeedsReviewPageProps } from '../src/client/NeedsReviewPage.tsx'
 import { createReviewsSource, type ReviewsDependencies, type ReviewsSource } from '../src/client/reviews-source.ts'
+import { CasesWatchedMetric, ComingUpWidget, NeedsYourReviewWidget, RoutineSearch, WaitingForReviewMetric } from '../src/client/dashboard.tsx'
 
 afterEach(() => { cleanup() })
 
@@ -45,6 +46,16 @@ const marks = [
 ]
 const tasks = [task('watch', 'Register watch'), task('digest', 'Weekly digest'), task('other', 'Other task')]
 const ok = <T,>(value: T): RemoteResult<T> => ({ ok: true, value })
+const watches: RoutineWatch[] = [
+  {
+    taskId: 'watch', sessionId: 'chat-origin' as SessionId, title: 'Register watch', nextCheckAt: '2026-10-28T09:00:00.000Z',
+    applications: [
+      { application: 'EP3456789', readAt: '2026-10-27T09:00:00.000Z', latest: { date: '2026-10-20', code: 'RFEE', description: 'Renewal fee paid' } },
+      { application: 'US17123456' },
+    ],
+  },
+  { taskId: 'stopped', sessionId: 'chat-origin' as SessionId, title: 'Stopped watch', applications: [{ application: 'EP3456789' }] },
+]
 
 /** Remote doubles with emitters for the invalidations the source listens to. */
 function remote(overrides: Partial<ReviewsDependencies> = {}) {
@@ -53,6 +64,7 @@ function remote(overrides: Partial<ReviewsDependencies> = {}) {
   const deps: ReviewsDependencies = {
     reviews: vi.fn(async () => ok(marks)),
     catalog: vi.fn(async () => ok(tasks)),
+    watches: vi.fn(async () => ok(watches)),
     done: vi.fn(async () => ok(undefined)),
     subscribeChanged: (listener) => { changed.add(listener); return () => { changed.delete(listener) } },
     subscribeReset: (listener) => { reset.add(listener); return () => { reset.delete(listener) } },
@@ -230,7 +242,8 @@ describe('Needs review surfaces', () => {
   it('shows the count on the panel glyph only when a chat needs review', async () => {
     const { useReviews, stop } = await readySource()
     const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
-    expect(container.querySelector('[data-needs-review-count]')?.textContent).toBe('2')
+    expect(container.querySelector('[data-needs-review-count]')?.getAttribute('data-needs-review-count')).toBe('2')
+    expect(container.textContent).toBe('')
     stop()
     const empty = await readySource({ reviews: vi.fn(async () => ok([])) })
     cleanup()
@@ -294,11 +307,12 @@ describe('Needs review surfaces', () => {
 })
 
 describe('Needs review surfaces, edge states', () => {
-  it('caps the panel count at 99+', async () => {
+  it('shows one dot, not a number, for many marked chats', async () => {
     const many = Array.from({ length: 100 }, (_, index) => review(`chat-${index}` as SessionId, 'watch', '2026-10-27T09:00:00.000Z'))
     const { useReviews, stop } = await readySource({ reviews: vi.fn(async () => ok(many)) })
     const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
-    expect(container.querySelector('[data-needs-review-count]')?.textContent).toBe('99+')
+    expect(container.querySelector('[data-needs-review-count]')?.getAttribute('data-needs-review-count')).toBe('100')
+    expect(container.textContent).toBe('')
     stop()
   })
 
@@ -384,7 +398,9 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
   new StaticRemoteAccess(ctx, allows)
   new RemoteStub(ctx, () => () => {})
   await ctx.plugin({ apply(provider: Context) {
-    provider.provide('remote.flowleapRoutines', { reviews: async () => ok(marks), done: async () => ok(undefined) } as never)
+    provider.provide('remote.flowleapRoutines', {
+      reviews: async () => ok(marks), watches: async () => ok(watches), done: async () => ok(undefined),
+    } as never)
     provider.provide('remote.schedule', { catalog: async () => ok(tasks) } as never)
   } }).await()
   ctx.provide('uiWorkspace', { openSession: vi.fn() } as never)
@@ -401,6 +417,7 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
       'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true },
       'dashboard.metric': { kind: 'list', scope: 'root' },
       'dashboard.widget': { kind: 'list', scope: 'root' },
+      'dashboard.search': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
   return ctx
@@ -408,8 +425,12 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
 
 const SEATS = [
   'sidebar.session.row.trailing', 'sidebar.panellist', 'main', 'conversation.session.header.utilities', 'schedule.manager.filter',
-  'dashboard.metric', 'dashboard.widget',
+  'dashboard.metric', 'dashboard.widget', 'dashboard.search',
 ] as const
+const SEAT_COUNTS: Record<typeof SEATS[number], number> = {
+  'sidebar.session.row.trailing': 1, 'sidebar.panellist': 1, main: 1, 'conversation.session.header.utilities': 1,
+  'schedule.manager.filter': 1, 'dashboard.metric': 2, 'dashboard.widget': 2, 'dashboard.search': 1,
+}
 
 describe('ui-flowleap-routines browser half', () => {
   it('declares the services it uses', () => {
@@ -423,7 +444,7 @@ describe('ui-flowleap-routines browser half', () => {
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
       expect(allows).toHaveBeenCalledWith('flowleapRoutines/reviews')
-      for (const seat of SEATS) expect(ctx.slots.entries(seat)).toHaveLength(allowed ? 1 : 0)
+      for (const seat of SEATS) expect(ctx.slots.entries(seat)).toHaveLength(allowed ? SEAT_COUNTS[seat] : 0)
       await fiber.dispose()
       for (const seat of SEATS) expect(ctx.slots.entries(seat)).toEqual([])
       await ctx.fiber.dispose()
@@ -443,9 +464,10 @@ describe('ui-flowleap-routines browser half', () => {
     })
     const reviews = vi.fn(async () => ok(marks))
     const catalog = vi.fn(async () => ok(tasks))
+    const readWatches = vi.fn(async () => ok(watches))
     const done = vi.fn(async () => ok(undefined))
     await ctx.plugin({ apply(provider: Context) {
-      provider.provide('remote.flowleapRoutines', { reviews, done } as never)
+      provider.provide('remote.flowleapRoutines', { reviews, watches: readWatches, done } as never)
       provider.provide('remote.schedule', { catalog } as never)
     } }).await()
     const openSession = vi.fn()
@@ -464,6 +486,7 @@ describe('ui-flowleap-routines browser half', () => {
         'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true },
         'dashboard.metric': { kind: 'list', scope: 'root' },
         'dashboard.widget': { kind: 'list', scope: 'root' },
+        'dashboard.search': { kind: 'list', scope: 'root' },
       },
     } as never, () => null)
     const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -481,6 +504,7 @@ describe('ui-flowleap-routines browser half', () => {
     await settle()
     expect(reviews).toHaveBeenCalledTimes(1)
     expect(catalog).toHaveBeenCalledTimes(1)
+    expect(readWatches).toHaveBeenCalledTimes(1)
     expect(listeners.get('flowleap-routines/changed')?.size).toBe(1)
     expect(listeners.get('schedule/changed')?.size).toBe(1)
     for (const event of ['flowleap-routines/changed', 'schedule/changed']) {
@@ -504,6 +528,13 @@ describe('ui-flowleap-routines browser half', () => {
     widget.onOpenAll()
     expect(selectPanel).toHaveBeenCalledWith('flowleap-needs-review')
     expect((ctx.slots.entries('dashboard.widget')[0]!.options.label as () => string)()).toBe(en['dashboard.widget'])
+    const labels = (seat: typeof SEATS[number]) => ctx.slots.entries(seat).map(entry => (entry.options.label as () => string)())
+    expect(labels('dashboard.metric')).toEqual([en['dashboard.metric'], en['cases.metric']])
+    expect(labels('dashboard.widget')).toEqual([en['dashboard.widget'], en['comingUp.widget']])
+    expect(labels('dashboard.search')).toEqual([en['search.heading']])
+    const search = injected('dashboard.search')
+    search.onOpenSession!(gamma)
+    expect(openSession).toHaveBeenCalledWith(gamma)
 
     stop()
     expect(listeners.get('flowleap-routines/changed')?.size).toBe(0)
@@ -530,5 +561,138 @@ describe('ui-flowleap-routines browser half', () => {
 describe('ui-flowleap-routines node half', () => {
   it('registers nothing on the host', () => {
     expect(() => { applyNode() }).not.toThrow()
+  })
+})
+
+describe('routine surfaces on the dashboard', () => {
+  it('counts the marked chats and lists the newest ones; each row opens its chat', async () => {
+    const { useReviews, stop } = await readySource()
+    const metric = render(<WaitingForReviewMetric useReviews={useReviews} t={t} />)
+    expect(metric.container.textContent).toBe(`2${en['dashboard.metric.caption']}`)
+    metric.unmount()
+    const onOpenSession = vi.fn()
+    const onOpenAll = vi.fn()
+    const named: SessionListState = { ...noSessions, ids: [beta], byId: { [beta]: { displayTitle: 'Weekly digest chat' } } as never }
+    render(
+      <NeedsYourReviewWidget useReviews={useReviews} useSessions={select => select(named)} onOpenSession={onOpenSession}
+        onOpenAll={onOpenAll}
+        t={t} />,
+    )
+    const rows = within(screen.getByRole('list', { name: en['list.label'] })).getAllByRole('button')
+    expect(rows.map(row => row.getAttribute('aria-label'))).toEqual(['Open chat: Weekly digest chat', `Open chat: ${en['row.untitled']}`])
+    fireEvent.click(rows[0]!)
+    expect(onOpenSession).toHaveBeenCalledWith(beta)
+    fireEvent.click(screen.getByRole('button', { name: en['dashboard.widget.all'] }))
+    expect(onOpenAll).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('states the loading, empty, and failed marks in the panel', async () => {
+    const panel = (useReviews: Parameters<typeof NeedsYourReviewWidget>[0]['useReviews']) => render(
+      <NeedsYourReviewWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
+        t={t} />,
+    )
+    const pending = createReviewsSource(remote({ reviews: vi.fn(() => new Promise<never>(() => {})) }).deps)
+    const stopPending = pending.hooks.reviews.subscribe(() => {})
+    expect(panel(bindSnapshotSelector(pending.hooks.reviews)).container.textContent).toBe(en['list.loading'])
+    cleanup()
+    stopPending()
+    const empty = await readySource({ reviews: vi.fn(async () => ok([])) })
+    expect(panel(empty.useReviews).container.textContent).toBe(en['empty.title'])
+    cleanup()
+    empty.stop()
+    const failed = await readySource({ reviews: vi.fn(async (): Promise<RemoteResult<RoutineReview[]>> => ({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })) })
+    expect(panel(failed.useReviews).getByRole('alert').textContent).toBe(en['list.error'])
+    failed.stop()
+  })
+
+  it('counts the different watched applications and shows the next checks with the newest recorded event', async () => {
+    const { useReviews, stop } = await readySource()
+    const metric = render(<CasesWatchedMetric useReviews={useReviews} t={t} />)
+    expect(metric.container.textContent).toContain('2')
+    expect(metric.container.textContent).toContain(en['cases.metric.caption'])
+    metric.unmount()
+    const onOpenSession = vi.fn()
+    render(
+      <ComingUpWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={onOpenSession} onOpenAll={vi.fn()}
+        t={t} />,
+    )
+    const rows = screen.getAllByRole('button')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.getAttribute('aria-label')).toBe('Open the chat of Register watch')
+    expect(rows[0]!.textContent).toContain('Next register check: Oct 28, 2026')
+    expect(rows[0]!.textContent).toContain('EP3456789: Oct 20, 2026, Renewal fee paid')
+    expect(rows[0]!.textContent).toContain('US17123456: no register event read yet')
+    expect(screen.getByText(en['comingUp.note'])).toBeTruthy()
+    fireEvent.click(rows[0]!)
+    expect(onOpenSession).toHaveBeenCalledWith('chat-origin')
+    stop()
+  })
+
+  it('states loading, an empty watch list, and a failed watch read without a number', async () => {
+    const widget = (useReviews: ReturnType<typeof bindSnapshotSelector<ReturnType<ReviewsSource['hooks']['reviews']['getSnapshot']>>>) => (
+      <>
+        <CasesWatchedMetric useReviews={useReviews} t={t} />
+        <ComingUpWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
+          t={t} />
+      </>
+    )
+    const pending = remote({ watches: vi.fn(() => new Promise<never>(() => {})) })
+    const loading = createReviewsSource(pending.deps)
+    const stopLoading = loading.hooks.reviews.subscribe(() => {})
+    const first = render(widget(bindSnapshotSelector(loading.hooks.reviews)))
+    expect(first.container.textContent).toContain('…')
+    expect(first.container.textContent).toContain(en['list.loading'])
+    first.unmount()
+    stopLoading()
+
+    const empty = await readySource({ watches: vi.fn(async () => ok([])) })
+    const second = render(widget(empty.useReviews))
+    expect(second.container.textContent).toContain('0')
+    expect(second.container.textContent).toContain(en['comingUp.empty'])
+    second.unmount()
+    empty.stop()
+
+    const failed = await readySource({
+      watches: vi.fn(async (): Promise<RemoteResult<RoutineWatch[]>> => ({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })),
+    })
+    expect(failed.source.hooks.reviews.getSnapshot()).toMatchObject({ status: 'ready', watchStatus: 'error', watches: [] })
+    const third = render(widget(failed.useReviews))
+    expect(screen.getAllByRole('alert').map(alert => alert.textContent)).toEqual([en['watches.error'], en['watches.error']])
+    expect(third.container.textContent).not.toMatch(/\d/u)
+    failed.stop()
+  })
+
+  it('keeps the watches of the last read when the marks read fails', async () => {
+    const r = remote()
+    const source = createReviewsSource(r.deps)
+    const stop = source.hooks.reviews.subscribe(() => {})
+    await settle()
+    vi.mocked(r.deps.reviews).mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'Unavailable', {}) })
+    r.emitChanged()
+    await settle()
+    expect(source.hooks.reviews.getSnapshot()).toMatchObject({ status: 'error', watchStatus: 'ready', watches })
+    stop()
+  })
+
+  it('finds tasks by title or watched application and opens the chat of the picked task', async () => {
+    const { useReviews, stop } = await readySource()
+    const onOpenSession = vi.fn()
+    const onPicked = vi.fn()
+    const search = (query: string) => render(
+      <RoutineSearch query={query} matches={text => text.toLowerCase().includes(query)} onPicked={onPicked} useReviews={useReviews}
+        useSessions={select => select(noSessions)} onOpenSession={onOpenSession} onOpenAll={vi.fn()} t={t} />,
+    )
+    const byApplication = search('us17123456')
+    expect(screen.getByRole('region', { name: en['search.heading'] })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open the chat of routine Register watch' }))
+    expect(onPicked).toHaveBeenCalledOnce()
+    expect(onOpenSession).toHaveBeenCalledWith('chat-origin')
+    byApplication.unmount()
+    search('digest')
+    expect(screen.getAllByRole('button').map(row => row.textContent)).toEqual(['Weekly digest'])
+    cleanup()
+    expect(search('nothing').container.innerHTML).toBe('')
+    stop()
   })
 })

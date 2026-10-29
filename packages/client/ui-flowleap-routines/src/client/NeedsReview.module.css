@@ -149,7 +149,10 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* The panel launcher's count over the corner of its glyph. */
+/*
+ * The panel launcher's mark: a dot in the 6px gap beside the top corner of the glyph, so it covers neither the glyph
+ * nor the label of the wide row. The Needs review page and the dashboard card show the count.
+ */
 .panelIcon {
   position: relative;
   display: inline-flex;
@@ -157,19 +160,13 @@
 
 .count {
   position: absolute;
-  top: -6px;
-  right: -8px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
+  top: -1px;
+  inset-inline-start: calc(100% + 0.5px);
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
   corner-shape: round;
-  background: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-base);
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 500;
-  text-align: center;
+  background: var(--dsw-alias-state-business-primary);
 }
 
 .visuallyHidden {
@@ -204,4 +201,19 @@
 .widgetAll {
   align-self: flex-start;
   margin-top: 4px;
+}
+
+.widgetNote {
+  margin: 8px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* The heading of the Routines group in the dashboard search results, in the look of the dashboard's own groups. */
+.searchHeading {
+  margin: 0 0 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 500;
 }
