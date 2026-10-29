@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-The dashboard is the first screen of the `flowleap-web` profile (flowleap-harness#60). It shows a greeting, one **Ask the agent or search** bar, the app links, the metric cards and panels that apps register, and an **Install FlowLeap** card. A first sign-in also shows **First steps**. Text in the ask bar shows the search results of each app below the bar; Enter opens a new chat with that text in its composer. The address names the open chat or page, so a link opens that item. The package also adds layers to the OS sidebar: a **Search** action, the **Dashboard**, **Chats** and **Agents** apps, and a **Pinned** section.
+The dashboard is the first screen of the `flowleap-web` profile (flowleap-harness#60). It shows a greeting, one **Ask the agent or search** bar, app links, the metric cards and panels that apps register, and an **Install FlowLeap** card; a first sign-in also shows **First steps**. Text in the bar shows the search results of each app; Enter opens a new chat with that text. The address names the open chat or page, so a link opens that item. The package also adds sidebar layers: **Search**, the **Dashboard**, **Chats** and **Agents** apps, and **Pinned**.
 
 ## Table of Contents
 

@@ -103,7 +103,7 @@ The package has a Host face (`tsconfig.host.json`: `src/index.ts`, `src/types.ts
 <a id="model-experience"></a>
 ## Model Experience
 
-None; the gateway read serves the browser only and never reaches a model request.
+None, as the gateway read serves the browser only and never reaches a model request.
 
 #### KV Cache effect
 

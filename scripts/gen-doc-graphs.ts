@@ -420,7 +420,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'FlowLeap routines Remote',
     mode: 'service',
     consumers: ['client-ui-flowleap-routines'],
-    note: 'Lists the chats a routine run marked "Needs review" and clears one mark on an explicit done; mounted by the flowleap-web profile only.',
+    note: 'Lists the chats a routine run marked "Needs review", clears one mark on an explicit done, and lists the register watches with their newest recorded events; mounted by the flowleap-web profile only.',
+  },
+  {
+    key: 'flowleapBudget',
+    pkg: 'client-ui-flowleap-budget',
+    title: 'FlowLeap budget Remote',
+    mode: 'service',
+    consumers: ['client-ui-flowleap-budget'],
+    note: 'Reads the attorney\'s model spend and budget of this month from the firm\'s model gateway with the runtime\'s own virtual key, or unknown with a reason; mounted by the flowleap-web profile only.',
   },
   {
     key: 'workspaceFiles',

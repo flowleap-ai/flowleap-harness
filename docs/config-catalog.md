@@ -577,6 +577,29 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-budget -->
+<a id="deepseek-aidsh-client-ui-flowleap-budget"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-budget`
+
+- `source`: [`packages/client/ui-flowleap-budget/src/index.ts:27`](../packages/client/ui-flowleap-budget/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /**
+   * Address of the gateway's budget read, for example `http://flowleap-gateway:4000/flowleap/budget`; empty when the
+   * runtime has no gateway, and every read then reports `unknown` (`not_configured`).
+   */
+  url: string
+  /** Credential reference (environment-variable name) of the runtime's own virtual key; sent as a bearer token. */
+  apiKeyRef: string
+  /** Longest time one read may take, in milliseconds. */
+  timeoutMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-budget -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
 

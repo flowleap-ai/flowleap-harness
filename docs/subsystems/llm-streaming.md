@@ -996,6 +996,22 @@ async prepare(request: DeepSeekLlmApiExtensionRequest): Promise<PreparedDeepSeek
 
 Source: [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../../packages/llm/deepseek-llm-api-extensions/src/index.ts)
 
+<a id="ctxflowleapbudget--flowleapbudget"></a>
+
+### `ctx.flowleapBudget` — `FlowleapBudget`
+
+Host service backing the generated `ctx.remote.flowleapBudget` namespace.
+
+```ts cordis-catalog
+/**
+ * Read this month's spend and budget of the attorney from the gateway.
+ * @returns the figures, or `unknown` with the reason.
+ */
+@Remote async month(): Promise<BudgetMonth>
+```
+
+Source: [`packages/client/ui-flowleap-budget/src/index.ts`](../../packages/client/ui-flowleap-budget/src/index.ts)
+
 <a id="ctxllm--llmruntime"></a>
 
 ### `ctx.llm` — `LlmRuntime`

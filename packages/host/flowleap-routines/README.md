@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-routines` adds routines, work that an event starts (ADR 0001 decision 27), to the [`dsh-schedule`](../../schedule/schedule/README.md) scheduler. Its first routine is the register watch: the agent calls `register_watch_create`, and one daily task names the applications. At each due run the Host reads their register events through [`ctx.flowleapRegister`](../flowleap-connectors/README.md#the-register-reader) without a model call; with no new event the run is skipped, otherwise the task runs once with the new events. By default each run opens a new chat titled by the event and marks it "Needs review" until the attorney answers or marks it done; the `flowleapRoutines` Remote serves the marks and the watches.
+`dsh-flowleap-routines` adds routines, work that an event starts (ADR 0001 decision 27), to the [`dsh-schedule`](../../schedule/schedule/README.md) scheduler. Its first routine is the register watch: the agent calls `register_watch_create`, and one daily task names the applications. At each due run the Host reads their register events through [`ctx.flowleapRegister`](../flowleap-connectors/README.md#the-register-reader) without a model call; with no new event the run is skipped, otherwise the task runs once with the new events. By default each run opens a new chat titled by the event and marks it "Needs review" until the attorney answers or marks it done; the `flowleapRoutines` Remote serves marks and watches.
 
 ## Table of Contents
 
