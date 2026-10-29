@@ -15,7 +15,7 @@ import {
 
 describe('Application Drafting specification rules edges', () => {
   it('puts a paragraph before the first heading in neither the Abstract nor the claims', () => {
-    const [paragraph] = parseDraftParagraphs('A hinge.\n')
+    const paragraph = parseDraftParagraphs('A hinge.\n')[0]!
     expect([isAbstractParagraph(paragraph), isClaimsParagraph(paragraph)]).toEqual([false, false])
   })
 

@@ -27,6 +27,6 @@ describe('Application Drafting claim rules edges', () => {
 
   it('lists each independent claim that a claim depends on, in number order', () => {
     const claims = parseClaims('1. A hinge.\n2. A door.\n3. The hinge of claim 2 or 1, wherein it is steel.')
-    expect(independentRoots(claims[2], new Map(claims.map(claim => [claim.number, claim])))).toEqual([1, 2])
+    expect(independentRoots(claims[2]!, new Map(claims.map(claim => [claim.number, claim])))).toEqual([1, 2])
   })
 })
