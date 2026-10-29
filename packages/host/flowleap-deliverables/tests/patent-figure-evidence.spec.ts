@@ -7,6 +7,9 @@ import { PatentExecutionSnapshot } from '../src/ledger/types.ts';
 import { FIGURES_NOT_CONSULTED, PatentCandidateReview, renderCandidateReview, renderWorkingRecord, validateCandidateReview } from '../src/report/candidate-review.ts';
 import { SecondReadOutcome } from '../src/report/second-read.ts';
 
+/** One coverage row, for the casts the strict harness options need on the IDE's loose fixtures. */
+type Row = NonNullable<PatentCandidateReview['coverage']>[number];
+
 
 const claim = '1. A quick-release assembly comprising a skewer, a lever and a stem.';
 const claimAnchor = 'EP1000000A1:claims:1:en';
@@ -86,8 +89,8 @@ describe('a coverage element that rests on a recorded drawing', () => {
 	});
 
 	it('says a row rests wholly on a drawing reading, and leaves a text-only row unmarked', () => {
-		const drawingOnly = { ...mixed, elements: [mixed.elements[1], mixed.elements[2]] };
-		const textOnly = { ...mixed, sourceAnchors: [claimAnchor], elements: [mixed.elements[0], mixed.elements[2]] };
+		const drawingOnly = { ...mixed, elements: [mixed.elements[1]!, mixed.elements[2]!] } as Row;
+		const textOnly = { ...mixed, sourceAnchors: [claimAnchor], elements: [mixed.elements[0]!, mixed.elements[2]!] } as Row;
 		expect({
 			drawingOnly: renderCandidateReview({ ...review, coverage: [drawingOnly, combination] }, snapshot, 'record.md').split('\n').find(line => line.startsWith('**feature')),
 			textOnly: renderCandidateReview({ ...review, coverage: [textOnly, combination] }, snapshot, 'record.md').split('\n').filter(line => line.startsWith('**feature') || line === FIGURE_LIMITATION),
@@ -114,7 +117,7 @@ describe('a coverage element that rests on a recorded drawing', () => {
 	// The drawing element of `mixed`, re-read as the model wrote it; everything else in the row stands.
 	const withReading = (value: string): PatentCandidateReview => ({
 		...review,
-		coverage: [{ ...mixed, elements: [mixed.elements[0], { ...mixed.elements[1], reading: value }, mixed.elements[2]] }, combination],
+		coverage: [{ ...mixed, elements: [mixed.elements[0]!, { ...mixed.elements[1]!, reading: value }, mixed.elements[2]!] }, combination],
 	});
 
 	it('reads a reference numeral as prose and still refuses a dimension, a ratio and a proportion', () => {
@@ -180,7 +183,7 @@ describe('a coverage element that rests on a recorded drawing', () => {
 const unread: PatentExecutionSnapshot = {
 	limitation: 'Recorded outcomes only.',
 	executions: [
-		snapshot.executions[0],
+		snapshot.executions[0]!,
 		{ id: 'first', recordedAt: '2026-09-20T02:00:00Z', kind: 'details', status: 'succeeded', publicationIds: ['EP1964767.A2'] },
 		{ id: 'second', recordedAt: '2026-09-20T02:01:00Z', kind: 'details', status: 'succeeded', publicationIds: ['EP1939082.A2'] },
 		{ id: 'third', recordedAt: '2026-09-20T02:02:00Z', kind: 'details', status: 'succeeded', publicationIds: ['WO2004041553.A1'] },
@@ -190,7 +193,7 @@ const unread: PatentExecutionSnapshot = {
 /** Thirteen retrievals, so the list the gate names is longer than the list it prints. */
 const crowded: PatentExecutionSnapshot = {
 	...unread,
-	executions: [snapshot.executions[0], ...Array.from({ length: 13 }, (_, index) => ({
+	executions: [snapshot.executions[0]!, ...Array.from({ length: 13 }, (_, index) => ({
 		id: `detail-${index}`, recordedAt: `2026-09-20T03:${String(index).padStart(2, '0')}:00Z`, kind: 'details' as const, status: 'succeeded' as const, publicationIds: [`EP${9000001 + index}A1`],
 	}))],
 };
@@ -211,7 +214,7 @@ describe('an essential unresolved row before any drawing was read', () => {
 			crowded: validateCandidateReview(unresolvedReview, crowded),
 			// Nothing was retrieved, so there is no drawing to read and nothing to refuse: a row told to
 			// fetch the figures of no document could only invent a reason for not having read them.
-			none: validateCandidateReview(unresolvedReview, { ...unread, executions: [snapshot.executions[0]] }),
+			none: validateCandidateReview(unresolvedReview, { ...unread, executions: [snapshot.executions[0]!] }),
 		}).toEqual({
 			retrieved: [refusal(threeRetrieved)],
 			crowded: [refusal(`${Array.from({ length: 12 }, (_, index) => `EP${9000001 + index}A1`).join(', ')}, and 1 more in the working record`)],
@@ -220,7 +223,7 @@ describe('an essential unresolved row before any drawing was read', () => {
 	});
 
 	it('gates a row whose kind was left out like a feature, and gates the same way on an invalidity chart', () => {
-		const untyped = { ...structural, kind: undefined };
+		const { kind: _kind, ...untyped } = structural;
 		expect({
 			untyped: validateCandidateReview({ ...unresolvedReview, coverage: [untyped, combination] }, unread).filter(error => error.startsWith('Row "')),
 			// Only the figures gate is under test; the invalidity chart's Fallback Ladder checks are covered in patentFallbackLadder.spec.ts.

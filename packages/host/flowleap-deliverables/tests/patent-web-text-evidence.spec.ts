@@ -63,7 +63,7 @@ const review: PatentCandidateReview = {
 	stopReason: 'Every rung charted.',
 };
 
-const withRung = (value: typeof rung): PatentCandidateReview => ({ ...review, coverage: [review.coverage![0], review.coverage![1], value] });
+const withRung = (value: typeof rung): PatentCandidateReview => ({ ...review, coverage: [review.coverage![0]!, review.coverage![1]!, value] });
 const LABEL = 'Source: web page (patents.google.com), not official full text. Confirm against the original before use.';
 
 describe('web page text as validated evidence (#750)', () => {
@@ -96,8 +96,8 @@ describe('web page text as validated evidence (#750)', () => {
 	});
 
 	it('refuses a fragment or a quote that is not in the web text, exactly as for official text, and an unresolved row rests on nothing', () => {
-		const wrongFragment = withRung({ ...rung, elements: [{ ...rung.elements[0], disclosedBy: 'rotate in opposite directions' }] });
-		const wrongQuote = withRung({ ...rung, evidence: [{ ...rung.evidence[0], quote: 'The drums counter-rotate.' }] });
+		const wrongFragment = withRung({ ...rung, elements: [{ ...rung.elements[0]!, disclosedBy: 'rotate in opposite directions' }] });
+		const wrongQuote = withRung({ ...rung, evidence: [{ ...rung.evidence[0]!, quote: 'The drums counter-rotate.' }] });
 		const unresolved = withRung({ ...rung, status: 'unresolved', gap: 'Not found.' });
 		const rendered = renderCandidateReview(unresolved, snapshot, 'chart.working-record.md', 'invalidity');
 		expect({
@@ -112,9 +112,10 @@ describe('web page text as validated evidence (#750)', () => {
 	});
 
 	it('lets official text win: the same anchor keeps the official text, and a web anchor beside an official section is refused with the official anchor', () => {
-		const officialSame: PatentEvidenceSource = { ...webSource, text: 'The drums counter-rotate.', textSource: undefined, url: undefined };
+		const { textSource: _textSource, url: _url, ...official } = webSource;
+		const officialSame: PatentEvidenceSource = { ...official, text: 'The drums counter-rotate.' };
 		const sameAnchor = snapshotOf({ id: 'gb-official', recordedAt: '2026-10-19T03:30:00Z', kind: 'details', status: 'succeeded', publicationIds: [gb], sources: [officialSame] });
-		const officialRung = withRung({ ...rung, evidence: [{ ...rung.evidence[0], quote: 'The drums counter-rotate.' }], elements: [{ ...rung.elements[0], disclosedBy: 'counter-rotate' }] });
+		const officialRung = withRung({ ...rung, evidence: [{ ...rung.evidence[0]!, quote: 'The drums counter-rotate.' }], elements: [{ ...rung.elements[0]!, disclosedBy: 'counter-rotate' }] });
 		const officialOther: PatentEvidenceSource = { ...officialSame, anchor: `${gb}:description:en`, language: 'en' };
 		const otherAnchor = snapshotOf({ id: 'gb-official-en', recordedAt: '2026-10-19T03:30:00Z', kind: 'details', status: 'succeeded', publicationIds: [gb], sources: [officialOther] });
 		expect({
@@ -134,7 +135,8 @@ describe('web page text as validated evidence (#750)', () => {
 	});
 
 	it('shadows a web anchor only by official text of the same publication: a kind-less web number by any publication of the document, a kind-coded one never by another kind (review of #777)', () => {
-		const officialA: PatentEvidenceSource = { ...webSource, anchor: `${gb}:description:en`, language: 'en', text: 'The drums counter-rotate.', textSource: undefined, url: undefined };
+		const { textSource: _textSource, url: _url, ...official } = webSource;
+		const officialA: PatentEvidenceSource = { ...official, anchor: `${gb}:description:en`, language: 'en', text: 'The drums counter-rotate.' };
 		const webB: PatentEvidenceSource = { ...webSource, anchor: 'GB2155808B:description', reference: { publicationNumber: 'GB2155808B', section: 'description' }, url: 'https://patents.google.com/patent/GB2155808B/en' };
 		const webKindless: PatentEvidenceSource = { ...webSource, anchor: 'GB2155808:description', reference: { publicationNumber: 'GB2155808', section: 'description' } };
 		const recorded = snapshotOf(
@@ -142,7 +144,7 @@ describe('web page text as validated evidence (#750)', () => {
 			{ id: 'gb-web-b', recordedAt: '2026-10-19T04:30:00Z', kind: 'details', status: 'succeeded', publicationIds: ['GB2155808B'], sources: [webB] },
 			{ id: 'gb-web-kindless', recordedAt: '2026-10-19T04:40:00Z', kind: 'details', status: 'succeeded', publicationIds: ['GB2155808'], sources: [webKindless] },
 		);
-		const citing = (anchor: string) => withRung({ ...rung, sourceAnchors: [anchor], evidence: [{ ...rung.evidence[0], anchor }], elements: [{ ...rung.elements[0], anchor }] });
+		const citing = (anchor: string) => withRung({ ...rung, sourceAnchors: [anchor], evidence: [{ ...rung.evidence[0]!, anchor }], elements: [{ ...rung.elements[0]!, anchor }] });
 		expect({
 			otherKind: validateCandidateReview(citing(webB.anchor), recorded, '', 'invalidity'),
 			kindless: validateCandidateReview(citing(webKindless.anchor), recorded, '', 'invalidity'),
