@@ -35,5 +35,6 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 - [Uploads while the disk is low](./disk-low.md): the chat attachment and agent upload refusals while the firm host's disk low flag exists. `disk-low-chat`, `disk-low-agent` and `disk-low-clear` were proven on 2026-10-28.
 - [Routines](./routines.md): the register watch from chat and its task on the Automation tasks page. `routines-page-empty` was proven on 2026-10-27.
 - [Office action analysis](./office-action-analysis.md): the `recipe-office-action-response` skill of the skill pack from a chat and from a register watch, saved with `write_patent_results` and shown on the delivery card. `oa-chat-us`, `oa-chat-ep` and `oa-routine` were proven on 2026-10-29.
+- [Work pages](./work-pages.md): the office action board with sample data, its state and owner controls, the side panel, and the analysis form. `work-board`, `work-state-owner`, `work-side-panel` and `work-form`, and the `Share` tooltip of `work-deferred`, were proven on 2026-10-29.
 
 Not mapped yet: Word export, the other skills of the skill pack, and the brand. Add a file when a change touches one of them.

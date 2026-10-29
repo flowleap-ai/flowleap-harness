@@ -82,6 +82,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-file-drag` | no | Application-owned file drag transfers and localized failure feedback |
 | `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | no | FlowLeap agent builder in Web: the New agent row in the new-session preset menu and the agent form (name, description, instructions, files, connectors) |
 | `@deepseek-ai/dsh-client-ui-flowleap-routines` | no | Needs review mark of FlowLeap routine runs: the Sidebar row badge, the Needs review page, the Mark as done action, and the Automation tasks filter tab over the flowleapRoutines Remote |
+| `@deepseek-ai/dsh-client-ui-flowleap-work-pages` | no | FlowLeap work pages in Web: the Office actions page in the main column and its Sidebar launcher; the look-first office action board with sample data |
 | `@deepseek-ai/dsh-client-ui-goal` | no | Session goal surface: GoalBar docked above the composer, read from the goal session projection |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | no | Input trigger pipeline: '/' and '@' detection, candidate menu, pick routing to registered sources |
 | `@deepseek-ai/dsh-client-ui-jobs` | no | Session-header background-job list with on-demand streaming record panels |
