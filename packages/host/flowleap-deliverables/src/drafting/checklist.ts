@@ -193,6 +193,7 @@ export function gateEdit(text: string, flag: DraftingGateFlag): DraftingGateEdit
 		return parseDraftingFrontmatter(text).bodyStartLine > 1 ? { flag, line: 1, kind: 'add' } : { flag, line: 1, kind: 'block' };
 	}
 	const content = text.replace(/\r\n/g, '\n').split('\n')[line - 1];
+	/* v8 ignore next -- fieldLine found a `flag:` line, and this pattern matches every such line */
 	const value = /^[^:]*:\s*(?<value>.*?)\s*(?:\s#.*)?$/.exec(content)?.groups?.value ?? '';
 	return value ? { flag, line, kind: 'change', value } : { flag, line, kind: 'fill' };
 }
