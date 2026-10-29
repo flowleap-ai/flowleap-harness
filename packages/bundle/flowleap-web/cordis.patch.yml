@@ -284,14 +284,27 @@
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
 
-    # The dashboard (flowleap-harness#60, look-first step): the first screen
-    # after sign-in, with the ask bar, the dashboard.metric and dashboard.widget
-    # slots that apps fill, the Install FlowLeap card, and the OS sidebar
-    # layers (Search with Cmd+K, the Dashboard, Chats and Agents apps, Pinned).
-    # Coming up, Budget this month and two metric cards show sample data with a
-    # "Sample data" tag until their sources exist.
+    # The dashboard (flowleap-harness#60): the first screen after sign-in, or
+    # the chat or page that the address names (?chat=, ?page=), with the ask
+    # bar and its search (Cmd+K), the dashboard.metric, dashboard.widget,
+    # dashboard.link and dashboard.search slots that apps fill, the Install
+    # FlowLeap card, and the OS sidebar layers (Search, the Dashboard, Chats
+    # and Agents apps, Pinned).
     - id: ui-flowleap-dashboard
       name: '@deepseek-ai/dsh-client-ui-flowleap-dashboard'
+
+    # Budget this month and Budget used on the dashboard: the attorney's model
+    # spend and budget of this month, read from the firm's model gateway with
+    # the runtime's own virtual key (the ANTHROPIC_API_KEY credential, the key
+    # of the gateway routes above). FLOWLEAP_BUDGET_URL names the gateway's
+    # budget read; without it, as in a local run, both show "Unknown" and the
+    # reason, never a number.
+    - id: ui-flowleap-budget
+      name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
+      config:
+        url: !!js process.env.FLOWLEAP_BUDGET_URL || ''
+        apiKeyRef: ANTHROPIC_API_KEY
+        timeoutMs: 5000
 
     # The Needs review mark of the routines row above: a Sidebar row badge, a
     # Needs review page, Mark as done in the chat header, and a Needs review
