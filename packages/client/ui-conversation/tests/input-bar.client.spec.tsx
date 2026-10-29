@@ -217,6 +217,7 @@ function bench(over?: BenchOptions) {
     useBusyEnter: bindSnapshotSelector(busyEnter),
     useStopShortcut: bindSnapshotSelector(stopShortcut),
     useNotices: bindSnapshotSelector(shell.notices),
+    useResponseNotice: bindSnapshotSelector(shell.responseNotice),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
     stop,
@@ -2034,6 +2035,15 @@ describe('strips and variants', () => {
     act(() => { shell.notify('info', '命令完成了') })
     expect(view.getByRole('status').textContent).toBe('命令完成了')
     expect(view.queryByRole('alert')).toBeNull()
+  })
+
+  it('shows a provider response notice beside a command result, and clears it on null', () => {
+    const { view, shell } = bench()
+    act(() => { shell.notify('info', '命令完成了') })
+    act(() => { shell.responseNotice.set('Gateway: 85 % used') })
+    expect(view.getAllByRole('status').map(node => node.textContent)).toEqual(['命令完成了', 'Gateway: 85 % used'])
+    act(() => { shell.responseNotice.set(null) })
+    expect(view.getAllByRole('status').map(node => node.textContent)).toEqual(['命令完成了'])
   })
 
   it('hero variant adds the hero class and accessory row renders', () => {

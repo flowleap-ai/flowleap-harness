@@ -58,6 +58,10 @@ The layer patches rows that `dsh-base` and `dsh-web-app` insert, so a profile th
 
 Disabled rows: `deepseek-llm-api-extensions`, `session-log-deepseek`, `plugin-package-inventory-deepseek`, `deepseek-account`, `llm-deepseek`, `llm-deepseek-account`, `web-search-deepseek`, `web-deepseek-api`, `ui-settings-account`, `account-controller`, `ui-brand-official`, `ui-deepseek-model-label-1017`, `ui-settings-web-search`, `ui-settings-session-log`. Their packages stay in the installation.
 
+### The budget warning of the model gateway
+
+The firm's model gateway sends `x-flowleap-budget-warning` from 80 % of a monthly budget (flowleap-harness#32). The `anthropic` and `openrouter` routes name it in `noticeHeaders`, so `llm-pi-ai` emits `llm/response-notice` for the Session, the Host forwards it to the peers that may read that Session, and the composer shows "Notice from the model gateway: <text>" in the attorney's language, apart from command results. The next response without the header (after a monthly reset or a budget raise) removes the notice. The gateway text itself is English. The model never sees the warning and the Session log does not hold it. A firm overlay that restates the `llm-pi-ai` row restates `noticeHeaders` too, together with `fixedRoutes: true`.
+
 ### Uploads while the firm server's disk is low
 
 The firm host writes the flag file `/run/flowleap/host/disk-low` while its disk is low and removes it when space comes back (flowleap-harness#62). The `attachment-local` row (`storageLowFlagPath`) refuses chat attachments with `STORAGE_LOW`, and the `flowleap-agent-builder` row refuses agent file uploads with `storage low`; the composer and the agent form show "The firm server is low on disk space" in the user's language. Reads, chats, and the attachments a tool stores go on.

@@ -180,6 +180,14 @@ export interface PiAiProviderProfile {
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
+  /**
+   * Response headers whose value the route reports as a notice to the user of
+   * the Session (`llm/response-notice`), for example a gateway's budget
+   * warning. Matched without case; the first value present in this order wins,
+   * and a response with none of them clears the notice. The value never
+   * reaches the model.
+   */
+  noticeHeaders?: string[]
 }
 
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
@@ -358,6 +366,7 @@ const profile = z.object({
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
+  noticeHeaders: z.array(z.string().pattern(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/)),
 })
 
 /** Runtime schema for {@link Config}. */
@@ -545,6 +554,7 @@ export function resolveProfiles(
       requestImageMaxBytes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
+      ...rest.noticeHeaders === undefined ? {} : { noticeHeaders: [...new Set(rest.noticeHeaders.map(header => header.toLowerCase()))] },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
       modelErrors: catalog?.modelErrors ?? new Map(),

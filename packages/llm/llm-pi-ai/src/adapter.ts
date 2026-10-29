@@ -113,6 +113,71 @@ export interface PiAiAdapterOptions {
    * conversion because its stored replay state is unusable by this build.
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
+  /**
+   * Receive the notice state of each provider response to a Session's request
+   * on a route with `noticeHeaders`: the first header value in `noticeHeaders`
+   * order, or `null` when the response carries none of them. Called once per
+   * response, before the response body streams; the value never reaches the
+   * model. The caller contains its own errors, because pi-ai awaits this hook
+   * inside the request.
+   */
+  onResponseNotice?: (notice: PiAiResponseNotice) => void
+}
+
+/** Most characters of a notice text; a longer header value is cut and ends in an ellipsis. */
+export const RESPONSE_NOTICE_MAX_CHARS = 500
+
+/** The `noticeHeaders` state of one provider response. */
+export interface PiAiResponseNotice {
+  /** The Session whose request got the response. */
+  readonly sessionId: NonNullable<GenerateOptions['sessionId']>
+  /** Route key of the request. */
+  readonly provider: string
+  /** Model id of the request. */
+  readonly model: string
+  /**
+   * The first nonempty `noticeHeaders` value of the response, trimmed and cut to
+   * {@link RESPONSE_NOTICE_MAX_CHARS}; `null` when the response carries none, which clears an earlier notice.
+   */
+  readonly text: string | null
+}
+
+/**
+ * Trim a header value and cut it to {@link RESPONSE_NOTICE_MAX_CHARS} characters.
+ * @param value - the raw header value.
+ * @returns the notice text, or `undefined` for an absent or blank value.
+ */
+function noticeText(value: string | undefined): string | undefined {
+  const text = value?.trim()
+  if (text === undefined || text.length === 0) return undefined
+  const chars = Array.from(text)
+  return chars.length <= RESPONSE_NOTICE_MAX_CHARS ? text : `${chars.slice(0, RESPONSE_NOTICE_MAX_CHARS - 1).join('')}…`
+}
+
+/**
+ * The pi-ai `onResponse` hook that reports a route's notice headers, or none
+ * when the route names no header, the request has no Session, or no observer
+ * listens.
+ * @param profile - the route profile.
+ * @param options - the request.
+ * @param observe - the observer.
+ * @returns the hook option to spread into the stream options.
+ */
+function noticeOption(
+  profile: ResolvedPiAiProviderProfile,
+  options: GenerateOptions,
+  observe: ((notice: PiAiResponseNotice) => void) | undefined,
+): Pick<SimpleStreamOptions, 'onResponse'> {
+  const headers = profile.noticeHeaders
+  const sessionId = options.sessionId
+  if (headers === undefined || headers.length === 0 || sessionId === undefined || observe === undefined) return {}
+  return {
+    onResponse: (response) => {
+      const received = new Map(Object.entries(response.headers).map(([name, value]) => [name.toLowerCase(), value]))
+      const text = headers.map(header => noticeText(received.get(header))).find(value => value !== undefined)
+      observe({ sessionId, provider: profile.provider, model: options.model, text: text ?? null })
+    },
+  }
 }
 
 /** The two auth injectables a pi-ai collection is built with. */
@@ -415,6 +480,7 @@ export class PiAiAdapter extends LlmAdapter {
         }, onReplayDegrade, updates.systemPromptUpdate === 'in-history')
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
+        ...noticeOption(profile, options, this.config.onResponseNotice),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },

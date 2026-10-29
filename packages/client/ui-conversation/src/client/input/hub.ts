@@ -185,6 +185,21 @@ export class InputHub implements SessionInputResolver {
   }
 
   /**
+   * Set or clear the provider response notice in the composer of an
+   * addressable Session; a Session this client has no binding for shows
+   * nothing. Command notices are not changed.
+   * @param id - session id.
+   * @param text - the notice text, or null to clear it.
+   * @returns whether a composer took the change.
+   */
+  setResponseNotice(id: SessionId, text: string | null): boolean {
+    const binding = this.sessions().binding(id)
+    if (binding === undefined) return false
+    this.shellFor(binding).responseNotice.set(text)
+    return true
+  }
+
+  /**
    * Resident shell by session id (service-face path; the provide channel has
    * normally created it already — this covers direct id-addressed access).
    * @param id - session id.

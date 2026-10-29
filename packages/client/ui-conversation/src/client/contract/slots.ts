@@ -541,6 +541,8 @@ export interface ComposerBarInjected {
     /** Live per-draft upload states for drafts that upload when added. */
     fileUploads: ObservableSnapshot<DraftFileUploads>
     notices: ObservableSnapshot<InputNotice | null>
+    /** Latest provider response notice of the Session (a gateway's budget warning), or null; separate from `notices`. */
+    responseNotice: ObservableSnapshot<string | null>
     lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>>
     menuLauncher: ObservableSnapshot<string | null>
   }

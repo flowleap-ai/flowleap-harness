@@ -43,6 +43,32 @@ function entry(
   return runtime.slots.entries(key)[0] as { store?: unknown } | undefined
 }
 
+describe('provider response notices', () => {
+  it('takes llm/response-notice from the Host and ignores a Session this client has not opened', async () => {
+    const b = await bench()
+    expect(() => {
+      b.runtime.remote.emit('llm/response-notice', [{ sessionId: 'session-unbound', provider: 'openrouter', model: 'm', text: 'You used 85 %.' }])
+    }).not.toThrow()
+    await b.runtime.dispose()
+  })
+
+  it('sets the notice of an opened Session apart from its command notices, and clears it on null', async () => {
+    const b = await bench()
+    await b.runtime.sessions.add({ id: SID })
+    using _reference = b.runtime.sessions.retain(SID)
+    const bar = b.runtime.slots.entries('conversation.composer.bar')[0]
+    const hooks = ((bar?.inject as ((id: SessionId) => unknown) | undefined)?.(SID) as {
+      hooks: { notices: ObservableSnapshot<unknown>; responseNotice: ObservableSnapshot<string | null> }
+    }).hooks
+    b.runtime.remote.emit('llm/response-notice', [{ sessionId: SID, provider: 'openrouter', model: 'm', text: 'You used 85 %.' }])
+    expect(hooks.responseNotice.getSnapshot()).toContain('You used 85 %.')
+    expect(hooks.notices.getSnapshot()).toBeNull()
+    b.runtime.remote.emit('llm/response-notice', [{ sessionId: SID, provider: 'openrouter', model: 'm', text: null }])
+    expect(hooks.responseNotice.getSnapshot()).toBeNull()
+    await b.runtime.dispose()
+  })
+})
+
 describe('target-neutral Conversation apply wiring', () => {
   it('hands every Session header the same in-memory View pins without restoring saved choices', async () => {
     localStorage.setItem('dsh.slot.manual-order.conversation.view.v1', JSON.stringify({ unpinned: ['trajectory'] }))

@@ -110,14 +110,20 @@
   config:
     managed: true
 
+# The firm's model gateway sends x-flowleap-budget-warning from 80 % of a
+# budget (flowleap-harness#32); the two routes that go through the gateway
+# show its value to the attorney in the chat, and the model never sees it.
+
 - id: llm-pi-ai
   config:
     fixedRoutes: true
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
       openrouter:
         apiKeyEnv: OPENROUTER_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
       mistral:
         apiKeyEnv: MISTRAL_API_KEY
 
