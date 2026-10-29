@@ -83,6 +83,7 @@ function textParagraph(docx: Docx, text: string, level?: number, pageBreakBefore
 }
 
 function toDocx(docx: Docx, filing: FilingParagraph): Paragraph {
+	/* v8 ignore next -- filingParagraphs gives every heading a level; the IDE copy keeps the fallback. */
 	return textParagraph(docx, filing.text, filing.kind === 'heading' ? filing.level ?? 1 : undefined);
 }
 
