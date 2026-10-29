@@ -252,6 +252,23 @@ describe('write order', () => {
     }
   })
 
+  it('hides an agent from reads and the list while its delete runs, and keeps its index readable after a refused move', async () => {
+    const root = await tempDir('dsh-agents-')
+    const ctx = await runtime()
+    await mountBuilder(ctx, { root })
+    const catalog = ctx.flowleapAgentCatalog
+    const { id } = await catalog.save(undefined, INPUT, 'Work.')
+    await catalog.upload(id, 'a.txt', chunks('alpha'))
+    await catalog.settled()
+    denied.rename.push(join(root, `.deleted-${id}-`))
+    const deleting = catalog.delete(id)
+    expect(() => catalog.read(id)).toThrow(expect.objectContaining({ code: 'flowleap-agents/not-found' }))
+    expect(catalog.list()).toEqual([])
+    await expect(deleting).rejects.toMatchObject({ code: 'EACCES' })
+    expect(catalog.search(id, 'alpha', 8)).toMatchObject([{ file: 'a.txt' }])
+    expect(catalog.list().map(row => row.id)).toEqual([id])
+  })
+
   it('keeps a file removed after its upload removed on disk and in the index', async () => {
     const root = await tempDir('dsh-agents-')
     const ctx = await runtime()

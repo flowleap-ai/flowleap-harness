@@ -92,8 +92,9 @@ export interface AgentRevision {
 
 interface LoadedAgent {
   folder: AgentFolder
-  readonly index: AgentIndex
-  /** Set when a delete starts, before its first await; every later write of the agent refuses it. */
+  /** Closed while a delete moves the folder; opened again when the move fails. */
+  index: AgentIndex
+  /** Set when a delete starts, before its first await; every later read and write of the agent refuses it. */
   deleted: boolean
   /** The tail of the agent's write operations; each one runs after the one before it settles. */
   queue: Promise<void>
@@ -295,13 +296,12 @@ export class AgentCatalog extends Service {
 
   private get(id: AgentId): LoadedAgent {
     const agent = this.agents.get(id)
-    if (agent === undefined) throw notFound(id)
+    if (agent === undefined || agent.deleted) throw notFound(id)
     return agent
   }
 
   private writable(id: AgentId): LoadedAgent {
     const agent = this.get(id)
-    alive(agent)
     if (agent.folder.readOnly) throw new RemoteError('flowleap-agents/read-only', `The agent ${id} belongs to the firm folder and cannot be changed here`, { id })
     return agent
   }
@@ -362,7 +362,7 @@ export class AgentCatalog extends Service {
    * @returns the summaries.
    */
   list(): AgentSummary[] {
-    return [...this.agents.values()].map(agent => this.summary(agent))
+    return [...this.agents.values()].filter(agent => !agent.deleted).map(agent => this.summary(agent))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
   }
 
@@ -432,9 +432,9 @@ export class AgentCatalog extends Service {
   }
 
   /**
-   * Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the
-   * agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved,
-   * the agent stays as it was.
+   * Delete one agent: close its index, move its folder aside, then remove its preset and the moved folder. A read or
+   * write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`, and the agent is
+   * not listed. When the folder cannot be moved, the index opens again and the agent stays as it was.
    * @param id - the agent.
    * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.
    */
@@ -442,17 +442,19 @@ export class AgentCatalog extends Service {
     const agent = this.writable(id)
     agent.deleted = true
     await serialize(agent, async () => {
+      // Windows refuses to move a folder that holds an open file, so the index closes before the move.
+      agent.index.close()
       let aside: string
       try {
         aside = await moveAgentFolderAside(agent.folder.dir)
       } catch (error) {
+        agent.index = AgentIndex.open(this.indexPath(agent.folder))
         agent.deleted = false
         throw error
       }
       this.agents.delete(id)
       await this.refresh(id)
       this.presets.delete(id)
-      agent.index.close()
       this.emit()
       await rm(aside, { recursive: true, force: true }).catch((error: unknown) => {
         this.ctx.logger.warn(`flowleap agent ${id}: the deleted folder ${aside} was not removed: ${messageOf(error)}`)
