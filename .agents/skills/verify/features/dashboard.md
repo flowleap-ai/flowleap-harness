@@ -9,7 +9,7 @@ The dashboard is the first screen. Its cards and panels show real data: chats th
 - `dash-watch` shows a new register watch in Coming up and Cases watched without a reload.
 - `dash-search` finds chats, agents and routines from the ask bar, opened with the shortcut.
 - `dash-deep-link` puts `?chat=` in the address of an open chat, opens it again after a reload, and selects a page from `?page=`.
-- `dash-budget-unknown` shows `Unknown` and the reason, and no number, when the gateway does not answer.
+- `dash-budget-unknown` shows `Unknown` and the reason, and no number, when the gateway answers with an error.
 
 ## How to get to it (user POV)
 
@@ -28,7 +28,7 @@ Preconditions:
 - **Watch.** When `Running` goes, `Coming up` shows the task title, `Next register check: …`, and `EP3456789: <date>, <event>`; `Cases watched` shows `1`.
 - **Search.** Press Cmd+Option+K; the ask bar has focus. Type a word of the task title. The region `Search results` shows the groups `Chats`, `Agents` (after you made an agent, see [agent-builder.md](./agent-builder.md)) and `Routines`. Escape clears the bar.
 - **Deep link.** Select the chat in `Agent activity`. The address has `?chat=`. Reload; the chat shows. Open the address with `?page=flowleap-needs-review`; the `Needs review` row of the sidebar has `aria-current=page`.
-- **Unknown.** Delete `$RUN/budget-answer.json` and reload. `Budget this month` shows `Unknown` and `The model gateway did not answer, so the spend is not known.`
+- **Unknown.** Delete `$RUN/budget-answer.json` and reload. The double answers 503, so `Budget this month` shows `Unknown` and `The model gateway answered with an error, so the spend is not known.` Stop the double to see `The model gateway did not answer, so the spend is not known.`
 - **Second view.** The gateway double prints one line for each read, with `bearer=true`. `scripts/session-log.mjs` shows the `register_watch_create` call and `turn 1: completed`.
 
 ## Gotchas
