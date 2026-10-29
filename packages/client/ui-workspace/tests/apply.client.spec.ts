@@ -242,6 +242,24 @@ describe('ui-workspace apply', () => {
     expect(b.whenResourceAccess).toHaveBeenCalledWith('workspace', 'w1', 'workspace/follow', guarded)
   })
 
+  it('lets the latest provideSearch opener replace the Sidebar search until its disposer runs', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const service = b.ctx.uiWorkspace as typeof b.ctx.uiWorkspace & { searchOverride: () => (() => void) | undefined }
+    expect(service.searchOverride()).toBeUndefined()
+    const first = vi.fn()
+    const second = vi.fn()
+    const disposeFirst = service.provideSearch(first)
+    const disposeSecond = service.provideSearch(second)
+    expect(service.searchOverride()).toBe(second)
+    disposeSecond()
+    disposeSecond()
+    expect(service.searchOverride()).toBe(first)
+    disposeFirst()
+    expect(service.searchOverride()).toBeUndefined()
+  })
+
   it('hangs Workspace-guarded effects on the calling plugin, so they leave when it unloads', async () => {
     const b = await bench('static')
     onTestFinished(() => b.ctx.fiber.dispose())

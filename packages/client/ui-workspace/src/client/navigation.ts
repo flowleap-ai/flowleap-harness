@@ -133,6 +133,14 @@ export interface UiWorkspace {
    */
   createDirectory(path: string, name: string): Promise<string>
   /**
+   * Make the Search command (Cmd+K on the desktop, Cmd+Option+K on the web) open another surface instead of the
+   * Sidebar search. The latest registration wins; its disposer restores the one before it, or the Sidebar search.
+   * The Sidebar's own search control still opens the Sidebar search.
+   * @param open - opens the replacing search surface.
+   * @returns the disposer; register it as an effect.
+   */
+  provideSearch(open: () => void): () => void
+  /**
    * Keep `callback`'s effects installed while the current Peer may call
    * `action` on one Workspace resource, with the semantics of
    * `ctx.remoteAccess.whenAccess`: `useWorkspaceAccess` answers the same
@@ -170,6 +178,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     readonly attempt: Promise<SessionId>
   }>()
   private readonly lifetime = new AbortController()
+  /** `provideSearch` registrations; each entry object is unique, so the same function can register twice. */
+  private readonly searchOpeners: { readonly open: () => void }[] = []
   private readonly selection = createSnapshotStore<MainSelection>(
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
@@ -418,6 +428,23 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const result = await this.directoryPicker.createDirectory(path, name)
     if (!result.ok) throw new DirectoryBrowseError(result.error)
     return result.value
+  }
+
+  provideSearch(open: () => void): () => void {
+    const entry = { open }
+    this.searchOpeners.push(entry)
+    return () => {
+      const index = this.searchOpeners.indexOf(entry)
+      if (index !== -1) this.searchOpeners.splice(index, 1)
+    }
+  }
+
+  /**
+   * The surface the Search command opens instead of the Sidebar search.
+   * @returns the latest `provideSearch` opener, or `undefined` while none is registered.
+   */
+  searchOverride(): (() => void) | undefined {
+    return this.searchOpeners.at(-1)?.open
   }
 
   whenAccess(workspaceId: WorkspaceId, action: RemoteEndpoint, callback: () => AccessEffect): () => void {

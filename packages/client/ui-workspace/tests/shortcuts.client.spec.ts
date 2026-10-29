@@ -52,6 +52,7 @@ async function bench(runtime: 'web' | 'desktop' = 'desktop', platform: ShortcutP
   ctx.provide('locale', locale)
   const navigation = {
     startSession: vi.fn(), forkSession: vi.fn(async () => 'fork-child' as SessionId), archiveSession: vi.fn(async (_sessionId: SessionId) => {}),
+    searchOverride: vi.fn((): (() => void) | undefined => undefined),
   }
   const controls = createWorkspaceShortcutControls()
   const reportForkFailure = vi.fn()
@@ -137,6 +138,11 @@ describe('workspace shortcut ownership', () => {
     expect(b.registry.dispatch(key('KeyN'), { ...context, region: 'terminal' }, consume).status).toBe('handled')
     expect(b.navigation.startSession).toHaveBeenCalledTimes(3)
     b.registry.dispatch(key('KeyK'), context, consume)
+    expect(b.controls.state.getSnapshot().searchRequest).toBe(1)
+    const replacement = vi.fn()
+    b.navigation.searchOverride.mockReturnValueOnce(replacement)
+    expect(b.registry.dispatch(key('KeyK'), context, consume).status).toBe('handled')
+    expect(replacement).toHaveBeenCalledOnce()
     expect(b.controls.state.getSnapshot().searchRequest).toBe(1)
     b.registry.dispatch(key('KeyO'), context, consume)
     expect(b.controls.state.getSnapshot().addRequested).toBe(true)
