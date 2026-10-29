@@ -228,7 +228,8 @@ export function checkClaimedFeatureCoverage(input: FeatureCoverageInput): DraftF
 	const findings: DraftFinding[] = [];
 	const rows = parseFeatureRows(input.featureList);
 	for (const part of linked) {
-		for (const feature of part.features ?? []) {
+		/* v8 ignore start -- linked keeps only the parts that have features */
+		for (const feature of part.features ?? []) { /* v8 ignore stop */
 			if (!rows.has(feature)) {
 				findings.push({ severity: 'Error', rule: 'figure-coverage', file: figuresFile, line: part.line, message: `Part ${part.numeral} ("${part.part}") links ${feature}, which is not a row of ${DRAFTING_FILE_NAMES.featureList}.` });
 			}
