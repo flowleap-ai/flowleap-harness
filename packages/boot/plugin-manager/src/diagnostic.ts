@@ -46,6 +46,7 @@ const operation: z.ZodType<PluginOperation> = z.discriminatedUnion('phase', [
     errorCode: z.enum({
       'management-required': 'management-required',
       'unaddressable': 'unaddressable',
+      'deployment-locked': 'deployment-locked',
       'unknown-plugin': 'unknown-plugin',
       'invalid-spec': 'invalid-spec',
       'already-installed': 'already-installed',

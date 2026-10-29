@@ -67,7 +67,7 @@ import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { PiAiAdapter } from './adapter.ts'
 import { authContextFrom, credentialStoreFrom } from './auth.ts'
 import { catalogProvider, catalogProviderIds } from './catalog.ts'
-import { assertServiceable, Config, resolveProfiles } from './config.ts'
+import { assertFixedRoutes, assertServiceable, assertUnchangedRoutes, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
 import type { StoredModelDiscoveryProfile } from './discovery.ts'
@@ -123,11 +123,14 @@ function registrationFacts(profiles: ReadonlyMap<string, ResolvedPiAiProviderPro
  * editor shows while the profile leaves the endpoint or the credential
  * reference unset.
  * @param profiles - the currently resolved provider profiles.
+ * @param settingsNs - the settings namespace of this plugin instance.
+ * @param fixedRoutes - list only the configured routes.
  * @returns the directory entries in catalog order, declared routes last.
  */
 function directoryEntries(
   profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>,
   settingsNs: string,
+  fixedRoutes: boolean,
 ): LlmConfigurableProvider[] {
   const entries = new Map<string, LlmConfigurableProvider>()
   const declare = (provider: string, displayName: string, error?: string): void => {
@@ -145,7 +148,8 @@ function directoryEntries(
       ...error === undefined ? {} : { error },
     })
   }
-  for (const provider of catalogProviderIds()) declare(provider, provider)
+  // A fixed route set offers no catalog route to add.
+  if (!fixedRoutes) for (const provider of catalogProviderIds()) declare(provider, provider)
   for (const [provider, profile] of profiles) declare(provider, profile.displayName, profile.catalogError)
   return [...entries.values()]
 }
@@ -173,11 +177,13 @@ export function apply(ctx: Context, config: Config): void {
     memoized = next
     return next
   }
-  profiles()
+  if (config.fixedRoutes) assertFixedRoutes(profiles())
+  else profiles()
   ctx.on('internal/config', function (this: import('@deepseek-ai/cordis').Fiber, _raw, next) {
     const raw: unknown = next()
     if (this !== ctx.fiber) return raw
     const candidate = Config(raw as import('./config.ts').Options)
+    if (config.fixedRoutes) assertUnchangedRoutes(candidate.providers.get(), config.providers.get())
     assertServiceable(
       { providers: structuredClone(candidate.providers.get()) } as import('./config.ts').Options,
       { providers: structuredClone(config.providers.get()) } as import('./config.ts').Options,
@@ -236,7 +242,9 @@ export function apply(ctx: Context, config: Config): void {
   // Scoped to the authorization seam rather than injected outright, because a
   // composition without it (headless, ACP) simply has no surface to sign in
   // from, while everything else this plugin does still works.
-  ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
+  // A fixed route set authenticates only through its deployment references, so
+  // it offers no subscription sign-in.
+  if (!config.fixedRoutes) ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every
   // pi-ai provider before any route exists. Hand-declared routes join it as
@@ -244,7 +252,7 @@ export function apply(ctx: Context, config: Config): void {
   let directory: DirectoryRegistrationHandle | undefined
   let directoryFacts: unknown
   const ensureDirectory = (): void => {
-    const entries = directoryEntries(profiles(), settingsNs)
+    const entries = directoryEntries(profiles(), settingsNs, config.fixedRoutes)
     if (deepEqualJson(entries, directoryFacts)) return
     // Atomic replace, never dispose-then-register: a route another adapter
     // family already declares (a profile keyed `deepseek-official`) would
@@ -277,10 +285,13 @@ export function apply(ctx: Context, config: Config): void {
   // except the stored credential and deployment-owned headers: the curated UI
   // accepts neither, so an already-configured route supplies both inside the
   // Host rather than widening the discovery request.
-  ctx.llm.registerModelDiscovery(settingsNs, (request, signal) => discoverModels(
-    { ...request, ...signal === undefined ? {} : { signal } },
-    () => storedDiscoveryProfile(request.provider),
-  ))
+  // A fixed route set adds no route, so it offers no endpoint interrogation.
+  if (!config.fixedRoutes) {
+    ctx.llm.registerModelDiscovery(settingsNs, (request, signal) => discoverModels(
+      { ...request, ...signal === undefined ? {} : { signal } },
+      () => storedDiscoveryProfile(request.provider),
+    ))
+  }
   // Route effects bind to this apply fiber via the stable `ctx` reference,
   // even when a swap runs inside the scoped settings callback below. A bare
   // mount (zero routes) is the dormant posture: nothing registers until a
