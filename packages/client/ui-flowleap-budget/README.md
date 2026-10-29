@@ -25,7 +25,7 @@ The dashboard of `flowleap-web` shows the attorney's model spend and budget of t
 
 Mount the row beside the [dashboard](../ui-flowleap-dashboard/README.md) and `dsh-flowleap-budget`; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-budget`.
 
-**Budget used** (`dashboard.metric`, order 30) shows the share of the budget used, for example `25 %`, with `$12.50 of $50.00 this month`; without a budget, or with a budget of 0, it shows the spend. **Budget this month** (`dashboard.widget`, order 40) shows the spend, the budget, a meter, and the month. An unknown state shows **Unknown** and the sentence of its reason on both. The surfaces read when the dashboard shows and again at a connection reset. They register only while the current Peer may call `flowleapBudget/month`, an owner-only endpoint. All copy is in the `flowleapBudget` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt).
+**Budget used** (`dashboard.metric`, order 30) shows the share of the budget used, for example `25 %`, with `$12.50 of $50.00 this month`; without a budget it shows the spend. A budget of 0 is a limit: with a spend it shows `100 %` on the card and a full meter on the panel. **Budget this month** (`dashboard.widget`, order 40) shows the spend, the budget, a meter, and the month. An unknown state shows **Unknown** and the sentence of its reason on both. The surfaces read when the dashboard shows, again at a connection reset, and again when the browser window gets the focus. They register only while the current Peer may call `flowleapBudget/month`, an owner-only endpoint. All copy is in the `flowleapBudget` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt).
 
 -----
 
@@ -35,13 +35,14 @@ Mount the row beside the [dashboard](../ui-flowleap-dashboard/README.md) and `ds
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`createBudgetSource` keeps one shared read: it reads when the first surface observes it and at each `connection/reset`, and it drops an answer that arrives after the last surface stopped observing. A failed or rejected Remote call is the `unreachable` reason.
+`createBudgetSource` is a `createLazyRemoteSource` of `@deepseek-ai/dsh-client-store`: one shared read when the first surface observes it, at each `connection/reset`, and at each window `focus`; it drops an answer that arrives after the last surface stopped observing. A failed or rejected Remote call is the `unreachable` reason. `usedPercent` is the one share rule of the card and the panel.
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Host half: an empty plugin body |
 | [`src/client/index.ts`](src/client/index.ts) | dictionaries and the two registrations |
-| [`src/client/budget.tsx`](src/client/budget.tsx) | the shared read, the card, and the panel |
+| [`src/client/budget-source.ts`](src/client/budget-source.ts) | the shared read |
+| [`src/client/budget.tsx`](src/client/budget.tsx) | the share rule, the card, and the panel |
 | [`tests/`](tests/) | the shared read, each surface as rendered, and the registrations with their disposal |
 
 </details>

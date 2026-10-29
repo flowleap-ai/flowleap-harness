@@ -20,9 +20,10 @@ export const en = {
   'metric.caption': '{used} of {limit} this month',
   'metric.noLimit': '{used} this month, no budget set',
   'reason.not_configured': 'No model gateway is connected to this app, so the spend is not known.',
-  'reason.no_key': 'The key for the model gateway is not set, so the spend is not known.',
+  'reason.no_key': 'The key for the model gateway is not set or cannot be read, so the spend is not known.',
   'reason.refused': 'The model gateway refused the request, so the spend is not known.',
   'reason.unreachable': 'The model gateway did not answer, so the spend is not known.',
+  'reason.gateway_error': 'The model gateway answered with an error, so the spend is not known.',
   'reason.invalid_answer': 'The model gateway sent an answer that this app cannot read, so the spend is not known.',
 } as const
 
@@ -43,9 +44,10 @@ export const zh = {
   'metric.caption': '本月已用 {used}，共 {limit}',
   'metric.noLimit': '本月已用 {used}，未设置预算',
   'reason.not_configured': '此应用未连接模型网关，因此无法知道支出。',
-  'reason.no_key': '未设置模型网关的密钥，因此无法知道支出。',
+  'reason.no_key': '模型网关的密钥未设置或无法读取，因此无法知道支出。',
   'reason.refused': '模型网关拒绝了请求，因此无法知道支出。',
   'reason.unreachable': '模型网关没有应答，因此无法知道支出。',
+  'reason.gateway_error': '模型网关返回了错误，因此无法知道支出。',
   'reason.invalid_answer': '模型网关发送了此应用无法读取的应答，因此无法知道支出。',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -63,9 +65,10 @@ export const ja = {
   'metric.caption': '今月 {limit} のうち {used}',
   'metric.noLimit': '今月 {used}、予算の設定なし',
   'reason.not_configured': 'このアプリにはモデルゲートウェイが接続されていないため、支出は不明です。',
-  'reason.no_key': 'モデルゲートウェイのキーが設定されていないため、支出は不明です。',
+  'reason.no_key': 'モデルゲートウェイのキーが設定されていないか読み取れないため、支出は不明です。',
   'reason.refused': 'モデルゲートウェイが要求を拒否したため、支出は不明です。',
   'reason.unreachable': 'モデルゲートウェイが応答しなかったため、支出は不明です。',
+  'reason.gateway_error': 'モデルゲートウェイがエラーを返したため、支出は不明です。',
   'reason.invalid_answer': 'モデルゲートウェイがこのアプリで読み取れない応答を送ったため、支出は不明です。',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -83,9 +86,10 @@ export const es = {
   'metric.caption': '{used} de {limit} este mes',
   'metric.noLimit': '{used} este mes, sin presupuesto',
   'reason.not_configured': 'Esta aplicación no tiene conectada ninguna pasarela de modelos, por lo que se desconoce el gasto.',
-  'reason.no_key': 'La clave de la pasarela de modelos no está configurada, por lo que se desconoce el gasto.',
+  'reason.no_key': 'La clave de la pasarela de modelos no está configurada o no se puede leer, por lo que se desconoce el gasto.',
   'reason.refused': 'La pasarela de modelos rechazó la solicitud, por lo que se desconoce el gasto.',
   'reason.unreachable': 'La pasarela de modelos no respondió, por lo que se desconoce el gasto.',
+  'reason.gateway_error': 'La pasarela de modelos respondió con un error, por lo que se desconoce el gasto.',
   'reason.invalid_answer': 'La pasarela de modelos envió una respuesta que esta aplicación no puede leer, por lo que se desconoce el gasto.',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -103,9 +107,10 @@ export const fr = {
   'metric.caption': '{used} sur {limit} ce mois-ci',
   'metric.noLimit': '{used} ce mois-ci, aucun budget fixé',
   'reason.not_configured': "Aucune passerelle de modèles n'est connectée à cette application : la dépense est inconnue.",
-  'reason.no_key': "La clé de la passerelle de modèles n'est pas définie : la dépense est inconnue.",
+  'reason.no_key': "La clé de la passerelle de modèles n'est pas définie ou ne peut pas être lue : la dépense est inconnue.",
   'reason.refused': 'La passerelle de modèles a refusé la demande : la dépense est inconnue.',
   'reason.unreachable': "La passerelle de modèles n'a pas répondu : la dépense est inconnue.",
+  'reason.gateway_error': 'La passerelle de modèles a répondu par une erreur : la dépense est inconnue.',
   'reason.invalid_answer': 'La passerelle de modèles a envoyé une réponse que cette application ne peut pas lire : la dépense est inconnue.',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -123,9 +128,10 @@ export const de = {
   'metric.caption': '{used} von {limit} in diesem Monat',
   'metric.noLimit': '{used} in diesem Monat, kein Budget festgelegt',
   'reason.not_configured': 'Mit dieser App ist kein Modell-Gateway verbunden, daher sind die Kosten unbekannt.',
-  'reason.no_key': 'Der Schlüssel für das Modell-Gateway ist nicht gesetzt, daher sind die Kosten unbekannt.',
+  'reason.no_key': 'Der Schlüssel für das Modell-Gateway ist nicht gesetzt oder nicht lesbar, daher sind die Kosten unbekannt.',
   'reason.refused': 'Das Modell-Gateway hat die Anfrage abgelehnt, daher sind die Kosten unbekannt.',
   'reason.unreachable': 'Das Modell-Gateway hat nicht geantwortet, daher sind die Kosten unbekannt.',
+  'reason.gateway_error': 'Das Modell-Gateway hat mit einem Fehler geantwortet, daher sind die Kosten unbekannt.',
   'reason.invalid_answer': 'Das Modell-Gateway hat eine Antwort gesendet, die diese App nicht lesen kann, daher sind die Kosten unbekannt.',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -143,9 +149,10 @@ export const ru = {
   'metric.caption': '{used} из {limit} в этом месяце',
   'metric.noLimit': '{used} в этом месяце, бюджет не задан',
   'reason.not_configured': 'К этому приложению не подключён шлюз моделей, поэтому расходы неизвестны.',
-  'reason.no_key': 'Ключ шлюза моделей не задан, поэтому расходы неизвестны.',
+  'reason.no_key': 'Ключ шлюза моделей не задан или не читается, поэтому расходы неизвестны.',
   'reason.refused': 'Шлюз моделей отклонил запрос, поэтому расходы неизвестны.',
   'reason.unreachable': 'Шлюз моделей не ответил, поэтому расходы неизвестны.',
+  'reason.gateway_error': 'Шлюз моделей ответил ошибкой, поэтому расходы неизвестны.',
   'reason.invalid_answer': 'Шлюз моделей прислал ответ, который это приложение не может прочитать, поэтому расходы неизвестны.',
 } satisfies Record<FlowleapBudgetKey, string>
 
@@ -163,8 +170,9 @@ export const pt = {
   'metric.caption': '{used} de {limit} este mês',
   'metric.noLimit': '{used} este mês, sem orçamento definido',
   'reason.not_configured': 'Nenhum gateway de modelos está conectado a este aplicativo, então o gasto é desconhecido.',
-  'reason.no_key': 'A chave do gateway de modelos não está definida, então o gasto é desconhecido.',
+  'reason.no_key': 'A chave do gateway de modelos não está definida ou não pode ser lida, então o gasto é desconhecido.',
   'reason.refused': 'O gateway de modelos recusou a solicitação, então o gasto é desconhecido.',
   'reason.unreachable': 'O gateway de modelos não respondeu, então o gasto é desconhecido.',
+  'reason.gateway_error': 'O gateway de modelos respondeu com um erro, então o gasto é desconhecido.',
   'reason.invalid_answer': 'O gateway de modelos enviou uma resposta que este aplicativo não consegue ler, então o gasto é desconhecido.',
 } satisfies Record<FlowleapBudgetKey, string>

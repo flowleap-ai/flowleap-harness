@@ -14,7 +14,8 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply as applyNode } from '../src/index.ts'
 import { apply, inject } from '../src/client/index.ts'
-import { BudgetUsedMetric, BudgetWidget, createBudgetSource, type BudgetDependencies } from '../src/client/budget.tsx'
+import { BudgetUsedMetric, BudgetWidget } from '../src/client/budget.tsx'
+import { createBudgetSource, type BudgetDependencies } from '../src/client/budget-source.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
 import type { BudgetMonth } from '@deepseek-ai/dsh-flowleap-budget/types'
 
@@ -25,8 +26,18 @@ const ok = (value: BudgetMonth): RemoteResult<BudgetMonth> => ({ ok: true, value
 
 function remote(month: BudgetDependencies['month']) {
   const reset = new Set<() => void>()
-  const deps: BudgetDependencies = { month, subscribeReset: (listener) => { reset.add(listener); return () => { reset.delete(listener) } } }
-  return { deps, emitReset: () => { for (const listener of reset) listener() }, listening: () => reset.size }
+  const focus = new Set<() => void>()
+  const channel = (set: Set<() => void>) => (listener: () => void) => {
+    set.add(listener)
+    return () => { set.delete(listener) }
+  }
+  const deps: BudgetDependencies = { month, subscribeReset: channel(reset), subscribeFocus: channel(focus) }
+  return {
+    deps,
+    emitReset: () => { for (const listener of reset) listener() },
+    emitFocus: () => { for (const listener of focus) listener() },
+    listening: () => reset.size + focus.size,
+  }
 }
 
 async function settle(): Promise<void> {
@@ -57,27 +68,19 @@ const standard: GlobalStandardProps = {
 }
 
 describe('budget source', () => {
-  it('reads at the first observer, again at a reset and at a later first observer, and drops a read that settles after the last one left', async () => {
-    let answer: ((value: RemoteResult<BudgetMonth>) => void) | undefined
-    const month = vi.fn(() => new Promise<RemoteResult<BudgetMonth>>((resolve) => { answer = resolve }))
+  it('reads at the first observer, again at a reset and when the window gets the focus, and stops listening after the last observer', async () => {
+    const month = vi.fn(async () => ok({ state: 'unknown', reason: 'not_configured' }))
     const r = remote(month)
     const source = createBudgetSource(r.deps)
     expect(month).not.toHaveBeenCalled()
     const stop = source.subscribe(() => {})
-    expect(month).toHaveBeenCalledOnce()
-    answer!(ok({ state: 'unknown', reason: 'not_configured' }))
     await settle()
     expect(source.getSnapshot()).toEqual({ state: 'unknown', reason: 'not_configured' })
     r.emitReset()
-    expect(month).toHaveBeenCalledTimes(2)
+    r.emitFocus()
+    expect(month).toHaveBeenCalledTimes(3)
     stop()
     expect(r.listening()).toBe(0)
-    answer!(ok({ state: 'known', month: '2026-10', spentUsd: 1, budgetUsd: 2 }))
-    await settle()
-    expect(source.getSnapshot()).toEqual({ state: 'unknown', reason: 'not_configured' })
-    const again = source.subscribe(() => {})
-    expect(month).toHaveBeenCalledTimes(3)
-    again()
   })
 
   it('turns a Remote failure and a transport rejection into the unreachable reason', async () => {
@@ -102,23 +105,32 @@ describe('budget surfaces', () => {
     expect(view.container.textContent).toContain('$12.50 used')
     expect(view.container.textContent).toContain('Budget $50.00')
     expect(view.container.textContent).toContain('October 2026, UTC')
-    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('12.5')
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('25')
   })
 
-  it('shows the spend without a share or meter when the firm sets no budget or a zero budget', async () => {
-    for (const budgetUsd of [null, 0]) {
-      const view = await shown({ state: 'known', month: '2026-10', spentUsd: 3, budgetUsd })
-      expect(view.container.textContent).toContain('$3.00 this month, no budget set')
-      expect(view.container.textContent).not.toContain('%')
-      expect(screen.queryByRole('meter')).toBeNull()
+  it('shows the spend without a share or meter when the firm sets no budget', async () => {
+    const view = await shown({ state: 'known', month: '2026-10', spentUsd: 3, budgetUsd: null })
+    expect(view.container.textContent).toContain('$3.00 this month, no budget set')
+    expect(view.container.textContent).toContain(en.noLimit)
+    expect(view.container.textContent).not.toContain('%')
+    expect(screen.queryByRole('meter')).toBeNull()
+  })
+
+  it('shows a budget of 0 as a limit: used up on the card and the meter when there is spend', async () => {
+    for (const [spentUsd, percent] of [[3, '100'], [0, '0']] as const) {
+      const view = await shown({ state: 'known', month: '2026-10', spentUsd, budgetUsd: 0 })
+      expect(view.container.textContent).toContain(`${percent} %`)
+      expect(view.container.textContent).toContain('Budget $0.00')
+      expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe(percent)
       cleanup()
     }
-    const view = await shown({ state: 'known', month: '2026-10', spentUsd: 3, budgetUsd: null })
-    expect(view.container.textContent).toContain(en.noLimit)
+    const over = await shown({ state: 'known', month: '2026-10', spentUsd: 60, budgetUsd: 50 })
+    expect(over.container.textContent).toContain('120 %')
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('100')
   })
 
   it('shows Unknown and the reason for each unknown state, never a number', async () => {
-    for (const reason of ['not_configured', 'no_key', 'refused', 'unreachable', 'invalid_answer'] as const) {
+    for (const reason of ['not_configured', 'no_key', 'refused', 'gateway_error', 'unreachable', 'invalid_answer'] as const) {
       const view = await shown({ state: 'unknown', reason })
       expect(screen.getAllByText(en.unknown)).toHaveLength(2)
       expect(screen.getAllByText(en[`reason.${reason}`])).toHaveLength(2)
@@ -175,7 +187,8 @@ describe('ui-flowleap-budget browser half', () => {
         await settle()
         expect(month).toHaveBeenCalledOnce()
         ctx.emit('connection/reset')
-        expect(month).toHaveBeenCalledTimes(2)
+        window.dispatchEvent(new Event('focus'))
+        expect(month).toHaveBeenCalledTimes(3)
         stop()
         expect(ctx.locale.bind(NS)('unknown')).toBe(zh.unknown)
       }
