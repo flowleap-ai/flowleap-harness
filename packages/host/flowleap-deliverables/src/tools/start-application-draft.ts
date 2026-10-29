@@ -15,7 +15,6 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { officeAction } from '../drafting/checklist.ts'
 import { parseClaims } from '../drafting/claims.ts'
 import { claimTermsToPlan } from '../drafting/claim-validators.ts'
@@ -24,7 +23,7 @@ import { parseDraftingFrontmatter, readOffice } from '../drafting/frontmatter.ts
 import { STYLE_INSTRUCTION } from '../drafting/style-folder.ts'
 import type { DraftingWorkspace } from '../drafting/workspace.ts'
 import { askGate, type GateSeams } from '../gates/questions.ts'
-import { gateSeams, isDraftingToolValue, matterArgument, openMatter, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
+import { draftingToolDefinition, gateSeams, matterArgument, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
 
 /** The tool name, shared with the IDE and the exported Patent Agent prompt. */
 export const START_APPLICATION_DRAFT_NAME = 'start_application_draft'
@@ -99,14 +98,9 @@ export async function approvedClaims(workspace: DraftingWorkspace, exec: ToolRun
  * @returns the unregistered dsh definition.
  */
 export function startApplicationDraftTool(ctx: Context, deps: DraftingToolDependencies): ToolDefinition {
-  const now = deps.now ?? (() => new Date())
   const seams = gateSeams(deps)
 
-  const execute = async (matter: string, exec: ToolRunContext): Promise<DraftingToolValue> => {
-    const workspace = await openMatter(ctx, matter, exec, { now })
-    if (typeof workspace === 'string') {
-      return refused(`${REFUSED} ${workspace}`)
-    }
+  const execute = async (workspace: DraftingWorkspace, exec: ToolRunContext): Promise<DraftingToolValue> => {
     const { folder } = workspace
     const featureList = await confirmedFeatureList(workspace, exec, seams)
     if (typeof featureList === 'string') {
@@ -175,23 +169,13 @@ export function startApplicationDraftTool(ctx: Context, deps: DraftingToolDepend
     return { ok: true, text: sections.join('\n') }
   }
 
-  return {
+  return draftingToolDefinition(ctx, deps, {
     name: START_APPLICATION_DRAFT_NAME,
     description: START_APPLICATION_DRAFT_DESCRIPTION,
     parameters: START_APPLICATION_DRAFT_PARAMETERS,
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
-    },
-    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
-      const matter = matterArgument(START_APPLICATION_DRAFT_NAME, args)
-      try {
-        return { ...await execute(matter, exec) }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        deps.warn(`flowleap-deliverables: ${START_APPLICATION_DRAFT_NAME} failed: ${message}`)
-        return { ...refused(`${REFUSED} ${message}`) }
-      }
-    },
-  }
+    parse: args => matterArgument(START_APPLICATION_DRAFT_NAME, args),
+    matter: matter => matter,
+    refusal: () => REFUSED,
+    execute,
+  })
 }
