@@ -535,12 +535,28 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     const granted = join(scratchRoot, 'fullcontrol-root')
     const child = join(granted, 'child')
     mkdirSync(granted)
+    // The root DACL is written before its children exist, so they carry only
+    // inherited ACEs. An explicit FullControl allow on the child would come
+    // before the inherited deny and grant the open this case expects denied.
+    const fixture = spawnSync('pwsh', ['-NoLogo', '-NonInteractive', '-NoProfile', '-Command',
+      '$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; ' +
+      '$acl = [System.Security.AccessControl.DirectorySecurity]::new(); ' +
+      '$acl.SetSecurityDescriptorSddlForm("D:P(A;OICI;FA;;;$me)", \'Access\'); ' +
+      `[System.IO.FileSystemAclExtensions]::SetAccessControl([System.IO.DirectoryInfo]::new('${granted}'), $acl)`,
+    ], { encoding: 'utf8', timeout: 60_000 })
+    expect(fixture.status, `stderr: ${fixture.stderr}`).toBe(0)
     mkdirSync(child)
     writeFileSync(join(granted, 'file.txt'), 'x')
     writeFileSync(join(child, 'deep.txt'), 'x')
     const grant = AclWriteGrant.create(workspaceWriteSid(granted))
     grant.add(granted, true)
     try {
+      const explicit = spawnSync('pwsh', ['-NoLogo', '-NonInteractive', '-NoProfile', '-Command',
+        `(Get-Acl -LiteralPath '${child}').Access | Where-Object { -not $_.IsInherited } | ` +
+        'ForEach-Object { \'{0} {1} {2}\' -f $_.IdentityReference, $_.AccessControlType, $_.FileSystemRights }',
+      ], { encoding: 'utf8', timeout: 60_000 })
+      expect(explicit.status, `stderr: ${explicit.stderr}`).toBe(0)
+      expect(explicit.stdout.trim(), 'explicit ACEs on the child directory').toBe('')
       const probe = `
 $ErrorActionPreference='SilentlyContinue'
 Add-Type -Namespace P -Name F -MemberDefinition @'
