@@ -292,9 +292,27 @@ describe('ui-flowleap-dashboard browser half', () => {
       const { ctx, workspace, layout } = await pluginContext(sessions([{ id: 's1', title: 'A', updatedAt: 1 }]))
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
-      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith(expected) })
-      expect(layout.selectPanel).toHaveBeenCalledOnce()
+      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenLastCalledWith(expected) })
+      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(expected === 'flowleap-dashboard'
+        ? ['flowleap-dashboard'] : ['flowleap-dashboard', expected])
       expect(workspace.openSession).not.toHaveBeenCalled()
+      await fiber.dispose()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('selects a page that registers after the start while the dashboard still shows, and not after the user left it', async () => {
+    for (const leave of [false, true]) {
+      window.history.replaceState(null, '', '/?page=late-page')
+      const { ctx, layout, panelInfo } = await pluginContext(sessions([]))
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
+      if (leave) panelInfo.set({ activePanelId: 'flowleap-chats' })
+      const dispose = ctx.slots.register({ name: 'main', key: 'late-page' } as never, () => null)
+      await new Promise(resolve => setTimeout(resolve, 5))
+      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(leave ? ['flowleap-dashboard'] : ['flowleap-dashboard', 'late-page'])
+      dispose()
       await fiber.dispose()
       await ctx.fiber.dispose()
     }
