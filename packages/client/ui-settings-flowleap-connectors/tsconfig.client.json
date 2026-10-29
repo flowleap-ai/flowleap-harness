@@ -19,7 +19,6 @@
     { "path": "../ui-settings/tsconfig.client.json" },
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../../api/remotes/tsconfig.client.json" },
-    { "path": "../../host/flowleap-connectors" },
     { "path": "../../test-support/client-runtime" }
   ]
 }
