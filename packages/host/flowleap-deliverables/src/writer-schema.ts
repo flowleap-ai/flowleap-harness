@@ -31,6 +31,8 @@ export const WRITE_PATENT_RESULTS_DESCRIPTION = 'Save a patent deliverable as a 
   + 'A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. '
   + 'A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).'
 
+/* jscpd:ignore-start -- the IDE's schema repeats the chart-row properties per side; a verbatim copy keeps
+   it comparable with contributes.languageModelTools. */
 /**
  * The IDE's input schema, verbatim. The registry validates `output.schema` only,
  * so the keyword set here is the IDE's own.
@@ -795,3 +797,4 @@ export const WRITE_PATENT_RESULTS_PARAMETERS: Record<string, unknown> = {
     'content',
   ],
 }
+/* jscpd:ignore-end */
