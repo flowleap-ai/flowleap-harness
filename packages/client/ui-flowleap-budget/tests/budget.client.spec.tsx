@@ -12,10 +12,11 @@ import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
+import { apply as applyNode } from '../src/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { BudgetUsedMetric, BudgetWidget, createBudgetSource, type BudgetDependencies } from '../src/client/budget.tsx'
 import { en, NS, zh } from '../src/client/locales.ts'
-import type { BudgetMonth } from '../src/types.ts'
+import type { BudgetMonth } from '@deepseek-ai/dsh-flowleap-budget/types'
 
 afterEach(() => { cleanup() })
 
@@ -182,5 +183,11 @@ describe('ui-flowleap-budget browser half', () => {
       for (const seat of ['dashboard.metric', 'dashboard.widget'] as const) expect(ctx.slots.entries(seat)).toEqual([])
       await ctx.fiber.dispose()
     }
+  })
+})
+
+describe('ui-flowleap-budget node half', () => {
+  it('registers nothing on the host', () => {
+    expect(() => { applyNode() }).not.toThrow()
   })
 })

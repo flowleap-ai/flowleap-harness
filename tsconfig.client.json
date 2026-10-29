@@ -136,7 +136,7 @@
     { "path": "./packages/client/ui-sidebar-files" },
     { "path": "./packages/client/ui-jobs" },
     { "path": "./packages/client/ui-schedule" },
-    { "path": "./packages/client/ui-flowleap-budget/tsconfig.client.json" },
+    { "path": "./packages/client/ui-flowleap-budget" },
     { "path": "./packages/client/ui-flowleap-dashboard" },
     { "path": "./packages/client/ui-flowleap-routines" },
     { "path": "./packages/client/ui-flowleap-agent-builder" },

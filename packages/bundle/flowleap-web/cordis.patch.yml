@@ -299,12 +299,15 @@
     # of the gateway routes above). FLOWLEAP_BUDGET_URL names the gateway's
     # budget read; without it, as in a local run, both show "Unknown" and the
     # reason, never a number.
-    - id: ui-flowleap-budget
-      name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
+    - id: flowleap-budget
+      name: '@deepseek-ai/dsh-flowleap-budget'
       config:
         url: !!js process.env.FLOWLEAP_BUDGET_URL || ''
         apiKeyRef: ANTHROPIC_API_KEY
         timeoutMs: 5000
+
+    - id: ui-flowleap-budget
+      name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
 
     # The Needs review mark of the routines row above: a Sidebar row badge, a
     # Needs review page, Mark as done in the chat header, and a Needs review

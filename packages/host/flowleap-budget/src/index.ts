@@ -3,7 +3,7 @@
  * month from the firm's model gateway, with the runtime's own virtual key. The gateway knows the spend of a key; a
  * runtime has only its own key, so it reads only its own figures. Without a configured address, without the key, or
  * without a valid answer the read reports `unknown` and the reason, never a number.
- * @module @deepseek-ai/dsh-client-ui-flowleap-budget
+ * @module @deepseek-ai/dsh-flowleap-budget
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -38,8 +38,8 @@ export interface Config {
 /** The gateway's answer: the month, the spend, and the budget (`null` for none) of the key's attorney. */
 const answerSchema = zod.object({
   month: zod.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/u),
-  spent_usd: zod.number().finite().nonnegative(),
-  budget_usd: zod.number().finite().nonnegative().nullable(),
+  spent_usd: zod.number().nonnegative(),
+  budget_usd: zod.number().nonnegative().nullable(),
 })
 
 /**

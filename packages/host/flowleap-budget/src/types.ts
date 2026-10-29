@@ -1,7 +1,7 @@
 /**
  * Client-safe vocabulary of the `flowleapBudget` Remote: the attorney's model spend and budget of this month, as the
  * firm's model gateway reports them for the runtime's own virtual key. Types only.
- * @module @deepseek-ai/dsh-client-ui-flowleap-budget/types
+ * @module @deepseek-ai/dsh-flowleap-budget/types
  */
 
 /** Why the spend is not known. */

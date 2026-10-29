@@ -16,6 +16,7 @@ const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
   'packages/host/flowleap-connectors/',
   'packages/host/flowleap-deliverables/',
   'packages/host/flowleap-routines/',
+  'packages/host/flowleap-budget/',
   'packages/client/ui-brand-flowleap/',
   'packages/client/ui-settings-flowleap-connectors/',
 ] as const

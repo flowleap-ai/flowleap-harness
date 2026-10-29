@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-budget",
-  "description": "The attorney's model spend and budget of this month on the FlowLeap dashboard: the flowleapBudget Remote that reads the firm's model gateway with the runtime's own virtual key, the Budget this month panel, and the Budget used card",
+  "description": "Budget used and Budget this month on the FlowLeap dashboard, over the flowleapBudget Remote of dsh-flowleap-budget",
   "version": "0.2.2-alpha.2",
   "publishConfig": {
     "access": "public"
@@ -24,17 +24,6 @@
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
-    "./typert": {
-      "types": "./lib/typert.host.d.ts",
-      "default": "./lib/typert.host.js"
-    },
-    "./remote": {
-      "types": "./lib/typert.remote-client.d.ts",
-      "default": "./lib/typert.remote-client.js"
-    },
-    "./types": {
-      "types": "./lib/types/types.d.ts"
-    },
     "./locale/*.json": "./locale/*.json"
   },
   "dsh": {
@@ -57,11 +46,6 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~"
   },
-  "dependencies": {
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
-    "zod": "4.4.3"
-  },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-api-remote-access": "workspace:*",
@@ -76,7 +60,7 @@
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
     "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
-    "@deepseek-ai/dsh-credentials": "workspace:*",
+    "@deepseek-ai/dsh-flowleap-budget": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -85,10 +69,6 @@
     "locale/*.json",
     "lib/index.js",
     "lib/client.js",
-    "lib/types/**/*.d.ts",
-    "lib/typert.host.js",
-    "lib/typert.host.d.ts",
-    "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts"
+    "lib/types/**/*.d.ts"
   ]
 }

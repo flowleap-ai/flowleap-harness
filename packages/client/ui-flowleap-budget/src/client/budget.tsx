@@ -7,7 +7,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-flowleap-dashboard/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
-import type { BudgetMonth } from '../types.ts'
+import type { BudgetMonth } from '@deepseek-ai/dsh-flowleap-budget/types'
 import type { NS } from './locales.ts'
 import css from './Budget.module.css'
 

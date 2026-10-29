@@ -1525,9 +1525,6 @@ importers:
       '@deepseek-ai/dsh-client-product-analytics':
         specifier: workspace:*
         version: link:../../client/product-analytics
-      '@deepseek-ai/dsh-client-ui-flowleap-budget':
-        specifier: workspace:*
-        version: link:../../client/ui-flowleap-budget
       '@deepseek-ai/dsh-client-ui-plugin-manager':
         specifier: workspace:*
         version: link:../../client/ui-plugin-manager
@@ -1555,6 +1552,9 @@ importers:
       '@deepseek-ai/dsh-flowleap-agent-builder':
         specifier: workspace:*
         version: link:../../host/flowleap-agent-builder
+      '@deepseek-ai/dsh-flowleap-budget':
+        specifier: workspace:*
+        version: link:../../host/flowleap-budget
       '@deepseek-ai/dsh-flowleap-connectors':
         specifier: workspace:*
         version: link:../../host/flowleap-connectors
@@ -2735,6 +2735,9 @@ importers:
       '@deepseek-ai/dsh-flowleap-agent-builder':
         specifier: workspace:*
         version: link:../../host/flowleap-agent-builder
+      '@deepseek-ai/dsh-flowleap-budget':
+        specifier: workspace:*
+        version: link:../../host/flowleap-budget
       '@deepseek-ai/dsh-flowleap-connectors':
         specifier: workspace:*
         version: link:../../host/flowleap-connectors
@@ -4606,16 +4609,6 @@ importers:
         version: 18.3.1(react@18.3.1)
 
   packages/client/ui-flowleap-budget:
-    dependencies:
-      '@deepseek-ai/dsh-typert-protocol':
-        specifier: workspace:*
-        version: link:../../typert/protocol
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~
@@ -4656,9 +4649,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../ui-slots
-      '@deepseek-ai/dsh-credentials':
+      '@deepseek-ai/dsh-flowleap-budget':
         specifier: workspace:*
-        version: link:../../credentials/credentials
+        version: link:../../host/flowleap-budget
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -12942,6 +12935,25 @@ importers:
       execa:
         specifier: ^10.0.1
         version: 10.0.1
+
+  packages/host/flowleap-budget:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
 
   packages/host/flowleap-connectors:
     dependencies:

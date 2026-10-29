@@ -424,7 +424,7 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'flowleapBudget',
-    pkg: 'client-ui-flowleap-budget',
+    pkg: 'flowleap-budget',
     title: 'FlowLeap budget Remote',
     mode: 'service',
     consumers: ['client-ui-flowleap-budget'],

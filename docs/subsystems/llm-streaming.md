@@ -1010,7 +1010,7 @@ Host service backing the generated `ctx.remote.flowleapBudget` namespace.
 @Remote async month(): Promise<BudgetMonth>
 ```
 
-Source: [`packages/client/ui-flowleap-budget/src/index.ts`](../../packages/client/ui-flowleap-budget/src/index.ts)
+Source: [`packages/host/flowleap-budget/src/index.ts`](../../packages/host/flowleap-budget/src/index.ts)
 
 <a id="ctxllm--llmruntime"></a>
 

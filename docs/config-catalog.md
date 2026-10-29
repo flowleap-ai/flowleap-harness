@@ -577,29 +577,6 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
 
-<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-budget -->
-<a id="deepseek-aidsh-client-ui-flowleap-budget"></a>
-
-## `@deepseek-ai/dsh-client-ui-flowleap-budget`
-
-- `source`: [`packages/client/ui-flowleap-budget/src/index.ts:27`](../packages/client/ui-flowleap-budget/src/index.ts)
-
-```ts config-catalog
-/** Plugin config. */
-export interface Config {
-  /**
-   * Address of the gateway's budget read, for example `http://flowleap-gateway:4000/flowleap/budget`; empty when the
-   * runtime has no gateway, and every read then reports `unknown` (`not_configured`).
-   */
-  url: string
-  /** Credential reference (environment-variable name) of the runtime's own virtual key; sent as a bearer token. */
-  apiKeyRef: string
-  /** Longest time one read may take, in milliseconds. */
-  timeoutMs: number
-}
-```
-<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-budget -->
-
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
 
@@ -1697,6 +1674,30 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-budget -->
+<a id="deepseek-aidsh-flowleap-budget"></a>
+
+## `@deepseek-ai/dsh-flowleap-budget`
+
+- `inject`: `credentials`
+- `source`: [`packages/host/flowleap-budget/src/index.ts:26`](../packages/host/flowleap-budget/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /**
+   * Address of the gateway's budget read, for example `http://flowleap-gateway:4000/flowleap/budget`; empty when the
+   * runtime has no gateway, and every read then reports `unknown` (`not_configured`).
+   */
+  url: string
+  /** Credential reference (environment-variable name) of the runtime's own virtual key; sent as a bearer token. */
+  apiKeyRef: string
+  /** Longest time one read may take, in milliseconds. */
+  timeoutMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-budget -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
 <a id="deepseek-aidsh-flowleap-connectors"></a>
@@ -5144,6 +5145,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | — | [`packages/client/ui-flowleap-agent-builder/src/index.ts`](../packages/client/ui-flowleap-agent-builder/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-flowleap-budget` | — | [`packages/client/ui-flowleap-budget/src/index.ts`](../packages/client/ui-flowleap-budget/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-dashboard` | — | [`packages/client/ui-flowleap-dashboard/src/index.ts`](../packages/client/ui-flowleap-dashboard/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-routines` | — | [`packages/client/ui-flowleap-routines/src/index.ts`](../packages/client/ui-flowleap-routines/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-work-pages` | — | [`packages/client/ui-flowleap-work-pages/src/index.ts`](../packages/client/ui-flowleap-work-pages/src/index.ts) |
