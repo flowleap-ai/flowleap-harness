@@ -67,4 +67,17 @@ describe('the watches Remote', () => {
     expect(await test.ctx.flowleapRoutines.watches()).toEqual([])
     expect(test.chats!.allows).toHaveBeenCalledWith({ kind: 'session', id: test.agent.id })
   })
+
+  it('tells clients to read again after a watch is saved and after a prune removes it', async () => {
+    const test = await host(new MemoryMediaPool(), { chats: true })
+    const changed = vi.fn()
+    test.ctx.on('flowleap-routines/changed', changed)
+    const created = await createWatch(test, ['EP 3 456 789'])
+    expect(changed).toHaveBeenCalledOnce()
+    expect(await test.ctx.flowleapRoutines.watches()).toHaveLength(1)
+    await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id: (created.value as { id: ScheduleCatalogEntry['id'] }).id })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(changed).toHaveBeenCalledTimes(2)
+    expect(await test.ctx.flowleapRoutines.watches()).toEqual([])
+  })
 })

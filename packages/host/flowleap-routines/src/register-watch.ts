@@ -139,6 +139,7 @@ export class RegisterWatches {
    * @param options - read interval, read deadline, and run text bounds.
    * @param logger - plugin logger for failed reads.
    * @param chats - opens the chat of a `newChat` run.
+   * @param changed - called after a watch row is saved by `start` or removed by `prune`, so clients read the watches again.
    */
   constructor(
     private readonly domain: Promise<Domain<typeof routinesDomain>>,
@@ -146,6 +147,7 @@ export class RegisterWatches {
     private readonly options: RegisterWatchOptions,
     private readonly logger: Context['logger'],
     readonly chats: RunChats,
+    private readonly changed: () => void,
   ) {}
 
   /**
@@ -189,6 +191,7 @@ export class RegisterWatches {
     }
     const domain = await this.domain
     await this.serialize(() => domain.table('watches').put(id, watch))
+    this.changed()
     return reads.map(({ application, read }) => ({ application, entries: read.entries.length }))
   }
 
@@ -295,6 +298,7 @@ export class RegisterWatches {
       const unused = [...new Set(gone.flatMap(([, watch]) => watch.applications.map(({ application }) => application)))]
         .filter(application => !named.has(application))
       await domain.table('reads').deleteMany(unused)
+      this.changed()
     })
   }
 

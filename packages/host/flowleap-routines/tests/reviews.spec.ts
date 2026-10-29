@@ -219,11 +219,12 @@ describe('the Needs review mark', () => {
     test.ctx.on('flowleap-routines/changed', changed)
     test.chats!.nextStatus = 'running'
     const id = await runOnce(test)
+    // The first change is the saved watch, the second the mark.
     const review = test.chats!.opened[0]!
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([
       { sessionId: review.id, taskId: id, state: 'running', since: '2026-11-03T07:00:00.000Z' },
     ])
-    expect(changed).toHaveBeenCalledTimes(1)
+    expect(changed).toHaveBeenCalledTimes(2)
     vi.setSystemTime(new Date('2026-11-03T07:05:00Z'))
     test.ctx.emit('agent/status', { agent: test.agent, status: 'idle' })
     test.ctx.emit('agent/status', { agent: review, status: 'running' })
@@ -234,7 +235,7 @@ describe('the Needs review mark', () => {
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([
       { sessionId: review.id, taskId: id, state: 'needs_review', since: '2026-11-03T07:05:00.000Z' },
     ])
-    expect(changed).toHaveBeenCalledTimes(2)
+    expect(changed).toHaveBeenCalledTimes(3)
     test.ctx.emit('agent/status', { agent: review, status: 'idle' })
     answer(review, { kind: 'schedule' })
     await vi.advanceTimersByTimeAsync(0)
@@ -243,7 +244,7 @@ describe('the Needs review mark', () => {
     answer(review, { kind: 'user' })
     await vi.advanceTimersByTimeAsync(0)
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([])
-    expect(changed).toHaveBeenCalledTimes(3)
+    expect(changed).toHaveBeenCalledTimes(4)
   })
 
   it('marks a chat whose Agent is idle at delivery needs_review at once, and keeps the mark of a deleted task', async () => {

@@ -62,7 +62,8 @@ export interface RoutineWatch {
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
-     * A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.
+     * A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch
+     * `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.
      * @mode emit
      */
     'flowleap-routines/changed'(): void

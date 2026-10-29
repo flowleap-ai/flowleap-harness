@@ -103,7 +103,7 @@ export function apply(ctx: Context, config: Config): void {
     minReadIntervalMs: config.minReadIntervalHours * 3_600_000,
     readDeadlineMs: config.readDeadlineSeconds * 1000,
     bounds: { maxEvents: config.maxEventsPerRun, maxTextLength: config.maxEventTextLength },
-  }, ctx.logger, chats)
+  }, ctx.logger, chats, () => { ctx.emit('flowleap-routines/changed') })
   const reviews = new ReviewMarks(opened, ctx.agents, () => { ctx.emit('flowleap-routines/changed') })
   const warn = (what: string) => (error: unknown) => { ctx.logger.warn(`register watch: ${what}: ${String(error)}`) }
   // A Host stop ended every run that was still working; the attorney still reviews what it did.
