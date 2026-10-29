@@ -113,13 +113,14 @@ export function removeClaimTool(ctx: Context, deps: DraftingToolDependencies): T
     workspace: DraftingWorkspace, exec: ToolRunContext, { claim }: RemoveClaimInput, refusal: string,
   ): Promise<DraftingToolValue> => {
     const { folder } = workspace
-    if (await workspace.read(folder.claims) === undefined) {
-      return refused(await workspace.refusal(refusal, `${folder.claims} does not exist.`))
-    }
     // Ties an approval that no tool has read yet to the current claims body first, so the edit
     // below cannot carry it over to the changed claims.
     await workspace.checkClaimsApproval()
-    const removal = removeClaim(await workspace.read(folder.claims) ?? '', claim)
+    const claims = await workspace.read(folder.claims)
+    if (claims === undefined) {
+      return refused(await workspace.refusal(refusal, `${folder.claims} does not exist.`))
+    }
+    const removal = removeClaim(claims, claim)
     if (!removal.removed) {
       if (removal.reason === 'no-claim') {
         return refused(await workspace.refusal(refusal, `${folder.claims} has no claim ${String(claim)}.`))

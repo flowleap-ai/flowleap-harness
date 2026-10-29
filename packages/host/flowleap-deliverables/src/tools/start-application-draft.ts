@@ -162,7 +162,8 @@ export function startApplicationDraftTool(ctx: Context, deps: DraftingToolDepend
         '',
         `### Style exemplar ${String(index + 1)}: ${exemplar.path} (style only, never a source)`,
         '',
-        exemplar.error ? `Not read: ${exemplar.error}.` : `${exemplar.text?.trim() ?? ''}${exemplar.truncated ? '\n\n[Exemplar cut here; the rest is not shown.]' : ''}`,
+        // An exemplar carries its text, or the error that kept it from being read.
+        exemplar.text === undefined ? `Not read: ${String(exemplar.error)}.` : `${exemplar.text.trim()}${exemplar.truncated ? '\n\n[Exemplar cut here; the rest is not shown.]' : ''}`,
       ]),
     ]
     deps.info(`flowleap-deliverables: drafting started for ${folder.folder}`)
