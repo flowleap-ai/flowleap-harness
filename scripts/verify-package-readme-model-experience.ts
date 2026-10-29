@@ -167,6 +167,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-settings-web-search': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-settings-flowleap-connectors': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-flowleap-agent-builder': { kind: 'none', reason: 'Browser-side agent picker rows and agent form over the flowleapAgents Remote; dsh-flowleap-agent-builder owns the model-visible sections and tools.' },
+  'packages/client/ui-flowleap-dashboard': { kind: 'none', reason: 'Browser-side dashboard page, panels, and sidebar layers; the ask bar only fills a new chat composer.' },
   'packages/client/ui-flowleap-routines': { kind: 'none', reason: 'Browser-side Needs review badge, page, and filter over the flowleapRoutines Remote; registers no model surface.' },
   'packages/client/ui-flowleap-work-pages': { kind: 'none', reason: 'Browser-side office action board with sample data; registers no model surface.' },
   'packages/client/ui-plan': { kind: 'indirect', reason: 'The chip dispatches /plan off; dsh-plan-mode owns the model-visible policy, exit tool, and logged state.' },

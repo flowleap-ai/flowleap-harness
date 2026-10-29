@@ -180,3 +180,28 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Dashboard surfaces: the metric card body and the panel's empty line and page link. */
+.metricValue {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricCaption {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.widgetEmpty {
+  margin: 0 0 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+.widgetAll {
+  align-self: flex-start;
+  margin-top: 4px;
+}

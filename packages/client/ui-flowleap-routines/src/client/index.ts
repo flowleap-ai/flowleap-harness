@@ -3,7 +3,8 @@
  * row, lists on the Needs review page, offers Mark as done in its Session header, and selects its task through the
  * Automation tasks page's `schedule.manager.filter` tab. Every surface reads one shared source over
  * `flowleapRoutines.reviews()` and `schedule.catalog()`, which reads again on `flowleap-routines/changed`,
- * `schedule/changed`, and `connection/reset`. A `running` mark is not shown.
+ * `schedule/changed`, and `connection/reset`. A `running` mark is not shown. On the FlowLeap dashboard it adds the
+ * "Waiting for review" metric card and the "Needs your review" panel.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -18,6 +19,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRoutinesKey } from './locales.ts'
 import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from './marks.tsx'
 import { NeedsReviewPage } from './NeedsReviewPage.tsx'
+import { NeedsYourReviewWidget, WaitingForReviewMetric } from './dashboard.tsx'
 import { createReviewsSource } from './reviews-source.ts'
 
 export type { FlowleapRoutinesKey } from './locales.ts'
@@ -34,7 +36,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const PANEL_ID = 'flowleap-needs-review' as MainPanelId
 
 /** Required services: slots, copy, the Remote namespaces, Session navigation, and access. */
-export const inject = ['slots', 'locale', 'remote', 'remote.flowleapRoutines', 'remote.schedule', 'uiWorkspace', 'remoteAccess']
+export const inject = ['slots', 'locale', 'layout', 'remote', 'remote.flowleapRoutines', 'remote.schedule', 'uiWorkspace', 'remoteAccess']
 
 /**
  * Register the Needs review surfaces while the current Peer may read the marks.
@@ -69,6 +71,19 @@ export function apply(ctx: ClientContext): void {
       name: 'main', key: PANEL_ID, locale: NS,
       inject: () => ({ ...source, onOpenSession: (sessionId: SessionId) => { ctx.uiWorkspace.openSession(sessionId) } }),
     }, NeedsReviewPage))
+    // The dashboard (ui-flowleap-dashboard) declares these slots; without it the two registrations wait and do nothing.
+    yield ctx.slots.inject('dashboard.metric', () => ctx.slots.register({
+      name: 'dashboard.metric', id: 'flowleap-waiting-for-review', order: 10, locale: NS, label: () => t('dashboard.metric'),
+      inject: shared,
+    }, WaitingForReviewMetric))
+    yield ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
+      name: 'dashboard.widget', id: 'flowleap-needs-your-review', order: 10, locale: NS, label: () => t('dashboard.widget'),
+      inject: () => ({
+        hooks: source.hooks,
+        onOpenSession: (sessionId: SessionId) => { ctx.uiWorkspace.openSession(sessionId) },
+        onOpenAll: () => { ctx.layout.selectPanel(PANEL_ID) },
+      }),
+    }, NeedsYourReviewWidget))
     yield ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
       name: 'conversation.session.header.utilities', id: 'flowleap-needs-review', order: -6, locale: NS,
       inject: () => ({ hooks: source.hooks, onDone: source.onDone }),

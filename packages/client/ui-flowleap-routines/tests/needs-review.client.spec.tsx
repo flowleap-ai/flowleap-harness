@@ -388,6 +388,7 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
     provider.provide('remote.schedule', { catalog: async () => ok(tasks) } as never)
   } }).await()
   ctx.provide('uiWorkspace', { openSession: vi.fn() } as never)
+  ctx.provide('layout', { selectPanel: vi.fn() } as never)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   ctx.slots.register({
@@ -398,6 +399,8 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
       main: { kind: 'keyed', scope: 'root' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
       'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true },
+      'dashboard.metric': { kind: 'list', scope: 'root' },
+      'dashboard.widget': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
   return ctx
@@ -405,11 +408,12 @@ async function pluginContext(allows: (action: string) => boolean = () => true): 
 
 const SEATS = [
   'sidebar.session.row.trailing', 'sidebar.panellist', 'main', 'conversation.session.header.utilities', 'schedule.manager.filter',
+  'dashboard.metric', 'dashboard.widget',
 ] as const
 
 describe('ui-flowleap-routines browser half', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.flowleapRoutines', 'remote.schedule', 'uiWorkspace', 'remoteAccess'])
+    expect(inject).toEqual(['slots', 'locale', 'layout', 'remote', 'remote.flowleapRoutines', 'remote.schedule', 'uiWorkspace', 'remoteAccess'])
   })
 
   it('registers every surface while the Peer may read the marks and removes them on dispose', async () => {
@@ -446,6 +450,8 @@ describe('ui-flowleap-routines browser half', () => {
     } }).await()
     const openSession = vi.fn()
     ctx.provide('uiWorkspace', { openSession } as never)
+    const selectPanel = vi.fn()
+    ctx.provide('layout', { selectPanel } as never)
     ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
     await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
     ctx.slots.register({
@@ -456,6 +462,8 @@ describe('ui-flowleap-routines browser half', () => {
         main: { kind: 'keyed', scope: 'root' },
         'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
         'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true },
+        'dashboard.metric': { kind: 'list', scope: 'root' },
+        'dashboard.widget': { kind: 'list', scope: 'root' },
       },
     } as never, () => null)
     const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -489,6 +497,13 @@ describe('ui-flowleap-routines browser half', () => {
     expect(injected('sidebar.session.row.trailing').hooks).toBeDefined()
     expect(injected('sidebar.panellist').hooks).toBeDefined()
     expect(injected('schedule.manager.filter').hooks).toBeDefined()
+    expect(injected('dashboard.metric').hooks).toBeDefined()
+    const widget = injected('dashboard.widget') as Injected & { onOpenAll: () => void }
+    widget.onOpenSession!(beta)
+    expect(openSession).toHaveBeenCalledWith(beta)
+    widget.onOpenAll()
+    expect(selectPanel).toHaveBeenCalledWith('flowleap-needs-review')
+    expect((ctx.slots.entries('dashboard.widget')[0]!.options.label as () => string)()).toBe(en['dashboard.widget'])
 
     stop()
     expect(listeners.get('flowleap-routines/changed')?.size).toBe(0)

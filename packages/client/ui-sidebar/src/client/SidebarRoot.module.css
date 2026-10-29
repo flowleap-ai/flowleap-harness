@@ -526,6 +526,28 @@
   }
 }
 
+.actionList,
+.sectionList {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actionList:not(:empty) {
+  margin-bottom: 8px;
+}
+
+.sectionList:not(:empty) {
+  margin-bottom: 8px;
+}
+
+.collapsed .actionList,
+.collapsed .sectionList {
+  align-items: center;
+  gap: 12px;
+}
+
 .panelList {
   flex: none;
   display: flex;
