@@ -28,11 +28,14 @@ function outlineFindingsSummary(findings: readonly DraftFinding[]): string {
 	const errors = findings.filter(finding => finding.severity === 'Error');
 	const notes = findings.length - errors.length;
 	if (!errors.length) {
+		/* v8 ignore next -- checkOutline reports Errors only, so notes is 0 */
 		return `Outline check: no Error${notes ? `, ${notes} Note(s)` : ''}.`;
 	}
 	const more = errors.length - MAX_LISTED_ERRORS;
 	return [
+		/* v8 ignore start -- checkOutline reports Errors only, so notes is 0 */
 		`Outline check: ${errors.length} Error(s)${notes ? `, ${notes} Note(s)` : ''}. Fix them in the outline and save it again before drafting:`,
+		/* v8 ignore stop */
 		...errors.slice(0, MAX_LISTED_ERRORS).map(findingLine),
 		...(more > 0 ? [`- and ${more} more.`] : []),
 	].join('\n');
@@ -92,6 +95,7 @@ async function save(workspace: DraftingWorkspace, content: string): Promise<Draf
 	// Read again: requireApprovedClaims may have rewritten the frontmatter of claims.md, which moves the claim lines.
 	const findings = checkOutline({
 		outline: document,
+		/* v8 ignore next -- requireApprovedClaims read claims.md, so it exists */
 		claims: await workspace.read(folder.claims) ?? '',
 		approvedClaimsHash: approval.hash,
 		featureList: featureList.text,

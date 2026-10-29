@@ -12,11 +12,10 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { buildInventorQuestionsDocx, readInventorQuestionsDocx } from '../docx/inventor-questions.ts'
 import { currentAnswer, fillInventorAnswers, openInventorQuestions, parseInventorAnswers } from '../drafting/inventor-answers.ts'
 import type { DraftingWorkspace } from '../drafting/workspace.ts'
-import { delivered, isDraftingToolValue, matterArgument, openMatter, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
+import { delivered, draftingToolDefinition, matterArgument, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
 
 /** The tool name, shared with the IDE and the exported Patent Agent prompt. */
 export const INVENTOR_QUESTIONS_NAME = 'inventor_questions'
@@ -80,7 +79,6 @@ export function parseInventorQuestionsArgs(args: unknown): InventorQuestionsInpu
  * @returns the unregistered dsh definition.
  */
 export function inventorQuestionsTool(ctx: Context, deps: DraftingToolDependencies): ToolDefinition {
-  const now = deps.now ?? (() => new Date())
 
   /** The question ids that an answered document at `path` would fill now: answers a new document would replace. */
   const notImported = async (workspace: DraftingWorkspace, answers: string, path: string): Promise<readonly string[]> => {
@@ -152,13 +150,10 @@ export function inventorQuestionsTool(ctx: Context, deps: DraftingToolDependenci
     return delivered(deps, exec, workspace, [{ path: folder.inventorAnswers, description: 'Inventor answers' }], text)
   }
 
-  const execute = async (input: InventorQuestionsInput, exec: ToolRunContext): Promise<DraftingToolValue> => {
+  const execute = async (
+    workspace: DraftingWorkspace, exec: ToolRunContext, input: InventorQuestionsInput, refusal: string,
+  ): Promise<DraftingToolValue> => {
     const importing = input.action === 'import'
-    const refusal = importing ? 'No answer was copied.' : 'The Inventor Questions document was not written.'
-    const workspace = await openMatter(ctx, input.matter, exec, { now })
-    if (typeof workspace === 'string') {
-      return refused(`${refusal} ${workspace}`)
-    }
     const answers = await workspace.read(workspace.folder.inventorAnswers)
     if (answers === undefined) {
       return refused(await workspace.refusal(refusal, `${workspace.folder.inventorAnswers} does not exist: the save of a draft with Inventor Questions writes it.`))
@@ -166,23 +161,13 @@ export function inventorQuestionsTool(ctx: Context, deps: DraftingToolDependenci
     return importing ? importAnswers(workspace, answers, input.file, refusal, exec) : send(workspace, answers, refusal, exec)
   }
 
-  return {
+  return draftingToolDefinition(ctx, deps, {
     name: INVENTOR_QUESTIONS_NAME,
     description: INVENTOR_QUESTIONS_DESCRIPTION,
     parameters: INVENTOR_QUESTIONS_PARAMETERS,
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
-    },
-    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
-      const input = parseInventorQuestionsArgs(args)
-      try {
-        return { ...await execute(input, exec) }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        deps.warn(`flowleap-deliverables: ${INVENTOR_QUESTIONS_NAME} failed: ${message}`)
-        return { ...refused(`${input.action === 'import' ? 'No answer was copied.' : 'The Inventor Questions document was not written.'} ${message}`) }
-      }
-    },
-  }
+    parse: parseInventorQuestionsArgs,
+    matter: input => input.matter,
+    refusal: input => input.action === 'import' ? 'No answer was copied.' : 'The Inventor Questions document was not written.',
+    execute,
+  })
 }

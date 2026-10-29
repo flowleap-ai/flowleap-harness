@@ -13,15 +13,10 @@ import { createHash } from 'node:crypto'
  * @returns the text with `<`, `>` and `&` escaped.
  */
 export function escape(html: string): string {
-  return html.replace(/[<>&]/g, (match) => {
-    switch (match) {
-      case '<': return '&lt;'
-      case '>': return '&gt;'
-      case '&': return '&amp;'
-      default: return match
-    }
-  })
+  return html.replace(/[<>&]/g, match => HTML_ESCAPES[match as keyof typeof HTML_ESCAPES])
 }
+
+const HTML_ESCAPES = { '<': '&lt;', '>': '&gt;', '&': '&amp;' } as const
 
 /**
  * Escape regular-expression metacharacters so a value matches literally.

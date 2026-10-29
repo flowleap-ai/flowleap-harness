@@ -26,7 +26,9 @@ const SSH_SPEC = `git+ssh://git@git.example/team/sub/plugin.git#${'a'.repeat(40)
 
 async function fixture() {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-git-transport-'))
-  onTestFinished(() => rm(dir, { recursive: true, force: true }))
+  // On Windows, `git` is a launcher whose Git child can outlive a cancelled probe for a moment and keeps
+  // this directory open as its working directory; removal waits for that handle instead of failing with EBUSY.
+  onTestFinished(() => rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }))
   const config = join(dir, 'git.config')
   await writeFile(config, '')
   const env = { GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1' }

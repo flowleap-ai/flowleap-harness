@@ -233,7 +233,6 @@ export async function confirmRemoval(
   const approve = seams.approve()
   const agent = exec.agent
   const policy = agent === undefined ? undefined : seams.approvalPolicy(agent.session)
-  let fallBack = approve === undefined || agent === undefined
   if (approve !== undefined && agent !== undefined && policy !== 'never') {
     let outcome: ApprovalOutcome
     try {
@@ -246,12 +245,9 @@ export async function confirmRemoval(
     if (outcome === 'allowed-once') return { confirmed: true, via: 'approval' }
     if (outcome === 'rejected') return { confirmed: false, reason: 'rejected' }
     if (outcome === 'cancelled') return { confirmed: false, reason: 'aborted' }
-    fallBack = true
   } else if (policy === 'never') {
     seams.info?.('flowleap-deliverables: remove_claim approval skipped: the session policy is never; asking a question card instead')
-    fallBack = true
   }
-  if (!fallBack) return { confirmed: false, reason: 'no-channel' }
   const label = `Remove claim ${String(claim)}`
   const answer = await askCard(seams, exec, [{
     id: 'remove-claim',

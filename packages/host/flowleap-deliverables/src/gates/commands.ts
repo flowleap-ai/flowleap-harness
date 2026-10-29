@@ -38,7 +38,9 @@ export interface GateCommandDependencies {
 /** The matter name and the rest of a command line. */
 function splitMatter(rawInput: string): { matter: string; rest: string } | undefined {
   const match = /^\s*(?<matter>\S+)(?<rest>[\s\S]*)$/.exec(rawInput)
-  return match?.groups ? { matter: match.groups['matter'] ?? '', rest: match.groups['rest'] ?? '' } : undefined
+  if (!match?.groups) return undefined
+  const { matter = '', rest = '' } = match.groups
+  return { matter, rest }
 }
 
 function error(text: string): CommandResult {
@@ -103,13 +105,12 @@ export function registerGateCommands(ctx: Context, deps: GateCommandDependencies
       const path = workspace.folder.findings
       const text = await workspace.read(path)
       if (text === undefined) return error(`${path} does not exist: run validate_draft first. Nothing was written.`)
-      const lines = waiveTarget(text, target)
-      if (!lines.length) {
+      // The pattern guarantees a non-blank reason, so withWaivers declines only when no open Error matches the target.
+      const next = withWaivers(text, waiveTarget(text, target), reason.trim())
+      if (next === undefined) {
         const open = parseFindingsFileItems(text).filter(isWaivableError)
         return error(`${path} has no open Error ${/^\d+$/.test(target) ? `on line ${target}` : `of rule ${target}`}. Open: ${open.length ? open.map(item => `line ${String(item.fileLine)} (${item.finding.rule})`).join(', ') : 'none'}. Nothing was written.`)
       }
-      const next = withWaivers(text, lines, reason.trim())
-      if (next === undefined) return error('The reason must be one non-empty line. Nothing was written.')
       const openBefore = parseFindingsFileItems(text).filter(isWaivableError).length
       await workspace.write(path, next.text)
       const after = await workspace.read(path) ?? ''

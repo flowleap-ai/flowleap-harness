@@ -12,7 +12,7 @@
 
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { provideWorkingDirectoryFixture, unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
@@ -87,7 +87,7 @@ async function bench() {
 /** The presented files of a Session: `[relative path, description]` per event. */
 function presented(session: Session) {
   return session.snapshotEvents().flatMap(event => event.type === 'deliverables/presented'
-    ? [event.data.files.map(file => [file.path.replace(`${dir}/`, ''), file.description])]
+    ? [event.data.files.map(file => [relative(dir, file.path).split(sep).join('/'), file.description])]
     : [])
 }
 

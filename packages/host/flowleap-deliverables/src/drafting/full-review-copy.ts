@@ -72,6 +72,7 @@ const noSection = `no such section in ${DRAFTING_FILE_NAMES.draft}`;
 const noFigures = `no figures in ${DRAFTING_FILE_NAMES.figures}`;
 
 function toBlock(paragraph: FilingParagraph): ReviewCopyBlock {
+	/* v8 ignore next -- filingParagraphs sets a level on every heading */
 	return paragraph.kind === 'heading' ? heading(paragraph.level ?? 1, paragraph.text) : text(paragraph.text);
 }
 

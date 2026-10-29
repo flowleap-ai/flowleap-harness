@@ -117,6 +117,7 @@ function fragmentIndex(text: string, fragment: string): number {
 	const direct = text.toLowerCase().indexOf(fragment.toLowerCase());
 	if (direct >= 0) { return direct; }
 	const words = fragment.trim().split(/\s+/).filter(Boolean).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+	/* v8 ignore next -- the caller passes a trimmed, non-empty fragment, which has at least one word. */
 	if (!words.length) { return -1; }
 	return text.match(new RegExp(words.join('\\s+'), 'i'))?.index ?? -1;
 }
@@ -130,6 +131,7 @@ function passageWindow(text: string, fragment: string | undefined): string {
 	const trimmed = fragment?.trim();
 	const index = trimmed ? fragmentIndex(text, trimmed) : -1;
 	if (index < 0) { return text.slice(0, PASSAGE_WINDOW); }
+	/* v8 ignore next -- a fragment was found, so `trimmed` is set. */
 	const lead = Math.floor(Math.max(0, PASSAGE_WINDOW - (trimmed?.length ?? 0)) / 2);
 	const start = Math.max(0, Math.min(index - lead, text.length - PASSAGE_WINDOW));
 	return text.slice(start, start + PASSAGE_WINDOW);
@@ -165,6 +167,7 @@ export function buildSecondReadRequests(review: SecondReadReview, snapshot: Seco
 		.map(row => ({
 			feature: row.feature,
 			status: row.status,
+			/* v8 ignore next -- the filter above keeps only rows with elements. */
 			elements: (row.elements ?? []).filter(element => !restsOnDrawing(element)).map(element => {
 				const anchor = element.anchor?.trim();
 				const fragment = element.disclosedBy?.trim();

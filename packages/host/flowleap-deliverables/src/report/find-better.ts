@@ -166,6 +166,7 @@ function sideRow(row: PatentCoverageRow, side: FindBetterSideName): PatentCovera
 		claimNumber: row.claimNumber,
 		status: value.status,
 		sourceAnchors: value.sourceAnchors ?? [],
+		/* v8 ignore next -- a side has a gap by its type and by the writer schema. */
 		gap: value.gap ?? '',
 		evidence: value.evidence,
 		elements: value.elements,
@@ -185,6 +186,7 @@ function hasSides(review: PatentCandidateReview): boolean {
  */
 export function flattenSides<T extends PatentCandidateReview>(review: T): T {
 	if (!hasSides(review)) { return review; }
+	/* v8 ignore next -- hasSides found a row, so the review has coverage. */
 	return { ...review, coverage: (review.coverage ?? []).flatMap(row => [sideRow(row, 'examiner'), sideRow(row, 'found')].filter((value): value is PatentCoverageRow => !!value)) };
 }
 
@@ -320,7 +322,9 @@ function rerunBaseline(baseline: ExaminerBaseline): string {
  */
 function citationsByCiting(baseline: ExaminerBaseline): ReadonlyMap<string, number> {
 	const counted = new Map<string, number>();
+	/* v8 ignore start -- findBetterErrors checks that documents is an array before it counts citations. */
 	for (const document of baseline.documents ?? []) {
+		/* v8 ignore stop */
 		for (const cell of Object.values(document.cells ?? {})) {
 			for (const citation of cell?.citations ?? []) {
 				const citing = citation?.citing?.trim().toUpperCase();
@@ -416,6 +420,7 @@ export function findBetterErrors(review: PatentCandidateReview, sources: Map<str
 	}
 	for (const claim of claims) {
 		if (!bestArt.has(claim)) { errors.push(`Claim ${claim} has rows but no examinerBestArt entry. Name the examiner's best art for every claim the report compares.`); }
+		/* v8 ignore next -- `claims` comes from the coverage rows, so the review has coverage. */
 		if (!(review.coverage ?? []).some(row => row.claimNumber?.trim() === claim && row.kind === 'feature')) { errors.push(`Claim ${claim} has no element rows (kind feature); the comparison counts disclosed elements, so list each element of the claim.`); }
 	}
 	for (const claim of bestArt.keys()) {
@@ -470,6 +475,7 @@ export interface ClaimComparison {
 export function claimComparisons(review: PatentCandidateReview): readonly ClaimComparison[] {
 	const claims = [...new Set((review.coverage ?? []).flatMap(row => row.claimNumber?.trim() ? [row.claimNumber.trim()] : []))];
 	return claims.map(claim => {
+		/* v8 ignore next -- `claims` comes from the coverage rows, so the review has coverage. */
 		const rows = (review.coverage ?? []).filter(row => row.claimNumber?.trim() === claim && row.kind === 'feature');
 		return {
 			claim,
@@ -525,6 +531,7 @@ const MANDATORY_TRACKS = 3;
  */
 function backwardTrack(review: FindBetterFields): FindBetterTrack | undefined {
 	const tracks = review.tracks ?? [];
+	/* v8 ignore next -- a track has a name by its type and by the writer schema. */
 	return tracks.find(track => /backward/i.test(track?.name ?? '')) ?? tracks[0];
 }
 

@@ -7,9 +7,11 @@
  * asked saves the proposal marked as not confirmed.
  */
 
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MARKETS_QUESTION_ID, UNCONFIRMED_MARKETS } from '../src/index.ts'
-import { gateBench } from './gates-test-bench.ts'
+import { gateBench, textOf } from './gates-test-bench.ts'
 
 const benches: { dispose: () => Promise<void> }[] = []
 afterEach(async () => {
@@ -63,7 +65,7 @@ describe('the fto-memo markets card', () => {
     const bench = await gateBench()
     benches.push(bench)
     bench.seams.pick([], 'DE, AT, CH')
-    await bench.call('write_patent_results', MEMO)
+    const typedResult = await bench.call('write_patent_results', MEMO)
     const typed = await jurisdictionRow(bench)
     const other = await gateBench()
     benches.push(other)
@@ -71,10 +73,13 @@ describe('the fto-memo markets card', () => {
     await other.call('write_patent_results', { ...MEMO, jurisdictions: 'EP (35 designated states), US' })
     expect({
       options: bench.seams.asked[0]?.questions[0]?.options,
+      typedLine: typedResult.split('\n')[1],
       typed,
       replaced: await jurisdictionRow(other),
     }).toEqual({
       options: undefined,
+      typedLine: 'Markets: the user answered this save\'s Markets question card with "DE, AT, CH" (you proposed none); the memo header states them.'
+        + ' Assess the risk for these markets only: if the memo body covers other markets or leaves one of them out, revise the body for DE, AT, CH and save again.',
       typed: '| Jurisdiction(s) | DE, AT, CH |',
       replaced: '| Jurisdiction(s) | US |',
     })
@@ -101,6 +106,20 @@ describe('the fto-memo markets card', () => {
       cancelled: 'Report was not saved. The markets question was cancelled; nothing was written.',
       nothingWritten: [],
       delegated: `Markets: not confirmed by the user (no answer was possible); the memo header marks them ${UNCONFIRMED_MARKETS}.`,
+      row: `| Jurisdiction(s) | DE, FR, US ${UNCONFIRMED_MARKETS} |`,
+    })
+  })
+
+  it('does not ask and marks the proposal as not confirmed when no Agent runs the save', async () => {
+    const bench = await gateBench()
+    benches.push(bench)
+    bench.seams.pick(['DE, FR, US'])
+    const result = await executeModelToolFixture(bench.ctx, {
+      callId: ToolCallId('call-no-agent'), name: 'write_patent_results', arguments: { ...MEMO, jurisdictions: 'DE, FR, US' }, signal: new AbortController().signal,
+    })
+    expect({ asked: bench.seams.asked, line: textOf(result.content[0]).split('\n')[1], row: await jurisdictionRow(bench) }).toEqual({
+      asked: [],
+      line: `Markets: not confirmed by the user (no answer was possible); the memo header marks them ${UNCONFIRMED_MARKETS}.`,
       row: `| Jurisdiction(s) | DE, FR, US ${UNCONFIRMED_MARKETS} |`,
     })
   })

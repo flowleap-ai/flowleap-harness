@@ -13,14 +13,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { DraftFinding } from '../drafting/finding.ts'
 import { blockingFindings } from '../drafting/findings-file.ts'
 import { DRAFTING_FILE_NAMES } from '../drafting/folder-contract.ts'
 import { findingsSummary, type DraftingWorkspace } from '../drafting/workspace.ts'
 import { isInventorQuestion } from '../drafting/finding.ts'
 import { askWaiver, type GateSeams } from '../gates/questions.ts'
-import { gateSeams, isDraftingToolValue, matterArgument, refused, openMatter, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
+import { draftingToolDefinition, gateSeams, matterArgument, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
 
 /** The tool name, shared with the IDE and the exported Patent Agent prompt. */
 export const VALIDATE_DRAFT_NAME = 'validate_draft'
@@ -136,14 +135,9 @@ export async function offerWaivers(
  * @returns the unregistered dsh definition.
  */
 export function validateDraftTool(ctx: Context, deps: DraftingToolDependencies): ToolDefinition {
-  const now = deps.now ?? (() => new Date())
   const seams = gateSeams(deps)
 
-  const execute = async (input: ValidateDraftInput, exec: ToolRunContext): Promise<DraftingToolValue> => {
-    const workspace = await openMatter(ctx, input.matter, exec, { now })
-    if (typeof workspace === 'string') {
-      return refused(`${REFUSED} ${workspace}`)
-    }
+  const execute = async (workspace: DraftingWorkspace, exec: ToolRunContext, input: ValidateDraftInput): Promise<DraftingToolValue> => {
     const { folder } = workspace
     const refusal = async (reason: string) => refused(await workspace.refusal(REFUSED, reason))
     const draft = await workspace.read(folder.draft)
@@ -178,23 +172,13 @@ export function validateDraftTool(ctx: Context, deps: DraftingToolDependencies):
     return { ok: true, text }
   }
 
-  return {
+  return draftingToolDefinition(ctx, deps, {
     name: VALIDATE_DRAFT_NAME,
     description: VALIDATE_DRAFT_DESCRIPTION,
     parameters: VALIDATE_DRAFT_PARAMETERS,
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
-    },
-    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
-      const input = parseValidateDraftArgs(args)
-      try {
-        return { ...await execute(input, exec) }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        deps.warn(`flowleap-deliverables: ${VALIDATE_DRAFT_NAME} failed: ${message}`)
-        return { ...refused(`${REFUSED} ${message}`) }
-      }
-    },
-  }
+    parse: parseValidateDraftArgs,
+    matter: input => input.matter,
+    refusal: () => REFUSED,
+    execute,
+  })
 }
