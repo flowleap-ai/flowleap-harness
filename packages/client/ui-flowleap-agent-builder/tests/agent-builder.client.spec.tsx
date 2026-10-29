@@ -19,6 +19,7 @@ import { NewAgentMenuItem } from '../src/client/NewAgentMenuItem.tsx'
 import type { AgentFormDialogInjected } from '../src/client/AgentFormDialog.tsx'
 import type { EditAgentMenuItemInjected } from '../src/client/EditAgentMenuItem.tsx'
 import type { NewAgentMenuItemInjected } from '../src/client/NewAgentMenuItem.tsx'
+import { AgentSearch, type AgentSearchInjected, type AgentSearchProps } from '../src/client/AgentSearch.tsx'
 import { apply as nodeApply } from '../src/index.ts'
 import { en } from '../src/client/locales.ts'
 
@@ -394,6 +395,34 @@ it('restates the Host upload route as a document-relative path', () => {
   expect(`/${AGENT_UPLOAD_ROUTE}`).toBe(AGENT_UPLOAD_PATH)
 })
 
+describe('agents in the dashboard search', () => {
+  const agents: AgentSummary[] = [
+    { id: ID, name: 'Responder', description: 'Drafts office action replies.', readOnly: false },
+    { id: 'firm-oa' as AgentId, name: 'Firm OA reviewer', description: 'Checks replies.', readOnly: true },
+  ]
+  function props(query: string, onStartAgent = vi.fn(), onPicked = vi.fn()): AgentSearchProps {
+    return {
+      ...standard, query, matches: (text: string) => text.toLowerCase().includes(query), onPicked,
+      useAgents: hook(agents), onStartAgent, t,
+    } as never as AgentSearchProps
+  }
+
+  it('lists the agents whose name or description matches, marks a firm agent, and starts a chat with the picked one', () => {
+    const onStartAgent = vi.fn()
+    const onPicked = vi.fn()
+    render(<AgentSearch {...props('replies', onStartAgent, onPicked)} />)
+    expect(screen.getByRole('region', { name: en['search.heading'] })).toBeTruthy()
+    expect(screen.getByText(en['search.firm'])).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Start a chat with Responder' }))
+    expect(onPicked).toHaveBeenCalledOnce()
+    expect(onStartAgent).toHaveBeenCalledWith(ID)
+  })
+
+  it('renders nothing when no agent matches', () => {
+    expect(render(<AgentSearch {...props('patstat')} />).container.innerHTML).toBe('')
+  })
+})
+
 class RemoteStub extends Service {
   readonly listeners = new Map<string, () => void>()
   constructor(ctx: Context) {
@@ -419,22 +448,35 @@ describe('browser half', () => {
       await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
       ctx.slots.register({
         name: 'root',
-        children: { 'agentPreset.menu.actions': { kind: 'list', scope: 'root' }, 'shell.overlay': { kind: 'list', scope: 'root' } },
+        children: {
+          'agentPreset.menu.actions': { kind: 'list', scope: 'root' }, 'shell.overlay': { kind: 'list', scope: 'root' },
+          'dashboard.search': { kind: 'list', scope: 'root' },
+        },
       } as never, () => null)
+      const workspace = { startSession: vi.fn() }
+      ctx.provide('uiWorkspace', workspace as never)
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
       await settle()
       expect(ctx.slots.entries('agentPreset.menu.actions')).toHaveLength(allowed ? 2 : 0)
       expect(ctx.slots.entries('shell.overlay')).toHaveLength(allowed ? 1 : 0)
+      expect(ctx.slots.entries('dashboard.search')).toHaveLength(allowed ? 1 : 0)
       if (allowed) {
         await settle()
         remote.listeners.get('flowleap-agents/changed')?.()
         await settle()
         expect(d.list).toHaveBeenCalledTimes(2)
         await useInjectedEntries(ctx, d)
+        const search = ctx.slots.entries('dashboard.search')[0]!
+        expect((search.options.label as () => string)()).toBe(en['search.heading'])
+        const injected = search.inject!() as Partial<AgentSearchInjected>
+        expect(injected.hooks?.agents.getSnapshot()).toMatchObject([{ id: ID }])
+        injected.onStartAgent!(ID)
+        expect(workspace.startSession).toHaveBeenCalledWith(undefined, { agentPreset: ID })
       }
       await fiber.dispose()
       expect(ctx.slots.entries('agentPreset.menu.actions')).toEqual([])
+      expect(ctx.slots.entries('dashboard.search')).toEqual([])
       await ctx.fiber.dispose()
     }
   })

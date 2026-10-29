@@ -1,7 +1,8 @@
 /**
  * Browser half of the FlowLeap agent builder: the New agent and Edit agent rows in the new-session preset menu
- * (`agentPreset.menu.actions`) and the agent form in `shell.overlay`. One controller over the `flowleapAgents` Remote
- * backs all three; `flowleap-agents/changed` and a connection reset read the Host again.
+ * (`agentPreset.menu.actions`), the agent form in `shell.overlay`, and the Agents group of the dashboard search
+ * (`dashboard.search`). One controller over the `flowleapAgents` Remote backs all four; `flowleap-agents/changed` and
+ * a connection reset read the Host again.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -12,7 +13,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 import type { AgentId } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { AgentFormDialog } from './AgentFormDialog.tsx'
+import { AgentSearch } from './AgentSearch.tsx'
 import { EditAgentMenuItem } from './EditAgentMenuItem.tsx'
 import { AgentFormController, type AgentUploadError, type AgentUploadResult } from './form-store.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapAgentBuilderKey } from './locales.ts'
@@ -131,6 +134,15 @@ export function apply(ctx: ClientContext): void {
       name: 'agentPreset.menu.actions', id: 'flowleap-edit-agent', order: 1, locale: NS,
       inject: () => ({ hooks: { agents: form.agents }, openEdit: form.openEdit }),
     }, EditAgentMenuItem))
+    // The dashboard (ui-flowleap-dashboard) declares this slot; without it the registration waits and does nothing.
+    yield ctx.slots.inject('dashboard.search', () => ctx.slots.register({
+      name: 'dashboard.search', id: 'flowleap-agents', order: 20, locale: NS, label: () => ctx.locale.bind(NS)('search.heading'),
+      inject: () => ({
+        hooks: { agents: form.agents },
+        // ui-workspace is optional here: the dashboard that shows this group also needs it, so it is mounted then.
+        onStartAgent: (id: AgentId) => { ctx.get('uiWorkspace')?.startSession(undefined, { agentPreset: id }) },
+      }),
+    }, AgentSearch))
     yield ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'flowleap-agent-form', locale: NS,
       inject: () => ({
