@@ -22,7 +22,7 @@ import {
   readProfilePatches, bundlePatchPaths,
   evaluatePluginCompatibility, readProfileCompatibility, readProfileVersionExemptions,
   setProfileVersionExemption, validatePluginVersionExemption, PROFILE_COMPATIBILITY_FILENAME,
-  getDshRuntimeVersion, ResolutionRestartRequired,
+  getDshRuntimeVersion, ResolutionRestartRequired, loadProfileDirectory, profileLocks,
   assertBundlePlatform, UnsupportedBundlePlatformError,
 } from '@deepseek-ai/dsh-app-boot'
 import { OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG, PROTECTED_PLUGINS } from '@deepseek-ai/dsh-official-bundles'
@@ -92,6 +92,17 @@ export interface Config {
    * deselecting a bundle the profile already selects still works.
    */
   withheldBundles?: string[]
+  /**
+   * Whether this deployment installs and updates packages. False refuses `installBundle` and `updateBundle` with
+   * `deployment-locked`, for a product whose administrator installs plugins outside the application.
+   */
+  installBundles?: boolean
+  /**
+   * The only bundle package names this deployment lets the profile select. Absent or `null`: every bundle
+   * `withheldBundles` does not name. Selecting another one (`setBundleEnabled(name, true)` or an activating install)
+   * fails with `deployment-locked`; deselecting a selected bundle is not affected.
+   */
+  offeredBundles?: string[] | null
 }
 
 /** The Fetch route serving images beside bundle detail documents. */
@@ -334,6 +345,8 @@ export class PluginManager extends TypertRemoteService {
     detailFetchTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(15000),
     detailNpmFileSources: z.array(z.union(NPM_FILE_SOURCES)).min(1).default([...NPM_FILE_SOURCES]),
     withheldBundles: z.array(z.string()).default([]),
+    installBundles: z.boolean().default(true),
+    offeredBundles: z.union([z.array(z.string()), z.const(null)]).default(null),
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
@@ -361,6 +374,8 @@ export class PluginManager extends TypertRemoteService {
   private readonly installs = new Map<PluginInstallRequestId, InstallControl>()
   private readonly detail: BundleDetailOptions
   private readonly withheldBundles: ReadonlySet<string>
+  private readonly installBundles: boolean
+  private readonly offeredBundles: ReadonlySet<string> | undefined
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'pluginManager')
@@ -383,6 +398,8 @@ export class PluginManager extends TypertRemoteService {
     }
     const required = config as Required<Config>
     this.withheldBundles = new Set(required.withheldBundles)
+    this.installBundles = required.installBundles
+    this.offeredBundles = required.offeredBundles == null ? undefined : new Set(required.offeredBundles)
     this.detail = {
       profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
       npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
@@ -473,6 +490,7 @@ export class PluginManager extends TypertRemoteService {
   @Remote
   async listPlugins(): Promise<PluginInfo[]> {
     const rows = flatten(composeEntries([readProfilePatches('dsh', this.profile)]))
+    const locked = profileLocks(loadProfileDirectory('dsh', this.profile.dir, this.profile.installAnchor, { userLayer: false }).layers).rows
     const snapshot = await readPluginInventory(this.ctx)
     return snapshot.entries.map((entry) => {
       const actual = [...this.ctx.loader.entries()].find(row => row.id === entry.entryId)
@@ -485,6 +503,8 @@ export class PluginManager extends TypertRemoteService {
         || actual?.parent.tree.ctx.fiber.entry?.id !== 'include') {
         return { ...entry, readOnlyReason: 'unaddressable' as const }
       }
+      // A user-layer write to a locked row is dropped at load, so the control refuses it here.
+      if (locked.has(candidate.id)) return { ...entry, readOnlyReason: 'deployment-locked' as const }
       return { ...entry, patchId: candidate.id }
     })
   }
@@ -542,7 +562,9 @@ export class PluginManager extends TypertRemoteService {
       const removable = owned || (enabled && !installed && !shipped)
       const sourceOf = (packageName?: string): { source?: string } =>
         owned ? { source: dependencySpec(name, recorded[name] as string, this.profile.dir, packageName) } : {}
-      const readOnlyReason = this.protectsManager(name) ? 'management-required' as const : undefined
+      const readOnlyReason = this.protectsManager(name)
+        ? 'management-required' as const
+        : enabled && this.locksRows(name) ? 'deployment-locked' as const : undefined
       let availability: BundleInfo['availability'] = 'missing'
       let version: string | undefined
       let listing: Pick<BundleInfo, 'listedByDefault'> = {}
@@ -725,6 +747,9 @@ export class PluginManager extends TypertRemoteService {
     const announce = (step: PluginUpdateStep): void => {
       if (requestId !== undefined) this.ownerContext.emit('plugin-manager/update-state', { requestId, step })
     }
+    if (!this.installBundles) {
+      return { from: '', to: version, step: 'check', result: { changed: false, application: 'failed', stage: 'install', target: name, error: { code: 'deployment-locked' } } }
+    }
     announce('checking')
     const target = updateRefusal((await this.listBundles()).find(item => item.name === name), name)
     const from = typeof target === 'string' ? '' : target.installed
@@ -887,6 +912,7 @@ export class PluginManager extends TypertRemoteService {
       if (requestId !== undefined) this.ownerContext.emit('plugin-manager/install-state', { requestId, phase, ...attempt === undefined ? {} : { attempt } })
     }
     const result = this.change(async (result) => {
+      if (!this.installBundles) throw new ManagementFailure('deployment-locked')
       if (spec.trim() === '' || spec.startsWith('-')) throw new ManagementFailure('invalid-spec')
       if (stopped()) throw new InstallCancelledError()
       const before = readProfileManifest('dsh', this.profile.dir).dependencies ?? {}
@@ -1168,6 +1194,7 @@ export class PluginManager extends TypertRemoteService {
     const manifest = readProfileManifest('dsh', this.profile.dir)
     const previous = bundleSelection(manifest)
     if (enabled && !previous.includes(name) && this.withheldBundles.has(name)) throw new ManagementFailure('not-bundle')
+    if (enabled && !previous.includes(name) && this.offeredBundles?.has(name) === false) throw new ManagementFailure('deployment-locked')
     if (enabled || !previous.includes(name)) {
       const metadata = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
       if (metadata === undefined) throw new ManagementFailure('not-bundle')
@@ -1180,6 +1207,8 @@ export class PluginManager extends TypertRemoteService {
     }
     if (!enabled && previous.includes(name)) {
       if (this.protectsManager(name)) throw new ManagementFailure('management-required')
+      // Deselecting a bundle that locks rows would remove its locks with it.
+      if (this.locksRows(name)) throw new ManagementFailure('deployment-locked')
     }
     const bundles = enabled ? [...previous, ...previous.includes(name) ? [] : [name]] : previous.filter(item => item !== name)
     if (JSON.stringify(previous) === JSON.stringify(bundles)) return
@@ -1193,6 +1222,21 @@ export class PluginManager extends TypertRemoteService {
     if (info?.dsh?.bundle === undefined) return []
     const dir = resolveBundleDir('dsh', name, this.profile.installAnchor, this.profile.dir)
     return flatten(composeEntries([bundlePatchPaths(dir, info.dsh.bundle).flatMap(file => loadOverlayPatches('dsh', file))]))
+  }
+
+  /**
+   * Whether a bundle declares `dsh.bundle.lockedRows`; an unreadable bundle locks nothing.
+   * @param name - the bundle package name.
+   * @returns true when the bundle locks at least one row.
+   */
+  private locksRows(name: string): boolean {
+    let manifest: ProfileManifest | undefined
+    try { manifest = bundleManifest(name, this.profile.dir, this.profile.installAnchor) } catch (_error) {
+      // An unresolvable bundle contributes no layer, so it locks nothing; listBundles reports its diagnostics.
+      return false
+    }
+    const locked: unknown = manifest?.dsh?.bundle?.lockedRows
+    return Array.isArray(locked) && locked.length > 0
   }
 
   private protectsManager(name: string): boolean {

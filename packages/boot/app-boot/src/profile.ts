@@ -59,6 +59,90 @@ export function bundlePatchFiles(bundle: DshBundleManifest): string[] {
   return declared
 }
 
+/** A bundle whose `dsh.bundle.lockedRows` declaration is malformed; it fails the profile load. */
+export class BundleLockError extends Error {
+  /**
+   * @param packageName - the bundle's package name.
+   */
+  constructor(readonly packageName: string) {
+    super(`profile bundle ${JSON.stringify(packageName)}: dsh.bundle.lockedRows must be a list of Loader entry ids`)
+    this.name = 'BundleLockError'
+  }
+}
+
+/**
+ * The Loader entry ids a bundle locks against user patch layers.
+ * @param packageName - the bundle's package name, for the error.
+ * @param bundle - the bundle's `dsh.bundle` declaration, as read from package.json.
+ * @returns the locked entry ids; empty when the bundle declares none.
+ * @throws {BundleLockError} when `lockedRows` is not a list of nonempty strings.
+ */
+export function bundleLockedRows(packageName: string, bundle: DshBundleManifest): string[] {
+  const declared: unknown = bundle.lockedRows ?? []
+  const ids = Array.isArray(declared) ? declared.filter((id): id is string => typeof id === 'string' && id.length > 0) : []
+  if (!Array.isArray(declared) || ids.length !== declared.length) throw new BundleLockError(packageName)
+  return ids
+}
+
+/** What a profile's bundle layers lock against user patch layers. */
+export interface ProfileLocks {
+  /** Locked Loader entry ids (`dsh.bundle.lockedRows`). */
+  readonly rows: ReadonlySet<string>
+  /** Plugin names of the bundle rows those ids name; a user patch may not insert another row of one. */
+  readonly plugins: ReadonlySet<string>
+  /** Locked ids that match no row of the bundle layers, in declaration order. */
+  readonly unmatched: readonly string[]
+}
+
+/**
+ * Every entry option in a composed list, with the members of group entries.
+ * @param rows - composed or inserted entries.
+ * @returns the entries depth-first.
+ */
+function entriesOf(rows: readonly EntryOptions[]): EntryOptions[] {
+  return rows.flatMap(row => [row, ...Array.isArray(row.config) ? entriesOf(row.config as EntryOptions[]) : []])
+}
+
+/**
+ * The locks of a profile's bundle layers.
+ * @param layers - the profile's bundle layers.
+ * @returns the locked ids, the plugin names of their rows, and the ids that match no row.
+ */
+export function profileLocks(layers: readonly ProfileLayer[]): ProfileLocks {
+  const rows = new Set(layers.flatMap(layer => layer.lockedRows ?? []))
+  if (rows.size === 0) return { rows, plugins: new Set(), unmatched: [] }
+  const composed = entriesOf(composeEntries(layers.map(layer => layer.patches)))
+  const matched = composed.filter(row => rows.has(row.id))
+  const plugins = new Set(matched.map(row => row.name).filter((name): name is string => typeof name === 'string'))
+  const found = new Set(matched.map(row => row.id))
+  return { rows, plugins, unmatched: [...rows].filter(id => !found.has(id)) }
+}
+
+/**
+ * Drop the user patches that would change a locked row: a patch that names a locked `id` in any form (also with
+ * `insert`), and an insert patch that adds a row with a locked id or of a locked row's plugin.
+ * @param patches - one user layer's patches, in application order.
+ * @param locks - the profile's locks.
+ * @returns the patches that remain, and a label of each dropped patch in order (its id, else `insert <plugin>`).
+ */
+export function withoutLockedPatches(
+  patches: readonly PatchOptions[], locks: Pick<ProfileLocks, 'rows' | 'plugins'>,
+): { kept: PatchOptions[]; dropped: string[] } {
+  const kept: PatchOptions[] = []
+  const dropped: string[] = []
+  for (const patch of patches) {
+    if (typeof patch.id === 'string' && locks.rows.has(patch.id)) {
+      dropped.push(patch.id)
+      continue
+    }
+    const inserted = Array.isArray(patch.insert) ? entriesOf(patch.insert) : []
+    const hit = inserted.find(row => locks.rows.has(row.id) || (typeof row.name === 'string' && locks.plugins.has(row.name)))
+    if (hit === undefined) kept.push(patch)
+    else dropped.push(locks.rows.has(hit.id) ? hit.id : `insert ${hit.name}`)
+  }
+  return { kept, dropped }
+}
+
 /**
  * Resolve a bundle declaration to its ordered absolute patch files.
  * @param packageDir - absolute directory of the bundle package.
@@ -80,6 +164,8 @@ export interface ProfileLayer {
   patchPaths: readonly string[]
   /** The parsed patch lists of every file, concatenated in application order. */
   patches: PatchOptions[]
+  /** The entry ids this bundle locks against user patch layers (`dsh.bundle.lockedRows`); absent locks none. */
+  lockedRows?: readonly string[]
 }
 
 /** A loaded profile: resolved bundle layers plus the user's own patch layer. */
@@ -92,10 +178,12 @@ export interface Profile {
   layers: ProfileLayer[]
   /** Absolute path of the profile's own patch file. */
   patchPath: string
-  /** The profile's own patches; empty when the file is absent. */
+  /** The profile's own patches without those that target a locked row; empty when the file is absent. */
   patches: PatchOptions[]
   /** Selected bundles that contributed no layer, in `dsh.profile.bundles` order, with why. */
   skippedBundles: SkippedBundle[]
+  /** Entry ids of profile patches dropped because a bundle locks their row, in file order; absent drops none. */
+  droppedPatches?: string[]
 }
 
 /** A selected bundle the profile could not load, or whose own DSH requirements the profile does not exempt. */
@@ -700,16 +788,20 @@ export function loadProfileDirectory(
       if (issue !== undefined && !issue.exempted) throw new Error(pluginCompatibilityWarning(issue))
       const patchPaths = bundlePatchPaths(packageDir, bundle)
       const patches = patchPaths.flatMap(patchPath => loadOverlayPatches(binName, patchPath))
-      layers.push({ packageName, packageDir, patchPaths, patches })
+      const lockedRows = bundleLockedRows(packageName, bundle)
+      layers.push({ packageName, packageDir, patchPaths, patches, ...lockedRows.length === 0 ? {} : { lockedRows } })
     } catch (error) {
+      // A malformed lock fails the load: skipping the bundle would also drop every guard it sets.
+      if (error instanceof BundleLockError) throw error
       skippedBundles.push({ packageName, reason: String(error) })
     }
   }
   const patchPath = join(dir, PROFILE_PATCH_FILENAME)
-  const patches = options.userLayer !== false && existsSync(patchPath)
+  const userPatches = options.userLayer !== false && existsSync(patchPath)
     ? loadOverlayPatches(binName, patchPath)
     : []
-  return { name: basename(dir), dir, layers, patchPath, patches, skippedBundles }
+  const { kept: patches, dropped: droppedPatches } = withoutLockedPatches(userPatches, profileLocks(layers))
+  return { name: basename(dir), dir, layers, patchPath, patches, skippedBundles, ...droppedPatches.length === 0 ? {} : { droppedPatches } }
 }
 
 /**

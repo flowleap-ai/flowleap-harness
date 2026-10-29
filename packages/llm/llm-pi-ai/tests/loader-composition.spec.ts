@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, FiberState } from '@deepseek-ai/cordis'
 import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime, { createMessage, createUserMessage, userAgent } from '@deepseek-ai/dsh-llm'
@@ -37,8 +37,11 @@ afterEach(async () => {
   vi.unstubAllEnvs()
 })
 
-/** Boot the dormant composition: a bare `llm-pi-ai` row with no config at all. */
-async function loadComposition(): Promise<{ ctx: Context; settingsPath: string }> {
+/**
+ * Boot the composition: a bare `llm-pi-ai` row with no config at all, or with
+ * the given `config:` lines.
+ */
+async function loadComposition(piAiConfig: readonly string[] = []): Promise<{ ctx: Context; settingsPath: string }> {
   root = await mkdtemp(join(tmpdir(), 'dsh-pi-composition-'))
   await writeFile(join(root, '.credentials.yaml'), 'version: 1\nrefs:\n  PI_COMPOSITION_KEY: key-from-store\n', { mode: 0o600 })
 
@@ -55,6 +58,7 @@ async function loadComposition(): Promise<{ ctx: Context; settingsPath: string }
     "  name: '@deepseek-ai/dsh-authorization'",
     '- id: llm-pi-ai',
     "  name: '@deepseek-ai/dsh-llm-pi-ai'",
+    ...piAiConfig,
     '',
   ].join('\n'))
 
@@ -85,6 +89,53 @@ async function loadComposition(): Promise<{ ctx: Context; settingsPath: string }
   const patchPath = await profileComposition(ctx, root, configPath)
   return { ctx, settingsPath: patchPath }
 }
+
+describe('llm-pi-ai real composition with fixedRoutes', () => {
+  const fixed = (baseURL: string): string[] => [
+    '  config:',
+    '    fixedRoutes: true',
+    '    providers:',
+    '      deepseek:',
+    '        apiKeyEnv: PI_COMPOSITION_KEY',
+    `        baseURL: ${baseURL}`,
+  ]
+
+  it('serves only the deployment routes and refuses sign-in, discovery, and route edits', async () => {
+    vi.stubEnv('PI_COMPOSITION_KEY', '')
+    const server = await mockServer([{ events: textEvents }])
+    const { ctx } = await loadComposition(fixed(server.url))
+
+    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek'])
+    expect(ctx.llm.listConfigurableProviders().map(entry => entry.provider)).toEqual(['deepseek'])
+    expect(ctx.authorization.list().filter(entry => entry.key.startsWith('llm-pi-ai/'))).toEqual([])
+    await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'acme', baseURL: server.url, api: 'openai-completions' }))
+      .rejects.toThrow()
+    for (const ops of [
+      [{ op: 'set' as const, path: ['providers', 'anthropic'], value: { apiKeyEnv: 'MY_OWN_KEY' } }],
+      [{ op: 'set' as const, path: ['providers', 'deepseek', 'baseURL'], value: 'https://elsewhere.example/v1' }],
+      [{ op: 'set' as const, path: ['providers', 'deepseek', 'apiKeyEnv'], value: 'MY_OWN_KEY' }],
+    ]) {
+      await expect(ctx.settings.mutate('llm-pi-ai', ops)).rejects.toThrow('the model routes are fixed in this deployment')
+    }
+    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek'])
+
+    const result = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
+    expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
+    expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
+  })
+
+  it('fails the entry at load when a fixed route names no apiKeyEnv', async () => {
+    const { ctx } = await loadComposition([
+      '  config:',
+      '    fixedRoutes: true',
+      '    providers:',
+      '      deepseek: {}',
+    ])
+    const entry = [...ctx.loader.entries()].find(item => item.options.id === 'llm-pi-ai')
+    expect(entry?.fiber?.state).toBe(FiberState.FAILED)
+    await expect(entry?.fiber?.await()).rejects.toThrow('route "deepseek" names none')
+  })
+})
 
 describe('llm-pi-ai real dormant composition', () => {
   it('boots with zero routes and registers one the moment settings supply a profile', async () => {

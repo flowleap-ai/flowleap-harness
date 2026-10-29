@@ -18,6 +18,9 @@
       "path": "../../../vendor/cordis"
     },
     {
+      "path": "../../../vendor/loader"
+    },
+    {
       "path": "../ui-slots"
     },
     {

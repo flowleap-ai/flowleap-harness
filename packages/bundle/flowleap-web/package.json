@@ -44,6 +44,20 @@
       "patch": [
         "./cordis.patch.yml",
         "./presets/patent.patch.yml"
+      ],
+      "lockedRows": [
+        "llm-pi-ai",
+        "credentials",
+        "ui-settings-models",
+        "plugin-manager",
+        "llm-deepseek",
+        "llm-deepseek-account",
+        "deepseek-account",
+        "deepseek-llm-api-extensions",
+        "ui-settings-account",
+        "account-controller",
+        "web-search-deepseek",
+        "web-deepseek-api"
       ]
     }
   },
