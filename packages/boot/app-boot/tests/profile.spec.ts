@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
+  BundleLockError,
   composeEntries,
   createRuntimeResolution,
   getDshRuntimeVersion,
@@ -21,9 +22,11 @@ import {
   loadProfileDirectory,
   PROFILE_COMPATIBILITY_FILENAME,
   PROFILE_PATCH_FILENAME,
+  profileLocks,
   readProfileManifest,
   readProfilePatches,
   removeLinkProjections,
+  reportProfileLocks,
   reportSkippedBundles,
   resolveBundleDir,
   resolveProfileDir,
@@ -47,7 +50,7 @@ const tmp = (): string => {
 
 /** Stage a fake installed app: package.json with deps and a node_modules holding bundles. */
 function stageInstallation(
-  bundles: Record<string, { patch?: string; deps?: Record<string, string>; platforms?: string[] }>,
+  bundles: Record<string, { patch?: string; deps?: Record<string, string>; platforms?: string[]; lockedRows?: unknown }>,
   appName = 'dsh-app',
 ): string {
   const root = tmp()
@@ -64,7 +67,11 @@ function stageInstallation(
       type: 'module',
       main: './index.js',
       dependencies: spec.deps ?? {},
-      ...spec.patch === undefined ? {} : { dsh: { bundle: { patch: './cordis.patch.yml', ...spec.platforms === undefined ? {} : { platforms: spec.platforms } } } },
+      ...spec.patch === undefined ? {} : { dsh: { bundle: {
+        patch: './cordis.patch.yml',
+        ...spec.platforms === undefined ? {} : { platforms: spec.platforms },
+        ...spec.lockedRows === undefined ? {} : { lockedRows: spec.lockedRows },
+      } } },
     }))
     writeFileSync(join(dir, 'index.js'), `export const packageName = ${JSON.stringify(name)}\n`)
     if (spec.patch !== undefined) writeFileSync(join(dir, 'cordis.patch.yml'), spec.patch)
@@ -92,6 +99,83 @@ it('skips an unsupported saved bundle before composing any runtime overrides and
   expect(profile.skippedBundles[0]?.reason).toContain(`Host is running ${process.platform}`)
   expect(composeEntries(profile.layers.map(layer => layer.patches))).toMatchObject([{ id: 'ptc-runtime', config: { executionMode: 'isolated' } }])
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
+})
+
+describe('dsh.bundle.lockedRows', () => {
+  const LOCKED_BASE = '- insert:\n  - id: llm\n    name: llm-plugin\n    config: { fixed: true }\n  - id: other\n    name: other-plugin\n'
+  const USER_ROWS = [
+    '- id: llm\n  config: { fixed: false }',
+    '- id: llm\n  insert: null\n  config: { fixed: false }',
+    '- insert:\n  - id: second-llm\n    name: llm-plugin\n    config: { fixed: false }',
+    '- insert:\n  - id: group\n    name: cordis/group\n    config:\n      - id: llm\n        name: other-plugin',
+    '- id: other\n  config: { edited: true }',
+    '- insert:\n  - id: added\n    name: added-plugin',
+    '',
+  ].join('\n')
+
+  it('drops the profile and home user patches that target a locked row, and keeps launch overlays', () => {
+    const anchor = stageInstallation({ base: { patch: LOCKED_BASE, lockedRows: ['llm'] } })
+    const home = tmp()
+    const dir = join(home, 'profiles', 'locked')
+    initProfile(dir, ['base'])
+    writeFileSync(join(dir, PROFILE_PATCH_FILENAME), USER_ROWS)
+    writeFileSync(join(home, PROFILE_PATCH_FILENAME), '- id: llm\n  disabled: true\n')
+    const profile = loadProfileDirectory('test', dir, anchor)
+    expect(profile.layers[0]?.lockedRows).toEqual(['llm'])
+    // Every form that would change the locked row is dropped: its id with or without insert, another row of its
+    // plugin, and a nested row with its id.
+    expect(profile.droppedPatches).toEqual(['llm', 'llm', 'insert llm-plugin', 'llm'])
+    expect(profile.patches.map(patch => patch.id ?? 'insert')).toEqual(['other', 'insert'])
+    const context = {
+      name: 'locked', dir, patchPath: profile.patchPath, installAnchor: anchor, cwd: dir, home,
+      startedBundles: ['base'], overlays: [{ id: 'llm', config: { fixed: 'overlay' } }], telemetryDisabledEnv: undefined,
+    }
+    const userLayers = composeEntries([readProfilePatches('test', { ...context, overlays: [] })])
+    expect(userLayers.find(row => row.id === 'llm')).toMatchObject({ config: { fixed: true } })
+    expect(userLayers.find(row => row.id === 'llm')?.disabled).toBeUndefined()
+    expect(userLayers.find(row => row.id === 'other')).toMatchObject({ config: { edited: true } })
+    // A user patch handed in by a caller (a settings write in progress) is filtered too.
+    const handed = readProfilePatches('test', { ...context, overlays: [] }, { ...profile, patches: [{ id: 'llm', config: { fixed: false } }] })
+    expect(composeEntries([handed]).find(row => row.id === 'llm')).toMatchObject({ config: { fixed: true } })
+    expect(composeEntries([readProfilePatches('test', context)]).find(row => row.id === 'llm'))
+      .toMatchObject({ config: { fixed: 'overlay' } })
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      reportProfileLocks('dsh', profile, join(home, PROFILE_PATCH_FILENAME))
+      expect(write).toHaveBeenCalledWith(expect.stringContaining(`ignoring the "insert llm-plugin" row of ${profile.patchPath}`))
+      expect(write).toHaveBeenCalledWith(expect.stringContaining(`ignoring the "llm" row of ${join(home, PROFILE_PATCH_FILENAME)}`))
+      write.mockClear()
+      reportProfileLocks('dsh', { layers: profile.layers, patchPath: profile.patchPath }, join(home, 'absent.yml'))
+      expect(write).not.toHaveBeenCalled()
+    } finally {
+      write.mockRestore()
+    }
+  })
+
+  it('fails the load when lockedRows is not a list of entry ids', () => {
+    for (const lockedRows of [['llm', ''], 'llm']) {
+      const anchor = stageInstallation({ bad: { patch: LOCKED_BASE, lockedRows } })
+      const dir = join(tmp(), 'profile')
+      initProfile(dir, ['bad'])
+      expect(() => loadProfileDirectory('test', dir, anchor)).toThrow(BundleLockError)
+    }
+  })
+
+  it('warns about a locked id that matches no bundle row', () => {
+    const anchor = stageInstallation({ base: { patch: LOCKED_BASE, lockedRows: ['llm', 'missing'] } })
+    const home = tmp()
+    const dir = join(home, 'profiles', 'locked')
+    initProfile(dir, ['base'])
+    const profile = loadProfileDirectory('test', dir, anchor)
+    expect(profileLocks(profile.layers)).toMatchObject({ unmatched: ['missing'] })
+    const write = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      reportProfileLocks('dsh', profile, join(home, PROFILE_PATCH_FILENAME))
+      expect(write).toHaveBeenCalledWith('dsh: dsh.bundle.lockedRows names "missing", which no profile bundle row has\n')
+    } finally {
+      write.mockRestore()
+    }
+  })
 })
 
 /** Represent one resolved external bundle as a loaded profile layer. */

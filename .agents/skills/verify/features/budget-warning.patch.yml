@@ -1,9 +1,10 @@
 # Overlay for budget-warning.md (DSH_VERIFY_PATCH): the openrouter route goes
 # through the gateway double at $DSH_VERIFY_GATEWAY_URL. An override replaces the
-# row's whole config, so this restates every route of
+# row's whole config, so this restates fixedRoutes and every route of
 # packages/bundle/flowleap-web/cordis.patch.yml.
 - id: llm-pi-ai
   config:
+    fixedRoutes: true
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY

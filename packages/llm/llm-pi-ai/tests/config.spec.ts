@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertServiceable, Config, resolveProfiles, type Options } from '../src/config.ts'
+import { assertServiceable, assertUnchangedRoutes, Config, resolveProfiles, type Options } from '../src/config.ts'
 
 /** Validate one hand-declared route, with the caller's fields layered onto it. */
 const routeWith = (profile: Record<string, unknown>): (() => unknown) =>
@@ -105,5 +105,15 @@ describe('request image policy bounds', () => {
     expect(() => {
       assertServiceable(programmatic)
     }).toThrow(message)
+  })
+})
+
+describe('fixedRoutes', () => {
+  it('defaults to off and accepts only an unchanged route set', () => {
+    expect(Config({}).fixedRoutes).toBe(false)
+    const routes = { anthropic: { apiKeyEnv: 'ANTHROPIC_API_KEY', baseURL: 'http://gateway:4000' } }
+    expect(() => { assertUnchangedRoutes(structuredClone(routes), routes) }).not.toThrow()
+    expect(() => { assertUnchangedRoutes({ ...routes, openrouter: {} }, routes) })
+      .toThrow('the model routes are fixed in this deployment')
   })
 })

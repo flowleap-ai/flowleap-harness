@@ -419,6 +419,8 @@ export interface LaunchOptions {
     /** Select `deepseek-search-api` and `deepseek-fetch-api` in place of the shipped selection. */
     select?: boolean
   }
+  /** Restate a bundle's `credentials` `lockedRefs`, which the scaffold's own `credentials` row would replace. */
+  lockedCredentialRefs?: readonly string[]
   /** Preset selection default and additional declarative definitions for this scenario. */
   agentPresets?: {
     default: string
@@ -669,7 +671,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
           ],
         },
       }],
-    { id: 'credentials', config: { dshHome: harnessHome } },
+    { id: 'credentials', config: { dshHome: harnessHome, ...options.lockedCredentialRefs === undefined ? {} : { lockedRefs: [...options.lockedCredentialRefs] } } },
     // The shipped directory-picker row is the -auto chooser, which resolves
     // the interaction from the RUNNING host (display, SSH launch, bind). The
     // lane's goldens are interaction-specific (workspace-management drives

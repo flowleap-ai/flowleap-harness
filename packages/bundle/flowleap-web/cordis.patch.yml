@@ -55,10 +55,15 @@
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and
-# refuses to switch them on.
+# refuses to switch them on. Attorneys do not install, update, or switch on
+# packages: the firm administrator does that through flowleap-os
+# (installBundles: false, offeredBundles: []). The Plugins page hides the SDK
+# bundles only in the client, so the Host refuses every new selection.
 
 - id: plugin-manager
   config:
+    installBundles: false
+    offeredBundles: []
     withheldBundles:
       - '@deepseek-ai/dsh-experimental-liveshare'
       - '@deepseek-ai/dsh-experimental-forge-bundle'
@@ -84,12 +89,34 @@
 # Three pi-ai catalog routes; each key is resolved per request through the
 # credential seam, so no secret enters this file.
 #
+# Models run only on the firm's keys (flowleap-harness#61). fixedRoutes refuses
+# a route, endpoint, or key-reference change from settings and offers no
+# subscription sign-in and no endpoint discovery; lockedRefs refuses a key
+# typed on the Models page and ignores one stored before; managed keeps the
+# Models page from offering either. A firm overlay that restates the
+# llm-pi-ai or credentials row restates these keys too.
+#
+# package.json dsh.bundle.lockedRows names these rows, the plugin manager row,
+# and the DeepSeek rows: the Loader drops a user patch (profile or home
+# cordis.patch.yml) that targets one of them, so a Models page save from before
+# the lock cannot turn it off, and the plugin manager cannot switch a DeepSeek
+# route or sign-in on.
+
+- id: credentials
+  config:
+    lockedRefs: [ANTHROPIC_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY]
+
+- id: ui-settings-models
+  config:
+    managed: true
+
 # The firm's model gateway sends x-flowleap-budget-warning from 80 % of a
 # budget (flowleap-harness#32); the two routes that go through the gateway
 # show its value to the attorney in the chat, and the model never sees it.
 
 - id: llm-pi-ai
   config:
+    fixedRoutes: true
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY

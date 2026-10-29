@@ -57,6 +57,7 @@ it('reports the gateway budget warning to the Session user and keeps it out of t
     '  disabled: true',
     '- id: llm-pi-ai',
     '  config:',
+    '    fixedRoutes: true',
     '    providers:',
     '      openrouter:',
     '        apiKeyEnv: OPENROUTER_API_KEY',

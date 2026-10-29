@@ -32,3 +32,12 @@ it('creates a patch removed between validation and reading the document', async 
   await ctx.configEditor.edit(entry, raw => ({ ...raw, count: 6 }))
   expect(readFileSync(profile.patchPath, 'utf8')).toContain('count: 6')
 })
+
+it('refuses to edit a row a profile bundle locks and leaves the patch file unchanged', async () => {
+  const { ctx, profile } = await configurationFixture({ hmr: false, lockedRows: ['second'] })
+  const entry = ctx.configEditor.entries().find(row => row.options.id === 'second')!
+  const before = readFileSync(profile.patchPath, 'utf8')
+  await expect(ctx.configEditor.edit(entry, raw => ({ ...raw, count: 6 })))
+    .rejects.toThrow('Configuration for "second" is fixed by a profile bundle (dsh.bundle.lockedRows)')
+  expect(readFileSync(profile.patchPath, 'utf8')).toBe(before)
+})
