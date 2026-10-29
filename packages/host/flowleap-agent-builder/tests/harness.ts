@@ -37,10 +37,19 @@ export function logLines(ctx: Context): string[] {
   return lines
 }
 
-/** A temporary folder removed after the test. */
+/** The disposal of each runtime; a call after the first returns the first disposal. */
+const disposals = new Set<() => Promise<void>>()
+
+/**
+ * A temporary folder removed after the test. The removal first waits for every runtime of the test to dispose, because
+ * Windows refuses to remove an index file that a runtime still holds open.
+ */
 export async function tempDir(prefix: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), prefix))
-  onTestFinished(() => rm(dir, { recursive: true, force: true }))
+  onTestFinished(async () => {
+    await Promise.all([...disposals].map(dispose => dispose()))
+    await rm(dir, { recursive: true, force: true })
+  })
   return dir
 }
 
@@ -65,7 +74,10 @@ export interface RuntimeOptions {
 /** The core runtime with the preset registry, a `patent` base preset and the connection and remote-access doubles. */
 export async function runtime(options: RuntimeOptions = {}): Promise<Context> {
   const ctx = new Context()
-  onTestFinished(() => ctx.fiber.dispose())
+  let disposal: Promise<void> | undefined
+  const dispose = () => disposal ??= ctx.fiber.dispose().finally(() => { disposals.delete(dispose) })
+  disposals.add(dispose)
+  onTestFinished(dispose)
   ctx.baseUrl = import.meta.url
   await ctx.plugin(Loader)
   ctx.loader.builtins.group = Group
