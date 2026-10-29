@@ -180,6 +180,37 @@ describe('dsh-skill-filesystem plugin exports', () => {
   })
 })
 
+describe('requireCustomSkillDirs', () => {
+  it('fails the plugin at load when a required custom root is missing or a file', async () => {
+    const home = await tempDir('skill-home')
+    const missing = join(home, 'no-such-pack')
+    await expect(setupLocal(home, { customSkillDirs: [missing], requireCustomSkillDirs: true }))
+      .rejects.toThrow(`custom skill directory "${missing}" does not exist or is not a directory`)
+    const file = join(home, 'pack.md')
+    await writeFile(file, 'not a folder')
+    await expect(setupLocal(home, { customSkillDirs: [file], requireCustomSkillDirs: true }))
+      .rejects.toThrow(`custom skill directory "${file}" does not exist`)
+  })
+
+  it('fails the plugin at load when a required custom root is an empty string', async () => {
+    const home = await tempDir('skill-home')
+    await expect(setupLocal(home, { customSkillDirs: [''], requireCustomSkillDirs: true }))
+      .rejects.toThrow('a customSkillDirs root is an empty string')
+  })
+
+  it('loads an existing required root, and reads a missing optional root as empty', async () => {
+    const home = await tempDir('skill-home')
+    const pack = await tempDir('skill-pack')
+    await writeSkill(pack, 'pack-skill', 'from the pack')
+    const required = await setupLocal(home, { customSkillDirs: [pack], requireCustomSkillDirs: true, includeDefaultRoots: false })
+    expect((await required.skills.list({ cwd: home })).map(skill => skill.name)).toEqual(['pack-skill'])
+    const optional = await setupLocal(home, { customSkillDirs: [join(home, 'no-such-pack')], includeDefaultRoots: false })
+    expect(await optional.skills.list({ cwd: home })).toEqual([])
+    const none = await setupLocal(home, { requireCustomSkillDirs: true, includeDefaultRoots: false })
+    expect(await none.skills.list({ cwd: home })).toEqual([])
+  })
+})
+
 describe('FileSystemSkillProvider', () => {
   it('discovers project, custom, user, and agents skill roots in priority order', async () => {
     const home = await tempDir('skill-home')

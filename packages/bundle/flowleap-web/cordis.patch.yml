@@ -132,14 +132,20 @@
 # global-layer provider that scans only the flowleap-plugins pack
 # (`<name>/SKILL.md` bundles), so every preset's `tool-skill` catalog merges it
 # with the preset's own roots.
+#
+# FLOWLEAP_SKILLS_DIR names the pack folder; when it is unset or empty, the
+# default is the pack of the release image. The folder must exist, or the row fails at load: outside the
+# image, set FLOWLEAP_SKILLS_DIR to a flowleap-plugins checkout's
+# plugins/flowleap/skills, or to an empty folder for no FlowLeap skill.
 
 - id: skill-filesystem
   disabled: false
   config:
     providerName: flowleap
     includeDefaultRoots: false
+    requireCustomSkillDirs: true
     customSkillDirs:
-      - !!js process.env.FLOWLEAP_SKILLS_DIR ?? '/Users/abdullahatrash/flowleap/flowleap-plugins/plugins/flowleap/skills'
+      - !!js process.env.FLOWLEAP_SKILLS_DIR || '/opt/flowleap/skills'
 
 # ── uploads while the firm server's disk is low ──────────────────────────────
 # The firm host writes /run/flowleap/host/disk-low (read-only in the runtime)
