@@ -85,7 +85,8 @@ describe('Oxlint repository rule fingerprint', () => {
   const overrides: readonly unknown[] = parsed.overrides
 
   it('pins every override field', () => {
-    expect(overrides).toHaveLength(9)
+    // The tenth override is the fork's: flowleap-deliverables copies of IDE modules turn rules off only.
+    expect(overrides).toHaveLength(10)
   })
 
   it.each(Object.entries(profiles))('pins the %s rule profile', (_name, profile) => {

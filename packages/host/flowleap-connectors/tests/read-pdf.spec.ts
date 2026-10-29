@@ -5,9 +5,9 @@
  * pre-upload page cap.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, truncate, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join, sep } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -19,7 +19,8 @@ import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { createConnectors } from '@flowleap/connectors'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  READ_PDF_COST_LINE, READ_PDF_MAX_PAGES, createConnectorHost, createCredentialStore, estimatePdfPages, registerReadPdfTool,
+  READ_PDF_COST_LINE, READ_PDF_MAX_BYTES, READ_PDF_MAX_PAGES, createConnectorHost, createCredentialStore, estimatePdfPages,
+  registerReadPdfTool,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import { MemoryCredentials } from './memory-credentials.ts'
@@ -66,9 +67,9 @@ async function bench() {
   const connectors = createConnectors(bound.host)
   registerReadPdfTool(ctx, connectors, bound)
   let calls = 0
-  const call = (args: unknown) => executeModelToolFixture(ctx, {
+  const call = (args: unknown, withAgent = true) => executeModelToolFixture(ctx, {
     callId: `call-${String(++calls)}` as ToolCallId, name: 'read_pdf', arguments: args, signal: new AbortController().signal,
-    agent: { session: { header: { cwd: dir } } } as never,
+    ...withAgent ? { agent: { session: { header: { cwd: dir } } } as never } : {},
   })
   return { ctx, credentials, store, fetchSpy, call }
 }
@@ -89,7 +90,7 @@ describe('read_pdf', () => {
     const absolute = await call({ path: away })
     expect(absolute.isError).toBe(true)
     expect(textOf(absolute.content[0])).toContain('outside the working directory')
-    const relative = await call({ path: `../${outside.split('/').pop()!}/scan.pdf` })
+    const relative = await call({ path: `../${basename(outside)}/scan.pdf` })
     expect(relative.isError).toBe(true)
     expect(textOf(relative.content[0])).toContain('outside the working directory')
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -117,7 +118,7 @@ describe('read_pdf', () => {
     const result = await call({ path: 'office-action.pdf' })
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ model: 'mistral-ocr-latest', pageCount: 3, from: 1, to: 3, cached: false })
-    expect((result.value as { path: string }).path.endsWith('/office-action.pdf')).toBe(true)
+    expect((result.value as { path: string }).path.endsWith(`${sep}office-action.pdf`)).toBe(true)
     const text = textOf(result.content[0])
     expect(text.split('\n').slice(1, 3)).toEqual([
       'OCR model mistral-ocr-latest; 3 pages in the document, all 3 pages returned.',
@@ -189,5 +190,92 @@ describe('read_pdf', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0]![1]?.body as string) as { document: { type: string; image_url: string } }
     expect(body.document.type).toBe('image_url')
     expect(body.document.image_url.startsWith('data:image/png;base64,')).toBe(true)
+  })
+
+  it.each([
+    ['a value that is not an object', 'scan.pdf', 'invalid arguments: expected an object'],
+    ['a blank path', { path: ' ' }, 'invalid arguments: path must be a non-empty string'],
+    ['a pages value that is not a string', { path: 'scan.pdf', pages: 2 }, 'invalid arguments: pages must be a string like "1-5"'],
+    ['a pages value that is not a range', { path: 'scan.pdf', pages: 'first' }, 'pages must be a page number or a range like "1-5", got "first"'],
+    ['a range wider than the page cap', { path: 'scan.pdf', pages: `1-${String(READ_PDF_MAX_PAGES + 1)}` }, `spans more than ${String(READ_PDF_MAX_PAGES)} pages`],
+    ['a path without an extension', { path: 'README' }, 'cannot read "README": no file extension is not one of .pdf'],
+  ])('refuses %s before any key check or upload', async (_case, args, message) => {
+    const { fetchSpy, call } = await bench()
+    const result = await call(args)
+    expect(result.isError).toBe(true)
+    expect(textOf(result.content[0])).toContain(message)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('refuses a directory and a file above the byte limit before any upload', async () => {
+    const { store, fetchSpy, call } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await mkdir(join(dir, 'folder.pdf'))
+    const folder = await call({ path: 'folder.pdf' })
+    expect(folder.isError).toBe(true)
+    expect(textOf(folder.content[0])).toContain('not a regular file')
+    await writeFile(join(dir, 'huge.pdf'), '')
+    await truncate(join(dir, 'huge.pdf'), READ_PDF_MAX_BYTES + 1)
+    const huge = await call({ path: 'huge.pdf' })
+    expect(huge.isError).toBe(true)
+    expect(textOf(huge.content[0])).toContain(`${String(READ_PDF_MAX_BYTES + 1)} bytes exceeds the 50 MB limit`)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('reads from the default working directory without an agent, and names one page in the singular', async () => {
+    const { store, fetchSpy, call } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await writeFile(join(dir, 'figure.png'), Buffer.from('89504e470d0a1a0a', 'hex'))
+    fetchSpy.mockImplementation(() => Promise.resolve(Response.json({ model: 'mistral-ocr-latest', pages: [{ index: 0, markdown: 'FIG. 1' }] })))
+    const result = await call({ path: 'figure.png' }, false)
+    expect(result.isError).toBe(false)
+    expect(result.value).toMatchObject({ model: 'mistral-ocr-latest', pageCount: 1, from: 1, to: 1 })
+    expect(textOf(result.content[0]).split('\n')[1]).toBe('OCR model mistral-ocr-latest; 1 page in the document, all 1 pages returned.')
+  })
+
+  it.each([
+    ['a Mistral rate limit', () => new Response('slow down', { status: 429 }), 'read_pdf: Mistral rate limit exceeded'],
+    ['a Mistral server failure', () => new Response('down', { status: 500 }), 'read_pdf: Mistral OCR failed (HTTP 500)'],
+  ])('reports %s as a read_pdf error', async (_case, answer, message) => {
+    const { store, fetchSpy, call } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await writeFile(join(dir, 'scan.png'), Buffer.from('89504e470d0a1a0a', 'hex'))
+    fetchSpy.mockImplementation(() => Promise.resolve(answer()))
+    const result = await call({ path: 'scan.png' })
+    expect(result.isError).toBe(true)
+    expect(textOf(result.content[0])).toContain(message)
+  })
+
+  it('passes another failure through unchanged, and wraps a failure that is not an Error', async () => {
+    const { store, fetchSpy, call } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await writeFile(join(dir, 'scan.png'), Buffer.from('89504e470d0a1a0a', 'hex'))
+    fetchSpy.mockImplementation(() => Promise.reject(new Error('socket closed')))
+    const closed = await call({ path: 'scan.png' })
+    expect(closed.isError).toBe(true)
+    expect(textOf(closed.content[0])).toContain('socket closed')
+    expect(textOf(closed.content[0])).not.toContain('read_pdf: socket closed')
+    fetchSpy.mockImplementation(async () => {
+      throw 'offline'
+    })
+    const offline = await call({ path: 'scan.png' })
+    expect(offline.isError).toBe(true)
+    expect(textOf(offline.content[0])).toContain('offline')
+  })
+
+  it('answers with the missing-key text when the key disappears between the key check and the upload', async () => {
+    const { credentials, store, fetchSpy, call } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await writeFile(join(dir, 'scan.png'), Buffer.from('89504e470d0a1a0a', 'hex'))
+    const readRecord = credentials.readRecord.bind(credentials)
+    let reads = 0
+    credentials.readRecord = async (key) => {
+      if (++reads > 1) return undefined
+      return readRecord(key)
+    }
+    const result = await call({ path: 'scan.png' })
+    expect(result.isError).toBe(false)
+    expect(textOf(result.content[0])).toBe('Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.')
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

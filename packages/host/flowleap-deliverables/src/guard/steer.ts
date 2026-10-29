@@ -96,13 +96,8 @@ export function registerCompletionGuard(ctx: Context, trackers: TurnTrackers, on
     if (steered.has(key)) return
     const turns = trackers.of(agent.session).turns(turn)
     if (turns === undefined) return
-    let reason: string | undefined
-    try {
-      reason = await checkPriorArtReportCompletion(turns.history, turns.current, receiptFileReader(ctx, signal))
-    } catch (error) {
-      ctx.logger.warn(`flowleap-deliverables: completion check failed: ${error instanceof Error ? error.message : String(error)}`)
-      return
-    }
+    // The check contains its own read failures: a receipt it cannot read counts as unchanged.
+    const reason = await checkPriorArtReportCompletion(turns.history, turns.current, receiptFileReader(ctx, signal))
     if (reason === undefined) return
     steered.add(key)
     onSteer?.(agent, reason)

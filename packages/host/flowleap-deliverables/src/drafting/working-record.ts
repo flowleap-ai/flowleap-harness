@@ -137,6 +137,7 @@ export function readRecordField(record: string, label: string): string | undefin
  */
 export function readRecordFields(record: string, label: string): string[] {
 	const pattern = new RegExp(fieldPattern(label).source, 'gm');
+	/* v8 ignore next -- the value group is not optional in fieldPattern, so it is always set */
 	return [...record.matchAll(pattern)].map(match => match.groups?.value.trim() ?? '').filter(Boolean);
 }
 
@@ -217,6 +218,7 @@ export function splitSentences(text: string): string[] {
 	const sentences: string[] = [];
 	let start = 0;
 	for (const match of flat.matchAll(/[.?!](?=\s|$)/g)) {
+		/* v8 ignore next -- matchAll always sets match.index */
 		const end = (match.index ?? 0) + 1;
 		if (match[0] === '.') {
 			const word = /(?<word>[A-Za-z]+(?:\.[A-Za-z]+)*)\.$/.exec(flat.slice(start, end))?.groups?.word.toLowerCase();

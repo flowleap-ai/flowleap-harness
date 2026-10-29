@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import * as Brand from '../src/index.ts'
 
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
@@ -89,6 +89,48 @@ describe('the ui-brand-flowleap Host half', () => {
     ctx.emit('webserver/index-inject', after, PAGE_PEER)
     expect(after).toEqual([])
     expect(taps).toEqual([])
+  })
+
+  it('serves the mark and the web manifest on their routes, and serves only the manifest for a brand without a mark', async () => {
+    writeFileSync(join(dir, 'mark.svg'), MARK)
+    const served = async (body: unknown) => {
+      const ctx = new Context()
+      contexts.push(ctx)
+      const routes = new Map<string, (req: never, res: never) => void>()
+      ctx.provide('webServer', {
+        tapIndex: () => () => {},
+        register(route: { path: string; handler: (req: never, res: never) => void }) {
+          routes.set(route.path, route.handler)
+          return () => { routes.delete(route.path) }
+        },
+      } as never)
+      await ctx.plugin(Brand, { path: brandFile('served.json', body) })
+      const get = (path: string) => {
+        const res = { writeHead: vi.fn(), end: vi.fn() }
+        routes.get(path)?.({} as never, res as never)
+        return res
+      }
+      return { routes, get }
+    }
+
+    const marked = await served({ productName: 'Acme Patents', shortName: 'Acme', mark: './mark.svg' })
+    const mark = marked.get(Brand.MARK_ROUTE)
+    expect(mark.writeHead).toHaveBeenCalledWith(200, {
+      'content-type': 'image/svg+xml', 'content-length': String(Buffer.byteLength(MARK)), 'cache-control': 'public, max-age=3600',
+    })
+    expect(String(mark.end.mock.calls[0]?.[0])).toBe(MARK)
+    const manifest = marked.get(Brand.MANIFEST_ROUTE)
+    expect(manifest.writeHead.mock.calls[0]?.[1]).toMatchObject({ 'content-type': 'application/manifest+json' })
+    expect(JSON.parse(String(manifest.end.mock.calls[0]?.[0]))).toMatchObject({ name: 'Acme Patents', icons: [{ src: Brand.MARK_ROUTE }] })
+
+    const plain = await served({ productName: 'Plain', shortName: 'P' })
+    expect([...plain.routes.keys()]).toEqual([Brand.MANIFEST_ROUTE])
+    expect(JSON.parse(String(plain.get(Brand.MANIFEST_ROUTE).end.mock.calls[0]?.[0]))).toMatchObject({ name: 'Plain', icons: [] })
+  })
+
+  it('rejects a mark above 256 KiB', () => {
+    writeFileSync(join(dir, 'huge.png'), Buffer.alloc(256 * 1024 + 1))
+    expect(() => Brand.readBrandFile(brandFile('huge-mark.json', { productName: 'P', shortName: 'S', mark: './huge.png' }))).toThrow('exceeds 256 KiB')
   })
 
   it('fails to load on a missing file instead of booting unbranded', async () => {

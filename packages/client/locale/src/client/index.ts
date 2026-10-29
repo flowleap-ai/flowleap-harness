@@ -474,10 +474,9 @@ export class LocaleRuntime {
     locales.set(key, layers)
     this.publish(this.snapshot.active, false)
     return () => {
-      const owner = this.overrides.get(ns)?.get(key)
-      const at = owner === undefined ? -1 : owner.indexOf(dict)
-      if (owner === undefined || at === -1) return
-      owner.splice(at, 1)
+      const at = layers.indexOf(dict)
+      if (at === -1) return
+      layers.splice(at, 1)
       this.publish(this.snapshot.active, false)
     }
   }

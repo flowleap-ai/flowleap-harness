@@ -16,6 +16,12 @@
  * value exercises the same code. ACEs are written with `icacls` and the `*SID`
  * spelling, which no account name has to resolve.
  *
+ * A case that needs the caller to lack a right writes the whole protected DACL with
+ * {@link setDacl} and checks the stored result. `icacls /inheritance:r /grant:r` does
+ * not give a known DACL on every host: on a GitHub-hosted runner, where the caller is
+ * the elevated built-in Administrator, the directory kept explicit FullControl ACEs
+ * for SYSTEM, Administrators and the caller.
+ *
  * Cleanup restores full control on the fixture directories before removing them.
  */
 
@@ -42,6 +48,9 @@ const PACKAGE_SID = 'S-1-15-2-1-2-3-4'
 const OTHER_PACKAGE_SID = 'S-1-15-2-4-3-2-1'
 const CAPABILITY_SID = 'S-1-15-3-1-2-3-4'
 const REMOVED_SWITCHES = ['-Fix', '-GrantFullControl', '-Compact']
+// The `icacls` (M) and (RX) masks, written as SDDL access masks.
+const MODIFY = '0x1301bf'
+const READ_EXECUTE = '0x1200a9'
 // Process creation and Add-Type compilation share the Windows coverage budget.
 const timeout = Math.max(90_000, Number(process.env.DSH_COVERAGE_TEST_TIMEOUT_MS ?? 0))
 
@@ -105,6 +114,25 @@ function icacls(path: string, ...args: readonly string[]): string {
 
 function quote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
+}
+
+/**
+ * Replace the DACL of a directory with exactly `aces`, protected from inheritance, and
+ * fail when the stored DACL differs. Only the DACL is written: owner and label stay.
+ * @param path - the directory whose DACL is replaced.
+ * @param aces - SDDL ACE strings, for example `(A;;0x1301bf;;;AU)`.
+ */
+function setDacl(path: string, aces: string): void {
+  pwsh(
+    '$wanted = [System.Security.AccessControl.DirectorySecurity]::new(); ' +
+    `$wanted.SetSecurityDescriptorSddlForm(${quote(`D:P${aces}`)}, 'Access'); ` +
+    `[System.IO.FileSystemAclExtensions]::SetAccessControl([System.IO.DirectoryInfo]::new(${quote(path)}), $wanted); ` +
+    `$stored = Get-Acl -LiteralPath ${quote(path)}; ` +
+    '$expected = $wanted.GetSecurityDescriptorSddlForm(\'Access\') -replace \'^D:[A-Z]*\', \'\'; ' +
+    '$actual = $stored.GetSecurityDescriptorSddlForm(\'Access\') -replace \'^D:[A-Z]*\', \'\'; ' +
+    'if (-not $stored.AreAccessRulesProtected -or $actual -ne $expected) { ' +
+    `throw ('fixture DACL of {0}: expected protected {1}, stored {2}' -f ${quote(path)}, $expected, $actual) }`,
+  )
 }
 
 function sddlOf(path: string): string {
@@ -248,7 +276,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
       icacls(target, '/setintegritylevel', 'L')
       const labelsBefore = integrityLines(target)
       expect(labelsBefore.length).toBeGreaterThan(0)
-      icacls(target, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(target, `(A;;${MODIFY};;;${meSid})`)
       const ownerBefore = ownerOf(target)
 
       const run = runScript(['-Path', target, '-AllowRoot', scratch, '-Out', join(scratch, 'out')])
@@ -272,7 +300,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'both')
-      icacls(target, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(target, `(A;;${MODIFY};;;${meSid})`)
       stamp(target, PACKAGE_SID)
       const ownerBefore = ownerOf(target)
 
@@ -341,11 +369,13 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
       // The sandbox reports its provisioning failure on the workspace root while the
       // conflicting entry sits deeper, so one approved call must clear both.
       const root = makeDir(scratch, 'workspace')
-      icacls(root, '/inheritance:r', '/grant:r', '*S-1-5-11:(M)')
       const deep = makeDir(root, 'deep')
       const leaf = makeDir(deep, 'leaf')
-      icacls(deep, '/inheritance:r', '/grant:r', `*${PACKAGE_SID}:(OI)(CI)(RX)`)
-      icacls(leaf, '/inheritance:r', '/grant:r', `*${OTHER_PACKAGE_SID}:(OI)(CI)(RX)`)
+      // Leaf first, root last: each write still has the inherited access it needs. The
+      // caller keeps full control below the root, so only the root needs the grant.
+      setDacl(leaf, `(A;OICI;${READ_EXECUTE};;;${OTHER_PACKAGE_SID})(A;;FA;;;${meSid})`)
+      setDacl(deep, `(A;OICI;${READ_EXECUTE};;;${PACKAGE_SID})(A;;FA;;;${meSid})`)
+      setDacl(root, `(A;;${MODIFY};;;AU)`)
 
       const run = runScript(['-Path', root, '-AllowRoot', root, '-Out', join(scratch, 'out')])
       expect(run.code, run.output).toBe(0)
@@ -378,7 +408,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'inherit-only')
-      icacls(target, '/inheritance:r', '/grant:r', '*S-1-5-11:(M)')
+      setDacl(target, `(A;;${MODIFY};;;AU)`)
       icacls(target, '/grant', '*S-1-5-32-545:(OI)(CI)(IO)(F)')
       const inheritOnlyBefore = aclLines(target).filter(line => line.includes('(IO)'))
       expect(inheritOnlyBefore).toHaveLength(1)
@@ -566,7 +596,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     try {
       const out = join(scratch, 'out')
       const first = makeDir(scratch, 'multi-first')
-      icacls(first, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(first, `(A;;${MODIFY};;;${meSid})`)
       const second = makeDir(scratch, 'multi-second')
       stamp(second, PACKAGE_SID)
       icacls(second, '/deny', `*${meSid}:(WO)`)
@@ -588,7 +618,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     try {
       const out = join(scratch, 'out')
       const first = makeDir(scratch, 'pending-first')
-      icacls(first, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(first, `(A;;${MODIFY};;;${meSid})`)
       const second = makeDir(scratch, 'pending-second')
       stamp(second, PACKAGE_SID)
       icacls(second, '/deny', `*${meSid}:(WO)`)
@@ -714,7 +744,7 @@ exit $LASTEXITCODE
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'backup-failure')
-      icacls(target, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(target, `(A;;${MODIFY};;;${meSid})`)
       const outputFile = join(scratch, 'not-a-directory')
       writeFileSync(outputFile, 'Existing contents')
       const before = sddlOf(target)
@@ -806,7 +836,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     try {
       const out = join(scratch, 'out')
       const grantRoot = makeDir(scratch, 'self-grant')
-      icacls(grantRoot, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(grantRoot, `(A;;${MODIFY};;;${meSid})`)
       const grantRun = runScript(['-Path', grantRoot, '-AllowRoot', grantRoot, '-Out', out])
       expect(grantRun.code, grantRun.output).toBe(0)
       expect(grantRun.output).toContain(`GRANTED ${grantRoot} SID=${meSid}`)
@@ -827,7 +857,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'idempotent')
-      icacls(target, '/inheritance:r', '/grant:r', `*${meSid}:(M)`)
+      setDacl(target, `(A;;${MODIFY};;;${meSid})`)
       stamp(target, PACKAGE_SID)
       const out = join(scratch, 'out')
 

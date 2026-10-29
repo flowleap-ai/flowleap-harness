@@ -1,10 +1,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   KEY_STATE_HEADING, KEY_STATE_SECTION_NAME, NO_KEYS, createCredentialStore, readKeyPresence, registerKeyStateSection,
   renderKeyStateSection,
 } from '@deepseek-ai/dsh-flowleap-connectors'
+import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import { MemoryCredentials } from './memory-credentials.ts'
 
 async function bench() {
@@ -18,7 +19,7 @@ async function bench() {
     return assembly.sections.find(section => section.name === KEY_STATE_SECTION_NAME)?.text
   }
   const settled = () => new Promise<void>(resolve => setTimeout(resolve, 0))
-  return { ctx, store, sectionText, settled }
+  return { ctx, credentials, store, sectionText, settled }
 }
 
 describe('the patent-data key-state section', () => {
@@ -61,5 +62,24 @@ describe('the patent-data key-state section', () => {
     const names = assembly.sections.map(section => section.name)
     expect(names.indexOf('flowleap:patent-agent')).toBe(names.indexOf(KEY_STATE_SECTION_NAME) - 1)
     expect(await sectionText()).toBeDefined()
+  })
+
+  it('ignores record changes outside the connector scope and keeps the last presence when a read fails', async () => {
+    const { ctx, credentials, store, sectionText, settled } = await bench()
+    await store.write('mistral', { apiKey: 'mk' })
+    await settled()
+    expect(await sectionText()).toContain('- Mistral: key is set')
+
+    const describeRecord = vi.spyOn(credentials, 'describeRecord')
+    ctx.emit('credentials/record-updated', parseCredentialKey('other-plugin/token'))
+    await settled()
+    expect(describeRecord).not.toHaveBeenCalled()
+
+    const warn = vi.spyOn(ctx.logger, 'warn')
+    describeRecord.mockRejectedValue(new Error('keychain locked'))
+    await store.remove('mistral')
+    await settled()
+    expect(warn).toHaveBeenCalledWith('flowleap-connectors: key state not read; the prompt keeps the last presence', expect.any(Error))
+    expect(await sectionText()).toContain('- Mistral: key is set')
   })
 })

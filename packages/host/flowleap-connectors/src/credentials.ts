@@ -161,13 +161,19 @@ export async function lookupCredentials<P extends ConnectorProvider>(
   return { status: 'available', credentials: CREDENTIAL_BUILDERS[provider](fields), owner: 'user', stored: true }
 }
 
-/** The library's credential object for each provider, from a validated field map (every required field present and non-empty). */
+/**
+ * The library's credential object for each provider, from a validated field map:
+ * `validateConnectorFields` guarantees every required field present and non-empty, so each builder reads them as strings.
+ */
 const CREDENTIAL_BUILDERS: { readonly [K in ConnectorProvider]: (fields: Record<string, string>) => ConnectorCredentialMap[K] } = {
-  epoOps: fields => ({ consumerKey: fields['consumerKey'] ?? '', consumerSecret: fields['consumerSecret'] ?? '' }),
-  usptoOdp: fields => ({ apiKey: fields['apiKey'] ?? '' }),
-  semanticScholar: fields => ({ apiKey: fields['apiKey'] ?? '' }),
+  epoOps: (fields) => {
+    const { consumerKey, consumerSecret } = fields as Record<'consumerKey' | 'consumerSecret', string>
+    return { consumerKey, consumerSecret }
+  },
+  usptoOdp: fields => ({ apiKey: (fields as Record<'apiKey', string>).apiKey }),
+  semanticScholar: fields => ({ apiKey: (fields as Record<'apiKey', string>).apiKey }),
   mistral: fields => ({
-    apiKey: fields['apiKey'] ?? '',
+    apiKey: (fields as Record<'apiKey', string>).apiKey,
     ...fields['baseUrl'] === undefined ? {} : { baseUrl: fields['baseUrl'] },
   }),
 }

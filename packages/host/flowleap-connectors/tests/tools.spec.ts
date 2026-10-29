@@ -6,8 +6,12 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { ContentBlock, ToolCallId } from '@deepseek-ai/dsh-llm'
-import { createConnectors, officeTools } from '@flowleap/connectors'
+import {
+  DataKeysRequiredError, OcrNotConfiguredError, ProviderKeyInvalidError, ToolError, createConnectors, officeTools,
+  type ToolContext, type ToolDefinition,
+} from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import * as FlowleapConnectors from '@deepseek-ai/dsh-flowleap-connectors'
 import {
   createConnectorHost, createCredentialStore, modelInputSchema, registerOfficeTools,
@@ -31,6 +35,8 @@ async function bench() {
 function textOf(block: ContentBlock | undefined): string {
   return block?.type === 'text' ? block.text : String(block?.type)
 }
+
+type Agent = NonNullable<Parameters<typeof executeModelToolFixture>[1]['agent']>
 
 let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
@@ -159,5 +165,91 @@ describe('registerOfficeTools', () => {
     expect(names).not.toContain('get_fulltext')
     await fiber.dispose()
     expect(ctx.tools.schemas()).toEqual([])
+  })
+})
+
+/** A keyless tool whose handler fails with `error`, or records the context it was called with. */
+function probeTool(fail?: Error): ToolDefinition & { contexts: ToolContext[] } {
+  const contexts: ToolContext[] = []
+  return {
+    name: 'probe',
+    description: 'A probe.',
+    input: z.object({ text: z.string() }),
+    access: 'none',
+    contexts,
+    handler: (_input, context) => {
+      contexts.push(context)
+      return fail === undefined ? Promise.resolve({ ok: true, dropped: undefined }) : Promise.reject(fail)
+    },
+  }
+}
+
+describe('office tool failures', () => {
+  it.each([
+    [new DataKeysRequiredError('epo'), 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.'],
+    [new ProviderKeyInvalidError('uspto', 'refused'), 'USPTO ODP rejected the stored key. Replace it in Settings > Patent data connectors > USPTO ODP.'],
+    [new OcrNotConfiguredError(), 'Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.'],
+    [new ToolError(400, 'odp_api_key_missing', 'no key'), 'USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP, then call this tool again.'],
+  ])('answers the library key failure %s with the settings-card text', async (error, text) => {
+    const { ctx, connectors, bound } = await bench()
+    registerOfficeTools(ctx, connectors, bound, [probeTool(error)])
+    const result = await executeModelToolFixture(ctx, {
+      callId: callId(), name: 'probe', arguments: { text: 'x' }, signal: new AbortController().signal,
+    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text }])
+  })
+
+  it('reports another library failure with its code, and any other failure as it is', async () => {
+    const { ctx, connectors, bound } = await bench()
+    registerOfficeTools(ctx, connectors, bound, [probeTool(new ToolError(404, 'not_found', 'no such patent'))])
+    const coded = await executeModelToolFixture(ctx, {
+      callId: callId(), name: 'probe', arguments: { text: 'x' }, signal: new AbortController().signal,
+    })
+    expect(coded.isError).toBe(true)
+    expect(textOf(coded.content[0])).toContain('probe: not_found: no such patent')
+
+    const other = await bench()
+    registerOfficeTools(other.ctx, other.connectors, other.bound, [probeTool(new Error('socket closed'))])
+    const plain = await executeModelToolFixture(other.ctx, {
+      callId: callId(), name: 'probe', arguments: { text: 'x' }, signal: new AbortController().signal,
+    })
+    expect(plain.isError).toBe(true)
+    expect(textOf(plain.content[0])).toContain('socket closed')
+    expect(textOf(plain.content[0])).not.toContain('probe:')
+  })
+
+  it('names a root-level argument error as (root)', async () => {
+    const { ctx, connectors, bound } = await bench()
+    registerOfficeTools(ctx, connectors, bound, [probeTool()])
+    const result = await executeModelToolFixture(ctx, {
+      callId: callId(), name: 'probe', arguments: 'not an object', signal: new AbortController().signal,
+    })
+    expect(result.isError).toBe(true)
+    expect(textOf(result.content[0])).toContain('probe: invalid arguments: (root)')
+  })
+
+  it('passes the calling agent to the handler as the caller and renders a string result as it is', async () => {
+    const { ctx, connectors, bound } = await bench()
+    const probe = probeTool()
+    registerOfficeTools(ctx, connectors, bound, [probe, { ...probeTool(), name: 'echo', handler: () => Promise.resolve('plain text') }])
+    const agent = { id: 'session-7', ctx: ctx.extend() } as Agent
+    const result = await executeModelToolFixture(ctx, {
+      callId: callId(), name: 'probe', arguments: { text: 'x' }, signal: new AbortController().signal, agent,
+    })
+    expect(result.value).toEqual({ ok: true })
+    expect(probe.contexts.map(context => context.caller)).toEqual([{ userId: 'session-7' }])
+    const echo = await executeModelToolFixture(ctx, {
+      callId: callId(), name: 'echo', arguments: { text: 'x' }, signal: new AbortController().signal,
+    })
+    expect(echo.content).toEqual([{ type: 'text', text: 'plain text' }])
+  })
+
+  it('withdraws the tools it already registered when a later name conflicts', async () => {
+    const { ctx, connectors, bound } = await bench()
+    const keep = registerOfficeTools(ctx, connectors, bound, [{ ...probeTool(), name: 'taken' }])
+    expect(() => registerOfficeTools(ctx, connectors, bound, [probeTool(), { ...probeTool(), name: 'taken' }])).toThrow('already registered')
+    expect(ctx.tools.schemas().map(schema => schema.name)).toEqual(['taken'])
+    keep()
   })
 })

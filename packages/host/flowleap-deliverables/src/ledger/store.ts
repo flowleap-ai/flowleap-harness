@@ -127,12 +127,12 @@ export class PatentLedger {
     await this.tail
     const stored = persistence.table.get(sessionId)
     if (stored === undefined) return
-    const known = new Set(this.list(sessionId).map(execution => execution.id))
+    // A record that lands while this load waits is stored after the load reads the table, so no stored record is in memory yet.
     for (const raw of stored.executions) {
       const recovered = readPatentExecution(raw)
       if (recovered === undefined) { this.unreadable.add(sessionId); continue }
       if (recovered.dropped) this.partial.add(sessionId)
-      if (!known.has(recovered.execution.id)) this.list(sessionId).push(recovered.execution)
+      this.list(sessionId).push(recovered.execution)
     }
   }
 }

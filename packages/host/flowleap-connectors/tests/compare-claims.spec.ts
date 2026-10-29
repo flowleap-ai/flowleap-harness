@@ -15,7 +15,8 @@ import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { ErrorCodes, createConnectors, type Connectors, type ProviderReadResult, type RoutedClaims } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  COMPARE_CLAIMS_MAX_PATENTS, COMPARE_CLAIMS_NAME, createConnectorHost, createCredentialStore, decomposeClaim, registerCompareClaimsTool,
+  COMPARE_CLAIMS_MAX_PATENTS, COMPARE_CLAIMS_NAME, COMPARE_CLAIMS_TEXT_BUDGET, createConnectorHost, createCredentialStore, decomposeClaim,
+  formatComparisonPackage, registerCompareClaimsTool, selectIndependentClaim,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { MemoryCredentials } from './memory-credentials.ts'
 
@@ -37,7 +38,7 @@ const US_PAID_ROUTE = 'This host has no US full-text source. US claims for US765
   + 'call mcp__flowleap__get_claims with this number.'
 
 /** Claims by compact docId, as the text router would return them for EP publications. */
-type Recorded = Record<string, string[] | ProviderReadResult<RoutedClaims>>
+type Recorded = Record<string, string[] | ProviderReadResult<RoutedClaims> | Error>
 
 async function bench(recorded: Recorded = {}) {
   const ctx = new Context()
@@ -59,6 +60,7 @@ async function bench(recorded: Recorded = {}) {
         routed.push({ docId, language })
         const entry = recorded[docId]
         if (entry === undefined) return real.fulltext.getClaimsRouted(docId, language)
+        if (entry instanceof Error) return Promise.reject(entry)
         if (!Array.isArray(entry)) return Promise.resolve(entry)
         return Promise.resolve({
           ok: true as const,
@@ -271,5 +273,79 @@ describe('compare_claims', () => {
     ])
     expect(decomposeClaim('A widget.')).toEqual([{ label: 'Element 1', text: 'A widget', type: 'limitation' }])
     expect(decomposeClaim('  ')).toEqual([])
+  })
+
+  it.each([
+    ['a value that is not an object', ['EP-1'], 'invalid arguments: expected an object'],
+    ['a userClaim that is not a string', { userClaim: 7, patentNumbers: ['EP-1'] }, 'invalid arguments: userClaim must be a string'],
+    ['patentNumbers that are not strings', { userClaim: 'A device.', patentNumbers: [1] }, 'invalid arguments: patentNumbers must be an array of strings'],
+  ])('refuses %s', async (_case, args, message) => {
+    const { routed, call } = await bench()
+    const result = await call(args)
+    expect(result.isError).toBe(true)
+    expect(textOf(result.content[0])).toContain(`compare_claims: ${message}`)
+    expect(routed).toEqual([])
+  })
+
+  it('answers a router refusal for want of a data key with the EPO OPS missing-key text', async () => {
+    const required: ProviderReadResult<RoutedClaims> = {
+      ok: false, status: 403, headers: {},
+      body: { success: false, status: 403, error: { code: ErrorCodes.data_keys_required, message: 'keys required' } },
+    }
+    const { store, call } = await bench({ EP1000000A1: required })
+    await store.write('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const result = await call({ userClaim: 'A device.', patentNumbers: ['EP-1000000-A1'] })
+    expect(result.isError).toBe(false)
+    expect(textOf(result.content[0])).toBe('EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.')
+  })
+
+  it('reads unnumbered claims, reports an empty claim set as no claims returned, and fails on a router error', async () => {
+    const { store, call } = await bench({
+      EP1000000A1: { ok: true, cached: false, data: { docId: 'EP1000000A1', lang: 'en', claims: ['A device comprising a part.'] } },
+      EP2000000A1: { ok: true, cached: false, data: { docId: 'EP2000000A1', lang: 'en', claims: [] } },
+      EP3000000A1: new Error('router offline'),
+    })
+    await store.write('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const result = await call({ userClaim: 'A device.', patentNumbers: ['EP-1000000-A1', 'EP-2000000-A1'] })
+    expect(result.value).toMatchObject({
+      patents: [
+        { patentNumber: 'EP-1000000-A1', claimCount: 1 },
+        { patentNumber: 'EP-2000000-A1', claimCount: 0, failureReason: 'no claims returned' },
+      ],
+    })
+    const text = textOf(result.content[0])
+    expect(text).toContain('| Claim Element | EP-1000000-A1 |\n| --- | --- |\n| Preamble | A device comprising |')
+    expect(text).toContain('#### EP-2000000-A1\nClaims unavailable (no claims returned).')
+
+    const failed = await call({ userClaim: 'A device.', patentNumbers: ['EP-3000000-A1'] })
+    expect(failed.isError).toBe(true)
+    expect(textOf(failed.content[0])).toContain('router offline')
+  })
+
+  it('elides long chart cells, cuts an oversized claim, drops the claims past the text budget with a notice, and charts the first claim when all depend', async () => {
+    const longElement = `a ${'very '.repeat(40)}long housing`
+    const oversized = `1. A device comprising ${'x'.repeat(COMPARE_CLAIMS_TEXT_BUDGET)}.`
+    const filler = (n: number) => `${String(n)}. The device of claim 1, wherein ${'y'.repeat(COMPARE_CLAIMS_TEXT_BUDGET / 2)}.`
+    const { store, call } = await bench({
+      EP1000000A1: [`1. A battery comprising ${longElement}; and a lid.`, filler(2), filler(3), filler(4)],
+      EP2000000A1: [oversized],
+      EP3000000A1: ['1. The device of claim 2, wherein it is red.', '2. The device of claim 1, wherein it is blue.'],
+    })
+    await store.write('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const result = await call({ userClaim: 'A battery.', patentNumbers: ['EP-1000000-A1', 'EP-2000000-A1', 'EP-3000000-A1'] })
+    const text = textOf(result.content[0])
+    expect(text).toContain(`| Element 1 | ${longElement.slice(0, 120)}… |`)
+    expect(text).toContain(`\`\`\`\n${oversized.slice(0, COMPARE_CLAIMS_TEXT_BUDGET)}…\n\`\`\``)
+    expect(text).toContain(`> Response exceeded this tool's ${String(COMPARE_CLAIMS_TEXT_BUDGET)}-character budget. 2 result item(s) were omitted`)
+    expect(text).toContain('| Claim Element | EP-1000000-A1 | EP-2000000-A1 | EP-3000000-A1 |')
+    expect(text).toContain('| Preamble | A battery comprising | A device comprising | The device of claim 2, wherein it is red |')
+  })
+
+  it('selects and decomposes edge-case claims and renders a package without any fetched claims', () => {
+    expect(selectIndependentClaim([])).toBe('')
+    expect(decomposeClaim('2. ;')).toEqual([{ label: 'Element 1', text: ';', type: 'limitation' }])
+    const markdown = formatComparisonPackage('A device.', [{ patentNumber: 'US-1', claims: null, failureReason: '404 - not found' }])
+    expect(markdown).not.toContain('Claim Chart')
+    expect(markdown).toContain('#### US-1\nClaims unavailable (404 - not found).')
   })
 })

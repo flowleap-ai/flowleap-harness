@@ -938,9 +938,9 @@ async connectors(): Promise<ConnectorChoice[]>
 async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>
 
 /**
- * Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the
- * agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved,
- * the agent stays as it was.
+ * Delete one agent: close its index, move its folder aside, then remove its preset and the moved folder. A read or
+ * write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`, and the agent is
+ * not listed. When the folder cannot be moved, the index opens again and the agent stays as it was.
  * @param id - the agent.
  * @throws RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.
  */

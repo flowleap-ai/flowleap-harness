@@ -41,13 +41,22 @@ export interface CompareClaimsArgs {
 }
 
 /** The claims of one requested patent, or why they are missing. */
-export interface FetchedClaims {
+export type FetchedClaims = {
   /** The number as the model gave it; the column header. */
   patentNumber: string
-  /** The claim texts in order, or `null` when none came back. */
-  claims: string[] | null
-  /** The one-line reason when `claims` is `null`. */
-  failureReason?: string
+  /** The claim texts in order, at least one. */
+  claims: string[]
+  failureReason?: never
+} | FailedClaims
+
+/** A requested patent without claims. */
+interface FailedClaims {
+  /** The number as the model gave it. */
+  patentNumber: string
+  /** No claims came back. */
+  claims: null
+  /** The one-line reason. */
+  failureReason: string
 }
 
 /** The canonical value of a comparison. */
@@ -105,21 +114,6 @@ export interface ClaimElement {
   readonly text: string
   /** Whether this is the preamble or a body limitation. */
   readonly type: 'preamble' | 'limitation'
-}
-
-/** A single row of the element-by-element claim chart: one reference element mapped across every patent. */
-interface ClaimChartRow {
-  readonly label: string
-  /** Per-patent cell text, positionally aligned to the chart's patent columns. */
-  readonly cells: readonly string[]
-}
-
-/** Column specification for {@link renderMarkdownTable}. `cell` maps a row to its rendered string value. */
-interface MarkdownColumn<T> {
-  /** Column header text. */
-  readonly header: string
-  /** Renders the cell value for a given row. */
-  readonly cell: (row: T) => string
 }
 
 /** Regexes shared by claim decomposition; declared once so the deterministic split has no per-call cost. */
@@ -184,18 +178,16 @@ export function decomposeClaim(rawClaim: string): ClaimElement[] {
 }
 
 /**
- * Renders `rows` as a GitHub-flavored markdown table using `columns`. Cell and header text has pipes
- * and newlines escaped so a value can never break the table structure.
- * @param rows - the rows.
- * @param columns - the columns, left-aligned.
+ * Renders a GitHub-flavored markdown table. Cell and header text has pipes and newlines escaped so a
+ * value can never break the table structure.
+ * @param headers - the column headers, left-aligned.
+ * @param rows - the rows, each one cell per header.
  * @returns the table.
  */
-function renderMarkdownTable<T>(rows: readonly T[], columns: readonly MarkdownColumn<T>[]): string {
+function renderMarkdownTable(headers: readonly string[], rows: readonly (readonly string[])[]): string {
   const escape = (value: string): string => value.replace(/\|/gu, '\\|').replace(/\r?\n/gu, ' ')
-  const headerRow = `| ${columns.map(column => escape(column.header)).join(' | ')} |`
-  const separatorRow = `| ${columns.map(() => '---').join(' | ')} |`
-  const bodyRows = rows.map(row => `| ${columns.map(column => escape(column.cell(row))).join(' | ')} |`)
-  return [headerRow, separatorRow, ...bodyRows].join('\n')
+  const line = (cells: readonly string[]): string => `| ${cells.map(escape).join(' | ')} |`
+  return [line(headers), `| ${headers.map(() => '---').join(' | ')} |`, ...rows.map(line)].join('\n')
 }
 
 /** The IDE's truncation notice for the claims dropped by the per-patent text budget. */
@@ -217,27 +209,20 @@ function renderClaimChart(withClaims: readonly (FetchedClaims & { claims: string
   const reference = decompositions[0]
   if (reference === undefined) return []
 
-  const rows: ClaimChartRow[] = reference.elements.map((element, index) => ({
-    label: element.label,
-    cells: decompositions.map((decomposition) => {
+  const rows = reference.elements.map((element, index) => [
+    element.label,
+    ...decompositions.map((decomposition) => {
       const aligned = decomposition.elements[index]
       return aligned ? truncate(aligned.text, CLAIM_CHART_CELL_LIMIT) : '—'
     }),
-  }))
-
-  const columns: MarkdownColumn<ClaimChartRow>[] = [
-    { header: 'Claim Element', cell: row => row.label },
-    ...decompositions.map((decomposition, columnIndex): MarkdownColumn<ClaimChartRow> => ({
-      header: decomposition.patentNumber,
-      cell: row => row.cells[columnIndex] ?? '—',
-    })),
-  ]
+  ])
+  const headers = ['Claim Element', ...decompositions.map(decomposition => decomposition.patentNumber)]
 
   return [
     '### Element-by-Element Claim Chart',
     `Rows are the elements of the reference patent (${reference.patentNumber}); \`—\` means that patent's independent claim has no element at that position. Correspondence is positional — verify it against the full claim text below.`,
     '',
-    renderMarkdownTable(rows, columns),
+    renderMarkdownTable(headers, rows),
   ]
 }
 
@@ -280,9 +265,7 @@ function renderBoundedClaims(claims: readonly string[]): string {
  * @returns the Markdown package.
  */
 export function formatComparisonPackage(userClaim: string, fetched: readonly FetchedClaims[]): string {
-  const withClaims = fetched.filter(
-    (entry): entry is FetchedClaims & { claims: string[] } => entry.claims !== null && entry.claims.length > 0,
-  )
+  const withClaims = fetched.filter((entry): entry is FetchedClaims & { claims: string[] } => entry.claims !== null)
 
   const lines: string[] = [
     '## Prior Art Claim Comparison Package',
@@ -299,11 +282,7 @@ export function formatComparisonPackage(userClaim: string, fetched: readonly Fet
   lines.push('', '### Full Claim Text', '')
   for (const entry of fetched) {
     lines.push(`#### ${entry.patentNumber}`)
-    if (entry.claims !== null && entry.claims.length > 0) {
-      lines.push(renderBoundedClaims(entry.claims))
-    } else {
-      lines.push(`Claims unavailable (${entry.failureReason ?? 'no claims returned'}).`)
-    }
+    lines.push(entry.claims === null ? `Claims unavailable (${entry.failureReason}).` : renderBoundedClaims(entry.claims))
     lines.push('')
   }
 
@@ -323,8 +302,8 @@ export function formatComparisonPackage(userClaim: string, fetched: readonly Fet
 }
 
 /** The text of the all-failed answer: every reason, then where claims come from. */
-function noClaimsAnswer(fetched: readonly FetchedClaims[]): string {
-  const failures = fetched.map(entry => `- ${entry.patentNumber}: ${entry.failureReason ?? 'no claims returned'}`).join('\n')
+function noClaimsAnswer(fetched: readonly FailedClaims[]): string {
+  const failures = fetched.map(entry => `- ${entry.patentNumber}: ${entry.failureReason}`).join('\n')
   return `Could not retrieve claims for any of the requested patents:\n${failures}\n\n`
     + 'Claims are not published for every office and document. Fetch them with get_claims, '
     + 'then compare manually.'
@@ -415,10 +394,10 @@ export function compareClaimsTool(ctx: Context, connectors: Connectors, bound: B
         if (error instanceof KeyFailure) return error.result
         throw error
       }
-      const withClaims = fetched.filter(entry => entry.claims !== null && entry.claims.length > 0)
-      ctx.logger.info(`${COMPARE_CLAIMS_NAME}: fetched claims for ${String(withClaims.length)}/${String(fetched.length)} patents`)
+      const failed = fetched.filter((entry): entry is FailedClaims => entry.claims === null)
+      ctx.logger.info(`${COMPARE_CLAIMS_NAME}: fetched claims for ${String(fetched.length - failed.length)}/${String(fetched.length)} patents`)
 
-      const markdown = withClaims.length === 0 ? noClaimsAnswer(fetched) : formatComparisonPackage(userClaim, fetched)
+      const markdown = failed.length === fetched.length ? noClaimsAnswer(failed) : formatComparisonPackage(userClaim, fetched)
       const value: CompareClaimsValue = {
         patents: fetched.map(entry => ({
           patentNumber: entry.patentNumber,

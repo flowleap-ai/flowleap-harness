@@ -13,7 +13,7 @@
 
 import { mkdtemp, readdir, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
@@ -174,7 +174,7 @@ describe('write_patent_results', () => {
     ])
     expect(await readFile(join(dir, 'notes/claim review.md'), 'utf8')).toBe('Saved notes')
     const presented = eventsOf(session, 'deliverables/presented')
-    expect(presented.map(event => event.type === 'deliverables/presented' ? { turn: event.data.turn, files: event.data.files.map(file => [file.path.endsWith('/notes/claim review.md'), file.description]) } : undefined))
+    expect(presented.map(event => event.type === 'deliverables/presented' ? { turn: event.data.turn, files: event.data.files.map(file => [file.path.endsWith(`${sep}${join('notes', 'claim review.md')}`), file.description]) } : undefined))
       .toEqual([{ turn: 1, files: [[true, 'Report']] }])
   })
 
@@ -266,7 +266,7 @@ describe('write_patent_results', () => {
       recordTitle: record.split('\n')[0],
       recordSections: record.split('\n').filter(line => line.startsWith('## ')),
       evidence: [evidence.schemaVersion, evidence.executions.length],
-      presented: presented.map(data => data && { turn: data.turn, callId: data.callId, files: data.files.map(file => [file.path.replace(dir, '<dir>'), file.description]) }),
+      presented: presented.map(data => data && { turn: data.turn, callId: data.callId, files: data.files.map(file => [`<dir>/${relative(dir, file.path).split(sep).join('/')}`, file.description]) }),
     }).toEqual({
       value: { saved: true, text, report: join(dir, 'outputs/review.md'), workingRecord: join(dir, 'outputs/review.working-record.md'), evidence: join(dir, 'outputs/review.md.evidence.json') },
       first: 'Successfully wrote patent results to outputs/review.md',

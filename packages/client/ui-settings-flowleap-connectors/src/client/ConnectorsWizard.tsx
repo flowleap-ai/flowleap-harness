@@ -100,9 +100,6 @@ export function ConnectorsWizard(props: ConnectorsWizardProps): ReactNode {
             card={connectors.cards[id]}
             t={t}
             edit={(target, field, text) => { controller.edit(target, field, text) }}
-            save={() => {}}
-            remove={() => {}}
-            test={() => {}}
           />
         ))}
       </div>

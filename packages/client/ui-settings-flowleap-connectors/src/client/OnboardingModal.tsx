@@ -7,6 +7,8 @@ import css from './OnboardingModal.module.css'
 
 const ignoreImplicitDismiss = (): void => {}
 
+/* jscpd:ignore-start -- mirrors the package-private copy in dsh-client-ui-settings-models;
+   a shared export would change that upstream package on each sync */
 /**
  * Render a blocking onboarding dialog and keep the application root inert.
  * @param props.title - accessible and visible dialog title.
@@ -35,3 +37,4 @@ export function OnboardingModal({ title, children }: { title: string; children: 
     </Modal>
   )
 }
+/* jscpd:ignore-end */

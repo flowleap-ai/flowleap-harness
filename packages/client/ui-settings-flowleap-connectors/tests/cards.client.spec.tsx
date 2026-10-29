@@ -103,4 +103,14 @@ describe('ConnectorsSection', () => {
     expect(screen.getAllByRole('alert').map(node => node.textContent)).toEqual([en.loadFailed, 'USPTO ODP: field "apiKey" is required'])
     expect(screen.getByRole('button', { name: en.saving })).toHaveProperty('disabled', true)
   })
+
+  it('labels a field the copy does not know by its own name and names the operation in flight', () => {
+    renderSection(state({
+      mistral: { configured: true, fields: ['apiKey', 'baseUrl'], busy: 'testing' },
+      'semantic-scholar': { configured: true, busy: 'removing' },
+    }))
+    expect(screen.getByLabelText('baseUrl')).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.testing })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: en.removing })).toHaveProperty('disabled', true)
+  })
 })

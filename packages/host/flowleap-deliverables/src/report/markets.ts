@@ -77,8 +77,9 @@ export async function resolveMarkets(
   seams: GateSeams, exec: ToolRunContext, memory: ConfirmedMarkets, processPath: string, proposed: string | undefined,
 ): Promise<MarketsResolution> {
   const sessionId = exec.agent?.session.id
-  const remembered = sessionId === undefined ? undefined : memory.get(sessionId, processPath)
   const offer = proposed?.trim() || undefined
+  if (sessionId === undefined) return { kind: 'unconfirmed', markets: offer }
+  const remembered = memory.get(sessionId, processPath)
   if (remembered !== undefined && (offer === undefined || offer === remembered)) {
     return { kind: 'confirmed', markets: remembered, via: 'earlier-card', proposed: offer }
   }
@@ -95,7 +96,7 @@ export async function resolveMarkets(
   if (!markets) {
     return { kind: 'refused', text: 'Report was not saved. The user named no markets for the FTO memo. Ask the user which markets the memo must clear, then save again.' }
   }
-  if (sessionId !== undefined) memory.set(sessionId, processPath, markets)
+  memory.set(sessionId, processPath, markets)
   return { kind: 'confirmed', markets, via: 'card', proposed: offer }
 }
 

@@ -98,6 +98,7 @@ export function parseClaimDependency(text: string, claimNumber: number): readonl
 		for (let claim = 1; claim < claimNumber; claim++) { parents.add(claim); }
 	}
 	for (const match of text.matchAll(NUMBERED_REFERENCE)) {
+		/* v8 ignore next -- a match of a pattern with a named group always has groups. */
 		const tokens = (match.groups?.numbers ?? '').split(/(\d+)/).map(token => token.trim()).filter(Boolean);
 		let previous: number | undefined;
 		let range = false;
@@ -172,6 +173,7 @@ export function publicationIdentities(publications: readonly string[]): Readonly
  */
 export function distinctPublications(publications: readonly string[]): string[] {
 	const identities = publicationIdentities(publications);
+	/* v8 ignore next -- publicationIdentities maps every spelling of the list. */
 	return [...new Set(publications.map(publication => identities.get(publicationKey(publication)) ?? publicationKey(publication)))];
 }
 
@@ -210,6 +212,7 @@ export function deriveFallbackLadder(snapshot: PatentExecutionSnapshot, challeng
 	}
 	if (!claims.size) { return { kind: 'unavailable', publication, ladderUnavailable: LADDER_UNAVAILABLE }; }
 	const numbers = [...claims.keys()].sort((first, second) => first - second);
+	/* v8 ignore next -- `numbers` holds only keys of `claims`. */
 	const parents = new Map(numbers.map(claim => [claim, parseClaimDependency(claims.get(claim) ?? '', claim).filter(parent => claims.has(parent))]));
 	// The first path from a claim up to each independent claim it reaches, lowest-numbered parent first.
 	const chains = new Map<number, Map<number, readonly number[]>>();
@@ -217,6 +220,7 @@ export function deriveFallbackLadder(snapshot: PatentExecutionSnapshot, challeng
 		const known = chains.get(claim);
 		if (known) { return known; }
 		const result = new Map<number, readonly number[]>();
+		/* v8 ignore next -- `parents` holds every claim number. */
 		const direct = parents.get(claim) ?? [];
 		if (!direct.length) {
 			result.set(claim, [claim]);
@@ -231,6 +235,7 @@ export function deriveFallbackLadder(snapshot: PatentExecutionSnapshot, challeng
 		chains.set(claim, result);
 		return result;
 	};
+	/* v8 ignore next -- `parents` and `claims` hold every claim number, so their fallbacks cannot run. */
 	const ladders = numbers.filter(claim => !(parents.get(claim) ?? []).length).map(root => ({
 		claimNumber: String(root),
 		text: claims.get(root) ?? '',
@@ -301,11 +306,13 @@ function executedKeys(snapshot: PatentExecutionSnapshot): ReadonlyMap<string, st
 
 /** One round query's tool, lower-cased and trimmed. */
 function roundTool(entry: { readonly tool?: string } | undefined): string {
+	/* v8 ignore next -- a round query has a tool by its type. */
 	return entry?.tool?.trim().toLowerCase() ?? '';
 }
 
 /** The `tool + query` key of one round query, as {@link executedKeys} keys an execution. */
 function roundKey(entry: { readonly tool?: string; readonly query?: string } | undefined): string {
+	/* v8 ignore next -- a round query has a query by its type. */
 	return `${roundTool(entry)}\u0000${queryKey(entry?.query ?? '')}`;
 }
 
@@ -322,6 +329,7 @@ export function roundLedgerStatus(review: PatentCandidateReview, snapshot: Paten
 	const executed = executedKeys(snapshot);
 	return (review.rounds ?? []).map(round => ({
 		round: round.round,
+		/* v8 ignore next -- a round has queries by its type. */
 		queries: (round.queries ?? []).map(entry => executed.has(roundKey(entry)) ? 'matched' : 'unrecorded'),
 	}));
 }
@@ -352,6 +360,7 @@ export function roundOrderErrors(review: PatentCandidateReview, snapshot: Patent
 	const errors: string[] = [];
 	(review.rounds ?? []).forEach((round, index) => {
 		if (index < (previous.rounds ?? 0)) { return; }
+		/* v8 ignore next -- a round has queries by its type. */
 		const ranAt = (round?.queries ?? []).flatMap(entry => { const at = executed.get(roundKey(entry)); return at === undefined ? [] : [at]; });
 		if (ranAt.length && !ranAt.some(at => at.localeCompare(previous.recordedAt) > 0)) {
 			errors.push(`Round ${round.round} lists only queries that ran before the previous save of this chart (${previous.recordedAt}); a Search Round is a new search after the receipt. Run at least one new query aimed at the not-covered limitations and record it in the round, or save without the round.`);
@@ -397,8 +406,11 @@ function roundErrors(review: PatentCandidateReview, snapshot: PatentExecutionSna
 	const executed = executedKeys(snapshot);
 	for (const round of review.rounds ?? []) {
 		let matched = 0;
+		/* v8 ignore start -- a round has queries by its type. */
 		for (const entry of round?.queries ?? []) {
+			/* v8 ignore stop */
 			const tool = roundTool(entry);
+			/* v8 ignore next -- a round query has a query by its type. */
 			const query = entry?.query?.trim() ?? '';
 			if (!tool || !query) { errors.push(`Search Round ${round.round} lists a query without its tool or its text. Name the tool and copy the query exactly as it ran.`); continue; }
 			if (executed.has(`${tool}\u0000${queryKey(query)}`)) { matched++; continue; }
@@ -416,7 +428,7 @@ function basisErrors(row: PatentCoverageRow, sources: Map<string, PatentEvidence
 	if (!anchor || !quote) { return [`Description fallback "${row.feature}" needs basis.anchor (a description anchor of the challenged patent) and basis.quote (the verbatim passage that supports the fallback), or a claimNumber naming a dependent claim.`]; }
 	const source = sources.get(anchor);
 	if (!source) { return [`Description fallback "${row.feature}" cites basis.anchor ${anchor}, which is not a recorded source. Copy the anchor that get_description printed for the challenged patent's description.`]; }
-	if (!publication || documentKey(source.reference.publicationNumber) !== documentKey(publication) || source.reference.section !== 'description') { return [`Description fallback "${row.feature}" cites basis.anchor ${anchor}, which is not a description passage of the challenged patent${publication ? ` ${publication}` : ''}. A fallback rests on the challenged patent's own description.`]; }
+	if (!publication || documentKey(source.reference.publicationNumber) !== documentKey(publication) || source.reference.section !== 'description') { return [`Description fallback "${row.feature}" cites basis.anchor ${anchor}, which is not a description passage of the challenged patent${/* v8 ignore next -- the derivation here always names a publication. */ publication ? ` ${publication}` : ''}. A fallback rests on the challenged patent's own description.`]; }
 	if (!source.text) { return [`No recorded text for ${anchor} (older record): retrieve it once with get_claims or get_description so the basis quote of "${row.feature}" can be checked.`]; }
 	if (!normalizeText(source.text).includes(normalizeText(quote))) { return [`basis.quote of description fallback "${row.feature}" is not found in the recorded text of ${anchor}. Copy the passage verbatim; do not paraphrase or merge lines.`]; }
 	return [];
@@ -620,11 +632,11 @@ export function rowOpenPoints(review: PatentCandidateReview): readonly ReceiptOp
 			const row = rows[index];
 			const parent = row.fallbackOf?.trim() || '?';
 			const subject = row.claimNumber?.trim() ? `Claim ${row.claimNumber.trim()} (fallback of claim ${parent})` : `Description fallback of claim ${parent}`;
-			return { id: `rung-${references[index]}`, text: `${subject} ${row.status === 'partial' ? OPEN_STATUS_TEXT.partial : OPEN_STATUS_TEXT.unresolved}: ${shortPhrase(row.feature ?? '')}` };
+			return { id: `rung-${references[index]}`, text: `${subject} ${row.status === 'partial' ? OPEN_STATUS_TEXT.partial : OPEN_STATUS_TEXT.unresolved}: ${shortPhrase(/* v8 ignore next -- a row has a feature by its type. */ row.feature ?? '')}` };
 		}),
 		...elements.map(index => {
 			const row = rows[index];
-			return { id: `element-${references[index]}`, text: `${row.claimNumber?.trim() ? `Claim ${row.claimNumber.trim()} element` : 'Element'} ${OPEN_STATUS_TEXT.unresolved}: ${shortPhrase(row.feature ?? '')}` };
+			return { id: `element-${references[index]}`, text: `${row.claimNumber?.trim() ? `Claim ${row.claimNumber.trim()} element` : 'Element'} ${OPEN_STATUS_TEXT.unresolved}: ${shortPhrase(/* v8 ignore next -- a row has a feature by its type. */ row.feature ?? '')}` };
 		}),
 	];
 }

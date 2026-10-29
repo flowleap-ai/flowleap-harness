@@ -80,8 +80,7 @@ export function readBrandFile(path: string): BrandRecord {
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'))
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error)
-    throw new Error(`ui-brand-flowleap: cannot read ${path}: ${detail}`)
+    throw new Error(`ui-brand-flowleap: cannot read ${path}: ${String(error)}`, { cause: error })
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error(`${path} must be a JSON object`)
   const file = parsed as Record<string, unknown>

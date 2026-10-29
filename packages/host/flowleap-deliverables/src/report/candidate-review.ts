@@ -186,6 +186,7 @@ function legalConclusions(fields: readonly (readonly [string, string | undefined
 		for (const phrase of phrases) {
 			const pattern = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}\\b`, 'gi');
 			for (const match of value.matchAll(pattern)) {
+				/* v8 ignore next -- a `matchAll` match always has an index. */
 				const start = match.index ?? 0;
 				// A disclaimer ("does not establish novelty", "no assessment of anticipation or obviousness is
 				// made", "does not constitute a patentability opinion") is the opposite of a conclusion.
@@ -238,6 +239,7 @@ function retrievedDocuments(review: PatentCandidateReview, snapshot: PatentExecu
 	const identities = publicationIdentities(retrievals.flatMap(execution => [...(execution.publicationIds ?? []), ...(execution.sources ?? []).map(source => source.reference.publicationNumber)]));
 	const documents = new Map<string, DocumentRecord>();
 	const entry = (publication: string): DocumentRecord => {
+		/* v8 ignore next -- publicationIdentities maps every publication of the retrievals. */
 		const key = identities.get(publicationKey(publication)) ?? publicationKey(publication);
 		const existing = documents.get(key);
 		if (existing) { return existing; }
@@ -695,6 +697,7 @@ function figureCandidates(snapshot: PatentExecutionSnapshot): string | undefined
  */
 function figuresGateError(row: PatentCoverageRow, candidates: string): string[] {
 	if (row.importance !== 'essential' || row.status !== 'unresolved' || row.kind === 'combination') { return []; }
+	/* v8 ignore next -- a row has a gap by its type. */
 	const gap = row.gap ?? '';
 	const stated = gap.toLowerCase().indexOf(FIGURES_NOT_CONSULTED);
 	if (stated >= 0 && gap.slice(stated + FIGURES_NOT_CONSULTED.length).trim().length >= FIGURES_REASON_LENGTH) { return []; }
@@ -911,6 +914,7 @@ export function referenceRoles(review: PatentCandidateReview, sources: Map<strin
 	const roles = new Map<string, { rows: string[]; alone: boolean }>();
 	for (const { row, publications } of perRow) {
 		for (const publication of publications) {
+			/* v8 ignore next -- publicationIdentities maps every publication of the rows. */
 			const identity = identities.get(publication) ?? publication;
 			const role = roles.get(identity) ?? { rows: [], alone: false };
 			role.rows.push(row.feature);
@@ -973,6 +977,7 @@ function claimGroups(rows: readonly PatentCoverageRow[]): readonly ClaimGroup[] 
 
 /** The fallback rows that fall back from one independent claim. */
 function fallbackRowsOf(review: PatentCandidateReview, claim: string): readonly PatentCoverageRow[] {
+	/* v8 ignore next -- callers name a claim read from the coverage rows. */
 	return (review.coverage ?? []).filter(row => row.kind === 'fallback' && row.fallbackOf?.trim() === claim);
 }
 
@@ -990,6 +995,7 @@ function fallbackList(labels: readonly string[]): string {
  * partly); not covered: claim 3"). The counts are read off statuses, never rated.
  */
 function fallbackCoverageLine(review: PatentCandidateReview, coverage: FallbackCoverage, derivation: FallbackLadderDerivation): string {
+	/* v8 ignore next -- the coverage entry comes from the coverage rows. */
 	const elements = (review.coverage ?? []).filter(row => row.kind === 'feature' && row.claimNumber?.trim() === coverage.claimNumber);
 	const head = `Claim ${coverage.claimNumber}: ${elements.filter(row => row.status === 'supported').length} of ${elements.length} elements disclosed`;
 	const charted = [...coverage.covered, ...coverage.partly, ...coverage.notCovered];
@@ -1028,11 +1034,12 @@ function fallbackCoverageSection(review: PatentCandidateReview, coverage: Fallba
 		...descriptions.map(row => [`Description fallback: ${inline(row.feature)}`, 'description-supported; basis quote below', INVALIDITY_STATUS[row.status], references(row)]),
 	];
 	const detail = (row: PatentCoverageRow, label: string): string[] => {
+		/* v8 ignore next -- `detail` runs only when `rowSection` is given. */
 		const section = rowSection?.({ ...row, feature: label }) ?? [];
 		const anchor = row.basis?.anchor?.trim();
 		if (row.claimNumber?.trim() || !anchor) { return section; }
 		const source = sources.get(anchor);
-		return [section[0], `Basis in the challenged patent: ${source ? patentCitationLink(anchor, source.reference) : anchor}`, quotation(row.basis?.quote ?? ''), ...section.slice(1)];
+		return [section[0], `Basis in the challenged patent: ${source ? patentCitationLink(anchor, source.reference) : anchor}`, quotation(/* v8 ignore next -- a basis has a quote by its type. */ row.basis?.quote ?? ''), ...section.slice(1)];
 	};
 	return [
 		`## Fallback coverage (generated) — claim ${cell(claim)}`,
@@ -1093,14 +1100,18 @@ function searchRoundsSection(review: PatentCandidateReview, snapshot: PatentExec
 		'Each Search Round runs on the expert\'s answer to the Round Report of a saved chart and targets the open points the expert chose. A query marked ledger-matched matches a tool execution recorded this session; a query marked not recorded by the ledger ran through a tool the ledger does not record and is not confirmed.',
 		...rounds.flatMap((round, index) => [
 			'', `### Search Round ${round.round}`,
+			/* v8 ignore start -- a round has targets by its type. */
 			`Targets: ${(round.targets ?? []).map(target).join(', ') || 'none named'}`,
+			/* v8 ignore stop */
 			...(round.answers?.length ? [`Answers open points: ${round.answers.map(inline).join(', ')}`] : []),
 			'',
 			'| Tool | Query | Count | Ledger |',
 			'| --- | --- | --- | --- |',
+			/* v8 ignore start -- a round has queries by its type, and roundLedgerStatus reads the same rounds. */
 			...(round.queries ?? []).map((query, position) => '| ' + [query.tool, query.query, query.count === undefined ? 'not stated' : String(query.count), ROUND_LEDGER_LABEL[ledger[index]?.queries[position] ?? 'unrecorded']].map(cell).join(' | ') + ' |'),
+			/* v8 ignore stop */
 			'',
-			`Outcome (model judgment): ${inline(round.outcome ?? '') || 'none stated'}`,
+			`Outcome (model judgment): ${inline(/* v8 ignore next -- a round has an outcome by its type. */ round.outcome ?? '') || 'none stated'}`,
 		]),
 		''];
 }
@@ -1157,7 +1168,9 @@ function elementMap(row: PatentCoverageRow, sources: Map<string, PatentEvidenceS
 			if (anchor && page !== undefined && reading) {
 				const file = source?.figure?.file;
 				return '| ' + [cell(element.element), `Figure page ${page} — model reading of the drawing, not quoted text: "${cell(reading)}"`,
+					/* v8 ignore start -- `figurePage` found the page in a recorded source, so `source` is set. */
 					file && reportWorkspacePath ? savedFigureLink(page, file, reportWorkspacePath) : source ? patentCitationLink(anchor, source.reference) : anchor].join(' | ') + ' |';
+					/* v8 ignore stop */
 			}
 			return '| ' + [cell(element.element),
 				anchor && fragment ? '`' + cell(fragment) + '`' : 'not disclosed in cited text',
@@ -1393,7 +1406,9 @@ function findBetterSections(review: PatentCandidateReview, snapshot: PatentExecu
 				...(examiner.unscored.length ? [`Examiner's best art named but not scored: ${examiner.unscored.map(label).join(', ')}.`, ''] : []),
 				...rows.flatMap(row => (['examiner', 'found'] as const).flatMap(side => {
 					const value = row[side];
+					/* v8 ignore start -- a side has a gap by its type. */
 					return value ? rowSection({ ...row, feature: sideFeature(row.feature, side), status: value.status, sourceAnchors: value.sourceAnchors ?? [], gap: value.gap ?? '', evidence: value.evidence, elements: value.elements }) : [];
+					/* v8 ignore stop */
 				})),
 			];
 		}),

@@ -10,7 +10,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { PresentedFile } from '@deepseek-ai/dsh-tool-present/types'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
@@ -80,16 +80,18 @@ export function matterArgument(name: string, args: unknown): string {
  * @param matter - the matter folder name under `drafting/`.
  * @param exec - the tool execution, for the agent's working directory and signal.
  * @param options - the clock and the optional PDF reader.
- * @returns the workspace, or the refusal text when the matter name is not a folder name.
+ * @param refusal - the sentence that starts the refusal text.
+ * @returns the workspace, or the refusal when the matter name is not a folder name.
  */
 export async function openMatter(
-  ctx: Context, matter: string, exec: ToolRunContext, options: DraftingWorkspaceOptions,
-): Promise<DraftingWorkspace | string> {
+  ctx: Context, matter: string, exec: ToolRunContext, options: DraftingWorkspaceOptions, refusal: string,
+): Promise<DraftingWorkspace | DraftingToolValue> {
   const cwd = exec.agent === undefined
     ? ctx.workingDirectory.defaultDirectory
     : await ctx.workingDirectory.ensure(exec.agent, exec.signal)
   const files = await workspaceFiles(ctx, cwd, exec.signal)
-  return DraftingWorkspace.locate(matter, files, options)
+  const workspace = DraftingWorkspace.locate(matter, files, options)
+  return typeof workspace === 'string' ? refused(`${refusal} ${workspace}`) : workspace
 }
 
 /**
@@ -123,4 +125,80 @@ export async function delivered(
  */
 export function refused(text: string): DraftingToolValue {
   return { ok: false, text }
+}
+
+/**
+ * The clock of a drafting tool's record lines.
+ * @param deps - the tool dependencies.
+ * @returns the dependencies' clock, else the system clock.
+ */
+export function toolClock(deps: DraftingToolDependencies): () => Date {
+  return deps.now ?? (() => new Date())
+}
+
+/** The parts in which drafting tool shells differ. */
+export interface DraftingToolSpec<Input> {
+  readonly name: string
+  readonly description: string
+  readonly parameters: Record<string, unknown>
+  /**
+   * Parse the model's arguments; a throw fails the call before the matter opens.
+   * @param args - the model's arguments.
+   * @returns the parsed input.
+   */
+  readonly parse: (args: unknown) => Input
+  /**
+   * The matter folder name of the call.
+   * @param input - the parsed input.
+   * @returns the folder name under `drafting/`, as given.
+   */
+  readonly matter: (input: Input) => string
+  /**
+   * The sentence that starts every refusal of the call, a thrown failure included.
+   * @param input - the parsed input.
+   * @returns the sentence.
+   */
+  readonly refusal: (input: Input) => string
+  /**
+   * Do the tool's work in the opened matter.
+   * @param workspace - the matter.
+   * @param exec - the tool execution.
+   * @param input - the parsed input.
+   * @param refusal - the sentence that starts every refusal.
+   * @returns the drafting tool value.
+   */
+  readonly execute: (workspace: DraftingWorkspace, exec: ToolRunContext, input: Input, refusal: string) => Promise<DraftingToolValue>
+}
+
+/**
+ * Build a drafting tool definition: it opens the matter, renders one text block per value,
+ * and logs a thrown failure and returns it as a refusal.
+ * @param ctx - a context whose `fs` and `workingDirectory` are active.
+ * @param deps - the loggers and the clock.
+ * @param spec - the tool's name, schema, parser, matter, refusal sentence and work.
+ * @returns the unregistered dsh definition.
+ */
+export function draftingToolDefinition<Input>(ctx: Context, deps: DraftingToolDependencies, spec: DraftingToolSpec<Input>): ToolDefinition {
+  const now = toolClock(deps)
+  return {
+    name: spec.name,
+    description: spec.description,
+    parameters: spec.parameters,
+    output: {
+      schema: {},
+      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
+    },
+    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
+      const input = spec.parse(args)
+      const refusal = spec.refusal(input)
+      try {
+        const workspace = await openMatter(ctx, spec.matter(input), exec, { now }, refusal)
+        return { ...workspace instanceof DraftingWorkspace ? await spec.execute(workspace, exec, input, refusal) : workspace }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        deps.warn(`flowleap-deliverables: ${spec.name} failed: ${message}`)
+        return { ...refused(`${refusal} ${message}`) }
+      }
+    },
+  }
 }

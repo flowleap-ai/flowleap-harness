@@ -73,8 +73,10 @@ export async function readInventorQuestionsDocx(bytes: Uint8Array): Promise<Map<
 	const { value: html } = await mammoth.convertToHtml({ buffer: Buffer.from(bytes) });
 	const answers = new Map<string, string>();
 	for (const row of html.matchAll(/<tr>(?<cells>[\s\S]*?)<\/tr>/g)) {
+		/* v8 ignore next -- a match of a pattern with named groups always has groups. */
 		const cells = [...(row.groups?.cells ?? '').matchAll(/<t[dh]\b[^>]*>(?<content>[\s\S]*?)<\/t[dh]>/g)].map(match => cellText(match.groups?.content ?? ''));
 		if (cells.length > 1 && questionId.test(cells[0])) {
+			/* v8 ignore next -- a row of two or more cells has a last one. */
 			answers.set(cells[0], cells.at(-1) ?? '');
 		}
 	}

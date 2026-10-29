@@ -15,7 +15,6 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { buildDraftDocx, buildFullReviewCopyDocx } from '../docx/draft.ts'
 import { diffDraftParagraphs } from '../drafting/draft-diff.ts'
 import { OFFICE_PAGE_SETUP } from '../drafting/filing-documents.ts'
@@ -25,7 +24,8 @@ import { blockingFindings } from '../drafting/findings-file.ts'
 import { DRAFT_DOCUMENT_TYPES } from '../drafting/folder-contract.ts'
 import { composeFullReviewCopy } from '../drafting/full-review-copy.ts'
 import { emptyWorkingRecord, withAttorneyEdits } from '../drafting/working-record.ts'
-import { delivered, gateSeams, isDraftingToolValue, matterArgument, openMatter, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
+import type { DraftingWorkspace } from '../drafting/workspace.ts'
+import { delivered, draftingToolDefinition, gateSeams, matterArgument, refused, toolClock, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
 import { approvedClaims } from './start-application-draft.ts'
 import { offerWaivers } from './validate-draft.ts'
 
@@ -58,14 +58,10 @@ const REFUSED = 'The draft was not exported.'
  * @returns the unregistered dsh definition.
  */
 export function exportDraftDocxTool(ctx: Context, deps: DraftingToolDependencies): ToolDefinition {
-  const now = deps.now ?? (() => new Date())
+  const now = toolClock(deps)
   const seams = gateSeams(deps)
 
-  const execute = async (matter: string, exec: ToolRunContext): Promise<DraftingToolValue> => {
-    const workspace = await openMatter(ctx, matter, exec, { now })
-    if (typeof workspace === 'string') {
-      return refused(`${REFUSED} ${workspace}`)
-    }
+  const execute = async (workspace: DraftingWorkspace, exec: ToolRunContext): Promise<DraftingToolValue> => {
     const { folder } = workspace
     const approval = await approvedClaims(workspace, exec, seams)
     if (typeof approval === 'string') {
@@ -116,23 +112,13 @@ export function exportDraftDocxTool(ctx: Context, deps: DraftingToolDependencies
     ], text)
   }
 
-  return {
+  return draftingToolDefinition(ctx, deps, {
     name: EXPORT_DRAFT_DOCX_NAME,
     description: EXPORT_DRAFT_DOCX_DESCRIPTION,
     parameters: EXPORT_DRAFT_DOCX_PARAMETERS,
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
-    },
-    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
-      const matter = matterArgument(EXPORT_DRAFT_DOCX_NAME, args)
-      try {
-        return { ...await execute(matter, exec) }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        deps.warn(`flowleap-deliverables: ${EXPORT_DRAFT_DOCX_NAME} failed: ${message}`)
-        return { ...refused(`${REFUSED} ${message}`) }
-      }
-    },
-  }
+    parse: args => matterArgument(EXPORT_DRAFT_DOCX_NAME, args),
+    matter: matter => matter,
+    refusal: () => REFUSED,
+    execute,
+  })
 }

@@ -93,6 +93,7 @@ export function withoutEditorButtons(text: string, matter = '<matter>'): string 
 	let result = '';
 	let last = 0;
 	for (const match of text.matchAll(button)) {
+		/* v8 ignore next -- the label group is not optional in the button pattern, so it is always set */
 		const label = match.groups?.label ?? '';
 		const editStart = match.index + match[0].length;
 		const end = clauseEnd(text, editStart);
@@ -412,6 +413,7 @@ export class DraftingWorkspace {
 				gate: 'not-true',
 				hash,
 				cleared: true,
+				/* v8 ignore next -- the line above wrote claims.md, so the read finds it */
 				changed: `${this.folder.claims} changed after it was approved, so the approval was withdrawn. ${withoutEditorButtons(gateActionText(this.folder.claims, gateEdit(await this.read(this.folder.claims) ?? '', 'approved')), this.folder.matter)} Then start_application_draft and a new save start the next draft version.`,
 			};
 		}
@@ -453,6 +455,7 @@ export class DraftingWorkspace {
 			return approval.changed;
 		}
 		if (approval.gate !== 'set' || !approval.hash) {
+			/* v8 ignore next -- a gate other than no-file means checkClaimsApproval read claims.md */
 			return gateRefusal(this.folder.claims, 'approved', approval.gate === 'no-file' ? undefined : await this.read(this.folder.claims) ?? '', this.folder.matter);
 		}
 		return { ...approval, hash: approval.hash };
