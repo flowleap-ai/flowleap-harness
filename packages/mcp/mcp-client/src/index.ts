@@ -140,6 +140,8 @@ export const Config = z.union([
     reconnect: Reconnect,
     tools: ToolFilter,
   }),
+  /* jscpd:ignore-start -- gen-config-catalog reads each transport's schema from plain object keys, so the
+     shared fields repeat. */
   z.object({
     transport: z.const('streamable-http'),
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
@@ -151,6 +153,7 @@ export const Config = z.union([
     reconnect: Reconnect,
     tools: ToolFilter,
   }),
+  /* jscpd:ignore-end */
 ]) as z<ConfigInput, Config>
 
 // ---- Plugin apply ----

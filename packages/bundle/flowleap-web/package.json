@@ -57,7 +57,10 @@
         "ui-settings-account",
         "account-controller",
         "web-search-deepseek",
-        "web-deepseek-api"
+        "web-deepseek-api",
+        "session-telemetry-otel",
+        "desktop-product-telemetry",
+        "product-analytics"
       ]
     }
   },

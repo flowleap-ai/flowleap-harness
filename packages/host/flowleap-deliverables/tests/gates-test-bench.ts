@@ -9,7 +9,7 @@
 
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { provideWorkingDirectoryFixture, unsupportedInbox, unsupportedModel } from '@deepseek-ai/dsh-agent-loop-testkit'
@@ -203,7 +203,7 @@ export async function gateBench() {
   }
   /** The presented files of the Session: `[relative path, description]` per event. */
   const presented = (target: Session = session) => target.snapshotEvents().flatMap(event => event.type === 'deliverables/presented'
-    ? [event.data.files.map(file => [file.path.replace(`${dir}/`, ''), file.description])]
+    ? [event.data.files.map(file => [relative(dir, file.path).split(sep).join('/'), file.description])]
     : [])
   const dispose = () => rm(dir, { recursive: true, force: true })
   return { dir, ctx, session, agent, seams, commands, disposeCommands, call, tools, read, write, edit, exists, files, presented, dispose }

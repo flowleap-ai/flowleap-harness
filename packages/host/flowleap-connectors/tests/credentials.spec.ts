@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createConnectorHost, createCredentialStore, lookupCredentials, LruCache, validateConnectorFields,
 } from '@deepseek-ai/dsh-flowleap-connectors'
@@ -32,6 +32,7 @@ describe('the connector credential records', () => {
       status: 'available', credentials: { consumerKey: 'ck', consumerSecret: 'cs' }, owner: 'user', stored: true,
     })
     expect(await lookupCredentials(store, 'usptoOdp')).toEqual({ status: 'available', credentials: { apiKey: 'odp' }, owner: 'user', stored: true })
+    expect(await lookupCredentials(store, 'semanticScholar')).toEqual({ status: 'available', credentials: { apiKey: 's2' }, owner: 'user', stored: true })
 
     await store.remove('epo-ops')
     expect(await store.describe('epo-ops')).toEqual({ configured: false, writable: true, fields: ['consumerKey', 'consumerSecret'] })
@@ -51,6 +52,8 @@ describe('the connector credential records', () => {
     credentials.records.set(parseCredentialKey('flowleap-connectors/uspto-odp'), { kind: 'api-key', key: 'wrong-kind' })
     expect(await store.read('epo-ops')).toBeUndefined()
     expect(await store.describe('uspto-odp')).toMatchObject({ configured: false })
+    credentials.records.set(parseCredentialKey('flowleap-connectors/mistral'), { kind: 'grant', payload: { apiKey: 42 } })
+    expect(await store.read('mistral')).toBeUndefined()
   })
 
   it('passes a Mistral baseUrl from a deployment record to the library, and keeps the card fields to apiKey', async () => {
@@ -100,8 +103,24 @@ describe('the connector host', () => {
     now += 10_001
     expect(await cache.get('a')).toBeUndefined()
     expect(cache.size).toBe(0)
+    await cache.set('e', 1, 10)
+    expect(cache.size).toBe(1)
     await cache.set('d', 1, 0)
-    expect(cache.size).toBe(0)
+    expect(cache.size).toBe(1)
     expect(() => new LruCache(0)).toThrow('positive integer')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends requests through the global fetch when no fetch is given', async () => {
+    const { ctx, store } = bench()
+    const globalFetch = vi.fn<typeof fetch>(() => Promise.resolve(new Response('ok')))
+    vi.stubGlobal('fetch', globalFetch)
+    const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 1 })
+    const response = await bound.host.fetch('https://ops.epo.org/3.2/auth/accesstoken', { method: 'POST' })
+    expect(await response.text()).toBe('ok')
+    expect(globalFetch).toHaveBeenCalledWith('https://ops.epo.org/3.2/auth/accesstoken', { method: 'POST' })
   })
 })

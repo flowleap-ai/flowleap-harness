@@ -15,11 +15,11 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { removeClaim, type ClaimRemoval } from '../drafting/claims.ts'
 import { addRecordLine, CLAIM_REMOVED, emptyWorkingRecord } from '../drafting/working-record.ts'
+import type { DraftingWorkspace } from '../drafting/workspace.ts'
 import { confirmRemoval } from '../gates/questions.ts'
-import { gateSeams, isDraftingToolValue, matterArgument, openMatter, refused, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
+import { draftingToolDefinition, gateSeams, matterArgument, refused, toolClock, type DraftingToolDependencies, type DraftingToolValue } from './shell.ts'
 
 /** The tool name, shared with the IDE and the exported Patent Agent prompt. */
 export const REMOVE_CLAIM_NAME = 'remove_claim'
@@ -106,30 +106,28 @@ export function removalCost(claim: number, removal: ClaimsRemoved, claimsPath: s
  * @returns the unregistered dsh definition.
  */
 export function removeClaimTool(ctx: Context, deps: DraftingToolDependencies): ToolDefinition {
-  const now = deps.now ?? (() => new Date())
+  const now = toolClock(deps)
   const seams = gateSeams(deps)
 
-  const execute = async ({ matter, claim }: RemoveClaimInput, exec: ToolRunContext): Promise<DraftingToolValue> => {
-    const REFUSED = `Claim ${String(claim)} was not removed.`
-    const workspace = await openMatter(ctx, matter, exec, { now })
-    if (typeof workspace === 'string') {
-      return refused(`${REFUSED} ${workspace}`)
-    }
+  const execute = async (
+    workspace: DraftingWorkspace, exec: ToolRunContext, { claim }: RemoveClaimInput, refusal: string,
+  ): Promise<DraftingToolValue> => {
     const { folder } = workspace
-    if (await workspace.read(folder.claims) === undefined) {
-      return refused(await workspace.refusal(REFUSED, `${folder.claims} does not exist.`))
-    }
     // Ties an approval that no tool has read yet to the current claims body first, so the edit
     // below cannot carry it over to the changed claims.
     await workspace.checkClaimsApproval()
-    const removal = removeClaim(await workspace.read(folder.claims) ?? '', claim)
+    const claims = await workspace.read(folder.claims)
+    if (claims === undefined) {
+      return refused(await workspace.refusal(refusal, `${folder.claims} does not exist.`))
+    }
+    const removal = removeClaim(claims, claim)
     if (!removal.removed) {
       if (removal.reason === 'no-claim') {
-        return refused(await workspace.refusal(REFUSED, `${folder.claims} has no claim ${String(claim)}.`))
+        return refused(await workspace.refusal(refusal, `${folder.claims} has no claim ${String(claim)}.`))
       }
       const { dependents } = removal
       const many = dependents.length > 1
-      return refused(await workspace.refusal(REFUSED, `${many ? `Claims ${dependents.join(', ')} refer` : `Claim ${String(dependents[0])} refers`} to claim ${String(claim)}. The attorney decides about ${many ? 'those claims' : 'that claim'} first: remove ${many ? 'them, the highest number first,' : 'it'} or change the claim ${many ? 'they refer' : 'it refers'} to.`))
+      return refused(await workspace.refusal(refusal, `${many ? `Claims ${dependents.join(', ')} refer` : `Claim ${String(dependents[0])} refers`} to claim ${String(claim)}. The attorney decides about ${many ? 'those claims' : 'that claim'} first: remove ${many ? 'them, the highest number first,' : 'it'} or change the claim ${many ? 'they refer' : 'it refers'} to.`))
     }
     const cost = removalCost(claim, removal, folder.claims)
     const confirmation = await confirmRemoval(workspace, exec, seams, claim, cost)
@@ -139,12 +137,12 @@ export function removeClaimTool(ctx: Context, deps: DraftingToolDependencies): T
         : confirmation.reason === 'rejected' || confirmation.reason === 'declined'
           ? 'The attorney did not confirm the removal.'
           : `The confirmation did not arrive (${confirmation.reason}).`
-      return refused(await workspace.refusal(REFUSED, `${why} Nothing was written. The attorney removes the claim in ${folder.claims} by hand, or asks again and confirms in the chat.`))
+      return refused(await workspace.refusal(refusal, `${why} Nothing was written. The attorney removes the claim in ${folder.claims} by hand, or asks again and confirms in the chat.`))
     }
     // The file may have changed while the confirmation was open: remove from what is there now.
     const current = removeClaim(await workspace.read(folder.claims) ?? '', claim)
     if (!current.removed || current.text !== removal.text) {
-      return refused(await workspace.refusal(REFUSED, `${folder.claims} changed while the confirmation was open. Nothing was written; read the claims again.`))
+      return refused(await workspace.refusal(refusal, `${folder.claims} changed while the confirmation was open. Nothing was written; read the claims again.`))
     }
     await workspace.write(folder.claims, removal.text)
     const renumbering = renumberingSentence(removal)
@@ -159,23 +157,13 @@ export function removeClaimTool(ctx: Context, deps: DraftingToolDependencies): T
     return { ok: true, text: `Removed claim ${String(claim)} of ${String(removal.before)} from ${folder.claims}. ${renumbering} The claim references in the other claims changed with them. ${reopened} ${await workspace.checklistLine(false)}`.trim() }
   }
 
-  return {
+  return draftingToolDefinition(ctx, deps, {
     name: REMOVE_CLAIM_NAME,
     description: REMOVE_CLAIM_DESCRIPTION,
     parameters: REMOVE_CLAIM_PARAMETERS,
-    output: {
-      schema: {},
-      render: (_args, value) => [{ type: 'text', text: isDraftingToolValue(value) ? value.text : JSON.stringify(value) }],
-    },
-    async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
-      const input = parseRemoveClaimArgs(args)
-      try {
-        return { ...await execute(input, exec) }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        deps.warn(`flowleap-deliverables: ${REMOVE_CLAIM_NAME} failed: ${message}`)
-        return { ...refused(`Claim ${String(input.claim)} was not removed. ${message}`) }
-      }
-    },
-  }
+    parse: parseRemoveClaimArgs,
+    matter: input => input.matter,
+    refusal: ({ claim }) => `Claim ${String(claim)} was not removed.`,
+    execute,
+  })
 }

@@ -211,6 +211,7 @@ function templateSections(content: string, template: PatentReportTemplate, f: Pa
 /** The title and metadata table every version of a template opens with. */
 function templateHeader(template: PatentReportTemplate, f: PatentReportFields, structuredBody = false): readonly string[] {
 	switch (template) {
+		/* v8 ignore next 2 -- templateSections and templateScaffold never ask for the prior-art-report header; the IDE copy keeps the case. */
 		case 'prior-art-report':
 			return ['# Prior Art Candidate Review', '', fieldTable([['Matter / Reference', f.matter], ['Subject Technology', f.subject], ['Date', f.date], ['Prepared By', f.preparedBy]]), ''];
 		case 'fto-memo':

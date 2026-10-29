@@ -25,6 +25,8 @@ export interface ParseLimits {
  */
 const MEMORY_SAMPLE_MS = 25
 
+/* jscpd:ignore-start -- the source-launch Worker bootstrap of dsh-plugin-market's
+   parse-thread.ts; each copy resolves tsx and its worker from its own module URL */
 function workerSpawn(): { readonly entry: URL; readonly options: WorkerOptions } {
   /* v8 ignore next -- built-artifact runs own the bundled path. */
   if (!import.meta.url.endsWith('.ts')) return { entry: new URL('./worker.cjs', import.meta.url), options: { execArgv: [] } }
@@ -37,6 +39,7 @@ function workerSpawn(): { readonly entry: URL; readonly options: WorkerOptions }
   ].join('\n')
   return { entry: new URL(`data:text/javascript,${encodeURIComponent(bootstrap)}`), options: { execArgv: [] } }
 }
+/* jscpd:ignore-end */
 
 /**
  * The Worker heap limits: the old generation gets the limit, the young generation one eighth of it, and the stack the

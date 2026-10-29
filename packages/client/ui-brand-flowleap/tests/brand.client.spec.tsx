@@ -70,6 +70,7 @@ describe('the ui-brand-flowleap browser half', () => {
     const fiber = subject.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(1)
+    for (const hole of HOLES) expect(subject.slots.entries(hole)[0]!.inject!()).toEqual({ brand: BRAND })
     const common = subject.locale.bind('common')
     const conversation = subject.locale.bind('conversation')
     const chat = subject.locale.bind('chat')

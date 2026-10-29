@@ -10,7 +10,7 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
   drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
   (dossier, FTO, prior art); the dossier case also passes on the synced code.
-- **Base:** `flowleap` is on the upstream release `dsh 0.2.2-alpha.2` (`f3803c9697`, sync branch
+- **Base:** `flowleap` is on the upstream release `dsh 0.2.2-alpha.2` (tag `dsh-v0.2.2-alpha.2`, sync branch
   `sync/upstream-dsh-v0.2.2-alpha.2`, 2026-10-28), with all 8 upstream UI languages and the FlowLeap copy
   translated into each. `master` on the org remote equals that release.
 - **Next product:** the self-hosted firm OS, decided in
@@ -98,7 +98,7 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
-- **Upstream sync to `dsh 0.2.2-alpha.2` (2026-10-28):** 637 upstream commits after `22ddee3792`, merged on
+- **Upstream sync to `dsh 0.2.2-alpha.2` (2026-10-28):** 637 upstream commits after the merge of upstream PR #7075, merged on
   branch `sync/upstream-dsh-v0.2.2-alpha.2` with the same procedure and language rules as the trunk sync
   below; every decision is in `flowleap/docs/2026-10-28-upstream-alpha2-sync-decisions.tsv`. 15 content
   conflicts, 221 Chinese delete/modify rows (settled by `strip-zh.sh`), 1 upstream package deletion

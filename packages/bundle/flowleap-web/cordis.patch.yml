@@ -33,6 +33,20 @@
 - id: web-deepseek-api
   disabled: true
 
+# Telemetry to DeepSeek: the Session-log export after a feedback click and the
+# desktop product analytics both default to dsh-otel-collector.deepseeksvc.com.
+# This profile sends no data to DeepSeek, whatever the environment says. The
+# test apps/cli/tests/flowleap-web-no-deepseek-destinations.spec.ts fails when
+# a mounted row has a default destination on a DeepSeek domain.
+- id: session-telemetry-otel
+  disabled: true
+
+- id: desktop-product-telemetry
+  disabled: true
+
+- id: product-analytics
+  disabled: true
+
 # The account settings card and its controller wait for `deepseekAccount`,
 # which the disabled row above provides.
 - id: ui-settings-account
@@ -100,7 +114,7 @@
 # and the DeepSeek rows: the Loader drops a user patch (profile or home
 # cordis.patch.yml) that targets one of them, so a Models page save from before
 # the lock cannot turn it off, and the plugin manager cannot switch a DeepSeek
-# route or sign-in on.
+# route, sign-in, or telemetry row on.
 
 - id: credentials
   config:

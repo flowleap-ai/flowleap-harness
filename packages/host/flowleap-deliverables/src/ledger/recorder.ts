@@ -259,12 +259,12 @@ export function executionOf(
   }
   if (DETAILS_TOOLS.has(bare)) {
     const sources = status === 'succeeded' ? (structured ?? derivedSources(bare, value)) : undefined
-    const docId = isRecord(value) ? text(value['docId']) : undefined
+    const publicationId = (isRecord(value) ? text(value['docId']) : undefined) ?? publication
     const claims = isRecord(value) && Array.isArray(value['claims']) ? value['claims'].length : undefined
     const execution: NewPatentExecution = {
       kind: 'details',
       status,
-      publicationIds: docId !== undefined || publication !== undefined ? [docId ?? publication ?? ''] : undefined,
+      publicationIds: publicationId === undefined ? undefined : [publicationId],
       publicationTitle: isRecord(value) ? text(value['title']) : undefined,
       publicationDate: isRecord(value) && isRecord(value['dates']) ? text(value['dates']['publication']) : undefined,
       sources,

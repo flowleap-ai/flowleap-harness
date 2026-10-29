@@ -142,12 +142,14 @@ export function checkDefinedTerms(paragraphs: readonly DraftParagraph[]): DraftF
 		for (const paragraph of texts) {
 			for (const match of paragraph.text.matchAll(variants)) {
 				if (capitalised ? match[0] !== term : match[0].toLowerCase() !== term.toLowerCase()) {
+					/* v8 ignore next -- matchAll always sets match.index */
 					const line = lineAt(paragraph, match.index ?? 0);
 					findings.push({ severity: 'Error', rule: 'defined-term', file: draftFile, line, message: `Line ${line} writes "${match[0]}"; the defined term is "${term}".` });
 				}
 			}
 		}
 	}
+	/* v8 ignore next -- every defined-term finding has a line */
 	return findings.sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
 }
 
@@ -198,6 +200,7 @@ export function readReferenceSigns(text: string): ReferenceSign[] {
 	for (const match of text.matchAll(numeralPattern)) {
 		const { word, numeral, open } = match.groups!;
 		if (!notNumeralWords.has(word.toLowerCase())) {
+			/* v8 ignore next -- matchAll always sets match.index */
 			signs.push({ word, numeral, parenthesised: !!open, index: match.index ?? 0 });
 		}
 	}

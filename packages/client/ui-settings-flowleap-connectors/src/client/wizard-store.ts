@@ -84,6 +84,8 @@ export class WizardStore {
     return dismissed
   }
 
+  /* jscpd:ignore-start -- mirrors the package-private copy in dsh-client-ui-settings-models;
+     a shared export would change that upstream package on each sync */
   /** Stop following the scope. */
   dispose(): void {
     this.following?.()
@@ -104,6 +106,7 @@ export class WizardStore {
           state.error = 'wizard settings are unavailable'
         })
         return
+        /* jscpd:ignore-end */
       case 'ready': {
         const dismissed = decodeWizardSection(scope.value)[WIZARD_DISMISSED_FIELD] === true
         this.store.update((state) => {

@@ -152,6 +152,7 @@ export function removeClaim(text: string, number: number): ClaimRemoval {
 function readDependencies(text: string): number[] {
 	const targets = new Set<number>();
 	for (const match of text.matchAll(referencePattern)) {
+		/* v8 ignore next -- the refs group is not optional in referencePattern, so it is always set */
 		const refs = match.groups?.refs ?? '';
 		for (const range of refs.matchAll(/(?<from>\d+)(?:\s*(?:\bto\b|-|–)\s*(?<to>\d+))?/g)) {
 			const from = Number(range.groups?.from);

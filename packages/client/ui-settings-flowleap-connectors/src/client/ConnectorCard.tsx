@@ -40,15 +40,16 @@ export interface ConnectorCardActions {
   test: (id: ConnectorId) => void
 }
 
-/** Props of one card. */
-export interface ConnectorCardProps extends ConnectorCardActions {
+/** Props of one card: a compact card (the wizard) renders the fields and outcome only, so it takes no save, remove, or test action. */
+export type ConnectorCardProps = {
   /** The card state. */
   card: ConnectorCardState
   /** Section copy. */
   t: Translate
-  /** Render the fields and outcome only, without the card frame and the remove and test controls (the wizard). */
-  compact?: boolean
-}
+} & Pick<ConnectorCardActions, 'edit'> & (
+  | { /** Render the fields and outcome only, without the card frame and its controls. */ compact: true }
+  | ({ compact?: false } & Omit<ConnectorCardActions, 'edit'>)
+)
 
 /**
  * Render the connector's name and hint.
@@ -72,7 +73,7 @@ export function ConnectorHead(
  * @returns the card.
  */
 export function ConnectorCard(props: ConnectorCardProps): ReactNode {
-  const { card, t, compact = false } = props
+  const { card, t } = props
   const { id } = card
   const busy = card.busy !== 'idle'
   const disabled = !card.writable || busy
@@ -104,7 +105,7 @@ export function ConnectorCard(props: ConnectorCardProps): ReactNode {
       )}
     </>
   )
-  if (compact) {
+  if (props.compact === true) {
     return (
       <div className={css.compact}>
         <ConnectorHead id={id} configured={card.configured} t={t} />
