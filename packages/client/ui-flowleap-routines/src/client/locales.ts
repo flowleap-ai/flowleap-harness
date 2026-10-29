@@ -24,6 +24,10 @@ export const zh = {
   'done.label': '将“{title}”标记为已完成',
   'done.error': '无法标记为已完成。请重试',
   'filter.label': '待审阅',
+  'dashboard.metric': '等待审阅',
+  'dashboard.metric.caption': '例行任务标记的聊天',
+  'dashboard.widget': '待审阅的聊天',
+  'dashboard.widget.all': '打开“待审阅”',
 } as const
 
 /** Key domain of the namespace. */
@@ -50,6 +54,10 @@ export const en: Record<FlowleapRoutinesKey, string> = {
   'done.label': 'Mark "{title}" as done',
   'done.error': 'Could not mark as done. Try again.',
   'filter.label': 'Needs review',
+  'dashboard.metric': 'Waiting for review',
+  'dashboard.metric.caption': 'Chats a routine marked',
+  'dashboard.widget': 'Needs your review',
+  'dashboard.widget.all': 'Open Needs review',
 }
 
 /** Japanese dictionary, checked against the English keys. */
@@ -73,6 +81,10 @@ export const ja = {
   'done.label': '「{title}」を完了にする',
   'done.error': '完了にできませんでした。もう一度お試しください。',
   'filter.label': '要レビュー',
+  'dashboard.metric': 'レビュー待ち',
+  'dashboard.metric.caption': 'ルーティンが印を付けたチャット',
+  'dashboard.widget': 'あなたのレビューが必要',
+  'dashboard.widget.all': '要レビューを開く',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -96,6 +108,10 @@ export const es = {
   'done.label': 'Marcar «{title}» como hecho',
   'done.error': 'No se pudo marcar como hecho. Inténtalo de nuevo.',
   'filter.label': 'Pendiente de revisión',
+  'dashboard.metric': 'Pendientes de revisión',
+  'dashboard.metric.caption': 'Chats que marcó una rutina',
+  'dashboard.widget': 'Necesita tu revisión',
+  'dashboard.widget.all': 'Abrir Pendiente de revisión',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -119,6 +135,10 @@ export const fr = {
   'done.label': 'Marquer « {title} » comme terminé',
   'done.error': 'Impossible de marquer comme terminé. Réessayez.',
   'filter.label': 'À relire',
+  'dashboard.metric': 'En attente de relecture',
+  'dashboard.metric.caption': 'Conversations marquées par une routine',
+  'dashboard.widget': 'À relire par vous',
+  'dashboard.widget.all': 'Ouvrir À relire',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -142,6 +162,10 @@ export const de = {
   'done.label': '„{title}“ als erledigt markieren',
   'done.error': 'Konnte nicht als erledigt markiert werden. Versuchen Sie es erneut.',
   'filter.label': 'Zu prüfen',
+  'dashboard.metric': 'Warten auf Prüfung',
+  'dashboard.metric.caption': 'Von einer Routine markierte Chats',
+  'dashboard.widget': 'Braucht Ihre Prüfung',
+  'dashboard.widget.all': 'Zu prüfen öffnen',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -165,6 +189,10 @@ export const ru = {
   'done.label': 'Отметить «{title}» как готовое',
   'done.error': 'Не удалось отметить как готовое. Повторите попытку.',
   'filter.label': 'Нужна проверка',
+  'dashboard.metric': 'Ждут проверки',
+  'dashboard.metric.caption': 'Чаты, отмеченные рутиной',
+  'dashboard.widget': 'Нужна ваша проверка',
+  'dashboard.widget.all': 'Открыть «Нужна проверка»',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -188,4 +216,8 @@ export const pt = {
   'done.label': 'Marcar "{title}" como concluída',
   'done.error': 'Não foi possível marcar como concluída. Tente novamente.',
   'filter.label': 'Aguardando revisão',
+  'dashboard.metric': 'Aguardando revisão',
+  'dashboard.metric.caption': 'Conversas marcadas por uma rotina',
+  'dashboard.widget': 'Precisa da sua revisão',
+  'dashboard.widget.all': 'Abrir Aguardando revisão',
 } satisfies Record<keyof typeof en, string>

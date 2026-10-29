@@ -65,6 +65,7 @@
     "@deepseek-ai/dsh-agent-preset": "workspace:*",
     "@deepseek-ai/dsh-client-ui-brand-flowleap": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-agent-builder": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-flowleap-dashboard": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-routines": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-flowleap-agent-builder": "workspace:*",

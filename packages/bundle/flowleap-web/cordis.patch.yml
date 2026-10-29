@@ -270,6 +270,15 @@
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
 
+    # The dashboard (flowleap-harness#60, look-first step): the first screen
+    # after sign-in, with the ask bar, the dashboard.metric and dashboard.widget
+    # slots that apps fill, the Install FlowLeap card, and the OS sidebar
+    # layers (Search with Cmd+K, the Dashboard, Chats and Agents apps, Pinned).
+    # Coming up, Budget this month and two metric cards show sample data with a
+    # "Sample data" tag until their sources exist.
+    - id: ui-flowleap-dashboard
+      name: '@deepseek-ai/dsh-client-ui-flowleap-dashboard'
+
     # The Needs review mark of the routines row above: a Sidebar row badge, a
     # Needs review page, Mark as done in the chat header, and a Needs review
     # tab on the Automation tasks page.

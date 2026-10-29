@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-routines",
-  "description": "Needs review mark of FlowLeap routine runs: the Sidebar row badge, the Needs review page, the Mark as done action, and the Automation tasks filter tab over the flowleapRoutines Remote",
+  "description": "Needs review mark of FlowLeap routine runs: the Sidebar row badge, the Needs review page, the Mark as done action, and the Automation tasks filter tab, and the dashboard's Needs your review panel, over the flowleapRoutines Remote",
   "version": "0.2.2-alpha.2",
   "type": "module",
   "main": "lib/index.js",
@@ -30,7 +30,8 @@
         "@deepseek-ai/dsh-client-ui-schedule",
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-ui-primitives"
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-flowleap-dashboard"
       ],
       "platform": "web"
     }
@@ -62,6 +63,7 @@
     "@deepseek-ai/dsh-client-store": "workspace:*",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:*",
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-flowleap-dashboard": "workspace:*",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
     "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",

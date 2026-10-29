@@ -24,7 +24,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  SidebarPanelActionsOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps,
+  SidebarPanelActionsOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarRowOwnerProps,
+  SidebarSectionOwnerProps,
 } from './contract/slots.ts'
 import { FIXED_PANEL_ID } from './panel-pins.ts'
 import css from './SidebarRoot.module.css'
@@ -238,6 +239,12 @@ export function SidebarRoot({
     })
   }
 
+  // Global actions and sections reuse the panel rows' classes, so every layer of the column reads as one list.
+  const rowShare: SidebarRowOwnerProps = {
+    wide, rowClassName: css.panelRow, activeRowClassName: css.panelActive, glyphClassName: css.panelGlyph,
+    titleClassName: clsx(css.panelTitle, css.wide),
+  }
+
   const darwinDesktop = isDarwinDesktop()
   // Rail resting state is the whale mark; hovering swaps in the panel icon
   // (the expand affordance, figma sidebar-hover flow). Expanded it is a plain
@@ -354,6 +361,10 @@ export function SidebarRoot({
         </Tooltip>
       )}
 
+      <div className={css.actionList}>
+        {renderSlot('sidebar.actions', rowShare)}
+      </div>
+
       {panels.length > 0 && (
         <nav className={css.panelList} aria-label={t('panels.label')}>
           {panels.filter(({ id }) => id === FIXED_PANEL_ID || !unpinned.includes(id)).map(({ id, label }) => (
@@ -387,6 +398,10 @@ export function SidebarRoot({
           )}
         </nav>
       )}
+
+      <div className={css.sectionList}>
+        {renderSlot('sidebar.sections', rowShare)}
+      </div>
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}

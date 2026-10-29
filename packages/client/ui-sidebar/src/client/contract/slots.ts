@@ -34,6 +34,16 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * the sidebar owns the button and resolves its label from list metadata.
      */
     'sidebar.panellist': { kind: 'list'; scope: 'root'; owner: SidebarPanelIconOwnerProps }
+    /**
+     * Global actions below New Session, such as Search. Each occupant draws its own row with the owner's row classes.
+     * Declared by this package's 'sidebar' entry.
+     */
+    'sidebar.actions': { kind: 'list'; scope: 'root'; owner: SidebarRowOwnerProps }
+    /**
+     * Sections between the panel list and the workspace region, such as Pinned. Each occupant draws its own heading
+     * and rows with the owner's row classes. Declared by this package's 'sidebar' entry.
+     */
+    'sidebar.sections': { kind: 'list'; scope: 'root'; owner: SidebarRowOwnerProps }
     /** Rows of the panel list's More menu; the sidebar shows More only while this list has registrations. */
     'sidebar.panellist.actions': { kind: 'list'; scope: 'root'; owner: SidebarPanelActionsOwnerProps }
     /**
@@ -75,6 +85,20 @@ export interface SidebarPanelIconOwnerProps {
   size: number
   /** Whether this panel is selected in the main column. */
   active: boolean
+}
+
+/** Owner share of a global action or a section: the column state and the panel rows' classes. */
+export interface SidebarRowOwnerProps {
+  /** Whether the sidebar renders wide content (false = 56px rail). */
+  readonly wide: boolean
+  /** Class of one row button, the same as a panel row. */
+  readonly rowClassName: string | undefined
+  /** Class added to the row of the selected item. */
+  readonly activeRowClassName: string | undefined
+  /** Class of the row's leading glyph. */
+  readonly glyphClassName: string | undefined
+  /** Class of the row's title; it shows only while `wide`. */
+  readonly titleClassName: string | undefined
 }
 
 /** Serializable metadata for one active global panel list registration. */
@@ -191,6 +215,8 @@ export type SidebarRootComponentProps =
     | 'sidebar.toggle.badge'
     | 'sidebar.panellist'
     | 'sidebar.panellist.actions'
+    | 'sidebar.actions'
+    | 'sidebar.sections'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'
