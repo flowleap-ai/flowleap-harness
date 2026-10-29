@@ -1,17 +1,17 @@
 /**
- * The dashboard page: a greeting, the ask bar, the first steps of a first sign-in, the metric cards and panels that
- * apps register through `dashboard.metric` and `dashboard.widget`, and the Install FlowLeap card.
+ * The dashboard page: a greeting, the ask bar with the search results that apps register through `dashboard.search`,
+ * the app links of `dashboard.link`, the first steps of a first sign-in, the metric cards and panels that apps register
+ * through `dashboard.metric` and `dashboard.widget`, and the Install FlowLeap card.
  */
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
-  Button, IconAgentPresetOutlineRegular, IconAlarmClockOutlineRegular, IconChecklistOutlineRegular, IconSearchOutlineRegular,
-  IconSendOutlineRegular, Tag,
+  Button, IconAgentPresetOutlineRegular, IconAlarmClockOutlineRegular, IconSearchOutlineRegular, IconSendOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { DashboardEntries } from './contract.ts'
+import { matchesQuery, type DashboardEntries } from './contract.ts'
 import { InstallCard } from './InstallCard.tsx'
 import type { FlowleapDashboardKey, NS } from './locales.ts'
 import css from './Dashboard.module.css'
@@ -34,7 +34,8 @@ export type DashboardPageInjected = {
 
 /** Full props of the page. */
 export type DashboardPageProps = PropsRuntime<'main'> & PropsLocale<typeof NS>
-  & PropsRenderSlots<'dashboard.metric' | 'dashboard.widget'> & InjectFace<DashboardPageInjected>
+  & PropsRenderSlots<'dashboard.metric' | 'dashboard.widget' | 'dashboard.link' | 'dashboard.search'>
+  & InjectFace<DashboardPageInjected>
 
 function greetingKey(hour: number): FlowleapDashboardKey {
   if (hour < 12) return 'greeting.morning'
@@ -56,16 +57,30 @@ function readHidden(): boolean {
  * @returns the page.
  */
 export function DashboardPage({
-  useMetrics, useWidgets, useFocusRequests, useSessions, onAsk, renderSlot, t,
+  useMetrics, useWidgets, useLinks, useSearches, useFocusRequests, useSessions, onAsk, renderSlot, t,
 }: DashboardPageProps) {
   const metrics = useMetrics(entries => entries)
   const widgets = useWidgets(entries => entries)
+  const links = useLinks(entries => entries)
+  const searches = useSearches(entries => entries)
   const focusRequests = useFocusRequests(count => count)
   const firstSignIn = useSessions(list => list.phase === 'ready' && list.ids.every(id => list.byId[id]?.blank !== false))
   const [hidden, setHidden] = useState(readHidden)
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { if (focusRequests > 0) input.current?.focus() }, [focusRequests])
+  const query = text.trim()
+  const search = useMemo(() => ({
+    query,
+    matches: (value: string) => matchesQuery(value, query),
+    onPicked: () => { setText('') },
+  }), [query])
+  const clearOnEscape = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && text !== '') {
+      event.preventDefault()
+      setText('')
+    }
+  }
   const submit = (event: FormEvent): void => {
     event.preventDefault()
     onAsk(text.trim())
@@ -100,17 +115,21 @@ export function DashboardPage({
             placeholder={t('ask.placeholder')}
             value={text}
             onChange={(event) => { setText(event.target.value) }}
+            onKeyDown={clearOnEscape}
           />
           <Button type="submit" variant="primary" size="sm" icon={<IconSendOutlineRegular size={14} />}>{t('ask.submit')}</Button>
         </form>
-        {/* TODO(flowleap-harness#81): open the office action board page once its route is on the flowleap branch. */}
-        <nav className={css.links} aria-label={t('links.label')}>
-          <span className={css.link} aria-disabled="true">
-            <IconChecklistOutlineRegular size={14} aria-hidden="true" />
-            {t('links.officeActions')}
-            <Tag tone="neutral">{t('install.later')}</Tag>
-          </span>
-        </nav>
+        {query !== '' && (
+          <section className={css.results} aria-label={t('search.label')} data-testid="flowleap-search-results">
+            <p className={css.panelSummary}>{t('search.hint')}</p>
+            {searches.map(entry => <div key={entry.id}>{renderSlot('dashboard.search', search, { only: entry.id })}</div>)}
+          </section>
+        )}
+        {links.length > 0 && (
+          <nav className={css.links} aria-label={t('links.label')}>
+            {links.map(entry => <div key={entry.id}>{renderSlot('dashboard.link', {}, { only: entry.id })}</div>)}
+          </nav>
+        )}
         {firstSignIn && !hidden && (
           <section className={css.firstSteps} aria-label={t('firstSteps.title')} data-testid="flowleap-first-steps">
             <div className={css.firstStepsHeading}>

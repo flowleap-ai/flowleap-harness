@@ -1,13 +1,15 @@
 /**
- * Browser half of the FlowLeap dashboard (flowleap-harness#60, look-first step). It registers the dashboard as a keyed
- * `main` page, selects it once when the client starts, and declares the `dashboard.metric` and `dashboard.widget`
- * list slots that apps fill. It also adds the OS sidebar layers: the Search action, the Dashboard, Chats, and
- * Agents app launchers, and the Pinned section.
+ * Browser half of the FlowLeap dashboard (flowleap-harness#60). It registers the dashboard as a keyed `main` page,
+ * opens the item of a deep link or else the dashboard when the client starts, keeps the address equal to the open
+ * item, and declares the `dashboard.metric`, `dashboard.widget`, `dashboard.link`, and `dashboard.search` list slots
+ * that apps fill. The Search command (Cmd+K) opens the dashboard search. It also adds the OS sidebar layers: the
+ * Search action, the Dashboard, Chats, and Agents app launchers, and the Pinned section.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -17,16 +19,18 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { AgentsPage, ChatsPage } from './AppPages.tsx'
 import type { DashboardEntry } from './contract.ts'
 import { DashboardPage } from './DashboardPage.tsx'
+import { installDeepLinks } from './deep-link.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapDashboardKey } from './locales.ts'
 import { AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction } from './sidebar.tsx'
-import { AgentActivity, BudgetThisMonth, BudgetUsedMetric, CasesWatchedMetric, ComingUp } from './widgets.tsx'
+import { AgentActivity, ChatSearch } from './widgets.tsx'
 
-export type { DashboardEntry, DashboardWidgetOwnerProps } from './contract.ts'
+export type { DashboardEntry, DashboardSearchOwnerProps, DashboardWidgetOwnerProps } from './contract.ts'
+export type { DeepLink } from './deep-link.ts'
 export type { FlowleapDashboardKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Dashboard page, panels, Install card, and sidebar layer copy. */
+    /** Dashboard page, panels, search, Install card, and sidebar layer copy. */
     'flowleapDashboard': FlowleapDashboardKey
   }
 }
@@ -36,8 +40,10 @@ export const DASHBOARD_PANEL_ID = 'flowleap-dashboard' as MainPanelId
 const CHATS_PANEL_ID = 'flowleap-chats' as MainPanelId
 const AGENTS_PANEL_ID = 'flowleap-agents' as MainPanelId
 
-/** Required services: slots, copy, layout, and Session navigation. */
-export const inject = ['slots', 'locale', 'layout', 'uiWorkspace']
+/** Required services: slots, copy, layout, the Session list, and Session navigation. */
+export const inject = ['slots', 'locale', 'layout', 'sessions', 'uiWorkspace']
+
+type DashboardListSlot = 'dashboard.metric' | 'dashboard.widget' | 'dashboard.link' | 'dashboard.search'
 
 /**
  * Keep the ordered metadata of one dashboard list slot.
@@ -45,7 +51,7 @@ export const inject = ['slots', 'locale', 'layout', 'uiWorkspace']
  * @param slot - the list slot.
  * @returns the observable entries.
  */
-function entriesOf(ctx: ClientContext, slot: 'dashboard.metric' | 'dashboard.widget') {
+function entriesOf(ctx: ClientContext, slot: DashboardListSlot) {
   const store = createSnapshotStore<readonly DashboardEntry[]>([])
   const sync = (): void => {
     store.set(ctx.slots.entriesOfSlot(slot).map(({ options }) => {
@@ -61,47 +67,40 @@ function entriesOf(ctx: ClientContext, slot: 'dashboard.metric' | 'dashboard.wid
 }
 
 /**
- * Register the dashboard, its own panels, the app pages, and the sidebar layers.
+ * Register the dashboard, its own panel and search group, the app pages, the sidebar layers, the Search command, and
+ * the deep links.
  * @param ctx - browser services used by these contributions.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-flowleap-dashboard: dictionaries')
   const t = ctx.locale.bind(NS)
-  const metrics = entriesOf(ctx, 'dashboard.metric')
-  const widgets = entriesOf(ctx, 'dashboard.widget')
-  const focusRequests = createSnapshotStore(0)
+  const hooks = {
+    metrics: entriesOf(ctx, 'dashboard.metric'),
+    widgets: entriesOf(ctx, 'dashboard.widget'),
+    links: entriesOf(ctx, 'dashboard.link'),
+    searches: entriesOf(ctx, 'dashboard.search'),
+    focusRequests: createSnapshotStore(0),
+  }
   const openSession = (sessionId: SessionId): void => { ctx.uiWorkspace.openSession(sessionId) }
   const search = (): void => {
     ctx.layout.selectPanel(DASHBOARD_PANEL_ID)
-    focusRequests.set(focusRequests.getSnapshot() + 1)
+    hooks.focusRequests.set(hooks.focusRequests.getSnapshot() + 1)
   }
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main', key: DASHBOARD_PANEL_ID, locale: NS,
     children: {
       'dashboard.metric': { kind: 'list', scope: 'root' },
       'dashboard.widget': { kind: 'list', scope: 'root' },
+      'dashboard.link': { kind: 'list', scope: 'root' },
+      'dashboard.search': { kind: 'list', scope: 'root' },
     },
     inject: () => ({
-      hooks: { metrics, widgets, focusRequests },
+      hooks,
       onAsk: (text: string) => { ctx.uiWorkspace.startSession(undefined, text === '' ? undefined : { prompt: text }) },
     }),
   }, DashboardPage))
-  // The dashboard is the first screen: select it once, as soon as the layout lists its main entry. The entry is not
-  // listed while this plugin's fiber still applies, so the selection waits for the slot change.
-  let landed = false
-  const land = (): void => {
-    if (landed || !ctx.slots.entries('main').some(entry => entry.options.key === DASHBOARD_PANEL_ID)) return
-    landed = true
-    ctx.layout.selectPanel(DASHBOARD_PANEL_ID)
-  }
-  ctx.effect(() => {
-    const unsubscribe = ctx.slots.subscribe('main', land)
-    const timer = window.setTimeout(land, 0)
-    return () => {
-      window.clearTimeout(timer)
-      unsubscribe()
-    }
-  }, 'ui-flowleap-dashboard: first screen')
+  installDeepLinks(ctx, DASHBOARD_PANEL_ID)
+  ctx.effect(() => ctx.uiWorkspace.provideSearch(search), 'ui-flowleap-dashboard: Search command')
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main', key: CHATS_PANEL_ID, locale: NS, inject: () => ({ onOpenSession: openSession }),
   }, ChatsPage))
@@ -126,21 +125,12 @@ export function apply(ctx: ClientContext): void {
     name: 'sidebar.sections', id: 'flowleap-pinned', order: 10, locale: NS, inject: () => ({ onOpenSession: openSession }),
   }, PinnedSection))
 
-  ctx.slots.inject('dashboard.metric', () => ctx.slots.register({
-    name: 'dashboard.metric', id: 'flowleap-cases-watched', order: 20, locale: NS, label: () => t('metric.casesWatched'),
-  }, CasesWatchedMetric))
-  ctx.slots.inject('dashboard.metric', () => ctx.slots.register({
-    name: 'dashboard.metric', id: 'flowleap-budget-used', order: 30, locale: NS, label: () => t('metric.budgetUsed'),
-  }, BudgetUsedMetric))
-  ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
-    name: 'dashboard.widget', id: 'flowleap-coming-up', order: 20, locale: NS, label: () => t('widget.comingUp'),
-  }, ComingUp))
   ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
     name: 'dashboard.widget', id: 'flowleap-agent-activity', order: 30, locale: NS, label: () => t('widget.activity'),
     inject: () => ({ onOpenSession: openSession }),
   }, AgentActivity))
-  ctx.slots.inject('dashboard.widget', () => ctx.slots.register({
-    name: 'dashboard.widget', id: 'flowleap-budget', order: 40, locale: NS, label: () => t('widget.budget'),
-  }, BudgetThisMonth))
-
+  ctx.slots.inject('dashboard.search', () => ctx.slots.register({
+    name: 'dashboard.search', id: 'flowleap-chats', order: 10, locale: NS, label: () => t('search.chats'),
+    inject: () => ({ onOpenSession: openSession }),
+  }, ChatSearch))
 }
