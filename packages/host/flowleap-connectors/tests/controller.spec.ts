@@ -98,4 +98,61 @@ describe('the flowleapConnectors Remote', () => {
     })
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
+
+  it('refuses field values that are not strings as gateway/bad-request', async () => {
+    const { controller, credentials } = await bench()
+    const values = JSON.parse('{"apiKey":5}') as Record<string, string>
+    await expect(controller.set('mistral', values)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    expect(credentials.records.size).toBe(0)
+  })
+
+  it('reports a store refusal that is not an Error as flowleap-connectors/rejected with its text', async () => {
+    const { controller, credentials } = await bench()
+    credentials.modifyRecord = async () => {
+      throw 'disk full'
+    }
+    await expect(controller.set('mistral', { apiKey: 'mk' })).rejects.toMatchObject({
+      code: 'flowleap-connectors/rejected', message: 'disk full', details: { id: 'mistral' },
+    })
+  })
+
+  it('tests USPTO ODP by one lookup of a known application, reporting the answer or the upstream refusal', async () => {
+    const { controller, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    await controller.set('uspto-odp', { apiKey: 'ok' })
+    fetchSpy.mockImplementation(() => Promise.resolve(Response.json({ count: 1, patentFileWrapperDataBag: [] })))
+    expect(await controller.test('uspto-odp', signal)).toEqual({ ok: true, message: 'USPTO ODP: application 15043224 answered' })
+    expect(fetchSpy.mock.calls[0]?.[0]).toEqual(expect.stringContaining('/patent/applications/15043224'))
+
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response('bad request', { status: 400 })))
+    const refused = await controller.test('uspto-odp', signal)
+    expect(refused.ok).toBe(false)
+    expect(refused.message).toMatch(/^USPTO ODP: ./)
+  })
+
+  it('tests Semantic Scholar by one one-paper search, reporting the answer or the failed search', async () => {
+    const { controller, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    await controller.set('semantic-scholar', { apiKey: 'sk' })
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response('bad request', { status: 400 })))
+    const failed = await controller.test('semantic-scholar', signal)
+    expect(failed.ok).toBe(false)
+    expect(failed.message).toContain('Semantic Scholar: Every academic source failed')
+
+    fetchSpy.mockImplementation(() => Promise.resolve(Response.json({ total: 1, data: [{ title: 'T', paperId: 'p1', authors: [], year: 2020 }] })))
+    expect(await controller.test('semantic-scholar', signal)).toEqual({ ok: true, message: 'Semantic Scholar: search answered' })
+  })
+
+  it('folds a probe failure that is not an Error into a failed test with its text', async () => {
+    const { controller, credentials, fetchSpy } = await bench()
+    await controller.set('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const readRecord = credentials.readRecord.bind(credentials)
+    let reads = 0
+    credentials.readRecord = async (key) => {
+      if (++reads > 1) throw 'keychain locked'
+      return readRecord(key)
+    }
+    expect(await controller.test('epo-ops', new AbortController().signal)).toEqual({ ok: false, message: 'EPO OPS: keychain locked' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
 })

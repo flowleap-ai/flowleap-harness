@@ -143,11 +143,10 @@ export class FlowleapConnectorsController extends TypertRemoteService {
       }
       case 'semantic-scholar': {
         const result = await this.connectors.academic.runAcademicSearch({ query: 'patent', sources: ['scholar'], maxResults: 1 })
-        if (!result.ok) return { ok: false, message: `${label}: ${result.body.error.message}` }
-        const report = result.data.sources.find(source => source.source === 'scholar')
-        return report?.status === 'ok'
+        // With one requested source, a failed source fails the whole search, so a success means Semantic Scholar answered.
+        return result.ok
           ? { ok: true, message: `${label}: search answered` }
-          : { ok: false, message: `${label}: ${report?.message ?? report?.status ?? 'no answer'}` }
+          : { ok: false, message: `${label}: ${result.body.error.message}` }
       }
       case 'mistral': {
         const verdict = await this.connectors.ocr.verifyKey()
