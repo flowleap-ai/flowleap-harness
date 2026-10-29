@@ -18,7 +18,7 @@ import { AgentActivity, chatRows, ChatSearch, type AgentActivityProps, type Chat
 import { AgentsPage, ChatsPage, type AgentsPageProps, type ChatsPageProps } from '../src/client/AppPages.tsx'
 import { InstallCard } from '../src/client/InstallCard.tsx'
 import {
-  AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction, type PinnedSectionProps, type SearchActionProps,
+  AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction, type PinnedSectionProps,
 } from '../src/client/sidebar.tsx'
 
 afterEach(() => {
@@ -416,14 +416,14 @@ describe('dashboard surfaces', () => {
   })
 
   it('draws the Search row, the app glyphs, and the Pinned section; the rail shows no section', () => {
-    const classes = { rowClassName: 'row', glyphClassName: 'glyph', titleClassName: 'title' }
+    const classes = { rowClassName: 'row', activeRowClassName: 'active', glyphClassName: 'glyph', titleClassName: 'title' }
     const onSearch = vi.fn()
-    const wide = render(<SearchAction {...{ ...classes, wide: true, onSearch, t } as never as SearchActionProps} />)
+    const wide = render(<SearchAction {...{ ...classes, wide: true, onSearch, t }} />)
     fireEvent.click(wide.getByRole('button', { name: en['sidebar.search'] }))
     expect(onSearch).toHaveBeenCalledOnce()
     expect(wide.container.textContent).toBe(en['sidebar.search'])
     cleanup()
-    expect(render(<SearchAction {...{ ...classes, wide: false, onSearch, t } as never as SearchActionProps} />).container.textContent).toBe('')
+    expect(render(<SearchAction {...{ ...classes, wide: false, onSearch, t }} />).container.textContent).toBe('')
     cleanup()
     for (const Icon of [DashboardIcon, ChatsIcon, AgentsIcon]) expect(render(<Icon size={16} />).container.querySelector('svg')).toBeTruthy()
     cleanup()
