@@ -206,6 +206,26 @@ describe('AttachmentStore file admission', () => {
   })
 })
 
+describe('AttachmentStore upload acceptance', () => {
+  it('accepts uploads by default, and admits no upload while a store refuses them', async () => {
+    const open = new RecordingFileStore(new Context())
+    await expect(open.assertUploadsAccepted()).resolves.toBeUndefined()
+    class LowStore extends RecordingFileStore {
+      override assertUploadsAccepted(): Promise<void> {
+        return Promise.reject(new AttachmentError('low', 'STORAGE_LOW'))
+      }
+    }
+    const low = new LowStore(new Context())
+    await expect(low.admitEncodedFile({ data: 'AQID' })).rejects.toMatchObject({ code: 'STORAGE_LOW' })
+    expect(low.fileInput).toBeUndefined()
+    await expect(low.admitPromptContent([{ type: 'image', data: 'AQID', mediaType: 'image/png' }]))
+      .rejects.toMatchObject({ code: 'STORAGE_LOW' })
+    // A prompt with no encoded image stores nothing, so it is not refused.
+    await expect(low.admitPromptContent([{ type: 'text', text: 'hello' }])).resolves.toEqual([{ type: 'text', text: 'hello' }])
+    expect(isAttachmentError(new AttachmentError('low', 'STORAGE_LOW'))).toBe(true)
+  })
+})
+
 describe('isImageAdmissionError', () => {
   it('separates caller-correctable image admission failures from storage faults', () => {
     expect(isImageAdmissionError(new AttachmentError('bad bytes', 'INVALID_IMAGE'))).toBe(true)

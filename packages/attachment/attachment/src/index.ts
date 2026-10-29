@@ -127,7 +127,8 @@ export abstract class AttachmentStore extends Service {
    * Text, durable file references, and already stored images pass through unchanged.
    * Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`;
    * a stored image counts the bytes of the upload that stored it. Refused content
-   * starts no writes. A prompt without encoded images performs no storage operation.
+   * starts no writes. A prompt without encoded images performs no storage operation. A prompt with encoded images is
+   * refused while {@link assertUploadsAccepted} refuses uploads.
    * @param content - prompt parts in message order after upload receipt resolution.
    * @returns admitted prompt parts in the same order as `content`.
    * @throws AttachmentError when the image batch is refused.
@@ -146,6 +147,7 @@ export abstract class AttachmentStore extends Service {
           + stored.reduce((sum, part) => sum + part.encodedBytes, 0),
       )
     }
+    if (encoded.length > 0) await this.assertUploadsAccepted()
     const refs = encoded.length === 0 ? [] : await admitEncodedImages(this, encoded)
     let next = 0
     return content.map((part) => {
@@ -160,10 +162,21 @@ export abstract class AttachmentStore extends Service {
    * Decode and durably commit one canonical base64 file upload.
    * @param input - canonical base64 bytes and optional display name.
    * @returns the durable content-addressed file reference.
-   * @throws AttachmentError when the encoding or storage operation is refused.
+   * @throws AttachmentError when the encoding or storage operation is refused, or `STORAGE_LOW` while uploads are refused.
    */
-  admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef> {
-    return admitFileInput(this, input)
+  async admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef> {
+    await this.assertUploadsAccepted()
+    return await admitFileInput(this, input)
+  }
+
+  /**
+   * Refuse a user upload while the deployment does not accept new uploads, for example while the host's disk is low.
+   * Upload admission (prompt images, file uploads) calls it before any write; attachments a tool stores from a read are
+   * not uploads and do not call it. The default accepts every upload.
+   * @throws AttachmentError `STORAGE_LOW` while the deployment refuses uploads.
+   */
+  assertUploadsAccepted(): Promise<void> {
+    return Promise.resolve()
   }
 
   /**

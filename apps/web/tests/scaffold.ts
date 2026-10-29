@@ -419,6 +419,11 @@ export interface LaunchOptions {
     /** Select `deepseek-search-api` and `deepseek-fetch-api` in place of the shipped selection. */
     select?: boolean
   }
+  /**
+   * Keep the profile's own `skill-filesystem` row instead of the scaffold's isolated one; only for a bundle row that
+   * scans explicit roots (`includeDefaultRoots: false`), such as the flowleap-web skill pack row.
+   */
+  keepBundleSkillRow?: boolean
   /** Restate a bundle's `credentials` `lockedRefs`, which the scaffold's own `credentials` row would replace. */
   lockedCredentialRefs?: readonly string[]
   /** Preset selection default and additional declarative definitions for this scenario. */
@@ -614,7 +619,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // the owned temp world so ~/.dsh, ~/.agents, and a bundled-root env setting
     // cannot change replay requests or conversation goldens. Project roots stay
     // enabled against the same empty temp workspace, preserving the real seam.
-    {
+    // A bundle's own row that scans only explicit roots may stay as shipped.
+    ...options.keepBundleSkillRow === true ? [] : [{
       id: 'skill-filesystem',
       config: {
         dshHome: join(workspaceCwd, '.dsh-home'),
@@ -622,7 +628,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,
       },
-    },
+    }],
     // fs/bash cwd default to process.cwd(); the gateway injects the same
     // value into session.cwd — chdir below anchors all three to the temp
     // workspace, keeping the composition untouched.

@@ -52,11 +52,12 @@ describe('mode', () => {
   it('bounds maxReadChars and charsPerToken in the plugin and row schemas', () => {
     const plugin = {
       contextLimitTokens: 1, charsPerToken: 4, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1,
-      maxReadChars: 1, extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16,
+      maxReadChars: 1, extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16, storageLowFlagPath: '/run/flowleap/host/disk-low',
     }
     expect(Config({ ...plugin, maxReadChars: MAX_READ_CHARS })).toMatchObject({ maxReadChars: 200_000, charsPerToken: 4 })
     expect(() => Config({ ...plugin, maxReadChars: MAX_READ_CHARS + 1 })).toThrow()
     expect(() => Config({ ...plugin, charsPerToken: 0.25 })).toThrow()
+    expect(() => Config({ ...plugin, storageLowFlagPath: 'run/flowleap/host/disk-low' })).toThrow()
     const row = { agent: 'a', maxSearchResults: 1, maxReadLocations: 1 }
     expect(RowConfig({ ...row, maxReadChars: MAX_READ_CHARS })).toMatchObject({ maxReadChars: 200_000 })
     expect(() => RowConfig({ ...row, maxReadChars: MAX_READ_CHARS + 1 })).toThrow()

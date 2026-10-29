@@ -66,6 +66,7 @@ const UPLOAD_ERROR_KEY: Record<AgentUploadError, FlowleapAgentBuilderKey> = {
   server: 'upload.server',
   'too-large': 'upload.too-large',
   type: 'upload.type',
+  'storage-low': 'upload.storage-low',
   refused: 'upload.refused',
 }
 

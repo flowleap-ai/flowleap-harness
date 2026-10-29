@@ -1,0 +1,22 @@
+# Overlay for disk-low.md (DSH_VERIFY_PATCH): both upload kinds read the disk low
+# flag at $DSH_VERIFY_DISK_LOW_FLAG, because /run/flowleap/host is absent on a Mac.
+# An override replaces the row's whole config, so the agent builder row restates
+# every field of packages/bundle/flowleap-web/cordis.patch.yml.
+- id: attachment-local
+  config:
+    storageLowFlagPath: !!js process.env.DSH_VERIFY_DISK_LOW_FLAG
+
+- id: flowleap-agent-builder
+  config:
+    contextLimitTokens: 50000
+    charsPerToken: 4
+    maxFileBytes: 52428800
+    basePreset: patent
+    presetOrder: 100
+    maxSearchResults: 8
+    maxReadLocations: 10
+    maxReadChars: 40000
+    extractTimeoutMs: 120000
+    maxPages: 2000
+    extractMemoryMb: 512
+    storageLowFlagPath: !!js process.env.DSH_VERIFY_DISK_LOW_FLAG

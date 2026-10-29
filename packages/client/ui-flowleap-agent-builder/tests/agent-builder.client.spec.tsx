@@ -451,6 +451,7 @@ describe('browser half', () => {
   it.each([
     ['too-large', refusal('flowleap-agents/invalid', { field: 'file', reason: 'too large' })],
     ['type', refusal('flowleap-agents/invalid', { field: 'name', reason: 'type' })],
+    ['storage-low', refusal('flowleap-agents/invalid', { field: 'file', reason: 'storage low' })],
     ['refused', refusal('flowleap-agents/invalid', { field: 'name', reason: 'path' })],
     ['refused', refusal('flowleap-agents/invalid', null)],
     ['refused', refusal('flowleap-agents/read-only', { id: ID })],

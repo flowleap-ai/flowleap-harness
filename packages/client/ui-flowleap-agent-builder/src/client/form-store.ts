@@ -36,7 +36,7 @@ export interface AgentDraft {
  * `server` for an HTTP status other than 200 or an answer that is not the route's JSON, `too-large` and `type` for the
  * Host's size limit and file types, and `refused` for any other Host refusal.
  */
-export type AgentUploadError = 'network' | 'server' | 'too-large' | 'type' | 'refused'
+export type AgentUploadError = 'network' | 'server' | 'too-large' | 'type' | 'storage-low' | 'refused'
 
 /** Outcome of one upload. */
 export type AgentUploadResult = { readonly ok: true } | { readonly ok: false; readonly error: AgentUploadError }

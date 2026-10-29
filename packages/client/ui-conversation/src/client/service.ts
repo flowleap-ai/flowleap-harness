@@ -416,7 +416,8 @@ export class ConversationController extends Service implements IConversation {
             return
           }
           const { error } = result
-          // A Host refusal keeps its reason: retrying the same bytes cannot succeed.
+          // A Host refusal keeps its reason. Only a file card offers retry: a `STORAGE_LOW` refusal can succeed once the
+          // flag clears, while other refusals of the same bytes cannot.
           draft[attachment.id] = error.code === 'session/attachment-invalid' || error.code === 'subagent/attachment-invalid'
             ? { status: 'error', message: error.message, reason: error.details.reason }
             : { status: 'error', message: error.message }
