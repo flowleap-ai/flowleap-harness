@@ -1,4 +1,10 @@
-# DeepSeek Harness
+# FlowLeap Patent AI (a fork of DeepSeek Harness)
+
+> **This repository is FlowLeap Patent AI**, a fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) by FlowLeap. It is **not** made, supported or endorsed by DeepSeek AI. DeepSeek Harness is used under the MIT license, and DeepSeek's copyright notice stays in [LICENSE](LICENSE). The FlowLeap product work is in [`flowleap/`](flowleap/) and in the `flowleap` packages. Report issues for this fork at [flowleap-ai/flowleap-harness](https://github.com/flowleap-ai/flowleap-harness/issues), not upstream.
+
+The upstream README follows.
+
+## DeepSeek Harness (upstream)
 
 DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
 
