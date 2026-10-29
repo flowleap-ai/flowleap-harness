@@ -489,17 +489,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async admitPromptContent( content: readonly AttachmentAdmissionPart[], ): Promise<AdmittedPromptContentPart[]>',
-        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation.',
+        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation. A prompt with encoded images is refused while assertUploadsAccepted refuses uploads.',
         parameters: [{ name: 'content', description: 'prompt parts in message order after upload receipt resolution.' }],
         returns: 'admitted prompt parts in the same order as `content`.',
         throws: ['AttachmentError when the image batch is refused.'],
       },
       {
-        signature: 'admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
+        signature: 'async admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
         description: 'Decode and durably commit one canonical base64 file upload.',
         parameters: [{ name: 'input', description: 'canonical base64 bytes and optional display name.' }],
         returns: 'the durable content-addressed file reference.',
-        throws: ['AttachmentError when the encoding or storage operation is refused.'],
+        throws: ['AttachmentError when the encoding or storage operation is refused, or `STORAGE_LOW` while uploads are refused.'],
+      },
+      {
+        signature: 'assertUploadsAccepted(): Promise<void>',
+        description: 'Refuse a user upload while the deployment does not accept new uploads, for example while the host\'s disk is low. Upload admission (prompt images, file uploads) calls it before any write; attachments a tool stores from a read are not uploads and do not call it. The default accepts every upload.',
+        parameters: [],
+        throws: ['AttachmentError `STORAGE_LOW` while the deployment refuses uploads.'],
       },
       {
         signature: 'isAttachmentError(error: unknown): error is AttachmentError',
@@ -1297,7 +1303,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file whose name differs only in case, and the agent keeps the new name.',
         parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
         returns: 'the file as stored, in its state after the upload.',
-        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body larger than the limit (`reason` is `too large`); the file-system error of a failed write.'],
+        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}), a body larger than the limit (`reason` is `too large`), or while the host\'s disk is low (`reason` is `storage low`); the file-system error of a failed write.'],
       },
       {
         signature: 'async settled(): Promise<void>',

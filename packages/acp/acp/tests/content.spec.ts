@@ -22,6 +22,7 @@ interface AdmissionFixture {
   ctx: Context
   route: ModelSelection | undefined
   saveImages: ReturnType<typeof vi.fn<(inputs: readonly SaveImageAttachment[]) => Promise<readonly ImageAttachmentRef[]>>>
+  assertUploadsAccepted: ReturnType<typeof vi.fn<() => Promise<void>>>
   resolveModelInfo: ReturnType<typeof vi.fn>
 }
 
@@ -43,7 +44,8 @@ function admissionFixture(options: {
     name: model,
     inputModalities: ['text', 'image'] as const,
   }))
-  const attachments = options.attachments === false ? undefined : { saveImages }
+  const assertUploadsAccepted = vi.fn(async () => {})
+  const attachments = options.attachments === false ? undefined : { saveImages, assertUploadsAccepted }
   const llm = options.llm === false ? undefined : { resolveModelInfo }
   const ctx = {
     get(name: string) {
@@ -55,7 +57,7 @@ function admissionFixture(options: {
   const provider = 'provider' in options ? options.provider : 'mock'
   const model = 'model' in options ? options.model : 'vision'
   const route = provider === undefined || model === undefined ? undefined : { provider, model }
-  return { ctx, route, saveImages, resolveModelInfo }
+  return { ctx, route, saveImages, assertUploadsAccepted, resolveModelInfo }
 }
 
 describe('ACP rich content codec', () => {
@@ -154,6 +156,11 @@ describe('ACP rich content codec', () => {
     fixture.saveImages.mockRejectedValueOnce(new AttachmentError('too many', 'TOO_MANY_IMAGES'))
     await expect(admitAcpPrompt(fixture.ctx, fixture.route, prompt, true, new AbortController().signal))
       .rejects.toMatchObject({ kind: 'invalid', message: 'too many' })
+    fixture.assertUploadsAccepted.mockRejectedValueOnce(new AttachmentError('storage low', 'STORAGE_LOW'))
+    const saves = fixture.saveImages.mock.calls.length
+    await expect(admitAcpPrompt(fixture.ctx, fixture.route, prompt, true, new AbortController().signal))
+      .rejects.toMatchObject({ kind: 'invalid', message: 'storage low' })
+    expect(fixture.saveImages).toHaveBeenCalledTimes(saves)
     fixture.saveImages.mockRejectedValueOnce(new AttachmentError('disk failed', 'ATTACHMENT_WRITE_FAILED'))
     await expect(admitAcpPrompt(fixture.ctx, fixture.route, prompt, true, new AbortController().signal))
       .rejects.toMatchObject({ kind: 'internal', message: 'unable to persist the prompt image batch' })

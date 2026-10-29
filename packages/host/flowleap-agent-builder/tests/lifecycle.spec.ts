@@ -35,6 +35,7 @@ async function mountRaw(ctx: Context, root: string) {
   const options = resolveOptions({
     root, contextLimitTokens: 50_000, charsPerToken: 4, maxFileBytes: 1024, basePreset: 'patent', presetOrder: 100, maxSearchResults: 8,
     maxReadLocations: 10, maxReadChars: 1000, extractTimeoutMs: 60_000, maxPages: 2000, extractMemoryMb: 512,
+    storageLowFlagPath: `${root}.disk-low`,
   })
   const fiber = ctx.plugin({ inject: ['agentPresets', 'connection'], apply: (child: Context) => { serve(child, { ...options, agentRow: 'cordis:flowleap-agent' }) } })
   await fiber.await()

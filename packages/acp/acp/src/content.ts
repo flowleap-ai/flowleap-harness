@@ -2,7 +2,7 @@
 
 import type { ContentBlock as AcpContentBlock } from '@agentclientprotocol/sdk'
 import type { Context } from '@deepseek-ai/cordis'
-import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
+import { isAttachmentError, isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type { ModelSelection } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
@@ -154,9 +154,11 @@ export async function admitAcpPrompt(
     await assertImageRoute(ctx, route, signal)
     signal.throwIfAborted()
     try {
+      await attachments.assertUploadsAccepted()
       refs = await attachments.saveImages(images)
     } catch (error: unknown) {
-      if (isImageAdmissionError(error)) {
+      // A deployment that refuses uploads (`STORAGE_LOW`) is a refusal of this prompt, not a storage fault.
+      if (isImageAdmissionError(error) || (isAttachmentError(error) && error.code === 'STORAGE_LOW')) {
         throw new AcpContentError(error.message, 'invalid', { cause: error })
       }
       throw new AcpContentError('unable to persist the prompt image batch', 'internal', { cause: error })

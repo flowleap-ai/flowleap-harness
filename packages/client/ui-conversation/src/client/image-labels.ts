@@ -32,6 +32,8 @@ export function attachmentErrorText(
 ): string {
   switch (reason) {
     case 'MODEL_DOES_NOT_SUPPORT_IMAGES': return t('image.modelUnsupported')
+    // The host's disk is low: only the administrator can act, so the copy names them.
+    case 'STORAGE_LOW': return t('attachment.storageLow')
     // A prompt cited a file the Host has no staged upload for (expired
     // process, foreign id): solvable by re-adding the file.
     case 'FILE_NOT_STAGED': return t('file.notStaged')

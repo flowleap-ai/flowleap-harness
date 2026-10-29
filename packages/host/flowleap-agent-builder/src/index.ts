@@ -116,6 +116,12 @@ export interface Config {
    * pdfjs and mammoth to hold a 50 MB file and its decoded structures, while a DOCX zip bomb cannot reach the Host heap.
    */
   extractMemoryMb: number
+  /**
+   * The host's "disk low" flag file, as an absolute path inside this runtime; a relative path fails at load. While the
+   * file exists, an upload is refused with a `storage low` reason; reads, chats and other agent edits go on. The firm
+   * host writes the file and removes it.
+   */
+  storageLowFlagPath: string
 }
 
 /** Runtime schema for the row. */
@@ -133,6 +139,7 @@ export const Config: z<Config> = z.object({
   extractTimeoutMs: z.number().step(1).min(1).default(120_000),
   maxPages: z.number().step(1).min(1).default(2000),
   extractMemoryMb: z.number().step(1).min(16).default(512),
+  storageLowFlagPath: z.string().pattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/).default('/run/flowleap/host/disk-low'),
 })
 
 /**
@@ -157,6 +164,7 @@ export function resolveOptions(config: Config, env: Record<string, string | unde
     maxPages: config.maxPages,
     extractMemoryMb: config.extractMemoryMb,
     agentRow: AGENT_ROW_MODULE,
+    storageLowFlagPath: config.storageLowFlagPath,
   }
 }
 

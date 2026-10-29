@@ -5,7 +5,7 @@
  * @module
  */
 
-import { mkdir, readFile, rename, rm } from 'node:fs/promises'
+import { access, mkdir, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
@@ -69,7 +69,12 @@ export interface CatalogOptions {
   readonly extractMemoryMb: number
   /** Loader name of the per-agent row; the plugin sets {@link AGENT_ROW_MODULE}. */
   readonly agentRow: string
+  /** The host's "disk low" flag file; while it exists, an upload is refused. */
+  readonly storageLowFlagPath: string
 }
+
+/** The Host message of an upload refused while the host's disk is low; the agent form shows its own copy. */
+export const STORAGE_LOW_MESSAGE = 'The firm server is low on disk space. Ask your administrator.'
 
 /** What the per-agent row composes for one revision of an agent. */
 export interface AgentRevision {
@@ -481,8 +486,9 @@ export class AgentCatalog extends Service {
    * @param name - the file name.
    * @param chunks - the request body.
    * @returns the file as stored, in its state after the upload.
-   * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}) or a body
-   *   larger than the limit (`reason` is `too large`); the file-system error of a failed write.
+   * @throws RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}), a body
+   *   larger than the limit (`reason` is `too large`), or while the host's disk is low (`reason` is `storage low`); the
+   *   file-system error of a failed write.
    */
   async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView> {
     const agent = this.writable(id)
@@ -490,6 +496,10 @@ export class AgentCatalog extends Service {
     if (problem !== undefined) throw new RemoteError('flowleap-agents/invalid', `"${name}": ${FILE_NAME_MESSAGES[problem]}`, { field: 'name', reason: problem })
     return await serialize(agent, async () => {
       alive(agent)
+      // Checked in the agent's write order, so an upload keeps its place before a later removal.
+      if (await flagExists(this.options.storageLowFlagPath)) {
+        throw new RemoteError('flowleap-agents/invalid', STORAGE_LOW_MESSAGE, { field: 'file', reason: 'storage low' })
+      }
       return await this.store(agent, name, chunks)
     })
   }
@@ -587,4 +597,15 @@ function serialize<T>(agent: LoadedAgent, operation: () => Promise<T>): Promise<
   const run = agent.queue.then(operation)
   agent.queue = run.then(() => undefined, () => undefined)
   return run
+}
+
+/**
+ * Whether the host's flag file exists. A path the Host cannot reach reads as no flag, because the flag is a fact the
+ * host writes and removes; the upload then fails or succeeds on its own.
+ * @param path - the flag file.
+ * @returns whether the file exists.
+ */
+async function flagExists(path: string): Promise<boolean> {
+  // ENOENT, the normal case, means the disk is not low; any other access failure is also a flag this Host cannot read.
+  return await access(path).then(() => true, () => false)
 }

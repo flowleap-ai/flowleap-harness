@@ -9,7 +9,8 @@
 # (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
 # which the overlay mounts as readOnlyPath; stop deletes that copy.
 # FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-plugins checkout below $HOME.
-# DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml.
+# DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml; a relative path
+# is resolved against the caller's working directory.
 #
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
 set -euo pipefail
@@ -37,6 +38,8 @@ case "$cmd" in
     # The skill pack row fails at load when its folder does not exist; the default is the release image's folder.
     [[ -d "$skills_dir" ]] || { echo "no skill pack at $skills_dir: set FLOWLEAP_SKILLS_DIR" >&2; exit 1; }
     mkdir -p "$run/home" "$run/workspace" "$run/evidence"
+    # The server starts in the scratch workspace, so an extra overlay must be absolute.
+    extra_patch=${DSH_VERIFY_PATCH:+$(cd "$(dirname "$DSH_VERIFY_PATCH")" && pwd)/$(basename "$DSH_VERIFY_PATCH")}
     # Only the connector records: the server must write its own browser-session record.
     (umask 077 && cd "$repo/packages/credentials/credentials-local" && node --input-type=module -e "
       import { readFileSync, writeFileSync } from 'node:fs'
@@ -55,7 +58,7 @@ case "$cmd" in
         exec node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile flowleap-web \
         --patch "$repo/apps/web/tests/pin-browse-picker.overlay.yml" \
         --patch "$skill_dir/verify.patch.yml" \
-        ${DSH_VERIFY_PATCH:+--patch "$DSH_VERIFY_PATCH"} \
+        ${extra_patch:+--patch "$extra_patch"} \
         --no-open --port "$port"
     ) >"$log" 2>&1 &
     echo $! >"$pid_file"

@@ -45,6 +45,7 @@ Mount the plugin with no required configuration. The defaults below define what 
 | `normalizedImageMaxDimension` | `8192` | Maximum long edge after applying the total-pixel budget |
 | `normalizedImageMaxBytes` | `4 MiB` | Encoded-byte target; the smallest quality-ladder output is kept when none fits |
 | `imageCompressionConcurrency` | `2` | FIFO limit for concurrent normalization and request transforms |
+| `storageLowFlagPath` | none | Absolute path of the host's "storage low" flag file (a relative path fails at load); while it exists, `assertUploadsAccepted` refuses user uploads with `STORAGE_LOW`, and tool-stored attachments and reads go on |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-attachment-local) is the exhaustive source for every accepted field and its JSDoc.
 

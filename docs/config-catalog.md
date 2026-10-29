@@ -371,7 +371,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-attachment-local`
 
-- `source`: [`packages/attachment/attachment-local/src/index.ts:65`](../packages/attachment/attachment-local/src/index.ts)
+- `source`: [`packages/attachment/attachment-local/src/index.ts:66`](../packages/attachment/attachment-local/src/index.ts)
 
 ```ts config-catalog
 /** Local attachment backend configuration. */
@@ -399,6 +399,12 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /**
+   * The host's "storage low" flag file, as an absolute path; a relative path fails at load. While the file exists, user
+   * uploads are refused with `STORAGE_LOW`; reads and attachments a tool stores go on. Absent: no flag, every upload is
+   * accepted.
+   */
+  storageLowFlagPath?: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-attachment-local -->
@@ -1659,6 +1665,12 @@ export interface Config {
    * pdfjs and mammoth to hold a 50 MB file and its decoded structures, while a DOCX zip bomb cannot reach the Host heap.
    */
   extractMemoryMb: number
+  /**
+   * The host's "disk low" flag file, as an absolute path inside this runtime; a relative path fails at load. While the
+   * file exists, an upload is refused with a `storage low` reason; reads, chats and other agent edits go on. The firm
+   * host writes the file and removes it.
+   */
+  storageLowFlagPath: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-agent-builder -->

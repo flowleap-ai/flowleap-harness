@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { AttachmentErrorCode } from '@deepseek-ai/dsh-attachment'
 import type {
   ComposerAttachment, ComposerAttachmentsProps, ComposerImageAttachment,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -14,6 +15,12 @@ import { attachmentRailLabels, dropOverlayLabels, fileCardLabels, lightboxLabels
 import { installDocumentDropEvents } from './drop-events.ts'
 import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './ComposerAttachments.module.css'
+
+/**
+ * Host refusal reasons whose `uploadFailureText` copy applies to a file card. Other refusals of a file upload, such as
+ * `ATTACHMENT_WRITE_FAILED`, fall back to the image send-failed copy there, so the card keeps its generic retry text.
+ */
+const FILE_CARD_REFUSAL_REASONS: ReadonlySet<string> = new Set<AttachmentErrorCode>(['STORAGE_LOW'])
 
 /** Rail item retaining its browser-owned attachment for callbacks. */
 interface ComposerRailItem extends AttachmentRailItem {
@@ -78,7 +85,11 @@ export function ComposerAttachments({
                     {...upload?.status === 'uploading' && upload.total !== undefined && upload.total > 0
                       ? { progress: upload.loaded / upload.total }
                       : {}}
-                    labels={fileCardLabels(t, attachment.file.name)}
+                    labels={upload?.status === 'error' && upload.reason !== undefined
+                      && FILE_CARD_REFUSAL_REASONS.has(upload.reason)
+                      // A Host refusal with file copy names its reason in place of the generic failure.
+                      ? { ...fileCardLabels(t, attachment.file.name), failed: uploadFailureText(upload.reason) }
+                      : fileCardLabels(t, attachment.file.name)}
                     onRemove={() => { onRemoveAttachment(attachment.id) }}
                     onRetry={() => { onRetryFile(attachment.id) }}
                   />

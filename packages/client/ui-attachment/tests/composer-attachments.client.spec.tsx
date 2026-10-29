@@ -331,6 +331,26 @@ describe('ComposerAttachments file drafts', () => {
     expect(onRemoveAttachment).toHaveBeenCalledWith('ok')
   })
 
+  it('names the Host refusal of a file upload in place of the generic failure', () => {
+    const view = render(<ComposerAttachments {...props({
+      attachments: [fileDraft('low')],
+      uploads: { low: { status: 'error', message: 'low', reason: 'STORAGE_LOW' } },
+    })} />)
+    const group = view.getByRole('group', { name: '待发送附件' })
+    expect(group.textContent).toContain('refused:STORAGE_LOW')
+    expect(group.textContent).not.toContain('上传失败，点击重试')
+  })
+
+  it('keeps the generic file failure for a Host refusal without file copy', () => {
+    const view = render(<ComposerAttachments {...props({
+      attachments: [fileDraft('full')],
+      uploads: { full: { status: 'error', message: 'write failed', reason: 'ATTACHMENT_WRITE_FAILED' } },
+    })} />)
+    const group = view.getByRole('group', { name: '待发送附件' })
+    expect(group.textContent).toContain('上传失败，点击重试')
+    expect(group.textContent).not.toContain('refused:ATTACHMENT_WRITE_FAILED')
+  })
+
   it('treats a draft without upload state as uploading and keeps retry separate from remove', () => {
     const onRetryFile = vi.fn()
     const onRemoveAttachment = vi.fn()

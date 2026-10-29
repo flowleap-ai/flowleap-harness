@@ -54,8 +54,9 @@ export interface ComposerFileAttachment {
 /**
  * Upload lifecycle of one draft that uploads when it is added, not on send:
  * every file draft, and every image draft of an ordinary Session. A failed
- * upload the Host refused keeps the attachment refusal `reason`, because
- * retrying the same bytes cannot succeed.
+ * upload the Host refused keeps the attachment refusal `reason`. Retrying the
+ * same bytes cannot succeed, except after a `STORAGE_LOW` refusal once the
+ * host's flag clears.
  */
 export type DraftFileUpload =
   | { readonly status: 'uploading'; readonly loaded: number; readonly total?: number }
@@ -85,8 +86,8 @@ export interface ComposerAttachmentsOwnerProps {
   /** Restart one failed file upload. */
   onRetryFile: (id: DraftAttachmentId) => void
   /**
-   * Explain one upload the Host refused; such a draft cannot be retried and
-   * stays until it is removed.
+   * Explain one upload the Host refused. A refused image draft cannot be
+   * retried and stays until it is removed; a file card keeps its retry control.
    * @param reason - the refusal `reason` the failed upload carries.
    * @returns localized text naming the limit or the way out.
    */
