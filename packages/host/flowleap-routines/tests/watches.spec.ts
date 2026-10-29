@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import type { ScheduleCatalogEntry } from '@deepseek-ai/dsh-schedule'
+import { ScheduleId, type ScheduleCatalogEntry } from '@deepseek-ai/dsh-schedule'
+import { parseRegisterApplication, type RegisterApplication } from '@deepseek-ai/dsh-flowleap-connectors'
 import { MemoryMediaPool } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import * as Routines from '../src/index.ts'
 import { createWatch, disposeContexts, EP_EVENTS, host, US_EVENTS } from './helpers.ts'
@@ -13,28 +14,30 @@ afterEach(async () => {
 
 function task(id: string, status: 'active' | 'inactive'): ScheduleCatalogEntry {
   return {
-    id, kind: 'daily', title: `Watch ${id}`, prompt: 'p', time: '07:00:00.000', timeZone: 'UTC',
+    id: ScheduleId(id), kind: 'daily', title: `Watch ${id}`, prompt: 'p', time: '07:00:00.000', timeZone: 'UTC',
     scheduledAt: '2026-11-03T07:00:00.000Z', sessionId: SessionId('chat'), status,
-  } as ScheduleCatalogEntry
+  }
 }
+
+const application = (text: string): RegisterApplication => parseRegisterApplication(text)!
 
 const read = (entries: Routines.ReadRecord['entries']): Routines.ReadRecord => ({ readAt: '2026-11-01T07:00:00.000Z', entries })
 
 describe('watch views', () => {
   it('lists each watch of an existing task in catalog order with the newest event of each saved read', () => {
-    const watches = new Map<string, Routines.WatchRecord>([
-      ['b', { applications: [{ application: 'EP3456789' as never, seen: {} }, { application: 'US17123456' as never, seen: {} }], newChat: true, needsReview: true }],
-      ['a', { applications: [{ application: 'EP1000000' as never, seen: {} }], newChat: false, needsReview: false }],
-      ['gone', { applications: [{ application: 'EP2000000' as never, seen: {} }], newChat: false, needsReview: false }],
+    const watches = new Map<Routines.TaskId, Routines.WatchRecord>([
+      [ScheduleId('b'), { applications: [{ application: application('EP3456789'), seen: {} }, { application: application('US17123456'), seen: {} }], newChat: true, needsReview: true }],
+      [ScheduleId('a'), { applications: [{ application: application('EP1000000'), seen: {} }], newChat: false, needsReview: false }],
+      [ScheduleId('gone'), { applications: [{ application: application('EP2000000'), seen: {} }], newChat: false, needsReview: false }],
     ])
-    const reads = new Map<string, Routines.ReadRecord>([
-      ['EP3456789', read([
+    const reads = new Map<RegisterApplication, Routines.ReadRecord>([
+      [application('EP3456789'), read([
         { date: '2026-10-01', code: 'A', description: 'First' },
         { date: '2026-10-09', code: 'B', description: 'Newest' },
         { date: '2026-10-09', code: 'C', description: 'Newest, listed last' },
         { date: '2026-09-30', code: 'D', description: 'Older' },
       ])],
-      ['EP1000000', read([])],
+      [application('EP1000000'), read([])],
     ])
     expect(Routines.watchViews([task('a', 'inactive'), task('reminder', 'active'), task('b', 'active')], { watches, reads })).toEqual([
       { taskId: 'a', sessionId: 'chat', title: 'Watch a', applications: [{ application: 'EP1000000', readAt: '2026-11-01T07:00:00.000Z' }] },

@@ -39,7 +39,6 @@ export const zh = {
   'comingUp.note': '登记簿监视在专利局记录事件后报告该事件。它不计算期限。',
   'comingUp.open': '打开 {title} 的聊天',
   'search.heading': '例行任务',
-  'search.open': '打开例行任务 {title} 的聊天',
 } as const
 
 /** Key domain of the namespace. */
@@ -81,7 +80,6 @@ export const en: Record<FlowleapRoutinesKey, string> = {
   'comingUp.note': 'The register watch reports an event after the office records it. It does not calculate deadlines.',
   'comingUp.open': 'Open the chat of {title}',
   'search.heading': 'Routines',
-  'search.open': 'Open the chat of routine {title}',
 }
 
 /** Japanese dictionary, checked against the English keys. */
@@ -120,7 +118,6 @@ export const ja = {
   'comingUp.note': '登録簿ウォッチは、庁がイベントを記録した後にそのイベントを報告します。期限は計算しません。',
   'comingUp.open': '{title} のチャットを開く',
   'search.heading': 'ルーティン',
-  'search.open': 'ルーティン {title} のチャットを開く',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -159,7 +156,6 @@ export const es = {
   'comingUp.note': 'La vigilancia del registro informa de un evento después de que la oficina lo registra. No calcula plazos.',
   'comingUp.open': 'Abrir el chat de {title}',
   'search.heading': 'Rutinas',
-  'search.open': 'Abrir el chat de la rutina {title}',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -198,7 +194,6 @@ export const fr = {
   'comingUp.note': "La surveillance du registre signale un événement après que l'office l'a enregistré. Elle ne calcule pas les délais.",
   'comingUp.open': 'Ouvrir la conversation de {title}',
   'search.heading': 'Routines',
-  'search.open': 'Ouvrir la conversation de la routine {title}',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -237,7 +232,6 @@ export const de = {
   'comingUp.note': 'Die Registerbeobachtung meldet ein Ereignis, nachdem das Amt es erfasst hat. Sie berechnet keine Fristen.',
   'comingUp.open': 'Chat von {title} öffnen',
   'search.heading': 'Routinen',
-  'search.open': 'Chat der Routine {title} öffnen',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -276,7 +270,6 @@ export const ru = {
   'comingUp.note': 'Наблюдение за реестром сообщает о событии после того, как ведомство его зарегистрирует. Оно не рассчитывает сроки.',
   'comingUp.open': 'Открыть чат {title}',
   'search.heading': 'Рутины',
-  'search.open': 'Открыть чат рутины {title}',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -315,5 +308,4 @@ export const pt = {
   'comingUp.note': 'O acompanhamento do registro informa um evento depois que o escritório o registra. Ele não calcula prazos.',
   'comingUp.open': 'Abrir a conversa de {title}',
   'search.heading': 'Rotinas',
-  'search.open': 'Abrir a conversa da rotina {title}',
 } satisfies Record<keyof typeof en, string>

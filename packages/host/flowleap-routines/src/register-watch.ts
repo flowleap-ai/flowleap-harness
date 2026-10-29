@@ -45,9 +45,9 @@ export interface RegisterWatchOptions {
 /** The stored watches and the latest read of each watched application. */
 export interface StoredWatches {
   /** Watch rows by task id. */
-  readonly watches: ReadonlyMap<string, WatchRecord>
+  readonly watches: ReadonlyMap<TaskId, WatchRecord>
   /** Latest saved read by application. */
-  readonly reads: ReadonlyMap<string, ReadRecord>
+  readonly reads: ReadonlyMap<RegisterApplication, ReadRecord>
 }
 
 /**

@@ -81,7 +81,7 @@ export type RunChatRecord = z.infer<typeof runChatSchema>
 export const routinesDomain = defineDomain({
   name: 'flowleap_routines', version: 1,
   tables: {
-    watches: domainTable<string, WatchRecord>(watchSchema),
+    watches: domainTable<TaskId, WatchRecord>(watchSchema),
     reads: domainTable<RegisterApplication, ReadRecord>(readSchema),
     reviews: domainTable<SessionId, ReviewRecord>(reviewSchema),
     run_chats: domainTable<string, RunChatRecord>(runChatSchema),

@@ -209,11 +209,3 @@
   font-size: 12px;
   line-height: 18px;
 }
-
-/* The heading of the Routines group in the dashboard search results, in the look of the dashboard's own groups. */
-.searchHeading {
-  margin: 0 0 4px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-weight: 500;
-}

@@ -1,8 +1,8 @@
-/** One shared read of the "Needs review" marks, the task catalog that names their tasks, and the register watches. */
+/** One shared read of the "Needs review" marks and the task catalog that names their tasks. */
 
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import type { RoutineReview, RoutineWatch } from '@deepseek-ai/dsh-flowleap-routines/types'
+import type { RoutineReview } from '@deepseek-ai/dsh-flowleap-routines/types'
 import type { ScheduleCatalogEntry } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
@@ -16,10 +16,6 @@ export interface ReviewsSnapshot {
   readonly tasks: readonly ScheduleCatalogEntry[]
   /** Chats whose Mark as done request is in flight. */
   readonly pending: readonly SessionId[]
-  /** Query state of the watches, apart from the marks: a failed watch read does not hide the marks. */
-  readonly watchStatus: 'loading' | 'ready' | 'error'
-  /** The register watches of the last successful read, next check first. */
-  readonly watches: readonly RoutineWatch[]
 }
 
 /** Remote calls and invalidations the source uses. */
@@ -28,8 +24,6 @@ export interface ReviewsDependencies {
   readonly reviews: () => Promise<RemoteResult<RoutineReview[]>>
   /** Read the Host task catalog. */
   readonly catalog: () => Promise<RemoteResult<ScheduleCatalogEntry[]>>
-  /** Read every register watch the caller may see. */
-  readonly watches: () => Promise<RemoteResult<RoutineWatch[]>>
   /** Clear the mark of one chat. */
   readonly done: (sessionId: SessionId) => Promise<RemoteResult<void>>
   /** Observe changes of the marks or the catalog. */
@@ -62,7 +56,7 @@ export interface ReviewsSource {
  * @returns the observable snapshot and its actions.
  */
 export function createReviewsSource(deps: ReviewsDependencies): ReviewsSource {
-  let snapshot: ReviewsSnapshot = { status: 'loading', marked: [], tasks: [], pending: [], watchStatus: 'loading', watches: [] }
+  let snapshot: ReviewsSnapshot = { status: 'loading', marked: [], tasks: [], pending: [] }
   const listeners = new Set<() => void>()
   let disposers: readonly (() => void)[] = []
   let epoch = 0
@@ -72,29 +66,25 @@ export function createReviewsSource(deps: ReviewsDependencies): ReviewsSource {
   }
   const read = async (): Promise<void> => {
     const current = ++epoch
-    publish({ ...snapshot, status: 'loading', watchStatus: 'loading' })
+    publish({ ...snapshot, status: 'loading' })
     let reviews: RemoteResult<RoutineReview[]>
     let catalog: RemoteResult<ScheduleCatalogEntry[]>
-    let watches: RemoteResult<RoutineWatch[]>
     try {
-      [reviews, catalog, watches] = await Promise.all([deps.reviews(), deps.catalog(), deps.watches()])
+      [reviews, catalog] = await Promise.all([deps.reviews(), deps.catalog()])
     } catch (_error: unknown) {
       // A transport rejection has the same visible retry path as a Remote failure.
-      if (current === epoch) publish({ ...snapshot, status: 'error', watchStatus: 'error' })
+      if (current === epoch) publish({ ...snapshot, status: 'error' })
       return
     }
     if (current !== epoch) return
-    const watchState = watches.ok
-      ? { watchStatus: 'ready' as const, watches: watches.value }
-      : { watchStatus: 'error' as const, watches: snapshot.watches }
     if (!reviews.ok) {
-      publish({ ...snapshot, ...watchState, status: 'error' })
+      publish({ ...snapshot, status: 'error' })
       return
     }
     const marked = reviews.value
       .filter(review => review.state === 'needs_review')
       .toSorted((left, right) => Date.parse(right.since) - Date.parse(left.since))
-    publish({ ...snapshot, ...watchState, status: 'ready', marked, tasks: catalog.ok ? catalog.value : [] })
+    publish({ ...snapshot, status: 'ready', marked, tasks: catalog.ok ? catalog.value : [] })
   }
   const invalidate = (): void => { void read() }
   return {

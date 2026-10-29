@@ -5,6 +5,7 @@
  */
 
 import type {} from '@deepseek-ai/cordis'
+import type { ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 /** `running` while the run that marked the chat works; `needs_review` once it finished or the Host restarted. */
@@ -48,7 +49,7 @@ export interface WatchedApplication {
  */
 export interface RoutineWatch {
   /** The scheduled task that runs the watch. */
-  readonly taskId: string
+  readonly taskId: ScheduleId
   /** The chat that owns the task. */
   readonly sessionId: SessionId
   /** Task title. */
