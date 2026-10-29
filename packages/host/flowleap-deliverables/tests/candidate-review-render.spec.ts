@@ -86,6 +86,29 @@ describe('prior-art review on sparse records', () => {
     })
   })
 
+  it('notes a row outside the searched scope by its anchors alone, and quotes nothing for evidence without a quote', () => {
+    const scoped = snapshotOf(...snapshot.executions, { id: 'scoped', recordedAt: '2026-10-17T04:00:00Z', kind: 'search', status: 'succeeded', query: 'ta=clamp', countryFilter: ['EP'] })
+    const outside = row('Band', { sourceAnchors: ['US1000001:description'] })
+    const unquoted = row('Band', { sourceAnchors: ['US1000002:description'], evidence: [{ anchor: 'US1000002:description', ...REVIEW_FIELDS }] })
+    const { sourceAnchors: _sourceAnchors, ...unanchored } = row('Liner')
+    const lines = renderCandidateReview({ coverage: [outside, unquoted, unanchored] }, scoped, 'r.working-record.md').split('\n')
+    expect({
+      scope: lines.filter(line => line.startsWith('Scope note (generated)')),
+      empty: lines.filter(line => line === '<p style="white-space: pre-wrap"></p>').length,
+    }).toEqual({
+      scope: [
+        'Scope note (generated): US1000001 is outside the searched jurisdictions (EP).',
+        'Scope note (generated): US1000002 is outside the searched jurisdictions (EP).',
+      ],
+      empty: 1,
+    })
+  })
+
+  it('states a second read in the working record of a review without rows', () => {
+    const record = renderWorkingRecord({}, snapshot, 'r.md', 'r.md.evidence.json', undefined, { kind: 'skipped', reason: 'no rows claim disclosure' })
+    expect(section(record, '## Second read')).toEqual(['## Second read', 'Second read: skipped (no rows claim disclosure).'])
+  })
+
   it('states a working record search without query or counts, and no open points for an invalidity chart without claims', () => {
     const record = renderWorkingRecord({}, snapshot, 'r.md', 'r.md.evidence.json', undefined, undefined, 'invalidity').split('\n')
     expect({
@@ -114,6 +137,12 @@ describe('invalidity chart on sparse records', () => {
     '3. The clamp according to claim 1, wherein the screw is captive.',
     '4. A method of fastening a pipe.',
   ])
+
+  it('renders a chart without rows, with or without recorded claims', () => {
+    const headings = (snapshot: PatentExecutionSnapshot) => renderCandidateReview({ challengedPublication: CHALLENGED }, snapshot, 'c.working-record.md', 'invalidity')
+      .split('\n').filter(line => line.startsWith('## Coverage') || line.startsWith('## Claim'))
+    expect([headings(snapshotOf()), headings(snapshotOf(LADDER))]).toEqual([['## Coverage and remaining search tracks'], []])
+  })
 
   it('renders the rows as a plain list when the challenged claims are not recorded', () => {
     const rendered = renderCandidateReview({ challengedPublication: 'EP9999999B1', coverage: [row('Band', { claimNumber: '1' })] }, snapshotOf(), 'c.working-record.md', 'invalidity')
@@ -197,14 +226,19 @@ describe('find-better report on sparse rows', () => {
   it('names no art where no side cites a recorded document, and renders an empty comparison without rows', () => {
     const review: PatentCandidateReview = {
       examinerBestArt: [{ claimNumber: '1', publications: ['US5135330A'] }],
-      coverage: [row('Claim 1 — a band', { claimNumber: '1', examiner: { status: 'unresolved', gap: 'Not found.' }, found: { status: 'supported', sourceAnchors: ['DE9:claims:1:en'], gap: '' } })],
+      coverage: [
+        row('Claim 1 — a band', { claimNumber: '1', examiner: { status: 'unresolved', gap: 'Not found.' }, found: { status: 'supported', sourceAnchors: ['DE9:claims:1:en'], gap: '' } }),
+        row('Claim 1 — a screw', { claimNumber: '1', found: { status: 'unresolved', gap: 'Not found.' } }),
+      ],
     }
     const lines = renderCandidateReview(review, snapshotOf(), 'f.working-record.md', 'find-better').split('\n')
     expect({
       header: lines.find(line => line.startsWith('| Element |')),
+      sides: lines.filter(line => line.startsWith('#### Claim 1 — a screw')),
       empty: renderCandidateReview({}, snapshotOf(), 'f.working-record.md', 'find-better').includes('## Claim-by-claim comparison'),
     }).toEqual({
       header: '| Element | Examiner\'s best art (none cited) | Best art found (none cited) |',
+      sides: ['#### Claim 1 — a screw — best art found'],
       empty: true,
     })
   })

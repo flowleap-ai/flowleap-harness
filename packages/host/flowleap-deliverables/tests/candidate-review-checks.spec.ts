@@ -158,6 +158,30 @@ describe('validateCandidateReview', () => {
     ])
   })
 
+  it('names no sourceAnchors for elements and evidence of a row that lists none', () => {
+    const { sourceAnchors: _sourceAnchors, ...unanchored } = row('Unanchored', {
+      status: 'partial', evidence: [{ anchor: CLAIM_ANCHOR, quote: CLAIM, ...REVIEW_FIELDS }],
+      elements: [{ element: 'band', anchor: CLAIM_ANCHOR, disclosedBy: 'a band' }, { element: 'lever', anchor: FIGURE_ANCHOR, basis: 'figure', reading: 'Figure 2 shows a lever.' }, { element: 'liner' }],
+    })
+    expect(validateCandidateReview({ ...BASE, coverage: [unanchored, COMBINATION] }, SNAPSHOT)).toEqual([
+      'Coverage for "Unanchored" needs known source anchors or unresolved status.',
+      'Evidence for "Unanchored" must use that row\'s sourceAnchors.',
+      'Element "band" of "Unanchored" cites EP1000000A1:claims:1:en, which is not one of that row\'s sourceAnchors. Cite one of: none listed.',
+      'Element "lever" of "Unanchored" cites EP1000000A1:figure:2, which is not one of that row\'s sourceAnchors. Cite one of: none listed.',
+    ])
+  })
+
+  it('counts no publication for a supported combination element without an anchor or with an unknown anchor', () => {
+    const combination = row('Essential combination', {
+      kind: 'combination', status: 'supported', gap: '', sourceAnchors: [CLAIM_ANCHOR], evidence: [{ anchor: CLAIM_ANCHOR, quote: CLAIM, ...REVIEW_FIELDS }],
+      elements: [{ element: 'band', anchor: CLAIM_ANCHOR, disclosedBy: 'a band' }, { element: 'screw', anchor: 'EP9:claims:1:en', disclosedBy: 'a screw' }, { element: 'liner', reading: 'A liner.' }],
+    })
+    expect(validateCandidateReview({ ...BASE, coverage: [combination] }, SNAPSHOT)).toEqual([
+      'Element "screw" of "Essential combination" cites EP9:claims:1:en, which is not one of that row\'s sourceAnchors. Cite one of: EP1000000A1:claims:1:en.',
+      'Element "liner" of "Essential combination" cites no source anchor. Give both the anchor and a literal fragment of its recorded text, or omit both and name the element in the gap.',
+    ])
+  })
+
   it('accepts a supported combination whose elements name no recorded publication, and a web passage of a document with no official text', () => {
     const web = source('US7000000:description', 'US7000000', 'description', { text: DESCRIPTION, textSource: 'web', url: 'https://patents.example.com/US7000000' })
     const snapshot = snapshotOf(...SNAPSHOT.executions, details('web', [web]))
@@ -183,6 +207,7 @@ describe('chartOpenPoints and jurisdictions', () => {
       SNAPSHOT.executions[1]!,
       failed('first'),
       failed('second', 'band material'),
+      failed('third'),
       { id: 'unnamed', recordedAt: '2026-10-17T00:00:00Z', kind: 'search', status: 'cancelled' },
     )
     const review: PatentCandidateReview = {
