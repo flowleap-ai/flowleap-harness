@@ -13,16 +13,17 @@ import type {
 } from '@deepseek-ai/dsh-api-session-controller/client'
 // Type-only: pulls the `agentPreset` Session projection value into this program.
 import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
 import type {
   IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { DraftInitializationOptions } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { RowToast } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
+import { StartLinks, type StartEnvironment } from './start-link.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
 
 interface MainSelection {
@@ -141,6 +142,19 @@ export interface UiWorkspace {
    */
   provideSearch(open: () => void): () => void
   /**
+   * Make a main panel the landing page: the client shows it at the start, the start address can name a chat
+   * (`?chat=<id>`) or a main panel (`?page=<id>`) to open instead, and the address names the open item from then on.
+   * Without a provided landing the client keeps its start and does not read or write the address. The latest
+   * registration wins; its disposer restores the one before it. A landing provided after the start restoration only
+   * starts the address updates.
+   * @param panelId - the main panel to land on; it lands once it is registered, before the start restoration
+   * begins a navigation, so the restoration (for example the first sign-in's default Workspace) is not aborted.
+   * @returns the disposer; register it as an effect.
+   */
+  provideLanding(panelId: MainPanelId): () => void
+  /** The Session open in the main view, `undefined` while none is open. */
+  readonly mainSession: ObservableSnapshot<SessionId | undefined>
+  /**
    * Keep `callback`'s effects installed while the current Peer may call
    * `action` on one Workspace resource, with the semantics of
    * `ctx.remoteAccess.whenAccess`: `useWorkspaceAccess` answers the same
@@ -170,6 +184,43 @@ export class DirectoryBrowseError extends Error {
   }
 }
 
+/** Registrations where the latest wins; each disposer removes its own entry. */
+export class LatestRegistry<T> {
+  /** Each entry object is unique, so the same value can register twice. */
+  private readonly entries: { readonly value: T }[] = []
+
+  /** @param changed - called after a registration or a disposal. */
+  constructor(private readonly changed: () => void = () => {}) {}
+
+  /**
+   * Register a value.
+   * @param value - the new latest value.
+   * @returns the idempotent disposer.
+   */
+  provide(value: T): () => void {
+    const entry = { value }
+    this.entries.push(entry)
+    this.changed()
+    return () => {
+      const index = this.entries.indexOf(entry)
+      if (index === -1) return
+      this.entries.splice(index, 1)
+      this.changed()
+    }
+  }
+
+  /**
+   * Read the latest registration.
+   * @returns the latest registered value, or `undefined` while none is registered.
+   */
+  current(): T | undefined {
+    return this.entries.at(-1)?.value
+  }
+}
+
+/** The surfaces that replace the Sidebar search for the Search sessions command; the latest wins. */
+export type SearchOpeners = LatestRegistry<() => void>
+
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
   /** The latest in-flight connection per Workspace; a request joins it only when both name the same preset. */
@@ -178,8 +229,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     readonly attempt: Promise<SessionId>
   }>()
   private readonly lifetime = new AbortController()
-  /** `provideSearch` registrations; each entry object is unique, so the same function can register twice. */
-  private readonly searchOpeners: { readonly open: () => void }[] = []
+  /** `provideSearch` registrations, read by the Search sessions command. */
+  readonly searchOpeners: SearchOpeners = new LatestRegistry()
+  private readonly landings = new LatestRegistry<MainPanelId>(() => { this.startLinks.landingChanged() })
+  private readonly main = createSnapshotStore<SessionId | undefined>(undefined)
+  readonly mainSession: ObservableSnapshot<SessionId | undefined> = this.main
+  private readonly startLinks: StartLinks
   private readonly selection = createSnapshotStore<MainSelection>(
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
@@ -193,6 +248,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param sessions - pure Session Controller.
    * @param view - the browser's viewing-store write set (one instance shared with its registration).
    * @param notify - show one notice through the Workspace notice channel.
+   * @param start - the registered main panels and the browser address, for the landing page and the address links.
    */
   constructor(
     ctx: Context,
@@ -201,8 +257,18 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     private readonly sessions: ISessions,
     private readonly view: Pick<WorkspaceViewStoreActions, 'pinSessionOrder'>,
     private readonly notify: (toast: RowToast) => void,
+    start: StartEnvironment,
   ) {
     super(ctx, 'uiWorkspace')
+    this.startLinks = new StartLinks({
+      ...start,
+      layout: ctx.layout,
+      sessions: sessions.list,
+      mainSession: this.main,
+      landing: () => this.landings.current(),
+      openChat: (sessionId) => { this.replaceMain(sessionId, this.lifetime.signal, 'reveal') },
+    })
+    ctx.effect(() => () => { this.startLinks.dispose() }, 'ui-workspace: landing and address links')
     ctx.effect(() => {
       const stop = this.watchNavigation()
       return () => {
@@ -431,20 +497,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   provideSearch(open: () => void): () => void {
-    const entry = { open }
-    this.searchOpeners.push(entry)
-    return () => {
-      const index = this.searchOpeners.indexOf(entry)
-      if (index !== -1) this.searchOpeners.splice(index, 1)
-    }
+    return this.searchOpeners.provide(open)
   }
 
-  /**
-   * The surface the Search command opens instead of the Sidebar search.
-   * @returns the latest `provideSearch` opener, or `undefined` while none is registered.
-   */
-  searchOverride(): (() => void) | undefined {
-    return this.searchOpeners.at(-1)?.open
+  provideLanding(panelId: MainPanelId): () => void {
+    return this.landings.provide(panelId)
   }
 
   whenAccess(workspaceId: WorkspaceId, action: RemoteEndpoint, callback: () => AccessEffect): () => void {
@@ -466,11 +523,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       if (workspace.phase !== 'ready' || sessions.phase !== 'ready') return
       if (this.mainReference !== undefined) {
         initial = 'done'
+        this.startLinks.endRestoration()
         return
       }
       initial = 'connecting'
       void this.restoreSelection(workspace, sessions).then(
-        () => { initial = 'done' },
+        () => {
+          initial = 'done'
+          this.startLinks.endRestoration()
+        },
         (reason: unknown) => {
           if (this.lifetime.signal.aborted) return
           initial = 'waiting'
@@ -490,6 +551,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private async restoreSelection(workspaces: WorkspaceSnapshot, sessions: SessionListState): Promise<void> {
+    // Before any navigation begins: a landing selection during one would abort it.
+    if (this.startLinks.beginRestoration(sessions)) return
     const saved = this.selection.getSnapshot()
     if (saved.subagentAddress !== undefined) {
       this.replaceMain(saved.subagentAddress, this.lifetime.signal, 'preserve')
@@ -543,6 +606,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const previous = this.mainReference
     this.mainReference = undefined
     this.selection.set({})
+    this.main.set(undefined)
     previous?.release()
     this.ctx.layout.selectPanel(null)
   }
@@ -575,6 +639,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
     const previous = this.mainReference
     this.mainReference = reference
+    this.main.set(reference.sessionId)
     previous?.release()
     if (panel === 'reveal') this.ctx.layout.selectPanel(null)
   }

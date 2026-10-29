@@ -5,7 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCommand, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { UiWorkspace } from './navigation.ts'
+import type { SearchOpeners, UiWorkspace } from './navigation.ts'
 
 /** Transient requests consumed by the existing workspace browser. */
 export interface WorkspaceShortcutState {
@@ -50,17 +50,16 @@ export function createWorkspaceShortcutControls(): WorkspaceShortcutControls {
  * Register navigation commands against the existing workspace owner.
  * Rename requires a nonblank main Conversation with no modal obscuring it.
  * @param ctx - plugin context with the shortcut, locale, and model services.
- * @param navigation - session creation, forking, and the search override from the pointer controls' navigation service.
+ * @param navigation - session creation and forking from the pointer controls' navigation service.
+ * @param searchOpeners - the surfaces that replace the Sidebar search; the latest wins.
  * @param controls - browser-owned opening requests.
  * @param archiveSession - shared archive action, including running-work confirmation and notices.
  * @param reportForkFailure - publish a classified failure through the frame-wide notice channel.
  */
 export function installWorkspaceShortcuts(
   ctx: Context,
-  navigation: Pick<UiWorkspace, 'startSession' | 'forkSession'> & {
-    /** The `provideSearch` opener that replaces the Sidebar search, when one is registered. */
-    readonly searchOverride: () => (() => void) | undefined
-  },
+  navigation: Pick<UiWorkspace, 'startSession' | 'forkSession'>,
+  searchOpeners: Pick<SearchOpeners, 'current'>,
   controls: ReturnType<typeof createWorkspaceShortcutControls>,
   archiveSession: (sessionId: SessionId) => void,
   reportForkFailure: (reason: 'unavailable' | 'failed') => void,
@@ -84,7 +83,7 @@ export function installWorkspaceShortcuts(
   register('session.new', () => t('session.new'), ['new session', 'new chat'], 'KeyN', ['primary'], ['primary', 'alt'],
     () => ({ status: 'handled', run: () => { navigation.startSession() } }))
   register('session.search', () => t('search.sessions.aria'), ['search sessions'], 'KeyK', ['primary'], ['primary', 'alt'],
-    () => ({ status: 'handled', run: () => { (navigation.searchOverride() ?? controls.search)() } }))
+    () => ({ status: 'handled', run: () => { (searchOpeners.current() ?? controls.search)() } }))
   register('workspace.add', () => t('workspace.add'), ['add workspace', 'open folder'], 'KeyO', ['primary'], ['primary', 'alt'],
     () => {
       const reason = addReason()

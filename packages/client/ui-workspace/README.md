@@ -49,6 +49,17 @@ On devices without hover, Workspace rows keep their menu and New Session control
 
 Collapsed search is one header action beside the view and add actions: activating it expands the field across the header. Opening or closing search in the expanded sidebar animates header spacing and field expansion together over 180 ms, disabled for reduced motion. Expanding the sidebar from its rail places the header at its final geometry while preserving the content fade-in. Rail search prepares the open field before expanding the sidebar, so the first wide render already contains the expanded field. Search titles leave space before the Unarchive click target even when truncated. A non-blank query replaces either browsing mode with one flat result list — case-insensitive title, Workspace, and Session id substring matches appear immediately, while a 250 ms debounced Host request adds ranked current-conversation content matches and snippets. Each new query aborts the preceding request; a failed content search leaves metadata matches visible without an additional warning. The list is capped at 20. Choosing an unarchived result clears and collapses search, opens the Session, and scrolls its row into view in the configured browsing mode; grouped browsing also expands its Workspace and the full Session list when required. Archived results offer Unarchive; attempting to open one explains that restriction without clearing the query or navigating.
 
+<a id="landing-page-and-address-links"></a>
+### Landing page and address links
+
+A plugin can make one of its `main` panels the landing page with `uiWorkspace.provideLanding(panelId)`; the latest registration wins, and its disposer restores the one before it. Without a provided landing the client keeps its usual start and does not read or write the address. While a landing is provided:
+
+- The start shows the landing panel as soon as it is registered, before the start restoration begins a navigation, so the restoration still runs; on a first sign-in it makes the default Workspace.
+- A start address with `?chat=<SessionId>` opens that chat, if the Session list has it, in place of the saved selection. A start address with `?page=<main panel id>` selects that panel when it is registered (some panels register only after their access check), after the restoration, as long as the landing panel still shows. Any other address, and a link to a missing chat, keeps the landing panel.
+- After the start, each change of the open panel or chat replaces the address in the browser history without a new entry: `?page=` for a panel other than the landing, `?chat=` for a chat with content, and neither for the landing panel or a blank chat. Other query parameters and the fragment stay.
+
+A landing provided after the start restoration only starts the address updates. The ids of an address are admitted by a lookup in the Session list or the `main` slot registry. `uiWorkspace.mainSession` is the Session open in the main view, as an observable snapshot.
+
 ### Managing sessions
 
 The final built-in item in a Session row's "..." menu is Copy Session ID. It closes the menu and copies the complete ID directly, without opening a dialog. Clipboard success or failure appears in the global toast; a failed copy can be retried from the menu. Copying does not retain the Session, load its history, or call the Host.
