@@ -1,6 +1,10 @@
-# FlowLeap Patent AI (a fork of DeepSeek Harness)
+# FlowLeap Patent AI
 
-> **This repository is FlowLeap Patent AI**, a fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) by FlowLeap. It is **not** made, supported or endorsed by DeepSeek AI. DeepSeek Harness is used under the MIT license, and DeepSeek's copyright notice stays in [LICENSE](LICENSE). The FlowLeap product work is in [`flowleap/`](flowleap/) and in the `flowleap` packages. Report issues for this fork at [flowleap-ai/flowleap-harness](https://github.com/flowleap-ai/flowleap-harness/issues), not upstream.
+> **FlowLeap Patent AI runs on the firm's own server, with the firm's own model keys.** It sends no data to DeepSeek. Requests go only to the services that the firm sets up with its own keys: its model provider (Anthropic, OpenRouter or Mistral), the patent offices, and the paid FlowLeap tools when the firm uses them.
+>
+> DeepSeek models, the DeepSeek account and DeepSeek telemetry are switched off in the `flowleap-web` product profile and locked, so a user setting cannot switch them on. [A test](apps/cli/tests/flowleap-web-no-deepseek-destinations.spec.ts) fails when one of them is on, or when a part of the product has a default address on a DeepSeek domain.
+>
+> FlowLeap Patent AI is built on the open-source [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent framework under the MIT license. DeepSeek's copyright notice stays in [LICENSE](LICENSE). FlowLeap Patent AI is **not** made, supported or endorsed by DeepSeek AI. Report issues at [flowleap-ai/flowleap-harness](https://github.com/flowleap-ai/flowleap-harness/issues).
 
 The upstream README follows.
 
