@@ -120,7 +120,7 @@ describe('claim quotation provenance', () => {
   })
 
   it('lists the first six quotations not found, cutting a long one, and counts the rest', () => {
-    const long = `${'a lever turning about a pin '.repeat(4).trim()}`
+    const long = 'a lever turning about a pin '.repeat(4).trim()
     const unmatched: QuotedClaim[] = Array.from({ length: 7 }, (_, index) => ({ publication: `EP${String(index + 1)}`, quote: index === 0 ? long : quote }))
     const sentence = quotationSentence({ matched: [], elided: [], elsewhere: [], unmatched, unrecorded: [] })
     expect(sentence).toBe(
@@ -149,7 +149,7 @@ describe('FTO appendix and save result', () => {
   })
 
   it('names the publication whose claims were never retrieved, and asks to source only what was not found', () => {
-    const content = `Claim 1 of EP1000000A1 ([claim 1](${CITATION})) reads "${'a hinge body carrying a lever that turns about a pin'}". The fee was 4,321 EUR.`
+    const content = `Claim 1 of EP1000000A1 ([claim 1](${CITATION})) reads "a hinge body carrying a lever that turns about a pin". The fee was 4,321 EUR.`
     const appendix = renderFtoAppendix(content, { executions: [] }).split('\n')
     expect({
       unrecorded: appendix.find(line => line.startsWith('No claim text is recorded')),

@@ -75,6 +75,7 @@ describe('Application Drafting workspace edges', () => {
       { path: 'style/c.md', error: 'the file could not be read' },
       { path: 'style/d.pdf', error: 'unreadable PDF' },
     ])
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the reader may reject with a non-Error value.
     const rejectsText = () => Promise.reject('not a PDF') as Promise<string>
     expect(await memoryWorkspace({ 'style/b.pdf': 'pdf' }, { pdfText: rejectsText }).workspace.styleExemplars()).toEqual([{ path: 'style/b.pdf', error: 'not a PDF' }])
     expect(await memoryWorkspace({ 'style/b.pdf': 'pdf' }).workspace.styleExemplars()).toEqual([
