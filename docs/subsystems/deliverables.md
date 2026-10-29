@@ -216,14 +216,15 @@ Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/
 
 #### `flowleap-work-pages/changed` — emit
 
-A work page was saved or the attorney changed its review fields; clients refetch `flowleapWorkPages.list()`.
+A save wrote a work page, or the attorney changed its review fields.
 
 ```ts cordis-catalog
 /**
- * A work page was saved or the attorney changed its review fields; clients refetch `flowleapWorkPages.list()`.
+ * A save wrote a work page, or the attorney changed its review fields.
  * @mode emit
+ * @param view - the page after the change; it reaches only the callers that may see its chat.
  */
-'flowleap-work-pages/changed'(): void
+'flowleap-work-pages/changed'(view: WorkPageView): void
 ```
 
 Source: [`packages/host/flowleap-deliverables/src/work-page/types.ts`](../../packages/host/flowleap-deliverables/src/work-page/types.ts)

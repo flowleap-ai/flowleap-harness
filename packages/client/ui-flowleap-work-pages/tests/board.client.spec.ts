@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { WorkPageId, WorkPageReviewRequest, WorkPageSummary, WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
-import { createBoard, daysUntil, needsReviewCount, reviewOf, reviewState, type BoardDependencies } from '../src/client/board.ts'
+import { createBoard, daysUntil, needsReviewCount, reviewState, type BoardDependencies } from '../src/client/board.ts'
 import { CHAT, FILE, ok, OTHER, OTHER_ID, PAGE_ID, reviewed, SUMMARY, VIEW } from './fixture.client.ts'
 
 function failed<T>(): RemoteResult<T> {
@@ -21,7 +21,7 @@ function deferred<T>(): Deferred<T> {
 }
 
 function harness(overrides: Partial<BoardDependencies> = {}) {
-  const changed = new Set<() => void>()
+  const changed = new Set<(view: WorkPageView) => void>()
   const reset = new Set<() => void>()
   const deps: BoardDependencies = {
     list: vi.fn(async () => ok<WorkPageSummary[]>([SUMMARY, OTHER])),
@@ -46,11 +46,6 @@ describe('review state and helpers', () => {
   it('reads menu ids and fails loud on an unknown one', () => {
     expect(reviewState('not_relevant')).toBe('not_relevant')
     expect(() => reviewState('argue')).toThrow('unknown review state "argue"')
-  })
-
-  it('reads the review fields of an objection, new ones for an objection the file does not list', () => {
-    expect(reviewOf(VIEW, '2')).toEqual({ state: 'relevant', owner: 'A. Novak', note: 'Amend claim 9.' })
-    expect(reviewOf(VIEW, '9')).toEqual({ state: 'needs_review', owner: '', note: '' })
   })
 
   it('counts the objections that need review over all pages', () => {
@@ -84,19 +79,36 @@ describe('board source', () => {
     expect(reset.size).toBe(0)
   })
 
-  it('reads again on a change and keeps the open objection while the page still has it', async () => {
-    const { board, deps, snapshot, settled, changed } = harness()
+  it('applies a changed page without a new read and keeps the open objection while the page still has it', async () => {
+    const { board, deps, snapshot, settled, changed, reset } = harness()
     const stop = board.hooks.board.subscribe(() => {})
     await settled()
     board.select('2')
-    for (const listener of changed) listener()
-    await vi.waitFor(() => { expect(deps.list).toHaveBeenCalledTimes(2) })
-    await settled()
-    expect(snapshot().selected).toBe('2')
+    const emit = (view: WorkPageView) => { for (const listener of changed) listener(view) }
+    emit(reviewed('1', { state: 'done' }))
+    expect(snapshot()).toMatchObject({ page: { file: { review: { '1': { state: 'done' } } } }, selected: '2' })
+    expect(snapshot().pages.map(page => [page.id, page.needsReview])).toEqual([[PAGE_ID, 0], [OTHER_ID, 3]])
     board.select('9')
-    for (const listener of changed) listener()
-    await vi.waitFor(() => { expect(deps.list).toHaveBeenCalledTimes(3) })
-    await vi.waitFor(() => { expect(snapshot().selected).toBeNull() })
+    emit(reviewed('1', { state: 'relevant' }))
+    expect(snapshot().selected).toBeNull()
+    const newer = { ...OTHER, savedAt: '2026-10-30T10:00:00.000Z', needsReview: 1 }
+    emit({ ...VIEW, summary: newer })
+    expect(snapshot().pages.map(page => page.id)).toEqual([OTHER_ID, PAGE_ID])
+    expect(snapshot().page?.summary.id).toBe(PAGE_ID)
+    expect(deps.list).toHaveBeenCalledOnce()
+    expect(deps.read).toHaveBeenCalledOnce()
+    for (const listener of reset) listener()
+    await vi.waitFor(() => { expect(deps.list).toHaveBeenCalledTimes(2) })
+    stop()
+  })
+
+  it('shows the first page that a save writes on an empty board', async () => {
+    const { board, snapshot, settled, changed } = harness({ list: vi.fn(async () => ok<WorkPageSummary[]>([])) })
+    const stop = board.hooks.board.subscribe(() => {})
+    await settled()
+    expect(snapshot().page).toBeNull()
+    for (const listener of changed) listener(VIEW)
+    expect(snapshot()).toMatchObject({ status: 'ready', pages: [SUMMARY], page: VIEW })
     stop()
   })
 
@@ -172,7 +184,7 @@ describe('board source', () => {
     await settled()
     await board.setReview('1', { state: 'done', note: 'Argue.' })
     expect(deps.review).toHaveBeenCalledWith({ id: PAGE_ID, objection: '1', state: 'done', note: 'Argue.' })
-    expect(reviewOf(snapshot().page!, '1')).toEqual({ state: 'done', owner: '', note: 'Argue.' })
+    expect(snapshot().page?.file.review['1']).toMatchObject({ state: 'done', owner: '', note: 'Argue.' })
     expect(snapshot().pages.map(page => page.needsReview)).toEqual([0, 3])
     vi.mocked(deps.review).mockResolvedValueOnce(failed())
     await board.setReview('1', { owner: 'M. Keller' })
@@ -194,6 +206,22 @@ describe('board source', () => {
     answer.resolve(ok(reviewed('1', { state: 'done' })))
     await change
     expect(snapshot().page?.summary).toEqual(OTHER)
+    stop()
+  })
+
+  it('discards a read that a review answer overtakes and ends the loading state', async () => {
+    const listing = deferred<RemoteResult<WorkPageSummary[]>>()
+    const { board, deps, snapshot, settled } = harness()
+    const stop = board.hooks.board.subscribe(() => {})
+    await settled()
+    vi.mocked(deps.list).mockReturnValueOnce(listing.promise)
+    const reading = board.retry()
+    expect(snapshot().status).toBe('loading')
+    await board.setReview('2', { state: 'done' })
+    expect(snapshot()).toMatchObject({ status: 'ready', page: { file: { review: { '2': { state: 'done' } } } } })
+    listing.resolve(ok([OTHER]))
+    await reading
+    expect(snapshot().page?.summary.id).toBe(PAGE_ID)
     stop()
   })
 

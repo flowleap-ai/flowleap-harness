@@ -24,7 +24,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-llm'
-import type {} from '@deepseek-ai/dsh-storage-domain'
+import type { Domain, DomainSpec } from '@deepseek-ai/dsh-storage-domain'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import type {} from '@deepseek-ai/dsh-user-questions'
@@ -112,15 +112,22 @@ export type { AdvisoryItem, ValidateDraftInput } from './tools/validate-draft.ts
 export {
   draftingPathRefusal, evidencePath, parseWriterArgs, secondReadPath, workingRecordPath, writePatentResultsTool,
 } from './writer.ts'
-export type { SecondReadMode, WritePatentResultsInput, WritePatentResultsValue, WriterDependencies } from './writer.ts'
+export type {
+  PreparedSave, SavedReport, SecondReadMode, TemplateSave, WritePatentResultsInput, WritePatentResultsValue, WriterDependencies,
+} from './writer.ts'
 export { FlowleapWorkPagesController } from './work-page-controller.ts'
 export type { FlowleapWorkPagesControllerOptions } from './work-page-controller.ts'
-export { claimNumbers, parseOfficeActionReport, plainText, responseOptions, tableCells } from './work-page/office-action.ts'
 export {
-  aboutText, MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, memoryIndex, NEW_REVIEW, REVIEW_STATES, WorkPages, workPageFileSchema, workPageId,
-  workPagePath, workPagesDomainSpec,
+  MAX_CLAIM_NUMBER, officeActionParameter, officeActionSave, officeActionSchema, renderOfficeAction,
+} from './work-page/office-action-input.ts'
+export type { OfficeActionSave } from './work-page/office-action-input.ts'
+export {
+  aboutText, memoryIndex, WorkPages, workPageFileSchema, workPageId, workPageIdSchema, workPagePath, workPagesDomainSpec,
 } from './work-page/store.ts'
-export type { WorkPageEntry, WorkPageFileSystem, WorkPageIndex, WorkPageSave } from './work-page/store.ts'
+export type { WorkPageEntry, WorkPageFileSystem, WorkPageIndex, WorkPageSave, WorkPageSaveResult } from './work-page/store.ts'
+export { officeActionTemplateSave } from './work-page/template-save.ts'
+export type { OfficeActionSaveDependencies } from './work-page/template-save.ts'
+export { MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, NEW_REVIEW, REVIEW_STATES } from './work-page/types.ts'
 export type * from './work-page/types.ts'
 export {
   DRAFTING_TEMPLATES, REPORT_TEMPLATES, WRITE_PATENT_RESULTS_DESCRIPTION, WRITE_PATENT_RESULTS_NAME, WRITE_PATENT_RESULTS_PARAMETERS,
@@ -151,6 +158,40 @@ export const Config: z<Config> = z.object({
 })
 
 /**
+ * Give one storage domain to its owner while storage is mounted. Without storage, or when the domain does not open,
+ * the owner keeps its records in memory and a warning names the cause. On dispose the owner first gets `undefined`, so
+ * it stops using the domain at once; the domain closes when its open settles. A domain that opens after the dispose is
+ * closed and never reaches the owner.
+ * @param ctx - the plugin context.
+ * @param spec - the domain.
+ * @param label - the owner's name in the warning.
+ * @param use - gives the domain to the owner, or `undefined` to go back to memory.
+ */
+function attachStorage<S extends DomainSpec>(
+  ctx: Context, spec: S, label: string, use: (domain: Domain<S> | undefined) => void | Promise<void>,
+): void {
+  ctx.inject(['storageDomain'], (storeCtx) => {
+    storeCtx.effect(() => {
+      let disposed = false
+      const opened = storeCtx.storageDomain.open(spec)
+        .then(async (domain) => {
+          if (!disposed) await use(domain)
+          return domain
+        })
+        .catch((error: unknown) => {
+          storeCtx.logger.warn(`flowleap-deliverables: ${label} storage unavailable, the records stay in memory: ${error instanceof Error ? error.message : String(error)}`)
+          return undefined
+        })
+      return () => {
+        disposed = true
+        void use(undefined)
+        void opened.then(domain => domain?.close())
+      }
+    }, `flowleap-deliverables: ${label} storage`)
+  })
+}
+
+/**
  * Mount the ledger, the recorder, the writer, the five drafting tools with their gates, the gate
  * commands, the delivery card and the completion guard.
  * @param ctx - the mounting context, carrying `tools`, `fs` and `workingDirectory`.
@@ -168,38 +209,12 @@ export function apply(ctx: Context, config: Config): void {
   let approve: GateApprover | undefined
   let approvalPolicy: GateSeams['approvalPolicy'] = () => undefined
   const gates: GateSeams = { ask: () => ask, approve: () => approve, approvalPolicy: session => approvalPolicy(session) }
-  const workPages = new WorkPages(ctx.fs, () => { ctx.emit('flowleap-work-pages/changed') })
+  const workPages = new WorkPages(ctx.fs, (view) => { ctx.emit('flowleap-work-pages/changed', view) })
 
   // The ledger persists when storage is mounted; a composition without it keeps the records in memory.
-  ctx.inject(['storageDomain'], (storeCtx) => {
-    storeCtx.effect(() => {
-      const opened = storeCtx.storageDomain.open(ledgerDomainSpec)
-        .then((domain) => { ledger.attach(ledgerPersistence(domain)); return domain })
-        .catch((error: unknown) => {
-          storeCtx.logger.warn(`flowleap-deliverables: ledger storage unavailable, records stay in memory: ${error instanceof Error ? error.message : String(error)}`)
-          return undefined
-        })
-      return () => {
-        ledger.attach(undefined)
-        void opened.then(domain => domain?.close())
-      }
-    }, 'flowleap-deliverables: ledger storage')
-  })
+  attachStorage(ctx, ledgerDomainSpec, 'ledger', (domain) => { ledger.attach(domain === undefined ? undefined : ledgerPersistence(domain)) })
   // The work page index persists when storage is mounted; a composition without it lists the pages of this process only.
-  ctx.inject(['storageDomain'], (storeCtx) => {
-    storeCtx.effect(() => {
-      const opened = storeCtx.storageDomain.open(workPagesDomainSpec)
-        .then(async (domain) => { await workPages.attach(domain.table('pages')); return domain })
-        .catch((error: unknown) => {
-          storeCtx.logger.warn(`flowleap-deliverables: work page index storage unavailable, the index stays in memory: ${error instanceof Error ? error.message : String(error)}`)
-          return undefined
-        })
-      return () => {
-        void workPages.attach(undefined)
-        void opened.then(domain => domain?.close())
-      }
-    }, 'flowleap-deliverables: work page index storage')
-  })
+  attachStorage(ctx, workPagesDomainSpec, 'work page index', domain => workPages.attach(domain?.table('pages')))
   ctx.plugin(FlowleapWorkPagesController, { pages: workPages })
   // The judge needs a model service; without one every second read is a stated skip.
   ctx.inject(['llm'], (llmCtx) => {

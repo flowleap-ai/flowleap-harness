@@ -359,6 +359,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  corner-shape: round;
   flex: none;
 }
 
@@ -390,6 +391,8 @@
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-bg-layer-1);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .sideHeader {

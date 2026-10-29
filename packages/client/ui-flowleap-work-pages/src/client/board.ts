@@ -1,19 +1,18 @@
 /**
  * Office action board source: the work pages that the Host lists, the page on show with its file, and the page state.
  * Every read and change goes through the `flowleapWorkPages` Remote: the board changes only the review fields of an
- * objection, never a finding. "Write response plan" sends one chat message into the chat that saved the page, and the
+ * objection, never a finding. A `flowleap-work-pages/changed` event carries the changed page, so the board applies it
+ * without a new read. "Write response plan" sends one chat message into the chat that saved the page, and the
  * form opens a new chat with a drafted message; the page itself never calls the model or a connector.
  */
 
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import type {
-  ReviewFields, WorkPageReviewState, WorkPageId, WorkPageReviewRequest, WorkPageSummary, WorkPageView,
+import {
+  REVIEW_STATES,
+  type ReviewFields, type WorkPageReviewState, type WorkPageId, type WorkPageReviewRequest, type WorkPageSummary, type WorkPageView,
 } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-
-/** Review states in menu order. */
-export const REVIEW_STATES: readonly WorkPageReviewState[] = ['needs_review', 'relevant', 'done', 'not_relevant']
 
 /**
  * Read a menu item id back as a review state.
@@ -25,19 +24,6 @@ export function reviewState(id: string): WorkPageReviewState {
   const state = REVIEW_STATES.find(value => value === id)
   if (state === undefined) throw new Error(`unknown review state "${id}"`)
   return state
-}
-
-/** The review fields of an objection that the file does not list: a page written by an older save. */
-const NO_REVIEW: ReviewFields = { state: 'needs_review', owner: '', note: '' }
-
-/**
- * Read the review fields of one objection.
- * @param view - the page.
- * @param id - the objection.
- * @returns the fields.
- */
-export function reviewOf(view: WorkPageView, id: string): ReviewFields {
-  return view.file.review[id] ?? NO_REVIEW
 }
 
 /** A result that the board reports in its notice line. */
@@ -74,8 +60,8 @@ export interface BoardDependencies {
   readonly planMessage: (view: WorkPageView) => string
   /** The analysis message for an application number. */
   readonly analysisMessage: (application: string) => string
-  /** Observe changes of the work pages. */
-  readonly subscribeChanged: (listener: () => void) => () => void
+  /** Observe changes of the work pages; the listener gets the page after the change. */
+  readonly subscribeChanged: (listener: (view: WorkPageView) => void) => () => void
   /** Observe connection resets. */
   readonly subscribeReset: (listener: () => void) => () => void
 }
@@ -136,7 +122,7 @@ export interface Board {
 export function createBoard(deps: BoardDependencies): Board {
   let snapshot: BoardSnapshot = { status: 'loading', pages: [], page: null, selected: null, formOpen: false, sending: false, notice: null }
   const listeners = new Set<() => void>()
-  let disposers: readonly (() => void)[] = []
+  let stops: readonly (() => void)[] = []
   let epoch = 0
   const publish = (next: Partial<BoardSnapshot>): void => {
     snapshot = { ...snapshot, ...next }
@@ -171,31 +157,43 @@ export function createBoard(deps: BoardDependencies): Board {
       publish({ status: 'error', pages: pages.value })
       return
     }
-    const { selected } = snapshot
-    const keep = snapshot.page?.summary.id === shown.id && selected !== null && Object.hasOwn(view.value.file.review, selected)
-    publish({ status: 'ready', pages: pages.value, page: view.value, selected: keep ? selected : null })
+    publish({ status: 'ready', pages: pages.value, ...shownPage(view.value) })
   }
-  const invalidate = (): void => { void read() }
+  /** The page on show and the open objection after a new view of a page; the objection stays open while it exists. */
+  const shownPage = (view: WorkPageView): Pick<BoardSnapshot, 'page' | 'selected'> => {
+    const { selected } = snapshot
+    const keep = snapshot.page?.summary.id === view.summary.id && selected !== null && Object.hasOwn(view.file.review, selected)
+    return { page: view, selected: keep ? selected : null }
+  }
+  /**
+   * Apply a changed page: its summary replaces the old one in the list, and the page on show follows it.
+   * @param view - the page after the change.
+   * @param status - the new query state; omitted, it stays.
+   */
+  const changed = (view: WorkPageView, status: Partial<Pick<BoardSnapshot, 'status'>> = {}): void => {
+    const pages = [view.summary, ...snapshot.pages.filter(summary => summary.id !== view.summary.id)]
+      .sort((left, right) => right.savedAt.localeCompare(left.savedAt))
+    const shown = snapshot.page === null || snapshot.page.summary.id === view.summary.id
+    publish(shown ? { ...status, pages, ...shownPage(view) } : { ...status, pages })
+  }
+  const reset = (): void => { void read() }
+  const observe = (listener: () => void): (() => void) => {
+    listeners.add(listener)
+    if (listeners.size === 1) {
+      stops = [deps.subscribeChanged((view) => { changed(view) }), deps.subscribeReset(reset)]
+      reset()
+    }
+    return () => {
+      listeners.delete(listener)
+      if (listeners.size > 0) return
+      stops.forEach((stop) => { stop() })
+      stops = []
+      // Responses still in flight belong to the old observation.
+      epoch += 1
+    }
+  }
   return {
-    hooks: {
-      board: {
-        getSnapshot: () => snapshot,
-        subscribe(listener) {
-          listeners.add(listener)
-          if (listeners.size === 1) {
-            disposers = [deps.subscribeChanged(invalidate), deps.subscribeReset(invalidate)]
-            invalidate()
-          }
-          return () => {
-            listeners.delete(listener)
-            if (listeners.size !== 0) return
-            for (const dispose of disposers) dispose()
-            disposers = []
-            epoch++
-          }
-        },
-      },
-    },
+    hooks: { board: { getSnapshot: () => snapshot, subscribe: observe } },
     choose: async (id) => {
       publish({ selected: null })
       await read(id)
@@ -203,16 +201,15 @@ export function createBoard(deps: BoardDependencies): Board {
     setReview: async (objection, fields) => {
       const page = snapshot.page
       if (page === null) return
+      // The answer is newer than a read that is still in flight, so that read is discarded.
+      const current = ++epoch
       const result = await settle(() => deps.review({ id: page.summary.id, objection, ...fields }))
       if (result?.ok !== true) {
         publish({ notice: 'saveFailed' })
         return
       }
-      if (snapshot.page?.summary.id !== page.summary.id) return
-      publish({
-        page: result.value,
-        pages: snapshot.pages.map(summary => summary.id === page.summary.id ? result.value.summary : summary),
-      })
+      // The discarded read cannot end the loading state, so the answer ends it.
+      if (current === epoch) changed(result.value, { status: 'ready' })
     },
     select: (selected) => { publish({ selected }) },
     setFormOpen: (formOpen) => { publish({ formOpen }) },

@@ -1,10 +1,10 @@
 /**
  * Browser half of the FlowLeap work pages: the Office actions launcher in `sidebar.panellist` and the office action
  * board in the keyed `main` slot. The board reads the office action work pages through `flowleapWorkPages.list()` and
- * `read()`, reads again on `flowleap-work-pages/changed` and `connection/reset`, and changes the review fields of an
- * objection through `flowleapWorkPages.review()`. "Write response plan" sends one message into the chat that saved the
- * analysis through `session.prompt()`; the form opens a new chat with the request drafted. The page never calls the
- * model or a connector.
+ * `read()`, applies the page that `flowleap-work-pages/changed` carries, reads again on `connection/reset`, and changes
+ * the review fields of an objection through `flowleapWorkPages.review()`. "Write response plan" sends one message into
+ * the chat that saved the analysis through `session.prompt()`; the form opens a new chat with the request drafted. The
+ * page never calls the model or a connector.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -42,15 +42,6 @@ export const PANEL_ID = 'flowleap-office-actions' as MainPanelId
 export const inject = ['slots', 'locale', 'remote', 'remote.flowleapWorkPages', 'remote.session', 'uiWorkspace', 'remoteAccess']
 
 /**
- * The report path of a work page path.
- * @param path - the work page file path.
- * @returns the path without its `.work.json` suffix.
- */
-export function reportPathOf(path: string): string {
-  return path.replace(/\.work\.json$/, '')
-}
-
-/**
  * Register the launcher and the board page while the current Peer may list the work pages.
  * @param ctx - browser services used by these contributions.
  */
@@ -68,7 +59,7 @@ export function apply(ctx: ClientContext): void {
       openSession: (sessionId) => { ctx.uiWorkspace.openSession(sessionId) },
       draftChat: (text) => { ctx.uiWorkspace.startSession(undefined, { prompt: text, whenDraftExists: 'replace' }) },
       planMessage: (view: WorkPageView) => t('message.plan', {
-        application: view.file.findings.application, report: reportPathOf(view.summary.path), workPage: view.summary.path,
+        application: view.file.findings.application, report: view.summary.report, workPage: view.summary.path,
       }),
       analysisMessage: application => t('message.analysis', { application }),
       subscribeChanged: listener => ctx.remote.$on('flowleap-work-pages/changed', listener),

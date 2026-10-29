@@ -11,9 +11,9 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { WorkPageId, WorkPageSummary, WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
+import { NEW_REVIEW, type WorkPageId, type WorkPageSummary, type WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { daysUntil, reviewOf, type Board } from './board.ts'
+import { daysUntil, type Board } from './board.ts'
 import type { NS } from './locales.ts'
 import { AnalysisForm } from './AnalysisForm.tsx'
 import { ObjectionCard } from './ObjectionCard.tsx'
@@ -205,7 +205,8 @@ export function OfficeActionBoard(props: OfficeActionBoardProps) {
                     <ObjectionCard
                       key={objection.id}
                       objection={objection}
-                      review={reviewOf(view, objection.id)}
+                      // The Host refuses a file whose review keys differ from the objection ids; the index type allows a miss.
+                      review={view.file.review[objection.id] ?? NEW_REVIEW}
                       selected={objection.id === selected}
                       onOpen={() => { select(objection.id === selected ? null : objection.id) }}
                       onReview={(fields) => { void setReview(objection.id, fields) }}

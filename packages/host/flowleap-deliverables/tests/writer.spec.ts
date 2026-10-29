@@ -154,9 +154,9 @@ describe('write_patent_results', () => {
     }).toEqual({
       names: ['export_draft_docx', 'get_claims', 'inventor_questions', 'remove_claim', 'start_application_draft', 'validate_draft', WRITE_PATENT_RESULTS_NAME],
       required: ['filePath', 'content'],
-      properties: 26,
+      properties: 27,
       template: 12,
-      words: 211,
+      words: 254,
       noIde: true,
     })
   })

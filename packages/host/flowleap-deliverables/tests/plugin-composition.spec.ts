@@ -35,7 +35,7 @@ afterEach(async () => {
 
 /** The optional services the row picks up, as fakes the test inspects. */
 interface Services {
-  readonly storageDomain?: { open: () => Promise<{ table: () => { get: () => undefined; put: () => Promise<void> }; close: () => Promise<void> }> }
+  readonly storageDomain?: { open: () => Promise<{ table: (name: string) => { get: () => undefined; entries: () => never[]; put: () => Promise<void> }; close: () => Promise<void> }> }
   readonly llm?: object
   readonly userQuestions?: { ask: (request: AskUserQuestionRequest) => Promise<unknown> }
   readonly approval?: { request: () => Promise<string>; overrideOf: () => string | undefined; config: { policy?: string } }
@@ -82,9 +82,18 @@ async function mount(services: Services, config: Partial<Deliverables.Config> = 
 describe('the plugin row with its optional services', () => {
   it('opens the ledger and work page storage, closes both on dispose, and keeps the records in memory when storage fails', async () => {
     const closed: string[] = []
-    const domain = { table: () => ({ get: () => undefined, put: () => Promise.resolve() }), close: () => { closed.push('closed'); return Promise.resolve() } }
+    const tables: string[] = []
+    const domain = {
+      table: (name: string) => { tables.push(name); return { get: () => undefined, entries: () => [], put: () => Promise.resolve() } },
+      close: () => { closed.push('closed'); return Promise.resolve() },
+    }
     const stored = await mount({ storageDomain: { open: () => Promise.resolve(domain) } })
     await stored.plugin.dispose()
+    // A domain that opens after the dispose is closed and never used.
+    const opening = Promise.withResolvers<typeof domain>()
+    const late = await mount({ storageDomain: { open: () => opening.promise } })
+    await late.plugin.dispose()
+    opening.resolve(domain)
     // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a failure that is not an Error is one of the cases under test
     const failedString = await mount({ storageDomain: { open: () => Promise.reject('no backend') } })
     const failedError = await mount({ storageDomain: { open: () => Promise.reject(new Error('disk full')) } })
@@ -92,14 +101,16 @@ describe('the plugin row with its optional services', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
     expect({
       closed,
+      tables,
       warned: [...failedString.logged, ...failedError.logged].filter(line => line.includes('storage unavailable')),
     }).toEqual({
-      closed: ['closed', 'closed'],
+      closed: ['closed', 'closed', 'closed', 'closed'],
+      tables: ['sessions', 'pages'],
       warned: [
-        'warn: flowleap-deliverables: ledger storage unavailable, records stay in memory: no backend',
-        'warn: flowleap-deliverables: work page index storage unavailable, the index stays in memory: no backend',
-        'warn: flowleap-deliverables: ledger storage unavailable, records stay in memory: disk full',
-        'warn: flowleap-deliverables: work page index storage unavailable, the index stays in memory: disk full',
+        'warn: flowleap-deliverables: ledger storage unavailable, the records stay in memory: no backend',
+        'warn: flowleap-deliverables: work page index storage unavailable, the records stay in memory: no backend',
+        'warn: flowleap-deliverables: ledger storage unavailable, the records stay in memory: disk full',
+        'warn: flowleap-deliverables: work page index storage unavailable, the records stay in memory: disk full',
       ],
     })
   })

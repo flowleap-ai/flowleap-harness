@@ -1,7 +1,8 @@
 /**
- * Client-safe vocabulary of the office action work page: the findings that a save of an `office-action-scaffold`
- * report gives, the review fields that the attorney sets on each objection, the `<report>.work.json` file that holds
- * both, and the `flowleapWorkPages` Remote values. Types only; nothing here reaches a Host-only symbol.
+ * Client-safe vocabulary of the office action work page: the findings that an `office-action-scaffold` save gives in
+ * its `officeAction` input, the review fields that the attorney sets on each objection, the `<report>.work.json` file
+ * that holds both, the `flowleapWorkPages` Remote values, and the review constants that the Host and the client share.
+ * Nothing here reaches a Host-only symbol.
  * @module @deepseek-ai/dsh-flowleap-deliverables/work-pages
  */
 
@@ -12,8 +13,17 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 /** Identity of one work page: a digest of its file path, stable across saves of the same report. */
 export type WorkPageId = Branded<'FlowleapWorkPageId'>
 
+/** Review states in the order the board offers them. */
+export const REVIEW_STATES = ['needs_review', 'relevant', 'done', 'not_relevant'] as const
+
 /** Review state of one objection, set by the attorney. */
-export type WorkPageReviewState = 'needs_review' | 'relevant' | 'done' | 'not_relevant'
+export type WorkPageReviewState = typeof REVIEW_STATES[number]
+
+/** Most characters of an owner. */
+export const MAX_OWNER_LENGTH = 200
+
+/** Most characters of a note. */
+export const MAX_NOTE_LENGTH = 4000
 
 /** The fields of one objection that only the attorney changes. */
 export interface ReviewFields {
@@ -24,11 +34,30 @@ export interface ReviewFields {
   readonly note: string
 }
 
-/** One cited document of the action, from the `Cited documents` row of the action table. */
+/** The review fields of an objection that no attorney has changed. */
+export const NEW_REVIEW: ReviewFields = { state: 'needs_review', owner: '', note: '' }
+
+/**
+ * The review fields of one objection in the file, with the ground and the title of the objection they were set on.
+ * A later save keeps the fields only for an objection with the same id, ground and title.
+ */
+export interface ReviewEntry extends ReviewFields {
+  readonly ground: string
+  readonly title: string
+}
+
+/** One row of the action table. */
+export interface ActionRow {
+  readonly field: string
+  readonly value: string
+  readonly source: string
+}
+
+/** One cited document of the action. */
 export interface CitedDocument {
-  /** Label in the report, for example `D1`; empty when the report gives none. */
+  /** Label in the report, for example `D1`. */
   readonly label: string
-  /** The rest of the entry, for example `US2016107508 (A1, published 2016-04-21)`. */
+  /** The document, for example `US2016107508A1 (published 2016-04-21)`. */
   readonly text: string
 }
 
@@ -38,86 +67,78 @@ export interface CitedPassage {
   readonly role: string
   /** The passage that the examiner relied on, for example `¶[0059], Fig. 6`. */
   readonly passage: string
-  /** What the passage says, as the report quotes or summarizes it. */
+  /** What the passage says, quoted or summarized. */
   readonly says: string
   readonly anchor: string
 }
 
-/** One response option of an objection, from its `Options` field. */
+/** One response option of an objection. */
 export interface ResponseOption {
   /** The option name, for example `Argue` or `Amend`. */
   readonly label: string
-  /** The text in the parentheses after the name; empty when the report gives none. */
   readonly text: string
 }
 
-/** A field of an objection block that the board shows as text, for example `Legal basis` or `Date check`. */
-export interface LabelledText {
-  readonly label: string
-  readonly text: string
-}
-
-/** One objection of the action, read from its `### Objection` block. */
+/** One objection of the action. */
 export interface Objection {
-  /** The number in the heading, or the position of the block when the heading has none. */
+  /** The objection number, for example `1` or `1.2`; unique in the analysis. */
   readonly id: string
-  /** The heading text after the number. */
   readonly title: string
   readonly ground: string
-  /** Claim numbers of the `Claims hit` field, ranges expanded; empty when the field names none. */
+  readonly legalBasis: string
+  /** The claim numbers that the objection hits; empty when it hits none. */
   readonly claims: readonly number[]
-  /** The `Claims hit` field as written. */
-  readonly claimsText: string
-  /** The `Examiner's reasoning` field. */
   readonly reasoning: string
-  /** The `Source of the objection` field. */
+  /** Where the objection comes from, for example the action text or the search report categories. */
   readonly source: string
   readonly citations: readonly CitedPassage[]
-  /** The text of the `Cited documents` field when it is not a table, or the text beside the table. */
-  readonly citationsText: string
-  /** Each `Assessment` field, with its qualifier as the label. */
-  readonly assessment: readonly LabelledText[]
+  readonly assessment: string
   readonly options: readonly ResponseOption[]
   readonly replyMustAddress: string
-  /** The `Confidence and gaps` field. */
   readonly confidence: string
   readonly sources: string
-  /** The other fields of the block, in report order. */
-  readonly details: readonly LabelledText[]
 }
 
-/** One row of a claim table in the claim-by-claim comparison. */
+/** Assessment of one claim element against the cited passage. */
+export type ElementAssessment = 'disclosed' | 'not disclosed' | 'disputable' | 'not read'
+
+/** One row of a claim table. */
 export interface ComparisonRow {
   readonly element: string
   readonly examiner: string
   readonly cited: string
-  readonly assessment: string
+  readonly assessment: ElementAssessment
 }
 
 /** One claim table of the claim-by-claim comparison. */
 export interface ClaimTable {
-  /** The bold line above the table, for example `Claim 1 (system) against D1 US2016107508`. */
+  /** The independent claim that the table compares; an objection of the analysis hits it. */
+  readonly claim: number
+  /** The line above the table, for example `Claim 1 (system) against D1 US2016107508A1`. */
   readonly heading: string
-  /** The claim number in the heading; `null` when the heading names none. */
-  readonly claim: number | null
+  /** The interpretation of the disputed terms; empty when no term is disputed. */
+  readonly interpretation: string
   readonly rows: readonly ComparisonRow[]
+  /** The line on the arrangement of the elements below the table. */
+  readonly arrangement: string
 }
 
-/** What the board shows of one office action analysis, read from the saved report. */
+/** The findings of one office action analysis: the `officeAction` input of its save. */
 export interface OfficeActionFindings {
-  /** The application number: the save's `matter`, else the `Application` row of the action table. */
   readonly application: string
-  /** The `Office and action` row without its parenthetical remarks. */
+  /** The office and the action, for example `EPO, communication under Art. 94(3) EPC`. */
   readonly communication: string
-  /** First ISO 8601 date of the `Action date` row; `null` when the row has none. */
+  /** The action date; `null` when the action states none. */
   readonly issued: string | null
-  /** First ISO 8601 date of the `Last date without extension` row; `null` when the row has none. */
+  /** The last date without extension; `null` when it cannot be computed. */
   readonly deadline: string | null
-  /** The `Last date without extension` row as written. */
-  readonly deadlineText: string
+  readonly summary: string
+  readonly action: readonly ActionRow[]
   readonly documents: readonly CitedDocument[]
   readonly objections: readonly Objection[]
   readonly comparison: readonly ClaimTable[]
+  /** One line for each dependent claim that the action names; empty when it names none. */
+  readonly dependentClaims: string
 }
 
 /** The `<report>.work.json` file beside an office action analysis. */
@@ -129,8 +150,8 @@ export interface WorkPageFile {
   /** File name of the report in the same folder. */
   readonly report: string
   readonly findings: OfficeActionFindings
-  /** The attorney's fields by objection id; every objection of the findings has an entry. */
-  readonly review: Readonly<Record<string, ReviewFields>>
+  /** The attorney's fields by objection id; the keys are the objection ids. */
+  readonly review: Readonly<Record<string, ReviewEntry>>
 }
 
 /** One work page as the board lists it. */
@@ -138,7 +159,9 @@ export interface WorkPageSummary {
   readonly id: WorkPageId
   /** The chat whose save wrote the page; the board sends its messages there. */
   readonly sessionId: SessionId
-  /** The work page file path as the save named it, relative to the chat's working directory. */
+  /** The report path as the save named it, relative to the chat's working directory. */
+  readonly report: string
+  /** The work page file path as the save named it. */
   readonly path: string
   readonly application: string
   readonly communication: string
@@ -167,9 +190,10 @@ export interface WorkPageReviewRequest {
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
-     * A work page was saved or the attorney changed its review fields; clients refetch `flowleapWorkPages.list()`.
+     * A save wrote a work page, or the attorney changed its review fields.
      * @mode emit
+     * @param view - the page after the change; it reaches only the callers that may see its chat.
      */
-    'flowleap-work-pages/changed'(): void
+    'flowleap-work-pages/changed'(view: WorkPageView): void
   }
 }

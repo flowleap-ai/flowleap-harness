@@ -26,6 +26,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   ConfirmedMarkets, NO_LLM_JUDGE, PatentLedger, PresentQueue, registerDeliverableTools, registerPresent, writePatentResultsTool,
   type NewPatentExecution,
+  WorkPages,
 } from '../src/index.ts'
 import { FakeSeams, textOf } from './gates-test-bench.ts'
 
@@ -53,7 +54,7 @@ async function bench(executions: readonly NewPatentExecution[]) {
   const log = { warn: () => {}, info: () => {} }
   registerPresent(ctx, present, () => 1)
   registerDeliverableTools(ctx, [writePatentResultsTool(ctx, {
-    ledger, judge: () => NO_LLM_JUDGE, present, gates: seams, markets: new ConfirmedMarkets(), secondRead: () => 'off', now: seams.now, ...log,
+    ledger, judge: () => NO_LLM_JUDGE, present, gates: seams, markets: new ConfirmedMarkets(), workPages: new WorkPages(ctx.fs, () => {}), secondRead: () => 'off', now: seams.now, ...log,
   })])
   const session = ctx.sessions.create(SessionId(`find-better-${String(++sessions)}`), { meta: { cwd: dir } })
   for (const execution of executions) await ledger.record(session.id, execution)

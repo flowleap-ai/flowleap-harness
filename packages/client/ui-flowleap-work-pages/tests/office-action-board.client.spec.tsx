@@ -8,7 +8,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-connection/client'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import type { WorkPageReviewRequest, WorkPageSummary, WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
-import { apply, inject, PANEL_ID, reportPathOf } from '../src/client/index.ts'
+import { apply, inject, PANEL_ID } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import { createBoard, type Board, type BoardDependencies } from '../src/client/board.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh } from '../src/client/locales.ts'
@@ -82,13 +82,6 @@ describe('office action board page', () => {
     expect(screen.getByText(en.footer)).toBeTruthy()
   })
 
-  it('shows the text of a cited documents field that has no table', async () => {
-    const objection = { ...FILE.findings.objections[1]!, citationsText: 'D3 claims read only.' }
-    const view = { ...VIEW, file: { ...FILE, findings: { ...FILE.findings, objections: [objection] } } }
-    renderBoard(createBoard(deps({ read: async () => ok(view) })))
-    expect(await screen.findByText('D3 claims read only.')).toBeTruthy()
-  })
-
   it('states a passed time limit, an analysis without dates, and no document list', async () => {
     renderBoard(createBoard(deps()), Date.parse('2027-04-02T08:00:00.000Z'))
     expect(await screen.findByText('Time limit passed 3 days ago')).toBeTruthy()
@@ -117,7 +110,8 @@ describe('office action board page', () => {
   })
 
   it('changes state, owner and note through the board, and keeps unchanged values', async () => {
-    const dependencies = deps()
+    const changed = new Set<(view: WorkPageView) => void>()
+    const dependencies = deps({ subscribeChanged: (listener) => { changed.add(listener); return () => { changed.delete(listener) } } })
     renderBoard(createBoard(dependencies))
     await screen.findByRole('heading', { level: 1 })
     fireEvent.click(within(card('1')).getByRole('button', { name: 'Review state of objection 1: Needs review' }))
@@ -127,21 +121,32 @@ describe('office action board page', () => {
     await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: 'Done' })) })
     expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '1', state: 'done' })
     expect(screen.getByText('Needs review: 0')).toBeTruthy()
-    const owner = within(card('1')).getByRole('textbox', { name: 'Owner of objection 1' })
+    const owner = within(card('1')).getByRole('textbox', { name: 'Owner of objection 1' }) as HTMLInputElement
+    expect(owner.maxLength).toBe(200)
     fireEvent.change(owner, { target: { value: '  M. Keller ' } })
     fireEvent.keyDown(owner, { key: 'Tab' })
     expect(dependencies.review).toHaveBeenCalledTimes(1)
+    // A page that another change brings does not replace the draft.
+    act(() => { for (const listener of changed) listener(reviewed('2', { note: 'From another tab.' })) })
+    expect(owner.value).toBe('  M. Keller ')
+    expect(within(card('2')).getByRole('textbox', { name: 'Note on objection 2' })).toHaveProperty('value', 'From another tab.')
     await act(async () => { fireEvent.keyDown(owner, { key: 'Enter' }) })
-    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '1', owner: 'M. Keller' })
+    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '1', owner: '  M. Keller ' })
     fireEvent.blur(within(card('1')).getByRole('textbox', { name: 'Owner of objection 1' }))
     expect(dependencies.review).toHaveBeenCalledTimes(2)
-    const note = within(card('2')).getByRole('textbox', { name: 'Note on objection 2' })
-    expect((note as HTMLTextAreaElement).value).toBe('Amend claim 9.')
+    const note = within(card('2')).getByRole('textbox', { name: 'Note on objection 2' }) as HTMLTextAreaElement
+    expect(note.maxLength).toBe(4000)
+    expect(note.value).toBe('Amend claim 9.')
     fireEvent.blur(note)
     expect(dependencies.review).toHaveBeenCalledTimes(2)
     fireEvent.change(note, { target: { value: 'Argue first. ' } })
     await act(async () => { fireEvent.blur(note) })
-    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '2', note: 'Argue first.' })
+    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '2', note: 'Argue first. ' })
+  })
+
+  it('shows the new review state for an objection that the review record does not name', async () => {
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, review: { '1': FILE.review['1']! } } }) })))
+    expect(await screen.findByRole('button', { name: 'Review state of objection 2: Needs review' })).toBeTruthy()
   })
 
   it('opens the side panel with the fields of the objection and the tables of its claims', async () => {
@@ -149,9 +154,9 @@ describe('office action board page', () => {
     await screen.findByRole('heading', { level: 1 })
     fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
     const panel = screen.getByRole('complementary', { name: 'Objection details' })
-    for (const text of ['Art. 54 EPC', 'D1 discloses a heat pump with a battery.', 'search report categories', 'X · ¶[0059]',
-      'US2016107508A1:claims:1:en', 'Assessment (novelty)', 'Claim 1 against D1', '1a "a loop"', 'disclosed', 'Argue',
-      'D1 is a vehicle system', 'Each ground.', 'Low.', 'Legal basis', 'Not read.']) {
+    for (const text of ['Art. 54 EPC', 'Legal basis', 'Art. 54(1) EPC', 'D1 discloses a heat pump with a battery.', 'search report categories',
+      'X · ¶[0059]', 'US2016107508A1:claims:1:en', 'Assessment', 'Disputable.', 'Claim 1 against D1', '"loop": a closed circuit.',
+      '1a "a loop"', 'disclosed', 'In series.', 'Argue', 'D1 is a vehicle system', 'Each ground.', 'Low.', 'Sources']) {
       expect(within(panel).getAllByText(text).length).toBeGreaterThan(0)
     }
     expect(within(panel).queryByText('Claim 12 against D1')).toBeNull()
@@ -232,7 +237,7 @@ describe('launcher glyph', () => {
 })
 
 class RemoteStub extends Service {
-  constructor(ctx: Context, readonly $on: (event: string, listener: () => void) => () => void) {
+  constructor(ctx: Context, readonly $on: (event: string, listener: (view: WorkPageView) => void) => () => void) {
     super(ctx, 'remote')
   }
 }
@@ -241,7 +246,7 @@ async function pluginContext(allows: (action: string) => boolean = () => true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   new StaticRemoteAccess(ctx, allows)
-  const listeners = new Map<string, Set<() => void>>()
+  const listeners = new Map<string, Set<(view: WorkPageView) => void>>()
   new RemoteStub(ctx, (event, listener) => {
     const set = listeners.get(event) ?? new Set()
     set.add(listener)
@@ -275,10 +280,6 @@ async function pluginContext(allows: (action: string) => boolean = () => true) {
 describe('ui-flowleap-work-pages browser half', () => {
   it('declares the services it uses', () => {
     expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.flowleapWorkPages', 'remote.session', 'uiWorkspace', 'remoteAccess'])
-  })
-
-  it('names the report of a work page', () => {
-    expect(reportPathOf('office-actions/EP1/a.md.work.json')).toBe('office-actions/EP1/a.md')
   })
 
   it('registers the launcher and the board while the Peer may list the work pages, and removes them on dispose', async () => {
@@ -316,10 +317,11 @@ describe('ui-flowleap-work-pages browser half', () => {
     const stop = page.hooks.board.subscribe(() => {})
     await vi.waitFor(() => { expect(page.hooks.board.getSnapshot().page).toEqual(VIEW) })
     expect(workPages.read).toHaveBeenCalledWith(PAGE_ID)
-    for (const listener of listeners.get('flowleap-work-pages/changed') ?? []) listener()
-    await vi.waitFor(() => { expect(workPages.list).toHaveBeenCalledTimes(2) })
+    for (const listener of listeners.get('flowleap-work-pages/changed') ?? []) listener(reviewed('2', { state: 'done' }))
+    expect(page.hooks.board.getSnapshot().page?.file.review['2']?.state).toBe('done')
+    expect(workPages.list).toHaveBeenCalledOnce()
     ctx.emit('connection/reset')
-    await vi.waitFor(() => { expect(workPages.list).toHaveBeenCalledTimes(3) })
+    await vi.waitFor(() => { expect(workPages.list).toHaveBeenCalledTimes(2) })
     await page.setReview('1', { state: 'done' })
     expect(workPages.review).toHaveBeenCalledWith({ id: PAGE_ID, objection: '1', state: 'done' })
     await page.writePlan()

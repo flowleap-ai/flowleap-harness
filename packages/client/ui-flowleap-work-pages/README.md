@@ -27,7 +27,7 @@ Mount the row in a web composition with the `flowleap-deliverables` Host row; th
 
 | Action | What happens |
 |---|---|
-| State, owner, note on a card | `flowleapWorkPages.review()` changes that field of the objection in `<report>.work.json`; the board shows the page the Host returns. A failed change shows `The change was not saved. Try again.` The owner is committed on Enter or blur, the note on blur. |
+| State, owner, note on a card | `flowleapWorkPages.review()` changes that field of the objection in `<report>.work.json`; the board shows the page the Host returns. A failed change shows `The change was not saved. Try again.` The owner is committed on Enter or blur, the note on blur; the Host trims them, and the fields accept at most 200 and 4,000 characters, as the Host does. While the attorney types, a new page from another change does not replace the draft. |
 | **Write response plan** | `session.prompt()` queues one user message in the chat that saved the analysis, then the chat opens: `Write the response plan for the office action analysis of <application> (<report>). First read <report>.work.json: it holds my review state, owner and note for each objection. Leave out the objections that I marked "Not relevant", and follow my notes.` The page makes no model call: the message starts a turn in that chat like a typed message. |
 | **Open chat** | opens the chat that saved the analysis |
 | **New analysis** | a form with the application number; **Open the chat** opens a new chat in the current workspace with `Analyse the office action for <number>.` drafted. The attorney attaches the office action PDF there, if there is one, and sends it. |
@@ -44,7 +44,7 @@ The launcher shows a dot beside its glyph while an objection of any analysis is 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`createBoard` owns one snapshot: the page list, the page on show with its file, the open objection, the form state, the send state, and the last notice. It reads only while the framework observes it: the first subscriber reads the list and the newest page, and starts the `flowleap-work-pages/changed` and `connection/reset` listeners; the last unsubscribe stops them and discards responses still in flight. A read keeps the page on show when the list still has it and keeps the open objection when the page still has it. The board never edits a finding: each attorney change is a `review()` call, and the Host returns the page that it wrote.
+`createBoard` owns one snapshot: the page list, the page on show with its file, the open objection, the form state, the send state, and the last notice. It reads only while the framework observes it: the first subscriber reads the list and the newest page, and starts the `flowleap-work-pages/changed` and `connection/reset` listeners; the last unsubscribe stops them and discards responses still in flight. The `changed` event carries the page after the change, so the board puts its summary in the list and shows it when it is the page on show (or when no page is on show) without a new read; only `connection/reset` and **Try again** read again. A read keeps the page on show when the list still has it and keeps the open objection when the page still has it. A review answer is newer than a read that is still in flight, so that read is discarded. The board never edits a finding: each attorney change is a `review()` call, and the Host returns the page that it wrote. The review states, the new review fields and the field lengths come from `@deepseek-ai/dsh-flowleap-deliverables/work-pages`, the one home that the Host also reads; the client bundle inlines that module.
 
 Copy is in the `flowleapWorkPages` namespace in zh, en, ja, es, fr, de, ru and pt. The two messages that the board writes for the attorney (`message.plan`, `message.analysis`) are copy in the attorney's language, as a typed message would be.
 
@@ -89,6 +89,8 @@ None; the messages are appended to the chat like typed messages and do not chang
 - **No Word export** — `Export Word` is disabled: the deliverables package has no Word export of a report; the Word builders serve only the application draft and the inventor questions.
 - **The form has the application number only** — the office action PDF is attached in the chat, the chat runs the workspace's default agent, and the form shows no budget, because no Remote serves the gateway budget to the client yet.
 - **One template** — the board shows office action work pages only; the gallery and the other templates are flowleap-harness#82.
+- **No dashboard link** — the FlowLeap dashboard has no link to this board yet; a link registration is a follow-up after the dashboard has a slot for it.
+- **Shared lazy source** — the board and the Needs review source of `ui-flowleap-routines` each own the same observe-on-first-subscriber pattern; one shared client helper is a follow-up.
 - **Launcher dot is visual only** — as on the Needs review launcher, the dot is not part of the launcher's accessible name.
 
 <a id="dev-note"></a>

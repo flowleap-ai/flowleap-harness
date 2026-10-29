@@ -43,7 +43,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'credentials/reference-updated', mode: 'emit' },
   { event: 'flowleap-agents/changed', mode: 'emit' },
   { event: 'flowleap-routines/changed', mode: 'emit' },
-  { event: 'flowleap-work-pages/changed', mode: 'emit' },
+  { event: 'flowleap-work-pages/changed', mode: 'emit', resources: { session: (view): SessionId => view.summary.sessionId } },
   { event: 'goal/activation-changed', mode: 'emit' },
   { event: 'cordis/request-run', mode: 'emit' },
   { event: 'cordis/request-run-resolved', mode: 'emit' },

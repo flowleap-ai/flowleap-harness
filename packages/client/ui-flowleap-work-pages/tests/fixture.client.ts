@@ -27,39 +27,35 @@ const novelty: Objection = {
   id: '1',
   title: 'Claims 1-3 lack novelty over D1',
   ground: 'Art. 54 EPC',
+  legalBasis: 'Art. 54(1) EPC',
   claims: [1, 2, 3],
-  claimsText: '1-3',
   reasoning: 'D1 discloses a heat pump with a battery.',
   source: 'search report categories',
   citations: [
     { document: 'D1 US2016107508A1', role: 'X', passage: '¶[0059]', says: 'a refrigerant-fluid heat exchanger', anchor: 'US2016107508A1:claims:1:en' },
     { document: 'D1 claims', role: '', passage: '', says: 'claim 2', anchor: '' },
   ],
-  citationsText: '',
-  assessment: [{ label: 'Assessment (novelty)', text: 'Disputable.' }],
+  assessment: 'Disputable.',
   options: [{ label: 'Argue', text: 'D1 is a vehicle system' }, { label: 'Amend', text: '' }],
   replyMustAddress: 'Each ground.',
   confidence: 'Low.',
   sources: 'US2016107508A1:claims:1:en',
-  details: [{ label: 'Legal basis', text: 'Not read.' }],
 }
 
 const clarity: Objection = {
   id: '2',
   title: 'Clarity of claim 9',
   ground: 'Art. 84 EPC',
+  legalBasis: '',
   claims: [],
-  claimsText: 'none',
   reasoning: '',
   source: '',
   citations: [],
-  citationsText: '',
-  assessment: [],
+  assessment: '',
   options: [],
   replyMustAddress: '',
   confidence: '',
   sources: '',
-  details: [],
 }
 
 /** The fixture file. */
@@ -73,18 +69,22 @@ export const FILE: WorkPageFile = {
     communication: 'EPO, European search report',
     issued: '2026-09-30',
     deadline: '2027-03-30',
-    deadlineText: '2027-03-30 (computed)',
+    summary: 'Search report only.',
+    action: [{ field: 'Application', value: 'EP4814394', source: 'get_bibliography' }],
     documents: [{ label: 'D1', text: 'US2016107508 (A1)' }, { label: '', text: 'family member' }],
     objections: [novelty, clarity],
     comparison: [
-      { heading: 'Claim 1 against D1', claim: 1, rows: [{ element: '1a "a loop"', examiner: 'X', cited: '"a refrigerant loop"', assessment: 'disclosed' }] },
-      { heading: 'Claim 12 against D1', claim: 12, rows: [] },
-      { heading: 'Interpretation', claim: null, rows: [] },
+      {
+        claim: 1, heading: 'Claim 1 against D1', interpretation: '"loop": a closed circuit.',
+        rows: [{ element: '1a "a loop"', examiner: 'X', cited: '"a refrigerant loop"', assessment: 'disclosed' }], arrangement: 'In series.',
+      },
+      { claim: 12, heading: 'Claim 12 against D1', interpretation: '', rows: [], arrangement: '' },
     ],
+    dependentClaims: '',
   },
   review: {
-    '1': { state: 'needs_review', owner: '', note: '' },
-    '2': { state: 'relevant', owner: 'A. Novak', note: 'Amend claim 9.' },
+    '1': { state: 'needs_review', owner: '', note: '', ground: 'Art. 54 EPC', title: 'Claims 1-3 lack novelty over D1' },
+    '2': { state: 'relevant', owner: 'A. Novak', note: 'Amend claim 9.', ground: 'Art. 84 EPC', title: 'Clarity of claim 9' },
   },
 }
 
@@ -92,6 +92,7 @@ export const FILE: WorkPageFile = {
 export const SUMMARY: WorkPageSummary = {
   id: PAGE_ID,
   sessionId: CHAT,
+  report: 'office-actions/EP4814394/2026-09-30-analysis.md',
   path: 'office-actions/EP4814394/2026-09-30-analysis.md.work.json',
   application: 'EP4814394',
   communication: 'EPO, European search report',

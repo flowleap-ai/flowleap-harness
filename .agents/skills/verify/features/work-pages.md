@@ -1,12 +1,13 @@
 # Work pages
 
-The attorney opens the `Office actions` page from the sidebar and sees the office action board of each saved office action analysis: a header with the application, the communication, the days to the time limit and the review count, the saved analysis with its chat link, the cited documents, one card for each objection, and a side panel for the open card. The board reads `<report>.work.json`, which a `write_patent_results` save with `office-action-scaffold` writes beside the report. The state, the owner and the note of a card go into that file through the `flowleapWorkPages` Remote. The page makes no model or connector call: `Write response plan` sends a chat message, and `New analysis` opens a chat with a drafted message.
+The attorney opens the `Office actions` page from the sidebar and sees the office action board of each saved office action analysis: a header with the application, the communication, the days to the time limit and the review count, the saved analysis with its chat link, the cited documents, one card for each objection, and a side panel for the open card. The board reads `<report>.work.json`, which a `write_patent_results` save with `office-action-scaffold` and `officeAction` writes beside the report. The state, the owner and the note of a card go into that file through the `flowleapWorkPages` Remote. The page makes no model or connector call: `Write response plan` sends a chat message, and `New analysis` opens a chat with a drafted message.
 
 ## Sub-features
 
 - `work-empty` shows `No office action analysis yet` before any analysis is saved.
 - `work-form` opens the form with the application number and opens a new chat with `Analyse the office action for <number>.` drafted, not sent.
-- `work-board` shows the board of a saved analysis: one card per `### Objection` block, with the claims hit and the cited passages.
+- `work-board` shows the board of a saved analysis: one card per objection of `officeAction`, with the claims hit and the cited passages.
+- `work-resave` saves the same analysis again: the review fields of each unchanged objection stay, and the result names the fields it could not keep.
 - `work-review` changes the state, the owner and the note of a card; the file holds them, a reload keeps them, and the header count and the launcher dot follow.
 - `work-side-panel` opens a card with the fields of its block and the claim tables of the claims it hits.
 - `work-plan` sends the response plan message into the chat of the analysis; the next model read of the work page file shows the review fields in the Session log.
@@ -35,6 +36,6 @@ Preconditions:
 
 - The Modal fades in. Wait about half a second after the dialog shows before a screenshot, or the page behind it shows through.
 - The board lists a page only when the save had a chat; a report saved by hand, or by a save without an Agent, has a file but no card.
-- The model can save the response plan with the same `office-action-scaffold` template. A plan has no `### Objection` block, so its result line says `Work page: none, …` and the board keeps the analysis page only.
-- A work page keeps the findings of the save that wrote it. A parser change shows on the board only after the next save of that report.
-- A report that renames the field labels of the analysis layout loses those fields on the board. The report itself is unchanged.
+- The model can save the response plan with the same `office-action-scaffold` template. A plan has no `officeAction`, so its result line says `Work page: none, …` and the board keeps the analysis page only.
+- The skill of flowleap-cli v0.12.1 writes the analysis in Markdown. The first save is refused with `This content is an office action analysis in Markdown. …`, and the model saves again with `officeAction`. The log shows two `write_patent_results` calls; that is expected until the skill names `officeAction`.
+- **Re-save.** After a review change, send `Save the analysis again without changes.` in the chat of the analysis. The result line names the work page and no `Review fields not kept` line for an unchanged objection. The file keeps the review fields.

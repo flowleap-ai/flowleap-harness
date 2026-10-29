@@ -7,12 +7,13 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remote-access'
-import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z } from 'zod'
-import { MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, REVIEW_STATES, type WorkPages } from './work-page/store.ts'
-import type { WorkPageId, WorkPageReviewRequest, WorkPageSummary, WorkPageView } from './work-page/types.ts'
+import { workPageIdSchema, type WorkPages } from './work-page/store.ts'
+import {
+  MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, REVIEW_STATES, type WorkPageId, type WorkPageReviewRequest, type WorkPageSummary, type WorkPageView,
+} from './work-page/types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -34,10 +35,9 @@ export interface FlowleapWorkPagesControllerOptions {
   readonly pages: WorkPages
 }
 
-const idSchema = z.string().regex(/^[0-9a-f]{16}$/)
-
+/** A review request; the Host trims the owner and the note. */
 const reviewSchema = z.strictObject({
-  id: idSchema,
+  id: workPageIdSchema,
   objection: z.string().min(1).max(64),
   state: z.enum(REVIEW_STATES).optional(),
   owner: z.string().trim().max(MAX_OWNER_LENGTH).optional(),
@@ -85,9 +85,9 @@ export class FlowleapWorkPagesController extends TypertRemoteService {
    */
   @Remote
   async read(id: WorkPageId): Promise<WorkPageView> {
-    const parsed = idSchema.safeParse(id)
+    const parsed = workPageIdSchema.safeParse(id)
     if (!parsed.success) throw invalid(parsed.error)
-    return this.pages.read(brandString<WorkPageId>(parsed.data), this.visible)
+    return this.pages.read(parsed.data, this.visible)
   }
 
   /**
@@ -101,8 +101,7 @@ export class FlowleapWorkPagesController extends TypertRemoteService {
   async review(request: WorkPageReviewRequest): Promise<WorkPageView> {
     const parsed = reviewSchema.safeParse(request)
     if (!parsed.success) throw invalid(parsed.error)
-    const { id, ...fields } = parsed.data
-    return this.pages.review({ ...fields, id: brandString<WorkPageId>(id) }, this.visible)
+    return this.pages.review(parsed.data, this.visible)
   }
 
   private readonly visible = (sessionId: SessionId): boolean => this.ctx.remoteAccess.allows({ kind: 'session', id: sessionId })

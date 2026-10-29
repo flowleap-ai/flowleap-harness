@@ -1,8 +1,8 @@
 /**
- * The office action board of the flowleap-web composition, end to end: an `office-action-scaffold` save writes the work
- * page, the board in the browser shows one card for each objection, the attorney's state, owner and note reach the
- * file and survive a reload, and "Write response plan" queues one message in the chat whose next model read of the
- * file sees them in the Session log.
+ * The office action board of the flowleap-web composition, end to end: a structured `office-action-scaffold` save
+ * writes the report and the work page, the board in the browser shows one card for each objection, the attorney's
+ * state, owner and note reach the file and survive a reload, and "Write response plan" queues one message in the chat
+ * whose next model read of the file sees them in the Session log.
  */
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -113,8 +113,11 @@ it.skipIf(MODE === 'record')('fills the office action board from a save and send
   await second.getByRole('button', { name: 'Review state of objection 2: Needs review' }).click()
   await page.getByRole('menuitem', { name: 'Not relevant', exact: true }).click()
   await expect.poll(async () => (await file()).review).toEqual({
-    '1': { state: 'relevant', owner: 'M. Keller', note: 'Argue first; keep claim 8 as the fallback.' },
-    '2': { state: 'not_relevant', owner: '', note: '' },
+    '1': {
+      state: 'relevant', owner: 'M. Keller', note: 'Argue first; keep claim 8 as the fallback.',
+      ground: 'Art. 54 EPC (category X)', title: 'Claims 1-7 lack novelty over D1 US2016107508',
+    },
+    '2': { state: 'not_relevant', owner: '', note: '', ground: 'Art. 84 EPC (inferred by the agent, not raised by the EPO)', title: 'Clarity of claims 3 and 9' },
   })
   expect((await file()).findings.objections.map(objection => objection.title))
     .toEqual(['Claims 1-7 lack novelty over D1 US2016107508', 'Clarity of claims 3 and 9'])

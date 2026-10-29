@@ -5167,10 +5167,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'flowleap-work-pages/changed',
     mode: 'emit',
-    signature: '\'flowleap-work-pages/changed\'(): void',
-    summary: 'A work page was saved or the attorney changed its review fields; clients refetch `flowleapWorkPages.list()`.',
-    description: 'A work page was saved or the attorney changed its review fields; clients refetch `flowleapWorkPages.list()`.',
-    parameters: [],
+    signature: '\'flowleap-work-pages/changed\'(view: WorkPageView): void',
+    summary: 'A save wrote a work page, or the attorney changed its review fields.',
+    description: 'A save wrote a work page, or the attorney changed its review fields.',
+    parameters: [{ name: 'view', description: 'the page after the change; it reaches only the callers that may see its chat.' }],
   },
   {
     name: 'forge/providers-changed',
@@ -5665,6 +5665,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ActionCardView {\n    readonly proposals: Readonly<Record<string, ActionCardProposal>>;\n    readonly decisions: Readonly<Record<string, ActionCardDecision>>;\n}',
   },
   {
+    name: 'ActionRow',
+    declaration: 'export interface ActionRow {\n    readonly field: string;\n    readonly value: string;\n    readonly source: string;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -6058,7 +6062,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ClaimTable',
-    declaration: 'export interface ClaimTable {\n    readonly heading: string;\n    readonly claim: number | null;\n    readonly rows: readonly ComparisonRow[];\n}',
+    declaration: 'export interface ClaimTable {\n    readonly claim: number;\n    readonly heading: string;\n    readonly interpretation: string;\n    readonly rows: readonly ComparisonRow[];\n    readonly arrangement: string;\n}',
   },
   {
     name: 'ClientArtifactBaseline',
@@ -6142,7 +6146,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ComparisonRow',
-    declaration: 'export interface ComparisonRow {\n    readonly element: string;\n    readonly examiner: string;\n    readonly cited: string;\n    readonly assessment: string;\n}',
+    declaration: 'export interface ComparisonRow {\n    readonly element: string;\n    readonly examiner: string;\n    readonly cited: string;\n    readonly assessment: ElementAssessment;\n}',
   },
   {
     name: 'CompositionRowEnablement',
@@ -6571,6 +6575,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EditGoalRequest',
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
+  },
+  {
+    name: 'ElementAssessment',
+    declaration: 'export type ElementAssessment = \'disclosed\' | \'not disclosed\' | \'disputable\' | \'not read\';',
   },
   {
     name: 'EncodedFileAttachment',
@@ -7145,10 +7153,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n    readonly layout?: \'single\' | \'per-record\';\n    readonly compatibleVersions?: readonly number[];\n}',
   },
   {
-    name: 'LabelledText',
-    declaration: 'export interface LabelledText {\n    readonly label: string;\n    readonly text: string;\n}',
-  },
-  {
     name: 'ListVersionsOptions',
     declaration: 'export interface ListVersionsOptions {\n    readonly registry?: Registry;\n}',
   },
@@ -7578,7 +7582,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Objection',
-    declaration: 'export interface Objection {\n    readonly id: string;\n    readonly title: string;\n    readonly ground: string;\n    readonly claims: readonly number[];\n    readonly claimsText: string;\n    readonly reasoning: string;\n    readonly source: string;\n    readonly citations: readonly CitedPassage[];\n    readonly citationsText: string;\n    readonly assessment: readonly LabelledText[];\n    readonly options: readonly ResponseOption[];\n    readonly replyMustAddress: string;\n    readonly confidence: string;\n    readonly sources: string;\n    readonly details: readonly LabelledText[];\n}',
+    declaration: 'export interface Objection {\n    readonly id: string;\n    readonly title: string;\n    readonly ground: string;\n    readonly legalBasis: string;\n    readonly claims: readonly number[];\n    readonly reasoning: string;\n    readonly source: string;\n    readonly citations: readonly CitedPassage[];\n    readonly assessment: string;\n    readonly options: readonly ResponseOption[];\n    readonly replyMustAddress: string;\n    readonly confidence: string;\n    readonly sources: string;\n}',
   },
   {
     name: 'ObjectJsonSchema',
@@ -7594,7 +7598,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OfficeActionFindings',
-    declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly deadlineText: string;\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n}',
+    declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly summary: string;\n    readonly action: readonly ActionRow[];\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n    readonly dependentClaims: string;\n}',
   },
   {
     name: 'OfficeExtension',
@@ -8259,6 +8263,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ReviewDecision',
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
+  },
+  {
+    name: 'ReviewEntry',
+    declaration: 'export interface ReviewEntry extends ReviewFields {\n    readonly ground: string;\n    readonly title: string;\n}',
   },
   {
     name: 'ReviewFields',
@@ -10354,7 +10362,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkPageFile',
-    declaration: 'export interface WorkPageFile {\n    readonly schemaVersion: 1;\n    readonly kind: \'office-action\';\n    readonly about: string;\n    readonly report: string;\n    readonly findings: OfficeActionFindings;\n    readonly review: Readonly<Record<string, ReviewFields>>;\n}',
+    declaration: 'export interface WorkPageFile {\n    readonly schemaVersion: 1;\n    readonly kind: \'office-action\';\n    readonly about: string;\n    readonly report: string;\n    readonly findings: OfficeActionFindings;\n    readonly review: Readonly<Record<string, ReviewEntry>>;\n}',
   },
   {
     name: 'WorkPageId',
@@ -10366,11 +10374,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkPageReviewState',
-    declaration: 'export type WorkPageReviewState = \'needs_review\' | \'relevant\' | \'done\' | \'not_relevant\';',
+    declaration: 'export type WorkPageReviewState = typeof REVIEW_STATES[number];',
   },
   {
     name: 'WorkPageSummary',
-    declaration: 'export interface WorkPageSummary {\n    readonly id: WorkPageId;\n    readonly sessionId: SessionId;\n    readonly path: string;\n    readonly application: string;\n    readonly communication: string;\n    readonly savedAt: string;\n    readonly objections: number;\n    readonly needsReview: number;\n}',
+    declaration: 'export interface WorkPageSummary {\n    readonly id: WorkPageId;\n    readonly sessionId: SessionId;\n    readonly report: string;\n    readonly path: string;\n    readonly application: string;\n    readonly communication: string;\n    readonly savedAt: string;\n    readonly objections: number;\n    readonly needsReview: number;\n}',
   },
   {
     name: 'WorkPageView',

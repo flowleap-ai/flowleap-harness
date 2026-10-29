@@ -28,6 +28,7 @@
 import { basename, posix, relative, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { FsError, type FsTarget } from '@deepseek-ai/dsh-fs'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
@@ -40,6 +41,7 @@ import type { PatentExecutionSnapshot } from './ledger/types.ts'
 import type { DeliveredPaths } from './guard/seal.ts'
 import type { SecondReadJudge } from './judge.ts'
 import type { WorkPages } from './work-page/store.ts'
+import { officeActionTemplateSave } from './work-page/template-save.ts'
 import { DELIVERED_LINE, type PresentQueue } from './present.ts'
 import { CandidateReviewVariant, candidateWordingReview, challengedClaims, chartOpenPoints, materializeCandidateReview, PatentCandidateReview, renderCandidateReview, renderWorkingRecord, validateCandidateReview } from './report/candidate-review.ts'
 import { deriveFallbackLadder, fallbackCoverage, fallbacksNotCovered, roundAnswerErrors, roundOrderErrors } from './report/fallback-ladder.ts'
@@ -98,6 +100,44 @@ export interface WritePatentResultsInput extends PatentCandidateReview {
   readonly disclosureVersion?: string
   /** draft-application: a short summary of the prompts and instructions the draft was made with. */
   readonly promptsSummary?: string
+  /** office-action-scaffold: the analysis as structured fields, as parsed JSON; its template save validates it. */
+  readonly officeAction?: unknown
+}
+
+/** The report on disk, as the after-save step of its template reads it. */
+export interface SavedReport {
+  /** Process path of the report. */
+  readonly reportPath: string
+  /** The report path as the save named it. */
+  readonly displayPath: string
+  /** The chat that saved the report; `undefined` for a save without an Agent. */
+  readonly sessionId: SessionId | undefined
+  readonly signal: AbortSignal
+}
+
+/** A save that the template step prepared: refused, or the body to save and the step that runs after the report is on disk. */
+export type PreparedSave =
+  | { readonly kind: 'refused'; readonly text: string }
+  | {
+    readonly kind: 'ready'
+    /** The report body to save in place of the model's `content`. */
+    readonly content: string
+    /**
+     * Write the files of the template beside the saved report. It never throws: it reports its own failure in the
+     * returned lines, because the report is already on disk.
+     * @returns the lines for the save result.
+     */
+    readonly afterSave: (saved: SavedReport) => Promise<string>
+  }
+
+/** What one report template adds to a save: the check of its structured input before any disk access. */
+export interface TemplateSave {
+  /**
+   * Validate the structured input of the template.
+   * @param input - the model's arguments.
+   * @returns the refusal, or the body and the after-save step.
+   */
+  readonly prepare: (input: WritePatentResultsInput) => PreparedSave
 }
 
 /**
@@ -248,8 +288,8 @@ export interface WriterDependencies {
   readonly now?: () => Date
   /** The seal's register of delivered paths; every saved report (free-form or templated) is marked. */
   readonly delivered?: DeliveredPaths
-  /** The office action work pages; an `office-action-scaffold` save writes its page through them. */
-  readonly workPages?: WorkPages
+  /** The office action work pages; a structured `office-action-scaffold` save writes its page through them. */
+  readonly workPages: WorkPages
   /** The question seams of the fto-memo markets card. */
   readonly gates: GateSeams
   /** The markets the user confirmed, per Session and report path. */
@@ -292,6 +332,10 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
   /** Per session and report, how many saves in a row ended with open second-read objections. */
   const objectedSaves = new Map<string, number>()
   const now = deps.now ?? (() => new Date())
+  /** The templates whose save has its own structured input and files. */
+  const templateSaves: Partial<Record<PatentReportTemplate, TemplateSave>> = {
+    'office-action-scaffold': officeActionTemplateSave(deps),
+  }
 
   /** The target of a model-supplied path inside the working directory, or `undefined` when it escapes or cannot resolve. */
   const resolveInside = async (path: string, cwd: string, root: FsTarget, signal: AbortSignal): Promise<FsTarget | undefined> => {
@@ -406,10 +450,15 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
   }
 
   const execute = async (input: WritePatentResultsInput, exec: ToolRunContext): Promise<WritePatentResultsValue> => {
-    const { filePath, content, template } = input
+    const { filePath, template } = input
     if (isDraftingTemplate(template)) {
       return saveDraftingFile(input, template, exec)
     }
+    const prepared = template === undefined ? undefined : templateSaves[template]?.prepare(input)
+    if (prepared?.kind === 'refused') {
+      return refusal(prepared.text)
+    }
+    const content = prepared?.content ?? input.content
 
     // prior-art-report and find-better-report always generate their body from structured coverage;
     // invalidity-claim-chart does so when the model supplies coverage, and keeps the written-content
@@ -529,19 +578,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
         await write(evidenceTarget, evidenceDocument, exec.signal)
       }
       await write(target, document, exec.signal)
-      // The work page is the board's copy of the findings; losing it must not cost the report that is already on disk.
-      let workPageResult = ''
-      if (template === 'office-action-scaffold' && deps.workPages !== undefined) {
-        try {
-          workPageResult = `\n${await deps.workPages.save({
-            reportPath, displayPath: filePath, content, matter: input.matter, sessionId, signal: exec.signal,
-          })}`
-        } catch (error) {
-          const reason = String(error)
-          deps.warn(`flowleap-deliverables: work page of ${filePath} was not written: ${reason}`)
-          workPageResult = `\nWork page: not written (${reason}); the office action board does not show this analysis.`
-        }
-      }
+      const templateResult = prepared === undefined ? '' : `\n${await prepared.afterSave({ reportPath, displayPath: filePath, sessionId, signal: exec.signal })}`
       // The verdicts beside the evidence companion. The record is what a human adjudicates later,
       // so losing it must not cost the save that already succeeded.
       let verdictFileName: string | undefined
@@ -602,7 +639,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       const evidenceProcessPath = ctx.fs.processPath(evidenceTarget)
       const marketsResult = markets === undefined ? '' : marketsResultLine(markets)
       const text = `Successfully wrote patent results to ${filePath}` + marketsResult + provenanceResult + (evidenceDocument ? `${wording.length ? `\nWording review: ${wording.length} phrase(s) flagged in the working record; reword them in a follow-up save if they are conclusions rather than disclaimers.` : ''}${secondReadResult(mode, secondRead, verdictFileName, objected)}${sourceResult}${ignoredResult}\n${findBetter ? findBetterSummaryContract(materialized) : SUMMARY_CONTRACT}\n${priorArtReportReceipt(reportPath, document, evidenceProcessPath, evidenceDocument, fallbacks)}${recordWritten ? `\nWorking record: ${workingRecordPath(filePath)}` : ''}` : provenance ? '' : '\nFree-form artifact: evidence validation was not performed.')
-				+ workPageResult
+				+ templateResult
 				+ `\n${DELIVERED_LINE}`
       return {
         saved: true,
