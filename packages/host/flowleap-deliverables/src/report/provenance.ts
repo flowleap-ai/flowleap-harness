@@ -263,6 +263,7 @@ function derivedValues(tables: readonly MarkdownTable[]): readonly DerivedValue[
 		const columnSum = (column: number, rows: readonly (readonly string[])[]) => rows.reduce((sum, row) => sum + (cellValue(row[column] ?? '') ?? 0), 0);
 		// A stated total is the sum of the rows above it, so a column is summed both ways when the
 		// table carries its own total row.
+		/* v8 ignore next -- `cells` returns at least one cell for every row. */
 		const total = table.rows.findIndex(row => /^\**\s*(?:total|sum|all)\b/i.test(row[0] ?? ''));
 		const above = total === -1 ? table.rows : table.rows.slice(0, total);
 		for (let column = 0; column < width; column++) {
@@ -639,7 +640,9 @@ export function extractClaimQuotations(content: string): readonly QuotedClaim[] 
 		const start = citation.index + citation[0].length;
 		const window = content.slice(start, start + QUOTATION_WINDOW + QUOTATION_TAIL);
 		const spans = [...window.matchAll(QUOTED_SPANS), ...window.matchAll(BLOCKQUOTE_LINE)]
+			/* v8 ignore start -- a `matchAll` match always has an index. */
 			.filter(match => (match.index ?? QUOTATION_WINDOW) < QUOTATION_WINDOW)
+			/* v8 ignore stop */
 			.map(match => match[1] ?? match[2]);
 		for (const span of spans) {
 			const quote = span.trim();
