@@ -7,7 +7,7 @@
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join, sep } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -89,7 +89,7 @@ describe('read_pdf', () => {
     const absolute = await call({ path: away })
     expect(absolute.isError).toBe(true)
     expect(textOf(absolute.content[0])).toContain('outside the working directory')
-    const relative = await call({ path: `../${outside.split('/').pop()!}/scan.pdf` })
+    const relative = await call({ path: `../${basename(outside)}/scan.pdf` })
     expect(relative.isError).toBe(true)
     expect(textOf(relative.content[0])).toContain('outside the working directory')
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -117,7 +117,7 @@ describe('read_pdf', () => {
     const result = await call({ path: 'office-action.pdf' })
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ model: 'mistral-ocr-latest', pageCount: 3, from: 1, to: 3, cached: false })
-    expect((result.value as { path: string }).path.endsWith('/office-action.pdf')).toBe(true)
+    expect((result.value as { path: string }).path.endsWith(`${sep}office-action.pdf`)).toBe(true)
     const text = textOf(result.content[0])
     expect(text.split('\n').slice(1, 3)).toEqual([
       'OCR model mistral-ocr-latest; 3 pages in the document, all 3 pages returned.',
