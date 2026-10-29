@@ -36,7 +36,7 @@ describe('watch views', () => {
       ])],
       ['EP1000000', read([])],
     ])
-    expect(Routines.watchViews([task('a', 'inactive'), task('b', 'active')], { watches, reads })).toEqual([
+    expect(Routines.watchViews([task('a', 'inactive'), task('reminder', 'active'), task('b', 'active')], { watches, reads })).toEqual([
       { taskId: 'a', sessionId: 'chat', title: 'Watch a', applications: [{ application: 'EP1000000', readAt: '2026-11-01T07:00:00.000Z' }] },
       {
         taskId: 'b', sessionId: 'chat', title: 'Watch b', nextCheckAt: '2026-11-03T07:00:00.000Z',
