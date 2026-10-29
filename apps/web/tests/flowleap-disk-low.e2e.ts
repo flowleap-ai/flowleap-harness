@@ -15,6 +15,8 @@ import { launchWebScaffold, type WebScaffold } from './scaffold.ts'
 
 const BUNDLE = fileURLToPath(new URL('../../../packages/bundle/flowleap-web', import.meta.url))
 const MESSAGE = 'The firm server is low on disk space. Ask your administrator.'
+/** The generic attachment store's refusal text; the client localizes by `reason`. */
+const STORE_MESSAGE = 'Uploads are refused while the host is low on storage.'
 
 it('refuses agent-builder uploads and chat attachments while the disk low flag exists', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-flowleap-disk-low-'))
@@ -71,7 +73,7 @@ it('refuses agent-builder uploads and chat attachments while the disk low flag e
     ok: false, error: { code: 'flowleap-agents/invalid', message: MESSAGE, details: { field: 'file', reason: 'storage low' } },
   })
   expect(await chatUpload()).toEqual({
-    ok: false, error: { code: 'session/attachment-invalid', message: MESSAGE, details: { reason: 'STORAGE_LOW' } },
+    ok: false, error: { code: 'session/attachment-invalid', message: STORE_MESSAGE, details: { reason: 'STORAGE_LOW' } },
   })
   // Reads and agent edits go on while the flag exists.
   expect(await ctx.flowleapAgents.list()).toEqual([{ id: agent.id, name: 'Responder', description: 'Drafts.', readOnly: false }])
