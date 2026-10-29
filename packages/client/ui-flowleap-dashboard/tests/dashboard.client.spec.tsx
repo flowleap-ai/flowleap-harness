@@ -257,20 +257,18 @@ describe('ui-flowleap-dashboard browser half', () => {
     await ctx.fiber.dispose()
   })
 
-  it('opens the chat of a deep link once the Session list is ready, then keeps the address equal to the open item', async () => {
+  it('shows the dashboard at once, opens the chat of a deep link when the Session list is ready, then keeps the address equal to the open item', async () => {
     window.history.replaceState(null, '', '/?chat=s1&lang=de')
     const { ctx, workspace, layout, panelInfo, sessionList } = await pluginContext(sessions([], 'loading'))
+    workspace.openSession.mockImplementation(() => { panelInfo.set({ activePanelId: null }) })
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    await new Promise(resolve => setTimeout(resolve, 5))
-    panelInfo.set({ activePanelId: 'flowleap-chats' })
-    panelInfo.set({ activePanelId: null })
-    expect(window.location.search).toBe('?chat=s1&lang=de')
+    await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
     expect(workspace.openSession).not.toHaveBeenCalled()
     sessionList.set(sessions([{ id: 'other', title: 'Other', updatedAt: 2 }, { id: 's1', title: 'Claim chart', updatedAt: 1, mainView: true }]))
+    expect(workspace.openSession).toHaveBeenCalledOnce()
     expect(workspace.openSession).toHaveBeenCalledWith('s1')
-    expect(layout.selectPanel).not.toHaveBeenCalled()
-    expect(window.location.search).toBe('?chat=s1&lang=de')
+    expect(window.location.search).toBe('?lang=de&chat=s1')
     panelInfo.set({ activePanelId: 'flowleap-chats' })
     expect(window.location.search).toBe('?lang=de&page=flowleap-chats')
     panelInfo.set({ activePanelId: 'flowleap-dashboard' })
@@ -278,39 +276,40 @@ describe('ui-flowleap-dashboard browser half', () => {
     panelInfo.set({ activePanelId: null })
     sessionList.set(sessions([{ id: 's1', title: 'Claim chart', updatedAt: 1, blank: true, mainView: true }]))
     expect(window.location.search).toBe('?lang=de')
+    expect(layout.selectPanel).toHaveBeenCalledOnce()
     await fiber.dispose()
     await ctx.fiber.dispose()
   })
 
-  it('selects the page of a deep link when it is registered, and the dashboard for a missing chat or page', async () => {
-    for (const [address, expected] of [
-      ['/?page=flowleap-chats', 'flowleap-chats'],
-      ['/?page=gone', 'flowleap-dashboard'],
-      ['/?chat=gone', 'flowleap-dashboard'],
-    ] as const) {
+  it('keeps the dashboard for a missing chat or page', async () => {
+    for (const address of ['/?page=gone', '/?chat=gone']) {
       window.history.replaceState(null, '', address)
-      const { ctx, workspace, layout } = await pluginContext(sessions([{ id: 's1', title: 'A', updatedAt: 1 }]))
+      const { ctx, workspace, layout } = await pluginContext(sessions([{ id: 's1', title: 'A', updatedAt: 1, mainView: true }]))
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
-      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenLastCalledWith(expected) })
-      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(expected === 'flowleap-dashboard'
-        ? ['flowleap-dashboard'] : ['flowleap-dashboard', expected])
+      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
+      await new Promise(resolve => setTimeout(resolve, 5))
+      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(['flowleap-dashboard'])
       expect(workspace.openSession).not.toHaveBeenCalled()
+      expect(window.location.search).toBe('')
       await fiber.dispose()
       await ctx.fiber.dispose()
     }
   })
 
-  it('selects a page that registers after the start while the dashboard still shows, and not after the user left it', async () => {
+  it('selects a linked page once it is registered and the start restoration opened its chat, unless the user left the dashboard', async () => {
     for (const leave of [false, true]) {
       window.history.replaceState(null, '', '/?page=late-page')
-      const { ctx, layout, panelInfo } = await pluginContext(sessions([]))
+      const { ctx, layout, panelInfo, sessionList } = await pluginContext(sessions([]))
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
       await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
-      if (leave) panelInfo.set({ activePanelId: 'flowleap-chats' })
       const dispose = ctx.slots.register({ name: 'main', key: 'late-page' } as never, () => null)
+      sessionList.set(sessions([{ id: 'other', title: 'Other', updatedAt: 1 }]))
       await new Promise(resolve => setTimeout(resolve, 5))
+      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(['flowleap-dashboard'])
+      if (leave) panelInfo.set({ activePanelId: 'flowleap-chats' })
+      sessionList.set(sessions([{ id: 'blank', title: 'New', blank: true, updatedAt: 1, mainView: true }]))
       expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(leave ? ['flowleap-dashboard'] : ['flowleap-dashboard', 'late-page'])
       dispose()
       await fiber.dispose()

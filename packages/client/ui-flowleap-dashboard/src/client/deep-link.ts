@@ -59,60 +59,63 @@ function currentLink(ctx: ClientContext, dashboardId: MainPanelId): DeepLink | u
 /**
  * Open the item of the start address once, then keep the address equal to the open item.
  *
- * The start waits until the `main` slot lists the dashboard and the Session list is ready: a chat link opens the chat
- * when the list has it; any other address, and a link to a missing chat, shows the dashboard. A page that registers
- * only after its access check is not listed yet then, so a page link shows the dashboard and selects the page when it
- * registers, as long as the dashboard still shows. Each later change of the open page or chat replaces the address in
- * the browser history, without a new history entry.
+ * The dashboard shows as soon as the `main` slot lists it. That is before the start restoration of `ui-workspace`
+ * begins, which a later panel selection would cancel; on a first sign-in that restoration makes the default workspace.
+ * A chat link then opens the chat when the Session list is ready and has it. A page link selects the page when the
+ * page is registered (some pages register only after their access check) and the restoration has opened its chat,
+ * as long as the dashboard still shows. Any other address, and a link to a missing chat, keeps the dashboard. Each
+ * later change of the open page or chat replaces the address in the browser history, without a new history entry.
  * @param ctx - browser services: slots, layout, Sessions, and Session navigation.
  * @param dashboardId - the dashboard's main panel id.
  */
 export function installDeepLinks(ctx: ClientContext, dashboardId: MainPanelId): void {
-  const link = readDeepLink(window.location.search)
+  let pending = readDeepLink(window.location.search)
   let landed = false
-  let pendingPage = link?.kind === 'page' ? link.id as MainPanelId : undefined
   const sync = (): void => {
-    if (!landed) return
     const current = currentLink(ctx, dashboardId)
     const shown = readDeepLink(window.location.search)
     if (shown?.kind === current?.kind && shown?.id === current?.id) return
     window.history.replaceState(window.history.state, '', writeDeepLink(window.location.href, current))
   }
-  const openPendingPage = (): void => {
-    if (pendingPage === undefined || !ctx.slots.entries('main').some(entry => entry.options.key === pendingPage)) return
-    const page = pendingPage
-    pendingPage = undefined
-    ctx.layout.selectPanel(page)
-  }
-  const land = (): void => {
-    if (landed) {
-      openPendingPage()
+  const openPending = (): void => {
+    const list = ctx.sessions.list.getSnapshot()
+    if (pending?.kind === 'chat') {
+      if (list.phase !== 'ready') return
+      const id = pending.id as SessionId
+      pending = undefined
+      if (list.byId[id] !== undefined) ctx.uiWorkspace.openSession(id)
       return
     }
-    const pages = ctx.slots.entries('main').map(entry => entry.options.key)
-    if (!pages.includes(dashboardId) || ctx.sessions.list.getSnapshot().phase !== 'ready') return
-    landed = true
-    if (link?.kind === 'chat' && ctx.sessions.list.getSnapshot().byId[link.id as SessionId] !== undefined) {
-      ctx.uiWorkspace.openSession(link.id as SessionId)
-    } else {
+    const page = pending?.id as MainPanelId | undefined
+    if (page === undefined || !ctx.slots.entries('main').some(entry => entry.options.key === page)) return
+    if (!Object.values(list.byId).some(row => (row.retainedBy.mainView ?? 0) > 0)) return
+    pending = undefined
+    ctx.layout.selectPanel(page)
+  }
+  const step = (): void => {
+    if (!landed) {
+      /* v8 ignore next -- selectPanel throws for an unlisted panel; the slot lists the entry before a Session list or
+         slot change reaches this step. */
+      if (!ctx.slots.entries('main').some(entry => entry.options.key === dashboardId)) return
+      landed = true
       ctx.layout.selectPanel(dashboardId)
-      openPendingPage()
     }
+    openPending()
     sync()
   }
   const panelChanged = (): void => {
-    // The user left the dashboard before the page registered: the link no longer applies.
-    if (landed && ctx.layout.panelInfo.getSnapshot().activePanelId !== dashboardId) pendingPage = undefined
+    // The user left the dashboard before the linked page could open: the link no longer applies.
+    if (landed && pending?.kind === 'page' && ctx.layout.panelInfo.getSnapshot().activePanelId !== dashboardId) pending = undefined
     sync()
   }
   ctx.effect(() => {
     const stops = [
-      ctx.slots.subscribe('main', land),
-      ctx.sessions.list.subscribe(() => { land(); sync() }),
+      ctx.slots.subscribe('main', step),
+      ctx.sessions.list.subscribe(step),
       ctx.layout.panelInfo.subscribe(panelChanged),
     ]
     // The dashboard entry is not listed while this plugin's fiber applies, so the first check waits one task.
-    const timer = window.setTimeout(land, 0)
+    const timer = window.setTimeout(step, 0)
     return () => {
       window.clearTimeout(timer)
       for (const stop of stops) stop()
