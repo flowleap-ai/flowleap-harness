@@ -126,6 +126,15 @@ const ToolFilter: z<ToolFilterConfig> = z.object({
   exclude: z.array(String),
 })
 
+/** Config fields that both transports share. */
+const transportIndependentFields = {
+  toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+  failOnStartupError: z.boolean().default(false),
+  maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
+  reconnect: Reconnect,
+  tools: ToolFilter,
+}
+
 export const Config = z.union([
   z.object({
     transport: z.const('stdio'),
@@ -134,22 +143,14 @@ export const Config = z.union([
     args: z.array(String).default([]),
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    failOnStartupError: z.boolean().default(false),
-    maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
-    reconnect: Reconnect,
-    tools: ToolFilter,
+    ...transportIndependentFields,
   }),
   z.object({
     transport: z.const('streamable-http'),
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    failOnStartupError: z.boolean().default(false),
-    maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
-    reconnect: Reconnect,
-    tools: ToolFilter,
+    ...transportIndependentFields,
   }),
 ]) as z<ConfigInput, Config>
 
