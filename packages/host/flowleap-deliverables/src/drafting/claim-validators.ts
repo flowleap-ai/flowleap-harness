@@ -170,6 +170,7 @@ interface ClaimToken {
 
 /** The words and punctuation of a claim, lower-case. A number or punctuation is its own token. */
 function tokenize(text: string): ClaimToken[] {
+	/* v8 ignore next -- matchAll always sets match.index */
 	return [...text.matchAll(/[A-Za-zµ][A-Za-z0-9µ-]*|\d[\d.,%-]*|[^\sA-Za-z\d]/g)].map(match => ({ word: match[0].toLowerCase(), index: match.index ?? 0 }));
 }
 
@@ -336,7 +337,8 @@ export function introducedPhrases(text: string): string[] {
 	const phrases: string[] = [];
 	for (const match of text.matchAll(introducingPattern)) {
 		const phrase: string[] = [];
-		for (const token of text.slice((match.index ?? 0) + match[0].length).split(/\s+/)) {
+		/* v8 ignore start -- matchAll always sets match.index */
+		for (const token of text.slice((match.index ?? 0) + match[0].length).split(/\s+/)) { /* v8 ignore stop */
 			const word = /^[a-z][a-z0-9-]*/i.exec(token)?.[0].toLowerCase();
 			if (!word || phraseStops.has(word)) {
 				break;
@@ -510,10 +512,12 @@ export function checkClaimOneSentence(claims: readonly DraftClaim[]): DraftFindi
 	for (const claim of claims) {
 		for (const match of claim.text.matchAll(/(?<word>\S+)\.\s+\S/g)) {
 			const word = match.groups!.word.replace(/^["'“]+/, '');
+			/* v8 ignore next -- matchAll always sets match.index */
 			const start = (match.index ?? 0) + match.groups!.word.length - word.length;
 			if (abbreviations.has(word.replace(/^\(+/, '').toLowerCase()) || isLabel(word, claim.text.slice(0, start))) {
 				continue;
 			}
+			/* v8 ignore next -- matchAll always sets match.index */
 			const before = claim.text.slice(0, (match.index ?? 0) + match.groups!.word.length).split(/\s+/).slice(-3).join(' ');
 			findings.push(claimFinding('Error', 'claim-one-sentence', claim, `Claim ${claim.number} has a period inside the claim, after "${before}". A claim is one sentence with one period at its end (Guidelines F-IV, 4.1; MPEP 608.01(m)).`));
 			break;
