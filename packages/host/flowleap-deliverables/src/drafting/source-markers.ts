@@ -182,6 +182,7 @@ export function parseInventorQuestions(text: string): InventorQuestion[] {
 		}
 		const joined = paragraph.text.split('\n').map(content => content.replace(/^>\s?/, '').trim()).join(' ');
 		const match = inventorQuestionPattern.exec(`> ${joined}`);
+		/* v8 ignore else -- readParagraph classified this paragraph with the same pattern, so it matches again */
 		if (match?.groups) {
 			const place = /^(?<question>[\s\S]*?)\s*\bBelongs:\s*(?<belongs>.+)$/.exec(match.groups.text.trim());
 			questions.push(place?.groups
