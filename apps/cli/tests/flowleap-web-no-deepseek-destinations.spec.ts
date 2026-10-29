@@ -38,7 +38,7 @@ it('flowleap-web mounts no row with a DeepSeek destination and locks the telemet
     const mounted = rows.filter(row => row.disabled !== true)
     const destinations = mounted.flatMap(row => [
       ...(JSON.stringify(row.config ?? {}).match(DEEPSEEK_HOST) ?? []).map(host => `${row.id} config: ${host}`),
-      ...CATALOG_ROWS.has(row.id) ? [] : sourceHosts(String(row.name).split('/').slice(0, 2).join('/'))
+      ...CATALOG_ROWS.has(row.id) ? [] : sourceHosts(row.name.split('/').slice(0, 2).join('/'))
         .map(host => `${row.id} ${row.name} default: ${host}`),
     ])
     expect(destinations).toEqual([])
