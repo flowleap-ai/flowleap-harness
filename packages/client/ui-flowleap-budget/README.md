@@ -23,7 +23,7 @@ The dashboard of `flowleap-web` shows the attorney's model spend and budget of t
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the row beside the [dashboard](../ui-flowleap-dashboard/README.md); the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-budget`.
+Mount the row beside the [dashboard](../ui-flowleap-dashboard/README.md); the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-budget`. The Host half needs the `credentials` service, which reads the key.
 
 ### Configuration
 
@@ -39,7 +39,7 @@ Mount the row beside the [dashboard](../ui-flowleap-dashboard/README.md); the [`
 | Field | Default | Meaning |
 |---|---|---|
 | `url` | `''` | Address of the gateway's budget read; empty when the runtime has no gateway, and every read then reports `unknown` (`not_configured`). Any other value must be an absolute http or https URL, or the row fails at load |
-| `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's own virtual key, read through `ctx.credentials` (else the launch environment) and sent as `Authorization: Bearer <key>`; an invalid name fails at load |
+| `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's own virtual key, read through `ctx.credentials` and sent as `Authorization: Bearer <key>`; an invalid name fails at load |
 | `timeoutMs` | `5000` | Longest time one read may take, in milliseconds (100 to 60000) |
 
 The `flowleap-web` bundle sets `url` from the `FLOWLEAP_BUDGET_URL` environment variable (empty when unset) and `apiKeyRef` to `ANTHROPIC_API_KEY`, the key of the bundle's gateway routes.

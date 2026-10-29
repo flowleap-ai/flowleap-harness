@@ -181,7 +181,7 @@ describe('deep links', () => {
 async function pluginContext(list: SessionListState) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
-  const workspace = { openSession: vi.fn(), startSession: vi.fn(), provideSearch: vi.fn(() => vi.fn()) }
+  const workspace = { openSession: vi.fn(), startSession: vi.fn(), provideSearch: vi.fn((_open: () => void) => vi.fn()) }
   const panelInfo = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
   const layout = { selectPanel: vi.fn((id: string | null) => { panelInfo.set({ activePanelId: id }) }), panelInfo }
   const sessionList = createSnapshotStore(list)
@@ -241,7 +241,7 @@ describe('ui-flowleap-dashboard browser half', () => {
     expect(layout.selectPanel).toHaveBeenLastCalledWith('flowleap-dashboard')
     expect(page.hooks.focusRequests.getSnapshot()).toBe(1)
     expect(workspace.provideSearch).toHaveBeenCalledOnce()
-    const openSearch = workspace.provideSearch.mock.calls[0]![0] as unknown as () => void
+    const openSearch = workspace.provideSearch.mock.calls[0]![0]
     openSearch()
     expect(page.hooks.focusRequests.getSnapshot()).toBe(2)
     const chatSearch = ctx.slots.entries('dashboard.search')[0]!.inject!() as { onOpenSession: (id: SessionId) => void }
@@ -259,7 +259,7 @@ describe('ui-flowleap-dashboard browser half', () => {
 
   it('shows the dashboard at once, opens the chat of a deep link when the Session list is ready, then keeps the address equal to the open item', async () => {
     window.history.replaceState(null, '', '/?chat=s1&lang=de')
-    const { ctx, workspace, layout, panelInfo, sessionList } = await pluginContext(sessions([], 'loading'))
+    const { ctx, workspace, layout, panelInfo, sessionList } = await pluginContext(sessions([], 'pending'))
     workspace.openSession.mockImplementation(() => { panelInfo.set({ activePanelId: null }) })
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -385,7 +385,7 @@ describe('dashboard surfaces', () => {
       const props = { useSessions: bindSnapshotSelector(createSnapshotStore(state)), onOpenSession: vi.fn(), t } as never as ActivityProps
       return render(<AgentActivity {...props} />)
     }
-    expect(activity(sessions([], 'loading')).getByRole('status').textContent).toBe(en['activity.loading'])
+    expect(activity(sessions([], 'pending')).getByRole('status').textContent).toBe(en['activity.loading'])
     cleanup()
     expect(activity(sessions([])).container.textContent).toBe(en['activity.empty'])
   })

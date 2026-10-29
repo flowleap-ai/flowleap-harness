@@ -3,10 +3,15 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { bindSnapshotSelector, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import {
+  allowAllAccess, bindSnapshotSelector, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm,
+} from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { BudgetUsedMetric, BudgetWidget, createBudgetSource, type BudgetDependencies } from '../src/client/budget.tsx'
 import { en, NS, zh } from '../src/client/locales.ts'
@@ -31,9 +36,23 @@ async function settle(): Promise<void> {
 async function shown(month: BudgetMonth | (() => Promise<RemoteResult<BudgetMonth>>)) {
   const source = createBudgetSource(remote(typeof month === 'function' ? month : async () => ok(month)).deps)
   const useBudget = bindSnapshotSelector(source)
-  const view = render(<><BudgetUsedMetric useBudget={useBudget} t={t} /><BudgetWidget useBudget={useBudget} t={t} /></>)
+  const view = render(
+    <><BudgetUsedMetric {...standard} useBudget={useBudget} t={t} /><BudgetWidget {...standard} useBudget={useBudget} t={t} /></>,
+  )
   await settle()
   return view
+}
+
+/** The global standard seat every root-scope entry receives. */
+const standardHook = <T,>(value: T) => <R,>(select: (state: T) => R): R => select(value)
+const standard: GlobalStandardProps = {
+  useSessions: standardHook<SessionListState>({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }),
+  useSessionStatus: standardHook(new Map()),
+  useSessionRetainInfo: () => undefined,
+  usePanelInfo: standardHook({ activePanelId: null }),
+  useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
+  useWorkspaces: standardHook<WorkspaceSnapshot>({ items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }),
+  ...allowAllAccess,
 }
 
 describe('budget source', () => {

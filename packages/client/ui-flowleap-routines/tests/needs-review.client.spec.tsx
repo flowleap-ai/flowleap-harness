@@ -14,6 +14,7 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { RoutineReview, RoutineWatch } from '@deepseek-ai/dsh-flowleap-routines/types'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
@@ -564,17 +565,29 @@ describe('ui-flowleap-routines node half', () => {
   })
 })
 
+/** The global standard seat every root-scope entry receives. */
+const standardHook = <T,>(value: T) => <R,>(select: (state: T) => R): R => select(value)
+const standard: GlobalStandardProps = {
+  useSessions: standardHook<SessionListState>({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }),
+  useSessionStatus: standardHook(new Map()),
+  useSessionRetainInfo: () => undefined,
+  usePanelInfo: standardHook({ activePanelId: null }),
+  useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
+  useWorkspaces: standardHook<WorkspaceSnapshot>({ items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }),
+  ...allowAllAccess,
+}
+
 describe('routine surfaces on the dashboard', () => {
   it('counts the marked chats and lists the newest ones; each row opens its chat', async () => {
     const { useReviews, stop } = await readySource()
-    const metric = render(<WaitingForReviewMetric useReviews={useReviews} t={t} />)
+    const metric = render(<WaitingForReviewMetric {...standard} useReviews={useReviews} t={t} />)
     expect(metric.container.textContent).toBe(`2${en['dashboard.metric.caption']}`)
     metric.unmount()
     const onOpenSession = vi.fn()
     const onOpenAll = vi.fn()
     const named: SessionListState = { ...noSessions, ids: [beta], byId: { [beta]: { displayTitle: 'Weekly digest chat' } } as never }
     render(
-      <NeedsYourReviewWidget useReviews={useReviews} useSessions={select => select(named)} onOpenSession={onOpenSession}
+      <NeedsYourReviewWidget {...standard} useReviews={useReviews} useSessions={select => select(named)} onOpenSession={onOpenSession}
         onOpenAll={onOpenAll}
         t={t} />,
     )
@@ -589,7 +602,8 @@ describe('routine surfaces on the dashboard', () => {
 
   it('states the loading, empty, and failed marks in the panel', async () => {
     const panel = (useReviews: Parameters<typeof NeedsYourReviewWidget>[0]['useReviews']) => render(
-      <NeedsYourReviewWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
+      <NeedsYourReviewWidget {...standard}
+        useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
         t={t} />,
     )
     const pending = createReviewsSource(remote({ reviews: vi.fn(() => new Promise<never>(() => {})) }).deps)
@@ -608,13 +622,14 @@ describe('routine surfaces on the dashboard', () => {
 
   it('counts the different watched applications and shows the next checks with the newest recorded event', async () => {
     const { useReviews, stop } = await readySource()
-    const metric = render(<CasesWatchedMetric useReviews={useReviews} t={t} />)
+    const metric = render(<CasesWatchedMetric {...standard} useReviews={useReviews} t={t} />)
     expect(metric.container.textContent).toContain('2')
     expect(metric.container.textContent).toContain(en['cases.metric.caption'])
     metric.unmount()
     const onOpenSession = vi.fn()
     render(
-      <ComingUpWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={onOpenSession} onOpenAll={vi.fn()}
+      <ComingUpWidget {...standard}
+        useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={onOpenSession} onOpenAll={vi.fn()}
         t={t} />,
     )
     const rows = screen.getAllByRole('button')
@@ -632,8 +647,9 @@ describe('routine surfaces on the dashboard', () => {
   it('states loading, an empty watch list, and a failed watch read without a number', async () => {
     const widget = (useReviews: ReturnType<typeof bindSnapshotSelector<ReturnType<ReviewsSource['hooks']['reviews']['getSnapshot']>>>) => (
       <>
-        <CasesWatchedMetric useReviews={useReviews} t={t} />
-        <ComingUpWidget useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
+        <CasesWatchedMetric {...standard} useReviews={useReviews} t={t} />
+        <ComingUpWidget {...standard}
+          useReviews={useReviews} useSessions={select => select(noSessions)} onOpenSession={vi.fn()} onOpenAll={vi.fn()}
           t={t} />
       </>
     )
@@ -680,7 +696,8 @@ describe('routine surfaces on the dashboard', () => {
     const onOpenSession = vi.fn()
     const onPicked = vi.fn()
     const search = (query: string) => render(
-      <RoutineSearch query={query} matches={text => text.toLowerCase().includes(query)} onPicked={onPicked} useReviews={useReviews}
+      <RoutineSearch {...standard} query={query} matches={text => text.toLowerCase().includes(query)} onPicked={onPicked}
+        useReviews={useReviews}
         useSessions={select => select(noSessions)} onOpenSession={onOpenSession} onOpenAll={vi.fn()} t={t} />,
     )
     const byApplication = search('us17123456')

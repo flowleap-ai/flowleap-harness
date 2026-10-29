@@ -34,14 +34,12 @@ function json(status: number, body: unknown) {
 }
 
 /** Mount the service with a credential store double that knows only `ANTHROPIC_API_KEY`. */
-async function budget(config: { url: string; timeoutMs?: number; key?: string | undefined; store?: boolean }): Promise<FlowleapBudget> {
+async function budget(config: { url: string; timeoutMs?: number; key?: string | undefined }): Promise<FlowleapBudget> {
   const ctx = new Context()
   contexts.push(ctx)
-  if (config.store !== false) {
-    ctx.provide('credentials', {
-      resolve: async (ref: string) => ref === 'ANTHROPIC_API_KEY' && config.key !== undefined ? { value: config.key } : undefined,
-    } as never)
-  }
+  ctx.provide('credentials', {
+    resolve: async (ref: string) => ref === 'ANTHROPIC_API_KEY' && config.key !== undefined ? { value: config.key } : undefined,
+  } as never)
   await ctx.plugin(FlowleapBudget, { url: config.url, apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: config.timeoutMs ?? 5000 })
   return ctx.get('flowleapBudget')!
 }
@@ -67,15 +65,6 @@ describe('flowleapBudget.month', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('reads the key from the launch environment when no credential store is mounted', async () => {
-    const double = await gateway(json(200, { month: '2026-10', spent_usd: 1, budget_usd: 2 }))
-    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-from-environment')
-    try {
-      expect((await (await budget({ url: double.url, store: false })).month()).state).toBe('known')
-      expect(double.tokens).toEqual(['Bearer sk-from-environment'])
-    } finally { vi.unstubAllEnvs() }
-  })
-
   it('reports a refused key, an error status, a slow gateway, and a closed port as unknown', async () => {
     const warn = vi.fn()
     for (const [handler, reason] of [
@@ -86,13 +75,13 @@ describe('flowleapBudget.month', () => {
     ] as const) {
       const double = await gateway(handler)
       const service = await budget({ url: double.url, key: KEY, timeoutMs: 200 })
-      vi.spyOn(service.ctx.logger, 'warn').mockImplementation(warn)
+      vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(warn)
       expect(await service.month()).toEqual({ state: 'unknown', reason })
     }
     const closed = await gateway(json(200, {}))
     await new Promise((resolve) => { servers.pop()!.close(resolve) })
     const service = await budget({ url: closed.url, key: KEY })
-    vi.spyOn(service.ctx.logger, 'warn').mockImplementation(warn)
+    vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(warn)
     expect(await service.month()).toEqual({ state: 'unknown', reason: 'unreachable' })
     expect(warn.mock.calls.map(([line]) => String(line)).join('\n')).not.toContain(KEY)
   })
@@ -108,6 +97,7 @@ describe('flowleapBudget.month', () => {
   it('fails loud at load for an address that is not http or https, or an invalid key reference', async () => {
     const ctx = new Context()
     contexts.push(ctx)
+    ctx.provide('credentials', { resolve: async () => undefined } as never)
     await expect(ctx.plugin(FlowleapBudget, { url: 'file:///etc/passwd', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: 5000 })).rejects.toThrow(/http or https/u)
     await expect(ctx.plugin(FlowleapBudget, { url: 'not a url', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: 5000 })).rejects.toThrow(/http or https/u)
     await expect(ctx.plugin(FlowleapBudget, { url: '', apiKeyRef: 'not-a-name', timeoutMs: 5000 })).rejects.toThrow()

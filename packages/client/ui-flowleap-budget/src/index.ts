@@ -9,8 +9,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
-import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { BudgetMonth } from './types.ts'
 
@@ -58,8 +57,20 @@ function checkedUrl(url: string): string {
   return url
 }
 
+/**
+ * Validate the key reference at load: a POSIX environment-variable name, the form every credential reference has.
+ * @param ref - the configured reference.
+ * @returns the reference.
+ * @throws when the reference is not such a name.
+ */
+function checkedRef(ref: string): CredentialRef {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(ref)) throw new Error(`flowleap-budget: apiKeyRef must be an environment-variable name, got "${ref}"`)
+  return ref as CredentialRef
+}
+
 /** Host service backing the generated `ctx.remote.flowleapBudget` namespace. */
 export default class FlowleapBudget extends TypertRemoteService {
+  static inject = ['credentials']
   static Config: z<Config> = z.object({
     url: z.string().default(''),
     apiKeyRef: z.string().required(),
@@ -77,7 +88,7 @@ export default class FlowleapBudget extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'flowleapBudget')
     this.url = checkedUrl(config.url)
-    this.keyRef = credentialRef(config.apiKeyRef)
+    this.keyRef = checkedRef(config.apiKeyRef)
   }
 
   /**
@@ -117,10 +128,7 @@ export default class FlowleapBudget extends TypertRemoteService {
   }
 
   private async key(): Promise<string | undefined> {
-    const credentials = this.ctx.get('credentials')
-    const value = credentials === undefined
-      ? launchEnvironmentOf(this.ctx).get(this.keyRef)?.value
-      : (await credentials.resolve(this.keyRef))?.value
+    const value = (await this.ctx.credentials.resolve(this.keyRef))?.value
     return value === undefined || value === '' ? undefined : value
   }
 }
