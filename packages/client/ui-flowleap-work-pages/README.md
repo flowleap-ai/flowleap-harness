@@ -1,5 +1,5 @@
 ---
-description: "FlowLeap work pages in the dsh web client: the Office actions launcher in the Sidebar and the office action board page. This version shows one sample analysis from a fixture, for a look-first review."
+description: "FlowLeap work pages in the dsh web client: the Office actions launcher in the Sidebar and the office action board page, which shows each saved office action analysis and lets the attorney set a review state, an owner and a note on each objection."
 kind: "package-reference"
 ---
 
@@ -7,9 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-The **Office actions** entry in the Sidebar opens the office action board: the deadline, the owner, the review count, the run state, and one card for each objection with the claims hit and the cited passages. The attorney sets a review state and an owner on each card. A card opens the side panel with the examiner's text, each claim feature beside its passage, and the response options. **New analysis** opens the form.
-
-This is the look-first stage of [flowleap-harness#81](https://github.com/flowleap-ai/flowleap-harness/issues/81): a **Sample data** banner, an invented fixture, and changes that stay in the browser until a reload.
+The **Office actions** entry in the Sidebar opens the office action board of [flowleap-harness#81](https://github.com/flowleap-ai/flowleap-harness/issues/81). It reads the work pages that [`flowleap-deliverables`](../../host/flowleap-deliverables/README.md) writes beside each `office-action-scaffold` report: the application, the time limit, the cited documents, and one card for each objection with the ground, the claims hit and the cited passages. On each card the attorney sets a review state, an owner and a note. **Write response plan** sends one message into the chat of the analysis. **New analysis** opens a new chat with the request drafted.
 
 ## Table of Contents
 
@@ -25,9 +23,18 @@ This is the look-first stage of [flowleap-harness#81](https://github.com/flowlea
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the row in a web composition; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-work-pages`. The plugin needs only `slots` and `locale`. It calls no Remote, no model, and no connector.
+Mount the row in a web composition with the `flowleap-deliverables` Host row; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-work-pages`. The plugin registers its launcher and its page only while the current Peer may call `flowleapWorkPages/list`.
 
-**Write response plan**, **Export Word**, **Open chat**, and **Start analysis** show a notice that says what the button does in a later version. **Share** is disabled; its tooltip says that sharing comes with the artifacts library.
+| Action | What happens |
+|---|---|
+| State, owner, note on a card | `flowleapWorkPages.review()` changes that field of the objection in `<report>.work.json`; the board shows the page the Host returns. A failed change shows `The change was not saved. Try again.` The owner is committed on Enter or blur, the note on blur. |
+| **Write response plan** | `session.prompt()` queues one user message in the chat that saved the analysis, then the chat opens: `Write the response plan for the office action analysis of <application> (<report>). First read <report>.work.json: it holds my review state, owner and note for each objection. Leave out the objections that I marked "Not relevant", and follow my notes.` The page makes no model call: the message starts a turn in that chat like a typed message. |
+| **Open chat** | opens the chat that saved the analysis |
+| **New analysis** | a form with the application number; **Open the chat** opens a new chat in the current workspace with `Analyse the office action for <number>.` drafted. The attorney attaches the office action PDF there, if there is one, and sends it. |
+| Analysis picker | shown when there are two or more analyses; chooses the one on show |
+| **Export Word**, **Share** | disabled; their tooltips say that the Word export of the analysis and sharing come in a later version |
+
+The launcher shows a dot beside its glyph while an objection of any analysis is in the Needs review state, as the Needs review launcher does; the board header shows the count.
 
 -----
 
@@ -37,22 +44,21 @@ Mount the row in a web composition; the [`dsh-flowleap-web`](../../bundle/flowle
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`createBoard` keeps the findings of one analysis apart from the attorney fields. The findings (`OfficeActionAnalysis`: the objections, the cited documents, the comparisons, the response options) are read-only. The browser state (`BoardState`) holds only the attorney fields of each objection, the open objection, the form state, and the last notice. This split follows option A of the [work pages study](https://github.com/flowleap-ai/flowleap-harness/pull/83): the planned `flowleapWorkPages` Remote changes attorney fields only, never findings.
+`createBoard` owns one snapshot: the page list, the page on show with its file, the open objection, the form state, the send state, and the last notice. It reads only while the framework observes it: the first subscriber reads the list and the newest page, and starts the `flowleap-work-pages/changed` and `connection/reset` listeners; the last unsubscribe stops them and discards responses still in flight. A read keeps the page on show when the list still has it and keeps the open objection when the page still has it. The board never edits a finding: each attorney change is a `review()` call, and the Host returns the page that it wrote.
 
-The browser entry creates one board from [`sample-board.ts`](src/client/sample-board.ts) and registers two contributions: the `sidebar.panellist` launcher and the keyed `main` page, both under the panel id `flowleap-office-actions` (order 16, after Needs review). The launcher shows the count of objections in the Needs review state over its glyph. Copy is in the `flowleapWorkPages` namespace in en and zh; the other UI languages fall back to English.
+Copy is in the `flowleapWorkPages` namespace in zh, en, ja, es, fr, de, ru and pt. The two messages that the board writes for the attorney (`message.plan`, `message.analysis`) are copy in the attorney's language, as a typed message would be.
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Host half: an empty plugin body |
-| [`src/client/index.ts`](src/client/index.ts) | dictionaries, the board, and the two registrations |
-| [`src/client/board.ts`](src/client/board.ts) | the analysis types, the board store, and its actions |
-| [`src/client/sample-board.ts`](src/client/sample-board.ts) | the sample analysis |
+| [`src/client/index.ts`](src/client/index.ts) | dictionaries, the board over the Remotes, and the two registrations |
+| [`src/client/board.ts`](src/client/board.ts) | the board snapshot, its reads, and the attorney actions |
 | [`src/client/OfficeActionBoard.tsx`](src/client/OfficeActionBoard.tsx) | the page |
-| [`src/client/ObjectionCard.tsx`](src/client/ObjectionCard.tsx) | one card with the state menu and the owner field |
+| [`src/client/ObjectionCard.tsx`](src/client/ObjectionCard.tsx) | one card with the state menu, the owner field and the note field |
 | [`src/client/ObjectionPanel.tsx`](src/client/ObjectionPanel.tsx) | the side panel |
 | [`src/client/AnalysisForm.tsx`](src/client/AnalysisForm.tsx) | the analysis form |
 | [`src/client/WorkPagesPanelIcon.tsx`](src/client/WorkPagesPanelIcon.tsx) | the launcher glyph with its count |
-| [`tests/`](tests/) | the board store, the page as rendered, and the registrations with their disposal |
+| [`tests/`](tests/) | the board snapshot over fake Remote calls, the page as rendered, and the registrations with their access gate and disposal |
 
 </details>
 
@@ -61,6 +67,7 @@ The browser entry creates one board from [`sample-board.ts`](src/client/sample-b
 <a id="further-exploration"></a>
 ## Further Exploration
 
+- [flowleap-deliverables](../../host/flowleap-deliverables/README.md#the-office-action-work-page) — the work page file and the `flowleapWorkPages` Remote.
 - [ui-flowleap-routines](../ui-flowleap-routines/README.md) — the Needs review page, the sibling first-level page.
 - [Slots](../../../docs/subsystems/slots.md) — injected hooks and panel contributions.
 
@@ -69,20 +76,20 @@ The browser entry creates one board from [`sample-board.ts`](src/client/sample-b
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the package is a browser-side surface that registers no model-facing tools or messages.
+None, as the package registers no tool and no prompt text: the two messages that the attorney starts from the board (see [Use this package](#use-this-package)) reach the model as ordinary user messages in the attorney's UI language, and the Session log records them.
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+None; the messages are appended to the chat like typed messages and do not change the prompt prefix.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Sample data only** — the board shows one invented analysis. The `work_page_save` tool, the `flowleapWorkPages` Remote, and the run from the form are the next steps of flowleap-harness#81.
-- **Changes are not saved** — the state and owner changes live in the plugin instance; a reload restores the sample.
-- **Two UI languages** — the board copy is in en and zh; ja, es, fr, de, ru and pt show English. The sample analysis itself is English data.
-- **Launcher count is visual only** — as on the Needs review launcher, the count is not part of the launcher's accessible name.
+- **No Word export** — `Export Word` is disabled: the deliverables package has no Word export of a report; the Word builders serve only the application draft and the inventor questions.
+- **The form has the application number only** — the office action PDF is attached in the chat, the chat runs the workspace's default agent, and the form shows no budget, because no Remote serves the gateway budget to the client yet.
+- **One template** — the board shows office action work pages only; the gallery and the other templates are flowleap-harness#82.
+- **Launcher dot is visual only** — as on the Needs review launcher, the dot is not part of the launcher's accessible name.
 
 <a id="dev-note"></a>
 ### Dev Note

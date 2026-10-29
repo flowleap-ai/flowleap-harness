@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Office actions",
-    "description": "The office action board: one card for each objection with the claims hit, the cited passages, a review state and an owner. Sample data only in this version."
+    "description": "The office action board: one card for each objection of a saved office action analysis, with the claims hit, the cited passages, and a review state, an owner and a note that the attorney sets."
   }
 }

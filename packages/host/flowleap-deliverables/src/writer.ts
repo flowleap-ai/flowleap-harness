@@ -39,6 +39,7 @@ import type { PatentLedger } from './ledger/store.ts'
 import type { PatentExecutionSnapshot } from './ledger/types.ts'
 import type { DeliveredPaths } from './guard/seal.ts'
 import type { SecondReadJudge } from './judge.ts'
+import type { WorkPages } from './work-page/store.ts'
 import { DELIVERED_LINE, type PresentQueue } from './present.ts'
 import { CandidateReviewVariant, candidateWordingReview, challengedClaims, chartOpenPoints, materializeCandidateReview, PatentCandidateReview, renderCandidateReview, renderWorkingRecord, validateCandidateReview } from './report/candidate-review.ts'
 import { deriveFallbackLadder, fallbackCoverage, fallbacksNotCovered, roundAnswerErrors, roundOrderErrors } from './report/fallback-ladder.ts'
@@ -247,6 +248,8 @@ export interface WriterDependencies {
   readonly now?: () => Date
   /** The seal's register of delivered paths; every saved report (free-form or templated) is marked. */
   readonly delivered?: DeliveredPaths
+  /** The office action work pages; an `office-action-scaffold` save writes its page through them. */
+  readonly workPages?: WorkPages
   /** The question seams of the fto-memo markets card. */
   readonly gates: GateSeams
   /** The markets the user confirmed, per Session and report path. */
@@ -526,6 +529,19 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
         await write(evidenceTarget, evidenceDocument, exec.signal)
       }
       await write(target, document, exec.signal)
+      // The work page is the board's copy of the findings; losing it must not cost the report that is already on disk.
+      let workPageResult = ''
+      if (template === 'office-action-scaffold' && deps.workPages !== undefined) {
+        try {
+          workPageResult = `\n${await deps.workPages.save({
+            reportPath, displayPath: filePath, content, matter: input.matter, sessionId, signal: exec.signal,
+          })}`
+        } catch (error) {
+          const reason = String(error)
+          deps.warn(`flowleap-deliverables: work page of ${filePath} was not written: ${reason}`)
+          workPageResult = `\nWork page: not written (${reason}); the office action board does not show this analysis.`
+        }
+      }
       // The verdicts beside the evidence companion. The record is what a human adjudicates later,
       // so losing it must not cost the save that already succeeded.
       let verdictFileName: string | undefined
@@ -586,6 +602,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       const evidenceProcessPath = ctx.fs.processPath(evidenceTarget)
       const marketsResult = markets === undefined ? '' : marketsResultLine(markets)
       const text = `Successfully wrote patent results to ${filePath}` + marketsResult + provenanceResult + (evidenceDocument ? `${wording.length ? `\nWording review: ${wording.length} phrase(s) flagged in the working record; reword them in a follow-up save if they are conclusions rather than disclaimers.` : ''}${secondReadResult(mode, secondRead, verdictFileName, objected)}${sourceResult}${ignoredResult}\n${findBetter ? findBetterSummaryContract(materialized) : SUMMARY_CONTRACT}\n${priorArtReportReceipt(reportPath, document, evidenceProcessPath, evidenceDocument, fallbacks)}${recordWritten ? `\nWorking record: ${workingRecordPath(filePath)}` : ''}` : provenance ? '' : '\nFree-form artifact: evidence validation was not performed.')
+				+ workPageResult
 				+ `\n${DELIVERED_LINE}`
       return {
         saved: true,

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Pareceres de exame",
-    "description": "O quadro do parecer de exame: um cartão por objeção com as reivindicações afetadas, as passagens citadas, um estado de revisão e um responsável. Esta versão tem apenas dados de exemplo."
+    "description": "O quadro do parecer de exame: um cartão por objeção de uma análise salva, com as reivindicações afetadas, os trechos citados e um estado de revisão, um responsável e uma nota que o advogado define."
   }
 }

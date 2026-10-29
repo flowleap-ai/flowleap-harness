@@ -10,8 +10,11 @@
  * `deliverables/presented`, the second-read judge on `ctx.llm`, the gate cards
  * on `ctx.userQuestions`, the claim-removal confirmation on `ctx.approval`,
  * the gate commands on `ctx.commands`, the one-time "report not written"
- * steer on `agent/turn-stopping`, and the seal on delivered files (one steer
- * on the first direct edit of a saved report).
+ * steer on `agent/turn-stopping`, the seal on delivered files (one steer
+ * on the first direct edit of a saved report), and the office action work
+ * pages: the `<report>.work.json` file of each `office-action-scaffold` save
+ * and the `flowleapWorkPages` Remote that lists the pages and changes their
+ * review fields.
  *
  * See packages/host/flowleap-deliverables/README.md.
  * @module @deepseek-ai/dsh-flowleap-deliverables
@@ -42,6 +45,8 @@ import { inventorQuestionsTool } from './tools/inventor-questions.ts'
 import { removeClaimTool } from './tools/remove-claim.ts'
 import { startApplicationDraftTool } from './tools/start-application-draft.ts'
 import { validateDraftTool } from './tools/validate-draft.ts'
+import { FlowleapWorkPagesController } from './work-page-controller.ts'
+import { WorkPages, workPagesDomainSpec } from './work-page/store.ts'
 import { writePatentResultsTool, type SecondReadMode } from './writer.ts'
 
 export { DOCUMENT_MODE, hostPathOf, LOCAL_WORKSPACE_NEEDED, writeWorkspaceBytes } from './bytes.ts'
@@ -108,6 +113,15 @@ export {
   draftingPathRefusal, evidencePath, parseWriterArgs, secondReadPath, workingRecordPath, writePatentResultsTool,
 } from './writer.ts'
 export type { SecondReadMode, WritePatentResultsInput, WritePatentResultsValue, WriterDependencies } from './writer.ts'
+export { FlowleapWorkPagesController } from './work-page-controller.ts'
+export type { FlowleapWorkPagesControllerOptions } from './work-page-controller.ts'
+export { claimNumbers, parseOfficeActionReport, plainText, responseOptions, tableCells } from './work-page/office-action.ts'
+export {
+  aboutText, MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, memoryIndex, NEW_REVIEW, REVIEW_STATES, WorkPages, workPageFileSchema, workPageId,
+  workPagePath, workPagesDomainSpec,
+} from './work-page/store.ts'
+export type { WorkPageEntry, WorkPageFileSystem, WorkPageIndex, WorkPageSave } from './work-page/store.ts'
+export type * from './work-page/types.ts'
 export {
   DRAFTING_TEMPLATES, REPORT_TEMPLATES, WRITE_PATENT_RESULTS_DESCRIPTION, WRITE_PATENT_RESULTS_NAME, WRITE_PATENT_RESULTS_PARAMETERS,
 } from './writer-schema.ts'
@@ -154,6 +168,7 @@ export function apply(ctx: Context, config: Config): void {
   let approve: GateApprover | undefined
   let approvalPolicy: GateSeams['approvalPolicy'] = () => undefined
   const gates: GateSeams = { ask: () => ask, approve: () => approve, approvalPolicy: session => approvalPolicy(session) }
+  const workPages = new WorkPages(ctx.fs, () => { ctx.emit('flowleap-work-pages/changed') })
 
   // The ledger persists when storage is mounted; a composition without it keeps the records in memory.
   ctx.inject(['storageDomain'], (storeCtx) => {
@@ -170,6 +185,22 @@ export function apply(ctx: Context, config: Config): void {
       }
     }, 'flowleap-deliverables: ledger storage')
   })
+  // The work page index persists when storage is mounted; a composition without it lists the pages of this process only.
+  ctx.inject(['storageDomain'], (storeCtx) => {
+    storeCtx.effect(() => {
+      const opened = storeCtx.storageDomain.open(workPagesDomainSpec)
+        .then(async (domain) => { await workPages.attach(domain.table('pages')); return domain })
+        .catch((error: unknown) => {
+          storeCtx.logger.warn(`flowleap-deliverables: work page index storage unavailable, the index stays in memory: ${error instanceof Error ? error.message : String(error)}`)
+          return undefined
+        })
+      return () => {
+        void workPages.attach(undefined)
+        void opened.then(domain => domain?.close())
+      }
+    }, 'flowleap-deliverables: work page index storage')
+  })
+  ctx.plugin(FlowleapWorkPagesController, { pages: workPages })
   // The judge needs a model service; without one every second read is a stated skip.
   ctx.inject(['llm'], (llmCtx) => {
     llmCtx.effect(() => {
@@ -219,7 +250,7 @@ export function apply(ctx: Context, config: Config): void {
   }
   ctx.effect(() => registerDeliverableTools(ctx, [
     writePatentResultsTool(ctx, {
-      ledger, judge: () => judge, present, delivered, gates, markets, secondRead: () => config.secondRead, ...log,
+      ledger, judge: () => judge, present, delivered, gates, markets, workPages, secondRead: () => config.secondRead, ...log,
     }),
     startApplicationDraftTool(ctx, { present, gates, ...log }),
     validateDraftTool(ctx, { present, gates, ...log }),

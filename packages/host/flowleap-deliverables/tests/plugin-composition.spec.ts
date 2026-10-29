@@ -80,7 +80,7 @@ async function mount(services: Services, config: Partial<Deliverables.Config> = 
 }
 
 describe('the plugin row with its optional services', () => {
-  it('opens the ledger storage, closes it on dispose, and keeps the records in memory when storage fails', async () => {
+  it('opens the ledger and work page storage, closes both on dispose, and keeps the records in memory when storage fails', async () => {
     const closed: string[] = []
     const domain = { table: () => ({ get: () => undefined, put: () => Promise.resolve() }), close: () => { closed.push('closed'); return Promise.resolve() } }
     const stored = await mount({ storageDomain: { open: () => Promise.resolve(domain) } })
@@ -92,12 +92,14 @@ describe('the plugin row with its optional services', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
     expect({
       closed,
-      warned: [...failedString.logged, ...failedError.logged].filter(line => line.includes('ledger storage unavailable')),
+      warned: [...failedString.logged, ...failedError.logged].filter(line => line.includes('storage unavailable')),
     }).toEqual({
-      closed: ['closed'],
+      closed: ['closed', 'closed'],
       warned: [
         'warn: flowleap-deliverables: ledger storage unavailable, records stay in memory: no backend',
+        'warn: flowleap-deliverables: work page index storage unavailable, the index stays in memory: no backend',
         'warn: flowleap-deliverables: ledger storage unavailable, records stay in memory: disk full',
+        'warn: flowleap-deliverables: work page index storage unavailable, the index stays in memory: disk full',
       ],
     })
   })

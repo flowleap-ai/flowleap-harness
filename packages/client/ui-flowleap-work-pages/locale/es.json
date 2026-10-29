@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Comunicaciones de examen",
-    "description": "El tablero de la comunicación de examen: una tarjeta por objeción con las reivindicaciones afectadas, los pasajes citados, un estado de revisión y un responsable. Esta versión solo tiene datos de ejemplo."
+    "description": "El tablero de la comunicación de examen: una tarjeta por cada objeción de un análisis guardado, con las reivindicaciones afectadas, los pasajes citados y un estado de revisión, un responsable y una nota que fija el abogado."
   }
 }

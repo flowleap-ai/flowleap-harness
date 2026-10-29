@@ -1,0 +1,1897 @@
+{
+  "initial": [
+    {
+      "name": "ask_user_question",
+      "description": "Ask the user a concise question when you need confirmation, a choice, or missing information before proceeding. An answer item with empty selected and no custom means the user skipped that question: continue without it, do not ask it again, and do not treat the skip as permission.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "description": "Questions to ask the user before continuing.",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Stable id for this question; echoed in the answer."
+                },
+                "question": {
+                  "type": "string",
+                  "description": "The specific question to ask the user."
+                },
+                "header": {
+                  "type": "string",
+                  "description": "Optional short heading for the question, such as \"Confirm\" or \"Choose Mode\"."
+                },
+                "options": {
+                  "type": "array",
+                  "description": "Optional choices to show the user. If you recommend one, put it first and append \"(Recommended)\" to that label.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "Short user-facing option label."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "One sentence explaining the tradeoff or impact."
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ]
+                  }
+                },
+                "multi_select": {
+                  "type": "boolean",
+                  "description": "Whether the user may select more than one option. Defaults to false."
+                }
+              },
+              "required": [
+                "id",
+                "question"
+              ]
+            }
+          }
+        },
+        "required": [
+          "questions"
+        ]
+      }
+    },
+    {
+      "name": "bash",
+      "description": "Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+          },
+          "command": {
+            "type": "string",
+            "description": "The bash command to execute."
+          },
+          "timeoutMs": {
+            "type": "number",
+            "description": "Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed."
+          },
+          "workdir": {
+            "type": "string",
+            "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+          },
+          "run_in_background": {
+            "type": "boolean",
+            "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact command the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "description",
+          "command"
+        ]
+      }
+    },
+    {
+      "name": "create_goal",
+      "description": "Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "objective": {
+            "type": "string",
+            "description": "The concrete completion objective inferred from the direct human request."
+          },
+          "max_goal_rounds": {
+            "type": "number",
+            "description": "Optional positive safe-integer limit on automatic continuation rounds."
+          }
+        },
+        "required": [
+          "objective"
+        ]
+      }
+    },
+    {
+      "name": "edit",
+      "description": "Edit an existing UTF-8 text file by replacing literal text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to edit, resolved by the filesystem backend. Provide `file_path` before `old_string` and `new_string` in the arguments."
+          },
+          "old_string": {
+            "type": "string",
+            "description": "Literal text to replace."
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Literal replacement text. Use an empty string to delete the match."
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace all matches. Defaults to false; when false, old_string must appear exactly once."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact operation the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "file_path",
+          "old_string",
+          "new_string"
+        ]
+      }
+    },
+    {
+      "name": "export_draft_docx",
+      "description": "Export a Draft Application to Word, only when the attorney asks for the Word file: drafting/<matter>/draft-application.description.docx, .claims.docx and .abstract.docx (one file per document type, office page setup, source markers and the Inventor Questions section removed), draft-application.full.docx (the full review copy, the whole application in one file, marked not for filing) and filing-manifest.md (claims, drawing sheets, abstract figure, ESTIMATED pages). It re-runs the validators and refuses while any Error or Inventor Question in findings.md is open and unwaived, while `approved` in claims.md is not true, or while claims.md differs from the claims the draft was generated against; at a closed approval or at unwaived Errors it asks the attorney in the chat first and continues only when the file carries the flag or the waiver; a refusal lists every blocking item and names the open steps of checklist.md. Report every item it lists as it is, with paths in backticks; the attorney resolves it in the draft, waives it with a reason, or opens the gate. On success it logs the attorney's edits against draft-application.generated.md in the Working Record and delivers the five files to the user; do not call present for them. Drawings are not generated. The export is a draft for attorney review, not a filing.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "matter": {
+            "type": "string",
+            "description": "The matter folder name under drafting/, e.g. 'hinge'."
+          }
+        },
+        "required": [
+          "matter"
+        ]
+      }
+    },
+    {
+      "name": "get_goal",
+      "description": "Read the current session goal, including the id and revision that update_goal requires.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "glob",
+      "description": "Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern to match file paths against (e.g. \"**/*.ts\", \"src/**/*.test.js\"). A pattern with no \"/\" matches the basename at any depth, so \"*\" and \"*.ts\" both search the whole tree; include a separator to anchor the depth."
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory to search in. Defaults to the session workspace; a relative path resolves against it."
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      }
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns up to 250 matches; a larger result reports where the complete match list was saved.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Regular expression to search for (ripgrep syntax)."
+          },
+          "path": {
+            "type": "string",
+            "description": "File or directory to search. Defaults to the session workspace; a relative path resolves against it."
+          },
+          "include": {
+            "type": "string",
+            "description": "One glob filter for which files to search (e.g. \"*.ts\", \"*.{js,jsx}\"). Not a list; negation is not supported."
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      }
+    },
+    {
+      "name": "interrupt_agent",
+      "description": "Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a local direct child's conversation later with send_message. External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The id of an agent created under you: your direct child or a deeper descendant."
+          }
+        },
+        "required": [
+          "agent_id"
+        ]
+      }
+    },
+    {
+      "name": "inventor_questions",
+      "description": "The Inventor Questions document of one matter folder drafting/<matter>/ (application-drafting skill, Step 5). action \"send\": when the attorney asks to send the questions to the inventor, it writes drafting/<matter>/inventor-questions.docx from inventor-answers.md: a heading, one sentence on what the inventor does, and one table with a row per open question (a question whose current answer is empty) with the question, where the answer goes and an empty answer cell; the file is delivered to the user, do not call present for it. It refuses while the existing inventor-questions.docx holds answers that are not imported yet. action \"import\": when the attorney asks to apply the answers and the inventor answered in a file, call it first with that file (default drafting/<matter>/inventor-questions.docx; also a .md file in the format of inventor-answers.md, in the matter folder). Code copies each answer, in the inventor's words, into the empty answer slot of its question in inventor-answers.md and never writes over a filled answer; the result names the questions filled, the questions not changed and the ids it does not know. Then apply the answers to the draft as the skill says. Never write an answer into inventor-answers.md yourself.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "matter": {
+            "type": "string",
+            "description": "The matter folder name under drafting/, e.g. 'hinge'."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "send",
+              "import"
+            ],
+            "description": "\"send\" writes inventor-questions.docx for the inventor; \"import\" copies the inventor's answers into inventor-answers.md."
+          },
+          "file": {
+            "type": "string",
+            "description": "For \"import\" only: the workspace-relative path of the answered file in drafting/<matter>/, a .docx or a .md. Default: drafting/<matter>/inventor-questions.docx."
+          }
+        },
+        "required": [
+          "matter",
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "job_kill",
+      "description": "Request cancellation of a running background job.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id returned by the tool that started the background work."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional short reason, recorded in the log and forwarded to the job."
+          }
+        },
+        "required": [
+          "job_id"
+        ]
+      }
+    },
+    {
+      "name": "job_list",
+      "description": "List your background jobs (running and finished) with their ids, kinds, and statuses.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "job_output",
+      "description": "Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id returned by the tool that started the background work."
+          },
+          "wait": {
+            "type": "boolean",
+            "description": "Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false."
+          },
+          "timeout_ms": {
+            "type": "number",
+            "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
+          }
+        },
+        "required": [
+          "job_id"
+        ]
+      }
+    },
+    {
+      "name": "list_agents",
+      "description": "List subagents you started, with their ids, labels, and status. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "description": "children (default) lists direct children, which accept send_message in any status. descendants lists the whole tree below you with each entry's parent session id and depth; entries deeper than 1 accept only interrupt_agent.",
+            "enum": [
+              "children",
+              "descendants"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "list_subagent_models",
+      "description": "Inspect subagent models without changing the current Agent. No arguments: providers; `provider`: allowed models; `provider` + `model`: that model and its reasoning efforts. Inspect options here before selecting a child provider and model; use returned ids for delegation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Registered LLM provider id."
+          },
+          "model": {
+            "type": "string",
+            "description": "Exact model id; requires provider."
+          }
+        }
+      }
+    },
+    {
+      "name": "present",
+      "description": "Declare existing files as final deliverables for the user. Hosts may show presented files only after your turn ends, so call it once the files are final. If the user needs to review files earlier, such as before a tool call that waits for their answer, link them in your message instead. Use it when the user needs a separate file, especially Office documents, spreadsheets, and slide decks; prefer your final response when that suffices. The user opens the current files; their contents are not copied.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "description": "Usually the 1-2 most important deliverables; at most 4 per call.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Path of an existing regular file. Relative paths use the Session working directory."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Brief description for the user."
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        },
+        "required": [
+          "files"
+        ]
+      }
+    },
+    {
+      "name": "read",
+      "description": "Read a UTF-8 text file and return line-numbered content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to read, resolved by the filesystem backend."
+          },
+          "offset": {
+            "type": "number",
+            "description": "1-based first line to return. Defaults to 1."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to return. Defaults to 2000."
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
+    },
+    {
+      "name": "read_image",
+      "description": "Read a PNG/JPEG/WebP/GIF file and return the image itself. Large images are downscaled automatically; do not install image libraries or create thumbnails to inspect an image.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to the image file, resolved by the filesystem backend."
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
+    },
+    {
+      "name": "remove_claim",
+      "description": "Remove one claim from drafting/<matter>/claims.md (application-drafting skill, Step 4). Call it only after the attorney chose \"Remove claim N\" in chat, for example on a figure-coverage Error (a claim cites a Feature List row that no figure shows) or an advisory item that says a claim has no figure support. The tool asks the attorney to confirm the removal and its cost before it writes; a declined confirmation changes nothing. It deletes the claim, renumbers each later claim down by one, and changes the claim references in the other claims with them (\"of claim 5\" becomes \"of claim 4\"). It refuses, and changes nothing, when another claim refers to the claim (the refusal names those claims: the attorney decides about them first) or when claims.md has no claim with that number. The removal changes the claims, so it re-opens the claims approval: `approved` in claims.md becomes false and the attorney approves the claims again before drafting continues; then call start_application_draft. The tool records the old and new claim numbers in the Working Record. Report the renumbering and the re-opened approval to the attorney; never remove a claim on your own.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "matter": {
+            "type": "string",
+            "description": "The matter folder name under drafting/, e.g. 'hinge' for drafting/hinge/."
+          },
+          "claim": {
+            "type": "number",
+            "description": "The number of the claim to remove, as claims.md numbers it now."
+          }
+        },
+        "required": [
+          "matter",
+          "claim"
+        ]
+      }
+    },
+    {
+      "name": "schedule_create",
+      "description": "Create a reminder in the current session that delivers prompt when it becomes due. Supply exactly one timing parameter: after_seconds, at, every_seconds, daily, weekly, or cron. Local times that do not exist in the zone are skipped; repeated local times fire once, at the earlier instant. After downtime, a recurring reminder delivers only its latest missed occurrence. Delivery can repeat after a crash.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Reminder content to present when the target becomes due."
+          },
+          "title": {
+            "type": "string",
+            "description": "Concise task name in the user's language, at most 120 characters. Name only the core action and subject; keep essential target identifiers such as PR numbers and branch names. Do not include execution frequency (e.g. daily, hourly), scheduled dates/times, time zones, task status, or configuration and execution details (e.g. read-only mode, profile-tag filters), even when embedded in the requested or existing title. Do not append parenthetical notes. Put scheduling information in the timing parameters and execution instructions in prompt."
+          },
+          "after_seconds": {
+            "type": "number",
+            "description": "Delay in whole seconds."
+          },
+          "every_seconds": {
+            "type": "number",
+            "description": "Fixed-rate interval in whole seconds, at least 60, aligned to the creation time; changing it with schedule_update re-aligns it to the save time."
+          },
+          "daily": {
+            "type": "object",
+            "description": "Every day at a local time.",
+            "additionalProperties": false,
+            "properties": {
+              "time": {
+                "type": "string",
+                "description": "HH:mm:ss with optional 1-3 fractional digits, for example 23:00:00."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              }
+            },
+            "required": [
+              "time",
+              "time_zone"
+            ]
+          },
+          "weekly": {
+            "type": "object",
+            "description": "On the given weekdays at a local time.",
+            "additionalProperties": false,
+            "properties": {
+              "time": {
+                "type": "string",
+                "description": "HH:mm:ss with optional 1-3 fractional digits, for example 09:00:00."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              },
+              "weekdays": {
+                "type": "array",
+                "description": "ISO weekdays, Monday 1 through Sunday 7, without repetitions.",
+                "items": {
+                  "type": "integer"
+                }
+              }
+            },
+            "required": [
+              "time",
+              "time_zone",
+              "weekdays"
+            ]
+          },
+          "cron": {
+            "type": "object",
+            "description": "Five-field Vixie cron expression in a time zone.",
+            "additionalProperties": false,
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "minute hour day-of-month month day-of-week, for example \"*/15 9-17 * * 1-5\". When both day fields are restricted, a date matches if either one matches."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              }
+            },
+            "required": [
+              "expression",
+              "time_zone"
+            ]
+          },
+          "at": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string"
+                  },
+                  "time_zone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "date",
+                  "time",
+                  "time_zone"
+                ]
+              }
+            ],
+            "description": "Absolute target: an RFC 3339 date-time with offset, or a local date, time, and IANA time_zone."
+          }
+        },
+        "required": [
+          "prompt",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "schedule_delete",
+      "description": "Delete a reminder in the current session, active or inactive. Deletion does not retract a reminder message that is already queued.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Exact schedule id."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "schedule_list",
+      "description": "List the active reminders in the current session.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "schedule_update",
+      "description": "Change a reminder in place, keeping its id. Supply a new title, prompt, or at most one timing parameter; omitted fields keep their stored values. To change a relative delay, create a new reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Schedule id returned by schedule_list."
+          },
+          "title": {
+            "type": "string",
+            "description": "New task name; follow the schedule_create title rules."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "New reminder content."
+          },
+          "every_seconds": {
+            "type": "number",
+            "description": "Fixed-rate interval in whole seconds, at least 60, aligned to the creation time; changing it with schedule_update re-aligns it to the save time."
+          },
+          "daily": {
+            "type": "object",
+            "description": "Every day at a local time.",
+            "additionalProperties": false,
+            "properties": {
+              "time": {
+                "type": "string",
+                "description": "HH:mm:ss with optional 1-3 fractional digits, for example 23:00:00."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              }
+            },
+            "required": [
+              "time",
+              "time_zone"
+            ]
+          },
+          "weekly": {
+            "type": "object",
+            "description": "On the given weekdays at a local time.",
+            "additionalProperties": false,
+            "properties": {
+              "time": {
+                "type": "string",
+                "description": "HH:mm:ss with optional 1-3 fractional digits, for example 09:00:00."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              },
+              "weekdays": {
+                "type": "array",
+                "description": "ISO weekdays, Monday 1 through Sunday 7, without repetitions.",
+                "items": {
+                  "type": "integer"
+                }
+              }
+            },
+            "required": [
+              "time",
+              "time_zone",
+              "weekdays"
+            ]
+          },
+          "cron": {
+            "type": "object",
+            "description": "Five-field Vixie cron expression in a time zone.",
+            "additionalProperties": false,
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "minute hour day-of-month month day-of-week, for example \"*/15 9-17 * * 1-5\". When both day fields are restricted, a date matches if either one matches."
+              },
+              "time_zone": {
+                "type": "string",
+                "description": "UTC or IANA Area/Location, for example Asia/Shanghai."
+              }
+            },
+            "required": [
+              "expression",
+              "time_zone"
+            ]
+          },
+          "at": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string"
+                  },
+                  "time_zone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "date",
+                  "time",
+                  "time_zone"
+                ]
+              }
+            ],
+            "description": "Absolute target: an RFC 3339 date-time with offset, or a local date, time, and IANA time_zone."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "send_message",
+      "description": "Send a message to an agent. A working agent receives it at its next step; an idle agent starts a new turn with it. Returns delivery confirmation, not the agent's answer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent id of your direct continuable child, or your direct parent when you are a resident continuable child."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message to deliver to the agent."
+          }
+        },
+        "required": [
+          "agent_id",
+          "message"
+        ]
+      }
+    },
+    {
+      "name": "skill",
+      "description": "Load the full instructions for a skill. Call it before acting on a task that names or clearly matches a skill in the session skill catalog.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The exact skill name from the available skills list."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "start_application_draft",
+      "description": "Start Application Drafting for one matter folder drafting/<matter>/ (application-drafting skill, Step 3). It reads the gates from the files, never from the chat: `confirmed: true` in feature-list.md and `approved: true` in claims.md. At a closed gate it asks the attorney in the chat and continues only when the file carries the flag; an approval said in chat opens no gate. A refusal names the file with its line and the word to change: give the attorney that sentence as it is, with the path in backticks. When the gates are open it returns the Feature List, figures.md, the Approved Claims, the claim terms to plan (copy them verbatim into the `Claim terms` column of the Draft Outline; the outline-coverage rule checks these exact terms), the Draft Outline when it was made for the Approved Claims, the office, and up to five style exemplars from the workspace style/ folder as text, labelled style only, never a source. It records the SHA-256 of the approved claims in the Working Record; a later change to claims.md clears the approval, and the drafting tools refuse until the attorney approves again. When the outline is missing or stale, plan first: save the Draft Outline with the draft-outline template; the draft save refuses until then. Call it before writing the specification, and again after any change to the claims. Like every drafting tool, also after a refusal, it rewrites drafting/<matter>/checklist.md from the files: read that file first in a matter.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "matter": {
+            "type": "string",
+            "description": "The matter folder name under drafting/, e.g. 'hinge' for drafting/hinge/."
+          }
+        },
+        "required": [
+          "matter"
+        ]
+      }
+    },
+    {
+      "name": "subagent",
+      "description": "Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes. Supply `provider` and `model` together. Omitted values use child defaults, falling back to compatible parent values. When the effective route changes, an omitted `reasoning_effort` uses the model's default.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the delegated task, for display."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The complete, self-contained task for the subagent. It does not share this conversation's context, so include everything it needs."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Child LLM provider id."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model id within that provider."
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "description": "Model-specific reasoning effort id."
+          }
+        },
+        "required": [
+          "description",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "name": "subagent_fork",
+      "description": "Delegate a task to a subagent that inherits this conversation: a child agent seeded with all completed turns so far (it does not see the current in-flight turn). Use this when the subtask builds on this conversation's context — a follow-up analysis, a review, a continuation — without consuming this conversation's context for the work itself. You receive its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the delegated task, for display."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The task for the subagent. It already sees this conversation's completed turns, so build on them freely and state only what is new."
+          }
+        },
+        "required": [
+          "description",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "name": "todo_write",
+      "description": "Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "type": "array",
+            "description": "The COMPLETE task list, replacing any previous list.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "What the task is — a short imperative line."
+                },
+                "status": {
+                  "type": "string",
+                  "description": "pending (not started) | in_progress (now) | completed (done).",
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "completed"
+                  ]
+                }
+              },
+              "required": [
+                "content",
+                "status"
+              ]
+            }
+          }
+        },
+        "required": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "name": "update_goal",
+      "description": "Update the current goal.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goal_id": {
+            "type": "string",
+            "description": "Exact id returned by get_goal."
+          },
+          "revision": {
+            "type": "number",
+            "description": "Exact positive revision returned by get_goal."
+          },
+          "action": {
+            "type": "string",
+            "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
+            "enum": [
+              "edit",
+              "pause",
+              "resume",
+              "complete",
+              "blocked"
+            ]
+          },
+          "objective": {
+            "type": "string",
+            "description": "Replacement objective; valid only with action edit."
+          },
+          "max_goal_rounds": {
+            "type": "number",
+            "description": "Replacement cap; valid only with action edit."
+          },
+          "blocked_reason": {
+            "type": "string",
+            "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
+          }
+        },
+        "required": [
+          "goal_id",
+          "revision",
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "validate_draft",
+      "description": "Validate a saved Draft Application (application-drafting skill, Step 4). It reads drafting/<matter>/draft-application.md, claims.md, figures.md, draft-outline.md and inventor-answers.md, runs the deterministic validators of the office in code (claims, description, abstract, defined terms, reference numerals, source markers, open Inventor Questions, the Draft Outline rules) and writes drafting/<matter>/findings.md; the attorney's waivers (a `  - Waived: <reason>` line under an item) are kept across runs. Pass the items of your advisory review in `advisory`: each quotes the passage it concerns and gives its line or claim; they are recorded as Advisory findings and never block export. When claims.md changed after start_application_draft recorded the approved claims, it adds a `claims-changed` Error and sets `approved: false`: the attorney approves again and the draft is regenerated. With unwaived Errors left it asks the attorney in the chat which to waive, with a reason; a skipped card changes nothing. Returns the counts by severity and the list of findings that block export. Report them by severity with line references; never say the draft passed or is ready to file. Every result ends with the next step for the attorney: give it as it is.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "matter": {
+            "type": "string",
+            "description": "The matter folder name under drafting/, e.g. 'hinge'."
+          },
+          "advisory": {
+            "type": "array",
+            "description": "Optional advisory review items from the model (scope, clarity, support of each claimed combination). Each quotes the passage it concerns.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "The item, quoting the passage it concerns."
+                },
+                "line": {
+                  "type": "number",
+                  "description": "The 1-based line of the passage in draft-application.md."
+                },
+                "claim": {
+                  "type": "number",
+                  "description": "The claim the item concerns."
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "matter"
+        ]
+      }
+    },
+    {
+      "name": "web_fetch",
+      "description": "Fetch the content of a specific HTTP(S) URL and return it decoded to text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The HTTP(S) URL to fetch."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "web_search",
+      "description": "Search the web for current information. Returns an optional summary answer and a list of source URLs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "queries": {
+            "type": "array",
+            "description": "1–4 search queries; their results are merged.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "queries"
+        ]
+      }
+    },
+    {
+      "name": "workflow",
+      "description": "Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn.\n\nScript-body hooks:\n- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides.\n- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. A stage throw drops that ITEM to `null` and skips its remaining stages.\n- `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`.\n- `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim.\n\nMisused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing `null`. The script has no filesystem, network, timer, or Node.js APIs; the agents do the work.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string",
+            "description": "The plain JavaScript body, not TypeScript and without an `export const meta` statement; top-level await is allowed. End with `return <value>`; the JSON-serializable value is this tool's result."
+          },
+          "meta": {
+            "type": "object",
+            "description": "The workflow identity as plain JSON, not code.",
+            "additionalProperties": true,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Short kebab-case workflow name."
+              },
+              "description": {
+                "type": "string",
+                "description": "One-line description of what the workflow does."
+              },
+              "whenToUse": {
+                "type": "string",
+                "description": "Optional guidance on when this workflow applies."
+              },
+              "phases": {
+                "type": "array",
+                "description": "Optional phase declarations matched by phase() calls.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "The phase title phase() calls match by exact string."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Optional one-line description of the phase."
+                    },
+                    "provider": {
+                      "type": "string",
+                      "description": "Optional provider override this phase is expected to use."
+                    },
+                    "model": {
+                      "type": "string",
+                      "description": "Optional model override this phase is expected to use."
+                    }
+                  },
+                  "required": [
+                    "title"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ]
+          },
+          "args": {
+            "type": "object",
+            "description": "Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {\"files\": [...]}).",
+            "additionalProperties": true
+          },
+          "run_in_background": {
+            "type": "boolean",
+            "description": "Run as a background job: return a job id immediately instead of waiting; the return value arrives with the completion notice."
+          }
+        },
+        "required": [
+          "script",
+          "meta"
+        ]
+      }
+    },
+    {
+      "name": "working_directory",
+      "description": "Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cd": {
+            "type": "string",
+            "description": "Existing directory to enter. Omit to read the current directory."
+          }
+        }
+      }
+    },
+    {
+      "name": "write",
+      "description": "Create or fully replace a UTF-8 text file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to write, resolved by the filesystem backend. Provide `file_path` before `content` in the arguments."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full UTF-8 text content to write."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact operation the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "file_path",
+          "content"
+        ]
+      }
+    },
+    {
+      "name": "write_patent_results",
+      "description": "Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo, dossier). filePath is relative to the working directory or absolute inside it; parent folders are created and an existing file is replaced. prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session's data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "description": "Absolute or workspace-relative path to the report. Use the actual workspace path; existing files can be updated with this tool."
+          },
+          "content": {
+            "type": "string",
+            "description": "Report body. Required for every template except prior-art-report and find-better-report, and except invalidity-claim-chart when it is saved with structured coverage; those take coverage instead and must leave content empty. For landscape-report include the trend, top-filer and jurisdiction tables and the white-space notes, each figure with its counting basis and source."
+          },
+          "template": {
+            "type": "string",
+            "enum": [
+              "prior-art-report",
+              "fto-memo",
+              "office-action-scaffold",
+              "invalidity-claim-chart",
+              "find-better-report",
+              "eou-infringement-chart",
+              "patentability-opinion",
+              "landscape-report",
+              "portfolio-due-diligence-memo",
+              "dossier",
+              "draft-application",
+              "draft-outline"
+            ],
+            "description": "Optional report wrapper. prior-art-report is a review of candidate evidence, not an ISR or patentability opinion. Use patentability-opinion only for a requested formal assessment; fto-memo for FTO, office-action-scaffold for responses, invalidity-claim-chart/eou-infringement-chart for their respective element charts (invalidity-claim-chart also takes structured coverage, and then requires empty content), find-better-report for a Find Better run on a granted patent (structured only: coverage with examiner and found sides, baseline, examinerBestArt, tracks; empty content), landscape-report for landscapes, portfolio-due-diligence-memo for portfolios, dossier for the dossier of one publication (content is the dossier body: snapshot, claims, family, legal status, citations, US family chain, sources and limitations), draft-application for a Draft Application of the application-drafting skill (filePath drafting/<matter>/draft-application.md; content is the whole draft starting with its frontmatter; it is written unchanged, never wrapped, with the generated snapshot and the Working Record beside it; findings never block it, but it refuses while drafting/<matter>/draft-outline.md is missing or made for other claims), draft-outline for the Draft Outline of the application-drafting skill (filePath drafting/<matter>/draft-outline.md; content is the Outline table, one row per Outline Item; the tool sets the office and the Approved Claims SHA-256 in its frontmatter; it refuses while feature-list.md is not confirmed, while claims.md is not approved, or when no Outline Item parses; it returns the outline check without blocking the save). Omit for free-form content."
+          },
+          "matter": {
+            "type": "string",
+            "description": "Matter/case reference or the identifying patent/application number, when the user provided one. Leave unset to keep the practitioner placeholder."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Short phrase naming what the report is about (the technology searched, product cleared, portfolio reviewed). ALWAYS provide this when using a template — it is known from the request."
+          },
+          "jurisdictions": {
+            "type": "string",
+            "description": "fto-memo: the markets the memo clears, as a short list (for example \"DE, FR, US\"): the markets the user named, or your proposal when the user named none. Before the first save of a memo the user confirms or replaces them in a question card, and the answer fills the memo header; without a possible answer your value is marked as not confirmed."
+          },
+          "objective": {
+            "type": "string",
+            "description": "prior-art-report: one or two sentences stating the invention and the question the search answers. invalidity-claim-chart and find-better-report: the earliest priority date the art is measured against, with its basis. Provide it — do not leave the report's Objective section as a stub."
+          },
+          "office": {
+            "type": "string",
+            "enum": [
+              "US",
+              "EPO"
+            ],
+            "description": "draft-application: the office, when the draft frontmatter does not name it."
+          },
+          "model": {
+            "type": "string",
+            "description": "draft-application: the model the disclosure went to (the one stated in chat before drafting), when the draft frontmatter does not name it."
+          },
+          "provider": {
+            "type": "string",
+            "description": "draft-application: the provider the disclosure went to, when the draft frontmatter does not name it."
+          },
+          "disclosureVersion": {
+            "type": "string",
+            "description": "draft-application: the version or date of the invention disclosure the draft is made from, for the Working Record."
+          },
+          "promptsSummary": {
+            "type": "string",
+            "description": "draft-application: a short summary of the skill, template and attorney instructions the draft was made with, for the Working Record."
+          },
+          "searchStrategy": {
+            "type": "string",
+            "description": "Confirmed search scope and cutoff basis, sources and strategy. Actual query/count history is generated from recorded executions for prior-art-report; identify unavailable or unsearched sources in limitations."
+          },
+          "concepts": {
+            "type": "array",
+            "description": "prior-art-report: the concept-synonym table the search was built from — every core concept with the synonyms, technical equivalents and related terms actually used in queries. The report renders it as its \"Concepts searched\" section; an attorney judging whether a search was competent reads it first.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "concept": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "One core concept of the invention, in the words the search used."
+                },
+                "synonyms": {
+                  "type": "array",
+                  "description": "The synonyms, technical equivalents and related terms actually used in queries for that concept.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "concept",
+                "synonyms"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "classifications": {
+            "type": "array",
+            "description": "prior-art-report: the CPC/IPC codes the search covered, each with its meaning in plain words. The report renders them as its \"Classifications searched\" section.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The CPC or IPC code, e.g. \"A61K 6/00\"."
+                },
+                "meaning": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "What that code covers, in plain words."
+                }
+              },
+              "required": [
+                "code",
+                "meaning"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "challengedPublication": {
+            "type": "string",
+            "description": "invalidity-claim-chart and find-better-report: the publication number of the patent whose claims are being charted against the cited art (for find-better-report, the granted target patent). Falls back to matter when unset."
+          },
+          "criticalDate": {
+            "type": "string",
+            "description": "invalidity-claim-chart: the critical date as an ISO date (YYYY-MM-DD), e.g. the priority date of the challenged patent. With it, the receipt lists every cited document published after it as an open point. Keep the basis of the date in objective. Leave it out when the date is not known; the receipt then says the date check was skipped."
+          },
+          "coverage": {
+            "type": "array",
+            "description": "Required for prior-art-report: explicit feature rows and an essential combination row. Status is model judgment. Copy known IDs from inline source labels or local evidenceLookup. Supported/partial rows require exact source quotations and review fields. invalidity-claim-chart accepts the same structured coverage: feature = a claim element of the challenged patent written as \"Claim 1 — element (b): …\", one combination row per independent claim (\"Claim 1 as a whole\"), claimNumber naming that claim, and sourceAnchors/evidence/elements pointing at the PRIOR-ART documents; when coverage is supplied content must be empty and the writer validates, renders and receipts the chart. find-better-report: one row per element of each independent claim (claimNumber required), each with an examiner side and a found side; the row's own status, sourceAnchors, evidence and elements are unused there.",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "feature": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "importance": {
+                  "type": "string",
+                  "enum": [
+                    "essential",
+                    "optional"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "supported",
+                    "partial",
+                    "unresolved"
+                  ]
+                },
+                "sourceAnchors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "gap": {
+                  "type": "string",
+                  "description": "Remaining limitation or search/review gap; use an empty string only when none is identified. On an essential feature left unresolved when no drawing was read this session, state the reason a drawing cannot settle it with the phrase \"figures not consulted:\" followed by that reason (for example a composition or process subject); otherwise read the drawings of the closest candidates first."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "feature",
+                    "combination",
+                    "fallback"
+                  ],
+                  "description": "fallback is invalidity-claim-chart only: one rung of the Fallback Ladder, charting only the limitation that fallback adds, with the same status, sourceAnchors, evidence, elements and gap as a feature row. A dependent-claim fallback gives claimNumber (the dependent claim) and fallbackOf (the independent claim); a description-supported fallback gives no claimNumber, fallbackOf and basis."
+                },
+                "claimNumber": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "invalidity-claim-chart: the challenged claim this row is an element of (e.g. \"1\"); on a fallback row, the dependent claim it charts, which must be a rung of fallbackOf's Fallback Ladder as derived from the challenged patent's claims recorded by get_patent_details. The chart's header states the distinct claims its rows name. find-better-report: required on every row; the independent claim of the target patent this element belongs to."
+                },
+                "fallbackOf": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "invalidity-claim-chart, kind fallback only: the independent claim this fallback falls back from; it must have feature rows in this chart."
+                },
+                "basis": {
+                  "type": "object",
+                  "description": "invalidity-claim-chart, description-supported fallback only (no claimNumber): the challenged patent's description passage that supports the fallback. The quote is checked verbatim against the recorded text at anchor, and anchor must be a description anchor of the challenged patent.",
+                  "properties": {
+                    "anchor": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "quote": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "anchor",
+                    "quote"
+                  ],
+                  "additionalProperties": false
+                },
+                "elements": {
+                  "type": "array",
+                  "description": "Required for supported/partial rows (feature and combination alike): one entry per constituent the feature requires. A supported row discloses every element by cited text or by a recorded drawing; a partial row discloses some and leaves at least one undisclosed; a supported combination row must rest on a single publication. A text element gives anchor plus disclosedBy, a literal fragment of that anchor’s recorded text. A figure element gives anchor = a PUB:figure:N anchor printed by get_patent_figures, basis = \"figure\", and reading = what the drawing clearly shows (that an element exists, how parts connect or are arranged) — never a dimension, proportion or ratio unless the drawing is stated to be to scale.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "element": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "One required constituent of the feature in your own words (e.g. the component, the property it must have, the quantity or range)."
+                      },
+                      "anchor": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The one of this row’s sourceAnchors whose passage — or, with basis \"figure\", whose recorded drawing page — discloses this element. Omit together with disclosedBy when nothing cited discloses it."
+                      },
+                      "disclosedBy": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "A literal fragment copied from that anchor’s recorded text that discloses the element; matching ignores case and whitespace. Fragments under 12 characters are disclosed as weak in the report. Omit together with anchor when no cited text discloses the element, and always for a figure element — a drawing has no quotable text."
+                      },
+                      "basis": {
+                        "type": "string",
+                        "enum": [
+                          "text",
+                          "figure"
+                        ],
+                        "description": "What discloses this element: \"text\" (the default) for a passage cited by anchor plus disclosedBy, \"figure\" for a recorded drawing page cited by a PUB:figure:N anchor and stated in reading."
+                      },
+                      "reading": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "basis \"figure\" only: what the drawing clearly shows — that an element exists, how the parts connect or are arranged. It replaces disclosedBy. A reading that states a dimension, a proportion or a ratio is rejected unless the same reading says the drawing is to scale (MPEP 2125)."
+                      }
+                    },
+                    "required": [
+                      "element"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "examiner": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "supported",
+                        "partial",
+                        "unresolved"
+                      ],
+                      "description": "supported renders as disclosed, partial as partially disclosed, unresolved as not found. Only supported counts toward \"disclosed n of m\"."
+                    },
+                    "sourceAnchors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "gap": {
+                      "type": "string",
+                      "description": "What this side's art does not disclose for the element; an empty string only when nothing is missing."
+                    },
+                    "elements": {
+                      "type": "array",
+                      "description": "Required for supported/partial rows (feature and combination alike): one entry per constituent the feature requires. A supported row discloses every element by cited text or by a recorded drawing; a partial row discloses some and leaves at least one undisclosed; a supported combination row must rest on a single publication. A text element gives anchor plus disclosedBy, a literal fragment of that anchor’s recorded text. A figure element gives anchor = a PUB:figure:N anchor printed by get_patent_figures, basis = \"figure\", and reading = what the drawing clearly shows (that an element exists, how parts connect or are arranged) — never a dimension, proportion or ratio unless the drawing is stated to be to scale.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "element": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "One required constituent of the feature in your own words (e.g. the component, the property it must have, the quantity or range)."
+                          },
+                          "anchor": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "The one of this row’s sourceAnchors whose passage — or, with basis \"figure\", whose recorded drawing page — discloses this element. Omit together with disclosedBy when nothing cited discloses it."
+                          },
+                          "disclosedBy": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A literal fragment copied from that anchor’s recorded text that discloses the element; matching ignores case and whitespace. Fragments under 12 characters are disclosed as weak in the report. Omit together with anchor when no cited text discloses the element, and always for a figure element — a drawing has no quotable text."
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": [
+                              "text",
+                              "figure"
+                            ],
+                            "description": "What discloses this element: \"text\" (the default) for a passage cited by anchor plus disclosedBy, \"figure\" for a recorded drawing page cited by a PUB:figure:N anchor and stated in reading."
+                          },
+                          "reading": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "basis \"figure\" only: what the drawing clearly shows — that an element exists, how the parts connect or are arranged. It replaces disclosedBy. A reading that states a dimension, a proportion or a ratio is rejected unless the same reading says the drawing is to scale (MPEP 2125)."
+                          }
+                        },
+                        "required": [
+                          "element"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "anchor": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "One of this row’s sourceAnchors."
+                          },
+                          "quote": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Optional for a numbered claim: omit to copy its entire recorded text verbatim by anchor. For a description passage this field is required and must match returned text. Never re-fetch a claim merely to transcribe it for this field."
+                          },
+                          "scope": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Identify independent/dependent claim or description/embodiment scope and reviewed dependency chain."
+                          },
+                          "qualifiers": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Preserve restrictions and distinguish overlapping ranges from exact feature support."
+                          },
+                          "quantityBasis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "State original units, basis and every constituent. Keep parts as parts; do not substitute an unverified percentage conversion. Say not applicable when appropriate."
+                          }
+                        },
+                        "required": [
+                          "anchor",
+                          "scope",
+                          "qualifiers",
+                          "quantityBasis"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sourceAnchors",
+                    "gap"
+                  ],
+                  "additionalProperties": false,
+                  "description": "find-better-report: the examiner's best art on this element, checked exactly like an invalidity chart row (quotes, element map, second read). Cite only the examiner's best art named for this claim in examinerBestArt. The row's own status, sourceAnchors, evidence and elements are unused in find-better-report: set status \"unresolved\", sourceAnchors [] and gap \"\"."
+                },
+                "found": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "supported",
+                        "partial",
+                        "unresolved"
+                      ],
+                      "description": "supported renders as disclosed, partial as partially disclosed, unresolved as not found. Only supported counts toward \"disclosed n of m\"."
+                    },
+                    "sourceAnchors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "gap": {
+                      "type": "string",
+                      "description": "What this side's art does not disclose for the element; an empty string only when nothing is missing."
+                    },
+                    "elements": {
+                      "type": "array",
+                      "description": "Required for supported/partial rows (feature and combination alike): one entry per constituent the feature requires. A supported row discloses every element by cited text or by a recorded drawing; a partial row discloses some and leaves at least one undisclosed; a supported combination row must rest on a single publication. A text element gives anchor plus disclosedBy, a literal fragment of that anchor’s recorded text. A figure element gives anchor = a PUB:figure:N anchor printed by get_patent_figures, basis = \"figure\", and reading = what the drawing clearly shows (that an element exists, how parts connect or are arranged) — never a dimension, proportion or ratio unless the drawing is stated to be to scale.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "element": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "One required constituent of the feature in your own words (e.g. the component, the property it must have, the quantity or range)."
+                          },
+                          "anchor": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "The one of this row’s sourceAnchors whose passage — or, with basis \"figure\", whose recorded drawing page — discloses this element. Omit together with disclosedBy when nothing cited discloses it."
+                          },
+                          "disclosedBy": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "A literal fragment copied from that anchor’s recorded text that discloses the element; matching ignores case and whitespace. Fragments under 12 characters are disclosed as weak in the report. Omit together with anchor when no cited text discloses the element, and always for a figure element — a drawing has no quotable text."
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": [
+                              "text",
+                              "figure"
+                            ],
+                            "description": "What discloses this element: \"text\" (the default) for a passage cited by anchor plus disclosedBy, \"figure\" for a recorded drawing page cited by a PUB:figure:N anchor and stated in reading."
+                          },
+                          "reading": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "basis \"figure\" only: what the drawing clearly shows — that an element exists, how the parts connect or are arranged. It replaces disclosedBy. A reading that states a dimension, a proportion or a ratio is rejected unless the same reading says the drawing is to scale (MPEP 2125)."
+                          }
+                        },
+                        "required": [
+                          "element"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "anchor": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "One of this row’s sourceAnchors."
+                          },
+                          "quote": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Optional for a numbered claim: omit to copy its entire recorded text verbatim by anchor. For a description passage this field is required and must match returned text. Never re-fetch a claim merely to transcribe it for this field."
+                          },
+                          "scope": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Identify independent/dependent claim or description/embodiment scope and reviewed dependency chain."
+                          },
+                          "qualifiers": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Preserve restrictions and distinguish overlapping ranges from exact feature support."
+                          },
+                          "quantityBasis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "State original units, basis and every constituent. Keep parts as parts; do not substitute an unverified percentage conversion. Say not applicable when appropriate."
+                          }
+                        },
+                        "required": [
+                          "anchor",
+                          "scope",
+                          "qualifiers",
+                          "quantityBasis"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sourceAnchors",
+                    "gap"
+                  ],
+                  "additionalProperties": false,
+                  "description": "find-better-report: the best art the Find Better tracks found on this element, checked exactly like an invalidity chart row. If nothing found discloses the element, status \"unresolved\" with the gap saying so."
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "anchor": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "One of this row’s sourceAnchors."
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Optional for a numbered claim: omit to copy its entire recorded text verbatim by anchor. For a description passage this field is required and must match returned text. Never re-fetch a claim merely to transcribe it for this field."
+                      },
+                      "scope": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identify independent/dependent claim or description/embodiment scope and reviewed dependency chain."
+                      },
+                      "qualifiers": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Preserve restrictions and distinguish overlapping ranges from exact feature support."
+                      },
+                      "quantityBasis": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "State original units, basis and every constituent. Keep parts as parts; do not substitute an unverified percentage conversion. Say not applicable when appropriate."
+                      }
+                    },
+                    "required": [
+                      "anchor",
+                      "scope",
+                      "qualifiers",
+                      "quantityBasis"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "feature",
+                "importance",
+                "status",
+                "sourceAnchors",
+                "gap",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "fallbacksNotCharted": {
+            "type": "array",
+            "description": "invalidity-claim-chart: rungs of the Fallback Ladder the chart does not chart, each with the reason (e.g. \"claim 9 is a use claim outside the attack\"). Every rung under a charted independent claim has exactly one fallback row or one entry here.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "claimNumber": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "claimNumber",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rounds": {
+            "type": "array",
+            "description": "invalidity-claim-chart: each Search Round, run only on the expert's answer to the Round Report. answers are the ids of the open points of the previous receipt that the expert chose (e.g. rung-3); a new round must name at least one, else the save is refused. targets are claim numbers or the feature of a description fallback; every query must match a tool execution recorded this session (same tool name, same query text, whitespace aside), else the save is refused.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "round": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "targets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "answers": {
+                  "type": "array",
+                  "description": "The ids of the previous receipt's open points the expert chose and this round answers, e.g. [\"rung-3\", \"search-1\"].",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "queries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tool": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The tool the query ran through, e.g. search_patents."
+                      },
+                      "query": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The query exactly as it ran."
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Hits returned, 0 included."
+                      }
+                    },
+                    "required": [
+                      "tool",
+                      "query"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "outcome": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "What the round changed in the chart, or that it found nothing new."
+                }
+              },
+              "required": [
+                "round",
+                "targets",
+                "queries",
+                "outcome"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "baseline": {
+            "type": "object",
+            "description": "find-better-report: the Examiner Baseline exactly as `flowleap patent examiner-baseline <publication> --json` prints it (publication, offices[], membersWalked[], documents[] with document, kinds, npl, cells{office: {text, citations[]}}, gaps[], dedupe), or the examiner_baseline backend tool's result. Pass it unedited; the writer renders the matrix and the gaps from it.",
+            "properties": {
+              "publication": {
+                "type": "string"
+              },
+              "offices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "membersWalked": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "dedupe": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "offices",
+              "documents",
+              "gaps"
+            ]
+          },
+          "baselinePath": {
+            "type": "string",
+            "minLength": 1,
+            "description": "find-better-report: workspace-relative or absolute workspace path of the unedited Baseline JSON on disk: the path the examiner_baseline tool returns, or the --json output of `flowleap patent examiner-baseline <publication>`. Use it instead of baseline (exactly one of the two); the writer reads the file, checks the same shape and its completeness, and states the source in the result and the working record."
+          },
+          "examinerBestArt": {
+            "type": "array",
+            "description": "find-better-report: per independent claim, the Baseline document(s) taken as the examiner's best art. Each publication must be in baseline.documents[] and carry, in at least one office, an X or Y category; where no X or Y citation exists (a US-origin family often has none), a document an examiner cited or a US office action rejected claims with is accepted and shown with its basis. A document only the applicant cited, with no category and no rejection, is refused.",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "claimNumber": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The independent claim of the target patent, e.g. \"1\"."
+                },
+                "publications": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Publication numbers as the Baseline lists them (kind code optional), e.g. \"US5135330\"."
+                }
+              },
+              "required": [
+                "claimNumber",
+                "publications"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "tracks": {
+            "type": "array",
+            "description": "find-better-report: every expansion track the run took (backward citations two hops from each X/Y reference; inventor and NPL-author networks; classification co-occurrence with the Discriminating Terms), each with every query and its hit count, zero included. A track with no query is listed with an empty queries array. Mark each backward-citation query with hop 1 or 2. A track with no query, or a backward-citation track with no hop 2 query, makes the per-claim result read \"Search incomplete for claim N\" instead of \"No better art found\". A count the execution record holds replaces the one given here.",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "queries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "query": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "tool": {
+                        "type": "string",
+                        "description": "The tool or command the query ran through."
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Hits returned, 0 included."
+                      },
+                      "hop": {
+                        "type": "integer",
+                        "enum": [
+                          1,
+                          2
+                        ],
+                        "description": "Backward-citation track only: the hop of the two-hop walk this query belongs to (1 = references of an X/Y document, 2 = references of a hop-1 document). A backward-citation track with no hop 2 query makes the result read \"Search incomplete\"; when hop 1 left no document outside the Baseline, log one hop 2 entry saying so with count 0."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "queries"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "description": "Required for prior-art-report. State review scope, unsearched tracks, unavailable sources and uncertainties.",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "stopReason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Required for prior-art-report. Explain why synthesis is appropriate given coverage and repeated/new evidence, or identify the user-directed/bounded stop and remaining tracks. No universal query-count target."
+          }
+        },
+        "required": [
+          "filePath",
+          "content"
+        ]
+      }
+    }
+  ],
+  "changes": []
+}

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Prüfungsbescheide",
-    "description": "Die Übersicht zum Prüfungsbescheid: eine Karte je Einwand mit den betroffenen Ansprüchen, den zitierten Stellen, einem Prüfstatus und einer verantwortlichen Person. Diese Version enthält nur Beispieldaten."
+    "description": "Die Übersicht zum Prüfungsbescheid: eine Karte je Einwand einer gespeicherten Analyse, mit den betroffenen Ansprüchen, den zitierten Stellen und einem Prüfstatus, einer verantwortlichen Person und einer Notiz, die der Anwalt festlegt."
   }
 }

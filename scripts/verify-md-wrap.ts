@@ -71,7 +71,7 @@ function findViolations(absPath: string): Violation[] {
 }
 
 // FlowLeap fork: this snapshot pins the agent-v2 prompt artifact verbatim, as packages/bundle/flowleap-web/prompt/ holds it.
-const VERBATIM_PROMPT_SNAPSHOTS = ['snapshots/web/flowleap-routine-run/', 'snapshots/web/flowleap-agent-search/']
+const VERBATIM_PROMPT_SNAPSHOTS = ['snapshots/web/flowleap-routine-run/', 'snapshots/web/flowleap-agent-search/', 'snapshots/web/flowleap-office-action-board/']
 
 const files = uniqueRepoFiles(root, PATTERNS, path => isFrozenMarkdownPath(path)
   || VERBATIM_PROMPT_SNAPSHOTS.some(prefix => relative(root, path).startsWith(prefix)))

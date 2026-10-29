@@ -1,14 +1,16 @@
 # Work pages
 
-The attorney opens the `Office actions` page from the sidebar and sees the office action board: a header with the application, the communication, the days to the time limit and the review count, the run state, one card for each objection, and a side panel for the open card. The look-first version shows one invented analysis from a fixture, under a `Sample data` banner, and keeps state and owner changes in the browser only. It makes no model, Remote, or connector call, so its proof needs no turn.
+The attorney opens the `Office actions` page from the sidebar and sees the office action board of each saved office action analysis: a header with the application, the communication, the days to the time limit and the review count, the saved analysis with its chat link, the cited documents, one card for each objection, and a side panel for the open card. The board reads `<report>.work.json`, which a `write_patent_results` save with `office-action-scaffold` writes beside the report. The state, the owner and the note of a card go into that file through the `flowleapWorkPages` Remote. The page makes no model or connector call: `Write response plan` sends a chat message, and `New analysis` opens a chat with a drafted message.
 
 ## Sub-features
 
-- `work-board` shows the banner, the header, the run state, the cited documents, the three objection cards, and the footer.
-- `work-state-owner` changes the review state and the owner of a card, and the header count and the launcher count follow.
-- `work-side-panel` opens a card in the side panel with the examiner's text, each claim feature beside its passage, and the response options.
-- `work-form` opens the analysis form with the application number, the PDF, the agent and the budget left.
-- `work-deferred` shows a notice for `Write response plan`, `Export Word`, `Open chat` and `Start analysis`, and the tooltip of the disabled `Share`.
+- `work-empty` shows `No office action analysis yet` before any analysis is saved.
+- `work-form` opens the form with the application number and opens a new chat with `Analyse the office action for <number>.` drafted, not sent.
+- `work-board` shows the board of a saved analysis: one card per `### Objection` block, with the claims hit and the cited passages.
+- `work-review` changes the state, the owner and the note of a card; the file holds them, a reload keeps them, and the header count and the launcher dot follow.
+- `work-side-panel` opens a card with the fields of its block and the claim tables of the claims it hits.
+- `work-plan` sends the response plan message into the chat of the analysis; the next model read of the work page file shows the review fields in the Session log.
+- `work-disabled` shows `Export Word` and `Share` disabled, with their tooltips.
 
 ## How to get to it (user POV)
 
@@ -18,16 +20,21 @@ The attorney opens the `Office actions` page from the sidebar and sees the offic
 
 Preconditions:
 
-- The baseline in [README.md](./README.md). A key is not used: the page makes no model call.
+- The baseline in [README.md](./README.md).
+- An analysis needs a live turn: the preconditions of [office-action-analysis.md](./office-action-analysis.md) (the skill pack under test, `Anthropic: Claude Sonnet 5.5` in the model picker). One EP run is enough. The empty state, the form, and a board from a copied work page need no turn.
 
-- **Board.** Choose button `Office actions`. The region `Office action board` shows the note `Sample data`, the heading `EP 3 456 789 · Communication under Article 94(3) EPC`, `Reply due in N days`, `Needs review: 2`, the status `Agent is reading the action`, and the list `Objections in the office action` with three cards.
-- **State and owner.** Choose button `Review state of Art. 54 EPC: Needs review`, then menu item `Relevant` (use an exact match: `Not relevant` also contains the word). The header shows `Needs review: 1` and the launcher count shows `1`. Type in textbox `Owner of Art. 84 EPC` and press Enter.
-- **Side panel.** Choose button `Open Art. 54 EPC in the side panel`. The complementary region `Objection details` shows `Examiner's text`, `Claim feature and cited passage` and `Response options`. Button `Close the side panel` closes it.
-- **Form.** Choose button `New analysis`. The dialog `New office action analysis` shows the textbox `Application number`, the PDF row, button `Agent: Patent Agent`, and the budget line. `Start analysis` closes the dialog and shows a notice.
-- **Dark mode.** Set the color scheme to dark and repeat the board view.
-- **Proof.** Save screenshots of the board, the side panel, the form and the dark board in `$RUN/evidence/`.
+- **Empty state.** Choose button `Office actions`. The region `Office action board` shows `No office action analysis yet`.
+- **Form.** Choose button `New analysis`. The dialog `New office action analysis` shows textbox `Application number` and the PDF hint. Set the number (for example `EP 4814394`; the browser tool's `form_input` fills it reliably) and choose `Open the chat`. A new chat opens with the request in the composer. Choose the model, then send.
+- **Board.** When the delivery card of the report shows, choose `Office actions`. The header shows `<application> · <communication>` and `Needs review: N`, and the list `Objections in the office action` has one card per objection of the report.
+- **Review.** On a card, choose button `Review state of objection <id>: Needs review`, then menu item `Relevant` (exact match). Type in textbox `Owner of objection <id>` and press Enter. Type in textbox `Note on objection <id>` and leave the field. The header count changes. Read `$RUN/workspace/deepseek-harness/default-workspace/office-actions/<application>/<report>.work.json`: its `review` holds the values. Reload the page: the values stay.
+- **Side panel.** Choose button `Open objection <id> in the side panel`. The complementary region `Objection details` shows the ground, the examiner's reasoning, the cited documents, the response options, and `Reply must address`.
+- **Plan.** Choose `Write response plan`. The chat of the analysis opens with the message `Write the response plan for the office action analysis of …`. The run log shows a read of the `.work.json` file (a `read` call, or `cat` through `bash`) whose result holds the review fields, and the plan follows them: an objection marked `Not relevant` is left out.
+- **Proof.** Save screenshots of the empty state, the form, the board, the side panel and the plan message in `$RUN/evidence/`, and the session log summary of the chat.
 
 ## Gotchas
 
 - The Modal fades in. Wait about half a second after the dialog shows before a screenshot, or the page behind it shows through.
-- A reload restores the sample: the state and owner changes are not saved in this version.
+- The board lists a page only when the save had a chat; a report saved by hand, or by a save without an Agent, has a file but no card.
+- The model can save the response plan with the same `office-action-scaffold` template. A plan has no `### Objection` block, so its result line says `Work page: none, …` and the board keeps the analysis page only.
+- A work page keeps the findings of the save that wrote it. A parser change shows on the board only after the next save of that report.
+- A report that renames the field labels of the analysis layout loses those fields on the board. The report itself is unchanged.

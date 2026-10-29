@@ -19,6 +19,18 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./work-pages": {
+      "types": "./lib/types/work-page/types.d.ts",
+      "default": "./lib/types/work-page/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
@@ -27,7 +39,12 @@
     "icon.svg",
     "locale/*.json",
     "lib/index.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
   ],
   "license": "MIT",
   "dependencies": {
@@ -41,6 +58,8 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
+    "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/dsh-commands": "workspace:*",
     "@deepseek-ai/dsh-fs": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
@@ -48,6 +67,7 @@
     "@deepseek-ai/dsh-storage-domain": "workspace:*",
     "@deepseek-ai/dsh-tool-present": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-user-approval": "workspace:*",
     "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
@@ -58,6 +78,8 @@
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-loop": "workspace:*",
     "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
+    "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/dsh-commands": "workspace:*",
     "@deepseek-ai/dsh-fs": "workspace:*",
     "@deepseek-ai/dsh-fs-local": "workspace:*",
@@ -71,6 +93,7 @@
     "@deepseek-ai/dsh-tool-present": "workspace:*",
     "@deepseek-ai/dsh-tool-testkit": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-user-approval": "workspace:*",
     "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",

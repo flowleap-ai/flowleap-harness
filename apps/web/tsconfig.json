@@ -67,6 +67,7 @@
     "tests/subagent-fork-schedule.snapshot.ts",
     "tests/flowleap-routine-run.snapshot.ts",
     "tests/flowleap-agent-search.snapshot.ts",
+    "tests/flowleap-office-action-board.snapshot.ts",
     "tests/flowleap-budget-warning.e2e.ts",
     "tests/flowleap-disk-low.e2e.ts",
     "tests/flowleap-skills-dir.e2e.ts",
