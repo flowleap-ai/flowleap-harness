@@ -653,6 +653,15 @@ export type OnboardingProcess = 'compact' | 'standard' | 'detailed'
 export interface Config {
   /** Offer the browser API-key step when no native shell owns credential onboarding. */
   credentialOnboarding: boolean
+  /**
+   * The deployment fixes the model routes and keys: the page shows them and
+   * offers no add, edit, sign-in, or key entry. The Host operations refuse
+   * those writes on their own (`llm-pi-ai` `fixedRoutes`, `credentials-local`
+   * `lockedRefs`); this flag only keeps the page from offering them. While it
+   * is true, an enabled `llm-pi-ai` Loader row without `fixedRoutes: true`
+   * fails this entry at load.
+   */
+  managed: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-models -->
@@ -851,6 +860,14 @@ export interface Config {
    * a changed file takes effect at the next start.
    */
   readOnlyPath?: string
+  /**
+   * References only the deployment supplies: through `readOnlyPath`, the
+   * inherited environment, or a `.env` fallback. `set` refuses them,
+   * `describe` reports them not writable, and a value the managed document
+   * already holds for one is ignored; `unset` removes such a value. Empty by
+   * default.
+   */
+  lockedRefs?: string[]
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
@@ -2150,6 +2167,15 @@ export interface Config {
    * and registers them the moment a settings section supplies profiles.
    */
   providers: Volatile<Record<string, PiAiProviderProfile>>
+  /**
+   * The deployment owns the route set: every route names `apiKeyEnv`, a live
+   * change of `providers` is refused, no sign-in flow and no endpoint
+   * discovery is offered, and the provider directory lists only the
+   * configured routes. Not volatile, so no settings form can turn it off.
+   * The credential references are not checked: the deployment makes each
+   * route's `apiKeyEnv` locked (`credentials-local` `lockedRefs`) or read-only.
+   */
+  fixedRoutes: boolean
 }
 
 /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
@@ -2848,6 +2874,17 @@ export interface Config {
    * deselecting a bundle the profile already selects still works.
    */
   withheldBundles?: string[]
+  /**
+   * Whether this deployment installs and updates packages. False refuses `installBundle` and `updateBundle` with
+   * `deployment-locked`, for a product whose administrator installs plugins outside the application.
+   */
+  installBundles?: boolean
+  /**
+   * The only bundle package names this deployment lets the profile select. Absent or `null`: every bundle
+   * `withheldBundles` does not name. Selecting another one (`setBundleEnabled(name, true)` or an activating install)
+   * fails with `deployment-locked`; deselecting a selected bundle is not affected.
+   */
+  offeredBundles?: string[] | null
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->

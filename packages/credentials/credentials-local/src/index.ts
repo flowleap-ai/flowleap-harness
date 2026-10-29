@@ -81,6 +81,14 @@ export interface Config {
    * a changed file takes effect at the next start.
    */
   readOnlyPath?: string
+  /**
+   * References only the deployment supplies: through `readOnlyPath`, the
+   * inherited environment, or a `.env` fallback. `set` refuses them,
+   * `describe` reports them not writable, and a value the managed document
+   * already holds for one is ignored; `unset` removes such a value. Empty by
+   * default.
+   */
+  lockedRefs?: string[]
   /** Watch the document and hot-publish external edits; defaults to true. */
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
@@ -91,6 +99,7 @@ export interface Config {
 interface ResolvedSpec {
   filename: string
   readOnlyFilename?: string
+  lockedRefs: ReadonlySet<CredentialRef>
   watch: boolean
   debounceMs: number
 }
@@ -105,6 +114,7 @@ export function resolveSpec(config: Config): ResolvedSpec {
   return {
     filename: resolve(config.path ?? join(resolveDshHome(config.dshHome), CREDENTIALS_FILENAME)),
     ...config.readOnlyPath === undefined ? {} : { readOnlyFilename: resolve(config.readOnlyPath) },
+    lockedRefs: new Set((config.lockedRefs ?? []).map(ref => credentialRef(ref))),
     watch: config.watch ?? true,
     debounceMs: config.debounceMs ?? 100,
   }
@@ -539,6 +549,7 @@ export class LocalCredentialProvider extends CredentialProvider {
     path: z.string(),
     dshHome: z.string(),
     readOnlyPath: z.string(),
+    lockedRefs: z.array(z.string().pattern(/^[A-Za-z_][A-Za-z0-9_]*$/)),
     watch: z.boolean().default(true),
     debounceMs: z.number().min(0).default(100),
   })
@@ -648,7 +659,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   override resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined> {
     const provided = this.readOnly.refs.get(ref)
     if (provided !== undefined) return Promise.resolve({ value: provided, source: READ_ONLY_SOURCE })
-    const stored = this.values.get(ref)
+    const stored = this.spec.lockedRefs.has(ref) ? undefined : this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ value: stored, source: 'file' })
     const inherited = this.inherited(ref)
     if (inherited !== undefined) return Promise.resolve({ value: inherited, source: 'env' })
@@ -659,6 +670,7 @@ export class LocalCredentialProvider extends CredentialProvider {
 
   override describe(ref: CredentialRef): Promise<CredentialInfo> {
     if (this.readOnly.refs.has(ref)) return Promise.resolve({ configured: true, source: READ_ONLY_SOURCE, writable: false })
+    if (this.spec.lockedRefs.has(ref)) return Promise.resolve(this.describeLocked(ref))
     const stored = this.values.get(ref)
     if (stored !== undefined) return Promise.resolve({ configured: true, source: 'file', writable: true })
     // Every other reference is writable: a set writes the managed file, which
@@ -669,7 +681,16 @@ export class LocalCredentialProvider extends CredentialProvider {
     return Promise.resolve({ configured: false, writable: true })
   }
 
+  /** What a locked reference reports: its deployment source, never writable. */
+  private describeLocked(ref: CredentialRef): CredentialInfo {
+    if (this.inherited(ref) !== undefined) return { configured: true, source: 'env', writable: false }
+    const fallback = this.dotenvFallback(ref)
+    if (fallback !== undefined) return { configured: true, source: fallback.source, writable: false }
+    return { configured: false, writable: false }
+  }
+
   override async set(ref: CredentialRef, value: string): Promise<void> {
+    this.assertUnlocked(ref)
     this.assertWritable(this.readOnly.refs, ref)
     if (value.length === 0) {
       throw new Error(`credentials-local: an empty value cannot be stored for "${ref}"; use unset`)
@@ -678,6 +699,7 @@ export class LocalCredentialProvider extends CredentialProvider {
   }
 
   override async unset(ref: CredentialRef): Promise<void> {
+    // A locked reference may still be unset: that removes a value stored before the lock, which resolve ignores.
     this.assertWritable(this.readOnly.refs, ref)
     await this.write(ref, undefined)
   }
@@ -760,6 +782,16 @@ export class LocalCredentialProvider extends CredentialProvider {
         this.notifyRecordUpdated(key)
       }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
     })
+  }
+
+  /**
+   * Refuse to store a value for a reference the deployment supplies (`lockedRefs`).
+   * @param ref - the reference to store.
+   * @throws Error naming the reference.
+   */
+  private assertUnlocked(ref: CredentialRef): void {
+    if (!this.spec.lockedRefs.has(ref)) return
+    throw new Error(`credentials-local: "${ref}" is supplied by this deployment (lockedRefs); it cannot be changed here`)
   }
 
   /**

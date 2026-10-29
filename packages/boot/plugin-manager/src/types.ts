@@ -22,8 +22,11 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 
-/** Reasons a profile control cannot modify its target. */
-export type ReadOnlyReason = 'management-required' | 'unaddressable'
+/**
+ * Reasons a profile control cannot modify its target. `deployment-locked`: a profile bundle locks the row
+ * (`dsh.bundle.lockedRows`), or this deployment does not install packages (`installBundles: false`).
+ */
+export type ReadOnlyReason = 'management-required' | 'unaddressable' | 'deployment-locked'
 
 /** A package whose declared DSH requirements reject the running DSH version, without an exemption for the exact pair. */
 export interface IncompatiblePlugin {

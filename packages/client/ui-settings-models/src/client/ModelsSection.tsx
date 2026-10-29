@@ -413,8 +413,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   return (
     <div className={styles['section']}>
       <h2 className={styles['title']}>{t('title')}</h2>
-      <p className={styles['intro']}>{t('intro')}</p>
-      {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
+      {state.managed ? null : <p className={styles['intro']}>{t('intro')}</p>}
+      {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t(state.managed ? 'managed' : 'readOnly')}</p> : null}
       {savedIdentity === undefined
         ? null
         : (
@@ -501,8 +501,9 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       : null}
                 </span>
                 <span className={styles['rowActions']}>
-                  {/* The account catalog comes from the account listing; its model overrides live in cordis.patch.yml. */}
-                  {row.entry.provider === 'deepseek-account'
+                  {/* The account catalog comes from the account listing; its model overrides live in cordis.patch.yml.
+                      A managed deployment's routes have nothing to edit. */}
+                  {row.entry.provider === 'deepseek-account' || state.managed
                     ? null
                     : (
                       <button
@@ -690,7 +691,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 : null}
             </div>
           )
-          : catalogOffered || customOffered
+          // A managed deployment offers no provider to add.
+          : (catalogOffered || customOffered) && !state.managed
             ? (
               // One entry for both ways to gain a provider; the card behind it
               // splits them. Full width, so it lines up with the rows above.
