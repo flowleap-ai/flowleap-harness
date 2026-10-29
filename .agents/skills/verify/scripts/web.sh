@@ -8,6 +8,7 @@
 # start copies the flowleap-connectors/* records of the founder's credential file
 # (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
 # which the overlay mounts as readOnlyPath; stop deletes that copy.
+# FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-plugins checkout below $HOME.
 # DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml.
 #
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
@@ -22,6 +23,7 @@ run=$(cd "$run" && pwd)
 pid_file="$run/server.pid"
 log="$run/server.log"
 firm_keys="$run/firm-keys.yaml"
+skills_dir=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-plugins/plugins/flowleap/skills}
 
 alive() { [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; }
 url() { grep -Eo 'https?://(127\.0\.0\.1|\[::1\]|localhost):[0-9]+/?[^ ]*' "$log" 2>/dev/null | head -1 || true; }
@@ -32,6 +34,8 @@ case "$cmd" in
     alive && { echo "already running: PID $(cat "$pid_file") $(url)"; exit 0; }
     [[ -d "$repo/apps/web/dist" ]] || { echo "no apps/web/dist: run 'pnpm run build:artifacts' first" >&2; exit 1; }
     [[ -n "${OPENROUTER_API_KEY:-}" ]] || { echo "OPENROUTER_API_KEY is not set" >&2; exit 1; }
+    # The skill pack row fails at load when its folder does not exist; the default is the release image's folder.
+    [[ -d "$skills_dir" ]] || { echo "no skill pack at $skills_dir: set FLOWLEAP_SKILLS_DIR" >&2; exit 1; }
     mkdir -p "$run/home" "$run/workspace" "$run/evidence"
     # Only the connector records: the server must write its own browser-session record.
     (umask 077 && cd "$repo/packages/credentials/credentials-local" && node --input-type=module -e "
@@ -47,7 +51,7 @@ case "$cmd" in
     tsx=$(cd "$repo" && node --input-type=module -e "console.log(import.meta.resolve('tsx/esm'))")
     (
       cd "$run/workspace"
-      DSH_VERIFY_FIRM_KEYS="$firm_keys" TSX_TSCONFIG_PATH="$repo/tsconfig.json" DSH_HOME="$run/home" DSH_AGENTS_HOME="$run/home/agents" \
+      DSH_VERIFY_FIRM_KEYS="$firm_keys" FLOWLEAP_SKILLS_DIR="$skills_dir" TSX_TSCONFIG_PATH="$repo/tsconfig.json" DSH_HOME="$run/home" DSH_AGENTS_HOME="$run/home/agents" \
         exec node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile flowleap-web \
         --patch "$repo/apps/web/tests/pin-browse-picker.overlay.yml" \
         --patch "$skill_dir/verify.patch.yml" \

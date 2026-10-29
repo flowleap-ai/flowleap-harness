@@ -67,6 +67,7 @@
     "tests/subagent-fork-schedule.snapshot.ts",
     "tests/flowleap-routine-run.snapshot.ts",
     "tests/flowleap-agent-search.snapshot.ts",
+    "tests/flowleap-skills-dir.e2e.ts",
     "tests/flowleap-firm-models.e2e.ts",
     "tests/live-interactions.e2e.ts",
     "tests/question-composer.e2e.ts",
