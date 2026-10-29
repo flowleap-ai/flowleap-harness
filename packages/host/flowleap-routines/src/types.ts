@@ -1,6 +1,6 @@
 /**
- * Client-safe vocabulary of the `flowleapRoutines` Remote: the "Needs review" mark of a chat and the change event the
- * Host forwards. Types only; nothing here reaches a Host-only symbol.
+ * Client-safe vocabulary of the `flowleapRoutines` Remote: the "Needs review" mark of a chat, the register watches,
+ * and the change event the Host forwards. Types only; nothing here reaches a Host-only symbol.
  * @module @deepseek-ai/dsh-flowleap-routines/types
  */
 
@@ -20,6 +20,43 @@ export interface RoutineReview {
   readonly state: ReviewState
   /** RFC 3339 UTC time the state was entered. */
   readonly since: string
+}
+
+/** One register event as the office lists it. */
+export interface RegisterEventView {
+  /** ISO calendar date `YYYY-MM-DD` of the event. */
+  readonly date: string
+  /** Office event code. */
+  readonly code: string
+  /** Office event text. */
+  readonly description: string
+}
+
+/** One watched application with what the last register read recorded. */
+export interface WatchedApplication {
+  /** Normalized application, for example `EP3456789` or `US17123456`. */
+  readonly application: string
+  /** RFC 3339 UTC time of the latest saved read; absent when no read is saved. */
+  readonly readAt?: string
+  /** The newest event of that read by date; absent when the read lists no event or no read is saved. */
+  readonly latest?: RegisterEventView
+}
+
+/**
+ * One register watch: the scheduled task that runs it and its applications. The watch records register events after
+ * the office lists them; it does not compute deadlines.
+ */
+export interface RoutineWatch {
+  /** The scheduled task that runs the watch. */
+  readonly taskId: string
+  /** The chat that owns the task. */
+  readonly sessionId: SessionId
+  /** Task title. */
+  readonly title: string
+  /** RFC 3339 UTC time of the next register check while the task is active; absent for an inactive task. */
+  readonly nextCheckAt?: string
+  /** Watched applications in the order the attorney named them. */
+  readonly applications: readonly WatchedApplication[]
 }
 
 declare module '@deepseek-ai/cordis' {

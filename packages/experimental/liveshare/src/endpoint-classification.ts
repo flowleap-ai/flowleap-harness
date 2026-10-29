@@ -119,6 +119,7 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'flowleapAgents/save': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapRoutines/done': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapRoutines/reviews': 'owner-only', // FlowLeap: the owner's routine review queue
+  'flowleapRoutines/watches': 'owner-only', // FlowLeap: the owner's register watches
   'settings/describe': 'owner-only', // owner settings
   'settings/mutate': 'owner-only', // owner settings
   'settings/openSettingsDocument': 'owner-only', // owner settings

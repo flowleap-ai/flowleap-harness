@@ -7,10 +7,11 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { RegisterApplication, RegisterSource } from '@deepseek-ai/dsh-flowleap-connectors'
-import type { ScheduleAdmission, ScheduleAdmissionRequest, ScheduleDelivered } from '@deepseek-ai/dsh-schedule'
+import type { ScheduleAdmission, ScheduleAdmissionRequest, ScheduleCatalogEntry, ScheduleDelivered } from '@deepseek-ai/dsh-schedule'
 import type { Domain } from '@deepseek-ai/dsh-storage-domain'
 import { runChatTitle, type RunChats } from './new-chat.ts'
 import type { ReadRecord, routinesDomain, TaskId, WatchOptions, WatchRecord } from './storage.ts'
+import type { RegisterEventView, RoutineWatch, WatchedApplication } from './types.ts'
 import {
   mergeSeen, newEntries, renderRunInstruction, type RegisterFailure, type RegisterFailureClass, type RegisterReport, type RunTextBounds,
 } from './watch.ts'
@@ -39,6 +40,49 @@ export interface RegisterWatchOptions {
   readonly readDeadlineMs: number
   /** Most events and characters one run receives. */
   readonly bounds: RunTextBounds
+}
+
+/** The stored watches and the latest read of each watched application. */
+export interface StoredWatches {
+  /** Watch rows by task id. */
+  readonly watches: ReadonlyMap<string, WatchRecord>
+  /** Latest saved read by application. */
+  readonly reads: ReadonlyMap<string, ReadRecord>
+}
+
+/**
+ * The newest entry of one read by date; of entries with the same date, the last one listed.
+ * @param read - the saved read.
+ * @returns the entry, or `undefined` for a read without entries.
+ */
+function latestEntry(read: ReadRecord): RegisterEventView | undefined {
+  let latest: RegisterEventView | undefined
+  for (const entry of read.entries) if (latest === undefined || entry.date >= latest.date) latest = entry
+  return latest
+}
+
+/**
+ * Join the stored watches with the task catalog: one view per watch whose task exists, in catalog order (next check
+ * first). A watch without a task waits for the next prune and is not listed.
+ * @param catalog - the Schedule task catalog.
+ * @param stored - the watch rows and saved reads.
+ * @returns the watch views.
+ */
+export function watchViews(catalog: readonly ScheduleCatalogEntry[], stored: StoredWatches): RoutineWatch[] {
+  return catalog.flatMap((task) => {
+    const watch = stored.watches.get(task.id)
+    if (watch === undefined) return []
+    const applications = watch.applications.map(({ application }): WatchedApplication => {
+      const read = stored.reads.get(application)
+      if (read === undefined) return { application }
+      const latest = latestEntry(read)
+      return { application, readAt: read.readAt, ...(latest === undefined ? {} : { latest }) }
+    })
+    return [{
+      taskId: task.id, sessionId: task.sessionId, title: task.title,
+      ...(task.status === 'active' ? { nextCheckAt: task.scheduledAt } : {}), applications,
+    }]
+  })
 }
 
 /** Most characters of a failed read's message in the log. */
@@ -155,6 +199,15 @@ export class RegisterWatches {
    */
   async get(id: TaskId): Promise<WatchRecord | undefined> {
     return (await this.domain).table('watches').get(id)
+  }
+
+  /**
+   * The stored watches and the saved reads.
+   * @returns both tables as maps.
+   */
+  async list(): Promise<StoredWatches> {
+    const domain = await this.domain
+    return { watches: new Map(domain.table('watches').entries()), reads: new Map(domain.table('reads').entries()) }
   }
 
   /**
