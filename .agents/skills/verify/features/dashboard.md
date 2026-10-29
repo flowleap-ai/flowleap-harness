@@ -21,7 +21,7 @@ Preconditions:
 
 - The baseline in [README.md](./README.md).
 - Write the budget answer to a file, for example `{"month":"2026-10","spent_usd":18.64,"budget_usd":50}` in `$RUN/budget-answer.json`, and start the gateway double [`scripts/budget-read.mjs`](../scripts/budget-read.mjs) in the background: `node .agents/skills/verify/scripts/budget-read.mjs 3298 "$RUN/budget-answer.json"`. It answers `GET /flowleap/budget` while the file exists, and 503 while it does not.
-- Start the instance with `DSH_VERIFY_BUDGET_URL=http://127.0.0.1:3298/flowleap/budget` and `DSH_VERIFY_PATCH="$PWD/.agents/skills/verify/features/dashboard.patch.yml"`.
+- Start the instance with `DSH_VERIFY_BUDGET_URL=http://127.0.0.1:3298` (the base URL; the row reads `/flowleap/budget` on it) and `DSH_VERIFY_PATCH="$PWD/.agents/skills/verify/features/dashboard.patch.yml"`.
 
 - **Start.** The `flowleap-dashboard` test id shows. `Budget this month` shows `$18.64 used` and `Budget $50.00`; `Budget used` shows `37 %`. `Coming up` shows `No register watch yet`. No `Sample data` tag shows.
 - **Running.** Type a register watch request in the ask bar, for example `Call register_watch_create once with applications ["EP 3 456 789"], title "EP 3 456 789 register watch", prompt "Summarise the new events.", and daily time 07:00:00 in time zone UTC. Then reply with exactly: FLOWLEAP-VERIFY-OK`, and press Enter. A new chat opens with the text in its composer. Press Enter there, then select `Dashboard` at once. The panel `Agent activity` (role `listitem`) shows `Running`.

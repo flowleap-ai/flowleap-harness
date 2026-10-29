@@ -1687,13 +1687,16 @@ export interface Config {
 /** Plugin config. */
 export interface Config {
   /**
-   * Address of the gateway's budget read, for example `http://flowleap-gateway:4000/flowleap/budget`; empty when the
-   * runtime has no gateway, and every read then reports `unknown` (`not_configured`).
+   * Base URL of the firm's model gateway, the same value as the `baseURL` of the gateway routes in `llm-pi-ai`, for
+   * example `http://flowleap-gateway:4000`; empty when the runtime has no gateway, and every read then reports
+   * `unknown` (`not_configured`).
    */
-  url: string
+  baseURL: string
+  /** Path of the budget read on the gateway origin. */
+  path: string
   /** Credential reference (environment-variable name) of the runtime's own virtual key; sent as a bearer token. */
   apiKeyRef: string
-  /** Longest time one read may take, in milliseconds. */
+  /** Longest time one read may take, body included, in milliseconds. */
   timeoutMs: number
 }
 ```

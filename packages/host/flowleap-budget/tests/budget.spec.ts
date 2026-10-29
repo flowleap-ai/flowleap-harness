@@ -15,15 +15,19 @@ afterEach(async () => {
 })
 
 /** A gateway double that answers each request with `handler`; it records the bearer token it received. */
-async function gateway(handler: (request: IncomingMessage, response: ServerResponse) => void): Promise<{ url: string; tokens: string[] }> {
+async function gateway(
+  handler: (request: IncomingMessage, response: ServerResponse) => void,
+): Promise<{ url: string; tokens: string[]; paths: string[] }> {
   const tokens: string[] = []
+  const paths: string[] = []
   const server = createServer((request, response) => {
     tokens.push(request.headers.authorization ?? '')
+    paths.push(request.url ?? '')
     handler(request, response)
   })
   servers.push(server)
   await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve) })
-  return { url: `http://127.0.0.1:${String((server.address() as AddressInfo).port)}/flowleap/budget`, tokens }
+  return { url: `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`, tokens, paths }
 }
 
 function json(status: number, body: unknown) {
@@ -34,13 +38,15 @@ function json(status: number, body: unknown) {
 }
 
 /** Mount the service with a credential store double that knows only `ANTHROPIC_API_KEY`. */
-async function budget(config: { url: string; timeoutMs?: number; key?: string | undefined }): Promise<FlowleapBudget> {
+async function budget(config: { url: string; path?: string; timeoutMs?: number; key?: string | undefined }): Promise<FlowleapBudget> {
   const ctx = new Context()
   contexts.push(ctx)
   ctx.provide('credentials', {
     resolve: async (ref: string) => ref === 'ANTHROPIC_API_KEY' && config.key !== undefined ? { value: config.key } : undefined,
   } as never)
-  await ctx.plugin(FlowleapBudget, { url: config.url, apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: config.timeoutMs ?? 5000 })
+  await ctx.plugin(FlowleapBudget, {
+    baseURL: config.url, path: config.path ?? '/flowleap/budget', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: config.timeoutMs ?? 5000,
+  })
   return ctx.get('flowleapBudget')!
 }
 
@@ -50,6 +56,13 @@ describe('flowleapBudget.month', () => {
     const service = await budget({ url: double.url, key: KEY })
     expect(await service.month()).toEqual({ state: 'known', month: '2026-10', spentUsd: 12.5, budgetUsd: 50 } satisfies BudgetMonth)
     expect(double.tokens).toEqual([`Bearer ${KEY}`])
+    expect(double.paths).toEqual(['/flowleap/budget'])
+  })
+
+  it('reads the configured path on the origin of the gateway base URL', async () => {
+    const double = await gateway(json(200, { month: '2026-10', spent_usd: 1, budget_usd: 2 }))
+    await (await budget({ url: `${double.url}/v1`, path: '/budget/read', key: KEY })).month()
+    expect(double.paths).toEqual(['/budget/read'])
   })
 
   it('keeps a missing budget as null', async () => {
@@ -60,17 +73,30 @@ describe('flowleapBudget.month', () => {
   it('reports unknown, never a number, without an address or a key', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
     expect(await (await budget({ url: '', key: KEY })).month()).toEqual({ state: 'unknown', reason: 'not_configured' })
-    expect(await (await budget({ url: 'http://127.0.0.1:9/flowleap/budget', key: undefined })).month()).toEqual({ state: 'unknown', reason: 'no_key' })
-    expect(await (await budget({ url: 'http://127.0.0.1:9/flowleap/budget', key: '' })).month()).toEqual({ state: 'unknown', reason: 'no_key' })
+    expect(await (await budget({ url: 'http://127.0.0.1:9', key: undefined })).month()).toEqual({ state: 'unknown', reason: 'no_key' })
+    expect(await (await budget({ url: 'http://127.0.0.1:9', key: '' })).month()).toEqual({ state: 'unknown', reason: 'no_key' })
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('reports a refused key, an error status, a slow gateway, and a closed port as unknown', async () => {
+  it('reports no_key and logs one line when the credential store fails', async () => {
+    const ctx = new Context()
+    contexts.push(ctx)
+    ctx.provide('credentials', { resolve: async () => { throw new Error('store locked') } } as never)
+    await ctx.plugin(FlowleapBudget, { baseURL: 'http://127.0.0.1:9', path: '/flowleap/budget', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: 5000 })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    expect(await ctx.get('flowleapBudget')!.month()).toEqual({ state: 'unknown', reason: 'no_key' })
+    expect(warn).toHaveBeenCalledOnce()
+  })
+
+  it('reports a refused key, an error status, a redirect, a slow gateway or body, and a closed port as unknown', async () => {
     const warn = vi.fn()
     for (const [handler, reason] of [
       [json(401, { error: 'invalid key' }), 'refused'],
       [json(403, { error: 'route not allowed' }), 'refused'],
-      [json(500, { error: 'down' }), 'unreachable'],
+      [json(500, { error: 'down' }), 'gateway_error'],
+      [json(502, 'bad gateway'), 'gateway_error'],
+      [(_request: IncomingMessage, response: ServerResponse) => { response.writeHead(302, { location: 'http://127.0.0.1:9/' }).end() }, 'unreachable'],
+      [(_request: IncomingMessage, response: ServerResponse) => { response.writeHead(200, { 'content-type': 'application/json' }).write('{"month":') }, 'unreachable'],
       [() => { /* never answers */ }, 'unreachable'],
     ] as const) {
       const double = await gateway(handler)
@@ -94,12 +120,25 @@ describe('flowleapBudget.month', () => {
     }
   })
 
-  it('fails loud at load for an address that is not http or https, or an invalid key reference', async () => {
+  it('reports a body above 16 KiB as invalid without reading the rest', async () => {
+    const double = await gateway(json(200, `{"month":"2026-10","pad":"${'x'.repeat(20_000)}"}`))
+    expect(await (await budget({ url: double.url, key: KEY })).month()).toEqual({ state: 'unknown', reason: 'invalid_answer' })
+  })
+
+  it('fails loud at load for a base URL that may leak the key, a path without a slash, or an invalid key reference', async () => {
     const ctx = new Context()
     contexts.push(ctx)
     ctx.provide('credentials', { resolve: async () => undefined } as never)
-    await expect(ctx.plugin(FlowleapBudget, { url: 'file:///etc/passwd', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: 5000 })).rejects.toThrow(/http or https/u)
-    await expect(ctx.plugin(FlowleapBudget, { url: 'not a url', apiKeyRef: 'ANTHROPIC_API_KEY', timeoutMs: 5000 })).rejects.toThrow(/http or https/u)
-    await expect(ctx.plugin(FlowleapBudget, { url: '', apiKeyRef: 'not-a-name', timeoutMs: 5000 })).rejects.toThrow()
+    const load = (baseURL: string, path = '/flowleap/budget', apiKeyRef = 'ANTHROPIC_API_KEY') =>
+      ctx.plugin(FlowleapBudget, { baseURL, path, apiKeyRef, timeoutMs: 5000 })
+    for (const url of ['file:///etc/passwd', 'not a url', 'http://gateway.example.com', 'http://10.0.0.5:4000']) {
+      await expect(load(url)).rejects.toThrow(/https URL/u)
+    }
+    await expect(load('', 'flowleap/budget')).rejects.toThrow(/must start with/u)
+    await expect(load('', '/flowleap/budget', 'not-a-name')).rejects.toThrow(/credential ref/u)
+    for (const url of ['https://gateway.example.com', 'http://flowleap-gateway:4000', 'http://localhost:4000', 'http://[::1]:4000', 'http://127.0.0.1:4000']) {
+      const fiber = await load(url)
+      await fiber.dispose()
+    }
   })
 })

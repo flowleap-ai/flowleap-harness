@@ -31,22 +31,24 @@ Mount the row beside the `credentials` service, which reads the key; the [`dsh-f
 - id: flowleap-budget
   name: '@deepseek-ai/dsh-flowleap-budget'
   config:
-    url: http://flowleap-gateway:4000/flowleap/budget
+    baseURL: http://flowleap-gateway:4000
+    path: /flowleap/budget
     apiKeyRef: ANTHROPIC_API_KEY
     timeoutMs: 5000
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `url` | `''` | Address of the gateway's budget read; empty when the runtime has no gateway, and every read then reports `unknown` (`not_configured`). Any other value must be an absolute http or https URL, or the row fails at load |
+| `baseURL` | `''` | Base URL of the firm's model gateway, the same value as the `baseURL` of the gateway routes in `llm-pi-ai`; empty when the runtime has no gateway, and every read then reports `unknown` (`not_configured`). Any other value must be an https URL, or an http URL to a loopback address or a single-label host such as `flowleap-gateway`, or the row fails at load |
+| `path` | `/flowleap/budget` | Path of the budget read on the origin of `baseURL`; it must start with `/`, or the row fails at load |
 | `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's own virtual key, read through `ctx.credentials` and sent as `Authorization: Bearer <key>`; an invalid name fails at load |
-| `timeoutMs` | `5000` | Longest time one read may take, in milliseconds (100 to 60000) |
+| `timeoutMs` | `5000` | Longest time one read may take, body included, in milliseconds (100 to 60000) |
 
-The `flowleap-web` bundle sets `url` from the `FLOWLEAP_BUDGET_URL` environment variable (empty when unset) and `apiKeyRef` to `ANTHROPIC_API_KEY`, the key of the bundle's gateway routes. The generated [configuration catalog](../../../docs/config-catalog.md) is the exhaustive source for every accepted field.
+The `flowleap-web` bundle sets `apiKeyRef` to `ANTHROPIC_API_KEY`, the key of the bundle's gateway routes, and no `baseURL`. The firm patch of a runtime sets `baseURL` to the base URL that it gives the gateway routes. No service exposes the configured route endpoint, so the two values are set side by side in that patch; a YAML anchor keeps them equal. A patch replaces the row's whole `config`, so it restates `apiKeyRef` too. The generated [configuration catalog](../../../docs/config-catalog.md) is the exhaustive source for every accepted field.
 
 ### The gateway read
 
-The Host sends `GET <url>` with the virtual key as a bearer token. The gateway answers `200` with this JSON body for the key's attorney:
+The Host sends `GET <origin of baseURL><path>` with the virtual key as a bearer token. It does not follow a redirect, and it reads at most 16 KiB of the body. The gateway answers `200` with this JSON body for the key's attorney:
 
 ```json
 { "month": "2026-10", "spent_usd": 12.5, "budget_usd": 50 }
@@ -60,11 +62,12 @@ The Host sends `GET <url>` with the virtual key as a bearer token. The gateway a
 
 | Reason | When |
 |---|---|
-| `not_configured` | `url` is empty |
-| `no_key` | the credential of `apiKeyRef` is not set or is empty |
+| `not_configured` | `baseURL` is empty |
+| `no_key` | the credential of `apiKeyRef` is not set, is empty, or cannot be read; a read failure logs one warning |
 | `refused` | the gateway answers 401 or 403 |
-| `unreachable` | the connection fails, the read takes longer than `timeoutMs`, or the gateway answers another error status; the Host logs the cause without the key |
-| `invalid_answer` | the body is not JSON or is not the record above |
+| `gateway_error` | the gateway answers another HTTP error status; the Host logs the status |
+| `unreachable` | the connection fails, the gateway redirects, or the answer does not arrive within `timeoutMs`; the Host logs the cause without the key |
+| `invalid_answer` | the body is larger than 16 KiB, is not JSON, or is not the record above |
 
 -----
 
@@ -74,7 +77,7 @@ The Host sends `GET <url>` with the virtual key as a bearer token. The gateway a
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`FlowleapBudget` is a `TypertRemoteService` under the `flowleapBudget` namespace; the generated Remote client reaches the browser through [`dsh-api-remotes`](../../api/remotes/README.md). The constructor validates `url` and `apiKeyRef`; each call reads the key, sends one request, and validates the answer with a strict schema.
+`FlowleapBudget` is a `TypertRemoteService` under the `flowleapBudget` namespace; the generated Remote client reaches the browser through [`dsh-api-remotes`](../../api/remotes/README.md). The constructor validates `baseURL`, `path` and `apiKeyRef` (through `credentialRef`); each call reads the key, sends one request, and validates the answer with a strict schema.
 
 | File | Role |
 |---|---|
@@ -107,7 +110,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The gateway route** — the firm's model gateway (flowleap-os `lib/gateway.py`) does not serve the budget read yet, and a runtime's virtual key may call only the model routes. Until flowleap-os serves the read, sets `FLOWLEAP_BUDGET_URL` in each runtime, and allows the route for the key, every read reports `unknown` with the `not_configured` reason.
+- **The gateway route** — the firm's model gateway (flowleap-os `lib/gateway.py`) does not serve the budget read yet, and a runtime's virtual key may call only the model routes. Until flowleap-os serves the read, sets `baseURL` in the firm patch, and allows the route for the key, every read reports `unknown` with the `not_configured` reason.
 - **No spend by agent** — the gateway records spend per key, not per agent, so the read has no split by agent.
 
 <a id="dev-note"></a>

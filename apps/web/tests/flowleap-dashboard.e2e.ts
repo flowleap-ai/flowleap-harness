@@ -43,16 +43,13 @@ it('serves the dashboard, its app surfaces, the gateway budget for the runtime k
     response.end(JSON.stringify({ month: '2026-10', spent_usd: 12.5, budget_usd: 50 }))
   })
   await new Promise<void>((resolve) => { gateway.listen(0, '127.0.0.1', resolve) })
-  const previous = { key: process.env.ANTHROPIC_API_KEY, url: process.env.FLOWLEAP_BUDGET_URL }
+  const previous = process.env.ANTHROPIC_API_KEY
   process.env.ANTHROPIC_API_KEY = KEY
-  process.env.FLOWLEAP_BUDGET_URL = `http://127.0.0.1:${String((gateway.address() as AddressInfo).port)}/flowleap/budget`
   const resources: { scaffold?: WebScaffold } = {}
   onTestFinished(async () => {
     try { await resources.scaffold?.close() } finally {
-      for (const [name, value] of [['ANTHROPIC_API_KEY', previous.key], ['FLOWLEAP_BUDGET_URL', previous.url]] as const) {
-        if (value === undefined) Reflect.deleteProperty(process.env, name)
-        else process.env[name] = value
-      }
+      if (previous === undefined) Reflect.deleteProperty(process.env, 'ANTHROPIC_API_KEY')
+      else process.env.ANTHROPIC_API_KEY = previous
       await new Promise<void>((resolve) => { gateway.close(() => { resolve() }) })
       await rm(root, { recursive: true, force: true })
     }
@@ -62,8 +59,12 @@ it('serves the dashboard, its app surfaces, the gateway budget for the runtime k
   await writeFile(join(fixtureBundle, 'package.json'), JSON.stringify({
     name: 'flowleap-dashboard-fixture', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } },
   }))
-  // No hosted FlowLeap MCP server in a test.
-  await writeFile(join(fixtureBundle, 'cordis.patch.yml'), '- id: mcp-flowleap\n  disabled: true\n')
+  // No hosted FlowLeap MCP server in a test; the budget row gets the gateway base URL as the firm patch gives it.
+  await writeFile(join(fixtureBundle, 'cordis.patch.yml'), [
+    '- id: mcp-flowleap', '  disabled: true',
+    '- id: flowleap-budget', '  config:', `    baseURL: http://127.0.0.1:${String((gateway.address() as AddressInfo).port)}`,
+    '    apiKeyRef: ANTHROPIC_API_KEY', '',
+  ].join('\n'))
   const scaffold = await launchWebScaffold({
     profile: { packages: [{ dir: BUNDLE, enabled: true }, { dir: fixtureBundle, enabled: true }] },
     harnessHome: join(root, 'home'),

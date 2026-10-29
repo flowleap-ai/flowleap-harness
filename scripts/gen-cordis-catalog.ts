@@ -83,7 +83,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   credentialsController: 'credentials.md',
   flowleapAgentCatalog: 'core.md',
   flowleapAgents: 'core.md',
-  flowleapBudget: 'llm-streaming.md',
+  flowleapBudget: 'credentials.md',
   flowleapConnectors: 'credentials.md',
   flowleapOcr: 'credentials.md',
   flowleapRegister: 'schedule.md',
@@ -216,6 +216,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   resources: 'client-side resource model (protocol providers, pins, live sources) — packages/client/resources/README.md owns the API',
   sidebarRight: 'client-side right-Sidebar navigation face — packages/client/ui-sidebar-right/README.md owns the API',
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
+  dashboardSearch: 'client-side search group registry of the FlowLeap dashboard — packages/client/ui-flowleap-dashboard/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
 }
 

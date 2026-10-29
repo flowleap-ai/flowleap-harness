@@ -12,8 +12,10 @@ export type BudgetUnknownReason =
   | 'no_key'
   /** The gateway refused the key (HTTP 401 or 403). */
   | 'refused'
-  /** The gateway did not answer in time, the connection failed, or it answered with another error status. */
+  /** The connection failed, the gateway redirected, or the answer did not arrive in time. */
   | 'unreachable'
+  /** The gateway answered with an HTTP error status other than 401 and 403. */
+  | 'gateway_error'
   /** The gateway answered with a body that is not the budget record. */
   | 'invalid_answer'
 
