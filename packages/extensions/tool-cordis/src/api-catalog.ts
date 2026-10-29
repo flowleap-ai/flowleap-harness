@@ -1288,7 +1288,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async delete(id: AgentId): Promise<void>',
-        description: 'Delete one agent: move its folder aside, then remove its preset, its index and the moved folder. A write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`. When the folder cannot be moved, the agent stays as it was.',
+        description: 'Delete one agent: close its index, move its folder aside, then remove its preset and the moved folder. A read or write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`, and the agent is not listed. When the folder cannot be moved, the index opens again and the agent stays as it was.',
         parameters: [{ name: 'id', description: 'the agent.' }],
         throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.'],
       },
