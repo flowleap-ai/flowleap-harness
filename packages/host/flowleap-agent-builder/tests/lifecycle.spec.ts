@@ -131,7 +131,7 @@ describe('agent folders', () => {
     expect(catalog.read('damaged' as AgentId).files).toMatchObject([{ name: 'a.txt', state: { kind: 'indexed' } }])
     expect(catalog.read('newer' as AgentId).files).toMatchObject([{ name: 'b.txt', state: { kind: 'indexed' } }])
     expect(lines).toContainEqual(expect.stringMatching(
-      /damaged\/index\.sqlite cannot be opened .*; it moved to .*index\.sqlite\.unreadable-\d+, and the files are read again/,
+      /damaged[\\/]index\.sqlite cannot be opened .*; it moved to .*index\.sqlite\.unreadable-\d+, and the files are read again/,
     ))
     expect(lines).toContainEqual(expect.stringContaining('schema 99 is newer than 1'))
     expect((await readdir(join(root, 'newer'))).filter(name => name.startsWith('index.sqlite.unreadable-'))).toHaveLength(1)
