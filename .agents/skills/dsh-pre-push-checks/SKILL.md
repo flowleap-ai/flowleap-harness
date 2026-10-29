@@ -113,9 +113,11 @@ For ordinary and standalone rebase pushes:
 2. Commit normally and inspect any files changed by the pre-commit fixer before continuing.
 3. Push normally, or use the exact lease for an authorized rewritten branch, so the incremental typecheck hook runs.
 4. Verify the remote ref matches local `HEAD`.
+5. In the FlowLeap fork (`flowleap-ai/flowleap-harness`), the `flowleap` branch requires the `signoff` commit status. After the checks pass on the pushed head, sign off on it with [gh-signoff](https://github.com/basecamp/gh-signoff). Sign off only on a head whose checks you ran, and push again before you sign off on a later commit.
 
 ```sh
 git rev-parse HEAD origin/$(git branch --show-current)
+gh signoff   # FlowLeap fork only
 ```
 
 For GitHub PRs, inspect remote CI after the push:
