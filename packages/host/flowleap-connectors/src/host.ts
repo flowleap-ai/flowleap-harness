@@ -88,10 +88,9 @@ export class LruCache implements ConnectorCache {
     if (!(ttlSeconds > 0)) return Promise.resolve()
     this.entries.delete(key)
     this.entries.set(key, { value, expiresAt: this.now() + ttlSeconds * 1000 })
-    while (this.entries.size > this.maxEntries) {
-      const oldest = this.entries.keys().next()
-      if (oldest.done === true) break
-      this.entries.delete(oldest.value)
+    for (const oldest of this.entries.keys()) {
+      if (this.entries.size <= this.maxEntries) break
+      this.entries.delete(oldest)
     }
     return Promise.resolve()
   }
