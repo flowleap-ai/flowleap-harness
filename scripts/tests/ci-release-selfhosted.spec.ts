@@ -163,8 +163,16 @@ for (const [file, jobIds] of [['release.yml', ['dependencies', 'pack']], ['relea
   })
 }
 
-it.each(['release-publish.yml', 'release-vendor-publish.yml'])('keeps %s manual and entirely hosted', (file) => {
+it.each(['release-publish.yml', 'release-vendor-publish.yml'])('keeps %s manual and its publish job hosted', (file) => {
   const publish = workflow(file)
   expect(Object.keys(publish.on)).toEqual(['workflow_dispatch'])
-  for (const job of Object.values(publish.jobs)) expect(job['runs-on']).toBe(hosted)
+  expect(publish.jobs['publish']?.['runs-on']).toBe(hosted)
+})
+
+it('packs dsh publication on the Linux pool only for a trusted dispatch', () => {
+  const pack = workflow('release-publish.yml').jobs['pack']!
+  expect(evaluate(pack['runs-on'], { ...trustedPush, 'github.event_name': 'workflow_dispatch' })).toEqual(selfhosted)
+  expect(evaluate(pack['runs-on'], { ...trustedPush, 'github.event_name': 'workflow_dispatch', 'vars.DSH_CI_FAILOVER_LINUX': '' })).toBe(hosted)
+  expect(evaluate(pack['runs-on'], { ...trustedPush, 'github.event_name': 'workflow_dispatch', 'github.repository': 'outsider/fork' })).toBe(hosted)
+  expect(workflow('release-vendor-publish.yml').jobs['pack']?.['runs-on']).toBe(hosted)
 })
