@@ -67,7 +67,7 @@
   min-width: 0;
   height: auto;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   text-align: left;
   white-space: normal;
 }
@@ -112,7 +112,7 @@
 .notice {
   margin: 0 0 20px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-specific-sidebar-fill);
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
@@ -162,7 +162,7 @@
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: 999px;
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-base);
   font-size: 10px;
