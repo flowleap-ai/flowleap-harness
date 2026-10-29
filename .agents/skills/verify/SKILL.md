@@ -15,6 +15,7 @@ Live proof does not replace tests. Keep the focused tests, the keyless snapshots
 |---|---|
 | [`scripts/web.sh`](scripts/web.sh) | `start`, `doctor`, `stop` for one instance in one run directory |
 | [`scripts/budget-gateway.mjs`](scripts/budget-gateway.mjs) | Gateway double for [features/budget-warning.md](features/budget-warning.md): forwards to OpenRouter and adds the budget warning header while a file exists |
+| [`scripts/budget-read.mjs`](scripts/budget-read.mjs) | Gateway double for [features/dashboard.md](features/dashboard.md): answers the budget read with the JSON of a file while the file exists |
 | [`scripts/session-log.mjs`](scripts/session-log.mjs) | Summary of a Session log: route, user text, tool calls with result heads, turn end, token use, last answer |
 | [`verify.patch.yml`](verify.patch.yml) | Overlay: OpenRouter Haiku as default model, the firm keys as a read-only credential file, plain JSONL logs, Default workspace in the run directory |
 | [`features/`](features/README.md) | One recipe per FlowLeap surface |
