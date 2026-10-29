@@ -79,7 +79,18 @@ function initialState(): ConnectorsState {
  * @returns true when `save` can run.
  */
 export function draftComplete(card: ConnectorCardState): boolean {
-  return card.fields.every(field => (card.draft[field] ?? '').trim().length > 0)
+  return completeDraft(card) !== undefined
+}
+
+/** The trimmed draft values when every field of the card is filled, otherwise `undefined`. */
+function completeDraft(card: ConnectorCardState): Record<string, string> | undefined {
+  const values: Record<string, string> = {}
+  for (const field of card.fields) {
+    const value = (card.draft[field] ?? '').trim()
+    if (value.length === 0) return undefined
+    values[field] = value
+  }
+  return values
 }
 
 /** Coordinates the page state with the Host. */
@@ -139,8 +150,8 @@ export class ConnectorsStore {
    */
   async save(id: ConnectorId): Promise<boolean> {
     const card = this.store.getSnapshot().cards[id]
-    if (!draftComplete(card) || card.busy !== 'idle') return false
-    const values = Object.fromEntries(card.fields.map(field => [field, (card.draft[field] ?? '').trim()]))
+    const values = completeDraft(card)
+    if (values === undefined || card.busy !== 'idle') return false
     this.busy(id, 'saving')
     const result = await this.ctx.remote.flowleapConnectors.set(id, values)
     this.store.update((state) => {
@@ -204,19 +215,18 @@ export class ConnectorsStore {
     if (this.store.getSnapshot().cards[id].busy !== 'idle') return undefined
     this.busy(id, 'testing')
     const result = await this.ctx.remote.flowleapConnectors.test(id)
-    const outcome: ConnectorTestResult | undefined = result.ok ? result.value : undefined
     this.store.update((state) => {
       const target = state.cards[id]
       target.busy = 'idle'
-      if (outcome === undefined) {
-        if (!result.ok) target.error = result.error.message
-        delete target.test
-      } else {
-        target.test = outcome
+      if (result.ok) {
+        target.test = result.value
         delete target.error
+      } else {
+        target.error = result.error.message
+        delete target.test
       }
     })
-    return outcome
+    return result.ok ? result.value : undefined
   }
 
   /**
