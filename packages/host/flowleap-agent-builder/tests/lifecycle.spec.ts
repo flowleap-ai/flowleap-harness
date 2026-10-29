@@ -1,15 +1,37 @@
 import { createHash } from 'node:crypto'
-import { chmod, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { Document, Packer, Paragraph } from 'docx'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { OcrRead } from '@deepseek-ai/dsh-flowleap-connectors'
 import { FILE_TEXT_NOTICE, extractText, listFiles, resolveOptions, serve, type AgentId } from '../src/index.ts'
 import { agentOn, callTool, chunks, inThread, logLines, makePdf, mountBuilder, ocrDouble, runtime, tempDir } from './harness.ts'
 
 const INPUT = { name: 'Responder', description: 'Drafts.', connectors: [] }
+
+/**
+ * Permission failures armed by a test. A mode bit cannot deny a write on Windows, so a test arms a refused `rename` or
+ * `rm` of a path here instead of changing modes; every platform then sees the same EACCES failure.
+ */
+const denied = vi.hoisted(() => ({ rename: [] as string[], rm: [] as string[] }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs/promises')>()
+  const refuse = (call: string, path: string) => Promise.reject(Object.assign(new Error(`EACCES: permission denied, ${call} '${path}'`), { code: 'EACCES' }))
+  const deniedPath = (prefixes: readonly string[], path: string) => prefixes.some(prefix => path.startsWith(prefix))
+  return {
+    ...fs,
+    rename: (from: string, to: string) => deniedPath(denied.rename, to) ? refuse('rename', from) : fs.rename(from, to),
+    rm: (path: string, options?: Parameters<typeof fs.rm>[1]) => deniedPath(denied.rm, path) ? refuse('rm', path) : fs.rm(path, options),
+  }
+})
+
+afterEach(() => {
+  denied.rename.length = 0
+  denied.rm.length = 0
+})
 
 async function writeAgent(root: string, id: string, files: Record<string, string> = {}) {
   await mkdir(join(root, id, 'files'), { recursive: true })
@@ -121,14 +143,10 @@ describe('agent folders', () => {
     await writeAgent(root, 'blocked')
     await writeAgent(root, 'healthy')
     await mkdir(join(root, 'blocked', 'index.sqlite'))
-    await chmod(join(root, 'blocked'), 0o500)
+    denied.rename.push(join(root, 'blocked', 'index.sqlite.unreadable-'))
     const ctx = await runtime()
     const lines = logLines(ctx)
-    try {
-      await mountBuilder(ctx, { root })
-    } finally {
-      await chmod(join(root, 'blocked'), 0o700)
-    }
+    await mountBuilder(ctx, { root })
     expect(ctx.flowleapAgentCatalog.list().map(row => row.id)).toEqual(['healthy'])
     expect(lines).toContainEqual(expect.stringMatching(/flowleap agent .*blocked not loaded: .*EACCES/))
   })
@@ -255,12 +273,9 @@ describe('write order', () => {
     const { id } = await catalog.save(undefined, INPUT, 'Work.')
     let changes = 0
     ctx.on('flowleap-agents/changed', () => { changes++ })
-    await chmod(root, 0o500)
-    try {
-      await expect(catalog.delete(id)).rejects.toMatchObject({ code: 'EACCES' })
-    } finally {
-      await chmod(root, 0o700)
-    }
+    denied.rename.push(join(root, `.deleted-${id}-`))
+    await expect(catalog.delete(id)).rejects.toMatchObject({ code: 'EACCES' })
+    denied.rename.length = 0
     expect(changes).toBe(0)
     expect(catalog.list().map(row => row.id)).toEqual([id])
     expect((await ctx.agentPresets.list()).map(row => row.id)).toEqual(['patent', id])
@@ -279,10 +294,10 @@ describe('write order', () => {
     const { id } = await catalog.save(undefined, INPUT, 'Work.')
     await catalog.upload(id, 'a.txt', chunks('alpha'))
     await catalog.settled()
-    await chmod(join(root, id, 'files'), 0o500)
+    denied.rm.push(join(root, `.deleted-${id}-`))
     await catalog.delete(id)
-    const [aside] = (await readdir(root)).filter(name => name.startsWith(`.deleted-${id}-`))
-    await chmod(join(root, aside!, 'files'), 0o700)
+    expect((await readdir(root)).filter(name => name.startsWith(`.deleted-${id}-`))).toHaveLength(1)
+    denied.rm.length = 0
     expect(catalog.list()).toEqual([])
     expect(lines).toContainEqual(expect.stringContaining(`flowleap agent ${id}: the deleted folder`))
   })
@@ -373,14 +388,10 @@ describe('upload route', () => {
     expect(await (await route(post(`agent=${id}&name=cut.txt`, failing))).json()).toEqual({
       ok: false, error: { code: 'gateway/internal', message: 'client went away', details: {} },
     })
-    await chmod(join(root, id, 'files'), 0o500)
-    try {
-      expect(await (await route(post(`agent=${id}&name=a.txt`, 'alpha'))).json()).toMatchObject({
-        ok: false, error: { code: 'gateway/internal', message: expect.stringContaining('EACCES') as string },
-      })
-    } finally {
-      await chmod(join(root, id, 'files'), 0o700)
-    }
+    denied.rename.push(join(root, id, 'files', 'a.txt'))
+    expect(await (await route(post(`agent=${id}&name=a.txt`, 'alpha'))).json()).toMatchObject({
+      ok: false, error: { code: 'gateway/internal', message: expect.stringContaining('EACCES') as string },
+    })
     expect(await readdir(join(root, id, 'files'))).toEqual(['empty.txt'])
     expect(await (await route(post(`agent=${id}&name=b.txt`, 'beta'))).json()).toMatchObject({ ok: true })
   })
