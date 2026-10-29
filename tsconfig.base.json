@@ -52,6 +52,8 @@
       "@deepseek-ai/dsh-client-ui-flowleap-dashboard/client": ["./packages/client/ui-flowleap-dashboard/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-flowleap-routines": ["./packages/client/ui-flowleap-routines/src/index.ts"],
       "@deepseek-ai/dsh-client-ui-flowleap-routines/client": ["./packages/client/ui-flowleap-routines/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-ui-flowleap-work-pages": ["./packages/client/ui-flowleap-work-pages/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-flowleap-work-pages/client": ["./packages/client/ui-flowleap-work-pages/src/client/index.ts"],
       "@deepseek-ai/dsh-flowleap-connectors/types": ["./packages/host/flowleap-connectors/src/types.ts"],
       "@deepseek-ai/dsh-flowleap-routines/types": ["./packages/host/flowleap-routines/src/types.ts"],
       "@deepseek-ai/dsh-flowleap-agent-builder/agent": ["./packages/host/flowleap-agent-builder/src/agent-row.ts"],

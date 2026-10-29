@@ -177,6 +177,7 @@ flowchart TD
     pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
     pkg_client_ui_flowleap_dashboard["client-ui-flowleap-dashboard"]
     pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
+    pkg_client_ui_flowleap_work_pages["client-ui-flowleap-work-pages"]
     pkg_client_ui_goal["client-ui-goal"]
     pkg_client_ui_input_trigger["client-ui-input-trigger"]
     pkg_client_ui_jobs["client-ui-jobs"]
@@ -1609,6 +1610,7 @@ flowchart TD
 | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | `client` | — |
 | [`client-ui-flowleap-dashboard`](../packages/client/ui-flowleap-dashboard) | `client` | — |
 | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | `client` | — |
+| [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | `client` | — |
 | [`client-ui-goal`](../packages/client/ui-goal) | `client` | — |
 | [`client-ui-input-trigger`](../packages/client/ui-input-trigger) | `client` | — |
 | [`client-ui-jobs`](../packages/client/ui-jobs) | `client` | — |

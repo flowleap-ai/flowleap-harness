@@ -299,6 +299,12 @@
     - id: ui-flowleap-routines
       name: '@deepseek-ai/dsh-client-ui-flowleap-routines'
 
+    # Work pages (flowleap-harness#81), look-first stage: the Office actions
+    # launcher and the office action board with one sample analysis. No
+    # Remote, model, or connector call; changes stay in the browser.
+    - id: ui-flowleap-work-pages
+      name: '@deepseek-ai/dsh-client-ui-flowleap-work-pages'
+
     # The agent builder (#55): one agent preset for each folder below
     # $DSH_HOME/agents, built on the patent preset with the agent's
     # instructions, its files (in the system prompt up to the limit, else a

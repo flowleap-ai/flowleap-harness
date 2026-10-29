@@ -139,6 +139,7 @@
     { "path": "./packages/client/ui-flowleap-dashboard" },
     { "path": "./packages/client/ui-flowleap-routines" },
     { "path": "./packages/client/ui-flowleap-agent-builder" },
+    { "path": "./packages/client/ui-flowleap-work-pages" },
     { "path": "./packages/client/ui-directory-picker-browse" },
     { "path": "./packages/client/ui-directory-picker-native" },
     { "path": "./packages/client/ui-goal" },
