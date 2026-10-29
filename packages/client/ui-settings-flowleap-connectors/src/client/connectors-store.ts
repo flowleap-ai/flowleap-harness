@@ -8,24 +8,10 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ConnectorPresence, ConnectorTestResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { CONNECTOR_FIELDS, CONNECTOR_IDS, type ConnectorId } from '@deepseek-ai/dsh-flowleap-connectors/types'
 
-/**
- * The connector ids the Host serves, spelled here because a browser bundle
- * imports no Host package value; the Remote's `describe()` keys are checked
- * against this list.
- */
-export const CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const
-
-/** One connector id. */
-export type ConnectorId = (typeof CONNECTOR_IDS)[number]
-
-/** The fields each connector stores, in display order; the Host's `describe()` confirms them. */
-export const CONNECTOR_FIELDS: Readonly<Record<ConnectorId, readonly string[]>> = {
-  'epo-ops': ['consumerKey', 'consumerSecret'],
-  'uspto-odp': ['apiKey'],
-  'semantic-scholar': ['apiKey'],
-  mistral: ['apiKey'],
-}
+/** The Host package's client-safe connector ids and fields; the Remote's `describe()` keys are checked against them. */
+export { CONNECTOR_FIELDS, CONNECTOR_IDS, type ConnectorId }
 
 /** What one card renders. */
 export interface ConnectorCardState {
