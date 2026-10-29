@@ -18,7 +18,7 @@ import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deeps
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import {
-  APIError, OCR_MODEL, OcrConfigurationError, OcrInputError, OcrNotConfiguredError, ProviderKeyInvalidError, RateLimitError,
+  APIError, OcrConfigurationError, OcrInputError, OcrNotConfiguredError, ProviderKeyInvalidError, RateLimitError,
   type Connectors, type OcrResponse,
 } from '@flowleap/connectors'
 import type { BoundConnectorHost } from './host.ts'
@@ -233,7 +233,7 @@ export function readPdfTool(ctx: Context, connectors: Connectors, bound: BoundCo
       const to = Math.min(range?.to ?? pageCount, pageCount, from + READ_PDF_MAX_PAGES - 1)
       const value: ReadPdfValue = {
         path: ctx.fs.processPath(target),
-        model: response.model || OCR_MODEL,
+        model: response.model,
         pageCount,
         from,
         to,
