@@ -110,9 +110,21 @@ describe('a save without an agent or with a failing filesystem', () => {
   it('fails the call when a path cannot be resolved for a reason other than the filesystem', async () => {
     const bench = await open()
     const real = bench.ctx.fs.resolve.bind(bench.ctx.fs)
-    vi.spyOn(bench.ctx.fs, 'resolve').mockImplementationOnce(real).mockRejectedValueOnce(new Error('resolver crashed'))
+    vi.spyOn(bench.ctx.fs, 'resolve').mockImplementation((path, options) => path === 'notes.md'
+      ? Promise.reject(new Error('resolver crashed'))
+      : real(path, options))
     const result = await bench.run('write_patent_results', { filePath: 'notes.md', content: 'Notes' })
     expect(result.isError).toBe(true)
+  })
+
+  it('refuses a path that the filesystem cannot resolve', async () => {
+    const bench = await open()
+    const real = bench.ctx.fs.resolve.bind(bench.ctx.fs)
+    vi.spyOn(bench.ctx.fs, 'resolve').mockImplementation((path, options) => path === 'notes.md'
+      ? Promise.reject(new FsError('no such path', 'FS_NOT_FOUND'))
+      : real(path, options))
+    const text = await bench.write({ filePath: 'notes.md', content: 'Notes' })
+    expect(text.split('\n')[0]).toMatch(/^Error: Patent result writes must stay within the working directory /)
   })
 
   it('reports a failed report write as an error, naming a filesystem code', async () => {
