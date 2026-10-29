@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { rm, writeFile } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { handleAgentUpload } from '../src/index.ts'
 import { mountBuilder, runtime, stubTool, tempDir } from './harness.ts'
 
@@ -105,7 +105,7 @@ describe('plugin', () => {
       contextLimitTokens: 1, charsPerToken: 4, maxFileBytes: 1, basePreset: 'patent', presetOrder: 1, maxSearchResults: 1, maxReadLocations: 1, maxReadChars: 1,
       extractTimeoutMs: 1, maxPages: 1, extractMemoryMb: 16, storageLowFlagPath: '/run/flowleap/host/disk-low',
     }
-    expect(resolveOptions(config, { DSH_HOME: '/home/a/.dsh' })).toMatchObject({ root: '/home/a/.dsh/agents', agentRow: AGENT_ROW_MODULE })
+    expect(resolveOptions(config, { DSH_HOME: '/home/a/.dsh' })).toMatchObject({ root: join(resolve('/home/a/.dsh'), 'agents'), agentRow: AGENT_ROW_MODULE })
     expect(resolveOptions({ ...config, root: '/r', firmRoot: '/f' })).toMatchObject({ root: '/r', firmRoot: '/f' })
     const routes: string[] = []
     const ctx = await runtime({ routes })
