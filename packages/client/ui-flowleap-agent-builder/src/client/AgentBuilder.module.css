@@ -281,39 +281,3 @@
   color: var(--dsw-alias-state-error-primary);
   font-size: 12px;
 }
-
-/* The Agents group of the dashboard search results, in the look of the dashboard's own groups. */
-.searchHeading {
-  margin: 0 0 4px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.searchRows {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.searchRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 10px;
-  width: 100%;
-  height: auto;
-  padding: 6px 8px;
-  border-radius: var(--dsw-radius-md);
-  text-align: left;
-  white-space: normal;
-}
-
-.searchGlyph {
-  flex: none;
-  margin-top: 2px;
-  color: var(--dsw-alias-label-tertiary);
-}

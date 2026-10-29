@@ -1,5 +1,5 @@
 ---
-description: "The FlowLeap dashboard in the dsh web client: the first screen of flowleap-web with the ask bar and its search, deep links, the dashboard.metric, dashboard.widget, dashboard.link and dashboard.search slots, the Install FlowLeap card, and the OS sidebar layers."
+description: "The FlowLeap dashboard in the dsh web client: the landing page of flowleap-web with the ask bar and its search groups, the dashboard.metric and dashboard.widget slots, the Install FlowLeap card, and the OS sidebar layers."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-The dashboard is the first screen of the `flowleap-web` profile (flowleap-harness#60). It shows a greeting, one **Ask the agent or search** bar, app links, the metric cards and panels that apps register, and an **Install FlowLeap** card; a first sign-in also shows **First steps**. Text in the bar shows the search results of each app; Enter opens a new chat with that text. The address names the open chat or page, so a link opens that item. The package also adds sidebar layers: **Search**, the **Dashboard**, **Chats** and **Agents** apps, and **Pinned**.
+The dashboard is the first screen of the `flowleap-web` profile (flowleap-harness#60). It shows a greeting, one **Ask the agent or search** bar, the metric cards and panels that apps register, and an **Install FlowLeap** card; a first sign-in also shows **First steps**. Text in the bar shows the search results of each app; Enter opens a new chat with that text. The dashboard is the landing page of [`ui-workspace`](../ui-workspace/README.md#landing-page-and-address-links), so the address names the open chat or page and a link opens that item. The package also adds sidebar layers: **Search**, the **Dashboard**, **Chats** and **Agents** apps, and **Pinned**.
 
 ## Table of Contents
 
@@ -25,18 +25,17 @@ The dashboard is the first screen of the `flowleap-web` profile (flowleap-harnes
 
 Mount the row in a web composition beside `ui-sidebar` and `ui-workspace`; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-dashboard`. Selecting a chat shows the conversation; the **Dashboard** row in the sidebar shows the dashboard again. A running chat continues while the dashboard shows, and **Agent activity** and the **Chats** page list it as running.
 
-### Slots for apps
+### Slots and search groups for apps
 
-The dashboard page declares four list slots. Each app registers its own surfaces; the dashboard does not read the data of another package.
+The dashboard page declares two list slots, and it provides the `dashboardSearch` service for the search. Each app registers its own surfaces; the dashboard does not read the data of another package.
 
-| Slot | Owner props | The page draws | The occupant draws |
-|---|---|---|---|
-| `dashboard.metric` | none | the card frame and the registration `label` as the title | the card body |
-| `dashboard.widget` | none | the panel frame and the registration `label` as the heading | the panel body |
-| `dashboard.link` | none | the link row below the ask bar, only while a link is registered | one button that opens its page |
-| `dashboard.search` | `query`, `matches(text)`, `onPicked()` | the results box below the ask bar while it holds text | its group heading and result buttons, or nothing when no result matches |
+| Seat | The page draws | The app gives |
+|---|---|---|
+| `dashboard.metric` slot | the card frame and the registration `label` as the title | the card body |
+| `dashboard.widget` slot | the panel frame and the registration `label` as the heading | the panel body |
+| `dashboardSearch.register(group)` | while the ask bar holds text: the group heading from `group.label()`, the first five results with their glyph, title and detail, and the pick (clear the bar, then `result.open()`) | `results(query)`, the matching results as data, and `subscribe(listener)` for the data behind them |
 
-`order` sets the place in each slot. `matches(text)` is the one match rule of every group: each word of the query is in the text, without regard to case. A group calls `onPicked()` when the user opens a result, so the page clears the bar.
+`order` sets the place in each slot and among the groups. `query.matches(text)` is the one match rule of every group: each word of the query is in the text, without regard to case. The page subscribes to the groups only while the bar holds text, so an app reads its data for the search only then. An app registers its group as an effect under `ctx.inject(['dashboardSearch'], ...)`, so without the dashboard the group waits and does nothing.
 
 | Surface | Package | Data |
 |---|---|---|
@@ -50,9 +49,9 @@ The dashboard page declares four list slots. Each app registers its own surfaces
 
 The **Search sessions** command (Cmd+K on the desktop, Cmd+Option+K on the web) and the **Search** row of the sidebar select the dashboard and focus the ask bar; the package registers the command through `uiWorkspace.provideSearch`. Escape clears the bar.
 
-### Deep links
+### Landing page and links
 
-The address query names the open item: `?chat=<SessionId>` for a chat and `?page=<main panel id>` for an app page, for example `?page=flowleap-needs-review`; the address without both shows the dashboard. When the client starts, the dashboard shows as soon as its page is registered. That is before the start restoration of `ui-workspace` begins, which a later panel selection would cancel; on a first sign-in that restoration makes the default workspace. A chat link then opens the chat when the Session list is ready and has it. A page link selects the page when the page is registered (some pages register only after their access check) and the restoration has opened its chat, as long as the dashboard still shows. Any other address, and a link to a missing item, keeps the dashboard. After the start, each change of the open page or chat replaces the address in the browser history without a new entry, so a reload or a copied address opens the same item. Other query parameters and the fragment stay. The local access-token address of `dsh web` (`?token=`) redirects to the plain address and drops the other parameters, so a link works in a browser that already has its session cookie.
+The package provides the dashboard to `uiWorkspace.provideLanding`. `ui-workspace` then shows the dashboard at the start, opens the chat (`?chat=<SessionId>`) or page (`?page=<main panel id>`, for example `?page=flowleap-needs-review`) that the start address names, and keeps the address equal to the open item; see [landing page and address links](../ui-workspace/README.md#landing-page-and-address-links). The local access-token address of `dsh web` (`?token=`) redirects to the plain address and drops the other parameters, so a link works in a browser that already has its session cookie.
 
 **First steps** shows while the Session list has no chat with content, until the user selects **Hide first steps**; the browser keeps that choice in `localStorage`.
 
@@ -64,18 +63,17 @@ The address query names the open item: `?chat=<SessionId>` for a chat and `?page
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The browser entry registers three keyed `main` pages (`flowleap-dashboard`, `flowleap-chats`, `flowleap-agents`) and their `sidebar.panellist` launchers (orders -100, -90 and 30). The dashboard registration declares the four list slots as its children. The page reads the ordered metadata of each slot from one snapshot store, and renders each entry with `renderSlot(..., { only: id })`. The start selection waits for the `main` slot to list the dashboard entry, because the entry is not listed while the plugin's fiber applies.
+The browser entry registers three keyed `main` pages (`flowleap-dashboard`, `flowleap-chats`, `flowleap-agents`) and their `sidebar.panellist` launchers (orders -100, -90 and 30). The dashboard registration declares the two list slots as its children. The page reads the ordered metadata of each slot from one snapshot store, and renders each entry with `renderSlot(..., { only: id })`. `createSearchRegistry` keeps the search groups ordered in a snapshot store that the page reads; the page draws every group, so the groups share one look, one row limit, and one pick.
 
 The **Search** action goes into the `sidebar.actions` slot and the **Pinned** section into the `sidebar.sections` slot of [`ui-sidebar`](../ui-sidebar/README.md).
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Host half: an empty plugin body |
-| [`src/client/index.ts`](src/client/index.ts) | dictionaries, slot entry stores, the Search command, and every registration |
-| [`src/client/contract.ts`](src/client/contract.ts) | the four slot declarations and the match rule |
-| [`src/client/deep-link.ts`](src/client/deep-link.ts) | the start item and the address of the open item |
+| [`src/client/index.ts`](src/client/index.ts) | dictionaries, slot entry stores, the search registry, the Search command, the landing page, and every registration |
+| [`src/client/contract.ts`](src/client/contract.ts) | the two slot declarations, the search group data, and the match rule |
 | [`src/client/DashboardPage.tsx`](src/client/DashboardPage.tsx) | the page, the ask bar with the search results, and the first steps |
-| [`src/client/widgets.tsx`](src/client/widgets.tsx) | Agent activity and the Chats search group |
+| [`src/client/widgets.tsx`](src/client/widgets.tsx) | Agent activity and the chat rows of the Chats page and the Chats search group |
 | [`src/client/InstallCard.tsx`](src/client/InstallCard.tsx) | the Install FlowLeap card |
 | [`src/client/sidebar.tsx`](src/client/sidebar.tsx) | the Search action, the app glyphs, and the Pinned section |
 | [`src/client/AppPages.tsx`](src/client/AppPages.tsx) | the Chats page and the Agents placeholder |
@@ -110,7 +108,6 @@ None; this package neither assembles nor sends a provider request.
 - **Chat search reads titles** — the Chats group matches chat titles; the content search of the sidebar (`session.search`) is not part of the dashboard search.
 - **Copy in seven locales** — the non-English `flowleapDashboard` dictionaries are machine translations; a native speaker has not checked them.
 - **Agents page** — a placeholder until flowleap-harness#59.
-- **Office action board link** — the board (flowleap-harness#81) registers its link in `dashboard.link`; until then the link row does not show.
 
 <a id="dev-note"></a>
 ### Dev Note

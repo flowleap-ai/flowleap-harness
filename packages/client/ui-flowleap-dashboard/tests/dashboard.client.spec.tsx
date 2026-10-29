@@ -3,61 +3,92 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { bindSnapshotSelector, makeTranslate, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, makeTranslate, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { apply, inject } from '../src/client/index.ts'
+import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconFlatListOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { apply, createSearchRegistry, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
-import { matchesQuery, type DashboardSearchOwnerProps } from '../src/client/contract.ts'
-import { readDeepLink, writeDeepLink } from '../src/client/deep-link.ts'
+import { matchesQuery, type DashboardSearch, type DashboardSearchGroup } from '../src/client/contract.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
 import { DashboardPage, type DashboardPageProps } from '../src/client/DashboardPage.tsx'
-import { AgentActivity, chatRows, ChatSearch, type AgentActivityProps, type ChatSearchProps } from '../src/client/widgets.tsx'
-import { AgentsPage, ChatsPage, type AgentsPageProps, type ChatsPageProps } from '../src/client/AppPages.tsx'
+import { AgentActivity, chatRows } from '../src/client/widgets.tsx'
+import { AgentsPage, ChatsPage } from '../src/client/AppPages.tsx'
 import { InstallCard } from '../src/client/InstallCard.tsx'
 import {
-  AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction, type PinnedSectionProps,
+  AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction,
 } from '../src/client/sidebar.tsx'
 
 afterEach(() => {
   cleanup()
   window.localStorage.clear()
-  window.history.replaceState(null, '', '/')
 })
 
 const t = makeTranslate(en) as DashboardPageProps['t']
 
-type Row = { id: string; title: string; running?: boolean; blank?: boolean; updatedAt: number; mainView?: boolean }
+type Row = { id: string; title: string; running?: boolean; blank?: boolean; updatedAt: number }
 
 function sessions(rows: readonly Row[], phase: SessionListState['phase'] = 'ready'): SessionListState {
-  const byId = Object.fromEntries(rows.map(row => [row.id, {
-    id: row.id, displayTitle: row.title, running: row.running ?? false, blank: row.blank ?? false, updatedAt: row.updatedAt,
-    retainedBy: row.mainView === true ? { mainView: 1 } : {},
+  const byId = Object.fromEntries(rows.map((row): [string, SessionSummary] => [row.id, {
+    id: SessionId(row.id), displayTitle: row.title, running: row.running ?? false, blank: row.blank ?? false,
+    updatedAt: row.updatedAt, retainedBy: {},
   }]))
-  return { ids: rows.map(row => row.id as SessionId), byId, phase, projectionsBySession: {} } as never
+  return { ids: rows.map(row => SessionId(row.id)), byId, phase, projectionsBySession: {} }
 }
 
 const entries = (labels: readonly string[]) => labels.map((label, order) => ({ id: label, order, label }))
 
-function pageProps(list: SessionListState, options: { onAsk?: (text: string) => void; links?: readonly string[] } = {}) {
-  const renderSlot = vi.fn((name: string, props: Partial<DashboardSearchOwnerProps>, slot: { only: string }) => (
-    name === 'dashboard.search'
-      ? <button type="button" onClick={props.onPicked}>{`${slot.only}:${props.query}:${String(props.matches?.('Claim chart EP 1'))}`}</button>
-      : <p>{`${name}:${slot.only}`}</p>
-  ))
-  const props = {
+/** The global standard seat every root-scope entry receives. */
+const standardHook = <T,>(value: T) => <R,>(select: (state: T) => R): R => select(value)
+function standard(list: SessionListState, pinnedSessionIds: readonly SessionId[] = []): GlobalStandardProps {
+  return {
+    useSessions: standardHook(list),
+    useSessionStatus: standardHook(new Map()),
+    useSessionRetainInfo: () => undefined,
+    usePanelInfo: standardHook({ activePanelId: null }),
+    useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
+    useWorkspaces: standardHook<WorkspaceSnapshot>({ items: [], archivedSessionIds: [], pinnedSessionIds, state: 'idle', phase: 'ready', error: null }),
+    ...allowAllAccess,
+  }
+}
+
+/** A search group over fixed titles whose results record their opening. */
+function group(id: string, order: number, titles: readonly string[], opened: string[] = []): DashboardSearchGroup & { emit: () => void } {
+  const listeners = new Set<() => void>()
+  let shown = titles
+  return {
+    id, order, label: () => `${id} group`,
+    results: query => shown.filter(title => query.matches(title)).map(title => ({
+      id: title, title, ...(title.includes('running') ? { detail: 'Running' } : {}), icon: IconFlatListOutlineRegular,
+      open: () => { opened.push(title) },
+    })),
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    emit: () => {
+      shown = [...shown, 'Claim chart added']
+      for (const listener of listeners) listener()
+    },
+  }
+}
+
+function pageProps(list: SessionListState, options: { onAsk?: (text: string) => void; groups?: readonly DashboardSearchGroup[] } = {}) {
+  const renderSlot = vi.fn<DashboardPageProps['renderSlot']>((name, _props, slot) => <p>{`${name}:${String(slot?.only)}`}</p>)
+  const props: DashboardPageProps = {
+    ...standard(list),
     useMetrics: bindSnapshotSelector(createSnapshotStore(entries(['Waiting for review']))),
     useWidgets: bindSnapshotSelector(createSnapshotStore(entries(['Needs your review', 'Coming up']))),
-    useLinks: bindSnapshotSelector(createSnapshotStore(entries(options.links ?? []))),
-    useSearches: bindSnapshotSelector(createSnapshotStore(entries(['chats', 'agents']))),
+    useSearches: bindSnapshotSelector(createSnapshotStore(options.groups ?? [])),
     useFocusRequests: bindSnapshotSelector(createSnapshotStore(0)),
-    useSessions: bindSnapshotSelector(createSnapshotStore(list)),
     onAsk: options.onAsk ?? vi.fn(),
     renderSlot,
     t,
-  } as never as DashboardPageProps
+  }
   return { props, renderSlot }
 }
 
@@ -88,29 +119,33 @@ describe('dashboard page', () => {
     expect(onAsk).toHaveBeenCalledWith('Summarise EP 1 234 567')
   })
 
-  it('shows each search group with the trimmed query while the bar holds text, and clears it on a pick or Escape', () => {
-    render(<DashboardPage {...pageProps(sessions([])).props} />)
+  it('shows the results of each group for the trimmed query, five at most, and opens a picked result after it clears the bar', () => {
+    const opened: string[] = []
+    const chats = group('chats', 10, ['Claim chart EP 1', 'Claim chart running', 'Claim chart EP 3', 'Claim chart EP 4', 'Claim chart EP 5', 'Claim chart EP 6'], opened)
+    const agents = group('agents', 20, ['Opposition watcher'], opened)
+    render(<DashboardPage {...pageProps(sessions([]), { groups: [chats, agents] }).props} />)
     const bar = screen.getByRole('textbox', { name: en['ask.label'] })
     expect(screen.queryByTestId('flowleap-search-results')).toBeNull()
-    fireEvent.change(bar, { target: { value: ' claim ep ' } })
+    fireEvent.change(bar, { target: { value: ' claim CHART ' } })
     const results = screen.getByRole('region', { name: en['search.label'] })
     expect(within(results).getByText(en['search.hint'])).toBeTruthy()
-    fireEvent.click(within(results).getByRole('button', { name: 'agents:claim ep:true' }))
+    const chatGroup = within(results).getByRole('region', { name: 'chats group' })
+    expect(within(chatGroup).getByRole('heading', { name: 'chats group' })).toBeTruthy()
+    expect(within(chatGroup).getAllByRole('button')).toHaveLength(5)
+    expect(within(chatGroup).getByText('Running')).toBeTruthy()
+    expect(within(results).queryByRole('region', { name: 'agents group' })).toBeNull()
+    fireEvent.click(within(chatGroup).getByRole('button', { name: /Claim chart EP 3/u }))
+    expect(opened).toEqual(['Claim chart EP 3'])
+    expect((bar as HTMLInputElement).value).toBe('')
     expect(screen.queryByTestId('flowleap-search-results')).toBeNull()
-    fireEvent.change(bar, { target: { value: 'nothing' } })
-    expect(screen.getByRole('button', { name: 'chats:nothing:false' })).toBeTruthy()
+    fireEvent.change(bar, { target: { value: 'added' } })
+    expect(screen.queryByRole('region', { name: 'chats group' })).toBeNull()
+    act(() => { chats.emit() })
+    expect(screen.getByRole('button', { name: /Claim chart added/u })).toBeTruthy()
     fireEvent.keyDown(bar, { key: 'Escape' })
     expect((bar as HTMLInputElement).value).toBe('')
     fireEvent.keyDown(bar, { key: 'Escape' })
     fireEvent.keyDown(bar, { key: 'Enter' })
-  })
-
-  it('shows the app link row only while an app registers a link', () => {
-    const { unmount } = render(<DashboardPage {...pageProps(sessions([])).props} />)
-    expect(screen.queryByRole('navigation', { name: en['links.label'] })).toBeNull()
-    unmount()
-    render(<DashboardPage {...pageProps(sessions([]), { links: ['office'] }).props} />)
-    expect(within(screen.getByRole('navigation', { name: en['links.label'] })).getByText('dashboard.link:office')).toBeTruthy()
   })
 })
 
@@ -120,35 +155,14 @@ describe('dashboard search', () => {
     expect(matchesQuery('Claim chart', 'claim opposition')).toBe(false)
   })
 
-  it('lists the matching chats, running first, and opens the picked chat', () => {
-    const onOpenSession = vi.fn()
-    const onPicked = vi.fn()
-    const list = sessions([
-      { id: 'a', title: 'Claim chart EP 1', updatedAt: 2 },
-      { id: 'b', title: 'Claim chart EP 2', running: true, updatedAt: 1 },
-      { id: 'c', title: 'Opposition', updatedAt: 3 },
-    ])
-    const props = {
-      query: 'claim', matches: (text: string) => matchesQuery(text, 'claim'), onPicked, onOpenSession, t,
-      useSessions: bindSnapshotSelector(createSnapshotStore(list)),
-    } as never as ChatSearchProps
-    render(<ChatSearch {...props} />)
-    const group = screen.getByRole('region', { name: en['search.chats'] })
-    const rows = within(group).getAllByRole('button')
-    expect(rows.map(row => row.getAttribute('aria-label'))).toEqual(['Open chat: Claim chart EP 2', 'Open chat: Claim chart EP 1'])
-    expect(within(group).getByText(en['activity.running'])).toBeTruthy()
-    fireEvent.click(rows[1]!)
-    expect(onPicked).toHaveBeenCalledOnce()
-    expect(onOpenSession).toHaveBeenCalledWith('a')
-  })
-
-  it('renders nothing when no chat matches', () => {
-    const props = {
-      query: 'zzz', matches: () => false, onPicked: vi.fn(), onOpenSession: vi.fn(), t,
-      useSessions: bindSnapshotSelector(createSnapshotStore(sessions([{ id: 'a', title: 'A', updatedAt: 1 }]))),
-    } as never as ChatSearchProps
-    const { container } = render(<ChatSearch {...props} />)
-    expect(container.innerHTML).toBe('')
+  it('keeps the registered groups in order and removes each on its disposer', () => {
+    const { registry, groups } = createSearchRegistry()
+    const second = registry.register(group('second', 20, []))
+    const first = registry.register(group('first', 10, []))
+    expect(groups.getSnapshot().map(item => item.id)).toEqual(['first', 'second'])
+    second()
+    first()
+    expect(groups.getSnapshot()).toEqual([])
   })
 })
 
@@ -164,24 +178,20 @@ describe('dashboard panels', () => {
   })
 })
 
-describe('deep links', () => {
-  it('reads a chat before a page and ignores empty values', () => {
-    expect(readDeepLink('?chat=s1&page=p1')).toEqual({ kind: 'chat', id: 's1' })
-    expect(readDeepLink('?page=p1')).toEqual({ kind: 'page', id: 'p1' })
-    expect(readDeepLink('?chat=&page=')).toBeUndefined()
-    expect(readDeepLink('')).toBeUndefined()
-  })
-
-  it('writes the item and keeps other parameters and the fragment', () => {
-    expect(writeDeepLink('https://firm.test/?lang=de&page=x#top', { kind: 'chat', id: 's 1' })).toBe('https://firm.test/?lang=de&chat=s+1#top')
-    expect(writeDeepLink('https://firm.test/?chat=s1', undefined)).toBe('https://firm.test/')
-  })
-})
+/** The ui-workspace face the dashboard uses; each provide records its disposer. */
+function workspaceDouble() {
+  return {
+    openSession: vi.fn(),
+    startSession: vi.fn(),
+    provideSearch: vi.fn((_open: () => void) => vi.fn()),
+    provideLanding: vi.fn((_panelId: string) => vi.fn()),
+  }
+}
 
 async function pluginContext(list: SessionListState) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
-  const workspace = { openSession: vi.fn(), startSession: vi.fn(), provideSearch: vi.fn((_open: () => void) => vi.fn()) }
+  const workspace = workspaceDouble()
   const panelInfo = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
   const layout = { selectPanel: vi.fn((id: string | null) => { panelInfo.set({ activePanelId: id }) }), panelInfo }
   const sessionList = createSnapshotStore(list)
@@ -208,30 +218,48 @@ describe('ui-flowleap-dashboard browser half', () => {
     expect(inject).toEqual(['slots', 'locale', 'layout', 'sessions', 'uiWorkspace'])
   })
 
-  it('lands on the dashboard, fills its slots and the sidebar layers, takes the Search command, and removes everything on dispose', async () => {
-    const { ctx, workspace, layout } = await pluginContext(sessions([]))
+  it('provides the landing page, its slots, the search registry with the Chats group, the sidebar layers, and the Search command, and removes everything on dispose', async () => {
+    const { ctx, workspace, layout, sessionList } = await pluginContext(sessions([
+      { id: 'a', title: 'Claim chart EP 1', updatedAt: 2 },
+      { id: 'b', title: 'Claim chart EP 2', running: true, updatedAt: 1 },
+      { id: 'c', title: 'Opposition', updatedAt: 3 },
+    ]))
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
-    expect(window.location.search).toBe('')
+    expect(workspace.provideLanding).toHaveBeenCalledExactlyOnceWith('flowleap-dashboard')
     expect(ctx.slots.entries('main')).toHaveLength(3)
     expect(ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['flowleap-dashboard', 'flowleap-chats', 'flowleap-agents'])
     expect(ctx.slots.entries('sidebar.actions')).toHaveLength(1)
     expect(ctx.slots.entries('sidebar.sections')).toHaveLength(1)
     expect(ctx.slots.entries('dashboard.metric')).toHaveLength(0)
     expect(ctx.slots.entries('dashboard.widget')).toHaveLength(1)
-    expect(ctx.slots.entries('dashboard.search')).toHaveLength(1)
 
     const page = ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
       onAsk: (text: string) => void
       hooks: {
         widgets: { getSnapshot: () => readonly { label: string }[] }
-        searches: { getSnapshot: () => readonly { label: string }[] }
+        searches: { getSnapshot: () => readonly DashboardSearchGroup[] }
         focusRequests: { getSnapshot: () => number }
       }
     }
     expect(page.hooks.widgets.getSnapshot().map(entry => entry.label)).toEqual([en['widget.activity']])
-    expect(page.hooks.searches.getSnapshot().map(entry => entry.label)).toEqual([en['search.chats']])
+    const registry = ctx.get('dashboardSearch') as DashboardSearch
+    expect(page.hooks.searches.getSnapshot()).toHaveLength(1)
+    const chats = page.hooks.searches.getSnapshot()[0]!
+    expect(chats.label()).toBe(en['search.chats'])
+    const changed = vi.fn()
+    const stop = chats.subscribe(changed)
+    sessionList.set({ ...sessionList.getSnapshot() })
+    expect(changed).toHaveBeenCalled()
+    stop()
+    const found = chats.results({ text: 'claim', matches: value => matchesQuery(value, 'claim') })
+    expect(found.map(result => [result.title, result.detail])).toEqual([['Claim chart EP 2', en['activity.running']], ['Claim chart EP 1', undefined]])
+    found[1]!.open()
+    expect(workspace.openSession).toHaveBeenCalledWith('a')
+    const other = registry.register(group('agents', 20, []))
+    expect(page.hooks.searches.getSnapshot().map(item => item.id)).toEqual(['flowleap-chats', 'agents'])
+    other()
+
     page.onAsk('Watch EP 1')
     expect(workspace.startSession).toHaveBeenCalledWith(undefined, { prompt: 'Watch EP 1' })
     page.onAsk('')
@@ -241,80 +269,18 @@ describe('ui-flowleap-dashboard browser half', () => {
     expect(layout.selectPanel).toHaveBeenLastCalledWith('flowleap-dashboard')
     expect(page.hooks.focusRequests.getSnapshot()).toBe(1)
     expect(workspace.provideSearch).toHaveBeenCalledOnce()
-    const openSearch = workspace.provideSearch.mock.calls[0]![0]
-    openSearch()
+    workspace.provideSearch.mock.calls[0]![0]()
     expect(page.hooks.focusRequests.getSnapshot()).toBe(2)
-    const chatSearch = ctx.slots.entries('dashboard.search')[0]!.inject!() as { onOpenSession: (id: SessionId) => void }
-    chatSearch.onOpenSession('s1' as SessionId)
-    expect(workspace.openSession).toHaveBeenCalledWith('s1')
     expect(ctx.locale.bind(NS)('panel.dashboard')).toBe(en['panel.dashboard'])
 
     await fiber.dispose()
     expect(workspace.provideSearch.mock.results[0]!.value).toHaveBeenCalledOnce()
+    expect(workspace.provideLanding.mock.results[0]!.value).toHaveBeenCalledOnce()
+    expect(page.hooks.searches.getSnapshot()).toEqual([])
     for (const seat of ['main', 'sidebar.panellist', 'sidebar.actions', 'sidebar.sections'] as const) {
       expect(ctx.slots.entries(seat)).toEqual([])
     }
     await ctx.fiber.dispose()
-  })
-
-  it('shows the dashboard at once, opens the chat of a deep link when the Session list is ready, then keeps the address equal to the open item', async () => {
-    window.history.replaceState(null, '', '/?chat=s1&lang=de')
-    const { ctx, workspace, layout, panelInfo, sessionList } = await pluginContext(sessions([], 'pending'))
-    workspace.openSession.mockImplementation(() => { panelInfo.set({ activePanelId: null }) })
-    const fiber = ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
-    expect(workspace.openSession).not.toHaveBeenCalled()
-    sessionList.set(sessions([{ id: 'other', title: 'Other', updatedAt: 2 }, { id: 's1', title: 'Claim chart', updatedAt: 1, mainView: true }]))
-    expect(workspace.openSession).toHaveBeenCalledOnce()
-    expect(workspace.openSession).toHaveBeenCalledWith('s1')
-    expect(window.location.search).toBe('?lang=de&chat=s1')
-    panelInfo.set({ activePanelId: 'flowleap-chats' })
-    expect(window.location.search).toBe('?lang=de&page=flowleap-chats')
-    panelInfo.set({ activePanelId: 'flowleap-dashboard' })
-    expect(window.location.search).toBe('?lang=de')
-    panelInfo.set({ activePanelId: null })
-    sessionList.set(sessions([{ id: 's1', title: 'Claim chart', updatedAt: 1, blank: true, mainView: true }]))
-    expect(window.location.search).toBe('?lang=de')
-    expect(layout.selectPanel).toHaveBeenCalledOnce()
-    await fiber.dispose()
-    await ctx.fiber.dispose()
-  })
-
-  it('keeps the dashboard for a missing chat or page', async () => {
-    for (const address of ['/?page=gone', '/?chat=gone']) {
-      window.history.replaceState(null, '', address)
-      const { ctx, workspace, layout } = await pluginContext(sessions([{ id: 's1', title: 'A', updatedAt: 1, mainView: true }]))
-      const fiber = ctx.plugin({ inject: [...inject], apply })
-      await fiber.await()
-      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
-      await new Promise(resolve => setTimeout(resolve, 5))
-      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(['flowleap-dashboard'])
-      expect(workspace.openSession).not.toHaveBeenCalled()
-      expect(window.location.search).toBe('')
-      await fiber.dispose()
-      await ctx.fiber.dispose()
-    }
-  })
-
-  it('selects a linked page once it is registered and the start restoration opened its chat, unless the user left the dashboard', async () => {
-    for (const leave of [false, true]) {
-      window.history.replaceState(null, '', '/?page=late-page')
-      const { ctx, layout, panelInfo, sessionList } = await pluginContext(sessions([]))
-      const fiber = ctx.plugin({ inject: [...inject], apply })
-      await fiber.await()
-      await vi.waitFor(() => { expect(layout.selectPanel).toHaveBeenCalledWith('flowleap-dashboard') })
-      const dispose = ctx.slots.register({ name: 'main', key: 'late-page' } as never, () => null)
-      sessionList.set(sessions([{ id: 'other', title: 'Other', updatedAt: 1 }]))
-      await new Promise(resolve => setTimeout(resolve, 5))
-      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(['flowleap-dashboard'])
-      if (leave) panelInfo.set({ activePanelId: 'flowleap-chats' })
-      sessionList.set(sessions([{ id: 'blank', title: 'New', blank: true, updatedAt: 1, mainView: true }]))
-      expect(layout.selectPanel.mock.calls.map(([id]) => id)).toEqual(leave ? ['flowleap-dashboard'] : ['flowleap-dashboard', 'late-page'])
-      dispose()
-      await fiber.dispose()
-      await ctx.fiber.dispose()
-    }
   })
 })
 
@@ -369,8 +335,7 @@ describe('dashboard surfaces', () => {
 
   it('lists running and recent chats in Agent activity and opens one', () => {
     const onOpenSession = vi.fn()
-    const props = { useSessions: bindSnapshotSelector(createSnapshotStore(list)), onOpenSession, t } as never as AgentActivityProps
-    render(<AgentActivity {...props} />)
+    render(<AgentActivity {...standard(list)} onOpenSession={onOpenSession} t={t} />)
     const rows = screen.getAllByRole('button')
     expect(rows[0]!.textContent).toContain(en['activity.running'])
     expect(rows[1]!.textContent).toContain(en['activity.idle'])
@@ -378,13 +343,8 @@ describe('dashboard surfaces', () => {
     expect(onOpenSession).toHaveBeenCalledWith('a')
   })
 
-  type ActivityProps = AgentActivityProps
-
   it('states loading and the empty list', () => {
-    const activity = (state: SessionListState) => {
-      const props = { useSessions: bindSnapshotSelector(createSnapshotStore(state)), onOpenSession: vi.fn(), t } as never as ActivityProps
-      return render(<AgentActivity {...props} />)
-    }
+    const activity = (state: SessionListState) => render(<AgentActivity {...standard(state)} onOpenSession={vi.fn()} t={t} />)
     expect(activity(sessions([], 'pending')).getByRole('status').textContent).toBe(en['activity.loading'])
     cleanup()
     expect(activity(sessions([])).container.textContent).toBe(en['activity.empty'])
@@ -392,12 +352,12 @@ describe('dashboard surfaces', () => {
 
   it('shows every chat on the Chats page and starts a chat from the Agents page', () => {
     const onOpenSession = vi.fn()
-    render(<ChatsPage {...{ useSessions: bindSnapshotSelector(createSnapshotStore(list)), onOpenSession, t } as never as ChatsPageProps} />)
+    render(<ChatsPage {...standard(list)} onOpenSession={onOpenSession} t={t} />)
     expect(screen.getByRole('heading', { name: en['chats.title'] })).toBeTruthy()
     expect(screen.getAllByRole('button')).toHaveLength(2)
     cleanup()
     const onNewChat = vi.fn()
-    render(<AgentsPage {...{ onNewChat, t } as never as AgentsPageProps} />)
+    render(<AgentsPage {...standard(sessions([]))} onNewChat={onNewChat} t={t} />)
     fireEvent.click(screen.getByRole('button', { name: en['placeholder.newAgent'] }))
     expect(onNewChat).toHaveBeenCalledOnce()
   })
@@ -427,12 +387,15 @@ describe('dashboard surfaces', () => {
     cleanup()
     for (const Icon of [DashboardIcon, ChatsIcon, AgentsIcon]) expect(render(<Icon size={16} />).container.querySelector('svg')).toBeTruthy()
     cleanup()
-    const workspaces = (pinnedSessionIds: string[]) => bindSnapshotSelector(createSnapshotStore({ pinnedSessionIds }))
     const onOpenSession = vi.fn()
-    const pinned = (wideColumn: boolean, ids: string[]) => render(<PinnedSection {...{
-      ...classes, wide: wideColumn, useWorkspaces: workspaces(ids), useSessions: bindSnapshotSelector(createSnapshotStore(list)),
-      onOpenSession, t,
-    } as never as PinnedSectionProps} />)
+    const pinned = (wideColumn: boolean, ids: string[]) => {
+      const { useSessions, useWorkspaces } = standard(list, ids.map(id => SessionId(id)))
+      return render(
+        <PinnedSection
+          {...classes} wide={wideColumn} useSessions={useSessions} useWorkspaces={useWorkspaces} onOpenSession={onOpenSession} t={t}
+        />,
+      )
+    }
     const section = pinned(true, ['b', 'gone'])
     fireEvent.click(section.getByRole('button', { name: 'Opposition' }))
     expect(onOpenSession).toHaveBeenCalledWith('b')
@@ -449,34 +412,34 @@ describe('ui-flowleap-dashboard registrations', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const page = (key: string) => ctx.slots.entries('main').find(entry => entry.options.key === key)!.inject!() as Record<string, (id?: SessionId) => void>
-    page('flowleap-chats').onOpenSession!('c1' as SessionId)
+    page('flowleap-chats').onOpenSession!(SessionId('c1'))
     expect(workspace.openSession).toHaveBeenCalledWith('c1')
     page('flowleap-agents').onNewChat!()
     expect(workspace.startSession).toHaveBeenCalledWith()
     const pinned = ctx.slots.entries('sidebar.sections')[0]!.inject!() as { onOpenSession: (id: SessionId) => void }
-    pinned.onOpenSession('c2' as SessionId)
+    pinned.onOpenSession(SessionId('c2'))
     expect(workspace.openSession).toHaveBeenCalledWith('c2')
     const activity = ctx.slots.entries('dashboard.widget')[0]!.inject!() as { onOpenSession: (id: SessionId) => void }
-    activity.onOpenSession('c3' as SessionId)
+    activity.onOpenSession(SessionId('c3'))
     expect(workspace.openSession).toHaveBeenCalledWith('c3')
     expect(ctx.slots.entries('sidebar.panellist').map(entry => (entry.options.label as () => string)()))
       .toEqual([en['panel.dashboard'], en['panel.chats'], en['panel.agents']])
-    const searches = (ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
-      hooks: { searches: { getSnapshot: () => readonly { label: string }[] } }
-    }).hooks.searches
+    const widgets = (ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
+      hooks: { widgets: { getSnapshot: () => readonly { label: string }[] } }
+    }).hooks.widgets
     ctx.locale.setLocale('zh')
-    await vi.waitFor(() => { expect(searches.getSnapshot().map(entry => entry.label)).toEqual([zh['search.chats']]) })
-    const dashboard = ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
-      hooks: { links: { getSnapshot: () => readonly { id: string; order: number; label: string }[] } }
-    }
-    const dispose = ctx.slots.register({ name: 'dashboard.link', id: 'bare' } as never, () => null)
-    const first = ctx.slots.register({ name: 'dashboard.link', id: 'first', order: -1, label: () => 'First' } as never, () => null)
+    await vi.waitFor(() => { expect(widgets.getSnapshot().map(entry => entry.label)).toEqual([zh['widget.activity']]) })
+    const metrics = (ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
+      hooks: { metrics: { getSnapshot: () => readonly { id: string; order: number; label: string }[] } }
+    }).hooks.metrics
+    const bare = ctx.slots.register({ name: 'dashboard.metric', id: 'bare' }, () => null)
+    const first = ctx.slots.register({ name: 'dashboard.metric', id: 'first', order: -1, label: () => 'First' }, () => null)
     await vi.waitFor(() => {
-      expect(dashboard.hooks.links.getSnapshot()).toEqual([{ id: 'first', order: -1, label: 'First' }, { id: 'bare', order: 0, label: 'bare' }])
+      expect(metrics.getSnapshot()).toEqual([{ id: 'first', order: -1, label: 'First' }, { id: 'bare', order: 0, label: 'bare' }])
     })
     first()
-    dispose()
-    await vi.waitFor(() => { expect(dashboard.hooks.links.getSnapshot()).toEqual([]) })
+    bare()
+    await vi.waitFor(() => { expect(metrics.getSnapshot()).toEqual([]) })
     await fiber.dispose()
     await ctx.fiber.dispose()
   })

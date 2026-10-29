@@ -77,13 +77,6 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: -12px 0 24px;
-}
-
 /* The search results under the ask bar: one group per registered app. */
 .results {
   display: flex;
@@ -104,7 +97,6 @@
   display: flex;
   flex-direction: column;
 }
-
 
 .firstSteps {
   margin-bottom: 24px;
@@ -250,8 +242,6 @@
   font-size: 13px;
 }
 
-
-
 .rows {
   display: flex;
   flex-direction: column;
@@ -273,7 +263,6 @@
   text-align: left;
   white-space: normal;
 }
-
 
 .rowGlyph,
 .installGlyph {
@@ -301,11 +290,6 @@
   font-size: 12px;
   line-height: 18px;
 }
-
-
-
-
-
 
 .subheading {
   margin: 0 0 4px;

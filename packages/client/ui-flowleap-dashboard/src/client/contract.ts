@@ -1,10 +1,12 @@
 /**
- * Dashboard slot contract. The dashboard page declares four list slots, so each FlowLeap app adds its own surfaces:
- * `dashboard.metric` for a metric card, `dashboard.widget` for a panel, `dashboard.link` for a link to its page, and
- * `dashboard.search` for its group of search results. For a card and a panel the page draws the frame and the
- * registration `label` as the heading; the occupant draws only the body and reads its own data.
+ * Dashboard contract. The dashboard page declares two list slots, so each FlowLeap app adds its own surfaces:
+ * `dashboard.metric` for a metric card and `dashboard.widget` for a panel. The page draws the frame and the
+ * registration `label` as the heading; the occupant draws only the body and reads its own data. The search of the ask
+ * bar is data: each app registers a {@link DashboardSearchGroup} with the `dashboardSearch` service, and the page draws
+ * every group the same way.
  */
 
+import type { ComponentType } from 'react'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -13,16 +15,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'dashboard.metric': { kind: 'list'; scope: 'root'; owner: DashboardWidgetOwnerProps }
     /** One panel on the dashboard: `label` is the panel heading, `order` its place. */
     'dashboard.widget': { kind: 'list'; scope: 'root'; owner: DashboardWidgetOwnerProps }
-    /**
-     * One link below the ask bar to an app page: `order` is its place. The occupant draws one button that opens its
-     * page; the row shows only while an occupant is registered.
-     */
-    'dashboard.link': { kind: 'list'; scope: 'root'; owner: DashboardWidgetOwnerProps }
-    /**
-     * One group of search results below the ask bar while it holds text: `order` is its place. The occupant draws its
-     * own group heading and result buttons, or nothing when no result matches.
-     */
-    'dashboard.search': { kind: 'list'; scope: 'root'; owner: DashboardSearchOwnerProps }
+  }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** The search groups of the dashboard ask bar. */
+    dashboardSearch: DashboardSearch
   }
 }
 
@@ -32,21 +31,7 @@ export interface DashboardWidgetOwnerProps {
   children?: never
 }
 
-/** Owner share of a search group. */
-export interface DashboardSearchOwnerProps {
-  /** The trimmed text of the ask bar; never empty. */
-  readonly query: string
-  /**
-   * The one match rule of every group: each word of the query is in the text, without regard to case.
-   * @param text - the text of a result, for example a chat title.
-   * @returns `true` when the result matches.
-   */
-  readonly matches: (text: string) => boolean
-  /** Tell the page that the user opened a result, so the page clears the ask bar. */
-  readonly onPicked: () => void
-}
-
-/** Metadata of one registered dashboard entry. */
+/** Metadata of one registered dashboard card or panel. */
 export interface DashboardEntry {
   readonly id: string
   readonly order: number
@@ -57,8 +42,68 @@ export interface DashboardEntry {
 export type DashboardEntries = {
   readonly metrics: ObservableSnapshot<readonly DashboardEntry[]>
   readonly widgets: ObservableSnapshot<readonly DashboardEntry[]>
-  readonly links: ObservableSnapshot<readonly DashboardEntry[]>
-  readonly searches: ObservableSnapshot<readonly DashboardEntry[]>
+}
+
+/** The text of the ask bar and the one match rule of every search group. */
+export interface DashboardSearchQuery {
+  /** The trimmed text of the ask bar; never empty. */
+  readonly text: string
+  /**
+   * Whether a text matches: each word of the query is in the text, without regard to case.
+   * @param value - the text of a result, for example a chat title.
+   * @returns `true` when the result matches.
+   */
+  matches(value: string): boolean
+}
+
+/** Props the page gives the glyph of a result. */
+export interface SearchResultIconProps {
+  readonly size: number
+  readonly className?: string | undefined
+}
+
+/** One search result. */
+export interface SearchResult {
+  /** Unique in its group. */
+  readonly id: string
+  readonly title: string
+  /** A second line, for example "Running" or the description of an agent. */
+  readonly detail?: string
+  readonly icon: ComponentType<SearchResultIconProps>
+  /** Open the result; the page clears the ask bar first. */
+  readonly open: () => void
+}
+
+/** One group of search results, for example the Chats of the dashboard or the Agents of the agent builder. */
+export interface DashboardSearchGroup {
+  /** Unique among the groups. */
+  readonly id: string
+  /** Place of the group; lower first. */
+  readonly order: number
+  /** @returns the group heading in the current locale. */
+  readonly label: () => string
+  /**
+   * The results for a query, best first; the page shows the first five.
+   * @param query - the text and the match rule.
+   * @returns the matching results; empty hides the group.
+   */
+  readonly results: (query: DashboardSearchQuery) => readonly SearchResult[]
+  /**
+   * Observe the data behind `results`; the page subscribes only while the ask bar holds text.
+   * @param listener - called after the data changed.
+   * @returns the disposer.
+   */
+  readonly subscribe: (listener: () => void) => () => void
+}
+
+/** The registry of search groups. */
+export interface DashboardSearch {
+  /**
+   * Add a search group; register it as an effect.
+   * @param group - the group.
+   * @returns the disposer.
+   */
+  register(group: DashboardSearchGroup): () => void
 }
 
 /**

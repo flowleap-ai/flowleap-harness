@@ -5978,7 +5978,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'BudgetUnknownReason',
-    declaration: 'export type BudgetUnknownReason = \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'invalid_answer\';',
+    declaration: 'export type BudgetUnknownReason = \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'gateway_error\' | \'invalid_answer\';',
   },
   {
     name: 'BundleDetail',
@@ -8234,7 +8234,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RoutineWatch',
-    declaration: 'export interface RoutineWatch {\n    readonly taskId: string;\n    readonly sessionId: SessionId;\n    readonly title: string;\n    readonly nextCheckAt?: string;\n    readonly applications: readonly WatchedApplication[];\n}',
+    declaration: 'export interface RoutineWatch {\n    readonly taskId: ScheduleId;\n    readonly sessionId: SessionId;\n    readonly title: string;\n    readonly nextCheckAt?: string;\n    readonly applications: readonly WatchedApplication[];\n}',
   },
   {
     name: 'RpcId',

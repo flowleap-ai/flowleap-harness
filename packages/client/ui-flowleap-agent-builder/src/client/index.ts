@@ -1,7 +1,7 @@
 /**
  * Browser half of the FlowLeap agent builder: the New agent and Edit agent rows in the new-session preset menu
  * (`agentPreset.menu.actions`), the agent form in `shell.overlay`, and the Agents group of the dashboard search
- * (`dashboard.search`). One controller over the `flowleapAgents` Remote backs all four; `flowleap-agents/changed` and
+ * (`dashboardSearch`). One controller over the `flowleapAgents` Remote backs all four; `flowleap-agents/changed` and
  * a connection reset read the Host again.
  */
 
@@ -14,8 +14,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 import type { AgentId } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {} from '@deepseek-ai/dsh-client-ui-flowleap-dashboard/client'
+import { IconAgentPresetOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { AgentFormDialog } from './AgentFormDialog.tsx'
-import { AgentSearch } from './AgentSearch.tsx'
 import { EditAgentMenuItem } from './EditAgentMenuItem.tsx'
 import { AgentFormController, type AgentUploadError, type AgentUploadResult } from './form-store.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapAgentBuilderKey } from './locales.ts'
@@ -105,6 +106,7 @@ export async function uploadAgentFile(id: AgentId, file: File): Promise<AgentUpl
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-flowleap-agent-builder: dictionaries')
+  const t = ctx.locale.bind(NS)
   // Every flowleapAgents endpoint is owner-only; a Peer without access sees no row.
   ctx.remoteAccess.whenAccess('flowleapAgents/list', function* () {
     const agents = ctx.remote.flowleapAgents
@@ -134,15 +136,23 @@ export function apply(ctx: ClientContext): void {
       name: 'agentPreset.menu.actions', id: 'flowleap-edit-agent', order: 1, locale: NS,
       inject: () => ({ hooks: { agents: form.agents }, openEdit: form.openEdit }),
     }, EditAgentMenuItem))
-    // The dashboard (ui-flowleap-dashboard) declares this slot; without it the registration waits and does nothing.
-    yield ctx.slots.inject('dashboard.search', () => ctx.slots.register({
-      name: 'dashboard.search', id: 'flowleap-agents', order: 20, locale: NS, label: () => ctx.locale.bind(NS)('search.heading'),
-      inject: () => ({
-        hooks: { agents: form.agents },
-        // ui-workspace is optional here: the dashboard that shows this group also needs it, so it is mounted then.
-        onStartAgent: (id: AgentId) => { ctx.get('uiWorkspace')?.startSession(undefined, { agentPreset: id }) },
-      }),
-    }, AgentSearch))
+    // The dashboard (ui-flowleap-dashboard) provides the search registry; without it the group waits and does nothing.
+    const search = ctx.inject(['dashboardSearch', 'uiWorkspace'], (scope) => {
+      scope.effect(() => scope.dashboardSearch.register({
+        id: 'flowleap-agents',
+        order: 20,
+        label: () => t('search.heading'),
+        results: query => form.agents.getSnapshot().filter(agent => query.matches(`${agent.name} ${agent.description}`)).map(agent => ({
+          id: agent.id,
+          title: agent.name,
+          detail: agent.readOnly ? t('search.firm') : agent.description,
+          icon: IconAgentPresetOutlineRegular,
+          open: () => { scope.uiWorkspace.startSession(undefined, { agentPreset: agent.id }) },
+        })),
+        subscribe: listener => form.agents.subscribe(listener),
+      }), 'ui-flowleap-agent-builder: Agents search group')
+    })
+    yield () => { void search.dispose() }
     yield ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'flowleap-agent-form', locale: NS,
       inject: () => ({
