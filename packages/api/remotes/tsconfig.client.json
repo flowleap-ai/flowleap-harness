@@ -121,9 +121,6 @@
       "path": "../../host/flowleap-routines"
     },
     {
-      "path": "../../client/ui-flowleap-budget/tsconfig.client.json"
-    },
-    {
       "path": "../../host/flowleap-agent-builder"
     }
   ]
