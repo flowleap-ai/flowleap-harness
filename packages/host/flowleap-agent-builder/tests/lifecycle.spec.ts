@@ -40,16 +40,21 @@ async function writeAgent(root: string, id: string, files: Record<string, string
   for (const [name, text] of Object.entries(files)) await writeFile(join(root, id, 'files', name), text)
 }
 
-/** An OCR read that settles when the test releases it. */
+/** An OCR read that settles when the test releases it; `started(n)` resolves when the n-th read starts. */
 function heldOcr() {
   let release: (read: OcrRead) => void = () => {}
-  const started = vi.fn()
+  let count = 0
+  const waiters: { readonly n: number; readonly resolve: () => void }[] = []
   const ocr = {
     pages: () => {
-      started()
+      count += 1
+      for (const waiter of waiters.filter(entry => entry.n <= count)) waiter.resolve()
       return new Promise<OcrRead>((resolve) => { release = resolve })
     },
   }
+  const started = (n: number): Promise<void> => count >= n
+    ? Promise.resolve()
+    : new Promise((resolve) => { waiters.push({ n, resolve }) })
   return { ocr, started, release: (read: OcrRead) => { release(read) } }
 }
 
@@ -363,15 +368,20 @@ describe('files', () => {
     await mountBuilder(ctx, { root: await tempDir('dsh-agents-') })
     const catalog = ctx.flowleapAgentCatalog
     const { id } = await catalog.save(undefined, INPUT, 'Work.')
+    // Indexing settles before the OCR read starts only when the extraction never reached OCR.
+    const ocrStarted = (n: number) => Promise.race([
+      held.started(n),
+      catalog.settled().then(() => { throw new Error(`indexing settled without OCR: ${JSON.stringify(catalog.read(id).files)}`) }),
+    ])
     await catalog.upload(id, 'scan.pdf', chunks(makePdf([null])))
-    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(1) }, { timeout: 10_000 })
+    await ocrStarted(1)
     await catalog.removeFile(id, 'scan.pdf')
     held.release({ kind: 'read', pages: [{ page: 1, text: 'late text' }] })
     await catalog.settled()
     expect(catalog.read(id).files).toEqual([])
 
     await catalog.upload(id, 'scan.pdf', chunks(makePdf([null])))
-    await vi.waitFor(() => { expect(held.started).toHaveBeenCalledTimes(2) }, { timeout: 10_000 })
+    await ocrStarted(2)
     await catalog.delete(id)
     held.release({ kind: 'read', pages: [{ page: 1, text: 'late text' }] })
     await catalog.settled()
