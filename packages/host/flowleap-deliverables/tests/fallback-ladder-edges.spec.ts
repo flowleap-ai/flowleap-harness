@@ -176,7 +176,7 @@ describe('web sources', () => {
     const review: PatentCandidateReview = {
       coverage: [
         row('band', { kind: 'feature', claimNumber: '1', sourceAnchors: ['US2:web', 'EP1:description:en'] }),
-        row('screw', { kind: 'feature', claimNumber: '1', evidence: [{ anchor: 'US1:web', quote: 'a screw' }], elements: [{ element: 'screw', anchor: 'US1:web:2' }, { element: 'nut' }] }),
+        row('screw', { kind: 'feature', claimNumber: '1', evidence: [{ anchor: 'US1:web', quote: 'a screw', scope: '', qualifiers: '', quantityBasis: '' }], elements: [{ element: 'screw', anchor: 'US1:web:2' }, { element: 'nut' }] }),
         row('liner', { kind: 'feature', claimNumber: '1', status: 'unresolved', sourceAnchors: ['US1:web'] }),
         row('band again', { kind: 'feature', claimNumber: '1', sourceAnchors: ['US2:web'] }),
       ],
