@@ -767,6 +767,16 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(tasks[0]).toEqual({ ...task(tasks[0]!.record), status: 'ended', updatedAt: '2026-09-16T00:00:02.000Z' })
   })
 
+  it('stamps a skipped task that has no stored change time with the skip time', async () => {
+    const { updatedAt: _updatedAt, ...legacy } = task(createAfterScheduleRecord(ScheduleId('legacy'), 'Remember', 2, Date.now(), 'Remember'))
+    const tasks: ScheduleTask[] = [legacy]
+    const test = await setup(tasks)
+    test.ctx.on('schedule/admit', async () => ({ kind: 'skip' }))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(tasks[0]).toMatchObject({ status: 'ended', updatedAt: '2026-09-16T00:00:02.000Z' })
+  })
+
   it('sends and saves the admitted prompt, keeps the stored prompt, and announces the committed delivery', async () => {
     const record = createDailyScheduleRecord(ScheduleId('watch'), 'Watch', {
       time: '08:00:02', time_zone: 'Asia/Shanghai',
@@ -878,6 +888,24 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(review.followup).toHaveBeenCalledOnce()
     expect(tasks[0]).toMatchObject({ target: { kind: 'session', sessionId: ORIGINAL }, involvedSessionIds: [ORIGINAL], status: 'ended' })
     expect(delivered).toHaveBeenCalledWith({ id: ScheduleId('once'), receipt: expect.objectContaining({ targetSessionId: review.id }) })
+  })
+
+  it('keeps a member due when its redirect Session is archived', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('once'), 'Remember', 2, Date.now(), 'Remember'))]
+    const test = await setup(tasks)
+    const review = agentFor(test.ctx, 'review-1')
+    test.ctx.provide('workspaceRegistry', { archivedSessionIds: [review.id] } as never)
+    test.ctx.on('schedule/admit', async (_request, next) => ({ ...await next(), sessionId: review.id }))
+    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      test.runtime.requestDrive()
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(`Session ${review.id} is archived`))
+      expect(test.resolve).not.toHaveBeenCalled()
+      expect(review.followup).not.toHaveBeenCalled()
+      expect(tasks[0]?.status).toBe('active')
+      expect(tasks[0]?.lastDelivery).toBeUndefined()
+    } finally { warn.mockRestore() }
   })
 
   it('stops between a shared batch and a redirected member at disposal', async () => {

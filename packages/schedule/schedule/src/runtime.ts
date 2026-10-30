@@ -306,6 +306,7 @@ export class ScheduleRuntime {
     committed: Set<ScheduleId>,
   ): Promise<void> {
     const first = members[0]
+    /* v8 ignore next -- deliverDue builds only nonempty batches; the check only narrows the index type. */
     if (first === undefined) return
     if (redirect !== undefined && this.archived(redirect)) {
       throw new RemoteError('schedule/target-archived', `Session ${redirect} is archived`, { sessionId: redirect })

@@ -482,7 +482,9 @@ describe('ui-flowleap-routines browser half', () => {
       return () => { set.delete(listener) }
     })
     const reviews = vi.fn(async () => ok(marks))
-    const catalog = vi.fn(async () => ok(tasks))
+    // A task whose every run creates a chat has no chat of its own for the search group to open.
+    const everyRun: ScheduleCatalogEntry = { ...task('fresh', 'Fresh chats'), target: { kind: 'new', create: {} }, involvedSessionIds: [] }
+    const catalog = vi.fn(async () => ok([...tasks, everyRun]))
     const readWatches = vi.fn(async () => ok(watches))
     const done = vi.fn(async () => ok(undefined))
     const registry = searchRegistry()
@@ -569,6 +571,7 @@ describe('ui-flowleap-routines browser half', () => {
     expect(group.results(query('us17123456')).map(result => result.title)).toEqual(['Register watch'])
     expect(group.results(query('digest')).map(result => result.title)).toEqual(['Weekly digest'])
     expect(group.results(query('nothing'))).toEqual([])
+    expect(group.results(query('fresh'))).toEqual([])
     group.results(query('digest'))[0]!.open()
     expect(openSession).toHaveBeenLastCalledWith('chat-origin')
     stopGroup()
