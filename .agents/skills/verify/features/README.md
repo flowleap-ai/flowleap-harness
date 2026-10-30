@@ -28,7 +28,7 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 
 ## Features
 
-- [Patent Agent turn](./patent-agent-turn.md): a live turn on the Patent Agent preset, and one office tool call. `turn-ping` was proven on 2026-10-27.
+- [Patent Agent turn](./patent-agent-turn.md): a live turn on the Patent Agent preset, one office tool call, and no web tool. `turn-ping` was proven on 2026-10-27 and `turn-no-web` on 2026-10-30.
 - [Patent data connectors](./connectors.md): the settings cards, Test connection, and the paid FlowLeap tools. `connectors-test` (EPO OPS) was proven on 2026-10-27.
 - [Agent builder](./agent-builder.md): the `New agent` form, the agent in the picker, a chat that cites its own file, the connector restriction, edit and delete. `agent-create`, `agent-picker`, `agent-chat-context`, `agent-chat-search`, `agent-connectors`, `agent-edit` and `agent-delete` were proven on 2026-10-28.
 - [Dashboard](./dashboard.md): the first screen with real data, the running chat, the register watch in Coming up, the search, the deep links, and the budget from a local gateway double. All six sub-features were proven on 2026-10-29.
