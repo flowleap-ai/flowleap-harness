@@ -232,11 +232,9 @@ describe('maintained repository reference policy', () => {
     expect(scanRepositoryReferences(fixture.root)).toEqual([])
   })
 
-  it('excludes only ignored new files, vendored sources, frozen notes, generated lockfiles, and deleted files', (test) => {
+  it('excludes only ignored new files, vendored sources, frozen notes, FlowLeap research notes, and deleted files', (test) => {
     const fixture = repository(test)
-    fixture.write('python/sdk/uv.lock', fixture.commit)
-    fixture.write('pnpm-lock.yaml', fixture.commit)
-    fixture.write('uv.lock.md', fixture.commit)
+    fixture.write('flowleap/docs/research.md', fixture.commit)
     fixture.write('.gitignore', 'ignored.md\ntracked-ignore.md\n')
     fixture.write('ignored.md', fixture.commit)
     fixture.write('vendor/project/file.md', `${fixture.commit}\n${organizationUrl}`)
@@ -246,7 +244,6 @@ describe('maintained repository reference policy', () => {
     unlinkSync(join(fixture.root, 'tracked.md'))
 
     expect(scanRepositoryReferences(fixture.root)).toEqual([
-      { file: 'uv.lock.md', line: 1, kind: 'commit-hash' },
       { file: 'tracked-ignore.md', line: 1, kind: 'commit-hash' },
     ])
   })
