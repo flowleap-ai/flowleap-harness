@@ -176,8 +176,9 @@ describe('web e2e: Markdown file links', () => {
     const relative = page.getByRole('button', { name: 'Relative colon:24–30', exact: true })
     await relative.waitFor()
     expect(await page.getByRole('button', { name: 'Development server', exact: true }).count()).toBe(0)
-    expect(await page.getByRole('link', { name: 'Development server', exact: true }).getAttribute('href')).toBe('localhost:3000')
-    expect(await page.getByRole('link', { name: 'Bare URL', exact: true }).getAttribute('href')).toBe('index.ts:24')
+    // FlowLeap fork modification: only HTTP(S) and mailto destinations stay links.
+    expect(await page.getByRole('link', { name: 'Development server', exact: true }).count()).toBe(0)
+    expect(await page.getByRole('link', { name: 'Bare URL', exact: true }).count()).toBe(0)
     expect(await page.getByRole('link', { name: 'Blocked script', exact: true }).count()).toBe(0)
     expect(await page.getByRole('button', { name: 'Blocked script', exact: true }).count()).toBe(0)
     expect(await page.getByRole('link', { name: 'Mail', exact: true }).getAttribute('href')).toBe('mailto:10086')

@@ -4,7 +4,7 @@
  * cache frozen blocks as React elements; the rendered DOM is pinned
  * byte-for-byte by `tests/fixtures/markdown-dom` and must not drift.
  *
- * External links reject executable and embedded-document protocols; settled
+ * External links pass a protocol allowlist (HTTP(S) and mailto); settled
  * local file links use an explicit owner callback. Images additionally require
  * absolute HTTP(S), raw HTML renders as literal text (no HTML enters the
  * DOM), and KaTeX runs without trusted commands. Fragment-only URLs are not
@@ -55,14 +55,16 @@ export interface MarkdownLabels {
 function sanitizeUrl(url: string): string {
   if (isExplicitFilePath(url)) return ''
   try {
+    // FlowLeap fork modification: links keep the protocol allowlist that upstream replaced with a denylist, so a
+    // `flowleap://` reader reference renders as its label and a model-written `file:`, `smb:`, or `ms-word:` link
+    // cannot open a local resource. See HANDOFF.md "Fork modifications of upstream code".
     switch (new URL(url).protocol) {
-      case 'javascript:':
-      case 'vbscript:':
-      case 'data:':
-      case 'blob:':
-        return ''
-      default:
+      case 'http:':
+      case 'https:':
+      case 'mailto:':
         return url
+      default:
+        return ''
     }
   } catch {
     // Relative and otherwise unparsable destinations are disallowed alongside

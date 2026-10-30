@@ -165,10 +165,25 @@ describe('Markdown file links', () => {
     expect(openFile).not.toHaveBeenCalled()
   })
 
+  // FlowLeap fork modification: only HTTP(S) and mailto destinations stay links.
   it.each([
-    'mailto:10086', 'https:123', 'http:123', 'https://example.com:8080',
     'index.ts:24', 'example.com:8080', 'localhost:3000', 'Makefile:12', 'tel:10086',
     'vscode:open', 'file:///etc/passwd:24', 'custom.scheme:value:24', 'C:123',
+    'flowleap://reader/report.md', 'smb://server/share', 'ms-word:ofe|u|https://example.com/a.docx',
+  ])('renders destination %s outside the protocol allowlist as text', (target) => {
+    const openFile = vi.fn()
+    const view = render(
+      <MarkdownDelegateProvider openFile={openFile}>
+        <MarkdownText text={`[external](${target})`} />
+      </MarkdownDelegateProvider>,
+    )
+    expect(view.getByText('external')).toBeTruthy()
+    expect(view.container.querySelector('button, a')).toBeNull()
+    expect(openFile).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'mailto:10086', 'https:123', 'http:123', 'https://example.com:8080',
   ])(
     'preserves external destination %s with and without a file opener', (target) => {
       const openFile = vi.fn()

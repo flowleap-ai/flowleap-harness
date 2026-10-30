@@ -4776,3 +4776,16 @@ it('does not infer menu targets from links or data attributes inside a plugin fl
   expect(custom).toHaveBeenCalledOnce()
   expect(h.props.resolveFilePath).not.toHaveBeenCalled()
 })
+
+// FlowLeap fork modification: the chat keeps the Markdown protocol allowlist, so a patent reader reference and a local file
+// URL render as their labels and only HTTP(S) and mailto destinations become links.
+it('renders flowleap and file links in an answer as text and an https link as a link', () => {
+  const h = makeHarness({
+    nodes: [user(1, 'hi'), assistant(2, '[EP4814394A1 claim 1](flowleap://flowleap.patent-ai/patent?publication=EP4814394A1) [local](file:///etc/passwd) [family](https://example.com/family)')],
+  })
+  const view = render(<h.ChatView {...h.props} />)
+  expect(view.container.textContent).toContain('EP4814394A1 claim 1 local family')
+  expect(view.getByRole('link', { name: 'family' }).getAttribute('href')).toBe('https://example.com/family')
+  expect(view.queryByRole('link', { name: 'EP4814394A1 claim 1' })).toBeNull()
+  expect(view.queryByRole('link', { name: 'local' })).toBeNull()
+})
