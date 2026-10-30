@@ -887,7 +887,8 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(test.followup).not.toHaveBeenCalled()
     expect(review.followup).toHaveBeenCalledOnce()
     expect(tasks[0]).toMatchObject({ target: { kind: 'session', sessionId: ORIGINAL }, involvedSessionIds: [ORIGINAL], status: 'ended' })
-    expect(delivered).toHaveBeenCalledWith({ id: ScheduleId('once'), receipt: expect.objectContaining({ targetSessionId: review.id }) })
+    expect(delivered).toHaveBeenCalledOnce()
+    expect(delivered.mock.calls[0]?.[0]).toMatchObject({ id: ScheduleId('once'), receipt: { targetSessionId: review.id } })
   })
 
   it('keeps a member due when its redirect Session is archived', async () => {
