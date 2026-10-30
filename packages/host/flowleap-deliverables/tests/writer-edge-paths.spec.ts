@@ -10,6 +10,7 @@ import { FsError } from '@deepseek-ai/dsh-fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ConfirmedMarkets, NO_GATE_SEAMS, NO_LLM_JUDGE, parseWriterArgs, PatentLedger, PresentQueue, writePatentResultsTool,
+  WorkPages,
 } from '../src/index.ts'
 import { claims, draft, featureList, outline } from './drafting-matter-fixtures.ts'
 import { EXAMINER, EXAMINER_DEPENDENT, writerBench } from './writer-test-bench.ts'
@@ -77,6 +78,7 @@ describe('the writer arguments and value', () => {
     const definition = writePatentResultsTool({} as never, {
       ledger: new PatentLedger(), judge: () => NO_LLM_JUDGE, present: new PresentQueue(), secondRead: () => 'off',
       warn: () => {}, info: () => {}, gates: NO_GATE_SEAMS, markets: new ConfirmedMarkets(),
+      workPages: new WorkPages({} as never, () => {}),
     })
     expect({
       failures,

@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-deepseek-account/types'
 import type {} from '@deepseek-ai/dsh-flowleap-agent-builder/types'
+import type {} from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 import type {} from '@deepseek-ai/dsh-flowleap-routines/types'
 import type {} from '@deepseek-ai/dsh-permission-presets/types'
 import type {} from '@deepseek-ai/dsh-plugin-manager/types'
@@ -42,6 +43,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'credentials/reference-updated', mode: 'emit' },
   { event: 'flowleap-agents/changed', mode: 'emit' },
   { event: 'flowleap-routines/changed', mode: 'emit' },
+  { event: 'flowleap-work-pages/changed', mode: 'emit', resources: { session: (view): SessionId => view.summary.sessionId } },
   { event: 'goal/activation-changed', mode: 'emit' },
   { event: 'cordis/request-run', mode: 'emit' },
   { event: 'cordis/request-run-resolved', mode: 'emit' },

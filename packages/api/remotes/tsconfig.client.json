@@ -121,6 +121,9 @@
       "path": "../../host/flowleap-routines"
     },
     {
+      "path": "../../host/flowleap-deliverables"
+    },
+    {
       "path": "../../host/flowleap-budget"
     },
     {

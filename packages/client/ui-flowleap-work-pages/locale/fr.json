@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Notifications d’examen",
-    "description": "Le tableau de la notification d’examen : une carte par objection avec les revendications visées, les passages cités, un état de relecture et un responsable. Cette version contient seulement des données d’exemple."
+    "description": "Le tableau de la notification d’examen : une carte par objection d’une analyse enregistrée, avec les revendications visées, les passages cités, et un état d’examen, un responsable et une note que fixe le conseil."
   }
 }

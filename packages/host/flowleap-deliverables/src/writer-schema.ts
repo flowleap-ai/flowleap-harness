@@ -6,13 +6,17 @@
  * description is not copied: per-template rules live in the validation result
  * that names the row and the fix (ADR 0018 decision 4).
  *
- * Two harness-only additions beside the IDE's: the `jurisdictions` property,
+ * Three harness-only additions beside the IDE's: the `jurisdictions` property,
  * the model's proposal for the fto-memo header's `Jurisdiction(s)` cell, which
  * the user confirms or replaces in the markets card (S5 acceptance defect B and
- * pass 4), and the `dossier` template (defect C); see the README, "What
- * differs from the IDE copy".
+ * pass 4), the `dossier` template (defect C), and the `officeAction` property,
+ * the structured analysis of an office action that `office-action-scaffold`
+ * renders and the office action board reads; see the README, "What differs
+ * from the IDE copy".
  * @module
  */
+
+import { officeActionParameter } from './work-page/office-action-input.ts'
 
 /** The tool name, shared with the IDE and the exported Patent Agent prompt. */
 export const WRITE_PATENT_RESULTS_NAME = 'write_patent_results'
@@ -27,6 +31,7 @@ export const DRAFTING_TEMPLATES = ['draft-application', 'draft-outline'] as cons
 export const WRITE_PATENT_RESULTS_DESCRIPTION = 'Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo, dossier). '
   + 'filePath is relative to the working directory or absolute inside it; parent folders are created and an existing file is replaced. '
   + 'prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session\'s data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. '
+  + 'office-action-scaffold for the analysis of an office action takes officeAction (the action table, the objections and the claim tables as fields) and content with only the response plan, the sources and gaps, and the closing sentence; a response plan alone takes content only. '
   + 'Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). '
   + 'A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. '
   + 'A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).'
@@ -78,6 +83,7 @@ export const WRITE_PATENT_RESULTS_PARAMETERS: Record<string, unknown> = {
       type: 'string',
       description: 'fto-memo: the markets the memo clears, as a short list (for example "DE, FR, US"): the markets the user named, or your proposal when the user named none. Before the first save of a memo the user confirms or replaces them in a question card, and the answer fills the memo header; without a possible answer your value is marked as not confirmed.',
     },
+    officeAction: officeActionParameter(),
     objective: {
       type: 'string',
       description: "prior-art-report: one or two sentences stating the invention and the question the search answers. invalidity-claim-chart and find-better-report: the earliest priority date the art is measured against, with its basis. Provide it — do not leave the report's Objective section as a stub.",

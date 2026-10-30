@@ -32,6 +32,7 @@ import workspaceFilesRemote from '@deepseek-ai/dsh-api-workspace-files/remote'
 import flowleapConnectorsRemote from '@deepseek-ai/dsh-flowleap-connectors/remote'
 import flowleapRoutinesRemote from '@deepseek-ai/dsh-flowleap-routines/remote'
 import flowleapAgentsRemote from '@deepseek-ai/dsh-flowleap-agent-builder/remote'
+import flowleapWorkPagesRemote from '@deepseek-ai/dsh-flowleap-deliverables/remote'
 import flowleapBudgetRemote from '@deepseek-ai/dsh-flowleap-budget/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
@@ -86,6 +87,8 @@ export type {} from '@deepseek-ai/dsh-flowleap-routines/remote'
 export type * from '@deepseek-ai/dsh-flowleap-routines/types'
 export type {} from '@deepseek-ai/dsh-flowleap-agent-builder/remote'
 export type * from '@deepseek-ai/dsh-flowleap-agent-builder/types'
+export type {} from '@deepseek-ai/dsh-flowleap-deliverables/remote'
+export type * from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 export type {} from '@deepseek-ai/dsh-flowleap-budget/remote'
 export type * from '@deepseek-ai/dsh-flowleap-budget/types'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
@@ -208,6 +211,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,
       officeToPdfRemote, userQuestionsRemote, flowleapConnectorsRemote, flowleapRoutinesRemote, flowleapAgentsRemote,
+      flowleapWorkPagesRemote,
       flowleapBudgetRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))

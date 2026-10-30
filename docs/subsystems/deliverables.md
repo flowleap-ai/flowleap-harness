@@ -143,6 +143,40 @@ interface WorkspaceChanges {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxflowleapworkpages--flowleapworkpagescontroller"></a>
+
+### `ctx.flowleapWorkPages` — `FlowleapWorkPagesController`
+
+Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.
+
+```ts cordis-catalog
+/**
+ * The work pages the caller may see.
+ * @returns one summary per page, newest save first.
+ */
+@Remote async list(): Promise<WorkPageSummary[]>
+
+/**
+ * One work page with its file.
+ * @param id - the page.
+ * @returns the view.
+ * @throws RemoteError `flowleap-work-pages/not-found`, `flowleap-work-pages/unreadable` or
+ * `flowleap-work-pages/invalid`.
+ */
+@Remote async read(id: WorkPageId): Promise<WorkPageView>
+
+/**
+ * Change the review state, the owner or the note of one objection; an omitted field keeps its value.
+ * @param request - the page, the objection, and the fields to change.
+ * @returns the page after the change.
+ * @throws RemoteError `flowleap-work-pages/invalid`, `flowleap-work-pages/not-found`,
+ * `flowleap-work-pages/objection-not-found` or `flowleap-work-pages/unreadable`.
+ */
+@Remote async review(request: WorkPageReviewRequest): Promise<WorkPageView>
+```
+
+Source: [`packages/host/flowleap-deliverables/src/work-page-controller.ts`](../../packages/host/flowleap-deliverables/src/work-page-controller.ts)
+
 <a id="ctxworkspacechanges--workspacechanges"></a>
 
 ### `ctx.workspaceChanges` — `WorkspaceChanges`
@@ -173,4 +207,25 @@ diff(sessionId: SessionId, seq: number, index: number, signal: AbortSignal): Pro
 Types: [SessionId](core.md)
 
 Source: [`packages/deliverables/workspace-changes/src/types.ts`](../../packages/deliverables/workspace-changes/src/types.ts)
+
+<a id="flowleap-work-pages-events"></a>
+
+### `flowleap-work-pages/*` events
+
+<a id="flowleap-work-pageschanged--emit"></a>
+
+#### `flowleap-work-pages/changed` — emit
+
+A save wrote a work page, or the attorney changed its review fields.
+
+```ts cordis-catalog
+/**
+ * A save wrote a work page, or the attorney changed its review fields.
+ * @mode emit
+ * @param view - the page after the change; it reaches only the callers that may see its chat.
+ */
+'flowleap-work-pages/changed'(view: WorkPageView): void
+```
+
+Source: [`packages/host/flowleap-deliverables/src/work-page/types.ts`](../../packages/host/flowleap-deliverables/src/work-page/types.ts)
 <!-- END GENERATED cordis-surface -->

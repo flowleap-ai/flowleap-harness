@@ -162,6 +162,7 @@ describe('Remote event Host source', () => {
       ['api-session/error', ['s-error', 'boom'], 's-error'],
       ['api-session/removed', ['s-removed'], 's-removed'],
       ['api-session/status', ['s-status', true], 's-status'],
+      ['flowleap-work-pages/changed', [{ summary: { sessionId: 's-work-page' } }], 's-work-page'],
       ['llm/response-notice', [{ sessionId: 's-notice', text: 'Budget 80% used' }], 's-notice'],
     ]
     for (const [event, args, sessionId] of cases) {

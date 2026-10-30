@@ -1883,7 +1883,7 @@
     },
     {
       "name": "write_patent_results",
-      "description": "Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo, dossier). filePath is relative to the working directory or absolute inside it; parent folders are created and an existing file is replaced. prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session's data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).",
+      "description": "Save a patent deliverable as a Markdown file under the working directory: a free-form document (no template) or a templated report (prior-art-report, find-better-report, invalidity-claim-chart, fto-memo, eou-infringement-chart, office-action-scaffold, patentability-opinion, landscape-report, portfolio-due-diligence-memo, dossier). filePath is relative to the working directory or absolute inside it; parent folders are created and an existing file is replaced. prior-art-report, find-better-report, and invalidity-claim-chart with coverage rows take empty content and build the report from the structured coverage fields, checked against the evidence this session's data tools returned: every source anchor and quote must come from a tool result (get_claims, get_description, get_abstract), copied verbatim. office-action-scaffold for the analysis of an office action takes officeAction (the action table, the objections and the claim tables as fields) and content with only the response plan, the sources and gaps, and the closing sentence; a response plan alone takes content only. Every other template wraps the content you write; a templated save appends a generated provenance section that states which of its figures, dates and quotations a tool result holds. Use dossier for the dossier of one publication (snapshot, claims, family, legal status, citations, US family chain, sources). A successful save writes the report, a working record and an evidence companion beside it and delivers them to the user; do not call present for these files, and do not edit a delivered file with another tool: re-save it here so the card stays true. A refusal names each field to fix; correct it and retry. draft-application and draft-outline save through the drafting folder contract (see start_application_draft).",
       "parameters": {
         "type": "object",
         "properties": {
@@ -1924,6 +1924,328 @@
           "jurisdictions": {
             "type": "string",
             "description": "fto-memo: the markets the memo clears, as a short list (for example \"DE, FR, US\"): the markets the user named, or your proposal when the user named none. Before the first save of a memo the user confirms or replaces them in a question card, and the answer fills the memo header; without a possible answer your value is marked as not confirmed."
+          },
+          "officeAction": {
+            "type": "object",
+            "properties": {
+              "application": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The application number, for example \"EP 4814394\" or \"US 19/043,989\"."
+              },
+              "communication": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The office and the action, for example \"EPO, communication under Art. 94(3) EPC\"."
+              },
+              "issued": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The action date as YYYY-MM-DD; null when the action states none."
+              },
+              "deadline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The last date without extension as YYYY-MM-DD; null when it cannot be computed."
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "description": "3 to 5 lines: the action type, final or not, the number of objections, the main problems, and the last date without extension. For an EP search report without its opinion, the first line says so."
+              },
+              "action": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "description": "The row label, for example \"Action type\" or \"Claims examined\"."
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "The value."
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "Where the value comes from: the tool or the page of the action."
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "value",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The rows of the action table, in order: application, office and action, action type, action date, response deadline, last dates, later filings, claims examined, effective filing dates, cited documents, assumptions."
+              },
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "The label, for example \"D1\"."
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "The document, for example \"US2016107508A1 (published 2016-04-21)\"."
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The cited documents of the action."
+              },
+              "objections": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,3}(?:\\.[1-9][0-9]{0,3}){0,2}$",
+                      "description": "The objection number, for example \"1\", or \"1.2\" for a part of objection 1. Each objection has a different id."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "One line, for example \"Claims 1-7 lack novelty over D1\"."
+                    },
+                    "ground": {
+                      "type": "string",
+                      "description": "The legal ground, for example \"35 U.S.C. 102(a)(1)\" or \"Art. 54 EPC\"."
+                    },
+                    "legalBasis": {
+                      "type": "string",
+                      "description": "The legal text or guideline that the ground rests on, with its source."
+                    },
+                    "claims": {
+                      "maxItems": 1000,
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9999
+                      },
+                      "description": "The claim numbers that the objection hits, each a whole number from 1 to 9999; write a range as each number. Empty when the objection hits no claim."
+                    },
+                    "reasoning": {
+                      "type": "string",
+                      "description": "The examiner's reasoning, quoted with its page."
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "Where the objection comes from: the action text, or the search report categories when no action text was read."
+                    },
+                    "citations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "document": {
+                            "type": "string",
+                            "description": "The document, for example \"D1 US2016107508A1\"."
+                          },
+                          "role": {
+                            "type": "string",
+                            "description": "Its role, for example \"applied alone\", \"X\" or \"Y\"."
+                          },
+                          "passage": {
+                            "type": "string",
+                            "description": "The passage that the examiner relied on, for example \"¶[0059], Fig. 6\"."
+                          },
+                          "says": {
+                            "type": "string",
+                            "description": "What the passage says: a verbatim quote or a short summary."
+                          },
+                          "anchor": {
+                            "type": "string",
+                            "description": "The source anchor of the passage; empty when there is none."
+                          }
+                        },
+                        "required": [
+                          "document",
+                          "role",
+                          "passage",
+                          "says",
+                          "anchor"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One row for each cited passage that the objection relies on."
+                    },
+                    "assessment": {
+                      "type": "string",
+                      "description": "One or two sentences with the passage that decides the objection."
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "description": "The option: Argue, Amend, Accept or cancel, Interview, or Ask."
+                          },
+                          "text": {
+                            "type": "string",
+                            "description": "What the option does and its basis; empty when there is nothing to add."
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "text"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The response options, for the attorney's decision."
+                    },
+                    "replyMustAddress": {
+                      "type": "string",
+                      "description": "What the reply must address for this objection."
+                    },
+                    "confidence": {
+                      "type": "string",
+                      "description": "What the assessment rests on, and what was not read."
+                    },
+                    "sources": {
+                      "type": "string",
+                      "description": "The anchors and URLs used for this objection."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "ground",
+                    "legalBasis",
+                    "claims",
+                    "reasoning",
+                    "source",
+                    "citations",
+                    "assessment",
+                    "options",
+                    "replyMustAddress",
+                    "confidence",
+                    "sources"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "One entry for each objection, also for a formal objection."
+              },
+              "comparison": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "claim": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9999,
+                      "description": "The independent claim that the table compares. An objection must hit this claim."
+                    },
+                    "heading": {
+                      "type": "string",
+                      "description": "One line above the table, for example \"Claim 1 (system) against D1 US2016107508A1\"."
+                    },
+                    "interpretation": {
+                      "type": "string",
+                      "description": "The interpretation of the disputed terms: term, reading, the quoted definition, and why it is disputed. Empty when no term is disputed."
+                    },
+                    "rows": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "element": {
+                            "type": "string",
+                            "description": "The claim element, verbatim, with its label, for example \"1a \\\"a housing ...\\\"\"."
+                          },
+                          "examiner": {
+                            "type": "string",
+                            "description": "What the examiner says about the element, with the page of the action."
+                          },
+                          "cited": {
+                            "type": "string",
+                            "description": "What the cited passage says: quote, passage and anchor."
+                          },
+                          "assessment": {
+                            "type": "string",
+                            "enum": [
+                              "disclosed",
+                              "not disclosed",
+                              "disputable",
+                              "not read"
+                            ],
+                            "description": "The assessment of the element."
+                          }
+                        },
+                        "required": [
+                          "element",
+                          "examiner",
+                          "cited",
+                          "assessment"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One row for each element of the claim."
+                    },
+                    "arrangement": {
+                      "type": "string",
+                      "description": "One line on the arrangement of the elements."
+                    }
+                  },
+                  "required": [
+                    "claim",
+                    "heading",
+                    "interpretation",
+                    "rows",
+                    "arrangement"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "One claim table for each independent claim that an objection hits."
+              },
+              "dependentClaims": {
+                "type": "string",
+                "description": "One line for each dependent claim that the action names: its added feature, and whether a cited passage discloses it. Empty when the action names none."
+              }
+            },
+            "required": [
+              "application",
+              "communication",
+              "issued",
+              "deadline",
+              "summary",
+              "action",
+              "documents",
+              "objections",
+              "comparison",
+              "dependentClaims"
+            ],
+            "additionalProperties": false,
+            "description": "office-action-scaffold: the analysis of an office action as structured fields. The report shows sections 0 to 3 (summary, action, objections, claim-by-claim comparison) from these fields, and the office action board shows them. content then holds only the sections after the comparison: the response plan, the sources and gaps, and the closing sentence. Omit for a save that is not an analysis of an office action, for example a response plan."
           },
           "objective": {
             "type": "string",

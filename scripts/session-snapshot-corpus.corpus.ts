@@ -25,6 +25,7 @@ const profiles = ['acp', 'sdk', 'session', 'web'] as const
 const snapshotAdapters = [
   'apps/web/tests/code-language.snapshot.ts',
   'apps/web/tests/flowleap-agent-search.snapshot.ts',
+  'apps/web/tests/flowleap-office-action-board.snapshot.ts',
   'apps/web/tests/flowleap-routine-run.snapshot.ts',
   'apps/web/tests/message-feedback-protocol.snapshot.ts',
   'apps/web/tests/minimal-preset.snapshot.ts',

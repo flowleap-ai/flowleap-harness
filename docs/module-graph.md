@@ -175,6 +175,7 @@ flowchart TD
     pkg_client_ui_entry_customization["client-ui-entry-customization"]
     pkg_client_ui_file_drag["client-ui-file-drag"]
     pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
+    pkg_client_ui_flowleap_budget["client-ui-flowleap-budget"]
     pkg_client_ui_flowleap_dashboard["client-ui-flowleap-dashboard"]
     pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
     pkg_client_ui_flowleap_work_pages["client-ui-flowleap-work-pages"]
@@ -342,6 +343,7 @@ flowchart TD
   end
   subgraph group_host["packages/host"]
     pkg_flowleap_agent_builder["flowleap-agent-builder"]
+    pkg_flowleap_budget["flowleap-budget"]
     pkg_flowleap_connectors["flowleap-connectors"]
     pkg_flowleap_deliverables["flowleap-deliverables"]
     pkg_flowleap_prompt["flowleap-prompt"]
@@ -512,6 +514,7 @@ flowchart TD
   pkg_credentials_local --> pkg_home_paths
   pkg_credentials_local --> pkg_launch_environment
   pkg_experimental_liveshare --> pkg_scope
+  pkg_flowleap_budget --> pkg_typert_protocol
   pkg_anonymous_user_id --> pkg_brand
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_lsp --> pkg_brand
@@ -1178,6 +1181,8 @@ flowchart TD
   pkg_flowleap_agent_builder --> pkg_typert_protocol
   pkg_flowleap_agent_builder --> pkg_util_values
   pkg_flowleap_deliverables --> pkg_agent
+  pkg_flowleap_deliverables --> pkg_api_remote_access
+  pkg_flowleap_deliverables --> pkg_brand
   pkg_flowleap_deliverables --> pkg_commands
   pkg_flowleap_deliverables --> pkg_fs
   pkg_flowleap_deliverables --> pkg_llm
@@ -1185,6 +1190,7 @@ flowchart TD
   pkg_flowleap_deliverables --> pkg_storage_domain
   pkg_flowleap_deliverables --> pkg_tool_present
   pkg_flowleap_deliverables --> pkg_tools
+  pkg_flowleap_deliverables --> pkg_typert_protocol
   pkg_flowleap_deliverables --> pkg_user_approval
   pkg_flowleap_deliverables --> pkg_user_questions
   pkg_flowleap_deliverables --> pkg_util_values
@@ -1608,6 +1614,7 @@ flowchart TD
 | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
 | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
 | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | `client` | — |
+| [`client-ui-flowleap-budget`](../packages/client/ui-flowleap-budget) | `client` | — |
 | [`client-ui-flowleap-dashboard`](../packages/client/ui-flowleap-dashboard) | `client` | — |
 | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | `client` | — |
 | [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | `client` | — |
@@ -1717,6 +1724,7 @@ flowchart TD
 | [`authorization`](../packages/credentials/authorization) | `credentials` | [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
 | [`experimental-liveshare`](../packages/experimental/liveshare) | `experimental` | [`scope`](../packages/core/scope) |
+| [`flowleap-budget`](../packages/host/flowleap-budget) | `host` | [`typert-protocol`](../packages/typert/protocol) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`storage`](../packages/storage/storage) |
@@ -1883,7 +1891,7 @@ flowchart TD
 | [`webhook`](../packages/experimental/webhook) | `experimental` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`workspace`](../packages/workspace/workspace) |
 | [`tool-cordis`](../packages/extensions/tool-cordis) | `extensions` | [`agent`](../packages/core/agent), [`app-boot`](../packages/boot/app-boot), [`cordis-host-runner`](../packages/extensions/cordis-host-runner), [`tools`](../packages/core/tools) |
 | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | `host` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`api-remote-access`](../packages/api/remote-access), [`client-connection`](../packages/client/connection), [`flowleap-connectors`](../packages/host/flowleap-connectors), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
-| [`flowleap-deliverables`](../packages/host/flowleap-deliverables) | `host` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`storage-domain`](../packages/storage/storage-domain), [`tool-present`](../packages/deliverables/tool-present), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`user-questions`](../packages/interaction/user-questions), [`util-values`](../packages/util/values), [`working-directory`](../packages/session/working-directory) |
+| [`flowleap-deliverables`](../packages/host/flowleap-deliverables) | `host` | [`agent`](../packages/core/agent), [`api-remote-access`](../packages/api/remote-access), [`brand`](../packages/util/brand), [`commands`](../packages/interaction/commands), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`storage-domain`](../packages/storage/storage-domain), [`tool-present`](../packages/deliverables/tool-present), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`user-approval`](../packages/interaction/user-approval), [`user-questions`](../packages/interaction/user-questions), [`util-values`](../packages/util/values), [`working-directory`](../packages/session/working-directory) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`brand`](../packages/util/brand), [`typert-protocol`](../packages/typert/protocol) |
 | [`mcp-client`](../packages/mcp/mcp-client) | `mcp` | [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`mcp-resources`](../packages/mcp/mcp-resources), [`scope`](../packages/core/scope), [`subprocess`](../packages/subprocess/subprocess), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`agent-preset`](../packages/preset/agent-preset) | `preset` | [`agent-preset-registry`](../packages/preset/agent-preset-registry) |

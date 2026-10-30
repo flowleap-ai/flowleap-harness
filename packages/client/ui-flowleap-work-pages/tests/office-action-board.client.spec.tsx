@@ -1,34 +1,45 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { allowAllAccess, bindSnapshotSelector, makeTranslate, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type {} from '@deepseek-ai/dsh-client-connection/client'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
+import type { WorkPageReviewRequest, WorkPageSummary, WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 import { apply, inject, PANEL_ID } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
-import {
-  attorneyFieldsOf, createBoard, daysUntil, needsReviewCount, objectionState, type Board,
-} from '../src/client/board.ts'
-import { en, NS, zh } from '../src/client/locales.ts'
+import { createBoard, type Board, type BoardDependencies } from '../src/client/board.ts'
+import { de, en, es, fr, ja, NS, pt, ru, zh } from '../src/client/locales.ts'
 import { OfficeActionBoard, type OfficeActionBoardProps } from '../src/client/OfficeActionBoard.tsx'
-import { SAMPLE_ANALYSIS } from '../src/client/sample-board.ts'
 import { WorkPagesPanelIcon } from '../src/client/WorkPagesPanelIcon.tsx'
+import { CHAT, FILE, ok, OTHER, PAGE_ID, reviewed, SUMMARY, VIEW } from './fixture.client.ts'
 
 afterEach(() => { cleanup() })
 
 const t = makeTranslate(en)
 const NOW = Date.parse('2026-10-29T12:00:00.000Z')
 
-function renderBoard(board: Board = createBoard(SAMPLE_ANALYSIS), now = NOW) {
+function deps(overrides: Partial<BoardDependencies> = {}): BoardDependencies {
+  return {
+    list: vi.fn(async () => ok<WorkPageSummary[]>([SUMMARY])),
+    read: vi.fn(async () => ok<WorkPageView>(VIEW)),
+    review: vi.fn(async ({ id: _id, objection, ...fields }: WorkPageReviewRequest) => ok(reviewed(objection, fields))),
+    send: vi.fn(async () => ok({ accepted: true })),
+    openSession: vi.fn(),
+    draftChat: vi.fn(),
+    planMessage: () => 'plan',
+    analysisMessage: application => `analyse ${application}`,
+    subscribeChanged: () => () => {},
+    subscribeReset: () => () => {},
+    ...overrides,
+  }
+}
+
+function renderBoard(board: Board = createBoard(deps()), now = NOW) {
   const props: OfficeActionBoardProps = {
-    analysis: board.analysis,
-    setState: board.setState,
-    setOwner: board.setOwner,
-    select: board.select,
-    setFormOpen: board.setFormOpen,
-    notify: board.notify,
+    ...board,
     useBoard: bindSnapshotSelector(board.hooks.board),
     usePanelInfo: select => select({ activePanelId: null }),
     useSessions: () => { throw new Error('The board reads no Session list') },
@@ -44,209 +55,216 @@ function renderBoard(board: Board = createBoard(SAMPLE_ANALYSIS), now = NOW) {
   return board
 }
 
-function card(basis: string): HTMLElement {
-  return screen.getByRole('button', { name: `Open ${basis} in the side panel` }).closest('li')!
+function card(id: string): HTMLElement {
+  return screen.getByRole('button', { name: `Open objection ${id} in the side panel` }).closest('li')!
 }
 
-describe('board model', () => {
-  it('changes only the attorney fields of the named objection', () => {
-    const board = createBoard(SAMPLE_ANALYSIS)
-    board.setState('art54', 'done')
-    board.setOwner('art84', 'A. Novak')
-    board.setState('unknown', 'done')
-    const { attorney } = board.hooks.board.getSnapshot()
-    expect(attorney).toEqual({
-      art54: { state: 'done', owner: 'M. Keller' },
-      art56: { state: 'needs_review', owner: 'S. Brandt' },
-      art84: { state: 'relevant', owner: 'A. Novak' },
-    })
-    expect(SAMPLE_ANALYSIS.attorney.art54?.state).toBe('needs_review')
-    expect(needsReviewCount(attorney)).toBe(1)
-  })
-
-  it('reads menu ids and attorney fields, and fails loud on an unknown one', () => {
-    expect(objectionState('not_relevant')).toBe('not_relevant')
-    expect(() => objectionState('argue')).toThrow('unknown review state "argue"')
-    expect(attorneyFieldsOf(SAMPLE_ANALYSIS.attorney, 'art56')).toEqual({ state: 'needs_review', owner: 'S. Brandt' })
-    expect(() => attorneyFieldsOf(SAMPLE_ANALYSIS.attorney, 'art123')).toThrow('objection "art123" has no attorney fields')
-  })
-
-  it('counts whole UTC days to the time limit', () => {
-    expect(daysUntil('2026-12-09', NOW)).toBe(41)
-    expect(daysUntil('2026-10-29', NOW)).toBe(0)
-    expect(daysUntil('2026-10-27', NOW)).toBe(-2)
-  })
-})
-
-describe('office action board', () => {
-  it('shows the sample banner, the header, the run state, one card per objection, and the footer', () => {
-    renderBoard()
-    expect(screen.getByRole('note').textContent).toContain(en['sample.title'])
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('EP 3 456 789 · Communication under Article 94(3) EPC')
-    expect(screen.getByText('Reply due in 41 days')).toBeTruthy()
-    expect(screen.getByText('Owner: M. Keller')).toBeTruthy()
-    expect(screen.getByText('Needs review: 2')).toBeTruthy()
-    expect(within(screen.getByRole('status', { name: en['run.label'] })).getByText(en['run.reading'])).toBeTruthy()
-    const cards = within(screen.getByRole('list', { name: en['list.label'] })).getAllByRole('listitem').filter(item => item.dataset.objection !== undefined)
-    expect(cards.map(item => item.dataset.objection)).toEqual(['art54', 'art56', 'art84'])
-    expect(within(card('Art. 56 EPC')).getByText('Claims 3, 4, 5, 6')).toBeTruthy()
-    expect(within(card('Art. 56 EPC')).getByText('D2 col. 5, l. 10-25')).toBeTruthy()
-    expect(within(card('Art. 84 EPC')).getByText(en['card.noCitations'])).toBeTruthy()
+describe('office action board page', () => {
+  it('shows the saved analysis: header, documents, cards, and the chat link', async () => {
+    const board = createBoard(deps())
+    renderBoard(board)
+    expect(await screen.findByRole('heading', { level: 1, name: 'EP4814394 · EPO, European search report' })).toBeTruthy()
+    expect(screen.getByText('Reply due in 152 days')).toBeTruthy()
+    expect(screen.getByText('Time limit Mar 30, 2027')).toBeTruthy()
+    expect(screen.getByText('Issued Sep 30, 2026')).toBeTruthy()
+    expect(screen.getByText('Needs review: 1')).toBeTruthy()
+    expect(screen.getByRole('status', { name: 'Analysis' }).textContent).toContain('Saved Oct 29, 2026 by the chat')
+    const documents = screen.getByRole('list', { name: 'Cited documents' })
+    expect(within(documents).getAllByRole('listitem').map(item => item.textContent)).toEqual(['D1US2016107508 (A1)', 'family member'])
+    const first = card('1')
+    expect(within(first).getByText('Art. 54 EPC')).toBeTruthy()
+    expect(within(first).getByText('Claims 1, 2, 3')).toBeTruthy()
+    expect(within(first).getByText('D1 US2016107508A1 ¶[0059]')).toBeTruthy()
+    expect(within(card('2')).getByText('No claim named')).toBeTruthy()
+    expect(within(card('2')).getByText('The analysis lists no cited passage for this objection.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Analysis:/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }))
     expect(screen.getByText(en.footer)).toBeTruthy()
   })
 
-  it('sets the state and the owner of a card and updates the review count', async () => {
-    const board = renderBoard()
-    const art54 = card('Art. 54 EPC')
-    fireEvent.click(within(art54).getByRole('button', { name: 'Review state of Art. 54 EPC: Needs review' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: /Done/ }))
-    expect(screen.getByText('Needs review: 1')).toBeTruthy()
-    expect(within(art54).getByRole('button', { name: 'Review state of Art. 54 EPC: Done' })).toBeTruthy()
-    const owner = within(card('Art. 84 EPC')).getByRole('textbox', { name: 'Owner of Art. 84 EPC' })
-    fireEvent.change(owner, { target: { value: '  A. Novak ' } })
+  it('states a passed time limit, an analysis without dates, and no document list', async () => {
+    renderBoard(createBoard(deps()), Date.parse('2027-04-02T08:00:00.000Z'))
+    expect(await screen.findByText('Time limit passed 3 days ago')).toBeTruthy()
+    cleanup()
+    const findings = { ...FILE.findings, deadline: null, issued: null, documents: [] }
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, findings } }) })))
+    expect(await screen.findByText('Time limit: see the analysis')).toBeTruthy()
+    expect(screen.queryByText(/^Issued/)).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Cited documents' })).toBeNull()
+  })
+
+  it('shows the loading line, the empty state, and a failed read with its retry', async () => {
+    let answer: (value: Awaited<ReturnType<BoardDependencies['list']>>) => void = () => {}
+    const list = vi.fn(() => new Promise<Awaited<ReturnType<BoardDependencies['list']>>>((resolve) => { answer = resolve }))
+    renderBoard(createBoard(deps({ list })))
+    expect(screen.getByText('Reading the office action analyses')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Write response plan' })).toBeNull()
+    await act(async () => { answer(ok([])) })
+    expect(screen.getByTestId('office-action-empty').textContent).toContain('No office action analysis yet')
+    list.mockResolvedValueOnce({ ok: false, error: new Error('x') as never })
+    cleanup()
+    renderBoard(createBoard(deps({ list })))
+    expect((await screen.findByRole('alert')).textContent).toContain(en['status.error'])
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Try again' })) })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('changes state, owner and note through the board, and keeps unchanged values', async () => {
+    const changed = new Set<(view: WorkPageView) => void>()
+    const dependencies = deps({ subscribeChanged: (listener) => { changed.add(listener); return () => { changed.delete(listener) } } })
+    renderBoard(createBoard(dependencies))
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(within(card('1')).getByRole('button', { name: 'Review state of objection 1: Needs review' }))
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(within(card('1')).getByRole('button', { name: 'Review state of objection 1: Needs review' }))
+    await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: 'Done' })) })
+    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '1', state: 'done' })
+    expect(screen.getByText('Needs review: 0')).toBeTruthy()
+    const owner = within(card('1')).getByRole('textbox', { name: 'Owner of objection 1' }) as HTMLInputElement
+    expect(owner.maxLength).toBe(200)
+    fireEvent.change(owner, { target: { value: '  M. Keller ' } })
     fireEvent.keyDown(owner, { key: 'Tab' })
-    expect(board.hooks.board.getSnapshot().attorney.art84?.owner).toBe('')
-    fireEvent.keyDown(owner, { key: 'Enter' })
-    expect(board.hooks.board.getSnapshot().attorney.art84?.owner).toBe('A. Novak')
-    let writes = 0
-    board.hooks.board.subscribe(() => { writes += 1 })
-    fireEvent.blur(within(card('Art. 84 EPC')).getByRole('textbox', { name: 'Owner of Art. 84 EPC' }))
-    expect(writes).toBe(0)
+    expect(dependencies.review).toHaveBeenCalledTimes(1)
+    // A page that another change brings does not replace the draft.
+    act(() => { for (const listener of changed) listener(reviewed('2', { note: 'From another tab.' })) })
+    expect(owner.value).toBe('  M. Keller ')
+    expect(within(card('2')).getByRole('textbox', { name: 'Note on objection 2' })).toHaveProperty('value', 'From another tab.')
+    await act(async () => { fireEvent.keyDown(owner, { key: 'Enter' }) })
+    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '1', owner: '  M. Keller ' })
+    fireEvent.blur(within(card('1')).getByRole('textbox', { name: 'Owner of objection 1' }))
+    expect(dependencies.review).toHaveBeenCalledTimes(2)
+    const note = within(card('2')).getByRole('textbox', { name: 'Note on objection 2' }) as HTMLTextAreaElement
+    expect(note.maxLength).toBe(4000)
+    expect(note.value).toBe('Amend claim 9.')
+    fireEvent.blur(note)
+    expect(dependencies.review).toHaveBeenCalledTimes(2)
+    fireEvent.change(note, { target: { value: 'Argue first. ' } })
+    await act(async () => { fireEvent.blur(note) })
+    expect(dependencies.review).toHaveBeenLastCalledWith({ id: PAGE_ID, objection: '2', note: 'Argue first. ' })
   })
 
-  it('closes the state menu without a change', async () => {
-    const board = renderBoard()
-    const trigger = within(card('Art. 56 EPC')).getByRole('button', { name: 'Review state of Art. 56 EPC: Needs review' })
-    fireEvent.click(trigger)
-    await screen.findByRole('menuitem', { name: /Relevant/ })
-    fireEvent.click(trigger)
-    expect(screen.queryByRole('menuitem')).toBeNull()
-    fireEvent.click(trigger)
-    await screen.findByRole('menuitem', { name: /Relevant/ })
-    fireEvent.pointerDown(document.body)
-    fireEvent.mouseDown(document.body)
-    expect(screen.queryByRole('menuitem')).toBeNull()
-    expect(board.hooks.board.getSnapshot().attorney.art56?.state).toBe('needs_review')
+  it('shows the new review state for an objection that the review record does not name', async () => {
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, review: { '1': FILE.review['1']! } } }) })))
+    expect(await screen.findByRole('button', { name: 'Review state of objection 2: Needs review' })).toBeTruthy()
   })
 
-  it('shows the passed time limit', () => {
-    renderBoard(createBoard(SAMPLE_ANALYSIS), Date.parse('2026-12-11T08:00:00.000Z'))
-    expect(screen.getByText('Time limit passed 2 days ago')).toBeTruthy()
-  })
-
-  it('switches the side panel between cards and closes it on a second click', () => {
+  it('opens the side panel with the fields of the objection and the tables of its claims', async () => {
     renderBoard()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Art. 56 EPC in the side panel' }))
-    expect(within(screen.getByTestId('objection-panel')).getByText(en['response.accept'])).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Art. 56 EPC in the side panel' }))
-    expect(screen.queryByTestId('objection-panel')).toBeNull()
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
+    const panel = screen.getByRole('complementary', { name: 'Objection details' })
+    for (const text of ['Art. 54 EPC', 'Legal basis', 'Art. 54(1) EPC', 'D1 discloses a heat pump with a battery.', 'search report categories',
+      'X · ¶[0059]', 'US2016107508A1:claims:1:en', 'Assessment', 'Disputable.', 'Claim 1 against D1', '"loop": a closed circuit.',
+      '1a "a loop"', 'disclosed', 'In series.', 'Argue', 'D1 is a vehicle system', 'Each ground.', 'Low.', 'Sources']) {
+      expect(within(panel).getAllByText(text).length).toBeGreaterThan(0)
+    }
+    expect(within(panel).queryByText('Claim 12 against D1')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 2 in the side panel' }))
+    const second = screen.getByRole('complementary', { name: 'Objection details' })
+    expect(within(second).queryByText('Response options')).toBeNull()
+    expect(within(second).queryByText('Cited documents')).toBeNull()
+    expect(within(second).queryByText('Examiner\'s reasoning')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 2 in the side panel' }))
+    expect(screen.queryByRole('complementary')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close the side panel' }))
+    expect(screen.queryByRole('complementary')).toBeNull()
   })
 
-  it('opens a card in the side panel and closes it', () => {
+  it('sends the response plan, reports the result, and dismisses the notice', async () => {
+    const dependencies = deps()
+    renderBoard(createBoard(dependencies))
+    await screen.findByRole('heading', { level: 1 })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Write response plan' })) })
+    expect(dependencies.send).toHaveBeenCalledWith(CHAT, 'plan')
+    expect(screen.getByText(en['notice.sent'])).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText(en['notice.sent'])).toBeNull()
+  })
+
+  it('chooses another analysis from the picker when there are several', async () => {
+    const read = vi.fn(async (id: string) => ok<WorkPageView>(id === PAGE_ID ? VIEW : { ...VIEW, summary: OTHER }))
+    renderBoard(createBoard(deps({ list: async () => ok([SUMMARY, OTHER]), read })))
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: 'Analysis: EP4814394, saved Oct 29, 2026' }))
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Analysis: EP4814394, saved Oct 29, 2026' }))
+    await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: 'US 19/043,989, saved Oct 20, 2026' })) })
+    expect(read).toHaveBeenLastCalledWith(OTHER.id)
+    expect(screen.getByRole('button', { name: 'Analysis: US 19/043,989, saved Oct 20, 2026' })).toBeTruthy()
+  })
+
+  it('disables Export Word and Share with their reasons as tooltips', async () => {
     renderBoard()
-    expect(screen.queryByTestId('objection-panel')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Art. 54 EPC in the side panel' }))
-    const panel = screen.getByRole('complementary', { name: en['side.label'] })
-    expect(within(panel).getByText(/Document D1 discloses/)).toBeTruthy()
-    expect(within(panel).getByText('Feature 1.4')).toBeTruthy()
-    expect(within(panel).getByText('D1 [0031]')).toBeTruthy()
-    expect(within(panel).getByText(en['response.argue'])).toBeTruthy()
-    fireEvent.click(within(panel).getByRole('button', { name: en['side.close'] }))
-    expect(screen.queryByTestId('objection-panel')).toBeNull()
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.getByRole('button', { name: 'Export Word' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Share' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByTestId('export-anchor').tabIndex).toBe(0)
+    expect(screen.getByTestId('share-anchor').tabIndex).toBe(0)
   })
 
-  it('shows a notice for each action that the sample cannot do, and keeps Share disabled', () => {
-    renderBoard()
-    fireEvent.click(screen.getByRole('button', { name: en['action.plan'] }))
-    expect(screen.getByText(en['notice.plan'])).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: en['action.export'] }))
-    expect(screen.getByText(en['notice.export'])).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: en['run.openChat'] }))
-    expect(screen.getByText(en['notice.chat'])).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: en['notice.dismiss'] }))
-    expect(screen.queryByText(en['notice.chat'])).toBeNull()
-    expect(screen.getByRole('button', { name: en['action.share'] }).hasAttribute('disabled')).toBe(true)
+  it('opens the form, needs an application number, and opens the chat with the request', async () => {
+    const dependencies = deps({ list: async () => ok([]) })
+    renderBoard(createBoard(dependencies))
+    fireEvent.click(screen.getByRole('button', { name: 'New analysis' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New office action analysis' })
+    expect(within(dialog).getByText(en['form.pdfHint'])).toBeTruthy()
+    const start = within(dialog).getByRole('button', { name: 'Open the chat' }) as HTMLButtonElement
+    expect(start.disabled).toBe(true)
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Application number' }), { target: { value: 'EP 4814394' } })
+    fireEvent.click(start)
+    expect(dependencies.draftChat).toHaveBeenCalledWith('analyse EP 4814394')
+    fireEvent.click(screen.getByRole('button', { name: 'New analysis' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    await vi.waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
   })
+})
 
-  it('opens the form with the sample inputs and starts nothing', () => {
-    renderBoard()
-    fireEvent.click(screen.getByRole('button', { name: en['action.new'] }))
-    const form = screen.getByRole('dialog', { name: en['form.title'] })
-    expect(within(form).getByRole('textbox', { name: en['form.application'] }).getAttribute('value')).toBe('EP 3 456 789')
-    expect(within(form).getByText('EP3456789_communication_94-3.pdf')).toBeTruthy()
-    expect(within(form).getByRole('button', { name: 'Agent: Patent Agent' })).toBeTruthy()
-    expect(within(form).getByText('€142 of €200 left this month')).toBeTruthy()
-    fireEvent.click(within(form).getByRole('button', { name: 'Remove EP3456789_communication_94-3.pdf' }))
-    expect(within(form).getByRole('button', { name: en['form.pdfChoose'] })).toBeTruthy()
-    fireEvent.click(within(form).getByRole('button', { name: en['form.start'] }))
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByText(en['notice.run'])).toBeTruthy()
-  })
-
-  it('edits the form fields in the browser only and closes on Cancel', async () => {
-    renderBoard()
-    fireEvent.click(screen.getByRole('button', { name: en['action.new'] }))
-    const form = screen.getByRole('dialog', { name: en['form.title'] })
-    const application = within(form).getByRole('textbox', { name: en['form.application'] })
-    fireEvent.change(application, { target: { value: ' ' } })
-    expect(within(form).getByRole('button', { name: en['form.start'] }).hasAttribute('disabled')).toBe(true)
-    fireEvent.change(application, { target: { value: 'US 17/123,456' } })
-    expect(within(form).getByRole('button', { name: en['form.start'] }).hasAttribute('disabled')).toBe(false)
-
-    fireEvent.click(within(form).getByRole('button', { name: 'Remove EP3456789_communication_94-3.pdf' }))
-    fireEvent.click(within(form).getByRole('button', { name: en['form.pdfChoose'] }))
-    const input = form.querySelector('input[type="file"]')!
-    fireEvent.change(input, { target: { files: [] } })
-    expect(within(form).getByRole('button', { name: en['form.pdfChoose'] })).toBeTruthy()
-    fireEvent.change(input, { target: { files: [new File(['%PDF'], 'action.pdf', { type: 'application/pdf' })] } })
-    expect(within(form).getByText('action.pdf')).toBeTruthy()
-
-    const agent = within(form).getByRole('button', { name: 'Agent: Patent Agent' })
-    fireEvent.click(agent)
-    await screen.findByRole('menuitem', { name: /Office action responder/ })
-    fireEvent.click(agent)
-    expect(screen.queryByRole('menuitem')).toBeNull()
-    fireEvent.click(agent)
-    fireEvent.click(await screen.findByRole('menuitem', { name: /Office action responder/ }))
-    expect(within(form).getByRole('button', { name: 'Agent: Office action responder' })).toBeTruthy()
-    fireEvent.click(within(form).getByRole('button', { name: 'Agent: Office action responder' }))
-    await screen.findByRole('menuitem', { name: /Patent Agent/ })
-    fireEvent.pointerDown(document.body)
-    fireEvent.mouseDown(document.body)
-    expect(screen.queryByRole('menuitem')).toBeNull()
-
-    fireEvent.click(within(form).getByRole('button', { name: en['form.cancel'] }))
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.queryByText(en['notice.run'])).toBeNull()
-  })
-
-  it('shows the review count on the launcher glyph', () => {
-    const board = createBoard(SAMPLE_ANALYSIS)
-    const { container } = render(<WorkPagesPanelIcon size={16} useBoard={bindSnapshotSelector(board.hooks.board)} />)
-    expect(container.querySelector('[data-work-pages-count]')?.textContent).toBe('2')
-    act(() => {
-      board.setState('art54', 'done')
-      board.setState('art56', 'not_relevant')
-    })
-    expect(container.querySelector('[data-work-pages-count]')).toBeNull()
+describe('launcher glyph', () => {
+  it('shows a dot while objections need review, with their count over all analyses in a data attribute', async () => {
+    const list = vi.fn(async () => ok([SUMMARY, OTHER]))
+    const board = createBoard(deps({ list }))
+    const { container } = render(<WorkPagesPanelIcon size={18} useBoard={bindSnapshotSelector(board.hooks.board)} />)
+    await vi.waitFor(() => { expect(container.querySelector('[data-work-pages-count]')?.getAttribute('data-work-pages-count')).toBe('4') })
+    cleanup()
+    const none = createBoard(deps({ list: async () => ok([]) }))
+    const empty = render(<WorkPagesPanelIcon size={18} useBoard={bindSnapshotSelector(none.hooks.board)} />)
+    expect(empty.container.querySelector('svg')).not.toBeNull()
+    expect(empty.container.querySelector('[data-work-pages-count]')).toBeNull()
   })
 })
 
 class RemoteStub extends Service {
-  constructor(ctx: Context) {
+  constructor(ctx: Context, readonly $on: (event: string, listener: (view: WorkPageView) => void) => () => void) {
     super(ctx, 'remote')
-  }
-
-  $on(): () => void {
-    return () => {}
   }
 }
 
-async function pluginContext(): Promise<Context> {
+async function pluginContext(allows: (action: string) => boolean = () => true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
-  new StaticRemoteAccess(ctx, () => true)
-  new RemoteStub(ctx)
+  new StaticRemoteAccess(ctx, allows)
+  const listeners = new Map<string, Set<(view: WorkPageView) => void>>()
+  new RemoteStub(ctx, (event, listener) => {
+    const set = listeners.get(event) ?? new Set()
+    set.add(listener)
+    listeners.set(event, set)
+    return () => { set.delete(listener) }
+  })
+  const workPages = {
+    list: vi.fn(async () => ok([SUMMARY])),
+    read: vi.fn(async () => ok(VIEW)),
+    review: vi.fn(async () => ok(reviewed('1', { state: 'done' }))),
+  }
+  const session = { prompt: vi.fn(async () => ok({ accepted: true })) }
+  await ctx.plugin({ apply(provider: Context) {
+    provider.provide('remote.flowleapWorkPages', workPages as never)
+    provider.provide('remote.session', session as never)
+  } }).await()
+  const uiWorkspace = { openSession: vi.fn(), startSession: vi.fn() }
+  ctx.provide('uiWorkspace', uiWorkspace as never)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   ctx.slots.register({
@@ -256,37 +274,75 @@ async function pluginContext(): Promise<Context> {
       main: { kind: 'keyed', scope: 'root' },
     },
   } as never, () => null)
-  return ctx
+  return { ctx, listeners, workPages, session, uiWorkspace }
 }
 
 describe('ui-flowleap-work-pages browser half', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.flowleapWorkPages', 'remote.session', 'uiWorkspace', 'remoteAccess'])
   })
 
-  it('registers the launcher and the board under one panel id and removes them on dispose', async () => {
-    const ctx = await pluginContext()
+  it('registers the launcher and the board while the Peer may list the work pages, and removes them on dispose', async () => {
+    for (const allowed of [false, true]) {
+      const allows = vi.fn(() => allowed)
+      const { ctx } = await pluginContext(allows)
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+      expect(allows).toHaveBeenCalledWith('flowleapWorkPages/list')
+      expect(ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(allowed ? [PANEL_ID] : [])
+      expect(ctx.slots.entries('main').map(entry => entry.options.key)).toEqual(allowed ? [PANEL_ID] : [])
+      await fiber.dispose()
+      expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
+      expect(ctx.slots.entries('main')).toEqual([])
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('wires the board to the Remote namespaces, the change event, and Session navigation', async () => {
+    const { ctx, listeners, workPages, session, uiWorkspace } = await pluginContext()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    const launcher = ctx.slots.entries('sidebar.panellist')
-    expect(launcher.map(entry => entry.options.id)).toEqual([PANEL_ID])
-    expect((launcher[0]!.options.label as () => string)()).toBe(en.panel)
-    expect(ctx.slots.entries('main').map(entry => entry.options.key)).toEqual([PANEL_ID])
-    const icon = launcher[0]!.inject!()
-    const page = ctx.slots.entries('main')[0]!.inject!()
-    const hooks = icon.hooks as Board['hooks']
-    expect(hooks).toBe(page.hooks)
-    ;(page.setState as Board['setState'])('art54', 'done')
-    expect(needsReviewCount(hooks.board.getSnapshot().attorney)).toBe(1)
-    expect(Math.abs((page.now as () => number)() - Date.now())).toBeLessThan(1000)
+    const launcher = ctx.slots.entries('sidebar.panellist')[0]!
+    expect((launcher.options.label as () => string)()).toBe(en.panel)
+    const icon = launcher.inject!()
+    const injected = ctx.slots.entries('main')[0]!.inject!()
+    const page = {
+      hooks: injected.hooks as Board['hooks'],
+      setReview: injected.setReview as Board['setReview'],
+      writePlan: injected.writePlan as Board['writePlan'],
+      startAnalysis: injected.startAnalysis as Board['startAnalysis'],
+    }
+    expect(icon.hooks).toBe(page.hooks)
+    expect(Math.abs((injected.now as () => number)() - Date.now())).toBeLessThan(1000)
+    const stop = page.hooks.board.subscribe(() => {})
+    await vi.waitFor(() => { expect(page.hooks.board.getSnapshot().page).toEqual(VIEW) })
+    expect(workPages.read).toHaveBeenCalledWith(PAGE_ID)
+    for (const listener of listeners.get('flowleap-work-pages/changed') ?? []) listener(reviewed('2', { state: 'done' }))
+    expect(page.hooks.board.getSnapshot().page?.file.review['2']?.state).toBe('done')
+    expect(workPages.list).toHaveBeenCalledOnce()
+    ctx.emit('connection/reset')
+    await vi.waitFor(() => { expect(workPages.list).toHaveBeenCalledTimes(2) })
+    await page.setReview('1', { state: 'done' })
+    expect(workPages.review).toHaveBeenCalledWith({ id: PAGE_ID, objection: '1', state: 'done' })
+    await page.writePlan()
+    expect(session.prompt).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: CHAT,
+      mode: 'queue',
+      content: [{ type: 'text', text: en['message.plan']
+        .replace('{application}', 'EP4814394')
+        .replace('{report}', 'office-actions/EP4814394/2026-09-30-analysis.md')
+        .replace('{workPage}', SUMMARY.path) }],
+    }))
+    expect(uiWorkspace.openSession).toHaveBeenCalledWith(CHAT)
+    page.startAnalysis('EP 4814394')
+    expect(uiWorkspace.startSession).toHaveBeenCalledWith(undefined, { prompt: 'Analyse the office action for EP 4814394.', whenDraftExists: 'replace' })
+    stop()
     await fiber.dispose()
-    expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
-    expect(ctx.slots.entries('main')).toEqual([])
     await ctx.fiber.dispose()
   })
 
-  it('registers key-identical dictionaries and releases them with its fiber', async () => {
-    const ctx = await pluginContext()
+  it('registers key-identical dictionaries in eight locales and releases them with its fiber', async () => {
+    const { ctx } = await pluginContext()
     ctx.locale.setLocale('zh')
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -294,7 +350,7 @@ describe('ui-flowleap-work-pages browser half', () => {
     expect(translate('action.plan')).toBe(zh['action.plan'])
     ctx.locale.setLocale('en')
     expect(translate('action.plan')).toBe('Write response plan')
-    expect(Object.keys(en).sort()).toEqual(Object.keys(zh).sort())
+    for (const dictionary of [zh, ja, es, fr, de, ru, pt]) expect(Object.keys(dictionary).sort()).toEqual(Object.keys(en).sort())
     await fiber.dispose()
     expect(translate('action.plan')).not.toBe(en['action.plan'])
     await ctx.fiber.dispose()

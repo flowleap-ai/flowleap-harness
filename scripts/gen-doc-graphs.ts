@@ -415,6 +415,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Lists, reads, saves and deletes the agents of the agent builder and their files, and names the connector rows an agent can choose; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapWorkPages',
+    pkg: 'flowleap-deliverables',
+    title: 'FlowLeap work pages Remote',
+    mode: 'service',
+    consumers: ['client-ui-flowleap-work-pages'],
+    note: 'Lists and reads the office action work pages that office-action-scaffold saves write, and changes only their review fields; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'flowleapRoutines',
     pkg: 'flowleap-routines',
     title: 'FlowLeap routines Remote',

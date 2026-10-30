@@ -28,6 +28,7 @@ import {
   ConfirmedMarkets, exportDraftDocxTool, forgetRefusals, inventorQuestionsTool, PatentLedger, PresentQueue, registerDeliverableTools,
   registerGateCommands,
   registerPresent, removeClaimTool, startApplicationDraftTool, validateDraftTool, writePatentResultsTool, NO_LLM_JUDGE, type GateSeams,
+  WorkPages,
 } from '../src/index.ts'
 
 /** The text of a model-facing content block, or the block's type when it carries no text. */
@@ -151,7 +152,7 @@ export async function gateBench() {
   registerPresent(ctx, present, () => 1)
   registerDeliverableTools(ctx, [
     writePatentResultsTool(ctx, {
-      ledger, judge: () => NO_LLM_JUDGE, present, gates: seams, markets: new ConfirmedMarkets(), secondRead: () => 'off', now: seams.now, ...log,
+      ledger, judge: () => NO_LLM_JUDGE, present, gates: seams, markets: new ConfirmedMarkets(), workPages: new WorkPages(ctx.fs, () => {}), secondRead: () => 'off', now: seams.now, ...log,
     }),
     startApplicationDraftTool(ctx, deps),
     validateDraftTool(ctx, deps),

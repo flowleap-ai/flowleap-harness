@@ -12,10 +12,31 @@
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../locale/tsconfig.client.json"
+      "path": "../../api/remote-access/tsconfig.client.json"
     },
     {
-      "path": "../store"
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../host/flowleap-deliverables"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/crypto"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../ui-layout"
@@ -31,6 +52,9 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-workspace"
     }
   ]
 }

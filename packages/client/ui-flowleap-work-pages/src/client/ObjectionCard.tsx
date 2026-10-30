@@ -1,32 +1,25 @@
-/** One objection card of the board: the legal basis, the claims hit, the cited passages, the review state, and the owner. */
+/** One objection card of the board: the ground, the claims hit, the cited passages, the review state, the owner, and the note. */
 
 import { useState } from 'react'
 import {
   Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, Input, Menu, Tag,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
-import { objectionState, REVIEW_STATES, type AttorneyFields, type CitedDocument, type CitationLabel, type Objection, type ObjectionState } from './board.ts'
+import {
+  MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, REVIEW_STATES, type Objection, type ReviewFields, type WorkPageReviewState,
+} from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
+import { reviewState } from './board.ts'
 import type { NS } from './locales.ts'
 import css from './WorkPages.module.css'
 
 type T = TranslateNS<typeof NS>
 
 /**
- * Localized label of a legal basis, for example `Art. 54 EPC`.
- * @param t - copy.
- * @param objection - the objection.
- * @returns the label.
- */
-export function basisLabel(t: T, objection: Objection): string {
-  return t(`basis.${objection.basis}`)
-}
-
-/**
  * Render the colored dot of a review state.
  * @param props.state - the state.
  * @returns the decorative dot.
  */
-export function StateMark({ state }: { state: ObjectionState }) {
+export function StateMark({ state }: { state: WorkPageReviewState }) {
   return <span className={css.stateDot} data-state={state} aria-hidden="true" />
 }
 
@@ -40,8 +33,8 @@ export function StateMark({ state }: { state: ObjectionState }) {
  */
 export function StatePicker({ label, state, onChange, t }: {
   label: string
-  state: ObjectionState
-  onChange: (state: ObjectionState) => void
+  state: WorkPageReviewState
+  onChange: (state: WorkPageReviewState) => void
   t: T
 }) {
   const [open, setOpen] = useState(false)
@@ -55,7 +48,7 @@ export function StatePicker({ label, state, onChange, t }: {
       items={REVIEW_STATES.map(value => ({ id: value, label: t(`state.${value}`), icon: <StateMark state={value} /> }))}
       onSelect={(id) => {
         setOpen(false)
-        onChange(objectionState(id))
+        onChange(reviewState(id))
       }}
       anchor={(
         <Button
@@ -76,9 +69,25 @@ export function StatePicker({ label, state, onChange, t }: {
 }
 
 /**
+ * The text of a field that the attorney edits: the draft while the attorney types, else the saved value. A new read of
+ * the page does not replace a draft; a commit sends a changed draft and shows the saved value again.
+ * @param saved - the saved value.
+ * @param onChange - receives a changed draft; the Host trims it.
+ * @returns the shown value, the draft setter, and the commit.
+ */
+function useDraft(saved: string, onChange: (value: string) => void) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const commit = () => {
+    if (draft !== null && draft !== saved) onChange(draft)
+    setDraft(null)
+  }
+  return { value: draft ?? saved, setDraft, commit }
+}
+
+/**
  * Render the owner field. The value is committed on blur and on Enter.
  * @param props.label - accessible name of the field.
- * @param props.owner - the current owner.
+ * @param props.owner - the saved owner.
  * @param props.onChange - the committed owner.
  * @param props.t - copy.
  * @returns the text field.
@@ -89,14 +98,14 @@ export function OwnerField({ label, owner, onChange, t }: {
   onChange: (owner: string) => void
   t: T
 }) {
-  const [draft, setDraft] = useState(owner)
-  const commit = () => { if (draft.trim() !== owner) onChange(draft.trim()) }
+  const { value, setDraft, commit } = useDraft(owner, onChange)
   return (
     <Input
       className={css.owner as string}
       aria-label={label}
       placeholder={t('card.ownerPlaceholder')}
-      value={draft}
+      maxLength={MAX_OWNER_LENGTH}
+      value={value}
       onChange={(event) => { setDraft(event.currentTarget.value) }}
       onBlur={commit}
       onKeyDown={(event) => { if (event.key === 'Enter') commit() }}
@@ -104,40 +113,67 @@ export function OwnerField({ label, owner, onChange, t }: {
   )
 }
 
+/**
+ * Render the note field. The value is committed on blur.
+ * @param props.label - accessible name of the field.
+ * @param props.note - the saved note.
+ * @param props.onChange - the committed note.
+ * @param props.t - copy.
+ * @returns the text area.
+ */
+export function NoteField({ label, note, onChange, t }: {
+  label: string
+  note: string
+  onChange: (note: string) => void
+  t: T
+}) {
+  const { value, setDraft, commit } = useDraft(note, onChange)
+  return (
+    <textarea
+      className={css.note}
+      aria-label={label}
+      placeholder={t('card.notePlaceholder')}
+      maxLength={MAX_NOTE_LENGTH}
+      rows={2}
+      value={value}
+      onChange={(event) => { setDraft(event.currentTarget.value) }}
+      onBlur={commit}
+    />
+  )
+}
+
 /** Props of one objection card. */
 export interface ObjectionCardProps {
   readonly objection: Objection
-  readonly fields: AttorneyFields
-  readonly documents: Readonly<Record<CitationLabel, CitedDocument>>
+  readonly review: ReviewFields
   readonly selected: boolean
   readonly onOpen: () => void
-  readonly onState: (state: ObjectionState) => void
-  readonly onOwner: (owner: string) => void
+  readonly onReview: (fields: Partial<ReviewFields>) => void
   readonly t: T
 }
 
 /**
  * Render one objection card.
- * @param props - the objection, its attorney fields, the cited documents, the actions, and copy.
+ * @param props - the objection, its review fields, the actions, and copy.
  * @returns the card.
  */
-export function ObjectionCard({ objection, fields, documents, selected, onOpen, onState, onOwner, t }: ObjectionCardProps) {
-  const basis = basisLabel(t, objection)
+export function ObjectionCard({ objection, review, selected, onOpen, onReview, t }: ObjectionCardProps) {
+  const id = objection.id
   return (
-    <li className={css.card} data-selected={selected ? '' : undefined} data-objection={objection.id}>
-      <Button className={css.cardOpen} aria-label={t('card.open', { basis })} aria-pressed={selected} onClick={onOpen}>
+    <li className={css.card} data-selected={selected ? '' : undefined} data-objection={id}>
+      <Button className={css.cardOpen} aria-label={t('card.open', { id })} aria-pressed={selected} onClick={onOpen}>
         <span className={css.cardTitleRow}>
-          <span className={css.basis}>{basis}</span>
-          <span className={css.basisName}>{t(`basis.${objection.basis}.name`)}</span>
+          <span className={css.basis}>{t('card.objection', { id })}</span>
+          <span className={css.basisName}>{objection.ground}</span>
           <IconChevronRightOutlineRegular size={14} className={css.chevron} />
         </span>
-        <span className={css.summary}>{objection.summary}</span>
+        <span className={css.summary}>{objection.title}</span>
       </Button>
       <div className={css.cardBody}>
         <div>
           <p className={css.fieldLabel}>{t('card.claims')}</p>
           <div className={css.claims}>
-            <Tag tone="neutral">{t('card.claimList', { numbers: objection.claims.join(', ') })}</Tag>
+            <Tag tone="neutral">{objection.claims.length === 0 ? t('card.noClaims') : t('card.claimList', { numbers: objection.claims.join(', ') })}</Tag>
           </div>
         </div>
         <div>
@@ -146,10 +182,10 @@ export function ObjectionCard({ objection, fields, documents, selected, onOpen, 
             ? <p className={css.muted}>{t('card.noCitations')}</p>
             : (
               <ul className={css.passages}>
-                {objection.citations.map(citation => (
-                  <li key={`${citation.label}-${citation.location}`} className={css.passage}>
-                    <span className={css.passageRef} title={documents[citation.label].number}>{citation.label} {citation.location}</span>
-                    <span className={css.passageText}>{citation.text}</span>
+                {objection.citations.map((citation, index) => (
+                  <li key={`${index}-${citation.document}-${citation.passage}`} className={css.passage}>
+                    <span className={css.passageRef} title={citation.document}>{citation.document} {citation.passage}</span>
+                    <span className={css.passageText}>{citation.says}</span>
                   </li>
                 ))}
               </ul>
@@ -159,11 +195,15 @@ export function ObjectionCard({ objection, fields, documents, selected, onOpen, 
       <div className={css.cardFooter}>
         <span className={css.control}>
           {t('card.state')}
-          <StatePicker label={t('card.stateLabel', { basis, state: t(`state.${fields.state}`) })} state={fields.state} onChange={onState} t={t} />
+          <StatePicker label={t('card.stateLabel', { id, state: t(`state.${review.state}`) })} state={review.state} onChange={(state) => { onReview({ state }) }} t={t} />
         </span>
         <span className={css.control}>
           {t('card.owner')}
-          <OwnerField key={fields.owner} label={t('card.ownerLabel', { basis })} owner={fields.owner} onChange={onOwner} t={t} />
+          <OwnerField label={t('card.ownerLabel', { id })} owner={review.owner} onChange={(owner) => { onReview({ owner }) }} t={t} />
+        </span>
+        <span className={css.noteControl}>
+          {t('card.note')}
+          <NoteField label={t('card.noteLabel', { id })} note={review.note} onChange={(note) => { onReview({ note }) }} t={t} />
         </span>
       </div>
     </li>

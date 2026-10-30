@@ -1456,6 +1456,33 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapWorkPages',
+    summary: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
+    methods: [
+      {
+        signature: '@Remote async list(): Promise<WorkPageSummary[]>',
+        description: 'The work pages the caller may see.',
+        parameters: [],
+        returns: 'one summary per page, newest save first.',
+      },
+      {
+        signature: '@Remote async read(id: WorkPageId): Promise<WorkPageView>',
+        description: 'One work page with its file.',
+        parameters: [{ name: 'id', description: 'the page.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-work-pages/not-found`, `flowleap-work-pages/unreadable` or `flowleap-work-pages/invalid`.'],
+      },
+      {
+        signature: '@Remote async review(request: WorkPageReviewRequest): Promise<WorkPageView>',
+        description: 'Change the review state, the owner or the note of one objection; an omitted field keeps its value.',
+        parameters: [{ name: 'request', description: 'the page, the objection, and the fields to change.' }],
+        returns: 'the page after the change.',
+        throws: ['RemoteError `flowleap-work-pages/invalid`, `flowleap-work-pages/not-found`, `flowleap-work-pages/objection-not-found` or `flowleap-work-pages/unreadable`.'],
+      },
+    ],
+  },
+  {
     key: 'forge',
     summary: 'Registry of forge providers.',
     description: 'Registry of forge providers. Watchers of one change request share a single polling loop; each forge has at most one fetch in flight, which batches every due change request of that forge.',
@@ -5157,6 +5184,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'flowleap-work-pages/changed',
+    mode: 'emit',
+    signature: '\'flowleap-work-pages/changed\'(view: WorkPageView): void',
+    summary: 'A save wrote a work page, or the attorney changed its review fields.',
+    description: 'A save wrote a work page, or the attorney changed its review fields.',
+    parameters: [{ name: 'view', description: 'the page after the change; it reaches only the callers that may see its chat.' }],
+  },
+  {
     name: 'forge/providers-changed',
     mode: 'parallel',
     signature: '\'forge/providers-changed\'(forge: string): void | Promise<void>',
@@ -5649,6 +5684,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ActionCardView {\n    readonly proposals: Readonly<Record<string, ActionCardProposal>>;\n    readonly decisions: Readonly<Record<string, ActionCardDecision>>;\n}',
   },
   {
+    name: 'ActionRow',
+    declaration: 'export interface ActionRow {\n    readonly field: string;\n    readonly value: string;\n    readonly source: string;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -6037,8 +6076,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CheckState = \'pending\' | \'success\' | \'failure\' | \'neutral\' | \'skipped\' | \'cancelled\';',
   },
   {
+    name: 'CitedDocument',
+    declaration: 'export interface CitedDocument {\n    readonly label: string;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'CitedPassage',
+    declaration: 'export interface CitedPassage {\n    readonly document: string;\n    readonly role: string;\n    readonly passage: string;\n    readonly says: string;\n    readonly anchor: string;\n}',
+  },
+  {
     name: 'ClaimOutcome',
     declaration: 'export interface ClaimOutcome {\n    readonly claimed: number;\n    readonly skipped: number;\n}',
+  },
+  {
+    name: 'ClaimTable',
+    declaration: 'export interface ClaimTable {\n    readonly claim: number;\n    readonly heading: string;\n    readonly interpretation: string;\n    readonly rows: readonly ComparisonRow[];\n    readonly arrangement: string;\n}',
   },
   {
     name: 'ClientArtifactBaseline',
@@ -6119,6 +6170,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CompactionTrigger',
     declaration: 'export type CompactionTrigger = \'pressure\' | \'context-overflow\';',
+  },
+  {
+    name: 'ComparisonRow',
+    declaration: 'export interface ComparisonRow {\n    readonly element: string;\n    readonly examiner: string;\n    readonly cited: string;\n    readonly assessment: ElementAssessment;\n}',
   },
   {
     name: 'CompositionRowEnablement',
@@ -6547,6 +6602,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EditGoalRequest',
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
+  },
+  {
+    name: 'ElementAssessment',
+    declaration: 'export type ElementAssessment = \'disclosed\' | \'not disclosed\' | \'disputable\' | \'not read\';',
   },
   {
     name: 'EncodedFileAttachment',
@@ -7549,6 +7608,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type NpmFileSource = \'jsdelivr\' | \'unpkg\' | \'npmmirror\';',
   },
   {
+    name: 'Objection',
+    declaration: 'export interface Objection {\n    readonly id: string;\n    readonly title: string;\n    readonly ground: string;\n    readonly legalBasis: string;\n    readonly claims: readonly number[];\n    readonly reasoning: string;\n    readonly source: string;\n    readonly citations: readonly CitedPassage[];\n    readonly assessment: string;\n    readonly options: readonly ResponseOption[];\n    readonly replyMustAddress: string;\n    readonly confidence: string;\n    readonly sources: string;\n}',
+  },
+  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
   },
@@ -7559,6 +7622,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OcrRead',
     declaration: 'export type OcrRead = {\n    readonly kind: \'read\';\n    readonly pages: readonly OcrPageText[];\n} | {\n    readonly kind: \'not-configured\';\n};',
+  },
+  {
+    name: 'OfficeActionFindings',
+    declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly summary: string;\n    readonly action: readonly ActionRow[];\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n    readonly dependentClaims: string;\n}',
   },
   {
     name: 'OfficeExtension',
@@ -8201,6 +8268,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedToolSet {\n    dispose(): void;\n    view(scope: ScopeKey | undefined): ReadonlyMap<string, ToolDefinition>;\n}',
   },
   {
+    name: 'ResponseOption',
+    declaration: 'export interface ResponseOption {\n    readonly label: string;\n    readonly text: string;\n}',
+  },
+  {
     name: 'RestartReason',
     declaration: 'export type RestartReason = \'no-hmr\' | \'package-moved\' | \'host-module\' | \'unmanaged-plugin\' | \'module-comparison\';',
   },
@@ -8223,6 +8294,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ReviewDecision',
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
+  },
+  {
+    name: 'ReviewEntry',
+    declaration: 'export interface ReviewEntry extends ReviewFields {\n    readonly ground: string;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'ReviewFields',
+    declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
   },
   {
     name: 'ReviewState',
@@ -10319,6 +10398,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkPageFile',
+    declaration: 'export interface WorkPageFile {\n    readonly schemaVersion: 1;\n    readonly kind: \'office-action\';\n    readonly about: string;\n    readonly report: string;\n    readonly findings: OfficeActionFindings;\n    readonly review: Readonly<Record<string, ReviewEntry>>;\n}',
+  },
+  {
+    name: 'WorkPageId',
+    declaration: 'export type WorkPageId = Branded<\'FlowleapWorkPageId\'>;',
+  },
+  {
+    name: 'WorkPageReviewRequest',
+    declaration: 'export interface WorkPageReviewRequest {\n    readonly id: WorkPageId;\n    readonly objection: string;\n    readonly state?: WorkPageReviewState;\n    readonly owner?: string;\n    readonly note?: string;\n}',
+  },
+  {
+    name: 'WorkPageReviewState',
+    declaration: 'export type WorkPageReviewState = typeof REVIEW_STATES[number];',
+  },
+  {
+    name: 'WorkPageSummary',
+    declaration: 'export interface WorkPageSummary {\n    readonly id: WorkPageId;\n    readonly sessionId: SessionId;\n    readonly report: string;\n    readonly path: string;\n    readonly application: string;\n    readonly communication: string;\n    readonly savedAt: string;\n    readonly objections: number;\n    readonly needsReview: number;\n}',
+  },
+  {
+    name: 'WorkPageView',
+    declaration: 'export interface WorkPageView {\n    readonly summary: WorkPageSummary;\n    readonly file: WorkPageFile;\n}',
   },
   {
     name: 'Workspace',
