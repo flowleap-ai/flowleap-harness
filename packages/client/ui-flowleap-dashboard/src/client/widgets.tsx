@@ -1,16 +1,15 @@
 /**
- * The dashboard's own occupants of `dashboard.metric` and `dashboard.widget`: Agent activity over the Session list
- * (real data), and Coming up, Budget this month, and two metric cards over sample data with the "Sample data" tag.
+ * The dashboard's own panel: Agent activity over the Session list, and the chat rows that the Chats page and the Chats
+ * search group share. A running chat keeps running while the dashboard shows and is listed as running.
  */
 
 import { useMemo } from 'react'
-import { Button, IconAlarmClockOutlineRegular, IconChecklistOutlineRegular, StateDot, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from './contract.ts'
 import type { NS } from './locales.ts'
-import { SAMPLE_BUDGET, SAMPLE_CASES_WATCHED, SAMPLE_COMING_UP } from './sample-data.ts'
 import css from './Dashboard.module.css'
 
 type Copy = PropsLocale<typeof NS>
@@ -43,15 +42,6 @@ export function chatRows(list: SessionListState): readonly ChatRow[] {
     if (summary === undefined || summary.blank || summary.origin === 'subagent') return []
     return [{ id, title: summary.displayTitle, running: summary.running, updatedAt: summary.updatedAt }]
   }).toSorted((left, right) => Number(right.running) - Number(left.running) || right.updatedAt - left.updatedAt)
-}
-
-/** The "Sample data" tag; every surface that shows a value from `sample-data.ts` shows it. */
-export function SampleTag({ t }: Copy) {
-  return (
-    <span className={css.sample} title={t('sample.description')} data-sample-data="">
-      <Tag tone="warning">{t('sample.label')}</Tag>
-    </span>
-  )
 }
 
 /** Props of a chat list. */
@@ -103,104 +93,4 @@ export type AgentActivityProps = PropsRuntime<'dashboard.widget'> & Copy & Injec
  */
 export function AgentActivity(props: AgentActivityProps) {
   return <ChatList {...props} limit={5} />
-}
-
-/** Props of a sample occupant. */
-export type SampleProps = PropsRuntime<'dashboard.widget'> & Copy
-
-/**
- * Render the register events of the watched cases, nearest first.
- * @param props - copy.
- * @returns the panel body with the sample tag.
- */
-export function ComingUp({ t }: SampleProps) {
-  const format = new Intl.DateTimeFormat(t('time.locale'), { dateStyle: 'medium' })
-  return (
-    <>
-      <SampleTag t={t} />
-      <ul className={css.rows}>
-        {SAMPLE_COMING_UP.map(event => (
-          <li key={event.caseRef} className={css.staticRow}>
-            <IconAlarmClockOutlineRegular size={16} className={css.rowGlyph} aria-hidden="true" />
-            <span className={css.rowText}>
-              <span className={css.rowTitle}>{event.caseRef} · {event.title}</span>
-              <span className={css.rowMeta}>{event.event}</span>
-            </span>
-            <time className={css.due} dateTime={event.due}>{format.format(Date.parse(event.due))}</time>
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-}
-
-function money(t: Copy['t'], cents: number): string {
-  return new Intl.NumberFormat(t('time.locale'), { style: 'currency', currency: 'EUR' }).format(cents / 100)
-}
-
-/**
- * Render the month's spend against the limit, and the spend of each agent.
- * @param props - copy.
- * @returns the panel body with the sample tag.
- */
-export function BudgetThisMonth({ t }: SampleProps) {
-  const { usedCents, limitCents, byAgent } = SAMPLE_BUDGET
-  const share = Math.min(1, usedCents / limitCents)
-  return (
-    <>
-      <SampleTag t={t} />
-      <div className={css.budgetLine}>
-        <span className={css.budgetUsed}>{t('budget.used', { used: money(t, usedCents) })}</span>
-        <span className={css.rowMeta}>{t('budget.limit', { limit: money(t, limitCents) })}</span>
-      </div>
-      <div className={css.meter} role="meter" aria-valuemin={0} aria-valuemax={limitCents} aria-valuenow={usedCents}
-        aria-label={t('widget.budget')}>
-        <span style={{ width: `${share * 100}%` }} />
-      </div>
-      <h3 className={css.subheading}>{t('budget.byAgent')}</h3>
-      <ul className={css.rows}>
-        {byAgent.map(agent => (
-          <li key={agent.name} className={css.staticRow}>
-            <IconChecklistOutlineRegular size={16} className={css.rowGlyph} aria-hidden="true" />
-            <span className={css.rowText}><span className={css.rowTitle}>{agent.name}</span></span>
-            <span className={css.rowMeta}>{money(t, agent.usedCents)}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-}
-
-/** Props of a sample metric card. */
-export type SampleMetricProps = PropsRuntime<'dashboard.metric'> & Copy
-
-/**
- * Render the number of watched cases.
- * @param props - copy.
- * @returns the card body with the sample tag.
- */
-export function CasesWatchedMetric({ t }: SampleMetricProps) {
-  return (
-    <>
-      <span className={css.metricValue}>{SAMPLE_CASES_WATCHED}</span>
-      <span className={css.metricCaption}>{t('metric.casesWatched.caption')}</span>
-      <SampleTag t={t} />
-    </>
-  )
-}
-
-/**
- * Render the share of the month's budget used.
- * @param props - copy.
- * @returns the card body with the sample tag.
- */
-export function BudgetUsedMetric({ t }: SampleMetricProps) {
-  const { usedCents, limitCents } = SAMPLE_BUDGET
-  return (
-    <>
-      <span className={css.metricValue}>{Math.round((usedCents / limitCents) * 100)} %</span>
-      <span className={css.metricCaption}>{t('metric.budgetUsed.caption', { used: money(t, usedCents), limit: money(t, limitCents) })}</span>
-      <SampleTag t={t} />
-    </>
-  )
 }

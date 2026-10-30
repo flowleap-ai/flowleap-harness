@@ -1,0 +1,9 @@
+# Overlay for dashboard.md (DSH_VERIFY_PATCH): the budget read goes to the
+# gateway double at $DSH_VERIFY_BUDGET_URL (a loopback base URL). The verify
+# run has no virtual key, so the double receives the OpenRouter key of the run
+# and does not keep it.
+- id: flowleap-budget
+  config:
+    baseURL: !!js process.env.DSH_VERIFY_BUDGET_URL
+    apiKeyRef: OPENROUTER_API_KEY
+    timeoutMs: 5000

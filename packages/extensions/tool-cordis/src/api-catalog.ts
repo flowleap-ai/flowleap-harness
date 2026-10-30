@@ -1359,6 +1359,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapBudget',
+    summary: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
+    methods: [
+      {
+        signature: '@Remote async month(): Promise<BudgetMonth>',
+        description: 'Read this month\'s spend and budget of the attorney from the gateway.',
+        parameters: [],
+        returns: 'the figures, or `unknown` with the reason.',
+      },
+    ],
+  },
+  {
     key: 'flowleapConnectors',
     summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
     description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
@@ -1428,6 +1441,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'The marked chats the caller may see.',
         parameters: [],
         returns: 'one view per mark, without the chats remote access denies the caller.',
+      },
+      {
+        signature: '@Remote async watches(): Promise<RoutineWatch[]>',
+        description: 'The register watches the caller may see, next check first.',
+        parameters: [],
+        returns: 'one view per watch, without the watches of chats remote access denies the caller.',
       },
       {
         signature: '@Remote async done(sessionId: SessionId): Promise<void>',
@@ -5133,8 +5152,8 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'flowleap-routines/changed',
     mode: 'emit',
     signature: '\'flowleap-routines/changed\'(): void',
-    summary: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
-    description: 'A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.',
+    summary: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
+    description: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
     parameters: [],
   },
   {
@@ -5952,6 +5971,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BrowserUseProviderName',
     declaration: 'export type BrowserUseProviderName = Branded<\'BrowserUseProviderName\'>;',
+  },
+  {
+    name: 'BudgetMonth',
+    declaration: 'export type BudgetMonth = {\n    readonly state: \'known\';\n    readonly month: string;\n    readonly spentUsd: number;\n    readonly budgetUsd: number | null;\n} | {\n    readonly state: \'unknown\';\n    readonly reason: BudgetUnknownReason;\n};',
+  },
+  {
+    name: 'BudgetUnknownReason',
+    declaration: 'export type BudgetUnknownReason = \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'gateway_error\' | \'invalid_answer\';',
   },
   {
     name: 'BundleDetail',
@@ -8002,6 +8029,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RegisterEntry {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
   },
   {
+    name: 'RegisterEventView',
+    declaration: 'export interface RegisterEventView {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
     name: 'Registry',
     declaration: 'export type Registry = string | null;',
   },
@@ -8200,6 +8231,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RoutineReview',
     declaration: 'export interface RoutineReview {\n    readonly sessionId: SessionId;\n    readonly taskId: string;\n    readonly state: ReviewState;\n    readonly since: string;\n}',
+  },
+  {
+    name: 'RoutineWatch',
+    declaration: 'export interface RoutineWatch {\n    readonly taskId: ScheduleId;\n    readonly sessionId: SessionId;\n    readonly title: string;\n    readonly nextCheckAt?: string;\n    readonly applications: readonly WatchedApplication[];\n}',
   },
   {
     name: 'RpcId',
@@ -10096,6 +10131,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'VerifiedWebhookDelivery',
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
+  },
+  {
+    name: 'WatchedApplication',
+    declaration: 'export interface WatchedApplication {\n    readonly application: string;\n    readonly readAt?: string;\n    readonly latest?: RegisterEventView;\n}',
   },
   {
     name: 'WebBootBatch',

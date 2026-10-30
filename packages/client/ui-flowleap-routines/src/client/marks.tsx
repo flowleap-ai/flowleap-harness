@@ -46,9 +46,9 @@ export function NeedsReviewBadge({ sessionId, useReviews, t }: NeedsReviewBadgeP
 export type NeedsReviewPanelIconProps = Pick<PropsRuntime<'sidebar.panellist'>, 'size'> & InjectFace<ReviewsInjected>
 
 /**
- * Render the launcher glyph with the count of marked chats; the Sidebar owns the launcher's accessible name.
+ * Render the launcher glyph with a dot while a chat is marked; the Sidebar owns the launcher's accessible name.
  * @param props - the requested glyph edge and the shared source.
- * @returns the glyph, with the count when it is above zero.
+ * @returns the glyph, with the dot when the count is above zero.
  */
 export function NeedsReviewPanelIcon({ size, useReviews }: NeedsReviewPanelIconProps) {
   const count = useReviews(snapshot => snapshot.marked.length)
@@ -56,7 +56,7 @@ export function NeedsReviewPanelIcon({ size, useReviews }: NeedsReviewPanelIconP
   return (
     <span className={css.panelIcon}>
       <IconChecklistOutlineRegular size={size} />
-      <span className={css.count} data-needs-review-count="">{count > 99 ? '99+' : count}</span>
+      <span className={css.count} data-needs-review-count={count} />
     </span>
   )
 }

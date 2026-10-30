@@ -28,6 +28,17 @@ export const zh = {
   'dashboard.metric.caption': '例行任务标记的聊天',
   'dashboard.widget': '待审阅的聊天',
   'dashboard.widget.all': '打开“待审阅”',
+  'cases.metric': '关注的案件',
+  'cases.metric.caption': '登记簿监视中的申请',
+  'watches.error': '无法加载登记簿监视。',
+  'comingUp.widget': '即将到来',
+  'comingUp.empty': '还没有登记簿监视。请让智能体监视一个申请。',
+  'comingUp.next': '下次登记簿检查：{time}',
+  'comingUp.latest': '{application}：{date}，{description}',
+  'comingUp.noEvent': '{application}：尚未读取登记簿事件',
+  'comingUp.note': '登记簿监视在专利局记录事件后报告该事件。它不计算期限。',
+  'comingUp.open': '打开 {title} 的聊天',
+  'search.heading': '例行任务',
 } as const
 
 /** Key domain of the namespace. */
@@ -58,6 +69,17 @@ export const en: Record<FlowleapRoutinesKey, string> = {
   'dashboard.metric.caption': 'Chats a routine marked',
   'dashboard.widget': 'Needs your review',
   'dashboard.widget.all': 'Open Needs review',
+  'cases.metric': 'Cases watched',
+  'cases.metric.caption': 'Applications in register watches',
+  'watches.error': 'Could not load the register watches.',
+  'comingUp.widget': 'Coming up',
+  'comingUp.empty': 'No register watch yet. Ask the agent to watch an application.',
+  'comingUp.next': 'Next register check: {time}',
+  'comingUp.latest': '{application}: {date}, {description}',
+  'comingUp.noEvent': '{application}: no register event read yet',
+  'comingUp.note': 'The register watch reports an event after the office records it. It does not calculate deadlines.',
+  'comingUp.open': 'Open the chat of {title}',
+  'search.heading': 'Routines',
 }
 
 /** Japanese dictionary, checked against the English keys. */
@@ -85,6 +107,17 @@ export const ja = {
   'dashboard.metric.caption': 'ルーティンが印を付けたチャット',
   'dashboard.widget': 'あなたのレビューが必要',
   'dashboard.widget.all': '要レビューを開く',
+  'cases.metric': 'ウォッチ中の案件',
+  'cases.metric.caption': '登録簿ウォッチの出願',
+  'watches.error': '登録簿ウォッチを読み込めませんでした。',
+  'comingUp.widget': '今後の予定',
+  'comingUp.empty': '登録簿ウォッチはまだありません。エージェントに出願のウォッチを依頼してください。',
+  'comingUp.next': '次回の登録簿チェック：{time}',
+  'comingUp.latest': '{application}：{date}、{description}',
+  'comingUp.noEvent': '{application}：登録簿イベントはまだ読み込まれていません',
+  'comingUp.note': '登録簿ウォッチは、庁がイベントを記録した後にそのイベントを報告します。期限は計算しません。',
+  'comingUp.open': '{title} のチャットを開く',
+  'search.heading': 'ルーティン',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -112,6 +145,17 @@ export const es = {
   'dashboard.metric.caption': 'Chats que marcó una rutina',
   'dashboard.widget': 'Necesita tu revisión',
   'dashboard.widget.all': 'Abrir Pendiente de revisión',
+  'cases.metric': 'Casos vigilados',
+  'cases.metric.caption': 'Solicitudes en vigilancias del registro',
+  'watches.error': 'No se pudieron cargar las vigilancias del registro.',
+  'comingUp.widget': 'Próximamente',
+  'comingUp.empty': 'Todavía no hay ninguna vigilancia del registro. Pida al agente que vigile una solicitud.',
+  'comingUp.next': 'Próxima comprobación del registro: {time}',
+  'comingUp.latest': '{application}: {date}, {description}',
+  'comingUp.noEvent': '{application}: todavía no se ha leído ningún evento del registro',
+  'comingUp.note': 'La vigilancia del registro informa de un evento después de que la oficina lo registra. No calcula plazos.',
+  'comingUp.open': 'Abrir el chat de {title}',
+  'search.heading': 'Rutinas',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -139,6 +183,17 @@ export const fr = {
   'dashboard.metric.caption': 'Conversations marquées par une routine',
   'dashboard.widget': 'À relire par vous',
   'dashboard.widget.all': 'Ouvrir À relire',
+  'cases.metric': 'Dossiers surveillés',
+  'cases.metric.caption': 'Demandes dans les surveillances du registre',
+  'watches.error': 'Impossible de charger les surveillances du registre.',
+  'comingUp.widget': 'À venir',
+  'comingUp.empty': "Aucune surveillance du registre pour l'instant. Demandez à l'agent de surveiller une demande.",
+  'comingUp.next': 'Prochaine vérification du registre : {time}',
+  'comingUp.latest': '{application} : {date}, {description}',
+  'comingUp.noEvent': "{application} : aucun événement du registre lu pour l'instant",
+  'comingUp.note': "La surveillance du registre signale un événement après que l'office l'a enregistré. Elle ne calcule pas les délais.",
+  'comingUp.open': 'Ouvrir la conversation de {title}',
+  'search.heading': 'Routines',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -166,6 +221,17 @@ export const de = {
   'dashboard.metric.caption': 'Von einer Routine markierte Chats',
   'dashboard.widget': 'Braucht Ihre Prüfung',
   'dashboard.widget.all': 'Zu prüfen öffnen',
+  'cases.metric': 'Beobachtete Fälle',
+  'cases.metric.caption': 'Anmeldungen in Registerbeobachtungen',
+  'watches.error': 'Die Registerbeobachtungen konnten nicht geladen werden.',
+  'comingUp.widget': 'Demnächst',
+  'comingUp.empty': 'Noch keine Registerbeobachtung. Bitten Sie den Agenten, eine Anmeldung zu beobachten.',
+  'comingUp.next': 'Nächste Registerprüfung: {time}',
+  'comingUp.latest': '{application}: {date}, {description}',
+  'comingUp.noEvent': '{application}: noch kein Registerereignis gelesen',
+  'comingUp.note': 'Die Registerbeobachtung meldet ein Ereignis, nachdem das Amt es erfasst hat. Sie berechnet keine Fristen.',
+  'comingUp.open': 'Chat von {title} öffnen',
+  'search.heading': 'Routinen',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -193,6 +259,17 @@ export const ru = {
   'dashboard.metric.caption': 'Чаты, отмеченные рутиной',
   'dashboard.widget': 'Нужна ваша проверка',
   'dashboard.widget.all': 'Открыть «Нужна проверка»',
+  'cases.metric': 'Отслеживаемые дела',
+  'cases.metric.caption': 'Заявки в наблюдениях за реестром',
+  'watches.error': 'Не удалось загрузить наблюдения за реестром.',
+  'comingUp.widget': 'Предстоящее',
+  'comingUp.empty': 'Наблюдений за реестром пока нет. Попросите агента отслеживать заявку.',
+  'comingUp.next': 'Следующая проверка реестра: {time}',
+  'comingUp.latest': '{application}: {date}, {description}',
+  'comingUp.noEvent': '{application}: события реестра ещё не прочитаны',
+  'comingUp.note': 'Наблюдение за реестром сообщает о событии после того, как ведомство его зарегистрирует. Оно не рассчитывает сроки.',
+  'comingUp.open': 'Открыть чат {title}',
+  'search.heading': 'Рутины',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -220,4 +297,15 @@ export const pt = {
   'dashboard.metric.caption': 'Conversas marcadas por uma rotina',
   'dashboard.widget': 'Precisa da sua revisão',
   'dashboard.widget.all': 'Abrir Aguardando revisão',
+  'cases.metric': 'Casos acompanhados',
+  'cases.metric.caption': 'Pedidos em acompanhamentos do registro',
+  'watches.error': 'Não foi possível carregar os acompanhamentos do registro.',
+  'comingUp.widget': 'Em breve',
+  'comingUp.empty': 'Ainda não há acompanhamento do registro. Peça ao agente para acompanhar um pedido.',
+  'comingUp.next': 'Próxima verificação do registro: {time}',
+  'comingUp.latest': '{application}: {date}, {description}',
+  'comingUp.noEvent': '{application}: nenhum evento do registro lido ainda',
+  'comingUp.note': 'O acompanhamento do registro informa um evento depois que o escritório o registra. Ele não calcula prazos.',
+  'comingUp.open': 'Abrir a conversa de {title}',
+  'search.heading': 'Rotinas',
 } satisfies Record<keyof typeof en, string>

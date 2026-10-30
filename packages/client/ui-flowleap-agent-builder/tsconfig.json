@@ -30,6 +30,9 @@
       "path": "../ui-agent-preset"
     },
     {
+      "path": "../ui-flowleap-dashboard"
+    },
+    {
       "path": "../ui-layout"
     },
     {
@@ -40,6 +43,9 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-workspace"
     }
   ]
 }

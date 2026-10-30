@@ -102,6 +102,7 @@
     "@deepseek-ai/dsh-client-ui-trajectory": "workspace:*",
     "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-flowleap-routines": "workspace:*",
-    "@deepseek-ai/dsh-flowleap-agent-builder": "workspace:*"
+    "@deepseek-ai/dsh-flowleap-agent-builder": "workspace:*",
+    "@deepseek-ai/dsh-flowleap-budget": "workspace:*"
   }
 }

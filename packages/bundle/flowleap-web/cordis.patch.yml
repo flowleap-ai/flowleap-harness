@@ -284,14 +284,31 @@
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
 
-    # The dashboard (flowleap-harness#60, look-first step): the first screen
-    # after sign-in, with the ask bar, the dashboard.metric and dashboard.widget
-    # slots that apps fill, the Install FlowLeap card, and the OS sidebar
-    # layers (Search with Cmd+K, the Dashboard, Chats and Agents apps, Pinned).
-    # Coming up, Budget this month and two metric cards show sample data with a
-    # "Sample data" tag until their sources exist.
+    # The dashboard (flowleap-harness#60): the landing page of ui-workspace,
+    # so the first screen after sign-in, or the chat or page that the address
+    # names (?chat=, ?page=), with the ask bar and its search groups (Cmd+K),
+    # the dashboard.metric and dashboard.widget slots that apps fill, the
+    # Install FlowLeap card, and the OS sidebar layers (Search, the Dashboard,
+    # Chats and Agents apps, Pinned).
     - id: ui-flowleap-dashboard
       name: '@deepseek-ai/dsh-client-ui-flowleap-dashboard'
+
+    # Budget this month and Budget used on the dashboard: the attorney's model
+    # spend and budget of this month, read from the firm's model gateway with
+    # the runtime's own virtual key (the ANTHROPIC_API_KEY credential, the key
+    # of the gateway routes above). The firm patch sets baseURL to the base URL
+    # of the gateway routes (llm-pi-ai providers.*.baseURL); no service exposes
+    # the configured route endpoint, so the value has two homes in that patch.
+    # Without baseURL, as in a local run against Anthropic itself, both show
+    # "Unknown" and the reason, never a number.
+    - id: flowleap-budget
+      name: '@deepseek-ai/dsh-flowleap-budget'
+      config:
+        apiKeyRef: ANTHROPIC_API_KEY
+        timeoutMs: 5000
+
+    - id: ui-flowleap-budget
+      name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
 
     # The Needs review mark of the routines row above: a Sidebar row badge, a
     # Needs review page, Mark as done in the chat header, and a Needs review

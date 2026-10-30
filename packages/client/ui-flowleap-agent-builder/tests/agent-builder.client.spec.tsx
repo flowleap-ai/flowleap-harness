@@ -19,6 +19,7 @@ import { NewAgentMenuItem } from '../src/client/NewAgentMenuItem.tsx'
 import type { AgentFormDialogInjected } from '../src/client/AgentFormDialog.tsx'
 import type { EditAgentMenuItemInjected } from '../src/client/EditAgentMenuItem.tsx'
 import type { NewAgentMenuItemInjected } from '../src/client/NewAgentMenuItem.tsx'
+import type { DashboardSearch, DashboardSearchGroup } from '@deepseek-ai/dsh-client-ui-flowleap-dashboard/client'
 import { apply as nodeApply } from '../src/index.ts'
 import { en } from '../src/client/locales.ts'
 
@@ -421,20 +422,51 @@ describe('browser half', () => {
         name: 'root',
         children: { 'agentPreset.menu.actions': { kind: 'list', scope: 'root' }, 'shell.overlay': { kind: 'list', scope: 'root' } },
       } as never, () => null)
+      const workspace = { startSession: vi.fn() }
+      ctx.provide('uiWorkspace', workspace as never)
+      const groups: DashboardSearchGroup[] = []
+      const registry: DashboardSearch = {
+        register: (group) => {
+          groups.push(group)
+          return () => { groups.splice(groups.indexOf(group), 1) }
+        },
+      }
+      ctx.provide('dashboardSearch', registry)
       const fiber = ctx.plugin({ inject: [...inject], apply })
       await fiber.await()
       await settle()
       expect(ctx.slots.entries('agentPreset.menu.actions')).toHaveLength(allowed ? 2 : 0)
       expect(ctx.slots.entries('shell.overlay')).toHaveLength(allowed ? 1 : 0)
+      expect(groups.map(group => group.id)).toEqual(allowed ? ['flowleap-agents'] : [])
       if (allowed) {
         await settle()
         remote.listeners.get('flowleap-agents/changed')?.()
         await settle()
         expect(d.list).toHaveBeenCalledTimes(2)
         await useInjectedEntries(ctx, d)
+        vi.mocked(d.list).mockImplementation(() => ok<AgentSummary[]>([
+          { id: ID, name: 'Responder', description: 'Drafts office action replies.', readOnly: false },
+          { id: 'firm-oa' as AgentId, name: 'Firm OA reviewer', description: 'Checks replies.', readOnly: true },
+        ]))
+        remote.listeners.get('flowleap-agents/changed')?.()
+        await settle()
+        const group = groups[0]!
+        expect(group.label()).toBe(en['search.heading'])
+        const changed = vi.fn()
+        const stop = group.subscribe(changed)
+        const query = (text: string) => ({ text, matches: (value: string) => value.toLowerCase().includes(text) })
+        const found = group.results(query('replies'))
+        expect(found.map(result => [result.title, result.detail])).toEqual([
+          ['Responder', 'Drafts office action replies.'], ['Firm OA reviewer', en['search.firm']],
+        ])
+        expect(group.results(query('patstat'))).toEqual([])
+        found[0]!.open()
+        expect(workspace.startSession).toHaveBeenCalledWith(undefined, { agentPreset: ID })
+        stop()
       }
       await fiber.dispose()
       expect(ctx.slots.entries('agentPreset.menu.actions')).toEqual([])
+      expect(groups).toEqual([])
       await ctx.fiber.dispose()
     }
   })

@@ -1,17 +1,17 @@
 /**
- * The dashboard page: a greeting, the ask bar, the first steps of a first sign-in, the metric cards and panels that
- * apps register through `dashboard.metric` and `dashboard.widget`, and the Install FlowLeap card.
+ * The dashboard page: a greeting, the ask bar with the search results of the registered search groups, the first
+ * steps of a first sign-in, the metric cards and panels that apps register through `dashboard.metric` and
+ * `dashboard.widget`, and the Install FlowLeap card.
  */
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react'
 import {
-  Button, IconAgentPresetOutlineRegular, IconAlarmClockOutlineRegular, IconChecklistOutlineRegular, IconSearchOutlineRegular,
-  IconSendOutlineRegular, Tag,
+  Button, IconAgentPresetOutlineRegular, IconAlarmClockOutlineRegular, IconSearchOutlineRegular, IconSendOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { DashboardEntries } from './contract.ts'
+import { matchesQuery, type DashboardEntries, type DashboardSearchGroup, type DashboardSearchQuery } from './contract.ts'
 import { InstallCard } from './InstallCard.tsx'
 import type { FlowleapDashboardKey, NS } from './locales.ts'
 import css from './Dashboard.module.css'
@@ -19,9 +19,14 @@ import css from './Dashboard.module.css'
 /** Browser storage key of the hidden first steps; a per-viewer convenience only. */
 const FIRST_STEPS_HIDDEN_KEY = 'flowleap.dashboard.firstStepsHidden'
 
+/** Most results one search group shows. */
+const SEARCH_ROWS = 5
+
 /** Injected share of the page. */
 export type DashboardPageInjected = {
   readonly hooks: DashboardEntries & {
+    /** The registered search groups, ordered by `order`. */
+    readonly searches: ObservableSnapshot<readonly DashboardSearchGroup[]>
     /** Increments each time the Search action asks the page to focus the ask bar. */
     readonly focusRequests: ObservableSnapshot<number>
   }
@@ -34,7 +39,8 @@ export type DashboardPageInjected = {
 
 /** Full props of the page. */
 export type DashboardPageProps = PropsRuntime<'main'> & PropsLocale<typeof NS>
-  & PropsRenderSlots<'dashboard.metric' | 'dashboard.widget'> & InjectFace<DashboardPageInjected>
+  & PropsRenderSlots<'dashboard.metric' | 'dashboard.widget'>
+  & InjectFace<DashboardPageInjected>
 
 function greetingKey(hour: number): FlowleapDashboardKey {
   if (hour < 12) return 'greeting.morning'
@@ -50,22 +56,89 @@ function readHidden(): boolean {
   }
 }
 
+/** Props of the search results. */
+interface SearchResultsProps {
+  readonly groups: readonly DashboardSearchGroup[]
+  readonly text: string
+  /** Called before a result opens, so the page clears the ask bar. */
+  readonly onPick: () => void
+  readonly t: DashboardPageProps['t']
+}
+
+/**
+ * Render the results of every group for the text, the first five of each, and read again when a group's data changes.
+ * @param props - the groups, the trimmed text, the pick action, and copy.
+ * @returns the results region.
+ */
+function SearchResults({ groups, text, onPick, t }: SearchResultsProps) {
+  const revision = useRef(0)
+  const subscribe = useCallback((listener: () => void) => {
+    const bump = (): void => {
+      revision.current++
+      listener()
+    }
+    const stops = groups.map(group => group.subscribe(bump))
+    return () => { for (const stop of stops) stop() }
+  }, [groups])
+  // A group's data change moves the revision, so the page renders and asks each group again.
+  useSyncExternalStore(subscribe, () => revision.current)
+  const query: DashboardSearchQuery = { text, matches: value => matchesQuery(value, text) }
+  const sections = groups.flatMap((group) => {
+    const results = group.results(query).slice(0, SEARCH_ROWS)
+    return results.length === 0 ? [] : [{ group, label: group.label(), results }]
+  })
+  return (
+    <section className={css.results} aria-label={t('search.label')} data-testid="flowleap-search-results">
+      <p className={css.panelSummary}>{t('search.hint')}</p>
+      {sections.map(({ group, label, results }) => (
+        <section key={group.id} className={css.searchGroup} aria-label={label}>
+          <h3 className={css.subheading}>{label}</h3>
+          <ul className={css.rows}>
+            {results.map(({ id, title, detail, icon: Icon, open }) => (
+              <li key={id}>
+                <Button className={css.row} onClick={() => {
+                  onPick()
+                  open()
+                }}>
+                  <Icon size={16} className={css.rowGlyph} />
+                  <span className={css.rowText}>
+                    <span className={css.rowTitle}>{title}</span>
+                    {detail !== undefined && <span className={css.rowMeta}>{detail}</span>}
+                  </span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </section>
+  )
+}
+
 /**
  * Render the dashboard.
  * @param props - the slot entries, the Session list, the ask action, and copy.
  * @returns the page.
  */
 export function DashboardPage({
-  useMetrics, useWidgets, useFocusRequests, useSessions, onAsk, renderSlot, t,
+  useMetrics, useWidgets, useSearches, useFocusRequests, useSessions, onAsk, renderSlot, t,
 }: DashboardPageProps) {
   const metrics = useMetrics(entries => entries)
   const widgets = useWidgets(entries => entries)
+  const searches = useSearches(groups => groups)
   const focusRequests = useFocusRequests(count => count)
   const firstSignIn = useSessions(list => list.phase === 'ready' && list.ids.every(id => list.byId[id]?.blank !== false))
   const [hidden, setHidden] = useState(readHidden)
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { if (focusRequests > 0) input.current?.focus() }, [focusRequests])
+  const query = text.trim()
+  const clearOnEscape = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && text !== '') {
+      event.preventDefault()
+      setText('')
+    }
+  }
   const submit = (event: FormEvent): void => {
     event.preventDefault()
     onAsk(text.trim())
@@ -100,17 +173,11 @@ export function DashboardPage({
             placeholder={t('ask.placeholder')}
             value={text}
             onChange={(event) => { setText(event.target.value) }}
+            onKeyDown={clearOnEscape}
           />
           <Button type="submit" variant="primary" size="sm" icon={<IconSendOutlineRegular size={14} />}>{t('ask.submit')}</Button>
         </form>
-        {/* TODO(flowleap-harness#81): open the office action board page once its route is on the flowleap branch. */}
-        <nav className={css.links} aria-label={t('links.label')}>
-          <span className={css.link} aria-disabled="true">
-            <IconChecklistOutlineRegular size={14} aria-hidden="true" />
-            {t('links.officeActions')}
-            <Tag tone="neutral">{t('install.later')}</Tag>
-          </span>
-        </nav>
+        {query !== '' && <SearchResults groups={searches} text={query} onPick={() => { setText('') }} t={t} />}
         {firstSignIn && !hidden && (
           <section className={css.firstSteps} aria-label={t('firstSteps.title')} data-testid="flowleap-first-steps">
             <div className={css.firstStepsHeading}>

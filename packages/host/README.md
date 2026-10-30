@@ -37,6 +37,7 @@ The packages play the host roles; each package README owns its contract and conf
 | [`flowleap-connectors/`](flowleap-connectors/README.md) | In-process FlowLeap patent-data connectors: office tools over the firm's own keys | Remote `flowleapConnectors/*`, contributes to `ctx.tools` |
 | [`flowleap-deliverables/`](flowleap-deliverables/README.md) | FlowLeap deliverable tools: `write_patent_results` with report templates, evidence validation, working record, evidence ledger and delivery card; `export_draft_docx` and `inventor_questions` with the Application Drafting layer and the Word builders | contributes to `ctx.tools`, observes `tools/result`, appends `deliverables/presented`, writes Word files through the host filesystem |
 | [`flowleap-agent-builder/`](flowleap-agent-builder/README.md) | FlowLeap agent builder: one agent preset per agent folder, with the agent's instructions, its indexed files and only its chosen connectors | contributes to `ctx.agentPresets`, `ctx.systemPrompt` and `ctx.tools`; serves the `flowleapAgents` Remote and an upload route |
+| [`flowleap-budget/`](flowleap-budget/README.md) | The attorney's model spend and budget of this month from the firm's model gateway, read with the runtime's own virtual key | serves the `flowleapBudget` Remote |
 | [`flowleap-routines/`](flowleap-routines/README.md) | FlowLeap routines: the register watch, a daily task that runs only when a watched EP or US register lists a new event | contributes to `ctx.tools`, listens on `schedule/admit`, `schedule/delivered` and `schedule/changed` |
 
 -----
