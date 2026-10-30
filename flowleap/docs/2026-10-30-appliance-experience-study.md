@@ -1,6 +1,6 @@
 # Appliance experience: research and gap study
 
-Status: draft for the founder, 2026-10-30. The draft tickets in section 6 are not yet issues. Work: the "easy hosting" half of phase B, beside the admin console (#34, tickets #106 to #114).
+Status: the founder approved the four tickets on 2026-10-30: #116 (A), #117 (B), #118 (C), #119 (D). The decisions in section 8 use the recommended answers until the founder changes them. Work: the "easy hosting" half of phase B, beside the admin console (#34, tickets #106 to #114).
 
 **The goal.** A firm IT person installs FlowLeap in 30 minutes with no help, and never needs SSH after that. The founder's comparison is Vercel: hosting must feel that easy, with a good dashboard to manage everything. The decision of 2026-10-30 stays: self-hosted only, no SaaS.
 
@@ -136,11 +136,11 @@ Two ways: SMTP (the firm's own mail server or a relay), or Microsoft Graph `send
 
 The 30-minute goal becomes testable: a person who has not seen FlowLeap gets a fresh Ubuntu VM, the update key and this one page of instructions, and reaches a passing seam A case through the browser, with one terminal command. The restore proof of 2026-10-26 timed a restore in this way. The setup time today is not measured; the restore proof shows that the key hand-over by a person was the slowest part (13 of 20 minutes).
 
-## 6. Draft tickets (not created)
+## 6. Tickets
 
 Each ticket lives in `flowleap-ai/flowleap-harness`, with the work in `flowleap-os`, and uses the console frame of #106 (console service, applier, change log, 8 UI languages, seam B tests with a fake gateway and a temporary `firm.env`, live proof with the `flowleap-os` verify skill, each write on the test firm with the founder's typed permission).
 
-### A. Setup wizard in the browser (no hand-edited `firm.env`)
+### A. Setup wizard in the browser, #116
 
 **What to build.** One install command (`curl … | sudo bash -s -- --update-key <key>`, or `install-remote.sh` for FlowLeap operators) installs Docker, pulls the release, starts the console in **setup mode**, and prints the setup address and a one-time setup code (section 4.1). The wizard asks, one page each, and tests each answer before the next page:
 
@@ -163,7 +163,7 @@ After setup, the code no longer works, the wizard is gone, and each value it set
 
 **Blocked by:** #106, #109, #114 (the wizard is control-plane code that must reach firms).
 
-### B. Update and rollback buttons in the console
+### B. Update and rollback buttons in the console, #117
 
 **What to build.** On the system page (#111): the installed release and its notes, the release available on the channel, the history from `history.log`, and three actions through the applier.
 
@@ -182,7 +182,7 @@ Settings: the channel (`stable`, `current`, `off`) and the maintenance window, t
 
 **Blocked by:** #111, #114. **Scope change:** brings "the update channel and window" into #34.
 
-### C. Backups page with a test restore
+### C. Backups page with a test restore, #118
 
 **What to build.** A backups page: the target, the last result, the next run, the snapshots (time, tag, size), "Back up now", and settings (target, keep days, time) with a connection test. Two checks, on a schedule and on demand:
 
@@ -201,7 +201,7 @@ The page shows "Last tested restore: <date>, <result>", and the health check war
 
 **Blocked by:** #106, #111.
 
-### D. Notifications by email
+### D. Notifications by email, #119
 
 **What to build.** A notifications page: SMTP settings (host, port, TLS, user, password through the key request file of #109), the recipients (the administrators by default), a rule for each event, and "Send test". A host timer reads the status files that #111 already reads; no new status source.
 
