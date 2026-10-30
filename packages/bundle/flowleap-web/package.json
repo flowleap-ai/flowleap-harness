@@ -33,6 +33,8 @@
     "lib/index.js",
     "cordis.patch.yml",
     "presets/patent.patch.yml",
+    "presets/standard.patch.yml",
+    "presets/ptc.patch.yml",
     "prompt/patent-agent.md",
     "brand/brand.json",
     "brand/flowleap-mark.svg",
@@ -43,7 +45,9 @@
     "bundle": {
       "patch": [
         "./cordis.patch.yml",
-        "./presets/patent.patch.yml"
+        "./presets/patent.patch.yml",
+        "./presets/standard.patch.yml",
+        "./presets/ptc.patch.yml"
       ],
       "lockedRows": [
         "llm-pi-ai",

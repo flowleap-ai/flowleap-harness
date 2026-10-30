@@ -84,12 +84,17 @@
 
 # ── the patent preset is the default ─────────────────────────────────────────
 # `presets/patent.patch.yml` inserts the `patent` declaration (standard's
-# plugin list without the coding persona); standard, ptc, minimal and cordis
-# stay selectable.
+# plugin list without the coding persona). `presets/standard.patch.yml` and
+# `presets/ptc.patch.yml` restate those presets with `tool-web` off; standard,
+# ptc and minimal stay selectable.
 
 - id: agent-preset-registry
   config:
     default: patent
+
+# Off: the cordis preset mounts tool-web, and this profile offers no web tool (flowleap-harness#101).
+- id: preset-cordis
+  disabled: true
 
 # ── the Patent Agent prompt ──────────────────────────────────────────────────
 # No harness identity and no persona prefix: the flowleap-prompt row below
