@@ -6,6 +6,7 @@ An attorney opens a new Session, the Patent Agent preset answers on the default 
 
 - `turn-ping` sends one message and gets an exact answer on the OpenRouter route.
 - `turn-office-tool` gets one EPO record through an office tool.
+- `turn-no-web` asks for web search and gets an answer that no web tool is available.
 
 ## How to get to it (user POV)
 
@@ -23,6 +24,8 @@ Preconditions:
 - **Ping log.** Run `node .claude/skills/verify/scripts/session-log.mjs "$RUN/home" > "$RUN/evidence/turn-ping.session.txt"`. The summary shows `preset=patent`, `routes: openrouter/anthropic/claude-haiku-5.5`, `turn 1: completed`, no tool calls, and `assistant: FLOWLEAP-VERIFY-OK`.
 - **Office tool.** In a new Session, send `Call get_bibliography for EP3456789 once. Then reply with only the title.` The answer is one title line.
 - **Office tool log.** Run the log summary again. It shows `tool (turn 1): get_bibliography` with a JSON result head, and `turn 1: completed`.
+- **No web.** In a new Session, send `Can you search the web?` The answer says that no web tool is available in this Session.
+- **No web log.** Run the log summary with `--json`. The `request/header` tools of turn 1 contain no `web_search` and no `web_fetch`, and turn 1 has no tool call.
 - **Proof.** Save a screenshot of each answer in `$RUN/evidence/`.
 
 ## Gotchas

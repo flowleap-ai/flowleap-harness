@@ -32,7 +32,6 @@ Preconditions:
 ## Gotchas
 
 - No tool serves the text of an EPO communication or search opinion. Without a file, the EP report starts with `SEARCH REPORT ONLY`, gives the Rule 70(1) / Rule 70a posture as check items, and labels each objection as inferred from the search categories. To test the file path, put the communication PDF in the workspace and ask for the analysis of that file (`read_pdf`).
-- The native `get_description` serves EP and WO only. A US cited document's description comes only from its public page through `web_fetch`, which the ledger records as `fetch_webpage`; Google Patents often returns a truncated page.
-- On 2026-10-29 the `web_fetch` of the epo.org EPC article pages returned only site navigation, so the EP run quoted no article text.
+- The native `get_description` serves EP and WO only. The patent preset has no `web_fetch` (flowleap-harness#101), so the report names a US cited document's description and the EPC article text as gaps.
 - The template header keeps `Examiner`, `Art Unit`, `Mailing Date` and `Response Due Date` as `_(to be completed)_`; the report's own `## 1. Action` table holds the values.
 - A Sonnet run reads 1 to 1.6 million input tokens, most of them from the cache. Run each sub-feature once.

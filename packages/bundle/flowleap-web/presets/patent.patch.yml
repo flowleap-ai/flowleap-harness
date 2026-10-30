@@ -117,8 +117,10 @@
             name: '@deepseek-ai/dsh-tool-todo'
             config:
               allowParallelInProgress: true
+          # Off: this profile registers no search provider and sends no data to a web provider (flowleap-harness#101).
           - id: tool-web
             name: '@deepseek-ai/dsh-tool-web'
+            disabled: true
             config:
               fetch: true
               searchTimeoutMs: 60000
