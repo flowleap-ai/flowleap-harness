@@ -33,6 +33,9 @@
       "path": "../../util/crypto"
     },
     {
+      "path": "../../util/workspace-path"
+    },
+    {
       "path": "../connection/tsconfig.client.json"
     },
     {

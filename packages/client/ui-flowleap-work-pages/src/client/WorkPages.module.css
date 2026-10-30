@@ -99,6 +99,53 @@
   line-height: 20px;
 }
 
+.noticeActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.opening {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* The page on show while a chosen page is read. */
+.shown[inert] {
+  opacity: 0.5;
+  transition: opacity 120ms ease-out;
+}
+
+/* Room for the application, the save time, and the chat line of a picker row. */
+.pageMenu {
+  width: 440px;
+  max-width: calc(100vw - 32px);
+}
+
+.pageItem {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pageItem > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pageItem > .pageItemChat {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .run {
   display: flex;
   flex-wrap: wrap;

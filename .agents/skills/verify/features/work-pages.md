@@ -12,6 +12,9 @@ The attorney opens the `Office actions` page from the sidebar and sees the offic
 - `work-side-panel` opens a card with the fields of its block and the claim tables of the claims it hits.
 - `work-plan` sends the response plan message into the chat of the analysis; the next model read of the work page file shows the review fields in the Session log.
 - `work-disabled` shows `Export Word` and `Share` disabled, with their tooltips.
+- `work-picker` lists each analysis with its save date and time and, under them, the chat title and workspace folder; each row carries the work page id in `data-work-page-id`.
+- `work-opening` shows `Opening the analysis …` after a menu choice and keeps the analysis on show dimmed and inert until the chosen analysis arrives.
+- `work-newer` shows `A newer analysis of <application> was saved <time>.` with `Show it` when another analysis is saved; the analysis on show stays until the attorney chooses.
 
 ## How to get to it (user POV)
 
@@ -30,6 +33,8 @@ Preconditions:
 - **Review.** On a card, choose button `Review state of objection <id>: Needs review`, then menu item `Relevant` (exact match). Type in textbox `Owner of objection <id>` and press Enter. Type in textbox `Note on objection <id>` and leave the field. The header count changes. Read `$RUN/workspace/deepseek-harness/default-workspace/office-actions/<application>/<report>.work.json`: its `review` holds the values. Reload the page: the values stay.
 - **Side panel.** Choose button `Open objection <id> in the side panel`. The complementary region `Objection details` shows the ground, the examiner's reasoning, the cited documents, the response options, and `Reply must address`.
 - **Plan.** Choose `Write response plan`. The chat of the analysis opens with the message `Write the response plan for the office action analysis of …`. The run log shows a read of the `.work.json` file (a `read` call, or `cat` through `bash`) whose result holds the review fields, and the plan follows them: an objection marked `Not relevant` is left out.
+- **Picker and opening.** With two or more analyses, choose button `Analysis: …`. Each `menuitem` has the save time and the chat line; select one by its id with the selector `[role=menuitem]:has([data-work-page-id="<id>"])`. The region `Office action board` (`data-testid="office-action-board"`) carries the id of the analysis on show in `data-work-page-id`; wait for it to change, not for the cards, because the old cards stay on show (inert) while the chosen analysis is read. To see the opening state, hold `/api/flowleapWorkPages/list` and `/read` for about 2 seconds with Playwright `page.route`.
+- **Newer save.** A save in another chat shows the notice `office-action-newer` with the id of the new analysis in `data-work-page-id`; choose `Show it`. Without a model turn, two seeded pages and a review change in a second tab prove that a review change shows no notice.
 - **Proof.** Save screenshots of the empty state, the form, the board, the side panel and the plan message in `$RUN/evidence/`, and the session log summary of the chat.
 
 ## Gotchas
