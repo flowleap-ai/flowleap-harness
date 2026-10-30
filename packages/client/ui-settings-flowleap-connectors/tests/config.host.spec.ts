@@ -9,9 +9,9 @@ it('validates and updates the wizard dismissal without remounting', async () => 
   const ctx = new Context()
   onTestFinished(() => ctx.fiber.dispose())
   const configuration = await liveConfig(ctx, HostPlugin)
-  expect(plainConfig(configuration.fiber.config)).toMatchObject({ wizardDismissed: false })
+  expect(plainConfig(configuration.fiber.effectiveConfig)).toMatchObject({ wizardDismissed: false })
   await configuration.update({ wizardDismissed: true })
-  expect(plainConfig(configuration.fiber.config)).toMatchObject({ wizardDismissed: true })
+  expect(plainConfig(configuration.fiber.effectiveConfig)).toMatchObject({ wizardDismissed: true })
   expect(configuration.entry.fiber).toBe(configuration.fiber)
 })
 
