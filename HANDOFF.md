@@ -2,7 +2,7 @@
 
 Read this first, then `AGENTS.md` (the upstream operating guide: commands, gates, architecture).
 This file is the FlowLeap state: what this fork is for, what changed, what is open. Last updated
-2026-10-28. Earlier sessions live in `git log -- HANDOFF.md`.
+2026-10-30. Earlier sessions live in `git log -- HANDOFF.md`.
 
 ## Current state (2026-10-26)
 
@@ -10,9 +10,9 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
   drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
   (dossier, FTO, prior art); the dossier case also passes on the synced code.
-- **Base:** `flowleap` is on the upstream release `dsh 0.2.2-alpha.2` (tag `dsh-v0.2.2-alpha.2`, sync branch
-  `sync/upstream-dsh-v0.2.2-alpha.2`, 2026-10-28), with all 8 upstream UI languages and the FlowLeap copy
-  translated into each. `master` on the org remote equals that release.
+- **Base:** `flowleap` is on upstream `master` as of upstream PR #7552 (2026-10-30, sync branch `sync/upstream-2026-10-30`;
+  351 commits after `dsh 0.2.2-alpha.2`), with all 8 upstream UI languages and the FlowLeap copy translated into
+  each. `master` on the org remote still equals `dsh 0.2.2-alpha.2`.
 - **Next product:** the self-hosted firm OS, decided in
   [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (27
   decisions, including off-site access, mobile continuation and support access; on 2026-10-27 a study of
@@ -98,6 +98,16 @@ Verification status is at the end of this file.
 
 ## Open decisions
 
+- **Upstream sync to upstream `master` as of upstream PR #7552 (2026-10-30):** 351 upstream commits after `dsh 0.2.2-alpha.2`,
+  merged on branch `sync/upstream-2026-10-30` with the same procedure; every decision is in
+  `flowleap/docs/2026-10-30-upstream-sync-decisions.tsv`. 212 Chinese delete/modify rows (settled by `strip-zh.sh`),
+  27 content conflicts, 1 upstream test deletion. The large change is upstream's standalone scheduler (#6189):
+  tasks now have a target (`session`, `new_once`, `new`) and the tools are `schedule_create`, `schedule_list`,
+  `schedule_view`, `schedule_edit`. The routines seams `schedule/admit` and `schedule/delivered` and the
+  `schedule.manager.filter` slot are ported onto it. Upstream now offers what the fork's run chats partly built:
+  a `new` target creates a chat for every delivery, and upstream proposes event-triggered automation tasks
+  (`.agents/notes/proposed/feature/2026-10-29-event-triggered-automation-tasks.md`). `apply_patch` stays off with
+  the observation policy mounted, also in the restated and patent presets.
 - **Upstream sync to `dsh 0.2.2-alpha.2` (2026-10-28):** 637 upstream commits after the merge of upstream PR #7075, merged on
   branch `sync/upstream-dsh-v0.2.2-alpha.2` with the same procedure and language rules as the trunk sync
   below; every decision is in `flowleap/docs/2026-10-28-upstream-alpha2-sync-decisions.tsv`. 15 content
