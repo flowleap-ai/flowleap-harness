@@ -25,7 +25,7 @@ Preconditions:
 - **Office tool.** In a new Session, send `Call get_bibliography for EP3456789 once. Then reply with only the title.` The answer is one title line.
 - **Office tool log.** Run the log summary again. It shows `tool (turn 1): get_bibliography` with a JSON result head, and `turn 1: completed`.
 - **No web.** In a new Session, send `Can you search the web?` The answer says that no web tool is available in this Session.
-- **No web log.** Run the log summary with `--json`. The `request/header` tools of turn 1 contain no `web_search` and no `web_fetch`, and turn 1 has no tool call.
+- **No web log.** Run the log summary. It shows `turn 1: completed` and no tool calls. The summary does not list the declared tools, so run `grep '"type":"request/header"' <log file> | grep -c 'web_search\|web_fetch'` on the Session log file that the summary names. It prints `0`.
 - **Proof.** Save a screenshot of each answer in `$RUN/evidence/`.
 
 ## Gotchas
