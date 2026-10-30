@@ -160,6 +160,31 @@ describe('a new chat for each run', () => {
     } finally { warn.mockRestore() }
   })
 
+  it('keeps the events of a failed run unseen through a Run now, so a later timed run reports them', async () => {
+    const test = await host(new MemoryMediaPool(), { chats: true })
+    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      const created = await createWatch(test, ['EP 3 456 789'], { newChat: false })
+      const id = (created.value as { id: Routines.TaskId }).id
+      test.register.state.set('EP3456789', EP_EVENTS)
+      test.flush.mockImplementationOnce(async () => { throw new Error('disk full') })
+      await vi.advanceTimersByTimeAsync(2 * DAY)
+      expect(test.agent.followup).toHaveBeenCalledOnce()
+      expect((await test.ctx.schedule.view({ id }))).not.toHaveProperty('lastDelivery')
+      // The attorney runs the task by hand: the stored instruction goes out without register events.
+      const run = await test.ctx.schedule.run({ id })
+      expect(run).toHaveProperty('lastDelivery')
+      expect(test.agent.followup).toHaveBeenCalledTimes(2)
+      expect(sentText(test.agent, 1)).not.toContain('No opposition filed within time limit')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await test.ctx.flowleapRoutines.reviews()).toEqual([])
+      // The failed occurrence is due again after the delivery floor and still reports the event.
+      await vi.advanceTimersByTimeAsync(DAY)
+      expect(test.agent.followup).toHaveBeenCalledTimes(3)
+      expect(sentPrompt(test.agent, 2)).toContain('No opposition filed within time limit')
+    } finally { warn.mockRestore() }
+  })
+
   it('runs a new-chat watch in the task chat, with a log line, where no Session controller is mounted', async () => {
     const pool = new MemoryMediaPool()
     const first = await host(pool, { chats: true })

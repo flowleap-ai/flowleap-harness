@@ -171,7 +171,7 @@ export class ScheduleRuntime {
         const delivered = this.delivered(task, receipt)
         await this.commit(delivered)
         committed.add(id)
-        this.announceDelivered(id, receipt)
+        this.announceDelivered(id, receipt, 'manual')
         return { task: delivered, admitted: true }
       } finally {
         this.settle(held, committed, sent.execution)
@@ -342,7 +342,7 @@ export class ScheduleRuntime {
         }
         await this.commit(this.advanced(task, occurrence, receipt, withPrompt(task.record).prompt, redirect !== undefined))
         committed.add(task.record.id)
-        this.announceDelivered(task.record.id, receipt)
+        this.announceDelivered(task.record.id, receipt, 'timed')
       }
     } finally {
       this.settle(held, committed, sent.execution)
@@ -367,9 +367,9 @@ export class ScheduleRuntime {
   }
 
   /** Announce one committed delivery; a listener failure does not undo the commit. */
-  private announceDelivered(id: ScheduleId, receipt: ScheduleDeliveryReceipt): void {
+  private announceDelivered(id: ScheduleId, receipt: ScheduleDeliveryReceipt, trigger: 'timed' | 'manual'): void {
     try {
-      this.ctx.emit('schedule/delivered', { id, receipt })
+      this.ctx.emit('schedule/delivered', { id, receipt, trigger })
     } catch (error: unknown) {
       this.ctx.logger.warn(`schedule: schedule/delivered listener failed: ${String(error)}`)
     }

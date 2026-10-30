@@ -110,6 +110,8 @@ export function apply(ctx: Context, config: Config): void {
   reviews.convertRunning().catch(warn('marks of ended runs not converted'))
   ctx.on('schedule/admit', (request, next) => watches.admit(request, next))
   ctx.on('schedule/delivered', (delivery) => {
+    // A run-now delivery did not pass schedule/admit: it reported no events, and the attorney started it.
+    if (delivery.trigger === 'manual') return
     watches.delivered(delivery).catch((error: unknown) => {
       // The run was delivered; its events stay unseen and are reported again at the next run.
       ctx.logger.warn(`register watch ${delivery.id}: seen events not saved: ${String(error)}`)

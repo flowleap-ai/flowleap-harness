@@ -801,7 +801,21 @@ describe('schedule/admit and schedule/delivered', () => {
     const receipt = {
       scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z', messageId: message.id, targetSessionId: ORIGINAL,
     }
-    expect(delivered.mock.calls).toEqual([[{ id: record.id, receipt }], [{ id: other.id, receipt }]])
+    expect(delivered.mock.calls).toEqual([[{ id: record.id, receipt, trigger: 'timed' }], [{ id: other.id, receipt, trigger: 'timed' }]])
+  })
+
+  it('announces a run-now delivery as manual without passing schedule/admit', async () => {
+    const record = createEveryScheduleRecord(ScheduleId('watch'), 'Watch', 300, Date.now(), 'Watch')
+    const tasks = [task(record)]
+    const test = await setup(tasks)
+    const admit = vi.fn(async () => ({ kind: 'skip' as const }))
+    const delivered = vi.fn()
+    test.ctx.on('schedule/admit', admit)
+    test.ctx.on('schedule/delivered', delivered)
+    expect(await test.runtime.runNow(record.id)).toMatchObject({ admitted: true })
+    expect(admit).not.toHaveBeenCalled()
+    expect(delivered).toHaveBeenCalledOnce()
+    expect(delivered.mock.calls[0]?.[0]).toMatchObject({ id: record.id, trigger: 'manual', receipt: { targetSessionId: ORIGINAL } })
   })
 
   it('keeps a committed delivery when a schedule/delivered listener throws', async () => {
@@ -867,9 +881,9 @@ describe('schedule/admit and schedule/delivered', () => {
     const receipt = { scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z' }
     const sharedId = test.followup.mock.calls[0]![0].id
     expect(delivered.mock.calls).toEqual([
-      [{ id: other.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL } }],
-      [{ id: third.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL } }],
-      [{ id: watch.id, receipt: { ...receipt, messageId: redirected.id, targetSessionId: review.id } }],
+      [{ id: other.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL }, trigger: 'timed' }],
+      [{ id: third.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL }, trigger: 'timed' }],
+      [{ id: watch.id, receipt: { ...receipt, messageId: redirected.id, targetSessionId: review.id }, trigger: 'timed' }],
     ])
   })
 

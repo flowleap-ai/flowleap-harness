@@ -655,6 +655,8 @@ export interface ScheduleDelivered {
   readonly id: ScheduleId
   /** Saved receipt of this delivery; `targetSessionId` is the Session that received the message. */
   readonly receipt: ScheduleDeliveryReceipt
+  /** `timed` for a due occurrence that passed `schedule/admit`; `manual` for a run-now delivery, which did not. */
+  readonly trigger: 'timed' | 'manual'
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -674,9 +676,9 @@ declare module '@deepseek-ai/cordis' {
     'schedule/admit'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>
     /**
      * A delivery committed: the Session acknowledged the message and the task write landed.
-     * Timed and manual deliveries both emit it. A crash between those two writes can repeat
-     * the delivery without this event.
-     * @param delivery - Task and saved receipt.
+     * Timed and manual deliveries both emit it; `trigger` tells them apart. A crash between
+     * those two writes can repeat the delivery without this event.
+     * @param delivery - Task, saved receipt, and trigger.
      * @mode emit
      */
     'schedule/delivered'(delivery: ScheduleDelivered): void
