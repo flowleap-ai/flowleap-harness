@@ -117,6 +117,9 @@ declare module '@deepseek-ai/cordis' {
 
 const NS = 'llm-pi-ai'
 
+/** Headers that carry a route credential; a `fixedRoutes` deployment refuses a contributor that sets, changes, or removes one. */
+const CREDENTIAL_HEADERS = ['authorization', 'x-api-key', 'api-key'] as const
+
 /**
  * The registry captures these per route; a change here must re-register.
  * Sorted by provider so a settings document that merely reorders its keys is
@@ -245,7 +248,16 @@ export function apply(ctx: Context, config: Config): void {
     profiles,
     resolveApiKey,
     auth,
-    prepareHeaders: (request, headers) => ctx.waterfall('llm-pi-ai/request-headers', request, headers, () => headers),
+    prepareHeaders: (request, headers) => {
+      // FlowLeap fork modification: under the model lock a header listener cannot replace the route's key.
+      const before = config.fixedRoutes ? CREDENTIAL_HEADERS.map(name => headers.get(name)) : undefined
+      const prepared = ctx.waterfall('llm-pi-ai/request-headers', request, headers, () => headers)
+      if (before !== undefined && CREDENTIAL_HEADERS.some((name, index) => prepared.get(name) !== before[index])) {
+        throw new Error('the model routes are fixed in this deployment (fixedRoutes); a request-header listener may not'
+          + ' set, change, or remove Authorization, x-api-key, or api-key')
+      }
+      return prepared
+    },
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
       attachments,

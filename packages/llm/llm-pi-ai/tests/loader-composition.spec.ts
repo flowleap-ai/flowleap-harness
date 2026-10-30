@@ -125,6 +125,26 @@ describe('llm-pi-ai real composition with fixedRoutes', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer key-from-store')
   })
 
+  it.each(['Authorization', 'x-api-key', 'api-key'])('refuses a header listener that sets %s, and keeps other headers', async (name) => {
+    vi.stubEnv('PI_COMPOSITION_KEY', '')
+    const server = await mockServer([{ events: textEvents }, { events: textEvents }])
+    const { ctx } = await loadComposition(fixed(server.url))
+    const credential = ctx.on('llm-pi-ai/request-headers', (_request, headers, next) => {
+      headers.set(name, 'Bearer someone-else')
+      return next()
+    })
+    const refused = await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
+    expect(JSON.stringify(refused.finish)).toContain('a request-header listener may not set, change, or remove Authorization')
+    expect(server.headers).toEqual([])
+    credential()
+    ctx.on('llm-pi-ai/request-headers', (_request, headers, next) => {
+      headers.set('x-request-tag', 'kept')
+      return next()
+    })
+    await assemble(ctx, { provider: 'deepseek', model: 'deepseek-flash', messages: [] })
+    expect(server.headers[0]).toMatchObject({ authorization: 'Bearer key-from-store', 'x-request-tag': 'kept' })
+  })
+
   it('fails the entry at load when a fixed route names no apiKeyEnv', async () => {
     const { ctx } = await loadComposition([
       '  config:',
