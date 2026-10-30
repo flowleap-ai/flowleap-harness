@@ -172,6 +172,42 @@ describe('office action board page', () => {
     expect(screen.queryByRole('complementary')).toBeNull()
   })
 
+  it('renders the Markdown of passages and claim elements as the chat does, not as raw text', async () => {
+    const reader = '[US2016107508A1 claim 2](flowleap://flowleap.patent-ai/patent?publication=US2016107508A1&section=claims&claim=2)'
+    const [novelty, ...rest] = FILE.findings.objections
+    const citations = [{ ...novelty!.citations[0]!, says: `"a second heat exchanger" (${reader})` }]
+    const row = { element: '1a [EP4814394A1 claim 1](flowleap://flowleap.patent-ai/patent?publication=EP4814394A1&section=claims&claim=1): "a loop"', examiner: 'X', cited: 'See [the family](https://example.com/family).', assessment: 'disclosed' as const }
+    const findings = {
+      ...FILE.findings,
+      objections: [{ ...novelty!, citations }, ...rest],
+      comparison: [{ ...FILE.findings.comparison[0]!, rows: [row] }],
+    }
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, findings } }) })))
+    await screen.findByRole('heading', { level: 1 })
+    expect(within(card('1')).getByText('"a second heat exchanger" (US2016107508A1 claim 2)')).toBeTruthy()
+    expect(document.body.textContent).not.toContain('](flowleap://')
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
+    const panel = screen.getByRole('complementary', { name: 'Objection details' })
+    expect(within(panel).getByText('1a EP4814394A1 claim 1: "a loop"')).toBeTruthy()
+    expect(within(panel).getByRole('link', { name: 'the family' }).getAttribute('href')).toBe('https://example.com/family')
+    expect(panel.textContent).not.toContain('](')
+  })
+
+  it('keeps one newline in analysis text, shows an unsafe link as its label, and keeps the ground plain', async () => {
+    const [novelty, ...rest] = FILE.findings.objections
+    const objection = { ...novelty!, ground: '**Art. 54 EPC**', sources: 'get_claims EP4814394A1\nget_bibliography US2016107508A1', assessment: 'See [the note](javascript:alert(1)).' }
+    const findings = { ...FILE.findings, objections: [objection, ...rest] }
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, findings } }) })))
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
+    const panel = screen.getByRole('complementary', { name: 'Objection details' })
+    expect(within(panel).getByText('get_claims EP4814394A1\nget_bibliography US2016107508A1', { normalizer: text => text }).tagName).toBe('P')
+    expect(within(panel).getByText('See the note.')).toBeTruthy()
+    expect(within(panel).queryByRole('link', { name: 'the note' })).toBeNull()
+    expect(within(panel).getByText('**Art. 54 EPC**')).toBeTruthy()
+    expect(within(card('1')).getByText('**Art. 54 EPC**')).toBeTruthy()
+  })
+
   it('sends the response plan, reports the result, and dismisses the notice', async () => {
     const dependencies = deps()
     renderBoard(createBoard(dependencies))

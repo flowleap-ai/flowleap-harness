@@ -34,6 +34,8 @@ Mount the row in a web composition with the `flowleap-deliverables` Host row; th
 | Analysis picker | shown when there are two or more analyses; chooses the one on show |
 | **Export Word**, **Share** | disabled; their tooltips say that the Word export of the analysis and sharing come in a later version |
 
+The text that the analysis wrote renders as compact Markdown through the chat's `MarkdownText`, in the color and type of its board cell; one newline in a paragraph stays a line break. The Markdown fields are the cited passage (`says`) on the card and in the side panel, and in the side panel the legal basis, the examiner's reasoning, the source of the objection, the assessment, the interpretation, the claim element, the examiner mapping, the cited text and the arrangement of each claim table, the response option text, the reply must address, the confidence and the sources. The other fields render as plain text: the ground, the title, the cited document and the passage location, the document list, and the owner and note that the attorney types. A patent reader link (`[EP4814394A1 claim 1](flowleap://…)`) shows as its label, as in the chat: the Web app has no patent reader, so the renderer makes no link for the `flowleap:` scheme. An HTTP(S) link opens in a new browser tab: the board has no `MarkdownDelegateProvider`, so it does not follow the chat's link setting, which can open a link in the sidebar browser.
+
 The launcher shows a dot beside its glyph while an objection of any analysis is in the Needs review state, as the Needs review launcher does; the board header shows the count.
 
 -----
@@ -56,6 +58,7 @@ Copy is in the `flowleapWorkPages` namespace in zh, en, ja, es, fr, de, ru and p
 | [`src/client/OfficeActionBoard.tsx`](src/client/OfficeActionBoard.tsx) | the page |
 | [`src/client/ObjectionCard.tsx`](src/client/ObjectionCard.tsx) | one card with the state menu, the owner field and the note field |
 | [`src/client/ObjectionPanel.tsx`](src/client/ObjectionPanel.tsx) | the side panel |
+| [`src/client/AnalysisText.tsx`](src/client/AnalysisText.tsx) | the analysis text as compact Markdown |
 | [`src/client/AnalysisForm.tsx`](src/client/AnalysisForm.tsx) | the analysis form |
 | [`src/client/WorkPagesPanelIcon.tsx`](src/client/WorkPagesPanelIcon.tsx) | the launcher glyph with its count |
 | [`tests/`](tests/) | the board snapshot over fake Remote calls, the page as rendered, and the registrations with their access gate and disposal |
@@ -91,6 +94,7 @@ None; the messages are appended to the chat like typed messages and do not chang
 - **One template** — the board shows office action work pages only; the gallery and the other templates are flowleap-harness#82.
 - **No dashboard link** — the FlowLeap dashboard has no link to this board yet; a link registration is a follow-up after the dashboard has a slot for it.
 - **Shared lazy source** — the board and the Needs review source of `ui-flowleap-routines` each own the same observe-on-first-subscriber pattern; one shared client helper is a follow-up.
+- **Reader links show as labels** — a `flowleap:` reader link in the analysis text shows as its label, not as a link, until the Web app has a patent reader.
 - **Launcher dot is visual only** — as on the Needs review launcher, the dot is not part of the launcher's accessible name.
 
 <a id="dev-note"></a>
