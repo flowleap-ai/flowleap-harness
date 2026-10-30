@@ -12,10 +12,11 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 
-function task(id: string, status: 'active' | 'inactive'): ScheduleCatalogEntry {
+function task(id: string, status: 'active' | 'ended'): ScheduleCatalogEntry {
   return {
     id: ScheduleId(id), kind: 'daily', title: `Watch ${id}`, prompt: 'p', time: '07:00:00.000', timeZone: 'UTC',
-    scheduledAt: '2026-11-03T07:00:00.000Z', sessionId: SessionId('chat'), status,
+    scheduledAt: '2026-11-03T07:00:00.000Z', target: { kind: 'session', sessionId: SessionId('chat') },
+    involvedSessionIds: [SessionId('chat')], status,
   }
 }
 
@@ -39,7 +40,7 @@ describe('watch views', () => {
       ])],
       [application('EP1000000'), read([])],
     ])
-    expect(Routines.watchViews([task('a', 'inactive'), task('reminder', 'active'), task('b', 'active')], { watches, reads })).toEqual([
+    expect(Routines.watchViews([task('a', 'ended'), task('reminder', 'active'), task('b', 'active')], { watches, reads })).toEqual([
       { taskId: 'a', sessionId: 'chat', title: 'Watch a', applications: [{ application: 'EP1000000', readAt: '2026-11-01T07:00:00.000Z' }] },
       {
         taskId: 'b', sessionId: 'chat', title: 'Watch b', nextCheckAt: '2026-11-03T07:00:00.000Z',
@@ -78,7 +79,7 @@ describe('the watches Remote', () => {
     const created = await createWatch(test, ['EP 3 456 789'])
     expect(changed).toHaveBeenCalledOnce()
     expect(await test.ctx.flowleapRoutines.watches()).toHaveLength(1)
-    await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id: (created.value as { id: ScheduleCatalogEntry['id'] }).id })
+    await test.ctx.schedule.edit({ id: (created.value as { id: ScheduleCatalogEntry['id'] }).id, action: 'delete' }, test.agent.session.id)
     await vi.advanceTimersByTimeAsync(0)
     expect(changed).toHaveBeenCalledTimes(2)
     expect(await test.ctx.flowleapRoutines.watches()).toEqual([])

@@ -56,7 +56,8 @@ function mount(rows: readonly ScheduleCatalogEntry[] = [task], overrides: Partia
     records: rows, status: 'ready', deleting: [], settled: true, readRequest: 1, readSettled: 1,
   }
   const props: TaskManagerPageProps = {
-    ...allowAllAccess, useCatalog: select => select(snapshot), useSessions: select => select(sessions),
+    ...allowAllAccess, useCatalog: select => select(snapshot), useFilters: select => select([]), renderSlot: () => null,
+    useSessions: select => select(sessions),
     useWorkspaces: select => select(workspaces), usePanelInfo: select => select({ activePanelId: null }),
     useSessionStatus: select => select(new Map()), useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('Task editor loads no document resources') },

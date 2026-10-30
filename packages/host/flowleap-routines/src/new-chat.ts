@@ -73,18 +73,21 @@ export class RunChats {
    * receives the run.
    * @param taskId - the task.
    * @param scheduledAt - the task's current target, from its record; it stays the same until a delivery commits.
-   * @param origin - the task's own chat.
+   * @param origin - the task's own chat; `undefined` for a task whose every run creates a chat, which opens the run chat in
+   * the controller's default directory.
    * @param title - the chat title.
    * @returns the chat, or `undefined` while no Session controller is mounted.
    */
-  async open(taskId: TaskId, scheduledAt: string, origin: SessionId, title: string): Promise<SessionId | undefined> {
+  async open(taskId: TaskId, scheduledAt: string, origin: SessionId | undefined, title: string): Promise<SessionId | undefined> {
     const runChats = (await this.domain).table('run_chats')
     const known = runChats.get(taskId)
     if (known?.scheduledAt === scheduledAt) return known.sessionId
     const host = this.host()
     if (host === undefined) return undefined
-    const workspace = host.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(origin))
-    const cwd = workspace === undefined ? host.sessions.get(origin)?.header.cwd : undefined
+    const workspace = origin === undefined
+      ? undefined
+      : host.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(origin))
+    const cwd = workspace === undefined && origin !== undefined ? host.sessions.get(origin)?.header.cwd : undefined
     const created = await host.sessionController.create(
       workspace !== undefined ? { workspaceId: workspace.id } : cwd !== undefined ? { cwd } : {},
     )

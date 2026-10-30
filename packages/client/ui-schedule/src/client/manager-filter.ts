@@ -26,7 +26,7 @@ export interface ScheduleManagerFilterOwnerProps {
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /**
-     * Extra filter tabs after the Enabled, Inactive, and All status tabs of the Automation tasks page, in ascending
+     * Extra filter tabs after the Enabled, Paused, Ended, and All status tabs of the Automation tasks page, in ascending
      * `order`. Declared by this package's `main` entry for the `schedules` panel. Each entry renders one
      * `<button type="button">` with `aria-pressed={selected}` and its own label, styled with the owner's class names,
      * and supplies the task ids it filters by through `select`.

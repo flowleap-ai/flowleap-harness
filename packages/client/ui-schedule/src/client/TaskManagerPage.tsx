@@ -1,12 +1,12 @@
 /** Cross-session retained reminders with local search and selection. */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconClockOutlineRegular, IconCloseOutlineRegular, IconEllipsisOutlineRegular, IconPlusOutlineRegular,
   IconSearchOutlineRegular, IconTrashOutlineRegular, IconChevronDownOutlineRegular, IconEditOutlineRegular,
   Input, Menu, MenuItemButton, Modal, ReferenceIconRegular, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { ScheduleId, ScheduleCatalogEntry, ScheduleCreateRequest } from '@deepseek-ai/dsh-schedule/client'
 import { TaskCreateDialog, type TaskCreateOutcome } from './TaskCreateDialog.tsx'
@@ -14,6 +14,7 @@ import { projectChoices } from './TaskEditorFields.tsx'
 import { taskNextRunAt, taskSessionId } from './task-record.ts'
 import type { CatalogSnapshot } from './catalog-source.ts'
 import { CatalogFeedback } from './CatalogFeedback.tsx'
+import type { ScheduleManagerFilterOwnerProps } from './manager-filter.ts'
 import { TaskDetail, useTaskDetail, type TaskDetailInjected } from './TaskDetail.tsx'
 import { useRelativeClock } from './relative-clock.ts'
 import { formatScheduleFrequency, nextRunParts, taskName, zoneLabel } from './schedule-format.ts'
@@ -23,8 +24,12 @@ import css from './TaskManagerPage.module.css'
 
 /** Injected catalog and task actions for the management page. */
 export interface TaskManagerInjected extends TaskDetailInjected {
-  /** Host task catalog with its query and deletion state. */
-  readonly hooks: { readonly catalog: HostObservable<CatalogSnapshot<ScheduleCatalogEntry>> }
+  readonly hooks: {
+    /** Host task catalog with its query and deletion state. */
+    readonly catalog: HostObservable<CatalogSnapshot<ScheduleCatalogEntry>>
+    /** List ids of the `schedule.manager.filter` entries, in ascending `order`. */
+    readonly filters: HostObservable<readonly string[]>
+  }
   /**
    * Start a new Session, where a reminder is created by asking the model to
    * schedule it, using the existing new-conversation action.
@@ -47,9 +52,16 @@ export interface TaskManagerInjected extends TaskDetailInjected {
 /** Root-scoped task catalog props derived from the framework and injected actions. */
 export type TaskManagerPageProps = PropsRuntime<'main'>
   & InjectFace<TaskManagerInjected>
+  & PropsRenderSlots<'schedule.manager.filter'>
   & PropsLocale<'schedule.manager'>
 
 type StatusFilter = 'all' | ScheduleCatalogEntry['status']
+
+/** The selected `schedule.manager.filter` entry and the tasks it shows. */
+interface EntryFilter {
+  readonly id: string
+  readonly taskIds: ReadonlySet<ScheduleId>
+}
 
 /**
  * Render retained tasks with manual creation, inline editing, and authoritative deletion.
@@ -57,7 +69,7 @@ type StatusFilter = 'all' | ScheduleCatalogEntry['status']
  * @returns the searchable task list beside the selected task's detail.
  */
 export function TaskManagerPage(props: TaskManagerPageProps) {
-  const { useCatalog, onNewTask, onClearEnded, onRetry, onCreateTask, useWorkspaces, t } = props
+  const { useCatalog, useFilters, renderSlot, onNewTask, onClearEnded, onRetry, onCreateTask, useWorkspaces, t } = props
   const workspaces = useWorkspaces(snapshot => snapshot)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
@@ -65,6 +77,16 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
   const { records, status } = catalog
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [entryFilterState, setEntryFilter] = useState<EntryFilter | null>(null)
+  const filterIds = useFilters(ids => ids)
+  // An entry that unregisters while selected leaves the page on its status tab.
+  const entryFilter = entryFilterState !== null && filterIds.includes(entryFilterState.id) ? entryFilterState : null
+  const filterEntries = useMemo(() => filterIds.map(id => ({
+    id,
+    select: (taskIds: ReadonlySet<ScheduleId>) => {
+      setEntryFilter(current => current?.id === id && current.taskIds === taskIds ? current : { id, taskIds })
+    },
+  })), [filterIds])
   const [selectedId, setSelectedId] = useState<ScheduleId | null>(null)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [clearMenu, setClearMenu] = useState(false)
@@ -95,15 +117,17 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase()
     return records.filter(record => (
-      (statusFilter === 'all' || record.status === statusFilter)
+      (entryFilter === null
+        ? statusFilter === 'all' || record.status === statusFilter
+        : entryFilter.taskIds.has(record.id))
       && (record.prompt.toLowerCase().includes(query)
         || (taskSessionId(record) ?? '').toLowerCase().includes(query)
         || taskName(record).toLowerCase().includes(query))
     )).toSorted((left, right) =>
       Date.parse(taskNextRunAt(left)) - Date.parse(taskNextRunAt(right)))
-  }, [records, search, statusFilter])
+  }, [records, search, statusFilter, entryFilter])
 
-  const emptyTitle = search.trim() !== '' ? 'list.noMatches'
+  const emptyTitle = search.trim() !== '' || entryFilter !== null ? 'list.noMatches'
     : statusFilter === 'paused' ? 'list.emptyPaused'
       : statusFilter === 'ended' ? 'list.emptyInactive'
         : statusFilter === 'active' ? 'list.emptyActive' : 'list.empty'
@@ -194,7 +218,7 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
         projects={projectChoices(workspaces.items, t('host.defaultProject'))}
         onCreate={onCreateTask} onClose={() => { setManualOpen(false) }}
         onCreated={(task) => {
-          setManualOpen(false); setSearch(''); setStatusFilter('all'); setSelectedId(task.id); setTab('rule')
+          setManualOpen(false); setSearch(''); setStatusFilter('all'); setEntryFilter(null); setSelectedId(task.id); setTab('rule')
         }} t={t} />}
       <div className={css.listPane}>
         <div className={css.pageScroll}>
@@ -227,13 +251,25 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
                   <button
                     key={value}
                     type="button"
-                    className={clsx(css.filterTab, statusFilter === value && css.filterTabActive)}
-                    aria-pressed={statusFilter === value}
-                    onClick={() => { setStatusFilter(value) }}
+                    className={clsx(css.filterTab, entryFilter === null && statusFilter === value && css.filterTabActive)}
+                    aria-pressed={entryFilter === null && statusFilter === value}
+                    onClick={() => {
+                      setStatusFilter(value)
+                      setEntryFilter(null)
+                    }}
                   >
                     {t(value === 'all' ? 'statusFilter.all' : `status.${value}`)}
                   </button>
                 ))}
+                {filterEntries.map(({ id, select }) => {
+                  const owner: ScheduleManagerFilterOwnerProps = {
+                    selected: entryFilter?.id === id,
+                    select,
+                    className: css.filterTab as string,
+                    selectedClassName: css.filterTabActive as string,
+                  }
+                  return <Fragment key={id}>{renderSlot('schedule.manager.filter', owner, { only: id })}</Fragment>
+                })}
               </div>
             </div>
             <div className={css.searchTools}>

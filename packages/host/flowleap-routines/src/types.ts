@@ -54,7 +54,7 @@ export interface RoutineWatch {
   readonly sessionId: SessionId
   /** Task title. */
   readonly title: string
-  /** RFC 3339 UTC time of the next register check while the task is active; absent for an inactive task. */
+  /** RFC 3339 UTC time of the next register check while the task is active; absent for a paused or ended task. */
   readonly nextCheckAt?: string
   /** Watched applications in the order the attorney named them. */
   readonly applications: readonly WatchedApplication[]

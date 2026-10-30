@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import {
-  allowAllAccess, bindSnapshotSelector, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm,
+  allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
@@ -37,7 +37,8 @@ function review(sessionId: SessionId, taskId: string, since: string, state: Rout
 
 function task(id: string, title: string): ScheduleCatalogEntry {
   return {
-    id: id as ScheduleId, sessionId: 'chat-origin' as SessionId, kind: 'daily', status: 'active', title, prompt: title,
+    id: id as ScheduleId, kind: 'daily', status: 'active', title, prompt: title,
+    target: { kind: 'session', sessionId: 'chat-origin' as SessionId }, involvedSessionIds: ['chat-origin' as SessionId],
     time: '09:00:00.000', timeZone: 'UTC', scheduledAt: '2026-10-28T09:00:00.000Z',
   }
 }
@@ -224,6 +225,7 @@ function pageProps(source: ReviewsSource, sessions: SessionListState, onOpenSess
     useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('The page loads no document resources') },
     ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
     onDone: source.onDone,
     onRetry: source.onRetry,
     onOpenSession,
@@ -609,6 +611,7 @@ const standard: GlobalStandardProps = {
   useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
   useWorkspaces: standardHook<WorkspaceSnapshot>({ items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }),
   ...allowAllAccess,
+  useContextMenu: contextMenuHook(),
 }
 
 describe('routine surfaces on the dashboard', () => {

@@ -74,7 +74,7 @@ describe('a new chat for each run', () => {
     expect(review.followup).toHaveBeenCalledOnce()
     expect(sentPrompt(review, 0)).toContain('No opposition filed within time limit')
     const [entry] = await test.ctx.schedule.catalog()
-    expect(entry).toMatchObject({ id, sessionId: SessionId('original'), status: 'active' })
+    expect(entry).toMatchObject({ id, target: { kind: 'session', sessionId: SessionId('original') }, involvedSessionIds: [SessionId('original')], status: 'active' })
     expect(entry?.lastDelivery).toBeDefined()
   })
 
@@ -127,7 +127,10 @@ describe('a new chat for each run', () => {
       const [entry] = await test.ctx.schedule.catalog()
       expect(entry?.lastDelivery).toBeUndefined()
       // A management write wakes the timer; the same occurrence is admitted again.
-      await test.ctx.schedule.create(test.agent.session.id, { title: 'Wake', prompt: 'Wake', after_seconds: 60 })
+      await test.ctx.schedule.create({
+        title: 'Wake', prompt: 'Wake', timing: { kind: 'after', after_seconds: 60 },
+        target: { kind: 'session', sessionId: test.agent.session.id },
+      }, test.agent.session.id)
       await vi.advanceTimersByTimeAsync(60_000)
       expect(chats.create).toHaveBeenCalledOnce()
       expect(chats.opened[0]!.followup).toHaveBeenCalledTimes(2)
@@ -254,7 +257,7 @@ describe('the Needs review mark', () => {
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([
       { sessionId: review.id, taskId: id, state: 'needs_review', since: '2026-11-03T07:00:00.000Z' },
     ])
-    await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id: id as Routines.TaskId })
+    await test.ctx.schedule.edit({ id: id as Routines.TaskId, action: 'delete' }, test.agent.session.id)
     await vi.advanceTimersByTimeAsync(0)
     expect(await test.ctx.flowleapRoutines.reviews()).toHaveLength(1)
   })

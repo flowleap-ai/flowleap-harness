@@ -34,7 +34,7 @@ export { FlowleapRoutinesController } from './controller.ts'
 export type { FlowleapRoutinesControllerOptions } from './controller.ts'
 export { MAX_CHAT_TITLE_LENGTH, RunChats, runChatTitle } from './new-chat.ts'
 export type { RunChatHost } from './new-chat.ts'
-export { RegisterWatches, classifyFailure, deadlineSignal, watchViews } from './register-watch.ts'
+export { RegisterWatches, classifyFailure, deadlineSignal, taskChat, watchViews } from './register-watch.ts'
 export type { ApplicationRead, RegisterWatchOptions, StoredWatches, WatchBaseline } from './register-watch.ts'
 export { ReviewMarks } from './reviews.ts'
 export type { AgentLookup } from './reviews.ts'
@@ -115,7 +115,7 @@ export function apply(ctx: Context, config: Config): void {
       ctx.logger.warn(`register watch ${delivery.id}: seen events not saved: ${String(error)}`)
     })
     watches.get(delivery.id).then(async (watch) => {
-      if (watch?.needsReview === true) await reviews.started(delivery.sessionId, delivery.id)
+      if (watch?.needsReview === true) await reviews.started(delivery.receipt.targetSessionId, delivery.id)
     }).catch(warn(`${delivery.id} not marked`))
   })
   ctx.on('agent/status', ({ agent, status }) => {

@@ -52,11 +52,11 @@ try {
     return found
   }
   const runSoon = async (task: ScheduleCatalogEntry): Promise<void> => {
-    const { sessionId, status: _status, lastDelivery: _lastDelivery, ...expected } = task
-    const result = await ctx.schedule.update({
-      sessionId, id: task.id, expected, change: { kind: 'at', at: new Date(Date.now() + 1000).toISOString() },
+    const result = await ctx.schedule.edit({
+      id: task.id, action: 'update', expectedUpdatedAt: task.updatedAt ?? null,
+      patch: { timing: { kind: 'at', at: new Date(Date.now() + 1000).toISOString() } },
     })
-    if (!('record' in result)) throw new Error(`update refused: ${JSON.stringify(result)}`)
+    if (!('scheduledAt' in result)) throw new Error(`update refused: ${JSON.stringify(result)}`)
   }
   const until = async (label: string, done: () => Promise<boolean>): Promise<void> => {
     for (let attempt = 0; attempt < 200; attempt++) {
@@ -68,14 +68,14 @@ try {
 
   offset += HOURS_13
   await runSoon(quiet)
-  await until('the quiet run', async () => (await entry(quiet.id)).status === 'inactive')
+  await until('the quiet run', async () => (await entry(quiet.id)).status === 'ended')
 
   await writeFile('register.json', JSON.stringify({ EP3456789: events }))
   offset += HOURS_13
   await runSoon(active)
   await until('the delivered run', async () => (await entry(active.id)).lastDelivery !== undefined)
   await until('the run answer', async () => modelAnswers > answersAfterCreation)
-  const agent = ctx.agents.get(active.sessionId)
+  const agent = active.target.kind === 'session' ? ctx.agents.get(active.target.sessionId) : undefined
   await agent?.whenIdle()
   if (agent !== undefined) await ctx.sessions.flush(agent.session)
 

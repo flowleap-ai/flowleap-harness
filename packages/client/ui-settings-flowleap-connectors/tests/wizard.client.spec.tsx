@@ -4,7 +4,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import { allowAllAccess, bindSnapshotSelector, RemoteError, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, RemoteError, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 // Type-only: the LocaleNamespaceMap merge that gives the wizard its copy keys.
 import type {} from '../src/client/index.ts'
 import { ConnectorsWizard, type ConnectorsWizardProps } from '../src/client/ConnectorsWizard.tsx'
@@ -23,7 +23,7 @@ const unusedHook = (() => { throw new Error('unused by the connectors wizard') }
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const kit = {
   useSessions: unusedHook, useSessionStatus: unusedHook, usePanelInfo: unusedHook, useSessionRetainInfo: () => undefined,
-  useResource, useWorkspaces: unusedHook, ...allowAllAccess,
+  useResource, useWorkspaces: unusedHook, ...allowAllAccess, useContextMenu: contextMenuHook(),
 }
 
 const ok = <T,>(value: T) => ({ ok: true as const, value })

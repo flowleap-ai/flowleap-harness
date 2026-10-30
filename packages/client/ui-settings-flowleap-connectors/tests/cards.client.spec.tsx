@@ -4,7 +4,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import { allowAllAccess, bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 // Type-only: the LocaleNamespaceMap merge that gives the section its `t` seat.
 import type {} from '../src/client/index.ts'
@@ -23,7 +23,7 @@ const unusedHook = (() => { throw new Error('unused by the connectors section') 
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const kit = {
   useSessions: unusedHook, useSessionStatus: unusedHook, usePanelInfo: unusedHook, useSessionRetainInfo: () => undefined,
-  useResource, useWorkspaces: unusedHook, ...allowAllAccess,
+  useResource, useWorkspaces: unusedHook, ...allowAllAccess, useContextMenu: contextMenuHook(),
 }
 
 function state(overrides: Partial<Record<ConnectorId, Partial<ConnectorCardState>>> = {}, status: ConnectorsState['status'] = 'ready'): ConnectorsState {

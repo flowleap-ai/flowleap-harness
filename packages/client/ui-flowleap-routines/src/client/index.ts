@@ -108,9 +108,10 @@ export function apply(ctx: ClientContext): void {
           return source.hooks.reviews.getSnapshot().tasks.filter((task) => {
             const applications = watched.find(watch => watch.taskId === task.id)?.applications.map(item => item.application) ?? []
             return query.matches([task.title, ...applications].join(' '))
-          }).map(task => ({
-            id: task.id, title: task.title, icon: IconAlarmClockOutlineRegular, open: () => { openSession(task.sessionId) },
-          }))
+          }).flatMap(({ id, title, target }) => target.kind === 'new' ? [] : [{
+            // A task whose every run creates a chat has no chat of its own to open.
+            id, title, icon: IconAlarmClockOutlineRegular, open: () => { openSession(target.sessionId) },
+          }])
         },
         subscribe: (listener) => {
           const stopReviews = source.hooks.reviews.subscribe(listener)

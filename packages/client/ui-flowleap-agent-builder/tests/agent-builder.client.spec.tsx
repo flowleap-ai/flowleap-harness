@@ -8,7 +8,7 @@ import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import { allowAllAccess, bindSnapshotSelector, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { AGENT_UPLOAD_PATH, type AgentId, type AgentSummary, type AgentView } from '@deepseek-ai/dsh-flowleap-agent-builder/types'
 import { AGENT_UPLOAD_ROUTE, apply, inject, uploadAgentFile } from '../src/client/index.ts'
@@ -38,6 +38,7 @@ const standard: GlobalStandardProps = {
   useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
   useWorkspaces: hook(workspaces),
   ...allowAllAccess,
+  useContextMenu: contextMenuHook(),
 }
 const ID = 'responder-a1b2c3' as AgentId
 const ok = <T,>(value: T): Promise<RemoteResult<T>> => Promise.resolve({ ok: true, value })

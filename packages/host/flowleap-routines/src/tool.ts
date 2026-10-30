@@ -14,7 +14,7 @@ export const REGISTER_WATCH_CREATE_NAME = 'register_watch_create'
 
 /** A created watch as the model reads it. */
 export interface RegisterWatchView {
-  /** Scheduled task id; `schedule_delete` and `schedule_update` act on it. */
+  /** Scheduled task id; `schedule_view` and `schedule_edit` act on it. */
   readonly id: string
   /** Task name. */
   readonly title: string
@@ -78,7 +78,7 @@ const DESCRIPTION =
   'Watch the patent registers of applications with one daily task in the current session. '
   + 'Each day the host reads the register events of each application without you; the task runs only when an event is new, '
   + 'and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. '
-  + 'Manage the task with schedule_list, schedule_update, and schedule_delete. '
+  + 'Manage the task with schedule_list, schedule_view, and schedule_edit. '
   + 'By default each run opens a new chat titled by the event and marks it "Needs review" when it finishes; '
   + 'new_chat_per_run and needs_review turn either off.'
 
@@ -153,15 +153,16 @@ export function registerWatchTool(ctx: Context, watches: RegisterWatches, maxApp
         }
       }
       // An invalid daily time rejects the call before the task exists.
-      const record = await ctx.schedule.create(agent.session.id, {
-        title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`, daily: args.daily,
-      }, exec.signal)
+      const record = await ctx.schedule.create({
+        title: args.title, prompt: `${args.prompt.trim()}\n\n${watchedLine(applications)}`,
+        timing: { kind: 'daily', daily: args.daily }, target: { kind: 'session', sessionId: agent.session.id },
+      }, agent.session.id, exec.signal)
       try {
         const baseline = await watches.start(record.id, reads, resolveOptions(args, watches.chats.available()))
         return { id: record.id, title: record.title, prompt: record.prompt, daily: args.daily, applications: baseline }
       } catch (error: unknown) {
         // A task without its watch row would deliver the stored instruction every day.
-        await ctx.schedule.delete({ sessionId: agent.session.id, id: record.id })
+        await ctx.schedule.edit({ id: record.id, action: 'delete' }, agent.session.id)
         throw error
       }
     },
