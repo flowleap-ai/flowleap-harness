@@ -2,8 +2,10 @@
  * Office action board source: the work pages that the Host lists, the page on show with its file, and the page state.
  * Every read and change goes through the `flowleapWorkPages` Remote: the board changes only the review fields of an
  * objection, never a finding. A `flowleap-work-pages/changed` event carries the changed page, so the board applies it
- * without a new read. "Write response plan" sends one chat message into the chat that saved the page, and the
- * form opens a new chat with a drafted message; the page itself never calls the model or a connector.
+ * without a new read. A new save of another page does not replace the page on show: the board names it in `newer`, and
+ * the attorney chooses to show it. While a chosen page is read, the page on show takes no attorney change. "Write
+ * response plan" sends one chat message into the chat that saved the page, and the form opens a new chat with a drafted
+ * message; the page itself never calls the model or a connector.
  */
 
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
@@ -37,6 +39,10 @@ export interface BoardSnapshot {
   readonly pages: readonly WorkPageSummary[]
   /** The page on show, or `null` while there is none. */
   readonly page: WorkPageView | null
+  /** The page that the attorney chose and that the board reads; the page on show takes no change until it arrives. */
+  readonly opening: WorkPageId | null
+  /** The newest save of another page after the page on show was saved, until the attorney shows or hides it. */
+  readonly newer: WorkPageSummary | null
   /** Objection open in the side panel. */
   readonly selected: string | null
   readonly formOpen: boolean
@@ -94,6 +100,8 @@ export interface Board {
   readonly setFormOpen: (open: boolean) => void
   /** Hide the notice. */
   readonly dismiss: () => void
+  /** Hide the newer save. */
+  readonly dismissNewer: () => void
   /**
    * Send the response plan message into the chat of the page on show, then show that chat.
    * @returns resolution after the Host answered.
@@ -120,7 +128,9 @@ export interface Board {
  * @returns the board.
  */
 export function createBoard(deps: BoardDependencies): Board {
-  let snapshot: BoardSnapshot = { status: 'loading', pages: [], page: null, selected: null, formOpen: false, sending: false, notice: null }
+  let snapshot: BoardSnapshot = {
+    status: 'loading', pages: [], page: null, opening: null, newer: null, selected: null, formOpen: false, sending: false, notice: null,
+  }
   const listeners = new Set<() => void>()
   let stops: readonly (() => void)[] = []
   let epoch = 0
@@ -138,35 +148,51 @@ export function createBoard(deps: BoardDependencies): Board {
   }
   const read = async (wanted?: WorkPageId): Promise<void> => {
     const current = ++epoch
+    // A read that a reset or an unsubscribe superseded leaves `opening`, so the next read still shows the chosen page.
+    const id = wanted ?? snapshot.opening ?? snapshot.page?.summary.id
     publish({ status: 'loading' })
     const pages = await settle(deps.list)
     if (current !== epoch) return
     if (pages?.ok !== true) {
-      publish({ status: 'error' })
+      publish({ status: 'error', opening: null })
       return
     }
-    const id = wanted ?? snapshot.page?.summary.id
+    const listed = { pages: pages.value, newer: pages.value.find(page => page.id === snapshot.newer?.id) ?? null }
     const shown = pages.value.find(page => page.id === id) ?? pages.value[0]
     if (shown === undefined) {
-      publish({ status: 'ready', pages: pages.value, page: null, selected: null })
+      publish({ status: 'ready', ...listed, page: null, opening: null, newer: null, selected: null })
       return
     }
     const view = await settle(() => deps.read(shown.id))
     if (current !== epoch) return
     if (view?.ok !== true) {
-      publish({ status: 'error', pages: pages.value })
+      publish({ status: 'error', ...listed, opening: null })
       return
     }
-    publish({ status: 'ready', pages: pages.value, ...shownPage(view.value) })
-  }
-  /** The page on show and the open objection after a new view of a page; the objection stays open while it exists. */
-  const shownPage = (view: WorkPageView): Pick<BoardSnapshot, 'page' | 'selected'> => {
-    const { selected } = snapshot
-    const keep = snapshot.page?.summary.id === view.summary.id && selected !== null && Object.hasOwn(view.file.review, selected)
-    return { page: view, selected: keep ? selected : null }
+    publish({ status: 'ready', ...listed, ...shownPage(view.value, listed.newer), opening: null })
   }
   /**
-   * Apply a changed page: its summary replaces the old one in the list, and the page on show follows it.
+   * The page on show, the open objection and the newer save after a new view of a page: the objection stays open while
+   * the page has it, and the newer save ends when it is on show.
+   */
+  const shownPage = (view: WorkPageView, newer: WorkPageSummary | null): Pick<BoardSnapshot, 'page' | 'selected' | 'newer'> => {
+    const { selected } = snapshot
+    const keep = snapshot.page?.summary.id === view.summary.id && selected !== null && Object.hasOwn(view.file.review, selected)
+    return { page: view, selected: keep ? selected : null, newer: newer?.id === view.summary.id ? null : newer }
+  }
+  /**
+   * The newer save after a changed page that is not on show: a save of that page after the page on show was saved
+   * becomes the newer save; a review change only refreshes the summary of the newer save.
+   */
+  const newerAfter = (view: WorkPageView): WorkPageSummary | null => {
+    const { summary } = view
+    const saved = snapshot.pages.find(page => page.id === summary.id)?.savedAt !== summary.savedAt
+    if (saved && snapshot.page !== null && summary.savedAt > snapshot.page.summary.savedAt) return summary
+    return snapshot.newer?.id === summary.id ? summary : snapshot.newer
+  }
+  /**
+   * Apply a changed page: its summary replaces the old one in the list, and the page on show follows it. A changed page
+   * that is not on show can become the newer save.
    * @param view - the page after the change.
    * @param status - the new query state; omitted, it stays.
    */
@@ -174,7 +200,7 @@ export function createBoard(deps: BoardDependencies): Board {
     const pages = [view.summary, ...snapshot.pages.filter(summary => summary.id !== view.summary.id)]
       .sort((left, right) => right.savedAt.localeCompare(left.savedAt))
     const shown = snapshot.page === null || snapshot.page.summary.id === view.summary.id
-    publish(shown ? { ...status, pages, ...shownPage(view) } : { ...status, pages })
+    publish(shown ? { ...status, pages, ...shownPage(view, snapshot.newer) } : { ...status, pages, newer: newerAfter(view) })
   }
   const reset = (): void => { void read() }
   const observe = (listener: () => void): (() => void) => {
@@ -195,12 +221,12 @@ export function createBoard(deps: BoardDependencies): Board {
   return {
     hooks: { board: { getSnapshot: () => snapshot, subscribe: observe } },
     choose: async (id) => {
-      publish({ selected: null })
+      publish({ selected: null, opening: id })
       await read(id)
     },
     setReview: async (objection, fields) => {
       const page = snapshot.page
-      if (page === null) return
+      if (page === null || snapshot.opening !== null) return
       // The answer is newer than a read that is still in flight, so that read is discarded.
       const current = ++epoch
       const result = await settle(() => deps.review({ id: page.summary.id, objection, ...fields }))
@@ -211,19 +237,22 @@ export function createBoard(deps: BoardDependencies): Board {
       // The discarded read cannot end the loading state, so the answer ends it.
       if (current === epoch) changed(result.value, { status: 'ready' })
     },
-    select: (selected) => { publish({ selected }) },
+    select: (selected) => {
+      if (snapshot.opening === null) publish({ selected })
+    },
     setFormOpen: (formOpen) => { publish({ formOpen }) },
     dismiss: () => { publish({ notice: null }) },
+    dismissNewer: () => { publish({ newer: null }) },
     writePlan: async () => {
       const page = snapshot.page
-      if (page === null || snapshot.sending) return
+      if (page === null || snapshot.opening !== null || snapshot.sending) return
       publish({ sending: true, notice: null })
       const result = await settle(() => deps.send(page.summary.sessionId, deps.planMessage(page)))
       publish({ sending: false, notice: result?.ok === true ? 'sent' : 'sendFailed' })
       if (result?.ok === true) deps.openSession(page.summary.sessionId)
     },
     openChat: () => {
-      if (snapshot.page !== null) deps.openSession(snapshot.page.summary.sessionId)
+      if (snapshot.page !== null && snapshot.opening === null) deps.openSession(snapshot.page.summary.sessionId)
     },
     startAnalysis: (application) => {
       publish({ formOpen: false })

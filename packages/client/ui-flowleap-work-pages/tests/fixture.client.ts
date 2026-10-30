@@ -11,6 +11,12 @@ export const PAGE_ID = brandString<WorkPageId>('0123456789abcdef')
 /** The id of a second page. */
 export const OTHER_ID = brandString<WorkPageId>('fedcba9876543210')
 
+/** The id of an earlier analysis of the fixture application on the same day, from another chat. */
+export const TWIN_ID = brandString<WorkPageId>('00112233445566aa')
+
+/** The chat that saved the earlier analysis. */
+export const TWIN_CHAT = SessionId('chat-ep-second')
+
 /** The chat that saved the fixture page. */
 export const CHAT = SessionId('chat-ep')
 
@@ -120,3 +126,6 @@ export function reviewed(id: string, fields: Partial<WorkPageFile['review'][stri
   const needsReview = Object.values(review).filter(entry => entry.state === 'needs_review').length
   return { summary: { ...SUMMARY, needsReview }, file: { ...FILE, review } }
 }
+
+/** An earlier analysis of the fixture application on the same day, from another chat in another workspace. */
+export const TWIN: WorkPageSummary = { ...SUMMARY, id: TWIN_ID, sessionId: TWIN_CHAT, savedAt: '2026-10-29T08:30:00.000Z' }
