@@ -180,12 +180,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.',
       },
       {
-        signature: 'definition(id: string): PresetDefinition | undefined',
-        description: 'Read one registered definition as its declaring plugin submitted it.',
-        parameters: [{ name: 'id', description: 'preset identity.' }],
-        returns: 'the definition, or undefined when no declaration supplies the id.',
-      },
-      {
         signature: 'inspectCompositions(ctx?: Context): AgentPresetInspection[]',
         description: 'Inspect retained revisions, or the exact revision an Agent joined.',
         parameters: [{ name: 'ctx', description: 'optional Agent context; omission includes all retained revisions.' }],
@@ -489,23 +483,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async admitPromptContent( content: readonly AttachmentAdmissionPart[], ): Promise<AdmittedPromptContentPart[]>',
-        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation. A prompt with encoded images is refused while assertUploadsAccepted refuses uploads.',
+        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation.',
         parameters: [{ name: 'content', description: 'prompt parts in message order after upload receipt resolution.' }],
         returns: 'admitted prompt parts in the same order as `content`.',
         throws: ['AttachmentError when the image batch is refused.'],
       },
       {
-        signature: 'async admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
+        signature: 'admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
         description: 'Decode and durably commit one canonical base64 file upload.',
         parameters: [{ name: 'input', description: 'canonical base64 bytes and optional display name.' }],
         returns: 'the durable content-addressed file reference.',
-        throws: ['AttachmentError when the encoding or storage operation is refused, or `STORAGE_LOW` while uploads are refused.'],
-      },
-      {
-        signature: 'assertUploadsAccepted(): Promise<void>',
-        description: 'Refuse a user upload while the deployment does not accept new uploads, for example while the host\'s disk is low. Upload admission (prompt images, file uploads) calls it before any write; attachments a tool stores from a read are not uploads and do not call it. The default accepts every upload.',
-        parameters: [],
-        throws: ['AttachmentError `STORAGE_LOW` while the deployment refuses uploads.'],
+        throws: ['AttachmentError when the encoding or storage operation is refused.'],
       },
       {
         signature: 'isAttachmentError(error: unknown): error is AttachmentError',
@@ -1231,258 +1219,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
-    key: 'flowleapAgentCatalog',
-    summary: 'Service owning the agent folders, their indexes and their presets.',
-    description: 'Service owning the agent folders, their indexes and their presets.',
-    methods: [
-      {
-        signature: 'ready(): Promise<void>',
-        description: 'Settles when the agent folders are loaded; the Remote waits for it before its first answer.',
-        parameters: [],
-        returns: 'the load.',
-      },
-      {
-        signature: 'revision(id: AgentId): AgentRevision',
-        description: 'The current revision of one agent for its preset row.',
-        parameters: [{ name: 'id', description: 'the agent.' }],
-        returns: 'the revision.',
-        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
-      },
-      {
-        signature: 'search(id: AgentId, query: string, limit: number): SearchHit[]',
-        description: 'Search one agent\'s indexed files.',
-        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'query', description: 'the words.' }, { name: 'limit', description: 'most hits.' }],
-        returns: 'hits, best first.',
-      },
-      {
-        signature: 'readFile(id: AgentId, file: string, from: number, to: number): { readonly rows: LocationRow[]; readonly total: number } | undefined',
-        description: 'Read locations of one file of one agent.',
-        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'file', description: 'the file name.' }, { name: 'from', description: 'first location.' }, { name: 'to', description: 'last location, inclusive.' }],
-        returns: 'the locations and the location count, or undefined for an unknown file.',
-      },
-      {
-        signature: 'list(): AgentSummary[]',
-        description: 'Every agent, by name.',
-        parameters: [],
-        returns: 'the summaries.',
-      },
-      {
-        signature: 'read(id: AgentId): AgentView',
-        description: 'One agent with its fields, files and mode.',
-        parameters: [{ name: 'id', description: 'the agent.' }],
-        returns: 'the view.',
-        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
-      },
-      {
-        signature: 'async connectors(): Promise<ConnectorChoice[]>',
-        description: 'The connector rows an agent can choose, each with whether it can answer on this Host.',
-        parameters: [],
-        returns: 'one row per choice.',
-      },
-      {
-        signature: 'async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>',
-        description: 'Create an agent or change one. The caller validated the fields.',
-        parameters: [{ name: 'id', description: 'the agent to change, or undefined to create one.' }, { name: 'definition', description: 'the `agent.yaml` fields.' }, { name: 'instructions', description: 'the instructions.' }],
-        returns: 'the agent after the change.',
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
-      },
-      {
-        signature: 'async delete(id: AgentId): Promise<void>',
-        description: 'Delete one agent: close its index, move its folder aside, then remove its preset and the moved folder. A read or write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`, and the agent is not listed. When the folder cannot be moved, the index opens again and the agent stays as it was.',
-        parameters: [{ name: 'id', description: 'the agent.' }],
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.'],
-      },
-      {
-        signature: 'async removeFile(id: AgentId, name: string): Promise<void>',
-        description: 'Remove one file of one agent.',
-        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
-      },
-      {
-        signature: 'async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>',
-        description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file whose name differs only in case, and the agent keeps the new name.',
-        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
-        returns: 'the file as stored, in its state after the upload.',
-        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}), a body larger than the limit (`reason` is `too large`), or while the host\'s disk is low (`reason` is `storage low`); the file-system error of a failed write.'],
-      },
-      {
-        signature: 'async settled(): Promise<void>',
-        description: 'Wait until every upload read and preset change started so far has settled.',
-        parameters: [],
-        returns: 'settles when the background work is done.',
-      },
-    ],
-  },
-  {
-    key: 'flowleapAgents',
-    summary: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
-    description: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
-    methods: [
-      {
-        signature: '@Remote async list(): Promise<AgentSummary[]>',
-        description: 'Every agent of this Host, the firm agents included.',
-        parameters: [],
-        returns: 'the summaries, by name.',
-      },
-      {
-        signature: '@Remote async read(id: AgentId): Promise<AgentView>',
-        description: 'One agent with its fields, files and mode.',
-        parameters: [{ name: 'id', description: 'the agent.' }],
-        returns: 'the view.',
-        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
-      },
-      {
-        signature: '@Remote connectors(): Promise<ConnectorChoice[]>',
-        description: 'The connector rows the form offers, each with whether it can answer on this Host.',
-        parameters: [],
-        returns: 'one row per choice.',
-      },
-      {
-        signature: '@Remote async save(input: { id?: AgentId; name: string; description: string; instructions: string; connectors: string[] }): Promise<AgentView>',
-        description: 'Create an agent (no `id`) or change one. The connectors must be ids that `connectors()` lists.',
-        parameters: [{ name: 'input', description: 'the form fields.' }],
-        returns: 'the agent after the change.',
-        throws: ['RemoteError `flowleap-agents/invalid` for a bad field, `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
-      },
-      {
-        signature: '@Remote async delete(id: AgentId): Promise<void>',
-        description: 'Delete one agent with its files.',
-        parameters: [{ name: 'id', description: 'the agent.' }],
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
-      },
-      {
-        signature: '@Remote async removeFile(id: AgentId, name: string): Promise<void>',
-        description: 'Remove one file of one agent.',
-        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
-        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
-      },
-    ],
-  },
-  {
-    key: 'flowleapBudget',
-    summary: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
-    description: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
-    methods: [
-      {
-        signature: '@Remote async month(): Promise<BudgetMonth>',
-        description: 'Read this month\'s spend and budget of the attorney from the gateway.',
-        parameters: [],
-        returns: 'the figures, or `unknown` with the reason.',
-      },
-    ],
-  },
-  {
-    key: 'flowleapConnectors',
-    summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
-    description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
-    methods: [
-      {
-        signature: '@Remote async describe(): Promise<Record<string, ConnectorPresence>>',
-        description: 'Presence of every connector, for the settings cards and the first-run wizard.',
-        parameters: [],
-        returns: 'one view per connector id; never a value.',
-      },
-      {
-        signature: '@Remote async set(id: string, values: Record<string, string>): Promise<void>',
-        description: 'Store one connector\'s fields. The values cross the wire in this direction only.',
-        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'values', description: 'its fields, each non-empty.' }],
-        throws: ['RemoteError `gateway/bad-request` for an unknown connector or field, `flowleap-connectors/rejected` when the store refuses.'],
-      },
-      {
-        signature: '@Remote async unset(id: string): Promise<void>',
-        description: 'Remove one connector\'s record; removing an absent record is a no-op.',
-        parameters: [{ name: 'id', description: 'the connector.' }],
-        throws: ['RemoteError `gateway/bad-request` for an unknown connector, `flowleap-connectors/rejected` when the store refuses.'],
-      },
-      {
-        signature: '@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>',
-        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search, or the library\'s Mistral key verification (one authenticated GET).',
-        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
-        returns: 'whether the call succeeded and a human-readable message.',
-        throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
-      },
-    ],
-  },
-  {
-    key: 'flowleapOcr',
-    summary: 'What a consumer needs from the service.',
-    description: 'What a consumer needs from the service.',
-    methods: [
-      {
-        signature: 'pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRead>',
-        description: 'Read the page text of one document.',
-        parameters: [{ name: 'bytes', description: 'the document (PDF or image).' }, { name: 'filename', description: 'the file name Mistral receives.' }, { name: 'signal', description: 'cancels the upstream call.' }],
-        returns: 'the pages, or `not-configured` without a usable key.',
-        throws: ['Error for an upstream failure other than a missing or refused key.'],
-      },
-    ],
-  },
-  {
-    key: 'flowleapRegister',
-    summary: 'Reads the register events of one application.',
-    description: 'Reads the register events of one application.',
-    methods: [
-      {
-        signature: 'read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>',
-        description: 'Read the current register events of one application.',
-        parameters: [{ name: 'application', description: 'normalized application.' }, { name: 'signal', description: 'caller cancellation.' }],
-        returns: 'every event the office lists, in the office\'s order.',
-        throws: ['when the office refuses the read or no key is configured.'],
-      },
-    ],
-  },
-  {
-    key: 'flowleapRoutines',
-    summary: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
-    description: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
-    methods: [
-      {
-        signature: '@Remote async reviews(): Promise<RoutineReview[]>',
-        description: 'The marked chats the caller may see.',
-        parameters: [],
-        returns: 'one view per mark, without the chats remote access denies the caller.',
-      },
-      {
-        signature: '@Remote async watches(): Promise<RoutineWatch[]>',
-        description: 'The register watches the caller may see, next check first.',
-        parameters: [],
-        returns: 'one view per watch, without the watches of chats remote access denies the caller.',
-      },
-      {
-        signature: '@Remote async done(sessionId: SessionId): Promise<void>',
-        description: 'Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource the `sessionId` parameter names.',
-        parameters: [{ name: 'sessionId', description: 'the chat.' }],
-      },
-    ],
-  },
-  {
-    key: 'flowleapWorkPages',
-    summary: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
-    description: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
-    methods: [
-      {
-        signature: '@Remote async list(): Promise<WorkPageSummary[]>',
-        description: 'The work pages the caller may see.',
-        parameters: [],
-        returns: 'one summary per page, newest save first.',
-      },
-      {
-        signature: '@Remote async read(id: WorkPageId): Promise<WorkPageView>',
-        description: 'One work page with its file.',
-        parameters: [{ name: 'id', description: 'the page.' }],
-        returns: 'the view.',
-        throws: ['RemoteError `flowleap-work-pages/not-found`, `flowleap-work-pages/unreadable` or `flowleap-work-pages/invalid`.'],
-      },
-      {
-        signature: '@Remote async review(request: WorkPageReviewRequest): Promise<WorkPageView>',
-        description: 'Change the review state, the owner or the note of one objection; an omitted field keeps its value.',
-        parameters: [{ name: 'request', description: 'the page, the objection, and the fields to change.' }],
-        returns: 'the page after the change.',
-        throws: ['RemoteError `flowleap-work-pages/invalid`, `flowleap-work-pages/not-found`, `flowleap-work-pages/objection-not-found` or `flowleap-work-pages/unreadable`.'],
-      },
-    ],
-  },
-  {
     key: 'forge',
     summary: 'Registry of forge providers.',
     description: 'Registry of forge providers. Watchers of one change request share a single polling loop; each forge has at most one fetch in flight, which batches every due change request of that forge.',
@@ -1542,11 +1278,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when no provider serves the change request\'s forge, or with `signal.reason` when it aborts.'],
       },
       {
+        signature: 'async fetchChecks(ref: ChangeRequestRef, signal: AbortSignal): Promise<ChangeRequestSnapshot | ForgeFailure>',
+        description: 'Read complete check details independently of periodic polling.',
+        parameters: [{ name: 'ref', description: 'change request served by a registered provider.' }, { name: 'signal', description: 'cancellation of the detail view.' }],
+        returns: 'a complete snapshot or the provider\'s failure; unsupported providers return unavailable.',
+        throws: ['on cancellation, provider disposal, or expiry of this read\'s own `fetchTimeoutMs` deadline.'],
+      },
+      {
         signature: 'async diff(ref: ChangeRequestRef, signal: AbortSignal): Promise<string | ForgeFailure>',
         description: 'Read the changes of a change request as its host computes them.',
         parameters: [{ name: 'ref', description: 'change request served by a registered provider.' }, { name: 'signal', description: 'cancellation of the read.' }],
         returns: 'one unified patch with `a/` and `b/` path prefixes, or why the host did not provide it.',
         throws: ['when no provider serves the change request\'s forge, or with `signal.reason` when it aborts.'],
+      },
+      {
+        signature: 'async submitReview(ref: ChangeRequestRef, request: ForgeReviewRequest, signal: AbortSignal): Promise<ForgeReviewResult>',
+        description: 'Publish one comment or a completed review, then refresh the watched status.',
+        parameters: [{ name: 'ref', description: 'change request served by a registered provider.' }, { name: 'request', description: 'explicitly selected commit, comments, and review decision.' }, { name: 'signal', description: 'request cancellation.' }],
+        returns: 'a publication URL or a failure, including an unknown write outcome.',
       },
       {
         signature: 'async fileText(ref: ChangeRequestRef, commit: string, path: string, signal: AbortSignal): Promise<string | ForgeFailure>',
@@ -1584,7 +1333,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'forgePanel',
     summary: 'Serves the forge panel.',
-    description: 'Serves the forge panel. Following a Session inspects the checkout of its current directory read-only in the Session\'s execution world, recognizes the code host of the upstream remote or `origin`, probes sign-in for that host, and polls the Session\'s bound change requests through `ctx.forge` until the last follower of that Session leaves. A worktree request makes the panel create a branch and checkout through an optional `ctx.worktrees` and enter it while the Session\'s first message waits in the inbox, or at the first step proposal of a message no wait took. After a failed or stopped attempt the message keeps waiting for another attempt or for the request to be withdrawn. A message also waits while the worktree the Session works in is gone, until that worktree is checked out again or left for the source checkout. Changes to a Session\'s checkout run as Agent maintenance, so a message that arrives meanwhile waits for them.',
+    description: 'Serves the forge panel. Following a Session inspects the checkout of its current directory using the Session\'s permissions and execution world, recognizes the code host of the upstream remote or `origin`, probes sign-in for that host, and polls the Session\'s bound change requests through `ctx.forge` until the last follower of that Session leaves. A worktree request makes the panel create a branch and checkout through an optional `ctx.worktrees` and enter it while the Session\'s first message waits in the inbox, or at the first step proposal of a message no wait took. After a failed or stopped attempt the message keeps waiting for another attempt or for the request to be withdrawn. A message also waits while the worktree the Session works in is gone, until that worktree is checked out again or left for the source checkout. Changes to a Session\'s checkout run as Agent maintenance, so a message that arrives meanwhile waits for them.',
     methods: [
       {
         signature: '@Remote({ mode: \'stream\' }) async *follow(session: Session, signal: AbortSignal): AsyncIterable<ForgePanelState>',
@@ -1625,10 +1374,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote async localDiff(session: Session, scope: ForgeLocalScope, signal: AbortSignal): Promise<ForgeLocalDiff>',
-        description: 'Read the changes one scope covers in the checkout of the Session\'s current directory, with Git confined to the Session\'s read-only sandbox.',
+        description: 'Read the changes one scope covers in the checkout of the Session\'s current directory, with Git using the Session\'s sandbox policy.',
         parameters: [{ name: 'session', description: 'Session whose checkout is read.' }, { name: 'scope', description: 'which changes to read.' }, { name: 'signal', description: 'request cancellation.' }],
         returns: 'the files, the base of the `branch` scope, and the untracked files left out.',
-        throws: ['`forgePanel/not-a-checkout` outside a checkout; `forgePanel/no-fork-point` for the `branch` scope of a checkout without one; `forgePanel/diff-too-large` over `maxDiffBytes`; the Git error when Git fails.'],
+        throws: ['`forgePanel/not-a-checkout` outside a checkout; `forgePanel/no-fork-point` for the `branch` scope of a checkout without one; `forgePanel/filter-config-failed` when filter configuration cannot be read completely, before any comparison; `forgePanel/diff-too-large` over `maxDiffBytes`; the Git error when Git fails.'],
       },
       {
         signature: '@Remote async localText(session: Session, scope: ForgeLocalScope, path: string, signal: AbortSignal): Promise<string>',
@@ -1636,6 +1385,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'session', description: 'Session whose checkout is read.' }, { name: 'scope', description: 'the scope the diff was read in.' }, { name: 'path', description: 'path relative to the checkout\'s top-level directory, as the diff names it.' }, { name: 'signal', description: 'request cancellation.' }],
         returns: 'the text.',
         throws: ['`forgePanel/not-a-checkout` outside a checkout; `forgePanel/diff-too-large` over `maxDiffBytes`; an error for a path outside the checkout, binary content, or a failed read.'],
+      },
+      {
+        signature: '@Remote async changeRequestChecks(session: Session, url: string, headSha: string, signal: AbortSignal): Promise<ChangeRequestSnapshot>',
+        description: 'Load complete checks for the change request whose list the user opened.',
+        parameters: [{ name: 'session', description: 'Session retaining the visible binding.' }, { name: 'url', description: 'binding URL.' }, { name: 'headSha', description: 'commit displayed by the card; a different head rejects the result.' }, { name: 'signal', description: 'cancellation when the list closes.' }],
+        returns: 'the complete snapshot at the displayed head.',
+        throws: ['`forgePanel/not-bound` for an invisible binding, `forgePanel/stale-head` for a moved head, or `forgePanel/checks-failed` when the provider cannot complete the read.'],
       },
       {
         signature: '@Remote async changeRequestDiff(session: Session, url: string, signal: AbortSignal): Promise<ForgeChangeRequestDiff>',
@@ -1650,6 +1406,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'session', description: 'Session the change request is bound to.' }, { name: 'url', description: 'binding URL of the change request.' }, { name: 'commit', description: 'commit object name, the head commit of the diff.' }, { name: 'path', description: 'path relative to the repository root.' }, { name: 'signal', description: 'request cancellation.' }],
         returns: 'the text.',
         throws: ['`forgePanel/not-bound` unless the URL is a visible binding of the Session that a provider serves; `forgePanel/diff-too-large` when the host or its provider refuses the file over a size limit; `forgePanel/diff-failed` when the host does not provide the file otherwise.'],
+      },
+      {
+        signature: '@Remote async submitReview(session: Session, url: string, request: ForgeReviewRequest, signal: AbortSignal): Promise<ForgeReviewResult>',
+        description: 'Publish a line comment or completed review for a visible Session binding.',
+        parameters: [{ name: 'session', description: 'Session retaining the change request.' }, { name: 'url', description: 'visible binding URL.' }, { name: 'request', description: 'reviewed head, ranges, plain text, and explicit review decision.' }, { name: 'signal', description: 'request cancellation.' }],
+        returns: 'confirmed publication or a typed failure; unknown outcomes require reconciliation on the host.',
       },
       {
         signature: '@Remote async markReady(session: Session, url: string, signal: AbortSignal): Promise<void>',
@@ -1739,7 +1501,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
-    description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
+    description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and single-file publication is atomic. Moves can retain their source after publishing the destination. Optional guards add stale protection without changing the unguarded provider contract.',
     methods: [
       {
         signature: 'watch(target: FsTarget, changed: (error?: Error) => void, signal: AbortSignal): Promise<() => Promise<void>>',
@@ -1831,6 +1593,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Atomically edit literal text. When supplied, the version guard is checked before matching so stale content reports `FS_STALE_VERSION`; omission edits the current content without a freshness precondition.',
         parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'the literal search/replace request.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
         returns: 'the outcome, including the version the edit produced.',
+      },
+      {
+        signature: 'abstract patchText( target: FsTarget, hunks: readonly PatchHunk[], expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>',
+        description: 'Atomically apply parsed hunks to the LF-normalized text and restore the stored line-ending style. A missing or stale target reports `FS_STALE_VERSION`; an unmatched hunk reports `FS_PATCH_MISMATCH`.',
+        parameters: [{ name: 'target', description: 'the resolved regular file to patch.' }, { name: 'hunks', description: 'ordered hunks from `parsePatch`.' }, { name: 'expected', description: 'the version guard; omit for an unconditional patch.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this patch runs under; a sandboxing backend fences the patch by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
+        returns: 'the outcome, including the version the patch produced.',
+      },
+      {
+        signature: 'abstract deleteFile( target: FsTarget, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsDeleteOutcome>',
+        description: 'Remove a regular file. A missing or stale target reports `FS_STALE_VERSION`; a directory or other non-file reports `FS_NOT_REGULAR_FILE`. Resolution has already followed symlinks, so the target is the real file.',
+        parameters: [{ name: 'target', description: 'the resolved file to remove.' }, { name: 'expected', description: 'the version guard; omit for an unconditional removal.' }, { name: 'signal', description: 'aborts before removal.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this removal runs under; a sandboxing backend fences it, the bare backend ignores it. Omit to leave the backend its own default.' }],
+        returns: 'the bounded LF-normalized removed text, or null when no basis is available.',
+      },
+      {
+        signature: 'abstract moveFile( source: FsTarget, destination: FsTarget, options: { hunks?: readonly PatchHunk[] expectedSource?: { version: FsVersion } expectedDestination?: FsWriteIntent }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsMoveOutcome>',
+        description: 'Publish the source text, optionally patched, at the destination, then remove the source. Both targets stay locked in canonical order. Identical targets report `FS_SAME_TARGET`; the source guard follows `patchText` and the destination guard follows `writeText`. The two effects are separate: a published destination with a retained source is a final outcome reported through `sourceDeleted: false`.',
+        parameters: [{ name: 'source', description: 'the resolved regular source; its line-ending style and mode carry over.' }, { name: 'destination', description: 'the resolved destination within the same provider.' }, { name: 'options', description: 'optional hunks and the source/destination guards; an omitted guard is unconditional.' }, { name: 'signal', description: 'checked before destination staging; the commit then completes both effects.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root both paths run under; a sandboxing backend fences them, the bare backend ignores it. Omit to leave the backend its own default.' }],
+        returns: 'the bounded LF source basis, the destination outcome, and the source-removal status.',
       },
     ],
   },
@@ -2516,7 +2296,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote installBundle(spec: string, options?: InstallBundleOptions): Promise<ChangeResult>',
-        description: 'Install a package using the same pnpm implementation as dsh plugin. GitHub repositories get a connection check bounded by githubConnectionTimeoutMs before pnpm starts; only network failures or timeouts stop installation, while pnpm owns authentication and transport fallback. An HTTP(S) Git URL on another host is installed over SSH instead when access probes bounded by gitTransportTimeoutMs find that only SSH can read it. A run that fails, is cancelled, or adds a package without a bundle patch restores `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.',
+        description: 'Install a package using the same pnpm implementation as dsh plugin. GitHub repositories get a connection check bounded by githubConnectionTimeoutMs before pnpm starts; only network failures or timeouts stop installation, and a stop streams the check\'s diagnostic as the installation\'s install-log run under its request id, while pnpm owns authentication and transport fallback. An HTTP(S) Git URL on another host is installed over SSH instead when access probes bounded by gitTransportTimeoutMs find that only SSH can read it. A run that fails, is cancelled, or adds a package without a bundle patch restores `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.',
         parameters: [{ name: 'spec', description: 'One package spec, including local paths relative to the invocation directory.' }, { name: 'options', description: 'Whether to activate the installed bundle (defaults to true), the request id a cancellation names, the pending build scripts to allow, whether to save an exact dependency, and the registry asked first.' }],
         returns: 'Package-manager diagnostics, the registries asked, and the observed activation outcome.',
       },
@@ -2800,51 +2580,86 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'schedule',
-    summary: 'Shared management service; reads, deletion, and timing edits never activate a Session.',
-    description: 'Shared management service; reads, deletion, and timing edits never activate a Session.\n\n`sessionPersistence` is a load-order requirement rather than a directly called service: a delivery commits only when `ctx.sessions.flush()` reports that a `session/flush` listener participated, and the persistence backend providing this service is the plugin that registers that listener.',
+    summary: 'Shared management service; reads and management writes never activate a Session, and only delivery creates or resumes one.',
+    description: 'Shared management service; reads and management writes never activate a Session, and only delivery creates or resumes one.\n\n`sessionPersistence` supplies header-only target validation and the `session/flush` listener that acknowledges durable inbox delivery through `ctx.sessions.flush()`.',
     methods: [
       {
-        signature: 'async create(sessionId: SessionId, request: ScheduleCreateRequest, signal?: AbortSignal): Promise<ScheduleRecord>',
-        description: 'Create a reminder bound to the caller-selected Session without activating it.\n\nThe request must supply a title; a missing, blank-after-trim, or over-long title rejects with `invalid_prompt` instead of deriving one from the prompt. A Session a delegated child owns rejects with `subagent_session`, because delivery can never reach it: the child is one whose delegation depth is above zero. The record is built from the clock reading taken before the request joins the serialized queue, so a create that waits behind a longer operation keeps its request-time anchor and may already be due when the queue reaches it.',
-        parameters: [{ name: 'sessionId', description: 'Original Session receiving the reminder.' }, { name: 'request', description: 'Validated tool selector, required title, and reminder content.' }, { name: 'signal', description: 'Optional cancellation checked before persistence begins, including after FIFO waits.' }],
-        returns: 'The durably stored schedule. Cancellation does not roll back an in-flight write.',
+        signature: '@Remote(\'deliveryLimits\') deliveryLimits(): { readonly newSessionIntervalSeconds: number }',
+        description: 'Read effective delivery limits without loading or activating a task.',
+        parameters: [],
+        returns: 'The configured minimum spacing between deliveries that each create a Session, in seconds.',
       },
       {
-        signature: '@Remote(\'list\') async list(request: ScheduleListRequest): Promise<ScheduleRecord[]>',
-        description: 'Read the selected Session\'s active tasks without resuming its Agent.',
-        parameters: [{ name: 'request', description: 'Session whose task list is requested.' }],
-        returns: 'Persisted reminders in storage order.',
+        signature: '@Remote(\'create\') async remoteCreate(request: ScheduleCreateRequest, signal?: AbortSignal): Promise<ScheduleCatalogEntry>',
+        description: 'Create one task with a Host-generated identity for a human Remote caller.',
+        parameters: [{ name: 'request', description: 'Title, prompt, recurrence, and delivery destination.' }, { name: 'signal', description: 'Cancellation checked before the durable write begins, including after FIFO waits.' }],
+        returns: 'The stored task. Cancellation does not roll back an in-flight write.',
+      },
+      {
+        signature: 'async create( request: ScheduleCreateRequest, actorSessionId?: SessionId, signal?: AbortSignal, ): Promise<ScheduleCatalogEntry>',
+        description: 'Create one task and record the acting Agent\'s Session as involved; the Remote form omits that Session.\n\nThe record is built from the clock reading taken before the request joins the serialized queue. A `session` target must exist and must not belong to a delegated child; a `new_once` target reserves its Session identity.',
+        parameters: [{ name: 'request', description: 'Title, prompt, recurrence, and delivery destination.' }, { name: 'actorSessionId', description: 'Session of the acting Agent, or undefined for a human caller.' }, { name: 'signal', description: 'Cancellation checked before the durable write begins, including after FIFO waits.' }],
+        returns: 'The stored task. Cancellation does not roll back an in-flight write.',
+      },
+      {
+        signature: 'async list(request: ScheduleListRequest = {}): Promise<ScheduleListResult>',
+        description: 'Read one page of Host tasks without activating target Sessions.',
+        parameters: [{ name: 'request', description: 'Optional activity filter, page size, and offset.' }],
+        returns: 'The requested page and total matching task count.',
+      },
+      {
+        signature: '@Remote(\'list\') async remoteList(request: ScheduleListRequest): Promise<ScheduleListResult>',
+        description: 'Remote form of the shared Host-wide list.',
+        parameters: [{ name: 'request', description: 'Optional activity filter, page size, and offset.' }],
+        returns: 'The requested page and total matching task count.',
       },
       {
         signature: '@Remote(\'catalog\') async catalog(): Promise<ScheduleCatalogEntry[]>',
-        description: 'Read all active and inactive Host reminders with their original Session bindings. A deleted reminder has no row, so it is absent here. Does not activate Sessions or read Session history.',
+        description: 'Read every Host task without a page bound or Session activation.',
         parameters: [],
-        returns: 'Reminders ordered by scheduledAt ascending, then lexicographically by id.',
+        returns: 'All tasks, active first, with target and execution metadata.',
       },
       {
-        signature: '@Remote(\'history\') async history(request: ScheduleDeliveryHistoryRequest): Promise<ScheduleDeliveryHistoryResult>',
-        description: 'Read saved inbox deliveries without activating or reading the original Session. The task\'s own row supplies its binding, so its records stay readable through this lookup.',
-        parameters: [{ name: 'request', description: 'Session binding, task identity, explicit limit, and optional exclusive message cursor.' }],
+        signature: '@Remote(\'view\') async view(request: ScheduleViewRequest): Promise<ScheduleViewResult>',
+        description: 'Read one task without activating its target Sessions.',
+        parameters: [{ name: 'request', description: 'Task identity.' }],
+        returns: 'The task, or a non-mutating miss.',
+      },
+      {
+        signature: 'async history(request: ScheduleDeliveryHistoryRequest): Promise<ScheduleDeliveryHistoryResult>',
+        description: 'Read one page of saved deliveries without activating or reading a target Session.',
+        parameters: [{ name: 'request', description: 'Task identity, explicit page size, and optional exclusive cursor.' }],
+        returns: 'Newest-first saved deliveries, or a task/cursor lookup failure.',
+      },
+      {
+        signature: '@Remote(\'history\') async remoteHistory(request: ScheduleDeliveryHistoryRequest): Promise<ScheduleDeliveryHistoryResult>',
+        description: 'Remote form of the target-based ScheduleService.history; an invalid limit rejects with `schedule/input-invalid`.',
+        parameters: [{ name: 'request', description: 'Task identity, explicit limit, and optional exclusive message cursor.' }],
         returns: 'Newest-first deliveries in append order, or a task/cursor lookup failure.',
-        throws: ['ScheduleInputError when limit is not a safe integer from 1 through 100.'],
       },
       {
-        signature: '@Remote(\'delete\') async delete(request: ScheduleDeleteRequest, signal?: AbortSignal): Promise<ScheduleDeleteResult>',
-        description: 'Delete one task belonging to the selected Session, leaving queued messages intact.\n\nThe row is removed: the task no longer schedules, leaves `list` and `catalog`, and its saved delivery records go with it. A task bound to a Session a delegated child owns stays deletable even though creation and timing edits refuse that binding, so a task stored before that rule existed remains removable.',
-        parameters: [{ name: 'request', description: 'Session and exact task identity.' }, { name: 'signal', description: 'Optional cancellation checked before persistence begins, including after FIFO waits.' }],
-        returns: 'Whether that Session owned a deleted task. Cancellation does not roll back an in-flight write.',
+        signature: '@Remote(\'run\') async run(request: ScheduleRunRequest, signal?: AbortSignal): Promise<ScheduleRunResult>',
+        description: 'Deliver one task now without consuming or moving its scheduled occurrence; an archived destination Session rejects with `schedule/target-archived`.',
+        parameters: [{ name: 'request', description: 'Task identity.' }, { name: 'signal', description: 'Cancellation checked after entering the delivery transaction and before delivery.' }],
+        returns: 'Task state after Session persistence acknowledged the delivery, `schedule_execution_pending` while another execution of the task is queued, running, or inside its delivery floor, or a non-mutating miss.',
       },
       {
         signature: '@Remote(\'deleteInactive\') async deleteInactive(): Promise<ScheduleDeleteInactiveResult>',
-        description: 'Delete every ended Host task, leaving active tasks armed.\n\nEnded tasks never schedule another delivery, so the removal changes no pending target and no timer is recomputed. Rows are enumerated and removed in one FIFO slot, so a delivery ordered behind this call ends its task after the enumeration rather than during it. The batch is one domain write: a normal failure rejects with every listed row still stored, while a backend `unknown-state` failure may have removed rows and quarantines the Host domain, so later schedule operations reject until the domain is reopened. Every rejection announces `schedule/changed` because it does not establish which rows landed, and clients then re-read the catalog.',
+        description: 'Delete every ended Host task, leaving active tasks armed.\n\nEnded tasks never schedule another delivery, so the removal changes no pending target and no timer is recomputed. Rows are enumerated and removed in one FIFO slot, so a delivery ordered behind this call ends its task after the enumeration rather than during it. The batch is one domain write: a normal failure rejects with every listed row still stored, while a backend `unknown-state` failure may have removed rows and quarantines the Host domain, so later schedule operations reject until the domain is reopened. A successful nonempty batch emits `schedule/changed` without Agent notices. A rejected batch announces `schedule/changed` because it does not establish which rows landed, and clients then re-read the catalog.',
         parameters: [],
         returns: 'Count of removed rows; zero when the Host held no ended task.',
       },
       {
-        signature: '@Remote(\'update\') async update(request: ScheduleUpdateRequest, signal?: AbortSignal): Promise<ScheduleUpdateResult>',
-        description: 'Update the name, instruction, and timing of an active task within the original Session binding without activating the Session or changing saved deliveries.\n\nEach supplied field replaces its stored value; an omitted field keeps it. A name or instruction change alone does not reset the committed target. A Session a delegated child owns returns the non-mutating `subagent_session` result, so an edit cannot re-arm a task bound to a Session delivery can never reach, and the Web editor can explain the refusal through the ordinary result it already renders.',
-        parameters: [{ name: 'request', description: 'Task binding, complete observed record, and any combination of timing, name, and instruction.' }, { name: 'signal', description: 'Cancellation checked after domain readiness and FIFO waits, before persistence begins.' }],
-        returns: 'The committed record, unchanged record for a no-op, or a non-mutating input/lookup/conflict/refusal result. Storage and lifecycle failures reject; cancellation after a write starts does not roll it back.',
+        signature: '@Remote(\'edit\') async remoteEdit(request: ScheduleEditRequest, signal?: AbortSignal): Promise<ScheduleEditResult>',
+        description: 'Update or delete one task for a human Remote caller; an invalid patch rejects with `schedule/input-invalid`.',
+        parameters: [{ name: 'request', description: 'Task identity and one update or delete operation.' }, { name: 'signal', description: 'Cancellation checked before the durable write begins, including after FIFO waits.' }],
+        returns: 'The updated task, the deletion outcome, or a non-mutating miss or conflict.',
+      },
+      {
+        signature: 'async edit( request: ScheduleEditRequest, actorSessionId?: SessionId, signal?: AbortSignal, ): Promise<ScheduleEditResult>',
+        description: 'Update or delete one task and record the acting Agent\'s Session as involved; the Remote form omits that Session.\n\nAn update applies every patch field in one write and recomputes the next occurrence when the rule changes or the task resumes. A supplied `expectedUpdatedAt` that differs from the stored value returns `schedule_conflict`.',
+        parameters: [{ name: 'request', description: 'Task identity and one update or delete operation.' }, { name: 'actorSessionId', description: 'Session of the acting Agent, or undefined for a human caller.' }, { name: 'signal', description: 'Cancellation checked before the durable write begins, including after FIFO waits.' }],
+        returns: 'The updated task, the deletion outcome, or a non-mutating miss or conflict.',
       },
     ],
   },
@@ -3036,6 +2851,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List file and directory candidates for one Agent\'s working directory.',
         parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'query', description: 'path text following `@` or `@"`.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'deterministic path-only candidates from the composed provider.',
+      },
+    ],
+  },
+  {
+    key: 'sessionLogDeepSeek',
+    summary: 'Incremental Session-log contributor with caller-owned upload exclusions.',
+    description: 'Incremental Session-log contributor with caller-owned upload exclusions.',
+    methods: [
+      {
+        signature: 'registerExclusion(exclude: SessionLogUploadExclusion): () => Promise<void>',
+        description: 'Exclude matching requests before reading or preparing their log contribution. Any matching rule suppresses both the field and its acceptance callback. With no matching rules, normal upload eligibility applies. A throwing rule fails this contribution; the request-extension registry omits it and reports the error.',
+        parameters: [{ name: 'exclude', description: 'synchronous, side-effect-free predicate; `true` skips this upload.' }],
+        returns: 'effect disposer that removes this registration when called or when the caller unloads.',
       },
     ],
   },
@@ -4872,14 +4700,6 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.error - persistence, setup, or publication failure.' }],
   },
   {
-    name: 'agent-preset/roster-changed',
-    mode: 'emit',
-    signature: '\'agent-preset/roster-changed\'(): void',
-    summary: 'A preset definition was registered (after its activation settled) or unregistered.',
-    description: 'A preset definition was registered (after its activation settled) or unregistered. Clients refetch `agentPresets.list()`.',
-    parameters: [],
-  },
-  {
     name: 'agent-preset/selected',
     mode: 'emit',
     signature: '\'agent-preset/selected\'(sessionId: SessionId, agentPreset: string): void',
@@ -5168,36 +4988,20 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'inspection', description: 'committed canonical prefix, including the feedback as its last event.' }],
   },
   {
-    name: 'flowleap-agents/changed',
-    mode: 'emit',
-    signature: '\'flowleap-agents/changed\'(): void',
-    summary: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
-    description: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
-    parameters: [],
-  },
-  {
-    name: 'flowleap-routines/changed',
-    mode: 'emit',
-    signature: '\'flowleap-routines/changed\'(): void',
-    summary: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
-    description: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
-    parameters: [],
-  },
-  {
-    name: 'flowleap-work-pages/changed',
-    mode: 'emit',
-    signature: '\'flowleap-work-pages/changed\'(view: WorkPageView): void',
-    summary: 'A save wrote a work page, or the attorney changed its review fields.',
-    description: 'A save wrote a work page, or the attorney changed its review fields.',
-    parameters: [{ name: 'view', description: 'the page after the change; it reaches only the callers that may see its chat.' }],
-  },
-  {
     name: 'forge/providers-changed',
     mode: 'parallel',
     signature: '\'forge/providers-changed\'(forge: string): void | Promise<void>',
     summary: 'Announces a provider registration or withdrawal after the registry changes.',
     description: 'Announces a provider registration or withdrawal after the registry changes. Listener failures are logged without preventing other listeners from running.',
     parameters: [{ name: 'forge', description: 'family whose provider changed.' }],
+  },
+  {
+    name: 'fs/delete-intent',
+    mode: 'waterfall',
+    signature: '\'fs/delete-intent\'(target: FsTarget, actor: object | undefined, next: () => { version: FsVersion } | undefined | Promise<{ version: FsVersion } | undefined>): Promise<{ version: FsVersion } | undefined>',
+    summary: 'Single-slot decision for FileSystem.deleteFile; the first returned guard wins.',
+    description: 'Single-slot decision for FileSystem.deleteFile; the first returned guard wins. Calling next() delegates to an unconditional deletion.',
+    parameters: [{ name: 'target', description: 'the resolved source about to be removed.' }, { name: 'actor', description: 'the opaque tool-execution context used to select observed state.' }],
   },
   {
     name: 'fs/edit-intent',
@@ -5256,6 +5060,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'reloads', description: 'Replaced plugins and their module locations.' }],
   },
   {
+    name: 'llm-pi-ai/request-headers',
+    mode: 'waterfall',
+    signature: '\'llm-pi-ai/request-headers\'(request: PiAiRequestHeaderContext, headers: Headers, next: () => Headers): Headers',
+    summary: 'Prepare headers for one pi-ai inference call, excluding model discovery.',
+    description: 'Prepare headers for one pi-ai inference call, excluding model discovery. Listeners run synchronously and must call next(); they may edit only the request-owned headers and must not retain them. Throws fail the call with REQUEST_HEADERS before inference I/O. Harness attribution wins afterward. Non-TypeError messages are user-visible and must exclude secrets. TypeError details and non-Error values are replaced with safe guidance.',
+    parameters: [{ name: 'request', description: 'immutable routing metadata from the exact prepared call.' }, { name: 'headers', description: 'fresh profile headers, shared only within this dispatch.' }, { name: 'next', description: 'continue header preparation through the remaining listeners.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -5270,14 +5082,6 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A provider\'s advertised models or display metadata changed; consumers reload `listModels()`.',
     description: 'A provider\'s advertised models or display metadata changed; consumers reload `listModels()`.',
     parameters: [{ name: 'provider', description: 'route whose model catalog changed.' }],
-  },
-  {
-    name: 'llm/response-notice',
-    mode: 'emit',
-    signature: '\'llm/response-notice\'(notice: LlmResponseNotice): void',
-    summary: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning.',
-    description: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning. `text` is the notice for the user of that Session, or `null` when the response carries none, which clears the earlier notice. The notice is for the user only: it is not in the Session log and never reaches the model.',
-    parameters: [{ name: 'notice', description: 'the Session, the route and model of the request, and the notice text or `null`.' }],
   },
   {
     name: 'llm/stream',
@@ -5307,8 +5111,8 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'plugin-manager/install-log',
     mode: 'emit',
     signature: '\'plugin-manager/install-log\'(chunk: PluginInstallLogChunk): void',
-    summary: 'One chunk of a pnpm run\'s output, streamed as the run produces it.',
-    description: 'One chunk of a pnpm run\'s output, streamed as the run produces it.',
+    summary: 'One chunk of an installation run\'s output, streamed as the run produces it.',
+    description: 'One chunk of an installation run\'s output, streamed as the run produces it.',
     parameters: [{ name: 'chunk', description: 'the chunk and the run it belongs to.' }],
   },
   {
@@ -5344,28 +5148,12 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
-    name: 'schedule/admit',
-    mode: 'waterfall',
-    signature: '\'schedule/admit\'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>',
-    summary: 'Decide one due occurrence before its Session is restored.',
-    description: 'Decide one due occurrence before its Session is restored. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive.',
-    parameters: [{ name: 'request', description: 'Due occurrence and its Session binding.' }],
-  },
-  {
     name: 'schedule/changed',
     mode: 'emit',
     signature: '\'schedule/changed\'(): void',
     summary: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     description: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     parameters: [],
-  },
-  {
-    name: 'schedule/delivered',
-    mode: 'emit',
-    signature: '\'schedule/delivered\'(delivery: ScheduleDelivered): void',
-    summary: 'A delivery committed: the Session acknowledged the message and the task write landed.',
-    description: 'A delivery committed: the Session acknowledged the message and the task write landed. A crash between those two writes can repeat the delivery without this event.',
-    parameters: [{ name: 'delivery', description: 'Task, Session, and saved receipt.' }],
   },
   {
     name: 'schedule/resolve-agent',
@@ -5684,10 +5472,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ActionCardView {\n    readonly proposals: Readonly<Record<string, ActionCardProposal>>;\n    readonly decisions: Readonly<Record<string, ActionCardDecision>>;\n}',
   },
   {
-    name: 'ActionRow',
-    declaration: 'export interface ActionRow {\n    readonly field: string;\n    readonly value: string;\n    readonly source: string;\n}',
-  },
-  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -5708,36 +5492,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentCancelCause = {\n    readonly kind: \'user\';\n} | {\n    readonly kind: \'parent\';\n} | {\n    readonly kind: \'hook\';\n    readonly reason: string;\n} | {\n    readonly kind: \'disposed\';\n};',
   },
   {
-    name: 'AgentDefinition',
-    declaration: 'export interface AgentDefinition {\n    readonly name: string;\n    readonly description: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
-  },
-  {
     name: 'AgentFactory',
     declaration: 'export interface AgentFactory {\n    createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>;\n    resume(ownerCtx: Context, options: ResumeAgentOptions): Promise<AgentHandle>;\n}',
   },
   {
-    name: 'AgentFileFailure',
-    declaration: 'export type AgentFileFailure = \'no-text\' | \'ocr-unavailable\' | \'ocr-failed\' | \'unreadable\' | \'too-large\' | \'timeout\';',
-  },
-  {
-    name: 'AgentFileState',
-    declaration: 'export type AgentFileState = {\n    readonly kind: \'indexing\';\n} | {\n    readonly kind: \'indexed\';\n} | {\n    readonly kind: \'failed\';\n    readonly reason: AgentFileFailure;\n    readonly message: string;\n};',
-  },
-  {
-    name: 'AgentFileView',
-    declaration: 'export interface AgentFileView {\n    readonly name: string;\n    readonly bytes: number;\n    readonly state: AgentFileState;\n    readonly locations: number;\n    readonly unit: LocationUnit;\n}',
-  },
-  {
     name: 'AgentHandle',
     declaration: 'export interface AgentHandle {\n    agent: Agent;\n    dispose(): Promise<void>;\n}',
-  },
-  {
-    name: 'AgentId',
-    declaration: 'export type AgentId = Branded<\'FlowleapAgentId\'>;',
-  },
-  {
-    name: 'AgentMode',
-    declaration: 'export type AgentMode = \'context\' | \'search\';',
   },
   {
     name: 'AgentOptions',
@@ -5772,10 +5532,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentResolver = (sessionId: SessionId) => Promise<Agent>;',
   },
   {
-    name: 'AgentRevision',
-    declaration: 'export interface AgentRevision {\n    readonly id: AgentId;\n    readonly instructionsText: string;\n    readonly filesText?: string;\n    readonly mode: AgentMode;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
-  },
-  {
     name: 'AgentSetup',
     declaration: 'export type AgentSetup = (agentCtx: Context, agent: Agent) => AgentSetupCommit | Promise<AgentSetupCommit | void> | void;',
   },
@@ -5786,14 +5542,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentStatus',
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
-  },
-  {
-    name: 'AgentSummary',
-    declaration: 'export interface AgentSummary {\n    readonly id: AgentId;\n    readonly name: string;\n    readonly description: string;\n    readonly readOnly: boolean;\n}',
-  },
-  {
-    name: 'AgentView',
-    declaration: 'export interface AgentView extends AgentSummary {\n    readonly instructions: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n    readonly files: readonly AgentFileView[];\n    readonly mode: AgentMode;\n}',
   },
   {
     name: 'AnalyticsPreset',
@@ -6012,14 +5760,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type BrowserUseProviderName = Branded<\'BrowserUseProviderName\'>;',
   },
   {
-    name: 'BudgetMonth',
-    declaration: 'export type BudgetMonth = {\n    readonly state: \'known\';\n    readonly month: string;\n    readonly spentUsd: number;\n    readonly budgetUsd: number | null;\n} | {\n    readonly state: \'unknown\';\n    readonly reason: BudgetUnknownReason;\n};',
-  },
-  {
-    name: 'BudgetUnknownReason',
-    declaration: 'export type BudgetUnknownReason = \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'gateway_error\' | \'invalid_answer\';',
-  },
-  {
     name: 'BundleDetail',
     declaration: 'export type BundleDetail = {\n    readonly status: \'found\';\n    readonly origin: \'locale\' | \'readme\';\n    readonly path: string;\n    readonly markdown: string;\n} | {\n    readonly status: \'none\';\n};',
   },
@@ -6076,20 +5816,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CheckState = \'pending\' | \'success\' | \'failure\' | \'neutral\' | \'skipped\' | \'cancelled\';',
   },
   {
-    name: 'CitedDocument',
-    declaration: 'export interface CitedDocument {\n    readonly label: string;\n    readonly text: string;\n}',
-  },
-  {
-    name: 'CitedPassage',
-    declaration: 'export interface CitedPassage {\n    readonly document: string;\n    readonly role: string;\n    readonly passage: string;\n    readonly says: string;\n    readonly anchor: string;\n}',
-  },
-  {
     name: 'ClaimOutcome',
     declaration: 'export interface ClaimOutcome {\n    readonly claimed: number;\n    readonly skipped: number;\n}',
-  },
-  {
-    name: 'ClaimTable',
-    declaration: 'export interface ClaimTable {\n    readonly claim: number;\n    readonly heading: string;\n    readonly interpretation: string;\n    readonly rows: readonly ComparisonRow[];\n    readonly arrangement: string;\n}',
   },
   {
     name: 'ClientArtifactBaseline',
@@ -6172,10 +5900,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CompactionTrigger = \'pressure\' | \'context-overflow\';',
   },
   {
-    name: 'ComparisonRow',
-    declaration: 'export interface ComparisonRow {\n    readonly element: string;\n    readonly examiner: string;\n    readonly cited: string;\n    readonly assessment: ElementAssessment;\n}',
-  },
-  {
     name: 'CompositionRowEnablement',
     declaration: 'export type CompositionRowEnablement = boolean | \'conditional\';',
   },
@@ -6254,22 +5978,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionTrustRequest',
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
-  },
-  {
-    name: 'ConnectorChoice',
-    declaration: 'export interface ConnectorChoice {\n    readonly id: ConnectorChoiceId;\n    readonly configured: boolean;\n}',
-  },
-  {
-    name: 'ConnectorChoiceId',
-    declaration: 'export type ConnectorChoiceId = (typeof CONNECTOR_CHOICE_IDS)[number];',
-  },
-  {
-    name: 'ConnectorPresence',
-    declaration: 'export interface ConnectorPresence {\n    configured: boolean;\n    source?: \'stored\';\n    writable: boolean;\n    fields: string[];\n}',
-  },
-  {
-    name: 'ConnectorTestResult',
-    declaration: 'export interface ConnectorTestResult {\n    ok: boolean;\n    message: string;\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -6481,7 +6189,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DeepSeekLlmApiExtensionRequest',
-    declaration: 'export interface DeepSeekLlmApiExtensionRequest {\n    readonly body: Readonly<Record<string, DeepSeekLlmApiJson>>;\n    readonly sessionId?: string;\n    readonly purpose?: \'compaction\' | \'session-title\';\n    readonly signal: AbortSignal;\n}',
+    declaration: 'export interface DeepSeekLlmApiExtensionRequest {\n    readonly body: Readonly<Record<string, DeepSeekLlmApiJson>>;\n    readonly sessionId?: string;\n    readonly purpose?: string;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'DeepSeekLlmApiJson',
@@ -6604,10 +6312,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
   },
   {
-    name: 'ElementAssessment',
-    declaration: 'export type ElementAssessment = \'disclosed\' | \'not disclosed\' | \'disputable\' | \'not read\';',
-  },
-  {
     name: 'EncodedFileAttachment',
     declaration: 'export interface EncodedFileAttachment {\n    data: string;\n    name?: string;\n}',
   },
@@ -6728,6 +6432,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ForgeFailure {\n    readonly code: \'not-found\' | \'unauthenticated\' | \'too-large\' | \'unavailable\';\n    readonly message: string;\n}',
   },
   {
+    name: 'ForgeLineComment',
+    declaration: 'export interface ForgeLineComment {\n    readonly path: string;\n    readonly side: \'L\' | \'R\';\n    readonly startLine: number;\n    readonly endLine: number;\n    readonly body: string;\n}',
+  },
+  {
     name: 'ForgeLocalChanges',
     declaration: 'export interface ForgeLocalChanges {\n    readonly base: string;\n    readonly files: readonly ForgeChangedFile[];\n}',
   },
@@ -6757,7 +6465,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ForgeProvider',
-    declaration: 'export interface ForgeProvider {\n    readonly forge: string;\n    repositoryFromRemote(url: string): ForgeRepository | undefined;\n    changeRequestFromUrl(url: string): ChangeRequestRef | undefined;\n    changeRequestUrl(ref: ChangeRequestRef): string;\n    fetch(refs: readonly ChangeRequestRef[], signal: AbortSignal): Promise<ReadonlyMap<ChangeRequestKey, ChangeRequestSnapshot | ForgeFailure>>;\n    findByHead(repository: ForgeRepository, branch: string, signal: AbortSignal): Promise<readonly ChangeRequestRef[]>;\n    readiness(host: string, signal: AbortSignal): Promise<ForgeReadiness>;\n    markReady(ref: ChangeRequestRef, signal: AbortSignal): Promise<ForgeActionFailure | undefined>;\n    merge(ref: ChangeRequestRef, request: MergeRequest, signal: AbortSignal): Promise<ForgeActionFailure | undefined>;\n    diff(ref: ChangeRequestRef, signal: AbortSignal): Promise<string | ForgeFailure>;\n    fileText(ref: ChangeRequestRef, commit: string, path: string, signal: AbortSignal): Promise<string | ForgeFailure>;\n    fileUrl(ref: ChangeRequestRef, commit: string, path: string): string;\n}',
+    declaration: 'export interface ForgeProvider {\n    readonly forge: string;\n    submitReview?(ref: ChangeRequestRef, request: ForgeReviewRequest, signal: AbortSignal): Promise<ForgeReviewResult>;\n    repositoryFromRemote(url: string): ForgeRepository | undefined;\n    changeRequestFromUrl(url: string): ChangeRequestRef | undefined;\n    changeRequestUrl(ref: ChangeRequestRef): string;\n    fetch(refs: readonly ChangeRequestRef[], signal: AbortSignal): Promise<ReadonlyMap<ChangeRequestKey, ChangeRequestSnapshot | ForgeFailure>>;\n    fetchChecks?(ref: ChangeRequestRef, signal: AbortSignal): Promise<ChangeRequestSnapshot | ForgeFailure>;\n    findByHead(repository: ForgeRepository, branch: string, signal: AbortSignal): Promise<readonly ChangeRequestRef[]>;\n    readiness(host: string, signal: AbortSignal): Promise<ForgeReadiness>;\n    markReady(ref: ChangeRequestRef, signal: AbortSignal): Promise<ForgeActionFailure | undefined>;\n    merge(ref: ChangeRequestRef, request: MergeRequest, signal: AbortSignal): Promise<ForgeActionFailure | undefined>;\n    diff(ref: ChangeRequestRef, signal: AbortSignal): Promise<string | ForgeFailure>;\n    fileText(ref: ChangeRequestRef, commit: string, path: string, signal: AbortSignal): Promise<string | ForgeFailure>;\n    fileUrl(ref: ChangeRequestRef, commit: string, path: string): string;\n}',
   },
   {
     name: 'ForgeReadiness',
@@ -6766,6 +6474,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ForgeRepository',
     declaration: 'export interface ForgeRepository {\n    readonly forge: string;\n    readonly host: string;\n    readonly owner: string;\n    readonly name: string;\n}',
+  },
+  {
+    name: 'ForgeReviewRequest',
+    declaration: 'export type ForgeReviewRequest = {\n    readonly headSha: string;\n} & ({\n    readonly kind: \'comment\';\n    readonly comment: ForgeLineComment;\n} | {\n    readonly kind: \'review\';\n    readonly event: \'comment\' | \'approve\' | \'request-changes\';\n    readonly body: string;\n    readonly comments: readonly ForgeLineComment[];\n});',
+  },
+  {
+    name: 'ForgeReviewResult',
+    declaration: 'export type ForgeReviewResult = {\n    readonly ok: true;\n    readonly url: string;\n} | {\n    readonly ok: false;\n    readonly code: \'unsupported\' | \'stale\' | \'failed\' | \'unknown\';\n    readonly message: string;\n};',
   },
   {
     name: 'ForgeSessionWorktree',
@@ -6796,8 +6512,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ForgeWorktreeWaiting = \'creation\' | \'restoration\';',
   },
   {
-    name: 'FrequencyTooHighError',
-    declaration: 'export interface FrequencyTooHighError {\n    readonly code: \'frequency_too_high\';\n    readonly message: string;\n}',
+    name: 'FsDeleteOutcome',
+    declaration: 'export interface FsDeleteOutcome {\n    before: string | null;\n}',
   },
   {
     name: 'FsDirEntry',
@@ -6812,8 +6528,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FsEditRequest {\n    oldString: string;\n    newString: string;\n    replaceAll: boolean;\n}',
   },
   {
+    name: 'FsErrorCode',
+    declaration: 'export type FsErrorCode = typeof FS_ERROR_CODES[number];',
+  },
+  {
     name: 'FsInfo',
     declaration: 'export interface FsInfo {\n    version: FsVersion;\n    type: \'file\' | \'directory\' | \'other\';\n    size?: number;\n}',
+  },
+  {
+    name: 'FsMoveOutcome',
+    declaration: 'export type FsMoveOutcome = {\n    sourceBefore: string | null;\n    destination: FsWriteOutcome;\n    sourceDeleted: true;\n} | {\n    sourceBefore: string | null;\n    destination: FsWriteOutcome;\n    sourceDeleted: false;\n    sourceFailure: FsMoveSourceFailure;\n};',
+  },
+  {
+    name: 'FsMoveSourceFailure',
+    declaration: 'export interface FsMoveSourceFailure {\n    code: FsErrorCode;\n    message: string;\n}',
   },
   {
     name: 'FsObservation',
@@ -6845,7 +6573,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GenerateOptions',
-    declaration: 'export interface GenerateOptions {\n    provider: string;\n    model: string;\n    reasoningEffort?: ReasoningEffortId;\n    messages: RequestMessage[];\n    system?: string;\n    tools?: ToolSchema[];\n    toolHistory?: ToolHistory;\n    temperature?: number;\n    maxTokens?: number;\n    stop?: string[];\n    signal?: AbortSignal;\n    sessionId?: Branded<\'SessionId\'>;\n    purpose?: \'compaction\' | \'session-title\';\n}',
+    declaration: 'export interface GenerateOptions<Purpose extends string = LlmRequestPurpose> {\n    provider: string;\n    model: string;\n    reasoningEffort?: ReasoningEffortId;\n    messages: RequestMessage[];\n    system?: string;\n    tools?: ToolSchema[];\n    toolHistory?: ToolHistory;\n    temperature?: number;\n    maxTokens?: number;\n    stop?: string[];\n    signal?: AbortSignal;\n    sessionId?: Branded<\'SessionId\'>;\n    purpose?: Purpose;\n}',
   },
   {
     name: 'GenericCallView',
@@ -6998,26 +6726,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'InstallSpecKind',
     declaration: 'export type InstallSpecKind = \'registry\' | \'path\' | \'git\' | \'tarball\';',
-  },
-  {
-    name: 'InternalScheduleError',
-    declaration: 'export interface InternalScheduleError {\n    readonly code: \'internal_error\';\n    readonly message: string;\n}',
-  },
-  {
-    name: 'InvalidPromptError',
-    declaration: 'export interface InvalidPromptError {\n    readonly code: \'invalid_prompt\';\n    readonly message: string;\n}',
-  },
-  {
-    name: 'InvalidRuleError',
-    declaration: 'export interface InvalidRuleError {\n    readonly code: \'invalid_rule\';\n    readonly message: string;\n}',
-  },
-  {
-    name: 'InvalidSelectorError',
-    declaration: 'export interface InvalidSelectorError {\n    readonly code: \'invalid_selector\';\n    readonly message: string;\n}',
-  },
-  {
-    name: 'InvalidTimeZoneError',
-    declaration: 'export interface InvalidTimeZoneError {\n    readonly code: \'invalid_time_zone\';\n    readonly message: string;\n}',
   },
   {
     name: 'InvocationDescriptor',
@@ -7260,12 +6968,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LlmReasoningEffortInfo {\n    id: ReasoningEffortId;\n    name: string;\n    description?: string;\n}',
   },
   {
-    name: 'LlmResolvedModelInfo',
-    declaration: 'export interface LlmResolvedModelInfo extends LlmModelInfo {\n    context?: LlmModelContext;\n    defaultMaxTokens?: number;\n    reasoning?: LlmModelReasoningInfo;\n    systemPromptUpdate?: SystemPromptUpdate;\n    toolUpdate?: ToolUpdate;\n}',
+    name: 'LlmRequestPurpose',
+    declaration: 'export type LlmRequestPurpose = Extract<keyof LlmRequestPurposeMap, string>;',
   },
   {
-    name: 'LlmResponseNotice',
-    declaration: 'export interface LlmResponseNotice {\n    readonly sessionId: Branded<\'SessionId\'>;\n    readonly provider: string;\n    readonly model: string;\n    readonly text: string | null;\n}',
+    name: 'LlmRequestPurposeMap',
+    declaration: 'export interface LlmRequestPurposeMap {\n}',
+  },
+  {
+    name: 'LlmResolvedModelInfo',
+    declaration: 'export interface LlmResolvedModelInfo extends LlmModelInfo {\n    context?: LlmModelContext;\n    defaultMaxTokens?: number;\n    reasoning?: LlmModelReasoningInfo;\n    systemPromptUpdate?: SystemPromptUpdate;\n    toolUpdate?: ToolUpdate;\n}',
   },
   {
     name: 'LlmRuntime',
@@ -7278,14 +6990,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LocalizedText',
     declaration: 'export type LocalizedText = string | {\n    readonly en: string;\n    readonly [locale: string]: string;\n};',
-  },
-  {
-    name: 'LocationRow',
-    declaration: 'export interface LocationRow {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly text: string;\n}',
-  },
-  {
-    name: 'LocationUnit',
-    declaration: 'export type LocationUnit = \'page\' | \'paragraph\';',
   },
   {
     name: 'LogExporterOptions',
@@ -7600,32 +7304,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
   },
   {
-    name: 'NotFutureError',
-    declaration: 'export interface NotFutureError {\n    readonly code: \'not_future\';\n    readonly message: string;\n}',
-  },
-  {
     name: 'NpmFileSource',
     declaration: 'export type NpmFileSource = \'jsdelivr\' | \'unpkg\' | \'npmmirror\';',
   },
   {
-    name: 'Objection',
-    declaration: 'export interface Objection {\n    readonly id: string;\n    readonly title: string;\n    readonly ground: string;\n    readonly legalBasis: string;\n    readonly claims: readonly number[];\n    readonly reasoning: string;\n    readonly source: string;\n    readonly citations: readonly CitedPassage[];\n    readonly assessment: string;\n    readonly options: readonly ResponseOption[];\n    readonly replyMustAddress: string;\n    readonly confidence: string;\n    readonly sources: string;\n}',
-  },
-  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
-  },
-  {
-    name: 'OcrPageText',
-    declaration: 'export interface OcrPageText {\n    readonly page: number;\n    readonly text: string;\n}',
-  },
-  {
-    name: 'OcrRead',
-    declaration: 'export type OcrRead = {\n    readonly kind: \'read\';\n    readonly pages: readonly OcrPageText[];\n} | {\n    readonly kind: \'not-configured\';\n};',
-  },
-  {
-    name: 'OfficeActionFindings',
-    declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly summary: string;\n    readonly action: readonly ActionRow[];\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n    readonly dependentClaims: string;\n}',
   },
   {
     name: 'OfficeExtension',
@@ -7720,6 +7404,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PaneOpenResult {\n    id: string;\n    isPlaced: boolean;\n    reason?: string;\n}',
   },
   {
+    name: 'PatchHunk',
+    declaration: 'export interface PatchHunk {\n    lineNumber: number;\n    context?: string;\n    oldLines: string[];\n    newLines: string[];\n    isEndOfFile: boolean;\n}',
+  },
+  {
     name: 'PeerAdmission',
     declaration: 'export type PeerAdmission = {\n    readonly peer: PeerScope;\n} | {\n    readonly rejection: 401 | 403;\n};',
   },
@@ -7742,6 +7430,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PermissionCatalog',
     declaration: 'export interface PermissionCatalog {\n    options: PresetOption[];\n    defaultOptions: PresetOption[];\n    defaultPreset: string;\n}',
+  },
+  {
+    name: 'PiAiRequestHeaderContext',
+    declaration: 'export interface PiAiRequestHeaderContext extends Readonly<Pick<GenerateOptions<string>, \'provider\' | \'model\' | \'sessionId\' | \'purpose\'>> {\n    readonly baseURL: string;\n}',
   },
   {
     name: 'PlatformSession',
@@ -8061,7 +7753,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ReadOnlyReason',
-    declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\' | \'deployment-locked\';',
+    declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\';',
   },
   {
     name: 'ReadResultView',
@@ -8081,23 +7773,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RecurringScheduleRecord',
-    declaration: 'export type RecurringScheduleRecord = EveryScheduleRecord | DailyScheduleRecord | WeeklyScheduleRecord | CronScheduleRecord;',
+    declaration: 'export type RecurringScheduleRecord = EveryScheduleRecord | DailyScheduleRecord | WeeklyScheduleRecord | CronScheduleRecord | RRuleScheduleRecord;',
   },
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
-  },
-  {
-    name: 'RegisterApplication',
-    declaration: 'export type RegisterApplication = Branded<\'RegisterApplication\'>;',
-  },
-  {
-    name: 'RegisterEntry',
-    declaration: 'export interface RegisterEntry {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
-  },
-  {
-    name: 'RegisterEventView',
-    declaration: 'export interface RegisterEventView {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
   },
   {
     name: 'Registry',
@@ -8268,10 +7948,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedToolSet {\n    dispose(): void;\n    view(scope: ScopeKey | undefined): ReadonlyMap<string, ToolDefinition>;\n}',
   },
   {
-    name: 'ResponseOption',
-    declaration: 'export interface ResponseOption {\n    readonly label: string;\n    readonly text: string;\n}',
-  },
-  {
     name: 'RestartReason',
     declaration: 'export type RestartReason = \'no-hmr\' | \'package-moved\' | \'host-module\' | \'unmanaged-plugin\' | \'module-comparison\';',
   },
@@ -8296,28 +7972,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
   },
   {
-    name: 'ReviewEntry',
-    declaration: 'export interface ReviewEntry extends ReviewFields {\n    readonly ground: string;\n    readonly title: string;\n}',
-  },
-  {
-    name: 'ReviewFields',
-    declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
-  },
-  {
-    name: 'ReviewState',
-    declaration: 'export type ReviewState = \'running\' | \'needs_review\';',
-  },
-  {
-    name: 'RoutineReview',
-    declaration: 'export interface RoutineReview {\n    readonly sessionId: SessionId;\n    readonly taskId: string;\n    readonly state: ReviewState;\n    readonly since: string;\n}',
-  },
-  {
-    name: 'RoutineWatch',
-    declaration: 'export interface RoutineWatch {\n    readonly taskId: ScheduleId;\n    readonly sessionId: SessionId;\n    readonly title: string;\n    readonly nextCheckAt?: string;\n    readonly applications: readonly WatchedApplication[];\n}',
-  },
-  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
+  },
+  {
+    name: 'RRuleScheduleRecord',
+    declaration: 'export interface RRuleScheduleRecord {\n    readonly kind: \'rrule\';\n    readonly id: ScheduleId;\n    readonly title: string;\n    readonly prompt: string;\n    readonly rrule: string;\n    readonly scheduledAt: string;\n}',
   },
   {
     name: 'RunnerFailureRule',
@@ -8360,52 +8020,60 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
-    name: 'ScheduleAdmission',
-    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n    readonly sessionId?: SessionId;\n} | {\n    readonly kind: \'skip\';\n};',
-  },
-  {
-    name: 'ScheduleAdmissionRequest',
-    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly sessionId: SessionId;\n    readonly record: ScheduleRecord;\n    readonly signal: AbortSignal;\n}',
-  },
-  {
     name: 'ScheduleCatalogEntry',
-    declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly sessionId: SessionId;\n    readonly status: \'active\' | \'inactive\';\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
+    declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly target: ScheduleTarget;\n    readonly involvedSessionIds: SessionId[];\n    readonly status: \'active\' | \'paused\' | \'ended\';\n    readonly createdAt?: string;\n    readonly updatedAt?: string;\n    readonly executionActive?: true;\n    readonly deliveryFloorEndsAt?: string;\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
+  },
+  {
+    name: 'ScheduleConflictResult',
+    declaration: 'export interface ScheduleConflictResult {\n    readonly id: ScheduleId;\n    readonly code: \'schedule_conflict\';\n}',
   },
   {
     name: 'ScheduleCreateRequest',
-    declaration: 'export interface ScheduleCreateRequest {\n    prompt: string;\n    title: string;\n    after_seconds?: number;\n    at?: AtInput;\n    every_seconds?: number;\n    daily?: DailyInput;\n    weekly?: WeeklyInput;\n    cron?: CronInput;\n}',
+    declaration: 'export interface ScheduleCreateRequest {\n    readonly title: string;\n    readonly prompt: string;\n    readonly timing: ScheduleTiming;\n    readonly target?: ScheduleTargetRequest;\n}',
   },
   {
     name: 'ScheduleDeleteInactiveResult',
     declaration: 'export interface ScheduleDeleteInactiveResult {\n    readonly deleted: number;\n}',
   },
   {
-    name: 'ScheduleDeleteRequest',
-    declaration: 'export interface ScheduleDeleteRequest extends ScheduleListRequest {\n    id: ScheduleId;\n}',
-  },
-  {
     name: 'ScheduleDeleteResult',
     declaration: 'export type ScheduleDeleteResult = {\n    readonly id: ScheduleId;\n    readonly deleted: true;\n} | {\n    readonly id: ScheduleId;\n    readonly deleted: false;\n    readonly code: \'schedule_not_found\';\n};',
   },
   {
-    name: 'ScheduleDelivered',
-    declaration: 'export interface ScheduleDelivered {\n    readonly sessionId: SessionId;\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n}',
+    name: 'ScheduleDeliveryHistoryMiss',
+    declaration: 'export interface ScheduleDeliveryHistoryMiss {\n    readonly id: ScheduleId;\n    readonly code: \'schedule_not_found\' | \'delivery_cursor_not_found\';\n}',
+  },
+  {
+    name: 'ScheduleDeliveryHistoryPage',
+    declaration: 'export interface ScheduleDeliveryHistoryPage {\n    readonly id: ScheduleId;\n    readonly records: ScheduleDeliveryRecord[];\n    readonly earlierRecordsUnavailable: boolean;\n    readonly earlierRecordsPruned: boolean;\n    readonly retention: DeliveryRetentionBounds;\n    readonly nextBefore?: MessageId;\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryRequest',
-    declaration: 'export interface ScheduleDeliveryHistoryRequest extends ScheduleDeleteRequest {\n    limit: number;\n    before?: MessageId;\n}',
+    declaration: 'export interface ScheduleDeliveryHistoryRequest {\n    readonly id: ScheduleId;\n    readonly limit: number;\n    readonly before?: MessageId;\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryResult',
-    declaration: 'export type ScheduleDeliveryHistoryResult = {\n    readonly id: ScheduleId;\n    readonly records: ScheduleDeliveryRecord[];\n    readonly earlierRecordsUnavailable: boolean;\n    readonly earlierRecordsPruned: boolean;\n    readonly retention: DeliveryRetentionBounds;\n    readonly nextBefore?: MessageId;\n} | {\n    readonly id: ScheduleId;\n    readonly code: \'schedule_not_found\' | \'delivery_cursor_not_found\';\n};',
+    declaration: 'export type ScheduleDeliveryHistoryResult = ScheduleDeliveryHistoryPage | ScheduleDeliveryHistoryMiss;',
   },
   {
     name: 'ScheduleDeliveryReceipt',
-    declaration: 'export interface ScheduleDeliveryReceipt {\n    readonly scheduledAt: string;\n    readonly deliveredAt: string;\n    readonly messageId: MessageId;\n}',
+    declaration: 'export interface ScheduleDeliveryReceipt {\n    readonly scheduledAt: string;\n    readonly deliveredAt: string;\n    readonly messageId: MessageId;\n    readonly targetSessionId: SessionId;\n}',
   },
   {
     name: 'ScheduleDeliveryRecord',
     declaration: 'export interface ScheduleDeliveryRecord extends ScheduleDeliveryReceipt {\n    readonly prompt?: string;\n}',
+  },
+  {
+    name: 'ScheduleEditRequest',
+    declaration: 'export type ScheduleEditRequest = {\n    readonly id: ScheduleId;\n    readonly action: \'update\';\n    readonly patch: SchedulePatch;\n    readonly expectedUpdatedAt?: string | null;\n} | {\n    readonly id: ScheduleId;\n    readonly action: \'delete\';\n    readonly expectedUpdatedAt?: string | null;\n};',
+  },
+  {
+    name: 'ScheduleEditResult',
+    declaration: 'export type ScheduleEditResult = ScheduleCatalogEntry | Extract<ScheduleDeleteResult, {\n    readonly deleted: true;\n}> | ScheduleNotFoundResult | ScheduleConflictResult;',
+  },
+  {
+    name: 'ScheduleExecutionPendingResult',
+    declaration: 'export interface ScheduleExecutionPendingResult {\n    readonly id: ScheduleId;\n    readonly code: \'schedule_execution_pending\';\n}',
   },
   {
     name: 'ScheduleId',
@@ -8413,35 +8081,55 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ScheduleListRequest',
-    declaration: 'export interface ScheduleListRequest {\n    sessionId: SessionId;\n}',
+    declaration: 'export interface ScheduleListRequest {\n    readonly active?: boolean;\n    readonly limit?: number;\n    readonly offset?: number;\n}',
+  },
+  {
+    name: 'ScheduleListResult',
+    declaration: 'export interface ScheduleListResult {\n    readonly items: ScheduleCatalogEntry[];\n    readonly shown: number;\n    readonly total: number;\n    readonly limit: number;\n    readonly offset: number;\n}',
+  },
+  {
+    name: 'ScheduleNotFoundResult',
+    declaration: 'export interface ScheduleNotFoundResult {\n    readonly id: ScheduleId;\n    readonly code: \'schedule_not_found\';\n}',
+  },
+  {
+    name: 'SchedulePatch',
+    declaration: 'export interface SchedulePatch {\n    readonly title?: string;\n    readonly prompt?: string;\n    readonly timing?: ScheduleTiming;\n    readonly target?: ScheduleTargetRequest;\n    readonly active?: boolean;\n}',
   },
   {
     name: 'ScheduleRecord',
     declaration: 'export type ScheduleRecord = OneShotScheduleRecord | RecurringScheduleRecord;',
   },
   {
-    name: 'ScheduleTimingChange',
-    declaration: 'export type ScheduleTimingChange = {\n    readonly kind: \'at\';\n    readonly at: AtInput;\n} | {\n    readonly kind: \'every\';\n    readonly every_seconds: number;\n} | {\n    readonly kind: \'daily\';\n    readonly daily: DailyInput;\n} | {\n    readonly kind: \'weekly\';\n    readonly weekly: WeeklyInput;\n} | {\n    readonly kind: \'cron\';\n    readonly cron: CronInput;\n};',
+    name: 'ScheduleRunRequest',
+    declaration: 'export interface ScheduleRunRequest {\n    readonly id: ScheduleId;\n}',
   },
   {
-    name: 'ScheduleToolError',
-    declaration: 'export type ScheduleToolError = InvalidPromptError | InvalidSelectorError | InvalidRuleError | InvalidTimeZoneError | NotFutureError | TimeOutOfRangeError | FrequencyTooHighError | SubagentSessionError | InternalScheduleError;',
+    name: 'ScheduleRunResult',
+    declaration: 'export type ScheduleRunResult = ScheduleCatalogEntry | ScheduleNotFoundResult | ScheduleExecutionPendingResult;',
   },
   {
-    name: 'ScheduleUpdateContent',
-    declaration: 'export interface ScheduleUpdateContent {\n    readonly title?: string;\n    readonly prompt?: string;\n}',
+    name: 'ScheduleSessionCreateSpec',
+    declaration: 'export interface ScheduleSessionCreateSpec {\n    readonly cwd?: string;\n    readonly agentPreset?: string;\n}',
   },
   {
-    name: 'ScheduleUpdateMiss',
-    declaration: 'export interface ScheduleUpdateMiss {\n    readonly id: ScheduleId;\n    readonly updated: false;\n    readonly code: \'schedule_not_found\' | \'schedule_ended\' | \'schedule_conflict\';\n}',
+    name: 'ScheduleTarget',
+    declaration: 'export type ScheduleTarget = {\n    readonly kind: \'session\';\n    readonly sessionId: SessionId;\n} | {\n    readonly kind: \'new_once\';\n    readonly sessionId: SessionId;\n    readonly create: ScheduleSessionCreateSpec;\n} | {\n    readonly kind: \'new\';\n    readonly create: ScheduleSessionCreateSpec;\n};',
   },
   {
-    name: 'ScheduleUpdateRequest',
-    declaration: 'export interface ScheduleUpdateRequest extends ScheduleDeleteRequest, ScheduleUpdateContent {\n    readonly expected: ScheduleRecord;\n    readonly change?: ScheduleTimingChange;\n}',
+    name: 'ScheduleTargetRequest',
+    declaration: 'export type ScheduleTargetRequest = {\n    readonly kind: \'session\';\n    readonly sessionId: SessionId;\n} | {\n    readonly kind: \'new_once\';\n    readonly create?: ScheduleSessionCreateSpec;\n} | {\n    readonly kind: \'new\';\n    readonly create?: ScheduleSessionCreateSpec;\n};',
   },
   {
-    name: 'ScheduleUpdateResult',
-    declaration: 'export type ScheduleUpdateResult = {\n    readonly id: ScheduleId;\n    readonly updated: boolean;\n    readonly record: ScheduleRecord;\n} | ScheduleUpdateMiss | ScheduleToolError;',
+    name: 'ScheduleTiming',
+    declaration: 'export type ScheduleTiming = {\n    readonly kind: \'after\';\n    readonly after_seconds: number;\n} | {\n    readonly kind: \'at\';\n    readonly at: AtInput;\n} | {\n    readonly kind: \'every\';\n    readonly every_seconds: number;\n} | {\n    readonly kind: \'daily\';\n    readonly daily: DailyInput;\n} | {\n    readonly kind: \'weekly\';\n    readonly weekly: WeeklyInput;\n} | {\n    readonly kind: \'cron\';\n    readonly cron: CronInput;\n} | {\n    readonly kind: \'rrule\';\n    readonly rrule: string;\n};',
+  },
+  {
+    name: 'ScheduleViewRequest',
+    declaration: 'export interface ScheduleViewRequest {\n    readonly id: ScheduleId;\n}',
+  },
+  {
+    name: 'ScheduleViewResult',
+    declaration: 'export type ScheduleViewResult = ScheduleCatalogEntry | ScheduleNotFoundResult;',
   },
   {
     name: 'Scoped',
@@ -8454,10 +8142,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchFileMatches',
     declaration: 'export interface SearchFileMatches {\n    path: string;\n    matches: SearchLineMatch[];\n}',
-  },
-  {
-    name: 'SearchHit',
-    declaration: 'export interface SearchHit {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly passage: string;\n}',
   },
   {
     name: 'SearchLineMatch',
@@ -8782,6 +8466,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionLogSnapshot',
     declaration: 'export interface SessionLogSnapshot {\n    session: SessionHeader;\n    inheritedEventCount: SessionLogOffset;\n    events: SessionEvent[];\n}',
+  },
+  {
+    name: 'SessionLogUploadExclusion',
+    declaration: 'export type SessionLogUploadExclusion = (request: SessionLogUploadRequest) => boolean;',
+  },
+  {
+    name: 'SessionLogUploadRequest',
+    declaration: 'export interface SessionLogUploadRequest {\n    readonly sessionId: SessionId;\n    readonly purpose?: string;\n}',
   },
   {
     name: 'SessionMessage',
@@ -9528,10 +9220,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentSendMessageOptions {\n    readonly signal: AbortSignal;\n}',
   },
   {
-    name: 'SubagentSessionError',
-    declaration: 'export interface SubagentSessionError {\n    readonly code: \'subagent_session\';\n    readonly message: string;\n}',
-  },
-  {
     name: 'SubagentStartRequest',
     declaration: 'export interface SubagentStartRequest {\n    readonly cwd?: string;\n    readonly agentPreset?: string;\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n}',
   },
@@ -9798,10 +9486,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TimedUserQuestionResult',
     declaration: 'export type TimedUserQuestionResult = AskUserQuestionAnswer | {\n    pending: true;\n    callId: ToolCallId;\n};',
-  },
-  {
-    name: 'TimeOutOfRangeError',
-    declaration: 'export interface TimeOutOfRangeError {\n    readonly code: \'time_out_of_range\';\n    readonly message: string;\n}',
   },
   {
     name: 'ToastOptions',
@@ -10212,10 +9896,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
   },
   {
-    name: 'WatchedApplication',
-    declaration: 'export interface WatchedApplication {\n    readonly application: string;\n    readonly readAt?: string;\n    readonly latest?: RegisterEventView;\n}',
-  },
-  {
     name: 'WebBootBatch',
     declaration: 'export interface WebBootBatch {\n    phase: WebBootBatchPhase;\n    url: string;\n    rev: string;\n    entries: string[];\n}',
   },
@@ -10398,30 +10078,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
-  },
-  {
-    name: 'WorkPageFile',
-    declaration: 'export interface WorkPageFile {\n    readonly schemaVersion: 1;\n    readonly kind: \'office-action\';\n    readonly about: string;\n    readonly report: string;\n    readonly findings: OfficeActionFindings;\n    readonly review: Readonly<Record<string, ReviewEntry>>;\n}',
-  },
-  {
-    name: 'WorkPageId',
-    declaration: 'export type WorkPageId = Branded<\'FlowleapWorkPageId\'>;',
-  },
-  {
-    name: 'WorkPageReviewRequest',
-    declaration: 'export interface WorkPageReviewRequest {\n    readonly id: WorkPageId;\n    readonly objection: string;\n    readonly state?: WorkPageReviewState;\n    readonly owner?: string;\n    readonly note?: string;\n}',
-  },
-  {
-    name: 'WorkPageReviewState',
-    declaration: 'export type WorkPageReviewState = typeof REVIEW_STATES[number];',
-  },
-  {
-    name: 'WorkPageSummary',
-    declaration: 'export interface WorkPageSummary {\n    readonly id: WorkPageId;\n    readonly sessionId: SessionId;\n    readonly report: string;\n    readonly path: string;\n    readonly application: string;\n    readonly communication: string;\n    readonly savedAt: string;\n    readonly objections: number;\n    readonly needsReview: number;\n}',
-  },
-  {
-    name: 'WorkPageView',
-    declaration: 'export interface WorkPageView {\n    readonly summary: WorkPageSummary;\n    readonly file: WorkPageFile;\n}',
   },
   {
     name: 'Workspace',
