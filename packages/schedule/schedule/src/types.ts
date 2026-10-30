@@ -626,11 +626,59 @@ declare module '@deepseek-ai/dsh-session/types' {
   }
 }
 
+/** One due timed occurrence that `schedule/admit` listeners decide on before its target Session is resolved. */
+export interface ScheduleAdmissionRequest {
+  /** Stored task record; its `scheduledAt` is the due target. */
+  readonly record: ScheduleRecord
+  /** Stored delivery destination of the task. */
+  readonly target: ScheduleTarget
+  /** Aborted when the Schedule runtime stops; a listener stops its work and its result is ignored. */
+  readonly signal: AbortSignal
+}
+
+/**
+ * Decision for one due timed occurrence. `deliver` sends `prompt` as this occurrence's reminder
+ * content and saves it as the delivery's prompt snapshot; the stored record keeps its own
+ * prompt. A `deliver` with `sessionId` sends the occurrence to that existing Session instead of
+ * the task's target: it is delivered alone, never batched with other due tasks, the stored
+ * target and involved Sessions stay unchanged, and the receipt names the redirect Session.
+ * `skip` advances the target as a delivery would, without a message, a target Session
+ * resolution, or a receipt; a skipped last occurrence ends the task.
+ */
+export type ScheduleAdmission =
+  | { readonly kind: 'deliver'; readonly prompt: string; readonly sessionId?: SessionId }
+  | { readonly kind: 'skip' }
+
+/** One task whose delivery and task write both committed. */
+export interface ScheduleDelivered {
+  /** Delivered task. */
+  readonly id: ScheduleId
+  /** Saved receipt of this delivery; `targetSessionId` is the Session that received the message. */
+  readonly receipt: ScheduleDeliveryReceipt
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /** Durable task set changed; clients refetch global task and Session-active catalogs.
      * @mode emit
      */
     'schedule/changed'(): void
+    /**
+     * Decide one due timed occurrence before its target Session is resolved. Call next() to
+     * deliver the stored prompt. A listener runs inside the serialized delivery operation, so
+     * management writes wait for it: bound its work and stop on `request.signal`. A rejection
+     * keeps the task due until a later drive. A manual run does not pass through this waterfall.
+     * @param request - Due occurrence and its stored target.
+     * @mode waterfall
+     */
+    'schedule/admit'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>
+    /**
+     * A delivery committed: the Session acknowledged the message and the task write landed.
+     * Timed and manual deliveries both emit it. A crash between those two writes can repeat
+     * the delivery without this event.
+     * @param delivery - Task and saved receipt.
+     * @mode emit
+     */
+    'schedule/delivered'(delivery: ScheduleDelivered): void
   }
 }

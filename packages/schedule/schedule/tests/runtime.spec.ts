@@ -752,7 +752,9 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(test.resolve).not.toHaveBeenCalled()
     expect(test.followup).not.toHaveBeenCalled()
     expect(delivered).not.toHaveBeenCalled()
-    expect(tasks).toEqual([{ ...task(record), record: { ...record, scheduledAt: '2026-09-17T00:00:02.000Z' } }])
+    expect(tasks).toEqual([{
+      ...task(record), record: { ...record, scheduledAt: '2026-09-17T00:00:02.000Z' }, updatedAt: '2026-09-16T00:00:02.000Z',
+    }])
   })
 
   it('ends a skipped one-shot without a receipt', async () => {
@@ -762,7 +764,7 @@ describe('schedule/admit and schedule/delivered', () => {
     test.runtime.requestDrive()
     await vi.advanceTimersByTimeAsync(2000)
     expect(test.followup).not.toHaveBeenCalled()
-    expect(tasks[0]).toEqual({ ...task(tasks[0]!.record), status: 'inactive' })
+    expect(tasks[0]).toEqual({ ...task(tasks[0]!.record), status: 'ended', updatedAt: '2026-09-16T00:00:02.000Z' })
   })
 
   it('sends and saves the admitted prompt, keeps the stored prompt, and announces the committed delivery', async () => {
@@ -786,11 +788,10 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(tasks[0]?.record.prompt).toBe('Watch')
     expect(tasks[0]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Watch\nNew event')
     expect(tasks[1]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Other')
-    const receipt = { scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z', messageId: message.id }
-    expect(delivered.mock.calls).toEqual([
-      [{ sessionId: SessionId('original'), id: record.id, receipt }],
-      [{ sessionId: SessionId('original'), id: other.id, receipt }],
-    ])
+    const receipt = {
+      scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z', messageId: message.id, targetSessionId: ORIGINAL,
+    }
+    expect(delivered.mock.calls).toEqual([[{ id: record.id, receipt }], [{ id: other.id, receipt }]])
   })
 
   it('keeps a committed delivery when a schedule/delivered listener throws', async () => {
@@ -801,7 +802,7 @@ describe('schedule/admit and schedule/delivered', () => {
       test.ctx.on('schedule/delivered', () => { throw new Error('listener broke') })
       test.runtime.requestDrive()
       await vi.advanceTimersByTimeAsync(2000)
-      expect(tasks[0]?.status).toBe('inactive')
+      expect(tasks[0]?.status).toBe('ended')
       expect(tasks[0]?.lastDelivery?.messageId).toBe(test.followup.mock.calls[0]![0].id)
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('schedule/delivered listener failed'))
     } finally { warn.mockRestore() }
@@ -818,7 +819,8 @@ describe('schedule/admit and schedule/delivered', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(test.followup).not.toHaveBeenCalled()
     expect(records).toEqual([{
-      ...original, status: 'inactive', record: { ...original.record, scheduledAt: '9999-12-31T23:59:59.999Z' },
+      ...original, status: 'ended', record: { ...original.record, scheduledAt: '9999-12-31T23:59:59.999Z' },
+      updatedAt: '9999-12-31T23:59:59.999Z',
     }])
   })
 
@@ -849,14 +851,15 @@ describe('schedule/admit and schedule/delivered', () => {
     const text = redirected.content.map(block => block.type === 'text' ? block.text : '').join('')
     expect(text).toContain(JSON.stringify('Watch\nNew event'))
     expect(text).not.toContain('Other')
-    expect(tasks[0]).toMatchObject({ sessionId: SessionId('original'), status: 'active' })
+    expect(tasks[0]).toMatchObject({ target: { kind: 'session', sessionId: ORIGINAL }, involvedSessionIds: [ORIGINAL], status: 'active' })
     expect(tasks[0]?.lastDelivery?.messageId).toBe(redirected.id)
     expect(tasks[0]?.deliveryHistory?.records.at(-1)?.prompt).toBe('Watch\nNew event')
     const receipt = { scheduledAt: '2026-09-16T00:00:02.000Z', deliveredAt: '2026-09-16T00:00:02.000Z' }
+    const sharedId = test.followup.mock.calls[0]![0].id
     expect(delivered.mock.calls).toEqual([
-      [{ sessionId: SessionId('original'), id: other.id, receipt: { ...receipt, messageId: test.followup.mock.calls[0]![0].id } }],
-      [{ sessionId: SessionId('original'), id: third.id, receipt: { ...receipt, messageId: test.followup.mock.calls[0]![0].id } }],
-      [{ sessionId: review.id, id: watch.id, receipt: { ...receipt, messageId: redirected.id } }],
+      [{ id: other.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL } }],
+      [{ id: third.id, receipt: { ...receipt, messageId: sharedId, targetSessionId: ORIGINAL } }],
+      [{ id: watch.id, receipt: { ...receipt, messageId: redirected.id, targetSessionId: review.id } }],
     ])
   })
 
@@ -873,8 +876,8 @@ describe('schedule/admit and schedule/delivered', () => {
     expect(test.resolve.mock.calls.map(([sessionId]) => sessionId)).toEqual([review.id])
     expect(test.followup).not.toHaveBeenCalled()
     expect(review.followup).toHaveBeenCalledOnce()
-    expect(tasks[0]).toMatchObject({ sessionId: SessionId('original'), status: 'inactive' })
-    expect(delivered).toHaveBeenCalledWith(expect.objectContaining({ sessionId: review.id, id: ScheduleId('once') }))
+    expect(tasks[0]).toMatchObject({ target: { kind: 'session', sessionId: ORIGINAL }, involvedSessionIds: [ORIGINAL], status: 'ended' })
+    expect(delivered).toHaveBeenCalledWith({ id: ScheduleId('once'), receipt: expect.objectContaining({ targetSessionId: review.id }) })
   })
 
   it('stops between a shared batch and a redirected member at disposal', async () => {
