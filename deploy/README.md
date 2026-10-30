@@ -34,7 +34,7 @@ FlowLeap installs and configures the first instances with you, gives 15 days of 
      --build-arg HARNESS_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
    ```
 
-   The first build downloads about 2 GB of packages and takes 10 to 20 minutes on a server; a rebuild with a warm package cache takes about 4 minutes. The build needs about 6 GB of free disk while it runs; the finished image is about 950 MB. It downloads the FlowLeap CLI release pinned in `deploy/Dockerfile` (`FLOWLEAP_CLI_VERSION`) and verifies its checksum, and it clones the skill pack from `flowleap-ai/flowleap-plugins` at `FLOWLEAP_PLUGINS_REF`. To build from a local copy of the skill pack instead, add `--build-context skills=/path/to/flowleap-plugins/plugins/flowleap/skills`.
+   The first build downloads about 2 GB of packages and takes 10 to 20 minutes on a server; a rebuild with a warm package cache takes about 4 minutes. The build needs about 6 GB of free disk while it runs; the finished image is about 950 MB. It downloads the FlowLeap CLI release pinned in `deploy/Dockerfile` (`FLOWLEAP_CLI_VERSION`) and verifies its checksum, and it fetches the skill pack from `flowleap-ai/flowleap-plugins` at `FLOWLEAP_PLUGINS_REF`, a branch or a full commit SHA. Pass a commit SHA when the pack must be the newest: with a branch name, Buildx can reuse an older fetch from its cache. The flowleap-os release passes the SHA of `main`. To build from a local copy of the skill pack instead, add `--build-context skills=/path/to/flowleap-plugins/plugins/flowleap/skills`.
 
 2. Copy `deploy/.env.example` to `deploy/.env` and fill in `HARNESS_IMAGE` (the tag you built), `TAILNET` (your tailnet's DNS suffix) and `TS_AUTHKEY`.
 
