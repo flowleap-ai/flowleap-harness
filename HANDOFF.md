@@ -96,6 +96,16 @@ one isolated instance per user), ADR 0006 (plugins monorepo and MCP registry).
 
 Verification status is at the end of this file.
 
+## Fork modifications of upstream code
+
+Changes to upstream-owned code that an upstream sync must keep. Each code site has a `FlowLeap fork modification` comment; check these first when a merge touches the file.
+
+- `packages/client/ui-primitives/src/markdown/render.tsx` `sanitizeUrl`: the link protocol allowlist (`http:`, `https:`, `mailto:`). Upstream changed it to a denylist; the fork keeps the allowlist so `flowleap://` reader references render as their label and model-written `file:`, `smb:`, or `ms-word:` links do not open (flowleap-harness#99). The upstream tests in `markdown-file-links.client.spec.tsx` and `apps/web/tests/markdown-file-links.e2e.ts` (with its ARIA golden) change with it.
+- `packages/llm/llm-pi-ai/src/index.ts`: `fixedRoutes` (the model lock), and under it the refusal of `llm-pi-ai/request-headers` changes to `Authorization`, `x-api-key`, or `api-key`.
+- `packages/schedule/schedule/src/runtime.ts`, `types.ts`: the `schedule/admit` waterfall and the `schedule/delivered` event (with `trigger`), which `flowleap-routines` uses.
+- `packages/client/ui-schedule`: the `schedule.manager.filter` list slot on the Automation tasks page.
+- `scripts/verify-repository-references.ts`: the `flowleap/docs/` exclusion.
+
 ## Open decisions
 
 - **Upstream sync to upstream `master` as of upstream PR #7552 (2026-10-30):** 351 upstream commits after `dsh 0.2.2-alpha.2`,
