@@ -8,6 +8,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   MAX_NOTE_LENGTH, MAX_OWNER_LENGTH, REVIEW_STATES, type Objection, type ReviewFields, type WorkPageReviewState,
 } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
+import { AnalysisText } from './AnalysisText.tsx'
 import { reviewState } from './board.ts'
 import type { NS } from './locales.ts'
 import css from './WorkPages.module.css'
@@ -185,7 +186,7 @@ export function ObjectionCard({ objection, review, selected, onOpen, onReview, t
                 {objection.citations.map((citation, index) => (
                   <li key={`${index}-${citation.document}-${citation.passage}`} className={css.passage}>
                     <span className={css.passageRef} title={citation.document}>{citation.document} {citation.passage}</span>
-                    <span className={css.passageText}>{citation.says}</span>
+                    <AnalysisText className={css.passageText} text={citation.says} t={t} />
                   </li>
                 ))}
               </ul>

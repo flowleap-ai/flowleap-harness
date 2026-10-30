@@ -423,7 +423,6 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 21px;
-  white-space: pre-line;
 }
 
 .compareHeading {
