@@ -60,19 +60,24 @@ function deps(overrides: Partial<BoardDependencies> = {}): BoardDependencies {
   }
 }
 
-function renderBoard(board: Board = createBoard(deps()), now = NOW) {
+function renderBoard(
+  board: Board = createBoard(deps()),
+  now = NOW,
+  sessions: Parameters<typeof bindSnapshotSelector<SessionListState>>[0] = { getSnapshot: () => SESSIONS, subscribe: () => () => {} },
+  copy: typeof t = t,
+) {
   const props: OfficeActionBoardProps = {
     ...board,
     useBoard: bindSnapshotSelector(board.hooks.board),
     usePanelInfo: select => select({ activePanelId: null }),
-    useSessions: bindSnapshotSelector({ getSnapshot: () => SESSIONS, subscribe: () => () => {} }),
+    useSessions: bindSnapshotSelector(sessions),
     useWorkspaces: () => { throw new Error('The board reads no workspace') },
     useSessionStatus: () => { throw new Error('The board reads no Session status') },
     useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('The board loads no document resources') },
     ...allowAllAccess,
     now: () => now,
-    t,
+    t: copy,
   }
   render(<OfficeActionBoard {...props} />)
   return board
@@ -273,6 +278,23 @@ describe('office action board page', () => {
     expect(rows.map(row => row.querySelector('[data-work-page-id]')?.getAttribute('data-work-page-id'))).toEqual([PAGE_ID, OTHER_ID, TWIN_ID, folderless.id])
   })
 
+  it('renders again for a change of a listed chat, not for a change of another chat', async () => {
+    let state = SESSIONS
+    const listeners = new Set<() => void>()
+    const update = (next: SessionListState) => { state = next; act(() => { for (const listener of listeners) listener() }) }
+    const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
+    const sessions = { getSnapshot: () => state, subscribe }
+    const copy = vi.fn(t)
+    renderBoard(createBoard(deps({ list: async () => ok([SUMMARY, TWIN]) })), NOW, sessions, copy)
+    await screen.findByRole('heading', { level: 1 })
+    const other = SessionId('chat-streaming')
+    const calls = copy.mock.calls.length
+    update({ ...state, byId: { ...state.byId, [other]: { id: other, displayTitle: 'Streaming' } as SessionSummary } })
+    expect(copy.mock.calls.length).toBe(calls)
+    update({ ...state, byId: { ...state.byId, [TWIN_CHAT]: { ...state.byId[TWIN_CHAT]!, title: 'Renamed', displayTitle: 'Renamed' } } })
+    expect(copy.mock.calls.length).toBeGreaterThan(calls)
+  })
+
   it('names a newer save of another analysis and shows it on request, without replacing the page on show', async () => {
     const changed = new Set<(view: WorkPageView) => void>()
     const later = { ...TWIN, savedAt: '2026-10-29T15:00:00.000Z' }
@@ -283,6 +305,7 @@ describe('office action board page', () => {
     await screen.findByRole('heading', { level: 1 })
     act(() => { for (const listener of changed) listener({ ...VIEW, summary: later }) })
     const notice = screen.getByTestId('office-action-newer')
+    expect(notice.parentElement!.getAttribute('role')).toBe('status')
     expect(notice.textContent).toContain(`A newer analysis of EP4814394 was saved ${saved(later.savedAt)}.`)
     expect(notice.getAttribute('data-work-page-id')).toBe(TWIN_ID)
     expect(screen.getByTestId('office-action-board').getAttribute('data-work-page-id')).toBe(PAGE_ID)
@@ -294,6 +317,7 @@ describe('office action board page', () => {
     expect(read).toHaveBeenLastCalledWith(TWIN_ID)
     expect(screen.getByTestId('office-action-board').getAttribute('data-work-page-id')).toBe(TWIN_ID)
     expect(screen.queryByTestId('office-action-newer')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }))
   })
 
   it('shows which analysis opens and keeps the page on show inert until it arrives', async () => {
@@ -311,7 +335,9 @@ describe('office action board page', () => {
     const opening = screen.getByTestId('office-action-opening')
     expect(opening.textContent).toBe(`Opening the analysis US 19/043,989, saved ${saved(OTHER.savedAt)}`)
     expect(opening.getAttribute('data-work-page-id')).toBe(OTHER_ID)
-    expect(screen.getByTestId('office-action-board').getAttribute('aria-busy')).toBe('true')
+    expect(shown.getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByTestId('office-action-board').hasAttribute('aria-busy')).toBe(false)
+    expect(opening.parentElement!.getAttribute('role')).toBe('status')
     expect(shown.inert).toBe(true)
     expect(screen.queryByRole('complementary')).toBeNull()
     expect(screen.getByRole('button', { name: 'Write response plan' }).hasAttribute('disabled')).toBe(true)
@@ -321,11 +347,11 @@ describe('office action board page', () => {
     expect(screen.getByTestId('office-action-board').getAttribute('data-work-page-id')).toBe(OTHER_ID)
     expect(screen.getByRole('button', { name: 'Write response plan' }).hasAttribute('disabled')).toBe(false)
     expect(shown.isConnected && shown.inert).toBe(false)
-    // A page that the list no longer has opens without its label; the read then shows the first page.
+    // A page that the list no longer has opens without its label.
     read.mockReturnValueOnce(new Promise(() => {}))
     act(() => { void board.choose(brandString<WorkPageId>('0000')) })
     await vi.waitFor(() => { expect(read).toHaveBeenCalledTimes(3) })
-    expect(screen.getByTestId('office-action-opening').textContent).toBe('Opening the analysis ')
+    expect(screen.getByTestId('office-action-opening').textContent).toBe('Opening the analysis')
   })
 
   it('disables Export Word and Share with their reasons as tooltips', async () => {

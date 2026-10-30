@@ -219,6 +219,61 @@ describe('board source', () => {
     stop()
   })
 
+  it('keeps a save and a change that arrive while a chosen page is read', async () => {
+    const reading = deferred<RemoteResult<WorkPageView>>()
+    const { board, deps, snapshot, settled, changed } = harness()
+    const stop = board.hooks.board.subscribe(() => {})
+    await settled()
+    vi.mocked(deps.read).mockReturnValueOnce(reading.promise)
+    const choosing = board.choose(OTHER_ID)
+    await vi.waitFor(() => { expect(deps.read).toHaveBeenLastCalledWith(OTHER_ID) })
+    const later = { ...TWIN, savedAt: '2026-10-29T15:00:00.000Z' }
+    const reviewedOther = { ...VIEW, summary: { ...OTHER, needsReview: 0 } }
+    for (const listener of changed) listener({ ...VIEW, summary: later })
+    for (const listener of changed) listener(reviewedOther)
+    reading.resolve(ok({ ...VIEW, summary: OTHER }))
+    await choosing
+    expect(snapshot()).toMatchObject({ page: reviewedOther, newer: later })
+    expect(snapshot().pages.map(page => page.id)).toEqual([TWIN_ID, PAGE_ID, OTHER_ID])
+    stop()
+  })
+
+  it('ends the newer save when the page on show was saved after it', async () => {
+    const later = { ...TWIN, savedAt: '2026-10-29T15:00:00.000Z' }
+    const { board, deps, snapshot, settled, changed } = harness()
+    const stop = board.hooks.board.subscribe(() => {})
+    await settled()
+    const emit = (view: WorkPageView) => { for (const listener of changed) listener(view) }
+    emit({ ...VIEW, summary: later })
+    expect(snapshot().newer).toEqual(later)
+    emit({ ...VIEW, summary: { ...SUMMARY, savedAt: '2026-10-29T16:00:00.000Z' } })
+    expect(snapshot()).toMatchObject({ page: { summary: { id: PAGE_ID } }, newer: null })
+    emit({ ...VIEW, summary: { ...later, savedAt: '2026-10-29T17:00:00.000Z' } })
+    expect(snapshot().newer?.id).toBe(TWIN_ID)
+    const resaved = { ...OTHER, savedAt: '2026-10-29T18:00:00.000Z' }
+    vi.mocked(deps.list).mockResolvedValueOnce(ok([resaved, { ...later, savedAt: '2026-10-29T17:00:00.000Z' }, SUMMARY]))
+    vi.mocked(deps.read).mockResolvedValueOnce(ok({ ...VIEW, summary: resaved }))
+    await board.choose(OTHER_ID)
+    expect(snapshot()).toMatchObject({ page: { summary: resaved }, newer: null })
+    stop()
+  })
+
+  it('names a save that a reset read lists, but no page that the attorney already knew', async () => {
+    const later = { ...TWIN, savedAt: '2026-10-29T15:00:00.000Z' }
+    const { board, deps, snapshot, settled, reset } = harness()
+    const stop = board.hooks.board.subscribe(() => {})
+    await settled()
+    await board.choose(OTHER_ID)
+    expect(snapshot()).toMatchObject({ page: { summary: OTHER }, newer: null })
+    vi.mocked(deps.list).mockResolvedValueOnce(ok([later, SUMMARY, OTHER]))
+    for (const listener of reset) listener()
+    await vi.waitFor(() => { expect(snapshot()).toMatchObject({ status: 'ready', page: { summary: OTHER }, newer: later }) })
+    vi.mocked(deps.list).mockResolvedValueOnce(ok([later, SUMMARY, OTHER]))
+    await board.retry()
+    expect(snapshot().newer).toEqual(later)
+    stop()
+  })
+
   it('takes no change on the page on show while a chosen page is read', async () => {
     const reading = deferred<RemoteResult<WorkPageView>>()
     const { board, deps, snapshot, settled } = harness()

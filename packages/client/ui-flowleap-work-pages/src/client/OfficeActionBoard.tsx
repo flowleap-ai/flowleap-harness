@@ -5,7 +5,7 @@
  * page id in `data-work-page-id`; the notice of a newer save carries the id of that save.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button, IconChevronDownOutlineRegular, IconCloseOutlineRegular, IconDownloadOutlineRegular, IconListPenOutlineRegular,
   IconPlusOutlineRegular, IconShareOutlineRegular, Menu, StateDot, Tag, Tooltip,
@@ -14,7 +14,6 @@ import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@deepse
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import { NEW_REVIEW, type WorkPageId, type WorkPageSummary, type WorkPageView } from '@deepseek-ai/dsh-flowleap-deliverables/work-pages'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import { daysUntil, type Board } from './board.ts'
 import type { NS } from './locales.ts'
@@ -83,10 +82,20 @@ function chatLine(chat: ChatName | undefined, t: T): string | undefined {
 }
 
 /**
+ * Whether two chat lists hold the same chats in the same order.
+ * @param left - one list.
+ * @param right - the other list.
+ * @returns the comparison.
+ */
+function sameChats(left: readonly (ChatName | undefined)[], right: readonly (ChatName | undefined)[]): boolean {
+  return left.length === right.length && left.every((chat, index) => chat === right[index])
+}
+
+/**
  * Render the menu that chooses the analysis on show.
  * @param props.pages - the pages.
  * @param props.current - the page on show.
- * @param props.chats - the chats of the Session list by id.
+ * @param props.chats - the chat of each page, in the order of the pages.
  * @param props.onChoose - the chosen page.
  * @param props.t - copy.
  * @returns the anchored menu.
@@ -94,13 +103,13 @@ function chatLine(chat: ChatName | undefined, t: T): string | undefined {
 function PagePicker({ pages, current, chats, onChoose, t }: {
   pages: readonly WorkPageSummary[]
   current: WorkPageSummary
-  chats: Readonly<Record<SessionId, ChatName>>
+  chats: readonly (ChatName | undefined)[]
   onChoose: (id: WorkPageId) => void
   t: T
 }) {
   const [open, setOpen] = useState(false)
-  const item = (page: WorkPageSummary) => {
-    const where = chatLine(chats[page.sessionId], t)
+  const item = (page: WorkPageSummary, index: number) => {
+    const where = chatLine(chats[index], t)
     return (
       <span className={css.pageItem} data-work-page-id={page.id}>
         <span>{pageLabel(page, t)}</span>
@@ -116,7 +125,7 @@ function PagePicker({ pages, current, chats, onChoose, t }: {
       listClassName={css.pageMenu}
       onClose={() => { setOpen(false) }}
       selectedId={current.id}
-      items={pages.map(page => ({ id: page.id, label: item(page) }))}
+      items={pages.map((page, index) => ({ id: page.id, label: item(page, index) }))}
       onSelect={(id) => {
         setOpen(false)
         onChoose(brandString<WorkPageId>(id))
@@ -171,7 +180,16 @@ export function OfficeActionBoard(props: OfficeActionBoardProps) {
   const view = useBoard(snapshot => snapshot.page)
   const opening = useBoard(snapshot => snapshot.opening)
   const newer = useBoard(snapshot => snapshot.newer)
-  const chats = useSessions(list => list.byId)
+  // Only the chats of the listed pages: a change of another chat, such as a streaming answer, does not render the board.
+  const chats = useSessions(list => pages.map(page => list.byId[page.sessionId]), sameChats)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const focusShown = useRef(false)
+  useEffect(() => {
+    // "Show it" leaves the page with its notice, so the heading of the analysis it opens takes the focus.
+    if (!focusShown.current || opening !== null) return
+    focusShown.current = false
+    heading.current?.focus()
+  }, [opening])
   const selected = useBoard(snapshot => snapshot.selected)
   const formOpen = useBoard(snapshot => snapshot.formOpen)
   const sending = useBoard(snapshot => snapshot.sending)
@@ -179,14 +197,14 @@ export function OfficeActionBoard(props: OfficeActionBoardProps) {
   const open = view?.file.findings.objections.find(objection => objection.id === selected)
   const chosen = pages.find(page => page.id === opening)
   return (
-    <section className={css.page} aria-label={t('page.label')} aria-busy={opening !== null} data-testid="office-action-board" data-work-page-id={view?.summary.id}>
+    <section className={css.page} aria-label={t('page.label')} data-testid="office-action-board" data-work-page-id={view?.summary.id}>
       <div className={css.content}>
         <header className={css.header}>
           <div className={css.headerCopy}>
             <p className={css.kicker}>{t('header.kicker')}</p>
             {view !== null && (
               <>
-                <h1 className={css.title}>{t('header.title', { application: view.file.findings.application, communication: view.file.findings.communication })}</h1>
+                <h1 className={css.title} ref={heading} tabIndex={-1}>{t('header.title', { application: view.file.findings.application, communication: view.file.findings.communication })}</h1>
                 <ul className={css.meta}>
                   <Deadline view={view} now={now()} t={t} />
                   <li className={css.metaItem}>
@@ -221,15 +239,18 @@ export function OfficeActionBoard(props: OfficeActionBoardProps) {
             <Button size="sm" aria-label={t('notice.dismiss')} icon={<IconCloseOutlineRegular size={12} />} onClick={dismiss} />
           </div>
         )}
-        {newer !== null && (
-          <div className={css.notice} role="status" data-testid="office-action-newer" data-work-page-id={newer.id}>
-            <span>{t('newer.text', { application: newer.application, date: savedTime(t, newer.savedAt) })}</span>
-            <span className={css.noticeActions}>
-              <Button size="sm" variant="outline" onClick={() => { void choose(newer.id) }}>{t('newer.show')}</Button>
-              <Button size="sm" aria-label={t('newer.dismiss')} icon={<IconCloseOutlineRegular size={12} />} onClick={dismissNewer} />
-            </span>
-          </div>
-        )}
+        {/* A live region stays mounted and changes only its content, so that a screen reader announces the notice. */}
+        <div role="status">
+          {newer !== null && (
+            <div className={css.notice} data-testid="office-action-newer" data-work-page-id={newer.id}>
+              <span>{t('newer.text', { application: newer.application, date: savedTime(t, newer.savedAt) })}</span>
+              <span className={css.noticeActions}>
+                <Button size="sm" variant="outline" onClick={() => { focusShown.current = true; void choose(newer.id) }}>{t('newer.show')}</Button>
+                <Button size="sm" aria-label={t('newer.dismiss')} icon={<IconCloseOutlineRegular size={12} />} onClick={dismissNewer} />
+              </span>
+            </div>
+          )}
+        </div>
         {view === null && status === 'loading' && <p className={css.muted} role="status">{t('status.loading')}</p>}
         {status === 'error' && (
           <div className={css.notice} role="alert">
@@ -255,14 +276,20 @@ export function OfficeActionBoard(props: OfficeActionBoardProps) {
               )}
               <button type="button" className={css.link} disabled={opening !== null} onClick={openChat}>{t('run.openChat')}</button>
             </div>
-            {opening !== null && (
-              <p className={css.opening} role="status" data-testid="office-action-opening" data-work-page-id={opening}>
-                <StateDot state="ongoing" />
-                {t('status.opening', { page: chosen === undefined ? '' : pageLabel(chosen, t) })}
-              </p>
-            )}
+            <div role="status">
+              {opening !== null && (
+                <p className={css.opening} data-testid="office-action-opening" data-work-page-id={opening}>
+                  <StateDot state="ongoing" />
+                  {chosen === undefined ? t('status.openingUnknown') : t('status.opening', { page: pageLabel(chosen, t) })}
+                </p>
+              )}
+            </div>
             {/* The page on show takes no change while the chosen page is read; `inert` also keeps focus and clicks out. */}
-            <div className={css.shown} ref={(element) => { if (element !== null) element.inert = opening !== null }}>
+            <div
+              className={css.shown}
+              aria-busy={opening !== null}
+              ref={(element) => { if (element !== null) element.inert = opening !== null }}
+            >
               {view.file.findings.documents.length > 0 && (
                 <ul className={css.documents} aria-label={t('docs.label')}>
                   {view.file.findings.documents.map((document, index) => (

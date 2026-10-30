@@ -146,10 +146,28 @@ export function createBoard(deps: BoardDependencies): Board {
       return undefined
     }
   }
+  /** The changed pages since the current read started, by id; the answers of that read can be older than them. */
+  let arrived = new Map<WorkPageId, WorkPageView>()
+  /** A listed page list with the changed pages that arrived during the read, newest save first. */
+  const withArrived = (pages: readonly WorkPageSummary[]): WorkPageSummary[] => {
+    const summaries = [...arrived.values()].map(view => view.summary)
+    return [...summaries, ...pages.filter(page => !arrived.has(page.id))].sort((left, right) => right.savedAt.localeCompare(left.savedAt))
+  }
+  /**
+   * The newer save after a read: the newest listed page, other than the page on show and saved after it, that is the
+   * current newer save or that the list before the read did not have with this save time.
+   */
+  const newestSave = (
+    pages: readonly WorkPageSummary[], shown: WorkPageSummary, before: readonly WorkPageSummary[],
+  ): WorkPageSummary | null =>
+    pages.find(page => page.id !== shown.id && page.savedAt > shown.savedAt
+      && (page.id === snapshot.newer?.id || !before.some(old => old.id === page.id && old.savedAt === page.savedAt))) ?? null
   const read = async (wanted?: WorkPageId): Promise<void> => {
     const current = ++epoch
     // A read that a reset or an unsubscribe superseded leaves `opening`, so the next read still shows the chosen page.
     const id = wanted ?? snapshot.opening ?? snapshot.page?.summary.id
+    const before = snapshot.pages
+    arrived = new Map()
     publish({ status: 'loading' })
     const pages = await settle(deps.list)
     if (current !== epoch) return
@@ -157,28 +175,31 @@ export function createBoard(deps: BoardDependencies): Board {
       publish({ status: 'error', opening: null })
       return
     }
-    const listed = { pages: pages.value, newer: pages.value.find(page => page.id === snapshot.newer?.id) ?? null }
-    const shown = pages.value.find(page => page.id === id) ?? pages.value[0]
+    const known = withArrived(pages.value)
+    const shown = known.find(page => page.id === id) ?? known[0]
     if (shown === undefined) {
-      publish({ status: 'ready', ...listed, page: null, opening: null, newer: null, selected: null })
+      publish({ status: 'ready', pages: [], page: null, opening: null, newer: null, selected: null })
       return
     }
     const view = await settle(() => deps.read(shown.id))
     if (current !== epoch) return
+    const listed = withArrived(pages.value)
     if (view?.ok !== true) {
-      publish({ status: 'error', ...listed, opening: null })
+      publish({ status: 'error', pages: listed, newer: listed.find(page => page.id === snapshot.newer?.id) ?? null, opening: null })
       return
     }
-    publish({ status: 'ready', ...listed, ...shownPage(view.value, listed.newer), opening: null })
+    const latest = arrived.get(shown.id) ?? view.value
+    publish({ status: 'ready', pages: listed, ...shownPage(latest, newestSave(listed, latest.summary, before)), opening: null })
   }
   /**
    * The page on show, the open objection and the newer save after a new view of a page: the objection stays open while
-   * the page has it, and the newer save ends when it is on show.
+   * the page has it, and the newer save ends when it is on show or the page on show was saved after it.
    */
   const shownPage = (view: WorkPageView, newer: WorkPageSummary | null): Pick<BoardSnapshot, 'page' | 'selected' | 'newer'> => {
     const { selected } = snapshot
     const keep = snapshot.page?.summary.id === view.summary.id && selected !== null && Object.hasOwn(view.file.review, selected)
-    return { page: view, selected: keep ? selected : null, newer: newer?.id === view.summary.id ? null : newer }
+    const ended = newer === null || newer.id === view.summary.id || newer.savedAt <= view.summary.savedAt
+    return { page: view, selected: keep ? selected : null, newer: ended ? null : newer }
   }
   /**
    * The newer save after a changed page that is not on show: a save of that page after the page on show was saved
@@ -197,6 +218,7 @@ export function createBoard(deps: BoardDependencies): Board {
    * @param status - the new query state; omitted, it stays.
    */
   const changed = (view: WorkPageView, status: Partial<Pick<BoardSnapshot, 'status'>> = {}): void => {
+    arrived.set(view.summary.id, view)
     const pages = [view.summary, ...snapshot.pages.filter(summary => summary.id !== view.summary.id)]
       .sort((left, right) => right.savedAt.localeCompare(left.savedAt))
     const shown = snapshot.page === null || snapshot.page.summary.id === view.summary.id
