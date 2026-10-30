@@ -385,14 +385,14 @@ Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/sche
 
 #### `schedule/delivered` — emit
 
-A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it. A crash between those two writes can repeat the delivery without this event.
+A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it; `trigger` tells them apart. A crash between those two writes can repeat the delivery without this event.
 
 ```ts cordis-catalog
 /**
  * A delivery committed: the Session acknowledged the message and the task write landed.
- * Timed and manual deliveries both emit it. A crash between those two writes can repeat
- * the delivery without this event.
- * @param delivery - Task and saved receipt.
+ * Timed and manual deliveries both emit it; `trigger` tells them apart. A crash between
+ * those two writes can repeat the delivery without this event.
+ * @param delivery - Task, saved receipt, and trigger.
  * @mode emit
  */
 'schedule/delivered'(delivery: ScheduleDelivered): void

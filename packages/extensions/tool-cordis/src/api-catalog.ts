@@ -5472,8 +5472,8 @@ export const EVENT_API: readonly EventApiEntry[] = [
     mode: 'emit',
     signature: '\'schedule/delivered\'(delivery: ScheduleDelivered): void',
     summary: 'A delivery committed: the Session acknowledged the message and the task write landed.',
-    description: 'A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it. A crash between those two writes can repeat the delivery without this event.',
-    parameters: [{ name: 'delivery', description: 'Task and saved receipt.' }],
+    description: 'A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it; `trigger` tells them apart. A crash between those two writes can repeat the delivery without this event.',
+    parameters: [{ name: 'delivery', description: 'Task, saved receipt, and trigger.' }],
   },
   {
     name: 'schedule/resolve-agent',
@@ -8517,7 +8517,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ScheduleDelivered',
-    declaration: 'export interface ScheduleDelivered {\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n}',
+    declaration: 'export interface ScheduleDelivered {\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n    readonly trigger: \'timed\' | \'manual\';\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryMiss',
