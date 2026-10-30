@@ -143,6 +143,26 @@ describe('Python runtime executable builder CLI', () => {
     expect(result.stdout).not.toMatch(/pnpm\.cmd/i)
   })
 
+  it('keeps unloaded document-library files out of the executable, anchored below the staging folder', () => {
+    const result = run({ npm_execpath: 'C:\\tools\\pnpm.cjs' }, '--skip-build', '--dry-run', '--targets=node24-macos-arm64')
+
+    expect(result.status, result.stderr).toBe(0)
+    const patch = result.stdout.split('\n').find(line => line.includes('[dry-run] patch '))
+    const { pkg } = JSON.parse(patch!.slice(patch!.indexOf(' with ') + 6)) as { pkg: { ignore: string[] } }
+    const staging = resolve(root, 'python/sdk-runtime/src/deepseek_harness_runtime/runtime/node').replaceAll('\\', '/')
+    expect(pkg.ignore).toEqual(expect.arrayContaining([
+      '**/node_modules/@deepseek-ai/libreoffice-kit/**',
+      '**/node_modules/@napi-rs/canvas/**',
+      '**/node_modules/@napi-rs/canvas-*/**',
+      '**/node_modules/pdfjs-dist/{build,web,image_decoders}/**',
+      '**/node_modules/pdfjs-dist/legacy/{web,image_decoders}/**',
+      '**/node_modules/pdfjs-dist/legacy/build/{*.min.mjs,pdf.sandbox.mjs}',
+      '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
+      '**/node_modules/mammoth/mammoth.browser*.js',
+      '**/node_modules/xml2js/lib/xml2js.bc.js',
+    ].map(pattern => `${staging}/${pattern}`)))
+  })
+
   it('resolves the pnpm package behind a Windows command shim', () => {
     const setup = mkdtempSync(join(tmpdir(), 'dsh-pnpm-home-'))
     temporaryDirectories.push(setup)

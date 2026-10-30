@@ -73,6 +73,23 @@ const ASSET_GLOBS = [
   'node_modules/@deepseek-ai/dsh-sandbox-windows-acl/assets/**/*',
 ]
 
+/**
+ * Document-library files the runtime never loads; without them the wheel stays under PyPI's file limit.
+ * The agent builder reads PDF text through `pdfjs-dist/legacy/build/pdf.mjs`, which loads its worker
+ * module and runs without pdfjs-dist's optional `@napi-rs/canvas` page renderer. Deliverables import
+ * the `docx` root ESM entry. The `mammoth` and `xml2js` browser bundles have no Node importer.
+ */
+const DOCUMENT_LIBRARY_IGNORES = [
+  '**/node_modules/@napi-rs/canvas/**',
+  '**/node_modules/@napi-rs/canvas-*/**',
+  '**/node_modules/pdfjs-dist/{build,web,image_decoders}/**',
+  '**/node_modules/pdfjs-dist/legacy/{web,image_decoders}/**',
+  '**/node_modules/pdfjs-dist/legacy/build/{*.min.mjs,pdf.sandbox.mjs}',
+  '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
+  '**/node_modules/mammoth/mammoth.browser*.js',
+  '**/node_modules/xml2js/lib/xml2js.bc.js',
+]
+
 const PLATFORMS = ['linux', 'macos', 'win'] as const
 const ARCHES = ['x64', 'arm64'] as const
 type Platform = (typeof PLATFORMS)[number]
@@ -361,8 +378,10 @@ class SingleExeBuild {
   /** Add the executable entry and pkg assets to the staged manifest. */
   async injectPkgConfig(): Promise<void> {
     const sourceModules = join(root, 'node_modules').replaceAll('\\', '/')
+    // pkg matches absolute paths, and a leading `**` skips dot folders such as `.claude/worktrees`; a literal staging prefix does not.
+    const staging = this.staging.replaceAll('\\', '/')
     const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS, ignore: [
-      ...OFFICE_ASSET_IGNORES,
+      ...[...OFFICE_ASSET_IGNORES, ...DOCUMENT_LIBRARY_IGNORES].map(pattern => `${staging}/${pattern}`),
       `${sourceModules}/**`, `${sourceModules}/.pnpm/**`,
       ...['packages', 'apps', 'vendor', 'native', 'scripts'].map(directory => `${join(root, directory).replaceAll('\\', '/')}/**`),
       `${root.replaceAll('\\', '/')}/tsconfig*.json`,
