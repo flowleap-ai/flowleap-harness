@@ -73,6 +73,12 @@ const ASSET_GLOBS = [
   'node_modules/@deepseek-ai/dsh-sandbox-windows-acl/assets/**/*',
 ]
 
+/**
+ * pdfjs-dist's optional `@napi-rs/canvas` backend only renders pages. The runtime reads PDF text,
+ * which pdfjs extracts without it, and the native binary would put the wheel over PyPI's file limit.
+ */
+const PDF_CANVAS_IGNORES = ['**/node_modules/@napi-rs/canvas/**', '**/node_modules/@napi-rs/canvas-*/**']
+
 const PLATFORMS = ['linux', 'macos', 'win'] as const
 const ARCHES = ['x64', 'arm64'] as const
 type Platform = (typeof PLATFORMS)[number]
@@ -363,6 +369,7 @@ class SingleExeBuild {
     const sourceModules = join(root, 'node_modules').replaceAll('\\', '/')
     const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS, ignore: [
       ...OFFICE_ASSET_IGNORES,
+      ...PDF_CANVAS_IGNORES,
       `${sourceModules}/**`, `${sourceModules}/.pnpm/**`,
       ...['packages', 'apps', 'vendor', 'native', 'scripts'].map(directory => `${join(root, directory).replaceAll('\\', '/')}/**`),
       `${root.replaceAll('\\', '/')}/tsconfig*.json`,

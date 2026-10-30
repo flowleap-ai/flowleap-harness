@@ -1,8 +1,7 @@
 /** Experimental-package isolation for the installed default product's dependency graph. */
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { hasExperimentalPackageReference } from '../experimental-package-policy.ts'
 import { OPTIONAL_BUNDLES } from '../../packages/util/official-bundles/src/bundles.ts'
 
@@ -62,12 +61,16 @@ function rejectExperimental(name: string, chain: readonly string[]): void {
   }
 }
 
-/** Resolve a dependency directory through the installed package's ancestor node_modules. */
+/**
+ * Resolve a dependency directory through the installed package's ancestor node_modules, in Node's lookup order.
+ * `require.resolve.paths()` returns `null` for names that match a Node built-in, such as the npm `string_decoder`, so the walk is explicit.
+ */
 function installedPackage(from: string, name: string): string | undefined {
-  const resolver = createRequire(join(from, 'package.json'))
-  for (const directory of resolver.resolve.paths(name) ?? []) {
-    const candidate = join(directory, name)
-    if (existsSync(join(candidate, 'package.json'))) return candidate
+  for (let directory = from; ; directory = dirname(directory)) {
+    if (basename(directory) !== 'node_modules') {
+      const candidate = join(directory, 'node_modules', name)
+      if (existsSync(join(candidate, 'package.json'))) return candidate
+    }
+    if (dirname(directory) === directory) return undefined
   }
-  return undefined
 }
