@@ -852,7 +852,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-plugin-manager", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-plugin-manager", "sdk-office", "sdk-pdf", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -871,8 +871,8 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "sdk-plugin-manager", "runner", "direct"} and args.exe is None:
-        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-pdf", "sdk-authoring", "sdk-plugin-manager", "runner", "direct"} and args.exe is None:
+        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, pdf, runner, and direct scenarios")
     if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
         parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
@@ -883,6 +883,13 @@ def main() -> None:
         smoke_sdk_office(args.exe.resolve())
     if args.scenario == "sdk-office":
         print("smoke-python-runtime: sdk-office passed")
+        return
+
+    if args.scenario in {"all", "sdk-pdf"}:
+        assert args.exe is not None
+        smoke_sdk_pdf(args.exe.resolve())
+    if args.scenario == "sdk-pdf":
+        print("smoke-python-runtime: sdk-pdf passed")
         return
 
     if args.scenario in {"all", "runner"}:
@@ -1207,6 +1214,47 @@ with zipfile.ZipFile(root / 'calculated.xlsx') as archive:
 """, str(root), expected_backend], env={name: value for name, value in cache_environment.items() if name != "DSH_OFFICE_SIDECAR"}, check=True, timeout=180)
         assert not (office.parent / "primary").exists(), "Python Office API unexpectedly downloaded authoring resources"
         print(f"smoke-python-runtime: relocated Office {result['backend']} DOCX produced {len(pdf)} PDF bytes")
+
+
+def smoke_sdk_pdf(executable: Path) -> None:
+    """Read PDF text and extract the scanned page through the agent builder inside the executable."""
+    from deepseek_harness import DeepSeekHarness
+
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-pdf-") as temporary:
+        root = Path(temporary).resolve()
+        plugin = root / "pdf.mjs"
+        shutil.copy2(Path(__file__).resolve().parent / "fixtures/python-sdk-pdf.mjs", plugin)
+        result_path = root / "pdf.json"
+        patch = root / "pdf.patch.yml"
+        patch.write_text(json.dumps([{"insert": [{
+            "id": "python-sdk-pdf-smoke",
+            "name": plugin.as_uri(),
+            "config": {"result": str(result_path)},
+        }]}]))
+        with DeepSeekHarness(
+            provider="deepseek-official",
+            model="smoke-model",
+            cwd=str(root),
+            dsh_bin=str(executable),
+            dsh_home=str(root / "home"),
+            patches=(str(patch),),
+            api_key="sk-keyless-smoke",
+            base_url="http://127.0.0.1:9",
+            env={"DSH_TELEMETRY_DISABLED": "1"},
+        ):
+            pass
+        result = json.loads(result_path.read_text())
+        expected = {
+            "kind": "text",
+            "unit": "page",
+            "locations": [{"at": 1, "text": "python runtime pdf smoke"}],
+            "count": 2,
+            "scanned": [1],
+            "scannedPdf": "%PDF-",
+        }
+        if result != expected:
+            raise AssertionError(f"packaged agent builder PDF parse returned {result}")
+        print("smoke-python-runtime: packaged agent builder read PDF text and extracted the scanned page")
 
 
 def assert_installed_wheel_environment() -> Path:
