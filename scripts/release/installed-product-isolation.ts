@@ -62,8 +62,9 @@ function rejectExperimental(name: string, chain: readonly string[]): void {
 }
 
 /**
- * Resolve a dependency directory through the installed package's ancestor node_modules, in Node's lookup order.
- * `require.resolve.paths()` returns `null` for names that match a Node built-in, such as the npm `string_decoder`, so the walk is explicit.
+ * Resolve a dependency directory through the installed package's ancestor node_modules folders only, nearest first;
+ * global folders such as `$HOME/.node_modules` do not count. `require.resolve.paths()` returns `null` for names that
+ * match a Node built-in, such as the npm `string_decoder`, so the walk is explicit.
  */
 function installedPackage(from: string, name: string): string | undefined {
   for (let directory = from; ; directory = dirname(directory)) {
