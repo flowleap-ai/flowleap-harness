@@ -6,7 +6,7 @@ import type { HarnessAgent } from '../../../schedule/schedule/tests/harness.ts'
 import * as Routines from '../src/index.ts'
 import type { RunChatHost } from '../src/index.ts'
 import { agentFor, harness } from '../../../schedule/schedule/tests/harness.ts'
-import { contexts, createWatch, DAY, disposeContexts, EP_EVENTS, gatedBackend, host, sentPrompt } from './helpers.ts'
+import { contexts, createWatch, DAY, disposeContexts, EP_EVENTS, gatedBackend, host, sentPrompt, sentText } from './helpers.ts'
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T00:00:00Z')) })
 afterEach(async () => {
@@ -74,8 +74,29 @@ describe('a new chat for each run', () => {
     expect(review.followup).toHaveBeenCalledOnce()
     expect(sentPrompt(review, 0)).toContain('No opposition filed within time limit')
     const [entry] = await test.ctx.schedule.catalog()
-    expect(entry).toMatchObject({ id, sessionId: SessionId('original'), status: 'active' })
+    expect(entry).toMatchObject({ id, target: { kind: 'session', sessionId: SessionId('original') }, involvedSessionIds: [SessionId('original')], status: 'active' })
     expect(entry?.lastDelivery).toBeDefined()
+  })
+
+  it('opens the run chat in the default directory and lists no watch when the task target creates a chat for every run', async () => {
+    const test = await host(new MemoryMediaPool(), { chats: true })
+    const chats = test.chats!
+    const created = await createWatch(test, ['EP 3 456 789'])
+    const id = (created.value as { id: Routines.TaskId }).id
+    const [task] = await test.ctx.schedule.catalog()
+    const edited = await test.ctx.schedule.edit({
+      id, action: 'update', expectedUpdatedAt: task!.updatedAt ?? null, patch: { target: { kind: 'new' } },
+    })
+    expect(edited).toMatchObject({ target: { kind: 'new' } })
+    expect(await test.ctx.flowleapRoutines.watches()).toEqual([])
+    test.register.state.set('EP3456789', EP_EVENTS)
+    await vi.advanceTimersByTimeAsync(2 * DAY)
+    expect(chats.create).toHaveBeenCalledExactlyOnceWith({})
+    const review = chats.opened[0]!
+    expect(review.followup).toHaveBeenCalledOnce()
+    // A task without a target Session is delivered alone, so the run uses the one-reminder framing.
+    expect(sentText(review, 0)).toContain('No opposition filed within time limit')
+    expect(test.agent.followup).not.toHaveBeenCalled()
   })
 
   it('opens one chat per pending run in the directory of a task chat outside every workspace, or the default directory', async () => {
@@ -127,12 +148,40 @@ describe('a new chat for each run', () => {
       const [entry] = await test.ctx.schedule.catalog()
       expect(entry?.lastDelivery).toBeUndefined()
       // A management write wakes the timer; the same occurrence is admitted again.
-      await test.ctx.schedule.create(test.agent.session.id, { title: 'Wake', prompt: 'Wake', after_seconds: 60 })
+      await test.ctx.schedule.create({
+        title: 'Wake', prompt: 'Wake', timing: { kind: 'after', after_seconds: 60 },
+        target: { kind: 'session', sessionId: test.agent.session.id },
+      }, test.agent.session.id)
       await vi.advanceTimersByTimeAsync(60_000)
       expect(chats.create).toHaveBeenCalledOnce()
       expect(chats.opened[0]!.followup).toHaveBeenCalledTimes(2)
       const watch = (await test.ctx.schedule.catalog()).find(candidate => candidate.title === 'Office actions')
       expect(watch?.lastDelivery).toBeDefined()
+    } finally { warn.mockRestore() }
+  })
+
+  it('keeps the events of a failed run unseen through a Run now, so a later timed run reports them', async () => {
+    const test = await host(new MemoryMediaPool(), { chats: true })
+    const warn = vi.spyOn(test.ctx.logger, 'warn').mockImplementation(() => {})
+    try {
+      const created = await createWatch(test, ['EP 3 456 789'], { newChat: false })
+      const id = (created.value as { id: Routines.TaskId }).id
+      test.register.state.set('EP3456789', EP_EVENTS)
+      test.flush.mockImplementationOnce(async () => { throw new Error('disk full') })
+      await vi.advanceTimersByTimeAsync(2 * DAY)
+      expect(test.agent.followup).toHaveBeenCalledOnce()
+      expect((await test.ctx.schedule.view({ id }))).not.toHaveProperty('lastDelivery')
+      // The attorney runs the task by hand: the stored instruction goes out without register events.
+      const run = await test.ctx.schedule.run({ id })
+      expect(run).toHaveProperty('lastDelivery')
+      expect(test.agent.followup).toHaveBeenCalledTimes(2)
+      expect(sentText(test.agent, 1)).not.toContain('No opposition filed within time limit')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await test.ctx.flowleapRoutines.reviews()).toEqual([])
+      // The failed occurrence is due again after the delivery floor and still reports the event.
+      await vi.advanceTimersByTimeAsync(DAY)
+      expect(test.agent.followup).toHaveBeenCalledTimes(3)
+      expect(sentPrompt(test.agent, 2)).toContain('No opposition filed within time limit')
     } finally { warn.mockRestore() }
   })
 
@@ -254,7 +303,7 @@ describe('the Needs review mark', () => {
     expect(await test.ctx.flowleapRoutines.reviews()).toEqual([
       { sessionId: review.id, taskId: id, state: 'needs_review', since: '2026-11-03T07:00:00.000Z' },
     ])
-    await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id: id as Routines.TaskId })
+    await test.ctx.schedule.edit({ id: id as Routines.TaskId, action: 'delete' }, test.agent.session.id)
     await vi.advanceTimersByTimeAsync(0)
     expect(await test.ctx.flowleapRoutines.reviews()).toHaveLength(1)
   })

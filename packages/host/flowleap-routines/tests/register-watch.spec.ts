@@ -64,7 +64,10 @@ describe('register watch', () => {
 
   it('passes other tasks to the next admission listener unchanged', async () => {
     const test = await host(new MemoryMediaPool())
-    await test.ctx.schedule.create(test.agent.session.id, { title: 'Plain', prompt: 'Plain reminder', after_seconds: 60 })
+    await test.ctx.schedule.create({
+      title: 'Plain', prompt: 'Plain reminder', timing: { kind: 'after', after_seconds: 60 },
+      target: { kind: 'session', sessionId: test.agent.session.id },
+    }, test.agent.session.id)
     await vi.advanceTimersByTimeAsync(60_000)
     expect(sentText(test.agent, 0)).toContain(JSON.stringify('Plain reminder'))
   })
@@ -108,7 +111,7 @@ describe('register watch', () => {
     try {
       await createWatch(test, ['EP 3 456 789'])
       const [entry] = await test.ctx.schedule.catalog()
-      await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id: entry!.id })
+      await test.ctx.schedule.edit({ id: entry!.id, action: 'delete' }, test.agent.session.id)
       await vi.advanceTimersByTimeAsync(0)
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('prune failed'))
     } finally { warn.mockRestore() }
@@ -205,7 +208,7 @@ describe('register watch', () => {
     const kept = await createWatch(test, ['EP 3 456 789'])
     const removed = await createWatch(test, ['EP 3 456 789', 'US 17/123,456'])
     const id = (removed.value as { id: ScheduleRecord['id'] }).id
-    await test.ctx.schedule.delete({ sessionId: test.agent.session.id, id })
+    await test.ctx.schedule.edit({ id, action: 'delete' }, test.agent.session.id)
     await vi.advanceTimersByTimeAsync(0)
     await test.ctx.fiber.dispose()
     contexts.splice(contexts.indexOf(test.ctx), 1)

@@ -105,11 +105,10 @@ it.skipIf(MODE === 'record')('opens a new chat for a register watch run and mark
   const realNow = Date.now.bind(Date)
   const shift = Date.parse(RUN_AT) - 1000 - realNow()
   vi.spyOn(Date, 'now').mockImplementation(() => realNow() + shift)
-  const { sessionId: taskSession, status: _status, lastDelivery: _lastDelivery, ...expected } = task
-  const updated = await ctx.schedule.update({
-    sessionId: taskSession, id: task.id, expected, change: { kind: 'at', at: RUN_AT },
+  const updated = await ctx.schedule.edit({
+    id: task.id, action: 'update', expectedUpdatedAt: task.updatedAt ?? null, patch: { timing: { kind: 'at', at: RUN_AT } },
   })
-  expect(updated).toHaveProperty('record')
+  expect(updated).toHaveProperty('scheduledAt', RUN_AT)
   await vi.waitFor(async () => {
     expect((await ctx.flowleapRoutines.reviews()).map(review => review.state)).toEqual(['needs_review'])
   }, { timeout: 30_000, interval: 100 })
@@ -126,7 +125,7 @@ it.skipIf(MODE === 'record')('opens a new chat for a register watch run and mark
     && event.data.source.kind === 'schedule')).toEqual([])
   const [delivered] = await ctx.schedule.catalog()
   expect(delivered?.lastDelivery).toBeDefined()
-  expect(delivered?.sessionId).toBe(sessionId)
+  expect(delivered).toMatchObject({ target: { kind: 'session', sessionId }, involvedSessionIds: [sessionId] })
 
   await ctx.sessions.flush(run)
   const logs = await Promise.all([origin.session, run].map(async (session) => {

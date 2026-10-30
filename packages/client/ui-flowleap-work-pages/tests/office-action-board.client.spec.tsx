@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { allowAllAccess, bindSnapshotSelector, makeTranslate, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-connection/client'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
@@ -76,6 +76,7 @@ function renderBoard(
     useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('The board loads no document resources') },
     ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
     now: () => now,
     t: copy,
   }

@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { allowAllAccess, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
@@ -18,14 +18,14 @@ afterEach(() => { cleanup() })
 
 function entry(id: string, title: string, status: ScheduleCatalogEntry['status'] = 'active'): ScheduleCatalogEntry {
   return {
-    id: id as ScheduleId, sessionId: `session-${id}` as SessionId, kind: 'after', status, title, prompt: title,
-    afterSeconds: 60, scheduledAt: '2026-10-01T08:00:00.000Z',
+    id: id as ScheduleId, kind: 'after', status, title, prompt: title, afterSeconds: 60, scheduledAt: '2026-10-01T08:00:00.000Z',
+    target: { kind: 'session', sessionId: `session-${id}` as SessionId }, involvedSessionIds: [`session-${id}` as SessionId],
   }
 }
 
 const watch = entry('watch', 'Register watch')
 const digest = entry('digest', 'Weekly digest')
-const ended = entry('ended', 'Ended watch', 'inactive')
+const ended = entry('ended', 'Ended watch', 'ended')
 const sessions: SessionListState = { ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }
 const workspaces: WorkspaceSnapshot = { items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
 
@@ -63,15 +63,17 @@ function mount(taskIds: readonly string[], filters: readonly string[] = ['review
     useSessionRetainInfo: () => undefined,
     useResource: () => { throw new Error('The task manager does not load document resources') },
     ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
     onDelete: async () => 'deleted',
     onRetry: async () => {},
     onNewTask: () => {},
     onClearEnded: async () => {},
-    onUpdateTiming: async ({ expected }) => ({ ok: true, value: { id: expected.id, updated: false, record: expected } }),
+    onCreateTask: async () => ({ failed: 'host.createError' }),
     onOpenSession: () => {},
     loadHistory: async ({ id }) => ({ ok: true, value: {
       id, records: [], earlierRecordsUnavailable: false, earlierRecordsPruned: false, retention: { days: 30, records: 200 },
     } }),
+    hostActions: { edit: async () => 'saved', run: async () => 'queued', loadNewSessionInterval: async () => 7200 },
     t: makeTranslate(en),
   })
   const view = render(<TaskManagerPage {...props(filters)} />)
@@ -99,8 +101,8 @@ describe('schedule.manager.filter', () => {
   it('adds the entry after the status tabs with the page tab class', () => {
     mount(['watch'])
     const tabs = within(screen.getByRole('group', { name: en['statusFilter.label'] })).getAllByRole('button')
-    expect(tabs.map(button => button.textContent)).toEqual([en['status.active'], en['status.inactive'], en['statusFilter.all'], 'Needs review'])
-    expect(tabs[3]?.className).toContain(tabs[0]?.className.split(' ')[0])
+    expect(tabs.map(button => button.textContent)).toEqual([en['status.active'], en['status.paused'], en['status.ended'], en['statusFilter.all'], 'Needs review'])
+    expect(tabs[4]?.className).toContain(tabs[0]?.className.split(' ')[0])
     expect(tab('Needs review').getAttribute('aria-pressed')).toBe('false')
   })
 

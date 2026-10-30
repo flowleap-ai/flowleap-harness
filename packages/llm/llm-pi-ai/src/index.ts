@@ -73,9 +73,11 @@ import { discoverModels } from './discovery.ts'
 import type { StoredModelDiscoveryProfile } from './discovery.ts'
 import { registerPiAiFlows } from './login.ts'
 import { providerDefaultsOf } from './provider-data.ts'
+import type { PiAiRequestHeaderContext } from './types.ts'
 
 export { PiAiAdapter, RESPONSE_NOTICE_MAX_CHARS } from './adapter.ts'
 export type { PiAiAdapterOptions, PiAiResponseNotice } from './adapter.ts'
+export type { PiAiRequestHeaderContext } from './types.ts'
 export { Config } from './config.ts'
 export type {
   Options,
@@ -94,7 +96,29 @@ export { supportedProtocols } from './provider.ts'
 export const name = 'llm-pi-ai'
 export const inject = ['llm']
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Prepare headers for one pi-ai inference call, excluding model discovery.
+     * Listeners run synchronously and must call next(); they may edit only the
+     * request-owned headers and must not retain them. Throws fail the call with
+     * REQUEST_HEADERS before inference I/O. Harness attribution wins afterward.
+     * Non-TypeError messages are user-visible and must exclude secrets. TypeError
+     * details and non-Error values are replaced with safe guidance.
+     * @mode waterfall
+     * @param request - immutable routing metadata from the exact prepared call.
+     * @param headers - fresh profile headers, shared only within this dispatch.
+     * @param next - continue header preparation through the remaining listeners.
+     * @returns headers passed to pi-ai after Harness attribution is applied.
+     */
+    'llm-pi-ai/request-headers'(request: PiAiRequestHeaderContext, headers: Headers, next: () => Headers): Headers
+  }
+}
+
 const NS = 'llm-pi-ai'
+
+/** Headers that carry a route credential; a `fixedRoutes` deployment refuses a contributor that sets, changes, or removes one. */
+const CREDENTIAL_HEADERS = ['authorization', 'x-api-key', 'api-key'] as const
 
 /**
  * The registry captures these per route; a change here must re-register.
@@ -179,9 +203,9 @@ export function apply(ctx: Context, config: Config): void {
   }
   if (config.fixedRoutes) assertFixedRoutes(profiles())
   else profiles()
-  ctx.on('internal/config', function (this: import('@deepseek-ai/cordis').Fiber, _raw, next) {
+  ctx.on('internal/config', (fiber, next) => {
     const raw: unknown = next()
-    if (this !== ctx.fiber) return raw
+    if (fiber !== ctx.fiber) return raw
     const candidate = Config(raw as import('./config.ts').Options)
     if (config.fixedRoutes) assertUnchangedRoutes(candidate.providers.get(), config.providers.get())
     assertServiceable(
@@ -224,6 +248,16 @@ export function apply(ctx: Context, config: Config): void {
     profiles,
     resolveApiKey,
     auth,
+    prepareHeaders: (request, headers) => {
+      // FlowLeap fork modification: under the model lock a header listener cannot replace the route's key.
+      const before = config.fixedRoutes ? CREDENTIAL_HEADERS.map(name => headers.get(name)) : undefined
+      const prepared = ctx.waterfall('llm-pi-ai/request-headers', request, headers, () => headers)
+      if (before !== undefined && CREDENTIAL_HEADERS.some((name, index) => prepared.get(name) !== before[index])) {
+        throw new Error('the model routes are fixed in this deployment (fixedRoutes); a request-header listener may not'
+          + ' set, change, or remove Authorization, x-api-key, or api-key')
+      }
+      return prepared
+    },
     resolveAttachments: () => ctx.get('attachments'),
     resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
       attachments,

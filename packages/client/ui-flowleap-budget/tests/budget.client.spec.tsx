@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import {
-  allowAllAccess, bindSnapshotSelector, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm,
+  allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, RemoteError, StaticRemoteAccess, stubConfigForm,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
@@ -65,6 +65,7 @@ const standard: GlobalStandardProps = {
   useResource: () => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} }),
   useWorkspaces: standardHook<WorkspaceSnapshot>({ items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }),
   ...allowAllAccess,
+  useContextMenu: contextMenuHook(),
 }
 
 describe('budget source', () => {

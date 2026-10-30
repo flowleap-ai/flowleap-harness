@@ -7,7 +7,10 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { RegisterApplication, RegisterSource } from '@deepseek-ai/dsh-flowleap-connectors'
-import type { ScheduleAdmission, ScheduleAdmissionRequest, ScheduleCatalogEntry, ScheduleDelivered } from '@deepseek-ai/dsh-schedule'
+import type {
+  ScheduleAdmission, ScheduleAdmissionRequest, ScheduleCatalogEntry, ScheduleDelivered, ScheduleTarget,
+} from '@deepseek-ai/dsh-schedule'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { Domain } from '@deepseek-ai/dsh-storage-domain'
 import { runChatTitle, type RunChats } from './new-chat.ts'
 import type { ReadRecord, routinesDomain, TaskId, WatchOptions, WatchRecord } from './storage.ts'
@@ -62,8 +65,17 @@ function latestEntry(read: ReadRecord): RegisterEventView | undefined {
 }
 
 /**
- * Join the stored watches with the task catalog: one view per watch whose task exists, in catalog order (next check
- * first). A watch without a task waits for the next prune and is not listed.
+ * The chat a task belongs to: its target Session, or the Session reserved for its first run.
+ * @param target - the task's stored target.
+ * @returns the chat, or `undefined` for a task whose every run creates a chat.
+ */
+export function taskChat(target: ScheduleTarget): SessionId | undefined {
+  return target.kind === 'new' ? undefined : target.sessionId
+}
+
+/**
+ * Join the stored watches with the task catalog: one view per watch whose task exists and has a chat, in catalog order
+ * (next check first). A watch without a task waits for the next prune and is not listed.
  * @param catalog - the Schedule task catalog.
  * @param stored - the watch rows and saved reads.
  * @returns the watch views.
@@ -71,7 +83,8 @@ function latestEntry(read: ReadRecord): RegisterEventView | undefined {
 export function watchViews(catalog: readonly ScheduleCatalogEntry[], stored: StoredWatches): RoutineWatch[] {
   return catalog.flatMap((task) => {
     const watch = stored.watches.get(task.id)
-    if (watch === undefined) return []
+    const sessionId = taskChat(task.target)
+    if (watch === undefined || sessionId === undefined) return []
     const applications = watch.applications.map(({ application }): WatchedApplication => {
       const read = stored.reads.get(application)
       if (read === undefined) return { application }
@@ -79,7 +92,7 @@ export function watchViews(catalog: readonly ScheduleCatalogEntry[], stored: Sto
       return { application, readAt: read.readAt, ...(latest === undefined ? {} : { latest }) }
     })
     return [{
-      taskId: task.id, sessionId: task.sessionId, title: task.title,
+      taskId: task.id, sessionId, title: task.title,
       ...(task.status === 'active' ? { nextCheckAt: task.scheduledAt } : {}), applications,
     }]
   })
@@ -254,7 +267,7 @@ export class RegisterWatches {
     this.pending.set(request.record.id, { ...watch, applications })
     const prompt = renderRunInstruction(later.prompt, reports, failures, this.options.bounds)
     if (!watch.newChat) return { kind: 'deliver', prompt }
-    const sessionId = await this.chats.open(request.record.id, request.record.scheduledAt, request.sessionId, runChatTitle(reports))
+    const sessionId = await this.chats.open(request.record.id, request.record.scheduledAt, taskChat(request.target), runChatTitle(reports))
     if (sessionId !== undefined) return { kind: 'deliver', prompt, sessionId }
     // Before the Web Session controller is ready the Schedule cannot restore the task's chat either, so this delivery
     // fails and the Schedule admits the run again when the controller is ready; a composition without one runs it here.

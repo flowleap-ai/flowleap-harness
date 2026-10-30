@@ -286,7 +286,7 @@
     },
     {
       "name": "register_watch_create",
-      "description": "Watch the patent registers of applications with one daily task in the current session. Each day the host reads the register events of each application without you; the task runs only when an event is new, and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. Manage the task with schedule_list, schedule_update, and schedule_delete. By default each run opens a new chat titled by the event and marks it \"Needs review\" when it finishes; new_chat_per_run and needs_review turn either off.",
+      "description": "Watch the patent registers of applications with one daily task in the current session. Each day the host reads the register events of each application without you; the task runs only when an event is new, and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. Manage the task with schedule_list, schedule_view, and schedule_edit. By default each run opens a new chat titled by the event and marks it \"Needs review\" when it finishes; new_chat_per_run and needs_review turn either off.",
       "parameters": {
         "type": "object",
         "properties": {

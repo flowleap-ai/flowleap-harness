@@ -142,7 +142,7 @@ export async function host(pool: MemoryMediaPool, options: { backend?: StorageBa
     const workspace: Pick<Workspace, 'id' | 'sessionIds'> = {
       id: WorkspaceId('firm'), get sessionIds() { return chats?.inWorkspace === true ? [SessionId('original')] : [] },
     }
-    test.ctx.provide('workspaceRegistry', { list: () => [workspace] } as never)
+    test.ctx.provide('workspaceRegistry', { list: () => [workspace], archivedSessionIds: [] } as never)
     test.ctx.provide('remoteAccess', { allows } as never)
   }
   await test.ctx.plugin(RecordedRegister)

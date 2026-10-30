@@ -34,9 +34,9 @@ describe('register watch through the Loader', () => {
 
     const prompt = 'When a new office action arrives, prepare the analysis.\n\nWatched applications: EP3456789'
     expect(outcome['created']).toEqual([prompt, prompt])
-    expect(outcome['quiet']).toMatchObject({ status: 'inactive', prompt })
+    expect(outcome['quiet']).toMatchObject({ status: 'ended', prompt })
     expect(outcome['quiet']).not.toHaveProperty('lastDelivery')
-    expect(outcome['active']).toMatchObject({ status: 'inactive', prompt })
+    expect(outcome['active']).toMatchObject({ status: 'ended', prompt })
     expect(outcome['active']).toHaveProperty('lastDelivery')
     expect(outcome['answers']).toBe(Number(outcome['answersAfterCreation']) + 1)
     expect(log).toContain('register_watch_create')
