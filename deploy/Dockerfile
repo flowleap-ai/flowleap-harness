@@ -21,7 +21,7 @@ ARG NODE_IMAGE=node:26.4.0-trixie
 ARG NODE_RUNTIME_IMAGE=node:26.4.0-trixie-slim
 ARG GIT_IMAGE=alpine/git:v2.49.1
 ARG PNPM_VERSION=11.28.5
-ARG FLOWLEAP_CLI_VERSION=v0.12.0
+ARG FLOWLEAP_CLI_VERSION=v0.12.2
 ARG FLOWLEAP_PLUGINS_REF=main
 
 # ── skill pack ───────────────────────────────────────────────────────────────
