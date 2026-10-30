@@ -143,6 +143,56 @@ Historical version-1 `schedule/change` events retain the frozen `LegacyScheduleR
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxflowleapregister--registersource"></a>
+
+### `ctx.flowleapRegister` — `RegisterSource`
+
+Reads the register events of one application.
+
+```ts cordis-catalog
+/**
+ * Read the current register events of one application.
+ * @param application - normalized application.
+ * @param signal - caller cancellation.
+ * @returns every event the office lists, in the office's order.
+ * @throws when the office refuses the read or no key is configured.
+ */
+read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>
+```
+
+Source: [`packages/host/flowleap-connectors/src/register.ts`](../../packages/host/flowleap-connectors/src/register.ts)
+
+<a id="ctxflowleaproutines--flowleaproutinescontroller"></a>
+
+### `ctx.flowleapRoutines` — `FlowleapRoutinesController`
+
+Host service backing the generated `ctx.remote.flowleapRoutines` namespace.
+
+```ts cordis-catalog
+/**
+ * The marked chats the caller may see.
+ * @returns one view per mark, without the chats remote access denies the caller.
+ */
+@Remote async reviews(): Promise<RoutineReview[]>
+
+/**
+ * The register watches the caller may see, next check first.
+ * @returns one view per watch, without the watches of chats remote access denies the caller.
+ */
+@Remote async watches(): Promise<RoutineWatch[]>
+
+/**
+ * Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource
+ * the `sessionId` parameter names.
+ * @param sessionId - the chat.
+ */
+@Remote async done(sessionId: SessionId): Promise<void>
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/host/flowleap-routines/src/controller.ts`](../../packages/host/flowleap-routines/src/controller.ts)
+
 <a id="ctxschedule--scheduleservice"></a>
 
 ### `ctx.schedule` — `ScheduleService`
@@ -271,9 +321,50 @@ Types: [SessionId](core.md)
 
 Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/schedule/src/index.ts)
 
+<a id="flowleap-routines-events"></a>
+
+### `flowleap-routines/*` events
+
+<a id="flowleap-routineschanged--emit"></a>
+
+#### `flowleap-routines/changed` — emit
+
+A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.
+
+```ts cordis-catalog
+/**
+ * A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch
+ * `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.
+ * @mode emit
+ */
+'flowleap-routines/changed'(): void
+```
+
+Source: [`packages/host/flowleap-routines/src/types.ts`](../../packages/host/flowleap-routines/src/types.ts)
+
 <a id="schedule-events"></a>
 
 ### `schedule/*` events
+
+<a id="scheduleadmit--waterfall"></a>
+
+#### `schedule/admit` — waterfall
+
+Decide one due timed occurrence before its target Session is resolved. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive. A manual run does not pass through this waterfall.
+
+```ts cordis-catalog
+/**
+ * Decide one due timed occurrence before its target Session is resolved. Call next() to
+ * deliver the stored prompt. A listener runs inside the serialized delivery operation, so
+ * management writes wait for it: bound its work and stop on `request.signal`. A rejection
+ * keeps the task due until a later drive. A manual run does not pass through this waterfall.
+ * @param request - Due occurrence and its stored target.
+ * @mode waterfall
+ */
+'schedule/admit'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>
+```
+
+Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)
 
 <a id="schedulechanged--emit"></a>
 
@@ -286,6 +377,25 @@ Durable task set changed; clients refetch global task and Session-active catalog
  * @mode emit
  */
 'schedule/changed'(): void
+```
+
+Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)
+
+<a id="scheduledelivered--emit"></a>
+
+#### `schedule/delivered` — emit
+
+A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it. A crash between those two writes can repeat the delivery without this event.
+
+```ts cordis-catalog
+/**
+ * A delivery committed: the Session acknowledged the message and the task write landed.
+ * Timed and manual deliveries both emit it. A crash between those two writes can repeat
+ * the delivery without this event.
+ * @param delivery - Task and saved receipt.
+ * @mode emit
+ */
+'schedule/delivered'(delivery: ScheduleDelivered): void
 ```
 
 Source: [`packages/schedule/schedule/src/types.ts`](../../packages/schedule/schedule/src/types.ts)
