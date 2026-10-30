@@ -175,6 +175,7 @@ flowchart TD
     pkg_client_ui_entry_customization["client-ui-entry-customization"]
     pkg_client_ui_file_drag["client-ui-file-drag"]
     pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
+    pkg_client_ui_flowleap_budget["client-ui-flowleap-budget"]
     pkg_client_ui_flowleap_dashboard["client-ui-flowleap-dashboard"]
     pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
     pkg_client_ui_flowleap_work_pages["client-ui-flowleap-work-pages"]
@@ -342,6 +343,7 @@ flowchart TD
   end
   subgraph group_host["packages/host"]
     pkg_flowleap_agent_builder["flowleap-agent-builder"]
+    pkg_flowleap_budget["flowleap-budget"]
     pkg_flowleap_connectors["flowleap-connectors"]
     pkg_flowleap_deliverables["flowleap-deliverables"]
     pkg_flowleap_prompt["flowleap-prompt"]
@@ -512,6 +514,7 @@ flowchart TD
   pkg_credentials_local --> pkg_home_paths
   pkg_credentials_local --> pkg_launch_environment
   pkg_experimental_liveshare --> pkg_scope
+  pkg_flowleap_budget --> pkg_typert_protocol
   pkg_anonymous_user_id --> pkg_brand
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_lsp --> pkg_brand
@@ -1611,6 +1614,7 @@ flowchart TD
 | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
 | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
 | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | `client` | — |
+| [`client-ui-flowleap-budget`](../packages/client/ui-flowleap-budget) | `client` | — |
 | [`client-ui-flowleap-dashboard`](../packages/client/ui-flowleap-dashboard) | `client` | — |
 | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | `client` | — |
 | [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | `client` | — |
@@ -1720,6 +1724,7 @@ flowchart TD
 | [`authorization`](../packages/credentials/authorization) | `credentials` | [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
 | [`experimental-liveshare`](../packages/experimental/liveshare) | `experimental` | [`scope`](../packages/core/scope) |
+| [`flowleap-budget`](../packages/host/flowleap-budget) | `host` | [`typert-protocol`](../packages/typert/protocol) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`storage`](../packages/storage/storage) |
