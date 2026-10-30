@@ -10,9 +10,12 @@
 # `dsh --profile flowleap-web` with DSH_HOME=/data. Every base image and
 # download is pinned by version; nothing says `latest`.
 #
-# Skill pack: by default the `skills` stage clones flowleap-ai/flowleap-plugins
-# at FLOWLEAP_PLUGINS_REF. To vendor a local checkout instead, override the stage
-# with a named build context whose root is the skills directory:
+# Skill pack: by default the `skills` stage fetches flowleap-ai/flowleap-plugins
+# at FLOWLEAP_PLUGINS_REF, a branch or a full commit SHA. A branch name does not
+# change when the branch moves, so Buildx can reuse an old fetch from its cache;
+# a release passes the commit SHA (flowleap-os release.sh resolves `main`), which
+# also goes into BUILD_INFO.json. To vendor a local checkout instead, override the
+# stage with a named build context whose root is the skills directory:
 #   --build-context skills=../flowleap-plugins/plugins/flowleap/skills
 
 # Debian trixie (glibc 2.41): the FlowLeap CLI's Linux aarch64 release binary
@@ -27,7 +30,9 @@ ARG FLOWLEAP_PLUGINS_REF=main
 # ── skill pack ───────────────────────────────────────────────────────────────
 FROM ${GIT_IMAGE} AS skills-git
 ARG FLOWLEAP_PLUGINS_REF
-RUN git clone --depth 1 --branch "${FLOWLEAP_PLUGINS_REF}" https://github.com/flowleap-ai/flowleap-plugins.git /repo \
+RUN git init -q /repo \
+  && git -C /repo fetch -q --depth 1 https://github.com/flowleap-ai/flowleap-plugins.git "${FLOWLEAP_PLUGINS_REF}" \
+  && git -C /repo checkout -q FETCH_HEAD \
   && rm -rf /repo/.git
 
 FROM scratch AS skills
