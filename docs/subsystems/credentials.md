@@ -365,6 +365,22 @@ abstract getDeviceIdentity(): Promise<{ deviceId?: string; userId?: AccountUserI
 
 Source: [`packages/credentials/deepseek-account/src/index.ts`](../../packages/credentials/deepseek-account/src/index.ts)
 
+<a id="ctxflowleapbudget--flowleapbudget"></a>
+
+### `ctx.flowleapBudget` — `FlowleapBudget`
+
+Host service backing the generated `ctx.remote.flowleapBudget` namespace.
+
+```ts cordis-catalog
+/**
+ * Read this month's spend and budget of the attorney from the gateway.
+ * @returns the figures, or `unknown` with the reason.
+ */
+@Remote async month(): Promise<BudgetMonth>
+```
+
+Source: [`packages/host/flowleap-budget/src/index.ts`](../../packages/host/flowleap-budget/src/index.ts)
+
 <a id="ctxflowleapconnectors--flowleapconnectorscontroller"></a>
 
 ### `ctx.flowleapConnectors` — `FlowleapConnectorsController`

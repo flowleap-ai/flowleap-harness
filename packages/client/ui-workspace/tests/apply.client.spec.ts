@@ -30,6 +30,7 @@ import { SessionIdMenuItem } from '../src/client/session-actions/SessionId.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 import { FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
 import { UNGROUPED_KEY } from '../src/client/tree.ts'
+import { UiWorkspaceService } from '../src/client/navigation.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 const sid = (id: string) => id as SessionId
@@ -80,7 +81,7 @@ async function bench(access: 'fake' | 'static' = 'fake') {
   }))
   const rename = vi.fn(async () => ({}))
   const selectPanel = vi.fn()
-  ctx.provide('layout', { selectPanel, beginNavigation: () => new AbortController().signal })
+  ctx.provide('layout', { selectPanel, beginNavigation: () => new AbortController().signal, panelInfo: createSnapshotStore({ activePanelId: null }) })
   const search = vi.fn(async () => ({
     ok: true as const,
     value: { items: [{ sessionId: 'session' as never, snippet: 'match' }], hasMore: false },
@@ -240,6 +241,25 @@ describe('ui-workspace apply', () => {
     const guarded = vi.fn(() => () => {})
     expect(b.ctx.uiWorkspace.whenAccess('w1' as WorkspaceId, 'workspace/follow', guarded)).toBe(b.stopGuard)
     expect(b.whenResourceAccess).toHaveBeenCalledWith('workspace', 'w1', 'workspace/follow', guarded)
+  })
+
+  it('lets the latest provideSearch opener replace the Sidebar search until its disposer runs', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const service = b.ctx.get('uiWorkspace')
+    if (!(service instanceof UiWorkspaceService)) throw new Error('uiWorkspace is not the UiWorkspaceService')
+    expect(service.searchOpeners.current()).toBeUndefined()
+    const first = vi.fn()
+    const second = vi.fn()
+    const disposeFirst = service.provideSearch(first)
+    const disposeSecond = service.provideSearch(second)
+    expect(service.searchOpeners.current()).toBe(second)
+    disposeSecond()
+    disposeSecond()
+    expect(service.searchOpeners.current()).toBe(first)
+    disposeFirst()
+    expect(service.searchOpeners.current()).toBeUndefined()
   })
 
   it('hangs Workspace-guarded effects on the calling plugin, so they leave when it unloads', async () => {

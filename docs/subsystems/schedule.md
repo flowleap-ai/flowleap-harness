@@ -484,6 +484,12 @@ Host service backing the generated `ctx.remote.flowleapRoutines` namespace.
 @Remote async reviews(): Promise<RoutineReview[]>
 
 /**
+ * The register watches the caller may see, next check first.
+ * @returns one view per watch, without the watches of chats remote access denies the caller.
+ */
+@Remote async watches(): Promise<RoutineWatch[]>
+
+/**
  * Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource
  * the `sessionId` parameter names.
  * @param sessionId - the chat.
@@ -603,11 +609,12 @@ Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/sche
 
 #### `flowleap-routines/changed` — emit
 
-A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.
+A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.
 
 ```ts cordis-catalog
 /**
- * A "Needs review" mark was put, changed, or cleared; clients refetch `flowleapRoutines.reviews()`.
+ * A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch
+ * `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.
  * @mode emit
  */
 'flowleap-routines/changed'(): void

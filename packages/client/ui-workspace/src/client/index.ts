@@ -17,6 +17,8 @@
  */
 import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
 import type { Context } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ISessions, SessionForkError } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
@@ -122,7 +124,21 @@ export function apply(ctx: Context): void {
   let toastSeq = 0
   const notify = (toast: RowToast): void => { rowToast.set({ ...toast, seq: ++toastSeq }) }
   const uiWorkspace = new UiWorkspaceService(
-    ctx, ctx.remote.directoryPicker, workspaces, sessions, viewInstance.actions, notify,
+    ctx, ctx.remote.directoryPicker, workspaces, sessions, viewInstance.actions, notify, {
+      mainPanels: {
+        // Registry membership admits the id as a main panel.
+        find: (id) => {
+          const key = ctx.slots.entries('main').find(entry => entry.options.key === id)?.options.key
+          return key === undefined ? undefined : brandString<MainPanelId>(key)
+        },
+        subscribe: listener => ctx.slots.subscribe('main', listener),
+      },
+      address: {
+        search: () => window.location.search,
+        href: () => window.location.href,
+        replace: (href) => { window.history.replaceState(window.history.state, '', href) },
+      },
+    },
   )
   ctx.slots.provideRoot({
     hooks: { workspaces: workspaces.list },
@@ -211,7 +227,7 @@ export function apply(ctx: Context): void {
     },
     unarchiveSession,
   })
-  installWorkspaceShortcuts(ctx, uiWorkspace, shortcutControls, archiveInjected().archiveSession,
+  installWorkspaceShortcuts(ctx, uiWorkspace, uiWorkspace.searchOpeners, shortcutControls, archiveInjected().archiveSession,
     (reason) => { notify({ kind: 'shortcutForkFailed', reason }) })
   const archiveConfirmInjected = (): SessionArchiveConfirmInjected => ({
     hooks: { archiveRequest },

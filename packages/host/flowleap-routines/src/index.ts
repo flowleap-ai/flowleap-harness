@@ -7,7 +7,7 @@
  * instruction with the new events. Seen events are saved after
  * `schedule/delivered`, so an event is reported once. A watch can open a new
  * chat for each run and mark the chat that received a run "Needs review"; the
- * `flowleapRoutines` Remote lists and clears the marks.
+ * `flowleapRoutines` Remote lists and clears the marks and lists the watches.
  *
  * See packages/host/flowleap-routines/README.md.
  * @module @deepseek-ai/dsh-flowleap-routines
@@ -24,7 +24,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-workspace'
 import { FlowleapRoutinesController } from './controller.ts'
 import { RunChats } from './new-chat.ts'
-import { RegisterWatches } from './register-watch.ts'
+import { RegisterWatches, watchViews } from './register-watch.ts'
 import { ReviewMarks } from './reviews.ts'
 import { routinesDomain } from './storage.ts'
 import { registerWatchTool } from './tool.ts'
@@ -34,15 +34,15 @@ export { FlowleapRoutinesController } from './controller.ts'
 export type { FlowleapRoutinesControllerOptions } from './controller.ts'
 export { MAX_CHAT_TITLE_LENGTH, RunChats, runChatTitle } from './new-chat.ts'
 export type { RunChatHost } from './new-chat.ts'
-export { RegisterWatches, classifyFailure, deadlineSignal } from './register-watch.ts'
-export type { ApplicationRead, RegisterWatchOptions, WatchBaseline } from './register-watch.ts'
+export { RegisterWatches, classifyFailure, deadlineSignal, watchViews } from './register-watch.ts'
+export type { ApplicationRead, RegisterWatchOptions, StoredWatches, WatchBaseline } from './register-watch.ts'
 export { ReviewMarks } from './reviews.ts'
 export type { AgentLookup } from './reviews.ts'
 export { routinesDomain } from './storage.ts'
 export type { ReadRecord, ReviewRecord, TaskId, WatchOptions, WatchRecord } from './storage.ts'
 export { REGISTER_WATCH_CREATE_NAME, registerWatchTool, resolveOptions } from './tool.ts'
 export type { RegisterWatchError, RegisterWatchView } from './tool.ts'
-export type { ReviewState, RoutineReview } from './types.ts'
+export type { RegisterEventView, ReviewState, RoutineReview, RoutineWatch, WatchedApplication } from './types.ts'
 export {
   cleanField, countEntries, entryKey, mergeSeen, newEntries, renderRunInstruction, watchedLine,
 } from './watch.ts'
@@ -103,7 +103,7 @@ export function apply(ctx: Context, config: Config): void {
     minReadIntervalMs: config.minReadIntervalHours * 3_600_000,
     readDeadlineMs: config.readDeadlineSeconds * 1000,
     bounds: { maxEvents: config.maxEventsPerRun, maxTextLength: config.maxEventTextLength },
-  }, ctx.logger, chats)
+  }, ctx.logger, chats, () => { ctx.emit('flowleap-routines/changed') })
   const reviews = new ReviewMarks(opened, ctx.agents, () => { ctx.emit('flowleap-routines/changed') })
   const warn = (what: string) => (error: unknown) => { ctx.logger.warn(`register watch: ${what}: ${String(error)}`) }
   // A Host stop ended every run that was still working; the attorney still reviews what it did.
@@ -129,5 +129,11 @@ export function apply(ctx: Context, config: Config): void {
     watches.prune(async () => new Set((await ctx.schedule.catalog()).map(entry => entry.id))).catch(warn('prune failed'))
   })
   ctx.effect(() => registerWatchTool(ctx, watches, config.maxApplications), 'flowleap-routines: register_watch_create')
-  ctx.plugin(FlowleapRoutinesController, { reviews })
+  ctx.plugin(FlowleapRoutinesController, {
+    reviews,
+    watches: async () => {
+      const [catalog, stored] = await Promise.all([ctx.schedule.catalog(), watches.list()])
+      return watchViews(catalog, stored)
+    },
+  })
 }

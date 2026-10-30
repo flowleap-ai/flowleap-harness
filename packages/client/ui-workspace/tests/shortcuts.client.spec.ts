@@ -11,6 +11,7 @@ import type { ShortcutCommand, ShortcutGesture, ShortcutPlatform } from '@deepse
 import type { PanelInfo, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { ShortcutRegistry } from '../../shortcuts/src/client/registry.ts'
 import { createWorkspaceShortcutControls, installWorkspaceShortcuts } from '../src/client/shortcuts.ts'
+import { LatestRegistry } from '../src/client/navigation.ts'
 import { en, zh } from '../src/client/locales.ts'
 
 const sid = (value: string) => value as SessionId
@@ -53,17 +54,21 @@ async function bench(runtime: 'web' | 'desktop' = 'desktop', platform: ShortcutP
   const navigation = {
     startSession: vi.fn(), forkSession: vi.fn(async () => 'fork-child' as SessionId), archiveSession: vi.fn(async (_sessionId: SessionId) => {}),
   }
+  const searchOpeners = new LatestRegistry<() => void>()
   const controls = createWorkspaceShortcutControls()
   const reportForkFailure = vi.fn()
   const fiber = ctx.plugin((scoped) => {
-    installWorkspaceShortcuts(scoped, navigation, controls,
+    installWorkspaceShortcuts(scoped, navigation, searchOpeners, controls,
       (id) => { void navigation.archiveSession(id) }, reportForkFailure)
   })
   await fiber.await()
   const select = (id: string) => { list.set({ ...list.getSnapshot(), byId: {
     [sid('a')]: row('a', id === 'a'), [sid('b')]: row('b', id === 'b'),
   } }) }
-  return { ctx, fiber, registry, commands, navigation, controls, reportForkFailure, list, directory, select, history, loadOlder, panelInfo }
+  return {
+    ctx, fiber, registry, commands, navigation, searchOpeners, controls, reportForkFailure,
+    list, directory, select, history, loadOlder, panelInfo,
+  }
 }
 
 afterEach(() => { vi.restoreAllMocks() })
@@ -138,6 +143,12 @@ describe('workspace shortcut ownership', () => {
     expect(b.navigation.startSession).toHaveBeenCalledTimes(3)
     b.registry.dispatch(key('KeyK'), context, consume)
     expect(b.controls.state.getSnapshot().searchRequest).toBe(1)
+    const replacement = vi.fn()
+    const stopReplacement = b.searchOpeners.provide(replacement)
+    expect(b.registry.dispatch(key('KeyK'), context, consume).status).toBe('handled')
+    expect(replacement).toHaveBeenCalledOnce()
+    expect(b.controls.state.getSnapshot().searchRequest).toBe(1)
+    stopReplacement()
     b.registry.dispatch(key('KeyO'), context, consume)
     expect(b.controls.state.getSnapshot().addRequested).toBe(true)
     b.controls.closeAdd()

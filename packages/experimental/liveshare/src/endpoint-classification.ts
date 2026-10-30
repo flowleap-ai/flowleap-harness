@@ -117,11 +117,13 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'flowleapAgents/read': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapAgents/removeFile': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapAgents/save': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
+  'flowleapBudget/month': 'owner-only', // FlowLeap: the owner's model spend
   'flowleapRoutines/done': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapRoutines/reviews': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapWorkPages/list': 'owner-only', // FlowLeap: the owner's office action work pages
   'flowleapWorkPages/read': 'owner-only', // FlowLeap: the owner's office action work pages
   'flowleapWorkPages/review': 'owner-only', // FlowLeap: the owner's office action work pages
+  'flowleapRoutines/watches': 'owner-only', // FlowLeap: the owner's register watches
   'settings/describe': 'owner-only', // owner settings
   'settings/mutate': 'owner-only', // owner settings
   'settings/openSettingsDocument': 'owner-only', // owner settings

@@ -23,6 +23,8 @@ export type {
   StoreHandle, StoreInstance, StoreSpec,
 } from './contract.ts'
 
+export { createLazyRemoteSource, type LazyRemoteSourceOptions } from './lazy-remote-source.ts'
+
 /** Writable snapshot store (bare data face; React selector hooks are synthesized in ui-renderer). */
 export interface SnapshotStore<T> extends ObservableSnapshot<T> {
   /**

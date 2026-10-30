@@ -49,6 +49,7 @@
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-bg-layer-1);
+  margin-bottom: 24px;
 }
 
 .ask:focus-within {
@@ -76,22 +77,25 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.links {
+/* The search results under the ask bar: one group per registered app. */
+.results {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 24px;
+  flex-direction: column;
+  gap: 12px;
+  margin: -16px 0 24px;
+  padding: 12px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-1);
 }
 
-.link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 10px;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: var(--dsw-radius-md);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+.results .panelSummary {
+  margin: 0;
+}
+
+.searchGroup {
+  display: flex;
+  flex-direction: column;
 }
 
 .firstSteps {
@@ -238,15 +242,6 @@
   font-size: 13px;
 }
 
-.sample {
-  align-self: flex-start;
-  margin-bottom: 8px;
-}
-
-.metric .sample {
-  margin: 6px 0 0;
-}
-
 .rows {
   display: flex;
   flex-direction: column;
@@ -267,13 +262,6 @@
   border-radius: var(--dsw-radius-md);
   text-align: left;
   white-space: normal;
-}
-
-.staticRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
 }
 
 .rowGlyph,
@@ -301,41 +289,6 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
-}
-
-.due {
-  flex: none;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.budgetLine {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.budgetUsed {
-  font-size: 20px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.meter {
-  height: 6px;
-  margin: 8px 0 12px;
-  overflow: hidden;
-  border-radius: var(--dsw-radius-xs);
-  background: var(--dsw-alias-border-l2);
-}
-
-.meter > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--dsw-alias-state-business-primary);
 }
 
 .subheading {

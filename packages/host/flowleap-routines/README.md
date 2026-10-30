@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-routines` adds routines, work that an event starts (ADR 0001 decision 27), to the [`dsh-schedule`](../../schedule/schedule/README.md) scheduler. Its first routine is the register watch: the agent calls `register_watch_create`, and one daily task names the applications. At each due run the Host reads their register events through [`ctx.flowleapRegister`](../flowleap-connectors/README.md#the-register-reader) without a model call; with no new event the run is skipped, otherwise the task runs once with the new events. By default each run opens a new chat titled by the event and marks it "Needs review" until the attorney answers or marks it done; the `flowleapRoutines` Remote serves the marks.
+`dsh-flowleap-routines` adds routines, work that an event starts (ADR 0001 decision 27), to the [`dsh-schedule`](../../schedule/schedule/README.md) scheduler. Its first routine is the register watch: the agent calls `register_watch_create`, and one daily task names the applications. At each due run the Host reads their register events through [`ctx.flowleapRegister`](../flowleap-connectors/README.md#the-register-reader) without a model call; with no new event the run is skipped, otherwise the task runs once with the new events. By default each run opens a new chat titled by the event and marks it "Needs review" until the attorney answers or marks it done; the `flowleapRoutines` Remote serves marks and watches.
 
 ## Table of Contents
 
@@ -60,7 +60,7 @@ A watch with `new_chat_per_run` answers the admission with a redirect: the plugi
 
 ### The "Needs review" mark
 
-A watch with `needs_review` marks the chat that received a run when `schedule/delivered` commits: `running` while that chat's Agent runs, `needs_review` at once when no Agent runs there. `agent/status` `idle` turns a `running` mark into `needs_review`. At plugin start every `running` mark becomes `needs_review`, because the Host stop ended that run and the attorney still reviews what it did. A `user/message` Session event whose source is the user clears the mark of its chat (the attorney opened and answered), and the Remote's `done` clears it on an explicit "done". The mark of a deleted task stays, because the chat still holds the work. One row per chat: a later run into the same chat replaces the mark. Each committed change emits `flowleap-routines/changed`, which [`dsh-api-remotes`](../../api/remotes/README.md) forwards to clients.
+A watch with `needs_review` marks the chat that received a run when `schedule/delivered` commits: `running` while that chat's Agent runs, `needs_review` at once when no Agent runs there. `agent/status` `idle` turns a `running` mark into `needs_review`. At plugin start every `running` mark becomes `needs_review`, because the Host stop ended that run and the attorney still reviews what it did. A `user/message` Session event whose source is the user clears the mark of its chat (the attorney opened and answered), and the Remote's `done` clears it on an explicit "done". The mark of a deleted task stays, because the chat still holds the work. One row per chat: a later run into the same chat replaces the mark. Each committed change emits `flowleap-routines/changed`, and so does each watch row that `register_watch_create` saves or a prune removes, which [`dsh-api-remotes`](../../api/remotes/README.md) forwards to clients.
 
 ### The Remote
 
@@ -70,6 +70,7 @@ A watch with `needs_review` marks the chat that received a run when `schedule/de
 |---|---|---|
 | `reviews()` | `RoutineReview[]` | `{ sessionId, taskId, state, since }` per marked chat, without the chats remote access denies the caller |
 | `done(sessionId)` | `void` | clears the mark of that chat; a chat without a mark is a no-op; the Gateway gates the call on that `session` resource |
+| `watches()` | `RoutineWatch[]` | `{ taskId, sessionId, title, nextCheckAt?, applications }` per watch whose task exists, next check first, without the watches of chats remote access denies the caller; each application has `readAt` and `latest`, the newest event of its saved read by date, when a read is saved. `nextCheckAt` is the task's next run while it is active. The watch records events after the office lists them; it computes no deadline |
 
 -----
 
@@ -92,7 +93,7 @@ A watch with `needs_review` marks the chat that received a run when `schedule/de
 | [`src/index.ts`](src/index.ts) | Config, `apply`, public exports |
 | [`src/watch.ts`](src/watch.ts) | entry identity and counts, new-entry selection, the run instruction |
 | [`src/storage.ts`](src/storage.ts) | the `flowleap_routines` domain and its row schemas |
-| [`src/register-watch.ts`](src/register-watch.ts) | baseline, admission with the chat redirect, delivery commit, prune, and the read interval |
+| [`src/register-watch.ts`](src/register-watch.ts) | baseline, admission with the chat redirect, delivery commit, prune, the read interval, and the watch views of `watches()` |
 | [`src/new-chat.ts`](src/new-chat.ts) | the run chat per occurrence and its title |
 | [`src/reviews.ts`](src/reviews.ts) | the "Needs review" mark state machine over the `reviews` table |
 | [`src/controller.ts`](src/controller.ts) | the `flowleapRoutines` Remote |

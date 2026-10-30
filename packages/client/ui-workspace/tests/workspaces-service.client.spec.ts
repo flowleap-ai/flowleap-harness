@@ -15,11 +15,13 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LayoutController } from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { DraftInitializationOptions, SessionInputResolver } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { RowToast } from '../src/client/contract/slots.ts'
 import { DirectoryBrowseError, UiWorkspaceService } from '../src/client/navigation.ts'
+import type { MainPanels, StartAddress } from '../src/client/start-link.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import { en, zh } from '../src/client/locales.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
 import { UNGROUPED_KEY } from '../src/client/tree.ts'
@@ -270,7 +272,55 @@ class FakeDirectoryPicker {
   }
 }
 
+/** The main-panel registry, with panels the test adds and removes. */
+class FakeMainPanels implements MainPanels {
+  private readonly ids: Set<string>
+  private readonly listeners = new Set<() => void>()
+
+  constructor(ids: readonly string[]) {
+    this.ids = new Set(ids)
+  }
+
+  find(id: string): MainPanelId | undefined {
+    return this.ids.has(id) ? panel(id) : undefined
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  add(id: string): void {
+    this.ids.add(id)
+    for (const listener of [...this.listeners]) listener()
+  }
+}
+
+const panel = (id: string): MainPanelId => brandString<MainPanelId>(id)
+
+/** The browser address, with each replacement recorded. */
+class FakeAddress implements StartAddress {
+  readonly replaced: string[] = []
+
+  constructor(private current: string) {}
+
+  search(): string {
+    return new URL(this.current).search
+  }
+
+  href(): string {
+    return this.current
+  }
+
+  replace(href: string): void {
+    this.current = href
+    this.replaced.push(href)
+  }
+}
+
 interface BenchOptions {
+  readonly mainPanels?: readonly string[]
+  readonly address?: string
   readonly conversation?: boolean
   readonly configureWorkspaces?: (workspaces: FakeWorkspaces) => void
   readonly workspaces?: WorkspaceSnapshot
@@ -287,11 +337,12 @@ function bench(options: BenchOptions = {}) {
   ctx.provide('locale', locale)
   const requestDraftInitialization = vi.fn<SessionInputResolver['requestDraftInitialization']>(() => 'applied')
   if (options.conversation !== false) ctx.provide('conversation', { input: { requestDraftInitialization } })
+  const panelInfo = createSnapshotStore<PanelInfo>({ activePanelId: null })
   const layout = new LayoutController({
-    selectPanel: vi.fn(), retainMainPanels: vi.fn(),
+    selectPanel: vi.fn((panelId: MainPanelId | null) => { panelInfo.set({ activePanelId: panelId }) }), retainMainPanels: vi.fn(),
     setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
-  }, () => true, createSnapshotStore({ activePanelId: null }))
+  }, () => true, panelInfo)
   const selectPanel = vi.spyOn(layout, 'selectPanel')
   ctx.provide('layout', layout)
   ctx.effect(() => () => { layout.dispose() })
@@ -302,6 +353,8 @@ function bench(options: BenchOptions = {}) {
   options.configureSessions?.(sessions)
   const view = createWorkspaceViewStore().create()
   const notify = vi.fn<(toast: RowToast) => void>()
+  const mainPanels = new FakeMainPanels(options.mainPanels ?? [])
+  const address = new FakeAddress(options.address ?? 'https://firm.example/')
   const uiWorkspace = new UiWorkspaceService(
     ctx,
     directoryPicker.remote,
@@ -309,8 +362,12 @@ function bench(options: BenchOptions = {}) {
     sessions,
     view.actions,
     notify,
+    { mainPanels, address },
   )
-  return { ctx, directoryPicker, sessions, uiWorkspace, workspaces, layout, selectPanel, view, notify, requestDraftInitialization }
+  return {
+    ctx, mainPanels, address, directoryPicker, sessions, uiWorkspace, workspaces,
+    layout, selectPanel, view, notify, requestDraftInitialization,
+  }
 }
 
 function lastOpening(open: MockInstance<UiWorkspaceService['openWorkspace']>): Promise<void> {
@@ -1566,5 +1623,158 @@ describe('UiWorkspaceService', () => {
     await expect(b.uiWorkspace.createDirectory('/home/u', 'new')).rejects.toMatchObject({
       rpcError: { code: 'directory-picker/exists' },
     })
+  })
+})
+
+describe('UiWorkspaceService landing and address links', () => {
+  const LANDING = 'landing'
+  const ready = (summaries: readonly SessionSummary[] = [], items: readonly WorkspaceView[] = []) => ({
+    sessions: sessionState(summaries),
+    workspaces: workspaceState(items),
+  })
+  const active = (b: ReturnType<typeof bench>) => b.layout.panelInfo.getSnapshot().activePanelId
+
+  it('reads and writes no address and selects no panel without a provided landing', async () => {
+    const b = bench({ ...ready([summary('a')], [workspace('w', [sid('a')])]), address: 'https://firm.example/?chat=a' })
+    await setImmediate()
+    b.uiWorkspace.openSession(sid('a'))
+    expect(b.address.replaced).toEqual([])
+    expect(b.selectPanel).not.toHaveBeenCalledWith(panel(LANDING))
+  })
+
+  it('lands before the first sign-in restoration navigates, so it prepares the default Workspace without an abort', async () => {
+    const b = bench({ mainPanels: [LANDING], configureWorkspaces: (workspaces) => {
+      workspaces.initializeDefault.mockImplementation(async () => {
+        const item = workspace('default')
+        workspaces.list.set(workspaceState([item]))
+        return item
+      })
+    } })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    expect(active(b)).toBe(LANDING)
+    b.sessions.list.set(sessionState())
+    b.workspaces.list.set(workspaceState())
+    await vi.waitFor(() => {
+      expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('created-default'), { source: 'mainView' })
+    })
+    expect(b.workspaces.initializeDefault.mock.calls[0]![0]?.aborted).toBe(false)
+    expect(active(b)).toBe(LANDING)
+    expect(b.uiWorkspace.mainSession.getSnapshot()).toBe(sid('created-default'))
+    expect(b.address.replaced).toEqual([])
+  })
+
+  it('lands when the landing panel registers before the restoration, and keeps the landing that the latest registration names', async () => {
+    const b = bench({ mainPanels: [] })
+    const stopFirst = b.uiWorkspace.provideLanding(panel('first'))
+    const stopLanding = b.uiWorkspace.provideLanding(panel(LANDING))
+    expect(active(b)).toBeNull()
+    b.mainPanels.add(LANDING)
+    expect(active(b)).toBe(LANDING)
+    stopFirst()
+    stopLanding()
+    stopLanding()
+    b.mainPanels.add('first')
+    expect(active(b)).toBe(LANDING)
+  })
+
+  it('opens the chat that the start address names instead of the saved selection and the landing', async () => {
+    persistSelection({ sessionId: sid('b') })
+    const b = bench({ mainPanels: [LANDING], address: 'https://firm.example/?chat=a&lang=en' })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    expect(active(b)).toBeNull()
+    b.sessions.list.set(sessionState([summary('a'), summary('b')]))
+    b.workspaces.list.set(workspaceState([workspace('w', [sid('a'), sid('b')])]))
+    await setImmediate()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('a'), { source: 'mainView' })
+    expect(b.selectPanel).not.toHaveBeenCalledWith(panel(LANDING))
+    expect(b.address.href()).toBe('https://firm.example/?chat=a&lang=en')
+  })
+
+  it('lands and restores as usual when the chat of the address is not listed, and clears the link from the address', async () => {
+    persistSelection({ sessionId: sid('b') })
+    const b = bench({ mainPanels: [LANDING], address: 'https://firm.example/?chat=gone' })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    b.sessions.list.set(sessionState([summary('b')]))
+    b.workspaces.list.set(workspaceState([workspace('w', [sid('b')])]))
+    await setImmediate()
+    expect(active(b)).toBe(LANDING)
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('b'), { source: 'mainView' })
+    expect(b.address.href()).toBe('https://firm.example/')
+  })
+
+  it('selects the page of the address once it registers after the restoration, while the landing still shows', async () => {
+    const b = bench({ mainPanels: [LANDING], address: 'https://firm.example/?page=late' })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    b.sessions.list.set(sessionState([summary('a')]))
+    b.workspaces.list.set(workspaceState([workspace('w', [sid('a')])]))
+    await setImmediate()
+    expect(active(b)).toBe(LANDING)
+    expect(b.address.replaced).toEqual([])
+    b.mainPanels.add('late')
+    expect(active(b)).toBe('late')
+    expect(b.address.href()).toBe('https://firm.example/?page=late')
+  })
+
+  it('drops the page link when the user leaves the landing before the page registers', async () => {
+    const b = bench({ mainPanels: [LANDING, 'other'], address: 'https://firm.example/?page=late' })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    b.sessions.list.set(sessionState([summary('a')]))
+    b.workspaces.list.set(workspaceState([workspace('w', [sid('a')])]))
+    await setImmediate()
+    b.layout.selectPanel(panel('other'))
+    b.mainPanels.add('late')
+    expect(active(b)).toBe('other')
+    expect(b.address.href()).toBe('https://firm.example/?page=other')
+  })
+
+  it('keeps the address equal to the open item: a chat with content, a page, or nothing for the landing and a blank chat', async () => {
+    const b = bench({ mainPanels: [LANDING, 'page'] })
+    b.uiWorkspace.provideLanding(panel(LANDING))
+    b.sessions.list.set(sessionState([summary('a'), summary('blank', { blank: true })]))
+    b.workspaces.list.set(workspaceState([workspace('w', [sid('a'), sid('blank')])]))
+    await setImmediate()
+    b.uiWorkspace.openSession(sid('a'))
+    expect(b.address.href()).toBe('https://firm.example/?chat=a')
+    expect(b.uiWorkspace.mainSession.getSnapshot()).toBe(sid('a'))
+    b.layout.selectPanel(panel('page'))
+    expect(b.address.href()).toBe('https://firm.example/?page=page')
+    b.layout.selectPanel(panel(LANDING))
+    expect(b.address.href()).toBe('https://firm.example/')
+    b.uiWorkspace.openSession(sid('blank'))
+    expect(b.address.href()).toBe('https://firm.example/')
+    const replaced = b.address.replaced.length
+    b.sessions.list.set(sessionState([summary('a'), summary('blank', { blank: true })]))
+    expect(b.address.replaced).toHaveLength(replaced)
+    await b.uiWorkspace.archiveSession(sid('blank'))
+    expect(b.uiWorkspace.mainSession.getSnapshot()).toBeUndefined()
+  })
+
+  it('starts only the address updates for a landing provided after the restoration, and stops them when it is disposed', async () => {
+    const b = bench({ ...ready([summary('a')], [workspace('w', [sid('a')])]), mainPanels: [LANDING], address: 'https://firm.example/?page=x' })
+    await setImmediate()
+    const stop = b.uiWorkspace.provideLanding(panel(LANDING))
+    expect(active(b)).toBeNull()
+    b.uiWorkspace.openSession(sid('a'))
+    expect(b.address.href()).toBe('https://firm.example/?chat=a')
+    stop()
+    b.layout.selectPanel(panel(LANDING))
+    expect(b.address.href()).toBe('https://firm.example/?chat=a')
+  })
+
+  it('drops a start link that the restoration does not use: a chat opened first, or a page without a registered landing', async () => {
+    const opened = bench({ mainPanels: [LANDING], address: 'https://firm.example/?chat=a' })
+    opened.uiWorkspace.provideLanding(panel(LANDING))
+    opened.uiWorkspace.openSession(sid('x'))
+    opened.sessions.list.set(sessionState([summary('a'), summary('x')]))
+    opened.workspaces.list.set(workspaceState([workspace('w', [sid('a'), sid('x')])]))
+    await setImmediate()
+    expect(opened.address.href()).toBe('https://firm.example/?chat=x')
+
+    const unregistered = bench({ mainPanels: ['p'], address: 'https://firm.example/?page=p' })
+    unregistered.uiWorkspace.provideLanding(panel(LANDING))
+    unregistered.sessions.list.set(sessionState())
+    unregistered.workspaces.list.set(workspaceState([workspace('w')]))
+    await setImmediate()
+    expect(unregistered.selectPanel).not.toHaveBeenCalledWith(panel('p'))
   })
 })
