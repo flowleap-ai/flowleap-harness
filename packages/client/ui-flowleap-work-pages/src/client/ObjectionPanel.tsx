@@ -17,17 +17,24 @@ type T = TranslateNS<typeof NS>
 /**
  * Render one titled section; an empty text renders nothing.
  * @param props.title - the section title.
- * @param props.text - the text, or empty for children only.
+ * @param props.text - the Markdown text, or empty for children only.
+ * @param props.plain - the text is a short label that renders as plain text.
  * @param props.children - content below the text.
  * @param props.t - copy.
  * @returns the section, or nothing.
  */
-function Section({ title, text, children, t }: { title: string; text?: string; children?: ReactNode; t: T }) {
+function Section({ title, text, plain = false, children, t }: {
+  title: string
+  text?: string
+  plain?: boolean
+  children?: ReactNode
+  t: T
+}) {
   if ((text === undefined || text === '') && children === undefined) return null
   return (
     <section className={css.sideSection}>
       <h3>{title}</h3>
-      {text !== undefined && text !== '' && <AnalysisText className={css.sideText} text={text} t={t} />}
+      {text !== undefined && text !== '' && (plain ? <p className={css.sideText}>{text}</p> : <AnalysisText className={css.sideText} text={text} t={t} />)}
       {children}
     </section>
   )
@@ -55,7 +62,7 @@ export function ObjectionPanel({ objection, comparison, onClose, t }: ObjectionP
         <h2 className={css.sideTitle}>{t('card.objection', { id: objection.id })} · {objection.title}</h2>
         <Button size="sm" aria-label={t('side.close')} icon={<IconCloseOutlineRegular size={14} />} onClick={onClose} />
       </div>
-      <Section title={t('side.ground')} text={objection.ground} t={t} />
+      <Section title={t('side.ground')} text={objection.ground} plain t={t} />
       <Section title={t('side.legalBasis')} text={objection.legalBasis} t={t} />
       <Section title={t('side.examiner')} text={objection.reasoning} t={t} />
       <Section title={t('side.source')} text={objection.source} t={t} />

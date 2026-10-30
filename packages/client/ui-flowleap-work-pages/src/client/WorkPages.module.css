@@ -418,6 +418,25 @@
 }
 
 
+/* Analysis text: the Markdown root of `MarkdownText` takes the color and the type of the board cell. */
+.analysis > [data-markdown-variant] {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.analysis > [data-markdown-variant] > :first-child {
+  margin-top: 0;
+}
+
+.analysis > [data-markdown-variant] > :last-child {
+  margin-bottom: 0;
+}
+
+.analysis p {
+  white-space: pre-line;
+}
+
 .sideText {
   margin: 0;
   color: var(--dsw-alias-label-secondary);

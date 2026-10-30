@@ -193,6 +193,21 @@ describe('office action board page', () => {
     expect(panel.textContent).not.toContain('](')
   })
 
+  it('keeps one newline in analysis text, shows an unsafe link as its label, and keeps the ground plain', async () => {
+    const [novelty, ...rest] = FILE.findings.objections
+    const objection = { ...novelty!, ground: '**Art. 54 EPC**', sources: 'get_claims EP4814394A1\nget_bibliography US2016107508A1', assessment: 'See [the note](javascript:alert(1)).' }
+    const findings = { ...FILE.findings, objections: [objection, ...rest] }
+    renderBoard(createBoard(deps({ read: async () => ok({ ...VIEW, file: { ...FILE, findings } }) })))
+    await screen.findByRole('heading', { level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: 'Open objection 1 in the side panel' }))
+    const panel = screen.getByRole('complementary', { name: 'Objection details' })
+    expect(within(panel).getByText('get_claims EP4814394A1\nget_bibliography US2016107508A1', { normalizer: text => text }).tagName).toBe('P')
+    expect(within(panel).getByText('See the note.')).toBeTruthy()
+    expect(within(panel).queryByRole('link', { name: 'the note' })).toBeNull()
+    expect(within(panel).getByText('**Art. 54 EPC**')).toBeTruthy()
+    expect(within(card('1')).getByText('**Art. 54 EPC**')).toBeTruthy()
+  })
+
   it('sends the response plan, reports the result, and dismisses the notice', async () => {
     const dependencies = deps()
     renderBoard(createBoard(dependencies))
