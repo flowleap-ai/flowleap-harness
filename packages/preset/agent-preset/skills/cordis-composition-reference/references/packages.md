@@ -82,6 +82,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-entry-customization` | no | Customize plugin entries in the left sidebar, conversation views, and right sidebar, and quickly create new plugins. |
 | `@deepseek-ai/dsh-client-ui-file-actions` | no | Original-file saving and image clipboard actions for Web and Desktop |
 | `@deepseek-ai/dsh-client-ui-file-drag` | no | Application-owned file drag transfers and localized failure feedback |
+| `@deepseek-ai/dsh-client-ui-flowleap-admin-link` | yes | Firm admin row in the FlowLeap sidebar, shown only to a firm administrator whose requests carry an X-Flowleap-Admin header that the starter signed |
 | `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | no | FlowLeap agent builder in Web: the New agent row in the new-session preset menu and the agent form (name, description, instructions, files, connectors) |
 | `@deepseek-ai/dsh-client-ui-flowleap-budget` | no | Budget used and Budget this month on the FlowLeap dashboard, over the flowleapBudget Remote of dsh-flowleap-budget |
 | `@deepseek-ai/dsh-client-ui-flowleap-dashboard` | no | The FlowLeap dashboard: the first screen of flowleap-web with the ask bar, the dashboard.metric and dashboard.widget slots, the Install FlowLeap card, and the OS sidebar layers (Search, apps, Pinned) |

@@ -64,13 +64,15 @@
         "web-deepseek-api",
         "session-telemetry-otel",
         "desktop-product-telemetry",
-        "product-analytics"
+        "product-analytics",
+        "flowleap-admin-link"
       ]
     }
   },
   "dependencies": {
     "@deepseek-ai/dsh-agent-preset": "workspace:*",
     "@deepseek-ai/dsh-client-ui-brand-flowleap": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-flowleap-admin-link": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-agent-builder": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-budget": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-dashboard": "workspace:*",

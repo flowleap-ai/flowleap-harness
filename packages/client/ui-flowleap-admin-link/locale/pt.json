@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Link de administração do escritório",
+    "description": "Uma linha Administração do escritório na barra lateral que só os administradores do escritório veem; ela abre o console de administração do escritório."
+  }
+}

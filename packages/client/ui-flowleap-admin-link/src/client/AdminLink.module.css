@@ -1,0 +1,4 @@
+/* The sidebar row class styles a button; a link row also drops the underline. */
+.link {
+  text-decoration: none;
+}

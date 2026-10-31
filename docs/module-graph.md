@@ -177,6 +177,7 @@ flowchart TD
     pkg_client_ui_entry_customization["client-ui-entry-customization"]
     pkg_client_ui_file_actions["client-ui-file-actions"]
     pkg_client_ui_file_drag["client-ui-file-drag"]
+    pkg_client_ui_flowleap_admin_link["client-ui-flowleap-admin-link"]
     pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
     pkg_client_ui_flowleap_budget["client-ui-flowleap-budget"]
     pkg_client_ui_flowleap_dashboard["client-ui-flowleap-dashboard"]
@@ -1624,6 +1625,7 @@ flowchart TD
 | [`client-ui-entry-customization`](../packages/client/ui-entry-customization) | `client` | — |
 | [`client-ui-file-actions`](../packages/client/ui-file-actions) | `client` | — |
 | [`client-ui-file-drag`](../packages/client/ui-file-drag) | `client` | — |
+| [`client-ui-flowleap-admin-link`](../packages/client/ui-flowleap-admin-link) | `client` | — |
 | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | `client` | — |
 | [`client-ui-flowleap-budget`](../packages/client/ui-flowleap-budget) | `client` | — |
 | [`client-ui-flowleap-dashboard`](../packages/client/ui-flowleap-dashboard) | `client` | — |
