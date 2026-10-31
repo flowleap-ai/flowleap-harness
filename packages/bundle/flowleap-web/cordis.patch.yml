@@ -315,6 +315,18 @@
     - id: ui-flowleap-budget
       name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
 
+    # The Firm admin row in the sidebar (flowleap-harness#112), shown only to a
+    # firm administrator: the starter of flowleap-os signs an X-Flowleap-Admin
+    # header on each request of an administrator, and this row checks it with
+    # the starter's public key. The firm patch of flowleap-os restates this row
+    # with publicKeyFile: /run/flowleap/host/admin-link.pub; with '' no request
+    # shows the link.
+    - id: flowleap-admin-link
+      name: '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
+      config:
+        publicKeyFile: ''
+        consoleHref: admin/
+
     # The Needs review mark of the routines row above: a Sidebar row badge, a
     # Needs review page, Mark as done in the chat header, and a Needs review
     # tab on the Automation tasks page.
