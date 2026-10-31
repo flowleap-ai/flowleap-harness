@@ -1,0 +1,8 @@
+# Overlay for admin-link.md (DSH_VERIFY_PATCH): the Firm admin row checks the
+# header with the public key that scripts/admin-signer.mjs writes, because
+# /run/flowleap/host/admin-link.pub is absent on a Mac. An override replaces the
+# row's whole config, so consoleHref restates the bundle value.
+- id: flowleap-admin-link
+  config:
+    publicKeyFile: !!js process.env.DSH_VERIFY_ADMIN_LINK_KEY
+    consoleHref: admin/
