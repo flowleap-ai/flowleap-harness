@@ -577,6 +577,25 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
+<a id="deepseek-aidsh-client-ui-flowleap-admin-link"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-admin-link`
+
+- `inject`: `connection`
+- `source`: [`packages/client/ui-flowleap-admin-link/src/index.ts:31`](../packages/client/ui-flowleap-admin-link/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: where the starter's public key is, and where the link goes. */
+export interface Config {
+  /** Absolute path of the starter's SPKI PEM Ed25519 public key; `''` means that no request shows the link. */
+  publicKeyFile: string
+  /** The firm admin console as a document-relative path, such as `admin/`. */
+  consoleHref: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
 

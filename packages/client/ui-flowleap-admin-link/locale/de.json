@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Link zur Kanzleiverwaltung",
+    "description": "Eine Zeile Kanzleiverwaltung in der Seitenleiste, die nur Kanzleiadministratoren sehen; sie öffnet die Verwaltungskonsole der Kanzlei."
+  }
+}

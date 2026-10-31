@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Firm admin link",
+    "description": "A Firm admin row in the sidebar that only firm administrators see; it opens the firm admin console."
+  }
+}

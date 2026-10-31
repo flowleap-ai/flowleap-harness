@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Enlace de administración del despacho",
+    "description": "Una fila Administración del despacho en la barra lateral que solo ven los administradores del despacho; abre la consola de administración del despacho."
+  }
+}

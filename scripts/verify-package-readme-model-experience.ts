@@ -170,6 +170,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-settings-web-search': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-settings-flowleap-connectors': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-flowleap-agent-builder': { kind: 'none', reason: 'Browser-side agent picker rows and agent form over the flowleapAgents Remote; dsh-flowleap-agent-builder owns the model-visible sections and tools.' },
+  'packages/client/ui-flowleap-admin-link': { kind: 'none', reason: 'Browser-side sidebar link and an authenticated route that checks the starter header; registers no model surface.' },
   'packages/client/ui-flowleap-budget': { kind: 'none', reason: 'Browser-side budget panel and card over the flowleapBudget Remote; registers no model surface.' },
   'packages/host/flowleap-budget': { kind: 'none', reason: 'The flowleapBudget Remote reads the model gateway for the browser only; the read never reaches a model request.' },
   'packages/client/ui-flowleap-dashboard': { kind: 'none', reason: 'Browser-side dashboard page, panels, and sidebar layers; the ask bar only fills a new chat composer.' },

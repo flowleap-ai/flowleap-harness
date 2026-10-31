@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Lien d'administration du cabinet",
+    "description": "Une ligne Administration du cabinet dans la barre latérale, visible uniquement par les administrateurs du cabinet ; elle ouvre la console d'administration du cabinet."
+  }
+}
