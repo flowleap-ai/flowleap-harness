@@ -64,7 +64,8 @@
         "web-deepseek-api",
         "session-telemetry-otel",
         "desktop-product-telemetry",
-        "product-analytics"
+        "product-analytics",
+        "flowleap-admin-link"
       ]
     }
   },

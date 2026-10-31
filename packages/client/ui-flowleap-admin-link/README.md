@@ -92,7 +92,6 @@ None; this package neither assembles nor sends a provider request.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **One read at start** — the browser asks once when the page loads, so a role change shows after the next page load.
-- **Not a locked row** — `dsh.bundle.lockedRows` of the bundle does not name this row, so a user patch on the runtime can change it. Such a change can show the link at most; the starter still guards the console.
 
 <a id="dev-note"></a>
 ### Dev Note
