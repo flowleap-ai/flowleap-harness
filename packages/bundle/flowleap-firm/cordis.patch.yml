@@ -1,0 +1,38 @@
+# The FlowLeap firm-server layer over dsh-flowleap-web (flowleap-harness#61).
+# The shipped flowleap-web profile stacks it last; the flowleap-desktop profile
+# does not.
+#
+# Models run only on the firm's keys. fixedRoutes refuses a route, endpoint, or
+# key-reference change from settings and offers no subscription sign-in and no
+# endpoint discovery; lockedRefs refuses a key typed on the Models page and
+# ignores one stored before; managed keeps the Models page from offering
+# either. package.json dsh.bundle.lockedRows names these three rows: the Loader
+# drops a user patch (profile or home cordis.patch.yml) that targets one of
+# them, so a Models page save from before the lock cannot turn it off.
+#
+# A row here replaces the whole config of the dsh-flowleap-web row, so the
+# llm-pi-ai row restates that row's routes and replaces subscriptionSignIn with
+# fixedRoutes, which offers no sign-in either; a test fails when the two rows
+# differ in anything else. The flowleap-os firm patch restates every field here. A firm overlay that
+# restates one of these rows restates these keys too.
+
+- id: credentials
+  config:
+    lockedRefs: [ANTHROPIC_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY]
+
+- id: ui-settings-models
+  config:
+    managed: true
+
+- id: llm-pi-ai
+  config:
+    fixedRoutes: true
+    providers:
+      anthropic:
+        apiKeyEnv: ANTHROPIC_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
+      openrouter:
+        apiKeyEnv: OPENROUTER_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
+      mistral:
+        apiKeyEnv: MISTRAL_API_KEY

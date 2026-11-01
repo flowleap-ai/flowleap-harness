@@ -286,7 +286,7 @@ export function apply(ctx: Context, config: Config): void {
   // from, while everything else this plugin does still works.
   // A fixed route set authenticates only through its deployment references, so
   // it offers no subscription sign-in.
-  if (!config.fixedRoutes) ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
+  if (!config.fixedRoutes && config.subscriptionSignIn) ctx.inject(['authorization'], (authorized) => { registerPiAiFlows(authorized, auth) })
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every
   // pi-ai provider before any route exists. Hand-declared routes join it as

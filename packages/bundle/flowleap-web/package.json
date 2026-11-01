@@ -50,9 +50,6 @@
         "./presets/ptc.patch.yml"
       ],
       "lockedRows": [
-        "llm-pi-ai",
-        "credentials",
-        "ui-settings-models",
         "plugin-manager",
         "llm-deepseek",
         "llm-deepseek-account",
