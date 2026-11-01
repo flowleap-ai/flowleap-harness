@@ -1,6 +1,6 @@
 # FlowLeap Patent AI verification map
 
-This directory is the maintained source for live proof of the `flowleap-web` profile. Read [the skill](../SKILL.md) first, then use the feature file that matches the change.
+This directory is the maintained source for live proof of the `flowleap-web` profile, and of the `flowleap-desktop` profile where a feature file says so. Read [the skill](../SKILL.md) first, then use the feature file that matches the change.
 
 ## Baseline preconditions
 
@@ -35,6 +35,7 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 - [Budget warning](./budget-warning.md): the model gateway's budget notice in the composer, through a local gateway double. `budget-notice-show` and `budget-notice-clear` were proven on 2026-10-29.
 - [Firm admin link](./admin-link.md): the `Firm admin` sidebar row for an administrator, through a local starter double. `admin-link-hidden`, `admin-link-shown` and `admin-link-forged` were proven on 2026-10-31.
 - [Uploads while the disk is low](./disk-low.md): the chat attachment and agent upload refusals while the firm host's disk low flag exists. `disk-low-chat`, `disk-low-agent` and `disk-low-clear` were proven on 2026-10-28.
+- [Desktop model step](./model-step.md): the Test and Connect OpenRouter controls on the Models page of the `flowleap-desktop` profile, and the missing-model chat card. `model-step-controls`, `model-test-refused`, `model-test-ok` and `model-missing-card` were proven on 2026-11-01; `model-openrouter-connect` was proven up to Cancel, without an OpenRouter sign-in.
 - [Routines](./routines.md): the register watch from chat and its task on the Automation tasks page. `routines-page-empty` was proven on 2026-10-27.
 - [Office action analysis](./office-action-analysis.md): the `recipe-office-action-response` skill of the skill pack from a chat and from a register watch, saved with `write_patent_results` and shown on the delivery card. `oa-chat-us`, `oa-chat-ep` and `oa-routine` were proven on 2026-10-29.
 - [Work pages](./work-pages.md): the office action board with sample data, its state and owner controls, the side panel, and the analysis form. `work-board`, `work-state-owner`, `work-side-panel` and `work-form`, and the `Share` tooltip of `work-deferred`, were proven on 2026-10-29.

@@ -26,7 +26,8 @@ Steps:
 
 - **Controls.** Open Settings > Models. The OpenRouter card has the button `Connect OpenRouter` and the hint "Opens OpenRouter in your browser…". No card has `Test` yet.
 - **Refused key.** In the OpenAI card, type a wrong key such as `sk-wrong` in `API key`, Apply, then `Test`. A `status` element holds "The provider refused the key (HTTP 401). Check the key and save it again." This call goes to `api.openai.com` and costs nothing, but ask the founder before you send it.
-- **Working key, connect.** Only the founder enters a real key or signs in to OpenRouter. Ask before each live call. After the founder approves on OpenRouter, a `status` element holds "OpenRouter is connected." and the composer offers the OpenRouter model for a new chat.
+- **Working key.** Only the founder enters a real key. To test the founder's OpenRouter key without typing it, start the run with `DSH_VERIFY_PROFILE=flowleap-desktop DSH_VERIFY_KEEP_OPENROUTER=1`, then `Test` on the OpenRouter card: a `status` element holds "The key works. New chats use anthropic/claude-sonnet-5.5." and a new chat shows that model. Ask before each live call.
+- **Connect.** `Connect OpenRouter` shows "Waiting for OpenRouter in your browser…", the link `Open the OpenRouter page again`, and `Cancel`; `Cancel` shows "The connection was cancelled." The browser pane blocks a popup that the agent's click opens, so the founder clicks `Connect OpenRouter`, signs in to OpenRouter, and approves; then a `status` element holds "OpenRouter is connected."
 - **Missing model card.** Before any key is saved, send `Reply with exactly: FLOWLEAP-VERIFY-OK` in a new chat. The chat shows the missing-model card with its button; the button opens Settings > Models. No request leaves the machine.
 
 ## Gotchas

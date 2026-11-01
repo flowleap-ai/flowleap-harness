@@ -13,6 +13,7 @@
 # is resolved against the caller's working directory.
 # DSH_VERIFY_PROFILE=flowleap-desktop starts the desktop profile with verify.desktop.patch.yml instead:
 # no model key from the environment and a writable model key store, so the run starts without a model.
+# DSH_VERIFY_KEEP_OPENROUTER=1 keeps OPENROUTER_API_KEY in the desktop server environment.
 #
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
 set -euo pipefail
@@ -46,7 +47,9 @@ case "$cmd" in
       # The desktop run starts without a model: the attorney adds one on the Models page.
       flowleap-desktop)
         overlay="$skill_dir/verify.desktop.patch.yml"
-        unset_keys=(-u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY) ;;
+        unset_keys=(-u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u MISTRAL_API_KEY)
+        # DSH_VERIFY_KEEP_OPENROUTER=1 keeps the founder's OpenRouter key, so a run can test it without typing it.
+        [[ ${DSH_VERIFY_KEEP_OPENROUTER:-} == 1 ]] || unset_keys+=(-u OPENROUTER_API_KEY) ;;
       *) echo "DSH_VERIFY_PROFILE must be flowleap-web or flowleap-desktop, got $profile" >&2; exit 1 ;;
     esac
     echo "$profile" >"$profile_file"
