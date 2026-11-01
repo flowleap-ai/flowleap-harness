@@ -168,20 +168,27 @@ export interface DraftingFiles {
 	exists(path: string): Promise<boolean>;
 	/** The absolute process path of a workspace path, for the delivery card. */
 	processPath(path: string): Promise<string>;
+	/**
+	 * The commit point of a save that writes several files: throws the abort reason when the user
+	 * already stopped the call, else runs every later operation of these files with a signal that
+	 * does not abort, so the save writes all its files or none.
+	 */
+	commit(): void;
 }
 
 /**
  * Build the {@link DraftingFiles} of a working directory over `ctx.fs`.
  * @param ctx - a context whose `fs` is active.
  * @param cwd - the working directory's process path.
- * @param signal - the tool call's signal.
+ * @param signal - the tool call's signal, honoured until {@link DraftingFiles.commit}.
  * @returns the file I/O, fenced to the working directory.
  */
 export async function workspaceFiles(ctx: Context, cwd: string, signal: AbortSignal): Promise<DraftingFiles> {
 	const root = await ctx.fs.resolve(cwd, { signal });
+	let active = signal;
 	const rootPath = ctx.fs.processPath(root);
 	const inside = async (path: string): Promise<FsTarget> => {
-		const target = await ctx.fs.resolve(path, { cwd: rootPath, signal });
+		const target = await ctx.fs.resolve(path, { cwd: rootPath, signal: active });
 		if (!ctx.fs.contains(root, target)) {
 			throw new Error(`Drafting files must stay within the working directory ${rootPath} (refused: ${path}).`);
 		}
@@ -193,37 +200,41 @@ export async function workspaceFiles(ctx: Context, cwd: string, signal: AbortSig
 		async read(path) {
 			const target = await inside(path);
 			try {
-				return await ctx.fs.readText(target, signal);
+				return await ctx.fs.readText(target, active);
 			} catch (error) {
-				if (absent(error) || await ctx.fs.stat(target, signal) === undefined) { return undefined; }
+				if (absent(error) || await ctx.fs.stat(target, active) === undefined) { return undefined; }
 				throw error;
 			}
 		},
 		async readBytes(path) {
 			const target = await inside(path);
 			try {
-				return await ctx.fs.readBytes(target, signal, MAX_DRAFTING_FILE_BYTES);
+				return await ctx.fs.readBytes(target, active, MAX_DRAFTING_FILE_BYTES);
 			} catch (error) {
-				if (absent(error) || await ctx.fs.stat(target, signal) === undefined) { return undefined; }
+				if (absent(error) || await ctx.fs.stat(target, active) === undefined) { return undefined; }
 				throw error;
 			}
 		},
 		async write(path, text) {
-			await ctx.fs.writeText(await inside(path), text, undefined, signal);
+			await ctx.fs.writeText(await inside(path), text, undefined, active);
 		},
 		async writeBytes(path, bytes) {
-			await writeWorkspaceBytes(ctx.fs, root, await inside(path), bytes, signal);
+			await writeWorkspaceBytes(ctx.fs, root, await inside(path), bytes, active);
 		},
 		async listFiles(folder) {
 			const target = await inside(folder);
-			if ((await ctx.fs.stat(target, signal))?.type !== 'directory') { return []; }
-			return (await ctx.fs.listDir(target, signal)).filter(entry => entry.type === 'file').map(entry => entry.name).sort();
+			if ((await ctx.fs.stat(target, active))?.type !== 'directory') { return []; }
+			return (await ctx.fs.listDir(target, active)).filter(entry => entry.type === 'file').map(entry => entry.name).sort();
 		},
 		async exists(path) {
-			return await ctx.fs.stat(await inside(path), signal) !== undefined;
+			return await ctx.fs.stat(await inside(path), active) !== undefined;
 		},
 		async processPath(path) {
 			return ctx.fs.processPath(await inside(path));
+		},
+		commit() {
+			signal.throwIfAborted();
+			active = new AbortController().signal;
 		},
 	};
 }
