@@ -1,10 +1,10 @@
 # FlowLeap Desktop as the way in: plan
 
-Status: the founder decided Q0 to Q6 on 2026-11-01 (section 7) and accepted each recommendation. The tickets of section 8 wait for approval; no ticket exists yet. It changes the order of the [roadmap](2026-10-29-roadmap.md) and adds to the [open-source docs plan](https://github.com/flowleap-ai/flowleap-os/blob/main/docs/plans/2026-11-01-open-source-docs.md) of flowleap-os. It uses the [MCP door study](2026-11-01-mcp-door-study.md) for the agents' side.
+Status: the founder decided Q0 to Q6 on 2026-11-01 (section 7). Later the same day the founder replaced Q2 with the native-app rule (section 7, Q7). The tickets of section 8 are issues #159 to #176. It changes the order of the [roadmap](2026-10-29-roadmap.md) and adds to the [open-source docs plan](https://github.com/flowleap-ai/flowleap-os/blob/main/docs/plans/2026-11-01-open-source-docs.md) of flowleap-os. It uses the [MCP door study](2026-11-01-mcp-door-study.md) for the agents' side.
 
 **The goal (the founder, 2026-11-01).** "The desktop app should be open source, downloaded and used immediately like Kino, and we help them use it with Claude or ChatGPT or API, and our plugins will pay for us ... not all firms will host PATSTAT but we can sell a PATSTAT subscription to be in his agent or any agent." And: "open source everything and sell the execution and the ecosystem ... the ecosystem is mine, a set of plugins we can build incrementally."
 
-**The answer in short.** Most of the parts exist. The FlowLeap desktop build runs from source with no account and opens the FlowLeap dashboard. But an attorney cannot get a first answer: the desktop uses the firm product's locks, so the Models page refuses every model key, and the first chat fails with a developer error. The backend already has the rest of the 10-minute path: a 7-day trial with no card, a capped trial model key on OpenRouter, house keys for EPO and USPTO data during the trial, and the hosted MCP server that gives the paid data to Claude, ChatGPT and Claude Code. So the first work is small and in this repository: a desktop product layer without the firm locks, one "Sign in to FlowLeap" step that turns on the trial model and the paid tools, and a model key step. Then signing and notarization, so that a download opens without a security warning. The License ($39 a month) already sells all data sources in one plan; the plugin ecosystem needs entitlements per plugin only when there is a second paid thing to sell.
+**The answer in short.** Most of the parts exist. The FlowLeap desktop build runs from source with no account and opens the FlowLeap dashboard. But an attorney cannot get a first answer: the desktop uses the firm product's locks, so the Models page refuses every model key, and the first chat fails with a developer error. **The native-app rule (founder, 2026-11-01):** the desktop app and the firm OS call no FlowLeap backend. The attorney brings a model key, and the office tools run on the attorney's own free keys. Paid data comes only as a plugin that the attorney installs with one click from the plugin store; only that plugin signs in to FlowLeap and calls the hosted MCP server. So the first work is small and in this repository: a desktop product layer without the firm locks, a model key step, and the one-click data plugin. Then signing and notarization, so that a download opens without a security warning. The License ($39 a month) already sells all data sources in one plan; the plugin ecosystem needs entitlements per plugin only when there is a second paid thing to sell.
 
 Two vendor facts set the limits. Anthropic forbids a "Sign in with Claude" in FlowLeap's own app, so "use your Claude or ChatGPT plan" means FlowLeap's tools inside the vendors' apps through MCP, which works today. And the EPO PATSTAT terms require the EPO's permission for any commercial use of PATSTAT data (clause 5.8); the founder confirmed on 2026-11-01 that FlowLeap holds it.
 
@@ -52,7 +52,7 @@ The founder asked whether the desktop works with the patent data connectors and 
 
 **What works with no FlowLeap backend.** The app, the settings card, the 34 office tools on the attorney's own EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys, the keyless academic search, the deliverables, the agents and the routines.
 
-**What names the paid route.** US claims and US full text, and PATSTAT. The prompt section `flowleap:patent-data-keys` says "Text this host has no source for (US claims) is a paid FlowLeap service; the tool result names the route to take", and the full-text router returns `not_configured` with the paid route. The Patent Agent prompt describes PATSTAT analytics. Without a FlowLeap sign-in these tools are not registered, so the model is sent to a tool that does not exist, and the attorney sees no "Sign in to FlowLeap" step. T2 fixes this: the result must name the sign-in, not a tool.
+**What names the paid route.** US claims and US full text, and PATSTAT. The prompt section `flowleap:patent-data-keys` says "Text this host has no source for (US claims) is a paid FlowLeap service; the tool result names the route to take", and the full-text router returns `not_configured` with the paid route. The Patent Agent prompt describes PATSTAT analytics. Without a FlowLeap sign-in these tools are not registered, so the model is sent to a tool that does not exist, and the attorney sees no way to get the data. T2 fixes this: without the data plugin, the result must name the plugin in the plugin store, not a tool.
 
 **Limits of the check.** I entered no office key, so no call reached an office with a key. With the proxy on, the arXiv call failed because the host's own fetch does not use the proxy; the second run, with no proxy and no `flowleap` command, is the evidence for it. During one try between the two runs, an older `flowleap` CLI (v0.8.8, in the nvm folder) was still on PATH; it started, used the FlowLeap key stored on this Mac and reached `api.flowleap.co` before I stopped the run. No chat ran in that try, so the model called no tool; the CLI made only its start-up requests.
 
@@ -65,18 +65,18 @@ The founder asked whether the desktop works with the patent data connectors and 
 | Install, Windows | No FlowLeap build. Upstream signs with an EV hardware token on a self-hosted runner, which FlowLeap does not have. | A cloud signing service (section 3.3) or a certificate on a hardware token | T9 |
 | First run | Works: dashboard, no account | The first-run steps in the right order (below), the "Install FlowLeap" card hidden in the desktop | T1, T4 |
 | Model setup | Refused (step 4 above) | A desktop layer without the firm locks; a model step | T1, T3 |
-| Patent data | Four free office keys. Each is a browser sign-up at the office, so a human step that takes longer than 10 minutes. | Let the trial use FlowLeap's House keys and paid tools through one sign-in; office keys become optional | T2 |
+| Patent data | Four free office keys. Each is a browser sign-up at the office, so a human step that takes longer than 10 minutes. | A first question that needs no office key (arXiv and the other keyless tools), the office key cards after it, and the paid data plugin in the plugin store | T2, T4 |
 | First useful result | Not reached | The steps above, and one guided first question | T4 |
 
-**The proposed first run.** One screen with two buttons, then the first question:
+**The proposed first run.** The app calls no FlowLeap host (the native-app rule, Q7):
 
-1. **Sign in to FlowLeap (free 7-day trial).** A browser sign-in (the device flow the CLI already uses, or OAuth). The desktop stores the token in the credential store. It then gets the Trial Model key and uses it on the `openrouter` route, and it connects the paid tools to `https://api.flowleap.co/mcp` over Streamable HTTP with the token as a header. The `dsh-mcp-client` row supports Streamable HTTP with headers (`packages/mcp/mcp-client/README.md`), so the desktop needs no `flowleap` CLI. Office tools run on the House keys through the backend during the trial.
-2. **Use my own model key.** OpenRouter (section 3), Anthropic or OpenAI, with a Test button. The attorney can do this now or when the trial ends.
-3. **First question.** A prefilled example with a real patent number, so the first answer shows the paid data at work.
+1. **Add a model.** Connect OpenRouter (section 3) or paste an Anthropic or OpenAI key, with a Test button (T3).
+2. **First question.** A prefilled example that a keyless tool can answer, for example an academic search on arXiv, so the first answer comes in minutes.
+3. **Later cards.** "Use your own EPO and USPTO keys" (the office key wizard), and "Get FlowLeap data" (the data plugin in the plugin store, T2).
 
-The office key wizard moves to a later "Use your own EPO and USPTO keys" card: this is the free, local path that does not need FlowLeap's servers.
+**The paid data plugin.** One click in the plugin store installs it. After the install, the plugin asks the attorney to sign in to FlowLeap: the system browser opens flowleap.co with a loopback redirect to the plugin (a new registered client `flowleap-desktop`, beside `flowleap-cli`), and a new account starts the data trial. The plugin stores one `fl_pat_` token in the credential store, and its tools call `https://api.flowleap.co/mcp` over Streamable HTTP with the token as a header; the `dsh-mcp-client` row supports this (`packages/mcp/mcp-client/README.md`), so no `flowleap` CLI is needed. Sign out or uninstall revokes the token and removes the tools. A desktop with no plugin installed makes no call to any FlowLeap host (#169).
 
-This makes the trial the 10-minute path and the License the next step. The cost of a trial to FlowLeap is capped by the Trial Model key cap and the Trial data budget (ADR 0018).
+The backend's Trial Model key (ADR 0015) is not used by the desktop: the attorney's own model key runs every chat.
 
 ## 3. Models
 
@@ -99,10 +99,9 @@ Vendor facts were fetched on 2026-11-01. The full notes, with a source for each 
 
 ### 3.2 What to offer at launch
 
-1. **The FlowLeap trial model** (section 2): a sign-in, no key, capped. It is FlowLeap's own OpenRouter key per user, not a vendor plan, so no vendor rule above blocks it.
-2. **Connect OpenRouter** as the main button after the trial, and **paste an Anthropic or OpenAI key** for firms that want a direct contract and zero data retention.
-3. **"Use your Claude or ChatGPT plan"** means, at launch: connect FlowLeap to Claude Desktop, ChatGPT, Claude Code or Codex. The desktop writes their settings (T11). The attorney's plan pays for the model, and FlowLeap's data works inside the vendor's app. This is allowed and built.
-4. **Later, after written confirmation from the vendors:** a Kino-style mode in which the desktop runs the attorney's own installed Claude Code or Codex as the agent, with FlowLeap tools and skills. For Claude Code this needs Anthropic's Commercial Terms; for ChatGPT, OpenAI asks open-source apps to use "Sign in with ChatGPT", which needs a client ID. Do not build "Sign in with Claude" in FlowLeap's own app.
+1. **Connect OpenRouter** as the main button, and **paste an Anthropic or OpenAI key** for firms that want a direct contract and zero data retention. There is no FlowLeap trial model (Q7).
+2. **"Use your Claude or ChatGPT plan"** means, at launch: FlowLeap data inside Claude Desktop, ChatGPT, Claude Code or Codex through the hosted MCP server. The attorney's plan pays for the model, and FlowLeap's data works inside the vendor's app. This is allowed and built. Writing the agents' settings from the desktop belongs to the data plugin, after its sign-in (T11), not to the core app.
+3. **Later, after written confirmation from the vendors:** a Kino-style mode in which the desktop runs the attorney's own installed Claude Code or Codex as the agent, with FlowLeap tools and skills. For Claude Code this needs Anthropic's Commercial Terms; for ChatGPT, OpenAI asks open-source apps to use "Sign in with ChatGPT", which needs a client ID. Do not build "Sign in with Claude" in FlowLeap's own app.
 
 ### 3.3 Code signing
 
@@ -120,14 +119,14 @@ Both platforms can sign on GitHub-hosted runners, so FlowLeap needs no self-host
 
 | Where | How the attorney enters it | State |
 |---|---|---|
-| FlowLeap Desktop | "Sign in to FlowLeap" (T2). The token goes to the credential store; the paid tools appear. | Missing. Today only the `flowleap` CLI login, by hand. |
-| Firm OS | `FLOWLEAP_API_KEY` in `/etc/flowleap/firm.env`; `install.sh` writes it as the CLI key. One token for the firm. | Exists. A field in the Firm admin console is part of #34. |
+| FlowLeap Desktop | Install the FlowLeap data plugin from the plugin store, then sign in inside the plugin (T2). The token goes to the credential store; the paid tools appear. | Missing. Today only the `flowleap` CLI login, by hand. |
+| Firm OS | Today `FLOWLEAP_API_KEY` in `/etc/flowleap/firm.env`; `install.sh` writes it as the CLI key. Under the native-app rule the administrator installs the same data plugin once for the firm from the admin console, and the firm token stays out of the attorneys' runtimes. | Exists as `FLOWLEAP_API_KEY`; the plugin is #176. |
 | Claude Code | The `flowleap` plugin, or `claude mcp add --transport http flowleap https://api.flowleap.co/mcp`; OAuth on first use | Exists |
 | Claude Desktop, claude.ai | Settings > Connectors, custom connector with the hosted URL; OAuth. The URL is public, so Anthropic's cloud can reach it. | Exists (flowleap-mcp README) |
 | ChatGPT | Developer mode, add the hosted URL; OAuth | Exists (flowleap-mcp README) |
 | Codex | `codex mcp add flowleap --url https://api.flowleap.co/mcp`, then `codex mcp login flowleap` | Works by the vendor docs; not in the flowleap-mcp README (T12) |
 
-So "a PATSTAT subscription in any agent" exists today for the agents above: the License plus the hosted MCP server. What is missing is the desktop sign-in (T2), a token page on the website for clients without OAuth (T12), the upgrade link in the 402 at the MCP door (backend #539), and a "Connect Claude and Codex" screen in the desktop that writes the agents' settings, as Kino does (T11).
+So "a PATSTAT subscription in any agent" exists today for the agents above: the License plus the hosted MCP server. What is missing is the data plugin with its sign-in (T2), a token page on the website for clients without OAuth (T12), the upgrade link in the 402 at the MCP door (backend #539), and a "Connect Claude and Codex" screen in the data plugin that writes the agents' settings, as Kino does (T11).
 
 **One plan or a plan per plugin.** The backend CONTEXT says "exactly one plan", "no tiers". A plan per plugin needs an entitlement record per user (or firm) and plugin, Stripe products per plugin, and the tool gate reading the entitlement instead of the status. This is about 2 weeks of backend work (T13). I recommend one License until there is a second paid plugin that a buyer wants without the first (section 5). Then the License becomes "FlowLeap Data", and new plugins are add-ons.
 
@@ -159,9 +158,9 @@ Closed-source plugins inside the open app. An attorney cannot see what a closed 
 ### 5.3 How a plugin is sold, licensed and delivered
 
 - **Licence of the code.** MIT for every client part (the dsh bundle, the skills, the MCP configuration). The paid value is the service at `api.flowleap.co`.
-- **Sale.** On flowleap.co: Stripe Checkout, the customer portal, and the 7-day trial with no card. The desktop and the 402 answer at the MCP door link to the same checkout (backend #539).
+- **Sale.** On flowleap.co: Stripe Checkout, the customer portal, and the 7-day trial with no card. The data plugin and the 402 answer at the MCP door link to the same checkout (backend #539).
 - **Entitlement.** Checked on the backend for each call (the Subscription status today; per plugin after T13). Nothing in the client needs to be trusted.
-- **Delivery.** One plugin, three forms from one source: a dsh bundle for the desktop and the firm OS (listed in a FlowLeap Discover index at `registry.flowleap.co`, built by the plugin market generator), the Claude Code plugin in flowleap-plugins, and the hosted MCP server for every other agent.
+- **Delivery.** One plugin, three forms from one source: a dsh bundle for the desktop and the firm OS (listed in a FlowLeap Discover index built by the plugin market generator), the Claude Code plugin in flowleap-plugins, and the hosted MCP server for every other agent. The index and the bundle come from a public location such as GitHub or npm, not from a FlowLeap host, so a desktop that opens the plugin store and installs nothing makes no call to FlowLeap (#169).
 - **Integrations (number 4)** run against systems inside the firm, so the backend cannot check each call. Sell them as a setup and support contract, with the code open.
 
 ### 5.4 The paid easy path
@@ -184,8 +183,8 @@ This changes the founder's decision of 2026-10-30 ("self-hosted only for now"; m
 | Claude Desktop, claude.ai, ChatGPT | The hosted MCP server, `https://api.flowleap.co/mcp`, OAuth sign-in, no key to copy | Exists |
 | Claude Code | The `flowleap` plugin of flowleap-plugins: 33 skills and the hosted MCP server | Exists |
 | Codex and other agents that run shell commands | The `flowleap` CLI (`npm i -g flowleap`, device-flow sign-in) and the skills (`npx skills add`, as the flowleap-plugins README says) | Exists; the Codex page is missing (T12) |
-| FlowLeap Desktop | The same hosted MCP server after "Sign in to FlowLeap" | T2 |
-| A managed firm server | The firm's FlowLeap token for the data (`FLOWLEAP_API_KEY`); the firm's own documents and chats reach outside agents only through the MCP door (#77), after the web gate and the audit trail | Data: exists. Firm data: after phase C |
+| FlowLeap Desktop | The same hosted MCP server, through the data plugin after its install and sign-in | T2 |
+| A managed firm server | The data plugin, installed once by the administrator (#176); the firm's own documents and chats reach outside agents only through the MCP door (#77), after the web gate and the audit trail | Data: exists. Firm data: after phase C |
 
 ## 6. How this changes the roadmap and the docs plan
 
@@ -205,8 +204,8 @@ Two of the old assumptions change:
 | D0. Desktop works alone | An attorney gets a first answer from a source build in 10 minutes | T1 to T7 | 2 to 3 weeks |
 | D1. Download | A signed download that opens without a warning, on macOS and Windows, with updates | T8 to T10 (needs the founder's Apple and Microsoft accounts) | 1 to 2 weeks, partly waiting for the vendors |
 | A. Close the loop | Unchanged; #81 and #60 real data help the desktop too | As in the roadmap | 1 to 2 weeks, in parallel with D1 |
-| D2. Agents and plugins | Connect Claude and Codex from the desktop; register watch as the second paid plugin; the Discover index | T11, T12, T14; T13 only if the founder decides on plans per plugin | 2 to 3 weeks |
-| B, C. Firm OS pilot-ready and trust | Unchanged, but after D0 and D1, unless a pilot firm with a date comes first. B adds the managed firm server (option 1, decided): T16 and T17 | As in the roadmap, plus T16 and T17 | 6 to 9 weeks |
+| D2. Agents and plugins | Connect Claude and Codex from the data plugin; register watch as the second paid plugin; the Discover index | T11, T12, T14; T13 only if the founder decides on plans per plugin | 2 to 3 weeks |
+| B, C. Firm OS pilot-ready and trust | Unchanged, but after D0 and D1, unless a pilot firm with a date comes first. B adds the managed firm server (option 1, decided): T16 and T17. The native-app rule adds the data plugin installed by the administrator (#176) and updates from a public signed feed (#175, after signed images #120) | As in the roadmap, plus T16, T17, #175 and #176 | 7 to 10 weeks |
 | D. Firm knowledge, E. phone and the firm MCP door | Unchanged | | later |
 
 Phase B items that the desktop also needs (#84 developer pages, #70 plugin creation, #79 wizard bug) move into D0.
@@ -215,9 +214,11 @@ Phase B items that the desktop also needs (#84 developer pages, #70 plugin creat
 
 - **Start here** gets a first page "Download FlowLeap Desktop", before "Install and operate". The firm OS becomes "For firms: run FlowLeap on your own host".
 - **Use (attorney)** pages are written for the desktop first; the browser on a firm host is the same app.
-- **Appendix A** (free and paid) adds "FlowLeap Desktop" as the first free row, and "the 7-day trial with no card, then the License" as the first paid row. "What you always pay others" adds "your model provider, or the trial model during the trial".
+- **Appendix A** (free and paid) adds "FlowLeap Desktop" as the first free row, and "the FlowLeap data plugin: install it from the plugin store, sign in, 7-day trial with no card, then the License" as the first paid row. "What you always pay others" adds "your model provider". The page states the native-app rule: the app and the firm OS call no FlowLeap server unless the user installs a paid plugin.
+- **Install and operate** says that firm OS updates come from a public signed feed (#175), and the data key comes from the data plugin in the admin console (#176), not from `FLOWLEAP_API_KEY` in `firm.env`.
 - **Plugins and the ecosystem** uses section 5 of this plan for the official, paid and community tiers (docs plan decision D8).
-- The connect pages for Claude, ChatGPT, Claude Code and Codex point at the hosted MCP server, and the flowleap-mcp README gets the Codex row (T12).
+- The connect pages for Claude, ChatGPT, Claude Code and Codex point at the hosted MCP server, and the flowleap-mcp README gets the Codex row (T12). They belong to the paid data, not to the free app.
+- **Places in the docs plan that the native-app rule changes** (flowleap-os `docs/plans/2026-11-01-open-source-docs.md` on 2026-11-01): "Paid data" (`FLOWLEAP_API_KEY` in `firm.env`) and the how-to "Add a paid plugin: enter the firm's FlowLeap key" become the administrator's plugin install (#176); the plugin index "from `registry.flowleap.co`" moves to a public location such as GitHub; decision D2 "publish the release images for free on `registry.flowleap.co`" becomes the public signed feed (#175); Appendix A "A FlowLeap key in the console" becomes "install the data plugin in the console".
 
 ## 7. Decisions of the founder (2026-11-01)
 
@@ -225,31 +226,34 @@ The founder accepted every recommendation of the first grilling round on 2026-11
 
 0. **Q0. PATSTAT permission. Decided (2026-11-01):** FlowLeap holds the EPO's clause 5.8 permission for commercial use.
 1. **Q1. The desktop is the full local app, and #75 changes to this meaning.** **Decided: yes**.
-2. **Q2. The trial is the 10-minute path** (Trial Model key and House keys through one sign-in). **Decided: yes**; it is built in the backend.
-3. **Q3. Models at launch.** The trial model, then OpenRouter connect and Anthropic or OpenAI keys; "use your Claude or ChatGPT plan" as FlowLeap inside the vendor apps through MCP; no "Sign in with Claude"; the Kino-style mode only after written vendor confirmation (section 3.2). **Decided: yes**.
+2. **Q2. The trial is the 10-minute path** (Trial Model key and House keys through one sign-in). Decided yes, then **replaced by Q7** the same day.
+3. **Q3. Models at launch.** OpenRouter connect and Anthropic or OpenAI keys (the trial model went with Q7); "use your Claude or ChatGPT plan" as FlowLeap inside the vendor apps through MCP; no "Sign in with Claude"; the Kino-style mode only after written vendor confirmation (section 3.2). **Decided: yes**.
 4. **Q4. One License now, plans per plugin later.** **Decided: yes**, and decide the firm License (per seat or per firm) when the first firm asks.
 5. **Q5. The new order (D0 and D1 before B and C).** **Decided: yes**, unless a pilot firm gives a start date.
 6. **Q6. Apple and Microsoft signing accounts.** The founder buys the Apple Developer Program membership and applies for Windows signing (section 3.3). **Decided: yes**, start now, because the vendors' identity checks take days.
+7. **Q7. The native-app rule. Decided (2026-11-01), replaces Q2:** "paid data should come from plugin store, they should install it in one click and when they install it they will be able to sign in; other than that the desktop app or any AI system should be native and not connected by any means to any backend". So the core desktop app has no "Sign in to FlowLeap", no trial model from FlowLeap and no call to a FlowLeap host; the first run uses the attorney's own model key. The FlowLeap sign-in exists only inside the data plugin (T2, #169). "Connect Claude and Codex" moves into the data plugin (T11, #174). The founder applied the same rule to the firm OS: the built-in FlowLeap MCP row and `FLOWLEAP_API_KEY` go away, and the administrator installs the same data plugin once for the firm with the firm token kept out of the attorneys' runtimes (#176); updates come from a public signed feed, not `registry.flowleap.co` with an update key, with trust from the image signature (#175, after #120).
 
-## 8. Proposed tickets
+## 8. Tickets
 
-No ticket exists. Labels follow the repository taxonomy. Sizes: S up to 3 days, M about a week, L two weeks or more.
+Each ticket is a GitHub issue; #75 lists them. Sizes: S up to 3 days, M about a week, L two weeks or more.
 
-| # | Title | Repository | Size |
-|---|---|---|---|
-| T1 | Desktop product layer without the firm locks: move `fixedRoutes`, `lockedRefs`, the locked rows and `managed: true` out of `dsh-flowleap-web` into a firm layer that flowleap-os applies; the desktop keeps the routes but lets the attorney add a key and pick a model | flowleap-harness, flowleap-os | M |
-| T2 | "Sign in to FlowLeap" in the desktop. The flow: the app opens `https://api.flowleap.co/oauth/authorize` in the system browser with a loopback redirect `http://127.0.0.1:<port>/callback` (a new registered client `flowleap-desktop`, beside `flowleap-cli`); the attorney signs in or signs up on flowleap.co (a new account starts the 7-day trial); the app makes one long-lived `fl_pat_` token with `POST /api/tokens` and stores only that token in the credential store; it gets the Trial Model key from `GET /v1/trial/model-key` for the `openrouter` route; the `mcp-flowleap` row calls the hosted MCP server over Streamable HTTP with the token as a header (no CLI). The dashboard shows the trial or License state; Sign out revokes the token. | flowleap-harness, flowleap-backend (client registration) | M |
-| T3 | Model step: OpenRouter connect, Anthropic and OpenAI keys, Test; a `MISSING_CREDENTIAL` turn shows a card with the button instead of the developer text | flowleap-harness | M |
-| T4 | First run in the desktop: the two-button screen, the example first question, the office key wizard as a later card, the "Install FlowLeap" card hidden in the desktop | flowleap-harness | S |
-| T5 | Skills pack in the desktop: ship the flowleap-plugins pack as an application resource and point `FLOWLEAP_SKILLS_DIR` at it | flowleap-harness | S |
-| T6 | Move #84, #70 and #79 into D0; fix the "DSH Local Build" title and the Plugins page that stays on its placeholder | flowleap-harness | S to M |
-| T7 | A desktop verify script: start from source with an empty home, run the 10-minute path to the first answer (one minimal OpenRouter call, with the founder's permission), record the evidence | flowleap-harness | S |
-| T8 | macOS signing and notarization on a GitHub-hosted runner with FlowLeap's Developer ID | flowleap-harness | M |
-| T9 | Windows build and signing on a GitHub-hosted runner (section 3.3) | flowleap-harness | M |
-| T10 | Update feed and download page: GitHub Releases of flowleap-harness as the generic feed, `updates.feedUrl` set, a download page on flowleap.co | flowleap-harness, flowleap-website-v2 | S to M |
-| T11 | "Connect Claude and Codex" in the desktop: write the Claude Code, Codex and ChatGPT desktop settings for the hosted MCP server, open the Claude Desktop connector steps, show the connection state | flowleap-harness | M |
-| T12 | Token page on the website dashboard (mint, list, revoke `fl_pat_`), the Codex row in the flowleap-mcp README, and the upgrade link in the MCP 402 (#539) | flowleap-website-v2, flowleap-mcp, flowleap-backend | S |
-| T13 | Only after Q4: entitlements per plugin in the backend (Stripe products, an entitlement record, the tool gate) | flowleap-backend | L |
-| T14 | Register watch as a hosted service: daily EP and US register checks on the backend, an alert, shown in the desktop and in any agent | flowleap-backend, flowleap-harness | M to L |
-| T16 | Managed firm server, step 1: a script that creates one server in a cloud account (FlowLeap's or the firm's), runs the installer and records the firm in FlowLeap's operations list | flowleap-os | M |
-| T17 | Support access that the firm's administrator opens for a limited time (ADR 0001 decision 15), so FlowLeap operates managed servers without a standing key | flowleap-os | M |
+| # | Issue | Title | Repository | Size |
+|---|---|---|---|---|
+| T1 | #159 | Desktop product layer without the firm locks: move `fixedRoutes`, `lockedRefs`, the locked rows and `managed: true` out of `dsh-flowleap-web` into a firm layer that flowleap-os applies; the desktop keeps the routes but lets the attorney add a key and pick a model | flowleap-harness, flowleap-os | M |
+| T2 | #169 | One-click FlowLeap data plugin from the plugin store, with its own sign-in (section 2). The core app calls no FlowLeap host; the plugin signs in through `https://api.flowleap.co/oauth/authorize` with a loopback redirect (new client `flowleap-desktop`), stores one `fl_pat_` token in the credential store, and calls the hosted MCP server over Streamable HTTP. Sign out or uninstall revokes the token. | flowleap-harness, flowleap-backend (client registration) | M |
+| T3 | #170 | Model step: OpenRouter connect, Anthropic and OpenAI keys, Test; a `MISSING_CREDENTIAL` turn shows a card with the button instead of the developer text | flowleap-harness | M |
+| T4 | #171 | First run in the desktop: the model step, the keyless first question, the office key wizard and the data plugin as later cards, the "Install FlowLeap" card hidden in the desktop; no FlowLeap sign-in and no trial model | flowleap-harness | S |
+| T5 | #160 | Skills pack in the desktop: ship the flowleap-plugins pack as an application resource and point `FLOWLEAP_SKILLS_DIR` at it | flowleap-harness | S |
+| T6 | #161 | Move #84, #70 and #79 into D0; fix the "DSH Local Build" title and the Plugins page that stays on its placeholder | flowleap-harness | S to M |
+| T7 | #172 | A desktop verify script: start from source with an empty home, run the 10-minute path to the first answer (one minimal OpenRouter call, with the founder's permission), record the evidence | flowleap-harness | S |
+| T8 | #166 | macOS signing and notarization on a GitHub-hosted runner with FlowLeap's Developer ID | flowleap-harness | M |
+| T9 | #167 | Windows build and signing on a GitHub-hosted runner (section 3.3) | flowleap-harness | M |
+| T10 | #173 | Update feed and download page: GitHub Releases of flowleap-harness as the generic feed, `updates.feedUrl` set, a download page on flowleap.co | flowleap-harness, flowleap-website-v2 | S to M |
+| T11 | #174 | "Connect Claude and Codex", part of the data plugin after its sign-in: write the Claude Code, Codex and ChatGPT desktop settings for the hosted MCP server, open the Claude Desktop connector steps, show the connection state | flowleap-harness | M |
+| T12 | #162 | Token page on the website dashboard (mint, list, revoke `fl_pat_`), the Codex row in the flowleap-mcp README, and the upgrade link in the MCP 402 (#539) | flowleap-website-v2, flowleap-mcp, flowleap-backend | S |
+| T13 | #168 | Only after Q4: entitlements per plugin in the backend (Stripe products, an entitlement record, the tool gate) | flowleap-backend | L |
+| T14 | #163 | Register watch as a hosted service and a paid plugin: daily EP and US register checks on the backend, an alert, shown in the desktop only after the attorney installs the plugin, and in any agent | flowleap-backend, flowleap-harness | M to L |
+| T16 | #164 | Managed firm server, step 1: a script that creates one server in a cloud account (FlowLeap's or the firm's), runs the installer and records the firm in FlowLeap's operations list | flowleap-os | M |
+| T17 | #165 | Support access that the firm's administrator opens for a limited time (ADR 0001 decision 15), so FlowLeap operates managed servers without a standing key | flowleap-os | M |
+| none | #175 | Firm OS updates from a public signed feed (for example GitHub Releases and a public container registry), with no FlowLeap registry key; blocked by #120 | flowleap-os, flowleap-harness | M |
+| none | #176 | Firm OS: the FlowLeap data plugin, installed once by the administrator for the whole firm; the firm token stays out of the attorneys' runtimes; blocked by #169 | flowleap-harness, flowleap-os | M |
