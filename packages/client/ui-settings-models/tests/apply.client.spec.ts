@@ -20,6 +20,7 @@ import { WelcomeNotice } from '../src/client/WelcomeNotice.tsx'
 import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
 import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
+import { ManagedModelNotice } from '../src/client/MissingCredentialAction.tsx'
 
 /** The Peer an index render speaks for; this listener reads no field of it. */
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
@@ -65,6 +66,14 @@ function declare(slots: SlotRegistry): () => void {
         'settings.onboarding': { kind: 'list', scope: 'root' },
       },
     } as never,
+    () => null,
+  )
+}
+
+/** Stand-in for Chat's turn-error row, which declares the keyed action seat. */
+function declareChatAction(slots: SlotRegistry): () => void {
+  return slots.register(
+    { name: 'root', children: { 'conversation.chat.turn-error.action': { kind: 'keyed', scope: 'session' } } } as never,
     () => null,
   )
 }
@@ -242,6 +251,23 @@ describe('ui-settings-models apply', () => {
     // Declarer unload cascades whatever extension entries remain.
     await fiber.dispose()
     expect(b.slots.entries('settings.models.footer')).toHaveLength(0)
+  })
+
+  it('tells a managed deployment\'s user to ask the administrator when a chat has no model credential', async () => {
+    vi.stubGlobal(ONBOARDING_CONFIG_GLOBAL, { credentialOnboarding: true, managed: true })
+    const b = await bench()
+    declareChatAction(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(b.slots.entries('conversation.chat.turn-error.action').map(entry => [entry.options.key, entry.component]))
+      .toEqual([['MISSING_CREDENTIAL', ManagedModelNotice]])
+  })
+
+  it('leaves the chat failure row without a Models action outside a managed deployment', async () => {
+    vi.stubGlobal(ONBOARDING_CONFIG_GLOBAL, { credentialOnboarding: true, managed: false })
+    const b = await bench()
+    declareChatAction(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(b.slots.entries('conversation.chat.turn-error.action')).toEqual([])
   })
 
   it('registers the zh/en nav dictionaries and disposes everything with the fiber', async () => {

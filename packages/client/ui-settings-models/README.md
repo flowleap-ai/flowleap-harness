@@ -39,6 +39,8 @@ Host configuration `credentialOnboarding` defaults to `true`. The Electron prelo
 
 Host configuration `managed` defaults to `false`. With `managed: true` the deployment fixes the model routes and keys: the page shows the provider rows and their key state with a notice that models run only through the firm's AI gateway, in place of the API-key introduction; it offers no Edit button, no Add model provider button, and no enabled delete. The flag only keeps the page from offering writes; the Host refuses them on its own through `llm-pi-ai` `fixedRoutes` and `credentials-local` `lockedRefs`. So `managed: true` fails the entry at load while an enabled `@deepseek-ai/dsh-llm-pi-ai` Loader row does not set `fixedRoutes: true`, for example when a firm overlay restates that row without it. `flowleap-firm` sets it.
 
+With `managed: true` the package also fills the [Chat](../ui-chat/README.md#command-and-failure-rows) `conversation.chat.turn-error.action` seat under the `MISSING_CREDENTIAL` key: a chat Turn that failed because no model credential was set tells the user to ask the administrator to set up a model, because the user cannot add a key on a managed deployment. With `managed: false` the package registers nothing in that seat, so the row shows only the Chat copy.
+
 ### API keys
 
 API-key inputs start empty and use `autocomplete="new-password"` to ask browsers not to autofill saved login passwords. A nonempty draft has the same eye control as masked conversation text: **Show secret** reveals the current input and **Hide secret** masks it. Changing or clearing the input masks it again. Stored credentials are never read into the input.
