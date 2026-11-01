@@ -66,6 +66,29 @@
 - id: ui-settings-session-log
   disabled: true
 
+# ── developer surfaces off (flowleap-harness#84, #70) ──────────────────────
+# Settings > Built-in plugins lists module names (`@deepseek-ai/dsh-…`) for
+# developers; the desktop keeps the Plugins page, whose Built-in plugin
+# settings hold the same configuration pages. The More menus offer no "Create
+# your plugin": its Creator preset (preset-cordis) is off below.
+
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-settings-plugin-inventory
+  disabled: true
+
+- id: entry-customization
+  config:
+    createPlugin: false
+
+# New task on the Automation tasks page opens the new chat with an example
+# request in the composer, unsent; ui-flowleap-routines supplies the patent
+# example.
+- id: ui-schedule
+  config:
+    newTaskDraft: true
+
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and

@@ -66,6 +66,7 @@
     "apps/web/tests/flowleap-agent-search.snapshot.ts",
     "apps/web/tests/flowleap-office-action-board.snapshot.ts",
     "apps/web/tests/flowleap-budget-warning.e2e.ts",
+    "apps/web/tests/flowleap-attorney-pages.e2e.ts",
     "apps/web/tests/flowleap-dashboard.e2e.ts",
     "apps/web/tests/flowleap-admin-link.e2e.ts",
     "apps/web/tests/flowleap-disk-low.e2e.ts",
