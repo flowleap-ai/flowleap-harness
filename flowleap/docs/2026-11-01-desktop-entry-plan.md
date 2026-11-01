@@ -38,8 +38,23 @@ I built this branch (`pnpm install`, `pnpm run build:artifacts`, all 8 gates pas
 4. Settings > Models says: "Models run only through the firm's AI gateway. The deployment sets the model routes and keys, so you cannot add a provider, sign in, or enter a key here."
 5. The composer shows "Select model". A first question ("What is EP3000000 about?") fails at once: "llm-pi-ai: no credential for provider route "anthropic"; its profile resolves ANTHROPIC_API_KEY, which is not set — store ANTHROPIC_API_KEY through the credentials service (the web Models page writes it) or export it ...", code `MISSING_CREDENTIAL`. The message sends the attorney to a page that refuses the key. **This is the end of the path today.** No request left the machine.
 6. The Plugins page stayed on its loading placeholder.
-7. From the configuration (not seen in a log): the paid tools are absent because the `flowleap` CLI is not on PATH, and the skills pack row has no folder.
+7. The paid tools are absent because the `flowleap` CLI is not on PATH. The skills pack row fails at load: `CustomSkillDirError: ... custom skill directory "/opt/flowleap/skills" does not exist` (seen in the log of the run below); the app starts without the pack.
 8. Also seen: the development window title is "DSH Local Build", and the developer pages of #84 and #70 are present.
+
+### Without the FlowLeap backend (checked live)
+
+The founder asked whether the desktop works with the patent data connectors and no FlowLeap backend. It does. I checked it in two runs on this branch on 2026-11-01.
+
+1. **The desktop with every FlowLeap host refused.** I started the desktop through a local proxy that refused every `flowleap.co` host and logged every other host. The app, the connector settings card and every FlowLeap plugin row loaded. The paid route (`flowleap mcp`) tried `api.flowleap.co` again and again, and the proxy refused each try. No other row needed FlowLeap.
+2. **One chat with tool calls, no real model.** The desktop launch takes no overlay, so I ran the same `flowleap-web` profile (the desktop's template) from source with `dsh --profile flowleap-web`, an overlay that points the `anthropic` route at a small local fake model, and a `flowleap` command on PATH that only exits. The fake model asked for two tools. The model received 75 tools: the office tools (`search_patents`, `get_bibliography`, `get_us_grant`, `compare_claims`, `read_pdf` and the others), and no `mcp__flowleap__*` tool and no `get_fulltext`.
+   - `get_bibliography` with no EPO key answered: "EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again."
+   - `search_academic` on arXiv, which needs no key, returned real papers straight from `export.arxiv.org`.
+
+**What works with no FlowLeap backend.** The app, the settings card, the 34 office tools on the attorney's own EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys, the keyless academic search, the deliverables, the agents and the routines.
+
+**What names the paid route.** US claims and US full text, and PATSTAT. The prompt section `flowleap:patent-data-keys` says "Text this host has no source for (US claims) is a paid FlowLeap service; the tool result names the route to take", and the full-text router returns `not_configured` with the paid route. The Patent Agent prompt describes PATSTAT analytics. Without a FlowLeap sign-in these tools are not registered, so the model is sent to a tool that does not exist, and the attorney sees no "Sign in to FlowLeap" step. T2 fixes this: the result must name the sign-in, not a tool.
+
+**Limits of the check.** I entered no office key, so no call reached an office with a key. With the proxy on, the arXiv call failed because the host's own fetch does not use the proxy; the second run, with no proxy and no `flowleap` command, is the evidence for it. During one try between the two runs, an older `flowleap` CLI (v0.8.8, in the nvm folder) was still on PATH; it started, used the FlowLeap key stored on this Mac and reached `api.flowleap.co` before I stopped the run. No chat ran in that try, so the model called no tool; the CLI made only its start-up requests.
 
 ## 2. The 10-minute path
 
@@ -149,6 +164,29 @@ Closed-source plugins inside the open app. An attorney cannot see what a closed 
 - **Delivery.** One plugin, three forms from one source: a dsh bundle for the desktop and the firm OS (listed in a FlowLeap Discover index at `registry.flowleap.co`, built by the plugin market generator), the Claude Code plugin in flowleap-plugins, and the hosted MCP server for every other agent.
 - **Integrations (number 4)** run against systems inside the firm, so the backend cannot check each call. Sell them as a setup and support contract, with the code open.
 
+### 5.4 The paid easy path
+
+**The reference.** Postiz (social media scheduling, not a patent product) publishes its whole product as open source: "The open-source version is the same codebase, published on GitHub under the AGPL-3.0 license", with self-hosting docs. Its hosted plans start at $29 a month with a 7-day trial. It gives "a hosted MCP endpoint with OAuth sign-in and no API key" for Claude, Claude Code and ChatGPT, and a CLI with a skill (`npx skills add gitroomhq/postiz-agent`) for agents that run shell commands, such as Codex ([postiz.com](https://postiz.com/), [docs](https://docs.postiz.com/public-api)). The founder reports that it earns more than $100,000 a month, because self-hosting is hard. FlowLeap follows the same pattern: the code is free, and FlowLeap sells the easy path.
+
+**Decided by the founder (2026-11-01): option 1 now, option 2 later.**
+
+- **Option 1, now: a managed firm server.** FlowLeap sets up and runs one dedicated server for each firm, in the firm's own cloud account or on a server that FlowLeap rents for that firm. FlowLeap does the installation, the sign-in with the firm's Entra ID, the updates, the backups and the support. The firm pays for setup and for the running service.
+- **Option 2, later, "when we have a solid product": a FlowLeap-hosted cloud.**
+
+This changes the founder's decision of 2026-10-30 ("self-hosted only for now"; managed hosting comes after the firm OS is complete). Managed hosting of one server for each firm starts now. A shared cloud for many firms stays later. One firm still has one host, and a firm's data does not share a server with another firm's data.
+
+**What option 1 can use today.** The flowleap-os installer, the health check, updates with backup and rollback, the release gate, off-site access through Tailscale, and the backup and restore proof (roadmap "Where FlowLeap is"). **What it lacks.** A script that creates the server in a cloud account (FlowLeap's or the firm's) and runs the installer (T16). A support access that the firm's administrator opens for a limited time, so that FlowLeap can operate the server without a standing key (ADR 0001 decision 15, designed and not built; T17). A service agreement and a data processing agreement for the firm (founder, with a lawyer).
+
+**How FlowLeap works with any agent.** This is the Postiz pattern, and most of it exists:
+
+| Agent | Way in | State |
+|---|---|---|
+| Claude Desktop, claude.ai, ChatGPT | The hosted MCP server, `https://api.flowleap.co/mcp`, OAuth sign-in, no key to copy | Exists |
+| Claude Code | The `flowleap` plugin of flowleap-plugins: 33 skills and the hosted MCP server | Exists |
+| Codex and other agents that run shell commands | The `flowleap` CLI (`npm i -g flowleap`, device-flow sign-in) and the skills (`npx skills add`, as the flowleap-plugins README says) | Exists; the Codex page is missing (T12) |
+| FlowLeap Desktop | The same hosted MCP server after "Sign in to FlowLeap" | T2 |
+| A managed firm server | The firm's FlowLeap token for the data (`FLOWLEAP_API_KEY`); the firm's own documents and chats reach outside agents only through the MCP door (#77), after the web gate and the audit trail | Data: exists. Firm data: after phase C |
+
 ## 6. How this changes the roadmap and the docs plan
 
 ### 6.1 The roadmap
@@ -168,7 +206,7 @@ Two of the old assumptions change:
 | D1. Download | A signed download that opens without a warning, on macOS and Windows, with updates | T8 to T10 (needs the founder's Apple and Microsoft accounts) | 1 to 2 weeks, partly waiting for the vendors |
 | A. Close the loop | Unchanged; #81 and #60 real data help the desktop too | As in the roadmap | 1 to 2 weeks, in parallel with D1 |
 | D2. Agents and plugins | Connect Claude and Codex from the desktop; register watch as the second paid plugin; the Discover index | T11, T12, T14; T13 only if the founder decides on plans per plugin | 2 to 3 weeks |
-| B, C. Firm OS pilot-ready and trust | Unchanged, but after D0 and D1, unless a pilot firm with a date comes first | As in the roadmap | 5 to 7 weeks |
+| B, C. Firm OS pilot-ready and trust | Unchanged, but after D0 and D1, unless a pilot firm with a date comes first. B adds the managed firm server (option 1, decided): T16 and T17 | As in the roadmap, plus T16 and T17 | 6 to 9 weeks |
 | D. Firm knowledge, E. phone and the firm MCP door | Unchanged | | later |
 
 Phase B items that the desktop also needs (#84 developer pages, #70 plugin creation, #79 wizard bug) move into D0.
@@ -214,3 +252,5 @@ No ticket exists. Labels follow the repository taxonomy. Sizes: S up to 3 days, 
 | T13 | Only after Q4: entitlements per plugin in the backend (Stripe products, an entitlement record, the tool gate) | flowleap-backend | L |
 | T14 | Register watch as a hosted service: daily EP and US register checks on the backend, an alert, shown in the desktop and in any agent | flowleap-backend, flowleap-harness | M to L |
 | T15 | PATSTAT licence check with the EPO before more PATSTAT sales (founder) | none | founder |
+| T16 | Managed firm server, step 1: a script that creates one server in a cloud account (FlowLeap's or the firm's), runs the installer and records the firm in FlowLeap's operations list | flowleap-os | M |
+| T17 | Support access that the firm's administrator opens for a limited time (ADR 0001 decision 15), so FlowLeap operates managed servers without a standing key | flowleap-os | M |
