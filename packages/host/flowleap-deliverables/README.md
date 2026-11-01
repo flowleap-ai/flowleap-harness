@@ -143,6 +143,8 @@ The provenance appendix of a memo looks each figure and date up in that recorded
 
 After a successful save the writer queues the report and the working record, and this plugin's own `tools/result` listener appends `deliverables/presented` keyed by the writer's call id: the event type `dsh-tool-present` declares, so the Web card shows the two files and a click opens the Markdown preview in the right Sidebar.
 
+A Stop is honoured until the first write of a save. From the first write on, the save writes all its files (the evidence companion, the report, the second-read verdicts, the working record and a template's own files) with a signal that does not abort, so a Stop leaves the full report with its evidence, or nothing. The card is appended whenever the writer queued files, also for the `ABORTED` result that the tool pipeline gives a call that the Stop interrupted after the writes: a saved report always gets its card (#128).
+
 At `agent/turn-stopping`, when the turn asked for a prior-art report, an invalidity chart or a Find Better report and ends without a current structured receipt (or with the report changed on disk, or with research after the save, or an invalidity chart whose receipt lists open points but no Round Report), the plugin steers the IDE's reason into the turn once through `agent.steer()`; the turns are folded from the Session's own events, never read synchronously.
 
 ### The seal on a delivered file
@@ -270,6 +272,7 @@ These limits define what the row does not do yet; they are current package const
 - **Companions have stable names** — `<report>.evidence.json` and `<report>.second-read.json` replace the IDE's `<report>.<uuid>.*` files; an IDE-era receipt whose paths are `file://` URIs still matches by path.
 - **The skill writes Markdown today** — `recipe-office-action-response` (flowleap-cli v0.12.1) asks for the analysis layout in `content`, so its first save is refused once and the model gives `officeAction` on the second save. A later skill version says: save with `officeAction` for sections 0 to 3 and `content` for sections 4 and 5 and the closing sentence.
 - **Work page index without deletion** — a page whose file was moved or deleted stays in the index and is left out of `list()`; `ctx.fs` has no delete, and the index has no removal path yet.
+- **Drafting saves honour a Stop between their files** — `draft-application` and `draft-outline` write their files through the drafting workspace with the call's signal, so a Stop between two of those writes can leave the draft without its Working Record; only `write_patent_results` report saves write all their files once the first write starts.
 - **Guard reads the Session fold, not the loop** — the steer fires from `agent/turn-stopping`; a turn ended by cancellation is not steered.
 
 <a id="dev-note"></a>

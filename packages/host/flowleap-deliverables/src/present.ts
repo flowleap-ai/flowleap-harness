@@ -1,7 +1,9 @@
 /**
- * The delivery card: after a successful save the writer queues the report and
- * the working record here, and this plugin's own `tools/result` listener
- * appends one `deliverables/presented` event keyed by the writer's call id.
+ * The delivery card: once the report is on disk the writer queues the report
+ * and the working record here, and this plugin's own `tools/result` listener
+ * appends one `deliverables/presented` event keyed by the writer's call id,
+ * also when the result is an error, such as the `ABORTED` result of a Stop
+ * that came after the writes: a saved report always gets its card.
  * The event type is the one `dsh-tool-present` declares, so the Web delivery
  * card shows the two files without a new Session event type. The evidence and
  * second-read JSON companions are never presented.
@@ -9,7 +11,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 import type { PresentedFile } from '@deepseek-ai/dsh-tool-present/types'
 import type {} from '@deepseek-ai/dsh-session'
 
@@ -21,7 +23,7 @@ export class PresentQueue {
   private readonly pending = new WeakMap<ToolExecution, PresentedFile[]>()
 
   /**
-   * Queue the files of one save; they are presented only if the result is not an error.
+   * Queue the files of one save that are on disk; they are presented whatever the result.
    * @param exec - the writer's execution.
    * @param files - the report and the working record, absolute process paths.
    */
@@ -48,9 +50,9 @@ export class PresentQueue {
  * @param turnOf - the open turn number of a Session, from this plugin's turn tracker.
  */
 export function registerPresent(ctx: Context, queue: PresentQueue, turnOf: (sessionId: string) => number | undefined): void {
-  ctx.on('tools/result', (exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) => {
+  ctx.on('tools/result', (exec: Readonly<ToolExecution>) => {
     const files = queue.take(exec)
-    if (files === undefined || result.isError || exec.agent === undefined) return
+    if (files === undefined || exec.agent === undefined) return
     const session = exec.agent.session
     session.append('deliverables/presented', { turn: turnOf(session.id) ?? 0, callId: exec.callId, files })
   })
