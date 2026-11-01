@@ -1,6 +1,6 @@
 # Next data connectors: free in the app or paid through FlowLeap
 
-Status: research for the founder, 2026-11-01. It proposes ten tickets (section 7). No ticket exists until the founder approves it. It builds on ADR 0019 (`flowleap-agent-v2/docs/adr/0019-patent-data-connectors-are-one-library-with-two-hosts.md`), the [computer-use assessment](2026-10-23-computer-use-cua-assessment.md) and the [MCP door study](2026-11-01-mcp-door-study.md).
+Status: research for the founder, 2026-11-01. The founder approved the ten tickets of section 7 on 2026-11-01: #149 to #158. It builds on ADR 0019 (`flowleap-agent-v2/docs/adr/0019-patent-data-connectors-are-one-library-with-two-hosts.md`), the [computer-use assessment](2026-10-23-computer-use-cua-assessment.md) and the [MCP door study](2026-11-01-mcp-door-study.md).
 
 **The goal.** The founder open-sources the app and earns from paid plugins and data that work in the FlowLeap desktop, in the firm OS and in any agent through MCP. This study decides which data connectors come next, and for each one whether it is **free** (in the open-source app, on the user's own key, called from the user's machine) or **paid** (through the FlowLeap backend and the `fl_pat_` token).
 
@@ -115,17 +115,17 @@ The founder sends these; this study sent nothing.
 4. **JPO.** A person reads the API terms in a browser (the fetcher was refused) and checks foreign eligibility.
 5. **CORE.** Ask the licence price for a monetised product.
 
-## 7. Proposed tickets
+## 7. Tickets
 
-None exists until the founder approves. Labels follow the repository taxonomy. Library changes land in `flowleap-backend/packages/connectors` first and reach this repository by the sync script.
+The founder approved these tickets on 2026-11-01. Labels follow the repository taxonomy. Library changes land in `flowleap-backend/packages/connectors` first and reach this repository by the sync script.
 
-1. **PTAB and office action tools on the ODP key (connectors, free).** New tools on the existing `usptoOdp` provider: search PTAB trial decisions, search ex parte appeal decisions, read one decision, and search office action text and rejections. Recorded fixtures. Acceptance: with only the ODP key set, the agent finds the appeal decisions for one application and quotes the board's outcome with its source link.
-2. **OpenAlex per-user key (connectors and settings, free).** An optional OpenAlex key on the literature card, a "get a free key" button that calls the agent-key endpoint with the user's email, and no shared `mailto`. Acceptance: two users run searches, and each request carries that user's key or that user's email.
-3. **Europe PMC and Crossref (connectors, free).** `search_npl` and `get_npl_work` gain Europe PMC as a source; DOI lookups use Crossref with the user's email. Acceptance: a CRISPR prior-art search returns Europe PMC abstracts with the open access licence flag.
-4. **Fee tables as data (connectors, free).** EPO, USPTO and PCT fee tables as versioned data with a source URL and an effective date per row, a `get_fees` tool, and a check that fails when a table is older than its next known change. Acceptance: the agent gives the EP examination fee with the effective date and the EPO link.
-5. **MyEPO API, read-only (connectors and settings, free).** A `myepo` provider with the firm's client ID and secret, a settings card and a connection test, and tools for mailbox list and read, due dates and due fees. No Online Filing. Depends on EPO sandbox credentials. Acceptance on the sandbox: due dates for one application, with the term description.
-6. **Owner questions (founder).** Send the five questions of section 6 and record the answers in this file. This ticket blocks tickets 7, 8 and 10.
-7. **Paid: worldwide legal events and EP full text (backend).** Load INPADOC, DOCDB and EP full text, refresh weekly, and serve tools on the hosted MCP with the EPO attribution. First deliverable: a cost estimate for storage and refresh. Blocked by ticket 6.
-8. **Paid: Boards of Appeal case law (backend).** Load the decisions, link each one to its EP application, and serve search and read tools on the hosted MCP. Blocked by ticket 6.
-9. **Paid: PTAB and examiner statistics (backend).** Compute outcome statistics from the ODP bulk files and join them to the Examiner Baseline. Acceptance: for one art unit, the tool gives appeal outcomes and the numbers behind them.
-10. **Free connectors with paperwork (connectors).** JPO, DPMAconnectPlus and EUIPO, one at a time, each after its terms are read. Blocked by ticket 6 for JPO.
+1. (#150) **PTAB and office action tools on the ODP key (connectors, free).** New tools on the existing `usptoOdp` provider: search PTAB trial decisions, search ex parte appeal decisions, read one decision, and search office action text and rejections. Recorded fixtures. Acceptance: with only the ODP key set, the agent finds the appeal decisions for one application and quotes the board's outcome with its source link.
+2. (#151) **OpenAlex per-user key (connectors and settings, free).** An optional OpenAlex key on the literature card, a "get a free key" button that calls the agent-key endpoint with the user's email, and no shared `mailto`. Acceptance: two users run searches, and each request carries that user's key or that user's email.
+3. (#152) **Europe PMC and Crossref (connectors, free).** `search_npl` and `get_npl_work` gain Europe PMC as a source; DOI lookups use Crossref with the user's email. Acceptance: a CRISPR prior-art search returns Europe PMC abstracts with the open access licence flag.
+4. (#153) **Fee tables as data (connectors, free).** EPO, USPTO and PCT fee tables as versioned data with a source URL and an effective date per row, a `get_fees` tool, and a check that fails when a table is older than its next known change. Acceptance: the agent gives the EP examination fee with the effective date and the EPO link.
+5. (#154) **MyEPO API, read-only (connectors and settings, free).** A `myepo` provider with the firm's client ID and secret, a settings card and a connection test, and tools for mailbox list and read, due dates and due fees. No Online Filing. Depends on EPO sandbox credentials. Acceptance on the sandbox: due dates for one application, with the term description.
+6. (#149) **Owner questions (founder).** Send the five questions of section 6 and record the answers in this file. This ticket blocks #154, #155, #156 and #158.
+7. (#155) **Paid: worldwide legal events and EP full text (backend).** Load INPADOC, DOCDB and EP full text, refresh weekly, and serve tools on the hosted MCP with the EPO attribution. First deliverable: a cost estimate for storage and refresh. Blocked by #149.
+8. (#156) **Paid: Boards of Appeal case law (backend).** Load the decisions, link each one to its EP application, and serve search and read tools on the hosted MCP. Blocked by #149.
+9. (#157) **Paid: PTAB and examiner statistics (backend).** Compute outcome statistics from the ODP bulk files and join them to the Examiner Baseline. Acceptance: for one art unit, the tool gives appeal outcomes and the numbers behind them.
+10. (#158) **Free connectors with paperwork (connectors).** JPO, DPMAconnectPlus and EUIPO, one at a time, each after its terms are read. Blocked by #149 for JPO.
