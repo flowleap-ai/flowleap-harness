@@ -169,9 +169,21 @@ describe('Node program process', () => {
   })
 
   it('retains console output emitted immediately before a non-yielding program', async () => {
-    const { run } = await setup({ timeoutMs: 1000, graceMs: 50 })
-    const result = await run({ program: 'console.log("before hot loop"); for (;;) {}', bindings: [] })
-    expect(result.error?.kind).toBe('timeout')
+    // The run deadline starts before the process spawns, so a short deadline can end the
+    // run before the program prints. The host ends the run only after the program's
+    // binding call, which the child sends after the log on the same control channel.
+    const { run } = await setup({ graceMs: 50 })
+    const reached = Promise.withResolvers<undefined>()
+    const controller = new AbortController()
+    const active = run({
+      timeoutMs: null, signal: controller.signal,
+      program: 'console.log("before hot loop"); void tools.reached({}); for (;;) {}',
+      bindings: bindings({ reached: () => { reached.resolve(undefined); return new Promise(() => {}) } }),
+    })
+    await reached.promise
+    controller.abort('stop')
+    const result = await active
+    expect(result.error).toEqual({ kind: 'abort', message: 'stop' })
     expect(result.logs).toEqual(['before hot loop'])
   })
 
