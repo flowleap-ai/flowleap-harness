@@ -29,7 +29,7 @@ describe('desktop product files', () => {
     const flowleap = readDesktopProductFile(APP_ROOT, 'flowleap')
     expect(flowleap).toMatchObject({
       productName: 'FlowLeap Patent AI', appId: 'co.flowleap.patent-ai', protocolScheme: 'flowleap-patent-ai',
-      profile: { directory: 'flowleap-desktop', template: 'flowleap-web' },
+      profile: { directory: 'flowleap-desktop', template: 'flowleap-desktop' },
       account: false, platform: false, welcome: false, telemetry: false,
       updates: { feedUrl: '' }, mandatoryUpdatePolicy: 'off',
     })

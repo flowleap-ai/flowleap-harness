@@ -25,9 +25,9 @@ describe('shipped MCP resource composition', () => {
       expect(rows.filter(row => row.name === resourcePackage)).toEqual([
         { id: 'mcp-resources', name: resourcePackage },
       ])
-      // The FlowLeap profile is the one shipped template that composes an MCP server.
+      // The FlowLeap profiles are the shipped templates that compose an MCP server.
       expect(rows.filter(row => row.name === '@deepseek-ai/dsh-mcp-client').map(row => row.id))
-        .toEqual(name === 'flowleap-web' ? ['mcp-flowleap'] : [])
+        .toEqual(name.startsWith('flowleap-') ? ['mcp-flowleap'] : [])
       expect(warnings).toEqual([])
 
       const owners = profile.layers.filter((layer) => {

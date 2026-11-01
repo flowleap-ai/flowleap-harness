@@ -481,6 +481,7 @@
       "@deepseek-ai/dsh-flowleap-budget": ["./packages/host/flowleap-budget/src"],
       "@deepseek-ai/dsh-flowleap-connectors": ["./packages/host/flowleap-connectors/src"],
       "@deepseek-ai/dsh-flowleap-deliverables": ["./packages/host/flowleap-deliverables/src"],
+      "@deepseek-ai/dsh-flowleap-firm": ["./packages/bundle/flowleap-firm/src"],
       "@deepseek-ai/dsh-flowleap-prompt": ["./packages/host/flowleap-prompt/src"],
       "@deepseek-ai/dsh-flowleap-routines": ["./packages/host/flowleap-routines/src"],
       "@deepseek-ai/dsh-flowleap-web": ["./packages/bundle/flowleap-web/src"],

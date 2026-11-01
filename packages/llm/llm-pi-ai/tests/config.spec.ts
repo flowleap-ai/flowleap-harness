@@ -117,3 +117,10 @@ describe('fixedRoutes', () => {
       .toThrow('the model routes are fixed in this deployment')
   })
 })
+
+describe('subscriptionSignIn', () => {
+  it('defaults to on', () => {
+    expect(Config({}).subscriptionSignIn).toBe(true)
+    expect(Config({ subscriptionSignIn: false }).subscriptionSignIn).toBe(false)
+  })
+})

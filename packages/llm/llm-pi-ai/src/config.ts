@@ -243,6 +243,13 @@ export interface Config {
    * route's `apiKeyEnv` locked (`credentials-local` `lockedRefs`) or read-only.
    */
   fixedRoutes: boolean
+  /**
+   * Register pi-ai's sign-in flows (subscription OAuth such as Claude Pro or
+   * Max, and pi-ai's own key prompt) on the authorization seam. `false` keeps
+   * every route editable and every key settable through the credential seam,
+   * and offers no sign-in. `fixedRoutes` offers none either way. Not volatile.
+   */
+  subscriptionSignIn: boolean
 }
 
 /** Plain options accepted by the provider resolver. */
@@ -373,6 +380,7 @@ const profile = z.object({
 export const Config = z.object({
   providers: z.dict(profile).default({}).volatile(),
   fixedRoutes: z.boolean().default(false),
+  subscriptionSignIn: z.boolean().default(true),
 })
 
 /**

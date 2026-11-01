@@ -534,6 +534,7 @@
     { "path": "./packages/acp/acp" },
     { "path": "./packages/bundle/acp-app" },
     { "path": "./packages/bundle/base" },
+    { "path": "./packages/bundle/flowleap-firm" },
     { "path": "./packages/bundle/flowleap-web" },
     { "path": "./packages/bundle/headless" },
     { "path": "./packages/bundle/sdk-app" },

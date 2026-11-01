@@ -1,6 +1,6 @@
 /** Profile patch edits and credential updates reach the next real adapter request. */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -155,6 +155,27 @@ describe('llm-pi-ai real composition with fixedRoutes', () => {
     const entry = [...ctx.loader.entries()].find(item => item.options.id === 'llm-pi-ai')
     expect(entry?.fiber?.state).toBe(FiberState.FAILED)
     await expect(entry?.fiber?.await()).rejects.toThrow('route "deepseek" names none')
+  })
+})
+
+describe('llm-pi-ai real composition with subscriptionSignIn off', () => {
+  it('offers no sign-in flow and keeps the routes editable', async () => {
+    vi.stubEnv('PI_COMPOSITION_KEY', '')
+    const { ctx, settingsPath } = await loadComposition([
+      '  config:',
+      '    subscriptionSignIn: false',
+      '    providers:',
+      '      deepseek:',
+      '        apiKeyEnv: PI_COMPOSITION_KEY',
+    ])
+    expect(ctx.authorization.list().filter(entry => entry.key.startsWith('llm-pi-ai/'))).toEqual([])
+    expect(ctx.llm.listConfigurableProviders().map(entry => entry.provider)).toContain('anthropic')
+    await ctx.settings.mutate('llm-pi-ai', [{ op: 'set', path: ['providers', 'anthropic'], value: { apiKeyEnv: 'MY_OWN_KEY' } }])
+    await vi.waitFor(() => {
+      expect(ctx.llm.listProviders().map(provider => provider.id)).toContain('anthropic')
+    }, { timeout: 5000 })
+    expect(await readFile(settingsPath, 'utf8')).toContain('subscriptionSignIn: false')
+    expect(ctx.authorization.list().filter(entry => entry.key.startsWith('llm-pi-ai/'))).toEqual([])
   })
 })
 
