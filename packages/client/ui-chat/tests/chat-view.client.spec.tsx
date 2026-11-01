@@ -5,7 +5,7 @@ import type { ProcessGroupData } from '../src/client/contract/process-groups.ts'
 import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { GlobalStandardProps, PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useEffect, useMemo } from 'react'
 import { useMarkdownDelegate, type MarkdownMenuTarget } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -14,7 +14,7 @@ import type {
   ChatNode, ChatNodeHookContext, ChatNodeOwnerProps, ChatSnapshot, UserBeforeOwnerProps,
   ChatViewSlotProps, CommandNode, CompactionSummaryNode, ContextMessageNode, ConversationNode,
   LegacyConversationSlice, ModelRetryNode, StartedToolCall, SteeringMessageNode,
-  ToolCallBlock, ToolResultNode, TurnErrorNode, TurnMaxTokensNode,
+  ToolCallBlock, ToolResultNode, TurnErrorActionOwnerProps, TurnErrorNode, TurnMaxTokensNode,
   TranscriptViewMode, UserContentInput, UserMessageNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {
@@ -286,6 +286,13 @@ type ToolOwner = Pick<ChatNodeOwnerProps, 'openFile' | 'inspectCall'> & {
 const renderCommandSlot: React.ComponentProps<typeof CommandNodeView>['renderSlot'] =
   (_key, _owner, opts) => opts?.fallback ?? null
 const renderTurnTailSlot: React.ComponentProps<typeof TurnTailNodeView>['renderSlot'] = () => null
+/** Turn-error action occupants by failure code; a test adds entries and removes them when it finishes. */
+const turnErrorActions = new Map<string, (owner: TurnErrorActionOwnerProps) => React.ReactNode>()
+const renderTurnErrorSlot: React.ComponentProps<typeof TurnErrorNodeView>['renderSlot'] = (_key, owner, opts) => {
+  const occupant = opts?.entryKey === undefined ? undefined : turnErrorActions.get(opts.entryKey)
+  const { code } = owner as Partial<TurnErrorActionOwnerProps>
+  return occupant === undefined || code === undefined ? null : occupant({ code })
+}
 
 function HarnessChatFlow({ standard, owner, hookContext, renderSlot, useConnectionState }: {
   readonly standard: HarnessStandardProps
@@ -349,7 +356,7 @@ function HarnessChatNode({
     case 'model-retry':
       return <RetryNodeView {...nodeProps} node={owner.node} />
     case 'turn-error':
-      return <TurnErrorNodeView {...nodeProps} node={owner.node} />
+      return <TurnErrorNodeView {...nodeProps} node={owner.node} renderSlot={renderTurnErrorSlot} />
     case 'turn-max-tokens':
       return <TurnMaxTokensNodeView {...nodeProps} node={owner.node} />
     case 'turn-process':
@@ -2630,6 +2637,33 @@ describe('ChatView', () => {
     expect(view.queryByRole('alert')).toBeNull()
     expect(view.queryByRole('dialog')).toBeNull()
     expect(view.queryByRole('button', { name: '去充值' })).toBeNull()
+  })
+
+  it('replaces the missing-credential provider text with setup copy and no code chip', () => {
+    const missing: TurnErrorNode = {
+      ...turnError(3, 'MISSING_CREDENTIAL'),
+      message: 'llm-pi-ai: no credential for provider route "anthropic"; store ANTHROPIC_API_KEY through the credentials service',
+    }
+    const h = makeHarness({ nodes: [user(1, 'try'), missing] })
+    const view = render(<h.ChatView {...h.props} />)
+    const row = view.getByRole('status')
+    expect(row.textContent).toBe('尚未设置模型需要先设置模型服务，此对话才能回复。')
+    expect(row.textContent).not.toContain('ANTHROPIC_API_KEY')
+    expect(row.querySelector('code')).toBeNull()
+    expect(within(row).queryByRole('button')).toBeNull()
+  })
+
+  it('renders the action occupant keyed by the row failure code and nothing for other codes', () => {
+    turnErrorActions.set('MISSING_CREDENTIAL', ({ code }) => <button type="button">{`fix ${code}`}</button>)
+    onTestFinished(() => { turnErrorActions.clear() })
+    const h = makeHarness({ nodes: [
+      user(1, 'try'), turnError(2, 'AUTH'), turnError(3, 'MISSING_CREDENTIAL'), turnError(4),
+    ] })
+    const view = render(<h.ChatView {...h.props} />)
+    const [auth, missing, uncoded] = view.getAllByRole('status')
+    expect(within(missing!).getByRole('button').textContent).toBe('fix MISSING_CREDENTIAL')
+    expect(within(auth!).queryByRole('button')).toBeNull()
+    expect(within(uncoded!).queryByRole('button')).toBeNull()
   })
 
   it('renders the max-tokens notice with localized guidance, distinct from turn errors', () => {

@@ -63,6 +63,12 @@ export interface TurnTailOwnerProps {
   openFile: (path: string) => void
 }
 
+/** Owner currency of the action area in one terminal Turn-failure row. */
+export interface TurnErrorActionOwnerProps {
+  /** Stable failure code the row shows; it is also the dispatch key. */
+  readonly code: string
+}
+
 /** Owner currency of finalized-assistant actions. */
 export interface AssistantActionOwnerProps {
   messageId: MessageId
@@ -498,6 +504,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * adds an entry; entries without content return null.
      */
     'conversation.chat.turnTail': { kind: 'list'; scope: 'session'; owner: TurnTailOwnerProps }
+    /**
+     * Action area of one terminal Turn-failure row, keyed by the stable
+     * failure code. The owner supplies the code; an occupant renders the next
+     * step for that failure, such as a control that opens the settings page
+     * that fixes it. A code with no occupant renders no action area.
+     */
+    'conversation.chat.turn-error.action': { kind: 'keyed'; scope: 'session'; owner: TurnErrorActionOwnerProps }
     /**
      * Ordered actions for one finalized assistant message. Each entry receives
      * the durable message id; a fresh `id` adds an action and reusing one replaces
