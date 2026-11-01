@@ -211,14 +211,15 @@
   line-height: 18px;
 }
 
+/* Columns, not grid rows: in a grid the tallest panel sets the height of its row and leaves gaps under the others. */
 .panels {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
-  gap: 16px;
-  align-items: start;
+  columns: 320px;
+  column-gap: 16px;
 }
 
 .panel {
+  break-inside: avoid;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   min-width: 0;
