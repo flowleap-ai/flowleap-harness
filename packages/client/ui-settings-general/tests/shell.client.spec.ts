@@ -183,6 +183,20 @@ describe('ui-settings-general shell', () => {
     for (const name of CHILD_NAMES) expect(c.ctx.slots.spec(name)).toEqual(CHILD_SPECS[name])
   })
 
+  it('opens the rebuilt shell, not the removed one, after the declarer reloads', async ({ start }) => {
+    const c = await start()
+    const shellOf = (): ReturnType<ReturnType<typeof createSettingsShellStore>['create']> =>
+      (c.ctx.slots.entries('sidebar.settings')[0]!.store as ReturnType<typeof createSettingsShellStore>).create()
+    const removed = shellOf()
+    await c.reload(SIDEBAR)
+    await c.flush()
+    const rebuilt = shellOf()
+    expect(rebuilt).not.toBe(removed)
+    c.ctx.settingsNavigation.openSection('models')
+    expect(rebuilt.store.getSnapshot()).toEqual({ open: true, activeId: 'models' })
+    expect(removed.store.getSnapshot()).toEqual({ open: false, activeId: undefined })
+  })
+
   it('unregisters the shell and collapses every child slot when its row unloads', async ({ start }) => {
     const c = await start()
     await c.unload(SELF)

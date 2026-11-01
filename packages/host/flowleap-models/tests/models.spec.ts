@@ -53,13 +53,19 @@ async function mount(options: {
   lockedRefs?: string[]
   connectTimeoutMs?: number
   routes?: string[]
+  keyLabel?: string
+  unreadableKeys?: boolean
+  defaultModel?: 'absent' | 'unsaveable'
 }): Promise<Mount> {
   const ctx = new Context()
   contexts.push(ctx)
   const keys = new Map(Object.entries(options.keys ?? {}))
   const saved: Mount['saved'] = []
   ctx.provide('credentials', {
-    resolve: async (ref: string) => keys.has(ref) ? { value: keys.get(ref) } : undefined,
+    resolve: async (ref: string) => {
+      if (options.unreadableKeys === true) throw new Error('keychain locked')
+      return keys.has(ref) ? { value: keys.get(ref) } : undefined
+    },
     set: async (ref: string, value: string) => {
       if (options.lockedRefs?.includes(ref) === true) throw new Error(`"${ref}" is locked`)
       keys.set(ref, value)
@@ -70,9 +76,13 @@ async function mount(options: {
     ctx.provide('llm', { listProviders: () => routes.map(id => ({ id, name: id })) } as never)
   }
   let current = options.defaultProvider ?? 'anthropic'
-  ctx.provide('agentDefaultModel', {
+  if (options.defaultModel !== 'absent') ctx.provide('agentDefaultModel', {
     currentSelection: () => ({ provider: current, model: 'm' }),
-    saveSelection: async (next: { provider: string; model: string }) => { saved.push(next); current = next.provider },
+    saveSelection: async (next: { provider: string; model: string }) => {
+      if (options.defaultModel === 'unsaveable') throw new Error('settings file is read-only')
+      saved.push(next)
+      current = next.provider
+    },
   } as never)
   const base = options.baseURL ?? 'http://127.0.0.1:9'
   const config: Config = {
@@ -82,7 +92,7 @@ async function mount(options: {
       openrouter: { baseURL: `${base}/api/v1`, apiKeyRef: 'OPENROUTER_API_KEY', model: 'anthropic/claude-sonnet-5.5' },
     },
     openRouterAuthURL: 'https://openrouter.example/auth',
-    openRouterKeyLabel: 'Desktop',
+    openRouterKeyLabel: options.keyLabel ?? 'Desktop',
     requestTimeoutMs: 5000,
     connectTimeoutMs: options.connectTimeoutMs ?? 60_000,
   }
@@ -144,6 +154,19 @@ describe('flowleapModels.test', () => {
     const { service, saved } = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultProvider: 'deepseek-official', routes: ['openai'] })
     expect(await service.test('openai', never)).toEqual({ ok: true, adopted: { provider: 'openai', model: 'gpt-5.5' } })
     expect(saved).toEqual([{ provider: 'openai', model: 'gpt-5.5' }])
+  })
+
+  it('reports no key when the key store cannot be read', async () => {
+    expect(await (await mount({ keys: { OPENAI_API_KEY: 'k' }, unreadableKeys: true })).service.test('openai', never))
+      .toEqual({ ok: false, reason: 'no_key' })
+  })
+
+  it('keeps the default model when no default-model service is loaded, or when the new default cannot be saved', async () => {
+    const double = await provider(status(200))
+    const absent = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultModel: 'absent' })
+    expect(await absent.service.test('openai', never)).toEqual({ ok: true })
+    const unsaveable = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultModel: 'unsaveable' })
+    expect(await unsaveable.service.test('openai', never)).toEqual({ ok: true })
   })
 
   it('refuses an unknown provider', async () => {
@@ -244,5 +267,89 @@ describe('flowleapModels OpenRouter connect', () => {
     const first = service.awaitOpenRouter(never)
     await service.startOpenRouter()
     expect(await first).toEqual({ state: 'cancelled' })
+  })
+
+  it('omits the key label when none is configured, and adopts nothing when OpenRouter is already the default', async () => {
+    const double = await provider(status(200, { key: 'sk-or' }))
+    const { service, saved } = await mount({ baseURL: double.url, keyLabel: '', defaultProvider: 'openrouter' })
+    const { url } = await service.startOpenRouter()
+    expect(new URL(url).searchParams.has('key_label')).toBe(false)
+    const result = service.awaitOpenRouter(never)
+    await callback(url, { code: 'c', state: new URL(url).searchParams.get('state')! })
+    expect(await result).toEqual({ state: 'connected' })
+    expect(saved).toEqual([])
+  })
+
+  it('gives the end of one attempt to every wait on it', async () => {
+    const { service } = await mount({})
+    await service.startOpenRouter()
+    const first = service.awaitOpenRouter(never)
+    const second = service.awaitOpenRouter(never)
+    service.cancelOpenRouter()
+    expect(await Promise.all([first, second])).toEqual([{ state: 'cancelled' }, { state: 'cancelled' }])
+  })
+
+  it('keeps the first end of an attempt when a cancel comes after it', async () => {
+    const { service } = await mount({})
+    const { url } = await service.startOpenRouter()
+    await callback(url, {})
+    service.cancelOpenRouter()
+    expect(await service.awaitOpenRouter(never)).toEqual({ state: 'failed', reason: 'denied' })
+  })
+
+  it('answers another address on the listener with 404 and keeps waiting', async () => {
+    const double = await provider(status(200, { key: 'k' }))
+    const { service } = await mount({ baseURL: double.url })
+    const { url } = await service.startOpenRouter()
+    const other = new URL(new URL(url).searchParams.get('callback_url')!)
+    other.hostname = '127.0.0.1'
+    other.pathname = '/favicon.ico'
+    expect((await fetch(other)).status).toBe(404)
+    const result = service.awaitOpenRouter(never)
+    await callback(url, { code: 'c', state: new URL(url).searchParams.get('state')! })
+    expect(await result).toEqual({ state: 'connected', adopted: { provider: 'openrouter', model: 'anthropic/claude-sonnet-5.5' } })
+  })
+
+  it('refuses a second callback while the first code is in exchange', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const double = await provider((_seen, response) => {
+      void held.promise.then(() => { status(200, { key: 'k' })(_seen, response) })
+    })
+    const { service } = await mount({ baseURL: double.url })
+    const { url } = await service.startOpenRouter()
+    const state = new URL(url).searchParams.get('state')!
+    const result = service.awaitOpenRouter(never)
+    const first = callback(url, { code: 'c-1', state })
+    await vi.waitFor(() => { expect(double.seen).toHaveLength(1) })
+    const second = await callback(url, { code: 'c-2', state })
+    expect(second.status).toBe(409)
+    expect(await second.text()).toContain('already used')
+    held.resolve(undefined)
+    expect((await first).status).toBe(200)
+    expect(await result).toEqual({ state: 'connected', adopted: { provider: 'openrouter', model: 'anthropic/claude-sonnet-5.5' } })
+    expect(double.seen).toHaveLength(1)
+  })
+
+  it('reports an exchange endpoint it cannot reach as unreachable', async () => {
+    const { service, keys } = await mount({})
+    const { url } = await service.startOpenRouter()
+    const result = service.awaitOpenRouter(never)
+    const answer = await callback(url, { code: 'c', state: new URL(url).searchParams.get('state')! })
+    expect(await answer.text()).toContain('OpenRouter was not connected')
+    expect(await result).toEqual({ state: 'failed', reason: 'unreachable' })
+    expect(keys.size).toBe(0)
+  })
+
+  it.each([
+    ['an answer that is not JSON', (_seen: Seen, response: ServerResponse) => { response.end('<html>sign in</html>') }],
+    ['an answer above 16 KiB', status(200, { key: 'k', padding: 'x'.repeat(16 * 1024) })],
+  ])('refuses %s as an exchange without a key', async (_name, handler) => {
+    const double = await provider(handler)
+    const { service, keys } = await mount({ baseURL: double.url })
+    const { url } = await service.startOpenRouter()
+    const result = service.awaitOpenRouter(never)
+    await callback(url, { code: 'c', state: new URL(url).searchParams.get('state')! })
+    expect(await result).toEqual({ state: 'failed', reason: 'exchange_refused' })
+    expect(keys.size).toBe(0)
   })
 })

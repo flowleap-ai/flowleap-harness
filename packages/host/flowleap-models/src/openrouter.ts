@@ -132,7 +132,7 @@ export class OpenRouterAttempt {
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const url = new URL(request.url ?? '/', 'http://localhost')
+    const url = new URL(String(request.url), 'http://localhost')
     if (url.pathname !== CALLBACK_PATH) {
       page(response, 404, 'Not found.')
       return

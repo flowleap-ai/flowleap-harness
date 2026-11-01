@@ -21,7 +21,7 @@ import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
 import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
 import {
-  ManagedModelNotice, SetUpModelButton, type SetUpModelButtonInjected,
+  ManagedModelNotice, type ManagedModelNoticeInjected, SetUpModelButton, type SetUpModelButtonInjected,
 } from '../src/client/MissingCredentialAction.tsx'
 
 /** The Peer an index render speaks for; this listener reads no field of it. */
@@ -262,6 +262,9 @@ describe('ui-settings-models apply', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     expect(b.slots.entries('conversation.chat.turn-error.action').map(entry => [entry.options.key, entry.component]))
       .toEqual([['MISSING_CREDENTIAL', ManagedModelNotice]])
+    const [entry] = b.slots.entries('conversation.chat.turn-error.action')
+    const face = (entry?.inject as (() => ManagedModelNoticeInjected) | undefined)?.()
+    expect(face?.t('missingCredentialManaged')).toBe('请联系管理员设置模型。')
   })
 
   it('offers a user who manages models a way from the failed chat to Settings > Models', async () => {

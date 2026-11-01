@@ -195,8 +195,7 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.inject('sidebar.settings', () => {
       const shellHandle = createSettingsShellStore()
       const shellInstance = shellHandle.create()
-      const openSection = (id: string): void => { shellInstance.actions.openSection(id) }
-      openShellSection = openSection
+      openShellSection = (id) => { shellInstance.actions.openSection(id) }
       const shellStore: typeof shellHandle = { ...shellHandle, create: () => shellInstance }
       const disposeCommand = ctx.shortcuts.register({
         id: 'settings.open' as ShortcutCommandId, label: () => t('shortcut.open'), aliases: ['settings', 'preferences'],
@@ -233,7 +232,7 @@ export function apply(ctx: ClientContext): void {
         inject: shellInjected,
       }, SettingsRoot)
       return () => {
-        if (openShellSection === openSection) openShellSection = undefined
+        openShellSection = undefined
         disposeCommand()
         disposeSlot()
       }

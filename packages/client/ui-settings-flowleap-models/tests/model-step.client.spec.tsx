@@ -107,4 +107,41 @@ describe('ModelStep', () => {
     fireEvent.click(screen.getByRole('button', { name: en.connect }))
     expect(await screen.findByText('The app could not do this: no loopback port')).toBeTruthy()
   })
+
+  it('shows a working key without a model line when new chats keep their model', async () => {
+    renderStep('anthropic', { keyConfigured: true })
+    fireEvent.click(screen.getByRole('button', { name: en.test }))
+    expect(await screen.findByText(en.ok)).toBeTruthy()
+  })
+
+  it('shows a test failure that carries no HTTP status, and a test call that threw', async () => {
+    renderStep('openai', {
+      keyConfigured: true,
+      operations: operations({ test: vi.fn(() => Promise.resolve({ ok: false as const, reason: 'no_key' as const })) }),
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.test }))
+    expect(await screen.findByText(en['failure.no_key'])).toBeTruthy()
+    cleanup()
+    renderStep('openai', { keyConfigured: true, operations: operations({ test: vi.fn(() => Promise.reject(new Error('Host closed'))) }) })
+    fireEvent.click(screen.getByRole('button', { name: en.test }))
+    expect(await screen.findByText('The app could not do this: Host closed')).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.test })).toBeTruthy()
+  })
+
+  it('shows a Host call that rejected with a value that is not an Error', async () => {
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a rejection that is not an Error is the scenario.
+    renderStep('openrouter', { operations: operations({ startOpenRouter: vi.fn(() => Promise.reject('socket hang up')) }) })
+    fireEvent.click(screen.getByRole('button', { name: en.connect }))
+    expect(await screen.findByText('The app could not do this: socket hang up')).toBeTruthy()
+  })
+
+  it('shows a connect that ended without a model change, and one that was cancelled', async () => {
+    renderStep('openrouter')
+    fireEvent.click(screen.getByRole('button', { name: en.connect }))
+    expect(await screen.findByText(en.connected)).toBeTruthy()
+    cleanup()
+    renderStep('openrouter', { operations: operations({ awaitOpenRouter: vi.fn(() => Promise.resolve<OpenRouterConnectResult>({ state: 'cancelled' })) }) })
+    fireEvent.click(screen.getByRole('button', { name: en.connect }))
+    expect(await screen.findByText(en.cancelled)).toBeTruthy()
+  })
 })
