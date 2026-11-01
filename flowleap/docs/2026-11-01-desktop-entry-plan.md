@@ -1,6 +1,6 @@
 # FlowLeap Desktop as the way in: plan
 
-Status: a plan for the founder. It proposes tickets (section 8). No ticket exists until the founder approves it. It changes the order of the [roadmap](2026-10-29-roadmap.md) and adds to the [open-source docs plan](https://github.com/flowleap-ai/flowleap-os/blob/main/docs/plans/2026-11-01-open-source-docs.md) of flowleap-os. It uses the [MCP door study](2026-11-01-mcp-door-study.md) for the agents' side.
+Status: the founder decided Q0 to Q6 on 2026-11-01 (section 7) and accepted each recommendation. The tickets of section 8 wait for approval; no ticket exists yet. It changes the order of the [roadmap](2026-10-29-roadmap.md) and adds to the [open-source docs plan](https://github.com/flowleap-ai/flowleap-os/blob/main/docs/plans/2026-11-01-open-source-docs.md) of flowleap-os. It uses the [MCP door study](2026-11-01-mcp-door-study.md) for the agents' side.
 
 **The goal (the founder, 2026-11-01).** "The desktop app should be open source, downloaded and used immediately like Kino, and we help them use it with Claude or ChatGPT or API, and our plugins will pay for us ... not all firms will host PATSTAT but we can sell a PATSTAT subscription to be in his agent or any agent." And: "open source everything and sell the execution and the ecosystem ... the ecosystem is mine, a set of plugins we can build incrementally."
 
@@ -219,17 +219,17 @@ Phase B items that the desktop also needs (#84 developer pages, #70 plugin creat
 - **Plugins and the ecosystem** uses section 5 of this plan for the official, paid and community tiers (docs plan decision D8).
 - The connect pages for Claude, ChatGPT, Claude Code and Codex point at the hosted MCP server, and the flowleap-mcp README gets the Codex row (T12).
 
-## 7. Decisions for the founder
+## 7. Decisions of the founder (2026-11-01)
 
-These are the questions of the first grilling round. Each has my recommendation.
+The founder accepted every recommendation of the first grilling round on 2026-11-01.
 
 0. **Q0. PATSTAT permission. Decided (2026-11-01):** FlowLeap holds the EPO's clause 5.8 permission for commercial use.
-1. **Q1. The desktop is the full local app, and #75 changes to this meaning.** Recommendation: yes.
-2. **Q2. The trial is the 10-minute path** (Trial Model key and House keys through one sign-in). Recommendation: yes; it is built in the backend.
-3. **Q3. Models at launch.** The trial model, then OpenRouter connect and Anthropic or OpenAI keys; "use your Claude or ChatGPT plan" as FlowLeap inside the vendor apps through MCP; no "Sign in with Claude"; the Kino-style mode only after written vendor confirmation (section 3.2). Recommendation: yes.
-4. **Q4. One License now, plans per plugin later.** Recommendation: yes, and decide the firm License (per seat or per firm) when the first firm asks.
-5. **Q5. The new order (D0 and D1 before B and C).** Recommendation: yes, unless a pilot firm gives a start date.
-6. **Q6. Apple and Microsoft signing accounts.** The founder buys the Apple Developer Program membership and applies for Windows signing (section 3.3). Recommendation: start now, because the vendors' identity checks take days.
+1. **Q1. The desktop is the full local app, and #75 changes to this meaning.** **Decided: yes**.
+2. **Q2. The trial is the 10-minute path** (Trial Model key and House keys through one sign-in). **Decided: yes**; it is built in the backend.
+3. **Q3. Models at launch.** The trial model, then OpenRouter connect and Anthropic or OpenAI keys; "use your Claude or ChatGPT plan" as FlowLeap inside the vendor apps through MCP; no "Sign in with Claude"; the Kino-style mode only after written vendor confirmation (section 3.2). **Decided: yes**.
+4. **Q4. One License now, plans per plugin later.** **Decided: yes**, and decide the firm License (per seat or per firm) when the first firm asks.
+5. **Q5. The new order (D0 and D1 before B and C).** **Decided: yes**, unless a pilot firm gives a start date.
+6. **Q6. Apple and Microsoft signing accounts.** The founder buys the Apple Developer Program membership and applies for Windows signing (section 3.3). **Decided: yes**, start now, because the vendors' identity checks take days.
 
 ## 8. Proposed tickets
 
