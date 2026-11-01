@@ -20,7 +20,9 @@ import { WelcomeNotice } from '../src/client/WelcomeNotice.tsx'
 import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
 import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
-import { ManagedModelNotice } from '../src/client/MissingCredentialAction.tsx'
+import {
+  ManagedModelNotice, SetUpModelButton, type SetUpModelButtonInjected,
+} from '../src/client/MissingCredentialAction.tsx'
 
 /** The Peer an index render speaks for; this listener reads no field of it. */
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
@@ -262,12 +264,19 @@ describe('ui-settings-models apply', () => {
       .toEqual([['MISSING_CREDENTIAL', ManagedModelNotice]])
   })
 
-  it('leaves the chat failure row without a Models action outside a managed deployment', async () => {
+  it('offers a user who manages models a way from the failed chat to Settings > Models', async () => {
     vi.stubGlobal(ONBOARDING_CONFIG_GLOBAL, { credentialOnboarding: true, managed: false })
     const b = await bench()
+    const openSection = vi.fn<(id: string) => void>()
+    b.ctx.provide('settingsNavigation', { openSection })
     declareChatAction(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(b.slots.entries('conversation.chat.turn-error.action')).toEqual([])
+    const [entry] = b.slots.entries('conversation.chat.turn-error.action')
+    expect([entry?.options.key, entry?.component]).toEqual(['MISSING_CREDENTIAL', SetUpModelButton])
+    const face = (entry?.inject as (() => SetUpModelButtonInjected) | undefined)?.()
+    expect(face?.t('missingCredentialSetUp')).toBe('设置模型')
+    face?.openModels()
+    expect(openSection).toHaveBeenCalledExactlyOnceWith('models')
   })
 
   it('registers the zh/en nav dictionaries and disposes everything with the fiber', async () => {

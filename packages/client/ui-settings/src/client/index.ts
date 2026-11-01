@@ -17,6 +17,7 @@ export type {
   SettingsPluginsTabOwnerProps, SettingsSectionOwnerProps, SettingsTriggerOwnerProps,
 } from './contract/slots.ts'
 export type { ConfigForms } from './config-form.ts'
+export type { SettingsNavigation } from './navigation.ts'
 export type { ConfigForm, ConfigFormSnapshot } from './config-form-types.ts'
 export type { SettingsSchemaService } from './schema.ts'
 export type { SchemaNode } from './schema.ts'

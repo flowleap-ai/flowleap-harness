@@ -23,8 +23,8 @@ import type { ModelsSectionInjected } from './ModelsSection.tsx'
 import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
 import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
 import { WelcomeNotice } from './WelcomeNotice.tsx'
-import { ManagedModelNotice } from './MissingCredentialAction.tsx'
-import type { ManagedModelNoticeInjected } from './MissingCredentialAction.tsx'
+import { ManagedModelNotice, SetUpModelButton } from './MissingCredentialAction.tsx'
+import type { ManagedModelNoticeInjected, SetUpModelButtonInjected } from './MissingCredentialAction.tsx'
 import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
 import { WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
@@ -148,12 +148,21 @@ export function apply(ctx: ClientContext): void {
       'settings.models.footer': { kind: 'list', scope: 'root' },
     },
   }, ModelsSection))
-  // A managed deployment sets every route and key, so a chat that fails for a missing credential points to the administrator.
+  // A chat that fails for a missing credential leads to the Models page, or to
+  // the administrator on a managed deployment, which sets every route and key.
   if (configured.managed) ctx.slots.inject('conversation.chat.turn-error.action', () => ctx.slots.register({
     name: 'conversation.chat.turn-error.action',
     key: 'MISSING_CREDENTIAL',
     inject: (): ManagedModelNoticeInjected => ({ t }),
   }, ManagedModelNotice))
+  else ctx.slots.inject('conversation.chat.turn-error.action', () => ctx.slots.register({
+    name: 'conversation.chat.turn-error.action',
+    key: 'MISSING_CREDENTIAL',
+    inject: (): SetUpModelButtonInjected => ({
+      t,
+      openModels: () => { ctx.get('settingsNavigation')?.openSection('models') },
+    }),
+  }, SetUpModelButton))
   if (!('dshDesktop' in globalThis)) ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding',
     id: 'welcome-notice',

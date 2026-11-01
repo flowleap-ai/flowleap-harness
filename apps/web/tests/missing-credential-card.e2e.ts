@@ -35,7 +35,7 @@ describe('web e2e: missing model credential card', () => {
     await scaffold?.close()
   })
 
-  it('states that no model is set up, without the provider message or the failure code', async () => {
+  it('states that no model is set up and opens Settings on Models, without the provider message or the failure code', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-missing-credential-card'))
     const row = page.getByRole('status').filter({ hasText: 'No model is set up' })
     await row.waitFor({ timeout: 15_000 })
@@ -43,6 +43,9 @@ describe('web e2e: missing model credential card', () => {
     expect(text).not.toContain('DEEPSEEK_API_KEY')
     expect(text).not.toContain('MISSING_CREDENTIAL')
     await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'row.expected.md'), await row.ariaSnapshot(), MODE)
+    await row.getByRole('button', { name: 'Set up a model' }).click()
+    const settings = page.getByRole('dialog')
+    await settings.getByRole('heading', { name: 'Models' }).waitFor({ timeout: 10_000 })
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
     await assertFixtureInventory(SNAPSHOT_DIR, ['session.v4.jsonl', 'row.expected.md'])

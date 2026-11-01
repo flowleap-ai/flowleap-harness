@@ -11,6 +11,7 @@ import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-clie
 import { inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
+import type { createSettingsShellStore } from '../src/client/shell-store.ts'
 import type { DesktopUpdatePresentation } from '../src/types.ts'
 
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
@@ -90,7 +91,16 @@ describe('ui-settings-general shell', () => {
   withoutSettingsAccess('leaves sidebar.settings unoccupied while the current Peer may not read the settings description', async ({ start }) => {
     const c = await start()
     expect(c.ctx.slots.entries('sidebar.settings')).toEqual([])
+    expect(() => { c.ctx.settingsNavigation.openSection('models') }).not.toThrow()
   }, COLD_BOOT_TIMEOUT_MS)
+
+  it('opens the mounted shell on the section another surface asks for', async ({ start }) => {
+    const c = await start()
+    const shell = (c.ctx.slots.entries('sidebar.settings')[0]!.store as ReturnType<typeof createSettingsShellStore>).create()
+    expect(shell.store.getSnapshot()).toEqual({ open: false, activeId: undefined })
+    c.ctx.settingsNavigation.openSection('models')
+    expect(shell.store.getSnapshot()).toEqual({ open: true, activeId: 'models' })
+  })
 
   it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', async ({ start }) => {
     const c = await start()
