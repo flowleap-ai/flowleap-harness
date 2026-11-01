@@ -7,7 +7,6 @@ import { resolveSlotLabel, type HostObservable, type StoredEntry } from '@deepse
 import { StaticRemoteAccess, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '../src/client/index.ts'
-import { apply as applyNode } from '../src/index.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -28,6 +27,8 @@ import { SessionScheduleHover } from '../src/client/SessionScheduleHover.tsx'
 import { SessionScheduleMark } from '../src/client/SessionScheduleMark.tsx'
 import { ScheduleTurnCard, type ScheduleTurnCardInjected } from '../src/client/ScheduleTurnCard.tsx'
 import { en, NS, zh } from '../src/client/locales.ts'
+import { en as managerEn } from '../src/client/task-manager-locales.ts'
+import { SCHEDULE_PAGE_GLOBAL } from '../src/config.ts'
 
 const Empty = () => null
 
@@ -426,11 +427,30 @@ describe('ui-schedule browser half', () => {
       expect(chip.hooks.catalog).toBe(body.hooks.catalog)
       const panel = injectedFace(ctx.slots.entries('main')[0]!, undefined as never) as TaskManagerInjected
       panel.onNewTask()
-      expect(startSession).toHaveBeenCalledOnce()
+      expect(startSession).toHaveBeenCalledExactlyOnceWith()
     } finally {
       await fiber.dispose()
       owner()
       await ctx.fiber.dispose()
+    }
+  })
+
+  it('opens New task with the localized example request, unsent, when the deployment turns the draft on', async () => {
+    vi.stubGlobal(SCHEDULE_PAGE_GLOBAL, { newTaskDraft: true })
+    const ctx = await baseContext()
+    const owner = ctx.slots.register({ name: 'root', children: { main: { kind: 'keyed', scope: 'root' } } } as never, Empty)
+    const startSession = vi.spyOn(ctx.uiWorkspace, 'startSession')
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    try {
+      const panel = injectedFace(ctx.slots.entries('main')[0]!, undefined as never) as TaskManagerInjected
+      panel.onNewTask()
+      expect(startSession).toHaveBeenCalledExactlyOnceWith(undefined, { prompt: managerEn['new.draft'], whenDraftExists: 'append' })
+    } finally {
+      await fiber.dispose()
+      owner()
+      await ctx.fiber.dispose()
+      vi.unstubAllGlobals()
     }
   })
 
@@ -884,11 +904,5 @@ describe('Host task Remote injection', () => {
     } finally {
       await close()
     }
-  })
-})
-
-describe('ui-schedule node half', () => {
-  it('keeps the node half inert', () => {
-    expect(applyNode).not.toThrow()
   })
 })

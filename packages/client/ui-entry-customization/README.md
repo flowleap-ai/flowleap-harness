@@ -34,6 +34,8 @@ On Desktop, **Browse other plugins** and **Create your plugin** report `more_men
 
 The browse-plugins row appears only while the `pluginNavigation` service is present; the plugin starts without it. Its absence removes only browsing, not More buttons, folded Views, or creation.
 
+The Host Config field `createPlugin` (default `true`) offers **Create your plugin**. A deployment that does not offer the Creator preset sets it to `false`: no menu shows the creation row, and the left-sidebar and guide menus register only while browsing is available, so neither region draws a More button for an empty menu. The Conversation menu stays registered for its folded Views.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -44,7 +46,7 @@ The browse-plugins row appears only while the `pluginNavigation` service is pres
 
 [`apply`](src/client/index.ts) registers [`EntryMenuContent`](src/client/EntryMenuContent.tsx) under id `entry-customization` into `sidebar.panellist.actions`, `conversation.session.header.views.actions`, and `sidebar.right.tab.guide.actions` through `ctx.slots.inject`, so each registration follows its region's declaration lifetime. The regions render these slots inside their own `Menu`; the rows call `onDismiss` before browsing or creating. Only the Conversation menu consumes its owner’s folded entry list and navigation callback; pin callbacks remain unused.
 
-Each registration's `inject` supplies its region and two callbacks. Each callback first calls `ctx.get('productAnalytics')?.track('more_menu_item_click', { region, action })`. Browsing then calls `ctx.get('pluginNavigation')?.openList()`; ui-plugin-manager provides that service only while the Plugins page has access, so this package reads it optionally and never lists it in `inject`. Creation then calls `uiWorkspace.startSession(undefined, { agentPreset: 'cordis', prompt, whenDraftExists: 'append' })` with the region's localized prompt; it does not go through `ui-agent-preset`, so the preset chip plays no introduction. The [`dsh-web-app` bundle patch](../../bundle/web-app/cordis.patch.yml) mounts the browser plugin.
+The Host companion sends the validated Config to browser pages as the `__DSH_ENTRY_CUSTOMIZATION_CONFIG__` global on `webserver/index-inject`; the browser half validates it again with the shared [`Config`](src/config.ts). With `createPlugin: false`, the left-sidebar and guide registrations are made inside `ctx.inject(['pluginNavigation'])`. Each registration's `inject` supplies its region and two callbacks, or only the browsing callback without creation. Each callback first calls `ctx.get('productAnalytics')?.track('more_menu_item_click', { region, action })`. Browsing then calls `ctx.get('pluginNavigation')?.openList()`; ui-plugin-manager provides that service only while the Plugins page has access, so this package reads it optionally and never lists it in `inject`. Creation then calls `uiWorkspace.startSession(undefined, { agentPreset: 'cordis', prompt, whenDraftExists: 'append' })` with the region's localized prompt; it does not go through `ui-agent-preset`, so the preset chip plays no introduction. The [`dsh-web-app` bundle patch](../../bundle/web-app/cordis.patch.yml) mounts the browser plugin.
 
 </details>
 
@@ -65,8 +67,9 @@ None; the package neither assembles nor sends model requests.
 
 - More menus provide no visibility controls. Region pin callbacks remain available to other registrations and change only in-memory choices; plugin reload restores defaults.
 - Legacy pin values in localStorage are neither read nor written.
-- **Create your plugin** does not check whether the Creator preset exists. Without it, Session creation fails, the Workspace shows its creation-failure notice, and no draft is prepared. Draft preparation also requires a resolvable Workspace; without one, the existing flow reports that a Workspace is required.
+- **Create your plugin** does not check whether the Creator preset exists; a deployment without it sets `createPlugin: false`. Otherwise Session creation fails, the Workspace shows its creation-failure notice, and no draft is prepared. Draft preparation also requires a resolvable Workspace; without one, the existing flow reports that a Workspace is required.
 - Conversation owns the estimated tab split; these menus provide no sorting.
+- With `createPlugin: false` and no `pluginNavigation`, the Conversation More menu stays registered for folded Views and is empty while no View is folded.
 - Conversation controls follow the existing nonblank-Session header and Coding Tools eligibility. Right-sidebar controls require a selected Session and appear on its guide page.
 - The menus do not list plugins; use the browsing action to open the Plugins page.
 

@@ -1,4 +1,4 @@
-/** Folded Conversation Views, plugin discovery while reachable, and creation. */
+/** Folded Conversation Views, plugin discovery while reachable, and creation while the deployment offers it. */
 import {
   IconCheckOutlineRegular, IconPluginPinwheelOutlineRegular, IconPlusOutlineRegular, MenuItemButton,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -19,8 +19,8 @@ export interface EntryMenuInjected {
   }
   /** Open the Plugins main list. */
   readonly browsePlugins: () => void
-  /** Start a Creator draft with this region's prompt without sending it. */
-  readonly createPlugin: () => void
+  /** Start a Creator draft with this region's prompt without sending it; absent when the deployment turns creation off. */
+  readonly createPlugin?: () => void
 }
 
 // The three region owners declare the same fields; the sidebar's slot names them.
@@ -49,9 +49,10 @@ export function EntryMenuContent({
       onSelect={() => { onDismiss(); browsePlugins() }}>
       {t('install')}
     </MenuItemButton>}
-    <MenuItemButton icon={<IconPlusOutlineRegular size={16} />} separatorBefore={!browsable && moreEntries.length > 0}
+    {createPlugin !== undefined && <MenuItemButton icon={<IconPlusOutlineRegular size={16} />}
+      separatorBefore={!browsable && moreEntries.length > 0}
       onSelect={() => { onDismiss(); createPlugin() }}>
       {t('create')}
-    </MenuItemButton>
+    </MenuItemButton>}
   </>
 }
