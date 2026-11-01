@@ -11,6 +11,8 @@ export interface DesktopTargetBuildPaths {
   readonly dsh: string
   readonly dshPnpm: string
   readonly electron: string
+  /** Staged skill pack of the selected product: `skills/` and `pack.json`. */
+  readonly skillPack: string
   readonly packedDsh: string
   readonly packedVendor: string
   readonly packedLandlock: string

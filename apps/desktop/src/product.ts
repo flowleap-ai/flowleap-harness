@@ -65,6 +65,25 @@ export interface DesktopProduct {
   readonly updates: { readonly feedUrl: string }
   /** `'deployment'` reads the packaging policy settings; `'off'` ships no policy. */
   readonly mandatoryUpdatePolicy: 'deployment' | 'off'
+  /** Skill pack the build copies into the application resources; null ships none. */
+  readonly skillPack: DesktopSkillPackSpec | null
+}
+
+/**
+ * One pinned skill pack: the build fetches `commit` of `repository` and ships its `skills` folder;
+ * the packaged shell names that folder to the Host in the `environment` variable.
+ */
+export interface DesktopSkillPackSpec {
+  /** HTTPS Git repository without credentials. */
+  readonly repository: string
+  /** Full 40-digit commit SHA; a branch or tag name is rejected because it moves. */
+  readonly commit: string
+  /** Repository-relative folder of `<name>/SKILL.md` bundles. */
+  readonly skills: string
+  /** Repository-relative JSON file whose `version` names the pack release. */
+  readonly manifest: string
+  /** Host environment variable that receives the packaged skills folder. */
+  readonly environment: string
 }
 
 /** The upstream product, used when no product is selected or embedded. */
@@ -86,6 +105,7 @@ export const DEFAULT_DESKTOP_PRODUCT: DesktopProduct = {
   telemetry: true,
   updates: { feedUrl: 'deployment' },
   mandatoryUpdatePolicy: 'deployment',
+  skillPack: null,
 }
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/u
@@ -94,6 +114,9 @@ const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*$/u
 const APP_ID_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/u
 const PROFILE_DIRECTORY_PATTERN = /^[a-z][a-z0-9-]*$/u
 const LOCALE_PATTERN = /^[a-z]{2}(?:_[A-Z]{2})?$/u
+const COMMIT_PATTERN = /^[0-9a-f]{40}$/u
+const RELATIVE_PATH_PATTERN = /^(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/u
+const ENVIRONMENT_PATTERN = /^[A-Z][A-Z0-9_]*$/u
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
@@ -112,6 +135,25 @@ function flag(fields: Record<string, unknown>, key: string, label: string): bool
   const value = fields[key]
   if (typeof value !== 'boolean') throw new Error(`desktop product: ${label}.${key} must be a boolean`)
   return value
+}
+
+function skillPack(value: unknown, label: string): DesktopSkillPackSpec | null {
+  if (value === null) return null
+  const fields = record(value)
+  if (fields === undefined) throw new Error(`desktop product: ${label} must be null or an object`)
+  const repository = text(fields, 'repository', label)
+  let url: URL
+  try { url = new URL(repository) } catch { throw new Error(`desktop product: ${label}.repository must be an HTTPS URL`) }
+  if (url.protocol !== 'https:' || url.username !== '' || url.password !== '') {
+    throw new Error(`desktop product: ${label}.repository must be an HTTPS URL without credentials`)
+  }
+  return Object.freeze({
+    repository,
+    commit: text(fields, 'commit', label, COMMIT_PATTERN),
+    skills: text(fields, 'skills', label, RELATIVE_PATH_PATTERN),
+    manifest: text(fields, 'manifest', label, RELATIVE_PATH_PATTERN),
+    environment: text(fields, 'environment', label, ENVIRONMENT_PATTERN),
+  })
 }
 
 /**
@@ -166,6 +208,7 @@ export function parseDesktopProduct(value: unknown, label = 'product'): DesktopP
     telemetry: flag(fields, 'telemetry', label),
     updates: Object.freeze({ feedUrl }),
     mandatoryUpdatePolicy: policy,
+    skillPack: skillPack(fields.skillPack, `${label}.skillPack`),
   })
 }
 

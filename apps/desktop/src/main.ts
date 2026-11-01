@@ -68,6 +68,7 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { DEFAULT_DESKTOP_PRODUCT, resolveDesktopProduct, type DesktopProduct } from './product.ts'
+import { readPackagedSkillPack, skillPackAboutValues, skillPackHostEnvironment } from './skill-pack.ts'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
@@ -374,6 +375,9 @@ async function main(): Promise<void> {
   // The product record decides the profile, the brand strings, and which vendor behaviours exist.
   const product = resolveDesktopProduct(manifest, { packaged: app.isPackaged, env: process.env, appRoot: app.getAppPath() })
   activeProduct = product
+  // A packaged product ships its pinned skill pack; an unpackaged launch keeps the developer's environment.
+  const skillPack = app.isPackaged && product.skillPack !== null
+    ? readPackagedSkillPack(process.resourcesPath, product.skillPack) : undefined
   const updatesEnabled = product.updates.feedUrl !== ''
   if (!updatesEnabled) console.info(`desktop updates: disabled for ${product.productName}; the product configures no update feed`)
   const desktopSettings = readDesktopSettings(app.getPath('userData'))
@@ -469,7 +473,8 @@ async function main(): Promise<void> {
   // chrome and its content never mix languages.
   const showAbout = async (): Promise<void> => {
     await ordinaryMessageBox({ type: 'info', title: locale.messages.aboutMenu, message: locale.messages.aboutProduct,
-      detail: formatDesktopMessage(locale.messages.aboutVersion, { version: app.getVersion() }),
+      detail: [formatDesktopMessage(locale.messages.aboutVersion, { version: app.getVersion() }),
+        ...skillPack === undefined ? [] : [formatDesktopMessage(locale.messages.aboutSkillPack, skillPackAboutValues(skillPack))]].join('\n'),
       buttons: [locale.messages.updateAcknowledge], cancelId: 0 })
   }
   const commandManager = new DesktopCommandManager({
@@ -530,7 +535,8 @@ async function main(): Promise<void> {
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
+      hostInspectPort, skillPackHostEnvironment({ ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, skillPack),
+      onFailure,
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) }, (record) => {
         operationJournal ??= new OperationJournal(join(app.getPath('userData'), 'plugin-operations'), {
@@ -1043,13 +1049,16 @@ async function main(): Promise<void> {
 
   const applicationIconPath = development ? join(app.getAppPath(), product.icons, 'icon-windows.png')
     : join(process.resourcesPath, 'icon.png')
+  const aboutCredits = [product.about, ...skillPack === undefined ? []
+    : [formatDesktopMessage(currentDesktopLocale().messages.aboutSkillPack, skillPackAboutValues(skillPack))]]
+    .filter(line => line !== '').join('\n\n')
   app.setAboutPanelOptions({
     applicationName: product.productName,
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
     copyright: '',
-    ...(product.about === '' ? {} : { credits: product.about }),
+    ...aboutCredits === '' ? {} : { credits: aboutCredits },
     iconPath: applicationIconPath,
   })
   // A custom application menu replaces Electron's default menu, so macOS needs
