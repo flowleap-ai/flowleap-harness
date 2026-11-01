@@ -3,6 +3,7 @@
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
+  CLIENT_BUILD_TITLE_SELECTOR,
   readClientBuildRecord,
   repositoryClientBuildEnvironment,
   resolveClientBuildEnvironment,
@@ -18,7 +19,12 @@ async function main(): Promise<void> {
   if (values.out === undefined) throw new Error('desktop local pack: --out must name the package staging directory')
   const concurrency = parsePackConcurrency(values.concurrency)
   const root = process.cwd()
-  const environment = resolveClientBuildEnvironment(repositoryClientBuildEnvironment(root), 'local')
+  // The build resolves the title selector of a white-label product; the record must match it.
+  const titleSelector = process.env[CLIENT_BUILD_TITLE_SELECTOR]
+  const environment = resolveClientBuildEnvironment({
+    ...repositoryClientBuildEnvironment(root),
+    ...(titleSelector === undefined ? {} : { [CLIENT_BUILD_TITLE_SELECTOR]: titleSelector }),
+  }, 'local')
   readClientBuildRecord(root, environment)
   const destination = resolve(root, values.out)
   const packed = await packFamilyMembers(root, releaseFamily('dsh'), destination, concurrency)
