@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -98,9 +98,9 @@ describe('readAdminKey', () => {
     }
   })
 
-  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('reports a file that cannot be read as unreadable', async () => {
-    const path = file('locked.pub', publicPem(starter.publicKey))
-    chmodSync(path, 0o000)
+  it('reports a path that cannot be read as a file as unreadable', async () => {
+    const path = join(dir, 'directory.pub')
+    mkdirSync(path)
     await expect(readAdminKey(path)).rejects.toBeInstanceOf(AdminLinkKeyError)
     await expect(readAdminKey(path)).rejects.toMatchObject({ problem: 'unreadable' })
   })
