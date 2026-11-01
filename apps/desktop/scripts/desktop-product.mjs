@@ -76,6 +76,10 @@ export function readDesktopProduct(name = resolveDesktopProductName(), appRoot =
     throw new Error(`desktop product: ${path} mandatoryUpdatePolicy must be "deployment" or "off"`)
   }
   if (!Array.isArray(product.locales) || product.locales.length === 0) throw new Error(`desktop product: ${path} needs locales`)
+  if (product.skillPack !== null) {
+    if (typeof product.skillPack !== 'object' || Array.isArray(product.skillPack)) throw new Error(`desktop product: ${path} skillPack must be null or an object`)
+    for (const key of ['repository', 'commit', 'skills', 'manifest', 'environment']) requireText(product.skillPack, key, `${path} skillPack`)
+  }
   return product
 }
 

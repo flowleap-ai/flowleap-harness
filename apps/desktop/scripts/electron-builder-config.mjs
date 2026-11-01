@@ -35,6 +35,7 @@ import {
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
 import { resolveDesktopUpdateChannel } from './desktop-auto-update-environment.mjs'
+import { readStagedSkillPack } from './prepare-skill-pack.mjs'
 import { DESKTOP_PRODUCT_MANIFEST_KEY, desktopProductIconPath, readDesktopProduct, resolveDesktopProductName } from './desktop-product.mjs'
 
 /**
@@ -171,6 +172,7 @@ export function createElectronBuilderConfig(
       { from: desktopProductIconPath(product, 'icon-windows.png'), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: desktopProductIconPath(product, 'tray-windows.ico'), to: 'tray.ico' }] : []),
+      ...(product.skillPack === null ? [] : [{ from: buildPaths.skillPack, to: 'skill-pack' }]),
     ],
     mac: {
       icon: desktopProductIconPath(product, 'icon-macos.png'),
@@ -206,6 +208,9 @@ export function createElectronBuilderConfig(
       // The runtime schema of the embedded product record; the build reader checks only what it uses.
       const { parseDesktopProduct } = await import('../lib/types/product.js')
       parseDesktopProduct(product, `config/product.${product.name}.json`)
+      if (product.skillPack !== null && readStagedSkillPack(buildPaths.skillPack, product.skillPack.commit) === undefined) {
+        throw new Error(`desktop package: ${buildPaths.skillPack} does not hold skill pack ${product.skillPack.commit}; run prepare:skill-pack`)
+      }
       if (policy === undefined) return
       const { resolveDesktopPolicyConfig } = await import('../lib/types/mandatory-update-policy.js')
       resolveDesktopPolicyConfig(policy)

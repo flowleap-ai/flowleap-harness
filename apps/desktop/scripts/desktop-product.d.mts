@@ -26,6 +26,16 @@ export interface DesktopProductRecord {
   telemetry: boolean
   updates: { feedUrl: string }
   mandatoryUpdatePolicy: 'deployment' | 'off'
+  skillPack: DesktopSkillPackRecord | null
+}
+
+/** One pinned skill pack as the build reads it; `src/product.ts` owns the strict schema. */
+export interface DesktopSkillPackRecord {
+  repository: string
+  commit: string
+  skills: string
+  manifest: string
+  environment: string
 }
 
 /**

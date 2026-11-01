@@ -15,5 +15,6 @@
   "welcome": true,
   "telemetry": true,
   "updates": { "feedUrl": "deployment" },
-  "mandatoryUpdatePolicy": "deployment"
+  "mandatoryUpdatePolicy": "deployment",
+  "skillPack": null
 }
