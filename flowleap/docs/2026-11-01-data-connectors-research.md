@@ -13,7 +13,7 @@ Status: research for the founder, 2026-11-01. It proposes ten tickets (section 7
 
 ## 1. Sources and method
 
-Four research subagents read primary pages (office API pages, terms of use, price lists, developer portals) on 2026-11-01. They did not sign up for a service or accept terms. Their full notes, with a URL for each fact, are in the session scratchpad of 2026-11-01 and are not in the repository. I read these claims again myself, because the ranking depends on them:
+Four research subagents read primary pages (office API pages, terms of use, price lists, developer portals) on 2026-11-01. They did not sign up for a service or accept terms. Their full notes, with a URL for each fact, are in the session notes of 2026-11-01 (`2026-11-01-data-connectors-research-{A-offices,B-bulk,C-prosecution-caselaw,D-literature}.md`, outside the repository). I read these claims again myself, because the ranking depends on them:
 
 - The EPO price list gives DOCDB, INPADOC, EP full-text data, EP bibliographic data, European Patent Register data and "PATSTAT Global and EP Register" as "Free", and OPS as free up to 4 GB a week, then EUR 2 800 a year ([EPO price list](https://www.epo.org/en/service-support/ordering/patent-knowledge-products-services)).
 - OpenAlex: "make basic queries with no key at all"; a free key gives a budget of "$1 a day" and "raises your daily budget 10×" ([OpenAlex rate limits](https://help.openalex.org/how-to-use-the-api/rate-limits-and-authentication), updated 2026-10-15). One subagent reported that keys are required for all requests, from a February 2026 blog post. The current documentation says otherwise, so this study follows the documentation.
