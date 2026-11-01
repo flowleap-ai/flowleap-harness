@@ -98,6 +98,8 @@ export function ModelStep({ provider, configured, keyConfigured, operations, t }
   const [outcome, setOutcome] = useState<Outcome | undefined>(undefined)
   const id = provider.provider
   if (!configured || !isStepProvider(id)) return null
+  // A key card shows nothing until its key is saved or it has a result.
+  if (id !== 'openrouter' && !keyConfigured && outcome === undefined) return null
 
   const test = async (): Promise<void> => {
     setBusy({ kind: 'testing' })

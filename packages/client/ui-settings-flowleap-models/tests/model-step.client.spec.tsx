@@ -54,9 +54,9 @@ describe('ModelStep', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('offers Test only once a key is saved', () => {
+  it('offers Test only once a key is saved, and shows nothing in a key card before that', () => {
     renderStep('anthropic')
-    expect(screen.queryByRole('button', { name: en.test })).toBeNull()
+    expect(document.body.textContent).toBe('')
     cleanup()
     renderStep('anthropic', { keyConfigured: true })
     expect(screen.getByRole('button', { name: en.test })).toBeTruthy()
