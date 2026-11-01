@@ -1,4 +1,7 @@
-/** The firm-server `flowleap-web` profile fixes the model routes and keys; the `flowleap-desktop` and `web` profiles do not. */
+/**
+ * The firm-server `flowleap-web` profile fixes the model routes and keys; the `flowleap-desktop` and `web` profiles do
+ * not, and only `flowleap-desktop` has the model step.
+ */
 
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -48,11 +51,29 @@ describe('model locks per profile', () => {
     expect(lockedRows(profile)).toEqual(expect.arrayContaining(['plugin-manager', 'llm-deepseek', 'session-telemetry-otel']))
   })
 
-  it('the firm llm-pi-ai row restates the desktop routes and replaces subscriptionSignIn with fixedRoutes', () => {
+  it('the firm llm-pi-ai row restates the dsh-flowleap-web routes and replaces subscriptionSignIn with fixedRoutes', () => {
     const firm = composed(loadProfile('dsh', 'flowleap-web', installAnchor, newHome()))('llm-pi-ai')
-    const { subscriptionSignIn, ...desktop } = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))('llm-pi-ai') ?? {}
+    const { subscriptionSignIn, providers, ...desktop } = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))('llm-pi-ai') ?? {}
+    const { openai, ...webRoutes } = providers as Record<string, unknown>
     expect(subscriptionSignIn).toBe(false)
-    expect(firm).toEqual({ ...desktop, fixedRoutes: true })
+    expect(openai).toEqual({ apiKeyEnv: 'OPENAI_API_KEY' })
+    expect(firm).toEqual({ ...desktop, providers: webRoutes, fixedRoutes: true })
+  })
+
+  it('only the desktop profile mounts the model step', () => {
+    const rows = (name: string) => composeEntries(loadProfile('dsh', name, installAnchor, newHome()).layers.map(layer => layer.patches), () => {})
+      .filter(row => row.disabled !== true).map(row => row.id)
+    expect(rows('flowleap-desktop')).toEqual(expect.arrayContaining(['flowleap-models', 'ui-settings-flowleap-models']))
+    expect(rows('flowleap-web')).not.toContain('flowleap-models')
+    expect(rows('flowleap-web')).not.toContain('ui-settings-flowleap-models')
+  })
+
+  it('a flowleap-desktop profile written before the desktop layer existed gets the desktop layer', () => {
+    const home = newHome()
+    initProfile(resolveProfileDir('flowleap-desktop', home), ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'])
+    const profile = loadProfile('dsh', 'flowleap-desktop', installAnchor, home)
+    expect(profile.layers.map(layer => layer.packageName)).toContain('@deepseek-ai/dsh-flowleap-desktop')
+    expect(lockedRows(profile)).not.toEqual(expect.arrayContaining(MODEL_ROWS))
   })
 
   it('a flowleap-web profile written before the firm layer existed gets the firm layer and its locks', () => {

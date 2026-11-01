@@ -40,6 +40,7 @@
     "@deepseek-ai/dsh-cordis-client-runner": "workspace:*",
     "@deepseek-ai/dsh-experimental-agent-team-profile": "workspace:*",
     "@deepseek-ai/dsh-experimental-inspector-profile": "workspace:*",
+    "@deepseek-ai/dsh-flowleap-desktop": "workspace:*",
     "@deepseek-ai/dsh-flowleap-firm": "workspace:*",
     "@deepseek-ai/dsh-flowleap-web": "workspace:*",
     "@deepseek-ai/dsh-fs-local": "workspace:*",

@@ -118,6 +118,10 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'flowleapAgents/removeFile': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapAgents/save': 'owner-only', // FlowLeap: the owner's agents, their files and instructions
   'flowleapBudget/month': 'owner-only', // FlowLeap: the owner's model spend
+  'flowleapModels/test': 'owner-only', // FlowLeap: tests the owner's model key
+  'flowleapModels/startOpenRouter': 'owner-only', // FlowLeap: stores an OpenRouter key for the owner
+  'flowleapModels/awaitOpenRouter': 'owner-only', // FlowLeap: stores an OpenRouter key for the owner
+  'flowleapModels/cancelOpenRouter': 'owner-only', // FlowLeap: ends the owner's OpenRouter connect
   'flowleapRoutines/done': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapRoutines/reviews': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapWorkPages/list': 'owner-only', // FlowLeap: the owner's office action work pages

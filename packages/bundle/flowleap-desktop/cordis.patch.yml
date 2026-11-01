@@ -1,0 +1,43 @@
+# The FlowLeap desktop layer over dsh-flowleap-web (flowleap-harness#170). The
+# flowleap-desktop profile of the FlowLeap desktop app stacks it last; the
+# firm-server flowleap-web profile does not, so a firm keeps the routes and
+# locks of dsh-flowleap-firm with no OpenAI route and no model step.
+#
+# A patch replaces the targeted row's whole `config`, so the llm-pi-ai row
+# restates every route of dsh-flowleap-web and adds the openai route; a test
+# fails when the two rows differ in anything else.
+
+- id: llm-pi-ai
+  config:
+    subscriptionSignIn: false
+    providers:
+      anthropic:
+        apiKeyEnv: ANTHROPIC_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
+      openrouter:
+        apiKeyEnv: OPENROUTER_API_KEY
+        noticeHeaders: [x-flowleap-budget-warning]
+      mistral:
+        apiKeyEnv: MISTRAL_API_KEY
+      openai:
+        apiKeyEnv: OPENAI_API_KEY
+
+- insert:
+    # The model step: Test on the Anthropic, OpenAI and OpenRouter cards of the
+    # Models page, and Connect OpenRouter. A test reads one free authenticated
+    # address at the chosen provider only; a connect talks only to OpenRouter.
+    # After the first provider with a key works, new chats use its model below.
+    - id: flowleap-models
+      name: '@deepseek-ai/dsh-flowleap-models'
+      config:
+        providers:
+          anthropic:
+            model: claude-sonnet-5-5
+          openai:
+            model: gpt-5.5
+          openrouter:
+            model: anthropic/claude-sonnet-5.5
+        openRouterKeyLabel: FlowLeap Desktop
+
+    - id: ui-settings-flowleap-models
+      name: '@deepseek-ai/dsh-client-ui-settings-flowleap-models'
