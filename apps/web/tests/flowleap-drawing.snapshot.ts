@@ -112,7 +112,7 @@ it.skipIf(MODE === 'record')('shows a drawing page from EPO OPS as an image bloc
   expect(results.map(result => result.isError)).toEqual([false, false])
   expect(results[1]?.content.slice(1)).toEqual([
     { type: 'text', text: 'Page 6 of EP4831432' },
-    { type: 'image', attachment: expect.objectContaining({ mediaType: expect.stringMatching(/^image\/(png|jpeg)$/) }) as object },
+    { type: 'image', attachment: expect.objectContaining({ mediaType: expect.stringMatching(/^image\/(png|jpeg)$/) as string }) as object },
   ])
   expect([...hosts]).toEqual(['ops.epo.org'])
   expect(await readPersistedEvents(scaffold, sessionId)).toEqual(agent.session.snapshotEvents())

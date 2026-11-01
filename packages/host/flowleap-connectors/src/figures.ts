@@ -72,7 +72,7 @@ function pagesOf(value: JsonValue): FigurePage[] {
   return figuresOf(value).flatMap((figure) => {
     const mediaType = mediaTypeOf(figure)
     if (mediaType === undefined) return []
-    return [{ page: String(figure['page']), image: { data: Buffer.from(figure['base64'] as string, 'base64'), mediaType } }]
+    return [{ page: `${figure['page'] as number}`, image: { data: Buffer.from(figure['base64'] as string, 'base64'), mediaType } }]
   })
 }
 
@@ -80,6 +80,7 @@ function pagesOf(value: JsonValue): FigurePage[] {
  * Resolve the attachment store after proof that the current model route reads images.
  * @throws Error naming the missing store, the unresolved route, or the model without image input.
  */
+/* jscpd:ignore-start -- the same route proof as dsh-mcp-client resolveImageAdmission; neither package owns a shared one. */
 async function imageStore(ctx: Context, exec: ToolRunContext): Promise<AttachmentStore> {
   const attachments = ctx.get('attachments')
   if (attachments === undefined) throw new Error('no attachment store is mounted')
@@ -98,6 +99,7 @@ async function imageStore(ctx: Context, exec: ToolRunContext): Promise<Attachmen
   if (info.inputModalities?.includes('image') !== true) throw new Error(`model "${model}" does not declare image input`)
   return attachments
 }
+/* jscpd:ignore-end */
 
 /**
  * Store the PNG and JPEG pages of one result and build the content that shows them.
@@ -115,7 +117,7 @@ export async function prepareFigures(
 ): Promise<PreparedFigures | undefined> {
   const pages = pagesOf(value)
   if (pages.length === 0) return undefined
-  const docId = String((value as JsonObject)['docId'])
+  const docId = (value as JsonObject)['docId'] as string
   const notShown = (reason: string): PreparedFigures => ({
     value,
     content: [...fallback, { type: 'text', text: `[page images not shown: ${reason}]` }],

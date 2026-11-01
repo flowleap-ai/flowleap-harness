@@ -181,7 +181,7 @@ describe('get_patent_image pages', () => {
     const hosts = new Set<string>()
     const throttle = { 'x-throttling-control': 'idle (images=green:200, retrieval=green:1200)' }
     const fetchSpy = vi.fn<typeof fetch>((input) => {
-      const url = String(input as string)
+      const url = input as string
       hosts.add(new URL(url).host)
       if (url === 'https://ops.epo.org/3.2/auth/accesstoken') return Promise.resolve(Response.json({ access_token: 'token', expires_in: 1200 }))
       if (url.endsWith('/images')) return Promise.resolve(new Response(inquiry, { headers: throttle }))
@@ -210,7 +210,7 @@ describe('get_patent_image pages', () => {
     expect(result.isError).toBe(false)
     expect(result.content.slice(1)).toEqual([
       { type: 'text', text: 'Page 6 of EP4831432' },
-      { type: 'image', attachment: expect.objectContaining({ mediaType: expect.stringMatching(/^image\/(png|jpeg)$/) }) as ImageAttachmentRef },
+      { type: 'image', attachment: expect.objectContaining({ mediaType: expect.stringMatching(/^image\/(png|jpeg)$/) as string }) as ImageAttachmentRef },
     ])
     const [saved] = (ctx.attachments as RecordingStore).saved
     expect(saved?.data.byteLength).toBeGreaterThan(1000)
