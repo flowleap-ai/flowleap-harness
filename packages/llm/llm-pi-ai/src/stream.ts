@@ -39,15 +39,37 @@ export function mapUsage(usage: PiUsage): TokenUsage {
 // wrapper a bare `terminated`, so we are left pattern-matching terse words here.
 // If pi-ai ever forwards the original Error (or a fetch/dispatcher hook that lets
 // us capture the cause ourselves), classify on `code`/`cause` instead of text.
-function classifyPiAiError(message: string): string {
-  if (/\b(?:401|403)\b/.test(message)) return 'AUTH'
-  if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
-  if (/\b429\b|rate.?limit/i.test(message)) return 'RATE_LIMIT'
-  // A rejected request body (gateway or provider size cap): resending the
+//
+// pi-ai puts the HTTP status first: `400: <body>` and `400 <body>` (SDK
+// errors), `HTTP 429: …`, or `<Provider> API error (429): …`.
+const LEADING_STATUS = /^(?:HTTP\s+)?(\d{3})(?=[:\s])|^[^:(]*\((\d{3})\):/
+// A status elsewhere in the text; digits beside a decimal point are an
+// amount (a gateway budget text names `spent 403.12 USD`), never a status.
+const BARE_STATUS = /(?<![\d.])([45]\d\d)(?!\d|\.\d)/
+
+function httpStatus(message: string): number | undefined {
+  const leading = LEADING_STATUS.exec(message)
+  const found = leading?.[1] ?? leading?.[2] ?? BARE_STATUS.exec(message)?.[1]
+  return found === undefined ? undefined : Number(found)
+}
+
+function statusCode(status: number | undefined): string | undefined {
+  if (status === 401 || status === 403) return 'AUTH'
+  if (status === 429) return 'RATE_LIMIT'
+  // A rejected request (413: a gateway or provider size cap): resending the
   // same request cannot succeed, so it is invalid, not transient.
-  if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return 'INVALID_REQUEST'
-  if (/\b400\b|invalid.?request/i.test(message)) return 'INVALID_REQUEST'
-  if (/\b5\d\d\b/.test(message)) return 'SERVER'
+  if (status === 400 || status === 413) return 'INVALID_REQUEST'
+  if (status !== undefined && status >= 500 && status <= 599) return 'SERVER'
+  return undefined
+}
+
+function classifyPiAiError(message: string): string {
+  const byStatus = statusCode(httpStatus(message))
+  if (byStatus === 'AUTH') return byStatus
+  if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
+  if (byStatus !== undefined) return byStatus
+  if (/rate.?limit/i.test(message)) return 'RATE_LIMIT'
+  if (/failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large|invalid.?request/i.test(message)) return 'INVALID_REQUEST'
   if (/\btime(?:d)?\s*out\b|timeout/i.test(message)) return 'TIMEOUT'
   // A stream truncated before the provider's terminal event: each pi-ai provider
   // throws its own wording when the wire closes mid-response without a terminal
@@ -65,6 +87,29 @@ function classifyPiAiError(message: string): string {
     return 'TRANSPORT'
   }
   return 'PI_AI_ERROR'
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch (_malformedBody) {
+    // A body that is not JSON keeps the full pi-ai text as the failure message.
+    return undefined
+  }
+}
+
+function messageOf(body: unknown): string | undefined {
+  if (typeof body !== 'object' || body === null) return undefined
+  if ('message' in body && typeof body.message === 'string' && body.message.length > 0) return body.message
+  return 'error' in body ? messageOf(body.error) : undefined
+}
+
+// The text of a JSON error body after the leading status: `400: {"message":…}`
+// (the OpenAI SDK unwraps `error`) or `400 {"error":{"message":…}}` (Anthropic
+// SDK). A gateway refusal carries the attorney's text there.
+function failureText(text: string): string {
+  const body = /^\d{3}:? (\{.*\})$/s.exec(text)?.[1]
+  return (body === undefined ? undefined : messageOf(parseJson(body))) ?? text
 }
 
 /**
@@ -122,7 +167,7 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
     }
     case 'error': {
       const text = message.errorMessage ?? 'pi-ai stream error'
-      return { kind: 'error', failure: { message: text, code: classifyPiAiError(text) } }
+      return { kind: 'error', failure: { message: failureText(text), code: classifyPiAiError(text) } }
     }
   }
 }

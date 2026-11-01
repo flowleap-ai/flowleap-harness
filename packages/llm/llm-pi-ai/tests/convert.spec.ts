@@ -939,6 +939,32 @@ describe('mapStopReason / mapUsage', () => {
   })
 
   it.each([
+    ['400: {"message":"Your budget is used up: you spent 403.12 USD of 400.00 USD.","code":"400"}', 'INVALID_REQUEST'],
+    ['400 {"error":{"message":"Your budget is used up: you spent 429.10 USD of 400.00 USD."}}', 'INVALID_REQUEST'],
+    ['provider refused: you spent 403.12 USD', 'PI_AI_ERROR'],
+    ['provider refused: you spent 429.10 USD', 'PI_AI_ERROR'],
+    ['401: {"message":"invalid key"}', 'AUTH'],
+    ['403 {"error":{"message":"forbidden"}}', 'AUTH'],
+    ['429: {"message":"slow down"}', 'RATE_LIMIT'],
+    ['Anthropic API error (403): forbidden', 'AUTH'],
+    ['upstream answered 429 Too Many Requests', 'RATE_LIMIT'],
+  ])('classifies %j on its HTTP status, never on an amount', (errorMessage, code) => {
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
+      .toMatchObject({ kind: 'error', failure: { code } })
+  })
+
+  it.each([
+    ['400: {"message":"Gateway text.","type":"None"}', 'Gateway text.'],
+    ['400 {"error":{"message":"Gateway text.","type":"None"}}', 'Gateway text.'],
+    ['400: {"type":"None"}', '400: {"type":"None"}'],
+    ['400: {not json}', '400: {not json}'],
+    ['HTTP 500: backend down', 'HTTP 500: backend down'],
+  ])('shows the message of the error body in %j', (errorMessage, message) => {
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
+      .toMatchObject({ kind: 'error', failure: { message } })
+  })
+
+  it.each([
     'other side closed',
     'HTTP2 request did not get a response',
     'WebSocket closed unexpectedly',
