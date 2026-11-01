@@ -189,6 +189,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 - [credentials](../../credentials/README.md) — the record half of the credential seam the keys live in.
 - [dsh-tools](../../core/tools/README.md) — the registry the office tools join.
 - [dsh-flowleap-web](../../bundle/flowleap-web/README.md) — the profile layer that mounts this row.
+- [Snapshot `flowleap-drawing`](../../../snapshots/web/flowleap-drawing/) — a drawing request without the paid data plugin: `get_patent_image` reads page 6 of EP4831432A1 from EPO OPS on the stored key, and the page reaches an image-input model route as an image block.
 
 -----
 
