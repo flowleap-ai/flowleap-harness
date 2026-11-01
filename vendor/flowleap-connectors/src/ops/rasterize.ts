@@ -3,7 +3,9 @@
  *
  *  EPO OPS serves most patent drawings only as PDF. The VS Code chat model can render
  *  PNG/JPEG image parts but not application/pdf, so we rasterize a single-page PDF here
- *  (server-side, pure-WASM via mupdf — no native/system binaries required).
+ *  (pure WASM through PDFium, `@hyzyla/pdfium`; PNG through `pngjs`, JPEG through
+ *  `jpeg-js` — no native or system binaries, and every dependency is permissively
+ *  licensed). The PDFium WASM module loads once per process, on the first render.
  *
  *  Two renders (#589):
  *   - the default: 150 DPI, RGB, PNG — the bytes get_patent_image always returned;
@@ -12,7 +14,9 @@
  *     drawings are line art, so grayscale loses nothing and PNG usually wins.
  *--------------------------------------------------------------------------------------------*/
 
-import * as mupdf from 'mupdf';
+import { PDFiumLibrary } from '@hyzyla/pdfium';
+import jpeg from 'jpeg-js';
+import { PNG } from 'pngjs';
 
 /** Default rasterization resolution. 150 DPI is sharp enough for patent line drawings. */
 export const DEFAULT_RASTER_DPI = 150;
@@ -42,6 +46,17 @@ export interface RasterizedPage {
 	height: number;
 }
 
+let library: Promise<PDFiumLibrary> | undefined;
+
+/** The process-wide PDFium instance; a failed load is retried on the next render. */
+function pdfium(): Promise<PDFiumLibrary> {
+	library ??= PDFiumLibrary.init().catch((error: unknown) => {
+		library = undefined;
+		throw error;
+	});
+	return library;
+}
+
 /**
  * Rasterize the first page of a (typically single-page) PDF buffer.
  *
@@ -49,37 +64,31 @@ export interface RasterizedPage {
  * @param opts - dpi for the default render, or fit='compact'
  * @returns the encoded page with format, width and height
  */
-export function rasterizePdf(pdf: Buffer, opts: RasterizeOptions = {}): RasterizedPage {
-	const doc = mupdf.Document.openDocument(pdf, 'application/pdf');
+export async function rasterizePdf(pdf: Buffer, opts: RasterizeOptions = {}): Promise<RasterizedPage> {
+	const doc = await (await pdfium()).loadDocument(pdf);
 	try {
-		if (doc.countPages() < 1) {
+		if (doc.getPageCount() < 1) {
 			throw new Error('PDF has no pages to rasterize');
 		}
-
-		const page = doc.loadPage(0);
+		const page = doc.getPage(0);
 		const compact = opts.fit === 'compact';
 		// 72 is the PDF userspace unit; scale up to the requested DPI.
-		const defaultScale = (opts.dpi ?? DEFAULT_RASTER_DPI) / 72;
-		const scale = compact ? compactScale(page.getBounds()) : defaultScale;
-		const matrix = mupdf.Matrix.scale(scale, scale);
-		const colorSpace = compact ? mupdf.ColorSpace.DeviceGray : mupdf.ColorSpace.DeviceRGB;
-		// No alpha channel: an opaque white background keeps line drawings crisp,
-		// and JPEG has no alpha.
-		const pixmap = page.toPixmap(matrix, colorSpace, false, true);
-		try {
-			const width = pixmap.getWidth();
-			const height = pixmap.getHeight();
-			const png = Buffer.from(pixmap.asPNG());
-			if (!compact) {
-				return { bytes: png, format: 'png', width, height };
-			}
-			const jpeg = Buffer.from(pixmap.asJPEG(COMPACT_JPEG_QUALITY, false));
-			return jpeg.length < png.length
-				? { bytes: jpeg, format: 'jpeg', width, height }
-				: { bytes: png, format: 'png', width, height };
-		} finally {
-			pixmap.destroy();
+		const scale = compact ? compactScale(page.getOriginalSize()) : (opts.dpi ?? DEFAULT_RASTER_DPI) / 72;
+		// No transparency: an opaque white background keeps line drawings crisp, and JPEG has no alpha.
+		const { width, height, data } = await page.render({
+			scale,
+			colorSpace: compact ? 'Gray' : 'RGBA',
+			render: 'bitmap',
+			transparent: false,
+		});
+		if (!compact) {
+			return { bytes: encodePng(data, width, height, 'rgba'), format: 'png', width, height };
 		}
+		const png = encodePng(data, width, height, 'gray');
+		const jpg = jpeg.encode({ data: grayToRgba(data), width, height }, COMPACT_JPEG_QUALITY).data;
+		return jpg.length < png.length
+			? { bytes: jpg, format: 'jpeg', width, height }
+			: { bytes: png, format: 'png', width, height };
 	} finally {
 		doc.destroy();
 	}
@@ -92,22 +101,39 @@ export function rasterizePdf(pdf: Buffer, opts: RasterizeOptions = {}): Rasteriz
  * @param dpi - Output resolution in dots per inch (default 150)
  * @returns PNG image bytes
  */
-export function rasterizePdfToPng(pdf: Buffer, dpi: number = DEFAULT_RASTER_DPI): Buffer {
-	return rasterizePdf(pdf, { dpi }).bytes;
+export async function rasterizePdfToPng(pdf: Buffer, dpi: number = DEFAULT_RASTER_DPI): Promise<Buffer> {
+	return (await rasterizePdf(pdf, { dpi })).bytes;
+}
+
+/** An RGBA bitmap as an RGB PNG, or a one-byte-per-pixel bitmap as a grayscale PNG. */
+function encodePng(data: Uint8Array, width: number, height: number, input: 'rgba' | 'gray'): Buffer {
+	const colors = input === 'gray' ? { colorType: 0, inputColorType: 0 } as const : { colorType: 2, inputColorType: 6 } as const;
+	const png = new PNG({ width, height, ...colors });
+	png.data = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+	return PNG.sync.write(png, colors);
+}
+
+/** jpeg-js encodes RGBA only. */
+function grayToRgba(gray: Uint8Array): Buffer {
+	const rgba = Buffer.alloc(gray.length * 4, 255);
+	for (let i = 0; i < gray.length; i++) {
+		rgba[i * 4] = gray[i];
+		rgba[i * 4 + 1] = gray[i];
+		rgba[i * 4 + 2] = gray[i];
+	}
+	return rgba;
 }
 
 /**
- * The compact scale for a page box [x0, y0, x1, y1] in points: the long edge
- * lands on COMPACT_MAX_EDGE_PX, but a small page is never scaled above the
- * default DPI. A hair under the exact ratio so mupdf's box rounding cannot
- * land one pixel over the cap.
+ * The compact scale for a page in points: the long edge lands on
+ * COMPACT_MAX_EDGE_PX, but a small page is never scaled above the default DPI.
+ * PDFium floors the point size and then the scaled size, so the floored long
+ * edge times this scale never exceeds the cap.
  */
-function compactScale(bounds: number[]): number {
-	const [x0, y0, x1, y1] = bounds;
-	const longEdgePt = Math.max(x1 - x0, y1 - y0);
+function compactScale(size: { originalWidth: number; originalHeight: number }): number {
+	const longEdgePt = Math.max(Math.floor(size.originalWidth), Math.floor(size.originalHeight));
 	if (!(longEdgePt > 0)) {
 		return DEFAULT_RASTER_DPI / 72;
 	}
-	const toCap = (COMPACT_MAX_EDGE_PX - 0.5) / longEdgePt;
-	return Math.min(toCap, DEFAULT_RASTER_DPI / 72);
+	return Math.min(COMPACT_MAX_EDGE_PX / longEdgePt, DEFAULT_RASTER_DPI / 72);
 }

@@ -189,11 +189,14 @@
     # logs and the harness still starts.
     #
     # ADR 0019 decision 3: this row carries only the paid set the backend keeps
-    # (flowleap-backend #608) — PATSTAT, enriched citations, examiner baseline,
-    # images, analytics. The office tools (`search_patents`,
-    # `get_bibliography`, …) and OCR (`ocr`, `read_pdf`, on the firm's Mistral
-    # key since C3) come from `dsh-flowleap-connectors` below and are not
-    # listed here, with one exception. `get_claims` is ALSO here: the native copy
+    # — PATSTAT, analytics and US full text. The office tools (`search_patents`,
+    # `get_bibliography`, …), the drawings and US office-action citations
+    # (`get_patent_image`, `search_office_action_citations`,
+    # `search_enriched_citations`, `get_citation_stats`, `examiner_baseline`:
+    # free data on the firm's own keys, flowleap-harness#180) and OCR (`ocr`,
+    # `read_pdf`, on the firm's Mistral key since C3) come from
+    # `dsh-flowleap-connectors` below. A name the local row registers is never
+    # listed here, so the model sees one tool per name, with one exception. `get_claims` is ALSO here: the native copy
     # has no US source (`usFulltext` is absent on a self-hosted harness) and
     # answers US claims `not_configured` naming the paid route
     # `mcp__flowleap__get_claims`, the backend's tool of the same name over
@@ -212,11 +215,6 @@
         tools:
           include:
             - server_info
-            - get_patent_image
-            - search_office_action_citations
-            - search_enriched_citations
-            - get_citation_stats
-            - examiner_baseline
             - patent_analytics
             - get_fulltext
             - get_claims

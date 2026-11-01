@@ -78,6 +78,8 @@ const ASSET_GLOBS = [
  * The agent builder reads PDF text through `pdfjs-dist/legacy/build/pdf.mjs`, which loads its worker
  * module and runs without pdfjs-dist's optional `@napi-rs/canvas` page renderer. Deliverables import
  * the `docx` root ESM entry. The `mammoth` and `xml2js` browser bundles have no Node importer.
+ * `@flowleap/connectors` imports the `@hyzyla/pdfium` Node ESM entry, which reads `dist/pdfium.wasm`;
+ * the base64-inlined WebAssembly and the browser, CDN, inline, and worker entries have no Node importer.
  */
 const DOCUMENT_LIBRARY_IGNORES = [
   '**/node_modules/@napi-rs/canvas/**',
@@ -88,6 +90,7 @@ const DOCUMENT_LIBRARY_IGNORES = [
   '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
   '**/node_modules/mammoth/mammoth.browser*.js',
   '**/node_modules/xml2js/lib/xml2js.bc.js',
+  '**/node_modules/@hyzyla/pdfium/dist/{pdfium.wasm.base64-*.js,index.esm.{base64,browser,cdn,worker}.js}',
 ]
 
 const PLATFORMS = ['linux', 'macos', 'win'] as const

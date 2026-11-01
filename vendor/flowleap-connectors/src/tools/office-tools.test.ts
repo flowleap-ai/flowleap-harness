@@ -58,9 +58,9 @@ function contextOver(fetch: ReturnType<typeof recordedOps>['fetch']): ToolContex
 const byName = new Map(officeTools().map((definition) => [definition.name, definition]));
 
 describe('officeTools()', () => {
-	it('lists the 34 office tools once each, every one with its credential, title and an object schema', () => {
+	it('lists the 39 office tools once each, every one with its credential, title and an object schema', () => {
 		const tools = officeTools();
-		expect(tools).toHaveLength(34);
+		expect(tools).toHaveLength(39);
 		expect(new Set(tools.map((t) => t.name)).size).toBe(tools.length);
 		for (const definition of tools) {
 			expect(definition.description.length, definition.name).toBeGreaterThan(20);
@@ -76,13 +76,14 @@ describe('officeTools()', () => {
 			'search_patents', 'get_search_syntax', 'search_register',
 			'get_bibliography', 'get_abstract', 'get_claims', 'get_description', 'get_fulltext',
 			'get_patent_family', 'get_legal_status', 'get_register_events', 'get_register_biblio', 'get_citations',
-			'convert_patent_number', 'get_continuity',
+			'get_patent_image', 'convert_patent_number', 'get_continuity',
 			'get_transactions', 'get_assignments', 'get_foreign_priority', 'get_patent_term_adjustment', 'get_attorney',
 			'get_application_documents', 'read_application_document',
-			'get_patent_summary', 'compare_patents', 'get_prosecution_timeline', 'get_patent_term',
+			'search_office_action_citations', 'search_enriched_citations',
+			'get_patent_summary', 'compare_patents', 'examiner_baseline', 'get_prosecution_timeline', 'get_patent_term',
 			'search_uspto_portfolio_by_customer_number',
 			'ocr',
-			'get_us_grant', 'get_us_application', 'get_family',
+			'get_us_grant', 'get_us_application', 'get_citation_stats', 'get_family',
 			'search_academic', 'search_npl', 'get_npl_work',
 		]);
 	});

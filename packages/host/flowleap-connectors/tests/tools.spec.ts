@@ -42,11 +42,11 @@ let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
 
 describe('registerOfficeTools', () => {
-  it('registers the library\'s 34 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
+  it('registers the library\'s 39 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
     const { ctx, connectors, bound } = await bench()
     const dispose = registerOfficeTools(ctx, connectors, bound, officeTools())
     const names = ctx.tools.schemas().map(schema => schema.name)
-    expect(names).toHaveLength(34)
+    expect(names).toHaveLength(39)
     expect(names).toEqual(officeTools().map(definition => definition.name))
     expect(names.slice(0, 4)).toEqual(['search_patents', 'get_search_syntax', 'search_register', 'get_bibliography'])
     expect(names).toEqual(expect.arrayContaining(['get_claims', 'get_legal_status', 'get_us_grant', 'ocr', 'search_academic', 'search_npl', 'get_npl_work']))
@@ -138,7 +138,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(NativeToolExecutor)
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
-    expect(ctx.tools.schemas()).toHaveLength(35)
+    expect(ctx.tools.schemas()).toHaveLength(40)
     expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
     expect(ctx.tools.schemas().map(schema => schema.name)).not.toContain('read_pdf')
     expect(ctx.get('flowleapConnectors')).toBeDefined()
@@ -158,7 +158,7 @@ describe('registerOfficeTools', () => {
     provideWorkingDirectoryFixture(ctx, process.cwd())
     const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })
     const names = ctx.tools.schemas().map(schema => schema.name)
-    expect(names).toHaveLength(35)
+    expect(names).toHaveLength(40)
     expect(names).toContain('read_pdf')
     expect(names).toContain('compare_claims')
     expect(names).toContain('ocr')
