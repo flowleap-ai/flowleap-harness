@@ -48,11 +48,12 @@ function renderWizard(options: { configured?: boolean; dismissed?: unknown; expl
     useConnectors: bindSnapshotSelector(controller.store), useWizard: bindSnapshotSelector(wizardController.store),
     ...options.explicit === undefined ? {} : { explicit: options.explicit },
   }
-  render(<ConnectorsWizard {...props} />)
+  const view = render(<ConnectorsWizard {...props} />)
+  const rerender = (next: ConnectorsWizardProps['complete']) => { view.rerender(<ConnectorsWizard {...props} complete={next} />) }
   const answer = () => {
     act(() => { form.publish({ status: 'ready', value: options.dismissed === undefined ? {} : { [WIZARD_DISMISSED_FIELD]: options.dismissed } }) })
   }
-  return { api, form, complete, answer }
+  return { api, form, complete, answer, rerender }
 }
 
 describe('ConnectorsWizard', () => {
@@ -88,6 +89,15 @@ describe('ConnectorsWizard', () => {
     await waitFor(() => { expect(dismissed.complete).toHaveBeenCalledTimes(1) })
   })
 
+  it('completes the step once when the owner passes a new completion callback', async () => {
+    const { complete, answer, rerender } = renderWizard({ configured: true })
+    answer()
+    await waitFor(() => { expect(complete).toHaveBeenCalledTimes(1) })
+    const next = vi.fn()
+    rerender(next)
+    expect(next).not.toHaveBeenCalled()
+  })
+
   it('shows when reopened explicitly even after a dismissal, and Save writes the drafts, records the dismissal, and completes once', async () => {
     const { api, form, complete, answer } = renderWizard({ dismissed: true, explicit: true })
     answer()
@@ -99,8 +109,22 @@ describe('ConnectorsWizard', () => {
     expect(form.set).toHaveBeenCalledWith(WIZARD_DISMISSED_FIELD, true)
   })
 
+  it('on first run, Test saves the key and keeps the wizard open on the outcome until Save', async () => {
+    const { api, complete, answer } = renderWizard()
+    answer()
+    await screen.findByRole('heading', { name: en.wizardTitle })
+    fireEvent.change(screen.getByLabelText(en.apiKey, { selector: '#flowleap-connector-mistral-apiKey' }), { target: { value: 'mk' } })
+    fireEvent.click(screen.getByRole('button', { name: en.wizardTest }))
+    expect(await screen.findByText('Mistral: Mistral accepted the key.')).toBeTruthy()
+    expect(api.test).toHaveBeenCalledWith('mistral')
+    expect(screen.getByRole('heading', { name: en.wizardTitle })).toBeTruthy()
+    expect(complete).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: en.wizardSave }))
+    await waitFor(() => { expect(complete).toHaveBeenCalledTimes(1) })
+  })
+
   it('keeps the wizard open with an alert when a save is refused, and Test saves the drafts and tests each stored connector', async () => {
-    // Reopened explicitly: on first run a successful save configures a connector, which ends the step before the outcome shows.
     const refused = { ok: false as const, error: new RemoteError('gateway/internal', 'refused', {}) }
     const set = vi.fn<() => Promise<unknown>>(() => Promise.resolve(refused))
     const { api, complete, answer } = renderWizard({ set, explicit: true })

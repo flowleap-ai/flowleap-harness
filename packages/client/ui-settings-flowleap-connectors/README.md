@@ -31,7 +31,7 @@ A card's fields are password inputs with `autocomplete="new-password"`; a stored
 
 ### The wizard
 
-The wizard registers as a `settings.onboarding` step after the welcome notice. It renders nothing while presence and the dismissal are still loading, completes at once when any connector is configured or the dismissal is recorded, and otherwise blocks the page with the four connectors in compact form. **Save** writes every connector whose fields are complete, records the dismissal, and completes; **Test** writes those connectors too and then runs the connection test on each configured one, leaving the results in place; **Skip for now** records the dismissal alone. A failed save keeps the wizard open with the connector's reason under its fields. When the Host cannot report presence at all the step completes without showing, and the settings section remains the diagnostic surface.
+The wizard registers as a `settings.onboarding` step after the welcome notice. It renders nothing while presence and the dismissal are still loading, completes at once when any connector is configured or the dismissal is recorded, and otherwise blocks the page until **Save** or **Skip for now**, also after **Test** has saved a key with the four connectors in compact form. **Save** writes every connector whose fields are complete, records the dismissal, and completes; **Test** writes those connectors too and then runs the connection test on each configured one, leaving the results in place; **Skip for now** records the dismissal alone. A failed save keeps the wizard open with the connector's reason under its fields. When the Host cannot report presence at all the step completes without showing, and the settings section remains the diagnostic surface.
 
 -----
 
