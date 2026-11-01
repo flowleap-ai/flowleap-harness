@@ -1297,6 +1297,10 @@ describe('Python release workflows', () => {
     expect(String(realApiPreflightPosix.if)).toContain('head.repo.fork')
     expect(String(realApiPreflightPosix.if)).toContain('dependabot[bot]')
     expect(realApiPreflightWindows).toMatchObject({ shell: 'pwsh' })
+    expect(build.env).toEqual({ HAS_DEEPSEEK_API_KEY_EXTERNAL: "${{ secrets.DEEPSEEK_API_KEY_EXTERNAL != '' }}" })
+    for (const step of [realApiPreflightPosix, realApiPreflightWindows, installedRealApiPosix, installedRealApiWindows]) {
+      expect(String(step?.if)).toContain("&& env.HAS_DEEPSEEK_API_KEY_EXTERNAL == 'true'")
+    }
     for (const step of [installedRealApiPosix, installedRealApiWindows]) {
       expect(step).toMatchObject({
         env: {
