@@ -35,7 +35,7 @@ dsh plugin --profile <name> add @deepseek-ai/dsh-flowleap-firm
 
 | Row | Package | Effect |
 |---|---|---|
-| `llm-pi-ai` | [`dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.md) | The routes of `dsh-flowleap-web` and `fixedRoutes: true` |
+| `llm-pi-ai` | [`dsh-llm-pi-ai`](../../llm/llm-pi-ai/README.md) | The routes of `dsh-flowleap-web` and `fixedRoutes: true` in place of `subscriptionSignIn: false` |
 | `credentials` | [`dsh-credentials-local`](../../credentials/credentials-local/README.md) | `lockedRefs` on `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` |
 | `ui-settings-models` | [`dsh-client-ui-settings-models`](../../client/ui-settings-models/README.md) | `managed: true`: the Models page shows the routes and offers no change |
 
@@ -53,7 +53,7 @@ A firm overlay (`--patch`) is not a user patch, so it can still restate a row. O
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`cordis.patch.yml` holds three id-targeted overrides. Each replaces the targeted row's whole `config`, so the `llm-pi-ai` row restates the `dsh-flowleap-web` row and adds `fixedRoutes: true`. [`flowleap-web-models.spec.ts`](../../../apps/cli/tests/flowleap-web-models.spec.ts) composes both shipped FlowLeap profiles and fails when the firm row differs from the desktop row in anything but `fixedRoutes`, when the firm profile misses a lock, when the desktop profile has one, or when an old `flowleap-web` profile list does not get this bundle.
+`cordis.patch.yml` holds three id-targeted overrides. Each replaces the targeted row's whole `config`, so the `llm-pi-ai` row restates the `dsh-flowleap-web` routes and sets `fixedRoutes: true` in place of `subscriptionSignIn: false`. The flowleap-os firm patch restates every field of this row, and its `test/firm-patch.test.mjs` fails when it does not. [`flowleap-web-models.spec.ts`](../../../apps/cli/tests/flowleap-web-models.spec.ts) composes both shipped FlowLeap profiles and fails when the firm row differs from the desktop row in anything else, when the firm profile misses a lock, when the desktop profile has one, or when an old `flowleap-web` profile list does not get this bundle.
 
 ### Source map
 

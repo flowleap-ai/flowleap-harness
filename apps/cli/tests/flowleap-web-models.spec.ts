@@ -43,14 +43,15 @@ describe('model locks per profile', () => {
   it.each(['flowleap-web', 'flowleap-desktop'])('%s: offers no subscription sign-in, and keeps the plugin manager and DeepSeek rows locked', (name) => {
     const profile = loadProfile('dsh', name, installAnchor, newHome())
     const config = composed(profile)
-    expect(config('llm-pi-ai')?.subscriptionSignIn).toBe(false)
+    expect(config('llm-pi-ai')?.fixedRoutes === true || config('llm-pi-ai')?.subscriptionSignIn === false).toBe(true)
     expect(config('plugin-manager')?.installBundles).toBe(false)
     expect(lockedRows(profile)).toEqual(expect.arrayContaining(['plugin-manager', 'llm-deepseek', 'session-telemetry-otel']))
   })
 
-  it('the firm llm-pi-ai row restates the desktop row and adds only fixedRoutes', () => {
+  it('the firm llm-pi-ai row restates the desktop routes and replaces subscriptionSignIn with fixedRoutes', () => {
     const firm = composed(loadProfile('dsh', 'flowleap-web', installAnchor, newHome()))('llm-pi-ai')
-    const desktop = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))('llm-pi-ai')
+    const { subscriptionSignIn, ...desktop } = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))('llm-pi-ai') ?? {}
+    expect(subscriptionSignIn).toBe(false)
     expect(firm).toEqual({ ...desktop, fixedRoutes: true })
   })
 

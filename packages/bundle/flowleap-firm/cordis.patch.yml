@@ -11,8 +11,9 @@
 # them, so a Models page save from before the lock cannot turn it off.
 #
 # A row here replaces the whole config of the dsh-flowleap-web row, so the
-# llm-pi-ai row restates that row's config and adds fixedRoutes; a test of this
-# package fails when the two differ in anything else. A firm overlay that
+# llm-pi-ai row restates that row's routes and replaces subscriptionSignIn with
+# fixedRoutes, which offers no sign-in either; a test fails when the two rows
+# differ in anything else. The flowleap-os firm patch restates every field here. A firm overlay that
 # restates one of these rows restates these keys too.
 
 - id: credentials
@@ -26,7 +27,6 @@
 - id: llm-pi-ai
   config:
     fixedRoutes: true
-    subscriptionSignIn: false
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY
