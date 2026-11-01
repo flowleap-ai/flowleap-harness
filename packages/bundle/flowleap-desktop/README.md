@@ -70,11 +70,11 @@ A key test or a connect goes only to the provider that the attorney chose; nothi
 <a id="model-experience"></a>
 ## Model Experience
 
-The `openai` route adds the OpenAI catalog models to the model picker; a chat on one of them sends its requests to OpenAI with the attorney's key. The model step rows add no prompt text, tool, or request field.
+Indirectly, through `dsh-llm-pi-ai`, which owns the `openai` route that this bundle adds: a chat on an OpenAI model sends its requests to OpenAI with the attorney's key. The model step rows add no prompt text, tool, or request field.
 
 #### KV Cache effect
 
-The bundle adds nothing to the request prefix.
+The bundle adds no request tokens of its own; the mounted rows' packages state their prefix behavior.
 
 ## Known Limitations and Deferred Work
 

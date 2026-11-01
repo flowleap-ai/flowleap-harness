@@ -423,6 +423,41 @@ Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
 
 Source: [`packages/host/flowleap-connectors/src/controller.ts`](../../packages/host/flowleap-connectors/src/controller.ts)
 
+<a id="ctxflowleapmodels--flowleapmodels"></a>
+
+### `ctx.flowleapModels` — `FlowleapModels`
+
+Host service backing the generated `ctx.remote.flowleapModels` namespace.
+
+```ts cordis-catalog
+/**
+ * Test the stored key of one provider with one free authenticated read at that provider.
+ * @param provider - `anthropic`, `openai`, or `openrouter`.
+ * @param signal - cancels the read.
+ * @returns success, with the model new chats now use when the test adopted one; or the failure reason.
+ * @throws RemoteError `gateway/bad-request` for an unknown provider.
+ */
+@Remote async test(provider: string, signal: AbortSignal): Promise<ModelTestResult>
+
+/**
+ * Start an OpenRouter connect, and end an earlier attempt that has not ended.
+ * @returns the OpenRouter authorization page to open in the attorney's browser.
+ */
+@Remote async startOpenRouter(): Promise<OpenRouterConnectStart>
+
+/**
+ * Wait for the end of the current OpenRouter connect.
+ * @param signal - cancels the attempt itself when the caller goes away.
+ * @returns the end of the attempt; `connected` carries the model new chats now use when the connect adopted one.
+ */
+@Remote async awaitOpenRouter(signal: AbortSignal): Promise<OpenRouterConnectResult>
+
+/** End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens. */
+@Remote async cancelOpenRouter(): Promise<void>
+```
+
+Source: [`packages/host/flowleap-models/src/index.ts`](../../packages/host/flowleap-models/src/index.ts)
+
 <a id="ctxflowleapocr--ocrsource"></a>
 
 ### `ctx.flowleapOcr` — `OcrSource`

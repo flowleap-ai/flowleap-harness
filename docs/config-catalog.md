@@ -1771,6 +1771,44 @@ export type SecondReadMode = 'off' | 'log' | 'render'
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-deliverables -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-models -->
+<a id="deepseek-aidsh-flowleap-models"></a>
+
+## `@deepseek-ai/dsh-flowleap-models`
+
+- `inject`: `credentials`
+- `source`: [`packages/host/flowleap-models/src/index.ts:42`](../packages/host/flowleap-models/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The three providers, keyed by their `llm-pi-ai` route id. */
+  providers: Record<ModelProviderId, ProviderConfig>
+  /** The OpenRouter authorization page. */
+  openRouterAuthURL: string
+  /** The label OpenRouter prefills for a key made by a connect; empty for none. */
+  openRouterKeyLabel: string
+  /** Longest time one key test or code exchange may take, in milliseconds. */
+  requestTimeoutMs: number
+  /** Time the attorney has to authorize on OpenRouter, in milliseconds. */
+  connectTimeoutMs: number
+}
+
+/** The model providers the model step offers; each is an `llm-pi-ai` route id of the same name. */
+export type ModelProviderId = 'anthropic' | 'openai' | 'openrouter'
+
+/** One provider of the model step. */
+export interface ProviderConfig {
+  /** API base URL, as the `llm-pi-ai` route resolves it; the test reads below it. */
+  baseURL: string
+  /** Credential reference (environment-variable name) of the route's key, the route's `apiKeyEnv`. */
+  apiKeyRef: string
+  /** Provider-owned model id that new chats use after this provider is the first one with a key. */
+  model: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-models -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
 <a id="deepseek-aidsh-flowleap-prompt"></a>
 
@@ -5206,6 +5244,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-flowleap-connectors` | — | [`packages/client/ui-settings-flowleap-connectors/src/index.ts`](../packages/client/ui-settings-flowleap-connectors/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-settings-flowleap-models` | — | [`packages/client/ui-settings-flowleap-models/src/index.ts`](../packages/client/ui-settings-flowleap-models/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` | — | [`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-plugins` | — | [`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts) |
@@ -5346,6 +5385,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-experimental-voice-input-bundle` | — | [`packages/experimental/voice-input-bundle/src/index.ts`](../packages/experimental/voice-input-bundle/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-webworker-packer` | — | [`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-webworker-runtime` | — | [`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts) |
+| `@deepseek-ai/dsh-flowleap-desktop` | — | [`packages/bundle/flowleap-desktop/src/index.ts`](../packages/bundle/flowleap-desktop/src/index.ts) |
 | `@deepseek-ai/dsh-flowleap-firm` | — | [`packages/bundle/flowleap-firm/src/index.ts`](../packages/bundle/flowleap-firm/src/index.ts) |
 | `@deepseek-ai/dsh-flowleap-web` | — | [`packages/bundle/flowleap-web/src/index.ts`](../packages/bundle/flowleap-web/src/index.ts) |
 | `@deepseek-ai/dsh-fs-patch` | — | [`packages/fs/fs-patch/src/index.ts`](../packages/fs/fs-patch/src/index.ts) |
