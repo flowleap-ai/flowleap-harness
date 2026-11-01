@@ -574,19 +574,23 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
       }
 
       const evidenceDocument = snapshot ? JSON.stringify({ schemaVersion: 1, ...snapshot }, null, 2) : undefined
+      // A Stop is honoured up to the first write. From there every file of the save is written, so the
+      // firm keeps the report with its evidence and record, or nothing (#128).
+      exec.signal.throwIfAborted()
+      const committed = new AbortController().signal
       if (evidenceDocument) {
-        await write(evidenceTarget, evidenceDocument, exec.signal)
+        await write(evidenceTarget, evidenceDocument, committed)
       }
-      await write(target, document, exec.signal)
-      const templateResult = prepared === undefined ? '' : `\n${await prepared.afterSave({ reportPath, displayPath: filePath, sessionId, signal: exec.signal })}`
+      await write(target, document, committed)
+      const templateResult = prepared === undefined ? '' : `\n${await prepared.afterSave({ reportPath, displayPath: filePath, sessionId, signal: committed })}`
       // The verdicts beside the evidence companion. The record is what a human adjudicates later,
       // so losing it must not cost the save that already succeeded.
       let verdictFileName: string | undefined
       if (secondRead?.kind === 'judged') {
         try {
-          const verdictTarget = await ctx.fs.resolve(secondReadPath(reportPath), { signal: exec.signal })
+          const verdictTarget = await ctx.fs.resolve(secondReadPath(reportPath), { signal: committed })
           const verdicts = { model: secondRead.model, judgedAt: now().toISOString(), rows: secondRead.rows, summary: secondRead.summary }
-          await write(verdictTarget, JSON.stringify(verdicts, null, 2), exec.signal)
+          await write(verdictTarget, JSON.stringify(verdicts, null, 2), committed)
           verdictFileName = basename(verdictTarget.displayPath)
         } catch (error) {
           deps.warn(`flowleap-deliverables: second-read verdicts were not written: ${error instanceof Error ? error.message : String(error)}`)
@@ -600,7 +604,7 @@ export function writePatentResultsTool(ctx: Context, deps: WriterDependencies): 
           const record = renderWorkingRecord(
             checked, snapshot, basename(target.displayPath), basename(evidenceTarget.displayPath), verdictFileName, secondRead, variant,
           )
-          await write(recordTarget, record, exec.signal)
+          await write(recordTarget, record, committed)
           recordWritten = true
         } catch (error) {
           deps.warn(`flowleap-deliverables: working record was not written: ${error instanceof Error ? error.message : String(error)}`)

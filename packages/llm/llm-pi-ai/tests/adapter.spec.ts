@@ -410,6 +410,36 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.paths).toEqual(['/chat/completions'])
   })
 
+  // The FlowLeap model gateway (LiteLLM) refuses a policy or budget call with
+  // HTTP 400 and the attorney's text in `error.message`; amounts such as
+  // 403.12 or 429.10 must not read as an HTTP status.
+  it.each([
+    ['openai-completions', '403.12'],
+    ['openai-completions', '429.10'],
+    ['anthropic-messages', '403.12'],
+    ['anthropic-messages', '429.10'],
+  ] as const)('shows a %s gateway refusal that names %s USD as a final invalid request', async (api, spent) => {
+    const text = `Your monthly model budget is used up: you spent ${spent} USD of 400.00 USD in November 2026 (UTC). `
+      + 'Model calls start again on 2026-12-01 (UTC). Ask your firm administrator to increase the budget.'
+    const server = await mockServer([{
+      status: 400,
+      body: JSON.stringify({ error: { message: text, type: 'None', param: 'None', code: '400' } }),
+    }])
+    vi.stubEnv('PI_TEST_KEY', 'test-key')
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: { gateway: { apiKeyEnv: 'PI_TEST_KEY', api, baseURL: server.url, models: [{ id: 'firm-model' }] } },
+    })
+
+    const result = await assemble(ctx, { provider: 'gateway', model: 'firm-model', messages: [] })
+
+    expect(result.finish).toEqual({ kind: 'error', failure: { message: text, code: 'INVALID_REQUEST' } })
+    const policy = ctx.llm.providerRetryPolicy('gateway')
+    expect(policy.mode).toBe('normal')
+    expect(policy.mode === 'normal' ? policy.retryableCodes : []).not.toContain('INVALID_REQUEST')
+  })
+
   it('uses the resolved catalog context window for usage-based overflow detection', async () => {
     const model = getBuiltinModels('deepseek').find(candidate => candidate.id === 'deepseek-flash')
     if (model === undefined) throw new Error('deepseek-flash missing from pi-ai test catalog')

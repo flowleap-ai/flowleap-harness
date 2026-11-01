@@ -98,8 +98,8 @@ export async function writerBench(config: Partial<Deliverables.Config> = {}, rep
     runMaintenance: task => task(new AbortController().signal), whenIdle: () => Promise.resolve(),
   }
   let calls = 0
-  const run = (name: string, args: unknown, withAgent = true) => executeModelToolFixture(ctx, {
-    callId: ToolCallId(`writer-call-${String(++calls)}`), name, arguments: args, signal: new AbortController().signal, ...withAgent ? { agent } : {},
+  const run = (name: string, args: unknown, withAgent = true, signal = new AbortController().signal) => executeModelToolFixture(ctx, {
+    callId: ToolCallId(`writer-call-${String(++calls)}`), name, arguments: args, signal, ...withAgent ? { agent } : {},
   })
   const call = async (name: string, args: unknown, withAgent = true) => textOf((await run(name, args, withAgent)).content[0])
   const write = (args: unknown, withAgent = true) => call(Deliverables.WRITE_PATENT_RESULTS_NAME, args, withAgent)

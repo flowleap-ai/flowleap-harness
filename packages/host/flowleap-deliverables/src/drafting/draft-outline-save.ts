@@ -86,6 +86,8 @@ async function save(workspace: DraftingWorkspace, content: string): Promise<Draf
 		return { saved: false, reason: `The content has no Outline Item to save: ${first ? `line ${first.line}: ${first.message}` : 'the Outline table has no rows.'} Write the plan as one table, one row per Outline Item, and save it again ${DRAFT_OUTLINE_SAVE}.` };
 	}
 	const previous = await workspace.read(folder.draftOutline);
+	// From the first write on, the outline is saved with its Working Record line, or not at all (#128).
+	workspace.files.commit();
 	await workspace.write(folder.draftOutline, document);
 	if (previous !== undefined && previous !== document) {
 		const record = await workspace.read(folder.workingRecord) ?? emptyWorkingRecord(folder.matter);
