@@ -36,6 +36,9 @@ updates:
       timezone: "Asia/Shanghai"
     cooldown:
       default-days: 30
+    ignore:
+      # The upstream merge-policy action is private; Dependabot on a fork cannot read it.
+      - dependency-name: "deepseek-harness/deepseek-harness-check"
     labels:
       - "kind/dependency"
       - "area/infra"

@@ -14,6 +14,8 @@ permissions:
 jobs:
   policy:
     name: Issue policy
+    # Reads Issues and PRs of the upstream repository; forks skip it.
+    if: github.repository == 'deepseek-harness/deepseek-harness'
     runs-on: ubuntu-latest
     steps:
       - name: Check out trusted policy
