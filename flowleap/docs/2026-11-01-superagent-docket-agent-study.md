@@ -1,6 +1,6 @@
 # dsh-superagent and a firm docket agent: study
 
-Status: study of 2026-11-01. No ticket exists yet; section 8 proposes tickets for the founder to approve. Related: the matter memory and docket trigger study #123, ADR 0001 decision 27 (routines), and the [roadmap](2026-10-29-roadmap.md).
+Status: study of 2026-11-01. The founder approved the six tickets on 2026-11-01: #135 (A), #136 (B), #137 (C), #138 (D), #139 (E), and the comment on #123 (F). Related: the matter memory and docket trigger study #123, ADR 0001 decision 27 (routines), and the [roadmap](2026-10-29-roadmap.md).
 
 **The goal.** A patent office event or a mail about a matter becomes one unit of work for that matter. An agent prepares the analysis and a draft. The responsible attorney only sees what needs a person. The founder asked if DeepSeek's dsh-superagent prototype is a good base for this "docket agent", and if its pattern helps our own development process.
 
@@ -123,16 +123,16 @@ The bundle itself does not fit our development: it watches one GitHub repository
 
 ## 8. Proposed tickets
 
-None is created. The founder approves each first.
+The founder approved all six on 2026-11-01.
 
 | Id | Title | Repository | Size | Done when |
 |---|---|---|---|---|
-| A | Routines: a Decision for each new register event, with the accept modes off, observe and auto | flowleap-harness | M | A watch in `observe` stores a Decision with reason and Policy version for each new event and opens no chat; `auto` opens the chat; unit tests, REAL composition e2e, one recorded-session snapshot |
-| B | Routines: one Ticket per matter event, with a fixed Mandate in the run message | flowleap-harness | M | Events of one application on one day open one chat; the run message starts with the Mandate text; the Session log alone rebuilds it; a crash does not open a second chat |
-| C | Needs review page: show the stage and the Decision, and the "would start" list of observe | flowleap-harness | S–M | The page lists `would_accept` Decisions and marked chats with stage and reason; the attorney can switch a watch to `auto` there; verify skill evidence |
-| D | Routines: a limit of running routine chats per runtime | flowleap-harness | S | With the limit 1, two due watches run one after the other; an attorney's own chat starts at once |
-| E | Test firm: one lock for gate and release runs | flowleap-os | S | A second `gate.sh` waits or exits with the holder's name |
-| F | Comment on #123: the firm-level router design of section 4.2 | flowleap-harness | XS | The comment is on #123 |
+| A, #135 | Routines: a Decision for each new register event, with the accept modes off, observe and auto | flowleap-harness | M | A watch in `observe` stores a Decision with reason and Policy version for each new event and opens no chat; `auto` opens the chat; unit tests, REAL composition e2e, one recorded-session snapshot |
+| B, #136 | Routines: one Ticket per matter event, with a fixed Mandate in the run message | flowleap-harness | M | Events of one application on one day open one chat; the run message starts with the Mandate text; the Session log alone rebuilds it; a crash does not open a second chat |
+| C, #137 | Needs review page: show the stage and the Decision, and the "would start" list of observe | flowleap-harness | S–M | The page lists `would_accept` Decisions and marked chats with stage and reason; the attorney can switch a watch to `auto` there; verify skill evidence |
+| D, #138 | Routines: a limit of running routine chats per runtime | flowleap-harness | S | With the limit 1, two due watches run one after the other; an attorney's own chat starts at once |
+| E, #139 | Test firm: one lock for gate and release runs | flowleap-os | S | A second `gate.sh` waits or exits with the holder's name |
+| F, done | Comment on #123: the firm-level router design of section 4.2 | flowleap-harness | XS | The comment is on #123 |
 
 Order: A, then B and C, then D. E and F are independent.
 
@@ -140,4 +140,4 @@ Order: A, then B and C, then D. E and F are independent.
 
 1. Is `observe` the default for every new routine, or only for routines that the agent itself proposes? Recommended: every new routine.
 2. Is one Ticket per application and day right, or one per event? Recommended: per application and day.
-3. Approve the tickets A to F, or a subset.
+3. The tickets A to F: approved on 2026-11-01.
