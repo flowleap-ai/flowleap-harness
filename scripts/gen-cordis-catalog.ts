@@ -181,6 +181,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   contextMenus: 'client-side interface-typed menu registry — packages/client/ui-context-menu/README.md owns the API',
+  settingsNavigation: 'client-side interface-typed Settings opener — packages/client/ui-settings/README.md owns the API',
   fileActions: 'client-side interface-typed file actions — packages/client/ui-file-actions/README.md owns the API',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',

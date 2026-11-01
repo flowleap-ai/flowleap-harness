@@ -1428,7 +1428,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the end of the attempt; `connected` carries the model new chats now use when the connect adopted one.',
       },
       {
-        signature: '@Remote async cancelOpenRouter(): Promise<void>',
+        signature: '@Remote cancelOpenRouter(): void',
         description: 'End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens.',
         parameters: [],
       },

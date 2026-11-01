@@ -453,7 +453,7 @@ Host service backing the generated `ctx.remote.flowleapModels` namespace.
 @Remote async awaitOpenRouter(signal: AbortSignal): Promise<OpenRouterConnectResult>
 
 /** End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens. */
-@Remote async cancelOpenRouter(): Promise<void>
+@Remote cancelOpenRouter(): void
 ```
 
 Source: [`packages/host/flowleap-models/src/index.ts`](../../packages/host/flowleap-models/src/index.ts)

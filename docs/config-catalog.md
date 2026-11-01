@@ -1777,7 +1777,7 @@ export type SecondReadMode = 'off' | 'log' | 'render'
 ## `@deepseek-ai/dsh-flowleap-models`
 
 - `inject`: `credentials`
-- `source`: [`packages/host/flowleap-models/src/index.ts:42`](../packages/host/flowleap-models/src/index.ts)
+- `source`: [`packages/host/flowleap-models/src/index.ts:43`](../packages/host/flowleap-models/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
