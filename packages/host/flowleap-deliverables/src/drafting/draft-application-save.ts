@@ -122,6 +122,9 @@ async function save(workspace: DraftingWorkspace, input: DraftApplicationSaveInp
 	const version = previousVersion !== undefined && claimsChanged ? Math.max(previousVersion + 1, requested ?? 0) : requested ?? previousVersion ?? 1;
 	const firstSaveOfVersion = previousVersion === undefined || version !== previousVersion;
 
+	// A Stop is honoured up to here. From the first write on, the save writes the draft with its
+	// snapshot, Working Record, answer slots and archives, or nothing (#128).
+	workspace.files.commit();
 	const archived: string[] = [];
 	if (previousVersion !== undefined && firstSaveOfVersion) {
 		for (const path of [folder.draft, folder.generatedSnapshot, folder.workingRecord]) {

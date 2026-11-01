@@ -49,6 +49,7 @@ export function memoryFiles(initial: Record<string, string | Uint8Array | null> 
       .sort()),
     exists: path => Promise.resolve(entries.has(path) || [...entries.keys()].some(key => key.startsWith(`${path}/`))),
     processPath: path => Promise.resolve(`${root}/${path}`),
+    commit: () => {},
   }
 }
 
