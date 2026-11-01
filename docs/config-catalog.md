@@ -577,6 +577,22 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-brand-flowleap -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-entry-customization -->
+<a id="deepseek-aidsh-client-ui-entry-customization"></a>
+
+## `@deepseek-ai/dsh-client-ui-entry-customization`
+
+- `source`: [`packages/client/ui-entry-customization/src/config.ts:8`](../packages/client/ui-entry-customization/src/config.ts)
+
+```ts config-catalog
+/** Menu rows a deployment offers. */
+export interface Config {
+  /** Offer **Create your plugin**, which opens a Creator draft; turn it off where the Creator preset is not offered. */
+  createPlugin: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-entry-customization -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
 <a id="deepseek-aidsh-client-ui-flowleap-admin-link"></a>
 
@@ -615,6 +631,22 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-schedule -->
+<a id="deepseek-aidsh-client-ui-schedule"></a>
+
+## `@deepseek-ai/dsh-client-ui-schedule`
+
+- `source`: [`packages/client/ui-schedule/src/config.ts:8`](../packages/client/ui-schedule/src/config.ts)
+
+```ts config-catalog
+/** Automation tasks page behavior a deployment selects. */
+export interface Config {
+  /** New task opens the new chat with the localized example request (`new.draft`) in the composer, unsent; off opens an empty chat. */
+  newTaskDraft: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-schedule -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-account -->
 <a id="deepseek-aidsh-client-ui-settings-account"></a>
@@ -5179,7 +5211,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-deliverables` | `connection` · `sessionQuery` · `sessionController` · `workspaceFiles` · `fs` · `sandboxPolicy` · `workspaceChanges` | [`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-directory-picker-browse` | — | [`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-directory-picker-native` | — | [`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-entry-customization` | — | [`packages/client/ui-entry-customization/src/index.ts`](../packages/client/ui-entry-customization/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-actions` | — | [`packages/client/ui-file-actions/src/index.ts`](../packages/client/ui-file-actions/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-file-drag` | — | [`packages/client/ui-file-drag/src/index.ts`](../packages/client/ui-file-drag/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-flowleap-agent-builder` | — | [`packages/client/ui-flowleap-agent-builder/src/index.ts`](../packages/client/ui-flowleap-agent-builder/src/index.ts) |
@@ -5200,7 +5231,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-plugin-recommendations` | — | [`packages/experimental/client-ui-plugin-recommendations/src/index.ts`](../packages/experimental/client-ui-plugin-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-reference` | — | [`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-renderer` | — | [`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-schedule` | — | [`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-secret-mask` | — | [`packages/client/ui-secret-mask/src/index.ts`](../packages/client/ui-secret-mask/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
