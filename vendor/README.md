@@ -23,7 +23,7 @@ Upstream workspace: `cordis-workspace` (local checkout: `~/repos/cordis-workspac
 | `timer/` | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | 1.1.4 | https://github.com/cordiverse/cordis (`packages/timer`) | `0b96d9fd517b998e44e2209560c9e5f0671ce933` |
 | `hmr/` | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | 1.0.15 | https://github.com/deepseek-harness/cordis (`packages/hmr`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
 | `logger-console/` | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | 1.0.0 | https://github.com/deepseek-harness/cordis (`packages/logger-console`) | `abb0a307cb1d3b0947f455d590cf5ba922d4caa4` |
-| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`) | `5adc270bd6a733921e75d59ec484481b2a771cfb` |
+| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`) | `9ca03d7412a6c78ae92689b838d9ed8e8ab56986` |
 
 **Partial Loader sync:** the package baseline remains 1.0.0-rc.5. `loader/src/resolve.ts` and the bare-specifier fallback in `loader/src/config/tree.ts` use the resolver implementation from Cordis `v4.0.0-rc.11` (Loader 1.0.0-rc.8), and `loader/src/internal.ts` uses its runtime API detection, which classifies the internal module loader by its available module-job APIs instead of the Node major version; the Node compatibility matrix covers the detection. The [resolver adaptations](#resolver-adaptations) below record the local differences from that newer source.
 
