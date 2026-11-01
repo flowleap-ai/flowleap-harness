@@ -1,0 +1,1 @@
+- status: No model is set upA model provider must be set up before this chat can answer.

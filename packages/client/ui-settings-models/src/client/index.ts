@@ -16,11 +16,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the ctx.remote merge and the forwarded-event key face
 // (settings/credentials invalidations ride the allowlist) into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+// Type-only: pulls the `conversation.chat.turn-error.action` SlotMap merge.
+import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
 import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
 import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
 import { WelcomeNotice } from './WelcomeNotice.tsx'
+import { ManagedModelNotice } from './MissingCredentialAction.tsx'
+import type { ManagedModelNoticeInjected } from './MissingCredentialAction.tsx'
 import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
 import { WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
@@ -144,6 +148,12 @@ export function apply(ctx: ClientContext): void {
       'settings.models.footer': { kind: 'list', scope: 'root' },
     },
   }, ModelsSection))
+  // A managed deployment sets every route and key, so a chat that fails for a missing credential points to the administrator.
+  if (configured.managed) ctx.slots.inject('conversation.chat.turn-error.action', () => ctx.slots.register({
+    name: 'conversation.chat.turn-error.action',
+    key: 'MISSING_CREDENTIAL',
+    inject: (): ManagedModelNoticeInjected => ({ t }),
+  }, ManagedModelNotice))
   if (!('dshDesktop' in globalThis)) ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding',
     id: 'welcome-notice',
