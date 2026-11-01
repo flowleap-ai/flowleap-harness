@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 34 office tools on `ctx.tools` under their backend names (`search_patents`, `get_us_grant`, no prefix), adds the native `compare_claims` (a claim chart against patents whose claims it fetches on the firm's EPO OPS key) and `read_pdf` (OCR of a workspace file on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Patent data connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card.
+`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 39 office tools on `ctx.tools` under their backend names (`search_patents`, `get_us_grant`, no prefix), adds the native `compare_claims` (a claim chart against patents whose claims it fetches on the firm's EPO OPS key) and `read_pdf` (OCR of a workspace file on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Patent data connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card.
 
 ## Table of Contents
 
@@ -44,7 +44,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 | Connector id | Record fields | Powers |
 |---|---|---|
-| `epo-ops` | `consumerKey`, `consumerSecret` | OPS search, bibliographic data, families, legal status, EP register |
+| `epo-ops` | `consumerKey`, `consumerSecret` | OPS search, bibliographic data, families, legal status, EP register, drawing pages, the Examiner Baseline |
 | `uspto-odp` | `apiKey` | US application data, file wrappers, continuity, enriched citations |
 | `semantic-scholar` | `apiKey` (optional for the search; raises its rate limit) | academic search beside arXiv, which needs no key |
 | `mistral` | `apiKey`, optional `baseUrl` | OCR of scanned documents and PDFs: the `ocr` and `read_pdf` tools and the file-wrapper reader (`read_application_document`); pages billed by Mistral |
@@ -68,7 +68,11 @@ When the composition has a system prompt, the row registers `flowleap:patent-dat
 
 ### The tools
 
-The 34 definitions of `officeTools()` from `@flowleap/connectors` (its `ToolDefinition`: `name`, `description`, `input: ZodType`, `annotations`, `access`, `handler(input, { connectors, signal?, caller? })`) register in catalog order through the one seam `registerOfficeTools(ctx, connectors, bound, definitions)`: `search_patents`, `get_search_syntax`, `search_register`, the EPO document reads (`get_bibliography`, `get_abstract`, `get_claims`, `get_description`, `get_fulltext`, `get_patent_family`, `get_family`, `get_legal_status`, `get_register_events`, `get_register_biblio`, `get_citations`, `convert_patent_number`), the US file-wrapper reads (`get_us_grant`, `get_us_application`, `get_continuity`, `get_transactions`, `get_assignments`, `get_foreign_priority`, `get_patent_term_adjustment`, `get_attorney`, `get_application_documents`, `read_application_document`, `search_uspto_portfolio_by_customer_number`), the compound reads (`get_patent_summary`, `compare_patents`, `get_prosecution_timeline`, `get_patent_term`), `ocr` (Mistral Document AI over a base64 file or a URL, on the firm's Mistral key), and the literature tools (`search_academic`, `search_npl`, `get_npl_work`). The JSON Schema the model sees is the library's `toolInputJsonSchema` without its `$schema` marker, so both hosts publish the same input. A tool whose `access` is `epoOps`, `usptoOdp` or `mistral` is key-gated before its handler runs and answers `{ error: 'missing_credentials', connector, message }`, rendered to the model as the message alone (`ocr` without a key names the Mistral card); `semanticScholar` tools run without a key (slower), `none` tools (OpenAlex, the query grammar) need nothing. A `DataKeysRequiredError`, `ProviderKeyInvalidError` (EPO, USPTO or Mistral), `OcrNotConfiguredError`, or `odp_api_key_missing` raised inside a handler (the ODP arm of `search_patents`, the EPO enrichment of an ODP tool, the OCR of a file-wrapper document) folds into the same answer.
+The 39 definitions of `officeTools()` from `@flowleap/connectors` (its `ToolDefinition`: `name`, `description`, `input: ZodType`, `annotations`, `access`, `handler(input, { connectors, signal?, caller? })`) register in catalog order through the one seam `registerOfficeTools(ctx, connectors, bound, definitions)`: `search_patents`, `get_search_syntax`, `search_register`, the EPO document reads (`get_bibliography`, `get_abstract`, `get_claims`, `get_description`, `get_fulltext`, `get_patent_family`, `get_family`, `get_legal_status`, `get_register_events`, `get_register_biblio`, `get_citations`, `get_patent_image`, `convert_patent_number`), the US office-action citations (`search_office_action_citations`, `search_enriched_citations`, `get_citation_stats`), the US file-wrapper reads (`get_us_grant`, `get_us_application`, `get_continuity`, `get_transactions`, `get_assignments`, `get_foreign_priority`, `get_patent_term_adjustment`, `get_attorney`, `get_application_documents`, `read_application_document`, `search_uspto_portfolio_by_customer_number`), the compound reads (`get_patent_summary`, `compare_patents`, `examiner_baseline`, `get_prosecution_timeline`, `get_patent_term`), `ocr` (Mistral Document AI over a base64 file or a URL, on the firm's Mistral key), and the literature tools (`search_academic`, `search_npl`, `get_npl_work`). The JSON Schema the model sees is the library's `toolInputJsonSchema` without its `$schema` marker, so both hosts publish the same input. A tool whose `access` is `epoOps`, `usptoOdp` or `mistral` is key-gated before its handler runs and answers `{ error: 'missing_credentials', connector, message }`, rendered to the model as the message alone (`ocr` without a key names the Mistral card); `semanticScholar` tools run without a key (slower), `none` tools (OpenAlex, the query grammar) need nothing. A `DataKeysRequiredError`, `ProviderKeyInvalidError` (EPO, USPTO or Mistral), `OcrNotConfiguredError`, or `odp_api_key_missing` raised inside a handler (the ODP arm of `search_patents`, the EPO enrichment of an ODP tool, the OCR of a file-wrapper document) folds into the same answer.
+
+### Drawing pages
+
+`get_patent_image` returns the library's result as its canonical value, base64 pages included. The model reads the result as text without the base64 of its PNG and JPEG pages, then, per such page, the line `Page <n> of <docId>` and the page as an image block that the row stores through the mounted `attachments` service. The images reach the model only when the current model route declares image input (`llm.resolveModelInfo`); without that, without an attachment store, or when the store refuses the batch, the text ends with one line `[page images not shown: <reason>]`. A PDF or TIFF page (`format` other than `render: "png"` or `fit: "compact"`) stays base64 in the text. The library renders PDF pages with PDFium (WebAssembly); no other host is called than EPO OPS.
 
 ### `compare_claims`
 
@@ -180,7 +184,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [vendored `@flowleap/connectors`](../../../vendor/flowleap-connectors/README.md) — the library, its sync script, and the mupdf decision.
+- [vendored `@flowleap/connectors`](../../../vendor/flowleap-connectors/README.md) — the library and its sync script.
 - [ui-settings-flowleap-connectors](../../client/ui-settings-flowleap-connectors/README.md) — the settings cards and the first-run wizard over this Remote.
 - [credentials](../../credentials/README.md) — the record half of the credential seam the keys live in.
 - [dsh-tools](../../core/tools/README.md) — the registry the office tools join.
@@ -195,11 +199,11 @@ Each registered tool validates the model's arguments with the definition's Zod s
 
 #### What the model sees
 
-Thirty-four tool declarations in the request's tool list, the library's `officeTools()` in catalog order from `search_patents` to `get_npl_work`, each with the description text the backend serves and the JSON Schema of its Zod input, plus `compare_claims` with the IDE's schema (`userClaim`, `patentNumbers`) and a description that names the EP/WO coverage and the paid US route, and `read_pdf` with this package's own schema (`path`, `pages`) and a description that names the cost. The generated tool catalog does not list them: they are registered from the library's definitions, not through `defineTool`, and the row is mounted by the `flowleap-web` profile only. A result is the library's JSON (a search page, a bibliographic record, a ranked paper list) rendered as pretty JSON, the Markdown comparison package of `compare_claims`, or, without a key, one sentence naming the connector and the settings card.
+Thirty-nine tool declarations in the request's tool list, the library's `officeTools()` in catalog order from `search_patents` to `get_npl_work`, each with the description text the backend serves and the JSON Schema of its Zod input, plus `compare_claims` with the IDE's schema (`userClaim`, `patentNumbers`) and a description that names the EP/WO coverage and the paid US route, and `read_pdf` with this package's own schema (`path`, `pages`) and a description that names the cost. The generated tool catalog does not list them: they are registered from the library's definitions, not through `defineTool`, and the row is mounted by the `flowleap-web` profile only. A result is the library's JSON (a search page, a bibliographic record, a ranked paper list) rendered as pretty JSON (a `get_patent_image` result without the base64 of its PNG and JPEG pages, followed by `Page <n> of <docId>` and the page as an image block per page; a route without image input gets `[page images not shown: <reason>]` instead), the Markdown comparison package of `compare_claims`, or, without a key, one sentence naming the connector and the settings card.
 
 #### Token effect
 
-Fixed per request for the 34 office declarations, `compare_claims` and `read_pdf` while the row is mounted (the ADR 0018 tool cap is the preset's `toolOrder`/restriction, not this row); result size varies with the data and is capped by the registry's output policy, not by this package.
+Fixed per request for the 39 office declarations, `compare_claims` and `read_pdf` while the row is mounted (the ADR 0018 tool cap is the preset's `toolOrder`/restriction, not this row); result size varies with the data and is capped by the registry's output policy, not by this package.
 
 #### KV Cache effect
 
@@ -211,12 +215,11 @@ Prefix-stable: the schemas do not change between requests of one process. Mounti
 
 These limits define what the row does not do yet; they are current package constraints, not a task backlog.
 
-- **All 34 tools, always** — the row registers the whole `officeTools()` list at the global layer (minus `excludeTools`); narrowing the set per preset is not done.
+- **All 39 tools, always** — the row registers the whole `officeTools()` list at the global layer (minus `excludeTools`); narrowing the set per preset is not done.
 - **No US full text** — `ConnectorHost.usFulltext` is absent, so US claims and descriptions read as `not_configured`; the profile leaves `get_fulltext` to the paid MCP row, and `compare_claims` reports a US patent's claims as unavailable with the paid route named inline.
-- **Born-digital PDFs go through OCR too** — `read_pdf` has no local text extraction, so a PDF that already carries text still costs Mistral pages; extraction without OCR is a later slice (mupdf, the parser the library would use, is excluded by licence). The 300-page guard counts `/Type /Page` dictionaries in the bytes and undercounts a PDF that keeps them in compressed object streams; the `pages` range selects pages after the whole document was OCRed.
+- **Born-digital PDFs go through OCR too** — `read_pdf` has no local text extraction, so a PDF that already carries text still costs Mistral pages; extraction without OCR is a later slice. The 300-page guard counts `/Type /Page` dictionaries in the bytes and undercounts a PDF that keeps them in compressed object streams; the `pages` range selects pages after the whole document was OCRed.
 - **`read_pdf` needs `fs` and `workingDirectory`** — a composition without them registers the office tools and `compare_claims` alone.
 - **`compare_claims` is gated on the EPO OPS key for every call** — like `get_claims`; a US-only comparison without an EPO key answers with the EPO OPS card, not the paid route.
-- **No figure rasterization** — the vendored library's `mupdf` import resolves to a stand-in that throws (AGPL-3.0, see the vendor README), so `ops.getFigurePage*` fails with a clear message.
 - **Records only** — keys are not read from environment variables or the backend's key store; the settings cards and the wizard are the one way in.
 - **No PTC-friendly output schema** — the canonical value is unconstrained JSON, so PTC programs get `unknown`-typed results until the library's definitions carry output schemas.
 

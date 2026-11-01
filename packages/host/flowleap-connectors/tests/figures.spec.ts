@@ -7,7 +7,8 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
-import { createConnectors, type ToolDefinition } from '@flowleap/connectors'
+import { readFile } from 'node:fs/promises'
+import { createConnectors, officeTools, type ToolDefinition } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createConnectorHost, createCredentialStore, registerOfficeTools } from '@deepseek-ai/dsh-flowleap-connectors'
@@ -28,11 +29,11 @@ const RESULT = {
 }
 
 const LIMITS: ImageAttachmentLimits = {
-  maxImageBytes: 1024,
-  maxImagesPerMessage: 4,
-  maxMessageImageBytes: 2048,
-  maxImagePixels: 1024,
-  maxImageDimension: 2000,
+  maxImageBytes: 5_000_000,
+  maxImagesPerMessage: 20,
+  maxMessageImageBytes: 20_000_000,
+  maxImagePixels: 50_000_000,
+  maxImageDimension: 8000,
   mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
 }
 
@@ -166,5 +167,53 @@ describe('get_patent_image pages', () => {
     const metadata = { docId: 'EP4831432', totalFigures: 14, drawingStartPage: 6, drawingPages: [6, 7] }
     const ctx = await bench({ attachments: true, result: metadata })
     expect((await call(ctx, 'vision')).content).toEqual([{ type: 'text', text: JSON.stringify(metadata, null, 2) }])
+  })
+
+  it('fetches a drawing page from EPO OPS on the stored key and shows it rendered by PDFium, with no other host', async () => {
+    const page6 = await readFile(new URL('../../../../vendor/flowleap-connectors/src/ops/__fixtures__/ep4831432a1-page6.pdf', import.meta.url))
+    const link = 'published-data/images/EP/4831432/A1/fullimage'
+    const inquiry = '<?xml version="1.0" encoding="UTF-8"?><ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org">'
+      + '<ops:document-inquiry><ops:inquiry-result>'
+      + `<ops:document-instance system="ops.epo.org" number-of-pages="14" desc="FullDocument" link="${link}">`
+      + '<ops:document-format-options><ops:document-format>application/pdf</ops:document-format></ops:document-format-options>'
+      + '<ops:document-section name="DRAWINGS" start-page="6"/><ops:document-section name="SEARCH_REPORT" start-page="13"/>'
+      + '</ops:document-instance></ops:inquiry-result></ops:document-inquiry></ops:world-patent-data>'
+    const hosts = new Set<string>()
+    const throttle = { 'x-throttling-control': 'idle (images=green:200, retrieval=green:1200)' }
+    const fetchSpy = vi.fn<typeof fetch>((input) => {
+      const url = String(input as string)
+      hosts.add(new URL(url).host)
+      if (url === 'https://ops.epo.org/3.2/auth/accesstoken') return Promise.resolve(Response.json({ access_token: 'token', expires_in: 1200 }))
+      if (url.endsWith('/images')) return Promise.resolve(new Response(inquiry, { headers: throttle }))
+      if (url.endsWith(`/${link}?Range=6`)) return Promise.resolve(new Response(page6, { headers: { ...throttle, 'content-type': 'application/pdf' } }))
+      return Promise.resolve(new Response('not recorded', { status: 404, headers: throttle }))
+    })
+    const ctx = new Context()
+    const credentials = new MemoryCredentials(ctx)
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(NativeToolExecutor)
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['visual'], new Catalog())
+    await ctx.plugin(RecordingStore)
+    const store = createCredentialStore(credentials)
+    await store.write('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
+    const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 5, fetch: fetchSpy })
+    registerOfficeTools(ctx, createConnectors(bound.host), bound, officeTools().filter(tool => tool.name === 'get_patent_image'))
+    const result = await executeModelToolFixture(ctx, {
+      callId: ToolCallId('figure-ops'),
+      name: 'get_patent_image',
+      arguments: { patent_number: 'EP4831432A1', include_images: true, pages: [6], fit: 'compact' },
+      signal: new AbortController().signal,
+      agent: { options: { provider: 'visual', model: 'vision' }, session: { requestHeader: () => undefined } } as never,
+    })
+    expect(result.isError).toBe(false)
+    expect(result.content.slice(1)).toEqual([
+      { type: 'text', text: 'Page 6 of EP4831432' },
+      { type: 'image', attachment: expect.objectContaining({ mediaType: expect.stringMatching(/^image\/(png|jpeg)$/) }) as ImageAttachmentRef },
+    ])
+    const [saved] = (ctx.attachments as RecordingStore).saved
+    expect(saved?.data.byteLength).toBeGreaterThan(1000)
+    expect([...hosts]).toEqual(['ops.epo.org'])
   })
 })

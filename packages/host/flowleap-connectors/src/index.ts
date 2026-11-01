@@ -2,7 +2,7 @@
  * In-process FlowLeap patent-data connectors (ADR 0019, slice C2). One row mounts
  * the `@flowleap/connectors` library over the dsh seams: `ctx.credentials`
  * records hold the firm's EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys,
- * the library's 34 office tools (`ocr` among them, on the firm's Mistral key) register on
+ * the library's 39 office tools (`ocr` among them, on the firm's Mistral key) register on
  * `ctx.tools` under their backend names, the native `compare_claims` tool charts a user
  * claim against patents whose claims it fetches through the same text router, the native
  * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`

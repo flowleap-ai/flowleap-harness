@@ -14,10 +14,9 @@
 # FLOWLEAP_BACKEND_DIR overrides the backend checkout (default: the sibling
 # `flowleap-backend` directory of this repository's parent).
 #
-# `src/harness/` is harness-owned (the mupdf stand-in) and is never copied or
-# hashed. The hash covers every other file under `src/` and the three upstream
-# manifests, so `--check` fails on an edited vendored file, on a changed backend
-# file, and on a dependency the backend added.
+# The hash covers every file under `src/` and the three upstream manifests, so
+# `--check` fails on an edited vendored file, on a changed backend file, and on
+# a dependency the backend added.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -45,7 +44,7 @@ fi
 content_hash() {
   local src_root=$1 manifest_root=$2
   {
-    (cd "$src_root" && find src -type f ! -path 'src/harness/*' | LC_ALL=C sort | while IFS= read -r file; do
+    (cd "$src_root" && find src -type f | LC_ALL=C sort | while IFS= read -r file; do
       printf '%s  %s\n' "$(shasum -a 256 "$file" | cut -d' ' -f1)" "$file"
     done)
     for name in "${manifests[@]}"; do
@@ -79,10 +78,7 @@ if [[ $mode == check ]]; then
   node - "$vendor_dir/package.json" "$vendor_dir/upstream/package.json" <<'NODE' || status=1
 const { readFileSync } = require('node:fs')
 const [harness, upstream] = process.argv.slice(2).map(file => JSON.parse(readFileSync(file, 'utf8')))
-// `mupdf` (AGPL-3.0) is not installed in the harness: `src/harness/mupdf.ts`
-// stands in for it (see vendor/flowleap-connectors/README.md).
-const REPLACED = new Set(['mupdf'])
-const sorted = deps => JSON.stringify(Object.fromEntries(Object.entries(deps ?? {}).filter(([name]) => !REPLACED.has(name)).sort()))
+const sorted = deps => JSON.stringify(Object.fromEntries(Object.entries(deps ?? {}).sort()))
 const ours = sorted(harness.dependencies)
 const theirs = sorted(upstream.dependencies)
 if (ours !== theirs) {
@@ -97,7 +93,7 @@ NODE
 fi
 
 mkdir -p "$vendor_dir/src" "$vendor_dir/upstream"
-rsync -a --delete --exclude 'harness/' "$source_dir/src/" "$vendor_dir/src/"
+rsync -a --delete "$source_dir/src/" "$vendor_dir/src/"
 for name in "${manifests[@]}"; do
   cp "$source_dir/$name" "$vendor_dir/upstream/$name"
 done

@@ -1,0 +1,1248 @@
+{
+	"publication": "EP2110298B1",
+	"family": {
+		"docId": "EP2110298",
+		"representatives": {
+			"members": [
+				{
+					"application": "EP09250131 (A)",
+					"isGrant": true,
+					"publications": [
+						"EP2110298A2",
+						"EP2110298A3",
+						"EP2110298B1"
+					],
+					"representativePublication": "EP2110298B1"
+				},
+				{
+					"application": "US10374408 (A)",
+					"isGrant": true,
+					"publications": [
+						"US2009261648A1",
+						"US7722129B2"
+					],
+					"representativePublication": "US7722129B2"
+				},
+				{
+					"application": "US75653110 (A)",
+					"isGrant": true,
+					"publications": [
+						"US2010194184A1",
+						"US8056987B2"
+					],
+					"representativePublication": "US8056987B2"
+				}
+			]
+		}
+	},
+	"biblio": {
+		"EP2110298A2": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "US4964287",
+						"citedBy": "applicant",
+						"kind": "A",
+						"date": "19901023"
+					}
+				]
+			}
+		},
+		"EP2110298A3": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "EP1602570",
+						"citedBy": "applicant",
+						"kind": "A1",
+						"date": "20051207",
+						"category": "X,A",
+						"relevantClaims": "13",
+						"categoryClaims": [
+							{
+								"category": "X",
+								"claims": "13"
+							},
+							{
+								"category": "A",
+								"claims": "1,5,9"
+							}
+						]
+					},
+					{
+						"docId": "US4964287",
+						"citedBy": "examiner",
+						"kind": "A",
+						"date": "19901023",
+						"phase": "national-search-report",
+						"category": "X,A",
+						"relevantClaims": "1-3,5,7,8",
+						"categoryClaims": [
+							{
+								"category": "X",
+								"claims": "1-3,5,7,8"
+							},
+							{
+								"category": "A",
+								"claims": "9"
+							}
+						],
+						"relevantPassages": [
+							"* the whole document *"
+						]
+					},
+					{
+						"docId": "US2007052285",
+						"citedBy": "examiner",
+						"kind": "A1",
+						"date": "20070308",
+						"phase": "national-search-report",
+						"category": "X,A",
+						"relevantClaims": "5",
+						"categoryClaims": [
+							{
+								"category": "X",
+								"claims": "5"
+							},
+							{
+								"category": "A",
+								"claims": "1,9"
+							}
+						],
+						"relevantPassages": [
+							"* figure -, claim 26 *"
+						]
+					},
+					{
+						"docId": "US5135330",
+						"citedBy": "examiner",
+						"kind": "A",
+						"date": "19920804",
+						"phase": "national-search-report",
+						"category": "X,A",
+						"relevantClaims": "1-5",
+						"categoryClaims": [
+							{
+								"category": "X",
+								"claims": "1-5"
+							},
+							{
+								"category": "A",
+								"claims": "9,13"
+							}
+						],
+						"relevantPassages": [
+							"* the whole document *"
+						]
+					},
+					{
+						"docId": "US4763957",
+						"citedBy": "examiner",
+						"kind": "A",
+						"date": "19880816",
+						"phase": "national-search-report",
+						"category": "X,A",
+						"relevantClaims": "13",
+						"categoryClaims": [
+							{
+								"category": "X",
+								"claims": "13"
+							},
+							{
+								"category": "A",
+								"claims": "1,5,9"
+							}
+						],
+						"relevantPassages": [
+							"* figures 6-10 *"
+						]
+					}
+				]
+			}
+		},
+		"EP2110298B1": {
+			"ok": true,
+			"data": {}
+		},
+		"US2009261648A1": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "US5383716",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5385360",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4724692",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4805941",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US7000995",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US2630020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4079958",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4906053",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5875662",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US2002026816",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2004046353",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052285",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052286",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US5005390",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5516131",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6386643",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US2003089146",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US5118125",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5121973",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6241322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6742849",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US2007145814",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US4033627",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6089675",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6260931",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6761417",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US4400038",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4763957",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5135330",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5238259",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5337587",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653511",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653512",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4114409",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6454363",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US3610659",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4964287",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5567020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5673925",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5961186",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6296322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US5165762",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5364115",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5576020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US331805",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4789206",
+						"citedBy": "applicant",
+						"kind": "A"
+					}
+				]
+			}
+		},
+		"US7722129B2": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "US331805",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US2630020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US3610659",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4033627",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4079958",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4114409",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4400038",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4724692",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4763957",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4789206",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4805941",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4906053",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4964287",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5005390",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5118125",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5121973",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5165762",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5238259",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5337587",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5364115",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5383716",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5516131",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5567020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653511",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653512",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5673925",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5961186",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6089675",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6241322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6260931",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6296322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6386643",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6454363",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6742849",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6761417",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US7000995",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US2002026816",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2004046353",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052285",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007145814",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "FR983137",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "FR995747",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "GB658726",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "IT463954",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5135330",
+						"citedBy": "examiner",
+						"kind": "A",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US5385360",
+						"citedBy": "examiner",
+						"kind": "A",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US5875662",
+						"citedBy": "examiner",
+						"kind": "A",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US2003089146",
+						"citedBy": "examiner",
+						"kind": "A1",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US2007052286",
+						"citedBy": "examiner",
+						"kind": "A1",
+						"phase": "national-search-report"
+					}
+				]
+			}
+		},
+		"US2010194184A1": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "US5383716",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4724692",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4805941",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US7000995",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US7665928",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US2630020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4079958",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4573925",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4906053",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US2002026816",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2004046353",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052285",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052286",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US5005390",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5516131",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6386643",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US2009121538",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US7530645",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US5118125",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5121973",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6241322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6742849",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US2007145814",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US4033627",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6089675",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6260931",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6761417",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US7562943",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US4400038",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4763957",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5238259",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5337587",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653511",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653512",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4114409",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6454363",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US3610659",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4964287",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5567020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5961188",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6296322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US5165762",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5364115",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5576020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US331805",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4789206",
+						"citedBy": "applicant",
+						"kind": "A"
+					}
+				]
+			}
+		},
+		"US8056987B2": {
+			"ok": true,
+			"data": {
+				"citedReferences": [
+					{
+						"docId": "US331805",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US2630020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US3610659",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4033627",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4079958",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4114409",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4400038",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4724692",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4763957",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4789206",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4805941",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4906053",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US4964287",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5005390",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5118125",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5121973",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5165762",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5238259",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5337587",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5364115",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5383716",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5516131",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5567020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5576020",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653511",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5653512",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5673925",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US5961186",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6089675",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6241322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6260931",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6296322",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6386643",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6454363",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US6742849",
+						"citedBy": "applicant",
+						"kind": "B1"
+					},
+					{
+						"docId": "US7000995",
+						"citedBy": "applicant",
+						"kind": "B2"
+					},
+					{
+						"docId": "US2002026816",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052285",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007052286",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "US2007145814",
+						"citedBy": "applicant",
+						"kind": "A1"
+					},
+					{
+						"docId": "FR983137",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "FR995747",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "GB658726",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "IT463954",
+						"citedBy": "applicant",
+						"kind": "A"
+					},
+					{
+						"docId": "US6761417",
+						"citedBy": "examiner",
+						"kind": "B2",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US7530645",
+						"citedBy": "examiner",
+						"kind": "B2",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US7562943",
+						"citedBy": "examiner",
+						"kind": "B2",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US7665928",
+						"citedBy": "examiner",
+						"kind": "B2",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US2004046353",
+						"citedBy": "examiner",
+						"kind": "A1",
+						"phase": "national-search-report"
+					},
+					{
+						"docId": "US2009121538",
+						"citedBy": "examiner",
+						"kind": "A1",
+						"phase": "national-search-report"
+					}
+				]
+			}
+		}
+	},
+	"usGrants": {
+		"US7722129B2": {
+			"ok": true,
+			"data": {
+				"applicationNumberText": "12103744"
+			}
+		},
+		"US8056987B2": {
+			"ok": true,
+			"data": {
+				"applicationNumberText": "12756531"
+			}
+		}
+	},
+	"enriched": {
+		"12103744": {
+			"ok": true,
+			"data": {
+				"total": 4,
+				"citations": [
+					{
+						"citedDocument": "US 5,385,360",
+						"documentReference": {
+							"publicationNumber": "US5385360",
+							"section": "bibliography"
+						},
+						"category": "X",
+						"examinerCited": true,
+						"applicantCited": false,
+						"rejectedClaims": "10",
+						"officeActionDate": "2009-08-18T00:00:00",
+						"officeActionType": "CTNF",
+						"isNPL": false
+					},
+					{
+						"citedDocument": null,
+						"documentReference": null,
+						"category": "X",
+						"examinerCited": false,
+						"applicantCited": false,
+						"rejectedClaims": "1-26",
+						"officeActionDate": "2009-08-18T00:00:00",
+						"officeActionType": "CTNF",
+						"isNPL": false
+					},
+					{
+						"citedDocument": "US 5,135,330",
+						"documentReference": {
+							"publicationNumber": "US5135330",
+							"section": "bibliography"
+						},
+						"category": "X",
+						"examinerCited": true,
+						"applicantCited": false,
+						"rejectedClaims": "1-4,6,8,11-21",
+						"officeActionDate": "2009-08-18T00:00:00",
+						"officeActionType": "CTNF",
+						"isNPL": false
+					},
+					{
+						"citedDocument": "US 2007/0052286",
+						"documentReference": {
+							"publicationNumber": "US20070052286",
+							"section": "bibliography"
+						},
+						"category": "X",
+						"examinerCited": true,
+						"applicantCited": false,
+						"rejectedClaims": "1",
+						"officeActionDate": "2009-08-18T00:00:00",
+						"officeActionType": "CTNF",
+						"isNPL": false
+					}
+				]
+			}
+		},
+		"12756531": {
+			"ok": true,
+			"data": {
+				"total": 0,
+				"citations": []
+			}
+		}
+	}
+}
