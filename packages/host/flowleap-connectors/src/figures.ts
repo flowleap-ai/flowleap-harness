@@ -12,8 +12,9 @@ import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
+import { imageInputRefusal } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import type { ToolExecutionResult, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { callerImageInput, type ToolExecutionResult, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
 /** The office tool whose pages become image blocks. */
@@ -80,26 +81,13 @@ function pagesOf(value: JsonValue): FigurePage[] {
  * Resolve the attachment store after proof that the current model route reads images.
  * @throws Error naming the missing store, the unresolved route, or the model without image input.
  */
-/* jscpd:ignore-start -- the same route proof as dsh-mcp-client resolveImageAdmission; neither package owns a shared one. */
 async function imageStore(ctx: Context, exec: ToolRunContext): Promise<AttachmentStore> {
   const attachments = ctx.get('attachments')
   if (attachments === undefined) throw new Error('no attachment store is mounted')
-  const routed = exec.agent?.session.requestHeader()?.config
-  const provider = routed?.provider ?? exec.agent?.options.provider
-  const model = routed?.model ?? exec.agent?.options.model
-  const llm = ctx.get('llm')
-  if (provider === undefined || model === undefined || llm === undefined) throw new Error('the current model route could not be resolved')
-  let info: Awaited<ReturnType<typeof llm.resolveModelInfo>>
-  try {
-    info = await llm.resolveModelInfo(provider, model, exec.signal)
-  } catch {
-    // The provider's failure is not model-relevant; the route is simply unproven.
-    throw new Error('the current model route could not be verified')
-  }
-  if (info.inputModalities?.includes('image') !== true) throw new Error(`model "${model}" does not declare image input`)
+  const support = await callerImageInput(ctx, exec)
+  if (support.kind !== 'declared') throw new Error(imageInputRefusal(support))
   return attachments
 }
-/* jscpd:ignore-end */
 
 /**
  * Store the PNG and JPEG pages of one result and build the content that shows them.

@@ -91,6 +91,10 @@ Agent-step concurrency uses the [agent-loop configuration](../agent-loop/README.
 
 A tool’s `projectContent` installs execution-prepared content before post-execute policies. Policies may still replace or block it; `finalizeContent` remains the final content transform after those policies.
 
+### Check that the calling model reads images
+
+A tool that returns images calls `callerImageInput(ctx, exec)` before it stores them. It reads the calling route from the Session's latest request header config, then from the Agent options, and answers with the `ImageInputSupport` outcome of `dsh-llm`.
+
 ### Host presentation descriptors
 
 A tool can retain pure `presentCall()` and `presentResult()` methods for Host-local consumers. The built-in Web Client does not consume those values. It selects a renderer through `tool.call.toolview` and derives card props from raw call arguments, result content, failure state, and persisted metadata. The [Client-derived presentation decision](../../../.agents/notes/implemented/architecture/2026-08-23-client-derived-tool-presentation.md) owns this transport split.
@@ -120,6 +124,7 @@ The registry holds typed `ToolDefinition`s in scoped layers and projects them on
 - [`src/schema.ts`](src/schema.ts) — Typed tool definitions and model-facing schema projection.
 - [`src/json-schema.ts`](src/json-schema.ts) — Supported JSON Schema validation.
 - [`src/presentation.ts`](src/presentation.ts) — Tool-card render intents.
+- [`src/image-input.ts`](src/image-input.ts) — Image-input proof for the route that called a tool.
 
 ### Execution and cancellation
 

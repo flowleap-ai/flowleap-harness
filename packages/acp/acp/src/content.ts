@@ -5,7 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { isAttachmentError, isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type { ModelSelection } from '@deepseek-ai/dsh-agent'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import { imageInputSupport, type ContentBlock } from '@deepseek-ai/dsh-llm'
 
 /** Raster formats shared by ACP image blocks and the core attachment vocabulary. */
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
@@ -61,21 +61,10 @@ function decodeImage(block: Extract<AcpContentBlock, { type: 'image' }>): SaveIm
 
 /** Resolve the exact current route and require explicit image input support. */
 async function assertImageRoute(ctx: Context, route: ModelSelection | undefined, signal: AbortSignal): Promise<void> {
-  const provider = route?.provider
-  const model = route?.model
-  const llm = ctx.get('llm')
-  if (provider === undefined || model === undefined || llm === undefined) {
-    throw new AcpContentError('the current model route could not be resolved for image input', 'invalid')
-  }
-  let info: Awaited<ReturnType<typeof llm.resolveModelInfo>>
-  try {
-    info = await llm.resolveModelInfo(provider, model, signal)
-  } catch (error: unknown) {
-    throw new AcpContentError('the current model route could not be verified for image input', 'internal', { cause: error })
-  }
-  if (info.inputModalities === undefined || !info.inputModalities.includes('image')) {
-    throw new AcpContentError(`model "${model}" does not declare image input`, 'invalid')
-  }
+  const support = await imageInputSupport(ctx.get('llm'), route?.provider, route?.model, signal)
+  if (support.kind === 'unresolved') throw new AcpContentError('the current model route could not be resolved for image input', 'invalid')
+  if (support.kind === 'unverified') throw new AcpContentError('the current model route could not be verified for image input', 'internal', { cause: support.error })
+  if (support.kind === 'absent') throw new AcpContentError(`model "${support.model}" does not declare image input`, 'invalid')
 }
 
 /**
@@ -92,15 +81,9 @@ export async function supportsAcpImagePrompts(
   model: string | undefined,
 ): Promise<boolean> {
   const attachments = ctx.get('attachments')
-  const llm = ctx.get('llm')
-  if (attachments === undefined || llm === undefined || provider === undefined || model === undefined) return false
+  if (attachments === undefined) return false
   if (!attachments.imageLimits.mediaTypes.some(mediaType => IMAGE_MEDIA_TYPES.includes(mediaType))) return false
-  try {
-    const info = await llm.resolveModelInfo(provider, model)
-    return info.inputModalities?.includes('image') === true
-  } catch {
-    return false
-  }
+  return (await imageInputSupport(ctx.get('llm'), provider, model)).kind === 'declared'
 }
 
 /** Render one baseline resource link into the core's current text vocabulary. */
