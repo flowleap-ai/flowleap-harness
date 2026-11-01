@@ -52,6 +52,7 @@ async function mount(options: {
   defaultProvider?: string
   lockedRefs?: string[]
   connectTimeoutMs?: number
+  routes?: string[]
 }): Promise<Mount> {
   const ctx = new Context()
   contexts.push(ctx)
@@ -64,6 +65,10 @@ async function mount(options: {
       keys.set(ref, value)
     },
   } as never)
+  if (options.routes !== undefined) {
+    const routes = options.routes
+    ctx.provide('llm', { listProviders: () => routes.map(id => ({ id, name: id })) } as never)
+  }
   let current = options.defaultProvider ?? 'anthropic'
   ctx.provide('agentDefaultModel', {
     currentSelection: () => ({ provider: current, model: 'm' }),
@@ -125,13 +130,20 @@ describe('flowleapModels.test', () => {
     expect(saved).toEqual([{ provider: 'openai', model: 'gpt-5.5' }])
   })
 
-  it('keeps a default whose provider has a key, and a default on another route', async () => {
+  it('keeps a default whose provider has a key, and a default on another registered route', async () => {
     const double = await provider(status(200))
     const withKey = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k', ANTHROPIC_API_KEY: 'k' } })
     expect(await withKey.service.test('openai', never)).toEqual({ ok: true })
-    const other = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultProvider: 'mistral' })
+    const other = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultProvider: 'mistral', routes: ['mistral'] })
     expect(await other.service.test('openai', never)).toEqual({ ok: true })
     expect([...withKey.saved, ...other.saved]).toEqual([])
+  })
+
+  it('replaces a default on a route that no adapter registered', async () => {
+    const double = await provider(status(200))
+    const { service, saved } = await mount({ baseURL: double.url, keys: { OPENAI_API_KEY: 'k' }, defaultProvider: 'deepseek-official', routes: ['openai'] })
+    expect(await service.test('openai', never)).toEqual({ ok: true, adopted: { provider: 'openai', model: 'gpt-5.5' } })
+    expect(saved).toEqual([{ provider: 'openai', model: 'gpt-5.5' }])
   })
 
   it('refuses an unknown provider', async () => {
@@ -222,7 +234,7 @@ describe('flowleapModels OpenRouter connect', () => {
     const { service } = await mount({})
     await service.startOpenRouter()
     const result = service.awaitOpenRouter(never)
-    await service.cancelOpenRouter()
+    service.cancelOpenRouter()
     expect(await result).toEqual({ state: 'cancelled' })
   })
 

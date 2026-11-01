@@ -10,6 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
+import type {} from '@deepseek-ai/dsh-llm'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { OpenRouterAttempt } from './openrouter.ts'
 import type {
@@ -204,7 +205,7 @@ export default class FlowleapModels extends TypertRemoteService {
 
   /** End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens. */
   @Remote
-  async cancelOpenRouter(): Promise<void> {
+  cancelOpenRouter(): void {
     this.attempt?.cancel()
   }
 
@@ -220,14 +221,15 @@ export default class FlowleapModels extends TypertRemoteService {
   }
 
   /**
-   * Make new chats use this provider's configured model when the current default is a model step provider without a
-   * key. A default on another route, or on a provider with a key, stays.
+   * Make new chats use this provider's configured model when the current default cannot run: a model step provider
+   * without a key, or a route that no adapter registered. A default on another registered route, or on a provider with
+   * a key, stays.
    */
   private async adopt(provider: ModelProviderId): Promise<AdoptedModel | undefined> {
     const defaults = this.ctx.get('agentDefaultModel')
     if (defaults === undefined) return undefined
     const current = defaults.currentSelection().provider
-    if (current === provider || !isModelProviderId(current) || await this.key(current) !== undefined) return undefined
+    if (current === provider || !await this.unusable(current)) return undefined
     const model = this.config.providers[provider].model
     try {
       await defaults.saveSelection({ provider, model })
@@ -236,5 +238,11 @@ export default class FlowleapModels extends TypertRemoteService {
       return undefined
     }
     return { provider, model }
+  }
+
+  private async unusable(route: string): Promise<boolean> {
+    if (isModelProviderId(route)) return await this.key(route) === undefined
+    const registered = this.ctx.get('llm')?.listProviders()
+    return registered !== undefined && !registered.some(info => info.id === route)
   }
 }

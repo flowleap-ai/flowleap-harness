@@ -85,7 +85,7 @@ The listener closes when the attempt ends. Every endpoint of the Remote is owner
 
 ### The default model of new chats
 
-After a successful test or connect, the Host reads `agentDefaultModel.currentSelection()`. When its provider is another of the three providers and that provider has no key, the Host saves `{ provider, model }` with this provider's configured `model`, and the result carries it as `adopted`. A default on this provider, on a provider with a key, or on any other route stays. Without the `agentDefaultModel` service, or when the save fails (logged), nothing is adopted and the result is still a success.
+After a successful test or connect, the Host reads `agentDefaultModel.currentSelection()`. When the default cannot run, because its provider is another of the three providers without a key or its route is not registered in `ctx.llm`, the Host saves `{ provider, model }` with this provider's configured `model`, and the result carries it as `adopted`. A default on this provider, on a provider with a key, or on another registered route stays. Without the `agentDefaultModel` service, or when the save fails (logged), nothing is adopted and the result is still a success.
 
 -----
 
