@@ -10,6 +10,7 @@ import { availableParallelism } from 'node:os'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { CLIENT_BUILD_PROFILE_SELECTOR } from './client-build-environment.ts'
+import { REGENERATE_COMMAND, repositoryGeneratorPairs } from './generated-files.ts'
 import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './coverage-exempt.ts'
 import { COVERAGE_PARTITIONS_ENV, parseCoveragePartitionCount } from './coverage-partitions.ts'
 import { LOCAL_TEST_PARALLELISM_CAP, defaultParallelism, describeDefaultParallelism } from './parallelism.ts'
@@ -35,6 +36,7 @@ export type Mode =
   | 'hygiene'
   | 'doc-sync'
   | 'doc-quick'
+  | 'generated'
   | 'i18n'
 
 type GateResultStatus = 'passed' | 'failed' | 'skipped'
@@ -110,7 +112,11 @@ async function main(args: string[]): Promise<number> {
   Object.assign(process.env, workerEnv)
   if (Object.keys(workerEnv).length > 0) console.log(`run-gates: worker settings ${JSON.stringify(workerEnv)}`)
   const gates = gatesForMode(mode)
-  return runAggregate(mode, gates, defaultConcurrency(mode, gates.length))
+  const exitCode = await runAggregate(mode, gates, defaultConcurrency(mode, gates.length))
+  if (exitCode !== 0 && mode === 'generated') {
+    console.error(`run-gates: generated files are out of date. Run \`${REGENERATE_COMMAND}\`, then commit the changed files.`)
+  }
+  return exitCode
 }
 
 /**
@@ -172,10 +178,11 @@ function parseMode(raw: string | undefined): Mode {
     case 'doc-sync':
     case 'i18n':
     case 'doc-quick':
+    case 'generated':
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | i18n, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -202,6 +209,7 @@ export function defaultConcurrency(
     || selectedMode === 'hygiene'
     || selectedMode === 'doc-sync'
     || selectedMode === 'doc-quick'
+    || selectedMode === 'generated'
   const modeLimit = localCap ? Math.min(PROGRAM_MODE_CAP, budget) : budget
   return {
     workers: Math.min(total, modeLimit),
@@ -376,6 +384,8 @@ export function gatesForMode(selected: Mode): Gate[] {
       return docSyncLeafGates()
     case 'doc-quick':
       return docQuickLeafGates()
+    case 'generated':
+      return repositoryGeneratorPairs().map(pair => pnpmScript(pair.name, pair.check))
     case 'i18n':
       return i18nGates(true)
   }
