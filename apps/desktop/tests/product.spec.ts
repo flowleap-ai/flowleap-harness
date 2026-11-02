@@ -36,7 +36,7 @@ describe('desktop product files', () => {
     // The build reader and the runtime parser read the same file the same way.
     expect(readDesktopProduct('flowleap')).toEqual(JSON.parse(readFileSync(join(APP_ROOT, 'config', 'product.flowleap.json'), 'utf8')))
     expect(desktopProfileBundles(flowleap.profile.template)).toEqual([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web',
+      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-desktop',
     ])
     expect(resolveDesktopPaths('/home/.dsh', flowleap.profile.directory).profile).toBe(join('/home/.dsh', 'profiles', 'flowleap-desktop'))
   })
