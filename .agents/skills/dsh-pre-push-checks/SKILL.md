@@ -5,7 +5,7 @@ description: Use before pushing, force-pushing, marking ready for review, or cla
 
 # DSH Pre-Push Checks
 
-Use this skill to run relevant local evidence once before a `deepseek-harness` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs the incremental repository typecheck, type-aware lint of the pushed TypeScript files, `pnpm run duplication`, and the `--check` mode of every generator (`pnpm run verify-generated`; repair with `pnpm run gen`). CI owns exhaustive coverage and the platform matrix.
+Use this skill to run relevant local evidence once before a `deepseek-harness` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs the incremental repository typecheck, type-aware lint of the pushed TypeScript files, `pnpm run duplication`, `pnpm run test:docs`, and the `--check` mode of every generator (`pnpm run verify-generated`; repair with `pnpm run gen`). CI owns exhaustive coverage and the platform matrix.
 
 ## Inspect the outgoing change
 

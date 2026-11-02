@@ -51,3 +51,6 @@ pre-push:
 
     - name: duplication
       run: pnpm run duplication
+
+    - name: quick documentation checks
+      run: pnpm run test:docs
