@@ -75,11 +75,11 @@ A personal skill cannot replace a firm skill: it shows as a second skill under a
 | 7 | "Write a skill", the structure check and "Try it" | Q9 | no | #194 |
 | 8 | Private and shared skills, "Add" with versions, removal | Q10 to Q12 | no | #196 |
 | 9 | The methods pack as a Discover plugin with versions; admin approval of plugin updates; signed plugin packages | Q1, Q8 | no | #195 |
-| 10 | Connectors page: the office tools as "Included" and the configured MCP servers with type, source, state and tools | Q20 | no || #197 |
-| 11 | Add a remote MCP server by hand, with the OAuth sign-in or a key | Q15, Q16 | no || #198 |
-| 12 | On the firm: the administrator adds and approves servers, with a firm or personal sign-in; stdio only from signed plugins | Q17, Q18 | no || #199 |
-| 13 | A plugin carries MCP servers; the data plugin (#176) is the first | Q15 | no || #200 |
-| 14 | Import of MCP servers from Claude Desktop, Claude Code and Codex on the desktop | Q19 | no || #201 |
+| 10 | Connectors page: the office tools as "Included" and the configured MCP servers with type, source, state and tools | Q20 | no | #197 |
+| 11 | Add a remote MCP server by hand, with the OAuth sign-in or a key | Q15, Q16 | no | #198 |
+| 12 | On the firm: the administrator adds and approves servers, with a firm or personal sign-in; stdio only from signed plugins | Q17, Q18 | no | #199 |
+| 13 | A plugin carries MCP servers; the data plugin (#176) is the first | Q15 | no | #200 |
+| 14 | Import of MCP servers from Claude Desktop, Claude Code and Codex on the desktop | Q19 | no | #201 |
 
 ## 5. Open points
 
