@@ -1,6 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { NPMMIRROR_REGISTRY, OFFICIAL_NPM_REGISTRY } from '@deepseek-ai/dsh-plugin-manager/registry'
+import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import PluginRegistryProbe, { type Config } from '../src/index.ts'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
@@ -31,6 +32,13 @@ function transport() {
   }
   return { fetch, request }
 }
+
+it.each([true, false])('embeds packageNames %s in browser pages as the page global', async (packageNames) => {
+  const { ctx } = await mount({ packageNames })
+  const table: IndexInjection[] = []
+  await ctx.parallel('webserver/index-inject', table, { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1])
+  expect(table).toEqual([{ kind: 'global', name: '__DSH_PLUGIN_MANAGER_PAGE_CONFIG__', value: { packageNames } }])
+})
 
 it.each([OFFICIAL_NPM_REGISTRY, NPMMIRROR_REGISTRY])('shares concurrent probes and caches the first successful response from %s', async (winner) => {
   vi.useFakeTimers()

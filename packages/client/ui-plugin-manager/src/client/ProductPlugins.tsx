@@ -58,7 +58,8 @@ export function productPlugins(
 }
 
 /**
- * One product plugin: its icon, its title, its one-liner, what it adds, and its state, without a control.
+ * One product plugin: its icon, its title, its one-liner, what it adds (never nothing, as the list holds only rows that
+ * add something), and its state, without a control.
  * @param props - the card, the manager's translate seat, the rendered artwork, and the rendered state.
  * @returns the card.
  */
@@ -81,15 +82,13 @@ export function ProductPluginCard({ plugin, t, icon, state }: {
             <span className={css.cardTitle}>{plugin.title}</span>
           </div>
           {plugin.description === undefined ? null : <span className={css.cardDesc}>{plugin.description}</span>}
-          {adds.length === 0 ? null : (
-            <ul className={css.adds} aria-label={t('addsLabel')}>
-              {adds.map(item => (
-                <li key={item.key} {...item.title === undefined ? {} : { title: item.title }}>
-                  <Tag className={css.statusTag}>{item.text}</Tag>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className={css.adds} aria-label={t('addsLabel')}>
+            {adds.map(item => (
+              <li key={item.key} {...item.title === undefined ? {} : { title: item.title }}>
+                <Tag className={css.statusTag}>{item.text}</Tag>
+              </li>
+            ))}
+          </ul>
         </div>
         <div className={css.cardEnd}>{state}</div>
       </div>

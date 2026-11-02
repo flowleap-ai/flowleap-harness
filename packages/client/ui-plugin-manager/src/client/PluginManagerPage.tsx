@@ -586,7 +586,7 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, readOnly, 
         tags={(
           <>
             {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
-            {status === 'problem' ? <Tag className={css.statusTag} tone="danger">{t('statusProblem')}</Tag> : null}
+            {status === 'problem' && !readOnly ? <Tag className={css.statusTag} tone="danger">{t('statusProblem')}</Tag> : null}
             {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
             {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           </>
