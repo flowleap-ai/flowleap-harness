@@ -81,6 +81,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-settings-subagent/`](ui-settings-subagent/README.md) | Provides the Subagent settings page on the Plugins page | — |
 | [`ui-settings-web-search/`](ui-settings-web-search/README.md) | Provides the web-search settings page on the Plugins page | — |
 | [`ui-settings-flowleap-models/`](ui-settings-flowleap-models/README.md) | Provides Test and Connect OpenRouter on the Models page cards of the FlowLeap desktop | — |
+| [`ui-settings-skills/`](ui-settings-skills/README.md) | Provides the read-only Skills settings section: each skill with its source, full text, and replace note, and the skill files with faults | — |
 | [`ui-settings-flowleap-connectors/`](ui-settings-flowleap-connectors/README.md) | Provides the Patent data connectors settings section and first-run key wizard | — |
 | [`ui-flowleap-admin-link/`](ui-flowleap-admin-link/README.md) | Shows the Firm admin row in the FlowLeap sidebar only to a firm administrator, checked with the starter's signed header | — |
 | [`ui-flowleap-budget/`](ui-flowleap-budget/README.md) | Shows the attorney's model spend and budget of this month on the FlowLeap dashboard, read from the firm's model gateway | — |

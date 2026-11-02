@@ -3712,6 +3712,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'skillInventory',
+    summary: 'Serves the skills of the view a new chat gets: the default working directory and the default agent preset.',
+    description: 'Serves the skills of the view a new chat gets: the default working directory and the default agent preset.',
+    methods: [
+      {
+        signature: '@Remote async list(signal: AbortSignal): Promise<SkillInventoryValue>',
+        description: 'List every skill of the default agent view, each replaced skill after its winner, and the files that are not skills.',
+        parameters: [{ name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        returns: 'the rows with their origin.',
+        throws: ['RemoteError `gateway/internal` when discovery fails.'],
+      },
+      {
+        signature: '@Remote async read(ref: SkillRef, signal: AbortSignal): Promise<SkillTextValue>',
+        description: 'Load the body of one exact skill of the default agent view, a winner or a replaced one.',
+        parameters: [{ name: 'ref', description: 'name, provider, and source as `list()` reports them.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        returns: 'the Markdown body.',
+        throws: ['RemoteError `skill/not-found` when the view holds no such skill or its file is gone.'],
+      },
+    ],
+  },
+  {
     key: 'skills',
     summary: 'Layered registry of skill providers, the host+per-scope shape the tools registry established.',
     description: 'Layered registry of skill providers, the host+per-scope shape the tools registry established. A registration files into the layer of its calling context\'s scope (scopeOf): host rows and repository plugins land in the global layer, while a plugin mounted by an agent preset\'s standing composition lands in that preset\'s layer. A read merges the global layer with the viewing scope\'s chain — the nearest layer\'s entry wins a duplicate name outright, and the rank order decides duplicates only within one layer. It exposes sorted invocation-neutral summaries and loads full skill bodies on demand.',
@@ -3745,6 +3766,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Load and validate the winning candidate, passing its opaque discovery locator back to the provider. Cancellation is rechecked after selection, including cache hits, and raced against loading so an uncooperative provider cannot hang the caller.',
         parameters: [{ name: 'name', description: 'kebab-case skill name.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects workspace-sensitive skills, and `signal` cancels work.' }],
         returns: 'the full skill, including body content, or `undefined`.',
+      },
+      {
+        signature: 'async inspect(options: SkillViewOptions = {}): Promise<SkillInventory>',
+        description: 'Observe every candidate of a view with the same merge rule as `list()`: the winners, the candidates each winner replaced, and the files that providers could not offer. The read is never cached and never fills the catalog cache.',
+        parameters: [{ name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels discovery.' }],
+        returns: 'the inventory of the view.',
+      },
+      {
+        signature: 'async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>',
+        description: 'Load the body of one exact candidate of a view, a winner or a replaced one, with the same validation and cancellation as `get()`.',
+        parameters: [{ name: 'ref', description: 'name, provider, and source of the candidate, as `inspect()` reports them.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels work.' }],
+        returns: 'the full skill, or `undefined` when the view holds no such candidate or its file is gone.',
       },
     ],
   },
@@ -9495,6 +9528,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillCandidate extends SkillSummary {\n    readonly rank: number;\n    readonly locator: unknown;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
   {
+    name: 'SkillCandidateRef',
+    declaration: 'export interface SkillCandidateRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n}',
+  },
+  {
     name: 'SkillCatalogSnapshot',
     declaration: 'export interface SkillCatalogSnapshot {\n    readonly skills: SkillSummary[];\n    readonly complete: boolean;\n}',
   },
@@ -9505,6 +9542,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillEntry',
     declaration: 'export interface SkillEntry {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
+  },
+  {
+    name: 'SkillFault',
+    declaration: 'export interface SkillFault {\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path: string;\n    readonly reason: SkillFaultReason;\n}',
+  },
+  {
+    name: 'SkillFaultReason',
+    declaration: 'export type SkillFaultReason = {\n    readonly kind: \'missing-frontmatter\';\n} | {\n    readonly kind: \'invalid-yaml\';\n    readonly detail: string;\n} | {\n    readonly kind: \'missing-field\';\n    readonly field: \'name\' | \'description\';\n} | {\n    readonly kind: \'invalid-name\';\n    readonly name: string;\n} | {\n    readonly kind: \'invalid-invocation\';\n    readonly detail: string;\n} | {\n    readonly kind: \'not-text\';\n    readonly detail: string;\n};',
+  },
+  {
+    name: 'SkillFaultRow',
+    declaration: 'export interface SkillFaultRow {\n    readonly path: string;\n    readonly origin: SkillOrigin;\n    readonly reason: SkillFaultReason;\n}',
+  },
+  {
+    name: 'SkillInventory',
+    declaration: 'export interface SkillInventory {\n    readonly skills: readonly SkillInventoryEntry[];\n    readonly faults: readonly SkillFault[];\n    readonly complete: boolean;\n}',
+  },
+  {
+    name: 'SkillInventoryEntry',
+    declaration: 'export interface SkillInventoryEntry extends SkillSummary {\n    readonly replacedBy?: Pick<SkillCandidateRef, \'provider\' | \'source\'>;\n}',
+  },
+  {
+    name: 'SkillInventoryRow',
+    declaration: 'export interface SkillInventoryRow extends SkillRef {\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly path?: string;\n    readonly origin: SkillOrigin;\n    readonly userInvocable: boolean;\n    readonly modelInvocable: boolean;\n    readonly replacedBy?: {\n        readonly provider: string;\n        readonly source: SkillSource;\n        readonly origin: SkillOrigin;\n    };\n}',
+  },
+  {
+    name: 'SkillInventoryValue',
+    declaration: 'export interface SkillInventoryValue {\n    readonly skills: readonly SkillInventoryRow[];\n    readonly faults: readonly SkillFaultRow[];\n    readonly complete: boolean;\n}',
   },
   {
     name: 'SkillInvocationPolicy',
@@ -9523,6 +9588,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillLookupOptions {\n    readonly cwd?: string | undefined;\n    readonly signal?: AbortSignal | undefined;\n}',
   },
   {
+    name: 'SkillOrigin',
+    declaration: 'export type SkillOrigin = {\n    readonly kind: \'firm\';\n} | {\n    readonly kind: \'mine\';\n} | {\n    readonly kind: \'project\';\n} | {\n    readonly kind: \'plugin\';\n    readonly name: string;\n};',
+  },
+  {
     name: 'SkillProvider',
     declaration: 'export interface SkillProvider {\n    readonly name: string;\n    readonly list: (options: SkillLookupOptions) => Promise<readonly SkillCandidate[] | SkillProviderObservation>;\n    readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>;\n}',
   },
@@ -9532,7 +9601,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillProviderObservation',
-    declaration: 'export interface SkillProviderObservation {\n    readonly candidates: readonly SkillCandidate[];\n    readonly complete: boolean;\n}',
+    declaration: 'export interface SkillProviderObservation {\n    readonly candidates: readonly SkillCandidate[];\n    readonly complete: boolean;\n    readonly faults?: readonly SkillFault[];\n}',
+  },
+  {
+    name: 'SkillRef',
+    declaration: 'export interface SkillRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n}',
   },
   {
     name: 'SkillRegistration',
@@ -9549,6 +9622,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillSummary',
     declaration: 'export interface SkillSummary {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly invocation: SkillInvocationPolicy;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly resourceBase?: SkillResourceBase;\n}',
+  },
+  {
+    name: 'SkillTextValue',
+    declaration: 'export interface SkillTextValue {\n    readonly content: string;\n}',
   },
   {
     name: 'SkillViewOptions',

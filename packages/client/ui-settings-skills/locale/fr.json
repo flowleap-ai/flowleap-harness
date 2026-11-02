@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Paramètres des compétences",
+    "description": "Liste en lecture seule des compétences de l'agent avec la source, le texte complet et la note de remplacement de chacune, et les fichiers de compétences avec des erreurs."
+  }
+}

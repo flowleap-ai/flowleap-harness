@@ -723,6 +723,23 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-models -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-skills -->
+<a id="deepseek-aidsh-client-ui-settings-skills"></a>
+
+## `@deepseek-ai/dsh-client-ui-settings-skills`
+
+- `inject`: `skills` · `workingDirectory`
+- `source`: [`packages/client/ui-settings-skills/src/index.ts:27`](../packages/client/ui-settings-skills/src/index.ts)
+
+```ts config-catalog
+/** Skills settings configuration. */
+export interface Config {
+  /** Product name per skill provider name; a provider without an entry shows its own name. */
+  pluginNames: Record<string, string>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-skills -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar-documentpreview -->
 <a id="deepseek-aidsh-client-ui-sidebar-documentpreview"></a>
 
@@ -3694,7 +3711,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-skill`
 
-- `source`: [`packages/skill/skill/src/index.ts:278`](../packages/skill/skill/src/index.ts)
+- `source`: [`packages/skill/skill/src/index.ts:365`](../packages/skill/skill/src/index.ts)
 
 ```ts config-catalog
 /** Skill registry configuration. */
@@ -3711,7 +3728,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-skill-filesystem`
 
 - `inject`: `skills`
-- `source`: [`packages/skill/skill-filesystem/src/index.ts:48`](../packages/skill/skill-filesystem/src/index.ts)
+- `source`: [`packages/skill/skill-filesystem/src/index.ts:50`](../packages/skill/skill-filesystem/src/index.ts)
 
 ```ts config-catalog
 /** Local filesystem skill provider configuration. */

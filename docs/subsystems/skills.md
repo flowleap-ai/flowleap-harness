@@ -28,7 +28,7 @@ interface SkillProviderObservation {
 
 A provider reports each file it found but could not parse as a `SkillFault`: the provider, the source, the path, and a `SkillFaultReason` closed by `kind` (`missing-frontmatter`, `invalid-yaml`, `missing-field`, `invalid-name`, `invalid-invocation`, `not-text`). Faults never enter `list()`, `snapshot()`, or `get()`; a fault that names another provider fails the read.
 
-`inspect(options)` reads the same layers with the same merge rule as `list()` and never uses or fills the catalog cache. It returns each winner, sorted by name, followed by the candidates it replaced in precedence order, each with `replacedBy` naming the winner's provider and source; the faults of every provider in the view; and `complete`. `read({ name, provider, source }, options)` loads the body of that exact candidate, a winner or a replaced one, with the validation and cancellation of `get()`. Two candidates of one provider and source with the same name are not distinguishable, so the one with higher precedence answers.
+`inspect(options)` returns a `SkillInventory`. It reads the same layers with the same merge rule as `list()` and never uses or fills the catalog cache. It returns each winner, sorted by name, followed by the candidates it replaced in precedence order, each with `replacedBy` naming the winner's provider and source; the faults of every provider in the view; and `complete`. `read(ref, options)` takes a `SkillCandidateRef` (`name`, `provider`, `source`) and loads the body of that exact candidate, a winner or a replaced one, with the validation and cancellation of `get()`. Two candidates of one provider and source with the same name are not distinguishable, so the one with higher precedence answers.
 
 ```ts type-equiv
 /** Provider interface for one source of skills, such as local directories or a remote registry. */
@@ -240,6 +240,10 @@ The model-facing `skill({ name })` tool validates the kebab-case name, finds the
 
 `SkillListRequest` addresses one Session by `sessionId`; `SkillListValue` returns the user-invocable entries with name, description, optional usage guidance, and model-invocation availability. `SessionSkillCatalog` reads the Session cwd and recorded preset without activating an Agent. A live Agent may supply its scoped registry, while a cold Session uses the preset's standing scope.
 
+## Settings inventory
+
+[dsh-client-ui-settings-skills](../../packages/client/ui-settings-skills) serves the `skillInventory` Remote for the read-only Skills settings section. `list()` returns a `SkillInventoryValue`: it reads `inspect()` in the view of a new chat: the default working directory and the default agent preset's standing scope. Each row, each replacing winner, and each fault carries a `SkillOrigin` closed by `kind`: `mine` for the `user-*` sources, `project` for the `project-*` sources, `firm` for the `firm` source, and `plugin` with the row's configured product name, else the provider name, for any other source. `read(ref)` takes a `SkillRef` and returns a `SkillTextValue` with one exact skill body, or fails with `skill/not-found`.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -266,6 +270,33 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
 ```
 
 Source: [`packages/api/session-controller/src/skill-catalog.ts`](../../packages/api/session-controller/src/skill-catalog.ts)
+
+<a id="ctxskillinventory--skillinventoryservice"></a>
+
+### `ctx.skillInventory` — `SkillInventoryService`
+
+Serves the skills of the view a new chat gets: the default working directory and the default agent preset.
+
+```ts cordis-catalog
+/**
+ * List every skill of the default agent view, each replaced skill after its winner, and the files that are not skills.
+ * @param signal - caller lifetime carried by the Remote transport.
+ * @returns the rows with their origin.
+ * @throws RemoteError `gateway/internal` when discovery fails.
+ */
+@Remote async list(signal: AbortSignal): Promise<SkillInventoryValue>
+
+/**
+ * Load the body of one exact skill of the default agent view, a winner or a replaced one.
+ * @param ref - name, provider, and source as `list()` reports them.
+ * @param signal - caller lifetime carried by the Remote transport.
+ * @returns the Markdown body.
+ * @throws RemoteError `skill/not-found` when the view holds no such skill or its file is gone.
+ */
+@Remote async read(ref: SkillRef, signal: AbortSignal): Promise<SkillTextValue>
+```
+
+Source: [`packages/client/ui-settings-skills/src/index.ts`](../../packages/client/ui-settings-skills/src/index.ts)
 
 <a id="ctxskills--skillregistry"></a>
 
@@ -327,6 +358,25 @@ async snapshot(options: SkillViewOptions = {}): Promise<SkillCatalogSnapshot>
  * @returns the full skill, including body content, or `undefined`.
  */
 async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>
+
+/**
+ * Observe every candidate of a view with the same merge rule as `list()`:
+ * the winners, the candidates each winner replaced, and the files that
+ * providers could not offer. The read is never cached and never fills the
+ * catalog cache.
+ * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels discovery.
+ * @returns the inventory of the view.
+ */
+async inspect(options: SkillViewOptions = {}): Promise<SkillInventory>
+
+/**
+ * Load the body of one exact candidate of a view, a winner or a replaced
+ * one, with the same validation and cancellation as `get()`.
+ * @param ref - name, provider, and source of the candidate, as `inspect()` reports them.
+ * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels work.
+ * @returns the full skill, or `undefined` when the view holds no such candidate or its file is gone.
+ */
+async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)

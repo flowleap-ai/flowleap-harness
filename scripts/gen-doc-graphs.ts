@@ -362,6 +362,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Lists the Session composition\'s user-invocable skills without activating a cold Agent.',
   },
   {
+    key: 'skillInventory',
+    pkg: 'client-ui-settings-skills',
+    title: 'Skills settings inventory Remote',
+    mode: 'service',
+    consumers: ['client-ui-settings-skills'],
+    note: 'Lists every skill of a new chat\'s view with its origin, the replaced skills, and the skill files with faults, and reads one exact skill body.',
+  },
+  {
     key: 'jobController',
     pkg: 'api-job-controller',
     title: 'Host job Remote controller',

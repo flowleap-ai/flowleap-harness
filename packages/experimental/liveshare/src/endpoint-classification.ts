@@ -122,6 +122,8 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'flowleapModels/startOpenRouter': 'owner-only', // FlowLeap: stores an OpenRouter key for the owner
   'flowleapModels/awaitOpenRouter': 'owner-only', // FlowLeap: stores an OpenRouter key for the owner
   'flowleapModels/cancelOpenRouter': 'owner-only', // FlowLeap: ends the owner's OpenRouter connect
+  'skillInventory/list': 'owner-only', // the owner's skill folders, file paths, and skill bodies
+  'skillInventory/read': 'owner-only', // the owner's skill folders, file paths, and skill bodies
   'flowleapRoutines/done': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapRoutines/reviews': 'owner-only', // FlowLeap: the owner's routine review queue
   'flowleapWorkPages/list': 'owner-only', // FlowLeap: the owner's office action work pages

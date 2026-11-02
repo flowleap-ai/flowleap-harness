@@ -35,6 +35,7 @@ import flowleapAgentsRemote from '@deepseek-ai/dsh-flowleap-agent-builder/remote
 import flowleapWorkPagesRemote from '@deepseek-ai/dsh-flowleap-deliverables/remote'
 import flowleapBudgetRemote from '@deepseek-ai/dsh-flowleap-budget/remote'
 import flowleapModelsRemote from '@deepseek-ai/dsh-flowleap-models/remote'
+import skillInventoryRemote from '@deepseek-ai/dsh-client-ui-settings-skills/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
 export type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
@@ -94,6 +95,7 @@ export type {} from '@deepseek-ai/dsh-flowleap-budget/remote'
 export type * from '@deepseek-ai/dsh-flowleap-budget/types'
 export type {} from '@deepseek-ai/dsh-flowleap-models/remote'
 export type * from '@deepseek-ai/dsh-flowleap-models/types'
+export type {} from '@deepseek-ai/dsh-client-ui-settings-skills/remote'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
 // compilation face `TypertRemoteEvent` is `never` and every `$on` call fails.
 export type { ApiRemoteForwardedEvent } from '../types.ts'
@@ -217,6 +219,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       flowleapWorkPagesRemote,
       flowleapBudgetRemote,
       flowleapModelsRemote,
+      skillInventoryRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }
