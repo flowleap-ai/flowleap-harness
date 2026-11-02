@@ -24,6 +24,8 @@ import {
   isSkillName,
   type SkillCandidate,
   type SkillDefinition,
+  type SkillFault,
+  type SkillFaultReason,
   type SkillInvocationPolicy,
   type SkillLookupOptions,
   type SkillProvider,
@@ -121,6 +123,18 @@ interface ParsedSkill extends SkillText {
   invocation: SkillInvocationPolicy
   metadata?: Record<string, unknown>
 }
+
+/** Result of reading one skill file: a skill, no file, or a file that is not a skill. */
+type SkillFileOutcome =
+  | { kind: 'parsed'; skill: ParsedSkill }
+  | { kind: 'absent' }
+  | { kind: 'fault'; reason: SkillFaultReason }
+
+/** Result of reading one skill file's text. */
+type SkillTextOutcome =
+  | { kind: 'text'; text: SkillText }
+  | { kind: 'absent' }
+  | { kind: 'not-text'; detail: string }
 
 interface LocalLocator {
   path: string
@@ -220,10 +234,11 @@ export class FileSystemSkillProvider implements SkillProvider {
   /**
    * Discover local skill summaries for a cwd-sensitive workspace.
    * @param options - lookup options; `cwd` selects the project roots to scan.
-   * @returns candidates from readable roots with stable ranks. Failed roots are
-   *   logged and omitted; root or watcher failures make the observation incomplete.
+   * @returns candidates from readable roots with stable ranks, plus one fault per
+   *   file that is not a valid skill. Failed roots are logged and omitted; root or
+   *   watcher failures make the observation incomplete.
    */
-  async list(options: SkillLookupOptions): Promise<SkillCandidate[] | SkillProviderObservation> {
+  async list(options: SkillLookupOptions): Promise<SkillProviderObservation> {
     const roots = await this.roots(options.cwd)
     let complete = true
     try {
@@ -233,19 +248,21 @@ export class FileSystemSkillProvider implements SkillProvider {
       complete = false
     }
     const candidates: SkillCandidate[] = []
+    const faults: SkillFault[] = []
     for (const root of roots) {
       options.signal?.throwIfAborted()
       try {
         const discovered = await discoverRoot(root, this.ctx, this.name)
         options.signal?.throwIfAborted()
-        candidates.push(...discovered)
+        candidates.push(...discovered.candidates)
+        faults.push(...discovered.faults)
       } catch (error) {
         options.signal?.throwIfAborted()
         complete = false
         this.ctx.logger.warn(`skill root "${root.path}" skipped: ${errorMessage(error)}. Other roots remain available; check this directory's permissions and symlinks. Discovery retries on the next lookup.`)
       }
     }
-    return complete ? candidates : { candidates, complete }
+    return { candidates, complete, ...faults.length === 0 ? {} : { faults } }
   }
 
   /**
@@ -256,8 +273,9 @@ export class FileSystemSkillProvider implements SkillProvider {
    */
   async get(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
     const locator = candidate.locator as LocalLocator
-    const parsed = await parseSkillFile(locator.path, this.ctx, options.signal, candidate.source === 'bundled')
-    if (parsed === undefined) return undefined
+    const outcome = await parseSkillFile(locator.path, this.ctx, options.signal, candidate.source === 'bundled')
+    if (outcome.kind !== 'parsed') return undefined
+    const parsed = outcome.skill
     return {
       name: parsed.name,
       description: parsed.description,
@@ -775,8 +793,11 @@ function hasErrorCode(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
-async function discoverRoot(root: SkillRoot, ctx: Context, provider: string): Promise<SkillCandidate[]> {
+async function discoverRoot(
+  root: SkillRoot, ctx: Context, provider: string,
+): Promise<{ candidates: SkillCandidate[]; faults: SkillFault[] }> {
   const skills: SkillCandidate[] = []
+  const faults: SkillFault[] = []
   const entries = await listSkillRootEntries(root, ctx)
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (root.skipSystem && entry.name === '.system') continue
@@ -786,8 +807,13 @@ async function discoverRoot(root: SkillRoot, ctx: Context, provider: string): Pr
         ? { path: entry.path, directory: root.path }
         : undefined
     if (locator === undefined) continue
-    const parsed = await parseSkillFile(locator.path, ctx, undefined, root.trustedHost === true)
-    if (parsed === undefined) continue
+    const outcome = await parseSkillFile(locator.path, ctx, undefined, root.trustedHost === true)
+    if (outcome.kind === 'absent') continue
+    if (outcome.kind === 'fault') {
+      faults.push({ provider, source: root.source, path: locator.path, reason: outcome.reason })
+      continue
+    }
+    const parsed = outcome.skill
     skills.push({
       name: parsed.name,
       description: parsed.description,
@@ -802,7 +828,7 @@ async function discoverRoot(root: SkillRoot, ctx: Context, provider: string): Pr
       ...parsed.metadata !== undefined ? { metadata: parsed.metadata } : {},
     })
   }
-  return skills
+  return { candidates: skills, faults }
 }
 
 async function listSkillRootEntries(root: SkillRoot, ctx: Context): Promise<SkillRootEntry[]> {
@@ -849,48 +875,55 @@ async function listSkillRootEntriesFromNode(root: SkillRoot, ctx: Context): Prom
   return result
 }
 
-async function parseSkillFile(path: string, ctx: Context, signal?: AbortSignal, trustedHost = false): Promise<ParsedSkill | undefined> {
+async function parseSkillFile(path: string, ctx: Context, signal?: AbortSignal, trustedHost = false): Promise<SkillFileOutcome> {
   const raw = await readSkillText(ctx, path, signal, trustedHost)
   signal?.throwIfAborted()
-  if (raw === undefined) {
-    return undefined
+  if (raw.kind === 'absent') return raw
+  if (raw.kind === 'not-text') {
+    ctx.logger.warn(`skill file ${path} ignored: ${raw.detail}`)
+    return { kind: 'fault', reason: { kind: 'not-text', detail: raw.detail } }
+  }
+  return parseSkillText(path, raw.text, ctx)
+}
+
+/** Parse one skill file's text; each refusal logs a warning and returns its typed reason. */
+function parseSkillText(path: string, raw: SkillText, ctx: Context): SkillFileOutcome {
+  const fault = (reason: SkillFaultReason, message: string): SkillFileOutcome => {
+    ctx.logger.warn(`skill file ${path} ignored: ${message}`)
+    return { kind: 'fault', reason }
   }
   let parsed
   try {
     parsed = parseFrontmatter(raw.content)
   } catch (error) {
-    ctx.logger.warn(`skill file ${path} ignored: invalid YAML frontmatter: ${errorMessage(error)}`)
-    return undefined
+    const detail = errorMessage(error)
+    return fault({ kind: 'invalid-yaml', detail }, `invalid YAML frontmatter: ${detail}`)
   }
-  if (!parsed) {
-    ctx.logger.warn(`skill file ${path} ignored: missing YAML frontmatter`)
-    return undefined
-  }
+  if (!parsed) return fault({ kind: 'missing-frontmatter' }, 'missing YAML frontmatter')
   const name = stringField(parsed.data, 'name')
   const description = stringField(parsed.data, 'description')
   if (name === undefined || description === undefined) {
-    ctx.logger.warn(`skill file ${path} ignored: frontmatter requires name and description`)
-    return undefined
+    return fault({ kind: 'missing-field', field: name === undefined ? 'name' : 'description' }, 'frontmatter requires name and description')
   }
-  if (!isSkillName(name)) {
-    ctx.logger.warn(`skill file ${path} ignored: invalid skill name "${name}"`)
-    return undefined
-  }
+  if (!isSkillName(name)) return fault({ kind: 'invalid-name', name }, `invalid skill name "${name}"`)
   let invocation
   try {
     invocation = parseInvocationPolicy(parsed.data)
   } catch (error) {
-    ctx.logger.warn(`skill file ${path} ignored: invalid invocation frontmatter: ${errorMessage(error)}`)
-    return undefined
+    const detail = errorMessage(error)
+    return fault({ kind: 'invalid-invocation', detail }, `invalid invocation frontmatter: ${detail}`)
   }
   return {
-    name,
-    description,
-    ...optionalString(parsed.data, 'whenToUse'),
-    invocation,
-    ...optionalMetadata(parsed.data),
-    path: raw.path,
-    content: parsed.body.trim(),
+    kind: 'parsed',
+    skill: {
+      name,
+      description,
+      ...optionalString(parsed.data, 'whenToUse'),
+      invocation,
+      ...optionalMetadata(parsed.data),
+      path: raw.path,
+      content: parsed.body.trim(),
+    },
   }
 }
 
@@ -898,32 +931,32 @@ function optionalFileSystem(ctx: Context): FileSystem | undefined {
   return ctx.get('fs')
 }
 
-async function readSkillText(ctx: Context, path: string, signal?: AbortSignal, trustedHost = false): Promise<SkillText | undefined> {
+const ABSENT = { kind: 'absent' } as const
+
+async function readSkillText(ctx: Context, path: string, signal?: AbortSignal, trustedHost = false): Promise<SkillTextOutcome> {
   signal?.throwIfAborted()
   const fs = optionalFileSystem(ctx)
   if (fs !== undefined && !trustedHost) {
-    return await readSkillTextFromFileSystem(ctx, fs, path, signal)
+    return await readSkillTextFromFileSystem(fs, path, signal)
   }
   try {
     const resolvedPath = await realpath(path)
-    return { path: resolvedPath, content: await readFile(resolvedPath, { encoding: 'utf8', signal }) }
+    return { kind: 'text', text: { path: resolvedPath, content: await readFile(resolvedPath, { encoding: 'utf8', signal }) } }
   } catch (error) {
     signal?.throwIfAborted()
-    if (isAbsentSkillPathError(error)) return undefined
+    if (isAbsentSkillPathError(error)) return ABSENT
     throw error
   }
 }
 
-async function readSkillTextFromFileSystem(
-  ctx: Context, fs: FileSystem, path: string, signal?: AbortSignal,
-): Promise<SkillText | undefined> {
+async function readSkillTextFromFileSystem(fs: FileSystem, path: string, signal?: AbortSignal): Promise<SkillTextOutcome> {
   // A missing or temporarily inaccessible skill file is not fatal to discovery.
   signal?.throwIfAborted()
   let target
   try {
     target = await fs.resolve(path)
   } catch (error) {
-    if (isAbsentSkillPathError(error)) return undefined
+    if (isAbsentSkillPathError(error)) return ABSENT
     throw error
   }
   signal?.throwIfAborted()
@@ -932,18 +965,17 @@ async function readSkillTextFromFileSystem(
     info = await fs.stat(target, signal)
   } catch (error) {
     signal?.throwIfAborted()
-    if (isAbsentSkillPathError(error)) return undefined
+    if (isAbsentSkillPathError(error)) return ABSENT
     throw error
   }
-  if (info === undefined || info.type !== 'file') return undefined
+  if (info === undefined || info.type !== 'file') return ABSENT
   try {
-    return { path: fs.processPath(target), content: await fs.readText(target, signal) }
+    return { kind: 'text', text: { path: fs.processPath(target), content: await fs.readText(target, signal) } }
   } catch (error) {
     signal?.throwIfAborted()
-    if (isAbsentSkillPathError(error)) return undefined
+    if (isAbsentSkillPathError(error)) return ABSENT
     if (!hasErrorCode(error, 'FS_NOT_TEXT')) throw error
-    ctx.logger.warn(`skill file ${path} ignored: ${fsReadErrorMessage(target, error)}`)
-    return undefined
+    return { kind: 'not-text', detail: fsReadErrorMessage(target, error) }
   }
 }
 
