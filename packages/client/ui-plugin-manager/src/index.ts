@@ -1,9 +1,11 @@
-/** Host registry-response probing for the plugin installation dialog. */
+/** Host half of the Plugins page: registry-response probing for the installation dialog and the page's display switches. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-host-webserver'
 import z from '@deepseek-ai/schemastery'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { PLUGIN_MANAGER_PAGE_GLOBAL, type PageConfig } from './page-config.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -11,8 +13,8 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Registry-probe deadline and process-local cache policy. */
-export interface Config {
+/** Registry-probe deadline, process-local cache policy, and the page's display switches. */
+export interface Config extends PageConfig {
   /** Whether the dialog can compare the public npm registries. */
   registryProbeEnabled: boolean
   /** Deadline for the parallel HTTPS probes, including response cleanup. */
@@ -21,12 +23,16 @@ export interface Config {
   registryProbeCacheTtlMs: number
 }
 
-/** Compares public registry responses on the Host; the Client owns the initial selection. */
+/**
+ * Compares public registry responses on the Host; the Client owns the initial selection. Embeds the display switches
+ * in browser pages as {@link PLUGIN_MANAGER_PAGE_GLOBAL}.
+ */
 export default class PluginRegistryProbe extends TypertRemoteService {
   static Config: z<Partial<Config>, Config> = z.object({
     registryProbeEnabled: z.boolean().default(true),
     registryProbeTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(1500),
     registryProbeCacheTtlMs: z.natural().default(300000),
+    packageNames: z.boolean().default(true),
   })
 
   private readonly lifetime = new AbortController()
@@ -35,6 +41,10 @@ export default class PluginRegistryProbe extends TypertRemoteService {
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'pluginRegistryProbe')
+    const page: PageConfig = { packageNames: config.packageNames }
+    ctx.on('webserver/index-inject', (table) => {
+      table.push({ kind: 'global', name: PLUGIN_MANAGER_PAGE_GLOBAL, value: page })
+    })
     ctx.effect(() => async () => {
       this.lifetime.abort()
       await this.pending

@@ -37,10 +37,17 @@
       mistral:
         apiKeyEnv: MISTRAL_API_KEY
 
-# Attorneys do not install or switch on plugins on a firm server
-# (flowleap-harness#84): no Plugins page and no sidebar entry; "Browse other
-# plugins" leaves the More menus with it. The firm administrator manages
-# plugins through flowleap-os.
+# Attorneys see the firm's plugins but do not install, remove, or switch them
+# (flowleap-harness#189): readOnly makes the Plugins page read-only and the
+# plugin manager refuse every change. The firm administrator manages plugins
+# through flowleap-os. The row restates the dsh-flowleap-web row and adds
+# readOnly; a test fails when the two rows differ in anything else.
 
-- id: ui-plugin-manager
-  disabled: true
+- id: plugin-manager
+  config:
+    installBundles: false
+    offeredBundles: []
+    withheldBundles:
+      - '@deepseek-ai/dsh-experimental-liveshare'
+      - '@deepseek-ai/dsh-experimental-forge-bundle'
+    readOnly: true

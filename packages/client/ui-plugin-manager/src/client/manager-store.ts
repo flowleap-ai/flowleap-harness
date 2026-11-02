@@ -14,6 +14,7 @@ import type {
   ChangeResult,
   IncompatiblePlugin,
   ManagementError,
+  PluginDeployment,
   PluginEntryId,
   PluginInfo,
   PluginInspectProblem,
@@ -98,6 +99,10 @@ export interface PackageRow {
   readonly diagnostic?: string
   /** Why the Host refuses to switch the row, when it does. */
   readonly readOnlyReason?: ReadOnlyReason
+  /** The context-global tools the running entry registered; empty for a row without a live entry. */
+  readonly tools: readonly string[]
+  /** Whether the running entry's module has a browser half; false for a row without a live entry. */
+  readonly hasClient: boolean
 }
 
 /** One bundle as the page shows it: the Host's bundle joined with the entries its rows run as. */
@@ -391,6 +396,8 @@ export interface PluginManagerState {
    */
   readonly refreshStatus: 'idle' | 'refreshing' | 'failed'
   readonly packages: readonly PackageView[]
+  /** What the Host lets the person change; until the first read, the defaults of a writable deployment. */
+  readonly deployment: PluginDeployment
   /** Package names and row keys with an action crossing the wire. */
   readonly busy: readonly string[]
   readonly notice: ManagerNotice | null
@@ -564,6 +571,8 @@ export function packageView(bundle: BundleInfo, plugins: readonly PluginInfo[]):
       ...row.meta === undefined ? {} : { meta: row.meta },
       ...row.entryId === undefined ? {} : { entryId: row.entryId },
       ...live?.readOnlyReason === undefined ? {} : { readOnlyReason: live.readOnlyReason },
+      tools: live?.tools ?? [],
+      hasClient: live?.hasClient ?? false,
     }
   })
   return {
@@ -689,7 +698,7 @@ export class PluginManagerController {
   ) {
     this.details = new BundleDetailController(ctx, () => document.baseURI)
     this.store = createSnapshotStore<PluginManagerState>({
-      status: 'idle', refreshStatus: 'idle', packages: [], busy: [], notice: null,
+      status: 'idle', refreshStatus: 'idle', packages: [], deployment: { readOnly: false, installBundles: true }, busy: [], notice: null,
       install: IDLE_INSTALL, confirm: null, highlight: null, versions: {}, update: null,
     })
   }
@@ -1103,12 +1112,13 @@ export class PluginManagerController {
           this.patch({ status: 'unavailable', packages: [] })
           continue
         }
-        const [bundles, plugins] = await Promise.all([
+        const [bundles, plugins, deployment] = await Promise.all([
           this.ctx.remote.pluginManager.listBundles(),
           this.ctx.remote.pluginManager.listPlugins(),
+          this.ctx.remote.pluginManager.deployment(),
         ])
         if (generation !== this.generation) return
-        if (!bundles.ok || !plugins.ok) {
+        if (!bundles.ok || !plugins.ok || !deployment.ok) {
           this.patch({ status: 'error' })
           continue
         }
@@ -1117,6 +1127,7 @@ export class PluginManagerController {
           status: 'ready',
           refreshStatus: this.getSnapshot().refreshStatus === 'refreshing' ? 'refreshing' : 'idle',
           packages: sortPackages(bundles.value.map(bundle => packageView(bundle, plugins.value))),
+          deployment: deployment.value,
         })
         this.dropStaleVersions()
       } while (this.shouldRerun())

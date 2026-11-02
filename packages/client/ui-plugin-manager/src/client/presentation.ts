@@ -112,32 +112,44 @@ export function shortName(name: string): string {
 }
 
 /**
+ * The product name of a package without a display title: its short name in words, first letter upper case.
+ * @param name - the package name.
+ * @returns for example `Agent instructions` for `@deepseek-ai/dsh-agent-instructions`.
+ */
+export function productName(name: string): string {
+  const words = shortName(name).replace(/[-_]+/gu, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/**
  * Resolve installed package metadata without changing its technical identity.
  * @param pkg - package identity and local metadata.
  * @param resolveText - current-locale package text resolver.
- * @returns localized copy with a technical-name fallback and the independent beta status.
+ * @param packageNames - whether a package without a display title shows its package name rather than its product name.
+ * @returns localized copy with a name fallback and the independent beta status.
  */
 export function packageText(
-  pkg: Pick<PackageView, 'name' | 'meta'>, resolveText: PluginManagerFace['resolveText'],
+  pkg: Pick<PackageView, 'name' | 'meta'>, resolveText: PluginManagerFace['resolveText'], packageNames: boolean,
 ): { title: string; description: string | undefined; beta: boolean } {
   return {
-    title: pkg.meta?.title === undefined ? pkg.name : resolveText(pkg.meta.title),
+    title: pkg.meta?.title !== undefined ? resolveText(pkg.meta.title) : packageNames ? pkg.name : productName(pkg.name),
     description: pkg.meta?.description === undefined ? undefined : resolveText(pkg.meta.description) || undefined,
     beta: EXPERIMENTAL_BUNDLES.has(pkg.name),
   }
 }
 
 /**
- * Resolve a bundle row's plugin metadata, using its full module specifier as the final title fallback.
+ * Resolve a bundle row's plugin metadata, using its full module specifier or its product name as the final title fallback.
  * @param row - row identity and local metadata.
  * @param resolveText - current-locale package text resolver.
+ * @param packageNames - whether a row without a display title shows its module specifier rather than its product name.
  * @returns the row's display title and optional description.
  */
 export function rowText(
-  row: Pick<PackageRow, 'moduleName' | 'meta'>, resolveText: PluginManagerFace['resolveText'],
+  row: Pick<PackageRow, 'moduleName' | 'meta'>, resolveText: PluginManagerFace['resolveText'], packageNames: boolean,
 ): { title: string; description: string | undefined } {
   return {
-    title: row.meta?.title === undefined ? row.moduleName : resolveText(row.meta.title),
+    title: row.meta?.title !== undefined ? resolveText(row.meta.title) : packageNames ? row.moduleName : productName(row.moduleName),
     description: row.meta?.description === undefined ? undefined : resolveText(row.meta.description) || undefined,
   }
 }

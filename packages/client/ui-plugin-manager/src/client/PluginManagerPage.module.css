@@ -489,6 +489,16 @@
   overflow: hidden;
 }
 
+/* What a product plugin adds, under its one-liner. */
+.adds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Match Session search's pulse without coupling the two feature packages. */
 .skeletonFill {
   background: var(--dsw-alias-bg-skeleton);

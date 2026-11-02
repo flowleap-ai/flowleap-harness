@@ -32,6 +32,7 @@ import { tabLedgerSource } from './tab-ledger.ts'
 import { PluginManagerController } from './manager-store.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type PluginManagerLocaleKey } from './locales.ts'
 import { createNavigationStore } from './navigation-store.ts'
+import { PageConfig, PLUGIN_MANAGER_PAGE_GLOBAL } from '../page-config.ts'
 import type {} from './slot-contract.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -94,6 +95,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager', 'rem
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-plugin-manager: dictionaries')
   const t = ctx.locale.bind(NS)
+  const page = PageConfig((globalThis as Record<string, unknown>)[PLUGIN_MANAGER_PAGE_GLOBAL] ?? {})
   const controller = new PluginManagerController(ctx)
   ctx.effect(() => () => { controller.dispose() }, 'ui-plugin-manager: controller')
   ctx.provide('pluginChanges', { bundle: packageName => controller.observeChanges(packageName) })
@@ -134,7 +136,7 @@ export function apply(ctx: ClientContext): void {
         key: PANEL_ID,
         locale: NS,
         store,
-        inject: () => ({ ...face, createHeaderRef: createPluginHeaderRef }),
+        inject: () => ({ ...face, packageNames: page.packageNames, createHeaderRef: createPluginHeaderRef }),
         children: {
           'plugins.add.actions': { kind: 'list', scope: 'root' },
           'plugins.tab': { kind: 'list', scope: 'root' },
