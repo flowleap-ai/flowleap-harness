@@ -109,15 +109,15 @@ export default class SkillInventoryService extends TypertRemoteService {
 
   /**
    * Load the body of one exact skill of the default agent view, a winner or a replaced one.
-   * @param ref - name, provider, and source as `list()` reports them.
+   * @param ref - name, provider, source, and path as `list()` reports them.
    * @param signal - caller lifetime carried by the Remote transport.
    * @returns the Markdown body.
    * @throws RemoteError `skill/not-found` when the view holds no such skill or its file is gone.
    */
   @Remote
   async read(ref: SkillRef, signal: AbortSignal): Promise<SkillTextValue> {
-    const { name, provider, source } = ref
-    const definition = await this.withView(signal, options => this.ctx.skills.read({ name, provider, source }, options))
+    const { name, provider, source, path } = ref
+    const definition = await this.withView(signal, options => this.ctx.skills.read({ name, provider, source, path }, options))
     if (definition === undefined) {
       throw new RemoteError('skill/not-found', `skill "${name}" from ${provider} (${source}) not found`, { name, provider, source })
     }

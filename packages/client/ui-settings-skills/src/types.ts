@@ -33,6 +33,11 @@ export interface SkillRef {
   readonly provider: string
   /** Discovery source of the candidate. */
   readonly source: SkillSource
+  /**
+   * Absolute instruction file path, absent for a skill without a file; it
+   * tells apart two skills of one provider and source with the same name.
+   */
+  readonly path?: string | undefined
 }
 
 /** One skill candidate of the view. */
@@ -41,8 +46,6 @@ export interface SkillInventoryRow extends SkillRef {
   readonly description: string
   /** Optional extra routing guidance. */
   readonly whenToUse?: string
-  /** Absolute instruction file path, absent for a skill without a file. */
-  readonly path?: string
   /** Where the skill comes from. */
   readonly origin: SkillOrigin
   /** Whether the user can start the skill from the `/` list. */

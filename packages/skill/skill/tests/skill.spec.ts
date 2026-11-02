@@ -1332,6 +1332,26 @@ describe('SkillRegistry inspect and read', () => {
     expect(await ctx.skills.read({ name: 'Not A Name', provider: 'pack', source: 'custom' })).toBeUndefined()
   })
 
+  it('tells apart two same-name candidates of one provider and source by their path', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    const copy = (path: string, rank: number, content: string): SkillCandidate => ({
+      ...memorySkill('claims', path, rank, content), provider: 'mine', source: 'user-dsh', path,
+    })
+    registerProvider(ctx, {
+      name: 'mine',
+      list: () => Promise.resolve([copy('/home/skills/claims/SKILL.md', 100, 'current'), copy('/home/skills/claims-old/SKILL.md', 100, 'old')]),
+      get: candidate => Promise.resolve({ ...candidate, content: (candidate.locator as { content: string }).content }),
+    })
+
+    const [winner, replaced] = (await ctx.skills.inspect()).skills
+    expect([winner?.path, replaced?.path]).toEqual(['/home/skills/claims/SKILL.md', '/home/skills/claims-old/SKILL.md'])
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: replaced?.path }))?.content).toBe('old')
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: winner?.path }))?.content).toBe('current')
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh' }))?.content).toBe('current')
+    expect(await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: '/elsewhere/SKILL.md' })).toBeUndefined()
+  })
+
   it('passes provider faults through in provider order and refuses a fault for another provider', async () => {
     const ctx = new Context()
     await ctx.plugin(SkillRegistry)

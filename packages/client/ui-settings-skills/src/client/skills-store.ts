@@ -31,11 +31,11 @@ export interface SkillsState {
 
 /**
  * Key of one exact skill candidate.
- * @param ref - name, provider, and source of the candidate.
+ * @param ref - name, provider, source, and path of the candidate.
  * @returns a key unique per candidate identity.
  */
 export function skillKey(ref: SkillRef): string {
-  return JSON.stringify([ref.provider, ref.source, ref.name])
+  return JSON.stringify([ref.provider, ref.source, ref.name, ref.path])
 }
 
 /** Coordinates the page state with the Host. */
@@ -67,7 +67,7 @@ export class SkillsStore {
     const current = this.store.getSnapshot().texts[key]
     if (current !== undefined && current.status !== 'error') return
     this.setText(key, { status: 'loading' })
-    const result = await this.ctx.remote.skillInventory.read({ name: ref.name, provider: ref.provider, source: ref.source })
+    const result = await this.ctx.remote.skillInventory.read({ name: ref.name, provider: ref.provider, source: ref.source, path: ref.path })
     if (result.ok) this.setText(key, { status: 'ready', content: result.value.content })
     else this.setText(key, { status: result.error.code === 'skill/not-found' ? 'gone' : 'error' })
   }

@@ -299,8 +299,9 @@ export interface SkillProviderObservation {
 
 /**
  * Identity of one candidate across a merge: the name plus the provider and
- * source that produced it. Two candidates of one provider and source with the
- * same name are not distinguishable; the higher-precedence one answers.
+ * source that produced it, and its instruction file path when it has one. Two
+ * file-backed candidates of one provider and source with the same name differ
+ * by path; without a path, the higher-precedence one answers.
  */
 export interface SkillCandidateRef {
   /** Kebab-case skill name. */
@@ -309,6 +310,8 @@ export interface SkillCandidateRef {
   readonly provider: string
   /** Discovery source of the candidate. */
   readonly source: SkillSource
+  /** Instruction file path as `inspect()` reports it; when present, only the candidate with this path matches. */
+  readonly path?: string | undefined
 }
 
 /** One merged candidate as `inspect()` reports it. */
@@ -615,7 +618,7 @@ export class SkillRegistry extends Service {
    */
   async inspect(options: SkillViewOptions = {}): Promise<SkillInventory> {
     const revision = this.revision
-    const merged = await this.collectFresh(options)
+    const merged = await this.collectFresh(options, false)
     throwIfAborted(options.signal)
     const skills: SkillInventoryEntry[] = []
     const winners = [...merged.entries.values()].sort((left, right) => compareCodePoints(left.candidate.name, right.candidate.name))
@@ -632,16 +635,17 @@ export class SkillRegistry extends Service {
   /**
    * Load the body of one exact candidate of a view, a winner or a replaced
    * one, with the same validation and cancellation as `get()`.
-   * @param ref - name, provider, and source of the candidate, as `inspect()` reports them.
+   * @param ref - name, provider, source, and path of the candidate, as `inspect()` reports them.
    * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels work.
    * @returns the full skill, or `undefined` when the view holds no such candidate or its file is gone.
    */
   async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined> {
     if (!isSkillName(ref.name)) return undefined
-    const merged = await this.collectFresh(options)
+    const merged = await this.collectFresh(options, false)
     throwIfAborted(options.signal)
     const candidates = [merged.entries.get(ref.name), ...merged.replaced.get(ref.name) ?? []]
-    const match = candidates.find(entry => entry?.candidate.provider === ref.provider && entry.candidate.source === ref.source)
+    const match = candidates.find(entry => entry?.candidate.provider === ref.provider && entry.candidate.source === ref.source
+      && (ref.path === undefined || entry.candidate.path === ref.path))
     if (match === undefined) return undefined
     return await this.load(match, options)
   }
@@ -672,7 +676,7 @@ export class SkillRegistry extends Service {
       const cached = this.collectCache.get(key)
       if (cached !== undefined) return { entries: cached, cacheable: true }
 
-      const result = await this.collectFresh(options)
+      const result = await this.collectFresh(options, true)
       throwIfAborted(options.signal)
       if (revision !== this.revision) {
         if (attempt < MAX_COLLECT_ATTEMPTS) {
@@ -692,7 +696,11 @@ export class SkillRegistry extends Service {
     }
   }
 
-  private async collectFresh(options: SkillViewOptions): Promise<MergeResult> {
+  /**
+   * Merge every layer of the view. `logReplaced` logs each within-layer loser;
+   * only the cache-filling read logs, so uncached inspection does not repeat it.
+   */
+  private async collectFresh(options: SkillViewOptions, logReplaced: boolean): Promise<MergeResult> {
     // Global first, then existing chain overlays farthest ancestor first and
     // the exact scope last, so the nearest layer's same-name entry replaces
     // the farther ones — the tools registry's shadowing rule. Rank decides
@@ -703,7 +711,7 @@ export class SkillRegistry extends Service {
       const collected = await this.listLayerCandidates(layer, options)
       if (!collected.cacheable) merged.cacheable = false
       merged.faults.push(...collected.faults)
-      const nearer = this.mergeLayer(collected.entries)
+      const nearer = this.mergeLayer(collected.entries, logReplaced)
       // Every candidate of a nearer layer outranks every candidate of the
       // farther ones, so this layer's losers go first, then the farther winner.
       for (const [name, entry] of nearer.entries) {
@@ -718,14 +726,14 @@ export class SkillRegistry extends Service {
   }
 
   /** Apply the within-layer rule: the lowest rank, then provider order, then provider-local order wins a name. */
-  private mergeLayer(entries: IndexedCandidate[]): Pick<MergeResult, 'entries' | 'replaced'> {
+  private mergeLayer(entries: IndexedCandidate[], logReplaced: boolean): Pick<MergeResult, 'entries' | 'replaced'> {
     entries.sort(compareIndexedCandidates)
     const winners = new Map<string, IndexedCandidate>()
     const replaced = new Map<string, IndexedCandidate[]>()
     for (const entry of entries) {
       const skill = entry.candidate
       if (winners.has(skill.name)) {
-        this.ctx.logger.warn(`skill "${skill.name}" from ${skill.source} ignored because a higher-priority skill already exists`)
+        if (logReplaced) this.ctx.logger.warn(`skill "${skill.name}" from ${skill.source} ignored because a higher-priority skill already exists`)
         replaced.set(skill.name, [...replaced.get(skill.name) ?? [], entry])
         continue
       }
