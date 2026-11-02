@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "FlowLeap patent data connectors",
-    "description": "EPO OPS, USPTO ODP, academic search and Mistral OCR tools (compare_claims, read_pdf) that run in this process with the firm's own keys."
+    "title": "Patent data connectors",
+    "description": "Searches and reads patent office, register and literature data with the firm's own keys, and reads PDF files with OCR."
   }
 }

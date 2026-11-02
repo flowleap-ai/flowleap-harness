@@ -1,6 +1,7 @@
 /**
  * The plugins the product itself brings: the running rows of the selected bundles the installation supplies, such as
- * a branded profile layer. The page lists them read-only, because they are part of the product.
+ * a branded profile layer, that add a tool or a browser half. The page lists them read-only, because they are part of
+ * the product. A row that adds neither, such as an agent preset declaration or a prompt file, is not listed.
  */
 import { createContext, type ReactNode } from 'react'
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -38,7 +39,7 @@ export function productPlugins(
   const byTitle = new Map<string, { description: string | undefined; icon: string | undefined; rows: PackageRow[] }>()
   const products = packages.filter(pkg => pkg.enabled && !pkg.official && !pkg.installed
     && pkg.availability === 'installation' && !HIDDEN_BUNDLES.has(pkg.name))
-  for (const row of products.flatMap(pkg => pkg.rows).filter(row => row.enabled)) {
+  for (const row of products.flatMap(pkg => pkg.rows).filter(row => row.enabled && (row.tools.length > 0 || row.hasClient))) {
     const { title, description } = rowText(row, resolveText, packageNames)
     const card = byTitle.get(title) ?? { description: undefined, icon: undefined, rows: [] }
     card.rows.push(row)

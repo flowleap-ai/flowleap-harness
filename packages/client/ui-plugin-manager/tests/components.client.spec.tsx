@@ -2689,14 +2689,16 @@ describe('product plugins, read-only deployments, and product names', () => {
         meta: { title: { en: 'Patent data connectors' }, description: { en: 'Search the patent offices.' } }, tools: ['search_patents', 'get_claims'] }),
       row({ entryId: 'include:connector-cards' as PluginEntryId, rowId: 'connector-cards', moduleName: '@acme/dsh-client-ui-connectors',
         meta: { title: { en: 'Patent data connectors' } }, tools: ['get_claims'], hasClient: true }),
-      row({ entryId: 'include:agent-instructions' as PluginEntryId, rowId: 'agent-instructions', moduleName: '@deepseek-ai/dsh-agent-instructions', phase: 'failed' }),
+      row({ entryId: 'include:agent-instructions' as PluginEntryId, rowId: 'agent-instructions', moduleName: '@deepseek-ai/dsh-agent-instructions',
+        phase: 'failed', hasClient: true }),
+      row({ entryId: 'include:prompt' as PluginEntryId, rowId: 'prompt', moduleName: '@acme/dsh-prompt', meta: { title: { en: 'Prompt file' } } }),
       { rowId: 'off', moduleName: '@acme/dsh-off', enabled: false, phase: null, tools: [], hasClient: false },
     ],
   })
   const experimental = pkg({ name: '@acme/dsh-experimental', optional: true, installed: false, enabled: false })
   const selected = pkg({ name: '@acme/dsh-selected', meta: { title: { en: 'Selected tool' } } })
 
-  it('lists the running rows of the product as read-only cards: one per title, what each adds, and its state', () => {
+  it('lists the running rows of the product that add a tool or an interface as read-only cards: one per title, what each adds, and its state', () => {
     renderTab({ packages: [product] }, {}, {}, {}, [], false)
     const group = document.querySelector('[data-plugin-group="product"]') as HTMLElement
     expect(within(group).getByRole('heading').textContent).toBe(en.productTitle)
@@ -2708,7 +2710,8 @@ describe('product plugins, read-only deployments, and product names', () => {
     expect(within(adds).getAllByRole('listitem').map(item => item.textContent)).toEqual([en.addsTools.replace('{count}', '2'), en.addsInterface])
     expect(within(connectors).getByText(en.rowPhaseActive)).toBeTruthy()
     const instructions = group.querySelector('[data-plugin-product="Agent instructions"]') as HTMLElement
-    expect(within(instructions).queryByRole('list')).toBeNull()
+    expect(within(within(instructions).getByRole('list', { name: en.addsLabel })).getAllByRole('listitem').map(item => item.textContent))
+      .toEqual([en.addsInterface])
     expect(within(instructions).getByText(en.rowPhaseFailed)).toBeTruthy()
     expect(within(group).queryByRole('switch')).toBeNull()
     expect(within(group).queryByRole('button')).toBeNull()

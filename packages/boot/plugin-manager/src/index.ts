@@ -520,7 +520,7 @@ export class PluginManager extends TypertRemoteService {
       const candidate = candidates[0]
       const listed = {
         ...entry,
-        tools: actual?.fiber === undefined || tools === undefined ? [] : tools.registeredBy(actual.fiber),
+        tools: actual?.fiber === undefined || tools === undefined ? [] : tools.registeredBy(actual.fiber.ctx.fiber),
         hasClient: clientModules?.clientPath(entry.moduleName) !== undefined,
       }
       if (PROTECTED_PLUGINS.has(entry.moduleName) || entry.entryId === this.ownerEntryId) {

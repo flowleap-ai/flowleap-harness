@@ -19,6 +19,8 @@ import { OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG } from '@deepseek-ai/dsh-o
 import PluginManager, { type Config, type PluginChange, type PluginInstallLogChunk, type PluginInstallProgress, type PluginInstallRequestId } from '../src/index.ts'
 import type { PluginEntryId, PluginOperation } from '../src/types.ts'
 import Hmr from '@deepseek-ai/dsh-hmr'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { Group } from '@deepseek-ai/cordis-plugin-loader'
@@ -54,7 +56,16 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
     mkdirSync(path, { recursive: true })
     writeFileSync(join(path, 'package.json'), JSON.stringify({ name, version: '1.0.0', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
     writeFileSync(join(path, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }]))
-    writeFileSync(join(path, 'plugin.mjs'), 'export function apply(ctx, config) { if (config?.fail) throw new Error("test activation failed"); ctx.provide(config?.service ?? "managedProbe", true) }\n')
+    writeFileSync(join(path, 'plugin.mjs'), [
+      'export function apply(ctx, config) {',
+      '  if (config?.fail) throw new Error("test activation failed")',
+      '  ctx.provide(config?.service ?? "managedProbe", true)',
+      '  for (const name of config?.tools ?? []) ctx.inject(["tools"], scope => scope.tools.register({ name, description: name,',
+      '    parameters: { type: "object", properties: {} }, execute: async () => "",',
+      '    output: { schema: { type: "string" }, render: () => [] } }))',
+      '}',
+      '',
+    ].join('\n'))
   }
   bundle('core', [{ id: 'manager', name: 'cordis:manager', config }])
   bundle('extra', [{ id: 'managed', name: './plugin.mjs' }])
@@ -182,9 +193,12 @@ it('lists every plugin and bundle read-only and refuses every change while readO
 
 it('reports the deployment switches and what each plugin adds: its context-global tools and its browser half', async () => {
   const { manager } = await fixture('live', false, (ctx) => {
-    ctx.provide('tools', { registeredBy: (fiber: { entry?: { id: string } }) => fiber.entry?.id.endsWith(':managed') === true ? ['probe_read', 'probe_write'] : [] })
+    void ctx.plugin(SystemPrompt).then(() => ctx.plugin(ToolRuntime))
     ctx.provide('clientModules', { clientPath: (id: string) => id.endsWith('plugin.mjs') ? '/client.js' : undefined })
-  }, { installBundles: false })
+  }, { installBundles: false }, undefined, (dir) => {
+    writeFileSync(join(dir, 'node_modules/extra/cordis.patch.yml'),
+      JSON.stringify([{ insert: [{ id: 'managed', name: './plugin.mjs', config: { tools: ['probe_write', 'probe_read'] } }] }]))
+  })
   expect(manager.deployment()).toEqual({ readOnly: false, installBundles: false })
   const plugins = await manager.listPlugins()
   expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'], hasClient: true })
