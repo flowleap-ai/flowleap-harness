@@ -55,8 +55,13 @@ export interface ManagementError {
  */
 export type RestartReason = 'no-hmr' | 'package-moved' | 'host-module' | 'unmanaged-plugin' | 'module-comparison'
 
-/** One running-profile entry, the context-global tools it registered, and its persistent control availability. */
-export type PluginInfo = PluginInventoryEntry & { tools: string[] } & (
+/** One running-profile entry, what it adds to the application, and its persistent control availability. */
+export type PluginInfo = PluginInventoryEntry & {
+  /** The context-global tools the entry registered, itself or through its child plugins, sorted. */
+  tools: string[]
+  /** Whether the entry's module has a browser half that the Web page loads, such as a page, a card, or a sidebar row. */
+  hasClient: boolean
+} & (
   | { patchId: string; readOnlyReason?: never }
   | { patchId?: never; readOnlyReason: ReadOnlyReason }
 )

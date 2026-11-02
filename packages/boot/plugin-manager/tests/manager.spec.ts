@@ -180,14 +180,15 @@ it('lists every plugin and bundle read-only and refuses every change while readO
   expect(existsSync(join(dir, 'compatibility.json'))).toBe(false)
 })
 
-it('reports the deployment switches and the context-global tools each plugin registered', async () => {
+it('reports the deployment switches and what each plugin adds: its context-global tools and its browser half', async () => {
   const { manager } = await fixture('live', false, (ctx) => {
     ctx.provide('tools', { registeredBy: (fiber: { entry?: { id: string } }) => fiber.entry?.id.endsWith(':managed') === true ? ['probe_read', 'probe_write'] : [] })
+    ctx.provide('clientModules', { clientPath: (id: string) => id.endsWith('plugin.mjs') ? '/client.js' : undefined })
   }, { installBundles: false })
   expect(manager.deployment()).toEqual({ readOnly: false, installBundles: false })
   const plugins = await manager.listPlugins()
-  expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'] })
-  expect(plugins.find(item => String(item.entryId).endsWith(':manager'))).toMatchObject({ tools: [] })
+  expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'], hasClient: true })
+  expect(plugins.find(item => String(item.entryId).endsWith(':manager'))).toMatchObject({ tools: [], hasClient: false })
 })
 
 it('selects only an offered bundle and still deselects one', async () => {

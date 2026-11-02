@@ -134,8 +134,8 @@ export function apply(ctx: Context): void {
               ? (({ updatable: _updatable, listedByDefault: _listedByDefault, ...bundle }) => ({
                 ...bundle, rows: bundle.rows.map(({ meta: _rowMeta, ...declared }) => declared),
               }))(row)
-              // The registered tools are GUI display, like `meta`.
-              : (({ tools: _tools, ...plugin }) => plugin)(row))
+              // What a plugin adds is GUI display, like `meta`.
+              : (({ tools: _tools, hasClient: _hasClient, ...plugin }) => plugin)(row))
           return JSON.stringify({ entries, total: rows.length,
             nextOffset: offset + entries.length < rows.length ? offset + entries.length : null })
         }

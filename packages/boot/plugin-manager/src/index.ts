@@ -15,6 +15,7 @@ import { detailImageResponse, NPM_FILE_SOURCES } from '@deepseek-ai/dsh-plugin-d
 import type { NpmFileSource } from '@deepseek-ai/dsh-plugin-detail/types'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-client-modules'
 import { readBundleDocument, readBundleImage, type BundleDetailOptions } from './bundle-detail.ts'
 import { pluginEntryId, readPluginInventory } from '@deepseek-ai/dsh-host-plugin-inventory'
 import {
@@ -503,7 +504,8 @@ export class PluginManager extends TypertRemoteService {
   }
 
   /** Read current plugins, including why a row cannot be changed through the profile patch.
-   * @returns Current runtime entries with persistent patch targets and the context-global tools each registered.
+   * @returns Current runtime entries with persistent patch targets, the context-global tools each registered, and whether
+   * its module has a browser half.
    */
   @Remote
   async listPlugins(): Promise<PluginInfo[]> {
@@ -511,11 +513,16 @@ export class PluginManager extends TypertRemoteService {
     const locked = profileLocks(loadProfileDirectory('dsh', this.profile.dir, this.profile.installAnchor, { userLayer: false }).layers).rows
     const snapshot = await readPluginInventory(this.ctx)
     const tools = this.ctx.get('tools')
+    const clientModules = this.ctx.get('clientModules')
     return snapshot.entries.map((entry) => {
       const actual = [...this.ctx.loader.entries()].find(row => row.id === entry.entryId)
       const candidates = rows.filter(row => row.id === actual?.options.id)
       const candidate = candidates[0]
-      const listed = { ...entry, tools: actual?.fiber === undefined || tools === undefined ? [] : tools.registeredBy(actual.fiber) }
+      const listed = {
+        ...entry,
+        tools: actual?.fiber === undefined || tools === undefined ? [] : tools.registeredBy(actual.fiber),
+        hasClient: clientModules?.clientPath(entry.moduleName) !== undefined,
+      }
       if (PROTECTED_PLUGINS.has(entry.moduleName) || entry.entryId === this.ownerEntryId) {
         return { ...listed, readOnlyReason: 'management-required' as const }
       }
