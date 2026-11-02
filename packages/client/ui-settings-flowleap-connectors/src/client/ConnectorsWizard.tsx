@@ -1,6 +1,7 @@
 /**
  * First-run wizard: shown once, while no connector is configured and the
- * dismissal is not recorded. Save writes every completed draft and records the
+ * dismissal is not recorded. The show decision is made when both stores have
+ * loaded and holds until Save or Skip. Save writes every completed draft and records the
  * dismissal; Test saves the drafts, then runs the Host's connection test on each
  * stored connector; Skip records the dismissal alone.
  */
@@ -60,13 +61,17 @@ export function ConnectorsWizard(props: ConnectorsWizardProps): ReactNode {
 
   const deciding = wizard.status === 'idle' || wizard.status === 'loading'
     || connectors.status === 'idle' || connectors.status === 'loading'
-  const skip = !explicit && (wizard.dismissed || connectors.anyConfigured || connectors.status === 'error')
+  // Decided once: a key that Test saves configures a connector, and the wizard must stay open on the outcome.
+  const [shown, setShown] = useState<boolean>()
+  if (shown === undefined && !deciding) {
+    setShown(explicit || !(wizard.dismissed || connectors.anyConfigured || connectors.status === 'error'))
+  }
 
   useEffect(() => {
-    if (!deciding && skip) finish()
-  }, [deciding, skip, finish])
+    if (shown === false) finish()
+  }, [shown, finish])
 
-  if (deciding || skip) return null
+  if (shown !== true) return null
 
   const busy = CONNECTOR_IDS.some(id => connectors.cards[id].busy !== 'idle') || wizard.status === 'saving'
 

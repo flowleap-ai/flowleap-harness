@@ -41,6 +41,14 @@ interface BrandCopyText {
   readonly reasonIncompatibleInstall: string
   readonly reasonIncompatibleInstalled: string
   readonly reasonUnsupportedPlatform: string
+  readonly installBundledTitle: string
+  readonly installSpecPlaceholder: string
+  readonly installGuideIdExample: string
+  readonly installGuideIdHint: string
+  readonly updateLostDetail: string
+  readonly versionsBlocked: string
+  readonly versionsBlockedDetail: string
+  readonly browserApplicationOrigin: string
   readonly officeUnavailable: string
   readonly running: string
   readonly runningFor: string
@@ -76,6 +84,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Install a plugin version compatible with this ${product}.`,
     reasonIncompatibleInstalled: `Uninstall it and install a version compatible with this ${product}.`,
     reasonUnsupportedPlatform: `This plugin does not support the operating system running ${product}.`,
+    installBundledTitle: `This plugin ships with ${product}`,
+    installSpecPlaceholder: 'for example @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'The plugin package name is the npm package name (like @author/plugin) in the install command of the plugin\'s README.',
+    updateLostDetail: `The connection to ${product} was interrupted: {reason}. Refresh the plugin list to see the installed version.`,
+    versionsBlocked: `Newer versions need a ${product} update`,
+    versionsBlockedDetail: `{version} needs {peers}; this ${product} is {runtime}`,
+    browserApplicationOrigin: `The embedded browser cannot open ${product} itself.`,
     officeUnavailable: `Office previews are unavailable. Enable the document preview service on the computer running ${product}.`,
     running: 'Working',
     runningFor: 'Working for {duration} ···',
@@ -108,6 +124,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `请安装与此 ${product} 兼容的插件版本。`,
     reasonIncompatibleInstalled: `请卸载它，并安装与此 ${product} 兼容的版本。`,
     reasonUnsupportedPlatform: `此插件不支持运行 ${product} 的主机操作系统`,
+    installBundledTitle: `插件已随 ${product} 提供`,
+    installSpecPlaceholder: '例如 @作者/插件名',
+    installGuideIdExample: '@作者/插件名',
+    installGuideIdHint: '插件包名即 npm 包名（如 @作者/插件名），见插件 README 中的安装命令。',
+    updateLostDetail: `与 ${product} 的连接中断：{reason}。刷新插件列表可查看当前版本。`,
+    versionsBlocked: `新版本需要更新 ${product}`,
+    versionsBlockedDetail: `{version} 需要 {peers}，当前 ${product} 为 {runtime}`,
+    browserApplicationOrigin: `不能在嵌入浏览器中打开 ${product} 自身。`,
     officeUnavailable: `Office 预览不可用。请在运行 ${product} 的计算机上启用文档预览服务。`,
     running: '处理中',
     runningFor: '处理中，用时 {duration} ···',
@@ -140,6 +164,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `この ${product} と互換性のあるプラグインのバージョンをインストールしてください。`,
     reasonIncompatibleInstalled: `アンインストールして、この ${product} と互換性のあるバージョンをインストールしてください。`,
     reasonUnsupportedPlatform: `このプラグインは${product}を実行しているホストOSに対応していません。`,
+    installBundledTitle: `このプラグインは ${product} に同梱されています`,
+    installSpecPlaceholder: '例: @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'プラグインのパッケージ名は npm パッケージ名（@author/plugin など）で、プラグインの README のインストールコマンドにあります。',
+    updateLostDetail: `${product} との接続が中断されました: {reason}。プラグイン一覧を更新すると、インストール済みのバージョンを確認できます。`,
+    versionsBlocked: `新しいバージョンには ${product} の更新が必要です`,
+    versionsBlockedDetail: `{version} には {peers} が必要です。この ${product} は {runtime} です`,
+    browserApplicationOrigin: `埋め込みブラウザは ${product} 自体を開けません。`,
     officeUnavailable: `Office のプレビューは利用できません。${product} を実行しているコンピューターでドキュメントプレビューサービスを有効にしてください。`,
     running: '処理中',
     runningFor: '処理中 {duration} ···',
@@ -172,6 +204,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Instale una versión del complemento compatible con este ${product}.`,
     reasonIncompatibleInstalled: `Desinstálelo e instale una versión compatible con este ${product}.`,
     reasonUnsupportedPlatform: `Este complemento no es compatible con el sistema operativo que ejecuta ${product}.`,
+    installBundledTitle: `Este complemento se incluye con ${product}`,
+    installSpecPlaceholder: 'por ejemplo @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'El nombre del paquete del complemento es el nombre del paquete npm (como @author/plugin) del comando de instalación del README del complemento.',
+    updateLostDetail: `Se interrumpió la conexión con ${product}: {reason}. Actualice la lista de complementos para ver la versión instalada.`,
+    versionsBlocked: `Las versiones más nuevas necesitan una actualización de ${product}`,
+    versionsBlockedDetail: `{version} necesita {peers}; este ${product} es {runtime}`,
+    browserApplicationOrigin: `El navegador integrado no puede abrir ${product}.`,
     officeUnavailable: `Las vistas previas de Office no están disponibles. Active el servicio de vista previa de documentos en el equipo que ejecuta ${product}.`,
     running: 'Trabajando',
     runningFor: 'Trabajando durante {duration} ···',
@@ -204,6 +244,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Installez une version du plugin compatible avec ce ${product}.`,
     reasonIncompatibleInstalled: `Désinstallez-le et installez une version compatible avec ce ${product}.`,
     reasonUnsupportedPlatform: `Ce plugin ne prend pas en charge le système d’exploitation sur lequel ${product} s’exécute.`,
+    installBundledTitle: `Ce plugin est livré avec ${product}`,
+    installSpecPlaceholder: 'par exemple @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'Le nom du package du plugin est le nom du package npm (comme @author/plugin) de la commande d’installation du README du plugin.',
+    updateLostDetail: `La connexion à ${product} a été interrompue : {reason}. Actualisez la liste des plugins pour voir la version installée.`,
+    versionsBlocked: `Les versions plus récentes nécessitent une mise à jour de ${product}`,
+    versionsBlockedDetail: `{version} a besoin de {peers} ; ce ${product} est {runtime}`,
+    browserApplicationOrigin: `Le navigateur intégré ne peut pas ouvrir ${product} lui-même.`,
     officeUnavailable: `Les aperçus Office ne sont pas disponibles. Activez le service d'aperçu des documents sur l'ordinateur qui exécute ${product}.`,
     running: 'En cours',
     runningFor: 'En cours depuis {duration} ···',
@@ -236,6 +284,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Installieren Sie eine Plugin-Version, die mit diesem ${product} kompatibel ist.`,
     reasonIncompatibleInstalled: `Deinstallieren Sie es und installieren Sie eine Version, die mit diesem ${product} kompatibel ist.`,
     reasonUnsupportedPlatform: `Dieses Plugin unterstützt das Betriebssystem, auf dem ${product} läuft, nicht.`,
+    installBundledTitle: `Dieses Plugin wird mit ${product} geliefert`,
+    installSpecPlaceholder: 'zum Beispiel @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'Der Plugin-Paketname ist der npm-Paketname (wie @author/plugin) aus dem Installationsbefehl in der README des Plugins.',
+    updateLostDetail: `Die Verbindung zu ${product} wurde unterbrochen: {reason}. Aktualisieren Sie die Plugin-Liste, um die installierte Version anzuzeigen.`,
+    versionsBlocked: `Neuere Versionen benötigen ein ${product}-Update`,
+    versionsBlockedDetail: `{version} benötigt {peers}; dieses ${product} ist {runtime}`,
+    browserApplicationOrigin: `Der eingebettete Browser kann ${product} selbst nicht öffnen.`,
     officeUnavailable: `Office-Vorschauen sind nicht verfügbar. Aktivieren Sie den Dokumentvorschaudienst auf dem Computer, auf dem ${product} läuft.`,
     running: 'In Arbeit',
     runningFor: 'In Arbeit seit {duration} ···',
@@ -268,6 +324,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Установите версию плагина, совместимую с этим ${product}.`,
     reasonIncompatibleInstalled: `Удалите его и установите версию, совместимую с этим ${product}.`,
     reasonUnsupportedPlatform: `Этот плагин не поддерживает операционную систему, в которой работает ${product}.`,
+    installBundledTitle: `Этот плагин поставляется с ${product}`,
+    installSpecPlaceholder: 'например @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'Имя пакета плагина — это имя пакета npm (например, @author/plugin) из команды установки в README плагина.',
+    updateLostDetail: `Соединение с ${product} было прервано: {reason}. Обновите список плагинов, чтобы увидеть установленную версию.`,
+    versionsBlocked: `Для более новых версий требуется обновление ${product}`,
+    versionsBlockedDetail: `{version} нужен {peers}; этот ${product} — {runtime}`,
+    browserApplicationOrigin: `Встроенный браузер не может открыть сам ${product}.`,
     officeUnavailable: `Предпросмотр Office недоступен. Включите службу предпросмотра документов на компьютере, на котором работает ${product}.`,
     running: 'Выполняется',
     runningFor: 'Выполняется {duration} ···',
@@ -300,6 +364,14 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     reasonIncompatibleInstall: `Instale uma versão do plug-in compatível com este ${product}.`,
     reasonIncompatibleInstalled: `Desinstale-o e instale uma versão compatível com este ${product}.`,
     reasonUnsupportedPlatform: `Este plugin não oferece suporte ao sistema operacional em que o ${product} está sendo executado.`,
+    installBundledTitle: `Este plugin é fornecido com o ${product}`,
+    installSpecPlaceholder: 'por exemplo @author/plugin',
+    installGuideIdExample: '@author/plugin',
+    installGuideIdHint: 'O nome do pacote do plugin é o nome do pacote npm (como @author/plugin) do comando de instalação no README do plugin.',
+    updateLostDetail: `A conexão com o ${product} foi interrompida: {reason}. Atualize a lista de plugins para ver a versão instalada.`,
+    versionsBlocked: `Versões mais recentes precisam de uma atualização do ${product}`,
+    versionsBlockedDetail: `{version} precisa de {peers}; este ${product} é {runtime}`,
+    browserApplicationOrigin: `O navegador incorporado não pode abrir o próprio ${product}.`,
     officeUnavailable: `As pré-visualizações do Office não estão disponíveis. Ative o serviço de pré-visualização de documentos no computador que executa o ${product}.`,
     running: 'Em andamento',
     runningFor: 'Em andamento há {duration} ···',
@@ -338,7 +410,7 @@ export function brandCopy(brand: BrandRecord, locale: BrandLocale): readonly Cop
     },
     // dsh-client-ui-model-selection: the account model group and the lock message.
     { ns: 'model', dict: { 'provider.account': copy.providerAccount, 'error.sessionInUse': copy.sessionInUse } },
-    // dsh-client-ui-plugin-manager: restart and compatibility notices.
+    // dsh-client-ui-plugin-manager: restart, compatibility, update, and install notices.
     {
       ns: 'pluginManager',
       dict: {
@@ -357,8 +429,17 @@ export function brandCopy(brand: BrandRecord, locale: BrandLocale): readonly Cop
         reasonIncompatibleInstall: copy.reasonIncompatibleInstall,
         reasonIncompatibleInstalled: copy.reasonIncompatibleInstalled,
         reasonUnsupportedPlatform: copy.reasonUnsupportedPlatform,
+        installBundledTitle: copy.installBundledTitle,
+        installSpecPlaceholder: copy.installSpecPlaceholder,
+        installGuideIdExample: copy.installGuideIdExample,
+        installGuideIdHint: copy.installGuideIdHint,
+        updateLostDetail: copy.updateLostDetail,
+        versionsBlocked: copy.versionsBlocked,
+        versionsBlockedDetail: copy.versionsBlockedDetail,
       },
     },
+    // dsh-client-ui-sidebar-browser: the refusal to open the application in its own embedded browser.
+    { ns: 'sidebarBrowser', dict: { 'error.application-origin': copy.browserApplicationOrigin } },
     // dsh-client-ui-sidebar-documentpreview (office): the unavailable notice.
     { ns: 'sidebarOffice', dict: { unavailable: copy.officeUnavailable } },
     // dsh-client-ui-agent-preset: the Agent presets section that names the harness.
