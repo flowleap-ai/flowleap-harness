@@ -41,7 +41,8 @@ import { chooseGitTransport, sshGitSpec } from './git-transport.ts'
 import { newerVersions, VERSION_FIELDS, VERSION_LIST_FIELDS, versionFacts } from './versions.ts'
 import type {
   BundleDetail, BundleInfo, BundleRowInfo, ChangeResult, InspectOptions, InstallBundleOptions, ListVersionsOptions, ManagementError,
-  PackageResult, PluginChange, PluginEntryId, PluginInfo, PluginInstallCancellation, PluginInstallProgress, PluginInstallRequestId,
+  PackageResult, PluginChange, PluginDeployment, PluginEntryId, PluginInfo, PluginInstallCancellation, PluginInstallProgress,
+  PluginInstallRequestId,
   PluginRegistries, PluginSpecInspection, PluginUpdateResult, PluginUpdateStep, PluginVersion, PluginVersionList, Registry,
   RegistryAttempt, UpdateBundleOptions,
   PluginOperation, PluginOperationId,
@@ -103,6 +104,12 @@ export interface Config {
    * fails with `deployment-locked`; deselecting a selected bundle is not affected.
    */
   offeredBundles?: string[] | null
+  /**
+   * Whether this deployment changes no plugin. True refuses every change (plugin and bundle selection, installation,
+   * update, removal, version exemption) with `deployment-locked` and lists every row and bundle as `deployment-locked`,
+   * for a product whose administrator manages plugins outside the application; listings stay readable.
+   */
+  readOnly?: boolean
 }
 
 /** The Fetch route serving images beside bundle detail documents. */
@@ -347,6 +354,7 @@ export class PluginManager extends TypertRemoteService {
     withheldBundles: z.array(z.string()).default([]),
     installBundles: z.boolean().default(true),
     offeredBundles: z.union([z.array(z.string()), z.const(null)]).default(null),
+    readOnly: z.boolean().default(false),
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
@@ -376,6 +384,7 @@ export class PluginManager extends TypertRemoteService {
   private readonly withheldBundles: ReadonlySet<string>
   private readonly installBundles: boolean
   private readonly offeredBundles: ReadonlySet<string> | undefined
+  private readonly readOnly: boolean
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'pluginManager')
@@ -400,6 +409,7 @@ export class PluginManager extends TypertRemoteService {
     this.withheldBundles = new Set(required.withheldBundles)
     this.installBundles = required.installBundles
     this.offeredBundles = required.offeredBundles == null ? undefined : new Set(required.offeredBundles)
+    this.readOnly = required.readOnly
     this.detail = {
       profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
       npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
@@ -484,28 +494,38 @@ export class PluginManager extends TypertRemoteService {
     }), { stage: 'enable', target: packageVersion, enabled }, 'bundle', exemptionOperationIdentity(packageVersion, runtimeVersion))
   }
 
+  /** Read what this deployment lets the profile's person change, so a page offers only the controls the Host accepts.
+   * @returns Whether every change is refused, and whether installations and updates are.
+   */
+  @Remote
+  deployment(): PluginDeployment {
+    return { readOnly: this.readOnly, installBundles: this.installBundles }
+  }
+
   /** Read current plugins, including why a row cannot be changed through the profile patch.
-   * @returns Current runtime entries with persistent patch targets.
+   * @returns Current runtime entries with persistent patch targets and the context-global tools each registered.
    */
   @Remote
   async listPlugins(): Promise<PluginInfo[]> {
     const rows = flatten(composeEntries([readProfilePatches('dsh', this.profile)]))
     const locked = profileLocks(loadProfileDirectory('dsh', this.profile.dir, this.profile.installAnchor, { userLayer: false }).layers).rows
     const snapshot = await readPluginInventory(this.ctx)
+    const tools = this.ctx.get('tools')
     return snapshot.entries.map((entry) => {
       const actual = [...this.ctx.loader.entries()].find(row => row.id === entry.entryId)
       const candidates = rows.filter(row => row.id === actual?.options.id)
       const candidate = candidates[0]
+      const listed = { ...entry, tools: actual?.fiber === undefined || tools === undefined ? [] : tools.registeredBy(actual.fiber) }
       if (PROTECTED_PLUGINS.has(entry.moduleName) || entry.entryId === this.ownerEntryId) {
-        return { ...entry, readOnlyReason: 'management-required' as const }
+        return { ...listed, readOnlyReason: 'management-required' as const }
       }
       if (candidate === undefined || candidates.length > 1 || candidate.name !== entry.moduleName
         || actual?.parent.tree.ctx.fiber.entry?.id !== 'include') {
-        return { ...entry, readOnlyReason: 'unaddressable' as const }
+        return { ...listed, readOnlyReason: 'unaddressable' as const }
       }
       // A user-layer write to a locked row is dropped at load, so the control refuses it here.
-      if (locked.has(candidate.id)) return { ...entry, readOnlyReason: 'deployment-locked' as const }
-      return { ...entry, patchId: candidate.id }
+      if (this.readOnly || locked.has(candidate.id)) return { ...listed, readOnlyReason: 'deployment-locked' as const }
+      return { ...listed, patchId: candidate.id }
     })
   }
 
@@ -516,7 +536,9 @@ export class PluginManager extends TypertRemoteService {
    */
   @Remote
   listBundles(): Promise<BundleInfo[]> {
-    return Promise.resolve(this.readBundles().map(bundle => ({ ...bundle, updatable: typeof updateRefusal(bundle, bundle.name) !== 'string' })))
+    return Promise.resolve(this.readBundles().map(bundle => this.readOnly
+      ? { ...bundle, removable: false, readOnlyReason: bundle.readOnlyReason ?? 'deployment-locked', updatable: false }
+      : { ...bundle, updatable: typeof updateRefusal(bundle, bundle.name) !== 'string' }))
   }
 
   /** The bundle inventory before update eligibility, which is derived from each listed bundle. */
@@ -748,7 +770,7 @@ export class PluginManager extends TypertRemoteService {
     const announce = (step: PluginUpdateStep): void => {
       if (requestId !== undefined) this.ownerContext.emit('plugin-manager/update-state', { requestId, step })
     }
-    if (!this.installBundles) {
+    if (!this.installBundles || this.readOnly) {
       return { from: '', to: version, step: 'check', result: { changed: false, application: 'failed', stage: 'install', target: name, error: { code: 'deployment-locked' } } }
     }
     announce('checking')
@@ -1334,6 +1356,7 @@ export class PluginManager extends TypertRemoteService {
         const result: ChangeResult = { ...request, changed: false,
           ...this.ownerContext.get('hmr') !== undefined ? { application: 'applied' } : { application: 'restart-required', restartReason: 'no-hmr' } }
         try {
+          if (this.readOnly) throw new ManagementFailure('deployment-locked')
           const outcome = await operation(result)
           if (outcome !== undefined) result.application = outcome
           // A reload that waits for a restart leaves the change saved but not applied.

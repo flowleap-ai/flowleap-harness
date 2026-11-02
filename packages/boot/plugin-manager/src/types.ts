@@ -24,7 +24,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 
 /**
  * Reasons a profile control cannot modify its target. `deployment-locked`: a profile bundle locks the row
- * (`dsh.bundle.lockedRows`), or this deployment does not install packages (`installBundles: false`).
+ * (`dsh.bundle.lockedRows`), this deployment does not install packages (`installBundles: false`), or it changes no
+ * plugin at all (`readOnly: true`).
  */
 export type ReadOnlyReason = 'management-required' | 'unaddressable' | 'deployment-locked'
 
@@ -54,11 +55,19 @@ export interface ManagementError {
  */
 export type RestartReason = 'no-hmr' | 'package-moved' | 'host-module' | 'unmanaged-plugin' | 'module-comparison'
 
-/** One running-profile entry and its persistent control availability. */
-export type PluginInfo = PluginInventoryEntry & (
+/** One running-profile entry, the context-global tools it registered, and its persistent control availability. */
+export type PluginInfo = PluginInventoryEntry & { tools: string[] } & (
   | { patchId: string; readOnlyReason?: never }
   | { patchId?: never; readOnlyReason: ReadOnlyReason }
 )
+
+/** What this deployment lets the profile's person change through the manager. */
+export interface PluginDeployment {
+  /** True: every change is refused with `deployment-locked`; an administrator manages plugins outside the application. */
+  readOnly: boolean
+  /** False: installations and updates are refused with `deployment-locked`. */
+  installBundles: boolean
+}
 
 /** One row a bundle's patch declares, with its live entry while the bundle contributes it. */
 export interface BundleRowInfo {

@@ -158,6 +158,38 @@ it('refuses a row a bundle locks, and package installs and updates while install
   expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain('extra')
 })
 
+it('lists every plugin and bundle read-only and refuses every change while readOnly is true', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { readOnly: true })
+  const manifestBefore = readFileSync(join(dir, 'package.json'), 'utf8')
+  const patchBefore = readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')
+  expect(manager.deployment()).toEqual({ readOnly: true, installBundles: true })
+  const row = (await manager.listPlugins()).find(item => String(item.entryId).endsWith(':managed'))!
+  expect(row).toMatchObject({ readOnlyReason: 'deployment-locked' })
+  expect(row.patchId).toBeUndefined()
+  expect((await manager.listBundles()).find(bundle => bundle.name === 'extra'))
+    .toMatchObject({ enabled: true, readOnlyReason: 'deployment-locked', removable: false, updatable: false })
+  const refused = { changed: false, application: 'failed', error: { code: 'deployment-locked' } }
+  expect(await manager.setPluginEnabled(row.entryId, false)).toMatchObject(refused)
+  expect(await manager.setBundleEnabled('extra', false)).toMatchObject(refused)
+  expect(await manager.removeBundle('extra')).toMatchObject(refused)
+  expect(await manager.installBundle('extra-two')).toMatchObject(refused)
+  expect(await manager.setVersionExemption('extra@1.0.0', '1.0.0', true, true)).toMatchObject(refused)
+  expect(await manager.updateBundle('extra', '2.0.0')).toMatchObject({ step: 'check', result: refused })
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(manifestBefore)
+  expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(patchBefore)
+  expect(existsSync(join(dir, 'compatibility.json'))).toBe(false)
+})
+
+it('reports the deployment switches and the context-global tools each plugin registered', async () => {
+  const { manager } = await fixture('live', false, (ctx) => {
+    ctx.provide('tools', { registeredBy: (fiber: { entry?: { id: string } }) => fiber.entry?.id.endsWith(':managed') === true ? ['probe_read', 'probe_write'] : [] })
+  }, { installBundles: false })
+  expect(manager.deployment()).toEqual({ readOnly: false, installBundles: false })
+  const plugins = await manager.listPlugins()
+  expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'] })
+  expect(plugins.find(item => String(item.entryId).endsWith(':manager'))).toMatchObject({ tools: [] })
+})
+
 it('selects only an offered bundle and still deselects one', async () => {
   const deselected = selectCoreOnly
   const refused = await fixture('live', false, undefined, { offeredBundles: [] }, undefined, deselected)

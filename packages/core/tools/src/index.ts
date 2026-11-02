@@ -1,5 +1,6 @@
 /** Tool definitions and scoped dispatch to plugin-owned executors. @module */
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { Fiber } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { AnonymousEntries, NamedEntries, ScopedLayers, scopeOf, scopeChainOf } from '@deepseek-ai/dsh-scope'
 import type { ScopeKey, ScopeLayer } from '@deepseek-ai/dsh-scope'
@@ -41,10 +42,11 @@ interface CompiledToolRestriction {
   readonly deny?: ReadonlySet<string>
 }
 
-/** One registered definition and its step-time activation condition. */
+/** One registered definition, its step-time activation condition, and the plugin that registered it. */
 interface ToolRegistration {
   readonly definition: ToolDefinition
   readonly when: ToolRegistrationOptions['when']
+  readonly fiber: Fiber
 }
 
 /** One scope's complete registry view, derived in a single layer traversal. */
@@ -147,7 +149,7 @@ export class ToolsService extends Service {
     }
     return this.layers.effect(
       this.ctx,
-      layer => layer.tools.insert(name, { definition, when: options.when }),
+      layer => layer.tools.insert(name, { definition, when: options.when, fiber: this.ctx.fiber }),
       { label: 'tools.register()' },
     )
   }
@@ -304,6 +306,26 @@ export class ToolsService extends Service {
    */
   definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[] {
     return toolSet === undefined ? [...this.view(scope).visible.values()] : [...toolSet.view(scope).values()]
+  }
+
+  /**
+   * Name the context-global tools that the plugin of one fiber registered, itself or through its child plugins.
+   * Scoped registrations, such as an agent preset's, are not listed.
+   * @param fiber - the plugin's fiber, for example a Loader entry's.
+   * @returns the tool names, sorted.
+   */
+  registeredBy(fiber: Fiber): string[] {
+    const names: string[] = []
+    for (const [name, registration] of this.layers.global.tools.entries()) {
+      for (let owner = registration.fiber; ; owner = owner.parent.fiber) {
+        if (owner === fiber) {
+          names.push(name)
+          break
+        }
+        if (owner === owner.parent.fiber) break
+      }
+    }
+    return names.sort()
   }
 
   /**

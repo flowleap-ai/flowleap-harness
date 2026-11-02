@@ -720,3 +720,19 @@ describe('scoped execution dispatch', () => {
     ]))
   })
 })
+
+describe('registeredBy', () => {
+  it('names the context-global tools of one plugin and its child plugins, without scoped or other registrations', async () => {
+    const ctx = await mount()
+    const owner = await ctx.plugin(Object.assign(async (inner: Context) => {
+      inner.tools.register(tool('owner_tool'))
+      await inner.plugin(Object.assign((child: Context) => { child.tools.register(tool('child_tool')) }, { inject: ['tools'] }))
+    }, { inject: ['tools'] }))
+    await ctx.plugin(Object.assign((inner: Context) => { inner.tools.register(tool('other_tool')) }, { inject: ['tools'] }))
+    const { scope } = await mintAgentScope(ctx, 'agent')
+    scope.ctx.tools.register(tool('scoped_tool'))
+    expect(ctx.tools.registeredBy(owner)).toEqual(['child_tool', 'owner_tool'])
+    await owner.dispose()
+    expect(ctx.tools.registeredBy(owner)).toEqual([])
+  })
+})
