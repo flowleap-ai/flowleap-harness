@@ -183,6 +183,17 @@
     customSkillDirs:
       - !!js process.env.FLOWLEAP_SKILLS_DIR || '/opt/flowleap/skills'
 
+# Settings > Skills (flowleap-harness#190): every skill of a new chat with its
+# source, the replace note, and the skill files with faults. The skill pack
+# row above registers as provider `flowleap`; its skills show as FlowLeap methods.
+
+- insert:
+    - id: ui-settings-skills
+      name: '@deepseek-ai/dsh-client-ui-settings-skills'
+      config:
+        pluginNames:
+          flowleap: FlowLeap methods
+
 # ── uploads while the firm server's disk is low ──────────────────────────────
 # The firm host writes /run/flowleap/host/disk-low (read-only in the runtime)
 # while its disk is low, and removes it when space comes back
