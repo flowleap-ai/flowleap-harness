@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: the `patent` preset is the default, the FlowLeap brand fills the sidebar, hero, title and product copy from `brand/brand.json`, every DeepSeek-specific row is off, the 21 paid FlowLeap MCP tools register beside the in-process office tools and the native `read_pdf`, the flowleap-plugins skill pack joins the catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. One process serves one user; the `flowleap` CLI must be on `PATH` and signed in.
+`dsh-flowleap-web` turns `dsh web` into the FlowLeap Patent Agent harness. The shipped `flowleap-web` profile stacks it over `dsh-base` and `dsh-web-app`: the `patent` preset is the default, the FlowLeap brand fills the sidebar, hero, title and product copy from `brand/brand.json`, every DeepSeek-specific row is off, the 21 paid FlowLeap MCP tools register beside the in-process office tools and the native `read_pdf`, the FlowLeap methods skill pack (flowleap-methods) joins the catalog, a Markdown file supplies the persona, and Anthropic, OpenRouter and Mistral are the model routes. One process serves one user; the `flowleap` CLI must be on `PATH` and signed in.
 
 ## Table of Contents
 
@@ -133,7 +133,7 @@ The bundle adds no request tokens of its own; the mounted rows' packages state t
 These limits are what the layer needs from its host and what later slices replace.
 
 - **Needs the `flowleap` CLI on `PATH`, signed in** — without it the MCP row logs a connection error and the agent has no patent tools; the harness still starts.
-- **Outside the release image the skill pack needs `FLOWLEAP_SKILLS_DIR`** — the default `/opt/flowleap/skills` exists only in the image. Point the variable at a flowleap-plugins checkout's `plugins/flowleap/skills`, or at an empty folder for no FlowLeap skill; without it the skill pack row fails at load, names the folder in the startup warning, and the harness runs without FlowLeap skills.
+- **Outside the release image the skill pack needs `FLOWLEAP_SKILLS_DIR`** — the default `/opt/flowleap/skills` exists only in the image. Point the variable at a flowleap-methods checkout's `skills/`, or at an empty folder for no FlowLeap skill; without it the skill pack row fails at load, names the folder in the startup warning, and the harness runs without FlowLeap skills.
 - **An unpackaged FlowLeap desktop launch has no skill pack** — a packaged FlowLeap desktop app ships the pinned pack and sets `FLOWLEAP_SKILLS_DIR` itself ([desktop README](../../../apps/desktop/README.md#flowleap-product-configuration)). An unpackaged launch from source does not, so set `FLOWLEAP_SKILLS_DIR` before you start it.
 - **The shipped presets still say "coding agent"** — `standard`, `ptc` and `minimal` keep their `dsh-persona` row, so a user who selects one of them puts `You are a coding agent powered by the {{model}} model.` ahead of the patent prompt; only `patent` omits it.
 - **The `standard` and `ptc` presets are copies** — the bundle restates both in full to turn off `tool-web`. After an upstream merge, run `pnpm exec vitest run apps/cli/tests/flowleap-web-no-web-tools.spec.ts`; it fails when a copy differs from its `dsh-web-app` preset in any row except `tool-web`. Then copy the upstream change into `presets/standard.patch.yml` or `presets/ptc.patch.yml`.

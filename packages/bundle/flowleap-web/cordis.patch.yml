@@ -171,14 +171,14 @@
 # ── the FlowLeap skill pack ──────────────────────────────────────────────────
 # dsh-web-app disables this host row because each preset mounts its own
 # `filesystem` provider for project and user roots. Re-enabled here as a second,
-# global-layer provider that scans only the flowleap-plugins pack
+# global-layer provider that scans only the FlowLeap methods pack
 # (`<name>/SKILL.md` bundles), so every preset's `tool-skill` catalog merges it
 # with the preset's own roots.
 #
 # FLOWLEAP_SKILLS_DIR names the pack folder; when it is unset or empty, the
 # default is the pack of the release image. The folder must exist, or the row fails at load: outside the
-# image, set FLOWLEAP_SKILLS_DIR to a flowleap-plugins checkout's
-# plugins/flowleap/skills, or to an empty folder for no FlowLeap skill.
+# image, set FLOWLEAP_SKILLS_DIR to a flowleap-methods checkout's skills/,
+# or to an empty folder for no FlowLeap skill.
 
 - id: skill-filesystem
   disabled: false
