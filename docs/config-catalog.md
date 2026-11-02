@@ -617,17 +617,26 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-client-ui-plugin-manager`
 
-- `source`: [`packages/client/ui-plugin-manager/src/index.ts:15`](../packages/client/ui-plugin-manager/src/index.ts)
+- `source`: [`packages/client/ui-plugin-manager/src/index.ts:17`](../packages/client/ui-plugin-manager/src/index.ts)
 
 ```ts config-catalog
-/** Registry-probe deadline and process-local cache policy. */
-export interface Config {
+/** Registry-probe deadline, process-local cache policy, and the page's display switches. */
+export interface Config extends PageConfig {
   /** Whether the dialog can compare the public npm registries. */
   registryProbeEnabled: boolean
   /** Deadline for the parallel HTTPS probes, including response cleanup. */
   registryProbeTimeoutMs: number
   /** Lifetime of a winning registry or unavailable result. */
   registryProbeCacheTtlMs: number
+}
+
+/** What the Plugins page shows of a plugin's technical identity. */
+export interface PageConfig {
+  /**
+   * Show package names (`@deepseek-ai/dsh-…`), row ids, and install specs on the cards and plugin pages. False shows only
+   * the product name, from the package's display title or, without one, its unscoped name in words.
+   */
+  packageNames: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
@@ -2972,7 +2981,7 @@ export interface PlanModeConfig {
 
 - `inject`: `loader` · `profileContext`
 - `refs`: [`NpmFileSource`](subsystems/boot.md)
-- `source`: [`packages/boot/plugin-manager/src/index.ts:54`](../packages/boot/plugin-manager/src/index.ts)
+- `source`: [`packages/boot/plugin-manager/src/index.ts:56`](../packages/boot/plugin-manager/src/index.ts)
 
 ```ts config-catalog
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
@@ -3028,6 +3037,12 @@ export interface Config {
    * fails with `deployment-locked`; deselecting a selected bundle is not affected.
    */
   offeredBundles?: string[] | null
+  /**
+   * Whether this deployment changes no plugin. True refuses every change (plugin and bundle selection, installation,
+   * update, removal, version exemption) with `deployment-locked` and lists every row and bundle as `deployment-locked`,
+   * for a product whose administrator manages plugins outside the application; listings stay readable.
+   */
+  readOnly?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-plugin-manager -->

@@ -2542,10 +2542,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Saved and runtime outcomes. Startup-only profiles require restart.',
       },
       {
+        signature: '@Remote deployment(): PluginDeployment',
+        description: 'Read what this deployment lets the profile\'s person change, so a page offers only the controls the Host accepts.',
+        parameters: [],
+        returns: 'Whether every change is refused, and whether installations and updates are.',
+      },
+      {
         signature: '@Remote async listPlugins(): Promise<PluginInfo[]>',
         description: 'Read current plugins, including why a row cannot be changed through the profile patch.',
         parameters: [],
-        returns: 'Current runtime entries with persistent patch targets.',
+        returns: 'Current runtime entries with persistent patch targets, the context-global tools each registered, and whether its module has a browser half.',
       },
       {
         signature: '@Remote listBundles(): Promise<BundleInfo[]>',
@@ -2671,7 +2677,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'pluginRegistryProbe',
     summary: 'Compares public registry responses on the Host; the Client owns the initial selection.',
-    description: 'Compares public registry responses on the Host; the Client owns the initial selection.',
+    description: 'Compares public registry responses on the Host; the Client owns the initial selection. Embeds the display switches in browser pages as PLUGIN_MANAGER_PAGE_GLOBAL.',
     methods: [
       {
         signature: '@Remote async fastest(): Promise<string | null>',
@@ -4392,6 +4398,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the visible capability definitions for descriptions and program bindings.',
         parameters: [{ name: 'scope', description: 'viewing Agent or preset; omitted selects the global view.' }, { name: 'toolSet', description: 'step admission; omit only to inspect registered definitions.' }],
         returns: 'definitions after scoped shadowing and restrictions, limited to the step\'s admission when given.',
+      },
+      {
+        signature: 'registeredBy(fiber: Fiber): string[]',
+        description: 'Name the context-global tools that the plugin of one fiber registered, itself or through its child plugins. Scoped registrations, such as an agent preset\'s, are not listed.',
+        parameters: [{ name: 'fiber', description: 'the plugin\'s fiber, for example a Loader entry\'s.' }],
+        returns: 'the tool names, sorted.',
       },
       {
         signature: 'schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[]',
@@ -7935,6 +7947,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PluginChange {\n    readonly reason: \'plugin\' | \'bundle\' | \'install\' | \'remove\';\n}',
   },
   {
+    name: 'PluginDeployment',
+    declaration: 'export interface PluginDeployment {\n    readOnly: boolean;\n    installBundles: boolean;\n}',
+  },
+  {
     name: 'PluginDetail',
     declaration: 'export type PluginDetail = {\n    readonly status: \'found\';\n    readonly origin: PluginDetailOrigin;\n    readonly markdown: string;\n    readonly document: PluginDetailDocumentId;\n} | {\n    readonly status: \'none\';\n};',
   },
@@ -7956,7 +7972,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PluginInfo',
-    declaration: 'export type PluginInfo = PluginInventoryEntry & ({\n    patchId: string;\n    readOnlyReason?: never;\n} | {\n    patchId?: never;\n    readOnlyReason: ReadOnlyReason;\n});',
+    declaration: 'export type PluginInfo = PluginInventoryEntry & {\n    tools: string[];\n    hasClient: boolean;\n} & ({\n    patchId: string;\n    readOnlyReason?: never;\n} | {\n    patchId?: never;\n    readOnlyReason: ReadOnlyReason;\n});',
   },
   {
     name: 'PluginInspectProblem',
@@ -10200,7 +10216,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolsService',
-    declaration: 'export class ToolsService extends Service {\n    static inject;\n    static Config;\n    constructor(ctx: Context);\n    register(definition: ToolDefinition, options: ToolRegistrationOptions = {}): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    get(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    executable(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    async resolve(context: ToolActivationContext): Promise<ResolvedToolSet>;\n    definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[];\n    schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[];\n    setExecutor(executor: ToolExecutor): () => void;\n    async execute(input: ToolBatchInput): Promise<ToolBatchResult>;\n    guard(guard: ToolGuard): () => void;\n    checkGuards(exec: ToolExecution): string | undefined;\n}',
+    declaration: 'export class ToolsService extends Service {\n    static inject;\n    static Config;\n    constructor(ctx: Context);\n    register(definition: ToolDefinition, options: ToolRegistrationOptions = {}): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    get(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    executable(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    async resolve(context: ToolActivationContext): Promise<ResolvedToolSet>;\n    definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[];\n    registeredBy(fiber: Fiber): string[];\n    schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[];\n    setExecutor(executor: ToolExecutor): () => void;\n    async execute(input: ToolBatchInput): Promise<ToolBatchResult>;\n    guard(guard: ToolGuard): () => void;\n    checkGuards(exec: ToolExecution): string | undefined;\n}',
   },
   {
     name: 'ToolUpdate',

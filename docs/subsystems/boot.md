@@ -229,8 +229,14 @@ Manage profile files and apply their declared reload lifecycle.
  */
 @Remote setVersionExemption(packageVersion: string, runtimeVersion: string, enabled: boolean, acceptRisk?: boolean): Promise<ChangeResult>
 
+/** Read what this deployment lets the profile's person change, so a page offers only the controls the Host accepts.
+ * @returns Whether every change is refused, and whether installations and updates are.
+ */
+@Remote deployment(): PluginDeployment
+
 /** Read current plugins, including why a row cannot be changed through the profile patch.
- * @returns Current runtime entries with persistent patch targets.
+ * @returns Current runtime entries with persistent patch targets, the context-global tools each registered, and whether
+ * its module has a browser half.
  */
 @Remote async listPlugins(): Promise<PluginInfo[]>
 
@@ -425,7 +431,7 @@ Source: [`packages/experimental/plugin-recommendations/src/index.ts`](../../pack
 
 ### `ctx.pluginRegistryProbe` — `PluginRegistryProbe`
 
-Compares public registry responses on the Host; the Client owns the initial selection.
+Compares public registry responses on the Host; the Client owns the initial selection. Embeds the display switches in browser pages as PLUGIN_MANAGER_PAGE_GLOBAL.
 
 ```ts cordis-catalog
 /**

@@ -697,6 +697,14 @@ async resolve(context: ToolActivationContext): Promise<ResolvedToolSet>
 definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[]
 
 /**
+ * Name the context-global tools that the plugin of one fiber registered, itself or through its child plugins.
+ * Scoped registrations, such as an agent preset's, are not listed.
+ * @param fiber - the plugin's fiber, for example a Loader entry's.
+ * @returns the tool names, sorted.
+ */
+registeredBy(fiber: Fiber): string[]
+
+/**
  * Project visible definitions onto the allowlisted model-facing schema fields,
  * excluding execution and presentation callbacks.
  * @param scope - the viewing scope (the agent); omitted = the global view.
