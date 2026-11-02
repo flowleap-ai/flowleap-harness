@@ -48,3 +48,6 @@ pre-push:
 
     - name: generated files
       run: pnpm run verify-generated
+
+    - name: duplication
+      run: pnpm run duplication
