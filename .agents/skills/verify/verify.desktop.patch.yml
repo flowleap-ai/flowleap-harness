@@ -1,0 +1,22 @@
+# Verification overlay for the flowleap-desktop profile (`dsh --patch`), used when
+# DSH_VERIFY_PROFILE=flowleap-desktop. The run starts without a model: web.sh
+# removes the model keys from the server environment, and the model key store is
+# writable, as in the desktop app. The firm's connector keys come read-only from
+# the copy that `web.sh start` writes, so a run cannot change the founder's keys.
+- id: credentials
+  config:
+    path: !!js dshHomePath('.credentials.yaml')
+    readOnlyPath: !!js process.env.DSH_VERIFY_FIRM_KEYS
+
+# Plain JSONL Session logs, so scripts/session-log.mjs and jq read them directly.
+# An override replaces the row's whole config, so `root` restates the base value.
+- id: session-persistence-jsonl
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+
+# The first-use Default workspace lands in the run's workspace directory,
+# not in ~/Documents.
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js process.cwd()

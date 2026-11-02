@@ -187,11 +187,15 @@ export function apply(ctx: ClientContext): void {
       },
     },
   })
+  // Surfaces outside Settings open a section through the mounted shell's store.
+  let openShellSection: ((id: string) => void) | undefined
+  ctx.provide('settingsNavigation', { openSection: (id) => { openShellSection?.(id) } })
   // The settings shell reads this host's configuration, so it follows access to its description.
   ctx.remoteAccess.whenAccess('settings/describe', () =>
     ctx.slots.inject('sidebar.settings', () => {
       const shellHandle = createSettingsShellStore()
       const shellInstance = shellHandle.create()
+      openShellSection = (id) => { shellInstance.actions.openSection(id) }
       const shellStore: typeof shellHandle = { ...shellHandle, create: () => shellInstance }
       const disposeCommand = ctx.shortcuts.register({
         id: 'settings.open' as ShortcutCommandId, label: () => t('shortcut.open'), aliases: ['settings', 'preferences'],
@@ -227,7 +231,11 @@ export function apply(ctx: ClientContext): void {
         },
         inject: shellInjected,
       }, SettingsRoot)
-      return () => { disposeCommand(); disposeSlot() }
+      return () => {
+        openShellSection = undefined
+        disposeCommand()
+        disposeSlot()
+      }
     }))
 
   ctx.slots.inject('settings.trigger', () =>

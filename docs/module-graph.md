@@ -145,6 +145,7 @@ flowchart TD
   subgraph group_bundle["packages/bundle"]
     pkg_acp_app["acp-app"]
     pkg_base["base"]
+    pkg_flowleap_desktop["flowleap-desktop"]
     pkg_flowleap_firm["flowleap-firm"]
     pkg_flowleap_web["flowleap-web"]
     pkg_headless["headless"]
@@ -205,6 +206,7 @@ flowchart TD
     pkg_client_ui_settings_account["client-ui-settings-account"]
     pkg_client_ui_settings_agent_loop["client-ui-settings-agent-loop"]
     pkg_client_ui_settings_flowleap_connectors["client-ui-settings-flowleap-connectors"]
+    pkg_client_ui_settings_flowleap_models["client-ui-settings-flowleap-models"]
     pkg_client_ui_settings_general["client-ui-settings-general"]
     pkg_client_ui_settings_models["client-ui-settings-models"]
     pkg_client_ui_settings_plugin_inventory["client-ui-settings-plugin-inventory"]
@@ -351,6 +353,7 @@ flowchart TD
     pkg_flowleap_budget["flowleap-budget"]
     pkg_flowleap_connectors["flowleap-connectors"]
     pkg_flowleap_deliverables["flowleap-deliverables"]
+    pkg_flowleap_models["flowleap-models"]
     pkg_flowleap_prompt["flowleap-prompt"]
     pkg_flowleap_routines["flowleap-routines"]
     pkg_host_directory_picker["host-directory-picker"]
@@ -822,6 +825,10 @@ flowchart TD
   pkg_command_feedback --> pkg_commands
   pkg_command_feedback --> pkg_session
   pkg_command_feedback --> pkg_typert_protocol
+  pkg_flowleap_models --> pkg_agent_default_model
+  pkg_flowleap_models --> pkg_credentials
+  pkg_flowleap_models --> pkg_llm
+  pkg_flowleap_models --> pkg_typert_protocol
   pkg_permission_presets --> pkg_agent
   pkg_permission_presets --> pkg_commands
   pkg_permission_presets --> pkg_sandbox
@@ -1602,6 +1609,7 @@ flowchart TD
 | [`cmdline`](../packages/boot/cmdline) | `boot` | — |
 | [`acp-app`](../packages/bundle/acp-app) | `bundle` | — |
 | [`base`](../packages/bundle/base) | `bundle` | — |
+| [`flowleap-desktop`](../packages/bundle/flowleap-desktop) | `bundle` | — |
 | [`flowleap-firm`](../packages/bundle/flowleap-firm) | `bundle` | — |
 | [`flowleap-web`](../packages/bundle/flowleap-web) | `bundle` | — |
 | [`sdk-app`](../packages/bundle/sdk-app) | `bundle` | — |
@@ -1657,6 +1665,7 @@ flowchart TD
 | [`client-ui-settings-account`](../packages/client/ui-settings-account) | `client` | — |
 | [`client-ui-settings-agent-loop`](../packages/client/ui-settings-agent-loop) | `client` | — |
 | [`client-ui-settings-flowleap-connectors`](../packages/client/ui-settings-flowleap-connectors) | `client` | — |
+| [`client-ui-settings-flowleap-models`](../packages/client/ui-settings-flowleap-models) | `client` | — |
 | [`client-ui-settings-general`](../packages/client/ui-settings-general) | `client` | — |
 | [`client-ui-settings-models`](../packages/client/ui-settings-models) | `client` | — |
 | [`client-ui-settings-plugin-inventory`](../packages/client/ui-settings-plugin-inventory) | `client` | — |
@@ -1840,6 +1849,7 @@ flowchart TD
 | [`experimental-ptc-runtime-python`](../packages/experimental/ptc-runtime-python) | `experimental` | [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
 | [`experimental-worktree`](../packages/experimental/worktree) | `experimental` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`subprocess`](../packages/subprocess/subprocess), [`working-directory`](../packages/session/working-directory) |
 | [`command-feedback`](../packages/feedback/command-feedback) | `feedback` | [`anonymous-user-id`](../packages/identity/anonymous-user-id), [`commands`](../packages/interaction/commands), [`session`](../packages/core/session), [`typert-protocol`](../packages/typert/protocol) |
+| [`flowleap-models`](../packages/host/flowleap-models) | `host` | [`agent-default-model`](../packages/core/agent-default-model), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm), [`typert-protocol`](../packages/typert/protocol) |
 | [`permission-presets`](../packages/interaction/permission-presets) | `interaction` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`shell`](../packages/shell/shell), [`typert-protocol`](../packages/typert/protocol), [`user-approval`](../packages/interaction/user-approval) |
 | [`jobs-local`](../packages/jobs/jobs-local) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout) |
 | [`ptc-runtime-node`](../packages/ptc-runtime/ptc-runtime-node) | `ptc-runtime` | [`fs`](../packages/fs/fs), [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |

@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-flowleap-firm` fixes the model routes and keys of a FlowLeap firm server (flowleap-harness#61). The shipped `flowleap-web` profile stacks it after [`dsh-flowleap-web`](../flowleap-web/README.md); the `flowleap-desktop` profile of the FlowLeap desktop app does not, so there the attorney adds a key and a route on the Models page. The bundle mounts no plugin of its own: it patches three rows and locks them, and turns off the Plugins page (`ui-plugin-manager`), so an attorney sees no Plugins entry and no **Browse other plugins** (flowleap-harness#84).
+`dsh-flowleap-firm` fixes the model routes and keys of a FlowLeap firm server (flowleap-harness#61). The shipped `flowleap-web` profile stacks it after [`dsh-flowleap-web`](../flowleap-web/README.md); the `flowleap-desktop` profile of the FlowLeap desktop app stacks [`dsh-flowleap-desktop`](../flowleap-desktop/README.md) there instead, so the attorney adds, tests, and connects model keys on the Models page. The bundle mounts no plugin of its own: it patches three rows and locks them, and turns off the Plugins page (`ui-plugin-manager`), so an attorney sees no Plugins entry and no **Browse other plugins** (flowleap-harness#84).
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ A firm overlay (`--patch`) is not a user patch, so it can still restate a row. O
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`cordis.patch.yml` holds three id-targeted overrides and turns off the `ui-plugin-manager` row. Each override replaces the targeted row's whole `config`, so the `llm-pi-ai` row restates the `dsh-flowleap-web` routes and sets `fixedRoutes: true` in place of `subscriptionSignIn: false`. The flowleap-os firm patch restates every field of this row, and its `test/firm-patch.test.mjs` fails when it does not. [`flowleap-web-models.spec.ts`](../../../apps/cli/tests/flowleap-web-models.spec.ts) composes both shipped FlowLeap profiles and fails when the firm row differs from the desktop row in anything else, when the firm profile misses a lock, when the desktop profile has one, or when an old `flowleap-web` profile list does not get this bundle.
+`cordis.patch.yml` holds three id-targeted overrides and turns off the `ui-plugin-manager` row. Each override replaces the targeted row's whole `config`, so the `llm-pi-ai` row restates the `dsh-flowleap-web` routes and sets `fixedRoutes: true` in place of `subscriptionSignIn: false`. The flowleap-os firm patch restates every field of this row, and its `test/firm-patch.test.mjs` fails when it does not. [`flowleap-web-models.spec.ts`](../../../apps/cli/tests/flowleap-web-models.spec.ts) composes both shipped FlowLeap profiles and fails when the firm routes differ from the `dsh-flowleap-web` routes in anything else, when the firm profile misses a lock, when the desktop profile has one, or when an old `flowleap-web` profile list does not get this bundle.
 
 ### Source map
 

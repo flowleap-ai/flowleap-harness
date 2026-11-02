@@ -447,6 +447,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads the attorney\'s model spend and budget of this month from the firm\'s model gateway with the runtime\'s own virtual key, or unknown with a reason; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapModels',
+    pkg: 'flowleap-models',
+    title: 'FlowLeap models Remote',
+    mode: 'service',
+    consumers: ['client-ui-settings-flowleap-models'],
+    note: 'Tests a stored Anthropic, OpenAI, or OpenRouter key at that provider only, and connects OpenRouter through its OAuth PKCE flow; mounted by the flowleap-desktop profile only.',
+  },
+  {
     key: 'workspaceFiles',
     pkg: 'api-workspace-files',
     title: 'Host workspace file Remote service',

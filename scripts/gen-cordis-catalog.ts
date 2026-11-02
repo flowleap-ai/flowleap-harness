@@ -85,6 +85,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   flowleapAgents: 'core.md',
   flowleapWorkPages: 'deliverables.md',
   flowleapBudget: 'credentials.md',
+  flowleapModels: 'credentials.md',
   flowleapConnectors: 'credentials.md',
   flowleapOcr: 'credentials.md',
   flowleapRegister: 'schedule.md',
@@ -180,6 +181,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   contextMenus: 'client-side interface-typed menu registry — packages/client/ui-context-menu/README.md owns the API',
+  settingsNavigation: 'client-side interface-typed Settings opener — packages/client/ui-settings/README.md owns the API',
   fileActions: 'client-side interface-typed file actions — packages/client/ui-file-actions/README.md owns the API',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',
@@ -1023,6 +1025,10 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   RegisterEntry: 'office-neutral register event is owned by packages/host/flowleap-connectors/README.md',
   RoutineReview: 'the Needs review mark of a chat is owned by packages/host/flowleap-routines/README.md',
   RoutineWatch: 'one register watch and its newest recorded events are owned by packages/host/flowleap-routines/README.md',
+  AdoptedModel: 'the model new chats use after a model step is owned by packages/host/flowleap-models/README.md',
+  ModelTestResult: 'one key test outcome is owned by packages/host/flowleap-models/README.md',
+  OpenRouterConnectResult: 'one OpenRouter connect outcome is owned by packages/host/flowleap-models/README.md',
+  OpenRouterConnectStart: 'the OpenRouter authorization page is owned by packages/host/flowleap-models/README.md',
   BudgetMonth: 'the month\'s spend and budget from the model gateway are owned by packages/host/flowleap-budget/README.md',
   AgentId: 'the agent id is owned by packages/host/flowleap-agent-builder/README.md',
   AgentRevision: 'the agent revision a preset row composes is owned by packages/host/flowleap-agent-builder/README.md',

@@ -1404,6 +1404,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapModels',
+    summary: 'Host service backing the generated `ctx.remote.flowleapModels` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapModels` namespace.',
+    methods: [
+      {
+        signature: '@Remote async test(provider: string, signal: AbortSignal): Promise<ModelTestResult>',
+        description: 'Test the stored key of one provider with one free authenticated read at that provider.',
+        parameters: [{ name: 'provider', description: '`anthropic`, `openai`, or `openrouter`.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'success, with the model new chats now use when the test adopted one; or the failure reason.',
+        throws: ['RemoteError `gateway/bad-request` for an unknown provider.'],
+      },
+      {
+        signature: '@Remote async startOpenRouter(): Promise<OpenRouterConnectStart>',
+        description: 'Start an OpenRouter connect, and end an earlier attempt that has not ended.',
+        parameters: [],
+        returns: 'the OpenRouter authorization page to open in the attorney\'s browser.',
+      },
+      {
+        signature: '@Remote async awaitOpenRouter(signal: AbortSignal): Promise<OpenRouterConnectResult>',
+        description: 'Wait for the end of the current OpenRouter connect.',
+        parameters: [{ name: 'signal', description: 'cancels the attempt itself when the caller goes away.' }],
+        returns: 'the end of the attempt; `connected` carries the model new chats now use when the connect adopted one.',
+      },
+      {
+        signature: '@Remote cancelOpenRouter(): void',
+        description: 'End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'flowleapOcr',
     summary: 'What a consumer needs from the service.',
     description: 'What a consumer needs from the service.',
@@ -5804,6 +5835,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
   },
   {
+    name: 'AdoptedModel',
+    declaration: 'export interface AdoptedModel {\n    readonly provider: ModelProviderId;\n    readonly model: string;\n}',
+  },
+  {
     name: 'AfterScheduleRecord',
     declaration: 'export interface AfterScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'after\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly afterSeconds: number;\n    readonly scheduledAt: string;\n}',
   },
@@ -7684,12 +7719,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelProviderGroup {\n    readonly id: string;\n    readonly name: string;\n    readonly models: readonly ModelCatalogModel[];\n}',
   },
   {
+    name: 'ModelProviderId',
+    declaration: 'export type ModelProviderId = \'anthropic\' | \'openai\' | \'openrouter\';',
+  },
+  {
     name: 'ModelReasoning',
     declaration: 'export interface ModelReasoning {\n    readonly efforts: readonly ModelReasoningEffort[];\n    readonly defaultEffort?: string;\n}',
   },
   {
     name: 'ModelReasoningEffort',
     declaration: 'export interface ModelReasoningEffort {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n}',
+  },
+  {
+    name: 'ModelTestFailure',
+    declaration: 'export type ModelTestFailure = \'no_key\' | \'refused\' | \'unreachable\' | \'provider_error\';',
+  },
+  {
+    name: 'ModelTestResult',
+    declaration: 'export type ModelTestResult = {\n    readonly ok: true;\n    readonly adopted?: AdoptedModel;\n} | {\n    readonly ok: false;\n    readonly reason: ModelTestFailure;\n    readonly status?: number;\n};',
   },
   {
     name: 'ModEvents',
@@ -7778,6 +7825,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OneShotScheduleRecord',
     declaration: 'export type OneShotScheduleRecord = AfterScheduleRecord | AtScheduleRecord;',
+  },
+  {
+    name: 'OpenRouterConnectFailure',
+    declaration: 'export type OpenRouterConnectFailure = \'denied\' | \'exchange_refused\' | \'unreachable\' | \'store_refused\' | \'timeout\' | \'not_started\';',
+  },
+  {
+    name: 'OpenRouterConnectResult',
+    declaration: 'export type OpenRouterConnectResult = {\n    readonly state: \'connected\';\n    readonly adopted?: AdoptedModel;\n} | {\n    readonly state: \'cancelled\';\n} | {\n    readonly state: \'failed\';\n    readonly reason: OpenRouterConnectFailure;\n};',
+  },
+  {
+    name: 'OpenRouterConnectStart',
+    declaration: 'export interface OpenRouterConnectStart {\n    readonly url: string;\n}',
   },
   {
     name: 'OptionalSessionSeq',

@@ -127,6 +127,9 @@
       "path": "../../host/flowleap-budget"
     },
     {
+      "path": "../../host/flowleap-models"
+    },
+    {
       "path": "../../host/flowleap-agent-builder"
     }
   ]

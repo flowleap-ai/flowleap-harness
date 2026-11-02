@@ -140,6 +140,7 @@
     { "path": "./packages/client/ui-schedule" },
     { "path": "./packages/client/ui-flowleap-admin-link/tsconfig.client.json" },
     { "path": "./packages/client/ui-flowleap-budget" },
+    { "path": "./packages/client/ui-settings-flowleap-models" },
     { "path": "./packages/client/ui-flowleap-dashboard" },
     { "path": "./packages/client/ui-flowleap-routines" },
     { "path": "./packages/client/ui-flowleap-agent-builder" },

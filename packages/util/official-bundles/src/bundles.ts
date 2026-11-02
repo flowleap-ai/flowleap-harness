@@ -18,7 +18,7 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-firm'],
   },
   'flowleap-desktop': {
-    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-desktop'],
   },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
@@ -39,6 +39,8 @@ export const INSTALLATION_OWNED_PROFILE_TUPLES: Readonly<Record<string, readonly
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'],
   // Before dsh-flowleap-firm held the firm locks, dsh-flowleap-web held them (flowleap-harness#159).
   'flowleap-web': ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
+  // Before dsh-flowleap-desktop held the desktop model step, the desktop profile had no layer of its own (flowleap-harness#170).
+  'flowleap-desktop': ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
 }
 
 /** Bundles an earlier release shipped and the installation no longer carries; app-boot removes them from profiles. */

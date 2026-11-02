@@ -19,6 +19,7 @@ Live proof does not replace tests. Keep the focused tests, the keyless snapshots
 | [`scripts/admin-signer.mjs`](scripts/admin-signer.mjs) | Starter double for [features/admin-link.md](features/admin-link.md): forwards to the instance and adds the signed `X-Flowleap-Admin` header while a file exists |
 | [`scripts/session-log.mjs`](scripts/session-log.mjs) | Summary of a Session log: route, user text, tool calls with result heads, turn end, token use, last answer |
 | [`verify.patch.yml`](verify.patch.yml) | Overlay: OpenRouter Haiku as default model, the firm keys as a read-only credential file, plain JSONL logs, Default workspace in the run directory |
+| [`verify.desktop.patch.yml`](verify.desktop.patch.yml) | Overlay for `DSH_VERIFY_PROFILE=flowleap-desktop`: the firm keys as a read-only credential file and a writable model key store, plain JSONL logs, Default workspace in the run directory |
 | [`features/`](features/README.md) | One recipe per FlowLeap surface |
 
 ## Launch
@@ -33,7 +34,7 @@ Live proof does not replace tests. Keep the focused tests, the keyless snapshots
 
 The command prints `ready: http://127.0.0.1:3180/?token=…` when the page loads. The token is the access key of the instance. Use it in the browser. Do not put it in a PR, a note, or a commit.
 
-The instance runs with `--profile flowleap-web`, the overlay [`apps/web/tests/pin-browse-picker.overlay.yml`](../../../apps/web/tests/pin-browse-picker.overlay.yml) (the in-page directory picker, which a browser tool can drive), and [`verify.patch.yml`](verify.patch.yml). `DSH_HOME` is `$RUN/home`, so profiles, settings, Sessions, schedule storage, and the writable credential store are new for each run. `start` copies the `flowleap-connectors/*` records of the founder's credential file to `$RUN/firm-keys.yaml` (mode 600), and the overlay gives that copy to the credential store as `readOnlyPath`. The server log is `$RUN/server.log`.
+The instance runs with `--profile flowleap-web`, the overlay [`apps/web/tests/pin-browse-picker.overlay.yml`](../../../apps/web/tests/pin-browse-picker.overlay.yml) (the in-page directory picker, which a browser tool can drive), and [`verify.patch.yml`](verify.patch.yml). `DSH_HOME` is `$RUN/home`, so profiles, settings, Sessions, schedule storage, and the writable credential store are new for each run. `start` copies the `flowleap-connectors/*` records of the founder's credential file to `$RUN/firm-keys.yaml` (mode 600), and the overlay gives that copy to the credential store as `readOnlyPath`. The server log is `$RUN/server.log`. With `DSH_VERIFY_PROFILE=flowleap-desktop`, the instance runs the desktop profile with [`verify.desktop.patch.yml`](verify.desktop.patch.yml), and the server gets no model key from the environment, so the run starts without a model; `DSH_VERIFY_KEEP_OPENROUTER=1` keeps `OPENROUTER_API_KEY`. [features/model-step.md](features/model-step.md) uses this mode.
 
 After a Host change, stop and start again. For a client-only change, run `pnpm run dev:web --skip-build --no-serve` beside the instance: the server reloads the page when a bundle changes.
 
