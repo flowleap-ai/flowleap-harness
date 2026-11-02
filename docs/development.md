@@ -141,7 +141,7 @@ lefthook is configured in `lefthook.yml` as a fast local checkpoint:
 
 - `pre-commit` validates staged files with the project-free `.oxlintrc.staged.json` profile and applies Oxlint fixes with one bounded retry, checks the staged diff for whitespace errors, checks pi-ai provider metadata when its inputs or generated file are staged, and runs the vendor manifest guard.
 - `pre-merge-commit` runs the archived Agent Note seal check before Git creates an automatic merge commit.
-- `pre-push` runs `pnpm run typecheck`, which generates Typert contracts without bundling before the Client TypeScript check and checks both aggregates, and `pnpm run verify-generated`, which runs the `--check` mode of every `gen-*` script. When a generated file is out of date, run `pnpm run gen`, which runs every generator and then the same checks, and commit the changed files.
+- `pre-push` runs `pnpm run typecheck`, which generates Typert contracts without bundling before the Client TypeScript check and checks both aggregates. After typecheck, [`scripts/lint-pushed.ts`](../scripts/lint-pushed.ts) runs the CI type-aware Oxlint profile on the TypeScript files of the pushed commits that the remote does not have yet, because the pre-commit profile turns type-aware rules off. In parallel, pre-push runs `pnpm run verify-generated`, which runs the `--check` mode of every `gen-*` script. When a generated file is out of date, run `pnpm run gen`, which runs every generator and then the same checks, and commit the changed files.
 
 The vendor manifest guard checks that changes under `vendor/*/src` are staged with the matching `vendor/README.md` manifest update. See `vendor/README.md` before editing vendored code.
 

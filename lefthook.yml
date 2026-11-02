@@ -34,8 +34,17 @@ pre-merge-commit:
 pre-push:
   parallel: true
   jobs:
-    - name: typecheck
-      run: pnpm run typecheck
+    # Type-aware lint reads the Typert contracts that typecheck generates.
+    - name: typecheck, then type-aware lint
+      group:
+        piped: true
+        jobs:
+          - name: typecheck
+            run: pnpm run typecheck
+
+          - name: type-aware lint (pushed files)
+            run: node_modules/.bin/tsx scripts/lint-pushed.ts {1}
+            use_stdin: true
 
     - name: generated files
       run: pnpm run verify-generated
