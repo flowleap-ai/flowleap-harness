@@ -454,6 +454,56 @@ describe('FileSystemSkillProvider', () => {
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['good-skill'])
   })
 
+  it('reports each file that is not a skill as a fault with its reason and keeps the log warning', async () => {
+    const home = await tempDir('skill-faults')
+    const root = join(home, '.dsh/skills')
+    await writeSkill(root, 'good-skill', 'Good skill')
+    const files: Array<[string, string]> = [
+      ['a-no-frontmatter.md', 'Just text.\n'],
+      ['b-bad-yaml.md', '---\nname: b\ndescription: [unclosed\n---\n'],
+      ['c-no-name.md', '---\ndescription: No name\n---\n'],
+      ['d-no-description.md', '---\nname: d-no-description\n---\n'],
+      ['e-bad-name.md', '---\nname: Bad Name\ndescription: Bad name\n---\n'],
+      ['f-bad-invocation.md', '---\nname: f-bad\ndescription: Bad invocation\nuser-invocable: maybe\n---\n'],
+    ]
+    for (const [file, text] of files) await writeFile(join(root, file), text)
+    await mkdir(join(root, 'g-binary'), { recursive: true })
+    await writeFile(join(root, 'g-binary/SKILL.md'), Buffer.from([0xff, 0xfe, 0x00, 0x41]))
+
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    await ctx.plugin(TestFileSystem)
+    const warn = vi.spyOn(ctx.logger, 'warn')
+    await ctx.plugin(SkillFileSystem, { dshHome: join(home, '.dsh'), agentsHome: join(home, '.agents'), watch: false })
+
+    const inventory = await ctx.skills.inspect()
+    expect(inventory.skills.map(skill => skill.name)).toEqual(['good-skill'])
+    expect(inventory.faults.map(fault => [fault.path.slice(root.length + 1), fault.reason.kind])).toEqual([
+      ['a-no-frontmatter.md', 'missing-frontmatter'],
+      ['b-bad-yaml.md', 'invalid-yaml'],
+      ['c-no-name.md', 'missing-field'],
+      ['d-no-description.md', 'missing-field'],
+      ['e-bad-name.md', 'invalid-name'],
+      ['f-bad-invocation.md', 'invalid-invocation'],
+      ['g-binary/SKILL.md', 'not-text'],
+    ])
+    expect(inventory.faults.every(fault => fault.provider === 'filesystem' && fault.source === 'user-dsh')).toBe(true)
+    const facts = inventory.faults.map(({ reason }) => {
+      switch (reason.kind) {
+        case 'missing-field': return reason.field
+        case 'invalid-name': return reason.name
+        case 'invalid-yaml': return reason.detail.length > 0
+        case 'invalid-invocation': return reason.detail.includes('"user-invocable" must be a boolean')
+        case 'not-text': return reason.detail.includes('not text')
+        case 'missing-frontmatter': return undefined
+      }
+    })
+    expect(facts).toEqual([undefined, true, 'name', 'description', 'Bad Name', true, true])
+    expect(inventory.complete).toBe(true)
+    expect(warn.mock.calls.filter(([message]) => String(message).includes('ignored:'))).toHaveLength(7)
+    expect(await ctx.skills.list()).toHaveLength(1)
+  })
+
   it.each([false, true])('publishes regular-file paths for linked skills while retaining their resource roots (filesystem service: %s)', async (withFileSystem) => {
     const home = await tempDir('skill-symlink-home')
     const external = await tempDir('skill-symlink-external')
@@ -939,7 +989,7 @@ describe('FileSystemSkillProvider', () => {
       return provider
     })
     const beforeDisposal = await provider.list({})
-    expect((Array.isArray(beforeDisposal) ? beforeDisposal : beforeDisposal.candidates).map(skill => skill.name))
+    expect(beforeDisposal.candidates.map(skill => skill.name))
       .toEqual(['disposed-skill'])
 
     await provider.dispose()
@@ -947,7 +997,7 @@ describe('FileSystemSkillProvider', () => {
     provider.observeHostMutation(join(home, '.agents/skills/disposed-skill/SKILL.md'))
 
     const afterDisposal = await provider.list({})
-    expect((Array.isArray(afterDisposal) ? afterDisposal : afterDisposal.candidates).map(skill => skill.name))
+    expect(afterDisposal.candidates.map(skill => skill.name))
       .toEqual(['disposed-skill'])
     disposeProvider()
   })

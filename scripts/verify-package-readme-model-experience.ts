@@ -169,6 +169,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-settings-subagent': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-settings-web-search': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-settings-flowleap-models': { kind: 'none', reason: 'Browser-side Test and Connect OpenRouter controls on the Models page over the flowleapModels Remote; registers no model surface.' },
+  'packages/client/ui-settings-skills': { kind: 'none', reason: 'Browser-side read-only Skills settings section over the skillInventory Remote; registers no model surface.' },
   'packages/client/ui-settings-flowleap-connectors': { kind: 'none', reason: 'Browser-side settings surface; registers no model surface.' },
   'packages/client/ui-flowleap-agent-builder': { kind: 'none', reason: 'Browser-side agent picker rows and agent form over the flowleapAgents Remote; dsh-flowleap-agent-builder owns the model-visible sections and tools.' },
   'packages/client/ui-flowleap-admin-link': { kind: 'none', reason: 'Browser-side sidebar link and an authenticated route that checks the starter header; registers no model surface.' },

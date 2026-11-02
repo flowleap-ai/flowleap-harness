@@ -7,6 +7,7 @@ import SkillRegistry, {
   renderSkillContent,
   type SkillCandidate,
   type SkillDefinition,
+  type SkillFault,
   type SkillInvocationPolicy,
   type SkillLookupOptions,
   type SkillProvider,
@@ -219,7 +220,7 @@ describe('SkillRegistry registry', () => {
   })
 
   it('rejects malformed provider results and every malformed candidate scalar', async () => {
-    const malformedOutputs: unknown[] = [null, 1, {}, { candidates: [], complete: 'yes' }]
+    const malformedOutputs: unknown[] = [null, 1, {}, { candidates: [], complete: 'yes' }, { candidates: [], complete: true, faults: 'none' }]
     for (const [index, output] of malformedOutputs.entries()) {
       const badList = new Context()
       await badList.plugin(SkillRegistry)
@@ -228,7 +229,7 @@ describe('SkillRegistry registry', () => {
         list: () => Promise.resolve(output as readonly SkillCandidate[] | SkillProviderObservation),
         get: () => Promise.resolve(undefined),
       })
-      await expect(badList.skills.list()).rejects.toThrow('list() must return an array or { candidates, complete } observation')
+      await expect(badList.skills.list()).rejects.toThrow('list() must return an array or { candidates, complete, faults? } observation')
     }
 
     const cases: { patch: Partial<SkillCandidate>; expected: string }[] = [
@@ -1268,5 +1269,128 @@ describe('SkillRegistry scoped layers', () => {
     control?.invalidate()
     expect(await ctx.skills.list({ scope })).toEqual([])
     await preset.dispose()
+  })
+})
+
+/** A provider with its own name and source; each candidate's body is `<name> from <provider>`. */
+function namedProvider(name: string, source: string, skills: Array<{ skill: string; rank: number }>, faults?: SkillFault[]): SkillProvider {
+  return {
+    name,
+    list: () => Promise.resolve({
+      candidates: skills.map(({ skill, rank }) => ({
+        ...memorySkill(skill, `${skill} by ${name}`, rank, `${skill} from ${name}`),
+        provider: name,
+        source,
+      })),
+      complete: true,
+      ...faults === undefined ? {} : { faults },
+    }),
+    get: candidate => Promise.resolve({ ...candidate, content: (candidate.locator as { content: string }).content }),
+  }
+}
+
+describe('SkillRegistry inspect and read', () => {
+  it('reports every candidate with the same winners as list(), replaced ones after their winner', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    registerProvider(ctx, namedProvider('pack', 'custom', [{ skill: 'drafting', rank: 300 }, { skill: 'search', rank: 300 }]))
+    registerProvider(ctx, namedProvider('user', 'user-dsh', [{ skill: 'search', rank: 100 }, { skill: 'alpha', rank: 100 }]))
+    const preset = createScope(ctx, { preset: 'inventory' })
+    scopedSkills(preset.ctx).registerProvider(() => namedProvider('preset-local', 'project-dsh', [{ skill: 'search', rank: 900 }]))
+    const scope = scopeOf(preset.ctx)
+
+    const inventory = await ctx.skills.inspect({ scope })
+    const winners = inventory.skills.filter(entry => entry.replacedBy === undefined)
+    expect(winners).toEqual(await ctx.skills.list({ scope }))
+    expect(inventory.skills.map(entry => [entry.name, entry.provider, entry.replacedBy])).toEqual([
+      ['alpha', 'user', undefined],
+      ['drafting', 'pack', undefined],
+      ['search', 'preset-local', undefined],
+      ['search', 'user', { provider: 'preset-local', source: 'project-dsh' }],
+      ['search', 'pack', { provider: 'preset-local', source: 'project-dsh' }],
+    ])
+    expect(inventory).toMatchObject({ faults: [], complete: true })
+
+    const global = await ctx.skills.inspect()
+    expect(global.skills.filter(entry => entry.name === 'search').map(entry => [entry.provider, entry.replacedBy])).toEqual([
+      ['user', undefined],
+      ['pack', { provider: 'user', source: 'user-dsh' }],
+    ])
+    await preset.dispose()
+  })
+
+  it('reads the body of a winner and of a replaced candidate, and nothing for an unknown one', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    registerProvider(ctx, namedProvider('pack', 'custom', [{ skill: 'search', rank: 300 }]))
+    registerProvider(ctx, namedProvider('user', 'user-dsh', [{ skill: 'search', rank: 100 }]))
+
+    expect((await ctx.skills.read({ name: 'search', provider: 'user', source: 'user-dsh' }))?.content).toBe('search from user')
+    expect((await ctx.skills.read({ name: 'search', provider: 'pack', source: 'custom' }))?.content).toBe('search from pack')
+    expect(await ctx.skills.read({ name: 'search', provider: 'pack', source: 'user-dsh' })).toBeUndefined()
+    expect(await ctx.skills.read({ name: 'missing', provider: 'pack', source: 'custom' })).toBeUndefined()
+    expect(await ctx.skills.read({ name: 'Not A Name', provider: 'pack', source: 'custom' })).toBeUndefined()
+  })
+
+  it('tells apart two same-name candidates of one provider and source by their path', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    const copy = (path: string, rank: number, content: string): SkillCandidate => ({
+      ...memorySkill('claims', path, rank, content), provider: 'mine', source: 'user-dsh', path,
+    })
+    registerProvider(ctx, {
+      name: 'mine',
+      list: () => Promise.resolve([copy('/home/skills/claims/SKILL.md', 100, 'current'), copy('/home/skills/claims-old/SKILL.md', 100, 'old')]),
+      get: candidate => Promise.resolve({ ...candidate, content: (candidate.locator as { content: string }).content }),
+    })
+
+    const [winner, replaced] = (await ctx.skills.inspect()).skills
+    expect([winner?.path, replaced?.path]).toEqual(['/home/skills/claims/SKILL.md', '/home/skills/claims-old/SKILL.md'])
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: replaced?.path }))?.content).toBe('old')
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: winner?.path }))?.content).toBe('current')
+    expect((await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh' }))?.content).toBe('current')
+    expect(await ctx.skills.read({ name: 'claims', provider: 'mine', source: 'user-dsh', path: '/elsewhere/SKILL.md' })).toBeUndefined()
+  })
+
+  it('passes provider faults through in provider order and refuses a fault for another provider', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    const packFault: SkillFault = { provider: 'pack', source: 'custom', path: '/pack/broken/SKILL.md', reason: { kind: 'missing-frontmatter' } }
+    const userFault: SkillFault = { provider: 'user', source: 'user-dsh', path: '/home/skills/x.md', reason: { kind: 'missing-field', field: 'description' } }
+    registerProvider(ctx, namedProvider('pack', 'custom', [{ skill: 'good', rank: 300 }], [packFault]))
+    registerProvider(ctx, namedProvider('user', 'user-dsh', [], [userFault]))
+
+    const inventory = await ctx.skills.inspect()
+    expect(inventory.faults).toEqual([packFault, userFault])
+    expect(inventory.skills.map(entry => entry.name)).toEqual(['good'])
+    expect((await ctx.skills.list()).map(entry => entry.name)).toEqual(['good'])
+
+    const wrong = new Context()
+    await wrong.plugin(SkillRegistry)
+    registerProvider(wrong, namedProvider('pack', 'custom', [], [userFault]))
+    await expect(wrong.skills.inspect()).rejects.toThrow('skill provider "pack" reported a fault for provider "user"')
+  })
+
+  it('marks an inventory incomplete when a provider fails or the catalog changes during the read', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    registerProvider(ctx, { name: 'failing', list: () => Promise.reject(new Error('offline')), get: () => Promise.resolve(undefined) })
+    expect((await ctx.skills.inspect()).complete).toBe(false)
+
+    const racing = new Context()
+    await racing.plugin(SkillRegistry)
+    let control: { invalidate: () => void } | undefined
+    racing.skills.registerProvider((given) => {
+      control = given
+      return {
+        name: 'racing',
+        list: () => {
+          control?.invalidate()
+          return Promise.resolve([])
+        },
+        get: () => Promise.resolve(undefined),
+      }
+    })
+    expect((await racing.skills.inspect()).complete).toBe(false)
   })
 })

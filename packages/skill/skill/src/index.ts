@@ -235,11 +235,101 @@ export interface SkillCatalogSnapshot {
   readonly complete: boolean
 }
 
+/**
+ * Why a provider could not offer one skill file as a candidate. Closed by
+ * `kind`; consumers switch on it to show a localized reason.
+ */
+export type SkillFaultReason =
+  | {
+    /** The file does not start with a `---` YAML frontmatter block, or the block is not a mapping. */
+    readonly kind: 'missing-frontmatter'
+  }
+  | {
+    /** The frontmatter block is not valid YAML. */
+    readonly kind: 'invalid-yaml'
+    /** Parser message. */
+    readonly detail: string
+  }
+  | {
+    /** A required frontmatter field is absent or empty. */
+    readonly kind: 'missing-field'
+    /** The first required field that is absent. */
+    readonly field: 'name' | 'description'
+  }
+  | {
+    /** The `name` field is not a kebab-case skill name. */
+    readonly kind: 'invalid-name'
+    /** The refused name. */
+    readonly name: string
+  }
+  | {
+    /** An invocation-control field has an unsupported key or a non-boolean value. */
+    readonly kind: 'invalid-invocation'
+    /** Parser message naming the field. */
+    readonly detail: string
+  }
+  | {
+    /** The file is not readable as text. */
+    readonly kind: 'not-text'
+    /** Filesystem message. */
+    readonly detail: string
+  }
+
+/** One skill file that a provider found but could not offer as a candidate. */
+export interface SkillFault {
+  /** Provider that found the file. */
+  readonly provider: string
+  /** Discovery source of the root that holds the file. */
+  readonly source: SkillSource
+  /** File path as the provider addresses it. */
+  readonly path: string
+  /** Why the file is not a skill. */
+  readonly reason: SkillFaultReason
+}
+
 /** Provider candidates plus whether the current discovery is authoritative. */
 export interface SkillProviderObservation {
   /** Candidates available from the current provider discovery. */
   readonly candidates: readonly SkillCandidate[]
   /** Whether discovery completed and these candidates may be cached. */
+  readonly complete: boolean
+  /** Files that discovery found but could not offer; omission means none. */
+  readonly faults?: readonly SkillFault[]
+}
+
+/**
+ * Identity of one candidate across a merge: the name plus the provider and
+ * source that produced it, and its instruction file path when it has one. Two
+ * file-backed candidates of one provider and source with the same name differ
+ * by path; without a path, the higher-precedence one answers.
+ */
+export interface SkillCandidateRef {
+  /** Kebab-case skill name. */
+  readonly name: string
+  /** Provider that produced the candidate. */
+  readonly provider: string
+  /** Discovery source of the candidate. */
+  readonly source: SkillSource
+  /** Instruction file path as `inspect()` reports it; when present, only the candidate with this path matches. */
+  readonly path?: string | undefined
+}
+
+/** One merged candidate as `inspect()` reports it. */
+export interface SkillInventoryEntry extends SkillSummary {
+  /** Present when another candidate with the same name wins; names that winner. */
+  readonly replacedBy?: Pick<SkillCandidateRef, 'provider' | 'source'>
+}
+
+/** Every candidate of one view, winners and replaced ones, plus the files that could not be offered. */
+export interface SkillInventory {
+  /**
+   * Winners sorted by name, each followed by the candidates it replaced in
+   * precedence order. The winners equal `list()` for the same options.
+   */
+  readonly skills: readonly SkillInventoryEntry[]
+  /** Faults of every provider in the view, in layer and provider order. */
+  readonly faults: readonly SkillFault[]
+  /** Whether every provider completed without a concurrent catalog revision. */
   readonly complete: boolean
 }
 
@@ -313,8 +403,20 @@ interface RegisteredProvider {
   order: number
 }
 
-interface LayerCollectResult {
+interface LayerCandidates {
+  /** Every candidate of the layer, unsorted. */
   entries: IndexedCandidate[]
+  faults: SkillFault[]
+  cacheable: boolean
+}
+
+/** One merge of the view's layers: the single precedence rule behind `list()`, `get()`, `inspect()`, and `read()`. */
+interface MergeResult {
+  /** Winner per name. */
+  entries: Map<string, IndexedCandidate>
+  /** Candidates that lost their name, per name, in precedence order. */
+  replaced: Map<string, IndexedCandidate[]>
+  faults: SkillFault[]
   cacheable: boolean
 }
 
@@ -503,6 +605,52 @@ export class SkillRegistry extends Service {
     throwIfAborted(options.signal)
     const match = collected.entries.get(name)
     if (match === undefined) return undefined
+    return await this.load(match, options)
+  }
+
+  /**
+   * Observe every candidate of a view with the same merge rule as `list()`:
+   * the winners, the candidates each winner replaced, and the files that
+   * providers could not offer. The read is never cached and never fills the
+   * catalog cache.
+   * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels discovery.
+   * @returns the inventory of the view.
+   */
+  async inspect(options: SkillViewOptions = {}): Promise<SkillInventory> {
+    const revision = this.revision
+    const merged = await this.collectFresh(options, false)
+    throwIfAborted(options.signal)
+    const skills: SkillInventoryEntry[] = []
+    const winners = [...merged.entries.values()].sort((left, right) => compareCodePoints(left.candidate.name, right.candidate.name))
+    for (const winner of winners) {
+      skills.push(toSummary(winner.candidate))
+      const replacedBy = { provider: winner.candidate.provider, source: winner.candidate.source }
+      for (const loser of merged.replaced.get(winner.candidate.name) ?? []) {
+        skills.push({ ...toSummary(loser.candidate), replacedBy })
+      }
+    }
+    return { skills, faults: merged.faults, complete: merged.cacheable && revision === this.revision }
+  }
+
+  /**
+   * Load the body of one exact candidate of a view, a winner or a replaced
+   * one, with the same validation and cancellation as `get()`.
+   * @param ref - name, provider, source, and path of the candidate, as `inspect()` reports them.
+   * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels work.
+   * @returns the full skill, or `undefined` when the view holds no such candidate or its file is gone.
+   */
+  async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined> {
+    if (!isSkillName(ref.name)) return undefined
+    const merged = await this.collectFresh(options, false)
+    throwIfAborted(options.signal)
+    const candidates = [merged.entries.get(ref.name), ...merged.replaced.get(ref.name) ?? []]
+    const match = candidates.find(entry => entry?.candidate.provider === ref.provider && entry.candidate.source === ref.source
+      && (ref.path === undefined || entry.candidate.path === ref.path))
+    if (match === undefined) return undefined
+    return await this.load(match, options)
+  }
+
+  private async load(match: IndexedCandidate, options: SkillViewOptions): Promise<SkillDefinition | undefined> {
     const definition = await waitWithAbort(
       match.provider.get(match.candidate, options),
       options.signal,
@@ -528,7 +676,7 @@ export class SkillRegistry extends Service {
       const cached = this.collectCache.get(key)
       if (cached !== undefined) return { entries: cached, cacheable: true }
 
-      const result = await this.collectFresh(options)
+      const result = await this.collectFresh(options, true)
       throwIfAborted(options.signal)
       if (revision !== this.revision) {
         if (attempt < MAX_COLLECT_ATTEMPTS) {
@@ -548,42 +696,56 @@ export class SkillRegistry extends Service {
     }
   }
 
-  private async collectFresh(options: SkillViewOptions): Promise<CollectResult> {
+  /**
+   * Merge every layer of the view. `logReplaced` logs each within-layer loser;
+   * only the cache-filling read logs, so uncached inspection does not repeat it.
+   */
+  private async collectFresh(options: SkillViewOptions, logReplaced: boolean): Promise<MergeResult> {
     // Global first, then existing chain overlays farthest ancestor first and
     // the exact scope last, so the nearest layer's same-name entry replaces
     // the farther ones — the tools registry's shadowing rule. Rank decides
     // duplicates only within one layer.
     const layers = [this.layers.global, ...this.layers.chainLayers(options.scope)]
-    const merged = new Map<string, IndexedCandidate>()
-    let cacheable = true
+    const merged: MergeResult = { entries: new Map(), replaced: new Map(), faults: [], cacheable: true }
     for (const layer of layers) {
-      const collected = await this.collectLayer(layer, options)
-      if (!collected.cacheable) cacheable = false
-      for (const entry of collected.entries) merged.set(entry.candidate.name, entry)
+      const collected = await this.listLayerCandidates(layer, options)
+      if (!collected.cacheable) merged.cacheable = false
+      merged.faults.push(...collected.faults)
+      const nearer = this.mergeLayer(collected.entries, logReplaced)
+      // Every candidate of a nearer layer outranks every candidate of the
+      // farther ones, so this layer's losers go first, then the farther winner.
+      for (const [name, entry] of nearer.entries) {
+        const previous = merged.entries.get(name)
+        const farther = merged.replaced.get(name) ?? []
+        const replaced = [...nearer.replaced.get(name) ?? [], ...previous === undefined ? [] : [previous], ...farther]
+        if (replaced.length > 0) merged.replaced.set(name, replaced)
+        merged.entries.set(name, entry)
+      }
     }
-    return { entries: merged, cacheable }
+    return merged
   }
 
-  private async collectLayer(layer: SkillLayer, options: SkillLookupOptions): Promise<LayerCollectResult> {
-    const collected = await this.listLayerCandidates(layer, options)
-    collected.entries.sort(compareIndexedCandidates)
-    const seen = new Set<string>()
-    const result: IndexedCandidate[] = []
-    for (const entry of collected.entries) {
+  /** Apply the within-layer rule: the lowest rank, then provider order, then provider-local order wins a name. */
+  private mergeLayer(entries: IndexedCandidate[], logReplaced: boolean): Pick<MergeResult, 'entries' | 'replaced'> {
+    entries.sort(compareIndexedCandidates)
+    const winners = new Map<string, IndexedCandidate>()
+    const replaced = new Map<string, IndexedCandidate[]>()
+    for (const entry of entries) {
       const skill = entry.candidate
-      if (seen.has(skill.name)) {
-        this.ctx.logger.warn(`skill "${skill.name}" from ${skill.source} ignored because a higher-priority skill already exists`)
+      if (winners.has(skill.name)) {
+        if (logReplaced) this.ctx.logger.warn(`skill "${skill.name}" from ${skill.source} ignored because a higher-priority skill already exists`)
+        replaced.set(skill.name, [...replaced.get(skill.name) ?? [], entry])
         continue
       }
-      seen.add(skill.name)
-      result.push(entry)
+      winners.set(skill.name, entry)
     }
-    return { entries: result, cacheable: collected.cacheable }
+    return { entries: winners, replaced }
   }
 
-  private async listLayerCandidates(layer: SkillLayer, options: SkillLookupOptions): Promise<LayerCollectResult> {
+  private async listLayerCandidates(layer: SkillLayer, options: SkillLookupOptions): Promise<LayerCandidates> {
     throwIfAborted(options.signal)
     const candidates: IndexedCandidate[] = []
+    const faults: SkillFault[] = []
     let cacheable = true
     let runtimeOrder = 0
     for (const skill of [...layer.runtime.values()].sort((a, b) => compareCodePoints(a.name, b.name))) {
@@ -614,8 +776,14 @@ export class SkillRegistry extends Service {
         candidates.push({ candidate, provider, providerOrder: order, localOrder, layer })
         localOrder += 1
       }
+      for (const fault of observation.faults ?? []) {
+        if (fault.provider !== provider.name) {
+          throw new Error(`skill provider "${provider.name}" reported a fault for provider "${fault.provider}"`)
+        }
+        faults.push(fault)
+      }
     }
-    return { entries: candidates, cacheable }
+    return { entries: candidates, faults, cacheable }
   }
 
   private invalidateCache(): void {
@@ -667,14 +835,15 @@ function normalizeProviderObservation(output: unknown, providerName: string): Sk
     throw invalidProviderObservation(providerName)
   }
   const observation = output as Partial<SkillProviderObservation>
-  if (!Array.isArray(observation.candidates) || typeof observation.complete !== 'boolean') {
+  if (!Array.isArray(observation.candidates) || typeof observation.complete !== 'boolean'
+    || (observation.faults !== undefined && !Array.isArray(observation.faults))) {
     throw invalidProviderObservation(providerName)
   }
   return observation as SkillProviderObservation
 }
 
 function invalidProviderObservation(providerName: string): TypeError {
-  return new TypeError(`skill provider "${providerName}" list() must return an array or { candidates, complete } observation`)
+  return new TypeError(`skill provider "${providerName}" list() must return an array or { candidates, complete, faults? } observation`)
 }
 
 const RUNTIME_SKILL_PROVIDER: SkillProvider = {

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Skills settings",
+    "description": "A read-only list of the agent's skills with each skill's source, full text, and replace note, and the skill files with faults."
+  }
+}
