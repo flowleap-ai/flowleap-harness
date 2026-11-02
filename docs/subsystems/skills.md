@@ -21,8 +21,14 @@ interface SkillProviderObservation {
   readonly candidates: readonly SkillCandidate[]
   /** Whether discovery completed and these candidates may be cached. */
   readonly complete: boolean
+  /** Files that discovery found but could not offer; omission means none. */
+  readonly faults?: readonly SkillFault[]
 }
 ```
+
+A provider reports each file it found but could not parse as a `SkillFault`: the provider, the source, the path, and a `SkillFaultReason` closed by `kind` (`missing-frontmatter`, `invalid-yaml`, `missing-field`, `invalid-name`, `invalid-invocation`, `not-text`). Faults never enter `list()`, `snapshot()`, or `get()`; a fault that names another provider fails the read.
+
+`inspect(options)` reads the same layers with the same merge rule as `list()` and never uses or fills the catalog cache. It returns each winner, sorted by name, followed by the candidates it replaced in precedence order, each with `replacedBy` naming the winner's provider and source; the faults of every provider in the view; and `complete`. `read({ name, provider, source }, options)` loads the body of that exact candidate, a winner or a replaced one, with the validation and cancellation of `get()`. Two candidates of one provider and source with the same name are not distinguishable, so the one with higher precedence answers.
 
 ```ts type-equiv
 /** Provider interface for one source of skills, such as local directories or a remote registry. */
