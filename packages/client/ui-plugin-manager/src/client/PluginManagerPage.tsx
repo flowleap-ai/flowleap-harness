@@ -1614,7 +1614,8 @@ function PluginManagerBody(props: PluginManagerPageProps): ReactNode {
   // The page omits profile bundles and persistent terminals. Other installed or offered bundles and
   // unreadable selections remain manageable; Settings' Plugin list inspects the full Host inventory.
   // A read-only deployment lists only what runs: nothing on the page can switch a bundle on.
-  const { readOnly } = state.deployment
+  const { deployment } = state
+  const readOnly = deployment?.readOnly === true
   const listed = state.packages.filter(pkg => !HIDDEN_BUNDLES.has(pkg.name) && (!readOnly || pkg.enabled)
     && (pkg.listedByDefault !== false || pkg.enabled || pkg.installed || rowsRunning(pkg))
     && (pkg.installed || pkg.official || pkg.error !== undefined))
@@ -1728,7 +1729,7 @@ function PluginManagerBody(props: PluginManagerPageProps): ReactNode {
                 <div className={css.pageHeading}>
                   <h1 className={css.pageTitle} data-plugin-header-part="title">{t('title')}</h1>
                   <div className={css.pageIntro} data-plugin-header-part="intro">
-                    <span>{t(readOnly ? 'introReadOnly' : 'intro')}</span>
+                    <span>{deployment === null ? '' : t(readOnly ? 'introReadOnly' : 'intro')}</span>
                     <Tooltip label={t('infoDescription')} side="bottom" delayMs={300} maxWidth={300} portal openOnClick>
                       <Button variant="ghost" size="sm" className={css.infoButton} aria-label={t('infoLabel')}>
                         <IconInfoOutlineRegular size={11} aria-hidden="true" />
@@ -1745,7 +1746,7 @@ function PluginManagerBody(props: PluginManagerPageProps): ReactNode {
                       <span className={css.toolbarLabel}>{t('refresh')}</span>
                     </Button>
                   </Tooltip>
-                  {readOnly || (!state.deployment.installBundles && state.install.requestId === undefined)
+                  {deployment === null || readOnly || (!deployment.installBundles && state.install.requestId === undefined)
                     ? null
                     : state.install.requestId === undefined
                       ? <AddPluginMenu t={t} disabled={!loaded} openInstall={props.openInstall} renderSlot={renderSlot} />

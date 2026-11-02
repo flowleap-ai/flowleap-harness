@@ -2733,6 +2733,13 @@ describe('product plugins, read-only deployments, and product names', () => {
     expect(within(card).getByText(en.rowPhaseActive)).toBeTruthy()
   })
 
+  it('shows no way to add a plugin and no intro until the Host says what it accepts', () => {
+    renderTab({ status: 'loading', deployment: null })
+    expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
+    expect(screen.queryByText(en.intro)).toBeNull()
+    expect(screen.queryByText(en.introReadOnly)).toBeNull()
+  })
+
   it('offers no way to add a plugin where the Host installs none, and keeps the switches', () => {
     renderTab({ packages: [selected], deployment: { readOnly: false, installBundles: false } })
     expect(screen.getByText(en.intro)).toBeTruthy()

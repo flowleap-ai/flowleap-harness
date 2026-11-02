@@ -229,6 +229,7 @@ describe('PluginManagerController', () => {
       listBundles: vi.fn().mockReturnValueOnce(gate.promise).mockResolvedValue(ok([BUNDLE])),
     })
     expect(state().status).toBe('idle')
+    expect(state().deployment).toBeNull()
     face.ensure()
     face.ensure()
     await Promise.resolve()
@@ -238,6 +239,7 @@ describe('PluginManagerController', () => {
     await mid
     expect(state().status).toBe('ready')
     expect(state().packages).toEqual([packageView(BUNDLE, PLUGINS)])
+    expect(state().deployment).toEqual({ readOnly: false, installBundles: true })
     expect(inventory.list).toHaveBeenCalledTimes(2)
     expect(plugins.listBundles).toHaveBeenCalledTimes(2)
     expect(plugins.listPlugins).toHaveBeenCalledTimes(2)

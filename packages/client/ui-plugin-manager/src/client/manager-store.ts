@@ -396,8 +396,8 @@ export interface PluginManagerState {
    */
   readonly refreshStatus: 'idle' | 'refreshing' | 'failed'
   readonly packages: readonly PackageView[]
-  /** What the Host lets the person change; until the first read, the defaults of a writable deployment. */
-  readonly deployment: PluginDeployment
+  /** What the Host lets the person change; null until the first read, so no control shows that the Host may refuse. */
+  readonly deployment: PluginDeployment | null
   /** Package names and row keys with an action crossing the wire. */
   readonly busy: readonly string[]
   readonly notice: ManagerNotice | null
@@ -698,7 +698,7 @@ export class PluginManagerController {
   ) {
     this.details = new BundleDetailController(ctx, () => document.baseURI)
     this.store = createSnapshotStore<PluginManagerState>({
-      status: 'idle', refreshStatus: 'idle', packages: [], deployment: { readOnly: false, installBundles: true }, busy: [], notice: null,
+      status: 'idle', refreshStatus: 'idle', packages: [], deployment: null, busy: [], notice: null,
       install: IDLE_INSTALL, confirm: null, highlight: null, versions: {}, update: null,
     })
   }
