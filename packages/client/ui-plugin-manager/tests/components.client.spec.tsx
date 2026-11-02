@@ -82,7 +82,6 @@ const READY: PluginManagerState = {
   status: 'ready',
   refreshStatus: 'idle',
   packages: [],
-  deployment: { readOnly: false, installBundles: true },
   busy: [],
   notice: null,
   install: IDLE_INSTALL,
@@ -109,6 +108,7 @@ const NO_CONFIG: ConfigLedger = { items: [], bundles: new Set(), rows: new Set()
 function renderTab(
   state: Partial<PluginManagerState> = {}, config: Partial<ConfigLedger> = {},
   bodies: SlotBodies = {}, forms: Record<string, ConfigPageForm> = {}, tabs: readonly PluginTab[] = [], packageNames = true,
+  deployment: PluginManagerPageProps['deployment'] = { readOnly: false, installBundles: true },
 ) {
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
@@ -170,6 +170,7 @@ function renderTab(
   const props: PluginManagerPageProps = {
     createHeaderRef: vi.fn(() => vi.fn()),
     packageNames,
+    deployment,
     useStore: bindSnapshotSelector(navigation), actions: navigation.actions,
     ...standard,
     t,
@@ -2725,8 +2726,8 @@ describe('product plugins, read-only deployments, and product names', () => {
   })
 
   it('in a read-only deployment shows only running bundles without controls, no plugin settings, and no way to add a plugin', () => {
-    renderTab({ packages: [product, experimental, selected, broken], deployment: { readOnly: true, installBundles: false } },
-      { items: [{ id: 'subagent', label: 'Subagent' }] })
+    renderTab({ packages: [product, experimental, selected, broken] }, { items: [{ id: 'subagent', label: 'Subagent' }] }, {}, {}, [], true,
+      { readOnly: true, installBundles: false })
     expect(screen.getByText(en.introReadOnly)).toBeTruthy()
     expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
@@ -2741,15 +2742,14 @@ describe('product plugins, read-only deployments, and product names', () => {
     expect(within(problem).getByText(en.rowPhaseFailed)).toBeTruthy()
   })
 
-  it('shows no way to add a plugin and no intro until the Host says what it accepts', () => {
-    renderTab({ status: 'loading', deployment: null })
+  it('knows the deployment while the first read loads: a read-only page shows no add control during loading', () => {
+    renderTab({ status: 'loading' }, {}, {}, {}, [], true, { readOnly: true, installBundles: false })
+    expect(screen.getByText(en.introReadOnly)).toBeTruthy()
     expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
-    expect(screen.queryByText(en.intro)).toBeNull()
-    expect(screen.queryByText(en.introReadOnly)).toBeNull()
   })
 
   it('offers no way to add a plugin where the Host installs none, and keeps the switches', () => {
-    renderTab({ packages: [selected], deployment: { readOnly: false, installBundles: false } })
+    renderTab({ packages: [selected] }, {}, {}, {}, [], true, { readOnly: false, installBundles: false })
     expect(screen.getByText(en.intro)).toBeTruthy()
     expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
     expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', 'Selected tool') })).toBeTruthy()

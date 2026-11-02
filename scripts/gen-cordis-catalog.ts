@@ -350,7 +350,6 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ListVersionsOptions: 'boot.md',
   UpdateBundleOptions: 'boot.md',
   PluginRegistries: 'boot.md',
-  PluginDeployment: 'boot.md',
   InspectOptions: 'boot.md',
   BrowserUseProviderName: 'browser-use.md',
   ComputerUseProviderName: 'computer-use.md',

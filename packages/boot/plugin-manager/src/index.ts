@@ -16,6 +16,8 @@ import type { NpmFileSource } from '@deepseek-ai/dsh-plugin-detail/types'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-client-modules'
+import type {} from '@deepseek-ai/dsh-host-webserver'
+import { PLUGIN_DEPLOYMENT_GLOBAL } from './deployment.ts'
 import { readBundleDocument, readBundleImage, type BundleDetailOptions } from './bundle-detail.ts'
 import { pluginEntryId, readPluginInventory } from '@deepseek-ai/dsh-host-plugin-inventory'
 import {
@@ -411,6 +413,10 @@ export class PluginManager extends TypertRemoteService {
     this.installBundles = required.installBundles
     this.offeredBundles = required.offeredBundles == null ? undefined : new Set(required.offeredBundles)
     this.readOnly = required.readOnly
+    const deployment: PluginDeployment = { readOnly: this.readOnly, installBundles: this.installBundles }
+    ctx.on('webserver/index-inject', (table) => {
+      table.push({ kind: 'global', name: PLUGIN_DEPLOYMENT_GLOBAL, value: deployment })
+    })
     this.detail = {
       profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
       npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
@@ -493,14 +499,6 @@ export class PluginManager extends TypertRemoteService {
       await setProfileVersionExemption(this.profile.dir, packageVersion, runtimeVersion, enabled, acceptRisk === true)
       Object.assign(result, await this.reload())
     }), { stage: 'enable', target: packageVersion, enabled }, 'bundle', exemptionOperationIdentity(packageVersion, runtimeVersion))
-  }
-
-  /** Read what this deployment lets the profile's person change, so a page offers only the controls the Host accepts.
-   * @returns Whether every change is refused, and whether installations and updates are.
-   */
-  @Remote
-  deployment(): PluginDeployment {
-    return { readOnly: this.readOnly, installBundles: this.installBundles }
   }
 
   /** Read current plugins, including why a row cannot be changed through the profile patch.

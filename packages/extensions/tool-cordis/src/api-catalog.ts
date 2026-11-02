@@ -2542,12 +2542,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Saved and runtime outcomes. Startup-only profiles require restart.',
       },
       {
-        signature: '@Remote deployment(): PluginDeployment',
-        description: 'Read what this deployment lets the profile\'s person change, so a page offers only the controls the Host accepts.',
-        parameters: [],
-        returns: 'Whether every change is refused, and whether installations and updates are.',
-      },
-      {
         signature: '@Remote async listPlugins(): Promise<PluginInfo[]>',
         description: 'Read current plugins, including why a row cannot be changed through the profile patch.',
         parameters: [],
@@ -7945,10 +7939,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PluginChange',
     declaration: 'export interface PluginChange {\n    readonly reason: \'plugin\' | \'bundle\' | \'install\' | \'remove\';\n}',
-  },
-  {
-    name: 'PluginDeployment',
-    declaration: 'export interface PluginDeployment {\n    readOnly: boolean;\n    installBundles: boolean;\n}',
   },
   {
     name: 'PluginDetail',

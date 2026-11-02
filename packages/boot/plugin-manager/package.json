@@ -26,6 +26,10 @@
       "types": "./lib/types/registry.d.ts",
       "default": "./lib/types/registry.js"
     },
+    "./deployment": {
+      "types": "./lib/types/deployment.d.ts",
+      "default": "./lib/types/deployment.js"
+    },
     "./typert": {
       "types": "./lib/typert.host.d.ts",
       "default": "./lib/typert.host.js"
@@ -122,6 +126,7 @@
     "@deepseek-ai/dsh-user-approval": "workspace:*",
     "@deepseek-ai/dsh-client-connection": "workspace:*",
     "@deepseek-ai/dsh-client-modules": "workspace:*",
+    "@deepseek-ai/dsh-host-webserver": "workspace:*",
     "@types/hosted-git-info": "^3.0.5"
   }
 }

@@ -87,7 +87,6 @@ function bench(overrides: Partial<Record<string, ReturnType<typeof vi.fn>>> = {}
       () => Promise.resolve(ok([BUNDLE])),
     ),
     listPlugins: vi.fn(() => Promise.resolve(ok(PLUGINS))),
-    deployment: vi.fn(() => Promise.resolve(ok({ readOnly: false, installBundles: true }))),
     inspect: vi.fn(() => Promise.resolve(ok(INSPECTED))),
     registries: vi.fn(() => Promise.resolve(ok(REGISTRIES))),
     installBundle: vi.fn(() => Promise.resolve(ok({ ...APPLIED, bundle: 'dsh-new' }))),
@@ -229,7 +228,6 @@ describe('PluginManagerController', () => {
       listBundles: vi.fn().mockReturnValueOnce(gate.promise).mockResolvedValue(ok([BUNDLE])),
     })
     expect(state().status).toBe('idle')
-    expect(state().deployment).toBeNull()
     face.ensure()
     face.ensure()
     await Promise.resolve()
@@ -239,7 +237,6 @@ describe('PluginManagerController', () => {
     await mid
     expect(state().status).toBe('ready')
     expect(state().packages).toEqual([packageView(BUNDLE, PLUGINS)])
-    expect(state().deployment).toEqual({ readOnly: false, installBundles: true })
     expect(inventory.list).toHaveBeenCalledTimes(2)
     expect(plugins.listBundles).toHaveBeenCalledTimes(2)
     expect(plugins.listPlugins).toHaveBeenCalledTimes(2)

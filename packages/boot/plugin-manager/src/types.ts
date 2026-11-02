@@ -66,7 +66,7 @@ export type PluginInfo = PluginInventoryEntry & {
   | { patchId?: never; readOnlyReason: ReadOnlyReason }
 )
 
-/** What this deployment lets the profile's person change through the manager. */
+/** What this deployment lets the profile's person change through the manager; browser pages receive it as a page global. */
 export interface PluginDeployment {
   /** True: every change is refused with `deployment-locked`; an administrator manages plugins outside the application. */
   readOnly: boolean

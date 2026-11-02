@@ -21,6 +21,8 @@ import type { PluginEntryId, PluginOperation } from '../src/types.ts'
 import Hmr from '@deepseek-ai/dsh-hmr'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { PLUGIN_DEPLOYMENT_GLOBAL, PluginDeployment } from '../src/deployment.ts'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { Group } from '@deepseek-ai/cordis-plugin-loader'
@@ -173,7 +175,6 @@ it('lists every plugin and bundle read-only and refuses every change while readO
   const { manager, dir } = await fixture('live', false, undefined, { readOnly: true })
   const manifestBefore = readFileSync(join(dir, 'package.json'), 'utf8')
   const patchBefore = readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')
-  expect(manager.deployment()).toEqual({ readOnly: true, installBundles: true })
   const row = (await manager.listPlugins()).find(item => String(item.entryId).endsWith(':managed'))!
   expect(row).toMatchObject({ readOnlyReason: 'deployment-locked' })
   expect(row.patchId).toBeUndefined()
@@ -191,15 +192,22 @@ it('lists every plugin and bundle read-only and refuses every change while readO
   expect(existsSync(join(dir, 'compatibility.json'))).toBe(false)
 })
 
-it('reports the deployment switches and what each plugin adds: its context-global tools and its browser half', async () => {
-  const { manager } = await fixture('live', false, (ctx) => {
+it('reads an absent deployment page global as a writable deployment that installs packages', () => {
+  expect(PluginDeployment({})).toEqual({ readOnly: false, installBundles: true })
+  expect(PluginDeployment({ readOnly: true, installBundles: false })).toEqual({ readOnly: true, installBundles: false })
+})
+
+it('sends the deployment switches as a page global and reports what each plugin adds: its context-global tools and its browser half', async () => {
+  const { manager, ctx } = await fixture('live', false, (ctx) => {
     void ctx.plugin(SystemPrompt).then(() => ctx.plugin(ToolRuntime))
     ctx.provide('clientModules', { clientPath: (id: string) => id.endsWith('plugin.mjs') ? '/client.js' : undefined })
   }, { installBundles: false }, undefined, (dir) => {
     writeFileSync(join(dir, 'node_modules/extra/cordis.patch.yml'),
       JSON.stringify([{ insert: [{ id: 'managed', name: './plugin.mjs', config: { tools: ['probe_write', 'probe_read'] } }] }]))
   })
-  expect(manager.deployment()).toEqual({ readOnly: false, installBundles: false })
+  const table: IndexInjection[] = []
+  await ctx.parallel('webserver/index-inject', table, { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1])
+  expect(table).toContainEqual({ kind: 'global', name: PLUGIN_DEPLOYMENT_GLOBAL, value: { readOnly: false, installBundles: false } })
   const plugins = await manager.listPlugins()
   expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'], hasClient: true })
   expect(plugins.find(item => String(item.entryId).endsWith(':manager'))).toMatchObject({ tools: [], hasClient: false })

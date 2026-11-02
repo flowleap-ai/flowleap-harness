@@ -26,6 +26,6 @@ Preconditions:
 
 ## Gotchas
 
-- The intro and `Add plugin` show only after the Host answers `pluginManager.deployment()`, so wait for the intro text before you check for controls.
+- The page reads the deployment from the page global `__DSH_PLUGIN_MANAGER_DEPLOYMENT__`; after a Host change, start the instance again and load the page again.
 - `MCP client` is the row of the paid FlowLeap tools (`mcp__flowleap__*`); without a signed-in `flowleap` CLI it shows no tools.
 - A row that adds no tool and no interface part, such as the Patent Agent prompt or an agent preset declaration, has no card.

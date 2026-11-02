@@ -162,7 +162,6 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'pluginManager/cancelInstall': 'owner-only', // owner plugin management
   'pluginManager/inspect': 'owner-only', // owner plugin management
   'pluginManager/installBundle': 'owner-only', // owner plugin management
-  'pluginManager/deployment': 'owner-only', // owner plugin management
   'pluginManager/listBundles': 'owner-only', // owner plugin management
   'pluginManager/listPlugins': 'owner-only', // owner plugin management
   'pluginManager/listVersionExemptions': 'owner-only', // owner plugin management

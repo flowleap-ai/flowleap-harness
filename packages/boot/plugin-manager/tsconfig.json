@@ -79,6 +79,9 @@
     },
     {
       "path": "../../client/modules"
+    },
+    {
+      "path": "../../host/webserver"
     }
   ]
 }

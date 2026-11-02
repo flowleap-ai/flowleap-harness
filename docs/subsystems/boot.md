@@ -229,11 +229,6 @@ Manage profile files and apply their declared reload lifecycle.
  */
 @Remote setVersionExemption(packageVersion: string, runtimeVersion: string, enabled: boolean, acceptRisk?: boolean): Promise<ChangeResult>
 
-/** Read what this deployment lets the profile's person change, so a page offers only the controls the Host accepts.
- * @returns Whether every change is refused, and whether installations and updates are.
- */
-@Remote deployment(): PluginDeployment
-
 /** Read current plugins, including why a row cannot be changed through the profile patch.
  * @returns Current runtime entries with persistent patch targets, the context-global tools each registered, and whether
  * its module has a browser half.

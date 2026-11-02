@@ -14,7 +14,6 @@ import type {
   ChangeResult,
   IncompatiblePlugin,
   ManagementError,
-  PluginDeployment,
   PluginEntryId,
   PluginInfo,
   PluginInspectProblem,
@@ -396,8 +395,6 @@ export interface PluginManagerState {
    */
   readonly refreshStatus: 'idle' | 'refreshing' | 'failed'
   readonly packages: readonly PackageView[]
-  /** What the Host lets the person change; null until the first read, so no control shows that the Host may refuse. */
-  readonly deployment: PluginDeployment | null
   /** Package names and row keys with an action crossing the wire. */
   readonly busy: readonly string[]
   readonly notice: ManagerNotice | null
@@ -698,7 +695,7 @@ export class PluginManagerController {
   ) {
     this.details = new BundleDetailController(ctx, () => document.baseURI)
     this.store = createSnapshotStore<PluginManagerState>({
-      status: 'idle', refreshStatus: 'idle', packages: [], deployment: null, busy: [], notice: null,
+      status: 'idle', refreshStatus: 'idle', packages: [], busy: [], notice: null,
       install: IDLE_INSTALL, confirm: null, highlight: null, versions: {}, update: null,
     })
   }
@@ -1112,13 +1109,12 @@ export class PluginManagerController {
           this.patch({ status: 'unavailable', packages: [] })
           continue
         }
-        const [bundles, plugins, deployment] = await Promise.all([
+        const [bundles, plugins] = await Promise.all([
           this.ctx.remote.pluginManager.listBundles(),
           this.ctx.remote.pluginManager.listPlugins(),
-          this.ctx.remote.pluginManager.deployment(),
         ])
         if (generation !== this.generation) return
-        if (!bundles.ok || !plugins.ok || !deployment.ok) {
+        if (!bundles.ok || !plugins.ok) {
           this.patch({ status: 'error' })
           continue
         }
@@ -1127,7 +1123,6 @@ export class PluginManagerController {
           status: 'ready',
           refreshStatus: this.getSnapshot().refreshStatus === 'refreshing' ? 'refreshing' : 'idle',
           packages: sortPackages(bundles.value.map(bundle => packageView(bundle, plugins.value))),
-          deployment: deployment.value,
         })
         this.dropStaleVersions()
       } while (this.shouldRerun())

@@ -55,8 +55,8 @@ it.each([
   // The scaffold's own ui-plugin-manager overlay replaces the row config, so flowleap-web-models.spec.ts pins its value.
   expect(page).toContain('"__DSH_PLUGIN_MANAGER_PAGE_CONFIG__"')
 
+  expect(page).toContain(`"__DSH_PLUGIN_MANAGER_DEPLOYMENT__"] = {"readOnly":${String(firm)},"installBundles":false}`)
   const manager = scaffold.ctx.pluginManager
-  expect(manager.deployment()).toEqual({ readOnly: firm, installBundles: false })
   const plugins = await manager.listPlugins()
   const connectors = plugins.find(plugin => plugin.moduleName === '@deepseek-ai/dsh-flowleap-connectors')
   expect(connectors?.tools).toContain('search_patents')

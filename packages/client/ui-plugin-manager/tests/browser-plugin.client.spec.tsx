@@ -85,7 +85,6 @@ async function bench(allows: ((action: string) => boolean) | 'switchable' = () =
     pluginManager: {
       listBundles: vi.fn(() => Promise.resolve({ ok: true as const, value: [] })),
       listPlugins: vi.fn(() => Promise.resolve({ ok: true as const, value: [] })),
-      deployment: vi.fn(() => Promise.resolve({ ok: true as const, value: { readOnly: false, installBundles: true } })),
       registries: vi.fn(() => Promise.resolve({ ok: true as const, value: { registry: null, fallbackRegistries: [], resolved: null } })),
       readBundleDetail: vi.fn(() => Promise.resolve({ ok: true as const, value: { status: 'none' as const } })),
     },
