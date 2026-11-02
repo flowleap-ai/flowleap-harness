@@ -8,6 +8,7 @@ import {
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
+import { NEW_TASK_DRAFT, SCHEDULE_MANAGER_NS } from '../src/client/schedule-draft.ts'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -594,6 +595,23 @@ describe('ui-flowleap-routines browser half', () => {
     expect(Object.keys(en).sort()).toEqual(Object.keys(zh).sort())
     await fiber.dispose()
     expect(translate('done.action')).not.toBe(en['done.action'])
+    await ctx.fiber.dispose()
+  })
+
+  it('replaces the New task example request with the patent example in every shipped language while it runs', async () => {
+    const ctx = await pluginContext()
+    const generic = Object.fromEntries(Object.keys(NEW_TASK_DRAFT).map(locale => [locale, { 'new.draft': `generic ${locale}` }]))
+    const unregister = ctx.locale.register(SCHEDULE_MANAGER_NS, generic as never)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const translate = ctx.locale.bind(SCHEDULE_MANAGER_NS as never) as (key: string) => string
+    for (const [locale, text] of Object.entries(NEW_TASK_DRAFT)) {
+      ctx.locale.setLocale(locale)
+      expect(translate('new.draft')).toBe(text)
+    }
+    await fiber.dispose()
+    expect(translate('new.draft')).toBe('generic pt')
+    unregister()
     await ctx.fiber.dispose()
   })
 })

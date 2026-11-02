@@ -6,8 +6,7 @@ The FlowLeap patent-data office clients — EPO OPS, USPTO ODP, the academic sea
 
 | Path | Owner | Role |
 |---|---|---|
-| `src/` (except `src/harness/`) | upstream, verbatim | the library, with its tests and recorded fixtures; nothing in it is edited here |
-| `src/harness/mupdf.ts` | harness | stand-in for the `mupdf` dependency (see below) |
+| `src/` | upstream, verbatim | the library, with its tests and recorded fixtures; nothing in it is edited here |
 | `upstream/package.json`, `upstream/tsconfig*.json` | upstream, verbatim | the backend's manifests, kept for reference and for the drift check |
 | `package.json`, `tsconfig.json`, `tsdown.config.ts` | harness | the workspace manifest (`main: lib/index.js`), the strict-base build with the upstream relaxations, the bundle |
 | `SYNC.json` | generated | the backend commit, the content hash, and the sync time |
@@ -21,9 +20,9 @@ scripts/flowleap/sync-connectors.sh --check    # fail when the copy drifts from 
 
 The hash covers every upstream file under `src/` and the three upstream manifests. `--check` fails on an edited vendored file, on a backend checkout that differs from the copy, and on a runtime dependency the backend added without `package.json` here mirroring it. After a sync that changes the dependencies, mirror them in `package.json`, run `pnpm install`, and update the row in [`vendor/README.md`](../README.md).
 
-## mupdf is not installed
+## Figure rendering
 
-`src/ops/rasterize.ts` imports `mupdf` (AGPL-3.0-or-later) to rasterize patent figures. The harness is MIT and its notices gate (`gen-third-party-notices`) rejects a non-permissive runtime dependency without an owner authorization, so `mupdf` is left out of `package.json`: `tsconfig.base.json` maps the specifier to `src/harness/mupdf.ts` for type checks, `tsdown.config.ts` aliases it there for the bundle, and the upstream ambient shim `src/types/mupdf.d.ts` is excluded from the compilation. Every member of the stand-in throws `MupdfUnavailableError`, so `ops.getFigurePage*` fails with a clear message and nothing else is affected; the interim tools do not reach it. Installing the real dependency is a licensing decision for the project owner: it means an owner authorization in `scripts/gen-third-party-notices.ts`, `mupdf` back in `package.json`, and dropping the alias and the path mapping.
+`src/ops/rasterize.ts` renders a PDF drawing page with PDFium compiled to WebAssembly (`@hyzyla/pdfium`, MIT; PDFium itself BSD-3-Clause and Apache-2.0) and encodes it with `pngjs` (MIT) and `jpeg-js` (BSD-3-Clause). Every runtime dependency is permissive, so `package.json` mirrors the upstream dependencies one for one and `--check` enforces that.
 
 ## Not run here
 

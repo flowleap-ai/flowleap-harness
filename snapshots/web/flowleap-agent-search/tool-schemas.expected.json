@@ -254,6 +254,24 @@
       }
     },
     {
+      "name": "examiner_baseline",
+      "description": "Examiner Baseline — every document cited across a granted patent's family, by office; computed, not assembled. One call walks the INPADOC family (get_family), reads the references-cited block of every publication of every member (EPO OPS bibliography) and, for each US grant, the USPTO enriched office-action citations (get_us_grant then search_office_action_citations), and returns one matrix: `documents[]` (one row per cited document, deduplicated by DOCDB number, kind dropped; family dedupe not applied, so `familyId` is null) × `offices[]`. Provenance: every category, claim list and count is copied from those office records by code, never inferred by a model; each cell keeps its `citations[]` verbatim with `source` (ops_biblio or uspto_enriched) and `citing` (the citing publication or US application). `membersWalked[]` gives each office's own counts per publication. `categoryClaims` pairs each search-report category with its own claims where OPS separates them (`category` and `relevantClaims` stay verbatim). A `gaps[]` row means that office returned no citation record or could not be read for that member: report it as a gap, never as \"nothing cited\". Each non-patent row (`npl`) carries `nplWork`: its OpenAlex record (title, DOI, abstract preview) when `status` is matched, similar works under `candidates` when none is certain, or why there is none; `nplResolution` counts them. Cite the Baseline from this tool; do not rebuild it from the individual reads.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "publication": {
+            "description": "Publication number of a family member with its kind, e.g. EP2110298B1 or US7722129B2. The whole INPADOC family is walked.",
+            "type": "string",
+            "minLength": 2
+          }
+        },
+        "required": [
+          "publication"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "export_draft_docx",
       "description": "Export a Draft Application to Word, only when the attorney asks for the Word file: drafting/<matter>/draft-application.description.docx, .claims.docx and .abstract.docx (one file per document type, office page setup, source markers and the Inventor Questions section removed), draft-application.full.docx (the full review copy, the whole application in one file, marked not for filing) and filing-manifest.md (claims, drawing sheets, abstract figure, ESTIMATED pages). It re-runs the validators and refuses while any Error or Inventor Question in findings.md is open and unwaived, while `approved` in claims.md is not true, or while claims.md differs from the claims the draft was generated against; at a closed approval or at unwaived Errors it asks the attorney in the chat first and continues only when the file carries the flag or the waiver; a refusal lists every blocking item and names the open steps of checklist.md. Report every item it lists as it is, with paths in backticks; the attorney resolves it in the draft, waives it with a reason, or opens the gate. On success it logs the attorney's edits against draft-application.generated.md in the Working Record and delivers the five files to the user; do not call present for them. Drawings are not generated. The export is a draft for attorney review, not a filing.",
       "parameters": {
@@ -480,6 +498,65 @@
         },
         "required": [
           "patent_number"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_patent_image",
+      "description": "Drawing PAGES of a publication (EPO OPS images). Metadata by default: drawingStartPage and drawingPages, the pages to ask for. Set include_images=true to get base64-encoded page images in figures[]; pages is an integer array, e.g. [9, 10], and a page is not a figure (one page holds several figures, no figure labels). Most patents are PDF-only — set render=\"png\" to rasterize pages to displayable PNG images. Set fit=\"compact\" for small grayscale pages (max 1000 px long edge, PNG or JPEG) under a 60k-character base64 budget with truncated + remainingPages. Max 20 pages per call.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "patent_number": {
+            "description": "Publication number including the requested kind, e.g. EP1234567B1. Preserve A2/B1 exactly. Without a kind, OPS resolves bibliography first; this does not mean the latest or granted publication.",
+            "type": "string",
+            "minLength": 2
+          },
+          "include_images": {
+            "default": false,
+            "description": "Set true to fetch base64-encoded page images into figures[]. Default false returns the figure metadata only (formats, page counts), exactly as before.",
+            "type": "boolean"
+          },
+          "pages": {
+            "description": "PDF page numbers to fetch, as an integer array, e.g. [9, 10] (only with include_images). A string such as \"9-12\" is rejected. Pages are not figures: one page holds several figures. Take the numbers from drawingPages in the metadata call. Max 20 per call; pages beyond the document's total are skipped. Omit to fetch all pages (capped at 20).",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "format": {
+            "default": "pdf",
+            "description": "Source image format to fetch from EPO. Most patents are PDF-only.",
+            "type": "string",
+            "enum": [
+              "png",
+              "tiff",
+              "pdf"
+            ]
+          },
+          "render": {
+            "description": "Set \"png\" to rasterize the (PDF) source to PNG. Recommended for AI agents and image rendering, since most patents are PDF-only and PDFs cannot be displayed as images.",
+            "type": "string",
+            "enum": [
+              "png"
+            ]
+          },
+          "fit": {
+            "description": "Set \"compact\" for small pages: each page is rendered from the PDF source at most 1000 px on the long edge, grayscale, as PNG or JPEG (the smaller). Each entry then carries format, width, height and bytes. The response holds at most 60000 base64 characters in total: pages are added in request order while they fit, then truncated=true and remainingPages list the pages to ask for in the next call. The first page is always returned. Use this through MCP or any client with an output cap.",
+            "type": "string",
+            "enum": [
+              "compact"
+            ]
+          }
+        },
+        "required": [
+          "patent_number",
+          "include_images",
+          "format"
         ],
         "additionalProperties": false
       }

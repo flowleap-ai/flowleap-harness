@@ -104,7 +104,7 @@ describe('the ui-brand-flowleap browser half', () => {
   it('leaves the headline alone without a tagline and names the product in every other override', () => {
     const { tagline: _tagline, ...untagged } = BRAND
     const namespaces = brandCopy(untagged, 'en').map(entry => entry.ns)
-    expect(namespaces).toEqual(['common', 'settings.models', 'model', 'pluginManager', 'sidebarOffice', 'settings.agentPreset', 'chat'])
+    expect(namespaces).toEqual(['common', 'settings.models', 'model', 'pluginManager', 'sidebarBrowser', 'sidebarOffice', 'settings.agentPreset', 'chat'])
     expect(brandCopy(BRAND, 'en').map(entry => entry.ns)).toContain('conversation')
     for (const locale of BRAND_LOCALES) {
       const texts = brandCopy(BRAND, locale).flatMap(entry => Object.values(entry.dict))
@@ -120,7 +120,8 @@ describe('the ui-brand-flowleap browser half', () => {
       expect([...translated.keys()], locale).toEqual([...english.keys()])
       for (const [key, text] of translated) {
         expect(placeholders(text), `${locale} ${key}`).toBe(placeholders(english.get(key) ?? ''))
-        const kept = key === 'common:brand.localBuild' || (key === 'conversation:hero.headline' && locale !== 'de')
+        const kept = key === 'common:brand.localBuild' || key === 'pluginManager:installGuideIdExample'
+          || (key === 'conversation:hero.headline' && locale !== 'de')
         if (!kept) expect(text, `${locale} ${key}`).not.toBe(english.get(key))
       }
     }

@@ -1454,7 +1454,7 @@ export async function getFigurePage(
 
       if (renderToPng) {
         try {
-          buffer = rasterizePdfToPng(buffer);
+          buffer = await rasterizePdfToPng(buffer);
         } catch (err) {
           throw rasterizeFailure(err);
         }
@@ -1483,7 +1483,7 @@ export async function getFigurePageCompact(
     fetchFresh: async () => {
       const source = await fetchFigureSource(ctx, link, page, "pdf");
       try {
-        const rendered = rasterizePdf(source, { fit: "compact" });
+        const rendered = await rasterizePdf(source, { fit: "compact" });
         return {
           base64: rendered.bytes.toString("base64"),
           format: rendered.format,

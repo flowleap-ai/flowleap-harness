@@ -36,3 +36,11 @@
         noticeHeaders: [x-flowleap-budget-warning]
       mistral:
         apiKeyEnv: MISTRAL_API_KEY
+
+# Attorneys do not install or switch on plugins on a firm server
+# (flowleap-harness#84): no Plugins page and no sidebar entry; "Browse other
+# plugins" leaves the More menus with it. The firm administrator manages
+# plugins through flowleap-os.
+
+- id: ui-plugin-manager
+  disabled: true

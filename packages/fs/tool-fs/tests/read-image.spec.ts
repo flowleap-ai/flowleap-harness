@@ -11,7 +11,7 @@ import { executeToolFixture, executeModelToolFixture } from '@deepseek-ai/dsh-to
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import * as PtcToolExecutor from '@deepseek-ai/dsh-tool-executor-ptc'
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -504,6 +504,15 @@ describe('strict image-modality gate', () => {
     const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('route could not be resolved')
+  })
+
+  it('refuses when the model catalog cannot verify the route', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup()
+    vi.spyOn(ctx.llm, 'resolveModelInfo').mockRejectedValueOnce(new Error('catalog down'))
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('route could not be verified')
   })
 })
 

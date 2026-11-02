@@ -4,6 +4,8 @@
   "include": ["src"],
   "references": [
     { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../host/webserver" },
     { "path": "../../client/locale/tsconfig.client.json" },
     { "path": "../../client/product-analytics/tsconfig.client.json" },
     { "path": "../../client/ui-sidebar" },

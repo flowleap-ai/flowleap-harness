@@ -66,6 +66,29 @@
 - id: ui-settings-session-log
   disabled: true
 
+# ── developer surfaces off (flowleap-harness#84, #70) ──────────────────────
+# Settings > Built-in plugins lists module names (`@deepseek-ai/dsh-…`) for
+# developers; the desktop keeps the Plugins page, whose Built-in plugin
+# settings hold the same configuration pages. The More menus offer no "Create
+# your plugin": its Creator preset (preset-cordis) is off below.
+
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-settings-plugin-inventory
+  disabled: true
+
+- id: entry-customization
+  config:
+    createPlugin: false
+
+# New task on the Automation tasks page opens the new chat with an example
+# request in the composer, unsent; ui-flowleap-routines supplies the patent
+# example.
+- id: ui-schedule
+  config:
+    newTaskDraft: true
+
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and
@@ -189,11 +212,14 @@
     # logs and the harness still starts.
     #
     # ADR 0019 decision 3: this row carries only the paid set the backend keeps
-    # (flowleap-backend #608) — PATSTAT, enriched citations, examiner baseline,
-    # images, analytics. The office tools (`search_patents`,
-    # `get_bibliography`, …) and OCR (`ocr`, `read_pdf`, on the firm's Mistral
-    # key since C3) come from `dsh-flowleap-connectors` below and are not
-    # listed here, with one exception. `get_claims` is ALSO here: the native copy
+    # — PATSTAT, analytics and US full text. The office tools (`search_patents`,
+    # `get_bibliography`, …), the drawings and US office-action citations
+    # (`get_patent_image`, `search_office_action_citations`,
+    # `search_enriched_citations`, `get_citation_stats`, `examiner_baseline`:
+    # free data on the firm's own keys, flowleap-harness#180) and OCR (`ocr`,
+    # `read_pdf`, on the firm's Mistral key since C3) come from
+    # `dsh-flowleap-connectors` below. A name the local row registers is never
+    # listed here, so the model sees one tool per name, with one exception. `get_claims` is ALSO here: the native copy
     # has no US source (`usFulltext` is absent on a self-hosted harness) and
     # answers US claims `not_configured` naming the paid route
     # `mcp__flowleap__get_claims`, the backend's tool of the same name over
@@ -212,11 +238,6 @@
         tools:
           include:
             - server_info
-            - get_patent_image
-            - search_office_action_citations
-            - search_enriched_citations
-            - get_citation_stats
-            - examiner_baseline
             - patent_analytics
             - get_fulltext
             - get_claims

@@ -153,8 +153,6 @@
       "@deepseek-ai/dsh-hmr": ["./packages/boot/hmr/src"],
       "@deepseek-ai/cordis-plugin-logger-console": ["./vendor/logger-console/src"],
       "@flowleap/connectors": ["./vendor/flowleap-connectors/src"],
-      // The vendored connectors import mupdf (AGPL-3.0), which the harness does not install; the stand-in throws on use.
-      "mupdf": ["./vendor/flowleap-connectors/src/harness/mupdf.ts"],
       "@deepseek-ai/node-addon-system/landlock-run": ["./native/system/packages/entry/src/index.ts"],
       "@deepseek-ai/node-addon-system/flock": ["./native/system/packages/entry/src/flock.ts"],
       "@deepseek-ai/dsh-tool-call-timeout-policy": ["./packages/guard/timeout-policy/src"],

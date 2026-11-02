@@ -15,6 +15,18 @@ export { toolInputJsonSchema } from './definition.js';
 export { officeTools, patentNumberInput, usApplicationNumberInput } from './office-tools.js';
 export { ocrTool } from './ocr-tool.js';
 export {
+	EXAMINER_BASELINE_SHAPE_VERSION,
+	type Baseline,
+	type CitedDocument,
+	type Gap,
+} from './examiner-baseline.js';
+export {
+	FIGURE_BUDGET_CHARS,
+	MAX_FIGURE_PAGES,
+	type FigureMetadataResponse,
+	type GetPatentImageInput,
+} from './patent-image.js';
+export {
 	ToolError,
 	tool,
 	titleFromToolName,

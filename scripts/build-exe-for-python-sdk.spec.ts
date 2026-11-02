@@ -160,6 +160,7 @@ describe('Python runtime executable builder CLI', () => {
       '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
       '**/node_modules/mammoth/mammoth.browser*.js',
       '**/node_modules/xml2js/lib/xml2js.bc.js',
+      '**/node_modules/@hyzyla/pdfium/dist/{pdfium.wasm.base64-*.js,index.esm.{base64,browser,cdn,worker}.js}',
     ].map(pattern => `${staging}/${pattern}`)))
   })
 

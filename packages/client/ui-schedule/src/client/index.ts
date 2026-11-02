@@ -63,6 +63,7 @@ import { TaskManagerPage, type TaskManagerInjected } from './TaskManagerPage.tsx
 import type { TaskDetailInjected } from './TaskDetail.tsx'
 import { TaskManagerIcon } from './TaskManagerIcon.tsx'
 import { filterEntryIds } from './manager-filter.ts'
+import { Config, SCHEDULE_PAGE_GLOBAL } from '../config.ts'
 import { sessionLinkState } from './session-link.ts'
 import { en, ja, es, fr, de, ru, pt, NS, zh, type ScheduleCatalogKey } from './locales.ts'
 import { en as managerEn, ja as managerJa, es as managerEs, fr as managerFr, de as managerDe, ru as managerRu, pt as managerPt, zh as managerZh, type TaskManagerKey } from './task-manager-locales.ts'
@@ -123,6 +124,7 @@ export function apply(ctx: ClientContext): void {
   }
   ctx.effect(() => ctx.locale.register(MANAGER_NS, managerDictionaries), 'ui-schedule: manager dictionaries')
   const t = ctx.locale.bind(MANAGER_NS)
+  const config = Config((globalThis as Record<string, unknown>)[SCHEDULE_PAGE_GLOBAL] ?? {})
   ctx.effect(() => ctx.sidebarRightTabs.register(scheduleTaskDefinition(t)), 'ui-schedule: task tab type')
   // The created task is a Turn-level element, not a Tool-group row: the Turn
   // Definition publishes the settled result and the tail list entry below
@@ -229,7 +231,10 @@ export function apply(ctx: ClientContext): void {
       inject: (): TaskManagerInjected => ({
         ...detail,
         hooks: { ...detail.hooks, filters },
-        onNewTask: () => { ctx.uiWorkspace.startSession() },
+        onNewTask: () => {
+          if (config.newTaskDraft) ctx.uiWorkspace.startSession(undefined, { prompt: t('new.draft'), whenDraftExists: 'append' })
+          else ctx.uiWorkspace.startSession()
+        },
         onClearEnded: async () => {
           const outcome = await clearEnded()
           deleteToast.reportClear(outcome)

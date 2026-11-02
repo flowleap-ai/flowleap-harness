@@ -10,10 +10,12 @@
  *  decision 5). Handlers call the clients, never HTTP, so the two hosts share
  *  one behaviour and the backend's surfaces share one cache.
  *
- *  What stays with the backend (ADR 0019 decision 3, the paid boundary):
- *  PATSTAT, the examiner baseline, the enriched citations, patent images and
- *  the BigQuery analytics, plus server_info. OCR is an office tool since C3a:
- *  it runs on the host's own Mistral key (./ocr-tool.ts).
+ *  What stays with the backend (ADR 0019 decision 3, the paid boundary, as
+ *  the backend's ADR 0025 amends it): PATSTAT and the BigQuery analytics,
+ *  plus server_info. OCR is an office tool since C3a: it runs on the host's
+ *  own Mistral key (./ocr-tool.ts). Patent images, the US office-action
+ *  citations and the Examiner Baseline are office tools since #180: they read
+ *  only free public APIs (OPS, ODP, OpenAlex) on the host's own keys.
  *
  *  History: these entries were the backend's src/tools/registry.ts (the
  *  agent-first facade, docs/PATENT_CONNECTOR_CLI_GAP_ANALYSIS.md).
@@ -27,12 +29,19 @@ import { InvalidRangeError, parseCitationsRange } from '../ops/citations-range.j
 import { registerZeroHitHint } from '../ops/register-hint.js';
 import type { LegalResponse, PriorityClaim } from '../ops/types.js';
 import { officeList, shortCoverageSentences, textOfficesOf, textSourceLabel } from '../office-coverage.js';
-import type { ToolDefinition } from './definition.js';
+import type { ToolContext, ToolDefinition } from './definition.js';
+import { examinerBaselineTool } from './examiner-baseline.js';
 import { patentDocumentReference, withDocumentReference } from './document-reference.js';
 import { withEvidenceAnchor } from './evidence-anchor.js';
 import { withExtendedFamilyCoverage } from './family-coverage.js';
 import { literatureTools } from './literature.js';
 import { ocrTool } from './ocr-tool.js';
+import { figureImageParams, runGetPatentImage } from './patent-image.js';
+import {
+	getCitationStatsTool,
+	searchEnrichedCitationsTool,
+	searchOfficeActionCitationsTool,
+} from './office-action-citations.js';
 import { detectPatentProvider } from './provider.js';
 import {
 	searchPatentsHandler,
@@ -512,7 +521,18 @@ const definitions: ToolDefinition[] = [
 			return withDocumentReference({ ...data, docId: input.patent_number, citations: data.citations.map(doc => withDocumentReference(doc)) });
 		},
 	}),
-	// get_patent_image stays with the backend: patent images are paid (ADR 0019 decision 3).
+	// ---------------------------------------------------------------- images
+	// EPO OPS images on the host's OPS key (#180); the handler body is in
+	// ./patent-image.ts (3-at-a-time page fetches, 20-page cap, render=png and
+	// fit=compact rasterization).
+	tool({
+		name: 'get_patent_image',
+		description:
+			'Drawing PAGES of a publication (EPO OPS images). Metadata by default: drawingStartPage and drawingPages, the pages to ask for. Set include_images=true to get base64-encoded page images in figures[]; pages is an integer array, e.g. [9, 10], and a page is not a figure (one page holds several figures, no figure labels). Most patents are PDF-only — set render="png" to rasterize pages to displayable PNG images. Set fit="compact" for small grayscale pages (max 1000 px long edge, PNG or JPEG) under a 60k-character base64 budget with truncated + remainingPages. Max 20 pages per call.',
+		input: patentNumberInput.extend(figureImageParams),
+		access: 'epoOps',
+		handler: async (input, ctx) => runGetPatentImage(input, ctx),
+	}),
 	tool({
 		name: 'convert_patent_number',
 		description:
@@ -716,10 +736,13 @@ const definitions: ToolDefinition[] = [
 			),
 	}),
 
-	// search_office_action_citations, search_enriched_citations and server_info
-	// stay with the backend: the enriched citations are paid (ADR 0019 decision 3),
-	// server_info describes the backend. reference_search was retired under ADR
-	// 0017 (the backend's tool-envelopes.ts answers 410 endpoint_gone).
+	// ---------------------------------------------------------------- citations
+	// The USPTO enriched citations (./office-action-citations.ts): a free ODP
+	// read on the host's key (#180). server_info describes the backend and
+	// stays there. reference_search was retired under ADR 0017 (the backend's
+	// tool-envelopes.ts answers 410 endpoint_gone).
+	searchOfficeActionCitationsTool,
+	searchEnrichedCitationsTool,
 
 	// ---------------------------------------------------------------- compound
 	tool({
@@ -790,7 +813,10 @@ const definitions: ToolDefinition[] = [
 			return { count: results.length, patents: results };
 		},
 	}),
-	// examiner_baseline stays with the backend (#548; paid, ADR 0019 decision 3).
+	// The Examiner Baseline (#548, agent-v2 ADR 0010 decision 2): the family's
+	// citation matrix, computed from get_family, get_bibliography, get_us_grant,
+	// search_office_action_citations and get_npl_work (./examiner-baseline.ts).
+	examinerBaselineTool(runOfficeTool),
 	tool({
 		name: 'get_prosecution_timeline',
 		description:
@@ -913,11 +939,8 @@ const definitions: ToolDefinition[] = [
 	// -------------------------------------------- US lookups (PRD 0013 T06)
 	...usLookupTools,
 
-	// ------------------------------------------- INPADOC family (PRD 0013 T07)
-	// get_citation_stats, its sibling in the backend's citation-family.ts, is
-	// paid (enriched citations, ADR 0019 decision 3) and stays there. The
-	// extended family is a plain OPS read and the family-member workaround of
-	// ADR 0024 depends on it, so it is an office tool.
+	// ------------------------------- citation stats, INPADOC family (PRD 0013 T07)
+	getCitationStatsTool,
 	tool({
 		name: 'get_family',
 		annotations: { title: 'Get INPADOC extended family' },
@@ -950,6 +973,21 @@ const definitions: ToolDefinition[] = [
 	// was retired under ADR 0017 (410 endpoint_gone, the backend's tool-envelopes.ts).
 	...literatureTools,
 ];
+
+/**
+ * Run an office tool in process for a compound tool: the input passes the
+ * tool's own schema (defaults applied), then its handler runs over the same
+ * context. Never an HTTP self-call, so the reads share the caches, the keys and
+ * the error mapping of a direct call. `definitions` is read at call time,
+ * after the module has initialised.
+ */
+async function runOfficeTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
+	const definition = definitions.find((d) => d.name === name);
+	if (!definition) {
+		throw new Error(`runOfficeTool: no office tool named ${name}`);
+	}
+	return definition.handler(definition.input.parse(input), ctx);
+}
 
 /**
  * The office tools, in the order the backend's catalog lists them. Both hosts

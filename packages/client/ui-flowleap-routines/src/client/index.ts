@@ -5,7 +5,8 @@
  * `flowleapRoutines.reviews()` and `schedule.catalog()`; a second source reads `flowleapRoutines.watches()`. Both read
  * again on `flowleap-routines/changed`, `schedule/changed`, and `connection/reset`. A `running` mark is not shown. On
  * the FlowLeap dashboard it adds the "Waiting for review" and "Cases watched" metric cards, the "Needs your review" and
- * "Coming up" panels, and the Routines group of the dashboard search.
+ * "Coming up" panels, and the Routines group of the dashboard search. It replaces the example request of New task on
+ * the Automation tasks page with a patent example.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -23,6 +24,7 @@ import { NeedsReviewPage } from './NeedsReviewPage.tsx'
 import { CasesWatchedMetric, ComingUpWidget, NeedsYourReviewWidget, WaitingForReviewMetric } from './dashboard.tsx'
 import { createReviewsSource } from './reviews-source.ts'
 import { createWatchesSource } from './watches-source.ts'
+import { NEW_TASK_DRAFT, SCHEDULE_MANAGER_NS } from './schedule-draft.ts'
 import { IconAlarmClockOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-flowleap-dashboard/client'
 
@@ -49,6 +51,9 @@ export const inject = ['slots', 'locale', 'layout', 'remote', 'remote.flowleapRo
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-flowleap-routines: dictionaries')
+  for (const [locale, text] of Object.entries(NEW_TASK_DRAFT)) {
+    ctx.effect(() => ctx.locale.override(SCHEDULE_MANAGER_NS, locale, { 'new.draft': text }), `ui-flowleap-routines: new task draft ${locale}`)
+  }
   const t = ctx.locale.bind(NS)
   ctx.remoteAccess.whenAccess('flowleapRoutines/reviews', function* () {
     const subscribeChanged = (listener: () => void): () => void => {
