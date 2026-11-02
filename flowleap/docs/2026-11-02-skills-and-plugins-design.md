@@ -80,6 +80,7 @@ A personal skill cannot replace a firm skill: it shows as a second skill under a
 | 12 | On the firm: the administrator adds and approves servers, with a firm or personal sign-in; stdio only from signed plugins | Q17, Q18 | no | #199 |
 | 13 | A plugin carries MCP servers; the data plugin (#176) is the first | Q15 | no | #200 |
 | 14 | Import of MCP servers from Claude Desktop, Claude Code and Codex on the desktop | Q19 | no | #201 |
+| 15 | FlowLeap Discover in the public `dsh-plugin` ecosystem: FlowLeap plugins carry the topic, and community plugins show after a FlowLeap review | Q1, Q8, Q17 | no | #206 |
 
 ## 5. Open points
 
