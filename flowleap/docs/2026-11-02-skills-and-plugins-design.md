@@ -1,8 +1,8 @@
-# Skills, instructions and plugins: design
+# Skills, instructions, connectors and plugins: design
 
-Status: the founder decided Q1 to Q14 on 2026-11-02 (section 3). It builds on the [roadmap](2026-10-29-roadmap.md), the [desktop plan](2026-11-01-desktop-entry-plan.md) (the native-app rule and the plugin delivery of section 5.3) and [ADR 0001](adr/0001-self-hosted-firm-os.md) decision 12 (the firm skills library). It changes the scope of #71 and #84.
+Status: the founder decided Q1 to Q20 on 2026-11-02 (section 3). It builds on the [roadmap](2026-10-29-roadmap.md), the [desktop plan](2026-11-01-desktop-entry-plan.md) (the native-app rule and the plugin delivery of section 5.3) and [ADR 0001](adr/0001-self-hosted-firm-os.md) decision 12 (the firm skills library). It changes the scope of #71 and #84.
 
-**The goal.** Skills are the methods that an agent follows for one type of patent work. FlowLeap ships its methods, a firm adds its own, and attorneys make and share skills with each other. Plugins are the ecosystem: FlowLeap and other vendors publish plugins in a catalog, and a firm or a user installs them. Every user can see which skills, instructions and plugins their agent uses, and where each one comes from.
+**The goal.** Skills are the methods that an agent follows for one type of patent work. FlowLeap ships its methods, a firm adds its own, and attorneys make and share skills with each other. Plugins are the ecosystem: FlowLeap and other vendors publish plugins in a catalog, and a firm or a user installs them. Connectors bring data and actions from outside systems, through MCP servers or the built-in office tools. Every user can see which skills, instructions, connectors and plugins their agent uses, and where each one comes from.
 
 ## 1. What exists (2026-11-02)
 
@@ -18,6 +18,8 @@ Status: the founder decided Q1 to Q14 on 2026-11-02 (section 3). It builds on th
 | Plugins in the UI | The firm profile turns off the Plugins page (`ui-plugin-manager`), Settings > Built-in plugins and the plugin inventory (#84). The desktop keeps the Plugins page. | `packages/bundle/flowleap-firm`, `packages/bundle/flowleap-web/cordis.patch.yml` |
 | Plugin catalog | `apps/plugin-market-generator` writes a Discover `index.json` from npm names and Git URLs; `ui-plugin-market` shows it; `plugin-manager` installs from it. `offeredBundles` and `withheldBundles` limit what a profile offers. No price, no entitlement, no signature. | `apps/plugin-market-generator`, `packages/client/ui-plugin-market`, `packages/boot/plugin-market` |
 | Skill creation | No tool. The plugin creator is for developers and is off in the FlowLeap profiles. | `entry-customization` `createPlugin: false` |
+| MCP servers | One `dsh-mcp-client` configuration row per server: stdio (`command`, `args`, `env`) or Streamable HTTP (`url`, fixed `headers`). Tools show as `mcp__<server>__<tool>`; `tools.include` and `tools.exclude` filter them. No page adds a server, no OAuth sign-in, no import of another app's servers. The FlowLeap profiles have one row, `mcp-flowleap`, which runs `flowleap mcp` through the CLI (#176 replaces it). | `packages/mcp/mcp-client/README.md`, `packages/bundle/flowleap-web/cordis.patch.yml` (`mcp-flowleap`) |
+| Office connectors | A settings card for the built-in office tools (EPO OPS, USPTO ODP, Semantic Scholar, Mistral) on the user's own keys. They are not MCP servers. | `packages/client/ui-settings-flowleap-connectors` |
 
 ## 2. The model
 
@@ -53,6 +55,12 @@ A personal skill cannot replace a firm skill: it shows as a second skill under a
 12. **Q12. Removal keeps the work.** When an author removes or un-shares a skill, or leaves the firm, each colleague keeps the version they use as their own copy, with a note. New colleagues cannot add it. The administrator can give the shared skills of a leaver to a new owner.
 13. **Q13. The UI word is "Skills".** The Skills page explains it in one line: "A skill is a method that your agent follows for one type of task."
 14. **Q14. Order.** Before the demo: `SKILLS=pack` on the firm, the read-only Plugins page on the firm with product names, and a read-only Skills page with sources. After the demo: the rest, in the order of section 4.
+15. **Q15. Two ways in for an MCP server.** A plugin carries its servers, as a Claude Code plugin carries a `.mcp.json`; or a server is added by hand on the Connectors page with its URL and a sign-in. A firm's own systems (its document system, an adapter to its docket software) come in the second way.
+16. **Q16. The OAuth sign-in.** A remote server signs in through the OAuth flow of the MCP standard in the browser, as in Claude Code and Claude Desktop; a key in a header stays possible for a server without OAuth. Tokens go to the credential store, and on the firm later to the vault (#31).
+17. **Q17. On the firm, the administrator adds and approves servers.** For each server the administrator selects the sign-in type: a firm account (one sign-in for the whole firm) or a personal account (each attorney signs in). Attorneys do not add servers. The web gate (#33) allows only the addresses of approved servers.
+18. **Q18. On the firm, a local server (stdio) comes only from a signed plugin.** A server that the administrator adds by hand is remote (HTTP). On the desktop the user decides.
+19. **Q19. Import on the desktop.** FlowLeap offers to import the servers that the user has in Claude Desktop, Claude Code (`.mcp.json`) and Codex; the user selects which. The import reads those files only with consent and does not change them.
+20. **Q20. One Connectors page.** Settings has three pages with the same layout: Skills, Connectors and Plugins, each with "Yours" and "Discover" tabs where a catalog applies. The Connectors page lists every data source with its type and source: the built-in office tools as "Included" (the office key cards move here), the connectors of a plugin as "Plugin" with "Provided by" and the plugin name, and the servers that the firm or the user added as "Firm" or "Mine". Each row shows its state and opens its tools. The attorney does not need to know which connector is an MCP server.
 
 ## 4. Work order
 
@@ -67,6 +75,11 @@ A personal skill cannot replace a firm skill: it shows as a second skill under a
 | 7 | "Write a skill", the structure check and "Try it" | Q9 | no | #194 |
 | 8 | Private and shared skills, "Add" with versions, removal | Q10 to Q12 | no | #196 |
 | 9 | The methods pack as a Discover plugin with versions; admin approval of plugin updates; signed plugin packages | Q1, Q8 | no | #195 |
+| 10 | Connectors page: the office tools as "Included" and the configured MCP servers with type, source, state and tools | Q20 | no | |
+| 11 | Add a remote MCP server by hand, with the OAuth sign-in or a key | Q15, Q16 | no | |
+| 12 | On the firm: the administrator adds and approves servers, with a firm or personal sign-in; stdio only from signed plugins | Q17, Q18 | no | |
+| 13 | A plugin carries MCP servers; the data plugin (#176) is the first | Q15 | no | |
+| 14 | Import of MCP servers from Claude Desktop, Claude Code and Codex on the desktop | Q19 | no | |
 
 ## 5. Open points
 
