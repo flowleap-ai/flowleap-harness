@@ -56,17 +56,17 @@ A personal skill cannot replace a firm skill: it shows as a second skill under a
 
 ## 4. Work order
 
-| Order | Work | Decisions | Before the demo |
-|---|---|---|---|
-| 1 | The firm runs `SKILLS=pack` and the gate passes with it; the pack skills use the firm's connectors, not the `flowleap` CLI | – | yes |
-| 2 | Plugins page on the firm, read-only; product names on every plugin card in both products | Q3 | yes |
-| 3 | Skills page in Settings, read-only, with sources and the replace note | Q6, Q13 | yes |
-| 4 | One skill reader with the rank of section 2 | Q2, Q5 | no |
-| 5 | Firm skills and firm instructions pages in the admin console, with versions and backup; the firm `AGENTS.md` in every runtime | Q4, Q7 (#71) | no |
-| 6 | Personal `AGENTS.md` editor in Settings | Q4 | no |
-| 7 | "Write a skill", the structure check and "Try it" | Q9 | no |
-| 8 | Private and shared skills, "Add" with versions, removal | Q10 to Q12 | no |
-| 9 | The methods pack as a Discover plugin with versions; admin approval of plugin updates; signed plugin packages | Q1, Q8 | no |
+| Order | Work | Decisions | Before the demo | Ticket |
+|---|---|---|---|---|
+| 1 | The firm runs `SKILLS=pack` and the gate passes with it; the pack skills use the firm's connectors, not the `flowleap` CLI | – | yes | #188 |
+| 2 | Plugins page on the firm, read-only; product names on every plugin card in both products | Q3 | yes | #189 |
+| 3 | Skills page in Settings, read-only, with sources and the replace note | Q6, Q13 | yes | #190 |
+| 4 | One skill reader with the rank of section 2 | Q2, Q5 | no | #192 |
+| 5 | Firm skills and firm instructions pages in the admin console, with versions and backup; the firm `AGENTS.md` in every runtime | Q4, Q7 (#71) | no | #193 |
+| 6 | Personal `AGENTS.md` editor in Settings | Q4 | no | #191 |
+| 7 | "Write a skill", the structure check and "Try it" | Q9 | no | #194 |
+| 8 | Private and shared skills, "Add" with versions, removal | Q10 to Q12 | no | #196 |
+| 9 | The methods pack as a Discover plugin with versions; admin approval of plugin updates; signed plugin packages | Q1, Q8 | no | #195 |
 
 ## 5. Open points
 
