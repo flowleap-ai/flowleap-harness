@@ -51,6 +51,14 @@ describe('model locks per profile', () => {
     expect(lockedRows(profile)).toEqual(expect.arrayContaining(['plugin-manager', 'llm-deepseek', 'session-telemetry-otel']))
   })
 
+  it('the firm plugin-manager row restates the dsh-flowleap-web row and adds readOnly; both show product names', () => {
+    const firm = composed(loadProfile('dsh', 'flowleap-web', installAnchor, newHome()))
+    const desktop = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))
+    expect(firm('plugin-manager')).toEqual({ ...desktop('plugin-manager'), readOnly: true })
+    expect(desktop('plugin-manager')?.readOnly).toBeUndefined()
+    for (const config of [firm, desktop]) expect(config('ui-plugin-manager')).toEqual({ packageNames: false })
+  })
+
   it('the firm llm-pi-ai row restates the dsh-flowleap-web routes and replaces subscriptionSignIn with fixedRoutes', () => {
     const firm = composed(loadProfile('dsh', 'flowleap-web', installAnchor, newHome()))('llm-pi-ai')
     const { subscriptionSignIn, providers, ...desktop } = composed(loadProfile('dsh', 'flowleap-desktop', installAnchor, newHome()))('llm-pi-ai') ?? {}

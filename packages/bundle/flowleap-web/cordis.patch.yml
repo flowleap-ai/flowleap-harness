@@ -82,6 +82,12 @@
   config:
     createPlugin: false
 
+# Plugin cards and plugin pages show product names, never package names
+# (`@deepseek-ai/dsh-…`), row ids, or install specs (flowleap-harness#189).
+- id: ui-plugin-manager
+  config:
+    packageNames: false
+
 # New task on the Automation tasks page opens the new chat with an example
 # request in the composer, unsent; ui-flowleap-routines supplies the patent
 # example.

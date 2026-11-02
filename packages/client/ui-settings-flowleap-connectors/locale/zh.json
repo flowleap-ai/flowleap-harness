@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "FlowLeap connector settings",
-    "description": "Settings cards and the first-run wizard for the firm's EPO OPS, USPTO ODP, Semantic Scholar and Mistral keys."
+    "title": "专利数据连接器",
+    "description": "事务所专利数据密钥的设置卡片和首次运行向导。"
   }
 }

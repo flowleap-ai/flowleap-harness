@@ -8,7 +8,7 @@
  * the page declares.
  */
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { PluginInstallFailureKind, Registry } from '@deepseek-ai/dsh-api-remotes/client'
 import {
@@ -36,6 +36,9 @@ import type { PluginPackageRef, PluginRowRef, PluginsSubject } from './slot-cont
 import type { ConfigPageForm } from './slot-contract.ts'
 import { UpdateDialog, VersionSection } from './versions.tsx'
 import { BundleDetailSection } from './BundleDetailSection.tsx'
+import { PackageNames, ProductPluginCard, productPlugins, type ProductPlugin } from './ProductPlugins.tsx'
+import type { PageConfig } from '../page-config.ts'
+import type { PluginDeployment } from '@deepseek-ai/dsh-api-remotes/client'
 import css from './PluginManagerPage.module.css'
 
 /** Full component props assembled by the main slot renderer. */
@@ -47,7 +50,7 @@ export type PluginManagerPageProps =
     | 'plugins.add.actions' | 'plugins.tab'
     | 'plugins.detail.actions' | 'plugins.detail.badge' | 'plugins.detail.section'
   >
-  & InjectFace<PluginManagerFace & PluginHeaderLayoutFace>
+  & InjectFace<PluginManagerFace & PluginHeaderLayoutFace & PageConfig & { readonly deployment: PluginDeployment }>
   & PropsStore<ReturnType<typeof createNavigationStore>>
 
 /** The page's slot renderer, narrowed to the configuration slots. */
@@ -258,6 +261,26 @@ function rowDotState(row: PackageRow): StateDotState {
   return PHASE_STATES[row.phase]
 }
 
+/** A state dot with its words, where a read-only card puts no control. */
+function StateLine({ state, text }: { readonly state: StateDotState; readonly text: string }): ReactNode {
+  return <span className={css.rowState}><StateDot state={state} />{text}</span>
+}
+
+/**
+ * The state of a product plugin's rows: the first problem, else the first row in a transition, else running.
+ * @param plugin - the product plugin.
+ * @param t - the manager's translate seat.
+ * @returns the state line.
+ */
+function productState(plugin: ProductPlugin, t: Translate): ReactNode {
+  const row = plugin.rows.find(item => item.phase === 'failed')
+    ?? plugin.rows.find(item => item.phase !== 'active')
+    ?? plugin.rows[0]
+  /* v8 ignore next -- a product plugin has at least one running row */
+  if (row === undefined) return null
+  return <StateLine state={rowDotState(row)} text={rowStateText(row, t)} />
+}
+
 /** A Host metadata diagnostic does not change the package's management permissions. */
 function MetadataError({ error, t }: { readonly error: string | undefined; readonly t: Translate }): ReactNode {
   return error === undefined ? null : <p className={css.reason} role="status" data-package-meta-error>{t('metadataError', { error })}</p>
@@ -282,8 +305,9 @@ function RowsSection({ rows, t, resolveText, toggle, configure }: {
   readonly configure?: RowConfigure | undefined
 }): ReactNode {
   const [filter, setFilter] = useState('')
+  const packageNames = useContext(PackageNames)
   const query = filter.trim().toLowerCase()
-  const localized = rows.map(row => ({ row, ...rowText(row, resolveText) }))
+  const localized = rows.map(row => ({ row, ...rowText(row, resolveText, packageNames) }))
   const shown = query === '' ? localized : localized.filter(({ row, title, description }) =>
     [title, description, row.rowId, row.moduleName].some(value => value?.toLowerCase().includes(query)))
   return (
@@ -329,8 +353,8 @@ function RowsSection({ rows, t, resolveText, toggle, configure }: {
                       )
                       : <span className={css.rowId}>{title}</span>}
                     {description === undefined ? null : <span className={css.rowModule}>{description}</span>}
-                    {title === row.rowId ? null : <code className={css.rowModule}>{row.rowId}</code>}
-                    {title === row.moduleName ? null : <code className={css.rowModule}>{row.moduleName}</code>}
+                    {!packageNames || title === row.rowId ? null : <code className={css.rowModule}>{row.rowId}</code>}
+                    {!packageNames || title === row.moduleName ? null : <code className={css.rowModule}>{row.moduleName}</code>}
                   </div>
                   <span className={css.rowState}>
                     <StateDot state={rowDotState(row)} />
@@ -429,7 +453,8 @@ function packageStatus(pkg: PackageView): 'running' | 'disabled' | 'problem' {
 function CardHead({ title, t, onOpen, icon, tags, description, end }: {
   readonly title: string
   readonly t: Translate
-  readonly onOpen: () => void
+  /** Absent: the card opens no page, and the title is plain text. */
+  readonly onOpen: (() => void) | undefined
   readonly icon: ReactNode
   readonly tags?: ReactNode
   readonly description: ReactNode
@@ -441,7 +466,9 @@ function CardHead({ title, t, onOpen, icon, tags, description, end }: {
       <span className={css.cardIcon} aria-hidden="true">{icon}</span>
       <div className={css.cardMain}>
         <div className={css.titleRow}>
-          <button type="button" className={`${css.cardTitle} ${css.cardOpen}`} aria-label={t('openDetail', { name: title })} aria-describedby={description === undefined ? undefined : descriptionId} onClick={onOpen}>{title}</button>
+          {onOpen === undefined
+            ? <span className={css.cardTitle}>{title}</span>
+            : <button type="button" className={`${css.cardTitle} ${css.cardOpen}`} aria-label={t('openDetail', { name: title })} aria-describedby={description === undefined ? undefined : descriptionId} onClick={onOpen}>{title}</button>}
           {tags}
         </div>
         {description === undefined ? null : <span className={css.cardDesc} id={descriptionId}>{description}</span>}
@@ -530,8 +557,10 @@ function updateAvailable(pkg: PackageView): boolean {
 }
 
 /** One package as a card that opens its page: its name, its one-liner, its tags, and its bundle switch. */
-function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, onSetEnabled }: {
+function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, readOnly, onOpen, onSetEnabled }: {
   readonly pkg: PackageView
+  /** Read-only deployment: the card opens no page and shows the state instead of the switch. */
+  readonly readOnly: boolean
   /** The newer registry version a version check offers. */
   readonly newer: string | undefined
   readonly t: Translate
@@ -541,11 +570,11 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, on
   readonly onOpen: () => void
   readonly onSetEnabled: (enabled: boolean) => void
 }): ReactNode {
-  const { title, description, beta } = packageText(pkg, resolveText)
+  const { title, description, beta } = packageText(pkg, resolveText, useContext(PackageNames))
   const status = packageStatus(pkg)
   return (
     <li
-      className={`${css.card} ${css.cardLink}`}
+      className={readOnly ? css.card : `${css.card} ${css.cardLink}`}
       data-plugin-package={pkg.name}
       data-plugin-status={status}
       {...highlighted ? { 'data-plugin-highlight': '' } : {}}
@@ -553,18 +582,20 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, onOpen, on
       <CardHead
         title={title}
         t={t}
-        onOpen={onOpen}
+        onOpen={readOnly ? undefined : onOpen}
         icon={<PackageArtwork key={pkg.meta?.icon} src={pkg.meta?.icon} />}
         tags={(
           <>
             {beta ? <Tag className={css.statusTag} tone="info">{t('statusBeta')}</Tag> : null}
-            {status === 'problem' ? <Tag className={css.statusTag} tone="danger">{t('statusProblem')}</Tag> : null}
+            {status === 'problem' && !readOnly ? <Tag className={css.statusTag} tone="danger">{t('statusProblem')}</Tag> : null}
             {pkg.availability === 'missing' ? <Tag className={css.statusTag}>{t(pkg.installed ? 'statusMissingFiles' : 'statusNotInstalled')}</Tag> : null}
             {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           </>
         )}
         description={description}
-        end={<EnableSwitch pkg={pkg} title={title} t={t} busy={busy} onSetEnabled={onSetEnabled} />}
+        end={readOnly
+          ? <StateLine state={status === 'problem' ? 'error' : 'done'} text={t(status === 'problem' ? 'rowPhaseFailed' : 'rowPhaseActive')} />
+          : <EnableSwitch pkg={pkg} title={title} t={t} busy={busy} onSetEnabled={onSetEnabled} />}
       />
       <MetadataError error={pkg.meta?.error} t={t} />
       {pkg.error?.code === 'unsupported-platform' && <p className={css.reason} role="status">{managementText(pkg.error, t)}</p>}
@@ -659,8 +690,9 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, form }: {
   readonly renderSlot: RenderConfig
   readonly form: ConfigPageForm | undefined
 }): ReactNode {
-  const { title } = packageText(pkg, resolveText)
-  const { title: rowTitle, description } = rowText(row, resolveText)
+  const packageNames = useContext(PackageNames)
+  const { title } = packageText(pkg, resolveText, packageNames)
+  const { title: rowTitle, description } = rowText(row, resolveText, packageNames)
   const key = rowConfigKey(pkg.name, row.rowId)
   const subject: PluginsSubject = { kind: 'row', pkg: packageRef(pkg), row: rowRef(row) }
   return (
@@ -677,8 +709,8 @@ function RowDetail({ pkg, row, t, resolveText, onBack, renderSlot, form }: {
           <h3 className={css.detailTitle}>{rowTitle}</h3>
           {renderSlot('plugins.detail.badge', { subject })}
         </div>
-        {rowTitle === row.rowId ? null : <p className={css.detailName}><code>{row.rowId}</code></p>}
-        <p className={css.detailName}><code>{row.moduleName}</code></p>
+        {!packageNames || rowTitle === row.rowId ? null : <p className={css.detailName}><code>{row.rowId}</code></p>}
+        {packageNames ? <p className={css.detailName}><code>{row.moduleName}</code></p> : null}
         <p className={css.detailDesc}>{description ?? renderSlot('plugins.row.config', { view: 'summary' }, { entryKey: key })}</p>
       </div>
       <MetadataError error={row.meta?.error} t={t} />
@@ -729,7 +761,8 @@ function PackageDetail({
   /** Ask before installing one listed newer version. */
   readonly onUpdateVersion: (version: string) => void
 }): ReactNode {
-  const { title, description, beta } = packageText(pkg, resolveText)
+  const packageNames = useContext(PackageNames)
+  const { title, description, beta } = packageText(pkg, resolveText, packageNames)
   const newer = versionUpdate(versions)
   const status = packageStatus(pkg)
   const subject: PluginsSubject = { kind: 'bundle', pkg: packageRef(pkg) }
@@ -784,7 +817,7 @@ function PackageDetail({
           {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           {renderSlot('plugins.detail.badge', { subject })}
         </div>
-        <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>
+        {packageNames ? <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p> : null}
         {description === undefined ? null : <p className={css.detailDesc}>{description}</p>}
       </div>
       <MetadataError error={pkg.meta?.error} t={t} />
@@ -809,7 +842,7 @@ function PackageDetail({
         <VersionSection
           pkg={pkg} check={versions} t={t} busy={busy} onEnsure={onEnsureVersions} onCheck={onCheckVersions} onUpdate={onUpdateVersion}
         />
-        <SourceSection pkg={pkg} t={t} />
+        {packageNames ? <SourceSection pkg={pkg} t={t} /> : null}
         {renderSlot('plugins.detail.section', { subject })}
       </div>
     </div>
@@ -1536,7 +1569,16 @@ function ConfirmDialog({ name, t, onConfirm, onCancel }: {
 }
 
 /** Render the plugin manager: the official plugins and installed bundles, their pages, the install dialog, and the confirmation. */
+/**
+ * The Plugins page, with the deployment's package-name switch for every card and plugin page below it.
+ * @param props - the page's slot props.
+ * @returns the page.
+ */
 export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
+  return <PackageNames.Provider value={props.packageNames}><PluginManagerBody {...props} /></PackageNames.Provider>
+}
+
+function PluginManagerBody(props: PluginManagerPageProps): ReactNode {
   const { t, ensure, renderSlot, resolveText } = props
   const configurations = props.useConfigurations(snapshot => snapshot.view?.namespaces)
   const formFor = (id: string): ConfigPageForm | undefined => {
@@ -1572,7 +1614,10 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
 
   // The page omits profile bundles and persistent terminals. Other installed or offered bundles and
   // unreadable selections remain manageable; Settings' Plugin list inspects the full Host inventory.
-  const listed = state.packages.filter(pkg => !HIDDEN_BUNDLES.has(pkg.name)
+  // A read-only deployment lists only what runs: nothing on the page can switch a bundle on.
+  const { deployment } = props
+  const { readOnly } = deployment
+  const listed = state.packages.filter(pkg => !HIDDEN_BUNDLES.has(pkg.name) && (!readOnly || pkg.enabled)
     && (pkg.listedByDefault !== false || pkg.enabled || pkg.installed || rowsRunning(pkg))
     && (pkg.installed || pkg.official || pkg.error !== undefined))
   const mine = listed.filter(pkg => !pkg.official)
@@ -1631,15 +1676,22 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
       busy={packageBusy(pkg)}
       highlighted={state.highlight === pkg.name}
       newer={versionUpdate(state.versions[pkg.name])}
+      readOnly={readOnly}
       onOpen={() => { setActivation(null); setView({ kind: 'package', name: pkg.name, ...showsMoreList ? { from: 'more' } : {} }) }}
       onSetEnabled={(enabled) => { setBundleEnabled(pkg.name, enabled) }}
     />
   )
-  const basicCards = ledger.items.map(item => (
+  const products = productPlugins(state.packages, resolveText, props.packageNames)
+  const productCards = products.map(plugin => (
+    <ProductPluginCard key={plugin.title} plugin={plugin} t={t} state={productState(plugin, t)}
+      icon={<PackageArtwork key={plugin.icon} src={plugin.icon} />} />
+  ))
+  // Plugin settings change the profile, which a read-only deployment leaves to its administrator.
+  const basicCards = readOnly ? [] : ledger.items.map(item => (
     <ItemCard key={`item:${item.id}`} item={item} t={t} renderSlot={renderSlot} onOpen={() => { setView({ kind: 'item', id: item.id }) }} />
   ))
-  const renderGroup = (id: 'basic' | 'extensions' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => {
-    const offersMore = id === 'extensions' && more.length > 0
+  const renderGroup = (id: 'product' | 'basic' | 'extensions' | 'bundles', heading: string, cards: readonly ReactNode[]): ReactNode => {
+    const offersMore = id === 'extensions' && more.length > 0 && !readOnly
     if (cards.length === 0 && !offersMore) return null
     return (
       <section className={css.group} data-plugin-scope="global" data-plugin-group={id}>
@@ -1678,7 +1730,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
                 <div className={css.pageHeading}>
                   <h1 className={css.pageTitle} data-plugin-header-part="title">{t('title')}</h1>
                   <div className={css.pageIntro} data-plugin-header-part="intro">
-                    <span>{t('intro')}</span>
+                    <span>{t(readOnly ? 'introReadOnly' : 'intro')}</span>
                     <Tooltip label={t('infoDescription')} side="bottom" delayMs={300} maxWidth={300} portal openOnClick>
                       <Button variant="ghost" size="sm" className={css.infoButton} aria-label={t('infoLabel')}>
                         <IconInfoOutlineRegular size={11} aria-hidden="true" />
@@ -1695,16 +1747,18 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
                       <span className={css.toolbarLabel}>{t('refresh')}</span>
                     </Button>
                   </Tooltip>
-                  {state.install.requestId === undefined
-                    ? <AddPluginMenu t={t} disabled={!loaded} openInstall={props.openInstall} renderSlot={renderSlot} />
-                    : (
-                      <Tooltip label={t('installViewTask')} side="bottom" delayMs={500} focusDelayMs={500} portal disabled={!loaded}>
-                        <Button variant="primary" size="sm" className={css.addButton} icon={<IconPlusOutlineRegular size={13} />}
-                          aria-label={t('installViewTask')} disabled={!loaded} onClick={props.openInstall}>
-                          <span className={css.toolbarLabel}>{t('installViewTask')}</span>
-                        </Button>
-                      </Tooltip>
-                    )}
+                  {readOnly || (!deployment.installBundles && state.install.requestId === undefined)
+                    ? null
+                    : state.install.requestId === undefined
+                      ? <AddPluginMenu t={t} disabled={!loaded} openInstall={props.openInstall} renderSlot={renderSlot} />
+                      : (
+                        <Tooltip label={t('installViewTask')} side="bottom" delayMs={500} focusDelayMs={500} portal disabled={!loaded}>
+                          <Button variant="primary" size="sm" className={css.addButton} icon={<IconPlusOutlineRegular size={13} />}
+                            aria-label={t('installViewTask')} disabled={!loaded} onClick={props.openInstall}>
+                            <span className={css.toolbarLabel}>{t('installViewTask')}</span>
+                          </Button>
+                        </Tooltip>
+                      )}
                 </div>
                 {tabs.length > 0
                   ? (
@@ -1818,7 +1872,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
           ? <ItemDetail form={formFor(openItem.id)} item={openItem} t={t} renderSlot={renderSlot} onBack={() => { setView({ kind: 'list' }) }} />
           : null}
         {loaded && installedCards
-          ? basicCards.length === 0 && official.length === 0 && mine.length === 0 && state.status !== 'error'
+          ? productCards.length === 0 && basicCards.length === 0 && official.length === 0 && mine.length === 0 && state.status !== 'error'
             ? <div className={css.installedPanel} {...installedPanel}><p className={css.empty}>{t('empty')}</p></div>
             : (
               <div className={css.installedPanel} {...installedPanel}>
@@ -1828,13 +1882,14 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
                   </section>
                 ) : (
                   <>
+                    {renderGroup('product', t('productTitle'), productCards)}
                     {renderGroup('basic', t('basicTitle'), basicCards)}
                     {renderGroup('extensions', t('extensionsTitle'), extensions.map(packageCard))}
                     {renderGroup('bundles', t('bundlesTitle'), mine.map(packageCard))}
                   </>
                 )}
                 {/* A failed package read trails the groups it left incomplete: right under the groups on a
-                    first-load failure, and after the kept cards when a refresh fails over stale data. */}
+                  first-load failure, and after the kept cards when a refresh fails over stale data. */}
                 {state.status === 'error' && !refreshing
                   ? (
                     <div className={css.failure}>
@@ -1861,7 +1916,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
       {state.update === null ? null : (
         <UpdateDialog
           update={state.update}
-          title={updatePkg === undefined ? state.update.packageName : packageText(updatePkg, resolveText).title}
+          title={updatePkg === undefined ? state.update.packageName : packageText(updatePkg, resolveText, props.packageNames).title}
           t={t}
           onRun={props.runUpdate}
           onClose={props.closeUpdate}
@@ -1891,6 +1946,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
             name={packageText(
               state.packages.find(pkg => pkg.name === state.confirm?.packageName) ?? { name: state.confirm.packageName },
               resolveText,
+              props.packageNames,
             ).title}
             t={t}
             onConfirm={props.confirm}

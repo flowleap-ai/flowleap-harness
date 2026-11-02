@@ -83,7 +83,7 @@ Agent-step concurrency uses the [agent-loop configuration](../agent-loop/README.
 
 ### Restrict tools per agent
 
-`ctx.tools.restrict(filter)` applies an allow or deny mask to the global tools one agent inherits; masks intersect, scoped registrations stay visible, and the restriction lifts when disposed. `ctx.tools.get(name, scope)` resolves a tool as one scope sees it. A Host-local presenter consumer passes the calling agent when it must match the definition that executed. `ctx.tools.schemas(scope)` returns the visible schemas without the `execute` functions.
+`ctx.tools.restrict(filter)` applies an allow or deny mask to the global tools one agent inherits; masks intersect, scoped registrations stay visible, and the restriction lifts when disposed. `ctx.tools.get(name, scope)` resolves a tool as one scope sees it. A Host-local presenter consumer passes the calling agent when it must match the definition that executed. `ctx.tools.schemas(scope)` returns the visible schemas without the `execute` functions. `ctx.tools.registeredBy(fiber)` names, sorted, the context-global tools that the plugin of one fiber registered, itself or through its child plugins; scoped registrations are not listed. The [plugin manager](../../boot/plugin-manager/README.md) passes a Loader entry's plugin fiber to show what each plugin adds.
 
 ### Enforce policy on calls
 

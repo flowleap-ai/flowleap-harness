@@ -18,7 +18,7 @@ import { PluginManagerPage } from '../src/client/PluginManagerPage.tsx'
 import { PluginRefreshToast } from '../src/client/PluginRefreshToast.tsx'
 import type { PluginManagerPageProps } from '../src/client/index.ts'
 import type { PluginTab } from '../src/client/tab-ledger.ts'
-import type { ConfigLedger } from '../src/client/config-ledger.ts'
+import { rowConfigKey, type ConfigLedger } from '../src/client/config-ledger.ts'
 import { rowKey, type InstallState, type PackageRow, type PackageView, type PluginManagerState, type UpdateState, type VersionCheck } from '../src/client/manager-store.ts'
 import { INSTALL_GIT_EXAMPLE, INSTALL_PATH_EXAMPLE, en, zh, type PluginManagerLocaleKey } from '../src/client/locales.ts'
 import type { PluginActivationOwnerProps, PluginAddActionsProps, PluginDetailProps, PluginTabProps, PluginsSubject } from '../src/client/slot-contract.ts'
@@ -51,7 +51,10 @@ function pkg(overrides: Partial<PackageView> = {}): PackageView {
 }
 
 function row(overrides: Partial<PackageRow> = {}): PackageRow {
-  return { entryId: 'include:sidebar' as PluginEntryId, rowId: 'sidebar', moduleName: 'dsh-better-sidebar', enabled: true, phase: 'active', ...overrides }
+  return {
+    entryId: 'include:sidebar' as PluginEntryId, rowId: 'sidebar', moduleName: 'dsh-better-sidebar', enabled: true, phase: 'active',
+    tools: [], hasClient: false, ...overrides,
+  }
 }
 
 const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', requirements: { '@deepseek-ai/dsh': '^0.2.0', '@deepseek-ai/dsh-core': '^0.2.0' } }
@@ -104,7 +107,8 @@ const NO_CONFIG: ConfigLedger = { items: [], bundles: new Set(), rows: new Set()
 
 function renderTab(
   state: Partial<PluginManagerState> = {}, config: Partial<ConfigLedger> = {},
-  bodies: SlotBodies = {}, forms: Record<string, ConfigPageForm> = {}, tabs: readonly PluginTab[] = [],
+  bodies: SlotBodies = {}, forms: Record<string, ConfigPageForm> = {}, tabs: readonly PluginTab[] = [], packageNames = true,
+  deployment: PluginManagerPageProps['deployment'] = { readOnly: false, installBundles: true },
 ) {
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
@@ -165,6 +169,8 @@ function renderTab(
   const navigation = createNavigationStore().create()
   const props: PluginManagerPageProps = {
     createHeaderRef: vi.fn(() => vi.fn()),
+    packageNames,
+    deployment,
     useStore: bindSnapshotSelector(navigation), actions: navigation.actions,
     ...standard,
     t,
@@ -2673,6 +2679,99 @@ it('supplies the accepted entry values and atomic mutation action to a custom pl
   fireEvent.click(screen.getByText('Custom'))
   fireEvent.click(screen.getByText('Save custom'))
   expect(mutate).toHaveBeenCalledWith([{ op: 'set', path: ['count'], value: 3 }], 7)
+})
+
+describe('product plugins, read-only deployments, and product names', () => {
+  /** A selected bundle the installation supplies, such as a branded profile layer, with two running rows of one title. */
+  const product = pkg({
+    name: '@acme/dsh-product-web', installed: false, removable: false,
+    rows: [
+      row({ entryId: 'include:connectors' as PluginEntryId, rowId: 'connectors', moduleName: '@acme/dsh-connectors',
+        meta: { title: { en: 'Patent data connectors' }, description: { en: 'Search the patent offices.' } }, tools: ['search_patents', 'get_claims'] }),
+      row({ entryId: 'include:connector-cards' as PluginEntryId, rowId: 'connector-cards', moduleName: '@acme/dsh-client-ui-connectors',
+        meta: { title: { en: 'Patent data connectors' } }, tools: ['get_claims'], hasClient: true }),
+      row({ entryId: 'include:agent-instructions' as PluginEntryId, rowId: 'agent-instructions', moduleName: '@deepseek-ai/dsh-agent-instructions',
+        phase: 'failed', hasClient: true }),
+      row({ entryId: 'include:prompt' as PluginEntryId, rowId: 'prompt', moduleName: '@acme/dsh-prompt', meta: { title: { en: 'Prompt file' } } }),
+      row({ entryId: 'include:routines' as PluginEntryId, rowId: 'routines', moduleName: '@acme/dsh-routines', meta: { title: { en: 'Routines' } },
+        tools: ['register_watch_create'] }),
+      { rowId: 'off', moduleName: '@acme/dsh-off', enabled: false, phase: null, tools: [], hasClient: false },
+    ],
+  })
+  const experimental = pkg({ name: '@acme/dsh-experimental', optional: true, installed: false, enabled: false })
+  const selected = pkg({ name: '@acme/dsh-selected', meta: { title: { en: 'Selected tool' } } })
+  const broken = pkg({ name: '@acme/dsh-broken', meta: { title: { en: 'Broken tool' } }, error: { code: 'operation-error', diagnostic: 'no entry' } })
+
+  it('lists the running rows of the product that add a tool or an interface as read-only cards: one per title, what each adds, and its state', () => {
+    renderTab({ packages: [product] }, {}, {}, {}, [], false)
+    const group = document.querySelector('[data-plugin-group="product"]') as HTMLElement
+    expect(within(group).getByRole('heading').textContent).toBe(en.productTitle)
+    const cards = [...group.querySelectorAll('[data-plugin-product]')].map(card => card.getAttribute('data-plugin-product'))
+    expect(cards).toEqual(['Agent instructions', 'Patent data connectors', 'Routines'])
+    const routines = group.querySelector('[data-plugin-product="Routines"]') as HTMLElement
+    expect(within(within(routines).getByRole('list', { name: en.addsLabel })).getAllByRole('listitem').map(item => [item.textContent, item.title]))
+      .toEqual([[en.addsTools.replace('{count}', '1'), 'register_watch_create']])
+    const connectors = group.querySelector('[data-plugin-product="Patent data connectors"]') as HTMLElement
+    expect(within(connectors).getByText('Search the patent offices.')).toBeTruthy()
+    const adds = within(connectors).getByRole('list', { name: en.addsLabel })
+    expect(within(adds).getAllByRole('listitem').map(item => item.textContent)).toEqual([en.addsTools.replace('{count}', '2'), en.addsInterface])
+    expect(within(connectors).getByText(en.rowPhaseActive)).toBeTruthy()
+    const instructions = group.querySelector('[data-plugin-product="Agent instructions"]') as HTMLElement
+    expect(within(within(instructions).getByRole('list', { name: en.addsLabel })).getAllByRole('listitem').map(item => item.textContent))
+      .toEqual([en.addsInterface])
+    expect(within(instructions).getByText(en.rowPhaseFailed)).toBeTruthy()
+    expect(within(group).queryByRole('switch')).toBeNull()
+    expect(within(group).queryByRole('button')).toBeNull()
+    expect(group.textContent).not.toContain('@')
+  })
+
+  it('in a read-only deployment shows only running bundles without controls, no plugin settings, and no way to add a plugin', () => {
+    renderTab({ packages: [product, experimental, selected, broken] }, { items: [{ id: 'subagent', label: 'Subagent' }] }, {}, {}, [], true,
+      { readOnly: true, installBundles: false })
+    expect(screen.getByText(en.introReadOnly)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(document.querySelector('[data-plugin-group="basic"]')).toBeNull()
+    expect(document.querySelector('[data-plugin-package="@acme/dsh-experimental"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: en.moreAction })).toBeNull()
+    const card = document.querySelector('[data-plugin-package="@acme/dsh-selected"]') as HTMLElement
+    expect(within(card).getByText('Selected tool')).toBeTruthy()
+    expect(within(card).queryByRole('button')).toBeNull()
+    expect(within(card).getByText(en.rowPhaseActive)).toBeTruthy()
+    const problem = document.querySelector('[data-plugin-package="@acme/dsh-broken"]') as HTMLElement
+    expect(within(problem).getByText(en.rowPhaseFailed)).toBeTruthy()
+  })
+
+  it('knows the deployment while the first read loads: a read-only page shows no add control during loading', () => {
+    renderTab({ status: 'loading' }, {}, {}, {}, [], true, { readOnly: true, installBundles: false })
+    expect(screen.getByText(en.introReadOnly)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
+  })
+
+  it('offers no way to add a plugin where the Host installs none, and keeps the switches', () => {
+    renderTab({ packages: [selected] }, {}, {}, {}, [], true, { readOnly: false, installBundles: false })
+    expect(screen.getByText(en.intro)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
+    expect(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', 'Selected tool') })).toBeTruthy()
+  })
+
+  it('without package names shows product names on cards and plugin pages, and no package name, row id, or install spec', () => {
+    const bare = pkg({ name: '@acme/dsh-better-sidebar', source: 'npm:@acme/dsh-better-sidebar@1.0.0',
+      rows: [row({ rowId: 'sidebar-row', moduleName: '@acme/dsh-sidebar-theme' })] })
+    renderTab({ packages: [bare] }, { rows: new Set([rowConfigKey('@acme/dsh-better-sidebar', 'sidebar-row')]) }, {}, {}, [], false)
+    fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', 'Better sidebar') }))
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Better sidebar')
+    expect(document.querySelector('[data-plugin-name]')).toBeNull()
+    expect(document.querySelector('[data-plugin-source]')).toBeNull()
+    const rows = document.querySelector('[data-plugin-rows]') as HTMLElement
+    expect(within(rows).getByText('Sidebar theme')).toBeTruthy()
+    expect(rows.querySelector('code')).toBeNull()
+    expect(document.querySelector('[data-plugin-panel]')?.textContent).not.toContain('@acme')
+    fireEvent.click(within(rows).getByRole('button', { name: en.configureRow.replace('{name}', 'Sidebar theme') }))
+    const page = document.querySelector('[data-plugin-row-detail]') as HTMLElement
+    expect(within(page).getByRole('heading', { level: 3 }).textContent).toBe('Sidebar theme')
+    expect(page.querySelector('code')).toBeNull()
+  })
 })
 
 describe('on-demand Official bundles', () => {

@@ -31,8 +31,8 @@ const BUNDLE: BundleInfo = {
 }
 
 const PLUGINS: PluginInfo[] = [
-  { entryId: ROW_ENTRY, moduleName: 'dsh-better-sidebar', enabled: true, fiberPhase: 'active', patchId: 'sidebar' },
-  { entryId: 'include:core' as PluginEntryId, moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active', readOnlyReason: 'management-required' },
+  { entryId: ROW_ENTRY, moduleName: 'dsh-better-sidebar', enabled: true, fiberPhase: 'active', patchId: 'sidebar', tools: ['sidebar_pin'], hasClient: true },
+  { entryId: 'include:core' as PluginEntryId, moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active', readOnlyReason: 'management-required', tools: [], hasClient: false },
 ]
 
 const MIRROR = 'https://registry.npmmirror.com/'
@@ -134,8 +134,8 @@ describe('packageView', () => {
       name: 'dsh-better-sidebar', version: '0.16.0', description: 'A sidebar.', source: 'dsh-better-sidebar@^0.16.0',
       installed: true, official: false, availability: 'profile', optional: false, removable: true, updatable: false, enabled: false,
       rows: [
-        { rowId: 'sidebar', moduleName: 'dsh-better-sidebar', entryId: ROW_ENTRY, enabled: true, phase: 'active' },
-        { rowId: 'theme', moduleName: 'dsh-better-sidebar/theme', enabled: false, phase: null },
+        { rowId: 'sidebar', moduleName: 'dsh-better-sidebar', entryId: ROW_ENTRY, enabled: true, phase: 'active', tools: ['sidebar_pin'], hasClient: true },
+        { rowId: 'theme', moduleName: 'dsh-better-sidebar/theme', enabled: false, phase: null, tools: [], hasClient: false },
       ],
     })
     // A row the inventory no longer lists, a protected row, and a bundle the Host cannot read.
@@ -149,8 +149,8 @@ describe('packageView', () => {
       name: '@deepseek-ai/dsh-base', installed: false, official: false, availability: 'installation', optional: false, removable: false, updatable: false, enabled: true, readOnlyReason: 'management-required',
       error: { code: 'operation-error', diagnostic: 'broken' },
       rows: [
-        { rowId: 'core', moduleName: '@deepseek-ai/dsh-base', entryId: 'include:core', enabled: true, phase: 'active', readOnlyReason: 'management-required' },
-        { rowId: 'gone', moduleName: 'x', entryId: 'include:gone', enabled: false, phase: null },
+        { rowId: 'core', moduleName: '@deepseek-ai/dsh-base', entryId: 'include:core', enabled: true, phase: 'active', readOnlyReason: 'management-required', tools: [], hasClient: false },
+        { rowId: 'gone', moduleName: 'x', entryId: 'include:gone', enabled: false, phase: null, tools: [], hasClient: false },
       ],
     })
   })

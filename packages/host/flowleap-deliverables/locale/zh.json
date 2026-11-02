@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "FlowLeap patent deliverables",
-    "description": "write_patent_results, start_application_draft, validate_draft, export_draft_docx, inventor_questions and remove_claim: Patent AI report templates, evidence validation against this session's tool results, the working record, the Application Drafting saves, the attorney gates as question cards and slash commands, the Word export of a Draft Application, the Inventor Questions document and the delivery card."
+    "title": "专利交付成果",
+    "description": "撰写报告、申请草稿、发明人问题和 Word 导出文件，并根据对话结果核对每一项引用的事实。"
   }
 }

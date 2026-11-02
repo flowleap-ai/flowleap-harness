@@ -19,6 +19,10 @@ import { OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG } from '@deepseek-ai/dsh-o
 import PluginManager, { type Config, type PluginChange, type PluginInstallLogChunk, type PluginInstallProgress, type PluginInstallRequestId } from '../src/index.ts'
 import type { PluginEntryId, PluginOperation } from '../src/types.ts'
 import Hmr from '@deepseek-ai/dsh-hmr'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { PLUGIN_DEPLOYMENT_GLOBAL, PluginDeployment } from '../src/deployment.ts'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { Group } from '@deepseek-ai/cordis-plugin-loader'
@@ -54,7 +58,16 @@ async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, pre
     mkdirSync(path, { recursive: true })
     writeFileSync(join(path, 'package.json'), JSON.stringify({ name, version: '1.0.0', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
     writeFileSync(join(path, 'cordis.patch.yml'), JSON.stringify([{ insert: rows }]))
-    writeFileSync(join(path, 'plugin.mjs'), 'export function apply(ctx, config) { if (config?.fail) throw new Error("test activation failed"); ctx.provide(config?.service ?? "managedProbe", true) }\n')
+    writeFileSync(join(path, 'plugin.mjs'), [
+      'export function apply(ctx, config) {',
+      '  if (config?.fail) throw new Error("test activation failed")',
+      '  ctx.provide(config?.service ?? "managedProbe", true)',
+      '  for (const name of config?.tools ?? []) ctx.inject(["tools"], scope => scope.tools.register({ name, description: name,',
+      '    parameters: { type: "object", properties: {} }, execute: async () => "",',
+      '    output: { schema: { type: "string" }, render: () => [] } }))',
+      '}',
+      '',
+    ].join('\n'))
   }
   bundle('core', [{ id: 'manager', name: 'cordis:manager', config }])
   bundle('extra', [{ id: 'managed', name: './plugin.mjs' }])
@@ -156,6 +169,48 @@ it('refuses a row a bundle locks, and package installs and updates while install
   expect((await manager.listBundles()).find(bundle => bundle.name === 'extra')).toMatchObject({ readOnlyReason: 'deployment-locked', removable: false })
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: false, application: 'failed', error: { code: 'deployment-locked' } })
   expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain('extra')
+})
+
+it('lists every plugin and bundle read-only and refuses every change while readOnly is true', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { readOnly: true })
+  const manifestBefore = readFileSync(join(dir, 'package.json'), 'utf8')
+  const patchBefore = readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')
+  const row = (await manager.listPlugins()).find(item => String(item.entryId).endsWith(':managed'))!
+  expect(row).toMatchObject({ readOnlyReason: 'deployment-locked' })
+  expect(row.patchId).toBeUndefined()
+  expect((await manager.listBundles()).find(bundle => bundle.name === 'extra'))
+    .toMatchObject({ enabled: true, readOnlyReason: 'deployment-locked', removable: false, updatable: false })
+  const refused = { changed: false, application: 'failed', error: { code: 'deployment-locked' } }
+  expect(await manager.setPluginEnabled(row.entryId, false)).toMatchObject(refused)
+  expect(await manager.setBundleEnabled('extra', false)).toMatchObject(refused)
+  expect(await manager.removeBundle('extra')).toMatchObject(refused)
+  expect(await manager.installBundle('extra-two')).toMatchObject(refused)
+  expect(await manager.setVersionExemption('extra@1.0.0', '1.0.0', true, true)).toMatchObject(refused)
+  expect(await manager.updateBundle('extra', '2.0.0')).toMatchObject({ step: 'check', result: refused })
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(manifestBefore)
+  expect(readFileSync(join(dir, 'cordis.patch.yml'), 'utf8')).toBe(patchBefore)
+  expect(existsSync(join(dir, 'compatibility.json'))).toBe(false)
+})
+
+it('reads an absent deployment page global as a writable deployment that installs packages', () => {
+  expect(PluginDeployment({})).toEqual({ readOnly: false, installBundles: true })
+  expect(PluginDeployment({ readOnly: true, installBundles: false })).toEqual({ readOnly: true, installBundles: false })
+})
+
+it('sends the deployment switches as a page global and reports what each plugin adds: its context-global tools and its browser half', async () => {
+  const { manager, ctx } = await fixture('live', false, (ctx) => {
+    void ctx.plugin(SystemPrompt).then(() => ctx.plugin(ToolRuntime))
+    ctx.provide('clientModules', { clientPath: (id: string) => id.endsWith('plugin.mjs') ? '/client.js' : undefined })
+  }, { installBundles: false }, undefined, (dir) => {
+    writeFileSync(join(dir, 'node_modules/extra/cordis.patch.yml'),
+      JSON.stringify([{ insert: [{ id: 'managed', name: './plugin.mjs', config: { tools: ['probe_write', 'probe_read'] } }] }]))
+  })
+  const table: IndexInjection[] = []
+  await ctx.parallel('webserver/index-inject', table, { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1])
+  expect(table).toContainEqual({ kind: 'global', name: PLUGIN_DEPLOYMENT_GLOBAL, value: { readOnly: false, installBundles: false } })
+  const plugins = await manager.listPlugins()
+  expect(plugins.find(item => String(item.entryId).endsWith(':managed'))).toMatchObject({ tools: ['probe_read', 'probe_write'], hasClient: true })
+  expect(plugins.find(item => String(item.entryId).endsWith(':manager'))).toMatchObject({ tools: [], hasClient: false })
 })
 
 it('selects only an offered bundle and still deselects one', async () => {
