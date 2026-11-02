@@ -257,6 +257,7 @@ describe('gate graph validation', () => {
     'hygiene',
     'doc-sync',
     'doc-quick',
+    'generated',
   ] as const)('constructs and executes preflight for a valid non-empty %s graph', async (mode) => {
     const subject = withPnpmEntrypoint(() => gatesForMode(mode))
     const execute = vi.fn(async (item: Gate) => resultFor(item))

@@ -32,6 +32,10 @@ pre-merge-commit:
       run: node_modules/.bin/tsx scripts/verify-archived-agent-notes.ts
 
 pre-push:
+  parallel: true
   jobs:
     - name: typecheck
       run: pnpm run typecheck
+
+    - name: generated files
+      run: pnpm run verify-generated
