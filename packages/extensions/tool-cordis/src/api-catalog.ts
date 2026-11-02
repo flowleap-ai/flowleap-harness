@@ -3726,7 +3726,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote async read(ref: SkillRef, signal: AbortSignal): Promise<SkillTextValue>',
         description: 'Load the body of one exact skill of the default agent view, a winner or a replaced one.',
-        parameters: [{ name: 'ref', description: 'name, provider, and source as `list()` reports them.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        parameters: [{ name: 'ref', description: 'name, provider, source, and path as `list()` reports them.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
         returns: 'the Markdown body.',
         throws: ['RemoteError `skill/not-found` when the view holds no such skill or its file is gone.'],
       },
@@ -3776,7 +3776,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>',
         description: 'Load the body of one exact candidate of a view, a winner or a replaced one, with the same validation and cancellation as `get()`.',
-        parameters: [{ name: 'ref', description: 'name, provider, and source of the candidate, as `inspect()` reports them.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels work.' }],
+        parameters: [{ name: 'ref', description: 'name, provider, source, and path of the candidate, as `inspect()` reports them.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels work.' }],
         returns: 'the full skill, or `undefined` when the view holds no such candidate or its file is gone.',
       },
     ],
@@ -9529,7 +9529,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillCandidateRef',
-    declaration: 'export interface SkillCandidateRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n}',
+    declaration: 'export interface SkillCandidateRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path?: string | undefined;\n}',
   },
   {
     name: 'SkillCatalogSnapshot',
@@ -9565,7 +9565,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillInventoryRow',
-    declaration: 'export interface SkillInventoryRow extends SkillRef {\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly path?: string;\n    readonly origin: SkillOrigin;\n    readonly userInvocable: boolean;\n    readonly modelInvocable: boolean;\n    readonly replacedBy?: {\n        readonly provider: string;\n        readonly source: SkillSource;\n        readonly origin: SkillOrigin;\n    };\n}',
+    declaration: 'export interface SkillInventoryRow extends SkillRef {\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly origin: SkillOrigin;\n    readonly userInvocable: boolean;\n    readonly modelInvocable: boolean;\n    readonly replacedBy?: {\n        readonly provider: string;\n        readonly source: SkillSource;\n        readonly origin: SkillOrigin;\n    };\n}',
   },
   {
     name: 'SkillInventoryValue',
@@ -9605,7 +9605,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillRef',
-    declaration: 'export interface SkillRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n}',
+    declaration: 'export interface SkillRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path?: string | undefined;\n}',
   },
   {
     name: 'SkillRegistration',

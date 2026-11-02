@@ -288,7 +288,7 @@ Serves the skills of the view a new chat gets: the default working directory and
 
 /**
  * Load the body of one exact skill of the default agent view, a winner or a replaced one.
- * @param ref - name, provider, and source as `list()` reports them.
+ * @param ref - name, provider, source, and path as `list()` reports them.
  * @param signal - caller lifetime carried by the Remote transport.
  * @returns the Markdown body.
  * @throws RemoteError `skill/not-found` when the view holds no such skill or its file is gone.
@@ -372,7 +372,7 @@ async inspect(options: SkillViewOptions = {}): Promise<SkillInventory>
 /**
  * Load the body of one exact candidate of a view, a winner or a replaced
  * one, with the same validation and cancellation as `get()`.
- * @param ref - name, provider, and source of the candidate, as `inspect()` reports them.
+ * @param ref - name, provider, source, and path of the candidate, as `inspect()` reports them.
  * @param options - view options; `scope` selects the viewing agent's layers, `cwd` selects project roots, and `signal` cancels work.
  * @returns the full skill, or `undefined` when the view holds no such candidate or its file is gone.
  */
