@@ -18,9 +18,10 @@ import { specTypeSchemas, type Client, type ImageContent } from '@modelcontextpr
 import type { Context } from '@deepseek-ai/cordis'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
+import { imageInputRefusal } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { ToolDefinition, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
-import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools'
+import { assertSupportedJsonSchema, callerImageInput } from '@deepseek-ai/dsh-tools'
 import type { JsonSchemaNode } from '@deepseek-ai/dsh-tools'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
@@ -380,22 +381,8 @@ function decodeImage(block: ImageContent): SaveImageAttachment {
 async function resolveImageAdmission(ctx: Context, exec: ToolExecution): Promise<AttachmentStore> {
   const attachments = ctx.get('attachments')
   if (attachments === undefined) throw new Error('no attachment store is mounted')
-  const routed = exec.agent?.session.requestHeader()?.config
-  const provider = routed?.provider ?? exec.agent?.options.provider
-  const model = routed?.model ?? exec.agent?.options.model
-  const llm = ctx.get('llm')
-  if (provider === undefined || model === undefined || llm === undefined) {
-    throw new Error('the current model route could not be resolved')
-  }
-  let info: Awaited<ReturnType<typeof llm.resolveModelInfo>>
-  try {
-    info = await llm.resolveModelInfo(provider, model, exec.signal)
-  } catch {
-    throw new Error('the current model route could not be verified')
-  }
-  if (info.inputModalities === undefined || !info.inputModalities.includes('image')) {
-    throw new Error(`model "${model}" does not declare image input`)
-  }
+  const support = await callerImageInput(ctx, exec)
+  if (support.kind !== 'declared') throw new Error(imageInputRefusal(support))
   if (exec.signal.aborted) throw new Error('the tool call was canceled before image storage')
   return attachments
 }

@@ -15,8 +15,8 @@ import { basename, extname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { AttachmentError, AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { imageInputRefusal, type ContentBlock } from '@deepseek-ai/dsh-llm'
+import { callerImageInput, defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-fs'
 import { resolveRegularReadTarget } from './read-target.ts'
@@ -118,17 +118,10 @@ export function imageMediaTypeForPath(filePath: string): ImageMediaType | undefi
  * @param requestedPath - the raw, not-yet-resolved path rendered in refusal messages.
  */
 export async function assertImageCapableRoute(ctx: Context, exec: ToolExecution, requestedPath: string): Promise<void> {
-  const routed = exec.agent?.session.requestHeader()?.config
-  const provider = routed?.provider ?? exec.agent?.options.provider
-  const model = routed?.model ?? exec.agent?.options.model
-  const llm = ctx.get('llm')
-  if (provider === undefined || model === undefined || llm === undefined) {
-    throw new Error(`cannot read "${requestedPath}" as an image: the current model route could not be resolved`)
-  }
-  const active = await llm.resolveModelInfo(provider, model, exec.signal)
-  if (active.inputModalities === undefined || !active.inputModalities.includes('image')) {
-    throw new Error(`cannot read "${requestedPath}" as an image: model "${model}" does not declare image input; switch to an image-capable model to read images`)
-  }
+  const support = await callerImageInput(ctx, exec)
+  if (support.kind === 'declared') return
+  const hint = support.kind === 'absent' ? '; switch to an image-capable model to read images' : ''
+  throw new Error(`cannot read "${requestedPath}" as an image: ${imageInputRefusal(support)}${hint}`, support.kind === 'unverified' ? { cause: support.error } : undefined)
 }
 
 /** Refuse a media type outside the deployment's accepted set, naming the offending path. */
