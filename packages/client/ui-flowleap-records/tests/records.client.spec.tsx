@@ -9,7 +9,7 @@ import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-c
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { apply, frameSrc, inject, PANEL_ID, probeRecords, RECORDS_LINK_ROUTE } from '../src/client/index.ts'
 import { RecordsIcon, RecordsPage, type ColorScheme, type RecordsPageProps } from '../src/client/RecordsPage.tsx'
-import { en, NS, zh } from '../src/client/locales.ts'
+import { de, en, NS, zh } from '../src/client/locales.ts'
 
 afterEach(() => {
   cleanup()
@@ -74,6 +74,7 @@ describe('ui-flowleap-records browser half', () => {
       href: string
       probe: (signal: AbortSignal) => Promise<boolean>
       colorScheme: { getSnapshot: () => ColorScheme }
+      language: { getSnapshot: () => string }
     }
     expect(injected.href).toBe('records/')
     stub.mockResolvedValueOnce(new Response('', { status: 200 }))
@@ -82,7 +83,10 @@ describe('ui-flowleap-records browser half', () => {
     expect(injected.colorScheme.getSnapshot()).toBe('dark')
     ctx.emit('theme/change', theme('light'))
     expect(injected.colorScheme.getSnapshot()).toBe('light')
-    expect(ctx.locale.bind(NS)('panel')).toBe(zh.panel)
+    expect(injected.language.getSnapshot()).toBe('zh')
+    ctx.locale.setLocale('de')
+    expect(injected.language.getSnapshot()).toBe('de')
+    expect(ctx.locale.bind(NS)('panel')).toBe(de.panel)
     await fiber.dispose()
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
@@ -133,22 +137,25 @@ describe('ui-flowleap-records browser half', () => {
 describe('RecordsPage', () => {
   const t = makeTranslate(en)
 
-  function props(present: boolean | Promise<boolean>, scheme: ColorScheme = 'light') {
+  function props(present: boolean | Promise<boolean>, scheme: ColorScheme = 'light', lang = 'en') {
     const colorScheme = createSnapshotStore<ColorScheme>(scheme)
+    const language = createSnapshotStore<string>(lang)
     const probe = vi.fn(async (_signal: AbortSignal) => present)
-    const page: RecordsPageProps = { href: 'records/', probe, colorScheme, t, usePanelInfo: select => select({ activePanelId: PANEL_ID }) } as RecordsPageProps
-    return { page, probe, colorScheme }
+    const page: RecordsPageProps = { href: 'records/', probe, colorScheme, language, t, usePanelInfo: select => select({ activePanelId: PANEL_ID }) } as RecordsPageProps
+    return { page, probe, colorScheme, language }
   }
 
-  it('shows the frame with the embedded flag and the client color scheme, and follows a theme change', async () => {
-    const { page, colorScheme } = props(true, 'dark')
+  it('shows the frame with the embedded flag, the client color scheme, and the UI language, and follows a change of either', async () => {
+    const { page, colorScheme, language } = props(true, 'dark', 'zh')
     render(<RecordsPage {...page} />)
     await settle()
     const frame = screen.getByTitle('Matters of the firm')
-    expect(frame.getAttribute('src')).toBe('records/?embedded=1&theme=dark')
+    expect(frame.getAttribute('src')).toBe('records/?embedded=1&theme=dark&lang=zh')
     act(() => { colorScheme.set('light') })
-    expect(frame.getAttribute('src')).toBe('records/?embedded=1&theme=light')
-    expect(frameSrc('records/', 'light')).toBe('records/?embedded=1&theme=light')
+    expect(frame.getAttribute('src')).toBe('records/?embedded=1&theme=light&lang=zh')
+    act(() => { language.set('en') })
+    expect(frame.getAttribute('src')).toBe('records/?embedded=1&theme=light&lang=en')
+    expect(frameSrc('records/', 'light', 'en')).toBe('records/?embedded=1&theme=light&lang=en')
     expect(screen.queryByRole('status')).toBeNull()
   })
 

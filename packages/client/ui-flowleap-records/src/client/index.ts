@@ -1,14 +1,14 @@
 /**
  * Browser half of FlowLeap records: asks the Host route once at start and, when the answer names the Records pages,
  * registers the Records launcher in `sidebar.panellist` and the Records page in the keyed `main` slot. The page
- * embeds the Firm Record's pages from the same origin with the client's color scheme; a confirm goes from the page to
- * the Firm Record through the firm proxy, never through the runtime. A failed request, an aborted request, or any
- * other answer registers nothing and shows no error.
+ * embeds the Firm Record's pages from the same origin with the client's color scheme and UI language; a confirm goes
+ * from the page to the Firm Record through the firm proxy, never through the runtime. A failed request, an aborted
+ * request, or any other answer registers nothing and shows no error.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -34,7 +34,7 @@ export const PANEL_ID = 'flowleap-records' as MainPanelId
 /** The Host route relative to the document, like the other app routes. */
 export const RECORDS_LINK_ROUTE = RECORDS_LINK_PATH.slice(1)
 
-/** Required services: slots, copy, and the theme. */
+/** Required services: slots, copy with the UI language, and the theme. */
 export const inject = ['slots', 'locale', 'theme']
 
 /**
@@ -82,11 +82,13 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const colorScheme = createSnapshotStore<ColorScheme>(ctx.theme.getTheme().active.colorScheme)
   ctx.on('theme/change', (snapshot) => { colorScheme.set(snapshot.active.colorScheme) })
+  const language = createSnapshotStore<LocaleId>(ctx.locale.getLocale().active)
+  ctx.on('locale/change', (snapshot) => { language.set(snapshot.active) })
   const controller = new AbortController()
   ctx.effect(() => () => { controller.abort() }, 'ui-flowleap-records: request')
   void readRecordsLink(controller.signal).then((href) => {
     if (href === null || controller.signal.aborted) return
-    const injected = { href, probe: (signal: AbortSignal) => probeRecords(href, signal), colorScheme }
+    const injected = { href, probe: (signal: AbortSignal) => probeRecords(href, signal), colorScheme, language }
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
       name: 'sidebar.panellist', id: PANEL_ID, order: 18, locale: NS, label: () => t('panel'),
     }, RecordsIcon))

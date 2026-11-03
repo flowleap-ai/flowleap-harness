@@ -1,5 +1,5 @@
 ---
-description: "The Matters row in the FlowLeap sidebar (German Akten) and the Matters page: the Firm Record's pages of flowleap-os, served by the firm proxy at the same origin, embedded in a frame with the client's theme; an empty state while the firm has no matters."
+description: "The Matters row in the FlowLeap sidebar (German Akten) and the Matters page: the Firm Record's pages of flowleap-os, served by the firm proxy at the same origin, embedded in a frame with the client's theme and UI language; an empty state while the firm has no matters."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters page, which embeds the Records pages of the Firm Record (the matter list, the matter with its deadlines, Confirm and Reject) in a frame. The firm proxy serves those pages at `records/` on the same origin, behind the same sign-in, so a confirm goes from the embedded page to the Firm Record, never through the runtime. The frame carries the client's color scheme. Without the proxy the page shows that the firm has no matters yet.
+An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters page, which embeds the Records pages of the Firm Record (the matter list, the matter with its deadlines, Confirm and Reject) in a frame. The firm proxy serves those pages at `records/` on the same origin, behind the same sign-in, so a confirm goes from the embedded page to the Firm Record, never through the runtime. The frame carries the client's color scheme and UI language. Without the proxy the page shows that the firm has no matters yet.
 
 ## Table of Contents
 
@@ -38,11 +38,11 @@ The browser asks `GET api/flowleap/records-link` once at start; the Host answers
 
 ### The page
 
-When the page opens it asks `GET <recordsHref>?embedded=1` once. A `200` shows the frame; any other status, a failed request, or an abort shows the empty state **No matters yet** (role `status`). The frame's address is `<recordsHref>?embedded=1&theme=<light|dark>`: `embedded=1` tells the Records pages to render without their own top bar, and `theme` is the client's color scheme (`ctx.theme`, followed through `theme/change`). The frame fills the main column; a theme change reloads it. The test id of the page is `flowleap-records`, and the frame's accessible name is the localized "Matters of the firm".
+When the page opens it asks `GET <recordsHref>?embedded=1` once. A `200` shows the frame; any other status, a failed request, or an abort shows the empty state **No matters yet** (role `status`). The frame's address is `<recordsHref>?embedded=1&theme=<light|dark>&lang=<locale id>`: `embedded=1` tells the Records pages to render without their own top bar, `theme` is the client's color scheme (`ctx.theme`, followed through `theme/change`), and `lang` is the client's UI language (`ctx.locale`, followed through `locale/change`; the pages fall back to English for a language they lack). The frame fills the main column; a theme or language change reloads it. The test id of the page is `flowleap-records`, and the frame's accessible name is the localized "Matters of the firm".
 
 ### What the os side provides
 
-The Records pages of flowleap-os accept `?theme=light|dark` and render without their top bar when `embedded=1` is in the query. The sign-in proxy serves them under `/records/` at the firm address, with the same cookie as the Web app. This package owns nothing of those pages.
+The Records pages of flowleap-os accept `?theme=light|dark` and `?lang=<locale id>` (English when they lack the language) and render without their top bar when `embedded=1` is in the query. The sign-in proxy serves them under `/records/` at the firm address, with the same cookie as the Web app. This package owns nothing of those pages.
 
 -----
 
@@ -52,15 +52,15 @@ The Records pages of flowleap-os accept `?theme=light|dark` and render without t
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half validates `recordsHref` and registers one exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first. The browser half reads the route, keeps the color scheme in a snapshot store fed by `theme/change`, and registers the launcher and the page; `RecordsPage` probes the pages once per mount and renders the frame or the empty state.
+The Host half validates `recordsHref` and registers one exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first. The browser half reads the route, keeps the color scheme and the UI language in snapshot stores fed by `theme/change` and `locale/change`, and registers the launcher and the page; `RecordsPage` probes the pages once per mount and renders the frame or the empty state.
 
 | File | Role |
 |---|---|
 | [`src/route.ts`](src/route.ts) | the route path and its JSON answer, shared by both halves |
 | [`src/index.ts`](src/index.ts) | Host half: the config check and the route |
-| [`src/client/index.ts`](src/client/index.ts) | Browser half: the request, the probe, the dictionaries, the color scheme, and the registrations |
+| [`src/client/index.ts`](src/client/index.ts) | Browser half: the request, the probe, the dictionaries, the color scheme, the UI language, and the registrations |
 | [`src/client/RecordsPage.tsx`](src/client/RecordsPage.tsx) | the Matters page and the launcher glyph |
-| [`tests/`](tests/) | the config rules, the route with its disposal, the registrations with their disposal, the probe, the frame address per theme, and the empty state |
+| [`tests/`](tests/) | the config rules, the route with its disposal, the registrations with their disposal, the probe, the frame address per theme and language, and the empty state |
 
 </details>
 
@@ -88,7 +88,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **A theme change reloads the frame** — the color scheme travels in the frame's address, so a change of theme loads the pages again and an unsaved form inside the frame is lost. A message to the frame would keep the form; it waits for a second consumer of the theme.
+- **A theme or language change reloads the frame** — the color scheme and the UI language travel in the frame's address, so a change of either loads the pages again and an unsaved form inside the frame is lost. A message to the frame would keep the form; it waits for a second consumer of the theme.
 - **One probe per open** — the page asks the pages' address once when it opens; a Firm Record that starts later shows after the page is opened again.
 - **The frame's own navigation is not in the address bar** — the Web app's `?page=` names the Matters page, not the matter inside the frame.
 
