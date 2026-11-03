@@ -1,0 +1,1 @@
+accept {"kind":"all"} on: fixture claims with tracked changes

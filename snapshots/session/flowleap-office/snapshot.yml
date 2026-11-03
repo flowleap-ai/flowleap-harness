@@ -1,0 +1,11 @@
+version: 1
+scenario: flowleap-office
+profile: headless
+composition: flowleap-office
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-office
+  pin: true
+workspace:
+  final: true
