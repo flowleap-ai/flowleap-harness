@@ -74,6 +74,8 @@
       "@deepseek-ai/dsh-flowleap-routines/types": ["./packages/host/flowleap-routines/src/types.ts"],
       "@deepseek-ai/dsh-flowleap-deliverables/work-pages": ["./packages/host/flowleap-deliverables/src/work-page/types.ts"],
       "@deepseek-ai/dsh-flowleap-budget/types": ["./packages/host/flowleap-budget/src/types.ts"],
+      "@deepseek-ai/dsh-flowleap-record/http": ["./packages/host/flowleap-record/src/http.ts"],
+      "@deepseek-ai/dsh-flowleap-record/types": ["./packages/host/flowleap-record/src/types.ts"],
       "@deepseek-ai/dsh-flowleap-models/types": ["./packages/host/flowleap-models/src/types.ts"],
       "@deepseek-ai/dsh-flowleap-agent-builder/agent": ["./packages/host/flowleap-agent-builder/src/agent-row.ts"],
       "@deepseek-ai/dsh-flowleap-agent-builder/types": ["./packages/host/flowleap-agent-builder/src/types.ts"],
