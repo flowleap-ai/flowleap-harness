@@ -1,0 +1,28 @@
+# Overlay for office.md (DSH_VERIFY_PATCH): switches on both flowleap-office rows
+# with the pinned OfficeCLI binary of this Mac. DSH_VERIFY_OFFICECLI names the
+# binary, DSH_VERIFY_OFFICECLI_SHA256 its SHA-256, and DSH_VERIFY_OFFICE_TEMPLATES
+# the template folder. An override replaces the row's whole config, so each row
+# restates every field of packages/bundle/flowleap-web/cordis.patch.yml.
+- id: flowleap-office-officecli
+  disabled: false
+  config:
+    binaryPath: !!js process.env.DSH_VERIFY_OFFICECLI
+    version: 1.0.160
+    sha256: !!js process.env.DSH_VERIFY_OFFICECLI_SHA256
+    stateDir: !!js dshHomePath('flowleap-office')
+    timeoutMs: 60000
+    maxOutputBytes: 4194304
+    tableStyle: ''
+    chart:
+      featureColumnWidth: 10
+      textColumnWidth: 40
+      headerFill: 1F3A5F
+      headerFontColor: FFFFFF
+
+- id: flowleap-office
+  disabled: false
+  config:
+    templatesDir: !!js process.env.DSH_VERIFY_OFFICE_TEMPLATES
+    revisionAuthor: FlowLeap
+    maxReadChars: 40000
+    maxInputBytes: 33554432
