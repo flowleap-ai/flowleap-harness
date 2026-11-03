@@ -28,17 +28,17 @@ function git(cwd: string, ...args: string[]): string {
 function pluginRepository(version: string): { path: string; commit: string } {
   const path = directory()
   git(path, 'init', '-q')
-  mkdirSync(join(path, 'plugins/flowleap/skills/prior-art'), { recursive: true })
-  mkdirSync(join(path, 'plugins/flowleap/.claude-plugin'), { recursive: true })
-  writeFileSync(join(path, 'plugins/flowleap/skills/prior-art/SKILL.md'), '---\nname: prior-art\ndescription: Search.\n---\n')
-  writeFileSync(join(path, 'plugins/flowleap/.claude-plugin/plugin.json'), JSON.stringify({ version }))
+  mkdirSync(join(path, 'skills/prior-art'), { recursive: true })
+  mkdirSync(join(path, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(path, 'skills/prior-art/SKILL.md'), '---\nname: prior-art\ndescription: Search.\n---\n')
+  writeFileSync(join(path, '.claude-plugin/plugin.json'), JSON.stringify({ version }))
   git(path, 'add', '.')
   git(path, 'commit', '-q', '-m', version)
   return { path, commit: git(path, 'rev-parse', 'HEAD') }
 }
 
 const spec = (repository: string, commit: string) => ({
-  repository, commit, skills: 'plugins/flowleap/skills', manifest: 'plugins/flowleap/.claude-plugin/plugin.json', environment: 'FLOWLEAP_SKILLS_DIR',
+  repository, commit, skills: 'skills', manifest: '.claude-plugin/plugin.json', environment: 'FLOWLEAP_SKILLS_DIR',
 })
 
 afterEach(() => {
@@ -47,19 +47,19 @@ afterEach(() => {
 })
 
 describe('desktop skill pack', () => {
-  it('pins the FlowLeap pack to a commit of flowleap-plugins and ships none upstream', () => {
+  it('pins the FlowLeap pack to a commit of flowleap-methods and ships none upstream', () => {
     expect(readDesktopProductFile(APP_ROOT, 'flowleap').skillPack).toEqual({
-      repository: 'https://github.com/flowleap-ai/flowleap-plugins.git',
+      repository: 'https://github.com/flowleap-ai/flowleap-methods.git',
       commit: expect.stringMatching(/^[0-9a-f]{40}$/u) as string,
-      skills: 'plugins/flowleap/skills',
-      manifest: 'plugins/flowleap/.claude-plugin/plugin.json',
+      skills: 'skills',
+      manifest: '.claude-plugin/plugin.json',
       environment: 'FLOWLEAP_SKILLS_DIR',
     })
     expect(readDesktopProductFile(APP_ROOT, 'deepseek').skillPack).toBeNull()
   })
 
   it('rejects a moving ref, an insecure repository, a path that leaves the repository, and a missing field', () => {
-    const pinned = spec('https://github.com/flowleap-ai/flowleap-plugins.git', 'a'.repeat(40))
+    const pinned = spec('https://github.com/flowleap-ai/flowleap-methods.git', 'a'.repeat(40))
     expect(() => parseDesktopProduct({ ...DEFAULT_DESKTOP_PRODUCT, skillPack: { ...pinned, commit: 'main' } })).toThrow('skillPack.commit')
     expect(() => parseDesktopProduct({ ...DEFAULT_DESKTOP_PRODUCT, skillPack: { ...pinned, commit: 'ed8a8a6' } })).toThrow('skillPack.commit')
     expect(() => parseDesktopProduct({ ...DEFAULT_DESKTOP_PRODUCT, skillPack: { ...pinned, repository: 'http://example.com/p.git' } })).toThrow('HTTPS')
@@ -69,19 +69,19 @@ describe('desktop skill pack', () => {
   })
 
   it('stages the pinned commit, not the branch head, and the shell hands its skills folder to the Host', async () => {
-    const plugins = pluginRepository('2.6.2')
-    writeFileSync(join(plugins.path, 'plugins/flowleap/.claude-plugin/plugin.json'), JSON.stringify({ version: '2.7.0' }))
-    git(plugins.path, 'commit', '-q', '-am', '2.7.0')
+    const plugins = pluginRepository('1.0.0')
+    writeFileSync(join(plugins.path, '.claude-plugin/plugin.json'), JSON.stringify({ version: '1.1.0' }))
+    git(plugins.path, 'commit', '-q', '-am', '1.1.0')
     const resources = directory()
     const stage = join(resources, 'skill-pack')
     const pinned = spec(plugins.path, plugins.commit)
 
-    expect(await prepareDesktopSkillPack(pinned, stage)).toEqual({ repository: plugins.path, commit: plugins.commit, version: '2.6.2' })
+    expect(await prepareDesktopSkillPack(pinned, stage)).toEqual({ repository: plugins.path, commit: plugins.commit, version: '1.0.0' })
     expect(readFileSync(join(stage, 'skills/prior-art/SKILL.md'), 'utf8')).toContain('name: prior-art')
 
     const pack = readPackagedSkillPack(resources, { ...pinned, repository: 'https://example.com/p.git' })
-    expect(pack).toEqual({ skills: join(stage, 'skills'), version: '2.6.2', commit: plugins.commit, environment: 'FLOWLEAP_SKILLS_DIR' })
-    expect(skillPackAboutValues(pack)).toEqual({ version: '2.6.2', commit: plugins.commit.slice(0, 7) })
+    expect(pack).toEqual({ skills: join(stage, 'skills'), version: '1.0.0', commit: plugins.commit, environment: 'FLOWLEAP_SKILLS_DIR' })
+    expect(skillPackAboutValues(pack)).toEqual({ version: '1.0.0', commit: plugins.commit.slice(0, 7) })
     // The packaged pack wins over a developer value from the login shell.
     expect(skillPackHostEnvironment({ FLOWLEAP_SKILLS_DIR: '/home/dev/pack', PATH: 'bin' }, pack))
       .toEqual({ FLOWLEAP_SKILLS_DIR: join(stage, 'skills'), PATH: 'bin' })
@@ -89,7 +89,7 @@ describe('desktop skill pack', () => {
   })
 
   it('fails the packaged launch when the package carries another commit or no pack', async () => {
-    const plugins = pluginRepository('2.6.2')
+    const plugins = pluginRepository('1.0.0')
     const resources = directory()
     await prepareDesktopSkillPack(spec(plugins.path, plugins.commit), join(resources, 'skill-pack'))
     expect(() => readPackagedSkillPack(resources, spec('https://example.com/p.git', 'b'.repeat(40)))).toThrow('not the pinned')

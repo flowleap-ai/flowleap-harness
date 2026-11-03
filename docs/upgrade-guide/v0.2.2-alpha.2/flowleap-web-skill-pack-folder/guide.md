@@ -11,6 +11,6 @@ The `flowleap-web` profile scans `FLOWLEAP_SKILLS_DIR` for the FlowLeap skill pa
 ## Migration
 
 1. In the release image, change nothing: the image sets `FLOWLEAP_SKILLS_DIR=/opt/flowleap/skills`.
-2. Outside the image, set `FLOWLEAP_SKILLS_DIR` to a flowleap-plugins checkout's `plugins/flowleap/skills` before you start `dsh --profile flowleap-web`, or to an empty folder for no FlowLeap skill.
+2. Outside the image, set `FLOWLEAP_SKILLS_DIR` to a flowleap-methods checkout's `skills` folder before you start `dsh --profile flowleap-web`, or to an empty folder for no FlowLeap skill.
 3. In the FlowLeap desktop app, which starts the `flowleap-desktop` profile from the `flowleap-desktop` template, add the `skill-filesystem` row to `$DSH_HOME/profiles/flowleap-desktop/cordis.patch.yml` with its full config (`providerName: flowleap`, `includeDefaultRoots: false`, `requireCustomSkillDirs: true`, and `customSkillDirs` set to the pack folder), or export `FLOWLEAP_SKILLS_DIR` in your login shell profile. Without one of these, the row fails on every start of the app.
 4. Start the profile and confirm that the startup output has no `skill-filesystem` warning.

@@ -17,10 +17,10 @@
   "updates": { "feedUrl": "" },
   "mandatoryUpdatePolicy": "off",
   "skillPack": {
-    "repository": "https://github.com/flowleap-ai/flowleap-plugins.git",
-    "commit": "ed8a8a6a0fd92fc6e97c9df5c03ac66ce4c9ebae",
-    "skills": "plugins/flowleap/skills",
-    "manifest": "plugins/flowleap/.claude-plugin/plugin.json",
+    "repository": "https://github.com/flowleap-ai/flowleap-methods.git",
+    "commit": "a5b925a20b2eca37c5bb375dfbdbb3ab5c7fe68d",
+    "skills": "skills",
+    "manifest": ".claude-plugin/plugin.json",
     "environment": "FLOWLEAP_SKILLS_DIR"
   }
 }

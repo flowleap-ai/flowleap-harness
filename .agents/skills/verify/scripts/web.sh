@@ -8,7 +8,7 @@
 # start copies the flowleap-connectors/* records of the founder's credential file
 # (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
 # which the overlay mounts as readOnlyPath; stop deletes that copy.
-# FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-plugins checkout below $HOME.
+# FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-methods checkout below $HOME.
 # DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml; a relative path
 # is resolved against the caller's working directory.
 # DSH_VERIFY_PROFILE=flowleap-desktop starts the desktop profile with verify.desktop.patch.yml instead:
@@ -27,7 +27,7 @@ run=$(cd "$run" && pwd)
 pid_file="$run/server.pid"
 log="$run/server.log"
 firm_keys="$run/firm-keys.yaml"
-skills_dir=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-plugins/plugins/flowleap/skills}
+skills_dir=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-methods/skills}
 profile_file="$run/profile"
 
 alive() { [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; }

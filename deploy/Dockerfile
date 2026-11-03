@@ -10,13 +10,14 @@
 # `dsh --profile flowleap-web` with DSH_HOME=/data. Every base image and
 # download is pinned by version; nothing says `latest`.
 #
-# Skill pack: by default the `skills` stage fetches flowleap-ai/flowleap-plugins
-# at FLOWLEAP_PLUGINS_REF, a branch or a full commit SHA. A branch name does not
+# Skill pack: by default the `skills` stage fetches flowleap-ai/flowleap-methods
+# at FLOWLEAP_METHODS_REF, a branch or a full commit SHA, and copies its
+# skills/ folder (the 15 methods). A branch name does not
 # change when the branch moves, so Buildx can reuse an old fetch from its cache;
 # a release passes the commit SHA (flowleap-os release.sh resolves `main`), which
 # also goes into BUILD_INFO.json. To vendor a local checkout instead, override the
 # stage with a named build context whose root is the skills directory:
-#   --build-context skills=../flowleap-plugins/plugins/flowleap/skills
+#   --build-context skills=../flowleap-methods/skills
 
 # Debian trixie (glibc 2.41): the FlowLeap CLI's Linux aarch64 release binary
 # needs glibc 2.39, which bookworm (2.36) does not have.
@@ -25,18 +26,18 @@ ARG NODE_RUNTIME_IMAGE=node:26.4.0-trixie-slim
 ARG GIT_IMAGE=alpine/git:v2.49.1
 ARG PNPM_VERSION=11.28.5
 ARG FLOWLEAP_CLI_VERSION=v0.12.2
-ARG FLOWLEAP_PLUGINS_REF=main
+ARG FLOWLEAP_METHODS_REF=main
 
 # ── skill pack ───────────────────────────────────────────────────────────────
 FROM ${GIT_IMAGE} AS skills-git
-ARG FLOWLEAP_PLUGINS_REF
+ARG FLOWLEAP_METHODS_REF
 RUN git init -q /repo \
-  && git -C /repo fetch -q --depth 1 https://github.com/flowleap-ai/flowleap-plugins.git "${FLOWLEAP_PLUGINS_REF}" \
+  && git -C /repo fetch -q --depth 1 https://github.com/flowleap-ai/flowleap-methods.git "${FLOWLEAP_METHODS_REF}" \
   && git -C /repo checkout -q FETCH_HEAD \
   && rm -rf /repo/.git
 
 FROM scratch AS skills
-COPY --from=skills-git /repo/plugins/flowleap/skills /
+COPY --from=skills-git /repo/skills /
 
 # ── builder ──────────────────────────────────────────────────────────────────
 FROM ${NODE_IMAGE} AS builder
@@ -46,7 +47,7 @@ ARG PNPM_VERSION
 ARG HARNESS_COMMIT=0000000
 ARG HARNESS_BUILD_DATE=unknown
 ARG FLOWLEAP_CLI_VERSION
-ARG FLOWLEAP_PLUGINS_REF
+ARG FLOWLEAP_METHODS_REF
 # CI=true makes the repository's lefthook postinstall a no-op (no git hooks in an image).
 ENV CI=true \
     PNPM_HOME=/pnpm \
@@ -89,8 +90,8 @@ RUN mkdir -p /opt/harness/flowleap \
   && node -e ' \
        const version = require("/opt/harness/node_modules/@deepseek-ai/dsh/package.json").version; \
        require("node:fs").writeFileSync("/opt/harness/BUILD_INFO.json", JSON.stringify({ \
-         version, commit: process.argv[1], builtAt: process.argv[2], flowleapCli: process.argv[3], pluginsRef: process.argv[4], \
-       }, null, 2) + "\n")' "${HARNESS_COMMIT}" "${HARNESS_BUILD_DATE}" "${FLOWLEAP_CLI_VERSION}" "${FLOWLEAP_PLUGINS_REF}"
+         version, commit: process.argv[1], builtAt: process.argv[2], flowleapCli: process.argv[3], methodsRef: process.argv[4], \
+       }, null, 2) + "\n")' "${HARNESS_COMMIT}" "${HARNESS_BUILD_DATE}" "${FLOWLEAP_CLI_VERSION}" "${FLOWLEAP_METHODS_REF}"
 # Smoke test of the deployed closure: the profile must compose without the source tree.
 RUN DSH_HOME=/tmp/smoke-home HOME=/tmp/smoke-user FLOWLEAP_SKILLS_DIR=/tmp/no-skills \
     node /opt/harness/node_modules/@deepseek-ai/dsh/lib/bin.js --profile flowleap-web --dump-config > /dev/null \
