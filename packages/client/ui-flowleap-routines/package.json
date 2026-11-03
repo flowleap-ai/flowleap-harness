@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-routines",
   "description": "Needs review mark of FlowLeap routine runs: the Sidebar row badge, the Needs review page, the Mark as done action, the Automation tasks filter tab, and the dashboard's review, register watch, and routine search surfaces, over the flowleapRoutines Remote",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

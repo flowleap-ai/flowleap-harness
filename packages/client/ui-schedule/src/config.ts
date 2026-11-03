@@ -6,7 +6,10 @@ export const SCHEDULE_PAGE_GLOBAL = '__DSH_SCHEDULE_PAGE_CONFIG__'
 
 /** Automation tasks page behavior a deployment selects. */
 export interface Config {
-  /** New task puts the localized example request (`new.draft`) in the new chat's composer, unsent; off puts the task-creation prompt (`host.createPrompt`). */
+  /**
+   * New task puts the localized example request (`new.draft`) in the new chat's composer, unsent;
+   * off puts the task-creation prompt (`host.createPrompt`).
+   */
   newTaskDraft: boolean
 }
 
