@@ -28,6 +28,7 @@ Sizes: **S** up to 1 week, **M** 1 to 3 weeks, **L** more than 3 weeks, for one 
 13. [Risks and open questions](#13-risks-and-open-questions)
 14. [Proposed tickets](#14-proposed-tickets)
 15. [How this design was made](#15-how-this-design-was-made)
+16. [The demo day](#16-the-demo-day)
 
 ---
 
@@ -1016,6 +1017,7 @@ Tracer bullets first. Not filed; the founder approves the list first. "os" is `f
 | T30 | Matter memory: the Knowledge Pool tiers keyed by the record | os | R8 | L | A fact on one matter is not found from another client's matter |
 | T31 | FlowLeap Office plugin on OfficeCLI: the pinned binary, the fixed environment, URL refusal, no network, the letter tool and validate; then the amendment tool (with the paragraph-mark deletion and `w:date`) and the claim chart tool | harness | R1, R3 | M | The four tools pass the evaluation's checks on the firm image with no network; a `https://` value is refused; a deleted claim leaves no empty paragraph after accept |
 | T32 | Work views: grid, preview pane with source spans, keyboard actions, bulk actions, the agent side panel with the selection as a logged read | os, harness | R2, R3 | M | A filter on 100,000 documents returns in under 200 ms; a bulk confirm of deadlines is refused; live evidence with the `verify` skill |
+| T33 | Demo firm and the demo day script: a demo host and Microsoft 365 tenant, real public EP files, and the nine rows of chapter 16 as a script that runs on each release | os, harness | R1 to R7 | M | The rows marked for R5 pass with `verify` evidence on the demo host; no client data and no test firm are used |
 
 Changes to existing tickets [proposal]: #154 changes per F10; #35 adds "the record log covers the record actions"; #123 is answered by sections 4 and 7 and can close when T1 to T4 land; #135 to #138 stay and become the Work router's base.
 
@@ -1027,5 +1029,34 @@ Changes to existing tickets [proposal]: #154 changes per F10; #35 adds "the reco
 - Two independent design sketches on two models, each asked for one whole architecture. Sketch A (a firm ledger with proposals and decisions, a pure rule library, and a two-person state machine in the types) and sketch B (one hash-chained stream per matter with projections, explicitly asked to avoid a plain table store). Both chose an append-only log with projections. Sketch B named the costs of a pure event store; section 3.4 answers each with one firm-wide log and relational projections in one database transaction.
 - Legal sources were opened on 2026-11-03: R.126, R.131, R.134, R.135 EPC; the EPO closing days 2026 and 2027; PCT R.80 and R.82quater; §§ 123, 123a PatG; § 147 AO. The other links were checked to resolve. Secondary sources are marked.
 - One independent review by a separate agent checked the legal periods against the linked sources, the diagrams and the internal consistency; its 15 findings were fixed (for example R.49ter, R.70, the R.134(2) residence condition and the public-file test).
-- Later inputs from the session that started this design: the founder's AI-native principles (chapter 1), the founder's decision on OfficeCLI (section 3.6, PR 213), and the PATORG screenshots on the agorum page (section 3.5).
+- Later inputs from the session that started this design: the founder's AI-native principles (chapter 1), the founder's decision on OfficeCLI (section 3.6, PR 213), the PATORG screenshots on the agorum page (section 3.5), and the demo day (chapter 16).
 - We did not use the test firm, made no model call on firm data, and wrote no product code.
+
+---
+
+## 16. The demo day
+
+The demo day is the acceptance test of the whole system. When the system is built, the founder records a video of one normal firm day. The founder's words: "they are seeing PATORG but with the new AI native way. Not the same UI. Our workflow, but with the new AI-native OS" [cited: the founder, through the session that started this design, 2026-11-03].
+
+**The rules of the demo** [proposal]:
+
+- Each row is a job that a firm knows from PATORG, done the AI-native way (chapter 1).
+- Each row works end to end with real public EP files, in a demo firm on its own demo host and a Microsoft 365 tenant that FlowLeap owns. Never client data, and never the test firm [cited for the demo host and tenant: research section 7.1].
+- Each row has a pass condition. A row passes only with live evidence from the `verify` skill and the Session and record logs, not from a staged screen.
+- The demo runs as a script that can run again on each release, so the demo day is also a release check.
+
+| Time | The PATORG job | The AI-native way | Pass condition | Modules (section 3.2) | Phase | In the first switchable release (R5) |
+|---|---|---|---|---|---|---|
+| **8:00** | Incoming EPO mail: download, assign to the file, note the deadline | The letter arrives (forward to the AI mailbox, later the MyEPO API). FlowLeap matches it to the matter, reads and analyzes it, computes the deadline with its legal source and trace, and the PAFA confirms it in one click | The office event, the match, the deadline proposal with its trace and `Evidence`, and the confirmation are record events; the confirmer is not the proposer | 5, 1, 3, 4, 7 | R1 (forward), R2 (one-click confirm with the engine check), R3 (MyEPO) | **Yes** |
+| **8:15** | The work list: deadline lists and tasks per person | A morning brief and a decision queue for each role (partner, attorney, PAFA), with the work done overnight | Each person sees only their matters; each queue item opens with its evidence | 6, 1, work views (3.5) | R2 (partner and PAFA), R3 (every role) | **Yes** |
+| **9:00** | The office action reply, written by hand | The analysis, the arguments and the amended claims as Word tracked changes (FlowLeap Office, `office_amend_claims`); the attorney edits and accepts | The `.docx` has real insertions and deletions with dates, accept gives the intended claims with no empty paragraph, and the document is an accepted `Proposal` in the e-file | 7, 8 | R3 (T31 amendment tool) | **Yes** |
+| **9:30** | The client letter from a template | A full report letter on the firm template, in the client's language, following the client's communication rules; the attorney sends it from Outlook | The letter keeps the firm template; the rule check passes; the draft is in the attorney's Drafts; nothing is sent by FlowLeap | 9, 7, 8 | R1 (letter tool), R3 (rules and Outlook drafts) | **Yes** |
+| **10:00** | Deadline control: a second person checks the docket | An independent check against the office data, with warnings such as "Rule 71(3) communication on EP …: no letter seen" and the difference report | A register event without a letter gives a warning; a planted docket error shows as a difference with both traces | 3, 4, 5 | R2 (register comparison and difference report), R3 (MyEPO due dates) | **Yes** |
+| **11:00** | Time recording by hand | Time is proposed from the work done (measured review time, fixed-fee lines from the work products) and confirmed in one click | Each time entry is a decided proposal with its source; no agent minutes are billed as hours | 10 | R4 | **Yes** |
+| **14:00** | A matter question: find the colleague or read the old file | "What did we argue against D1 in this family?", answered with sources from the firm's own filed responses | Every statement in the answer links to a span of a filed document of the family; nothing from another client's matter appears | 14, 8 | R3 (a basic answer from the e-file within the wall), R8 (matter memory) | No (the basic R3 version is enough for the demo) |
+| **16:00** | Annuities and reports: lists and exports | Questions in words over the portfolio ("which renewals fall due in the next three months, and which ones has the client not decided?"), answered as a generated view, and the keep-or-drop reports | The answer is a read-only view over projections, with each row linked to its right; the keep-or-drop report cites its data | 11, work views (3.5) | R3 (portfolio questions), R6 (annuities) | Portfolio questions yes; annuities no (until R6 the firm's renewal provider keeps them) |
+| **Portal** | The client IP portal | The client asks questions about its portfolio; each answer is prepared by the agent and released by an attorney | No answer reaches the client without an attorney's release; the client sees only its own data | 12, 9 | R7 | No |
+
+**The closing line:** "Same work. Same firm. But the system does the work, and you decide."
+
+The first switchable release (end of R5) must pass the rows marked **Yes**. The demo of the full system passes all nine rows [proposal]. A ticket for the demo firm and the demo script is T33 in section 14.
