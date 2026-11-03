@@ -72,7 +72,7 @@ export class FakeSubprocess implements Pick<SubprocessRuntime, 'spawn'> {
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     const args = spec.argv.slice(1)
     const inputAt = args.indexOf('--input')
-    const batch = inputAt === -1 ? undefined : JSON.parse(readFileSync(join(spec.cwd, args[inputAt + 1] ?? '')).toString()) as unknown
+    const batch: unknown = inputAt === -1 ? undefined : JSON.parse(readFileSync(join(spec.cwd, args[inputAt + 1] ?? '')).toString())
     this.spawned.push({ argv: spec.argv, env: spec.env ?? {}, cwd: spec.cwd, ...(batch === undefined ? {} : { batch }) })
     const reply = this.responder(args, spec.cwd)
     const reader = (text: string, lossy: boolean) => ({ readFrom: () => ({ text, nextOffset: text.length, lossy }) })
