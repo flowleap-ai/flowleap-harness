@@ -69,11 +69,12 @@ describe('OfficeCliProvider.letter', () => {
     }, signal)
     expect(text(file)).toBe('merged+batch')
     expect(fake.calls()).toEqual([
+      ['query', 'template.docx', 'revision', '--json'],
       ['merge', 'template.docx', 'letter.docx', '--data', 'fields.json', '--json'],
       ['batch', 'letter.docx', '--input', 'letter.docx.batch.json', '--json'],
       ['validate', 'letter.docx', '--json'],
     ])
-    expect(fake.spawned[1]?.batch).toContainEqual({ command: 'add', parent: '/body', type: 'table', props: { rows: '2', cols: '2', style: 'FirmTable' } })
+    expect(fake.spawned[2]?.batch).toContainEqual({ command: 'add', parent: '/body', type: 'table', props: { rows: '2', cols: '2', style: 'FirmTable' } })
     expect(await readdir(callsDir)).toEqual([])
   })
 
@@ -88,6 +89,12 @@ describe('OfficeCliProvider.letter', () => {
     expect((await rejection(office.letter({ template, fields: { url: 'https://x' }, blocks: [] }, signal))).code).toBe('url_refused')
     expect((await rejection(office.letter({ template, fields: {}, blocks: [{ kind: 'paragraph', text: 'http://x' }] }, signal))).code).toBe('url_refused')
     expect(fake.spawned.length).toBe(before)
+  })
+
+  it('refuses a template that holds tracked changes', async () => {
+    const { fake, office } = await setup(revisions([7]))
+    expect((await rejection(office.letter({ template: bytes('firm'), fields: {}, blocks: [] }, signal))).code).toBe('invalid_document')
+    expect(fake.calls().map(argv => argv[0])).toEqual(['query'])
   })
 
   it('reports a template the engine cannot open and a letter that fails validation', async () => {
@@ -109,6 +116,17 @@ describe('OfficeCliProvider.letter', () => {
     const controller = new AbortController()
     controller.abort()
     await expect(office.letter({ template: bytes('x'), fields: {}, blocks: [] }, controller.signal)).rejects.toThrow()
+  })
+})
+
+describe('a failure outside the engine', () => {
+  it('is aborted for a cancelled signal and engine_failed otherwise, with its message', async () => {
+    const { office } = await setup((args, cwd) => args[0] === 'create' ? ok() : succeed(args, cwd))
+    const controller = new AbortController()
+    controller.abort()
+    expect((await rejection(office.claimChart({ sheet: 'S', header: ['F'], rows: [] }, controller.signal))).code).toBe('aborted')
+    const missing = await rejection(office.claimChart({ sheet: 'S', header: ['F'], rows: [] }, signal))
+    expect([missing.code, missing.message.includes('ENOENT')]).toEqual(['engine_failed', true])
   })
 })
 
@@ -145,6 +163,8 @@ describe('OfficeCliProvider.amendClaims', () => {
     const broken: Partial<AmendRequest>[] = [
       { paragraphs: [] },
       { author: ' ' },
+      { author: 'Dr. Weiß\nPartner' },
+      { author: 'Dr. Weiß\u0000' },
       { date: '3. November 2026' },
       { date: '2026-13-45T10:00:00Z' },
       { paragraphs: [{ mark: 'same', segments: [{ kind: 'same', text: '' }] }] },
@@ -155,6 +175,7 @@ describe('OfficeCliProvider.amendClaims', () => {
       expect(() => { checkAmend({ ...amendRequest, ...change }) }).toThrow(FlowleapOfficeError)
     }
     expect(() => { checkAmend({ ...amendRequest, date: '2026-11-03T10:00:00+01:00' }) }).not.toThrow()
+    expect(() => { checkAmend({ ...amendRequest, author: 'Dr. Weiß\tPartner' }) }).not.toThrow()
   })
 })
 
@@ -170,12 +191,13 @@ describe('OfficeCliProvider.claimChart', () => {
     })
   })
 
-  it('refuses a bad sheet name, a ragged row, and a web address', async () => {
+  it('refuses a bad sheet name, a ragged row, too many columns, and a web address', async () => {
     const { fake, office } = await setup()
     for (const sheet of ['', 'a/b', 'x'.repeat(32), '\'quoted', 'quoted\'', 'a[1]']) {
       expect((await rejection(office.claimChart({ sheet, header: ['F'], rows: [] }, signal))).code).toBe('invalid_request')
     }
     expect((await rejection(office.claimChart({ sheet: 'S', header: ['F', 'G'], rows: [['1']] }, signal))).code).toBe('invalid_request')
+    expect((await rejection(office.claimChart({ sheet: 'S', header: Array.from({ length: 16_385 }, () => 'F'), rows: [] }, signal))).message).toContain('at most 16384')
     expect((await rejection(office.claimChart({ sheet: 'S', header: ['F'], rows: [['https://x']] }, signal))).code).toBe('url_refused')
     expect(fake.spawned).toEqual([])
   })

@@ -13,7 +13,7 @@ export interface OfficeToolDeps {
   readonly templatesDir: string
   /** Author of tracked changes when a call names none. */
   readonly revisionAuthor: string
-  /** Most characters of document text `office_read` returns. */
+  /** Most characters of an `office_read` result: the document text and the list lines together. */
   readonly maxReadChars: number
   /** Largest input document or template, in bytes. */
   readonly maxInputBytes: number

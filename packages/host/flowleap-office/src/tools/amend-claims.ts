@@ -7,7 +7,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { DELIVERED_LINE } from '@deepseek-ai/dsh-flowleap-deliverables'
 import type { PresentedFile } from '@deepseek-ai/dsh-tool-present/types'
+import type { FsTarget } from '@deepseek-ai/dsh-fs'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { toolErrorMessage } from '@deepseek-ai/dsh-tools/pipeline'
 import { z } from 'zod'
 import { claimOutcome, redlineParagraph, type ClaimOutcome } from '../redline.ts'
 import type { OfficeToolDeps } from './deps.ts'
@@ -30,6 +32,19 @@ const Args = z.object({
   template: z.string().min(1).optional(),
   author: z.string().trim().min(1).optional(),
 })
+
+/**
+ * Whether two targets can name one file. The comparison ignores letter case and Unicode normalization, because a
+ * case-insensitive volume maps `Claims.docx` and `claims.docx` to one file.
+ * @param ctx - context with `fs`.
+ * @param a - one target.
+ * @param b - the other target.
+ * @returns true when the process paths are equal after case folding.
+ */
+function sameFile(ctx: Context, a: FsTarget, b: FsTarget): boolean {
+  const key = (target: FsTarget) => ctx.fs.processPath(target).normalize('NFC').toLowerCase()
+  return key(a) === key(b)
+}
 
 /**
  * Build `office_amend_claims`.
@@ -90,10 +105,10 @@ export function amendClaimsTool(ctx: Context, deps: OfficeToolDeps): ToolDefinit
     },
     async execute(raw, exec) {
       const args = parseArgs(Args, raw)
-      if (args.clean_output === args.output) throw new Error('output and clean_output must be different files.')
       const workspace = await callWorkspace(ctx, exec)
       const markedTarget = await outputTarget(ctx, workspace, args.output, '.docx', exec.signal)
       const cleanTarget = args.clean_output === undefined ? undefined : await outputTarget(ctx, workspace, args.clean_output, '.docx', exec.signal)
+      if (cleanTarget !== undefined && sameFile(ctx, markedTarget, cleanTarget)) throw new Error('output and clean_output must be different files.')
       const template = args.template === undefined ? undefined : await readTemplate(deps.templatesDir, args.template, deps.maxInputBytes)
       const author = args.author ?? deps.revisionAuthor
       const result = await deps.office.amendClaims({
@@ -104,9 +119,13 @@ export function amendClaimsTool(ctx: Context, deps: OfficeToolDeps): ToolDefinit
         date: deps.now().toISOString(),
         clean: cleanTarget !== undefined,
       }, exec.signal)
-      const files: PresentedFile[] = [{ path: await writeOutput(ctx, workspace, markedTarget, result.marked, exec.signal), description: 'Claims with tracked changes (Word)' }]
+      const markedPath = await writeOutput(ctx, workspace, markedTarget, result.marked, exec.signal)
+      const files: PresentedFile[] = [{ path: markedPath, description: 'Claims with tracked changes (Word)' }]
       if (cleanTarget !== undefined && result.clean !== undefined) {
-        files.push({ path: await writeOutput(ctx, workspace, cleanTarget, result.clean, exec.signal), description: 'Clean claims (Word)' })
+        const cleanPath = await writeOutput(ctx, workspace, cleanTarget, result.clean, exec.signal).catch((error: unknown) => {
+          throw new Error(`${toolErrorMessage(error)} The marked copy was written at ${markedPath}.`, { cause: error })
+        })
+        files.push({ path: cleanPath, description: 'Clean claims (Word)' })
       }
       deps.deliveries.queue(exec, files)
       const counts: Record<ClaimOutcome, number> = { amended: 0, added: 0, deleted: 0, unchanged: 0 }

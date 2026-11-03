@@ -104,6 +104,16 @@ class OfficeCall {
     throw new FlowleapOfficeError('invalid_output', `The written file does not pass validation: ${first ?? failureText(reply)}`)
   }
 
+  /**
+   * Refuse a template that holds tracked changes. In a claims copy their ids could collide with the ids of the new
+   * changes; in a letter they would carry edits that the attorney does not see in the tool result.
+   */
+  async refuseTrackedChanges(file: string): Promise<void> {
+    if ((await this.revisions(file, 'invalid_document')).length > 0) {
+      throw new FlowleapOfficeError('invalid_document', 'The template holds tracked changes; use a template without tracked changes.')
+    }
+  }
+
   async revisions(file: string, failure: FlowleapOfficeErrorCode): Promise<TrackedRevision[]> {
     const data = await this.ok({ kind: 'query', file, selector: 'revision' }, Revisions, failure)
     return data.results.map(({ text, format }) => ({
@@ -129,13 +139,23 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
     this.options = options
   }
 
+  /**
+   * Run one operation in a new private folder and remove the folder at the end. A failure that is not a
+   * `FlowleapOfficeError`, for example a full disk or a file the engine did not write, becomes `aborted` when the
+   * signal is aborted and `engine_failed` otherwise, with its message.
+   */
   private async inCall<T>(signal: AbortSignal, work: (call: OfficeCall) => Promise<T>): Promise<T> {
-    signal.throwIfAborted()
-    const dir = await mkdtemp(join(this.options.callsDir, 'call-'))
     try {
-      return await work(new OfficeCall(this.options.runner, dir, signal))
-    } finally {
-      await rm(dir, { recursive: true, force: true })
+      signal.throwIfAborted()
+      const dir = await mkdtemp(join(this.options.callsDir, 'call-'))
+      try {
+        return await work(new OfficeCall(this.options.runner, dir, signal))
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    } catch (error) {
+      if (error instanceof FlowleapOfficeError) throw error
+      throw new FlowleapOfficeError(signal.aborted ? 'aborted' : 'engine_failed', `The Office operation failed: ${String(error)}`)
     }
   }
 
@@ -151,6 +171,7 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
     serializeBatch(items)
     return this.inCall(signal, async (call) => {
       await call.write('template.docx', request.template)
+      await call.refuseTrackedChanges('template.docx')
       await call.write('fields.json', JSON.stringify(request.fields))
       const merged = await call.ok({ kind: 'merge', template: 'template.docx', output: 'letter.docx', data: 'fields.json' }, Merged, 'invalid_document')
       if (merged.unresolvedPlaceholders.length > 0) {
@@ -178,9 +199,7 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
       }
       if (request.template !== undefined) {
         await call.write('template.docx', request.template)
-        if ((await call.revisions('template.docx', 'invalid_document')).length > 0) {
-          throw new FlowleapOfficeError('invalid_document', 'The template holds tracked changes; use a template without tracked changes.')
-        }
+        await call.refuseTrackedChanges('template.docx')
       }
       await start('marked.docx')
       await call.batch('marked.docx', marked)
@@ -270,8 +289,12 @@ export function selectors(selection: ReviewSelection): string[] {
   }
 }
 
+/** The most columns of an Excel sheet. */
+const MAX_COLUMNS = 16_384
+
 function checkTable(header: readonly string[], rows: readonly (readonly string[])[], what: string): void {
   if (header.length === 0) invalid(`${what} needs at least one header cell.`)
+  if (header.length > MAX_COLUMNS) invalid(`${what} has ${String(header.length)} columns; at most ${String(MAX_COLUMNS)} are allowed.`)
   rows.forEach((row, index) => {
     if (row.length !== header.length) invalid(`${what} row ${String(index + 1)} has ${String(row.length)} cells; the header has ${String(header.length)}.`)
   })
@@ -285,6 +308,7 @@ function checkTable(header: readonly string[], rows: readonly (readonly string[]
 export function checkAmend(request: AmendRequest): void {
   if (request.paragraphs.length === 0) invalid('Name at least one claim.')
   if (request.author.trim() === '') invalid('The revision author must not be empty.')
+  if (Array.from(request.author).some(char => char.charCodeAt(0) < 0x20 && char !== '\t')) invalid('The revision author must not hold control characters.')
   if (!ISO_DATE.test(request.date) || Number.isNaN(Date.parse(request.date))) invalid(`The revision date "${request.date}" is not an ISO-8601 date and time.`)
   request.paragraphs.forEach((paragraph: RedlineParagraph, index) => {
     if (paragraph.segments.every(segment => segment.text === '')) invalid(`Claim paragraph ${String(index + 1)} has no text.`)

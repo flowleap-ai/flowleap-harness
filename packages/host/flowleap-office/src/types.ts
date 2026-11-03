@@ -204,7 +204,8 @@ export interface ReviewResult {
  * Why an Office operation failed. `url_refused`: a value starts with `http://` or `https://`. `invalid_request`: the
  * request breaks a rule of this definition. `missing_fields`: template placeholders got no value. `invalid_document`: an
  * input file is not a document of the format, or a template holds tracked changes. `invalid_output`: the written file
- * does not pass validation. `engine_failed`: the engine reported a failure. `timeout`: the engine did not finish in time.
+ * does not pass validation. `engine_failed`: the engine reported a failure, or the operation failed outside the engine,
+ * for example on a full disk. `timeout`: the engine did not finish in time.
  * `output_too_large`: the engine wrote more output than allowed. `aborted`: the caller cancelled.
  */
 export type FlowleapOfficeErrorCode =

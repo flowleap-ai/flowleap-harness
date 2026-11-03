@@ -2,7 +2,7 @@
  * The OfficeCLI provider over the real pinned binary and the local subprocess seam. Runs only when FLOWLEAP_OFFICECLI
  * names the binary; FLOWLEAP_OFFICECLI_SHA256 pins its hash (default: the hash of the named file).
  */
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -95,6 +95,29 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     expect(readout.text).toContain('Merkmal\tD1\n1.3 Lamellenabstand 1,5–3,0 mm\tnicht offenbart')
     expect(readout.headings).toEqual([{ level: 1, text: 'Erwiderung auf den Prüfungsbescheid' }, { level: 2, text: '1. Änderungen' }])
     await expect(office.letter({ template, fields: { zeichen: 'x' }, blocks: [] }, signal)).rejects.toMatchObject({ code: 'missing_fields' })
+  }, 120_000)
+
+  it('selects the changes of an author with an apostrophe and a comma', async () => {
+    const author = 'O\'Brien, Weiß & Partner'
+    const { marked } = await office.amendClaims({ paragraphs: claims.slice(0, 2).map(redlineParagraph), author, date: '2026-11-03T10:00:00.000Z', clean: false }, signal)
+    const readout = await office.read({ file: marked, format: 'docx' }, signal)
+    if (readout.format !== 'docx') throw new Error('expected a Word readout')
+    expect(readout.revisions.length).toBeGreaterThan(0)
+    const rejected = await office.reviewChanges({ file: marked, action: 'reject', selection: { kind: 'author', author } }, signal)
+    expect(rejected.changed).toBe(readout.revisions.length)
+    expect((await office.read({ file: rejected.file, format: 'docx' }, signal)).text).toBe(lines('before').slice(0, 2).join('\n'))
+  }, 120_000)
+
+  it('writes a formula-like cell as a string value, not as a formula', async () => {
+    const chart = await office.claimChart({ sheet: 'S', header: ['Merkmal', 'D1'], rows: [['1.1', '=WEBSERVICE("x")']] }, signal)
+    expect((await office.read({ file: chart, format: 'xlsx' }, signal)).text).toBe('=== Sheet: S ===\nA1=Merkmal\tB1=D1\nA2=1.1\tB2==WEBSERVICE("x")')
+    const callDir = await mkdtemp(join(dir, 'outline-'))
+    await writeFile(join(callDir, 'chart.xlsx'), chart)
+    const runner = new row.OfficeCliRunner(ctx.subprocess, {
+      binaryPath: binaryPath ?? '', home: join(dir, 'state', 'home'), stateDir: join(dir, 'state', 'state'), timeoutMs: 60_000, maxOutputBytes: 4 * 1024 * 1024,
+    })
+    const reply = await runner.reply({ kind: 'view', file: 'chart.xlsx', mode: 'outline' }, callDir, signal)
+    expect(reply.data).toMatchObject({ sheets: [{ name: 'S', formulas: 0 }] })
   }, 120_000)
 
   it('writes a claim chart with feature numbers as text', async () => {

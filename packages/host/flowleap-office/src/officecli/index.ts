@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -45,7 +45,7 @@ export interface Config {
   version: string
   /** The SHA-256 of the binary as 64 lowercase hex digits. */
   sha256: string
-  /** Absolute folder for the binary's `HOME`, its state, and the per-operation folders. */
+  /** Absolute folder for the binary's `HOME`, its state, and the per-operation folders; several runtimes may share it. */
   stateDir: string
   /** Milliseconds one OfficeCLI call may take. */
   timeoutMs: number
@@ -65,7 +65,7 @@ export const Config: z<Config> = z.object({
   version: z.string().pattern(/^\d+\.\d+\.\d+$/u).required(),
   sha256: z.string().pattern(/^[0-9a-f]{64}$/u).required(),
   stateDir: z.string().required(),
-  timeoutMs: z.number().min(1000).max(600_000).default(60_000),
+  timeoutMs: z.number().step(1).min(1000).max(600_000).default(60_000),
   maxOutputBytes: z.number().step(1).min(1024).max(64 * 1024 * 1024).default(4 * 1024 * 1024),
   tableStyle: z.string().default(''),
   chart: z.object({
@@ -88,6 +88,34 @@ export async function fileSha256(path: string): Promise<string> {
 }
 
 /**
+ * Whether the process with this id has ended. A probe that the operating system refuses for another user (`EPERM`)
+ * shows a running process.
+ * @param pid - a process id.
+ * @returns true when no such process exists.
+ */
+function ended(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return false
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ESRCH'
+  }
+}
+
+/**
+ * Remove the folders of runtimes that ended. Each runtime owns `<calls>/<pid>-<random>`; the folders of an ended
+ * runtime hold client documents that a crash left behind. A folder without a process id in its name is not of a
+ * running runtime of this version, so it goes too.
+ * @param calls - the `calls` folder of the state folder.
+ */
+async function removeEndedRuntimes(calls: string): Promise<void> {
+  for (const folder of await readdir(calls)) {
+    const pid = /^(\d+)-/u.exec(folder)?.[1]
+    if (pid === undefined || ended(Number(pid))) await rm(join(calls, folder), { recursive: true, force: true })
+  }
+}
+
+/**
  * Check the binary and provide `ctx.flowleapOffice`.
  * @param ctx - the row context, carrying `subprocess`.
  * @param config - binary, folders, bounds, and formats.
@@ -102,10 +130,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
   const home = join(config.stateDir, 'home')
   const state = join(config.stateDir, 'state')
-  const callsDir = join(config.stateDir, 'calls')
-  // Folders of operations that a stopped process left behind hold client documents; they go before the first call.
-  await rm(callsDir, { recursive: true, force: true })
-  await Promise.all([home, state, callsDir].map(dir => mkdir(dir, { recursive: true })))
+  const allCalls = join(config.stateDir, 'calls')
+  await Promise.all([home, state, allCalls].map(dir => mkdir(dir, { recursive: true })))
+  await removeEndedRuntimes(allCalls)
+  const callsDir = await mkdtemp(join(allCalls, `${String(process.pid)}-`))
+  ctx.effect(() => () => rm(callsDir, { recursive: true, force: true }), 'flowleap-office: call folder')
   const options: OfficeRunnerOptions = {
     binaryPath: config.binaryPath, home, stateDir: state, timeoutMs: config.timeoutMs, maxOutputBytes: config.maxOutputBytes,
   }

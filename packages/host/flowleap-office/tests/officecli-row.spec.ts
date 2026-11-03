@@ -1,4 +1,5 @@
 /** The OfficeCLI provider row: the binary check at load and the provided service. */
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -45,15 +46,34 @@ async function load(ctx: Context, config: row.Config): Promise<string | undefine
 }
 
 describe('the officecli row', () => {
-  it('checks the hash and the version, clears stale call folders, and provides flowleapOffice', async () => {
+  it('checks the hash and the version, clears call folders that no running runtime owns, and provides flowleapOffice', async () => {
     const { ctx, fake, config } = await setup()
     await mkdir(join(config.stateDir, 'calls', 'call-stale'), { recursive: true })
     await writeFile(join(config.stateDir, 'calls', 'call-stale', 'client.docx'), 'left behind')
     expect(await load(ctx, config)).toBeUndefined()
     expect(fake.calls()).toEqual([['--version']])
-    expect(await readdir(join(config.stateDir, 'calls'))).toEqual([])
+    expect(await readdir(join(config.stateDir, 'calls'))).toEqual([expect.stringMatching(new RegExp(`^${String(process.pid)}-`, 'u'))])
     expect(await readdir(config.stateDir)).toEqual(['calls', 'home', 'state'])
     expect(ctx.get('flowleapOffice')).toBeInstanceOf(row.OfficeCliProvider)
+  })
+
+  it('keeps the call folder of a live runtime, removes those of ended runtimes, and removes its own at dispose', async () => {
+    const { ctx, config } = await setup()
+    const calls = join(config.stateDir, 'calls')
+    const ended = `${String(spawnSync(process.execPath, ['-e', '']).pid)}-ended`
+    const live = `${String(process.ppid)}-live`
+    for (const folder of [ended, live]) {
+      await mkdir(join(calls, folder), { recursive: true })
+      await writeFile(join(calls, folder, 'client.docx'), 'client document')
+    }
+    const fiber = ctx.plugin(row, config)
+    await fiber.await()
+    const loaded = await readdir(calls)
+    expect(loaded).toContain(live)
+    expect(loaded).not.toContain(ended)
+    expect(loaded.filter(folder => folder.startsWith(`${String(process.pid)}-`))).toHaveLength(1)
+    await fiber.dispose()
+    expect(await readdir(calls)).toEqual([live])
   })
 
   it('fails loud on a changed binary, another version, and relative paths', async () => {

@@ -32,10 +32,14 @@ class FixtureOffice implements FlowleapOffice {
   readout: OfficeReadout = { format: 'docx', text: 'Claims\n1. A', headings: [{ level: 1, text: 'Claims' }], revisions: [] }
   omitClean = false
   failure: Error | undefined
+  /** Runs while the service works, for example to create a file. */
+  during: (() => Promise<void>) | undefined
 
-  private answer<T>(request: LetterRequest | AmendRequest | ChartRequest | ReadRequest | ReviewRequest, value: T): Promise<T> {
+  private async answer<T>(request: LetterRequest | AmendRequest | ChartRequest | ReadRequest | ReviewRequest, value: T): Promise<T> {
     this.requests.push(request)
-    return this.failure === undefined ? Promise.resolve(value) : Promise.reject(this.failure)
+    await this.during?.()
+    if (this.failure !== undefined) throw this.failure
+    return value
   }
 
   letter(request: LetterRequest) { return this.answer(request, bytes('letter')) }
@@ -158,6 +162,28 @@ describe('office_letter_from_template', () => {
   })
 })
 
+describe('an output that appears while the tool runs', () => {
+  it('refuses to replace it and presents nothing', async () => {
+    const { call, dir, fixture, presented } = await bench()
+    fixture.during = () => writeFile(join(dir, 'late.docx'), 'attorney file')
+    const result = await call('office_letter_from_template', { ...letterArgs, output: 'late.docx' })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain(`"${join(dir, 'late.docx')}" already exists`)
+    expect(await readFile(join(dir, 'late.docx'), 'utf8')).toBe('attorney file')
+    expect(presented()).toEqual([])
+  })
+
+  it('names the marked copy when the clean copy cannot be written', async () => {
+    const { call, dir, fixture, presented } = await bench()
+    fixture.during = () => writeFile(join(dir, 'c.docx'), 'attorney file')
+    const result = await call('office_amend_claims', { claims: [{ number: '1', before: 'A.', after: 'B.' }], output: 'm.docx', clean_output: 'c.docx' })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain(`The marked copy was written at ${join(dir, 'm.docx')}`)
+    expect([await readFile(join(dir, 'm.docx'), 'utf8'), await readFile(join(dir, 'c.docx'), 'utf8')]).toEqual(['marked', 'attorney file'])
+    expect(presented()).toEqual([])
+  })
+})
+
 describe('office_amend_claims', () => {
   const claims = [
     { number: '1', before: 'A mit B.', after: 'A mit B, wobei C.' },
@@ -191,6 +217,17 @@ describe('office_amend_claims', () => {
     expect(fixture.requests[0]).not.toHaveProperty('heading')
     expect((await call('office_amend_claims', { claims: [{ number: '1' }], output: 'n.docx' })).text).toContain('a claim needs before, after, or both')
     expect((await call('office_amend_claims', { claims, output: 'same.docx', clean_output: 'same.docx' })).text).toContain('must be different files')
+  })
+
+  it('refuses an output and a clean_output that name the same file', async () => {
+    const { call, dir, fixture } = await bench()
+    for (const [output, clean] of [['claims.docx', './claims.docx'], ['Claims.docx', 'claims.docx']]) {
+      const result = await call('office_amend_claims', { claims, output, clean_output: clean })
+      expect(result.isError).toBe(true)
+      expect(result.text).toContain('must be different files')
+    }
+    expect(fixture.requests).toEqual([])
+    await expect(readFile(join(dir, 'claims.docx'))).rejects.toThrow()
   })
 
   it('presents only the marked copy when the service returns no clean copy', async () => {
@@ -234,9 +271,40 @@ describe('office_read', () => {
     await writeFile(join(dir, 'chart.XLSX'), 'xlsx bytes')
     fixture.readout = { format: 'xlsx', text: 'ä'.repeat(1001), sheets: [{ name: 'S', rows: 2, cols: 3 }] }
     const result = await call('office_read', { path: 'chart.XLSX' })
-    expect(result.text).toBe(`${'ä'.repeat(1000)}\n\n[Text cut at 1000 characters.]\n\nSheets:\n- S: 2 rows, 3 columns`)
+    // The sheet line "- S: 2 rows, 3 columns" and its line feed take 23 of the 1000 characters.
+    expect(result.text).toBe(`${'ä'.repeat(977)}\n\n[Text cut to stay within 1000 characters.]\n\nSheets:\n- S: 2 rows, 3 columns`)
     expect((await call('office_read', { path: 'notes.pdf' })).text).toContain('must end with .docx or .xlsx')
     expect((await call('office_read', { path: 'missing.docx' })).text).toContain('is not a file in the working directory')
+  })
+})
+
+describe('the office_read budget', () => {
+  it('keeps the complete result within maxReadChars and counts what it left out', async () => {
+    const { call, dir, fixture } = await bench({ maxReadChars: 1000 })
+    await writeFile(join(dir, 'many.docx'), 'docx bytes')
+    const revisions = Array.from({ length: 200 }, (_, index) => ({ id: index, type: 'ins', author: 'FlowLeap', text: 'zwanzig Zeichen Text' }))
+    fixture.readout = { format: 'docx', text: 'Claims', headings: [{ level: 1, text: 'Claims' }], revisions }
+    const result = await call('office_read', { path: 'many.docx' })
+    const listed = result.text.split('\n').filter(line => line.startsWith('- id ')).length
+    const omitted = /\[Left out to stay within 1000 characters: (\d+) tracked change\(s\)\.\]/u.exec(result.text)?.[1]
+    expect(listed).toBeGreaterThan(0)
+    expect(listed + Number(omitted)).toBe(200)
+    expect(result.text).toContain('Claims\n\nHeadings:\n- Claims')
+    expect(Array.from(result.text).length).toBeLessThanOrEqual(1200)
+  })
+
+  it('leaves out the later lists once one list fills the budget, and counts the sheets of a workbook', async () => {
+    const { call, dir, fixture } = await bench({ maxReadChars: 1000 })
+    await writeFile(join(dir, 'headings.docx'), 'docx bytes')
+    const headings = Array.from({ length: 100 }, (_, index) => ({ level: 1, text: `Abschnitt ${String(index)}` }))
+    fixture.readout = { format: 'docx', text: 'x', headings, revisions: [{ id: 1, type: 'ins', author: 'A', text: 'B' }] }
+    const read = await call('office_read', { path: 'headings.docx' })
+    const listed = read.text.split('\n').filter(line => line.startsWith('- Abschnitt ')).length
+    expect(read.text).toContain(`[Left out to stay within 1000 characters: ${String(100 - listed)} heading(s), 1 tracked change(s).]`)
+    expect(read.text).not.toContain('Tracked changes')
+    await writeFile(join(dir, 'sheets.xlsx'), 'xlsx bytes')
+    fixture.readout = { format: 'xlsx', text: 'A1=x', sheets: Array.from({ length: 100 }, (_, index) => ({ name: `Blatt ${String(index)}`, rows: 1, cols: 1 })) }
+    expect((await call('office_read', { path: 'sheets.xlsx' })).text).toMatch(/\[Left out to stay within 1000 characters: \d+ sheet\(s\)\.\]$/u)
   })
 })
 

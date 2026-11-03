@@ -1,8 +1,8 @@
 /**
  * The file rules every Office tool shares. A model path is relative to the Session working directory and stays inside
- * it; an output must have the tool's extension and must not exist yet, so no tool replaces an attorney's file. A
- * template comes from the firm's template folder by its bare file name, never from a model path. Bytes go through the
- * host-path round trip of `dsh-flowleap-deliverables`.
+ * it; an output must have the tool's extension and must not exist when the tool starts or immediately before the
+ * write, so no tool replaces an attorney's file. A template comes from the firm's template folder by its bare file name,
+ * never from a model path. Bytes go through the host-path round trip of `dsh-flowleap-deliverables`.
  * @module
  */
 
@@ -82,17 +82,20 @@ export async function readInput(
 }
 
 /**
- * Write a new document into the working directory.
+ * Write a new document into the working directory. The target must still be absent immediately before the write, so a
+ * file that appeared after {@link outputTarget} stays as it is.
  * @param ctx - context with `fs`.
  * @param workspace - the call's working directory.
  * @param target - a target from {@link outputTarget}.
  * @param bytes - the file content.
  * @param signal - cancellation.
  * @returns the absolute process path of the written file.
+ * @throws when the target exists now, or the write fails.
  */
 export async function writeOutput(
   ctx: Context, workspace: CallWorkspace, target: FsTarget, bytes: Uint8Array, signal: AbortSignal,
 ): Promise<string> {
+  if (await ctx.fs.stat(target, signal) !== undefined) throw new Error(`"${target.displayPath}" already exists; name a new file.`)
   await writeWorkspaceBytes(ctx.fs, workspace.root, target, bytes, signal)
   return ctx.fs.processPath(target)
 }

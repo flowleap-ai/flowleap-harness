@@ -1877,7 +1877,7 @@ export interface Config {
   templatesDir: string
   /** Author of tracked changes when a call names none. */
   revisionAuthor: string
-  /** Most characters of document text `office_read` returns. */
+  /** Most characters of an `office_read` result: the document text and the lines of headings, tracked changes, and sheets. */
   maxReadChars: number
   /** Largest input document or template, in bytes. */
   maxInputBytes: number
