@@ -10,9 +10,9 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
   drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
   (dossier, FTO, prior art); the dossier case also passes on the synced code.
-- **Base:** `flowleap` is on upstream `master` as of upstream PR #7552 (2026-10-30, sync branch `sync/upstream-2026-10-30`;
-  351 commits after `dsh 0.2.2-alpha.2`), with all 8 upstream UI languages and the FlowLeap copy translated into
-  each. `master` on the org remote still equals `dsh 0.2.2-alpha.2`.
+- **Base:** `flowleap` is on upstream `master` as of `dsh 0.2.2-alpha.3` (2026-11-03, sync branch
+  `claude/upstream-sync-1103-f3256c`; 666 commits after upstream PR #7552), with all 8 upstream UI languages and the
+  FlowLeap copy translated into each. `master` on the org remote still equals `dsh 0.2.2-alpha.2`.
 - **Next product:** the self-hosted firm OS, decided in
   [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (27
   decisions, including off-site access, mobile continuation and support access; on 2026-10-27 a study of
@@ -105,9 +105,19 @@ Changes to upstream-owned code that an upstream sync must keep. Each code site h
 - `packages/schedule/schedule/src/runtime.ts`, `types.ts`: the `schedule/admit` waterfall and the `schedule/delivered` event (with `trigger`), which `flowleap-routines` uses.
 - `packages/client/ui-schedule`: the `schedule.manager.filter` list slot on the Automation tasks page.
 - `scripts/verify-repository-references.ts`: the `flowleap/docs/` exclusion.
+- `packages/client/ui-sidebar` (`SidebarRoot.tsx`, `index.ts`, `SidebarRoot.module.css`): the `sidebar.actions` and `sidebar.sections` list slots that `ui-flowleap-dashboard` fills. Since `dsh 0.2.2-alpha.3` they are rows 2 and 4 of the scroll grid, and `.panelRow.panelActive` gives their rows the active fill.
+- `packages/client/ui-schedule` `newTaskDraft`: on, New puts `new.draft` in the composer instead of the upstream `host.createPrompt`.
+- `packages/mcp/mcp-client`: the `tools.include` / `tools.exclude` filter that the `mcp-flowleap` row uses.
+- `scripts/build-exe-for-python-sdk.ts` `FLOWLEAP_PROFILE_IGNORES`: the Python runtime executable leaves out the FlowLeap packages and the libraries only they reach (`@hyzyla/pdfium`, `docx`, `mammoth`, `pdfjs-dist`, `jszip`, the XML parsers). Without this the Linux x64 runtime wheel is over the 100 MB PyPI file limit that `build-python-release.py` checks. The CLI lists the FlowLeap bundles only for `--profile flowleap-*`, which the Python runtime never runs.
 
 ## Open decisions
 
+- **Upstream sync to `dsh 0.2.2-alpha.3` (2026-11-03):** 666 upstream commits after upstream PR #7552, merged on
+  branch `claude/upstream-sync-1103-f3256c` with the same procedure; every decision is in
+  `flowleap/docs/2026-11-03-upstream-sync-decisions.tsv`. 35 content conflicts and 8 modify/delete rows. Upstream adds
+  the MCP server manager (`dsh-mcp-manager`), which `flowleap-web` keeps off until the Connectors page and admin
+  approval land (flowleap-harness#197, #199); team mode (`packages/team`); desktop update channels; separate Search
+  and Fetch providers; and removes `web-search-exa` and `web-search-perplexity`.
 - **Upstream sync to upstream `master` as of upstream PR #7552 (2026-10-30):** 351 upstream commits after `dsh 0.2.2-alpha.2`,
   merged on branch `sync/upstream-2026-10-30` with the same procedure; every decision is in
   `flowleap/docs/2026-10-30-upstream-sync-decisions.tsv`. 212 Chinese delete/modify rows (settled by `strip-zh.sh`),

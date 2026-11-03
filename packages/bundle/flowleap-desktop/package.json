@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-desktop",
   "description": "The FlowLeap desktop layer over dsh-flowleap-web: an OpenAI route beside the Anthropic, OpenRouter and Mistral routes, and the model step on the Models page (key Test, OpenRouter connect)",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },

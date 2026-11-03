@@ -4,13 +4,14 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { allowAllAccess, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ScheduleCatalogEntry, ScheduleId } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TaskManagerPage, type TaskManagerPageProps } from '../src/client/TaskManagerPage.tsx'
 import type { CatalogSnapshot } from '../src/client/catalog-source.ts'
+import { createEditorStore } from '../src/client/editor-store.ts'
 import { filterEntryIds, MANAGER_FILTER_SLOT, type FilterEntrySource, type ScheduleManagerFilterOwnerProps } from '../src/client/manager-filter.ts'
 import { en } from '../src/client/task-manager-locales.ts'
 
@@ -52,7 +53,9 @@ function mount(taskIds: readonly string[], filters: readonly string[] = ['review
   const renderFilter = (_key: string, owner: ScheduleManagerFilterOwnerProps, opts?: { readonly only?: string }) =>
     opts?.only === 'review' ? <ReviewFilter {...owner} taskIds={current} /> : null
   const renderSlot = renderFilter as TaskManagerPageProps['renderSlot']
+  const editor = createEditorStore().create()
   const props = (ids: readonly string[]): TaskManagerPageProps => ({
+    useStore: bindSnapshotSelector(editor), actions: editor.actions,
     useCatalog: select => select(snapshot),
     useFilters: select => select(ids),
     renderSlot,
