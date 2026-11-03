@@ -10,6 +10,7 @@ import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
+import { readBoundedText } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {
   DeadlineId, FlowleapRecord, LocalDate, MatterFileNumber, MatterView, MatterViewRefusal, MatterViewResult, RecordSeq, RuleId,
   ViewHash,
@@ -59,15 +60,10 @@ const answerSchema = zod.object({
 })
 
 /**
- * Whether plain http may carry the token to this host: a loopback address, or a single-label name such as the
- * in-cluster `flowleap-record`, which does not leave the firm's network.
- * @param hostname - the URL host name.
- * @returns `true` for such a host.
+ * A host that plain http may carry the token to: a loopback address, or a single-label name such as the in-cluster
+ * `flowleap-record`, which does not leave the firm's network.
  */
-function privateHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '[::1]' || /^127(\.\d{1,3}){3}$/u.test(hostname)
-    || /^[a-z0-9-]+$/iu.test(hostname)
-}
+const PLAIN_HTTP_HOST = /^(?:localhost|\[::1\]|127(?:\.\d{1,3}){3}|[a-z0-9-]+)$/iu
 
 /**
  * Check the Firm Record address at load.
@@ -78,29 +74,10 @@ function privateHost(hostname: string): boolean {
 function recordOrigin(baseURL: string): URL | undefined {
   if (baseURL === '') return undefined
   const base = URL.parse(baseURL)
-  const allowed = base !== null && (base.protocol === 'https:' || (base.protocol === 'http:' && privateHost(base.hostname)))
-  if (!allowed) {
+  if (base === null || !(base.protocol === 'https:' || (base.protocol === 'http:' && PLAIN_HTTP_HOST.test(base.hostname)))) {
     throw new Error(`flowleap-record: baseURL must be empty, an https URL, or an http URL to a loopback or single-label host, got "${baseURL}"`)
   }
   return new URL(base.origin)
-}
-
-/**
- * Read a body up to a size limit.
- * @param response - the service answer.
- * @returns the text, or `undefined` when the body is larger than the limit.
- * @throws when the read fails, for example at the read deadline.
- */
-async function limitedText(response: Response): Promise<string | undefined> {
-  if (response.body === null) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for await (const chunk of response.body) {
-    size += chunk.byteLength
-    if (size > MAX_BODY_BYTES) return undefined
-    chunks.push(chunk)
-  }
-  return new TextDecoder().decode(Buffer.concat(chunks))
 }
 
 /**
@@ -177,7 +154,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
         if (refusal === 'service_error') this.ctx.logger.warn(`flowleap-record: the Firm Record answered HTTP ${String(response.status)}`)
         return { error: refusal }
       }
-      text = await limitedText(response)
+      text = await readBoundedText(response, MAX_BODY_BYTES)
     } catch (error: unknown) {
       if (signal.aborted) throw error
       this.ctx.logger.warn(`flowleap-record: the Firm Record was not reached or the answer not read: ${String(error).slice(0, 300)}`)

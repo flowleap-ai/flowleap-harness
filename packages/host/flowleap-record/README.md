@@ -92,7 +92,7 @@ The provider sends `GET <origin of baseURL>/records/api/matters/<fileNumber>/vie
 | File | Role |
 |---|---|
 | [`src/types.ts`](src/types.ts) | the Service Definition `FlowleapRecord`, the branded ids, the view, and the refusals |
-| [`src/http.ts`](src/http.ts) | the http Provider: Config, the read, and the answer validation |
+| [`src/http.ts`](src/http.ts) | the http Provider: Config, the read (its body through `readBoundedText` of `dsh-flowleap-connectors`), and the answer validation |
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
 | [`src/index.ts`](src/index.ts) | the function plugin that registers the tool |
 | [`tests/`](tests/) | the provider against a local Firm Record double, the tool with its refusals and disposal, and the Loader composition test with a fixture provider |

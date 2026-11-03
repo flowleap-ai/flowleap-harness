@@ -10,6 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
+import { readBoundedText } from '@deepseek-ai/dsh-flowleap-connectors'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { BudgetMonth } from './types.ts'
 
@@ -76,25 +77,6 @@ function budgetUrl(config: Pick<Config, 'baseURL' | 'path'>): URL | undefined {
   return new URL(config.path, base.origin)
 }
 
-/**
- * Read a body up to a size limit.
- * @param response - the gateway answer.
- * @returns the text, or `undefined` when the body is larger than the limit.
- * @throws when the read fails, for example at the read deadline.
- */
-async function limitedText(response: Response): Promise<string | undefined> {
-  /* v8 ignore next -- fetch gives every 200 answer a body stream; an absent one is an empty body. */
-  if (response.body === null) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for await (const chunk of response.body) {
-    size += chunk.byteLength
-    if (size > MAX_BODY_BYTES) return undefined
-    chunks.push(chunk)
-  }
-  return new TextDecoder().decode(Buffer.concat(chunks))
-}
-
 /** Host service backing the generated `ctx.remote.flowleapBudget` namespace. */
 export default class FlowleapBudget extends TypertRemoteService {
   static inject = ['credentials']
@@ -140,7 +122,7 @@ export default class FlowleapBudget extends TypertRemoteService {
         this.ctx.logger.warn(`flowleap-budget: gateway answered HTTP ${String(response.status)}`)
         return { state: 'unknown', reason: 'gateway_error' }
       }
-      text = await limitedText(response)
+      text = await readBoundedText(response, MAX_BODY_BYTES)
     } catch (error: unknown) {
       this.ctx.logger.warn(`flowleap-budget: gateway not reached or answer not read: ${String(error).slice(0, 300)}`)
       return { state: 'unknown', reason: 'unreachable' }

@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
+    { "path": "../flowleap-connectors" },
     { "path": "../../core/tools" },
     { "path": "../../credentials/credentials" },
     { "path": "../../llm/llm" },

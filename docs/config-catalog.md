@@ -1770,7 +1770,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-budget`
 
 - `inject`: `credentials`
-- `source`: [`packages/host/flowleap-budget/src/index.ts:26`](../packages/host/flowleap-budget/src/index.ts)
+- `source`: [`packages/host/flowleap-budget/src/index.ts:27`](../packages/host/flowleap-budget/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1797,7 +1797,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:75`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */

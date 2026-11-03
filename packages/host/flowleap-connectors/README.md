@@ -167,6 +167,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/index.ts`](src/index.ts) | Config, `apply`, public exports |
 | [`src/types.ts`](src/types.ts) | Client-safe vocabulary: connector ids and fields, `ConnectorPresence`, `ConnectorTestResult` |
 | [`src/credentials.ts`](src/credentials.ts) | the record store over `ctx.credentials`, field validation, the library's `CredentialLookup` |
+| [`src/bounded-body.ts`](src/bounded-body.ts) | `readBoundedText`: the bounded read of a firm service answer that `dsh-flowleap-budget` and `dsh-flowleap-record` share |
 | [`src/host.ts`](src/host.ts) | `ConnectorHost`, `LruCache`, the caller-signal carrier |
 | [`src/tools.ts`](src/tools.ts) | `registerOfficeTools`, `modelInputSchema`, the access gate and the missing-credential answer |
 | [`src/compare-claims.ts`](src/compare-claims.ts) | the native `compare_claims` tool: the EPO OPS key gate, the claims fetch through the text router, the IDE's claim decomposition and chart |
