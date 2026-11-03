@@ -530,14 +530,6 @@
   }
 }
 
-.actionList,
-.sectionList {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .actionList {
   grid-column: 2;
   grid-row: 2;
@@ -546,6 +538,14 @@
 .sectionList {
   grid-column: 2;
   grid-row: 4;
+}
+
+.actionList,
+.sectionList {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .actionList:not(:empty) {
