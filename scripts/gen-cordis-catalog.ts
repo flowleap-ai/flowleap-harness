@@ -86,6 +86,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   flowleapAgents: 'core.md',
   flowleapWorkPages: 'deliverables.md',
   flowleapBudget: 'credentials.md',
+  flowleapRecord: 'credentials.md',
   flowleapModels: 'credentials.md',
   flowleapConnectors: 'credentials.md',
   flowleapOcr: 'credentials.md',

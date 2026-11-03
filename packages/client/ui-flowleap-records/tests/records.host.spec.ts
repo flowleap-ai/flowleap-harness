@@ -45,7 +45,7 @@ describe('ui-flowleap-records Host half', () => {
   it('defaults recordsHref to records/ and fails to load with an invalid one', async () => {
     const ctx = new Context()
     ctx.provide('connection', { fetch: { register: () => async () => {} } } as never)
-    expect(Config({}).recordsHref).toBe('records/')
+    expect(Config({} as Partial<Config> as Config).recordsHref).toBe('records/')
     const fiber = ctx.plugin({ inject: ['connection'], Config, apply }, { recordsHref: '/records/' })
     await expect(fiber.await()).rejects.toThrow(/recordsHref/u)
     await ctx.fiber.dispose()

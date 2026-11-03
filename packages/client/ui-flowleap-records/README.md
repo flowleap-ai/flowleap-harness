@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters page, which embeds the Records pages of the Firm Record of flowleap-os (the matter list, the matter with its deadlines, and the Confirm and Reject buttons) in a frame. The firm proxy serves those pages at `records/` on the same origin as the Web app, behind the same sign-in, so there is no second login; a confirm goes from the embedded page to the Firm Record through the proxy, never through the runtime. The frame carries the client's color scheme, so the pages match the theme. Without the proxy, as in a local run, the page shows that the firm has no matters yet.
+An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters page, which embeds the Records pages of the Firm Record (the matter list, the matter with its deadlines, Confirm and Reject) in a frame. The firm proxy serves those pages at `records/` on the same origin, behind the same sign-in, so a confirm goes from the embedded page to the Firm Record, never through the runtime. The frame carries the client's color scheme. Without the proxy the page shows that the firm has no matters yet.
 
 ## Table of Contents
 

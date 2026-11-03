@@ -20,8 +20,6 @@ const ctx = await bootProductionProfile({
 })
 try {
   const turn = await runFixtureTurn(ctx, { task: 'Read the record of matter FL-2026-0001 and tell me the record position and the due date.' })
-  const agent = ctx.agents.roots()[0]
-  if (agent !== undefined) await ctx.sessions.flush(agent.session)
   await writeFile('outcome.json', JSON.stringify({ answer: turn.output }))
 } finally {
   await ctx.fiber.dispose()
