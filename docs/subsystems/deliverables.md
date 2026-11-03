@@ -145,6 +145,56 @@ interface WorkspaceChanges {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxflowleapoffice--flowleapoffice"></a>
+
+### `ctx.flowleapOffice` — `FlowleapOffice`
+
+The Office operations. Every method rejects with a `FlowleapOfficeError` (`@deepseek-ai/dsh-flowleap-office`), and never changes its input bytes.
+
+```ts cordis-catalog
+/**
+ * Write a letter: the template with its placeholders filled, then the blocks.
+ * @param request - template, field values, and blocks.
+ * @param signal - caller cancellation.
+ * @returns the `.docx` bytes.
+ */
+letter(request: LetterRequest, signal: AbortSignal): Promise<Uint8Array>
+
+/**
+ * Write a marked claims copy with a tracked insertion or deletion for each changed segment and paragraph mark.
+ * @param request - paragraphs, author, date, and the clean-copy choice.
+ * @param signal - caller cancellation.
+ * @returns the marked copy and the clean copy when requested.
+ */
+amendClaims(request: AmendRequest, signal: AbortSignal): Promise<AmendResult>
+
+/**
+ * Write an Excel claim chart.
+ * @param request - sheet name, header, and rows.
+ * @param signal - caller cancellation.
+ * @returns the `.xlsx` bytes.
+ */
+claimChart(request: ChartRequest, signal: AbortSignal): Promise<Uint8Array>
+
+/**
+ * Read the text and the structure of a document.
+ * @param request - the document and its format.
+ * @param signal - caller cancellation.
+ * @returns what the document holds.
+ */
+read(request: ReadRequest, signal: AbortSignal): Promise<OfficeReadout>
+
+/**
+ * Accept or reject tracked changes on a copy of a Word document.
+ * @param request - the document, the action, and the selection.
+ * @param signal - caller cancellation.
+ * @returns the reviewed copy and the number of changes it removed.
+ */
+reviewChanges(request: ReviewRequest, signal: AbortSignal): Promise<ReviewResult>
+```
+
+Source: [`packages/host/flowleap-office/src/types.ts`](../../packages/host/flowleap-office/src/types.ts)
+
 <a id="ctxflowleapworkpages--flowleapworkpagescontroller"></a>
 
 ### `ctx.flowleapWorkPages` — `FlowleapWorkPagesController`

@@ -125,6 +125,8 @@ flowchart LR
   pkg_flowleap_deliverables["flowleap-deliverables"]
   svc_flowleapWorkPages["ctx.flowleapWorkPages<br/>FlowLeap work pages Remote"]
   pkg_client_ui_flowleap_work_pages["client-ui-flowleap-work-pages"]
+  pkg_flowleap_office["flowleap-office"]
+  svc_flowleapOffice["ctx.flowleapOffice<br/>FlowLeap Office service"]
   svc_flowleapRoutines["ctx.flowleapRoutines<br/>FlowLeap routines Remote"]
   pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
   pkg_flowleap_budget["flowleap-budget"]
@@ -412,6 +414,7 @@ flowchart LR
   pkg_flowleap_connectors --> svc_flowleapRegister
   pkg_flowleap_deliverables --> svc_flowleapWorkPages
   pkg_flowleap_models --> svc_flowleapModels
+  pkg_flowleap_office --> svc_flowleapOffice
   pkg_flowleap_routines --> svc_flowleapRoutines
   pkg_fs --> svc_fs
   pkg_fs_local --> svc_fs
@@ -561,6 +564,7 @@ flowchart LR
   svc_flowleapConnectors --> pkg_client_ui_settings_flowleap_connectors
   svc_flowleapModels --> pkg_client_ui_settings_flowleap_models
   svc_flowleapOcr --> pkg_flowleap_agent_builder
+  svc_flowleapOffice --> pkg_flowleap_office
   svc_flowleapRegister --> pkg_flowleap_routines
   svc_flowleapRoutines --> pkg_client_ui_flowleap_routines
   svc_flowleapWorkPages --> pkg_client_ui_flowleap_work_pages
@@ -735,6 +739,7 @@ flowchart LR
 | `ctx.flowleapAgentCatalog` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | - | - | Owns the agent folders, their file indexes and one agent preset each; read by the per-agent preset row of the same package; mounted by the flowleap-web profile only. |
 | `ctx.flowleapAgents` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | - | Lists, reads, saves and deletes the agents of the agent builder and their files, and names the connector rows an agent can choose; mounted by the flowleap-web profile only. |
 | `ctx.flowleapWorkPages` | `service` | [`flowleap-deliverables`](../packages/host/flowleap-deliverables) | - | [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | - | Lists and reads the office action work pages that office-action-scaffold saves write, and changes only their review fields; mounted by the flowleap-web profile only. |
+| `ctx.flowleapOffice` | `service` | [`flowleap-office`](../packages/host/flowleap-office) | - | [`flowleap-office`](../packages/host/flowleap-office) | - | Writes Word letters on firm templates, claim amendments as Word tracked changes and Excel claim charts, and reads and reviews tracked changes, as bytes in and bytes out; the OfficeCLI provider row of the same package owns the pinned binary; declared off in the flowleap-web profile. |
 | `ctx.flowleapRoutines` | `service` | [`flowleap-routines`](../packages/host/flowleap-routines) | - | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | - | Lists the chats a routine run marked "Needs review", clears one mark on an explicit done, and lists the register watches with their newest recorded events; mounted by the flowleap-web profile only. |
 | `ctx.flowleapBudget` | `service` | [`flowleap-budget`](../packages/host/flowleap-budget) | - | [`client-ui-flowleap-budget`](../packages/client/ui-flowleap-budget) | - | Reads the attorney's model spend and budget of this month from the firm's model gateway with the runtime's own virtual key, or unknown with a reason; mounted by the flowleap-web profile only. |
 | `ctx.flowleapModels` | `service` | [`flowleap-models`](../packages/host/flowleap-models) | - | [`client-ui-settings-flowleap-models`](../packages/client/ui-settings-flowleap-models) | - | Tests a stored Anthropic, OpenAI, or OpenRouter key at that provider only, and connects OpenRouter through its OAuth PKCE flow; mounted by the flowleap-desktop profile only. |

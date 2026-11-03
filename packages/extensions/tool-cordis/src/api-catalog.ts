@@ -1449,6 +1449,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapOffice',
+    summary: 'The Office operations.',
+    description: 'The Office operations. Every method rejects with a `FlowleapOfficeError` (`@deepseek-ai/dsh-flowleap-office`), and never changes its input bytes.',
+    methods: [
+      {
+        signature: 'letter(request: LetterRequest, signal: AbortSignal): Promise<Uint8Array>',
+        description: 'Write a letter: the template with its placeholders filled, then the blocks.',
+        parameters: [{ name: 'request', description: 'template, field values, and blocks.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the `.docx` bytes.',
+      },
+      {
+        signature: 'amendClaims(request: AmendRequest, signal: AbortSignal): Promise<AmendResult>',
+        description: 'Write a marked claims copy with a tracked insertion or deletion for each changed segment and paragraph mark.',
+        parameters: [{ name: 'request', description: 'paragraphs, author, date, and the clean-copy choice.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the marked copy and the clean copy when requested.',
+      },
+      {
+        signature: 'claimChart(request: ChartRequest, signal: AbortSignal): Promise<Uint8Array>',
+        description: 'Write an Excel claim chart.',
+        parameters: [{ name: 'request', description: 'sheet name, header, and rows.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the `.xlsx` bytes.',
+      },
+      {
+        signature: 'read(request: ReadRequest, signal: AbortSignal): Promise<OfficeReadout>',
+        description: 'Read the text and the structure of a document.',
+        parameters: [{ name: 'request', description: 'the document and its format.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'what the document holds.',
+      },
+      {
+        signature: 'reviewChanges(request: ReviewRequest, signal: AbortSignal): Promise<ReviewResult>',
+        description: 'Accept or reject tracked changes on a copy of a Word document.',
+        parameters: [{ name: 'request', description: 'the document, the action, and the selection.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the reviewed copy and the number of changes it removed.',
+      },
+    ],
+  },
+  {
     key: 'flowleapRegister',
     summary: 'Reads the register events of one application.',
     description: 'Reads the register events of one application.',
@@ -5978,6 +6015,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AgentView extends AgentSummary {\n    readonly instructions: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n    readonly files: readonly AgentFileView[];\n    readonly mode: AgentMode;\n}',
   },
   {
+    name: 'AmendRequest',
+    declaration: 'export interface AmendRequest {\n    readonly template?: Uint8Array;\n    readonly heading?: string;\n    readonly paragraphs: readonly RedlineParagraph[];\n    readonly author: string;\n    readonly date: string;\n    readonly clean: boolean;\n}',
+  },
+  {
+    name: 'AmendResult',
+    declaration: 'export interface AmendResult {\n    readonly marked: Uint8Array;\n    readonly clean?: Uint8Array;\n}',
+  },
+  {
     name: 'AnalyticsPreset',
     declaration: 'export type AnalyticsPreset = \'creator\' | \'ptc\' | \'minimal\' | \'standard\';',
   },
@@ -6250,6 +6295,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    restartReason?: RestartReason;\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
   {
+    name: 'ChartRequest',
+    declaration: 'export interface ChartRequest {\n    readonly sheet: string;\n    readonly header: readonly string[];\n    readonly rows: readonly (readonly string[])[];\n}',
+  },
+  {
     name: 'ChecksRollup',
     declaration: 'export type ChecksRollup = \'none\' | \'pending\' | \'success\' | \'failure\';',
   },
@@ -6264,10 +6313,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CitedPassage',
     declaration: 'export interface CitedPassage {\n    readonly document: string;\n    readonly role: string;\n    readonly passage: string;\n    readonly says: string;\n    readonly anchor: string;\n}',
-  },
-  {
-    name: 'ClaimOutcome',
-    declaration: 'export interface ClaimOutcome {\n    readonly claimed: number;\n    readonly skipped: number;\n}',
   },
   {
     name: 'ClaimTable',
@@ -7366,6 +7411,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n    readonly layout?: \'single\' | \'per-record\';\n    readonly compatibleVersions?: readonly number[];\n}',
   },
   {
+    name: 'LetterBlock',
+    declaration: 'export type LetterBlock = {\n    readonly kind: \'heading\';\n    readonly level: 1 | 2;\n    readonly text: string;\n} | {\n    readonly kind: \'paragraph\';\n    readonly text: string;\n} | {\n    readonly kind: \'table\';\n    readonly header: readonly string[];\n    readonly rows: readonly (readonly string[])[];\n};',
+  },
+  {
+    name: 'LetterRequest',
+    declaration: 'export interface LetterRequest {\n    readonly template: Uint8Array;\n    readonly fields: Readonly<Record<string, string>>;\n    readonly blocks: readonly LetterBlock[];\n}',
+  },
+  {
     name: 'ListVersionsOptions',
     declaration: 'export interface ListVersionsOptions {\n    readonly registry?: Registry;\n}',
   },
@@ -7834,6 +7887,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OfficeExtension = \'doc\' | \'docx\' | \'xls\' | \'xlsx\' | \'ppt\' | \'pptx\';',
   },
   {
+    name: 'OfficeFormat',
+    declaration: 'export type OfficeFormat = \'docx\' | \'xlsx\';',
+  },
+  {
+    name: 'OfficeReadout',
+    declaration: 'export type OfficeReadout = {\n    readonly format: \'docx\';\n    readonly text: string;\n    readonly headings: readonly OutlineHeading[];\n    readonly revisions: readonly TrackedRevision[];\n} | {\n    readonly format: \'xlsx\';\n    readonly text: string;\n    readonly sheets: readonly SheetSummary[];\n};',
+  },
+  {
     name: 'OfficeSourceKey',
     declaration: 'export type OfficeSourceKey = Branded<\'OfficeSourceKey\'>;',
   },
@@ -7888,6 +7949,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OTelEventScalar',
     declaration: 'export type OTelEventScalar = string | number | boolean;',
+  },
+  {
+    name: 'OutlineHeading',
+    declaration: 'export interface OutlineHeading {\n    readonly level: number;\n    readonly text: string;\n}',
   },
   {
     name: 'OwnerIdentityRequest',
@@ -8286,6 +8351,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\' | \'deployment-locked\';',
   },
   {
+    name: 'ReadRequest',
+    declaration: 'export interface ReadRequest {\n    readonly file: Uint8Array;\n    readonly format: OfficeFormat;\n}',
+  },
+  {
     name: 'ReadResultView',
     declaration: 'export interface ReadResultView {\n    card: \'read\';\n    title?: string;\n    path: string;\n    offset: number;\n    lines: ReadFileLine[];\n    totalLines: number;\n    lang?: string;\n    content?: ContentBlock[];\n}',
   },
@@ -8308,6 +8377,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'RedlineParagraph',
+    declaration: 'export interface RedlineParagraph {\n    readonly mark: SegmentKind;\n    readonly segments: readonly RedlineSegment[];\n}',
+  },
+  {
+    name: 'RedlineSegment',
+    declaration: 'export interface RedlineSegment {\n    readonly kind: SegmentKind;\n    readonly text: string;\n}',
   },
   {
     name: 'RegisterApplication',
@@ -8526,6 +8603,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
   },
   {
+    name: 'ReviewRequest',
+    declaration: 'export interface ReviewRequest {\n    readonly file: Uint8Array;\n    readonly action: \'accept\' | \'reject\';\n    readonly selection: ReviewSelection;\n}',
+  },
+  {
+    name: 'ReviewResult',
+    declaration: 'export interface ReviewResult {\n    readonly file: Uint8Array;\n    readonly changed: number;\n}',
+  },
+  {
+    name: 'ReviewSelection',
+    declaration: 'export type ReviewSelection = {\n    readonly kind: \'all\';\n} | {\n    readonly kind: \'author\';\n    readonly author: string;\n} | {\n    readonly kind: \'ids\';\n    readonly ids: readonly number[];\n};',
+  },
+  {
     name: 'ReviewState',
     declaration: 'export type ReviewState = \'running\' | \'needs_review\';',
   },
@@ -8740,6 +8829,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SegmentKind',
+    declaration: 'export type SegmentKind = \'same\' | \'ins\' | \'del\';',
   },
   {
     name: 'SendTeamMessageRequest',
@@ -9476,6 +9569,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ShareCapabilityOffers',
     declaration: 'export interface ShareCapabilityOffers {\n    readonly capabilities: readonly ShareCapabilityGroup[];\n}',
+  },
+  {
+    name: 'SheetSummary',
+    declaration: 'export interface SheetSummary {\n    readonly name: string;\n    readonly rows: number;\n    readonly cols: number;\n}',
   },
   {
     name: 'ShellExecRequest',
@@ -10292,6 +10389,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ToolUseSummary',
     declaration: 'export interface ToolUseSummary {\n    tool_use_id: string;\n    tool: string;\n    input: Record<string, unknown>;\n}',
+  },
+  {
+    name: 'TrackedRevision',
+    declaration: 'export interface TrackedRevision {\n    readonly id: number;\n    readonly type: string;\n    readonly author: string;\n    readonly date?: string;\n    readonly text: string;\n}',
   },
   {
     name: 'Transcript',

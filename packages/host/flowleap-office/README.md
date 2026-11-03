@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-office` gives the agent five tools for the attorney's Word and Excel files: `office_letter_from_template`, `office_amend_claims`, `office_claim_chart`, `office_read`, and `office_review_changes`. The tools are the consumers of one capability seam. The Service Definition is `ctx.flowleapOffice` in [`src/types.ts`](src/types.ts). The Service Provider is the `@deepseek-ai/dsh-flowleap-office/officecli` row, which runs the pinned OfficeCLI binary. The service takes and returns file bytes. It never gets a workspace path, and the provider works only in its own private folder. Client documents stay on the firm server: the provider starts no update check, no automatic install, and no background process, and it refuses every value that starts with `http://` or `https://`.
+`dsh-flowleap-office` gives the agent five tools for the attorney's Word and Excel files: `office_letter_from_template`, `office_amend_claims`, `office_claim_chart`, `office_read`, and `office_review_changes`, the consumers of one capability seam. The Service Definition is `ctx.flowleapOffice` in [`src/types.ts`](src/types.ts). The Service Provider is the `@deepseek-ai/dsh-flowleap-office/officecli` row, which runs the pinned OfficeCLI binary. The service takes and returns file bytes. It never gets a workspace path, and the provider works only in its own private folder. Client documents stay on the firm server: the provider starts no update check, no automatic install, and no background process, and it refuses every value that starts with `http://` or `https://`.
 
 ## Table of Contents
 
@@ -138,7 +138,7 @@ Each operation makes a new folder under `<stateDir>/calls`, writes the input byt
 
 #### What the model sees
 
-The generated tool catalog covers the shipped DeepSeek presets only, so the declarations are stated in [`src/tools/`](src/tools/) and pinned by the `flowleap-office` recorded-session snapshot. Each description names what the tool writes or reads, states that a value must not start with `http://` or `https://`, and states that the tool writes only new files. The parameters are the ones listed under [The tools](#the-tools).
+The generated tool catalog covers the shipped DeepSeek presets only, so the declarations are stated in [`src/tools/`](src/tools/) and pinned by the `flowleap-office` recorded-session snapshot. Each description names what the tool writes or reads, states that a value must not start with `http://` or `https://`, and states that the tool writes only new files. The parameters are the ones that the tool list under Use this package names.
 
 #### Token effect
 
