@@ -1,6 +1,6 @@
 # OfficeCLI: evaluation as the engine of a FlowLeap Office plugin
 
-Status: evidence for a founder decision. Nothing is built or adopted. It follows the method of the community plugin evaluation ([2026-11-03-plugin-evaluation.md](https://github.com/flowleap-ai/flowleap-harness/blob/claude/plugin-eval-f24cdf/flowleap/docs/2026-11-03-plugin-evaluation.md), PR 211), where `dsh-univer-office` was rejected.
+Status: decided on 2026-11-03. The founder accepted the verdict "build after changes": FlowLeap builds its own FlowLeap Office plugin on OfficeCLI, with the changes in section 6. Nothing is built yet. It follows the method of the community plugin evaluation ([2026-11-03-plugin-evaluation.md](https://github.com/flowleap-ai/flowleap-harness/blob/claude/plugin-eval-f24cdf/flowleap/docs/2026-11-03-plugin-evaluation.md), PR 211), where `dsh-univer-office` was rejected.
 
 **The goal.** The founder decides whether FlowLeap Patent AI builds its own "FlowLeap Office" dsh plugin on OfficeCLI (github.com/iOfficeAI/OfficeCLI, Apache-2.0, one C# binary). Attorneys need correct Word and Excel files: reply letters on the firm template, claim amendments as real Word tracked changes (the EPO wants a copy with the amendments marked), and Excel claim charts. Client data must stay on the firm server.
 
