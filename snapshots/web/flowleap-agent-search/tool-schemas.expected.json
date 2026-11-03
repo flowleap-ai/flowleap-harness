@@ -995,6 +995,22 @@
       }
     },
     {
+      "name": "record_read",
+      "description": "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_number": {
+            "type": "string",
+            "description": "The firm's file number of the matter, for example FL-2026-0001."
+          }
+        },
+        "required": [
+          "file_number"
+        ]
+      }
+    },
+    {
       "name": "register_watch_create",
       "description": "Watch the patent registers of applications with one daily task in the current session. Each day the host reads the register events of each application without you; the task runs only when an event is new, and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. Manage the task with schedule_list, schedule_view, and schedule_edit. By default each run opens a new chat titled by the event and marks it \"Needs review\" when it finishes; new_chat_per_run and needs_review turn either off.",
       "parameters": {
