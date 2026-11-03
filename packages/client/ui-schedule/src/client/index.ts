@@ -59,6 +59,7 @@ import { ScheduleTaskTabTitle } from './ScheduleTaskTabTitle.tsx'
 import { SessionScheduleHover } from './SessionScheduleHover.tsx'
 import { SessionScheduleMark } from './SessionScheduleMark.tsx'
 import { TaskTabBindings } from './task-tab-bindings.ts'
+import { createEditorStore } from './editor-store.ts'
 import { TaskManagerPage, type TaskManagerInjected } from './TaskManagerPage.tsx'
 import type { TaskDetailInjected } from './TaskDetail.tsx'
 import { TaskManagerIcon } from './TaskManagerIcon.tsx'
@@ -214,6 +215,7 @@ export function apply(ctx: ClientContext): void {
       name: 'sidebar.right.pane.tab',
       key: SCHEDULE_TASK_ID,
       locale: MANAGER_NS,
+      store: createEditorStore(),
       inject: (): ScheduleTaskTabInjected => ({ ...detail, taskBindings }),
     }, ScheduleTaskTab))
     yield ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
@@ -228,12 +230,12 @@ export function apply(ctx: ClientContext): void {
       key: PANEL_ID,
       locale: MANAGER_NS,
       children: { 'schedule.manager.filter': { kind: 'list', scope: 'root', inline: true } },
+      store: createEditorStore(),
       inject: (): TaskManagerInjected => ({
         ...detail,
         hooks: { ...detail.hooks, filters },
         onNewTask: () => {
-          if (config.newTaskDraft) ctx.uiWorkspace.startSession(undefined, { prompt: t('new.draft'), whenDraftExists: 'append' })
-          else ctx.uiWorkspace.startSession()
+          ctx.uiWorkspace.startSession(undefined, { prompt: t(config.newTaskDraft ? 'new.draft' : 'host.createPrompt'), whenDraftExists: 'append' })
         },
         onClearEnded: async () => {
           const outcome = await clearEnded()

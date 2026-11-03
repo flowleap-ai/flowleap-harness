@@ -41,24 +41,21 @@ export interface DesktopWelcomeOptions {
 }
 
 /**
- * Authenticate the native HTTP client through the Web application's launch URL.
- * @param authenticatedUrl - URL supplied by the running Desktop Host.
- * @param send - Electron session fetch, retaining the Web authentication cookie.
- * @param cookies - Electron session cookie reader for the account stream.
+ * Connect the native HTTP client to the Desktop Host; every request sends `cookie` explicitly and uses no cookie jar.
+ * @param hostUrl - URL of the running Desktop Host; only its origin is used.
+ * @param cookie - Cookie header returned by `authenticateWebHost` for this Host.
+ * @param send - HTTP client for Host requests.
  * @param options - which Host services this product mounts.
  * @returns metadata reads and write-only credential operations over standard RPC.
  */
-export async function connectDesktopWelcome(
-  authenticatedUrl: string,
-  send: (input: string, init?: RequestInit) => Promise<Response>,
-  cookies: () => Promise<string> = () => Promise.resolve(''),
+export function connectDesktopWelcome(
+  hostUrl: string,
+  cookie: string,
+  send: (input: string, init?: RequestInit) => Promise<Response> = fetch,
   options: DesktopWelcomeOptions = {},
-): Promise<DesktopWelcomeBackend> {
+): DesktopWelcomeBackend {
   const hasAccount = options.account ?? true
-  const origin = new URL(authenticatedUrl).origin
-  const authenticated = await send(authenticatedUrl, { credentials: 'include' })
-  await authenticated.body?.cancel()
-  if (!authenticated.ok) throw new Error('desktop welcome: Web authentication failed')
+  const origin = new URL(hostUrl).origin
   const invoke = async (
     request: { namespace: string; method: string; args: Record<string, unknown> },
     signal?: AbortSignal,
@@ -66,8 +63,8 @@ export async function connectDesktopWelcome(
     const rpcId = randomUUID()
     const method = `${request.namespace}/${request.method}`
     const response = await send(new URL(`/api/${method}`, origin).href, {
-      method: 'POST', credentials: 'include', redirect: 'error', ...(signal === undefined ? {} : { signal }),
-      headers: { 'content-type': 'application/json' },
+      method: 'POST', redirect: 'error', ...(signal === undefined ? {} : { signal }),
+      headers: { 'content-type': 'application/json', cookie },
       body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args: request.args } }),
     })
     if (!response.ok) throw new Error('desktop welcome: Web request failed')
@@ -78,7 +75,7 @@ export async function connectDesktopWelcome(
     }
     return envelope.result.value
   }
-  const account = desktopAccountBackend(origin, invoke, cookies)
+  const account = desktopAccountBackend(origin, invoke, cookie)
   const settingsAndReference = async () => {
     const settings = await invoke({ namespace: 'settings', method: 'describe', args: {} })
     if (!record(settings) || !Array.isArray(settings.namespaces)) throw new Error('desktop welcome: missing settings namespaces')

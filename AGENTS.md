@@ -37,6 +37,7 @@ packages/    @deepseek-ai/dsh-<pkg> workspaces at packages/<group>/<pkg>/
   compaction/           context compaction
   context/              request context
   subagent/             delegated agents
+  team/                 shared task coordination
   jobs/                 background jobs
   bundle/               profile bundles
   workflow/             workflow execution
@@ -98,7 +99,7 @@ pnpm run build:check    # typecheck aggregate tests/scripts against current buil
 pnpm run hygiene        # publint + workspace/package/dependency checks + NodeNext consumer check
 pnpm run check:windows-wine  # ONLY when diagnosing a known Windows failure (needs wine); CI owns this signal
 pnpm run doc-sync       # documentation gates (scripts/run-gates.ts)
-pnpm run gen            # regenerate every gen-* output; pre-push checks them
+pnpm run gen            # regenerate gen-* outputs; pre-push checks them
 pnpm run test:docs      # quick documentation checks (no build; doc-quick aggregate)
 pnpm run website:build  # VitePress build (doubles as dead-link check)
 pnpm dsh --profile headless "task"  # run one task from source (needs DEEPSEEK_API_KEY)
@@ -195,7 +196,7 @@ GitHub Issues, always `-R flowleap-ai/flowleap-harness`, never upstream `origin`
 
 ### Triage labels
 
-The five default labels. See `flowleap/docs/agents/triage-labels.md`.
+Five default labels: `flowleap/docs/agents/triage-labels.md`.
 
 ### Domain docs
 
@@ -203,4 +204,4 @@ Single context, FlowLeap. See `flowleap/docs/agents/domain.md`.
 
 ### Verification
 
-Prove each product-visible change live with [verify](.agents/skills/verify/SKILL.md); fix that skill in the same PR when it is wrong.
+Prove product-visible changes live with [verify](.agents/skills/verify/SKILL.md); fix that skill in the same PR when wrong.

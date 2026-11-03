@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-skills",
   "description": "Skills settings section: one read-only card per skill of the agent with its source, description, full text, and replace note, plus the skill files with faults, over the skillInventory Remote",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },

@@ -221,6 +221,12 @@
   config:
     network: deny
 
+# The upstream MCP server manager takes servers from Settings writes, stdio
+# commands included, with no firm-admin check. Off until Connectors and admin
+# approval land (flowleap-harness#197, #199); the FlowLeap MCP row below does not need it.
+- id: mcp-manager
+  disabled: true
+
 # ── FlowLeap rows ────────────────────────────────────────────────────────────
 
 - insert:

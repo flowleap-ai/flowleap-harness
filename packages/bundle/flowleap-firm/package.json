@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-firm",
   "description": "The FlowLeap firm-server layer over dsh-flowleap-web: models only on the deployment's routes and keys, with the Models page read-only and the model rows locked against user patches",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },
