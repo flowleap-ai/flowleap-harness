@@ -12,7 +12,7 @@ The attorney asks the Patent Agent for a reply letter on a firm template, a clai
 
 ## How to get to it (user POV)
 
-- Open a new Session on the `Patent Agent` preset and ask for the document in the composer. Each written file shows on the delivery card of the turn.
+- Open a new Session on the `Patent Agent` preset and ask for the document in the composer. The first page is the dashboard, whose textbox is `Ask the agent or search`; a new Session (`New Session`) has the textbox `Describe what you want to build, / commands, @ files or sessions`, and an open Session has `Message or run a task, / commands, @ files or sessions`. Each written file shows on the delivery card of the turn.
 
 ## Driving it with the browser tool
 
@@ -31,6 +31,9 @@ Preconditions:
 
 ## Gotchas
 
+- Haiku 5.5 can answer `DONE` with no tool call when one message asks for two tools. The log then shows no `office_*` call. Send `You did not call any tool.` and name each tool with its exact arguments.
+- A template with merge fields refuses a letter without them (`missing_fields`), and the result names the fields. The fixture template needs `datum`, `ihr_zeichen` and `zeichen`.
+- When the deleted claim is the last paragraph, `view claims.accepted.docx text` shows one empty last paragraph. The README records this as a known limitation.
 - The `office_*` tools are Word and Excel tools. The patent office tools, such as `get_bibliography`, are a different plugin.
 - An output file that exists is refused. Use new names for each run.
 - A template comes only from `DSH_VERIFY_OFFICE_TEMPLATES` by its bare file name. A workspace path is refused.
