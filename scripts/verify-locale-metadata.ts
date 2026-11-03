@@ -19,6 +19,7 @@ const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
   'packages/host/flowleap-routines/',
   'packages/host/flowleap-budget/',
   'packages/host/flowleap-models/',
+  'packages/host/flowleap-office/',
   'packages/client/ui-brand-flowleap/',
   'packages/client/ui-settings-flowleap-connectors/',
   'packages/client/ui-settings-flowleap-models/',

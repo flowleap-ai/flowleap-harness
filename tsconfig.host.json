@@ -603,6 +603,7 @@
     { "path": "./packages/host/directory-picker-native" },
     { "path": "./packages/host/flowleap-connectors" },
     { "path": "./packages/host/flowleap-deliverables" },
+    { "path": "./packages/host/flowleap-office" },
     { "path": "./packages/host/flowleap-prompt" },
     { "path": "./packages/host/flowleap-routines" },
     { "path": "./packages/host/flowleap-budget" },
