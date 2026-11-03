@@ -72,23 +72,17 @@ const ASSET_GLOBS = [
 ]
 
 /**
- * Document-library files the runtime never loads; without them the wheel stays under PyPI's file limit.
- * The agent builder reads PDF text through `pdfjs-dist/legacy/build/pdf.mjs`, which loads its worker
- * module and runs without pdfjs-dist's optional `@napi-rs/canvas` page renderer. Deliverables import
- * the `docx` root ESM entry. The `mammoth` and `xml2js` browser bundles have no Node importer.
- * `@flowleap/connectors` imports the `@hyzyla/pdfium` Node ESM entry, which reads `dist/pdfium.wasm`;
- * the base64-inlined WebAssembly and the browser, CDN, inline, and worker entries have no Node importer.
+ * FlowLeap fork modification: FlowLeap profile packages and the libraries that only they reach.
+ * Without them the wheel stays under PyPI's file limit.
+ * The CLI depends on the FlowLeap bundles only to resolve `--profile flowleap-*`, and the Python runtime runs only its
+ * published SDK targets, so no runtime import reaches these files.
  */
-const DOCUMENT_LIBRARY_IGNORES = [
-  '**/node_modules/@napi-rs/canvas/**',
-  '**/node_modules/@napi-rs/canvas-*/**',
-  '**/node_modules/pdfjs-dist/{build,web,image_decoders}/**',
-  '**/node_modules/pdfjs-dist/legacy/{web,image_decoders}/**',
-  '**/node_modules/pdfjs-dist/legacy/build/{*.min.mjs,pdf.sandbox.mjs}',
-  '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
-  '**/node_modules/mammoth/mammoth.browser*.js',
-  '**/node_modules/xml2js/lib/xml2js.bc.js',
-  '**/node_modules/@hyzyla/pdfium/dist/{pdfium.wasm.base64-*.js,index.esm.{base64,browser,cdn,worker}.js}',
+const FLOWLEAP_PROFILE_IGNORES = [
+  '**/node_modules/@deepseek-ai/dsh-flowleap-*/**',
+  '**/node_modules/@deepseek-ai/dsh-client-ui-*flowleap*/**',
+  '**/node_modules/@deepseek-ai/dsh-client-ui-settings-skills/**',
+  ...['@hyzyla/pdfium', '@napi-rs/canvas', '@napi-rs/canvas-*', '@xmldom/xmldom', 'docx', 'jszip', 'mammoth', 'pdfjs-dist', 'xml-js', 'xml2js']
+    .map(name => `**/node_modules/${name}/**`),
 ]
 
 const PLATFORMS = ['linux', 'macos', 'win'] as const
@@ -363,7 +357,7 @@ class SingleExeBuild {
     // pkg matches absolute paths, and a leading `**` skips dot folders such as `.claude/worktrees`; a literal staging prefix does not.
     const staging = this.staging.replaceAll('\\', '/')
     const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS, ignore: [
-      ...[...OFFICE_ASSET_IGNORES, ...DOCUMENT_LIBRARY_IGNORES].map(pattern => `${staging}/${pattern}`),
+      ...[...OFFICE_ASSET_IGNORES, ...FLOWLEAP_PROFILE_IGNORES].map(pattern => `${staging}/${pattern}`),
       `${sourceModules}/**`, `${sourceModules}/.pnpm/**`,
       ...['packages', 'apps', 'vendor', 'native', 'scripts'].map(directory => `${join(root, directory).replaceAll('\\', '/')}/**`),
       `${root.replaceAll('\\', '/')}/tsconfig*.json`,

@@ -134,7 +134,7 @@ describe('More menu rows', () => {
   })
 
   it('omits creation when the deployment turns it off', () => {
-    const b = content({ region: 'sidebar' }, false)
+    const b = content({ region: 'sidebar', entries: [] }, false)
     expect(b.view.getAllByRole('menuitem').map(row => row.textContent)).toEqual(['Browse other plugins'])
   })
 })

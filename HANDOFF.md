@@ -108,6 +108,7 @@ Changes to upstream-owned code that an upstream sync must keep. Each code site h
 - `packages/client/ui-sidebar` (`SidebarRoot.tsx`, `index.ts`, `SidebarRoot.module.css`): the `sidebar.actions` and `sidebar.sections` list slots that `ui-flowleap-dashboard` fills. Since `dsh 0.2.2-alpha.3` they are rows 2 and 4 of the scroll grid, and `.panelRow.panelActive` gives their rows the active fill.
 - `packages/client/ui-schedule` `newTaskDraft`: on, New puts `new.draft` in the composer instead of the upstream `host.createPrompt`.
 - `packages/mcp/mcp-client`: the `tools.include` / `tools.exclude` filter that the `mcp-flowleap` row uses.
+- `scripts/build-exe-for-python-sdk.ts` `FLOWLEAP_PROFILE_IGNORES`: the Python runtime executable leaves out the FlowLeap packages and the libraries only they reach (`@hyzyla/pdfium`, `docx`, `mammoth`, `pdfjs-dist`, `jszip`, the XML parsers). Without this the Linux x64 runtime wheel is over the 100 MB PyPI file limit that `build-python-release.py` checks. The CLI lists the FlowLeap bundles only for `--profile flowleap-*`, which the Python runtime never runs.
 
 ## Open decisions
 
