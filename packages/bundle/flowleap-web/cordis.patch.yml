@@ -304,8 +304,9 @@
 
     # Office tools (Word letters on firm templates, claim amendments as Word
     # tracked changes, Excel claim charts) on the pinned OfficeCLI binary. Both
-    # rows stay off here: the firm-image PR adds the binary and switches them
-    # on. The provider row checks the binary's SHA-256 and --version at load
+    # rows stay off here: the firm image adds the binary and switches them on
+    # with deploy/office.patch.yml. The provider row runs the binary through
+    # the `sandbox` row above (no network). The provider row checks the binary's SHA-256 and --version at load
     # and is the only code that runs it; the main row reads templates only
     # from templatesDir.
     - id: flowleap-office-officecli

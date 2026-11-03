@@ -16,6 +16,9 @@
 #   TAILNET=tail1234.ts.net
 #   TS_AUTHKEY=tskey-auth-...   (a reusable, pre-approved key; tag it tag:harness)
 #
+# The firm's Word templates for the office tools are the `templates` folder
+# beside this compose file, mounted read-only into every attorney's container.
+#
 # The first run of each attorney prints the login URL with its launch token to
 # the container log: docker compose logs harness-alice | grep 'dsh web:'
 
@@ -87,6 +90,7 @@ services:
       TRUSTED_HOST: harness-alice.${TAILNET}
     volumes:
       - harness-alice-data:/data
+      - ./templates:/opt/flowleap/templates:ro
 
   # ── attorney: bob ──────────────────────────────────────────────────────────
   ts-bob:
@@ -112,6 +116,7 @@ services:
       TRUSTED_HOST: harness-bob.${TAILNET}
     volumes:
       - harness-bob-data:/data
+      - ./templates:/opt/flowleap/templates:ro
 
 volumes:
   ts-alice-state:
