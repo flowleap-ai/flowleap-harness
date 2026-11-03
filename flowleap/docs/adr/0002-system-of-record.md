@@ -31,6 +31,20 @@ ADR 0001 stays valid in every other decision. Decisions 3 (one isolated runtime 
 - The security invariant register (ADR 0001 decision 26) gains rows for decisions 3, 4 and 7, each with a test that the release gate runs.
 - The firm's professional liability and the duty to supervise stay with the firm's attorneys. FlowLeap's job is to make each act visible, checked and logged.
 
+## Decisions approved with the design (2026-11-03)
+
+The founder approved the decisions F1 to F12 of the design's section 12.4 on 2026-11-03:
+
+- **F1 to F3.** The Firm Record uses Postgres, owned only by the Firm Record. People decide only in the Records app, which the sign-in proxy serves; a decision never passes through a runtime. A deadline needs a person and an independent check (the engine or a second person). A reported or manual deadline always needs a second person. Every deletion needs an attorney with evidence and a second person, and a firm with one person who may confirm records a single check.
+- **F4 and F5.** The deadline rules are a public repository, `flowleap-deadlines`, and an attorney signs off each rule version. New and small firms are the first production customers; the pilot firm runs in shadow mode from phase R2.
+- **F6.** The desktop keeps phases D0 and D1, and D2 waits until the switch line.
+- **F7.** The AI mailbox replies to firm addresses only, through an application permission scoped to one mailbox. This amends ADR 0001 decision 21.
+- **F8.** The client portal goes through the identity-aware gateway of ADR 0001 decision 23, with Entra guest users. A firm that refuses this exposure sends PDF reports.
+- **F9.** Agent work is never billed as hours.
+- **F10.** The intake owns the MyEPO credentials.
+- **F11.** Annuities are paid through provider plugins, or through direct payment lists.
+- **F12.** The service is named "Firm Record", and the UI says "Records".
+
 ## Not decided here
 
-The store technology, the client portal's network exposure, the e-invoice and DATEV formats, the annuity providers, and the support of national laws other than EP, PCT and DE. The design document proposes each; each gets a founder decision or its own record.
+The e-invoice and DATEV format versions, the choice of annuity providers, and the support of national laws other than EP, PCT and DE. Each gets its own ticket or record when a firm needs it.

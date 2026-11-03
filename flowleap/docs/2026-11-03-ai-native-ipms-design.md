@@ -1,6 +1,6 @@
 # FlowLeap Patent AI as the AI-native IP management system: design
 
-Status: design of 2026-11-03, for the founder. [ADR 0002](adr/0002-system-of-record.md) records the founder's decision that FlowLeap becomes the firm's system of record; this document is the design that follows from it. Every other choice in this document is a proposal until the founder confirms it (section 12). It builds on [ADR 0001](adr/0001-self-hosted-firm-os.md), the [firm OS architecture](2026-10-26-firm-os-architecture.md), the [Knowledge Pool design](2026-10-22-knowledge-pool-design.md), the [v1 scope](2026-10-28-v1-scope.md), the [roadmap](2026-10-29-roadmap.md), the [docket agent study](2026-11-01-superagent-docket-agent-study.md), the [skills and plugins design](2026-11-02-skills-and-plugins-design.md), the augmented firm research (harness PR 212, `flowleap/docs/2026-11-03-augmented-firm-research.md`, below "the research") and the tickets #123, #135 to #138, #154, #119, #122 and #31.
+Status: design of 2026-11-03. [ADR 0002](adr/0002-system-of-record.md) records the founder's decision that FlowLeap becomes the firm's system of record; this document is the design that follows from it. The founder approved the decisions F1 to F12 of section 12.4 on 2026-11-03. Other choices marked [proposal] stay proposals until a ticket or a decision settles them. It builds on [ADR 0001](adr/0001-self-hosted-firm-os.md), the [firm OS architecture](2026-10-26-firm-os-architecture.md), the [Knowledge Pool design](2026-10-22-knowledge-pool-design.md), the [v1 scope](2026-10-28-v1-scope.md), the [roadmap](2026-10-29-roadmap.md), the [docket agent study](2026-11-01-superagent-docket-agent-study.md), the [skills and plugins design](2026-11-02-skills-and-plugins-design.md), the augmented firm research (harness PR 212, `flowleap/docs/2026-11-03-augmented-firm-research.md`, below "the research") and the tickets #123, #135 to #138, #154, #119, #122 and #31.
 
 Labels. Each claim has one label, as in the research:
 
@@ -64,7 +64,7 @@ Sizes: **S** up to 1 week, **M** 1 to 3 weeks, **L** more than 3 weeks, for one 
 
 About 24 to 31 weeks to the switch line for a small team with agents [proposal; estimate, not a measurement]. The first production customers are new or small firms; the German pilot firm runs FlowLeap in shadow mode beside PATORG from R2 [proposal, decision F5].
 
-**The founder decides** (section 12.4): the store (Postgres), where decisions are made (a Records app that the runtime cannot drive), the exact two-person rule, an open-source deadline rules repository, the first customer type, the pause of new desktop phases, the internal mail exception to ADR 0001 decision 21, the portal exposure, the billing policy for agent work, and who owns the MyEPO credentials.
+**The founder approved on 2026-11-03** (section 12.4): the store (Postgres), where decisions are made (a Records app that the runtime cannot drive), the exact two-person rule, an open-source deadline rules repository, the first customer type, the pause of new desktop phases, the internal mail exception to ADR 0001 decision 21, the portal exposure, the billing policy for agent work, and who owns the MyEPO credentials.
 
 ---
 
@@ -918,7 +918,9 @@ The phases are tracer bullets: each one ends in a thing a firm can use and that 
 
 ### 12.4 Decisions for the founder
 
-| # | Decision | Recommendation [proposal] |
+Status: **approved by the founder, 2026-11-03.** The founder approved F1 to F12 as recommended below [cited: the founder's approval, through the session that started this design].
+
+| # | Decision | Approved recommendation |
 |---|---|---|
 | F1 | The store of the Firm Record | **Postgres**, one database owned only by the Firm Record, because the record needs transactions across matters, SQL reports and DATEV exports, and the stack already runs Postgres for the gateway. This uses the "Postgres later, behind the same interfaces" of ADR 0001 decision 20 [cited] now |
 | F2 | Where people decide | **The Records app** served by the Firm Record behind the sign-in proxy; runtime pages may embed it, but decisions never pass through a runtime |
@@ -952,8 +954,8 @@ The phases are tracer bullets: each one ends in a thing a firm can use and that 
 
 ### 13.2 Questions for the founder
 
-1. Do you accept decisions F1 to F12?
-2. Do you accept that the desktop's D2 waits until the switch line (F6)?
+1. (Answered 2026-11-03: F1 to F12 approved, including the pause of D2 in F6.)
+2. (Answered with F6.)
 3. Do you want the deadline rules public from the first commit (F4), or after the pilot's shadow period?
 4. Which first firm types will you approach for production use, and when?
 5. Do you accept a contract term that the firm's attorneys stay responsible for each deadline, and do you want a liability insurance for FlowLeap?
