@@ -43,23 +43,17 @@ export const inject = ['slots', 'locale', 'theme']
  * @returns the pages' path, or null for a failed or aborted request, an error status, or an answer it cannot read.
  */
 export async function readRecordsLink(signal: AbortSignal): Promise<string | null> {
-  let response: Response
-  try {
-    response = await fetch(RECORDS_LINK_ROUTE, { credentials: 'include', cache: 'no-store', signal })
-  } catch {
-    // A network failure or an abort: no page, and no error for the attorney.
-    return null
-  }
-  if (response.status !== 200) return null
   let body: unknown
   try {
+    const response = await fetch(RECORDS_LINK_ROUTE, { credentials: 'include', cache: 'no-store', signal })
+    if (response.status !== 200) return null
     body = await response.json()
   } catch {
-    // A body that is not JSON: no page, and no error for the attorney.
+    // A network failure, an abort, or a body that is not JSON: no page, and no error for the attorney.
     return null
   }
-  if (typeof body !== 'object' || body === null || !('href' in body)) return null
-  return typeof body.href === 'string' && body.href !== '' ? body.href : null
+  const href = typeof body === 'object' && body !== null && 'href' in body ? body.href : undefined
+  return typeof href === 'string' && href !== '' ? href : null
 }
 
 /**
