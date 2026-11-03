@@ -2796,6 +2796,9 @@ importers:
       '@deepseek-ai/dsh-flowleap-deliverables':
         specifier: workspace:*
         version: link:../../host/flowleap-deliverables
+      '@deepseek-ai/dsh-flowleap-office':
+        specifier: workspace:*
+        version: link:../../host/flowleap-office
       '@deepseek-ai/dsh-flowleap-prompt':
         specifier: workspace:*
         version: link:../../host/flowleap-prompt
@@ -13654,9 +13657,6 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
-      jszip:
-        specifier: 3.10.1
-        version: 3.10.1
 
   packages/host/flowleap-prompt:
     dependencies:
