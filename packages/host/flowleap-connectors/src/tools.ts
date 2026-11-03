@@ -8,13 +8,15 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolDefinition as DshToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ToolDefinition as DshToolDefinition, ToolExecution, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
   DataKeysRequiredError, OcrNotConfiguredError, ProviderKeyInvalidError, ToolError, toolInputJsonSchema,
   type Connectors, type KeyedProvider, type ToolAccess, type ToolContext, type ToolDefinition,
 } from '@flowleap/connectors'
 import { CONNECTOR_LABELS, PROVIDER_OF_CONNECTOR } from './credentials.ts'
+import { FIGURE_TOOL, installFigures, prepareFigures, withoutPageImages, type PreparedFigures } from './figures.ts'
 import type { BoundConnectorHost } from './host.ts'
 import type { ConnectorId } from './types.ts'
 
@@ -115,20 +117,40 @@ export function renderText(value: JsonValue): string {
 }
 
 /**
+ * The model-facing content of a canonical value: one text block. A
+ * `get_patent_image` result shows without the base64 of its PNG and JPEG pages,
+ * which reach the model as image blocks instead.
+ * @param name - the tool name.
+ * @param value - the canonical value.
+ * @returns the rendered content.
+ */
+function renderContent(name: string, value: JsonValue): ContentBlock[] {
+  return [{ type: 'text', text: renderText(name === FIGURE_TOOL ? withoutPageImages(value) : value) }]
+}
+
+/**
  * Adapt one office tool to the dsh tool registry.
+ * @param ctx - the plugin context with the optional `attachments` and `llm` services that page images need.
  * @param definition - the office tool.
  * @param connectors - the shared library instance.
  * @param bound - the host's signal carrier.
  * @returns the unregistered dsh definition.
  */
-export function toDshTool(definition: ToolDefinition, connectors: Connectors, bound: BoundConnectorHost): DshToolDefinition {
+export function toDshTool(ctx: Context, definition: ToolDefinition, connectors: Connectors, bound: BoundConnectorHost): DshToolDefinition {
+  const figures = new WeakMap<ToolExecution, PreparedFigures>()
   return {
     name: definition.name,
     description: definition.description,
     parameters: modelInputSchema(definition),
     output: {
       schema: {},
-      render: (_args, value) => [{ type: 'text', text: renderText(value) }],
+      render: (_args, value) => renderContent(definition.name, value),
+    },
+    projectContent(exec, result) {
+      const prepared = figures.get(exec)
+      if (prepared === undefined) return undefined
+      figures.delete(exec)
+      return installFigures(prepared, result)
     },
     async execute(args: unknown, exec: ToolRunContext): Promise<JsonValue> {
       const parsed = definition.input.safeParse(args)
@@ -147,7 +169,13 @@ export function toDshTool(definition: ToolDefinition, connectors: Connectors, bo
       try {
         // The library's results carry `undefined` members; the registry
         // requires lossless JSON, so one JSON round trip drops them.
-        return JSON.parse(JSON.stringify(await bound.withSignal(exec.signal, () => definition.handler(parsed.data, context)))) as JsonValue
+        const result = await bound.withSignal(exec.signal, () => definition.handler(parsed.data, context))
+        const value = JSON.parse(JSON.stringify(result)) as JsonValue
+        if (definition.name === FIGURE_TOOL) {
+          const prepared = await prepareFigures(ctx, exec, value, renderContent(definition.name, value))
+          if (prepared !== undefined) figures.set(exec, prepared)
+        }
+        return value
       } catch (error) {
         const missing = missingCredentialOf(error)
         if (missing !== undefined) return missing
@@ -176,7 +204,7 @@ export function registerOfficeTools(
   const disposers: (() => void)[] = []
   try {
     for (const definition of definitions) {
-      disposers.push(ctx.tools.register(toDshTool(definition, connectors, bound)))
+      disposers.push(ctx.tools.register(toDshTool(ctx, definition, connectors, bound)))
     }
   } catch (error) {
     for (const dispose of disposers) dispose()

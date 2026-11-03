@@ -5,7 +5,7 @@
  */
 
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import type { FsTarget } from '@deepseek-ai/dsh-fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { claims, draft, featureList, figures, openQuestion, outline, outlineTable } from './drafting-matter-fixtures.ts'
@@ -42,7 +42,7 @@ async function saveWithStop(step: 'resolve' | 'write', name: string, args: { fil
   bench.session.append('turn/start', { turn: 1 })
   const stop = new AbortController()
   const fs = bench.ctx.fs
-  const matches = (target: FsTarget) => fs.processPath(target).endsWith(`/${MATTER}/${name}`)
+  const matches = (target: FsTarget) => fs.processPath(target).endsWith(`${sep}${join(MATTER, name)}`)
   if (step === 'resolve') {
     const real = fs.resolve.bind(fs)
     vi.spyOn(fs, 'resolve').mockImplementation(async (path, options) => {

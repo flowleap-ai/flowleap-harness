@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start, check, and stop one isolated flowleap-web instance for a verification run.
+# Start, check, and stop one isolated flowleap-web (firm) or flowleap-desktop instance for a verification run.
 #
 #   web.sh start <run-dir> [port]   boot from this checkout's built tree; prints the URL (with its access token) when ready
 #   web.sh doctor <run-dir>         read-only: is this run's instance worth driving?
@@ -8,9 +8,12 @@
 # start copies the flowleap-connectors/* records of the founder's credential file
 # (DSH_VERIFY_CREDENTIALS, else ~/.dsh/.credentials.yaml) to <run-dir>/firm-keys.yaml,
 # which the overlay mounts as readOnlyPath; stop deletes that copy.
-# FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-plugins checkout below $HOME.
+# FLOWLEAP_SKILLS_DIR names the skill pack, else the founder's flowleap-methods checkout below $HOME.
 # DSH_VERIFY_PATCH names one more overlay for start, after verify.patch.yml; a relative path
 # is resolved against the caller's working directory.
+# DSH_VERIFY_PROFILE=flowleap-desktop starts the desktop profile with verify.desktop.patch.yml instead:
+# no model key from the environment and a writable model key store, so the run starts without a model.
+# DSH_VERIFY_KEEP_OPENROUTER=1 keeps OPENROUTER_API_KEY in the desktop server environment.
 #
 # <run-dir> holds the scratch DSH_HOME, the workspace, the server log, the PID, and evidence/.
 set -euo pipefail
@@ -24,7 +27,8 @@ run=$(cd "$run" && pwd)
 pid_file="$run/server.pid"
 log="$run/server.log"
 firm_keys="$run/firm-keys.yaml"
-skills_dir=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-plugins/plugins/flowleap/skills}
+skills_dir=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-methods/skills}
+profile_file="$run/profile"
 
 alive() { [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; }
 url() { grep -Eo 'https?://(127\.0\.0\.1|\[::1\]|localhost):[0-9]+/?[^ ]*' "$log" 2>/dev/null | head -1 || true; }
@@ -34,7 +38,21 @@ case "$cmd" in
     port=${3:-3180}
     alive && { echo "already running: PID $(cat "$pid_file") $(url)"; exit 0; }
     [[ -d "$repo/apps/web/dist" ]] || { echo "no apps/web/dist: run 'pnpm run build:artifacts' first" >&2; exit 1; }
-    [[ -n "${OPENROUTER_API_KEY:-}" ]] || { echo "OPENROUTER_API_KEY is not set" >&2; exit 1; }
+    profile=${DSH_VERIFY_PROFILE:-flowleap-web}
+    case "$profile" in
+      flowleap-web)
+        overlay="$skill_dir/verify.patch.yml"
+        [[ -n "${OPENROUTER_API_KEY:-}" ]] || { echo "OPENROUTER_API_KEY is not set" >&2; exit 1; }
+        unset_keys=() ;;
+      # The desktop run starts without a model: the attorney adds one on the Models page.
+      flowleap-desktop)
+        overlay="$skill_dir/verify.desktop.patch.yml"
+        unset_keys=(-u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u MISTRAL_API_KEY)
+        # DSH_VERIFY_KEEP_OPENROUTER=1 keeps the founder's OpenRouter key, so a run can test it without typing it.
+        [[ ${DSH_VERIFY_KEEP_OPENROUTER:-} == 1 ]] || unset_keys+=(-u OPENROUTER_API_KEY) ;;
+      *) echo "DSH_VERIFY_PROFILE must be flowleap-web or flowleap-desktop, got $profile" >&2; exit 1 ;;
+    esac
+    echo "$profile" >"$profile_file"
     # The skill pack row fails at load when its folder does not exist; the default is the release image's folder.
     [[ -d "$skills_dir" ]] || { echo "no skill pack at $skills_dir: set FLOWLEAP_SKILLS_DIR" >&2; exit 1; }
     mkdir -p "$run/home" "$run/workspace" "$run/evidence"
@@ -55,9 +73,9 @@ case "$cmd" in
     (
       cd "$run/workspace"
       DSH_VERIFY_FIRM_KEYS="$firm_keys" FLOWLEAP_SKILLS_DIR="$skills_dir" TSX_TSCONFIG_PATH="$repo/tsconfig.json" DSH_HOME="$run/home" DSH_AGENTS_HOME="$run/home/agents" \
-        exec node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile flowleap-web \
+        exec env ${unset_keys[@]+"${unset_keys[@]}"} node --import "$tsx" "$repo/apps/cli/src/bin.ts" --profile "$profile" \
         --patch "$repo/apps/web/tests/pin-browse-picker.overlay.yml" \
-        --patch "$skill_dir/verify.patch.yml" \
+        --patch "$overlay" \
         ${extra_patch:+--patch "$extra_patch"} \
         --no-open --port "$port"
     ) >"$log" 2>&1 &
@@ -77,13 +95,15 @@ case "$cmd" in
     u=$(url)
     shown=${u%%\?token=*}
     if [[ -n "$u" ]] && curl -fs -o /dev/null "$u"; then echo "PASS http: $shown"; else echo "FAIL http: ${shown:-no URL in $log}"; ok=0; fi
-    if [[ -f "$pid_file" ]] && ps -o command= -p "$(cat "$pid_file")" 2>/dev/null | grep -q -- '--profile flowleap-web'; then
-      echo "PASS profile: flowleap-web"
+    profile=$(cat "$profile_file" 2>/dev/null || echo flowleap-web)
+    if [[ -f "$pid_file" ]] && ps -o command= -p "$(cat "$pid_file")" 2>/dev/null | grep -q -- "--profile $profile"; then
+      echo "PASS profile: $profile"
     else
-      echo "FAIL profile: the PID is not a flowleap-web server"; ok=0
+      echo "FAIL profile: the PID is not a $profile server"; ok=0
     fi
     echo "INFO checkout: $(git -C "$repo" rev-parse --short HEAD) $(git -C "$repo" status --porcelain | wc -l | tr -d ' ') changed paths"
-    if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then echo "PASS key: OPENROUTER_API_KEY set"; else echo "FAIL key: OPENROUTER_API_KEY unset"; ok=0; fi
+    if [[ $profile == flowleap-desktop ]]; then echo "INFO key: the desktop run reads no model key from the environment"
+    elif [[ -n "${OPENROUTER_API_KEY:-}" ]]; then echo "PASS key: OPENROUTER_API_KEY set"; else echo "FAIL key: OPENROUTER_API_KEY unset"; ok=0; fi
     if command -v flowleap >/dev/null; then
       flowleap mcp --check >/dev/null 2>&1 && echo "PASS flowleap CLI: signed in" || echo "WARN flowleap CLI: 'flowleap mcp --check' failed; paid mcp__flowleap__* tools are absent"
     else
@@ -107,7 +127,7 @@ case "$cmd" in
     else
       echo "no live instance for $run"
     fi
-    rm -f "$pid_file" "$firm_keys"
+    rm -f "$pid_file" "$firm_keys" "$profile_file"
     echo "evidence kept in $run/evidence"
     ;;
   *) echo "unknown command: $cmd" >&2; exit 2 ;;

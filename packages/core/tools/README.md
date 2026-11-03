@@ -83,13 +83,17 @@ Agent-step concurrency uses the [agent-loop configuration](../agent-loop/README.
 
 ### Restrict tools per agent
 
-`ctx.tools.restrict(filter)` applies an allow or deny mask to the global tools one agent inherits; masks intersect, scoped registrations stay visible, and the restriction lifts when disposed. `ctx.tools.get(name, scope)` resolves a tool as one scope sees it. A Host-local presenter consumer passes the calling agent when it must match the definition that executed. `ctx.tools.schemas(scope)` returns the visible schemas without the `execute` functions.
+`ctx.tools.restrict(filter)` applies an allow or deny mask to the global tools one agent inherits; masks intersect, scoped registrations stay visible, and the restriction lifts when disposed. `ctx.tools.get(name, scope)` resolves a tool as one scope sees it. A Host-local presenter consumer passes the calling agent when it must match the definition that executed. `ctx.tools.schemas(scope)` returns the visible schemas without the `execute` functions. `ctx.tools.registeredBy(fiber)` names, sorted, the context-global tools that the plugin of one fiber registered, itself or through its child plugins; scoped registrations are not listed. The [plugin manager](../../boot/plugin-manager/README.md) passes a Loader entry's plugin fiber to show what each plugin adds.
 
 ### Enforce policy on calls
 
 `ctx.tools.guard(guard)` registers a monotonic synchronous guard after the extensible `tools/pre-execute` waterfall: a returned reason denies the call, and no later listener can turn that denial back into permission. The pipeline's events give plugins more control — `tools/pre-execute` decides allow/deny/ask, `tools/execute` wraps dispatch for timeout or retry, `tools/post-execute` inspects or replaces the result, and `tools/result` observes the frozen final outcome.
 
 A tool’s `projectContent` installs execution-prepared content before post-execute policies. Policies may still replace or block it; `finalizeContent` remains the final content transform after those policies.
+
+### Check that the calling model reads images
+
+A tool that returns images calls `callerImageInput(ctx, exec)` before it stores them. It reads the calling route from the Session's latest request header config, then from the Agent options, and answers with the `ImageInputSupport` outcome of `dsh-llm`.
 
 ### Host presentation descriptors
 
@@ -120,6 +124,7 @@ The registry holds typed `ToolDefinition`s in scoped layers and projects them on
 - [`src/schema.ts`](src/schema.ts) — Typed tool definitions and model-facing schema projection.
 - [`src/json-schema.ts`](src/json-schema.ts) — Supported JSON Schema validation.
 - [`src/presentation.ts`](src/presentation.ts) — Tool-card render intents.
+- [`src/image-input.ts`](src/image-input.ts) — Image-input proof for the route that called a tool.
 
 ### Execution and cancellation
 

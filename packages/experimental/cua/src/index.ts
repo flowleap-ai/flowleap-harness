@@ -15,14 +15,14 @@ import { z } from 'zod'
 import { NativeClient, NativeError, type NativeClientConfig, type NativeChannelFactory } from './native-client.ts'
 import { CuaPermissionStore } from './permission-store.ts'
 import { ApplicationAuthorizationResult, installCuaAccess } from './access.ts'
-import type { CuaApplicationGrant, CuaApplicationId } from './access-types.ts'
+import type { CuaApplicationGrant, CuaApplicationId, CuaSystemPermission } from './access-types.ts'
 import type { CuaAppHandle, CuaOperation } from './types.ts'
 import { ApplicationIcon, AppResult, NativeScreenshotResult, Request, ScreenshotResult, StateResult, WindowsResult } from './protocol.ts'
 import { CuaCoordinates } from './coordinates.ts'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type { PromptSection } from '@deepseek-ai/dsh-system-prompt'
-import type { ToolDefinition, ToolExecution } from '@deepseek-ai/dsh-tools'
+import { callerImageInput, type ToolDefinition, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-computer-use'
 import type {} from '@deepseek-ai/dsh-ptc-runtime'
@@ -130,15 +130,12 @@ function renderResult(args: unknown, value: JsonValue): ContentBlock[] {
 async function screenshotStore(ctx: Context, execution: Readonly<CuaExecution>) {
   const attachments = ctx.get('attachments')
   if (!attachments) throw new Error('CUA screenshots require an attachment store')
-  const agent = execution.agent
-  const routed = agent.session.requestHeader()?.config
-  const provider = routed?.provider ?? agent.options.provider
-  const model = routed?.model ?? agent.options.model
-  const llm = ctx.get('llm')
-  if (provider === undefined || model === undefined || llm === undefined) throw new Error('CUA screenshot model route could not be resolved')
-  const info = await llm.resolveModelInfo(provider, model, execution.signal)
+  const support = await callerImageInput(ctx, execution)
+  if (support.kind === 'unresolved') throw new Error('CUA screenshot model route could not be resolved')
+  if (support.kind === 'unverified') throw support.error
   execution.signal.throwIfAborted()
-  if (!info.inputModalities?.includes('image')) throw new Error(`CUA screenshots require model "${model}" to declare image input`)
+  if (support.kind === 'absent') throw new Error(`CUA screenshots require model "${support.model}" to declare image input`)
+  const { llm, provider, model } = support
   return { attachments, target: (image: ImageAttachmentRef) => llm.imageRequestTarget(provider, model, image) }
 }
 
@@ -148,6 +145,14 @@ export interface CuaBackend {
   createChannel: NativeChannelFactory
   guidance: string
   description: string
+  /**
+   * Build native permission parameters for the selected action and Client language.
+   * @param method Native permission action.
+   * @param permission System privilege selected by the user.
+   * @param locale Current Client language.
+   * @returns Parameters accepted by the provider's native implementation.
+   */
+  permissionParameters: (method: 'requestPermission' | 'openPermissionSettings', permission: CuaSystemPermission, locale: string) => Record<string, JsonValue>
 }
 
 /**
@@ -167,6 +172,7 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
   }
   const access = installCuaAccess(ctx, {
     native, createChannel: backend.createChannel,
+    permissionParameters: backend.permissionParameters,
     store: new CuaPermissionStore(ctx, config.allowedApps.map(grant => ({ ...grant, id: grant.id as CuaApplicationId })), config.timeoutMs),
   })
   const clients = new Map<Agent, NativeClient>()

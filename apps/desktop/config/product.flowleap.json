@@ -5,8 +5,8 @@
   "appId": "co.flowleap.patent-ai",
   "artifactSlug": "flowleap-patent-ai",
   "protocolScheme": "flowleap-patent-ai",
-  "profile": { "directory": "flowleap-desktop", "template": "flowleap-web" },
-  "about": "Patent research, analysis and drafting on your own keys. Office connectors, OCR and models run on the firm's keys; FlowLeap installs and supports the application.",
+  "profile": { "directory": "flowleap-desktop", "template": "flowleap-desktop" },
+  "about": "Patent research, analysis and drafting. Office connectors, OCR and models run on your own keys; FlowLeap installs and supports the application.",
   "icons": "resources/flowleap",
   "microphoneUsage": "FlowLeap Patent AI uses your microphone to transcribe speech into message drafts.",
   "locales": ["en", "zh_CN", "ja", "es", "fr", "de", "ru", "pt"],
@@ -15,5 +15,12 @@
   "welcome": false,
   "telemetry": false,
   "updates": { "feedUrl": "" },
-  "mandatoryUpdatePolicy": "off"
+  "mandatoryUpdatePolicy": "off",
+  "skillPack": {
+    "repository": "https://github.com/flowleap-ai/flowleap-methods.git",
+    "commit": "a5b925a20b2eca37c5bb375dfbdbb3ab5c7fe68d",
+    "skills": "skills",
+    "manifest": ".claude-plugin/plugin.json",
+    "environment": "FLOWLEAP_SKILLS_DIR"
+  }
 }

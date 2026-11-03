@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-agent-builder",
   "description": "FlowLeap agent builder in Web: the New agent row in the new-session preset menu and the agent form (name, description, instructions, files, connectors)",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

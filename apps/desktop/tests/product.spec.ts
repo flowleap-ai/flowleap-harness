@@ -29,14 +29,14 @@ describe('desktop product files', () => {
     const flowleap = readDesktopProductFile(APP_ROOT, 'flowleap')
     expect(flowleap).toMatchObject({
       productName: 'FlowLeap Patent AI', appId: 'co.flowleap.patent-ai', protocolScheme: 'flowleap-patent-ai',
-      profile: { directory: 'flowleap-desktop', template: 'flowleap-web' },
+      profile: { directory: 'flowleap-desktop', template: 'flowleap-desktop' },
       account: false, platform: false, welcome: false, telemetry: false,
       updates: { feedUrl: '' }, mandatoryUpdatePolicy: 'off',
     })
     // The build reader and the runtime parser read the same file the same way.
     expect(readDesktopProduct('flowleap')).toEqual(JSON.parse(readFileSync(join(APP_ROOT, 'config', 'product.flowleap.json'), 'utf8')))
     expect(desktopProfileBundles(flowleap.profile.template)).toEqual([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web',
+      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-desktop',
     ])
     expect(resolveDesktopPaths('/home/.dsh', flowleap.profile.directory).profile).toBe(join('/home/.dsh', 'profiles', 'flowleap-desktop'))
   })

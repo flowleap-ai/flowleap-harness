@@ -57,6 +57,7 @@
   ],
   "include": [
     "src/client",
+    "src/page-config.ts",
     "src/css-modules.d.ts"
   ]
 }

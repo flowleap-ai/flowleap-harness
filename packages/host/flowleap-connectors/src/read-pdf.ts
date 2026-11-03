@@ -6,8 +6,7 @@
  * exported Patent Agent prompt's `read_pdf` references resolve in the harness.
  *
  * Born-digital PDFs go through OCR as well in this slice: text extraction
- * without OCR needs a PDF parser the harness does not carry (mupdf is excluded
- * by licence, see vendor/flowleap-connectors/README.md).
+ * without OCR is a later slice.
  * @module
  */
 

@@ -852,7 +852,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-plugin-manager", "sdk-office", "sdk-pdf", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-plugin-manager", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -871,8 +871,8 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-pdf", "sdk-authoring", "sdk-plugin-manager", "runner", "direct"} and args.exe is None:
-        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, pdf, runner, and direct scenarios")
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "sdk-plugin-manager", "runner", "direct"} and args.exe is None:
+        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
     if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
         parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
@@ -883,13 +883,6 @@ def main() -> None:
         smoke_sdk_office(args.exe.resolve())
     if args.scenario == "sdk-office":
         print("smoke-python-runtime: sdk-office passed")
-        return
-
-    if args.scenario in {"all", "sdk-pdf"}:
-        assert args.exe is not None
-        smoke_sdk_pdf(args.exe.resolve())
-    if args.scenario == "sdk-pdf":
-        print("smoke-python-runtime: sdk-pdf passed")
         return
 
     if args.scenario in {"all", "runner"}:
@@ -1216,47 +1209,6 @@ with zipfile.ZipFile(root / 'calculated.xlsx') as archive:
         print(f"smoke-python-runtime: relocated Office {result['backend']} DOCX produced {len(pdf)} PDF bytes")
 
 
-def smoke_sdk_pdf(executable: Path) -> None:
-    """Read PDF text and extract the scanned page through the agent builder inside the executable."""
-    from deepseek_harness import DeepSeekHarness
-
-    with tempfile.TemporaryDirectory(prefix="dsh-sdk-pdf-") as temporary:
-        root = Path(temporary).resolve()
-        plugin = root / "pdf.mjs"
-        shutil.copy2(Path(__file__).resolve().parent / "fixtures/python-sdk-pdf.mjs", plugin)
-        result_path = root / "pdf.json"
-        patch = root / "pdf.patch.yml"
-        patch.write_text(json.dumps([{"insert": [{
-            "id": "python-sdk-pdf-smoke",
-            "name": plugin.as_uri(),
-            "config": {"result": str(result_path)},
-        }]}]))
-        with DeepSeekHarness(
-            provider="deepseek-official",
-            model="smoke-model",
-            cwd=str(root),
-            dsh_bin=str(executable),
-            dsh_home=str(root / "home"),
-            patches=(str(patch),),
-            api_key="sk-keyless-smoke",
-            base_url="http://127.0.0.1:9",
-            env={"DSH_TELEMETRY_DISABLED": "1"},
-        ):
-            pass
-        result = json.loads(result_path.read_text())
-        expected = {
-            "kind": "text",
-            "unit": "page",
-            "locations": [{"at": 1, "text": "python runtime pdf smoke"}],
-            "count": 2,
-            "scanned": [1],
-            "scannedPdf": "%PDF-",
-        }
-        if result != expected:
-            raise AssertionError(f"packaged agent builder PDF parse returned {result}")
-        print("smoke-python-runtime: packaged agent builder read PDF text and extracted the scanned page")
-
-
 def assert_installed_wheel_environment() -> Path:
     """Prove that this process imports matching non-editable wheel installations."""
     if sys.prefix == sys.base_prefix:
@@ -1570,6 +1522,7 @@ def smoke_sdk_dynamic_tools(base_url: str, executable: Path, update_snapshots: b
         task = root / "dynamic-tool-task.txt"
         task.write_text("Call snapshot_ping once.\n", encoding="utf-8")
         patch = write_profile_patch(root, "dynamic-tools.patch.yml", sessions, [
+            {"id": "tool-fs", "config": {"applyPatch": True}},
             {"id": "llm-deepseek", "config": {"models": [
                 {"id": "smoke-model", "toolUpdate": "addition-only"},
             ]}},
@@ -1890,6 +1843,11 @@ def smoke_sdk_snapshot_mode(
         expected_children = 2 if mode == "native" else 0
         if methods.count("subagent.started") != expected_children or methods.count("subagent.finished") != expected_children:
             raise AssertionError(f"{mode} advanced snapshot emitted unexpected subagent lifecycle: {methods}")
+        creators = {item.payload["childSessionId"]: item.payload["parentSessionId"]
+                    for item in result.notifications if item.method == "subagent.started"}
+        for item in result.notifications:
+            if item.method == "subagent.finished":
+                assert item.payload["parentSessionId"] == creators[item.payload["childSessionId"]]
         ptc_events = [event for event in result.events
                       if event.get("type") in ("tool/ptc-dispatch-start", "tool/ptc-dispatch")]
         expected_ptc_calls = 2 if mode == "ptc" else 0

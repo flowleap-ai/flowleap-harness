@@ -11,6 +11,7 @@ import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-clie
 import { inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
+import type { createSettingsShellStore } from '../src/client/shell-store.ts'
 import type { DesktopUpdatePresentation } from '../src/types.ts'
 
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
@@ -33,6 +34,7 @@ const CHILD_SPECS = {
   'settings.action': { kind: 'list', scope: 'root' },
   'settings.close': { kind: 'single', scope: 'root' },
   'settings.section': { kind: 'list', scope: 'root' },
+  'settings.section.icon': { kind: 'list', scope: 'root', inline: true },
   'settings.onboarding': { kind: 'list', scope: 'root' },
 } as const
 const CHILD_NAMES = Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>
@@ -90,7 +92,16 @@ describe('ui-settings-general shell', () => {
   withoutSettingsAccess('leaves sidebar.settings unoccupied while the current Peer may not read the settings description', async ({ start }) => {
     const c = await start()
     expect(c.ctx.slots.entries('sidebar.settings')).toEqual([])
+    expect(() => { c.ctx.settingsNavigation.openSection('models') }).not.toThrow()
   }, COLD_BOOT_TIMEOUT_MS)
+
+  it('opens the mounted shell on the section another surface asks for', async ({ start }) => {
+    const c = await start()
+    const shell = (c.ctx.slots.entries('sidebar.settings')[0]!.store as ReturnType<typeof createSettingsShellStore>).create()
+    expect(shell.store.getSnapshot()).toEqual({ open: false, activeId: undefined })
+    c.ctx.settingsNavigation.openSection('models')
+    expect(shell.store.getSnapshot()).toEqual({ open: true, activeId: 'models' })
+  })
 
   it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', async ({ start }) => {
     const c = await start()
@@ -171,6 +182,20 @@ describe('ui-settings-general shell', () => {
     expect(c.ctx.slots.entries('sidebar.settings').map(entry => entry.component)).toEqual([SettingsRoot])
     expect(c.ctx.slots.entries('sidebar.settings')[0]).not.toBe(before)
     for (const name of CHILD_NAMES) expect(c.ctx.slots.spec(name)).toEqual(CHILD_SPECS[name])
+  })
+
+  it('opens the rebuilt shell, not the removed one, after the declarer reloads', async ({ start }) => {
+    const c = await start()
+    const shellOf = (): ReturnType<ReturnType<typeof createSettingsShellStore>['create']> =>
+      (c.ctx.slots.entries('sidebar.settings')[0]!.store as ReturnType<typeof createSettingsShellStore>).create()
+    const removed = shellOf()
+    await c.reload(SIDEBAR)
+    await c.flush()
+    const rebuilt = shellOf()
+    expect(rebuilt).not.toBe(removed)
+    c.ctx.settingsNavigation.openSection('models')
+    expect(rebuilt.store.getSnapshot()).toEqual({ open: true, activeId: 'models' })
+    expect(removed.store.getSnapshot()).toEqual({ open: false, activeId: undefined })
   })
 
   it('unregisters the shell and collapses every child slot when its row unloads', async ({ start }) => {

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-records",
   "description": "Records in the FlowLeap sidebar and main column: the Firm Record's pages of flowleap-os, served by the firm proxy at the same origin, embedded in a frame with the client's theme; an empty state while the firm has no Records",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },

@@ -44,6 +44,7 @@ External packages installed for runtime use or embedded in distributed Host or b
 | [`@eslint-community/regexpp`](https://github.com/eslint-community/regexpp) | MIT |
 | [`@fortune-sheet/core`](https://github.com/ruilisi/fortune-sheet) | MIT |
 | [`@fortune-sheet/react`](https://github.com/ruilisi/fortune-sheet) | MIT |
+| [`@hyzyla/pdfium`](https://github.com/hyzyla/pdfium) | MIT |
 | [`@joplin/turndown-plugin-gfm`](https://github.com/laurent22/joplin-turndown-plugin-gfm) | MIT |
 | [`@jridgewell/gen-mapping`](https://github.com/jridgewell/sourcemaps) | MIT |
 | [`@js-temporal/polyfill`](https://github.com/js-temporal/temporal-polyfill) | ISC |
@@ -104,6 +105,7 @@ External packages installed for runtime use or embedded in distributed Host or b
 | [`hosted-git-info`](https://github.com/npm/hosted-git-info) | ISC |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
+| [`jpeg-js`](https://github.com/eugeneware/jpeg-js) | BSD-3-Clause |
 | [`js-yaml`](https://github.com/nodeca/js-yaml) | MIT |
 | [`katex`](https://github.com/KaTeX/KaTeX) | MIT |
 | [`koffi`](https://github.com/Koromix/koffi) | MIT |
@@ -132,6 +134,7 @@ External packages installed for runtime use or embedded in distributed Host or b
 | [`papaparse`](https://github.com/mholt/PapaParse) | MIT |
 | [`pdfjs-dist`](https://github.com/mozilla/pdf.js) | Apache-2.0 |
 | [`picomatch`](https://github.com/micromatch/picomatch) | MIT |
+| [`pngjs`](https://github.com/pngjs/pngjs) | MIT |
 | [`react`](https://github.com/facebook/react) | MIT |
 | [`react-dom`](https://github.com/facebook/react) | MIT |
 | [`readable-stream`](https://github.com/nodejs/readable-stream) | MIT |
@@ -178,6 +181,10 @@ pnpm applies local patches to the following packages at install time, so shipped
 ## Chrome DevTools frontend
 
 The optional experimental Inspector distributes a locally compiled copy of [chrome-devtools-frontend 1.0.1638082](https://www.npmjs.com/package/chrome-devtools-frontend/v/1.0.1638082), from upstream revision [0e1186138ed519d9659c1874bf6375eca4483c72](https://chromium.googlesource.com/devtools/devtools-frontend/+/0e1186138ed519d9659c1874bf6375eca4483c72). The build includes the Chromium [BSD-3-Clause license](packages/experimental/inspector/assets/devtools/LICENSE) and the third-party license and notice files supplied by the npm source. The Chromium root license does not replace those dependencies' licenses.
+
+## PDFium
+
+`@hyzyla/pdfium`, a runtime dependency of the vendored `@flowleap/connectors` that renders patent drawing pages, embeds [PDFium](https://pdfium.googlesource.com/pdfium/) compiled to WebAssembly. PDFium is licensed under BSD-3-Clause, with parts under Apache-2.0, as its [LICENSE](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/LICENSE) states; the libraries PDFium builds in (among them FreeType under the FreeType License) keep their own permissive licenses and notices.
 
 
 ## Official Claude Code platform payloads
@@ -236,6 +243,7 @@ External packages **directly declared** for development, tests, types, or toolin
 | [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/papaparse`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/picomatch`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/pngjs`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/react`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/react-dom`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/readable-stream`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |

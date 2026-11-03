@@ -66,6 +66,35 @@
 - id: ui-settings-session-log
   disabled: true
 
+# ── developer surfaces off (flowleap-harness#84, #70) ──────────────────────
+# Settings > Built-in plugins lists module names (`@deepseek-ai/dsh-…`) for
+# developers; the desktop keeps the Plugins page, whose Built-in plugin
+# settings hold the same configuration pages. The More menus offer no "Create
+# your plugin": its Creator preset (preset-cordis) is off below.
+
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-settings-plugin-inventory
+  disabled: true
+
+- id: entry-customization
+  config:
+    createPlugin: false
+
+# Plugin cards and plugin pages show product names, never package names
+# (`@deepseek-ai/dsh-…`), row ids, or install specs (flowleap-harness#189).
+- id: ui-plugin-manager
+  config:
+    packageNames: false
+
+# New task on the Automation tasks page opens the new chat with an example
+# request in the composer, unsent; ui-flowleap-routines supplies the patent
+# example.
+- id: ui-schedule
+  config:
+    newTaskDraft: true
+
 # ── optional bundles this product does not offer ────────────────────────────
 # Live Share shows Sessions to share viewers, and Forge works with GitHub. A
 # firm runtime must not offer either, so the Plugins page hides them and
@@ -106,36 +135,24 @@
 
 # ── providers and the default model ──────────────────────────────────────────
 # Three pi-ai catalog routes; each key is resolved per request through the
-# credential seam, so no secret enters this file.
+# credential seam, so no secret enters this file. subscriptionSignIn: false
+# offers no subscription sign-in (Claude Pro or Max): Anthropic does not permit
+# one in a third-party application. The attorney sets a key and adds a route on
+# the Models page. A firm server stacks dsh-flowleap-firm over this bundle, which
+# fixes the routes and keys (flowleap-harness#61) and restates this row.
 #
-# Models run only on the firm's keys (flowleap-harness#61). fixedRoutes refuses
-# a route, endpoint, or key-reference change from settings and offers no
-# subscription sign-in and no endpoint discovery; lockedRefs refuses a key
-# typed on the Models page and ignores one stored before; managed keeps the
-# Models page from offering either. A firm overlay that restates the
-# llm-pi-ai or credentials row restates these keys too.
-#
-# package.json dsh.bundle.lockedRows names these rows, the plugin manager row,
-# and the DeepSeek rows: the Loader drops a user patch (profile or home
-# cordis.patch.yml) that targets one of them, so a Models page save from before
-# the lock cannot turn it off, and the plugin manager cannot switch a DeepSeek
-# route, sign-in, or telemetry row on.
-
-- id: credentials
-  config:
-    lockedRefs: [ANTHROPIC_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY]
-
-- id: ui-settings-models
-  config:
-    managed: true
-
 # The firm's model gateway sends x-flowleap-budget-warning from 80 % of a
 # budget (flowleap-harness#32); the two routes that go through the gateway
 # show its value to the attorney in the chat, and the model never sees it.
+#
+# package.json dsh.bundle.lockedRows names the plugin manager row and the
+# DeepSeek rows: the Loader drops a user patch (profile or home
+# cordis.patch.yml) that targets one of them, so the plugin manager cannot
+# switch a DeepSeek route, sign-in, or telemetry row on.
 
 - id: llm-pi-ai
   config:
-    fixedRoutes: true
+    subscriptionSignIn: false
     providers:
       anthropic:
         apiKeyEnv: ANTHROPIC_API_KEY
@@ -154,14 +171,14 @@
 # ── the FlowLeap skill pack ──────────────────────────────────────────────────
 # dsh-web-app disables this host row because each preset mounts its own
 # `filesystem` provider for project and user roots. Re-enabled here as a second,
-# global-layer provider that scans only the flowleap-plugins pack
+# global-layer provider that scans only the FlowLeap methods pack
 # (`<name>/SKILL.md` bundles), so every preset's `tool-skill` catalog merges it
 # with the preset's own roots.
 #
 # FLOWLEAP_SKILLS_DIR names the pack folder; when it is unset or empty, the
 # default is the pack of the release image. The folder must exist, or the row fails at load: outside the
-# image, set FLOWLEAP_SKILLS_DIR to a flowleap-plugins checkout's
-# plugins/flowleap/skills, or to an empty folder for no FlowLeap skill.
+# image, set FLOWLEAP_SKILLS_DIR to a flowleap-methods checkout's skills/,
+# or to an empty folder for no FlowLeap skill.
 
 - id: skill-filesystem
   disabled: false
@@ -171,6 +188,17 @@
     requireCustomSkillDirs: true
     customSkillDirs:
       - !!js process.env.FLOWLEAP_SKILLS_DIR || '/opt/flowleap/skills'
+
+# Settings > Skills (flowleap-harness#190): every skill of a new chat with its
+# source, the replace note, and the skill files with faults. The skill pack
+# row above registers as provider `flowleap`; its skills show as FlowLeap methods.
+
+- insert:
+    - id: ui-settings-skills
+      name: '@deepseek-ai/dsh-client-ui-settings-skills'
+      config:
+        pluginNames:
+          flowleap: FlowLeap methods
 
 # ── uploads while the firm server's disk is low ──────────────────────────────
 # The firm host writes /run/flowleap/host/disk-low (read-only in the runtime)
@@ -193,6 +221,12 @@
   config:
     network: deny
 
+# The upstream MCP server manager takes servers from Settings writes, stdio
+# commands included, with no firm-admin check. Off until Connectors and admin
+# approval land (flowleap-harness#197, #199); the FlowLeap MCP row below does not need it.
+- id: mcp-manager
+  disabled: true
+
 # ── FlowLeap rows ────────────────────────────────────────────────────────────
 
 - insert:
@@ -201,11 +235,14 @@
     # logs and the harness still starts.
     #
     # ADR 0019 decision 3: this row carries only the paid set the backend keeps
-    # (flowleap-backend #608) — PATSTAT, enriched citations, examiner baseline,
-    # images, analytics. The office tools (`search_patents`,
-    # `get_bibliography`, …) and OCR (`ocr`, `read_pdf`, on the firm's Mistral
-    # key since C3) come from `dsh-flowleap-connectors` below and are not
-    # listed here, with one exception. `get_claims` is ALSO here: the native copy
+    # — PATSTAT, analytics and US full text. The office tools (`search_patents`,
+    # `get_bibliography`, …), the drawings and US office-action citations
+    # (`get_patent_image`, `search_office_action_citations`,
+    # `search_enriched_citations`, `get_citation_stats`, `examiner_baseline`:
+    # free data on the firm's own keys, flowleap-harness#180) and OCR (`ocr`,
+    # `read_pdf`, on the firm's Mistral key since C3) come from
+    # `dsh-flowleap-connectors` below. A name the local row registers is never
+    # listed here, so the model sees one tool per name, with one exception. `get_claims` is ALSO here: the native copy
     # has no US source (`usFulltext` is absent on a self-hosted harness) and
     # answers US claims `not_configured` naming the paid route
     # `mcp__flowleap__get_claims`, the backend's tool of the same name over
@@ -224,11 +261,6 @@
         tools:
           include:
             - server_info
-            - get_patent_image
-            - search_office_action_citations
-            - search_enriched_citations
-            - get_citation_stats
-            - examiner_baseline
             - patent_analytics
             - get_fulltext
             - get_claims

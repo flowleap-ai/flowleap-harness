@@ -111,7 +111,7 @@ describe('Chat apply wiring', () => {
     expect(entry).not.toHaveProperty('UserContent')
   })
 
-  it('registers the frame-wide quota notice host and keeps the failure row injection-free', async () => {
+  it('registers the frame-wide quota notice host and keeps the failure row injection-free with a keyed action area', async () => {
     const b = await bench()
     try {
       const host = b.runtime.slots.entries('shell.overlay').find(entry => entry.options.id === 'chat.quota-notice')
@@ -125,10 +125,10 @@ describe('Chat apply wiring', () => {
       expect(notice.getSnapshot()).toBeNull()
       ;(face.dismissNotice as QuotaNoticeInjected['dismissNotice'])()
       expect(notice.getSnapshot()).toBeNull()
-      // The turn-error row carries neither a transient notice nor a chain child.
+      // The turn-error row carries no transient notice; its only child is the keyed action area.
       const row = b.runtime.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'turn-error')!
       expect(row.inject).toBeUndefined()
-      expect(row.children).toBeUndefined()
+      expect(row.children).toEqual({ 'conversation.chat.turn-error.action': { kind: 'keyed', scope: 'session' } })
     } finally {
       await b.runtime.dispose()
     }

@@ -5,7 +5,20 @@ description: Use before pushing, force-pushing, marking ready for review, or cla
 
 # DSH Pre-Push Checks
 
-Use this skill to run relevant local evidence once before a `deepseek-harness` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs only the incremental repository typecheck. CI owns exhaustive coverage and the platform matrix.
+Use this skill to run relevant local evidence once before a `deepseek-harness` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs the incremental repository typecheck, type-aware lint of the pushed TypeScript files, `pnpm run duplication`, `pnpm run test:docs`, and the `--check` mode of every generator (`pnpm run verify-generated`; repair with `pnpm run gen`). CI owns exhaustive coverage and the platform matrix.
+
+## Enforced rules
+
+Each row is a mistake that reached CI more than once and the check that now stops it. When a mistake repeats, add a row and a check that fails on it; delete a row once nothing can repeat the mistake.
+
+| Rule | Enforcement |
+| --- | --- |
+| Generated files match their generators | pre-push `verify-generated`; repair with `pnpm run gen` |
+| Type-aware lint passes | pre-push [`lint-pushed.ts`](../../../scripts/lint-pushed.ts) |
+| No jscpd clones | pre-push `duplication` |
+| README Summary, doc budgets, links | pre-push `test:docs` |
+| Per-file 100% coverage | CI `test:coverage` only; run the [focused coverage command](#focus-unit-coverage-on-the-affected-source) |
+| Session snapshots refreshed after model-visible text changes | CI `test:snapshot` only; it needs a build |
 
 ## Inspect the outgoing change
 

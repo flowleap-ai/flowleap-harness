@@ -24,8 +24,8 @@ import {
 const DIR = fileURLToPath(new URL('../../../snapshots/web/flowleap-routine-run', import.meta.url))
 const BUNDLE = fileURLToPath(new URL('../../../packages/bundle/flowleap-web', import.meta.url))
 const MODE = webSnapshotMode()
-/** The run's fixed target, a week after any recording; the register read interval has passed. */
-const RUN_AT = '2026-11-03T07:00:00.000Z'
+/** The run's fixed target, later than any real recording or replay time, so the register read interval has passed. */
+const RUN_AT = '2036-11-03T07:00:00.000Z'
 
 /**
  * The scenario's register reader, which can list a new event.

@@ -35,6 +35,7 @@ import {
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
 import { resolveDesktopUpdateChannel } from './desktop-auto-update-environment.mjs'
+import { readStagedSkillPack } from './prepare-skill-pack.mjs'
 import { DESKTOP_PRODUCT_MANIFEST_KEY, desktopProductIconPath, readDesktopProduct, resolveDesktopProductName } from './desktop-product.mjs'
 
 /**
@@ -83,7 +84,10 @@ export function createElectronBuilderConfig(
   let dshDestination
   let windowsCode = []
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
-    `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`]
+    `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`,
+    // LaunchServices opens the Computer Use helper as an application, so every file of its bundles stays on disk.
+    // Both architectures ship: they form one notarized payload whose manifest staging verifies as a whole.
+    '**/node_modules/@deepseek-ai/dsh-experimental-cua-macos/native/bin/**/*']
   const windowsSigner = packagesWindows && !unsigned
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
@@ -112,7 +116,7 @@ export function createElectronBuilderConfig(
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
   const productVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
-  if (update?.channel === 'latest' && buildVersion.includes('-')) throw new Error('desktop package: latest requires a stable version')
+  if (update?.channel === 'stable' && buildVersion.includes('-')) throw new Error('desktop package: stable requires a stable version')
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
@@ -171,6 +175,7 @@ export function createElectronBuilderConfig(
       { from: desktopProductIconPath(product, 'icon-windows.png'), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: desktopProductIconPath(product, 'tray-windows.ico'), to: 'tray.ico' }] : []),
+      ...(product.skillPack === null ? [] : [{ from: buildPaths.skillPack, to: 'skill-pack' }]),
     ],
     mac: {
       icon: desktopProductIconPath(product, 'icon-macos.png'),
@@ -206,6 +211,9 @@ export function createElectronBuilderConfig(
       // The runtime schema of the embedded product record; the build reader checks only what it uses.
       const { parseDesktopProduct } = await import('../lib/types/product.js')
       parseDesktopProduct(product, `config/product.${product.name}.json`)
+      if (product.skillPack !== null && readStagedSkillPack(buildPaths.skillPack, product.skillPack.commit) === undefined) {
+        throw new Error(`desktop package: ${buildPaths.skillPack} does not hold skill pack ${product.skillPack.commit}; run prepare:skill-pack`)
+      }
       if (policy === undefined) return
       const { resolveDesktopPolicyConfig } = await import('../lib/types/mandatory-update-policy.js')
       resolveDesktopPolicyConfig(policy)

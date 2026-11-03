@@ -136,6 +136,9 @@ describe('Python runtime executable builder CLI', () => {
     const deploy = result.stdout.split('\n').find(line => line.includes(' --filter dsh-python-runtime-closure deploy'))
     expect(deploy).toContain('--prod --config.allow-unused-patches=true')
     expect(deploy).toContain('--config.hoist-workspace-packages=false')
+    expect(deploy).toContain(`--config.pnpmfile=${join(root, 'scripts/python-runtime-deploy.pnpmfile.mjs')}`)
+    expect(deploy).not.toContain('--legacy')
+    expect(deploy).not.toContain('--config.auto-install-peers=false')
     expect(result.stdout.split('--config.allow-unused-patches=true')).toHaveLength(2)
     expect(result.stdout).not.toContain(resolve(root, 'python/sdk-runtime/runtime-bootstrap.mjs'))
     expect(result.stdout).toContain('"bin":"runtime-bootstrap.mjs"')
@@ -143,7 +146,7 @@ describe('Python runtime executable builder CLI', () => {
     expect(result.stdout).not.toMatch(/pnpm\.cmd/i)
   })
 
-  it('keeps unloaded document-library files out of the executable, anchored below the staging folder', () => {
+  it('keeps FlowLeap profile packages and their libraries out of the executable, anchored below the staging folder', () => {
     const result = run({ npm_execpath: 'C:\\tools\\pnpm.cjs' }, '--skip-build', '--dry-run', '--targets=node24-macos-arm64')
 
     expect(result.status, result.stderr).toBe(0)
@@ -152,14 +155,14 @@ describe('Python runtime executable builder CLI', () => {
     const staging = resolve(root, 'python/sdk-runtime/src/deepseek_harness_runtime/runtime/node').replaceAll('\\', '/')
     expect(pkg.ignore).toEqual(expect.arrayContaining([
       '**/node_modules/@deepseek-ai/libreoffice-kit/**',
+      '**/node_modules/@deepseek-ai/dsh-flowleap-*/**',
+      '**/node_modules/@deepseek-ai/dsh-client-ui-*flowleap*/**',
+      '**/node_modules/@deepseek-ai/dsh-client-ui-settings-skills/**',
+      '**/node_modules/@hyzyla/pdfium/**',
       '**/node_modules/@napi-rs/canvas/**',
-      '**/node_modules/@napi-rs/canvas-*/**',
-      '**/node_modules/pdfjs-dist/{build,web,image_decoders}/**',
-      '**/node_modules/pdfjs-dist/legacy/{web,image_decoders}/**',
-      '**/node_modules/pdfjs-dist/legacy/build/{*.min.mjs,pdf.sandbox.mjs}',
-      '**/node_modules/docx/dist/{*.cjs,*.iife.js,charts.mjs,layout.mjs,math.mjs,shapes.mjs,watermarks.mjs}',
-      '**/node_modules/mammoth/mammoth.browser*.js',
-      '**/node_modules/xml2js/lib/xml2js.bc.js',
+      '**/node_modules/docx/**',
+      '**/node_modules/mammoth/**',
+      '**/node_modules/pdfjs-dist/**',
     ].map(pattern => `${staging}/${pattern}`)))
   })
 

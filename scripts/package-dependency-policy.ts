@@ -55,12 +55,16 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@deepseek-ai/dsh-computer-use/brand': ['ComputerUseProviderName'],
   '@deepseek-ai/dsh-credentials': ['credentialKey'],
   '@deepseek-ai/dsh-deque': ['Deque'],
+  // Builds a dispatcher from the resolved proxy policy; the caller owns and closes it.
+  '@deepseek-ai/dsh-http-proxy': ['createRouteDispatcher'],
   // The Liveshare wire codec and identity helpers are stateless functions over caller-owned values.
   '@deepseek-ai/dsh-experimental-liveshare-protocol': [
     'LIVESHARE_CAPABILITIES', 'LIVESHARE_PROTOCOL_VERSION', 'parseRelayFrame', 'parseShareAccessState',
     'parseTunnelWorkerCommand', 'parseTunnelWorkerEvent', 'rawText', 'sendFrame', 'unsupportedFrameRefusal',
     'viewerRequestFields', 'identityFromKey', 'identityKeyOf',
   ],
+  // The shipped profile templates are plain data; a consumer reads their bundle names only.
+  '@deepseek-ai/dsh-official-bundles': ['PROFILE_TEMPLATES'],
   '@deepseek-ai/dsh-llm': ['callConfigEquals'],
   '@deepseek-ai/dsh-session': ['SessionId'],
   '@deepseek-ai/dsh-session-format': ['sessionFormatLogFilename'],
@@ -87,6 +91,8 @@ const PEER_REQUIRED_HOST_EXPORTS = {
   // appendPluginRecord writes through the Session class's private log; pluginRecordOf is stateless.
   '@deepseek-ai/dsh-session': ['SESSION_FORMAT_VERSION', 'appendPluginRecord', 'pluginRecordOf'],
   '@deepseek-ai/dsh-session-persistence': ['SessionPersistenceNotFoundError'],
+  // Stateless; CUA resolves dsh-tools as a peer because it registers its tools into that runtime.
+  '@deepseek-ai/dsh-tools': ['callerImageInput'],
   // Readers recognize a deadline's TimeoutReason only by `instanceof` against their own copy.
   '@deepseek-ai/dsh-timeout': ['deadline'],
 } as const satisfies HostDependencyExports

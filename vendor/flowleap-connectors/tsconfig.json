@@ -19,8 +19,7 @@
   "exclude": [
     "src/**/*.test.ts",
     "src/**/__fixtures__",
-    "src/__tests__",
-    "src/types/mupdf.d.ts"
+    "src/__tests__"
   ],
   "references": []
 }

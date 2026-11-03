@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-cua",
   "description": "Shared Computer Use application objects, authorization, and logged tool execution",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },
@@ -75,7 +75,8 @@
     "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-attachment": "workspace:*",
     "@deepseek-ai/dsh-scope": "workspace:*",
-    "@deepseek-ai/dsh-ptc-runtime-node": "workspace:*"
+    "@deepseek-ai/dsh-ptc-runtime-node": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~",

@@ -48,16 +48,33 @@ interface RetryCountdown {
   seconds: number
 }
 
-function failureMessage(
-  message: string,
-  code: unknown,
-  t: ChatViewSlotProps['t'],
-): string {
-  if (code === 'ACCOUNT_SIGNED_OUT') return t('message.failure.accountSignedOut')
-  if (code === 'INTERRUPTED') return t('message.failure.interrupted')
-  if (code === 'ACCOUNT_SIGN_IN_REQUIRED') return t('message.failure.accountSignInRequired')
-  if (code === 'QUOTA' || code === 'ACCOUNT_QUOTA') return t('message.failure.quota')
-  return code === 'AUTH' ? t('message.failure.auth') : message
+type ChatT = ChatViewSlotProps['t']
+type ChatKey = Parameters<ChatT>[0]
+
+/** Localized copy that replaces the provider message for a known failure code. */
+const FAILURE_MESSAGE: Readonly<Partial<Record<string, ChatKey>>> = {
+  ACCOUNT_SIGNED_OUT: 'message.failure.accountSignedOut',
+  INTERRUPTED: 'message.failure.interrupted',
+  ACCOUNT_SIGN_IN_REQUIRED: 'message.failure.accountSignInRequired',
+  QUOTA: 'message.failure.quota',
+  ACCOUNT_QUOTA: 'message.failure.quota',
+  AUTH: 'message.failure.auth',
+  MISSING_CREDENTIAL: 'message.failure.missingCredential',
+}
+
+/** Turn-failure row title for codes that replace the generic "turn failed" title. */
+const TURN_ERROR_TITLE: Readonly<Partial<Record<string, ChatKey>>> = {
+  ACCOUNT_SIGNED_OUT: 'message.taskStopped',
+  INTERRUPTED: 'message.taskStopped',
+  MISSING_CREDENTIAL: 'message.missingCredential',
+}
+
+/** Codes whose row copy is complete for a product user, so the row shows no code chip. */
+const UNCHIPPED_CODES: ReadonlySet<string> = new Set(['INTERRUPTED', 'MISSING_CREDENTIAL'])
+
+function failureMessage(message: string, code: string | undefined, t: ChatT): string {
+  const key = code === undefined ? undefined : FAILURE_MESSAGE[code]
+  return key === undefined ? message : t(key)
 }
 
 function ModelRetryItem({ node, active, t }: {
@@ -129,18 +146,26 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Persistent, turn-positioned feedback for a terminal failure. */
-function TurnErrorItem({ node, t }: {
+function TurnErrorItem({ node, t, renderSlot }: {
   node: TurnErrorNode
-  t: ChatViewSlotProps['t']
+  t: ChatT
+  renderSlot: PropsRenderSlots<'conversation.chat.turn-error.action'>['renderSlot']
 }) {
+  const { code } = node
+  const title = (code === undefined ? undefined : TURN_ERROR_TITLE[code]) ?? 'message.turnError'
   return (
     <div className={css.turnErrorRow} role="status">
       <StateDot state="error" className={css.turnErrorDot} />
       <div className={css.turnErrorCopy}>
-        <span className={css.turnErrorTitle}>{node.code === 'ACCOUNT_SIGNED_OUT' || node.code === 'INTERRUPTED' ? t('message.taskStopped') : t('message.turnError')}</span>
-        <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
+        <span className={css.turnErrorTitle}>{t(title)}</span>
+        <span className={css.turnErrorMessage}>{failureMessage(node.message, code, t)}</span>
+        {code !== undefined && (
+          <div className={css.turnErrorAction}>
+            {renderSlot('conversation.chat.turn-error.action', { code }, { entryKey: code })}
+          </div>
+        )}
       </div>
-      {node.code !== undefined && node.code !== 'INTERRUPTED' && <code className={css.turnErrorCode}>{node.code}</code>}
+      {code !== undefined && !UNCHIPPED_CODES.has(code) && <code className={css.turnErrorCode}>{code}</code>}
     </div>
   )
 }
@@ -386,8 +411,10 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 })
 
 /** Terminal turn-error keyed Chat renderer. */
-export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, t }: ChatNodeViewProps<'turn-error'>) {
-  return <TurnErrorItem node={node.data} t={t} />
+export const TurnErrorNodeView = memo(function TurnErrorNodeView({
+  node, t, renderSlot,
+}: ChatNodeViewProps<'turn-error'> & PropsRenderSlots<'conversation.chat.turn-error.action'>) {
+  return <TurnErrorItem node={node.data} t={t} renderSlot={renderSlot} />
 })
 
 /** Max-tokens turn-end notice keyed Chat renderer. */

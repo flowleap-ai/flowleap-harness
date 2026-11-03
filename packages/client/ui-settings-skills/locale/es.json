@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Configuración de habilidades",
+    "description": "Lista de solo lectura de las habilidades del agente con el origen, el texto completo y la nota de sustitución de cada una, y los archivos de habilidades con errores."
+  }
+}

@@ -15,7 +15,10 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'],
   },
   'flowleap-web': {
-    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-firm'],
+  },
+  'flowleap-desktop': {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-desktop'],
   },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
@@ -34,6 +37,10 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
  */
 export const INSTALLATION_OWNED_PROFILE_TUPLES: Readonly<Record<string, readonly string[]>> = {
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'],
+  // Before dsh-flowleap-firm held the firm locks, dsh-flowleap-web held them (flowleap-harness#159).
+  'flowleap-web': ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
+  // Before dsh-flowleap-desktop held the desktop model step, the desktop profile had no layer of its own (flowleap-harness#170).
+  'flowleap-desktop': ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web'],
 }
 
 /** Bundles an earlier release shipped and the installation no longer carries; app-boot removes them from profiles. */
@@ -41,6 +48,7 @@ export const RETIRED_BUNDLES: ReadonlySet<string> = new Set([
   // The Web composition mounts Schedule itself
   // ([upgrade guide](../../../../docs/upgrade-guide/v0.2.0-rc.2/schedule-bundle-retired/guide.md)).
   '@deepseek-ai/dsh-experimental-schedule-bundle',
+  '@deepseek-ai/dsh-experimental-agent-team-profile',
 ])
 
 /** The bundle list a `dsh plugin` init uses for a name with no shipped template. */
@@ -57,12 +65,12 @@ export const DEFAULT_PROFILE_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-bas
  */
 export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-personalized-recommendations',
+  '@deepseek-ai/dsh-cua-bundle',
   '@deepseek-ai/dsh-experimental-session-search',
   '@deepseek-ai/dsh-experimental-ralph-bundle',
   '@deepseek-ai/dsh-experimental-terminal-bundle',
   '@deepseek-ai/dsh-experimental-badge-skill-bundle',
   '@deepseek-ai/dsh-experimental-session-titles-bundle',
-  '@deepseek-ai/dsh-experimental-agent-team-profile',
   '@deepseek-ai/dsh-experimental-voice-input-bundle',
   '@deepseek-ai/dsh-experimental-cot-translation-bundle',
   '@deepseek-ai/dsh-experimental-auto-review',
@@ -77,5 +85,4 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
 export const ON_DEMAND_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-subagent-claude-code',
   '@deepseek-ai/dsh-subagent-codex',
-  '@deepseek-ai/dsh-cua-bundle',
 ]

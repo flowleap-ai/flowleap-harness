@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-web",
-  "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the in-process office connectors, the paid FlowLeap MCP tools, the flowleap-plugins skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
-  "version": "0.2.2-alpha.2",
+  "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the in-process office connectors, the paid FlowLeap MCP tools, the FlowLeap methods skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
+  "version": "0.2.2-alpha.3",
   "publishConfig": {
     "access": "public"
   },
@@ -50,9 +50,6 @@
         "./presets/ptc.patch.yml"
       ],
       "lockedRows": [
-        "llm-pi-ai",
-        "credentials",
-        "ui-settings-models",
         "plugin-manager",
         "llm-deepseek",
         "llm-deepseek-account",
@@ -80,6 +77,7 @@
     "@deepseek-ai/dsh-client-ui-flowleap-routines": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-work-pages": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-flowleap-connectors": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-settings-skills": "workspace:*",
     "@deepseek-ai/dsh-flowleap-agent-builder": "workspace:*",
     "@deepseek-ai/dsh-flowleap-budget": "workspace:*",
     "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",

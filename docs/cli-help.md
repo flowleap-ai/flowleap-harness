@@ -12,7 +12,7 @@ Run `pnpm run gen-cli-help` to regenerate; run `pnpm run verify-cli-help` to che
 - [`dsh`](#dsh)
 - [`dsh plugin`](#dsh-plugin)
 - [`dsh acp`](#dsh-acp)
-- [`dsh flowleap-web`](#dsh-flowleap-web)
+- [`dsh flowleap-desktop`](#dsh-flowleap-desktop)
 - [`dsh headless`](#dsh-headless)
 - [`dsh sdk`](#dsh-sdk)
 - [`dsh sdk-minimal`](#dsh-sdk-minimal)
@@ -97,10 +97,10 @@ Example:
 
 ```
 
-<a id="dsh-flowleap-web"></a>
-## `dsh flowleap-web`
+<a id="dsh-flowleap-desktop"></a>
+## `dsh flowleap-desktop`
 
-Invocations: `dsh flowleap-web --help`, `dsh --profile flowleap-web --help`, `dsh web --help`, `dsh --profile web --help`
+Invocations: `dsh flowleap-desktop --help`, `dsh --profile flowleap-desktop --help`, `dsh flowleap-web --help`, `dsh --profile flowleap-web --help`, `dsh web --help`, `dsh --profile web --help`
 
 ```text
 Usage: dsh --profile web [options]

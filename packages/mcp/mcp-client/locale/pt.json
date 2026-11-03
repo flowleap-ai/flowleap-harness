@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "MCP cliente",
-    "description": "Conecte-se a MCP servidores e disponibilize suas ferramentas no Harness."
+    "description": "Conecta-se a servidores MCP e disponibiliza as suas ferramentas ao agente."
   }
 }

@@ -6,7 +6,8 @@
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
   "files": [
-    "src/index.ts"
+    "src/index.ts",
+    "src/page-config.ts"
   ],
   "references": [
     {
@@ -20,6 +21,9 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../host/webserver"
     }
   ]
 }

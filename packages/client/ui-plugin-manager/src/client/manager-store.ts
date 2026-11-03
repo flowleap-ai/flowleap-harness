@@ -98,6 +98,10 @@ export interface PackageRow {
   readonly diagnostic?: string
   /** Why the Host refuses to switch the row, when it does. */
   readonly readOnlyReason?: ReadOnlyReason
+  /** The context-global tools the running entry registered; empty for a row without a live entry. */
+  readonly tools: readonly string[]
+  /** Whether the running entry's module has a browser half; false for a row without a live entry. */
+  readonly hasClient: boolean
 }
 
 /** One bundle as the page shows it: the Host's bundle joined with the entries its rows run as. */
@@ -564,6 +568,8 @@ export function packageView(bundle: BundleInfo, plugins: readonly PluginInfo[]):
       ...row.meta === undefined ? {} : { meta: row.meta },
       ...row.entryId === undefined ? {} : { entryId: row.entryId },
       ...live?.readOnlyReason === undefined ? {} : { readOnlyReason: live.readOnlyReason },
+      tools: live?.tools ?? [],
+      hasClient: live?.hasClient ?? false,
     }
   })
   return {

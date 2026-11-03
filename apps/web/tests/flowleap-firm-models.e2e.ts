@@ -1,8 +1,9 @@
 /**
- * The flowleap-web composition runs models only on the deployment's routes and keys (flowleap-harness#61): the Host
- * refuses a route or key edit and offers no subscription sign-in, and every registered route sends its requests to
- * the deployment's gateway. The lock holds when the Harness home keeps user patches from before it, and the plugin
- * manager can neither switch a DeepSeek route or sign-in on nor install a package.
+ * The flowleap-web composition (dsh-flowleap-web and dsh-flowleap-firm) runs models only on the deployment's routes
+ * and keys (flowleap-harness#61): the Host refuses a route or key edit and offers no subscription sign-in, and every
+ * registered route sends its requests to the deployment's gateway. The lock holds when the Harness home keeps user
+ * patches from before it, and the plugin manager can neither switch a DeepSeek route or sign-in on nor install a
+ * package.
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -16,6 +17,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { launchWebScaffold, type WebScaffold } from './scaffold.ts'
 
 const BUNDLE = fileURLToPath(new URL('../../../packages/bundle/flowleap-web', import.meta.url))
+const FIRM_BUNDLE = fileURLToPath(new URL('../../../packages/bundle/flowleap-firm', import.meta.url))
 const KEYS = { ANTHROPIC_API_KEY: 'gateway-key-anthropic', OPENROUTER_API_KEY: 'gateway-key-openrouter' }
 
 type RemoteResult = { result: { ok: true; value: unknown } | { ok: false; error: { code: string; message: string } } }
@@ -101,7 +103,7 @@ it('refuses route, key, and sign-in changes, also over user patches from before 
   await writeFile(join(root, 'home', 'profiles', 'scaffold', 'cordis.patch.yml'), STALE_USER_ROWS)
   await writeFile(join(root, 'home', 'cordis.patch.yml'), STALE_USER_ROWS)
   const scaffold = await launchWebScaffold({
-    profile: { packages: [{ dir: BUNDLE, enabled: true }, { dir: fixtureBundle, enabled: true }] },
+    profile: { packages: [{ dir: BUNDLE, enabled: true }, { dir: FIRM_BUNDLE, enabled: true }, { dir: fixtureBundle, enabled: true }] },
     harnessHome: join(root, 'home'),
     lockedCredentialRefs: ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_API_KEY'],
   })

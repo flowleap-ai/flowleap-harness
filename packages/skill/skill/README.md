@@ -48,6 +48,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 - **One merged catalog.** A consumer asks for the current catalog of a workspace and receives every winning skill summary from every provider, sorted by name — no provider-specific ordering or deduplication to do.
 - **On-demand loading.** Asking for one skill by name returns the full instruction body from whichever provider owns the winning candidate; the registry re-validates the loaded definition and rejects a stale selection whose name changed between discovery and load.
 - **Embedded skills.** Plugins register an in-memory skill with `ctx.skills.register(...)`; the registry fills in a default invocation policy and the `runtime` provider label. Same-name runtime registrations in one layer are first-wins with a warning.
+- **The full inventory.** `ctx.skills.inspect(...)` returns every candidate of a view: each winner, the candidates it replaced with `replacedBy` naming the winner, and the files providers could not parse as typed `SkillFault` values. Its winners equal `list()`. `ctx.skills.read({ name, provider, source })` loads the body of one exact candidate, a replaced one included.
 - **Provider registration.** A provider contributes its catalog with `ctx.skills.registerProvider(...)`; registration is synchronous, and the returned disposer removes the provider. `runtime` is a reserved provider name.
 
 An invocation policy on every skill decides which surfaces may advertise and load it: `modelInvocable` for model-facing tools and catalogs, `userInvocable` for human-facing commands. The registry keeps all four combinations, so one discovery result can serve both surfaces without conflating their catalogs.
@@ -61,7 +62,7 @@ An invocation policy on every skill decides which surfaces may advertise and loa
 
 ### Observable success and failures
 
-A skill that any provider reports appears in the merged catalog, and loading it by its exact kebab-case name returns the body; an invalid name returns no skill rather than throwing. A provider that fails discovery is logged and skipped, and the observation is reported incomplete so consumers can distinguish failed discovery from confirmed absence; an explicit incomplete observation still contributes its candidates. A malformed candidate fails fast — the registry validates names, descriptions, invocation booleans, and provider ownership before caching or returning anything.
+A skill that any provider reports appears in the merged catalog, and loading it by its exact kebab-case name returns the body; an invalid name returns no skill rather than throwing. A provider that fails discovery is logged and skipped, and the observation is reported incomplete so consumers can distinguish failed discovery from confirmed absence; an explicit incomplete observation still contributes its candidates. A malformed candidate fails fast — the registry validates names, descriptions, invocation booleans, and provider ownership before caching or returning anything. A provider reports a file it could not parse as a fault in its observation; faults reach only `inspect()`, and a fault that names another provider fails the read.
 
 Skill summaries retain the winning provider’s optional instruction-file `path` for discovery consumers that offer file previews. Listing still reads no skill body, and model-facing catalogs continue to select only their owned routing fields.
 
@@ -135,7 +136,8 @@ These limits define when the registry is a poor fit or needs special operational
 - **Invalidation is provider-driven** — the registry has no TTL and cannot infer that an arbitrary remote source changed; each mutable provider must retain and call its registration-scoped `invalidate()` capability from its own observation mechanism.
 - **Providers are queried sequentially** — one slow provider delays every provider registered after it; cancellation stops the caller's wait but cannot terminate work an uncooperative provider keeps running.
 - **Incomplete observations are not retained** — rejected providers are omitted and explicitly supplied candidates remain available only to the current lookup; the registry owns neither a last-good catalog nor per-provider diagnostics.
-- **Duplicate resolution is first-wins** — later lower-priority candidates within a layer are logged and hidden, and a nearer layer shadows a farther one silently; there is no API to inspect all shadowed definitions.
+- **Duplicate resolution is first-wins** — later lower-priority candidates within a layer are logged and hidden from `list()` and `get()`, and a nearer layer shadows a farther one; only the uncached `inspect()` and `read()` show the replaced definitions.
+- **A candidate reference has no path** — `read()` addresses a candidate by name, provider, and source, so two candidates of one provider and source with the same name (two custom roots of one filesystem provider) answer with the one of higher precedence.
 
 <a id="dev-note"></a>
 ### Dev Note

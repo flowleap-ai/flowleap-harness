@@ -4953,11 +4953,17 @@ describe('PythonPtcRuntime — hostile peer', () => {
     // check complete (~460 MB alone) and report output-limit. On Darwin (no
     // RLIMIT_AS) the value is over budget too, so output-limit holds either way;
     // the OOM the reorder prevents is the Linux-only failure.
+    //
+    // `maxWallMs` is 60s: the child writes, escapes, and frames ~264 MB of text, which
+    // is CPU-bound and took past 20s on a 4-vCPU GitHub-hosted runner where other
+    // coverage partitions share the cores. This budget bounds the run without letting
+    // a loaded runner's speed read as a `timeout`; the assertion is the outcome
+    // ordering, not a speed claim.
     const { runtime } = await setup({
       maxLogBytes: 32 * 1024 * 1024,
       maxValueBytes: 32 * 1024 * 1024,
       addressSpaceMb: 512,
-      maxWallMs: 20_000,
+      maxWallMs: 60_000,
     })
     const result = await runtime.run(runtime.resolve({
       program: [
@@ -4968,7 +4974,7 @@ describe('PythonPtcRuntime — hostile peer', () => {
       bindings: [],
     }))
     expect(result.error?.kind).toBe('output-limit')
-  }, 30_000)
+  }, 90_000)
 
   it('checks and encodes a wide completion value in O(depth), not O(width)', async () => {
     // A wide flat list serializes to ~2 bytes per element but the pre-fix walk

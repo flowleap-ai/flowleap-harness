@@ -11,14 +11,18 @@ import { collectConfigCatalog } from './gen-config-catalog.ts'
  * because typed registration requires it; the other shipped languages fall back to English.
  */
 const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
+  'packages/bundle/flowleap-firm/',
   'packages/bundle/flowleap-web/',
   'packages/host/flowleap-prompt/',
   'packages/host/flowleap-connectors/',
   'packages/host/flowleap-deliverables/',
   'packages/host/flowleap-routines/',
   'packages/host/flowleap-budget/',
+  'packages/host/flowleap-models/',
   'packages/client/ui-brand-flowleap/',
   'packages/client/ui-settings-flowleap-connectors/',
+  'packages/client/ui-settings-flowleap-models/',
+  'packages/bundle/flowleap-desktop/',
 ] as const
 
 /** Flatten metadata strings and reject values that cannot be translated. */

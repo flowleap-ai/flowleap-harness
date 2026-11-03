@@ -50,6 +50,22 @@ describe('connector restriction', () => {
     const other = await agentOn(ctx, 's2', 'patent')
     expect(await callTool(ctx, other, 'get_bibliography', {})).toMatchObject({ isError: false, value: 'get_bibliography ran' })
   })
+
+  it('keeps hiding a connector tool that unregisters with its connection and registers again', async () => {
+    const ctx = await runtime()
+    await mountBuilder(ctx, { root: await tempDir('dsh-agents-') })
+    const view = await ctx.flowleapAgentCatalog.save(undefined, { ...INPUT, connectors: ['uspto-odp'] }, 'Work.')
+    const agent = await agentOn(ctx, 's1', view.id)
+    const { stubTool } = await import('./harness.ts')
+    const unregister = ctx.tools.register(stubTool('mcp__flowleap__patstat_query'))
+    ctx.tools.register(stubTool('read_notes'))
+    expect(ctx.tools.schemas(agent).map(schema => schema.name)).toEqual(['read_notes'])
+    unregister()
+    expect(ctx.tools.schemas(agent).map(schema => schema.name)).toEqual(['read_notes'])
+    ctx.tools.register(stubTool('mcp__flowleap__patstat_query'))
+    expect(ctx.tools.schemas(agent).map(schema => schema.name)).toEqual(['read_notes'])
+    expect(await callTool(ctx, agent, 'mcp__flowleap__patstat_query', {})).toMatchObject({ isError: true })
+  })
 })
 
 describe('files', () => {
