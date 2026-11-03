@@ -38,5 +38,6 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 - [Routines](./routines.md): the register watch from chat and its task on the Automation tasks page. `routines-page-empty` was proven on 2026-10-27.
 - [Office action analysis](./office-action-analysis.md): the `recipe-office-action-response` skill of the skill pack from a chat and from a register watch, saved with `write_patent_results` and shown on the delivery card. `oa-chat-us`, `oa-chat-ep` and `oa-routine` were proven on 2026-10-29.
 - [Work pages](./work-pages.md): the office action board with sample data, its state and owner controls, the side panel, and the analysis form. `work-board`, `work-state-owner`, `work-side-panel` and `work-form`, and the `Share` tooltip of `work-deferred`, were proven on 2026-10-29.
+- [Firm Record](./record-read.md): the `record_read` tool and its record position in the Session log, and the Matters page that embeds the Firm Record's pages. Not proven yet: `record-read-turn`, `record-read-not-configured`, `records-page-empty` and `records-page-embedded` wait for the local Firm Record of flowleap-os.
 
 Not mapped yet: Word export, the other skills of the skill pack, and the brand. Add a file when a change touches one of them.
