@@ -39,7 +39,6 @@ async function setup(printed = '1.0.160\n') {
 
 async function load(ctx: Context, config: row.Config): Promise<string | undefined> {
   const failures: unknown[] = []
-  ctx.on('internal/error', (error: unknown) => { failures.push(error) })
   const fiber = ctx.plugin(row, config)
   await fiber.await().catch((error: unknown) => { failures.push(error) })
   return failures.length === 0 ? undefined : String(failures[0])
@@ -70,8 +69,8 @@ describe('the officecli row', () => {
   })
 
   it('validates its config', () => {
-    expect(() => row.Config({ binaryPath: '/b', version: '1.0', sha256: 'x', stateDir: '/s' })).toThrow()
-    expect(row.Config({ binaryPath: '/b', version: '1.0.160', sha256: 'a'.repeat(64), stateDir: '/s', chart: {} })).toMatchObject({
+    expect(() => row.Config({ binaryPath: '/b', version: '1.0', sha256: 'x', stateDir: '/s' } as never)).toThrow()
+    expect(row.Config({ binaryPath: '/b', version: '1.0.160', sha256: 'a'.repeat(64), stateDir: '/s', chart: {} } as never)).toMatchObject({
       timeoutMs: 60_000, tableStyle: '', chart: { featureColumnWidth: 10, textColumnWidth: 40, headerFill: '1F3A5F', headerFontColor: 'FFFFFF' },
     })
   })

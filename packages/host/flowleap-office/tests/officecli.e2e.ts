@@ -37,14 +37,16 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     ctx = new Context()
     await ctx.plugin(LocalSubprocessRuntime)
     const path = binaryPath ?? ''
-    await ctx.plugin(row, row.Config({
+    await ctx.plugin(row, {
       binaryPath: path,
       version: '1.0.160',
       sha256: process.env['FLOWLEAP_OFFICECLI_SHA256'] ?? await row.fileSha256(path),
       stateDir: join(dir, 'state'),
+      timeoutMs: 60_000,
+      maxOutputBytes: 4 * 1024 * 1024,
       tableStyle: 'FirmTable',
-      chart: {},
-    })).await()
+      chart: { featureColumnWidth: 10, textColumnWidth: 40, headerFill: '1F3A5F', headerFontColor: 'FFFFFF' },
+    }).await()
     office = ctx.flowleapOffice
   }, 60_000)
 

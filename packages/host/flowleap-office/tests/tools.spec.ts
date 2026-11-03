@@ -298,7 +298,7 @@ describe('the main row', () => {
   })
 
   it('validates its config', () => {
-    expect(office.Config({ templatesDir: '/t' })).toEqual({ templatesDir: '/t', revisionAuthor: 'FlowLeap', maxReadChars: 40_000, maxInputBytes: 32 * 1024 * 1024 })
-    expect(() => office.Config({})).toThrow()
+    expect(office.Config({ templatesDir: '/t' } as never)).toEqual({ templatesDir: '/t', revisionAuthor: 'FlowLeap', maxReadChars: 40_000, maxInputBytes: 32 * 1024 * 1024 })
+    expect(() => office.Config({} as never)).toThrow()
   })
 })
