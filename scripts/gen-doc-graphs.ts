@@ -439,6 +439,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Lists the chats a routine run marked "Needs review", clears one mark on an explicit done, and lists the register watches with their newest recorded events; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapRecord',
+    pkg: 'flowleap-record',
+    title: 'FlowLeap Firm Record reader',
+    mode: 'service',
+    consumers: ['flowleap-record'],
+    note: 'Reads one matter\'s view from the Firm Record of flowleap-os with the runtime\'s record token, with the record position the view was read at, or the refusal; the http provider is the package\'s ./http entry, and record_read is its tool; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'flowleapBudget',
     pkg: 'flowleap-budget',
     title: 'FlowLeap budget Remote',

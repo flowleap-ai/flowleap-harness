@@ -598,6 +598,7 @@
     { "path": "./packages/host/flowleap-prompt" },
     { "path": "./packages/host/flowleap-routines" },
     { "path": "./packages/host/flowleap-budget" },
+    { "path": "./packages/host/flowleap-record" },
     { "path": "./packages/host/flowleap-agent-builder" },
     { "path": "./packages/host/frontend-static" },
     { "path": "./packages/host/open-in-app" },
