@@ -23,7 +23,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount two rows. The provider row needs `ctx.subprocess`. The main row needs `ctx.flowleapOffice`, the tool registry, the filesystem, the Agent registry, and the Session working directory. The [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle declares both rows with `disabled: true`; the firm image adds the pinned binary and switches them on.
+Mount two rows. The provider row needs `ctx.subprocess` and `ctx.sandbox`. The main row needs `ctx.flowleapOffice`, the tool registry, the filesystem, the Agent registry, and the Session working directory. The [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle declares both rows with `disabled: true`. The firm image adds the pinned binary and switches them on with its overlay [`deploy/office.patch.yml`](../../../deploy/office.patch.yml).
+
+### No network for the binary
+
+The provider runs every OfficeCLI call through `ctx.sandbox.confine` with `workspace-write` and `stateDir` as the workspace root, so the child writes only in `stateDir` and the backend's temp areas. The `sandbox` row decides the network access of the child: the provider uses the same row as the `bash` tool, and the `dsh-flowleap-web` bundle sets that row to `network: deny`. On Linux the Landlock launcher then installs a seccomp filter that refuses every socket except a Unix socket; on macOS Seatbelt refuses every IP network operation. The `--version` check at load runs confined too, so a host without a usable sandbox backend fails the row at load.
 
 ### Minimal configuration
 
@@ -92,7 +96,7 @@ All five tools read and write only in the Session working directory. A model pat
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The provider owns the OfficeCLI process. [`OfficeCliRunner`](src/officecli/runner.ts) is the one place that spawns it, through `ctx.subprocess`. The child environment holds only `HOME=<stateDir>/home`, `OFFICECLI_STATE_DIR=<stateDir>/state`, `OFFICECLI_SKIP_UPDATE=1`, `OFFICECLI_NO_AUTO_INSTALL=1`, `OFFICECLI_NO_AUTO_RESIDENT=1`, and `TMPDIR=<call folder>`; every ambient name of the Host is removed. The call folder is also the working directory of the child. Each call has the `timeoutMs` deadline and the `maxOutputBytes` stdout cap.
+The provider owns the OfficeCLI process. [`OfficeCliRunner`](src/officecli/runner.ts) is the one place that spawns it, through `ctx.subprocess`, with the argv that `ctx.sandbox.confine` returns; a sandbox refusal is `engine_failed` and runs nothing. The child environment holds only `HOME=<stateDir>/home`, `OFFICECLI_STATE_DIR=<stateDir>/state`, `OFFICECLI_SKIP_UPDATE=1`, `OFFICECLI_NO_AUTO_INSTALL=1`, `OFFICECLI_NO_AUTO_RESIDENT=1`, and `TMPDIR=<call folder>`; every ambient name of the Host is removed. The call folder is also the working directory of the child. Each call has the `timeoutMs` deadline and the `maxOutputBytes` stdout cap.
 
 Arguments come only from the closed `OfficeCommand` union in [`src/officecli/command.ts`](src/officecli/command.ts): `version`, `create`, `merge`, `batch`, `validate`, `view` with the `text` or `outline` mode, and `query` with the `revision` or `cell` selector. One table row per kind builds the arguments. There is no passthrough, and no row runs `install`, `skills`, `mcp`, `plugins`, `watch`, `open`, `close`, `refresh`, `dump`, `import`, another `view` mode, or the binary without arguments. Every call except `--version` uses `--json`, and a zod schema parses each reply.
 
@@ -166,7 +170,7 @@ Each result appends to history and does not change earlier messages.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The provider does not confine the child's network** — the environment switches stop the known fetch paths, and the provider refuses web addresses, but only the firm image can block all network access of the process (its own network namespace or an egress rule); a new OfficeCLI release can add a new fetch path.
+- **The network block comes from the `sandbox` row, not from the provider** — the provider cannot see the network setting of `ctx.sandbox`, so a profile whose `sandbox` row has `network: inherit` runs OfficeCLI with network, and only the environment switches and the web-address refusal then stop the known fetch paths. `dsh-flowleap-web` sets `network: deny`; the Windows runner has no `network: deny`.
 - **Word and LibreOffice accept were not tested on the marked copy** — OfficeCLI's accept and reject give the after and the before texts; the evaluation tested LibreOffice rendering of an earlier marked copy only.
 - **Accepting a deleted last claim leaves one empty paragraph** — when the deleted claim is the last paragraph of the marked copy, OfficeCLI's accept keeps its paragraph mark without text, as Word keeps the final paragraph mark of a document; the clean copy has no empty paragraph.
 - **The row height of a claim chart is an estimate** — it counts characters per line from the column width at the default 11 pt font; another font or many wide characters can still cut text in print.

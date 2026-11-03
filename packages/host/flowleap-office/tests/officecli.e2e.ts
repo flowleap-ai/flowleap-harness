@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import LocalSandbox from '@deepseek-ai/dsh-sandbox-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as row from '../src/officecli/index.ts'
 import { redlineParagraph, type ClaimChange } from '../src/redline.ts'
@@ -36,6 +37,7 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     dir = await mkdtemp(join(tmpdir(), 'flowleap-office-e2e-'))
     ctx = new Context()
     await ctx.plugin(LocalSubprocessRuntime)
+    await ctx.plugin(LocalSandbox, { network: 'deny' })
     const path = binaryPath ?? ''
     await ctx.plugin(row, {
       binaryPath: path,
@@ -113,8 +115,9 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     expect((await office.read({ file: chart, format: 'xlsx' }, signal)).text).toBe('=== Sheet: S ===\nA1=Merkmal\tB1=D1\nA2=1.1\tB2==WEBSERVICE("x")')
     const callDir = await mkdtemp(join(dir, 'outline-'))
     await writeFile(join(callDir, 'chart.xlsx'), chart)
-    const runner = new row.OfficeCliRunner(ctx.subprocess, {
-      binaryPath: binaryPath ?? '', home: join(dir, 'state', 'home'), stateDir: join(dir, 'state', 'state'), timeoutMs: 60_000, maxOutputBytes: 4 * 1024 * 1024,
+    const runner = new row.OfficeCliRunner(ctx.subprocess, ctx.sandbox, {
+      binaryPath: binaryPath ?? '', home: join(dir, 'state', 'home'), stateDir: join(dir, 'state', 'state'), writableRoot: join(dir, 'state'),
+      timeoutMs: 60_000, maxOutputBytes: 4 * 1024 * 1024,
     })
     const reply = await runner.reply({ kind: 'view', file: 'chart.xlsx', mode: 'outline' }, callDir, signal)
     expect(reply.data).toMatchObject({ sheets: [{ name: 'S', formulas: 0 }] })

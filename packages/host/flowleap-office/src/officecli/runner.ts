@@ -1,11 +1,12 @@
 /**
- * The one place this package spawns OfficeCLI: through `ctx.subprocess`, with arguments from {@link argvOf}, a fixed
- * environment, a deadline, and an output cap. The child gets no ambient environment entry: each one is removed, and
+ * The one place this package spawns OfficeCLI: through `ctx.subprocess`, confined by `ctx.sandbox`, with arguments from
+ * {@link argvOf}, a fixed environment, a deadline, and an output cap. The child gets no ambient environment entry: each one is removed, and
  * only the entries of {@link officeEnvironment} are set, so no update check, no automatic install, no background
  * resident process, and no state outside the provider's folders.
  * @module
  */
 
+import type { SandboxProvider } from '@deepseek-ai/dsh-sandbox'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { z } from 'zod'
 import { FlowleapOfficeError } from '../error.ts'
@@ -24,6 +25,8 @@ export interface OfficeRunnerOptions {
   readonly home: string
   /** Absolute `OFFICECLI_STATE_DIR` of the child. */
   readonly stateDir: string
+  /** Absolute folder that holds `home`, `stateDir`, and every call folder; the only folder the child may write. */
+  readonly writableRoot: string
   /** Milliseconds before a call is terminated. */
   readonly timeoutMs: number
   /** Most stdout bytes a call may write. */
@@ -74,9 +77,14 @@ export type OfficeReply = z.infer<typeof Envelope>
 export class OfficeCliRunner {
   /**
    * @param subprocess - the subprocess seam.
+   * @param sandbox - the sandbox seam; its row decides the network access of the child.
    * @param options - binary, folders, and bounds.
    */
-  constructor(private readonly subprocess: Pick<SubprocessRuntime, 'spawn'>, private readonly options: OfficeRunnerOptions) {}
+  constructor(
+    private readonly subprocess: Pick<SubprocessRuntime, 'spawn'>,
+    private readonly sandbox: Pick<SandboxProvider, 'confine'>,
+    private readonly options: OfficeRunnerOptions,
+  ) {}
 
   /**
    * Run one call to completion.
@@ -84,7 +92,8 @@ export class OfficeCliRunner {
    * @param callDir - the private folder of the call; its working directory and `TMPDIR`.
    * @param signal - caller cancellation.
    * @returns the exit code and stdout; a nonzero exit is a result.
-   * @throws {FlowleapOfficeError} `timeout`, `aborted`, `output_too_large`, or `engine_failed` when the child cannot spawn.
+   * @throws {FlowleapOfficeError} `timeout`, `aborted`, `output_too_large`, or `engine_failed` when the sandbox refuses
+   *   the call or the child cannot spawn.
    */
   async run(
     command: OfficeCommand, callDir: string, signal: AbortSignal,
@@ -92,8 +101,20 @@ export class OfficeCliRunner {
     const argv = argvOf(command)
     const timeout = AbortSignal.timeout(this.options.timeoutMs)
     const bounded = AbortSignal.any([signal, timeout])
+    const confined = await this.sandbox.confine(
+      [this.options.binaryPath, ...argv], { mode: 'workspace-write', workspaceRoot: this.options.writableRoot }, bounded,
+    ).catch((error: unknown) => {
+      throw new FlowleapOfficeError('engine_failed', `The Office engine cannot run confined: ${String(error)}`)
+    })
+    const stopped = (): FlowleapOfficeError | undefined => {
+      if (timeout.aborted) return new FlowleapOfficeError('timeout', `The Office engine did not finish ${command.kind} in ${String(this.options.timeoutMs)} ms.`)
+      if (signal.aborted) return new FlowleapOfficeError('aborted', `The Office ${command.kind} call was cancelled.`)
+      return undefined
+    }
+    const early = stopped()
+    if (early !== undefined) throw early
     const handle = this.subprocess.spawn({
-      argv: [this.options.binaryPath, ...argv],
+      argv: confined.argv,
       cwd: callDir,
       stdio: { stdin: 'ignore', stdout: { maxBytes: this.options.maxOutputBytes }, stderr: { maxBytes: STDERR_TAIL_BYTES } },
       graceMs: TERMINATE_GRACE_MS,
@@ -103,8 +124,8 @@ export class OfficeCliRunner {
     const outcome = await handle.done.catch((error: unknown) => {
       throw new FlowleapOfficeError('engine_failed', `The Office engine did not start: ${String(error)}`)
     })
-    if (timeout.aborted) throw new FlowleapOfficeError('timeout', `The Office engine did not finish ${command.kind} in ${String(this.options.timeoutMs)} ms.`)
-    if (signal.aborted) throw new FlowleapOfficeError('aborted', `The Office ${command.kind} call was cancelled.`)
+    const late = stopped()
+    if (late !== undefined) throw late
     /* v8 ignore start -- collect-mode stdio always yields both readers. */
     const stdout = handle.collected.stdout?.readFrom(0) ?? { text: '', lossy: false }
     const stderr = handle.collected.stderr?.readFrom(0).text ?? ''

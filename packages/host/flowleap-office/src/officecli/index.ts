@@ -1,7 +1,8 @@
 /**
  * The OfficeCLI provider row of `ctx.flowleapOffice`. At load it checks the configured binary: its SHA-256 and its
  * `--version` output must equal the configured values, or the row fails. Then it provides the service. The binary runs
- * only through this row, with the environment and the arguments of the runner; the attorney's PATH never holds it.
+ * only through this row, confined by `ctx.sandbox`, with the environment and the arguments of the runner; the
+ * attorney's PATH never holds it.
  *
  * See packages/host/flowleap-office/README.md.
  * @module @deepseek-ai/dsh-flowleap-office/officecli
@@ -13,6 +14,7 @@ import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type {} from '@deepseek-ai/dsh-sandbox'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import type {} from '../types.ts'
 import type { ChartLook } from './batch.ts'
@@ -34,8 +36,8 @@ export type { OfficeReply, OfficeRunnerOptions } from './runner.ts'
 /** Cordis plugin name. */
 export const name = 'flowleap-office-officecli'
 
-/** The subprocess seam spawns the binary. */
-export const inject = ['subprocess']
+/** The subprocess seam spawns the binary; the sandbox seam confines it. */
+export const inject = ['subprocess', 'sandbox']
 
 /** Plugin config. */
 export interface Config {
@@ -117,7 +119,7 @@ async function removeEndedRuntimes(calls: string): Promise<void> {
 
 /**
  * Check the binary and provide `ctx.flowleapOffice`.
- * @param ctx - the row context, carrying `subprocess`.
+ * @param ctx - the row context, carrying `subprocess` and `sandbox`.
  * @param config - binary, folders, bounds, and formats.
  * @throws when a path is not absolute, the binary's SHA-256 or version differs from the config, or `--version` fails.
  */
@@ -136,9 +138,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const callsDir = await mkdtemp(join(allCalls, `${String(process.pid)}-`))
   ctx.effect(() => () => rm(callsDir, { recursive: true, force: true }), 'flowleap-office: call folder')
   const options: OfficeRunnerOptions = {
-    binaryPath: config.binaryPath, home, stateDir: state, timeoutMs: config.timeoutMs, maxOutputBytes: config.maxOutputBytes,
+    binaryPath: config.binaryPath, home, stateDir: state, writableRoot: config.stateDir,
+    timeoutMs: config.timeoutMs, maxOutputBytes: config.maxOutputBytes,
   }
-  const runner = new OfficeCliRunner(ctx.subprocess, options)
+  const runner = new OfficeCliRunner(ctx.subprocess, ctx.sandbox, options)
   const probe = await mkdtemp(join(callsDir, 'version-'))
   try {
     const result = await runner.run({ kind: 'version' }, probe, AbortSignal.timeout(config.timeoutMs))

@@ -5,6 +5,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { ConfinedArgv, SandboxPolicy, SandboxProvider } from '@deepseek-ai/dsh-sandbox'
 import type { SubprocessHandle, SubprocessRuntime, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 
 /** One recorded spawn. */
@@ -98,5 +99,17 @@ export class FakeSubprocess implements Pick<SubprocessRuntime, 'spawn'> {
   /** The argv of every call, without the binary path. */
   calls(): string[][] {
     return this.spawned.map(entry => entry.argv.slice(1))
+  }
+}
+
+/** A fake sandbox seam: records each policy and returns the argv unchanged, or refuses when `refusal` is set. */
+export class FakeSandbox implements Pick<SandboxProvider, 'confine'> {
+  readonly policies: SandboxPolicy[] = []
+  refusal: Error | undefined
+
+  confine(argv: readonly string[], policy: SandboxPolicy): Promise<ConfinedArgv> {
+    this.policies.push(policy)
+    if (this.refusal !== undefined) return Promise.reject(this.refusal)
+    return Promise.resolve({ argv: [...argv], enforcement: 'full', denialSignatures: [], runnerFailureRules: [] })
   }
 }

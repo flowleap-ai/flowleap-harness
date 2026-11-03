@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { FlowleapOfficeError } from '../src/error.ts'
 import { checkAmend, OfficeCliProvider, OfficeCliRunner, selectors, wordReadText } from '../src/officecli/index.ts'
 import type { AmendRequest } from '../src/types.ts'
-import { fail, FakeSubprocess, ok, succeed, type Responder } from './fake-officecli.ts'
+import { fail, FakeSandbox, FakeSubprocess, ok, succeed, type Responder } from './fake-officecli.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => {
@@ -27,7 +27,9 @@ async function setup(responder: Responder = succeed) {
     await rm(callsDir, { recursive: true, force: true })
   })
   const fake = new FakeSubprocess(responder)
-  const runner = new OfficeCliRunner(fake, { binaryPath: '/opt/officecli', home: '/h', stateDir: '/s', timeoutMs: 5_000, maxOutputBytes: 1_000_000 })
+  const runner = new OfficeCliRunner(fake, new FakeSandbox(), {
+    binaryPath: '/opt/officecli', home: '/h', stateDir: '/s', writableRoot: '/', timeoutMs: 5_000, maxOutputBytes: 1_000_000,
+  })
   const office = new OfficeCliProvider(ctx, { runner, callsDir, tableStyle: 'FirmTable', chart: look })
   return { ctx, fake, office, callsDir }
 }

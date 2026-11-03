@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FlowleapOfficeError } from '../src/error.ts'
 import { failureText, OfficeCliRunner, spawnEnvironment } from '../src/officecli/runner.ts'
-import { fail, FakeSubprocess, ok } from './fake-officecli.ts'
+import { fail, FakeSandbox, FakeSubprocess, ok } from './fake-officecli.ts'
 
 const dirs: string[] = []
 afterEach(async () => {
@@ -17,8 +17,11 @@ async function setup(timeoutMs = 5_000, maxOutputBytes = 1_000) {
   const dir = await mkdtemp(join(tmpdir(), 'flowleap-office-runner-'))
   dirs.push(dir)
   const fake = new FakeSubprocess()
-  const runner = new OfficeCliRunner(fake, { binaryPath: '/opt/officecli', home: '/state/home', stateDir: '/state/state', timeoutMs, maxOutputBytes })
-  return { dir, fake, runner }
+  const sandbox = new FakeSandbox()
+  const runner = new OfficeCliRunner(fake, sandbox, {
+    binaryPath: '/opt/officecli', home: '/state/home', stateDir: '/state/state', writableRoot: '/state', timeoutMs, maxOutputBytes,
+  })
+  return { dir, fake, sandbox, runner }
 }
 
 const signal = new AbortController().signal
@@ -52,6 +55,26 @@ describe('OfficeCliRunner', () => {
     expect(Object.hasOwn(spawned?.env ?? {}, 'OFFICECLI_RESIDENT_FLUSH')).toBe(true)
     expect(spawned?.env['OFFICECLI_RESIDENT_FLUSH']).toBeUndefined()
     expect(spawned?.env['HTTPS_PROXY']).toBeUndefined()
+  })
+
+  it('spawns the argv the sandbox returns, with only the state folder writable', async () => {
+    const { dir, fake, sandbox, runner } = await setup()
+    sandbox.confine = (argv, policy) => {
+      sandbox.policies.push(policy)
+      return Promise.resolve({ argv: ['landlock-run', '--no-net', '--', ...argv], enforcement: 'full', denialSignatures: [], runnerFailureRules: [] })
+    }
+    await runner.run({ kind: 'version' }, dir, signal)
+    expect(sandbox.policies).toEqual([{ mode: 'workspace-write', workspaceRoot: '/state' }])
+    expect(fake.spawned[0]?.argv).toEqual(['landlock-run', '--no-net', '--', '/opt/officecli', '--version'])
+  })
+
+  it('runs nothing when the sandbox refuses the call', async () => {
+    const { dir, fake, sandbox, runner } = await setup()
+    sandbox.refusal = new Error('no sandbox backend is usable')
+    const error = await rejection(runner.run({ kind: 'version' }, dir, signal))
+    expect(error.code).toBe('engine_failed')
+    expect(error.message).toContain('no sandbox backend is usable')
+    expect(fake.spawned).toEqual([])
   })
 
   it('removes every ambient name and keeps the fixed values', () => {

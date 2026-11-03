@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import * as row from '../src/officecli/index.ts'
-import { FakeSubprocess, succeed } from './fake-officecli.ts'
+import { FakeSandbox, FakeSubprocess, succeed } from './fake-officecli.ts'
 
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => {
@@ -24,7 +24,9 @@ async function setup(printed = '1.0.160\n') {
     await rm(dir, { recursive: true, force: true })
   })
   const fake = new FakeSubprocess((args, cwd) => args[0] === '--version' ? { exitCode: 0, stdout: printed } : succeed(args, cwd))
+  const sandbox = new FakeSandbox()
   ctx.provide('subprocess', fake)
+  ctx.provide('sandbox', sandbox)
   const config: row.Config = {
     binaryPath,
     version: '1.0.160',
@@ -35,7 +37,7 @@ async function setup(printed = '1.0.160\n') {
     tableStyle: '',
     chart: { featureColumnWidth: 10, textColumnWidth: 40, headerFill: '1F3A5F', headerFontColor: 'FFFFFF' },
   }
-  return { ctx, fake, config, dir }
+  return { ctx, fake, sandbox, config, dir }
 }
 
 async function load(ctx: Context, config: row.Config): Promise<string | undefined> {
@@ -47,11 +49,12 @@ async function load(ctx: Context, config: row.Config): Promise<string | undefine
 
 describe('the officecli row', () => {
   it('checks the hash and the version, clears call folders that no running runtime owns, and provides flowleapOffice', async () => {
-    const { ctx, fake, config } = await setup()
+    const { ctx, fake, sandbox, config } = await setup()
     await mkdir(join(config.stateDir, 'calls', 'call-stale'), { recursive: true })
     await writeFile(join(config.stateDir, 'calls', 'call-stale', 'client.docx'), 'left behind')
     expect(await load(ctx, config)).toBeUndefined()
     expect(fake.calls()).toEqual([['--version']])
+    expect(sandbox.policies).toEqual([{ mode: 'workspace-write', workspaceRoot: config.stateDir }])
     expect(await readdir(join(config.stateDir, 'calls'))).toEqual([expect.stringMatching(new RegExp(`^${String(process.pid)}-`, 'u'))])
     expect(await readdir(config.stateDir)).toEqual(['calls', 'home', 'state'])
     expect(ctx.get('flowleapOffice')).toBeInstanceOf(row.OfficeCliProvider)
