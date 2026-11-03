@@ -27,7 +27,7 @@ import { SessionScheduleHover } from '../src/client/SessionScheduleHover.tsx'
 import { SessionScheduleMark } from '../src/client/SessionScheduleMark.tsx'
 import { ScheduleTurnCard, type ScheduleTurnCardInjected } from '../src/client/ScheduleTurnCard.tsx'
 import { en, NS, zh } from '../src/client/locales.ts'
-import { en as managerEn } from '../src/client/task-manager-locales.ts'
+import * as managerLocales from '../src/client/task-manager-locales.ts'
 import { SCHEDULE_PAGE_GLOBAL } from '../src/config.ts'
 
 const Empty = () => null
@@ -426,8 +426,16 @@ describe('ui-schedule browser half', () => {
       expect(chip.taskBindings).toBe(body.taskBindings)
       expect(chip.hooks.catalog).toBe(body.hooks.catalog)
       const panel = injectedFace(ctx.slots.entries('main')[0]!, undefined as never) as TaskManagerInjected
-      panel.onNewTask()
-      expect(startSession).toHaveBeenCalledExactlyOnceWith()
+      expect(Object.keys(managerLocales).sort()).toEqual(['de', 'en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'])
+      for (const [language, dictionary] of Object.entries(managerLocales)) {
+        expect(dictionary['host.createPrompt']).not.toContain('\n')
+        ctx.locale.setLocale(language)
+        panel.onNewTask()
+        expect(startSession).toHaveBeenLastCalledWith(undefined, {
+          prompt: dictionary['host.createPrompt'], whenDraftExists: 'append',
+        })
+      }
+      expect(startSession).toHaveBeenCalledTimes(8)
     } finally {
       await fiber.dispose()
       owner()
@@ -445,7 +453,7 @@ describe('ui-schedule browser half', () => {
     try {
       const panel = injectedFace(ctx.slots.entries('main')[0]!, undefined as never) as TaskManagerInjected
       panel.onNewTask()
-      expect(startSession).toHaveBeenCalledExactlyOnceWith(undefined, { prompt: managerEn['new.draft'], whenDraftExists: 'append' })
+      expect(startSession).toHaveBeenCalledExactlyOnceWith(undefined, { prompt: managerLocales.en['new.draft'], whenDraftExists: 'append' })
     } finally {
       await fiber.dispose()
       owner()
