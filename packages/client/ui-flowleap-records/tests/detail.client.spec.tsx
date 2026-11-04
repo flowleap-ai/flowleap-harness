@@ -12,6 +12,7 @@ import type { CommandName } from '../src/client/keys.ts'
 import { de, en } from '../src/client/locales.ts'
 import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
+import { agentProps } from './agent-fakes.client.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, PEOPLE, R71_DOCUMENT, uuid } from './fixtures.client.ts'
 
 const opened = vi.fn()
@@ -57,6 +58,7 @@ async function mount(route: Route, overrides: { deadline?: DeadlineDetail; ticke
   const keyActs = new KeyActRegistry()
   const commandItems = new CommandItemRegistry()
   const props = {
+    ...agentProps().props,
     t: makeTranslate(language === 'de' ? de : en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),

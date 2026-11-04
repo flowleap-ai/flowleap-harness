@@ -1,8 +1,10 @@
 /**
  * Browser half of FlowLeap records, the IPMS views: asks the Host route once at start and, when the answer names the
  * Records service, registers the Matters launcher in `sidebar.panellist`, the Matters panel in the keyed `main` slot,
- * the intake row's context menu, and the keys and the ⌘K item of its screens. The panel reads and writes through
- * the Records API of flowleap-os at `<recordsHref>api/` on the same origin; the firm proxy adds the person's identity.
+ * the intake row's context menu, and the keys and the ⌘K item of its screens. Where the runtime has Sessions and
+ * client resources, it also provides the run Session resource that the work page's agent panel shows. The panel reads
+ * and writes through the Records API of flowleap-os at `<recordsHref>api/` on the same origin; the firm proxy adds the
+ * person's identity.
  * A failed request, an aborted request, or any other answer registers nothing and shows no error.
  */
 
@@ -15,6 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { RECORDS_LINK_PATH } from '../route.ts'
 import { readRouteAddress, syncRouteAddress, writeRouteAddress } from './address.ts'
 import { createRecordsApi } from './api.ts'
@@ -23,6 +26,8 @@ import { createRecordsModel, TAB_ROUTE, type Route } from './model.ts'
 import { MattersIcon, RecordsPanel, type PanelInjected } from './Panel.tsx'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from './key-layer.ts'
 import { registerRowMenu } from './row-menu.ts'
+import { runSessionProvider } from './agent-run.ts'
+import { RunConversation } from './RunConversation.tsx'
 
 export type { FlowleapRecordsKey } from './locales.ts'
 export type { PanelInjected, PanelProps } from './Panel.tsx'
@@ -73,6 +78,10 @@ export function apply(ctx: ClientContext): void {
   ctx.on('locale/change', (snapshot) => { language.set(snapshot.active) })
   const controller = new AbortController()
   ctx.effect(() => () => { controller.abort() }, 'ui-flowleap-records: request')
+  // The agent panel shows a run Session only where this runtime has Sessions and resources; without them it says so.
+  ctx.inject(['resources', 'sessions'], (scope) => {
+    scope.effect(() => scope.resources.register(runSessionProvider(scope.sessions)), 'ui-flowleap-records: run Sessions')
+  })
   void readRecordsLink(controller.signal).then((href) => {
     if (href === null || controller.signal.aborted) return
     const api = createRecordsApi(href)
@@ -112,6 +121,8 @@ export function apply(ctx: ClientContext): void {
     }, MattersIcon))
     ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main', key: PANEL_ID, locale: NS, inject: () => injected,
+      children: { 'records.agent.conversation': { kind: 'single', scope: 'session' } },
     }, RecordsPanel))
+    ctx.slots.inject('records.agent.conversation', () => ctx.slots.register({ name: 'records.agent.conversation' }, RunConversation))
   })
 }

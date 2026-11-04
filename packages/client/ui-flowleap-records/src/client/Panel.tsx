@@ -1,19 +1,21 @@
 /**
  * The Matters panel: a 44px top bar and the screen of the current route. The top bar shows the view tabs (Matters,
  * Intake with its count, Work) on a list, and the breadcrumb on a detail page. An intake list with an open letter
- * shows the tabs from 1366px and, below it, the item page's breadcrumb with "1 / N" and the up and down buttons.
+ * shows the tabs from 1366px and, below it, the item page's breadcrumb with "1 / N" and the up and down buttons. On
+ * the work page the top bar opens the agent panel again: beside the work after minimise or close, and full screen at
+ * 390px.
  */
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconLinkOutlineRegular,
-  IconSearchOutlineRegular, SegmentedControl,
+  Button, IconAgentPresetOutlineRegular, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
+  IconLinkOutlineRegular, IconSearchOutlineRegular, SegmentedControl, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { Act, DocumentId, Me } from './api.ts'
 import type { CommandItemRegistry, KeyActRegistry } from './key-layer.ts'
@@ -21,6 +23,7 @@ import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
 import type { NS } from './locales.ts'
 import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab } from './model.ts'
+import type { DockView } from './parts/AgentDock.tsx'
 import type { IntakeRowTarget } from './row-menu.ts'
 import type { ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
@@ -67,8 +70,9 @@ export interface PanelInjected {
   readonly openSearch: () => void
 }
 
-/** Props of the panel. */
+/** Props of the panel; the agent panel of the work page renders the run Session's conversation slot. */
 export type PanelProps = PropsRuntime<'main'> & PropsLocale<typeof NS> & InjectFace<PanelInjected>
+  & PropsRenderSlots<'records.agent.conversation'>
 
 const TAB_ORDER: readonly Tab[] = ['matters', 'intake', 'work']
 
@@ -86,6 +90,7 @@ export function RecordsPanel(props: PanelProps) {
   const fixedCatalog = useFixedCatalog(rows => rows)
   const locale = useLanguage(language => language)
   const { getTriggerProps } = useContextMenu()
+  const [dock, setDock] = useState<DockView>('docked')
   const ctx: ScreenContext = {
     t, locale, now: Date.now(), me,
     keycaps: keycapsFrom(catalog, fixedCatalog),
@@ -98,6 +103,13 @@ export function RecordsPanel(props: PanelProps) {
     commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),
     linkOf: props.linkOf,
+    agent: {
+      view: dock,
+      show: setDock,
+      useResource: props.useResource,
+      SessionProvider: props.SessionProvider,
+      renderConversation: () => props.renderSlot('records.agent.conversation', {}),
+    },
   }
   const tab = TAB_OF[screen.view]
   const tabs = (
@@ -134,6 +146,25 @@ export function RecordsPanel(props: PanelProps) {
               options={[{ value: 'list', label: t('board.layoutList') }, { value: 'board', label: t('board.layoutBoard') }]}
               onChange={(layout) => { props.navigate({ view: 'board', layout }) }}
             />
+          )}
+          {screen.view === 'work' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={css.agentWide}
+                data-dock={dock}
+                icon={<IconAgentPresetOutlineRegular size={16} />}
+                onClick={() => { setDock('docked') }}
+              >
+                {t('actor.agent')}
+              </Button>
+              <Tooltip label={t('actor.agent')} side="bottom" delayMs={500}>
+                <Button variant="ghost" size="sm" className={css.agentNarrow} data-dock={dock} aria-label={t('actor.agent')} onClick={() => { setDock('full') }}>
+                  <IconAgentPresetOutlineRegular size={16} />
+                </Button>
+              </Tooltip>
+            </>
           )}
           <ActButton act={search} rank="tertiary" className={css.searchWide} />
           <Button variant="ghost" size="sm" className={css.searchNarrow} aria-label={t('intake.act.search')} data-act="search" onClick={props.openSearch}>

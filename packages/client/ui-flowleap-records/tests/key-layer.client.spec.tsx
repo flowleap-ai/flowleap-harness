@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installKeyboard } from '@deepseek-ai/dsh-client-shortcuts/src/client/dom.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { CommandMenuContribution, CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
-import { CommandItemRegistry, KeyActRegistry, registerKeyLayer, useCommandItem, useKeyActs, type KeyActs } from '../src/client/key-layer.ts'
+import {
+  CommandItemRegistry, KEYS_ELSEWHERE, KeyActRegistry, registerKeyLayer, useCommandItem, useKeyActs, type KeyActs,
+} from '../src/client/key-layer.ts'
 import { en } from '../src/client/locales.ts'
 
 let disposers: (() => void)[] = []
@@ -109,6 +111,22 @@ describe('the key layer of the Matters panel', () => {
     scope.focus()
     press(scope, 'Enter', { key: 'Enter', metaKey: true, shiftKey: true })
     expect(record).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes every key on while focus is in a region whose keys belong to another view', () => {
+    const registries = layer()
+    const record = vi.fn()
+    const accept = vi.fn()
+    const view = render(<Screen registries={registries} acts={{ record, accept }} />)
+    const region = document.createElement('div')
+    region.setAttribute(KEYS_ELSEWHERE, '')
+    region.tabIndex = -1
+    view.getByTestId('scope').append(region)
+    region.focus()
+    press(region, 'Digit1')
+    press(region, 'Enter', { key: 'Enter', metaKey: true, shiftKey: true })
+    expect(accept).not.toHaveBeenCalled()
+    expect(record).not.toHaveBeenCalled()
   })
 
   it('moves with J, K and the arrows, but leaves the arrows to a page that scrolls', () => {

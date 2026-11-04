@@ -147,7 +147,13 @@
   white-space: nowrap;
 }
 
-.searchNarrow {
+.searchNarrow,
+.agentNarrow {
+  display: none;
+}
+
+.agentWide[data-dock='docked'],
+.agentWide[data-dock='full'] {
   display: none;
 }
 
@@ -181,12 +187,18 @@
   /* At 390px the breadcrumb keeps the current page, as the mockups show. */
   .layoutToggle,
   .searchWide,
+  .agentWide,
   .crumb:not(:last-child) {
     display: none;
   }
 
-  .searchNarrow {
+  .searchNarrow,
+  .agentNarrow {
     display: inline-flex;
+  }
+
+  .agentNarrow[data-dock='full'] {
+    display: none;
   }
 
   .crumb + .crumb::before {

@@ -171,13 +171,17 @@ function everywhere(binding: ShortcutBinding): Readonly<Record<`${'desktop' | 'w
   }
 }
 
+/** Marks a region of the panel whose keys belong to another view, such as the agent panel's conversation. */
+export const KEYS_ELSEWHERE = 'data-records-keys-elsewhere'
+
 /**
- * Run a handler, or pass the key on.
+ * Run a handler, or pass the key on: with no handler, or with focus in a region that `KEYS_ELSEWHERE` marks.
+ * @param target - the focused element.
  * @param run - the handler.
  * @returns the resolution.
  */
-function resolution(run: (() => void) | undefined): ShortcutResolution {
-  return run === undefined ? { status: 'pass' } : { status: 'handled', run }
+function resolution(target: Element | null, run: (() => void) | undefined): ShortcutResolution {
+  return run === undefined || target?.closest(`[${KEYS_ELSEWHERE}]`) != null ? { status: 'pass' } : { status: 'handled', run }
 }
 
 /**
@@ -192,24 +196,24 @@ export function registerKeyLayer(ctx: ClientContext, acts: KeyActRegistry, items
   for (const [name, binding] of Object.entries(LAYER) as [keyof typeof LAYER, ShortcutBinding][]) {
     ctx.effect(() => ctx.shortcuts.registerScoped({
       id: commandId(name), scope: RECORDS_SCOPE, label: () => t(`keys.${name}`), aliases: [], defaults: everywhere(binding),
-      resolve: () => resolution(acts.handler(name)),
+      resolve: ({ target }) => resolution(target, acts.handler(name)),
     }), `ui-flowleap-records: key ${name}`)
   }
   ctx.effect(() => ctx.shortcuts.registerScopedFixed({
     id: commandId('open'), scope: RECORDS_SCOPE, label: () => t('keys.open'), keys: ['↵'],
-    bindings: [{ code: 'Enter', modifiers: [] }], resolve: () => resolution(acts.handler('open')),
+    bindings: [{ code: 'Enter', modifiers: [] }], resolve: ({ target }) => resolution(target, acts.handler('open')),
   }), 'ui-flowleap-records: key open')
   for (const arrow of ARROWS) {
     ctx.effect(() => ctx.shortcuts.registerScopedFixed({
       id: arrow.id as ShortcutCommandId, scope: RECORDS_SCOPE, label: () => t(`keys.${arrow.act}`), keys: [arrow.key],
-      bindings: [{ code: arrow.code, modifiers: [] }], resolve: () => resolution(acts.handler(arrow.act, true)),
+      bindings: [{ code: arrow.code, modifiers: [] }], resolve: ({ target }) => resolution(target, acts.handler(arrow.act, true)),
     }), `ui-flowleap-records: key ${arrow.act} arrow`)
   }
   ctx.effect(() => ctx.shortcuts.register({
     id: commandId('record'), label: () => t('keys.record'), aliases: [], defaults: RECORD_DEFAULTS, regions: ['page'], modals: [],
     resolve: ({ target }) => (target?.closest(`[data-shortcut-scope="${RECORDS_SCOPE}"]`) ?? null) === null
       ? { status: 'pass' }
-      : resolution(acts.handler('record')),
+      : resolution(target, acts.handler('record')),
   }), 'ui-flowleap-records: key record')
   ctx.effect(() => ctx.commandMenu.contribute({ item: () => items.item() }), 'ui-flowleap-records: command menu')
 }

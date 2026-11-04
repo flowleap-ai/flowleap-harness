@@ -75,9 +75,11 @@ The **deadline** page answers "is this date right": the due date is the key fact
 
 The **work on a letter** page shows the client report: its file row (Preview opens the document, Open in Word opens it with the `ms-word:` link), and each statement with its quotes and pages, the excerpt on hover. The decision bar has two parts, Accept or Reject… with a reason for each proposed report, and the check of the deadline (or "no deadline yet"). **Record decision** sends `approve` or `reject` for each report and the `deadlineCheck` with the work's `recordSeq`. A statement with no span blocks Accept and Record decision until the person rejects that report. A person who is not the routed one sees who decides and no primary act; a decided work item has no bar, and Activity shows the decision. A reply recipient that is an address of no person shows as a count, never as text.
 
+The **agent panel** is a 376 px column at the right of the work page with the patent agent's run on the letter. Its header names the agent and the run's model (the local model, or the cloud provider) and has **Minimise** (the panel stays mounted and hidden), **Expand** (the panel takes the whole work area) and **Close**; the top bar's **Patent agent** button opens it again. At 390 px the panel opens full screen from that button. When this runtime has the run Session (`run.session` of `GET tickets/<id>`), the panel shows its conversation and composer: the shared Conversation content in its embedded variant, in the Session-scoped slot `records.agent.conversation`. The browser half provides the client resource `dsh-resource://recordsrun/session/<id>`, which holds one reference to the Session while the panel reads it (reference source `recordsRun`), and only where the runtime has Sessions and client resources. Otherwise one sentence says why the panel has nothing to show: the agent has not started, the record names no Session, or the Session is in the app of the person who ran the work, or not in this app.
+
 ### Keys and ⌘K
 
-`src/client/key-layer.ts` registers the scope `records` (the panel root) and every act of the design language's keys.md once: the single keys and the `G M` and `G I` sequences in the view-scoped layer, `↵` and the arrows as fixed keys, and Record the decision (`⇧⌘↵`, macOS and Windows) as an application command that acts only while focus is in the panel. Each command runs the handler of the latest mounted screen that provides one (`useKeyActs`), and passes the key on otherwise. A screen gives ⌘K its open item and acts with `useCommandItem`. Each button shows its command's current keycap from the shortcut catalog.
+`src/client/key-layer.ts` registers the scope `records` (the panel root) and every act of the design language's keys.md once: the single keys and the `G M` and `G I` sequences in the view-scoped layer, `↵` and the arrows as fixed keys, and Record the decision (`⇧⌘↵`, macOS and Windows) as an application command that acts only while focus is in the panel. Each command runs the handler of the latest mounted screen that provides one (`useKeyActs`), and passes the key on otherwise. While focus is in the agent panel, every key of the layer and ⇧⌘↵ pass on, so a key typed in the conversation never acts on the work. A screen gives ⌘K its open item and acts with `useCommandItem`. Each button shows its command's current keycap from the shortcut catalog.
 
 ### The parts
 
@@ -110,6 +112,7 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 | [`src/client/parts/`](src/client/parts/) | the IPMS parts |
 | [`src/client/row-menu.ts`](src/client/row-menu.ts) | the intake row's context menu contribution |
 | [`src/client/keys.ts`](src/client/keys.ts) | the commands of the acts (keys.md) and their keycaps from the shortcut catalog |
+| [`src/client/agent-run.ts`](src/client/agent-run.ts), [`src/client/RunConversation.tsx`](src/client/RunConversation.tsx) | the run Session resource and the run conversation slot of the agent panel |
 | [`src/client/words.ts`](src/client/words.ts), [`src/client/format.ts`](src/client/format.ts) | letter titles, actor names, Activity text, times, dates and days left |
 | [`tests/fixtures.client.ts`](tests/fixtures.client.ts) | answers that match the reference mockups and a fixture `RecordsApi` |
 
@@ -130,7 +133,7 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the package is a sidebar launcher, a panel, a context menu contribution, and an authenticated route that register no model-facing tools or messages.
+None, as the package is a sidebar launcher, a panel, a context menu contribution, and an authenticated route that register no model-facing tools or messages. The agent panel shows an existing run Session through the shared Conversation content; a message that a person sends from its composer is that Session's own turn.
 
 #### KV Cache effect
 
@@ -142,7 +145,8 @@ None; this package neither assembles nor sends a provider request.
 
 - **Not every intake state has an act** — a proposed kind or a proposed duplicate is decided by filing the letter on a matter or marking it not relevant; the Records API has no kind or duplicate command in R1.
 - **The board has no Matter and Office filters** — only **For me**; the Work tab shows no count.
-- **The work page has no docked agent panel** — the mockup's 376 px column with the run Session is not built; the matter page has no Record office event and no client rules, because the Records API has no command or field for them.
+- **The agent panel names the provider, not the model** — the work answer's `run.model` is `local` or a provider name, so the header shows "OpenRouter", not the model name of the mockup; a run Session in another person's app cannot show here.
+- **The matter page has no Record office event and no client rules** — the Records API has no command or field for them.
 - **Record the decision has no Linux default** — the registry reserves Enter with modifiers on Linux, so `⇧⌘↵` is unbound there; the button still records.
 - **The panel does not follow changes by itself** — a view loads again after an act of this person or Try again; a change by another person shows on the next load.
 

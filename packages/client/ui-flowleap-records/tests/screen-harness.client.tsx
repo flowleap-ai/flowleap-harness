@@ -16,6 +16,7 @@ import { en } from '../src/client/locales.ts'
 import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import type { IntakeRowTarget } from '../src/client/row-menu.ts'
+import { agentProps } from './agent-fakes.client.tsx'
 
 /** Let the fixture answers and the effects settle. */
 export const flush = async () => { for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() }) }
@@ -36,7 +37,7 @@ export function press(target: Element, code: string, extra: KeyboardEventInit = 
  * Mount the panel with the real key layer.
  * @param api - the Records API.
  * @param route - the first route.
- * @returns the model, the registries, the context menu spy, the ⌘K opener spy and a disposer.
+ * @returns the model, the registries, the context menu spy, the ⌘K opener spy, the fake run Session and a disposer.
  */
 export async function mountPanel(api: RecordsApi, route: Route) {
   const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
@@ -53,7 +54,9 @@ export async function mountPanel(api: RecordsApi, route: Route) {
   const model = createRecordsModel(api, route)
   const openMenu = vi.fn((_target: { readonly kind: string; readonly value: IntakeRowTarget }, _point: MenuPoint) => {})
   const openSearch = vi.fn()
+  const agent = agentProps()
   const props = {
+    ...agent.props,
     t: makeTranslate(en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
@@ -75,7 +78,7 @@ export async function mountPanel(api: RecordsApi, route: Route) {
   const view = render(<RecordsPanel {...props} />)
   await flush()
   return {
-    model, keyActs, commandItems, openMenu, openSearch, registry, view,
+    model, keyActs, commandItems, openMenu, openSearch, registry, view, agent,
     panel: view.getByTestId('flowleap-records'),
     dispose: () => {
       view.unmount()

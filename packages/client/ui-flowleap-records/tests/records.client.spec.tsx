@@ -77,6 +77,14 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const opened: boolean[] = []
   const panelInfo = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
   ctx.provide('layout', { panelInfo } as never)
+  const providers: { readonly protocol: string }[] = []
+  ctx.provide('sessions', { list: createSnapshotStore({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }) } as never)
+  ctx.provide('resources', {
+    register: (provider: { readonly protocol: string }) => {
+      providers.push(provider)
+      return () => { providers.splice(providers.indexOf(provider), 1) }
+    },
+  } as never)
   ctx.provide('contextMenus', {
     register: (contribution: MenuContribution<'records.intake-row'>) => {
       menus.push(contribution)
@@ -92,7 +100,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   await settle()
-  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo }
+  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers }
 }
 
 describe('ui-flowleap-records browser half', () => {
@@ -102,7 +110,9 @@ describe('ui-flowleap-records browser half', () => {
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
     window.history.replaceState(null, '', '/?page=flowleap-records&records=board&keep=1')
-    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo } = await mounted(routes(json({ href: 'records/' })))
+    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers } = await mounted(routes(json({ href: 'records/' })))
+    expect(providers.map(provider => provider.protocol)).toEqual(['recordsrun'])
+    expect(ctx.slots.entries('records.agent.conversation')).toHaveLength(1)
     expect(keys).toContain('records')
     expect(keys).toContain('records.decision.record')
     expect(keys).toContain('records.row.open')
@@ -148,6 +158,8 @@ describe('ui-flowleap-records browser half', () => {
     expect(menus).toEqual([])
     expect(keys).toEqual([])
     expect(contributions).toEqual([])
+    expect(providers).toEqual([])
+    expect(ctx.slots.entries('records.agent.conversation')).toEqual([])
     await ctx.fiber.dispose()
   })
 

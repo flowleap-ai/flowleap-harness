@@ -13,6 +13,7 @@ import { SKELETON_DELAY_MS } from '../src/client/load.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import { createRecordsModel, TAB_ROUTE, type Route } from '../src/client/model.ts'
 import { RecordsPanel, MattersIcon, type PanelProps } from '../src/client/Panel.tsx'
+import { agentProps } from './agent-fakes.client.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
 
 beforeEach(() => {
@@ -46,6 +47,7 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
   const model = createRecordsModel(api, route)
   const openMenu = vi.fn((_target: { readonly kind: string; readonly value: IntakeRowTarget }, _point: MenuPoint) => {})
   const props = {
+    ...agentProps().props,
     t: makeTranslate(en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),

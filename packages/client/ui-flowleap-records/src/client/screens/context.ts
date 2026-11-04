@@ -1,14 +1,19 @@
 /**
  * What each screen of the Matters panel receives: its screen (the route with its loads) and the screen context, the
- * copy, the time, the signed-in person, the keycaps of the acts, navigation, the acts and the row context menu.
+ * copy, the time, the signed-in person, the keycaps of the acts, navigation, the acts, the row context menu and the
+ * agent panel of the work page.
  */
 
+import type { ReactNode } from 'react'
+import type { UseResource } from '@deepseek-ai/dsh-client-resources/client'
 import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
+import type { SessionProviderComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import type { Act, DocumentId, Me } from '../api.ts'
 import { commandId, type CommandName, type KeycapsOf } from '../keys.ts'
 import type { KeyLayerContext } from '../key-layer.ts'
 import type { ActsResult, Route, ScreenOf, View } from '../model.ts'
 import type { ActSpec } from '../parts/Act.tsx'
+import type { DockView } from '../parts/AgentDock.tsx'
 import type { WordContext } from '../words.ts'
 import type { IntakeRowTarget } from '../row-menu.ts'
 
@@ -27,6 +32,21 @@ export interface ScreenContext extends WordContext, KeyLayerContext {
   readonly rowMenu: (target: IntakeRowTarget) => ContextMenuTriggerProps
   /** The address of a route, for Copy link. */
   readonly linkOf: (route: Route) => string
+  /** The agent panel of the work page. */
+  readonly agent: AgentSeat
+}
+
+/** The agent panel of the work page: where it is, and the panel's framework parts that show a run Session. */
+export interface AgentSeat {
+  readonly view: DockView
+  /** Move the panel. */
+  readonly show: (view: DockView) => void
+  /** The panel's `useResource` hook, which reads the run Session resource. */
+  readonly useResource: UseResource
+  /** Binds a retained Session around the conversation. */
+  readonly SessionProvider: SessionProviderComponent
+  /** Render the conversation slot inside the Session binding. */
+  readonly renderConversation: () => ReactNode
 }
 
 /** The props of the screen of one view. */

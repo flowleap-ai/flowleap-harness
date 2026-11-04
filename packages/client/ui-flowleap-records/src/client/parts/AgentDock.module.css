@@ -1,0 +1,90 @@
+/* The docked agent panel: a 376px column on bg-base with a 0.5px left hairline and a 44px header, as the mockup
+ * e-letter-work draws it. The conversation scrolls inside its own content. At 390px only the full panel shows. */
+.dock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 0.5px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+}
+
+.dock[data-view='full'] {
+  border-left: 0;
+}
+
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px 0 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.icon {
+  display: inline-grid;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.name {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  white-space: nowrap;
+}
+
+.model {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.expand {
+  display: inline-flex;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.state {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.state > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .dock[data-view='docked'],
+  .expand {
+    display: none;
+  }
+}
+
+.dock[hidden] {
+  display: none;
+}

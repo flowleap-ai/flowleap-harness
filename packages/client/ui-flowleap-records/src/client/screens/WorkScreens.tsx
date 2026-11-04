@@ -32,6 +32,7 @@ import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { dueText, letterTitle, listTimeText } from '../words.ts'
+import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
 import { LoadError, quoteLabels, RecordActivity } from './shared.tsx'
@@ -292,60 +293,63 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     )
 
   return (
-    <div className={detail.withDock} data-dock="none">
-      <WorkColumn decision={decision}>
-        <div className={detail.eyebrowLine}>
-          <AtlasPill status={status} word={atlasWord(t, status)} />
-          <WaitsText ctx={ctx} data={data} />
-        </div>
-        <h1 className={detail.pageTitle}>{title}</h1>
-        <p className={detail.lede}>{lede(ctx, data)}</p>
-        <div className={detail.people}>
-          {data.responsible !== null && <><span className={detail.peopleKey}>{t('work.responsible')}</span><Who person={data.responsible} /></>}
-          <span className={detail.peopleKey}>{t('prop.team')}</span>
-          <AvatarStack people={data.team} />
-          <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
-        </div>
-        {data.reports.map(item => (
-          <section key={item.proposalId} className={detail.section}>
-            <div className={detail.sectionHead}>
-              <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
-              <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
-              <div className={detail.sectionActs}>
-                {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
-                {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
+    <div className={detail.withDock} data-dock={ctx.agent.view}>
+      <div className={detail.workArea}>
+        <WorkColumn decision={decision}>
+          <div className={detail.eyebrowLine}>
+            <AtlasPill status={status} word={atlasWord(t, status)} />
+            <WaitsText ctx={ctx} data={data} />
+          </div>
+          <h1 className={detail.pageTitle}>{title}</h1>
+          <p className={detail.lede}>{lede(ctx, data)}</p>
+          <div className={detail.people}>
+            {data.responsible !== null && <><span className={detail.peopleKey}>{t('work.responsible')}</span><Who person={data.responsible} /></>}
+            <span className={detail.peopleKey}>{t('prop.team')}</span>
+            <AvatarStack people={data.team} />
+            <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
+          </div>
+          {data.reports.map(item => (
+            <section key={item.proposalId} className={detail.section}>
+              <div className={detail.sectionHead}>
+                <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
+                <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
+                <div className={detail.sectionActs}>
+                  {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
+                  {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
+                </div>
               </div>
-            </div>
-            <div className={detail.file}>
-              <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
-              <div>
-                <div className={detail.fileTitle}>{t('work.reportOn', { title: letterTitle(t, letter?.code ?? null) })}</div>
-                <div className={detail.fileMeta}>{fileFacts(ctx, item).join(' · ')}</div>
+              <div className={detail.file}>
+                <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
+                <div>
+                  <div className={detail.fileTitle}>{t('work.reportOn', { title: letterTitle(t, letter?.code ?? null) })}</div>
+                  <div className={detail.fileMeta}>{fileFacts(ctx, item).join(' · ')}</div>
+                </div>
               </div>
-            </div>
-            <StatementTable headers={{ number: t('statement.number'), says: t('statement.says'), source: t('statement.source') }}>
-              {item.statements.map((statement, index) => {
-                const spans = statement.evidence.flatMap(evidence => evidence.span === null ? [] : [evidence.span])
-                return (
-                  <StatementRow key={index} number={index + 1} text={statement.text} missing={spans.length === 0}>
-                    {spans.length === 0
-                      ? (
-                        <MissingEvidence
-                          labels={{ title: t('evidence.missing'), why: t('evidence.missingWhy'), find: t('evidence.find'), remove: t('evidence.remove') }}
-                          onFind={() => { openLetter?.() }}
-                          onRemove={() => { if (allowed) reject(item) }}
-                        />
-                      )
-                      : spans.map(span => <EvidenceQuote key={`${span.page}:${span.start}`} span={span} labels={quoteLabels(ctx, span.page)} />)}
-                  </StatementRow>
-                )
-              })}
-            </StatementTable>
-          </section>
-        ))}
-        <Related ctx={ctx} data={data} />
-        <RecordActivity ctx={ctx} events={data.activity} />
-      </WorkColumn>
+              <StatementTable headers={{ number: t('statement.number'), says: t('statement.says'), source: t('statement.source') }}>
+                {item.statements.map((statement, index) => {
+                  const spans = statement.evidence.flatMap(evidence => evidence.span === null ? [] : [evidence.span])
+                  return (
+                    <StatementRow key={index} number={index + 1} text={statement.text} missing={spans.length === 0}>
+                      {spans.length === 0
+                        ? (
+                          <MissingEvidence
+                            labels={{ title: t('evidence.missing'), why: t('evidence.missingWhy'), find: t('evidence.find'), remove: t('evidence.remove') }}
+                            onFind={() => { openLetter?.() }}
+                            onRemove={() => { if (allowed) reject(item) }}
+                          />
+                        )
+                        : spans.map(span => <EvidenceQuote key={`${span.page}:${span.start}`} span={span} labels={quoteLabels(ctx, span.page)} />)}
+                    </StatementRow>
+                  )
+                })}
+              </StatementTable>
+            </section>
+          ))}
+          <Related ctx={ctx} data={data} />
+          <RecordActivity ctx={ctx} events={data.activity} />
+        </WorkColumn>
+      </div>
+      <AgentRun ctx={ctx} data={data} />
     </div>
   )
 }
