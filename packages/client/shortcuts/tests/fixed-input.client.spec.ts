@@ -22,7 +22,7 @@ function mount() {
   const input = document.createElement('input')
   document.body.append(input)
   input.focus()
-  dispose = installKeyboard(window, { dispatch, runtime: 'web', platform: 'windows' }, fixed)
+  dispose = installKeyboard(window, { dispatch, dispatchLayer: () => ({ status: 'pass' }), resetLayer: () => {}, runtime: 'web', platform: 'windows' }, fixed)
   return { input, dispatch, fixed }
 }
 
@@ -98,7 +98,7 @@ it('publishes fixed reservations and removes them with their owning registration
   let label = 'Stop reply'
   const command: ShortcutFixedCommand = { id: 'response.stop' as ShortcutCommandId, label: () => label, keys: ['Esc', 'Esc'], bindings: [{ code: 'Escape', modifiers: [] }], group: 'application' }
   const off = registry.registerFixed(command)
-  expect(registry.fixedCatalog.getSnapshot()).toEqual([{ id: 'response.stop', label, keys: ['Esc', 'Esc'], bindings: [{ code: 'Escape', modifiers: [] }], group: 'application' }])
+  expect(registry.fixedCatalog.getSnapshot()).toEqual([{ id: 'response.stop', label, keys: ['Esc', 'Esc'], keycaps: [['Esc'], ['Esc']], bindings: [{ code: 'Escape', modifiers: [] }], group: 'application' }])
   expect(registry.definitions()).toEqual([{ id: 'response.stop', defaults: {}, fixed: [{ code: 'Escape', modifiers: [] }] }])
   expect(() => registry.registerFixed(command)).toThrow('Duplicate')
   expect(() => registry.register({ ...command, aliases: [], defaults: {}, regions: [], modals: [], resolve: () => ({ status: 'pass' }) })).toThrow('Duplicate')

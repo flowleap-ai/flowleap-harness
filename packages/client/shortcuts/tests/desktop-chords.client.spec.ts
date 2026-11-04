@@ -51,8 +51,8 @@ it('canonicalizes unordered pairs, rejects invalid main keys, and omits unsuppor
   const reversed = normalizeBinding({ ...pair, code: 'KeyB', secondCode: 'KeyA' }, 'macos')
   expect(reversed).toEqual(pair)
   expect(bindingKey(reversed)).toBe('KeyA+KeyB')
-  expect(presentBinding(reversed, 'macos')).toEqual({ keys: ['A', 'B'], aria: undefined })
-  expect(presentBinding(reversed, 'windows')).toEqual({ keys: ['A', 'B'], aria: undefined })
+  expect(presentBinding(reversed, 'macos')).toEqual({ keys: ['A', 'B'], keycaps: [['A', 'B']], aria: undefined })
+  expect(presentBinding(reversed, 'windows')).toEqual({ keys: ['A', 'B'], keycaps: [['A', 'B']], aria: undefined })
   expect(presentBinding({ ...reversed, modifiers: ['control', 'shift'] }, 'windows').keys)
     .toEqual(['Ctrl', '+', 'Shift', '+', 'A', 'B'])
   for (const input of [

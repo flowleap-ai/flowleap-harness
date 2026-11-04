@@ -1,0 +1,118 @@
+/* Item-scoped command menu: a 712 px MenuSurface at 14 % of the view height on a scrim, with no motion. */
+
+.root {
+  pointer-events: auto;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 14vh 16px 16px;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-2);
+}
+
+.menu {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(712px, 100%);
+  max-height: calc(86vh - 16px);
+  padding: 4px;
+  overflow: hidden;
+  border: 0;
+  box-shadow: var(--dsw-elevation-prominent);
+  outline: none;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.chip {
+  align-self: flex-start;
+  max-width: calc(100% - 16px);
+  margin: 8px 8px 0;
+  padding: 2px 8px;
+  overflow: hidden;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-multi-select);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.search {
+  margin: 4px 0;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  outline: none;
+}
+
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--dsw-radius-md);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  cursor: pointer;
+}
+
+.rowActive {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.rowDisabled {
+  color: var(--dsw-alias-label-secondary);
+  cursor: default;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.keys {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.rowActive .keys {
+  color: var(--dsw-alias-label-primary);
+}
+
+.empty {
+  padding: 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+}
+
+/* Key hints are pointer-device help; a touch screen reaches every act through its row. */
+@media (pointer: coarse) {
+  .keys { display: none; }
+}

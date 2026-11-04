@@ -17,6 +17,8 @@ export interface ReferenceInjected {
   edit: Shortcuts['edit']
   recording: Shortcuts['recording']
   describeBinding: Shortcuts['describeBinding']
+  /** Maximum interval between the two keys of a recorded view-layer sequence. */
+  sequenceMs: number
   hooks: { catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>; config: Shortcuts['config']; fixedCatalog: Shortcuts['fixedCatalog'] }
 }
 type Store = PropsStore<ReturnType<typeof createShortcutsStore>>
@@ -71,7 +73,7 @@ export function ShortcutsRow({ actions, t, useCatalog }: PropsRuntime<'settings.
  * @returns the single reference dialog when open.
  */
 export function ShortcutReference({
-  useStore, actions, useCatalog, useConfig, useFixedCatalog, platform, runtime, edit, recording, describeBinding, t,
+  useStore, actions, useCatalog, useConfig, useFixedCatalog, platform, runtime, edit, recording, describeBinding, sequenceMs, t,
 }:
   PropsRuntime<'shell.overlay'> & Store & Locale & InjectFace<ReferenceInjected>) {
   const { open, query, focusRequest } = useStore(state => state)
@@ -124,7 +126,7 @@ export function ShortcutReference({
     notify(result.status === 'saved' ? t('reset-saved')
       : result.status === 'write-failed' ? t('reset-failed') : shortcutFailure(result, catalog, t, runtime), result.status !== 'saved')
   }
-  const editorProps = { useCatalog, useConfig, useFixedCatalog, platform, runtime, edit: persist, recording, describeBinding, t,
+  const editorProps = { useCatalog, useConfig, useFixedCatalog, platform, runtime, edit: persist, recording, describeBinding, sequenceMs, t,
     onClose: closeEditor,
     onSaved: () => { notify(t('saved')); closeEditor() },
     onError: (message: string) => { notify(message, true) } }
@@ -145,6 +147,12 @@ export function ShortcutReference({
     || Number(left.id > right.id) - Number(left.id < right.id))
   const ranked = rankByName(entries.flatMap(row => row.names.map(name => ({ name, label: row.label, row }))), query.trim())
   const matches = [...new Set(ranked.map(match => match.row))]
+  // View scopes follow the application rows, in label order, each under its own heading.
+  const scopes = [...new Map(entries.flatMap(row => row.scope === undefined ? [] : [[row.scope.id, row.scope.label] as const])).entries()]
+    .sort(([, left], [, right]) => left.localeCompare(right))
+  const sections = [{ key: 'application', label: t('application'), heading: false },
+    ...scopes.map(([key, label]) => ({ key, label, heading: true })),
+    ...(['input', 'menus', 'approval'] as const).map(group => ({ key: group, label: t(group), heading: true }))]
   const modifiedCount = Object.keys(config.document.profiles[`${runtime}:${platform}`] ?? {}).length
   useLayoutEffect(() => {
     const input = search.current
@@ -178,11 +186,11 @@ export function ShortcutReference({
         </div>
       </div>
       <div className={css.list} aria-busy={config.status === 'loading'}>
-        {(['application', 'input', 'menus', 'approval'] as const).map((group) => {
-          const rows = matches.filter(row => row.group === group)
+        {sections.map((section) => {
+          const rows = matches.filter(row => (row.scope?.id ?? row.group) === section.key)
           if (rows.length === 0) return null
-          return <section key={group} aria-label={t(group)}>
-            {group !== 'application' && <h3 className={css.group}>{t(group)}</h3>}
+          return <section key={section.key} aria-label={section.label}>
+            {section.heading && <h3 className={css.group}>{section.label}</h3>}
             <ul className={css.rows}>{rows.map(row => <li key={row.id} className={css.row}>
               {'modified' in row && target?.id !== row.id && <button type="button" className={css.rowButton}
                 aria-label={t('edit-label', { command: row.label })} disabled={busy || config.status !== 'ready'}

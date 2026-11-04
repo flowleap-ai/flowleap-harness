@@ -23,6 +23,9 @@ const MESSAGES: Record<RecordCommandRefusal, string> = {
   ticket_not_running: 'The Ticket has no running run, so it takes no proposal and no finish. Do not try again; tell the attorney in this chat.',
   client_rule_forbids_ai_draft: 'The client rules do not allow an AI draft of a letter to the client. Do not draft one; tell the attorney in this chat that the report is due by hand.',
   statement_without_evidence: 'Every statement needs at least one source document. Add the evidence and propose again.',
+  statement_without_span: 'Every source needs a span: the page number and an exact quote from that page. Read the text with record_read_document_text, add the span to each source, and propose again.',
+  quote_not_in_letter: 'A quote is not in the text of its page. Copy each quote character for character from the page text of record_read_document_text, check the page number, and propose again.',
+  quote_ambiguous: 'A quote is in the text of its page more than once. Use a longer quote, up to 200 characters, that is in the page text only once, and propose again.',
   no_proposals: 'The run has no proposal yet. Propose the report letter with record_propose_report first.',
   idempotency_key_reused: 'The Firm Record already took a different command from this run under the same key: a finish of this run, or a report of this tool call. Do not repeat it; tell the attorney in this chat what differs.',
   document_too_large: 'The letter is larger than 5 MiB. Write a shorter letter without embedded images.',
@@ -34,12 +37,16 @@ const MESSAGES: Record<RecordCommandRefusal, string> = {
 /**
  * The refusal as the model reads it.
  * @param refusal - the seam refusal.
+ * @param messages - messages that replace the shared ones for this tool, by refusal code.
  * @returns the error value with its message and the Firm Record's detail.
  */
-export function runRefusal(refusal: RecordCommandError): RunCommandError {
+export function runRefusal(
+  refusal: RecordCommandError, messages: Partial<Record<RecordCommandRefusal, string>> = {},
+): RunCommandError {
+  const message = messages[refusal.error] ?? MESSAGES[refusal.error]
   return refusal.detail === undefined
-    ? { error: refusal.error, message: MESSAGES[refusal.error] }
-    : { error: refusal.error, message: MESSAGES[refusal.error], detail: refusal.detail }
+    ? { error: refusal.error, message }
+    : { error: refusal.error, message, detail: refusal.detail }
 }
 
 /** The output-schema branch of a refused run command. */

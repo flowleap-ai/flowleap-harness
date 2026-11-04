@@ -1,6 +1,6 @@
 /** Command contributions and immutable catalog values. */
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { BindingIssue, NormalizedBinding, ShortcutConfigSnapshot, ShortcutEdit, ShortcutRevision, ShortcutSaveResult, ShortcutBinding, ShortcutCommandId, ShortcutPlatform, ShortcutProfile, ShortcutRuntime } from '../protocol.ts'
+import type { BindingIssue, NormalizedBinding, ShortcutConfigSnapshot, ShortcutEdit, ShortcutKeycap, ShortcutRevision, ShortcutSaveResult, ShortcutBinding, ShortcutCommandId, ShortcutPlatform, ShortcutProfile, ShortcutRuntime, ShortcutScopeId } from '../protocol.ts'
 
 /** Local input owner resolved before an application command. */
 export type ShortcutRegion = 'page' | 'editable' | 'terminal'
@@ -30,17 +30,80 @@ export interface ShortcutCommand {
   readonly modals: readonly string[]
   resolve(context: ShortcutContext): ShortcutResolution
 }
+/** A view that owns layer keys while focus is inside an element whose `data-shortcut-scope` attribute holds its id. */
+export interface ShortcutScope {
+  /** Follows the command id pattern, such as `records.intake`. */
+  readonly id: ShortcutScopeId
+  /** Localized view name; the shortcut reference uses it as the group heading. */
+  readonly label: () => string
+  /**
+   * Read on each layer key; false makes this marked element pass the key on.
+   * @param element - the marked element that contains focus.
+   * @returns whether the layer may act in this element now.
+   */
+  readonly active?: (element: HTMLElement) => boolean
+}
+/** Input facts of one layer key. */
+export interface ShortcutLayerContext {
+  readonly scope: ShortcutScopeId
+  /** The marked element that contains focus. */
+  readonly element: HTMLElement
+  /** The focused element (the keydown target). */
+  readonly target: Element
+}
+/** A rebindable command of one view scope: one key with no modifier or Shift only, or a two-key sequence. */
+export interface ShortcutScopedCommand {
+  readonly id: ShortcutCommandId
+  readonly scope: ShortcutScopeId
+  readonly label: () => string
+  readonly aliases: readonly string[]
+  /** Per-profile defaults; an omitted profile is unbound. */
+  readonly defaults: Readonly<Partial<Record<ShortcutProfile, ShortcutBinding>>>
+  /**
+   * Resolve the target synchronously; `pass` lets the key go to an outer scope or its native action.
+   * @param context - scope, marked element, and focused element.
+   * @returns the action to run, a blocked reason, or pass.
+   */
+  resolve(context: ShortcutLayerContext): ShortcutResolution
+}
+/** A read-only key of one view scope, such as Enter for Open the row. */
+export interface ShortcutScopedFixedCommand {
+  readonly id: ShortcutCommandId
+  readonly scope: ShortcutScopeId
+  readonly label: () => string
+  /** Readable keys for the reference, such as `['↵']`. */
+  readonly keys: readonly string[]
+  readonly bindings: readonly [ShortcutBinding, ...ShortcutBinding[]]
+  /**
+   * Resolve the target synchronously, as {@link ShortcutScopedCommand.resolve} does.
+   * @param context - scope, marked element, and focused element.
+   * @returns the action to run, a blocked reason, or pass.
+   */
+  resolve(context: ShortcutLayerContext): ShortcutResolution
+}
+/** Scope of a catalog row, localized for the reference heading. */
+export interface ShortcutCatalogScope {
+  readonly id: ShortcutScopeId
+  readonly label: string
+}
 /** JSON-compatible catalog row, shared by reference, tooltips, and controls. */
 export interface ShortcutCatalogEntry {
   readonly id: ShortcutCommandId
   readonly label: string
   readonly aliases: readonly string[]
   readonly keys: readonly string[]
+  /**
+   * Current binding as keycap boxes: one for a key or a combination, one for each step of a sequence, none when unbound.
+   * The registry always sets it; rows built outside the registry may omit it.
+   */
+  readonly keycaps?: readonly ShortcutKeycap[]
   readonly aria: string | undefined
   readonly binding: NormalizedBinding | null
   readonly modified: boolean
   readonly conflicts: readonly ShortcutCommandId[]
   readonly issue: BindingIssue | null
+  /** View layer of a scoped command; absent for an application command. */
+  readonly scope?: ShortcutCatalogScope
 }
 /** Keyboard adapter input, with composition and local consumption already resolved. */
 export interface ShortcutGesture {
@@ -76,8 +139,13 @@ export interface ShortcutFixedCatalogEntry {
   readonly id: ShortcutCommandId
   readonly label: string
   readonly keys: readonly string[]
+  /** One keycap box for each readable key; the registry always sets it. */
+  readonly keycaps?: readonly ShortcutKeycap[]
   readonly bindings: readonly NormalizedBinding[]
+  /** Scoped fixed keys use `application`; the reference groups them by scope. */
   readonly group: ShortcutFixedCommand['group']
+  /** View layer of a scoped fixed key; absent for an application fixed action. */
+  readonly scope?: ShortcutCatalogScope
 }
 /** Feature-facing keyboard registry. */
 export interface Shortcuts {
@@ -87,6 +155,27 @@ export interface Shortcuts {
   readonly config: ObservableSnapshot<ShortcutConfigSnapshot>
   readonly fixedCatalog: ObservableSnapshot<readonly ShortcutFixedCatalogEntry[]>
   readonly stopSequenceMs: number
+  /** Maximum interval between the two keys of a view-layer sequence, in milliseconds. */
+  readonly sequenceMs: number
+  /**
+   * Declare a view scope; duplicate ids throw. Register it before its commands.
+   * @param scope - id, localized label, and optional predicate.
+   * @returns idempotent disposer.
+   */
+  registerScope(scope: ShortcutScope): () => void
+  /**
+   * Register a rebindable view-layer command; an unknown scope, a duplicate id, an invalid layer default, or an
+   * overlapping default in the same scope throw.
+   * @param command - scope, labels, defaults, and target resolver.
+   * @returns idempotent disposer removing the binding and catalog entry.
+   */
+  registerScoped(command: ShortcutScopedCommand): () => void
+  /**
+   * Register a read-only view-layer key with registerFixed() semantics: a read-only reference row and no saved override.
+   * @param command - scope, label, readable keys, reserved bindings, and target resolver.
+   * @returns idempotent disposer removing the fixed row.
+   */
+  registerScopedFixed(command: ShortcutScopedFixedCommand): () => void
   /**
    * Contribute one fixed action and reserve its keys against editable bindings.
    * @param command - owner-localized name, group, readable keys, and reserved physical combinations.
@@ -102,9 +191,10 @@ export interface Shortcuts {
   /**
    * Describe a candidate using the device's physical-key and reservation rules; invalid codes throw.
    * @param binding - candidate combination, or null for an unbound command.
+   * @param scope - view layer of the edited command; absent for an application command.
    * @returns canonical binding, visible keys, rejection reason, and overlapping editable/fixed command IDs.
    */
-  describeBinding(binding: ShortcutBinding | null): {
+  describeBinding(binding: ShortcutBinding | null, scope?: ShortcutScopeId): {
     binding: NormalizedBinding | null
     keys: readonly string[]
     issue: BindingIssue | null

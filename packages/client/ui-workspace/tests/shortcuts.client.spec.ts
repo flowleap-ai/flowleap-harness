@@ -55,10 +55,11 @@ async function bench(runtime: 'web' | 'desktop' = 'desktop', platform: ShortcutP
     startSession: vi.fn(), forkSession: vi.fn(async () => 'fork-child' as SessionId), archiveSession: vi.fn(async (_sessionId: SessionId) => {}),
   }
   const searchOpeners = new LatestRegistry<() => void>()
+  const itemMenus = new LatestRegistry<(search: () => void) => boolean>()
   const controls = createWorkspaceShortcutControls()
   const reportForkFailure = vi.fn()
   const fiber = ctx.plugin((scoped) => {
-    installWorkspaceShortcuts(scoped, navigation, searchOpeners, controls,
+    installWorkspaceShortcuts(scoped, navigation, searchOpeners, itemMenus, controls,
       (id) => { void navigation.archiveSession(id) }, reportForkFailure)
   })
   await fiber.await()
@@ -66,7 +67,7 @@ async function bench(runtime: 'web' | 'desktop' = 'desktop', platform: ShortcutP
     [sid('a')]: row('a', id === 'a'), [sid('b')]: row('b', id === 'b'),
   } }) }
   return {
-    ctx, fiber, registry, commands, navigation, searchOpeners, controls, reportForkFailure,
+    ctx, fiber, registry, commands, navigation, searchOpeners, itemMenus, controls, reportForkFailure,
     list, directory, select, history, loadOlder, panelInfo,
   }
 }
@@ -159,6 +160,14 @@ describe('workspace shortcut ownership', () => {
     expect(b.registry.dispatch(key('KeyK'), context, consume).status).toBe('handled')
     expect(replacement).toHaveBeenCalledOnce()
     expect(b.controls.state.getSnapshot().searchRequest).toBe(1)
+    const menu = vi.fn((search: () => void) => { if (menu.mock.calls.length > 1) return false; search(); return true })
+    const stopMenu = b.itemMenus.provide(menu)
+    b.registry.dispatch(key('KeyK'), context, consume)
+    expect(menu).toHaveBeenLastCalledWith(replacement)
+    expect(replacement).toHaveBeenCalledTimes(2)
+    expect(b.registry.dispatch(key('KeyK'), { ...context, modal: 'command-menu' }, consume).status).toBe('handled')
+    expect(replacement).toHaveBeenCalledTimes(3)
+    stopMenu()
     stopReplacement()
     b.registry.dispatch(key('KeyO'), context, consume)
     expect(b.controls.state.getSnapshot().addRequested).toBe(true)

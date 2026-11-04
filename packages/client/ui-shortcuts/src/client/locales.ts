@@ -2,6 +2,7 @@
 export const zh = {
   'edit-label': '修改{command}快捷键',
   record: '按下快捷键', 'record-help': '松开组合键即保存。Tab 切换操作，Esc 退出录键。',
+  'layer-help': '按下一个键（可加 Shift），或先后按下两个键。仅在此视图获得焦点时生效。',
   'web-help': '浏览器可用组合：Mod+/、Mod+Shift+,、Mod+Shift+.。Mod 在 Mac 上为 Command，其他系统为 Ctrl。',
   'unsupported-key': '暂不支持这个按键。', reserved: '此组合由系统或文本编辑操作保留。',
   'modifier-required': '请同时按下 Command、Ctrl 或 Alt 修饰键。',
@@ -37,6 +38,7 @@ export const zh = {
 export const en: Record<keyof typeof zh, string> = {
   'edit-label': 'Edit shortcut for {command}',
   record: 'Press a shortcut', 'record-help': 'Release the keys to save. Tab moves between actions; Esc cancels.',
+  'layer-help': 'Press one key, alone or with Shift, or press two keys one after the other. The keys work only while this view has focus.',
   'web-help': 'Browser combinations: Mod+/, Mod+Shift+,, Mod+Shift+.. Mod is Command on Mac and Ctrl elsewhere.',
   'unsupported-key': 'This key is not supported.', reserved: 'This combination is reserved for system or text editing actions.',
   'modifier-required': 'Include Command, Ctrl, or Alt in the combination.',
@@ -74,6 +76,7 @@ export const ja = {
   'edit-label': '{command}のショートカットを編集',
   'record': 'ショートカットを押してください',
   'record-help': 'キーを離すと保存されます。Tab でアクション間を移動、Esc でキャンセルします。',
+  'layer-help': 'キーを 1 つ（Shift と一緒でも可）押すか、2 つのキーを順に押してください。このビューにフォーカスがあるときだけ動作します。',
   'web-help': 'ブラウザの組み合わせ: Mod+/、Mod+Shift+,、Mod+Shift+.。Mod は Mac では Command、それ以外では Ctrl です。',
   'unsupported-key': 'このキーはサポートされていません。',
   'reserved': 'この組み合わせはシステム操作またはテキスト編集操作に予約されています。',
@@ -133,6 +136,7 @@ export const ja = {
 export const es = {
   'edit-label': 'Editar acceso directo para {command}',
   record: 'Presione un atajo', 'record-help': 'Suelta las teclas para guardar. La pestaña se mueve entre acciones; Esc se cancela.',
+  'layer-help': 'Pulse una tecla, sola o con Mayús, o pulse dos teclas una tras otra. Las teclas solo funcionan mientras esta vista tiene el foco.',
   'web-help': 'Combinaciones de navegador: Mod+/, Mod+Shift+, Mod+Shift+... Mod es Comando en Mac y Ctrl en otros lugares.',
   'unsupported-key': 'Esta clave no es compatible.', reserved: 'Esta combinación está reservada para acciones de edición de texto o del sistema.',
   'modifier-required': 'Incluya Comando, Ctrl o Alt en la combinación.',
@@ -169,6 +173,7 @@ export const es = {
 export const fr = {
   'edit-label': 'Modifier le raccourci pour {command}',
   record: 'Appuyez sur un raccourci', 'record-help': "Relâchez les touches pour enregistrer. L'onglet se déplace entre les actions ; Esc annule.",
+  'layer-help': "Appuyez sur une touche, seule ou avec Maj, ou sur deux touches l'une après l'autre. Les touches agissent seulement quand cette vue a le focus.",
   'web-help': 'Combinaisons de navigateur : Mod+/, Mod+Shift+,, Mod+Shift+.. Mod est Command sur Mac et Ctrl ailleurs.',
   'unsupported-key': "Cette clé n'est pas prise en charge.", reserved: "Cette combinaison est réservée aux actions système ou d'édition de texte.",
   'modifier-required': 'Incluez Commande, Ctrl ou Alt dans la combinaison.',
@@ -205,6 +210,7 @@ export const fr = {
 export const de = {
   'edit-label': 'Verknüpfung für {command} bearbeiten',
   record: 'Drücken Sie eine Verknüpfung', 'record-help': 'Lassen Sie die Tasten los, um zu speichern. Tab bewegt sich zwischen Aktionen; Esc bricht ab.',
+  'layer-help': 'Drücken Sie eine Taste, allein oder mit Umschalt, oder zwei Tasten nacheinander. Die Tasten wirken nur, wenn diese Ansicht den Fokus hat.',
   'web-help': 'Browserkombinationen: Mod+/, Mod+Umschalt+,, Mod+Umschalt+.. Mod ist Befehl auf dem Mac und Strg anderswo.',
   'unsupported-key': 'Dieser Schlüssel wird nicht unterstützt.', reserved: 'Diese Kombination ist für System- oder Textbearbeitungsaktionen reserviert.',
   'modifier-required': 'Fügen Sie Befehl, Strg oder Alt in die Kombination ein.',
@@ -241,6 +247,7 @@ export const de = {
 export const ru = {
   'edit-label': 'Изменить ярлык для {command}',
   record: 'Нажмите ярлык', 'record-help': 'Отпустите клавиши для сохранения. Tab перемещается между действиями; Esc отменяет.',
+  'layer-help': 'Нажмите одну клавишу, отдельно или с Shift, или две клавиши одну за другой. Клавиши работают, только когда этот вид в фокусе.',
   'web-help': 'Комбинации браузера: Mod+/, Mod+Shift+, Mod+Shift+.. Mod — это команда на Mac, а в других местах — Ctrl.',
   'unsupported-key': 'Этот ключ не поддерживается.', reserved: 'Эта комбинация зарезервирована для системных действий или действий по редактированию текста.',
   'modifier-required': 'Включите в комбинацию Command, Ctrl или Alt.',
@@ -277,6 +284,7 @@ export const ru = {
 export const pt = {
   'edit-label': 'Editar atalho para {command}',
   record: 'Pressione um atalho', 'record-help': 'Solte as teclas para salvar. A guia se move entre as ações; Esc cancela.',
+  'layer-help': 'Pressione uma tecla, sozinha ou com Shift, ou duas teclas uma após a outra. As teclas só funcionam enquanto esta visualização tem o foco.',
   'web-help': 'Combinações de navegador: Mod+/, Mod+Shift+,, Mod+Shift+.. Mod é Command no Mac e Ctrl em outros lugares.',
   'unsupported-key': 'Esta chave não é suportada.', reserved: 'Esta combinação é reservada para ações de sistema ou edição de texto.',
   'modifier-required': 'Inclua Command, Ctrl ou Alt na combinação.',

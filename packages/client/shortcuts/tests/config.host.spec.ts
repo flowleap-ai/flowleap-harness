@@ -7,14 +7,18 @@ import { Config, apply } from '../src/index.ts'
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
 
 it('validates positive sequence timing and publishes it through the product page injection', async () => {
-  expect(Config({}).stopSequenceMs).toBe(500)
-  expect(Config({ stopSequenceMs: 2_147_483_646 }).stopSequenceMs).toBe(2_147_483_646)
-  for (const stopSequenceMs of [0, -1, 1.5, 2_147_483_647, Infinity, NaN]) expect(() => Config({ stopSequenceMs })).toThrow()
+  expect(Config({})).toEqual({ stopSequenceMs: 500, sequenceMs: 1000 })
+  const largest = { stopSequenceMs: 2_147_483_646, sequenceMs: 2_147_483_646 }
+  expect(Config(largest)).toEqual(largest)
+  for (const value of [0, -1, 1.5, 2_147_483_647, Infinity, NaN]) {
+    expect(() => Config({ stopSequenceMs: value })).toThrow()
+    expect(() => Config({ sequenceMs: value })).toThrow()
+  }
   const ctx = new Context()
   try {
-    apply(ctx, Config({ stopSequenceMs: 800 }))
+    apply(ctx, Config({ stopSequenceMs: 800, sequenceMs: 700 }))
     const table: IndexInjection[] = []
     await ctx.parallel('webserver/index-inject', table, PAGE_PEER)
-    expect(table).toEqual([{ kind: 'global', name: '__DSH_SHORTCUTS_CONFIG__', value: { stopSequenceMs: 800 } }])
+    expect(table).toEqual([{ kind: 'global', name: '__DSH_SHORTCUTS_CONFIG__', value: { stopSequenceMs: 800, sequenceMs: 700 } }])
   } finally { await ctx.fiber.dispose() }
 })

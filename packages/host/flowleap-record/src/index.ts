@@ -11,7 +11,7 @@ import { registerRecordReadTool } from './tool.ts'
 
 export type {
   ClientAiLetters, ClientAiUse, ClientRules, DeadlineId, DeadlineState, DeadlineSummary, DeadlineView, DocumentSha256,
-  DocumentSpan, DocumentView, FlowleapRecord, LocalDate, MatterFileNumber, MatterState, MatterSummary, MatterView,
+  DocumentSpan, DocumentText, DocumentView, FlowleapRecord, LocalDate, MatterFileNumber, MatterState, MatterSummary, MatterView,
   MatterViewBase, MatterViewR1, MatterViewRefusal, MatterViewResult, OfficeEventId, OfficeEventView, OutboxId,
   ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt,
   ReportStatement, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, StatementEvidence,

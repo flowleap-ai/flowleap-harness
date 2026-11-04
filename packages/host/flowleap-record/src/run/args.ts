@@ -4,11 +4,15 @@ import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { z } from 'zod'
-import type { RecordSeq, TicketId } from '../types.ts'
+import type { DocumentSha256, RecordSeq, TicketId } from '../types.ts'
 
 /** A Ticket id as the run message names it: 1 to 128 letters, digits, dot, underscore, colon, or hyphen. */
 export const ticketIdArg = z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u, 'Use the ticket id of the run message.')
   .transform(value => brandString<TicketId>(value))
+
+/** The SHA-256 of a document of the record, in lower-case hex, as `record_read` lists it. */
+export const sha256Arg = z.string().regex(/^[0-9a-f]{64}$/u, 'Use the SHA-256 of a document of the record, as record_read lists it.')
+  .transform(value => brandString<DocumentSha256>(value))
 
 /** A record position. */
 export const recordSeqArg = z.number().int().nonnegative().transform(value => brandNumber<RecordSeq>(value))

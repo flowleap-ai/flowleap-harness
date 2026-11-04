@@ -513,6 +513,14 @@ runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<Re
 proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
 
 /**
+ * Read the text layer of a document of the record, the text that a quote of a report must be copied from.
+ * @param document - the SHA-256 of the document.
+ * @param signal - ends the read; the provider rejects when it fires.
+ * @returns the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).
+ */
+documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>
+
+/**
  * End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same
  * command.
  * @param ticket - the running Ticket.

@@ -1,12 +1,12 @@
 # Ticket run: the AI mailbox wakes the attorney's runtime
 
-An office letter that reaches the firm's AI mailbox opens a Ticket in the Firm Record of flowleap-os. The Work router signs a Ticket delivery and posts it to `POST /api/flowleap/ticket` of the responsible attorney's runtime. The runtime opens one run Session whose first message starts with the Mandate ("analyse and draft, never file, send or pay"). The agent reads the matter with `record_read`, writes the client report on the firm template with `office_letter_from_template`, proposes it with `record_propose_report`, and ends with `record_finish_run`. The attorney decides in the Records app, never in the run. No sidebar row and no composer step belong to this feature: the attorney sees the result as a Ticket card in the Records app and as the reply mail.
+An office letter that reaches the firm's AI mailbox opens a Ticket in the Firm Record of flowleap-os. The Work router signs a Ticket delivery and posts it to `POST /api/flowleap/ticket` of the responsible attorney's runtime. The runtime opens one run Session whose first message starts with the Mandate ("analyse and draft, never file, send or pay"). The agent reads the matter with `record_read`, writes the client report on the firm template with `office_letter_from_template`, reads the text of the office letter with `record_read_document_text`, proposes the report with `record_propose_report` (every statement with a page and an exact quote of the letter), and ends with `record_finish_run`. The attorney decides in the Records app, never in the run. No sidebar row and no composer step belong to this feature: the attorney sees the result as a Ticket card in the Records app and as the reply mail.
 
 ## Sub-features
 
 - `ticket-ingress-signature`: a delivery with a wrong `X-Flowleap-Signature` gets 401; a good one gets 202 with no session cookie; a repeat of the same `X-Flowleap-Delivery` gets 200 and opens no second Session.
 - `ticket-run-mandate`: the run Session's first user message starts with the Mandate, and its source is `webhook` / `flowleap-ticket` / `<ticket id>/<pass>`.
-- `ticket-run-report`: the run calls `record_read`, `office_letter_from_template`, `record_propose_report` and `record_finish_run`, and ends `turn 1: completed`; the Firm Record shows the Ticket in `proposals_ready`.
+- `ticket-run-report`: the run calls `record_read`, `office_letter_from_template`, `record_read_document_text`, `record_propose_report` and `record_finish_run`, and ends `turn 1: completed`; the Firm Record shows the Ticket in `proposals_ready`, and every statement of the report has a source with a quote.
 
 ## How to get to it (user POV)
 

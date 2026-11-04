@@ -54,7 +54,7 @@ describe('preference document validation and conflict resolution', () => {
     expect(parseShortcutDocument(raw)).toBe('invalid')
   })
   it('refuses future versions without interpreting their fields', () => {
-    expect(parseShortcutDocument('{"schemaVersion":3,"profiles":17}')).toBe('future')
+    expect(parseShortcutDocument('{"schemaVersion":4,"profiles":17}')).toBe('future')
     expect(parseShortcutDocument(null)).toEqual({ schemaVersion: 1, profiles: {} })
     expect(() => parseBinding({ code: 'KeyB', modifiers: ['primary'], extra: true })).toThrow()
     expect(() => parseBinding({ code: 'Unknown', modifiers: [] })).toThrow()

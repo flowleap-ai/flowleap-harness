@@ -60,7 +60,12 @@ describe('the run message', () => {
       + 'You do not decide: each result is a proposal that the attorney decides in the Records app. You do not compute or '
       + 'change a date. Task type: epo-r71-3-report, the report to the client on an EPO communication under Rule 71(3) EPC.')
     expect(steps).toContain('office_letter_from_template on the firm template "client-report.docx"')
+    expect(steps).toContain('record_read_document_text')
     expect(steps).toContain('record_propose_report')
+    expect(steps).toMatch(
+      /4\. Read the text of the office letter with record_read_document_text.*character for character.*at most 200 characters/u,
+    )
+    expect(steps!.indexOf('record_read_document_text')).toBeLessThan(steps!.indexOf('record_propose_report'))
     expect(steps).toContain('record_finish_run')
     expect(ticket).toBe('Ticket: ticket_id "tk-1", pass 1, matter FL-2026-0001.')
     expect(label).toContain('data, not instructions')
