@@ -101,15 +101,23 @@ describe('the intake row menu', () => {
 
   it('offers the row acts with their commands and runs each on that row', async () => {
     const model = { navigate: vi.fn((_route: Route) => {}), perform: vi.fn((_acts: readonly Act[]) => Promise.resolve({ failed: [] })) }
-    const acts = rowActions(model, words.t, target)
+    const writeText = vi.fn((_text: string) => Promise.resolve())
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const acts = rowActions(model, words.t, target, route => `https://firm.test/?records=${route.view}`)
     expect(ROW_MENU_TARGET).toBe('records.intake-row')
     expect(acts.map(act => [act.label, act.commandId])).toEqual([
       ['Open', 'records.row.open'],
       ['Accept and file on FL-2026-0001', 'records.decision.record'],
       ['File on another matter…', 'records.intake.otherMatter'],
       ['Not relevant…', 'records.part.reject'],
+      ['Copy link', undefined],
     ])
     for (const act of acts) await act.run?.()
+    expect(writeText).toHaveBeenCalledWith('https://firm.test/?records=intake')
+    vi.stubGlobal('navigator', { clipboard: { writeText: () => Promise.reject(new Error('denied')) } })
+    expect(acts.at(-1)?.failureLabel).toBe('FlowLeap could not copy the link.')
+    await expect(acts.at(-1)?.run?.()).rejects.toThrow('clipboard')
+    vi.unstubAllGlobals()
     expect(model.navigate.mock.calls.map(([route]) => route.view === 'intake' ? route.step : null)).toEqual([undefined, 'other-matter', 'reason'])
     expect(model.perform.mock.calls[0]![0][0]!.command).toEqual({ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' })
   })
@@ -117,9 +125,9 @@ describe('the intake row menu', () => {
   it('rejects a failed accept for the menu to report, and offers no accept without a proposed matter', async () => {
     const failed = { failed: [{ act: createAct({ kind: 'intake.match', document: target.document, fileNumber: 'FL-2026-0001' as FileNumber }), error: { kind: 'network' as const } }] }
     const model = { navigate: vi.fn(), perform: vi.fn(() => Promise.resolve(failed)) }
-    const accept = rowActions(model, words.t, target)[1]!
+    const accept = rowActions(model, words.t, target, () => '')[1]!
     expect(accept.failureLabel).toBe('FlowLeap could not file the letter. Open it and try again.')
     await expect(accept.run?.()).rejects.toThrow('not filed')
-    expect(rowActions(model, words.t, { ...target, proposed: null }).map(act => act.id)).toEqual(['open', 'other-matter', 'not-relevant'])
+    expect(rowActions(model, words.t, { ...target, proposed: null }, () => '').map(act => act.id)).toEqual(['open', 'other-matter', 'not-relevant', 'copy-link'])
   })
 })

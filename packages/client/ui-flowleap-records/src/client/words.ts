@@ -68,11 +68,17 @@ export function actorName(t: Translate, actor: Actor): string {
 
 /** The text key of each Activity event type that the views word. */
 const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
-  'intake/stored': 'event.intakeStored',
-  'intake/read': 'event.intakeRead',
-  'intake/match-proposed': 'event.intakeMatchProposed',
-  'intake/filed': 'event.intakeFiled',
-  'intake/not-relevant': 'event.intakeNotRelevant',
+  'document/stored': 'event.intakeStored',
+  'document/read': 'event.intakeRead',
+  'document/match-proposed': 'event.intakeMatchProposed',
+  'document/filed': 'event.intakeFiled',
+  'document/not-relevant': 'event.intakeNotRelevant',
+  'document/unreadable': 'intake.event.unreadable',
+  'document/unmatched': 'intake.event.unmatched',
+  'document/duplicate': 'intake.event.duplicate',
+  'document/matched': 'intake.event.matched',
+  'office-event/observed': 'intake.event.observed',
+  'office-event/code-proposed': 'intake.event.codeProposed',
   'deadline/read': 'event.deadlineRead',
   'deadline/proposed': 'event.deadlineProposed',
   'deadline/confirmed': 'event.deadlineConfirmed',

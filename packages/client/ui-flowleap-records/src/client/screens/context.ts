@@ -25,6 +25,8 @@ export interface ScreenContext extends WordContext, KeyLayerContext {
   readonly contentHref: (document: DocumentId) => string
   /** The context menu trigger props of an intake row. */
   readonly rowMenu: (target: IntakeRowTarget) => ContextMenuTriggerProps
+  /** The address of a route, for Copy link. */
+  readonly linkOf: (route: Route) => string
 }
 
 /** The props of the screen of one view. */

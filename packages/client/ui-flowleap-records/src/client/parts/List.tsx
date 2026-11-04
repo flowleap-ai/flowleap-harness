@@ -85,16 +85,19 @@ export interface RowSelection {
 /**
  * Render one 44px row: the status icon (or the checkbox while rows are selected) and the cells.
  * @param props.status - the state of the group header above the row; the icon is `aria-hidden`.
- * @param props.selection - the checkbox; while the list is selecting it replaces the icon.
+ * @param props.selection - the checkbox; while the list is selecting it replaces the icon. A row of a list with no
+ * bulk act has none.
  * @param props.open - the row is the open item: active background and the accent bar.
  * @param props.onOpen - open the row's item.
  * @param props.menu - the context menu trigger props from `useContextMenu().getTriggerProps(...)`.
+ * @param props.rowKey - the row's item id as `data-row`, so a key of the view layer finds the focused row.
  * @param props.children - the cells after the status column.
  * @returns the row.
  */
-export function ListRow({ status, selection, open = false, onOpen, menu, children }: {
+export function ListRow({ status, selection, open = false, onOpen, menu, rowKey, children }: {
   status: AtlasRef
-  selection: RowSelection
+  selection?: RowSelection | undefined
+  rowKey?: string | undefined
   open?: boolean
   onOpen: () => void
   menu?: ContextMenuTriggerProps | undefined
@@ -102,7 +105,7 @@ export function ListRow({ status, selection, open = false, onOpen, menu, childre
 }) {
   const range = useRef(false)
   const onClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.shiftKey) {
+    if (event.shiftKey && selection !== undefined) {
       selection.onChange(!selection.checked, true)
       return
     }
@@ -114,7 +117,8 @@ export function ListRow({ status, selection, open = false, onOpen, menu, childre
       role="listitem"
       className={css.row}
       data-open={open || undefined}
-      data-checked={selection.checked || undefined}
+      data-checked={selection?.checked === true || undefined}
+      data-row={rowKey}
       aria-current={open || undefined}
       tabIndex={open ? 0 : -1}
       onClick={onClick}
@@ -125,12 +129,14 @@ export function ListRow({ status, selection, open = false, onOpen, menu, childre
         onClick={(event) => { event.stopPropagation() }}
       >
         <span className={css.icon}><RowStatusIcon status={status} /></span>
-        <Checkbox
-          className={css.check}
-          checked={selection.checked}
-          label={selection.label}
-          onChange={(next) => { selection.onChange(next, range.current) }}
-        />
+        {selection !== undefined && (
+          <Checkbox
+            className={css.check}
+            checked={selection.checked}
+            label={selection.label}
+            onChange={(next) => { selection.onChange(next, range.current) }}
+          />
+        )}
       </span>
       {children}
     </div>

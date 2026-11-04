@@ -1,29 +1,49 @@
 /**
- * Intake (placeholder for the intake screen agent): the letters of one intake list grouped by atlas state, with the
- * open letter beside the list from 1366px and as its own page below. Rows select for one bulk Accept and file; a row
- * opens its context menu. The open letter shows its proposed matter and its decision bar.
+ * Intake: the filter chips of the three lists; the letters of one list grouped by atlas state under sticky headers
+ * with counts, newest first in each group; and the open letter beside the list from 1366px, or as the item page with
+ * "1 / N" below it. `X`, ⇧ click or a checkbox selects letters for one bulk decision (one act for each letter); a
+ * right-click opens the row's acts. `J`/`K` and the arrows move, `↵` opens, Esc closes a step, clears the selection
+ * or closes the letter.
  */
 
-import { useState } from 'react'
-import { Avatar, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import { createAct, type DocumentId, type IntakeDocument, type IntakeList, type IntakeRow, type IntakeView, type QueueStatus } from '../api.ts'
-import { atlasWord, AtlasPill } from '../parts/Status.tsx'
-import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
-import { DetailHeader, KeyProperties, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
+import { useEffect, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { Avatar, IconCheckOutlineRegular, IconCloseOutlineRegular, IconPaperPlaneOutlineRegular, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
+import { createAct, type Command, type DocumentId, type IntakeList, type IntakeRow, type IntakeView, type QueueStatus } from '../api.ts'
+import { commandId } from '../keys.ts'
+import { useCommandItem, useKeyActs } from '../key-layer.ts'
+import { DecisionBar } from '../parts/Decision.tsx'
+import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
+import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { deciderText, LoadError, RecordActivity } from './shared.tsx'
+import { IntakeLetter } from './IntakeLetter.tsx'
+import { LoadError } from './shared.tsx'
+import css from './Intake.module.css'
 
 /** The column grid of an intake row: status, letter, matter, forwarder, received. */
 export const INTAKE_COLUMNS = '14px minmax(0, 1fr) 92px 20px 64px'
 
-/** The group order of the waiting list, as the intake mockup shows it; other states follow. */
+/** The group order of the lists, as the intake mockup shows it; other states follow. */
 const GROUP_ORDER: readonly string[] = [
   'intake.match_proposed', 'intake.unmatched', 'intake.ambiguous', 'intake.kind_proposed', 'intake.duplicate_proposed',
   'intake.unreadable', 'deadline.code_proposed', 'deadline.awaiting_code',
 ]
+
+/** The filter chips: each list with the count that names it. */
+const LISTS: readonly { readonly list: IntakeView; readonly label: ListLabel; readonly count: keyof IntakeList['counts'] }[] = [
+  { list: 'waiting', label: 'intake.list.waiting', count: 'waiting' },
+  { list: 'filed-today', label: 'intake.list.filedToday', count: 'filedToday' },
+  { list: 'not-relevant', label: 'intake.list.notRelevant', count: 'notRelevant' },
+]
+
+/** The label of each list. */
+type ListLabel = 'intake.list.waiting' | 'intake.list.filedToday' | 'intake.list.notRelevant'
+const LIST_LABEL: Readonly<Record<IntakeView, ListLabel>> = {
+  'waiting': 'intake.list.waiting', 'filed-today': 'intake.list.filedToday', 'not-relevant': 'intake.list.notRelevant',
+}
 
 /** One group of rows. */
 interface RowGroup {
@@ -33,9 +53,12 @@ interface RowGroup {
 
 const keyOf = (status: QueueStatus) => `${status.machine}.${status.state}`
 
+const newest = (row: IntakeRow) => -Date.parse(row.receivedAt)
+
 /**
- * Group rows by atlas state in the group order; states outside it follow in the order they first appear.
- * @param rows - the rows.
+ * Group rows by atlas state in the group order, newest first in each group ("Oldest last"); states outside the
+ * order follow in the order they first appear.
+ * @param rows - the rows, oldest first as the Records API sends them.
  * @returns the groups.
  */
 export function groupRows(rows: readonly IntakeRow[]): RowGroup[] {
@@ -49,7 +72,63 @@ export function groupRows(rows: readonly IntakeRow[]): RowGroup[] {
     const index = GROUP_ORDER.indexOf(keyOf(status))
     return index === -1 ? GROUP_ORDER.length : index
   }
-  return [...groups.values()].toSorted((left, right) => rank(left.status) - rank(right.status))
+  return [...groups.values()]
+    .toSorted((left, right) => rank(left.status) - rank(right.status))
+    .map(group => ({ status: group.status, rows: group.rows.toSorted((left, right) => newest(left) - newest(right)) }))
+}
+
+/**
+ * The rows in the order the list shows them, for "1 / N", `J` and `K`.
+ * @param rows - the rows of the list.
+ * @returns the rows in display order.
+ */
+export function shownOrder(rows: readonly IntakeRow[]): IntakeRow[] {
+  return groupRows(rows).flatMap(group => group.rows)
+}
+
+/**
+ * The letters among the checked ones that Accept and file takes: a proposed match on a matter.
+ * @param rows - the rows of the list.
+ * @param checked - the checked letters.
+ * @returns one match for each acceptable letter.
+ */
+export function acceptable(rows: readonly IntakeRow[], checked: ReadonlySet<DocumentId>): { document: DocumentId; fileNumber: NonNullable<IntakeRow['matter']>['fileNumber'] }[] {
+  return rows.flatMap(row => checked.has(row.document) && row.matter !== null && row.status.machine === 'intake' && row.status.state === 'match_proposed'
+    ? [{ document: row.document, fileNumber: row.matter.fileNumber }]
+    : [])
+}
+
+/** The width from which a queue shows its list and the open item side by side (R20). */
+export const SPLIT_QUERY = '(min-width: 1366px)'
+
+/**
+ * Whether the view is wide enough for the list and the open item side by side.
+ * @returns true from 1366px.
+ */
+function useSplit(): boolean {
+  return useSyncExternalStore(
+    (change) => {
+      const query = window.matchMedia(SPLIT_QUERY)
+      query.addEventListener('change', change)
+      return () => { query.removeEventListener('change', change) }
+    },
+    () => window.matchMedia(SPLIT_QUERY).matches,
+  )
+}
+
+/** The row element that holds focus inside the list, from the `data-row` attribute that `ListRow` writes. */
+const focusedRow = (): DocumentId | null => {
+  const row = document.activeElement?.closest('[data-row]')
+  return (row?.getAttribute('data-row') ?? null) as DocumentId | null
+}
+
+/**
+ * Whether a key event comes from a field, a menu or a dialog, which handle Esc themselves.
+ * @param target - the event target.
+ * @returns true when the screen leaves the key to its owner.
+ */
+function ownedElsewhere(target: EventTarget): boolean {
+  return target instanceof Element && target.closest('input, textarea, select, [contenteditable], [role="menu"], [role="dialog"], [role="listbox"]') !== null
 }
 
 /**
@@ -59,46 +138,15 @@ export function groupRows(rows: readonly IntakeRow[]): RowGroup[] {
  * @returns the queue.
  */
 export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
-  const item = screen.item === null || screen.open === null
-    ? null
-    : <IntakeItem key={`${screen.open}:${screen.step ?? ''}`} ctx={ctx} list={screen.list} load={screen.item} reasonFirst={screen.step === 'reason'} />
-  const list = (
-    <LoadView
-      load={screen.intake}
-      render={{
-        loading: () => <SkeletonRows label={ctx.t('loading')} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
-        ready: data => <IntakeListView ctx={ctx} data={data} list={screen.list} open={screen.open} />,
-      }}
-    />
-  )
-  return <QueueSplit list={list} item={item} />
-}
-
-/**
- * Render the rows of one intake list, or its empty state.
- * @param props.ctx - the screen context.
- * @param props.data - the list.
- * @param props.list - which list.
- * @param props.open - the open letter.
- * @returns the list.
- */
-function IntakeListView({ ctx, data, list, open }: { ctx: ScreenContext; data: IntakeList; list: IntakeView; open: DocumentId | null }) {
   const { t } = ctx
   const [checked, setChecked] = useState<ReadonlySet<DocumentId>>(new Set())
   const [anchor, setAnchor] = useState<DocumentId | null>(null)
-  if (data.rows.length === 0) {
-    return (
-      <EmptyState
-        icon={<IconPaperPlaneOutlineRegular size={16} />}
-        title={t('empty.intake.title')}
-        body={t('empty.intake.body')}
-        action={actOf(ctx, 'showFiled', t('act.showFiled'), () => { ctx.navigate({ view: 'intake', list: 'filed-today', open: null }) })}
-      />
-    )
-  }
-  const groups = groupRows(data.rows)
-  const order = groups.flatMap(group => group.rows.map(row => row.document))
+  const [bulkReason, setBulkReason] = useState(false)
+  const [failed, setFailed] = useState(0)
+  const loaded = screen.intake.phase === 'ready' ? screen.intake.data : screen.intake.phase === 'failed' ? screen.intake.last?.data ?? null : null
+  const rows = loaded === null ? [] : shownOrder(loaded.rows)
+  const order = rows.map(row => row.document)
+  const open = (document: DocumentId | null) => { ctx.navigate({ view: 'intake', list: screen.list, open: document }) }
   const toggle = (document: DocumentId, next: boolean, range: boolean) => {
     const from = range && anchor !== null ? order.indexOf(anchor) : -1
     const to = order.indexOf(document)
@@ -110,46 +158,266 @@ function IntakeListView({ ctx, data, list, open }: { ctx: ScreenContext; data: I
     }
     setChecked(after)
     setAnchor(document)
+    setFailed(0)
   }
-  const acceptable = data.rows.flatMap(row => checked.has(row.document) && row.matter !== null && row.status.state === 'match_proposed'
-    ? [{ document: row.document, fileNumber: row.matter.fileNumber }]
-    : [])
-  const bar = checked.size === 0
-    ? undefined
+  const clear = () => {
+    setChecked(new Set())
+    setBulkReason(false)
+    setFailed(0)
+  }
+  // J and K move the focus; with a letter open they also open the next letter, so X then selects the letter shown.
+  const step = (by: 1 | -1) => () => {
+    const current = screen.open ?? focusedRow()
+    const next = current === null ? order[by === 1 ? 0 : order.length - 1] : order[order.indexOf(current) + by]
+    if (next === undefined) return
+    if (screen.open !== null) open(next)
+    document.querySelector<HTMLElement>(`[data-row="${next}"]`)?.focus()
+  }
+  const matches = loaded === null ? [] : acceptable(loaded.rows, checked)
+  /**
+   * Send one act for each letter; the letters whose act failed stay checked, so the person can try again.
+   * @param commands - the letter and the command of each act.
+   */
+  const performEach = (commands: readonly { readonly document: DocumentId; readonly command: Command }[]) => {
+    const acts = commands.map(({ document, command }) => ({ document, act: createAct(command) }))
+    void ctx.perform(acts.map(({ act }) => act)).then((result) => {
+      const failedActs = new Set(result.failed.map(({ act }) => act))
+      setChecked(new Set(acts.filter(({ act }) => failedActs.has(act)).map(({ document }) => document)))
+      setFailed(result.failed.length)
+      setBulkReason(false)
+    })
+  }
+  const acceptAll = () => { performEach(matches.map(row => ({ document: row.document, command: { kind: 'intake.match', ...row } }))) }
+  const closeAll = (reason: string) => { performEach([...checked].map(document => ({ document, command: { kind: 'intake.notRelevant', document, reason } }))) }
+  const selecting = checked.size > 0
+  const split = useSplit()
+  const first = rows[0]?.document
+  // From 1366px the queue always shows a letter beside the list, as Linear's triage does: the first one until the
+  // person opens another.
+  useEffect(() => {
+    if (split && screen.open === null && !selecting && first !== undefined) ctx.navigate({ view: 'intake', list: screen.list, open: first })
+  }, [split, screen.open, selecting, first, screen.list, ctx.navigate])
+  const selectedText = checked.size === 1 ? t('intake.selectedOne') : t('intake.selected', { count: checked.size })
+  const showFiled = () => { ctx.navigate({ view: 'intake', list: 'filed-today', open: null }) }
+  useKeyActs(ctx, {
+    next: step(1),
+    previous: step(-1),
+    open: () => {
+      const row = focusedRow()
+      if (row !== null) open(row)
+    },
+    select: () => {
+      const row = focusedRow() ?? screen.open
+      if (row !== null) toggle(row, !checked.has(row), false)
+    },
+    showFiled,
+    goIntake: () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) },
+    retry: ctx.retry,
+    ...(selecting ? { record: matches.length > 0 ? acceptAll : () => {}, reject: () => { setBulkReason(true) } } : {}),
+  })
+  const listItem: CommandMenuItem = {
+    label: selecting ? selectedText : t(LIST_LABEL[screen.list]),
+    groups: [
+      ...(selecting
+        ? [{ id: 'selection', label: t('intake.menu.selection'), acts: [
+          { id: 'accept', label: t('act.acceptFileCount', { count: matches.length }), commandId: commandId('record'), disabled: matches.length === 0, run: acceptAll },
+          { id: 'reject', label: t('act.notRelevant'), commandId: commandId('reject'), run: () => { setBulkReason(true) } },
+          { id: 'clear', label: t('selection.clear'), run: clear },
+        ] }]
+        : []),
+      { id: 'lists', label: t('intake.menu.lists'), acts: LISTS.map(({ list, label }) => ({
+        id: list, label: t(label), ...(list === 'filed-today' ? { commandId: commandId('showFiled') } : {}),
+        run: () => { ctx.navigate({ view: 'intake', list, open: null }) },
+      })) },
+    ],
+  }
+  useCommandItem(ctx, listItem)
+
+  const bulkBar = ctx.me === null || !selecting
+    ? null
     : (
-      <SelectionBar
-        label={t('selection.count', { count: checked.size })}
-        acts={[{ id: 'clear', label: t('selection.clear'), keycaps: [], icon: <IconCloseOutlineRegular size={16} />, run: () => { setChecked(new Set()) } }]}
-        primary={actOf(ctx, 'record', t('act.acceptFileCount', { count: acceptable.length }), () => {
-          void ctx.perform(acceptable.map(row => createAct({ kind: 'intake.match', ...row })))
-          setChecked(new Set())
-        }, { icon: <IconCheckOutlineRegular size={16} />, disabled: acceptable.length === 0 })}
+      <DecisionBar
+        person={ctx.me.person}
+        question={t('intake.bulk.question', { count: matches.length })}
+        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
+        note={failed > 0 ? t('intake.bulk.failed', { count: failed }) : undefined}
+        negative={{
+          ...keyedOf(ctx, 'reject'),
+          label: t('act.notRelevant'),
+          icon: <IconCloseOutlineRegular size={16} />,
+          open: bulkReason,
+          onOpenChange: setBulkReason,
+          reasonLabel: t('intake.bulk.reason', { count: checked.size }),
+          confirmLabel: t('act.markNotRelevant'),
+          cancelLabel: t('act.cancel'),
+          onConfirm: closeAll,
+        }}
+        primary={actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 })}
       />
     )
+  const statuses = new Set(rows.filter(row => checked.has(row.document)).map(row => keyOf(row.status)))
+  const shared = statuses.size === 1 ? rows.find(row => checked.has(row.document))?.status : undefined
+  const selection = !selecting
+    ? null
+    : (
+      <WorkColumn decision={bulkBar}>
+        <DetailHeader
+          eyebrow={shared === undefined ? null : <AtlasPill status={shared} word={atlasWord(t, shared)} />}
+          title={selectedText}
+          lede={t('intake.bulk.lede')}
+        />
+        <ul className={css.files}>
+          {rows.filter(row => checked.has(row.document)).map(row => (
+            <li key={row.document} className={css.file}>
+              <span className={css.fileTitle}>{letterTitle(t, row.code, row.status)}</span>
+              <span className={css.fileSub}>{row.matter === null ? atlasWord(t, row.status) : `${row.matter.fileNumber} ${row.matter.title}`}</span>
+            </li>
+          ))}
+        </ul>
+      </WorkColumn>
+    )
+  const item = selection ?? (screen.item === null || screen.open === null
+    ? null
+    : (
+      <LoadView
+        key={`${screen.open}:${screen.step ?? ''}`}
+        load={screen.item}
+        render={{
+          loading: () => <PageSpinner label={t('loading')} />,
+          failed: at => <LoadError ctx={ctx} at={at} />,
+          ready: letter => <IntakeLetter key={`${letter.document}:${screen.step ?? ''}`} ctx={ctx} list={screen.list} letter={letter} step={screen.step} />,
+        }}
+      />
+    ))
+  const narrowBulk = !selecting
+    ? undefined
+    : bulkReason
+      ? <div className={css.narrowOnly}>{bulkBar}</div>
+      : (
+        <div className={css.narrowOnly}>
+          <SelectionBar
+            label={t('selection.count', { count: checked.size })}
+            acts={[{ ...keyedOf(ctx, 'reject'), label: t('act.notRelevant'), icon: <IconCloseOutlineRegular size={16} />, run: () => { setBulkReason(true) } }]}
+            primary={actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 })}
+          />
+        </div>
+      )
+  const list = (
+    <LoadView
+      load={screen.intake}
+      render={{
+        loading: () => <SkeletonRows label={t('loading')} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
+        failed: at => <LoadError ctx={ctx} at={at} />,
+        ready: data => (
+          <IntakeListView
+            ctx={ctx}
+            data={data}
+            list={screen.list}
+            open={screen.open}
+            checked={checked}
+            onCheck={toggle}
+            footer={narrowBulk}
+          />
+        ),
+      }}
+    />
+  )
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || ownedElsewhere(event.target)) return
+    if (bulkReason) setBulkReason(false)
+    else if (selecting) clear()
+    else if (screen.open !== null && !split) open(null)
+    else return
+    event.preventDefault()
+  }
+  return (
+    <div className={css.screen} tabIndex={-1} data-testid="intake" data-open={screen.open !== null || undefined} onKeyDown={onKeyDown}>
+      <div className={css.viewbar}>
+        {LISTS.map(({ list: name, label, count }) => (
+          <Pill
+            key={name}
+            active={name === screen.list}
+            aria-pressed={name === screen.list}
+            className={name === 'waiting' ? undefined : css.wideChip}
+            onClick={() => { ctx.navigate({ view: 'intake', list: name, open: null }) }}
+          >
+            {t(label)}
+            {loaded !== null && <span className={css.count}>{loaded.counts[count]}</span>}
+          </Pill>
+        ))}
+        <span className={css.order}>{t('intake.order')}</span>
+      </div>
+      <QueueSplit list={list} item={item} itemWideOnly={selecting} />
+    </div>
+  )
+}
+
+/**
+ * Render the rows of one intake list, or its empty state.
+ * @param props.ctx - the screen context.
+ * @param props.data - the list.
+ * @param props.list - which list.
+ * @param props.open - the open letter.
+ * @param props.checked - the checked letters.
+ * @param props.onCheck - check or uncheck a letter; `range` selects from the last one.
+ * @param props.footer - the bulk bar below 1366px.
+ * @returns the list.
+ */
+function IntakeListView({ ctx, data, list, open, checked, onCheck, footer }: {
+  ctx: ScreenContext
+  data: IntakeList
+  list: IntakeView
+  open: DocumentId | null
+  checked: ReadonlySet<DocumentId>
+  onCheck: (document: DocumentId, next: boolean, range: boolean) => void
+  footer: ReactNode
+}) {
+  const { t } = ctx
+  if (data.rows.length === 0) {
+    const empty = list === 'waiting'
+      ? { title: t('empty.intake.title'), body: t('empty.intake.body') }
+      : list === 'filed-today'
+        ? { title: t('intake.empty.filedTitle'), body: t('intake.empty.filedBody') }
+        : { title: t('intake.empty.closedTitle'), body: t('intake.empty.closedBody') }
+    return (
+      <EmptyState
+        icon={<IconPaperPlaneOutlineRegular size={16} />}
+        title={empty.title}
+        body={empty.body}
+        action={list === 'filed-today'
+          ? actOf(ctx, 'goIntake', t('intake.list.waiting'), () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) })
+          : actOf(ctx, 'showFiled', t('act.showFiled'), () => { ctx.navigate({ view: 'intake', list: 'filed-today', open: null }) })}
+      />
+    )
+  }
   return (
     <ListFrame
       label={t('intake.listLabel')}
       columns={INTAKE_COLUMNS}
       header={['', t('col.letter'), t('col.matter'), '', t('col.received')]}
       selecting={checked.size > 0}
-      footer={bar}
+      footer={footer}
     >
-      {groups.map(group => (
+      {groupRows(data.rows).map(group => (
         <ListGroup key={keyOf(group.status)} status={group.status} word={atlasWord(t, group.status)} count={group.rows.length}>
           {group.rows.map((row) => {
             const title = letterTitle(t, row.code, row.status)
+            const sender = row.forwarder
             return (
               <ListRow
                 key={row.document}
+                rowKey={row.document}
                 status={group.status}
                 open={row.document === open}
-                selection={{ checked: checked.has(row.document), label: t('select.row', { title }), onChange: (next, range) => { toggle(row.document, next, range) } }}
+                selection={{ checked: checked.has(row.document), label: t('select.row', { title }), onChange: (next, range) => { onCheck(row.document, next, range) } }}
                 onOpen={() => { ctx.navigate({ view: 'intake', list, open: row.document }) }}
                 menu={ctx.rowMenu({ document: row.document, list, proposed: row.status.state === 'match_proposed' ? row.matter?.fileNumber ?? null : null })}
               >
                 <TitleCell title={title} source={row.office} />
                 <MetaCell truncate>{row.matter?.fileNumber ?? (row.matterCount > 1 ? t('matter.count', { count: row.matterCount }) : t('matter.none'))}</MetaCell>
-                {row.forwarder === null ? <span /> : <Avatar person={{ name: row.forwarder.name, label: t('row.forwardedBy', { person: row.forwarder.name }) }} />}
+                {sender === null
+                  ? <span />
+                  : <span data-address={sender.id === null ? '' : undefined}><Avatar person={{ name: sender.name, label: t('row.forwardedBy', { person: sender.name }) }} /></span>}
                 <TimeCell>{listTimeText(ctx, row.receivedAt)}</TimeCell>
               </ListRow>
             )
@@ -157,93 +425,5 @@ function IntakeListView({ ctx, data, list, open }: { ctx: ScreenContext; data: I
         </ListGroup>
       ))}
     </ListFrame>
-  )
-}
-
-/**
- * Render the open letter: its header, the proposed matter, Activity and the decision bar.
- * @param props.ctx - the screen context.
- * @param props.list - the open list.
- * @param props.load - the letter's load.
- * @param props.reasonFirst - the route opened the reason step.
- * @returns the item pane.
- */
-function IntakeItem({ ctx, list, load, reasonFirst }: { ctx: ScreenContext; list: IntakeView; load: NonNullable<ScreenProps<'intake'>['screen']['item']>; reasonFirst: boolean }) {
-  return (
-    <LoadView
-      load={load}
-      render={{
-        loading: () => <PageSpinner label={ctx.t('loading')} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
-        ready: letter => <IntakeLetter ctx={ctx} list={list} letter={letter} reasonFirst={reasonFirst} />,
-      }}
-    />
-  )
-}
-
-/**
- * Render one letter with its decision.
- * @param props.ctx - the screen context.
- * @param props.list - the open list.
- * @param props.letter - the letter.
- * @param props.reasonFirst - open the reason step first.
- * @returns the work column.
- */
-function IntakeLetter({ ctx, list, letter, reasonFirst }: {
-  ctx: ScreenContext
-  list: IntakeView
-  letter: IntakeDocument
-  reasonFirst: boolean
-}) {
-  const { t } = ctx
-  const [reasonOpen, setReasonOpen] = useState(reasonFirst)
-  const proposed = letter.proposed
-  const me = ctx.me
-  const decision = me === null
-    ? null
-    : (
-      <DecisionBar
-        person={me.person}
-        question={t('decision.whichMatter')}
-        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
-        decider={deciderText(ctx, letter.mayDecide)}
-        parts={proposed === null ? undefined : (
-          <DecisionPart icon={<IconCheckOutlineRegular size={16} />} title={`${proposed.fileNumber} ${proposed.title}`} detail={t('decision.matchedByReference')} />
-        )}
-        negative={{
-          ...keyedOf(ctx, 'reject'),
-          label: t('act.notRelevant'),
-          icon: <IconCloseOutlineRegular size={16} />,
-          open: reasonOpen,
-          onOpenChange: setReasonOpen,
-          reasonLabel: t('reason.notRelevant'),
-          confirmLabel: t('act.markNotRelevant'),
-          cancelLabel: t('act.cancel'),
-          onConfirm: (reason) => { void ctx.perform([createAct({ kind: 'intake.notRelevant', document: letter.document, reason })]) },
-        }}
-        secondary={[actOf(ctx, 'otherMatter', t('act.otherMatter'), () => {
-          ctx.navigate({ view: 'intake', list, open: letter.document, step: 'other-matter' })
-        }, { icon: <IconFolderOpenOutlineRegular size={16} /> })]}
-        primary={proposed === null ? null : actOf(ctx, 'record', t('act.acceptFile'), () => {
-          void ctx.perform([createAct({ kind: 'intake.match', document: letter.document, fileNumber: proposed.fileNumber })])
-        }, { icon: <IconCheckOutlineRegular size={16} /> })}
-      />
-    )
-  return (
-    <WorkColumn decision={decision}>
-      <DetailHeader
-        eyebrow={<><AtlasPill status={letter.status} word={atlasWord(t, letter.status)} /><span>{t('item.since', { time: listTimeText(ctx, letter.since) })}</span></>}
-        title={letterTitle(t, letter.code, letter.status)}
-        lede={letter.mail.forwarder === null ? undefined : t('item.forwarded', { person: letter.mail.forwarder.name })}
-      />
-      {proposed !== null && (
-        <KeyProperties rows={[
-          { label: t('prop.proposedMatter'), value: `${proposed.fileNumber} ${proposed.title}` },
-          { label: t('prop.client'), value: proposed.client },
-          { label: t('prop.responsible'), value: proposed.responsible?.name ?? t('matter.none') },
-        ]} />
-      )}
-      <RecordActivity ctx={ctx} events={letter.activity} />
-    </WorkColumn>
   )
 }

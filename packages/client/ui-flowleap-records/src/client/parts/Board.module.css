@@ -75,6 +75,21 @@
   box-shadow: var(--dsw-elevation-panel);
 }
 
+/* The dragged card's place: the dashed empty slot with no text, while the browser draws the moving card. */
+.card[data-dragging] {
+  border: 1px dashed var(--dsw-alias-border-l3);
+  background: transparent;
+  box-shadow: none;
+}
+
+.card[data-dragging] > * {
+  visibility: hidden;
+}
+
+.card[draggable='true'] {
+  cursor: grab;
+}
+
 .card[data-lifted] {
   box-shadow: var(--dsw-elevation-prominent);
   transform: rotate(-1deg);
@@ -96,6 +111,7 @@
 
 .key {
   min-width: 0;
+  white-space: nowrap;
 }
 
 .team {
@@ -130,12 +146,15 @@
   margin-top: 12px;
 }
 
+/* A fact that does not fit the card's width wraps inside its chip; the board never cuts a status word. */
 .fact {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  height: 24px;
-  padding: 0 8px;
+  gap: 0 8px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 8px;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-sm);
 }

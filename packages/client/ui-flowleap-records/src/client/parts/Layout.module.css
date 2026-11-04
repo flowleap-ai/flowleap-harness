@@ -26,12 +26,24 @@
   display: none;
 }
 
+.split[data-wide-only] .listPane {
+  display: flex;
+}
+
+.split[data-wide-only] .itemPane {
+  display: none;
+}
+
 @media (min-width: 1366px) {
   .split[data-open] {
     grid-template-columns: minmax(480px, 44%) minmax(0, 1fr);
   }
 
   .split[data-open] .listPane {
+    display: flex;
+  }
+
+  .split[data-wide-only] .itemPane {
     display: flex;
   }
 

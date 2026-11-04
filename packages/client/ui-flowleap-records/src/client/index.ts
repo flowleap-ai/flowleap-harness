@@ -16,9 +16,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { RECORDS_LINK_PATH } from '../route.ts'
+import { readRouteAddress, syncRouteAddress, writeRouteAddress } from './address.ts'
 import { createRecordsApi } from './api.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRecordsKey } from './locales.ts'
-import { createRecordsModel, TAB_ROUTE } from './model.ts'
+import { createRecordsModel, TAB_ROUTE, type Route } from './model.ts'
 import { MattersIcon, RecordsPanel, type PanelInjected } from './Panel.tsx'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from './key-layer.ts'
 import { registerRowMenu } from './row-menu.ts'
@@ -40,7 +41,7 @@ export const PANEL_ID = 'flowleap-records' as MainPanelId
 export const RECORDS_LINK_ROUTE = RECORDS_LINK_PATH.slice(1)
 
 /** Required services: slots, copy with the UI language, the shortcuts and their catalog, the context menus and ⌘K. */
-export const inject = ['slots', 'locale', 'shortcuts', 'contextMenus', 'commandMenu']
+export const inject = ['slots', 'locale', 'shortcuts', 'contextMenus', 'commandMenu', 'layout']
 
 /**
  * Ask the Host where the Records service is.
@@ -75,12 +76,22 @@ export function apply(ctx: ClientContext): void {
   void readRecordsLink(controller.signal).then((href) => {
     if (href === null || controller.signal.aborted) return
     const api = createRecordsApi(href)
-    const model = createRecordsModel(api, TAB_ROUTE.intake)
+    const model = createRecordsModel(api, readRouteAddress(window.location.search, PANEL_ID) ?? TAB_ROUTE.intake)
     ctx.effect(() => () => { model.dispose() }, 'ui-flowleap-records: model')
-    registerRowMenu(ctx, model, t)
+    const linkOf = (route: Route) => writeRouteAddress(window.location.href, PANEL_ID, route)
+    registerRowMenu(ctx, model, t, linkOf)
     const keyActs = new KeyActRegistry()
     const commandItems = new CommandItemRegistry()
     registerKeyLayer(ctx, keyActs, commandItems, t)
+    const panelInfo = ctx.layout.panelInfo
+    const active = {
+      getSnapshot: () => panelInfo.getSnapshot().activePanelId === PANEL_ID,
+      subscribe: (change: () => void) => panelInfo.subscribe(change),
+    }
+    ctx.effect(() => syncRouteAddress({
+      route: model.screen, active, panel: PANEL_ID,
+      address: { href: () => window.location.href, replace: (next) => { window.history.replaceState(window.history.state, '', next) } },
+    }), 'ui-flowleap-records: address')
     const injected: PanelInjected = {
       hooks: {
         screen: model.screen, me: model.me, waitingCount: model.waitingCount, catalog: ctx.shortcuts.catalog,
@@ -93,6 +104,8 @@ export function apply(ctx: ClientContext): void {
       contentHref: document => api.contentHref(document),
       keyActs,
       commandItems,
+      linkOf,
+      openSearch: () => { ctx.commandMenu.open() },
     }
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
       name: 'sidebar.panellist', id: PANEL_ID, order: 18, locale: NS, label: () => t('panel'),

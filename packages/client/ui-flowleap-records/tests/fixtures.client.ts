@@ -51,7 +51,10 @@ export const MATTERS = {
 type MatterKey = keyof typeof MATTERS
 const ref = (fileNumber: MatterKey) => ({ fileNumber, title: MATTERS[fileNumber].title })
 
-type Who = keyof typeof PEOPLE
+/** A forwarder who never signed in: the os sends the mail address with no person id. */
+export const RECEPTION = { id: null, name: 'empfang@kanzlei.test' } as const
+
+type Who = keyof typeof PEOPLE | 'reception'
 type IntakeGroup = 'match_proposed' | 'unmatched' | 'ambiguous' | 'kind_proposed' | 'duplicate_proposed' | 'unreadable'
 
 /** One intake letter: group, code, office, matter, matter count, forwarder, received time. */
@@ -80,7 +83,7 @@ const LETTERS: readonly Letter[] = [
   ['kind_proposed', null, null, 'FL-2026-0044', 1, 'lena', '2026-11-03T09:05:00Z'],
   ['duplicate_proposed', 'EPO:R71(3)', 'EPO', 'FL-2026-0001', 1, 'lena', '2026-11-04T14:20:00Z'],
   ['duplicate_proposed', 'EPO:EESR', 'EPO', 'FL-2026-0019', 1, 'jonas', '2026-11-04T12:44:00Z'],
-  ['unreadable', null, 'DPMA', null, 0, 'lena', '2026-11-04T08:51:00Z'],
+  ['unreadable', null, 'DPMA', null, 0, 'reception', '2026-11-04T08:51:00Z'],
 ]
 
 /** The wire rows of the waiting list, in the order of the mockup. */
@@ -92,7 +95,7 @@ export const intakeRowsWire = LETTERS.map(([state, code, office, matter, matterC
   office,
   matter: matter === null ? null : ref(matter),
   matterCount,
-  forwarder: PEOPLE[who],
+  forwarder: who === 'reception' ? RECEPTION : PEOPLE[who],
   receivedAt,
   since: receivedAt,
 }))
@@ -128,6 +131,8 @@ export const intakeDocumentWire = {
   fields: {
     reference: { value: 'FL-2026-0001', span: span('FL-2026-0001', 64, 'European Patent Office. Your reference ', '. Application No. 24 123 456.7') },
     documentDate: { value: '2026-10-30', span: span('30.10.2026', 30, 'Form 2004C. Date ', '. Your reference FL-2026-0001') },
+    formNumber: { value: '2004C', span: span('2004C', 19, 'European Patent Office. EPO Form ', '. Date 30.10.2026') },
+    applicationNumber: { value: '24 123 456.7', span: span('24 123 456.7', 94, 'Your reference FL-2026-0001. Application No. ', ' - 1203') },
   },
   proposed: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, responsible: PEOPLE.anna, matchedBy: 'reference' },
   candidates: 1,
@@ -136,9 +141,9 @@ export const intakeDocumentWire = {
   matters: (Object.keys(MATTERS) as MatterKey[]).map(ref),
   mayDecide: { allowed: true },
   activity: [
-    { seq: 101, at: '2026-11-04T14:16:00Z', type: 'intake/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
-    { seq: 102, at: '2026-11-04T14:16:10Z', type: 'intake/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
-    { seq: 103, at: '2026-11-04T14:16:20Z', type: 'intake/match-proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { fileNumber: 'FL-2026-0001' } },
+    { seq: 101, at: '2026-11-04T14:16:00Z', type: 'document/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
+    { seq: 102, at: '2026-11-04T14:16:10Z', type: 'document/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
+    { seq: 103, at: '2026-11-04T14:16:20Z', type: 'document/match-proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { fileNumber: 'FL-2026-0001' } },
   ],
 }
 

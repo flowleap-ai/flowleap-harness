@@ -6,7 +6,10 @@
 
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconLinkOutlineRegular,
+  IconSearchOutlineRegular, SegmentedControl,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
@@ -23,7 +26,12 @@ import type { IntakeRowTarget } from './row-menu.ts'
 import type { ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
 import { DeadlineScreen, MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
-import { BoardScreen, WorkScreen } from './screens/WorkScreens.tsx'
+import { ActButton } from './parts/Act.tsx'
+import { BoardScreen } from './screens/BoardScreen.tsx'
+import { shownOrder } from './screens/IntakeScreen.tsx'
+import { actOf } from './screens/context.ts'
+import { copyLink } from './screens/links.ts'
+import { WorkScreen } from './screens/WorkScreens.tsx'
 import { letterTitle, type Translate } from './words.ts'
 import css from './Panel.module.css'
 
@@ -52,6 +60,10 @@ export interface PanelInjected {
   readonly keyActs: KeyActRegistry
   /** The ⌘K items of the mounted screens. */
   readonly commandItems: CommandItemRegistry
+  /** The address of a route. */
+  readonly linkOf: (route: Route) => string
+  /** Open the command menu for the open item, as ⌘K does. */
+  readonly openSearch: () => void
 }
 
 /** Props of the panel. */
@@ -84,6 +96,7 @@ export function RecordsPanel(props: PanelProps) {
     keyActs: props.keyActs,
     commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),
+    linkOf: props.linkOf,
   }
   const tab = TAB_OF[screen.view]
   const tabs = (
@@ -103,12 +116,29 @@ export function RecordsPanel(props: PanelProps) {
     </nav>
   )
   const detail = detailBar(screen, ctx)
+  const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
     <section className={css.panel} data-testid="flowleap-records" data-shortcut-scope="records" tabIndex={-1}>
       <header className={css.topbar}>
         {detail === null ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}
         {detail !== null && <div className={clsx(css.detailBar, screen.view === 'intake' && css.narrowOnly)}>{detail}</div>}
+        <div className={css.barRight}>
+          {screen.view === 'board' && (
+            <SegmentedControl
+              id="records-board-layout"
+              className={css.layoutToggle}
+              label={t('board.layout')}
+              value={screen.layout ?? 'board'}
+              options={[{ value: 'list', label: t('board.layoutList') }, { value: 'board', label: t('board.layoutBoard') }]}
+              onChange={(layout) => { props.navigate({ view: 'board', layout }) }}
+            />
+          )}
+          <ActButton act={search} rank="tertiary" className={css.searchWide} />
+          <Button variant="ghost" size="sm" className={css.searchNarrow} aria-label={t('intake.act.search')} data-act="search" onClick={props.openSearch}>
+            <IconSearchOutlineRegular size={16} />
+          </Button>
+        </div>
       </header>
       <div className={css.body}>{renderScreen(screen, ctx)}</div>
     </section>
@@ -155,7 +185,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
       return null
     case 'intake': {
       if (screen.open === null) return null
-      const rows = shownData(screen.intake)?.data.rows ?? []
+      const rows = shownOrder(shownData(screen.intake)?.data.rows ?? [])
       const index = rows.findIndex(row => row.document === screen.open)
       const current = rows[index]
       const title = current === undefined ? '' : letterTitle(t, current.code, current.status)
@@ -175,6 +205,14 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
               </Button>
               <Button variant="outline" size="sm" aria-label={t('pager.next')} disabled={next === undefined} onClick={go(next)}>
                 <IconChevronDownOutlineRegular size={16} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={t('intake.act.copyLink')}
+                onClick={() => { void copyLink(ctx.linkOf({ view: 'intake', list: screen.list, open: screen.open })) }}
+              >
+                <IconLinkOutlineRegular size={16} />
               </Button>
             </div>
           )}

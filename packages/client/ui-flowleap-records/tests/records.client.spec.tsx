@@ -72,7 +72,11 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
       return () => { contributions.splice(contributions.indexOf(contribution), 1) }
     },
     close: () => {},
+    open: () => { opened.push(true); return true },
   } as never)
+  const opened: boolean[] = []
+  const panelInfo = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
+  ctx.provide('layout', { panelInfo } as never)
   ctx.provide('contextMenus', {
     register: (contribution: MenuContribution<'records.intake-row'>) => {
       menus.push(contribution)
@@ -88,16 +92,17 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   await settle()
-  return { ctx, fiber, stub, menus, keys, contributions }
+  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo }
 }
 
 describe('ui-flowleap-records browser half', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'shortcuts', 'contextMenus', 'commandMenu'])
+    expect(inject).toEqual(['slots', 'locale', 'shortcuts', 'contextMenus', 'commandMenu', 'layout'])
   })
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
-    const { ctx, fiber, stub, menus, keys, contributions } = await mounted(routes(json({ href: 'records/' })))
+    window.history.replaceState(null, '', '/?page=flowleap-records&records=board&keep=1')
+    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo } = await mounted(routes(json({ href: 'records/' })))
     expect(keys).toContain('records')
     expect(keys).toContain('records.decision.record')
     expect(keys).toContain('records.row.open')
@@ -118,8 +123,17 @@ describe('ui-flowleap-records browser half', () => {
     ctx.locale.setLocale('de')
     expect(injected.hooks.language.getSnapshot()).toBe('de')
     expect(ctx.locale.bind(NS)('panel')).toBe(de.panel)
-    injected.navigate({ view: 'board' })
     expect(injected.hooks.screen.getSnapshot().view).toBe('board')
+    expect(window.location.search).toBe('?page=flowleap-records&keep=1')
+    panelInfo.set({ activePanelId: PANEL_ID })
+    expect(window.location.search).toBe('?page=flowleap-records&keep=1&records=board')
+    injected.navigate({ view: 'intake', list: 'filed-today', open: null })
+    expect(window.location.search).toBe('?page=flowleap-records&keep=1&records=intake%2Ffiled-today')
+    expect(injected.linkOf({ view: 'board', layout: 'list' })).toBe('http://localhost:3000/?page=flowleap-records&keep=1&records=board%2Flist')
+    panelInfo.set({ activePanelId: null })
+    expect(window.location.search).toBe('?page=flowleap-records&keep=1')
+    injected.openSearch()
+    expect(opened).toEqual([true])
     injected.retry()
     injected.refresh()
     expect(await injected.perform([])).toEqual({ failed: [] })
@@ -127,13 +141,22 @@ describe('ui-flowleap-records browser half', () => {
     expect(menus).toHaveLength(1)
     expect(menus[0]!.target).toBe('records.intake-row')
     const actions = await menus[0]!.resolve({ document: 'a'.repeat(64) as DocumentId, list: 'waiting', proposed: null }, new AbortController().signal)
-    expect(actions.map(action => action.id)).toEqual(['open', 'other-matter', 'not-relevant'])
+    expect(actions.map(action => action.id)).toEqual(['open', 'other-matter', 'not-relevant', 'copy-link'])
     await fiber.dispose()
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
     expect(menus).toEqual([])
     expect(keys).toEqual([])
     expect(contributions).toEqual([])
+    await ctx.fiber.dispose()
+  })
+
+  it('opens Intake when the address names no route', async () => {
+    window.history.replaceState(null, '', '/')
+    const { ctx } = await mounted(routes(json({ href: 'records/' })))
+    const injected: unknown = ctx.slots.entries('main')[0]!.inject!()
+    if (!isPanel(injected)) throw new Error('the main entry injects the panel face')
+    expect(injected.hooks.screen.getSnapshot()).toMatchObject({ view: 'intake', list: 'waiting', open: null })
     await ctx.fiber.dispose()
   })
 
