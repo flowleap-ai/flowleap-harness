@@ -12,7 +12,7 @@ import { en } from '../src/client/locales.ts'
 import { SKELETON_DELAY_MS } from '../src/client/load.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import { createRecordsModel, TAB_ROUTE, type Route } from '../src/client/model.ts'
-import { RecordsPanel, MattersIcon, type PanelProps } from '../src/client/Panel.tsx'
+import { RecordsPanel, MattersIcon, takeStartFocus, type PanelProps } from '../src/client/Panel.tsx'
 import { agentProps } from './agent-fakes.client.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
 
@@ -72,6 +72,28 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
 }
 
 describe('the Matters panel', () => {
+  it('takes the focus when it mounts, so its keys work at once, but leaves a text field that has the focus', () => {
+    const panel = document.createElement('section')
+    panel.tabIndex = -1
+    document.body.append(panel)
+    takeStartFocus(panel)
+    expect(document.activeElement).toBe(panel)
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    takeStartFocus(panel)
+    expect(document.activeElement).toBe(field)
+    const editable = document.createElement('div')
+    editable.setAttribute('contenteditable', 'true')
+    editable.tabIndex = 0
+    document.body.append(editable)
+    editable.focus()
+    takeStartFocus(panel)
+    takeStartFocus(null)
+    expect(document.activeElement).toBe(editable)
+    panel.remove(); field.remove(); editable.remove()
+  })
+
   it('lists the 22 waiting letters in six groups with the count on the Intake tab', async () => {
     await mount()
     const tabs = screen.getByRole('navigation', { name: 'Views' })

@@ -131,7 +131,7 @@ export function RecordsPanel(props: PanelProps) {
   const detail = detailBar(screen, ctx)
   const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
-    <section className={css.panel} data-testid="flowleap-records" data-shortcut-scope="records" tabIndex={-1}>
+    <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope="records" tabIndex={-1}>
       <header className={css.topbar}>
         {detail === null ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}
@@ -358,4 +358,15 @@ function Crumbs({ t, crumbs, navigate }: { t: Translate; crumbs: readonly Crumb[
  */
 export function MattersIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) {
   return <IconArchiveOutlineRegular size={size} />
+}
+
+/**
+ * Take the focus when the panel mounts, so the view's single keys and ⇧⌘↵ work without a first click, as in Linear.
+ * A text field or an editable element that has the focus keeps it.
+ * @param element - the mounted panel, or null on unmount.
+ */
+export function takeStartFocus(element: HTMLElement | null): void {
+  const active = document.activeElement
+  if (element === null || active?.matches('input, textarea, select, [contenteditable]:not([contenteditable="false"])') === true) return
+  element.focus({ preventScroll: true })
 }
