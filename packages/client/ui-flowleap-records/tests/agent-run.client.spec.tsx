@@ -118,6 +118,17 @@ describe('the run Session resource', () => {
     expect(retain).not.toHaveBeenCalled()
   })
 
+  it.each(['toString', '__proto__', 'constructor'])('reads the Session %s as missing, not as a member of every object', async (id) => {
+    const { sessions, retain } = fakeSessions(list('ready', [ID]))
+    const controller = new AbortController()
+    const next = open(sessions, controller.signal, runSessionAddress(id as RunSessionId))
+    expect(await next()).toEqual({ kind: 'missing' })
+    const end = next()
+    controller.abort()
+    expect(await end).toBe('done')
+    expect(retain).not.toHaveBeenCalled()
+  })
+
   it.each(['dsh-resource://recordsrun/other/x', 'dsh-resource://recordsrun/session/', 'dsh-resource://recordsrun/session/%E0%A4%A'])(
     'reads %s as a missing Session',
     async (address) => {

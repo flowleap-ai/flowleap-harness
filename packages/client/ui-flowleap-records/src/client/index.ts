@@ -153,7 +153,7 @@ export function selectWhenRegistered(
     tries += 1
     try {
       layout.selectPanel(PANEL_ID)
-    } catch {
+    } catch (_error: unknown) {
       // The main slot registers this panel on a later turn; selectPanel throws until it is registered.
       if (tries < SELECT_TRIES) later(attempt)
     }

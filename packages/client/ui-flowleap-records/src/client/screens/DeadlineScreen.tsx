@@ -294,9 +294,12 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           <section className={css.section}>
             <h2 className={css.subHeading}>{t('deadline.sources')}</h2>
             <div className={css.lawChips}>
-              {deadline.sources.map(source => (
-                <a key={source.cite} className={css.lawChip} href={source.url} target="_blank" rel="noopener noreferrer">{source.cite}</a>
-              ))}
+              {deadline.sources.map((source) => {
+                const href = httpsHref(source.url)
+                return href === null
+                  ? <span key={source.cite} className={css.lawChip}>{source.cite}</span>
+                  : <a key={source.cite} className={css.lawChip} href={href} target="_blank" rel="noopener noreferrer">{source.cite}</a>
+              })}
             </div>
           </section>
         )}
@@ -304,6 +307,23 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       </WorkColumn>
     </DetailLayout>
   )
+}
+
+/**
+ * The address of a legal source as a link target: only an absolute `https:` address, so a source address from the
+ * record never runs script (`javascript:`) or opens another scheme.
+ * @param url - the source address from the Records service.
+ * @returns the address, or null when the source shows as text.
+ */
+function httpsHref(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch (_error: unknown) {
+    // A relative or malformed address is no link target; the source shows as text.
+    return null
+  }
+  return parsed.protocol === 'https:' ? parsed.href : null
 }
 
 /**

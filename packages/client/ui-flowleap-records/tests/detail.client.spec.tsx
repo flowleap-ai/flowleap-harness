@@ -443,6 +443,22 @@ describe('the deadline page', () => {
     expect(within(bar()).queryByRole('alert')).toBeNull()
   })
 
+  it('links only an https legal source and shows any other address as text', async () => {
+    const sources = [
+      { cite: 'Rule 71 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r71.html' },
+      { cite: 'Script', url: 'javascript:alert(1)' },
+      { cite: 'Plain', url: 'http://www.epo.org/r71' },
+      { cite: 'Relative', url: '/r71' },
+    ]
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, deadline: { ...fixtures.deadline.deadline, sources } } })
+    expect(screen.getAllByRole('link').map(link => link.textContent)).not.toContain('Script')
+    expect(screen.getByRole('link', { name: 'Rule 71 EPC' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/epc/2020/r71.html')
+    for (const cite of ['Script', 'Plain', 'Relative']) {
+      expect(screen.getByText(cite).tagName).toBe('SPAN')
+      expect(screen.getByText(cite).getAttribute('href')).toBeNull()
+    }
+  })
+
   it('shows the German copy of the mockups', async () => {
     await mount(DEADLINE, {}, 'de')
     expect(screen.getByText('Wie FlowLeap das Datum berechnet hat')).toBeTruthy()

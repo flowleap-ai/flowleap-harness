@@ -104,7 +104,7 @@ export function runSessionProvider(sessions: ISessions): ResourceProvider<'recor
       let missing = false
       for (;;) {
         const list = sessions.list.getSnapshot()
-        if (id in list.byId) break
+        if (Object.hasOwn(list.byId, id)) break
         if (list.phase === 'ready' && !missing) {
           missing = true
           yield { ok: true, value: MISSING }
