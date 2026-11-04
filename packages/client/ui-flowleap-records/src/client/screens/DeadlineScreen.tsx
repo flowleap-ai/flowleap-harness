@@ -83,12 +83,15 @@ const DECIDERS: Readonly<Record<MayDecideReason, FlowleapRecordsKey>> = {
   'decided': 'deadline.decider.other',
 }
 
-/** The reading rows: the reader field whose span quotes the value, and the label. */
+/**
+ * The reading rows: the reader field whose span quotes the value, and the label. The office event has no quote: its
+ * reader field is the form code, which shows only in Audit (R19).
+ */
 const READ_ROWS = [
-  { value: 'code', field: 'formNumber', label: 'deadline.field.code' },
+  { value: 'code', field: null, label: 'deadline.field.code' },
   { value: 'documentDate', field: 'documentDate', label: 'deadline.field.documentDate' },
   { value: 'applicationNumber', field: 'applicationNumber', label: 'deadline.field.application' },
-] as const satisfies readonly { value: string; field: ReaderField; label: FlowleapRecordsKey }[]
+] as const satisfies readonly { value: string; field: ReaderField | null; label: FlowleapRecordsKey }[]
 
 /**
  * Render a deadline: the eyebrow, the key fact, the calculation, the readings, the legal sources, Activity, the
@@ -323,7 +326,7 @@ function Readings({ ctx, readers }: { ctx: ScreenContext; readers: DeadlineDetai
       {READ_ROWS.map((row) => {
         const text = shown(row, readers.code?.result ?? null)
         const image = shown(row, readers.model?.result ?? null)
-        const field: FieldValue | undefined = readers.code?.fields[row.field]
+        const field: FieldValue | undefined = row.field === null ? undefined : readers.code?.fields[row.field]
         const agree = text !== null && image !== null && text === image
         return (
           <div key={row.value} role="row" className={css.compareRow}>
