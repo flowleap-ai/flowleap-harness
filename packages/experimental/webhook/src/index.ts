@@ -2,6 +2,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import { errorChain } from '@deepseek-ai/dsh-llm'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import { deepFreeze, snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WebhookRuleId } from './brand.ts'
 import { createWebhookSession } from './session.ts'
@@ -24,6 +25,11 @@ interface AnyWebhookRule {
     delivery: Readonly<VerifiedWebhookDelivery>,
     signal: AbortSignal,
   ): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>
+  started?(
+    session: SessionId,
+    delivery: Readonly<VerifiedWebhookDelivery>,
+    signal: AbortSignal,
+  ): void | Promise<void>
 }
 
 /** One effect-owned rule registration and the invocations that currently use it. */
@@ -138,15 +144,15 @@ export class WebhookRuntime extends Service {
       registration.controller.signal.throwIfAborted()
       const request = await registration.rule.run(delivery, registration.controller.signal)
       registration.controller.signal.throwIfAborted()
-      if (request !== null) {
-        await createWebhookSession(
-          this.selfCtx,
-          delivery,
-          registration.rule.id,
-          request,
-          registration.controller.signal,
-        )
-      }
+      if (request === null) return
+      const session = await createWebhookSession(
+        this.selfCtx,
+        delivery,
+        registration.rule.id,
+        request,
+        registration.controller.signal,
+      )
+      await registration.rule.started?.(session, delivery, registration.controller.signal)
     }).catch((error: unknown) => {
       const invocation = `webhook: provider=${JSON.stringify(delivery.kind)} source=${JSON.stringify(delivery.source)} `
         + `delivery=${JSON.stringify(delivery.deliveryId)} rule=${JSON.stringify(registration.rule.id)}`

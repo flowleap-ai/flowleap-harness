@@ -213,11 +213,31 @@ describe('WebhookRuntime', () => {
     }
   })
 
-  it('creates one Session per matching repeated delivery', async () => {
+  it('logs a started() failure without touching sibling rules', async () => {
+    const { ctx, runtime } = harness()
+    const warn = vi.spyOn(ctx.logger, 'warn')
+    const logged = Promise.withResolvers<boolean>()
+    warn.mockImplementation(() => { logged.resolve(true) })
+    runtime.register({
+      id: WebhookRuleId('no-session'),
+      kind: 'fixture',
+      run: () => null,
+      started: () => { throw new Error('never called without a Session') },
+    })
+    runtime.register({ id: WebhookRuleId('throws'), kind: 'fixture', run: () => { throw new Error('boom') } })
+    runtime.dispatch(delivery())
+    await logged.promise
+    expect(warn).toHaveBeenCalledOnce()
+    expect(String(warn.mock.calls[0]?.[0])).toContain('rule="throws"')
+  })
+
+  it('creates one Session per matching repeated delivery and reports each Session to started()', async () => {
     const ctx = new Context()
     contexts.push(ctx)
     const followedTwice = Promise.withResolvers<boolean>()
+    const startedTwice = Promise.withResolvers<boolean>()
     const messages: unknown[] = []
+    const started: Array<{ session: string; delivery: string; followups: number }> = []
     const session = {}
     const attachSession = vi.fn(async () => {})
     ctx.provide('agentDefaultModel', {
@@ -267,10 +287,18 @@ describe('WebhookRuntime', () => {
         agentPreset: 'standard',
         permissionPreset: 'read-only',
       }),
+      started(sessionId, input) {
+        started.push({ session: sessionId, delivery: input.deliveryId, followups: messages.length })
+        if (started.length === 2) startedTwice.resolve(true)
+      },
     })
     runtime.dispatch(delivery())
     runtime.dispatch(delivery())
     await followedTwice.promise
+    await startedTwice.promise
+    expect(started.map(entry => entry.delivery)).toEqual(['delivery-1', 'delivery-1'])
+    expect(started.every(entry => entry.session.startsWith('webhook-') && entry.followups >= 1)).toBe(true)
+    expect(new Set(started.map(entry => entry.session)).size).toBe(2)
     expect(attachSession).toHaveBeenCalledTimes(2)
     expect(messages).toHaveLength(2)
     expect(messages[0]).toMatchObject({

@@ -1,5 +1,6 @@
 /** Provider-neutral webhook deliveries, rules, and Session requests. */
 
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WebhookDeliveryId, WebhookRuleId, WebhookSourceId } from './brand.ts'
 
@@ -66,6 +67,18 @@ export interface WebhookRule<K extends string = string> {
     delivery: Readonly<VerifiedWebhookDelivery<K>>,
     signal: AbortSignal,
   ): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>
+  /**
+   * Optional trusted follow-up after the Session admitted the prompt of this rule's request, for example to report the
+   * Session to the event's sender. A throw or rejection is logged like a `run()` failure; the Session stays.
+   * @param session - the id of the new Session.
+   * @param delivery - the same immutable delivery that `run()` received.
+   * @param signal - aborts when this registration or the runtime unloads.
+   */
+  started?(
+    session: SessionId,
+    delivery: Readonly<VerifiedWebhookDelivery<K>>,
+    signal: AbortSignal,
+  ): void | Promise<void>
 }
 
 declare module '@deepseek-ai/dsh-llm' {
