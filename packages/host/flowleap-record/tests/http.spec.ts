@@ -76,6 +76,18 @@ describe('flowleapRecord.matterView over HTTP', () => {
     expect(double.paths).toEqual(['/records/api/matters/FL-2026-0001/view'])
   })
 
+  it('reads the view of an R0 Firm Record without the R1 fields, and refuses a view with only some of them', async () => {
+    const { recordSeq, viewHash, matter, deadlines } = VIEW
+    const r0 = { recordSeq, viewHash, matter, deadlines }
+    const double = await record(json(200, r0))
+    const view = await read(await provider({ url: double.url, key: TOKEN }))
+    expect(view).toEqual(r0)
+    expect(Object.keys(view).sort()).toEqual(['deadlines', 'matter', 'recordSeq', 'viewHash'])
+    const { documents: _documents, ...partial } = VIEW
+    const partialDouble = await record(json(200, partial))
+    expect(await read(await provider({ url: partialDouble.url, key: TOKEN }))).toEqual({ error: 'invalid_answer' })
+  })
+
   it('reads on the origin of the base URL and encodes the file number', async () => {
     const double = await record(json(200, VIEW))
     const service = await provider({ url: `${double.url}/records/`, key: TOKEN })
@@ -244,6 +256,7 @@ describe('flowleapRecord run commands over HTTP', () => {
       [422, 'report.statement-has-evidence', 'statement_without_evidence'],
       [409, 'no-proposals', 'no_proposals'],
       [413, 'document-too-large', 'document_too_large'],
+      [409, 'idempotency-key-reused', 'idempotency_key_reused'],
       [403, 'some-new-code', 'refused'],
       [401, 'no-identity', 'refused'],
       [404, 'gone', 'not_found'],
@@ -264,6 +277,13 @@ describe('flowleapRecord run commands over HTTP', () => {
     const long = await record(json(409, { error: 'no-proposals', detail: 'x'.repeat(1000) }))
     const refused = await (await provider({ url: long.url, key: TOKEN })).finishRun(TICKET, FINISH, new AbortController().signal)
     expect(refused).toEqual({ error: 'no_proposals', detail: 'x'.repeat(300) })
+    const huge = `{"error":"no-proposals","pad":"${'x'.repeat(1_100_000)}"}`
+    const hugeRefusal = await record(json(409, huge))
+    expect(await (await provider({ url: hugeRefusal.url, key: TOKEN })).finishRun(TICKET, FINISH, new AbortController().signal))
+      .toEqual({ error: 'service_error' })
+    const hugeReceipt = await record(json(200, huge))
+    expect(await (await provider({ url: hugeReceipt.url, key: TOKEN })).finishRun(TICKET, FINISH, new AbortController().signal))
+      .toEqual({ error: 'invalid_answer' })
     for (const body of [{ recordSeq: '8' }, { proposalId: 'p-1' }, 'not json']) {
       const double = await record(json(200, body))
       const service = await provider({ url: double.url, key: TOKEN })

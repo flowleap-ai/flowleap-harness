@@ -8,7 +8,8 @@
 import { createHash } from 'node:crypto'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
-  DeadlineId, DocumentSha256, LocalDate, MatterFileNumber, MatterView, OfficeEventId, RecordSeq, RuleId, TicketId, ViewHash,
+  DeadlineId, DocumentSha256, LocalDate, MatterFileNumber, MatterViewBase, MatterViewR1, OfficeEventId, RecordSeq, RuleId,
+  TicketId, ViewHash,
 } from '../../../src/types.ts'
 
 const date = (value: string): LocalDate => brandString<LocalDate>(value)
@@ -16,7 +17,7 @@ const date = (value: string): LocalDate => brandString<LocalDate>(value)
 /** SHA-256 of the forwarded R.71(3) communication. */
 export const LETTER_SHA256 = brandString<DocumentSha256>('5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a')
 
-const unhashed: Omit<MatterView, 'viewHash'> = {
+const unhashed: Omit<MatterViewBase, 'viewHash'> & MatterViewR1 = {
   recordSeq: brandNumber<RecordSeq>(7),
   matter: {
     fileNumber: brandString<MatterFileNumber>('FL-2026-0001'),
@@ -74,7 +75,7 @@ function canonical(value: unknown): string {
 }
 
 /** The view with its hash. */
-export const VIEW: MatterView = {
+export const VIEW: MatterViewBase & MatterViewR1 = {
   ...unhashed,
   viewHash: brandString<ViewHash>(createHash('sha256').update(canonical(unhashed)).digest('hex')),
 }

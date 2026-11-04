@@ -18,6 +18,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { nonEmpty } from '../src/run/args.ts'
 import * as run from '../src/run/index.ts'
 import type {
   DocumentSha256, FlowleapRecord, MatterViewResult, OutboxId, ProposalId, RecordCommandError, RecordCommandResult, RecordSeq,
@@ -97,7 +98,7 @@ async function bench() {
     const text = block?.type === 'text' ? block.text : ''
     return { isError: result.isError, text, value: result.value }
   }
-  return { ctx, record, fiber, call }
+  return { ctx, record, fiber, call, agent, templatesDir }
 }
 
 const reportArgs = {
@@ -132,6 +133,14 @@ describe('record_propose_report', () => {
     expect(command.statements[1]?.evidence[0]).toEqual({ document: LETTER_SHA256 })
   })
 
+  it('names the id of a call inside a PTC program as the tool call, not the id of its root call', async () => {
+    const { ctx, record, agent, templatesDir } = await bench()
+    const tool = run.proposeReportTool(ctx, templatesDir)
+    const exec = { callId: ToolCallId('call-7:ptc:2'), rootCallId: ToolCallId('call-7'), agent, signal: new AbortController().signal }
+    expect(await tool.execute(reportArgs, exec as never)).toEqual(RECEIPT)
+    expect(record.reports[0]?.command.toolCall).toBe('call-7:ptc:2')
+  })
+
   it('answers each refusal of the Firm Record with its code, a message, and the detail', async () => {
     const { call, record } = await bench()
     for (const refusal of [
@@ -139,6 +148,7 @@ describe('record_propose_report', () => {
       { error: 'statement_without_evidence' },
       { error: 'ticket_not_running' },
       { error: 'not_routed_person' },
+      { error: 'idempotency_key_reused' },
     ] satisfies RecordCommandError[]) {
       record.report = refusal
       const result = await call('record_propose_report', reportArgs)
@@ -213,7 +223,15 @@ describe('the run plugin', () => {
     const { ctx, fiber } = await bench()
     const names = () => ctx.tools.schemas().map(schema => schema.name).filter(name => name.startsWith('record_'))
     expect(names().sort()).toEqual(['record_finish_run', 'record_propose_report'])
-    expect(ctx.tools.schemas().find(schema => schema.name === 'record_propose_report')?.description).toContain('attorney decides')
+    const description = (name: string) => ctx.tools.schemas().find(schema => schema.name === name)?.description
+    expect(description('record_propose_report')).toContain('Nothing goes to the client before the attorney decides')
+    expect(description('record_propose_report')).toContain('firm addresses only')
+    expect(description('record_finish_run')).toContain('queues one reply to firm addresses only')
+    expect(description('record_finish_run')).toContain('Nothing goes to the client')
+    expect(ctx.tools.get('record_propose_report')?.presentCall?.(reportArgs))
+      .toMatchObject({ card: 'generic', title: 'Propose the report letter', locations: [{ path: 'out/report.docx' }] })
+    expect(ctx.tools.get('record_finish_run')?.presentCall?.({ ticket_id: 'tk-1', deadline_id: 'd-1', deadline_state: 'active', record_seq: 7 })).toMatchObject({ card: 'generic', title: 'Finish the run' })
+    expect(() => nonEmpty([])).toThrow(/must not be empty/u)
     await fiber.dispose()
     expect(names()).toEqual([])
     await expect(ctx.plugin(run, { templatesDir: 'templates' })).rejects.toThrow(/absolute path/u)

@@ -91,7 +91,7 @@ const recordDocument = zod.object({
   source: zod.string().min(1),
 })
 
-/** The Firm Record's answer to a view read. */
+/** The fields of a view that every Firm Record answers. */
 const viewSchema = zod.object({
   recordSeq: seq,
   viewHash: zod.string().regex(/^[0-9a-f]{64}$/u).transform(value => brandString<ViewHash>(value)),
@@ -103,11 +103,26 @@ const viewSchema = zod.object({
     state: zod.enum(['open', 'closed']),
   }),
   deadlines: zod.array(deadline),
-  clientRules: clientRules.nullable(),
-  officeEvents: zod.array(officeEvent),
-  tickets: zod.array(ticket),
-  documents: zod.array(recordDocument),
 })
+
+/**
+ * The Firm Record's answer to a view read: an R1 view with all four R1 fields, or an R0 view with none of them. A view
+ * with only some of them is not a view.
+ */
+const matterViewSchema = zod.union([
+  viewSchema.extend({
+    clientRules: clientRules.nullable(),
+    officeEvents: zod.array(officeEvent),
+    tickets: zod.array(ticket),
+    documents: zod.array(recordDocument),
+  }),
+  viewSchema.extend({
+    clientRules: zod.never().optional(),
+    officeEvents: zod.never().optional(),
+    tickets: zod.never().optional(),
+    documents: zod.never().optional(),
+  }).transform(({ recordSeq, viewHash, matter, deadlines }) => ({ recordSeq, viewHash, matter, deadlines })),
+])
 
 const runStartSchema = zod.object({ recordSeq: seq })
 
@@ -139,6 +154,7 @@ const COMMAND_CODES: Readonly<Record<string, RecordCommandRefusal>> = {
   'report.statement-has-evidence': 'statement_without_evidence',
   'no-proposals': 'no_proposals',
   'document-too-large': 'document_too_large',
+  'idempotency-key-reused': 'idempotency_key_reused',
 }
 
 /**
@@ -260,7 +276,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
       if (refusal === 'service_error') this.ctx.logger.warn(`flowleap-record: the Firm Record answered HTTP ${String(exchange.status)}`)
       return { error: refusal }
     }
-    const view: MatterView | undefined = exchange.text === undefined ? undefined : parseJson(exchange.text, viewSchema)
+    const view: MatterView | undefined = exchange.text === undefined ? undefined : parseJson(exchange.text, matterViewSchema)
     return view ?? { error: 'invalid_answer' }
   }
 

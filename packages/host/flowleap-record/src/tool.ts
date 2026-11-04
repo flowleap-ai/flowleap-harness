@@ -90,8 +90,7 @@ const OUTPUT_SCHEMA = {
           },
         },
         clientRules: {
-          required: true,
-          description: 'The client\'s latest recorded rules; null when none are recorded.',
+          description: 'The client\'s latest recorded rules; null when none are recorded; absent from a Firm Record before R1.',
           oneOf: [{ type: 'null' }, {
             type: 'object',
             additionalProperties: false,
@@ -110,7 +109,7 @@ const OUTPUT_SCHEMA = {
         },
         officeEvents: {
           type: 'array',
-          required: true,
+          description: 'Absent from a Firm Record before R1.',
           items: {
             type: 'object',
             additionalProperties: false,
@@ -127,7 +126,7 @@ const OUTPUT_SCHEMA = {
         },
         tickets: {
           type: 'array',
-          required: true,
+          description: 'Absent from a Firm Record before R1.',
           items: {
             type: 'object',
             additionalProperties: false,
@@ -141,7 +140,7 @@ const OUTPUT_SCHEMA = {
         },
         documents: {
           type: 'array',
-          required: true,
+          description: 'Absent from a Firm Record before R1.',
           items: {
             type: 'object',
             additionalProperties: false,
@@ -170,7 +169,9 @@ const DESCRIPTION =
   'Read one matter of the firm\'s record: its file number, title, client, responsible attorney, state, and each deadline '
   + 'with its rule, due date, state, and the computation trace with legal citations; the client\'s recorded rules (AI use, '
   + 'AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, '
-  + 'and the documents of the e-file with their SHA-256. The result names recordSeq, the '
+  + 'and the documents of the e-file with their SHA-256. A Firm Record before R1 holds none of clientRules, officeEvents, '
+  + 'tickets, and documents: the result then has none of these four fields, and you do not know the client\'s rules, '
+  + 'so you do not assume them. The result names recordSeq, the '
   + 'position of the record log the view was read at, and viewHash, so the view can be rebuilt later. '
   + 'The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person '
   + 'confirms it in the Records app.'

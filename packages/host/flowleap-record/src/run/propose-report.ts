@@ -54,8 +54,9 @@ const DESCRIPTION =
   + 'the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the '
   + 'record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules '
   + '(clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the '
-  + 'attorney accepts or rejects it in the Records app. You do not send the letter, and nobody sends it before the '
-  + 'attorney decides.'
+  + 'attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the '
+  + 'run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who '
+  + 'forwarded the office letter and the routed attorney. You do not send the letter.'
 
 const OUTPUT_SCHEMA = {
   oneOf: [
@@ -140,7 +141,7 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
         rulesSeq: args.rules_seq,
         statements,
         session,
-        toolCall: exec.rootCallId,
+        toolCall: exec.callId,
       }, exec.signal)
       return 'error' in result ? runRefusal(result) : result
     },

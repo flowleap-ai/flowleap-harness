@@ -149,18 +149,29 @@ export interface DocumentView {
   readonly source: string
 }
 
-/** The view of one matter at one record position. */
-export interface MatterView {
+/** The fields of the view that every Firm Record answers, R0 included. */
+export interface MatterViewBase {
   readonly recordSeq: RecordSeq
   readonly viewHash: ViewHash
   readonly matter: MatterSummary
   readonly deadlines: DeadlineView[]
+}
+
+/** The fields that a Firm Record of R1 or later adds to the view; an R0 Firm Record answers none of them. */
+export interface MatterViewR1 {
   /** The latest client rules, or `null` when no person recorded them (a run then does not start). */
   readonly clientRules: ClientRules | null
   readonly officeEvents: OfficeEventView[]
   readonly tickets: TicketSummary[]
   readonly documents: DocumentView[]
 }
+
+/**
+ * The view of one matter at one record position. A Firm Record of R1 or later answers all four R1 fields; an R0 Firm
+ * Record answers none, and the view then has none of them, never an empty list in their place, because the R0 record
+ * does not hold the client rules, office events, Tickets, or documents at all.
+ */
+export type MatterView = MatterViewBase & (MatterViewR1 | { readonly [K in keyof MatterViewR1]?: never })
 
 /** Why a view is not available. */
 export type MatterViewRefusal =
@@ -223,7 +234,7 @@ export interface ReportProposal {
   readonly rulesSeq: RecordSeq
   readonly statements: readonly [ReportStatement, ...ReportStatement[]]
   readonly session: SessionId
-  /** The model's tool call that proposed the letter. */
+  /** The id of the tool call that proposed the letter; a call inside a PTC program has its own id, not the root call id. */
   readonly toolCall: ToolCallId
 }
 
@@ -255,10 +266,13 @@ export interface ReportReceipt {
   readonly recordSeq: RecordSeq
 }
 
-/** The Firm Record appended `ticket/proposals-ready` and composed the reply to the forwarder. */
+/**
+ * The Firm Record appended `ticket/proposals-ready` and composed one reply with the proposed letters attached as drafts
+ * to the forwarder of the office letter and the routed person; it sends to firm addresses only, never to the client.
+ */
 export interface RunFinishReceipt {
   readonly recordSeq: RecordSeq
-  /** The reply's outbox item: `queued` for the mailbox, or `refused` by the allow-list check. */
+  /** The reply's outbox item: `queued` for the mailbox, or `refused` because a recipient is not a firm address. */
   readonly outbox: { readonly id: OutboxId; readonly state: 'queued' | 'refused' }
 }
 
@@ -290,6 +304,12 @@ export type RecordCommandRefusal =
   | 'no_proposals'
   /** The letter is larger than the Firm Record takes (413 `document-too-large`). */
   | 'document_too_large'
+  /**
+   * The Firm Record already took a command with the same Idempotency-Key and another body (409
+   * `idempotency-key-reused`): a second finish of the run with another deadline summary, or a report of the same tool call
+   * with another letter.
+   */
+  | 'idempotency_key_reused'
   /** The connection failed, the service redirected, or the answer did not arrive in time. */
   | 'unreachable'
   /** The Firm Record answered with another HTTP error. */

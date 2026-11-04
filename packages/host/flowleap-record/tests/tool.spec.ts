@@ -67,6 +67,19 @@ describe('record_read', () => {
     expect(record.asked).toEqual(['FL-2026-0001'])
   })
 
+  it('answers the view of an R0 Firm Record without the R1 fields, not with empty lists', async () => {
+    const { recordSeq, viewHash, matter, deadlines } = VIEW
+    const r0: MatterViewResult = { recordSeq, viewHash, matter, deadlines }
+    const { ctx } = await host(r0)
+    const result = await call(ctx, 'FL-2026-0001')
+    expect(result.isError).toBe(false)
+    const rendered = JSON.parse(text(result.content)) as Record<string, unknown>
+    expect(rendered).toEqual(r0)
+    expect(Object.keys(rendered).sort()).toEqual(['deadlines', 'matter', 'recordSeq', 'viewHash'])
+    expect(ctx.tools.schemas().find(candidate => candidate.name === 'record_read')?.description)
+      .toContain('A Firm Record before R1 holds none of clientRules, officeEvents, tickets, and documents')
+  })
+
   it('passes the call signal to the seam', async () => {
     const { ctx, record } = await host()
     const controller = new AbortController()

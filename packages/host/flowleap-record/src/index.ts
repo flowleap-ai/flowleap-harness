@@ -12,10 +12,10 @@ import { registerRecordReadTool } from './tool.ts'
 export type {
   ClientAiLetters, ClientAiUse, ClientRules, DeadlineId, DeadlineState, DeadlineSummary, DeadlineView, DocumentSha256,
   DocumentSpan, DocumentView, FlowleapRecord, LocalDate, MatterFileNumber, MatterState, MatterSummary, MatterView,
-  MatterViewRefusal, MatterViewResult, OfficeEventId, OfficeEventView, OutboxId, ProposalId, RecordCommandError,
-  RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, ReportStatement, RuleId, RunFinish,
-  RunFinishReceipt, RunStart, RunStartReceipt, StatementEvidence, SummaryDeadlineState, TicketId, TicketState,
-  TicketSummary, TraceStep, ViewHash,
+  MatterViewBase, MatterViewR1, MatterViewRefusal, MatterViewResult, OfficeEventId, OfficeEventView, OutboxId,
+  ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt,
+  ReportStatement, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, StatementEvidence,
+  SummaryDeadlineState, TicketId, TicketState, TicketSummary, TraceStep, ViewHash,
 } from './types.ts'
 export { parseFileNumber, RECORD_READ_NAME, refusal, registerRecordReadTool } from './tool.ts'
 export type { RecordReadError, RecordReadRefusal, RecordReadResult } from './tool.ts'

@@ -24,6 +24,7 @@ const MESSAGES: Record<RecordCommandRefusal, string> = {
   client_rule_forbids_ai_draft: 'The client rules do not allow an AI draft of a letter to the client. Do not draft one; tell the attorney in this chat that the report is due by hand.',
   statement_without_evidence: 'Every statement needs at least one source document. Add the evidence and propose again.',
   no_proposals: 'The run has no proposal yet. Propose the report letter with record_propose_report first.',
+  idempotency_key_reused: 'The Firm Record already took a different command from this run under the same key: a finish of this run, or a report of this tool call. Do not repeat it; tell the attorney in this chat what differs.',
   document_too_large: 'The letter is larger than 5 MiB. Write a shorter letter without embedded images.',
   unreachable: 'The Firm Record did not answer. Try again later.',
   service_error: 'The Firm Record answered with an error. Try again later.',

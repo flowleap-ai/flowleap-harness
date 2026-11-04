@@ -536,7 +536,7 @@
     },
     {
       "name": "record_finish_run",
-      "description": "End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then replies to the person who forwarded the letter; you send nothing.",
+      "description": "End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then queues one reply to firm addresses only, the person who forwarded the office letter and the routed attorney, with the proposed letters attached as drafts. Nothing goes to the client, and you send nothing.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -573,7 +573,7 @@
     },
     {
       "name": "record_propose_report",
-      "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. You do not send the letter, and nobody sends it before the attorney decides.",
+      "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -665,7 +665,7 @@
     },
     {
       "name": "record_read",
-      "description": "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations; the client's recorded rules (AI use, AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, and the documents of the e-file with their SHA-256. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app.",
+      "description": "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations; the client's recorded rules (AI use, AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, and the documents of the e-file with their SHA-256. A Firm Record before R1 holds none of clientRules, officeEvents, tickets, and documents: the result then has none of these four fields, and you do not know the client's rules, so you do not assume them. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app.",
       "parameters": {
         "type": "object",
         "properties": {
