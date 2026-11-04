@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Button, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
-import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type { ShortcutCatalogEntry, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -37,6 +37,8 @@ export interface PanelInjected {
     readonly waitingCount: ObservableSnapshot<number | null>
     /** The shortcut catalog, for the keycaps of the acts. */
     readonly catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
+    /** The fixed keys, for the keycap of ↵ Open the row. */
+    readonly fixedCatalog: ObservableSnapshot<readonly ShortcutFixedCatalogEntry[]>
     /** The UI language. */
     readonly language: ObservableSnapshot<LocaleId>
   }
@@ -58,16 +60,17 @@ const TAB_ORDER: readonly Tab[] = ['matters', 'intake', 'work']
  * @returns the panel.
  */
 export function RecordsPanel(props: PanelProps) {
-  const { t, useScreen, useMe, useWaitingCount, useCatalog, useLanguage, useContextMenu } = props
+  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useContextMenu } = props
   const screen = useScreen(value => value)
   const me = useMe(load => shownData(load)?.data ?? null)
   const waitingCount = useWaitingCount(count => count)
   const catalog = useCatalog(rows => rows)
+  const fixedCatalog = useFixedCatalog(rows => rows)
   const locale = useLanguage(language => language)
   const { getTriggerProps } = useContextMenu()
   const ctx: ScreenContext = {
     t, locale, now: Date.now(), me,
-    keycaps: keycapsFrom(catalog),
+    keycaps: keycapsFrom(catalog, fixedCatalog),
     navigate: props.navigate,
     retry: props.retry,
     refresh: props.refresh,

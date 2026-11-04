@@ -17,14 +17,23 @@ export type KeycapTone = 'default' | 'primary' | 'selected'
 /** The key labels of one box, such as `['⇧', '⌘', 'Enter']`, `['Ctrl', 'Shift', 'K']` or `['G']`. */
 export type KeycapBox = readonly string[]
 
+/** Key words that a keycap draws as their symbol on every platform. */
+const SYMBOLS: Readonly<Record<string, string>> = { Enter: '↵', Return: '↵', Command: '⌘', Cmd: '⌘' }
+
+/** Labels that mark a macOS combination, where Shift also draws as its symbol. */
+const MAC_MODIFIERS = new Set(['⌘', '⌥', '⌃', 'Command', 'Cmd', 'Option'])
+
 /**
- * The text of one box: a one-character modifier symbol joins the next label directly (`⇧⌘Enter`), and a word joins
- * the next label with a plus sign (`Ctrl+Shift+K`).
+ * The text of one box, as the IPMS mockups draw keys: Enter draws as `↵` and Command as `⌘`; in a macOS combination
+ * Shift draws as `⇧`. A one-character label joins the next label directly (`⇧⌘↵`), and a word joins it with a plus
+ * sign (`Ctrl+Shift+↵`). The shortcut catalog's own text stays as it is.
  * @param box - the key labels of the box.
  * @returns the box text.
  */
 export function keycapText(box: KeycapBox): string {
-  return box.map((label, index) => index < box.length - 1 && Array.from(label).length > 1 ? `${label}+` : label).join('')
+  const mac = box.some(label => MAC_MODIFIERS.has(label))
+  const labels = box.map(label => (label === 'Shift' && mac ? '⇧' : SYMBOLS[label] ?? label))
+  return labels.map((label, index) => index < labels.length - 1 && Array.from(label).length > 1 ? `${label}+` : label).join('')
 }
 
 /**

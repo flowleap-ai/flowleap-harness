@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createAct, type Act, type DocumentId, type FileNumber, type IsoDate, type IsoTime } from '../src/client/api.ts'
 import type { Route } from '../src/client/model.ts'
@@ -80,13 +80,16 @@ describe('words of codes and events', () => {
 })
 
 describe('keycaps', () => {
-  it('reads a bound command as one keycap box, and nothing for an unbound or unknown one', () => {
-    const row = (id: string, keys: readonly string[], bound: boolean): ShortcutCatalogEntry => ({
-      id: id as ShortcutCommandId, label: id, aliases: [], keys, aria: undefined, binding: bound ? { code: 'KeyM', modifiers: [] } : null,
-      modified: false, conflicts: [], issue: null,
+  it('reads the catalog keycaps of a command and of a fixed key, and nothing for an unbound or unknown one', () => {
+    const row = (id: string, keycaps?: readonly (readonly string[])[]): ShortcutCatalogEntry => ({
+      id: id as ShortcutCommandId, label: id, aliases: [], keys: [], ...(keycaps === undefined ? {} : { keycaps }), aria: undefined,
+      binding: null, modified: false, conflicts: [], issue: null,
     })
-    const keycaps = keycapsFrom([row('records.intake.otherMatter', ['M'], true), row('records.part.reject', ['2'], false), row('records.retry', [], true)])
+    const fixed: ShortcutFixedCatalogEntry = { id: 'records.row.open' as ShortcutCommandId, label: 'Open', keys: ['↵'], keycaps: [['↵']], bindings: [], group: 'application' }
+    const keycaps = keycapsFrom([row('records.intake.otherMatter', [['M']]), row('records.go.matter', [['G'], ['M']]), row('records.part.reject', []), row('records.retry')], [fixed])
     expect(keycaps(commandId('otherMatter'))).toEqual([['M']])
+    expect(keycaps(commandId('goMatter'))).toEqual([['G'], ['M']])
+    expect(keycaps(commandId('open'))).toEqual([['↵']])
     expect(keycaps(commandId('reject'))).toEqual([])
     expect(keycaps(commandId('retry'))).toEqual([])
     expect(keycaps(commandId('search'))).toEqual([])

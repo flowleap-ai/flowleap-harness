@@ -4,7 +4,7 @@
  * shows the command's current keycaps, so a rebound key shows its new keycap everywhere.
  */
 
-import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { KeycapBox } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** The command of each act, as keys.md names it. */
@@ -46,12 +46,14 @@ export type KeycapsOf = (command: ShortcutCommandId) => readonly KeycapBox[]
 const NONE: readonly KeycapBox[] = []
 
 /**
- * The keycaps of each command in a catalog. A catalog row draws its current binding as one box of key labels.
- * @param rows - the shortcut catalog rows.
+ * The keycaps of each command in the shortcut catalogs: a rebindable command's current binding (`entry.keycaps`, one
+ * box for a key or a combination, one for each step of a sequence), and a fixed key such as ↵ Open the row.
+ * @param rows - the catalog of rebindable commands.
+ * @param fixedRows - the catalog of fixed keys.
  * @returns the lookup.
  */
-export function keycapsFrom(rows: readonly ShortcutCatalogEntry[]): KeycapsOf {
+export function keycapsFrom(rows: readonly ShortcutCatalogEntry[], fixedRows: readonly ShortcutFixedCatalogEntry[]): KeycapsOf {
   const byId = new Map<string, readonly KeycapBox[]>()
-  for (const row of rows) if (row.binding !== null && row.keys.length > 0) byId.set(row.id, [row.keys])
+  for (const row of [...fixedRows, ...rows]) byId.set(row.id, row.keycaps ?? NONE)
   return command => byId.get(command) ?? NONE
 }

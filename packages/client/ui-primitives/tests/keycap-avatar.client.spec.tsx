@@ -22,7 +22,7 @@ describe('Keycap', () => {
     const { container } = render(<Keycap keycaps={[['⇧', '⌘', 'Enter']]} tone="primary" className="placed" />)
     const group = container.firstElementChild as HTMLElement
     expect(group.dataset['tone']).toBe('primary')
-    expect(group.textContent).toBe('⇧⌘Enter')
+    expect(group.textContent).toBe('⇧⌘↵')
     expect(group.classList.contains('placed')).toBe(true)
   })
 
@@ -34,8 +34,11 @@ describe('Keycap', () => {
 
 describe('keycapText', () => {
   it.each([
-    [['⇧', '⌘', 'Enter'], '⇧⌘Enter'],
+    [['⇧', '⌘', 'Enter'], '⇧⌘↵'],
+    [['Shift', 'Command', 'Return'], '⇧⌘↵'],
     [['Ctrl', 'Shift', 'K'], 'Ctrl+Shift+K'],
+    [['Ctrl', 'Shift', 'Enter'], 'Ctrl+Shift+↵'],
+    [['Enter'], '↵'],
     [['G'], 'G'],
     [['Space'], 'Space'],
   ])('writes %j as %j', (box, text) => {

@@ -56,7 +56,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   new RemoteStub(ctx)
   const menus: MenuContribution<'records.intake-row'>[] = []
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   ctx.provide('contextMenus', {
     register: (contribution: MenuContribution<'records.intake-row'>) => {
       menus.push(contribution)

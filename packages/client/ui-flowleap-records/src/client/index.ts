@@ -77,7 +77,10 @@ export function apply(ctx: ClientContext): void {
     ctx.effect(() => () => { model.dispose() }, 'ui-flowleap-records: model')
     registerRowMenu(ctx, model, t)
     const injected: PanelInjected = {
-      hooks: { screen: model.screen, me: model.me, waitingCount: model.waitingCount, catalog: ctx.shortcuts.catalog, language },
+      hooks: {
+        screen: model.screen, me: model.me, waitingCount: model.waitingCount, catalog: ctx.shortcuts.catalog,
+        fixedCatalog: ctx.shortcuts.fixedCatalog, language,
+      },
       navigate: (route) => { model.navigate(route) },
       retry: () => { model.retry() },
       refresh: () => { model.refresh() },

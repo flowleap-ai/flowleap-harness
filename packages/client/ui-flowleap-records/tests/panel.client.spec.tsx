@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { Act, DeadlineId, DocumentId, Fetched, FileNumber, RecordsApi, TicketId } from '../src/client/api.ts'
 import type { IntakeRowTarget } from '../src/client/row-menu.ts'
@@ -26,11 +26,14 @@ afterEach(() => {
 
 const flush = async () => { for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() }) }
 
-const entry = (id: string, keys: readonly string[], bound: boolean): ShortcutCatalogEntry => ({
-  id: id as ShortcutCommandId, label: id, aliases: [], keys, aria: undefined,
-  binding: bound ? { code: 'Enter', modifiers: ['shift', 'meta'] } : null, modified: false, conflicts: [], issue: null,
+const entry = (id: string, keycaps: readonly (readonly string[])[]): ShortcutCatalogEntry => ({
+  id: id as ShortcutCommandId, label: id, aliases: [], keys: keycaps.flat(), keycaps, aria: undefined,
+  binding: keycaps.length > 0 ? { code: 'Enter', modifiers: ['shift', 'meta'] } : null, modified: false, conflicts: [], issue: null,
 })
-const CATALOG: readonly ShortcutCatalogEntry[] = [entry('records.decision.record', ['⇧', '⌘', 'Enter'], true), entry('records.part.reject', ['2'], false)]
+const CATALOG: readonly ShortcutCatalogEntry[] = [entry('records.decision.record', [['⇧', '⌘', 'Enter']]), entry('records.part.reject', [])]
+const FIXED: readonly ShortcutFixedCatalogEntry[] = [
+  { id: 'records.row.open' as ShortcutCommandId, label: 'Open', keys: ['↵'], keycaps: [['↵']], bindings: [], group: 'application' },
+]
 
 /**
  * Mount the panel over a model of the fixture API.
@@ -47,6 +50,7 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     useMe: bindSnapshotSelector(model.me),
     useWaitingCount: bindSnapshotSelector(model.waitingCount),
     useCatalog: bindSnapshotSelector(createSnapshotStore(CATALOG)),
+    useFixedCatalog: bindSnapshotSelector(createSnapshotStore(FIXED)),
     useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
     useContextMenu: contextMenuHook(openMenu),
     navigate: (next: Route) => { model.navigate(next) },
@@ -88,7 +92,7 @@ describe('the Matters panel', () => {
     expect(screen.getByLabelText('Letter 1 of 22').textContent).toBe('1 / 22')
     expect(screen.getByText('Jonas Weber forwarded this letter to the AI mailbox.')).toBeTruthy()
     const record = screen.getByRole('button', { name: /Accept and file/ })
-    expect(record.querySelector('kbd')?.textContent).toBe('⇧⌘Enter')
+    expect(record.querySelector('kbd')?.textContent).toBe('⇧⌘↵')
     fireEvent.click(record)
     await flush()
     expect(acts.at(-1)?.command).toEqual({ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' })
