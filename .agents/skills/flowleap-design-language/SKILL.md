@@ -1,30 +1,42 @@
 ---
 name: flowleap-design-language
-description: The FlowLeap design language, the bar every FlowLeap screen must meet (Linear quality as checkable rules), with tokens, components, product rules, the mockup gate and the merge checklist. Use for any product-visible UI change in the harness client (packages/client) or in flowleap-os (the Records app), for any UI brief or mockup, and for the design review of such a PR.
+description: The FlowLeap design language for the IPMS screens (the Records features taken from PATORG, such as intake, matter, deadline, work on a letter and the board, and every later IPMS screen), Linear's layout and interaction quality as checkable rules on the harness client theme, with components, product rules, the mockup gate and the merge checklist. Use for any UI change, brief, mockup or design review of an IPMS screen in packages/client or flowleap-os.
 ---
 
 # FlowLeap design language
 
-The founder's bar is Linear (https://linear.app). A screen meets the bar when it passes every rule here, not when it looks good. We learn Linear's rules; we do not copy its brand, icons or layouts. This skill adds the FlowLeap bar on top of [dsh-client-ui-ux](../dsh-client-ui-ux/SKILL.md) (feedback surfaces, overlays, reuse) and [dsh-responsive-ui](../dsh-responsive-ui/SKILL.md) (390 px and touch); copy follows [dsh-prose-standard](../dsh-prose-standard/SKILL.md).
+The founder's bar is Linear (https://linear.app). A screen meets the bar when it passes every rule here, not when it looks good.
+
+**Scope.** The IPMS screens only: the Records features taken from PATORG (intake, matter, deadline, work on a letter, the work board) and every later IPMS screen. The rest of the FlowLeap app keeps its current design. **Look.** The harness client theme and `ui-primitives` as they are ([tokens.md](tokens.md)): its font, colours, radii, motion, 0.5 px hairlines, elevation and `Menu`/`MenuSurface`. This skill adds no token. **What comes from Linear** is the layout and the interaction: hierarchy, one primary action, status icon plus word, dense list rows and group headers, the detail page with a properties panel and Activity, the docked decision bar, keyboard and ⌘K, and designed empty, loading and error states. We learn Linear's rules; we do not copy its brand, icons or layouts. This skill adds the FlowLeap bar on top of [dsh-client-ui-ux](../dsh-client-ui-ux/SKILL.md) (feedback surfaces, overlays, reuse) and [dsh-responsive-ui](../dsh-responsive-ui/SKILL.md) (390 px and touch); copy follows [dsh-prose-standard](../dsh-prose-standard/SKILL.md).
 
 ## The gate
 
-1. **Mockup first.** Before code, make HTML mockups from [tokens.css](tokens.css) and the [components](components.md); start from the [reference mockups](references/mockups/). Run `node scripts/check-mockups.mjs <dir> --shoot` and `node scripts/contrast.mjs <tokens.css>`; both must pass. The screenshots are 1440 × 900, light and dark, plus one German screen, with the empty, loading and error states of each list.
+1. **Mockup first.** Before code, make HTML mockups from the client tokens ([tokens.md](tokens.md)) and the [components](components.md); start from the [reference mockups](references/mockups/). From the skill folder, run the checks below; each must exit 0. `check-mockups.mjs --shoot <dir>` writes the screenshots: each page and state at 1440 × 900, 1366 × 650 and 390 × 844, light and dark, plus the German pages.
 2. **When you are stuck on a design choice, find the matching Linear screen or pattern first**, in linear.app, its docs and changelog, and [references](references/README.md). Note in the PR which one you used and why.
 3. **Founder approval.** The founder approves the mockups before any code. Link the approval in the PR.
-4. **Build** with the token roles and the components. A value that is not in [rules.md](rules.md) or tokens.css needs a new rule first.
+4. **Build** with the client tokens, `ui-primitives` and the components. A value that is not a client token or in [rules.md](rules.md) needs a new rule first.
 5. **Design review before merge.** A reviewer checks the built screen against [review-checklist.md](review-checklist.md) and writes PASS or FAIL for each item in the PR. Any FAIL blocks the merge.
+
+```sh
+node scripts/check-css.mjs <mockup dir or CSS> [--pairs]   # R1, R2, R5, R7, R8, R9, R10, R15: client tokens only
+node scripts/check-copy.mjs <mockup dir or locale files>    # R19: the deny-list
+node scripts/contrast.mjs contrast.md                       # R10: every pair of the client theme in both themes
+node scripts/status-map.mjs [--machines <machines.mjs>]     # R11: atlas states to shapes and words
+node scripts/check-mockups.mjs <mockup dir> [--shoot <dir>] # R8, R11, R12, R13, R16, R19 in a browser
+```
+
+The scripts need Node 22 and three inputs outside the skill. `check-css.mjs` and `contrast.mjs` read the client theme from `--theme`, else `$FLOWLEAP_UI_THEME`, else `packages/client/ui-theme/src/styles` in the git root. `check-mockups.mjs` needs Playwright: it uses `$FLOWLEAP_PLAYWRIGHT` (a playwright package directory), else `playwright` in the current directory's `node_modules`, else the flowleap-harness checkout that holds the skill, and it names these three when none works. `status-map.mjs` reads the process atlas from `--machines`, else `$FLOWLEAP_ATLAS_MACHINES`, else `flowleap/docs/process-atlas/check/machines.mjs` in the git root. In flowleap-os, pass all three from a flowleap-harness checkout.
 
 ## Product rules
 
 These hold on every screen. Each has a numbered rule in [rules.md](rules.md).
 
-1. Lists are tables: 36 px rows, or 52 px with a second line, grouped by state with a count.
-2. One primary action per view, inside the decision bar when there is a decision.
-3. Status is an icon shape plus the atlas word in sentence case, never colour alone.
-4. No raw IDs, hashes, form codes, record positions or internal actor names outside Audit. The matter key and the application number are the firm's own references and may show.
+1. Lists are tables: 44 px rows with no hairlines, grouped by state in tinted headers with a count.
+2. One primary action per view, inside the decision bar when there is a decision, with its key from [keys.md](keys.md).
+3. Status is an icon shape plus the atlas word in sentence case ([status-map.md](status-map.md)), never colour alone.
+4. No raw IDs, hashes, form codes, record positions, account handles or internal actor names outside Audit. The matter key and the application number are the firm's own references and may show; people show by their display name.
 5. English and German copy in sentence case, in the person's words ("Rule 71(3) communication", "FlowLeap", "Client report").
-6. A decision is a person's act. Its evidence is inside the decision bar: each statement points to an exact span (quote and page). Missing evidence is a warning that blocks Accept.
+6. A decision is a person's act. The decision bar is docked in view; it names each part and its evidence state, and each statement in the content points to an exact span (quote and page). Missing evidence is a warning that blocks Accept.
 7. A board moves a card only on an allowed transition, by a person who may make it; a move that is a decision opens the decision bar.
 8. People come only from inside the matter's wall: rows, cards, pickers and Activity never show a person outside it.
 
@@ -32,10 +44,12 @@ These hold on every screen. Each has a numbered rule in [rules.md](rules.md).
 
 | File | Use |
 |---|---|
-| [rules.md](rules.md) | The bar: each rule with its number, how to check it, and its source |
-| [tokens.css](tokens.css) | Colour roles (OKLCH, dark and light), type, spacing, radii, sizes, motion |
-| [contrast.md](contrast.md) | Contrast of every token pair in both themes, generated by `scripts/contrast.mjs` |
+| [rules.md](rules.md) | The bar: each rule with its number, its check, and its source |
+| [tokens.md](tokens.md) | Each role of the rules mapped to its client token |
+| [contrast.md](contrast.md) | Contrast of every client token pair in both themes, generated by `scripts/contrast.mjs` |
+| [status-map.md](status-map.md) | Shape and word of every process-atlas state, generated by `scripts/status-map.mjs` |
+| [keys.md](keys.md) | The one key map |
 | [components.md](components.md) | Anatomy and states of each component |
 | [review-checklist.md](review-checklist.md) | The merge checklist |
-| [client-gaps.md](client-gaps.md) | The design-system changes that the current client needs |
-| [references/README.md](references/README.md) | Linear and guide URLs, the reference mockups and screenshots |
+| [client-gaps.md](client-gaps.md) | The five new components and the other client changes that the IPMS screens need |
+| [references/README.md](references/README.md) | Linear and guide URLs, the live Linear measurements, the reference mockups and screenshots |

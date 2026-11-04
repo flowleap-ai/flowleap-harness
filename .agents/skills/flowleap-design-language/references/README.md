@@ -6,15 +6,28 @@ We learn Linear's rules for quality and patterns. We do not copy its brand, icon
 
 | Reference | URL | What it teaches |
 |---|---|---|
-| How we redesigned the Linear UI | https://linear.app/now/how-we-redesigned-the-linear-ui | Themes from three variables (base, accent, contrast) in LCH; elevation by surface levels; one display face for headings |
-| Behind the latest design refresh | https://linear.app/now/behind-the-latest-design-refresh | "Structure should be felt not seen": a dimmer sidebar, fewer separators, smaller icons |
-| Triage docs | https://linear.app/docs/triage | Single-key acts (1 accept, 2 decline, 3 duplicate, H snooze); accept and decline take an optional comment |
-| Inbox docs | https://linear.app/docs/inbox | `J` and `K` move through the list; unread is a small accent dot; status icon at the row edge |
+| How we redesigned the Linear UI | https://linear.app/now/how-we-redesigned-the-linear-ui | Themes from three variables (base colour, accent colour, contrast) in LCH; elevation by surface levels; Inter Display for headings and Inter for the rest |
+| Behind the latest design refresh | https://linear.app/now/behind-the-latest-design-refresh | "Structure should be felt not seen": a sidebar a few notches dimmer, fewer separators, fewer and smaller icons |
+| Triage docs | https://linear.app/docs/triage | Single-key acts: accept with 1, decline with 2, duplicate with 3, snooze with H |
+| Inbox docs | https://linear.app/docs/inbox | `J` and `K` move through the list |
 | Changelog | https://linear.app/changelog | The current patterns; look here first when a choice is open |
-| Triage list (image) | https://webassets.linear.app/images/ornj730p/production/30183e73c9ef009bb8cb14adbe97d9f34a5b9a69-2352x1632.png | A two-line list: title, then source and actor; key and age right-aligned; hairlines, no boxes |
+| Triage list (image) | https://webassets.linear.app/images/ornj730p/production/30183e73c9ef009bb8cb14adbe97d9f34a5b9a69-2352x1632.png | A list with the title, then source and actor; key and age right-aligned; no boxes |
 | Triage header (image) | https://webassets.linear.app/images/ornj730p/production/c40aa85cbcf9b1ae058bd94c2fb3dd7d2017270a-1784x515.png | A 44 px view header: view icon, name, filter and display icons at the right |
-| Inbox, dark (image) | https://webassets.linear.app/images/ornj730p/production/b442b340278740de70919c868dce1afca4335fe7-3600x2080.png | Read rows fade to the tertiary text colour |
-| Issue page (founder's screenshot, not public) | none | Top bar with status, key, title and "1 / N"; title, description, then Activity where system events are one muted line; a docked agent panel shows the result as a card with Preview; the top bar and properties stay fixed while the content scrolls |
+
+### Live Linear measurements
+
+The independent review of PR 288 measured linear.app in the browser inspector on 2026-11-04. Rules cite these as [L-LIVE]. The skill takes Linear's layout numbers and keeps the client's look (font, colours, radii).
+
+| Part | Linear | This skill |
+|---|---|---|
+| Font | Inter Variable, weights 450 and 550 | The client font (`--dsw-font-family`), 400 and 500 |
+| Issue row | 44 px, no hairlines | 44 px, no hairlines |
+| Group header | Tinted, 36 px, 8 px radius | Tinted, 36 px, 8 px radius |
+| Properties column | About 376 px | 376 px |
+| ⌘K menu | 713 px wide, 46 px items, a key for every act | 712 px (a multiple of 8), 44 px items (the row height), a key for every act, Menu material |
+| Description text | 15 px | 14 px (the client `s-14` role) |
+| Neutral borders | 0.5 px | 0.5 px |
+| Detail page | The controls stay in place on every detail page | The decision bar is docked on every decision page |
 
 ## Guides
 
@@ -22,11 +35,11 @@ The rule sources with their URLs are in [rules.md](../rules.md#sources).
 
 ## Reference mockups
 
-The approved Records redesign (founder, 2026-11-04) in [mockups/](mockups/). Open a file with `?theme=dark` or `?theme=light`, and with `?state=<name>` for the view states that its `data-state` attributes name. `frame.js` draws the app sidebar and the icons and computes every "days left" from the demo date 2026-11-04. Check the folder with `node ../../scripts/check-mockups.mjs .` from inside it, and add `--shoot` to screenshot every page and state.
+The Records redesign in [mockups/](mockups/), on the harness client theme: `records.css` imports `packages/client/ui-theme/src/styles`, and `frame.js` sets `body[data-ds-dark-theme]` for the dark theme. Open a file with `?theme=dark` or `?theme=light`, and with `?state=<name>` for the view states that its `data-state` attributes name. `frame.js` draws the app sidebar and the icons and computes every "days left" from the demo date 2026-11-04. The people are display names from Entra: Dr. Anna Becker (responsible attorney), Jonas Weber (attorney), Lena Hoffmann (formalities). Check the folder from the skill folder with `node scripts/check-mockups.mjs references/mockups`, `node scripts/check-css.mjs references/mockups` and `node scripts/check-copy.mjs references/mockups`; add `--shoot <dir>` to the first to screenshot every page, state, theme and size.
 
 | Mockup | Screen | States |
 |---|---|---|
-| [a-intake-list.html](mockups/a-intake-list.html) | Intake list, grouped by state | `cmdk`, `empty`, `loading`, `error` |
+| [a-intake-list.html](mockups/a-intake-list.html) | Intake list: 22 letters in six atlas groups | `cmdk`, `empty`, `loading`, `error` |
 | [b-intake-item.html](mockups/b-intake-item.html), [German](mockups/b-intake-item.de.html) | Intake item: which matter is this letter for | |
 | [c-matter.html](mockups/c-matter.html) | Matter: deadlines, work, office events, documents | |
 | [d-deadline.html](mockups/d-deadline.html) | Deadline: is this date right | |
@@ -35,19 +48,17 @@ The approved Records redesign (founder, 2026-11-04) in [mockups/](mockups/). Ope
 
 ## Screenshots
 
-1440 px wide, from the mockups above. The work page is one 1440 × 900 view; the other pages are full height.
+From the mockups above. A list page is full height; a decision page is one view, with the decision bar docked at its bottom.
 
-| Screen | Light | Dark | German |
-|---|---|---|---|
-| Intake list | [light](screenshots/a-intake-list-light.png) | [dark](screenshots/a-intake-list-dark.png) | |
-| Intake list, command menu | | [dark](screenshots/a-intake-list-command-dark.png) | |
-| Intake list, empty | | [dark](screenshots/a-intake-list-empty-dark.png) | |
-| Intake list, loading | | [dark](screenshots/a-intake-list-loading-dark.png) | |
-| Intake list, error | [light](screenshots/a-intake-list-error-light.png) | | |
-| Intake item | [light](screenshots/b-intake-item-light.png) | | [dark](screenshots/b-intake-item-de-dark.png) |
-| Matter | [light](screenshots/c-matter-light.png) | | |
-| Deadline | | [dark](screenshots/d-deadline-dark.png) | |
-| Work on a letter | [light](screenshots/e-letter-work-light.png) | [dark](screenshots/e-letter-work-dark.png) | [dark](screenshots/e-letter-work-de-dark.png) |
-| Work, evidence on hover | [light](screenshots/e-letter-work-evidence-light.png) | | |
-| Work, missing evidence | [light](screenshots/e-letter-work-missing-light.png) | | |
-| Work board | | [dark](screenshots/f-work-board-dark.png) | |
+| Screen | Dark | Light | German | 390 px |
+|---|---|---|---|---|
+| Intake list | [1440](screenshots/a-intake-list-dark-1440.png) | [1366](screenshots/a-intake-list-light-1366.png) | | [dark](screenshots/a-intake-list-dark-390.png) |
+| Intake list, command menu | [1440](screenshots/a-intake-list-cmdk-dark-1440.png) | | | |
+| Intake list, empty | [1440](screenshots/a-intake-list-empty-dark-1440.png) | | | |
+| Intake list, error | | [1440](screenshots/a-intake-list-error-light-1440.png) | | |
+| Intake item | | [1366](screenshots/b-intake-item-light-1366.png) | [dark 1440](screenshots/b-intake-item-de-dark-1440.png) | |
+| Matter | | [1440](screenshots/c-matter-light-1440.png) | | |
+| Deadline | [1366](screenshots/d-deadline-dark-1366.png) | | | |
+| Work on a letter | [1440](screenshots/e-letter-work-dark-1440.png) | | [dark 1440](screenshots/e-letter-work-de-dark-1440.png) | [dark](screenshots/e-letter-work-dark-390.png) |
+| Work, missing evidence | | [1440](screenshots/e-letter-work-missing-light-1440.png) | | |
+| Work board | [1440](screenshots/f-work-board-dark-1440.png) | | | |
