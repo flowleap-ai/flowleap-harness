@@ -1,7 +1,9 @@
 /* Lists are tables (R17): 44px rows with no hairlines, a sticky 32px column header and sticky tinted 36px group
- * headers inset 8px. The open row is active with a 2px accent bar; hover only under (hover: hover). */
+ * headers inset 8px that stick under it at its height. The open row is active with a 2px accent bar; hover only
+ * under (hover: hover). */
 .pane {
   --records-columns: minmax(0, 1fr);
+  --records-header-height: 32px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -13,11 +15,13 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  /* The pane is a scrolling flex column: a long list would shrink a shrinkable header to its 18px line. */
+  flex: none;
   display: grid;
   grid-template-columns: var(--records-columns);
   align-items: center;
   column-gap: 16px;
-  height: 32px;
+  height: var(--records-header-height);
   padding: 0 16px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-secondary);
@@ -47,7 +51,7 @@
 
 .groupHeader {
   position: sticky;
-  top: 32px;
+  top: var(--records-header-height);
   z-index: 1;
   display: flex;
   align-items: center;
