@@ -18,12 +18,13 @@ type EditorProps = InjectFace<EditorInjected> & PropsLocale<'shortcuts'> & {
 }
 
 /**
- * Save a released physical combination against the configuration the user reviewed.
+ * Save a released physical combination against the configuration the user reviewed. A view-layer command records one
+ * key, alone or with Shift, or two keys one after the other within the sequence interval.
  * @param props - command, accepted snapshots, and storage/feedback callbacks.
  * @returns inline command controls; failures retain the draft and allow another recording.
  */
 export function ShortcutEditor({ target, onClose, onSaved, onError, useCatalog, useConfig, useFixedCatalog,
-  edit, recording, describeBinding, runtime, platform, t }:
+  edit, recording, describeBinding, runtime, platform, sequenceMs, t }:
 EditorProps) {
   const config = useConfig(value => value)
   const catalog = useCatalog(value => value)
@@ -41,7 +42,8 @@ EditorProps) {
   const writing = useRef(false)
   /* v8 ignore next -- The effect installs reset before the recorder is enabled. */
   const restart = useRef(() => {})
-  const desktopChords = runtime === 'desktop' && (platform === 'macos' || platform === 'windows')
+  const layerScope = target.scope?.id
+  const desktopChords = runtime === 'desktop' && (platform === 'macos' || platform === 'windows') && layerScope === undefined
   const targetId = target.id
   const stale = revision !== config.revision
   const report = (text: string): void => { setMessage(text); onError(text) }
@@ -58,7 +60,7 @@ EditorProps) {
   }
   const capture = (binding: ShortcutBinding, id: ShortcutCommandId): void => {
     setCandidate(binding); setCaptured(true); setRetry(null)
-    const described = describeBinding(binding)
+    const described = describeBinding(binding, layerScope)
     const conflicts = described.conflicts.filter(value => value !== id)
       .map(value => [...catalog, ...fixed].find(row => row.id === value)?.label ?? value)
     if (described.issue !== null) {
@@ -83,8 +85,11 @@ EditorProps) {
     let pending: ShortcutBinding | null = null
     let dead = false
     let blocked = false
+    // A view-layer recording keeps its first plain key until a second key or the sequence interval ends.
+    let first: { readonly binding: ShortcutBinding; readonly timer: ReturnType<typeof setTimeout> } | null = null
     const held = new Set<string>()
-    const reset = (): void => { pending = null; held.clear(); blocked = false; dead = false }
+    const forget = (): void => { if (first !== null) clearTimeout(first.timer); first = null }
+    const reset = (): void => { pending = null; held.clear(); blocked = false; dead = false; forget() }
     restart.current = reset
     const down = (event: KeyboardEvent): void => {
       if (composition.guards(event) || event.getModifierState('AltGraph')) { if (desktopChords) reset(); return }
@@ -129,6 +134,20 @@ EditorProps) {
       // macOS can omit the character keyup while Command is held.
       if (desktopChords && (held.size === 0 || platform === 'macos' && /^Meta(Left|Right)$/u.test(event.code))) { held.clear(); blocked = false }
       if (binding === null) return
+      if (layerScope !== undefined && binding.modifiers.length === 0) {
+        if (first === null) {
+          const step = binding
+          first = { binding: step, timer: setTimeout(() => { first = null; handlers.current.capture(step, targetId) }, sequenceMs) }
+          setCaptured(true)
+          return
+        }
+        const sequence = { code: first.binding.code, thenCode: binding.code, modifiers: [] }
+        forget()
+        setCandidate(sequence)
+        handlers.current.capture(sequence, targetId)
+        return
+      }
+      forget()
       handlers.current.capture(binding, targetId)
     }
     const blur = (): void => { reset(); if (desktopChords) { setCandidate(null); setCaptured(false) } }
@@ -148,9 +167,10 @@ EditorProps) {
       window.removeEventListener('blur', blur)
       document.removeEventListener('focusin', focus, true)
       document.removeEventListener('compositionstart', blur, true)
+      forget()
       void recording(false).catch(() => { /* The owning window may already be closed. */ })
     }
-  }, [describeBinding, recording, t, targetId, runtime, platform, desktopChords])
+  }, [describeBinding, recording, t, targetId, runtime, platform, desktopChords, layerScope, sequenceMs])
   useEffect(() => {
     const element = recorder.current
     if (nativeReady && element !== null) focusWithoutRing(element)
@@ -172,7 +192,7 @@ EditorProps) {
         {captured && message === '' ? <ShortcutKeys keys={describeBinding(candidate).keys} className={css.recorded} /> : t('record')}
       </button>
     </div>
-    <span id={descriptionId} className={css.srOnly}>{message || (desktopChords ? '' : t(runtime === 'web'
+    <span id={descriptionId} className={css.srOnly}>{message || (layerScope !== undefined ? t('layer-help') : desktopChords ? '' : t(runtime === 'web'
       ? platform === 'windows' ? 'windows-web-help' : platform === 'macos' ? 'macos-web-help' : 'web-help' : 'record-help'))}</span>
     {review}
     {retry !== null && !stale && <button type="button" className={css.inlineAction} disabled={readonly}

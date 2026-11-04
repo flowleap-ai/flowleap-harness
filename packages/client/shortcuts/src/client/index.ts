@@ -4,17 +4,18 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ShortcutRegistry } from './registry.ts'
 import { detectEnvironment, installKeyboard } from './dom.ts'
-import { bindingIssue, initialShortcutConfig, normalizeBinding, overlappingBindings, presentBinding } from '../protocol.ts'
-import type { DesktopKeyboardApi, DesktopShortcutsApi, ShortcutSaveResult } from '../protocol.ts'
+import { bindingIssue, initialShortcutConfig, layerBindingIssue, normalizeBinding, overlappingBindings, presentBinding } from '../protocol.ts'
+import type { DesktopKeyboardApi, DesktopShortcutsApi, ShortcutBinding, ShortcutSaveResult, ShortcutScopeId } from '../protocol.ts'
 import { desktopShortcutStorage, webShortcutStorage } from './storage.ts'
 import type { Shortcuts } from './types.ts'
 import type { ShortcutFixedInput } from './types.ts'
 import { installNativeKeyboard } from './native.ts'
 import { Config } from '../config.ts'
 
-export type { ShortcutCatalogEntry, ShortcutCommand, ShortcutContext, ShortcutGesture, Shortcuts } from './types.ts'
+export type { ShortcutCatalogEntry, ShortcutCommand, ShortcutContext, ShortcutGesture, ShortcutResolution, Shortcuts } from './types.ts'
 export type { ShortcutFixedInput, ShortcutFixedCommand, ShortcutFixedCatalogEntry } from './types.ts'
-export type { ShortcutBinding, ShortcutCommandId, ShortcutPlatform, ShortcutRuntime } from '../protocol.ts'
+export type { ShortcutCatalogScope, ShortcutLayerContext, ShortcutScope, ShortcutScopedCommand, ShortcutScopedFixedCommand } from './types.ts'
+export type { ShortcutBinding, ShortcutCommandId, ShortcutKeycap, ShortcutPlatform, ShortcutRuntime, ShortcutScopeId } from '../protocol.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -32,6 +33,7 @@ export default class ShortcutsService extends Service implements Shortcuts {
   readonly config: Shortcuts['config']
   readonly fixedCatalog: Shortcuts['fixedCatalog']
   readonly stopSequenceMs: number
+  readonly sequenceMs: number
   private readonly fixedListeners = new Set<(input: ShortcutFixedInput) => void>()
   private readonly adapter: DesktopShortcutsApi | undefined
   private readonly keyboard: DesktopKeyboardApi | undefined
@@ -50,7 +52,8 @@ export default class ShortcutsService extends Service implements Shortcuts {
     this.platform = environment.platform
     const config = Config((globalThis as { __DSH_SHORTCUTS_CONFIG__?: unknown }).__DSH_SHORTCUTS_CONFIG__ ?? {})
     this.stopSequenceMs = config.stopSequenceMs
-    this.registry = new ShortcutRegistry(this.runtime, this.platform, initialShortcutConfig())
+    this.sequenceMs = config.sequenceMs
+    this.registry = new ShortcutRegistry(this.runtime, this.platform, initialShortcutConfig(), config.sequenceMs)
     this.catalog = this.registry.catalog
     this.config = this.registry.config
     this.fixedCatalog = this.registry.fixedCatalog
@@ -86,6 +89,22 @@ export default class ShortcutsService extends Service implements Shortcuts {
     return () => { off(); this.syncDefinitions() }
   }
 
+  registerScope(scope: Parameters<Shortcuts['registerScope']>[0]): () => void {
+    return this.registry.registerScope(scope)
+  }
+
+  registerScoped(command: Parameters<Shortcuts['registerScoped']>[0]): () => void {
+    const off = this.registry.registerScoped(command)
+    this.syncDefinitions()
+    return () => { off(); this.syncDefinitions() }
+  }
+
+  registerScopedFixed(command: Parameters<Shortcuts['registerScopedFixed']>[0]): () => void {
+    const off = this.registry.registerScopedFixed(command)
+    this.syncDefinitions()
+    return () => { off(); this.syncDefinitions() }
+  }
+
   observeFixedInput(listener: (input: ShortcutFixedInput) => void): () => void {
     this.fixedListeners.add(listener)
     return () => { this.fixedListeners.delete(listener) }
@@ -105,15 +124,19 @@ export default class ShortcutsService extends Service implements Shortcuts {
     }
   }
 
-  describeBinding(binding: Parameters<Shortcuts['describeBinding']>[0]): ReturnType<Shortcuts['describeBinding']> {
+  describeBinding(binding: ShortcutBinding | null, scope?: ShortcutScopeId): ReturnType<Shortcuts['describeBinding']> {
     const normalized = binding === null ? null : normalizeBinding(binding, this.platform)
+    // A layer binding meets its own scope and the application rows; application bindings meet every row except other scopes' fixed keys.
+    const occupies = (row: { readonly scope?: { readonly id: string } }): boolean =>
+      scope === undefined || row.scope === undefined || row.scope.id === scope
     return { binding: normalized,
       keys: presentBinding(normalized, this.platform).keys,
-      issue: normalized === null ? null : bindingIssue(normalized, this.runtime, this.platform),
-      conflicts: normalized === null ? [] : [...this.catalog.getSnapshot().filter(row => row.binding !== null
+      issue: normalized === null ? null
+        : scope === undefined ? bindingIssue(normalized, this.runtime, this.platform) : layerBindingIssue(normalized),
+      conflicts: normalized === null ? [] : [...this.catalog.getSnapshot().filter(row => row.binding !== null && occupies(row)
         && overlappingBindings(row.binding, normalized)).map(row => row.id),
-      ...this.fixedCatalog.getSnapshot().filter(row => row.bindings.some(binding => overlappingBindings(binding, normalized)))
-        .map(row => row.id)] }
+      ...this.fixedCatalog.getSnapshot().filter(row => (scope === undefined || row.scope?.id === scope)
+        && row.bindings.some(binding => overlappingBindings(binding, normalized))).map(row => row.id)] }
   }
 
   private syncDefinitions(): void {
@@ -148,6 +171,7 @@ export default class ShortcutsService extends Service implements Shortcuts {
   }
 
   async recording(active: boolean): Promise<void> {
+    this.registry.recordingLayer = active
     if (this.adapter === undefined) throw new Error('Desktop shortcuts bridge unavailable')
     await this.adapter.recording(active)
   }
