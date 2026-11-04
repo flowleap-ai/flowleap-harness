@@ -1,10 +1,27 @@
-// Checks a folder of HTML mockups in a browser, in both themes, at 1440 x 900, 1366 x 650 and 390 x 844.
-// Usage: node check-mockups.mjs <dir> [--shoot <outdir>]. Exits 1 on a failure, 2 when Playwright is missing.
-// Checks: at most one enabled primary button per view (R12); the primary button of each decision bar is inside
-// the view at every size (R13); no page-wide horizontal scroll and nothing cut at the right edge (checklist 25); each key shown matches
-// keys.md (R16); each [data-atlas] status shows the shape and word of status-map.mjs (R11); no day count typed
-// into the page outside the [data-due] elements that frame.js fills (R11); no deny-list word (R19); no box inside
-// the content panel other than the allowed ones of panel-boxes.js (R8).
+// Checks a folder of HTML mockups in a browser, in both themes, at 1440 x 900, 1366 x 650 and 390 x 844 (a touch
+// screen: coarse pointer, no hover).
+// Usage: node check-mockups.mjs <dir> [--shoot <outdir>] [--only <name part>]. Exits 1 on a failure, 2 when Playwright is missing or the
+// folder has no mockup.
+// Checks, in each page, view state, theme and size:
+// - the client theme loaded (--dsw-alias-bg-base resolves);
+// - at most one enabled primary button, found by its computed fill, not its class (R12);
+// - the primary button of each decision bar is inside the view and nothing covers it, unless a [data-modal] is open (R13);
+// - no page-wide horizontal scroll and nothing cut at the right edge (checklist 25);
+// - each key shown matches keys.md; no key typed into a label; keys hide on a touch screen; a button for an act with a
+//   key shows it on a fine pointer (R16);
+// - each status icon (.st) sits in a [data-atlas] element with the shape and the English or German word of
+//   status-map.mjs, or is an aria-hidden row or card icon under a group or column header of the same shape; each
+//   .pill and .status is a [data-atlas] element (R11);
+// - no day or week count typed outside the [data-due] elements that frame.js fills (R11);
+// - no deny-list match in the shown text or in title, aria-label, placeholder and alt (R19);
+// - no text in --dsw-alias-label-tertiary (R3);
+// - no box inside the content panel other than the allowed ones of panel-boxes.js, and no element with both a neutral
+//   border and a shadow (R8);
+// - each radius is on the client scale and fits the element's height band (R7);
+// - nothing is cut with an ellipsis at 1440 and 1366 px except a title or matter cell of a queue list row (R17);
+// - every act that a button offers at 1440 px is reachable at 390 px: shown, in the menu that a shown
+//   [data-overflow="<menu id>"] opens, or on the
+//   page that [data-narrow-page] names (checklist 25).
 // A page picks its theme from ?theme=dark|light and its view state from ?state=<name> (data-state).
 // Playwright: $FLOWLEAP_PLAYWRIGHT (a playwright package directory), else the current directory's node_modules,
 // else the flowleap-harness checkout that holds this skill (apps/web).
@@ -34,82 +51,232 @@ if (!process.argv[2] || !existsSync(dir)) {
   console.error('Usage: node check-mockups.mjs <dir> [--shoot <outdir>]');
   process.exit(2);
 }
+const onlyAt = process.argv.indexOf('--only');
+const pages = readdirSync(dir).filter(f => f.endsWith('.html') && (onlyAt < 0 || f.includes(process.argv[onlyAt + 1]))).sort();
+if (!pages.length) {
+  console.error(`check-mockups: no .html mockup in ${dir}`);
+  process.exit(2);
+}
 const shootAt = process.argv.indexOf('--shoot');
 const outdir = shootAt > 0 ? path.resolve(process.argv[shootAt + 1] ?? path.join(dir, 'screenshots')) : null;
 
-/** act id -> { mac, de } from the key map table. */
+/** act id -> { mac, de } from the key map table: the macOS column and the German keycap column. */
 const keys = {};
+let head = null;
 for (const line of readFileSync(path.join(skill, 'keys.md'), 'utf8').split('\n')) {
   const c = line.split('|').map(s => s.trim());
-  const id = c[2]?.match(/^`([\w-]+)`$/)?.[1];
-  if (id) keys[id] = { mac: c[3], de: c[5] || c[3] };
+  if (c.includes('`data-act`')) { head = c; continue; }
+  const id = head && c[head.indexOf('`data-act`')]?.match(/^`([\w-]+)`$/)?.[1];
+  if (!id) continue;
+  const mac = c[head.indexOf('macOS')];
+  keys[id] = { mac, de: c[head.indexOf('German keycap')] || mac };
+}
+if (!Object.keys(keys).length) {
+  console.error('check-mockups: keys.md has no table with a `data-act` column');
+  process.exit(2);
 }
 const atlas = Object.fromEntries(Object.entries(STATUS).flatMap(([m, states]) => Object.entries(states).map(([s, v]) => [`${m}.${s}`, v])));
 const panelBoxes = readFileSync(path.join(import.meta.dirname, 'panel-boxes.js'), 'utf8');
 const deny = DENY.map(([rule, re]) => [rule, re.source, re.flags]);
 
 const VIEWS = [
-  { name: '1440', width: 1440, height: 900 },
-  { name: '1366', width: 1366, height: 650 },
-  { name: '390', width: 390, height: 844 },
+  { name: '1440', viewport: { width: 1440, height: 900 } },
+  { name: '1366', viewport: { width: 1366, height: 650 } },
+  { name: '390', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ];
 
+/** Runs in the page; returns { problems, primaries, bars, fixed, acts, reach }. */
+function inspect({ keys, atlas, deny, view }) {
+  const lang = document.documentElement.lang;
+  const problems = [];
+  const style = el => getComputedStyle(el);
+  const shown = el => el.getClientRects().length > 0 && style(el).visibility !== 'hidden';
+  const probe = (prop, value) => {
+    const p = document.createElement('div');
+    p.style.setProperty(prop, value);
+    document.body.append(p);
+    const v = style(p)[prop === 'background-color' ? 'backgroundColor' : 'color'];
+    p.remove();
+    return v;
+  };
+  if (!style(document.body).getPropertyValue('--dsw-alias-bg-base').trim()) {
+    return { problems: ['the client theme did not load (--dsw-alias-bg-base does not resolve)'], primaries: 0, bars: [], fixed: false, acts: [], reach: [] };
+  }
+
+  // R12: primaries by their computed fill.
+  const fill = probe('background-color', 'var(--dsw-alias-button-primary-fill)');
+  const controls = [...document.querySelectorAll('.btn, button, [role=button], [data-act]')].filter(shown);
+  const enabled = controls.filter(b => style(b).backgroundColor === fill && b.getAttribute('aria-disabled') !== 'true' && style(b).opacity !== '0.4');
+  if (enabled.length > 1) problems.push(`${enabled.length} enabled primary buttons`);
+
+  // R13: the decision is in view and not covered.
+  const modal = [...document.querySelectorAll('[data-modal]')].some(shown);
+  const decisionButtons = [...document.querySelectorAll('.decision [data-act]')].filter(shown).filter(b => style(b).backgroundColor === fill);
+  const bars = decisionButtons.map(b => b.getBoundingClientRect());
+  decisionButtons.forEach((b, i) => {
+    const r = bars[i];
+    if (r.bottom > innerHeight || r.top < 0) problems.push(`decision button at ${Math.round(r.top)} to ${Math.round(r.bottom)} px, outside the ${innerHeight} px view`);
+    else if (!modal) {
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || !b.contains(hit)) problems.push(`the decision button is covered by ${hit ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join('.')}` : 'nothing it owns'}`);
+    }
+  });
+
+  // Checklist 25: no sideways scroll, nothing cut at the right edge.
+  const wide = document.scrollingElement.scrollWidth - innerWidth;
+  if (wide > 0) problems.push(`the page scrolls ${wide} px sideways`);
+  const scrolls = el => { for (let p = el.parentElement; p; p = p.parentElement) if (/auto|scroll/.test(style(p).overflowX)) return true; return false; };
+  for (const el of document.querySelectorAll('body *')) {
+    const b = el.getBoundingClientRect();
+    if (b.width && b.right > innerWidth + 1 && b.left < innerWidth && shown(el) && !scrolls(el)) { problems.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} is cut at the right edge`); break; }
+  }
+
+  // R16: keys.
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  for (const k of document.querySelectorAll('.kbd')) {
+    if (!shown(k)) continue;
+    if (coarse) { problems.push(`key "${k.textContent}" shows on a touch screen`); break; }
+    const act = k.closest('[data-act]');
+    if (!act) { problems.push(`key "${k.textContent}" with no data-act`); continue; }
+    const want = keys[act.dataset.act];
+    const got = [...act.querySelectorAll('.kbd')].map(x => x.textContent.trim()).join(' ');
+    if (!want) problems.push(`data-act="${act.dataset.act}" is not in keys.md`);
+    else if (got !== (lang === 'de' ? want.de : want.mac)) problems.push(`${act.dataset.act} shows "${got}", keys.md says "${lang === 'de' ? want.de : want.mac}"`);
+  }
+  if (!coarse) {
+    for (const a of document.querySelectorAll('.btn[data-act], .cmdk-i[data-act], .mi[data-act], .seg > [data-act]')) {
+      if (shown(a) && keys[a.dataset.act]?.mac && !a.querySelector('.kbd')) problems.push(`${a.dataset.act} shows no key; keys.md gives ${keys[a.dataset.act].mac}`);
+    }
+  }
+  const textNodes = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode());) if (n.textContent.trim() && !n.parentElement.closest('script, style') && shown(n.parentElement)) textNodes.push(n);
+  for (const n of textNodes) {
+    if (n.parentElement.closest('.kbd')) continue;
+    const typedKey = n.textContent.match(/(?<!\w)\((?:[⌘⌥⇧⌃]+\s*)?(?:[A-Z0-9]|↵|Space|Leer|Esc|Enter|Tab)\)|[⌘⌥⇧⌃↵]/);
+    if (typedKey) problems.push(`key "${typedKey[0]}" typed into a label; show it with the keycap of its data-act`);
+  }
+
+  // R11: status icon with its word.
+  const groupShape = el => {
+    const row = el.closest('.row, .card');
+    if (!row) return null;
+    if (row.matches('.card')) return row.closest('.col')?.querySelector('.col-h [data-atlas] .st')?.dataset.s ?? null;
+    for (let p = row.previousElementSibling; p; p = p.previousElementSibling) if (p.matches('.group')) return p.querySelector('[data-atlas] .st')?.dataset.s ?? null;
+    return null;
+  };
+  for (const st of document.querySelectorAll('.st[data-s]')) {
+    if (!shown(st)) continue;
+    const owner = st.closest('[data-atlas]');
+    if (owner) continue;
+    if (st.getAttribute('aria-hidden') === 'true' && groupShape(st) === st.dataset.s) continue;
+    problems.push(`a status icon (${st.dataset.s}) with no word: put it in a [data-atlas] element with its word, or mark a row icon aria-hidden under a header of the same state`);
+    break;
+  }
+  for (const el of document.querySelectorAll('.pill, .status')) if (shown(el) && !el.matches('[data-atlas]')) { problems.push(`a .${el.classList[0]} "${el.textContent.trim()}" with no data-atlas`); break; }
+  for (const el of document.querySelectorAll('[data-atlas]')) {
+    if (!shown(el)) continue;
+    const want = atlas[el.dataset.atlas];
+    const st = el.querySelector('.st[data-s]');
+    if (!want) { problems.push(`data-atlas="${el.dataset.atlas}" is not an atlas state`); continue; }
+    if (!st || st.dataset.s !== want[0]) problems.push(`${el.dataset.atlas} shows the shape ${st?.dataset.s ?? 'none'}, the status map says ${want[0]}`);
+    const word = lang === 'de' ? want[2] : want[1];
+    if (el.innerText.trim() !== word) problems.push(`${el.dataset.atlas} shows "${el.innerText.trim()}", the status map says "${word}"`);
+  }
+
+  // R11: no typed day or week counts.
+  const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fourteen|thirty|ein|eine|einen|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|vierzehn|dreißig)';
+  const COUNT = new RegExp(`(?<![\\w.])${NUM}[\\s-]*(?:days?|d|weeks?|wks?|business days?|working days?|Tage?n?|T|Werktage?n?|Arbeitstage?n?|Wochen?)\\b`, 'i');
+  for (const n of textNodes) {
+    if (n.parentElement.closest('[data-due]')) continue;
+    const typed = n.textContent.match(COUNT);
+    if (typed) problems.push(`typed day count "${typed[0]}"`);
+  }
+
+  // R19: deny-list on the shown text and the copy attributes.
+  const exempt = el => el.closest('[data-verbatim], [data-audit], [data-address]');
+  const words = textNodes.filter(n => !exempt(n.parentElement)).map(n => n.textContent);
+  for (const el of document.querySelectorAll('[title], [aria-label], [placeholder], [alt]')) {
+    if (exempt(el)) continue;
+    for (const a of ['title', 'aria-label', 'placeholder', 'alt']) if (el.hasAttribute(a)) words.push(el.getAttribute(a));
+  }
+  const text = words.join(' ');
+  for (const [rule, src, flags] of deny) for (const m of text.matchAll(new RegExp(src, flags))) problems.push(`${rule} "${m[0]}"`);
+
+  // R3: no text in the icon grey.
+  const tertiary = probe('color', 'var(--dsw-alias-label-tertiary)');
+  for (const n of textNodes) if (style(n.parentElement).color === tertiary) { problems.push(`text "${n.textContent.trim().slice(0, 40)}" in --dsw-alias-label-tertiary`); break; }
+
+  // R8: a neutral border and a shadow on one element.
+  const neutral = new Set(['l1', 'l2', 'l3'].map(l => probe('color', `var(--dsw-alias-border-${l})`)));
+  for (const el of document.querySelectorAll('body *')) {
+    const s = style(el);
+    if (!shown(el) || s.boxShadow === 'none') continue;
+    const side = ['Top', 'Right', 'Bottom', 'Left'].find(x => parseFloat(s[`border${x}Width`]) > 0 && s[`border${x}Style`] === 'solid' && neutral.has(s[`border${x}Color`]));
+    if (side) { problems.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} has a neutral border and a shadow`); break; }
+  }
+
+  // R7: radius on the scale and in the height band of docs/ui-radius.md.
+  for (const el of document.querySelectorAll('body *')) {
+    if (!shown(el) || el.closest('[data-drawing], [data-verbatim]')) continue;
+    const s = style(el);
+    if (s.display === 'inline') continue;
+    const raw = s.borderTopLeftRadius;
+    const r = parseFloat(raw);
+    if (!r) continue;
+    const b = el.getBoundingClientRect();
+    if (raw.endsWith('%') || r >= Math.min(b.width, b.height) / 2 - 0.5) continue;
+    const h = b.height;
+    const onScale = [4, 8, 12, 16, 20, 28].includes(r);
+    const band = h <= 28 ? r <= 12 : h < 48 ? r >= 8 && r <= 16 : r >= 12;
+    if (!onScale || !band) { problems.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} is ${Math.round(h)} px high with radius ${r} px; docs/ui-radius.md gives R4 below 20 px, R8 for 20 to 28 px controls, R12 for 32 to 40 px cells, R16 to R28 for cards and panels`); break; }
+  }
+
+  // R17: no ellipsis at desktop widths except a queue list row's title or matter cell.
+  if (view !== '390') {
+    for (const el of document.querySelectorAll('body *')) {
+      if (!shown(el) || style(el).textOverflow !== 'ellipsis' || el.scrollWidth <= el.clientWidth + 1) continue;
+      if (el.matches('.list .row .t, .list .row .m')) continue;
+      problems.push(`"${el.textContent.trim().slice(0, 48)}" is cut with an ellipsis at ${innerWidth} px; shorten the value or give it room`);
+    }
+  }
+
+  // Checklist 25: the acts a page offers.
+  const actOf = el => el.closest('[data-act]')?.dataset.act;
+  const acts = [...document.querySelectorAll('.btn[data-act], .cmdk-i[data-act], .mi[data-act], .seg > [data-act]')].filter(shown).map(actOf);
+  const overflow = [...document.querySelectorAll('[data-overflow]')].filter(shown).flatMap(o => [...(document.getElementById(o.dataset.overflow)?.querySelectorAll('[data-act]') ?? [])].map(actOf));
+  const narrowPages = [...document.querySelectorAll('[data-narrow-page]')].map(e => [e.dataset.narrowPage, [...e.querySelectorAll('[data-act]')].map(actOf)]);
+  return { problems: [...new Set(problems)], primaries: enabled.length, bars: bars.map(b => Math.round(b.bottom)), fixed: !!document.querySelector('.panel.fixed'), acts: [...new Set(acts)], reach: [...new Set([...acts, ...overflow])], narrowPages };
+}
+
 const { chromium } = loadPlaywright();
-const browser = await chromium.launch();
+// A phone's primary pointer is coarse and cannot hover; Playwright's touch emulation keeps (pointer: fine), so the
+// 390 px view runs in a browser whose Blink settings declare a touch screen.
+const browsers = {
+  fine: await chromium.launch(),
+  coarse: await chromium.launch({ args: ['--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1'] }),
+};
 let failed = 0;
+/** `${file}|${state}|${theme}` -> { wide: acts at 1440, narrow: acts reachable at 390, narrowPages }. */
+const reach = new Map();
 for (const view of VIEWS) {
-  const page = await browser.newPage({ viewport: { width: view.width, height: view.height } });
-  for (const file of readdirSync(dir).filter(f => f.endsWith('.html')).sort()) {
+  const context = await browsers[view.hasTouch ? 'coarse' : 'fine'].newContext({ viewport: view.viewport, isMobile: !!view.isMobile, hasTouch: !!view.hasTouch });
+  const page = await context.newPage();
+  for (const file of pages) {
     const html = readFileSync(path.join(dir, file), 'utf8');
     const states = [...new Set([...html.matchAll(/data-state="([^"]+)"/g)].flatMap(m => m[1].split(' ')))].filter(s => s !== 'default');
     for (const state of ['', ...states]) {
       for (const theme of ['dark', 'light']) {
         await page.goto(`file://${dir}/${file}?theme=${theme}${state ? `&state=${state}` : ''}`);
         await page.evaluate(() => document.fonts.ready);
-        const r = await page.evaluate(({ keys, atlas, deny }) => {
-          const lang = document.documentElement.lang;
-          const shown = el => el.offsetParent !== null || getComputedStyle(el).position === 'fixed';
-          const problems = [];
-          const enabled = [...document.querySelectorAll('.btn-primary')].filter(shown).filter(b => b.getAttribute('aria-disabled') !== 'true');
-          if (enabled.length > 1) problems.push(`${enabled.length} enabled primary buttons`);
-          const bars = [...document.querySelectorAll('.decision .btn-primary')].filter(shown).map(b => b.getBoundingClientRect());
-          for (const b of bars) if (b.bottom > innerHeight || b.top < 0) problems.push(`decision button at ${Math.round(b.top)} to ${Math.round(b.bottom)} px, outside the ${innerHeight} px view`);
-          const wide = document.scrollingElement.scrollWidth - innerWidth;
-          if (wide > 0) problems.push(`the page scrolls ${wide} px sideways`);
-          const scrolls = el => { for (let p = el.parentElement; p; p = p.parentElement) if (/auto|scroll/.test(getComputedStyle(p).overflowX)) return true; return false; };
-          for (const el of document.querySelectorAll('body *')) {
-            const b = el.getBoundingClientRect();
-            if (b.width && b.right > innerWidth + 1 && b.left < innerWidth && shown(el) && !scrolls(el)) { problems.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} is cut at the right edge`); break; }
-          }
-          for (const k of document.querySelectorAll('.kbd')) {
-            const act = k.closest('[data-act]');
-            if (!act) { problems.push(`key "${k.textContent}" with no data-act`); continue; }
-            const want = keys[act.dataset.act];
-            const got = [...act.querySelectorAll('.kbd')].map(x => x.textContent.trim()).join(' ');
-            if (!want) problems.push(`data-act="${act.dataset.act}" is not in keys.md`);
-            else if (got !== (lang === 'de' ? want.de : want.mac)) problems.push(`${act.dataset.act} shows "${got}", keys.md says "${lang === 'de' ? want.de : want.mac}"`);
-          }
-          for (const el of document.querySelectorAll('[data-atlas]')) {
-            const want = atlas[el.dataset.atlas];
-            const st = el.querySelector('.st[data-s]');
-            if (!want) { problems.push(`data-atlas="${el.dataset.atlas}" is not an atlas state`); continue; }
-            if (!st || st.dataset.s !== want[0]) problems.push(`${el.dataset.atlas} shows the shape ${st?.dataset.s ?? 'none'}, the status map says ${want[0]}`);
-            if (lang === 'en' && el.textContent.trim() !== want[1]) problems.push(`${el.dataset.atlas} says "${el.textContent.trim()}", the status map says "${want[1]}"`);
-          }
-          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-          for (let n; (n = walker.nextNode());) {
-            if (n.parentElement.closest('[data-due], script, style')) continue;
-            const typed = n.textContent.match(/\b\d+\s*(?:days?|d|Tage?n?|T)\b/i);
-            if (typed) problems.push(`typed day count "${typed[0]}"`);
-          }
-          const words = [];
-          const shownText = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-          for (let n; (n = shownText.nextNode());) if (!n.parentElement.closest('[data-verbatim], [data-audit], script, style, [hidden]')) words.push(n.textContent);
-          const text = words.join(' ').replace(/\S+@\S+\.\w+/g, ' ');
-          for (const [rule, src, flags] of deny) for (const m of text.matchAll(new RegExp(src, flags))) problems.push(`${rule} "${m[0]}"`);
-          return { problems: [...new Set(problems)], primaries: enabled.length, bars: bars.map(b => Math.round(b.bottom)), fixed: !!document.querySelector('.panel.fixed') };
-        }, { keys, atlas, deny });
-        for (const box of await page.evaluate(panelBoxes)) r.problems.push(`a box inside the panel: ${box}`);
+        const r = await page.evaluate(inspect, { keys, atlas, deny, view: view.name });
+        if (view.hasTouch && !(await page.evaluate(() => matchMedia('(pointer: coarse)').matches))) r.problems.push('the 390 px view did not emulate a coarse pointer');
+        if (!r.problems[0]?.startsWith('the client theme did not load')) for (const box of await page.evaluate(panelBoxes)) r.problems.push(`a box inside the panel: ${box}`);
+        const key = `${file}|${state}|${theme}`;
+        const entry = reach.get(key) ?? {};
+        if (view.name === '1440') Object.assign(entry, { wide: r.acts, narrowPages: r.narrowPages });
+        if (view.name === '390') entry.narrow = r.reach;
+        reach.set(key, entry);
         const name = `${file.replace(/\.html$/, '').replace('.', '-')}${state ? `-${state}` : ''}-${theme}-${view.name}`;
         if (r.problems.length) failed++;
         console.log(`${r.problems.length ? 'FAIL' : 'PASS'} ${name}: ${r.primaries} enabled primary; decision button ends at ${r.bars.length ? r.bars.join(', ') + ' px' : 'none'}${r.problems.length ? '; ' + r.problems.join('; ') : ''}`);
@@ -120,8 +287,20 @@ for (const view of VIEWS) {
       }
     }
   }
-  await page.close();
+  await context.close();
 }
-await browser.close();
+await browsers.fine.close();
+await browsers.coarse.close();
+
+// Checklist 25: every act offered at 1440 px has a path at 390 px.
+for (const [key, { wide = [], narrow = [], narrowPages = [] }] of reach) {
+  const [file, state, theme] = key.split('|');
+  const elsewhere = narrowPages.flatMap(([page, acts]) => !pages.includes(page) || acts.every(a => (reach.get(`${page}||${theme}`)?.narrow ?? []).includes(a)) ? acts : []);
+  const missing = wide.filter(a => !narrow.includes(a) && !elsewhere.includes(a));
+  if (missing.length) {
+    failed++;
+    console.log(`FAIL ${file.replace(/\.html$/, '')}${state ? `-${state}` : ''}-${theme}: at 390 px no path to ${missing.join(', ')}; show it, put it in a [data-overflow] menu, or name its page with data-narrow-page`);
+  }
+}
 console.log(`${failed ? 'FAIL' : 'PASS'} check-mockups: ${failed} failing view(s)`);
 process.exit(failed ? 1 : 0);
