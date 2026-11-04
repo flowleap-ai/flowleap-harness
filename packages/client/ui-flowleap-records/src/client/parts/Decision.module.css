@@ -1,0 +1,166 @@
+/* The decision bar: an elevated floating panel (28px radius, prominent elevation, no border, R8) with a 44px header,
+ * 44px part rows and the footer of acts. At 390px the note hides and the secondary acts move into the overflow menu. */
+.bar {
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.yours {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+  white-space: nowrap;
+}
+
+.question {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.why {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.parts {
+  padding: 0 16px;
+}
+
+.part {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 0;
+}
+
+.part + .part {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.partIcon {
+  display: inline-grid;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.partText {
+  min-width: 0;
+}
+
+.partTitle {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.partDetail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.partMissing,
+.blocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.partMissing > svg,
+.blocked > svg {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.partControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.foot,
+.reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.note,
+.decider {
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.more {
+  display: none;
+}
+
+.reasonLabel {
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.reasonField {
+  flex: 1;
+  min-width: 200px;
+}
+
+@media (max-width: 720px) {
+  .head {
+    padding: 8px 12px;
+  }
+
+  .why,
+  .note,
+  .secondary {
+    display: none;
+  }
+
+  .more {
+    display: inline-flex;
+  }
+
+  .parts {
+    padding: 0 12px;
+  }
+
+  .part {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .partControl {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .foot,
+  .reason {
+    padding: 8px 12px;
+  }
+}

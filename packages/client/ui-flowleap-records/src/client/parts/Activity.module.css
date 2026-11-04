@@ -1,0 +1,101 @@
+/* The Activity timeline: a 24px icon column joined by a 0.5px line; a person's name in label-primary at 500, a
+ * system actor in label-secondary at 500, the event text in label-secondary. */
+.activity {
+  margin-top: 48px;
+}
+
+.heading {
+  margin: 0 0 12px;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.event::before {
+  content: '';
+  position: absolute;
+  top: calc(24px + 4px);
+  bottom: calc(-1 * 4px);
+  left: calc(24px / 2);
+  width: 0.5px;
+  background: var(--dsw-alias-border-l3);
+}
+
+.event:last-child::before {
+  display: none;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.system {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.text {
+  padding-top: 2px;
+}
+
+.actor {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.event[data-person] .actor {
+  color: var(--dsw-alias-label-primary);
+}
+
+.time {
+  margin-left: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit {
+  margin-top: 24px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.summary {
+  cursor: default;
+}
+
+.auditTable {
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-family: var(--ds-font-family-code);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.auditTable td {
+  padding: 2px 16px 2px 0;
+}

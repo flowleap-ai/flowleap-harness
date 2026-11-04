@@ -1,0 +1,194 @@
+/**
+ * The decision bar (product rule 6, R12 to R14): an elevated panel docked at the bottom of the work column. The header
+ * names the deciding person, the question and why this person may decide; one row for each required part shows its
+ * evidence state; the footer holds the tertiary negative act, a note, the secondary acts and the one primary act. A
+ * negative act asks for its reason in its own step. Missing evidence disables the primary act and says why. When the
+ * decision is another person's, the footer says who decides and has no primary act. At 390px the note hides and the
+ * secondary acts move into an overflow menu, so every act stays reachable.
+ */
+
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import clsx from 'clsx'
+import { Avatar, Button, IconEllipsisOutlineRegular, IconWarningTriangleOutlineRegular, Input, Keycap, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { Person } from '../api.ts'
+import { ActButton, type ActSpec } from './Act.tsx'
+import css from './Decision.module.css'
+
+/** A negative act (Not relevant, Reject): tertiary, and it asks for a reason in its own step. */
+export interface ReasonAct extends Omit<ActSpec, 'run'> {
+  /** The step is open; the screen holds it, so the act's key can open it too. */
+  readonly open: boolean
+  /** Open or close the step. */
+  readonly onOpenChange: (open: boolean) => void
+  /** The reason field's label, such as "Why is this letter not relevant?". */
+  readonly reasonLabel: string
+  /** The confirm button's label, such as "Mark not relevant". */
+  readonly confirmLabel: string
+  readonly cancelLabel: string
+  /**
+   * Record the act with the reason.
+   * @param reason - the trimmed reason; never empty.
+   */
+  readonly onConfirm: (reason: string) => void
+}
+
+/** Copy of the decision bar. */
+export interface DecisionLabels {
+  /** "Your decision". */
+  readonly yours: string
+  /** The accessible name of the overflow menu button at 390px, "More acts". */
+  readonly more: string
+}
+
+/**
+ * Render the docked decision bar.
+ * @param props.person - the deciding person, as a 24px avatar.
+ * @param props.question - the decision in plain words, such as "Which matter is this letter for?".
+ * @param props.why - why this person may decide; hidden at 390px.
+ * @param props.parts - one `DecisionPart` for each required part.
+ * @param props.note - a one-line note before the acts; hidden at 390px.
+ * @param props.negative - the negative act with its reason step.
+ * @param props.secondary - the secondary acts; at 390px they move into the overflow menu.
+ * @param props.primary - the one primary act; null when the decision is another person's.
+ * @param props.blocked - why the primary act waits (missing evidence, R14): it takes the note's place with a warning
+ * icon, and the primary act is disabled.
+ * @param props.decider - who decides when it is not this person, as one sentence; replaces the note and the primary.
+ * @param props.labels - the bar's own copy.
+ * @returns the bar.
+ */
+export function DecisionBar({
+  person, question, why, parts, note, negative, secondary = [], primary, blocked = null, decider = null, labels,
+}: {
+  person: Person
+  question: string
+  why?: string | undefined
+  parts?: ReactNode
+  note?: string | undefined
+  negative?: ReasonAct | undefined
+  secondary?: readonly ActSpec[]
+  primary: ActSpec | null
+  blocked?: string | null
+  decider?: string | null
+  labels: DecisionLabels
+}) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const shownPrimary = decider === null ? primary : null
+  return (
+    <section className={css.bar} aria-label={labels.yours}>
+      <header className={css.head}>
+        <Avatar person={person} size={24} nameShown />
+        <span className={css.yours}>{labels.yours}</span>
+        <span className={css.question}>{question}</span>
+        {why !== undefined && <span className={css.why}>{why}</span>}
+      </header>
+      {parts !== undefined && <div className={css.parts}>{parts}</div>}
+      {negative?.open === true
+        ? <ReasonStep act={negative} />
+        : (
+          <footer className={css.foot}>
+            {negative !== undefined && (
+              <ActButton act={{ ...negative, run: () => { negative.onOpenChange(true) } }} rank="tertiary" />
+            )}
+            {decider !== null && <span className={css.decider}>{decider}</span>}
+            {decider === null && blocked !== null && (
+              <span className={css.blocked} role="note"><IconWarningTriangleOutlineRegular size={16} />{blocked}</span>
+            )}
+            {decider === null && blocked === null && note !== undefined && <span className={css.note}>{note}</span>}
+            <div className={css.acts}>
+              {secondary.length > 0 && (
+                <Menu
+                  className={css.more}
+                  open={moreOpen}
+                  side="top"
+                  align="end"
+                  items={secondary.map(act => ({ id: act.id, label: act.label, disabled: act.disabled === true }))}
+                  onSelect={(id) => {
+                    setMoreOpen(false)
+                    secondary.find(act => act.id === id)?.run()
+                  }}
+                  onClose={() => { setMoreOpen(false) }}
+                  anchor={(
+                    <Button variant="ghost" size="sm" aria-label={labels.more} aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => { setMoreOpen(open => !open) }}>
+                      <IconEllipsisOutlineRegular size={16} />
+                    </Button>
+                  )}
+                />
+              )}
+              {secondary.map(act => <ActButton key={act.id} act={act} rank="secondary" className={css.secondary} />)}
+              {shownPrimary !== null && (
+                <ActButton act={blocked === null ? shownPrimary : { ...shownPrimary, disabled: true }} rank="primary" size="md" />
+              )}
+            </div>
+          </footer>
+        )}
+    </section>
+  )
+}
+
+/**
+ * Render the reason step of a negative act: a field for the reason, Cancel, and the confirm button, enabled once
+ * the reason has text. Esc in the field cancels.
+ * @param props.act - the negative act.
+ * @returns the step.
+ */
+function ReasonStep({ act }: { act: ReasonAct }) {
+  const [reason, setReason] = useState('')
+  const id = useId()
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const text = reason.trim()
+    if (text !== '') act.onConfirm(text)
+  }
+  return (
+    <form className={css.reason} onSubmit={submit}>
+      <label className={css.reasonLabel} htmlFor={id}>{act.reasonLabel}</label>
+      <Input
+        id={id}
+        className={clsx(css.reasonField)}
+        value={reason}
+        autoFocus
+        onChange={(event) => { setReason(event.target.value) }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') act.onOpenChange(false)
+        }}
+      />
+      <div className={css.acts}>
+        <Button variant="ghost" size="sm" onClick={() => { act.onOpenChange(false) }}>{act.cancelLabel}</Button>
+        <Button variant="outline" size="sm" type="submit" disabled={reason.trim() === ''} data-act={act.id}>
+          {act.confirmLabel}
+          <Keycap keycaps={act.keycaps} />
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Render one required part of a decision: its icon, what it is, its evidence state, and its control.
+ * @param props.icon - a 16px UI icon; never a status shape.
+ * @param props.title - the part, such as "FL-2026-0001 Pressure sensor housing".
+ * @param props.detail - its evidence state, such as "3 reasons on page 1 agree".
+ * @param props.missing - why the part waits for evidence; replaces the detail with a warning (R14).
+ * @param props.control - the part's control, such as Accept and Reject; under the text at 390px.
+ * @returns the part row.
+ */
+export function DecisionPart({ icon, title, detail, missing = null, control }: {
+  icon: ReactNode
+  title: ReactNode
+  detail?: ReactNode
+  missing?: string | null
+  control?: ReactNode
+}) {
+  return (
+    <div className={css.part} data-missing={missing !== null || undefined}>
+      <span className={css.partIcon}>{icon}</span>
+      <div className={css.partText}>
+        <div className={css.partTitle}>{title}</div>
+        {missing !== null
+          ? <div className={css.partMissing}><IconWarningTriangleOutlineRegular size={16} />{missing}</div>
+          : detail !== undefined && <div className={css.partDetail}>{detail}</div>}
+      </div>
+      {control !== undefined && <div className={css.partControl}>{control}</div>}
+    </div>
+  )
+}

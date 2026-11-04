@@ -1,0 +1,12 @@
+/* The status icon and its word (R11): the word in the primary label colour beside the 14px shape. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill {
+  display: inline-flex;
+}
