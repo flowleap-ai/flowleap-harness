@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-records`
 
 - `inject`: `connection`
-- `source`: [`packages/client/ui-flowleap-records/src/index.ts:25`](../packages/client/ui-flowleap-records/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-records/src/index.ts:26`](../packages/client/ui-flowleap-records/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the Records pages are. */

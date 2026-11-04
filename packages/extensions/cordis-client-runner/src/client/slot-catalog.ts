@@ -912,6 +912,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       '/** Owner values used to elect a composer takeover. */\nexport interface ComposerChainProps {\n  /** Current Session identity used by temporary business-owned entries. */\n  sessionId: SessionId | undefined\n  /** Current Session lifecycle state, absent without a selected Session. */\n  session: SessionSnapshot | undefined\n  /** Effective business-owned interaction awaiting the user in this Session. */\n  pendingInteraction: SessionPendingInteraction | undefined\n}',
     ],
     ownerPropsReferences: [
+      'Current',
       'SessionId',
       'SessionPendingInteraction',
       'SessionSnapshot',
@@ -1389,6 +1390,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ComposerAttachment',
+      'Current',
       'DraftAttachmentId',
       'DraftFileUploads',
     ],
@@ -3334,6 +3336,47 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:124',
   },
   {
+    key: 'records.agent.conversation',
+    kind: 'single',
+    scope: 'session',
+    summary: 'The run Session\'s conversation in the agent panel of the work page.',
+    doc: 'The run Session\'s conversation in the agent panel of the work page.',
+    registerOptions: [],
+    ownerProps: [],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useRemoteAccess: (action: RemoteEndpoint) => boolean',
+      'useResource: UseResource',
+      'useContextMenu: UseContextMenu',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionStatus: UseSessionStatus',
+      'useSessionRetainInfo: UseSessionRetainInfo',
+      'useSessionAccess: (sessionId: SessionId, action: RemoteEndpoint) => boolean',
+      'useWorkspaceAccess: (workspaceId: WorkspaceId, action: RemoteEndpoint) => boolean',
+      'useChat: UseChat',
+      'useConversation: UseConversation',
+      'useInput: SnapshotSelectorHook<InputState>',
+      'inputActions: InputActions',
+      'useSession: SessionSnapshotSelector',
+      'sessionId: SessionId',
+      'useProjection: UseProjection',
+      'useAccess: (action: RemoteEndpoint) => boolean',
+      'useTrajectory: UseTrajectory',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'main\' (client-ui-flowleap-records), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-flowleap-records RunConversation',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'records.agent.conversation\', () => ctx.slots.register(\n      { name: \'records.agent.conversation\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-flowleap-records/src/client/RunConversation.tsx:12',
+  },
+  {
     key: 'rightbar',
     kind: 'single',
     scope: 'root',
@@ -3343,7 +3386,9 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** Right column owner share: resolved normal geometry and opening eligibility. */\nexport interface RightbarOwnerProps {\n  /** Resolved normal panel width in px, not the saved preference; zero if it cannot fit. */\n  width: number\n  /** Current frame width in px. */\n  viewportWidth: number\n  /**\n   * Whether a normal right panel can retain 300px beside a 400px center.\n   * Before a narrow opening, includes the space from collapsing the left sidebar.\n   */\n  canShow: boolean\n}',
     ],
-    ownerPropsReferences: [],
+    ownerPropsReferences: [
+      'Current',
+    ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
       'useResource: UseResource',
@@ -3381,6 +3426,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'Branded',
+      'Current',
       'Route',
     ],
     standardProps: [
@@ -4213,6 +4259,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-agent-team TeamDisableConfirmation id \'agent-team.disable\'',
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
+      'client-ui-commands CommandMenuView id \'command-menu\'',
       'client-ui-context-menu MenuOverlay id \'context-menu\'',
       'client-ui-file-drag FileDragFeedback id \'file-drag.feedback\'',
       'client-ui-flowleap-agent-builder AgentFormDialog id \'flowleap-agent-form\'',
