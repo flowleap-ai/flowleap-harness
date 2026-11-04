@@ -1,16 +1,20 @@
 /**
  * The matter FL-2026-0001 at record position 7: one R.71(3) communication dated 2025-10-30 and the deadline the engine
  * proposed from it (four months from the day after delivery, the month end of February, the Saturday rolled to Monday
- * 2026-03-02). The view hash is the SHA-256 of the canonical JSON of the view, as the Firm Record computes it.
+ * 2026-03-02), the client rules that allow AI letters, the Ticket of the event while its run runs, and the letter in
+ * the e-file. The view hash is the SHA-256 of the canonical JSON of the view, as the Firm Record computes it.
  */
 
 import { createHash } from 'node:crypto'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
-  DeadlineId, LocalDate, MatterFileNumber, MatterView, RecordSeq, RuleId, ViewHash,
+  DeadlineId, DocumentSha256, LocalDate, MatterFileNumber, MatterView, OfficeEventId, RecordSeq, RuleId, TicketId, ViewHash,
 } from '../../../src/types.ts'
 
 const date = (value: string): LocalDate => brandString<LocalDate>(value)
+
+/** SHA-256 of the forwarded R.71(3) communication. */
+export const LETTER_SHA256 = brandString<DocumentSha256>('5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a')
 
 const unhashed: Omit<MatterView, 'viewHash'> = {
   recordSeq: brandNumber<RecordSeq>(7),
@@ -34,6 +38,25 @@ const unhashed: Omit<MatterView, 'viewHash'> = {
       { op: 'closure-roll', from: date('2026-02-28'), to: date('2026-03-02'), cite: 'R.134(1) EPC' },
     ],
   }],
+  clientRules: {
+    seq: brandNumber<RecordSeq>(3),
+    aiUse: 'allowed',
+    aiLetters: 'allowed',
+    reportEvents: 'all-office-actions',
+    language: 'en',
+    text: 'Report every office action in English to the IP department, never to the inventor directly.',
+  },
+  officeEvents: [{
+    id: brandString<OfficeEventId>('oe-1'),
+    seq: brandNumber<RecordSeq>(5),
+    code: 'EPO:R71(3)',
+    documentDate: date('2025-10-30'),
+    applicationNumber: 'EP23812345.6',
+    document: LETTER_SHA256,
+    state: 'observed',
+  }],
+  tickets: [{ id: brandString<TicketId>('tk-1'), pass: 1, state: 'running', routedTo: 'A. Novak' }],
+  documents: [{ sha256: LETTER_SHA256, fileName: 'R71-3-communication.pdf', mediaType: 'application/pdf', source: 'mail' }],
 }
 
 /**
