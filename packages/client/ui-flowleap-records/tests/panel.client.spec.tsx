@@ -10,12 +10,13 @@ import type { IntakeRowTarget } from '../src/client/row-menu.ts'
 import type { MenuPoint } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { en } from '../src/client/locales.ts'
 import { SKELETON_DELAY_MS } from '../src/client/load.ts'
+import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import { createRecordsModel, TAB_ROUTE, type Route } from '../src/client/model.ts'
 import { RecordsPanel, MattersIcon, type PanelProps } from '../src/client/Panel.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
 
 beforeEach(() => {
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query !== '(min-width: 1366px)', addEventListener() {}, removeEventListener() {} })))
   vi.setSystemTime(Date.parse('2026-11-04T15:00:00Z'))
 })
 afterEach(() => {
@@ -58,6 +59,10 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     refresh: () => { model.refresh() },
     perform: (acts: readonly Act[]) => model.perform(acts),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    keyActs: new KeyActRegistry(),
+    commandItems: new CommandItemRegistry(),
+    linkOf: (next: Route) => `https://firm.test/?records=${next.view}`,
+    openSearch: () => {},
   } as PanelProps
   render(<RecordsPanel {...props} />)
   await flush()
@@ -88,9 +93,10 @@ describe('the Matters panel', () => {
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake', open: R71_DOCUMENT })
     expect(screen.getByRole('region', { name: 'Your decision' })).toBeTruthy()
     expect(screen.getByText('Which matter is this letter for?')).toBeTruthy()
-    expect(screen.getByText('FL-2026-0001 Pressure sensor housing', { selector: 'dd' })).toBeTruthy()
+    expect(screen.getAllByText('Pressure sensor housing', { selector: 'dd' })[0]!.textContent).toBe('FL-2026-0001Pressure sensor housing')
     expect(screen.getByLabelText('Letter 1 of 22').textContent).toBe('1 / 22')
-    expect(screen.getByText('Jonas Weber forwarded this letter to the AI mailbox.')).toBeTruthy()
+    const lede = /^Jonas Weber forwarded this letter to the AI mailbox\. The file number on page 1 names one matter\.$/
+    expect(screen.getByText(lede)).toBeTruthy()
     const record = screen.getByRole('button', { name: /Accept and file/ })
     expect(record.querySelector('kbd')?.textContent).toBe('⇧⌘↵')
     fireEvent.click(record)
@@ -103,7 +109,7 @@ describe('the Matters panel', () => {
     await flush()
     fireEvent.click(screen.getAllByRole('button', { name: /Other matter/ }).at(-1)!)
     await flush()
-    expect(model.screen.getSnapshot()).toMatchObject({ step: 'other-matter' })
+    expect(screen.getByRole('button', { name: 'Choose a matter…' })).toBeTruthy()
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Location' })).getByRole('button', { name: 'Intake' }))
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake', open: null })
@@ -130,14 +136,14 @@ describe('the Matters panel', () => {
     expect(screen.getByText('3 selected')).toBeTruthy()
     fireEvent.click(boxes[1]!)
     fireEvent.click(boxes[1]!)
-    fireEvent.click(screen.getByRole('button', { name: /Accept and file 3/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Accept and file 3/ })[0]!)
     await flush()
     expect(acts.map(act => act.command.kind)).toEqual(['intake.match', 'intake.match', 'intake.match'])
     expect(new Set(acts.map(act => act.key)).size).toBe(3)
     fireEvent.click(screen.getAllByRole('checkbox')[9]!)
     await flush()
-    expect(screen.getByRole('button', { name: /Accept and file 0/ })).toHaveProperty('disabled', true)
-    fireEvent.click(screen.getByRole('button', { name: 'Clear the selection' }))
+    expect(screen.getAllByRole('button', { name: /Accept and file 0/ })[0]).toHaveProperty('disabled', true)
+    fireEvent.keyDown(screen.getByText('1 selected'), { key: 'Escape' })
     await flush()
     expect(screen.queryByText('1 selected')).toBeNull()
   })
@@ -152,7 +158,7 @@ describe('the Matters panel', () => {
     const { model } = await mount()
     model.navigate({ view: 'intake', list: 'not-relevant', open: null })
     await flush()
-    expect(screen.getByText('Nothing waits for you')).toBeTruthy()
+    expect(screen.getByText('No letters marked not relevant')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Show filed today/ }))
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ list: 'filed-today' })
@@ -221,7 +227,7 @@ describe('the Matters panel', () => {
     await mount(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId })
     fireEvent.click(screen.getByRole('button', { name: /Record decision/ }))
     await flush()
-    expect(acts.at(-1)?.command).toMatchObject({ kind: 'ticket.decide', deadlineCheck: { id: 'none-yet', state: 'awaiting_code', seq: 142 } })
+    expect(acts.at(-1)?.command).toMatchObject({ kind: 'ticket.decide', deadlineCheck: { id: 'none-yet', state: 'none-yet', seq: 142 } })
   })
 
   it('says who decides when the person may not', async () => {

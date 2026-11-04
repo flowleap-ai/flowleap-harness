@@ -27,6 +27,9 @@
       "path": "../store"
     },
     {
+      "path": "../ui-commands"
+    },
+    {
       "path": "../ui-context-menu"
     },
     {

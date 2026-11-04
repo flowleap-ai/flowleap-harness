@@ -97,12 +97,7 @@
 }
 
 .keys {
-  flex: none;
-  color: var(--dsw-alias-label-secondary);
-}
-
-.rowActive .keys {
-  color: var(--dsw-alias-label-primary);
+  margin-left: auto;
 }
 
 .empty {
@@ -110,9 +105,4 @@
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-font-xs-13-font-size);
   line-height: var(--dsw-font-xs-13-line-height);
-}
-
-/* Key hints are pointer-device help; a touch screen reaches every act through its row. */
-@media (pointer: coarse) {
-  .keys { display: none; }
 }

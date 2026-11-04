@@ -31,6 +31,8 @@ export type TicketId = Branded<'RecordsTicketId'>
 export type OfficeEventId = Branded<'RecordsOfficeEventId'>
 /** Opaque id of a report proposal. */
 export type ProposalId = Branded<'RecordsProposalId'>
+/** The id of a work item's run Session in the routed attorney's runtime. */
+export type RunSessionId = Branded<'RecordsRunSessionId'>
 /** The `Idempotency-Key` of one act of a person, `ipms:<uuid>`. */
 export type IdempotencyKey = Branded<'RecordsIdempotencyKey'>
 
@@ -46,6 +48,7 @@ export const ids = {
   ticket: branded<TicketId>(UUID, 'a work id'),
   officeEvent: branded<OfficeEventId>(UUID, 'an office event id'),
   proposal: branded<ProposalId>(OPAQUE, 'a proposal id'),
+  session: branded<RunSessionId>(OPAQUE, 'a session id'),
 } as const
 
 /**
@@ -85,22 +88,26 @@ const person = obj({ id: ids.person, name: str })
 /** A person by display name; the id only keys the person. */
 export type Person = Parsed<typeof person>
 
+const addressee = obj({ id: nullable(ids.person), name: str })
+/** A recipient of a mail: a person, or an address of no signed-in person (no id, the address as its name). */
+export type Addressee = Parsed<typeof addressee>
+
 const excerpt = obj({ before: str, after: str })
 const span = obj({ page: num, start: num, end: num, quote: str, excerpt: nullable(excerpt) })
 /** An exact span of a document: the page, the offsets in that page's text, the quote, and the text around it. */
 export type Span = Parsed<typeof span>
 
-/** Who did something: a person, or FlowLeap, the AI mailbox, the attorney's agent or the patent office. */
+/** Who did something: a person, or FlowLeap, the AI mailbox or the attorney's agent (its person is the event's `for`). */
 export type Actor =
   | { readonly kind: 'person'; readonly person: Person }
-  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'agent' | 'office' }
+  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'agent' }
 
 const actor: Parse<Actor> = (value, path) => {
   const source = objectAt(value, path)
   const kind = oneOf(['person', 'system'])(source['kind'], `${path}.kind`)
   return kind === 'person'
     ? { kind, person: person(source['person'], `${path}.person`) }
-    : { kind, name: oneOf(['flowleap', 'mailbox', 'agent', 'office'])(source['name'], `${path}.name`) }
+    : { kind, name: oneOf(['flowleap', 'mailbox', 'agent'])(source['name'], `${path}.name`) }
 }
 
 const activityEvent = obj({ seq: num, at: isoTime, type: str, actor, for: nullable(person), detail: anyObject })
@@ -109,7 +116,7 @@ export type ActivityEvent = Parsed<typeof activityEvent>
 const activity = arrayOf(activityEvent)
 
 /** Why a person may not decide. */
-export type MayDecideReason = 'proposer' | 'code-decider' | 'not-in-team' | 'not-routed-person' | 'not-proposed' | 'not-ready' | 'decided'
+export type MayDecideReason = 'proposer' | 'code-decider' | 'not-in-team' | 'not-routed-person' | 'not-ready' | 'decided'
 
 /** Whether the signed-in person may make the decision, and if not, why and who may. */
 export type MayDecide =
@@ -121,7 +128,25 @@ const mayDecide: Parse<MayDecide> = (value, path) => {
   if (bool(source['allowed'], `${path}.allowed`)) return { allowed: true }
   return {
     allowed: false,
-    reason: oneOf<MayDecideReason>(['proposer', 'code-decider', 'not-in-team', 'not-routed-person', 'not-proposed', 'not-ready', 'decided'])(source['reason'], `${path}.reason`),
+    reason: oneOf<MayDecideReason>(['proposer', 'code-decider', 'not-in-team', 'not-routed-person', 'not-ready', 'decided'])(source['reason'], `${path}.reason`),
+    decider: nullable(person)(source['decider'], `${path}.decider`),
+  }
+}
+
+/** Why a person may not decide a work item: another person is routed, the run has not finished, or it is decided. */
+export type WorkRefusal = 'not-routed-person' | 'not-ready' | 'decided'
+
+/** Whether the signed-in person may decide a work item: as the responsible attorney or as the routed deputy. */
+export type WorkMayDecide =
+  | { readonly allowed: true; readonly as: 'responsible' | 'deputy' }
+  | { readonly allowed: false; readonly reason: WorkRefusal; readonly decider: Person | null }
+
+const workMayDecide: Parse<WorkMayDecide> = (value, path) => {
+  const source = objectAt(value, path)
+  if (bool(source['allowed'], `${path}.allowed`)) return { allowed: true, as: oneOf(['responsible', 'deputy'])(source['as'], `${path}.as`) }
+  return {
+    allowed: false,
+    reason: oneOf<WorkRefusal>(['not-routed-person', 'not-ready', 'decided'])(source['reason'], `${path}.reason`),
     decider: nullable(person)(source['decider'], `${path}.decider`),
   }
 }
@@ -164,7 +189,7 @@ const matterDetail = obj({
   responsible: nullable(person),
   team: arrayOf(person),
   deadlines: arrayOf(obj({
-    id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: nullable(ids.officeEvent),
+    id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: ids.officeEvent,
   })),
   work: arrayOf(obj({
     id: ids.ticket, state: ticketState, code: nullable(str), routedTo: nullable(person), updatedAt: isoTime,
@@ -172,7 +197,7 @@ const matterDetail = obj({
   })),
   officeEvents: arrayOf(obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), state: deadlineState,
-    document: nullable(ids.document), receivedAt: nullable(isoTime),
+    document: nullable(ids.document), receivedAt: nullable(isoDate),
   })),
   documents: arrayOf(obj({ sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime })),
   activity,
@@ -186,8 +211,10 @@ const reading = obj({ code: nullable(str), documentDate: nullable(isoDate), appl
 const deadlineDetail = obj({
   recordSeq: num,
   deadline: obj({
-    id: ids.deadline, due: isoDate, state: deadlineState, ruleId: str, ruleVersion: str,
-    trace: arrayOf(obj({ op: str, from: str, to: str, cite: str })),
+    id: ids.deadline, due: isoDate, state: deadlineState, ruleId: str, ruleVersion: num,
+    trace: arrayOf(obj({ op: str, from: isoDate, to: isoDate, cite: str })),
+    notes: arrayOf(obj({ kind: str, text: str, cite: str })),
+    sources: arrayOf(obj({ cite: str, url: str })),
   }),
   matter: matterRef,
   responsible: nullable(person),
@@ -209,7 +236,10 @@ export type DeadlineDetail = Parsed<typeof deadlineDetail>
 
 // GET intake?view=
 
-/** The three intake lists. */
+/**
+ * The three intake lists. They are filters, not partitions: a letter filed today whose code waits for a person is in
+ * `waiting` and in `filed-today`, and the counts count it twice. Each list is oldest first.
+ */
 export type IntakeView = 'waiting' | 'filed-today' | 'not-relevant'
 
 const intakeRow: Parse<IntakeRow> = (value, path) => {
@@ -221,7 +251,7 @@ const intakeRow: Parse<IntakeRow> = (value, path) => {
     office: nullable(str)(source['office'], `${path}.office`),
     matter: nullable(matterRef)(source['matter'], `${path}.matter`),
     matterCount: num(source['matterCount'], `${path}.matterCount`),
-    forwarder: nullable(person)(source['forwarder'], `${path}.forwarder`),
+    forwarder: nullable(addressee)(source['forwarder'], `${path}.forwarder`),
     receivedAt: isoTime(source['receivedAt'], `${path}.receivedAt`),
     since: isoTime(source['since'], `${path}.since`),
   }
@@ -234,9 +264,9 @@ export interface IntakeRow {
   readonly code: string | null
   readonly office: string | null
   readonly matter: MatterRef | null
-  /** Candidate matters; two or more is ambiguous. */
+  /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
-  readonly forwarder: Person | null
+  readonly forwarder: Addressee | null
   readonly receivedAt: IsoTime
   /** When the letter entered its current state. */
   readonly since: IsoTime
@@ -255,7 +285,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
     document: ids.document, fileName: str, mediaType: str, pages: nullable(num), since: isoTime,
-    mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
+    mail: obj({ forwarder: nullable(addressee), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
     proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['reference']) })),
@@ -276,7 +306,7 @@ export interface IntakeDocument {
   readonly pages: number | null
   readonly status: QueueStatus
   readonly since: IsoTime
-  readonly mail: { readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
+  readonly mail: { readonly forwarder: Addressee | null; readonly receivedAt: IsoTime; readonly subject: string }
   readonly code: string | null
   readonly office: string | null
   readonly documentDate: IsoDate | null
@@ -290,11 +320,11 @@ export interface IntakeDocument {
     readonly responsible: Person | null
     readonly matchedBy: 'reference'
   } | null
-  /** Matters with this reference. */
+  /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly candidates: number
   readonly filed: MatterRef | null
   readonly officeEvent: { readonly id: OfficeEventId; readonly state: DeadlineState } | null
-  /** The "Other matter" picker: only matters the person may see. */
+  /** The "Other matter" picker: only matters the person may see, by file number. */
   readonly matters: readonly MatterRef[]
   readonly mayDecide: MayDecide
   readonly activity: readonly ActivityEvent[]
@@ -332,13 +362,13 @@ const ticketDetail = obj({
     applicationNumber: nullable(str),
   })),
   reports: arrayOf(obj({
-    proposalId: ids.proposal, document: ids.document, fileName: str, state: reportState, templateName: str, language: str,
-    pages: nullable(num), statements: arrayOf(statement),
+    proposalId: ids.proposal, document: ids.document, fileName: str, state: reportState, templateName: nullable(str),
+    language: nullable(str), pages: nullable(num), statements: arrayOf(statement),
   })),
   deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
-  reply: nullable(obj({ state: outboxState, to: arrayOf(person) })),
-  run: nullable(obj({ model: nullable(str), steps: nullable(num), finishedAt: nullable(isoTime) })),
-  mayDecide,
+  reply: nullable(obj({ state: outboxState, to: arrayOf(addressee) })),
+  run: nullable(obj({ model: nullable(str), steps: nullable(num), finishedAt: nullable(isoTime), session: nullable(ids.session) })),
+  mayDecide: workMayDecide,
   activity,
 })
 /** One work item on a letter: the letter, the proposed reports with their statements, the deadline, the reply. */
@@ -368,18 +398,21 @@ export type Fetched<T> = { readonly ok: true; readonly value: T } | { readonly o
 /** A person's decision on one proposed report. */
 export interface ReportDecision {
   readonly proposalId: ProposalId
-  readonly decision: 'accept' | 'reject'
+  readonly decision: 'approve' | 'reject'
   /** Required for a rejection. */
   readonly reason?: string
 }
 
-/** The deadline that a work decision checked, as the person saw it. */
-export interface DeadlineCheck {
-  readonly id: DeadlineId | 'none-yet'
-  readonly state: DeadlineState
-  /** The `recordSeq` of the work item that the person saw. */
-  readonly seq: number
-}
+/** The deadline states that a work decision can record as checked. */
+export type CheckedDeadlineState = Extract<DeadlineState, 'deadline_proposed' | 'active' | 'rejected' | 'engine_refused'>
+
+/**
+ * The deadline that a work decision checked, as the person saw it, or `none-yet` when the work has no deadline.
+ * `seq` is the `recordSeq` of the work item that the person saw.
+ */
+export type DeadlineCheck =
+  | { readonly id: DeadlineId; readonly state: CheckedDeadlineState; readonly seq: number }
+  | { readonly id: 'none-yet'; readonly state: 'none-yet'; readonly seq: number }
 
 /** One command of a person. */
 export type Command =
@@ -442,7 +475,8 @@ export interface RecordsApi {
    */
   perform(act: Act, signal?: AbortSignal): Promise<Fetched<null>>
   /**
-   * The address of a document's bytes for Open the letter and Preview.
+   * The address of a document's bytes for Open the letter and Preview: `documents/<sha>/content`, the person's path
+   * (the os refuses `intake/documents/<sha>/content` to a person).
    * @param document - the document.
    * @returns the same-origin address.
    */

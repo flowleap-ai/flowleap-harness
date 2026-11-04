@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { MenuGroup, MenuSurface, ShortcutKeys, isMobileDevice, observeStickyMenuGroups, useModalLayer } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Keycap, MenuGroup, MenuSurface, isMobileDevice, observeStickyMenuGroups, useModalLayer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, Shortcuts } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
@@ -78,19 +78,16 @@ function CommandMenuBody({ menu, catalog, select, close, t }: {
       if (row !== undefined) select(row.id)
     }
   }
-  const keysOf = (row: CommandMenuRow): readonly string[] => {
-    const entry = catalog.find(candidate => candidate.id === row.commandId)
-    return entry?.keycaps?.flat() ?? []
-  }
+  const keycapsOf = (row: CommandMenuRow): readonly (readonly string[])[] =>
+    catalog.find(candidate => candidate.id === row.commandId)?.keycaps ?? []
   let index = 0
   const renderRow = (row: CommandMenuRow) => {
     const position = index++
-    const keys = keysOf(row)
     return <div key={row.id} role="option" aria-selected={position === active} aria-disabled={row.disabled || undefined}
       className={clsx(css.row, position === active && css.rowActive, row.disabled && css.rowDisabled)}
       onClick={() => { select(row.id) }} onMouseMove={() => { if (position !== active) setActive(position) }}>
       <span className={css.label}>{row.label}</span>
-      {keys.length > 0 && <span aria-hidden="true" className={css.keys}><ShortcutKeys keys={keys} /></span>}
+      <Keycap className={css.keys} keycaps={keycapsOf(row)} tone={position === active ? 'selected' : 'default'} />
     </div>
   }
   return <div className={css.root} role="presentation">

@@ -6,7 +6,7 @@
 
 import { createElement, type ReactNode } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconArchiveOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular,
+  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ActivityEvent, Actor, IsoDate, IsoTime, QueueStatus } from './api.ts'
 import { dueDay, listTime } from './format.ts'
@@ -48,17 +48,16 @@ export function letterTitle(t: Translate, code: string | null, status?: QueueSta
 }
 
 /** The name key of each system actor. */
-const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent', office: 'actor.office' } as const
+const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent' } as const
 
 const SYSTEM_ICONS = {
   flowleap: IconEnhanceOutlineRegular,
   mailbox: IconPaperPlaneOutlineRegular,
   agent: IconAgentPresetOutlineRegular,
-  office: IconArchiveOutlineRegular,
 } as const
 
 /**
- * An actor's name: a person's display name, or the name of FlowLeap, the AI mailbox, the patent agent or the office.
+ * An actor's name: a person's display name, or the name of FlowLeap, the AI mailbox, or the patent agent.
  * @param t - the translate function.
  * @param actor - the actor.
  * @returns the name.
@@ -69,11 +68,17 @@ export function actorName(t: Translate, actor: Actor): string {
 
 /** The text key of each Activity event type that the views word. */
 const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
-  'intake/stored': 'event.intakeStored',
-  'intake/read': 'event.intakeRead',
-  'intake/match-proposed': 'event.intakeMatchProposed',
-  'intake/filed': 'event.intakeFiled',
-  'intake/not-relevant': 'event.intakeNotRelevant',
+  'document/stored': 'event.intakeStored',
+  'document/read': 'event.intakeRead',
+  'document/match-proposed': 'event.intakeMatchProposed',
+  'document/filed': 'event.intakeFiled',
+  'document/not-relevant': 'event.intakeNotRelevant',
+  'document/unreadable': 'intake.event.unreadable',
+  'document/unmatched': 'intake.event.unmatched',
+  'document/duplicate': 'intake.event.duplicate',
+  'document/matched': 'intake.event.matched',
+  'office-event/observed': 'intake.event.observed',
+  'office-event/code-proposed': 'intake.event.codeProposed',
   'deadline/read': 'event.deadlineRead',
   'deadline/proposed': 'event.deadlineProposed',
   'deadline/confirmed': 'event.deadlineConfirmed',

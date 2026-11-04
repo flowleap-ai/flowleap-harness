@@ -34,8 +34,8 @@ export interface MatterRoute { readonly view: 'matter'; readonly fileNumber: Fil
 export interface DeadlineRoute { readonly view: 'deadline'; readonly id: DeadlineId }
 /** The work on one letter. */
 export interface WorkRoute { readonly view: 'work'; readonly id: TicketId }
-/** The work board. */
-export interface BoardRoute { readonly view: 'board' }
+/** The work board, as columns (the default) or as a list grouped by state. */
+export interface BoardRoute { readonly view: 'board'; readonly layout?: 'board' | 'list' | undefined }
 
 /** Where the panel is. */
 export type Route = MattersRoute | IntakeRoute | MatterRoute | DeadlineRoute | WorkRoute | BoardRoute

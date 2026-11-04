@@ -51,7 +51,10 @@ export const MATTERS = {
 type MatterKey = keyof typeof MATTERS
 const ref = (fileNumber: MatterKey) => ({ fileNumber, title: MATTERS[fileNumber].title })
 
-type Who = keyof typeof PEOPLE
+/** A forwarder who never signed in: the os sends the mail address with no person id. */
+export const RECEPTION = { id: null, name: 'empfang@kanzlei.test' } as const
+
+type Who = keyof typeof PEOPLE | 'reception'
 type IntakeGroup = 'match_proposed' | 'unmatched' | 'ambiguous' | 'kind_proposed' | 'duplicate_proposed' | 'unreadable'
 
 /** One intake letter: group, code, office, matter, matter count, forwarder, received time. */
@@ -80,7 +83,7 @@ const LETTERS: readonly Letter[] = [
   ['kind_proposed', null, null, 'FL-2026-0044', 1, 'lena', '2026-11-03T09:05:00Z'],
   ['duplicate_proposed', 'EPO:R71(3)', 'EPO', 'FL-2026-0001', 1, 'lena', '2026-11-04T14:20:00Z'],
   ['duplicate_proposed', 'EPO:EESR', 'EPO', 'FL-2026-0019', 1, 'jonas', '2026-11-04T12:44:00Z'],
-  ['unreadable', null, 'DPMA', null, 0, 'lena', '2026-11-04T08:51:00Z'],
+  ['unreadable', null, 'DPMA', null, 0, 'reception', '2026-11-04T08:51:00Z'],
 ]
 
 /** The wire rows of the waiting list, in the order of the mockup. */
@@ -92,7 +95,7 @@ export const intakeRowsWire = LETTERS.map(([state, code, office, matter, matterC
   office,
   matter: matter === null ? null : ref(matter),
   matterCount,
-  forwarder: PEOPLE[who],
+  forwarder: who === 'reception' ? RECEPTION : PEOPLE[who],
   receivedAt,
   since: receivedAt,
 }))
@@ -128,6 +131,8 @@ export const intakeDocumentWire = {
   fields: {
     reference: { value: 'FL-2026-0001', span: span('FL-2026-0001', 64, 'European Patent Office. Your reference ', '. Application No. 24 123 456.7') },
     documentDate: { value: '2026-10-30', span: span('30.10.2026', 30, 'Form 2004C. Date ', '. Your reference FL-2026-0001') },
+    formNumber: { value: '2004C', span: span('2004C', 19, 'European Patent Office. EPO Form ', '. Date 30.10.2026') },
+    applicationNumber: { value: '24 123 456.7', span: span('24 123 456.7', 94, 'Your reference FL-2026-0001. Application No. ', ' - 1203') },
   },
   proposed: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, responsible: PEOPLE.anna, matchedBy: 'reference' },
   candidates: 1,
@@ -136,9 +141,9 @@ export const intakeDocumentWire = {
   matters: (Object.keys(MATTERS) as MatterKey[]).map(ref),
   mayDecide: { allowed: true },
   activity: [
-    { seq: 101, at: '2026-11-04T14:16:00Z', type: 'intake/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
-    { seq: 102, at: '2026-11-04T14:16:10Z', type: 'intake/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
-    { seq: 103, at: '2026-11-04T14:16:20Z', type: 'intake/match-proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { fileNumber: 'FL-2026-0001' } },
+    { seq: 101, at: '2026-11-04T14:16:00Z', type: 'document/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
+    { seq: 102, at: '2026-11-04T14:16:10Z', type: 'document/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
+    { seq: 103, at: '2026-11-04T14:16:20Z', type: 'document/match-proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { fileNumber: 'FL-2026-0001' } },
   ],
 }
 
@@ -187,12 +192,22 @@ const reading = { code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNum
 export const deadlineWire = {
   recordSeq: 141,
   deadline: {
-    id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', ruleId: 'EPO:R71(3)', ruleVersion: '2026-01',
+    id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', ruleId: 'ep.r71-3.grant-communication', ruleVersion: 1,
     trace: [
-      { op: 'delivered', from: '2026-10-30', to: '2026-10-30', cite: 'Rule 126(2) EPC' },
+      { op: 'delivery', from: '2026-10-30', to: '2026-10-30', cite: 'Rule 126(2) EPC; Rule 127(2) EPC; OJ EPO 2023, A29' },
       { op: 'start', from: '2026-10-30', to: '2026-10-31', cite: 'Rule 131(2) EPC' },
-      { op: 'add-months', from: '2026-10-31', to: '2027-02-28', cite: 'Rule 131(4) EPC' },
-      { op: 'next-open-day', from: '2027-02-28', to: '2027-03-01', cite: 'Rule 134(1) EPC' },
+      { op: 'month-end', from: '2026-10-30', to: '2027-02-28', cite: 'Rule 71(3) EPC; Rule 131(4) EPC, last day of the month' },
+      { op: 'closure-roll', from: '2027-02-28', to: '2027-03-01', cite: 'Rule 134(1) EPC; EPO calendar 2027' },
+    ],
+    notes: [],
+    sources: [
+      { cite: 'Rule 71 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r71.html' },
+      { cite: 'Rule 126 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r126.html' },
+      { cite: 'Rule 127 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r127.html' },
+      { cite: 'Rule 131 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r131.html' },
+      { cite: 'Rule 134 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r134.html' },
+      { cite: 'OJ EPO 2022, A101', url: 'https://www.epo.org/en/legal/official-journal/2022/11/a101' },
+      { cite: 'OJ EPO 2023, A29', url: 'https://www.epo.org/en/legal/official-journal/2023/03/a29' },
     ],
   },
   matter: ref('FL-2026-0001'),
@@ -259,8 +274,8 @@ export const ticketWire = {
   }],
   deadline: { id: DEADLINE_ID, due: '2027-03-01', state: 'active', confirmer: PEOPLE.jonas },
   reply: { state: 'sent', to: [PEOPLE.jonas, PEOPLE.anna] },
-  run: { model: 'Claude Haiku 5.5', steps: 7, finishedAt: '2026-11-04T14:17:40Z' },
-  mayDecide: { allowed: true },
+  run: { model: 'openrouter', steps: null, finishedAt: '2026-11-04T14:17:40Z', session: 'ses_r71work' },
+  mayDecide: { allowed: true, as: 'responsible' },
   activity: [
     { seq: 150, at: '2026-11-04T14:17:00Z', type: 'ticket/routed', actor: { kind: 'system', name: 'flowleap' }, for: PEOPLE.anna, detail: {} },
     { seq: 151, at: '2026-11-04T14:17:05Z', type: 'ticket/running', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },

@@ -1,0 +1,317 @@
+/* Intake: the 44px view bar with the filter chips, the queue, the open letter (key properties beside the list from
+ * 1366px, the properties panel on the item page below it), the letter drawing with its read spans, the reasons and
+ * the selection of a bulk decision. */
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.screen:focus {
+  outline: none;
+}
+
+.viewbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.count {
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.order {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.item {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 376px;
+  min-height: 0;
+}
+
+.itemProps {
+  display: flex;
+  min-height: 0;
+  overflow: auto;
+}
+
+.since {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.key {
+  margin-right: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.who > svg {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.match {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.label {
+  margin-bottom: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.matterCard {
+  padding: 8px 0;
+}
+
+.matterName {
+  margin-top: 2px;
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.matterMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.reasons {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reason {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.reason > svg {
+  margin-top: 2px;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.reason[data-ok] > svg {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 16px 0 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.note > svg {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.paper {
+  margin: 0;
+}
+
+.letter {
+  overflow: hidden;
+  padding: 24px;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-document-preview);
+  box-shadow: var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-document-preview);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.letterHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.logo {
+  width: 48px;
+  height: 12px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-border-l3);
+}
+
+.office {
+  margin: 8px 0 0;
+}
+
+.form {
+  font-family: var(--ds-font-family-code);
+  text-align: right;
+}
+
+.hl {
+  padding: 0 2px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-state-warn-tertiary);
+  color: var(--dsw-alias-label-document-preview);
+}
+
+.letterTitle {
+  margin: 8px 0 0;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.line {
+  height: 8px;
+  margin: 8px 0;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-border-l3);
+}
+
+.paperCap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.files {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.fileTitle {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.fileSub {
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+/* The split pane (from 1366px) shows the three key properties; the item page (below it) shows the proposed matter
+ * card and the properties panel instead, and no filter chips. */
+.wideOnly {
+  display: none;
+}
+
+@media (max-width: 1365px) {
+  .screen[data-open] > .viewbar {
+    display: none;
+  }
+}
+
+@media (min-width: 1366px) {
+  .match {
+    grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  }
+
+  .wideOnly {
+    display: block;
+  }
+
+  .narrowOnly {
+    display: none;
+  }
+
+  .item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .itemProps {
+    display: none;
+  }
+}
+
+/* Below 1366px the bulk bar docks at the bottom of the list's scroll area; the wrapper takes no box, so the bar
+ * sticks to the list and not to the wrapper. */
+.bulkSlot {
+  display: contents;
+}
+
+@media (min-width: 1366px) {
+  .bulkSlot {
+    display: none;
+  }
+}
+
+/* At 390px a row keeps the status, the title and the time (R17). */
+@media (max-width: 720px) {
+  .screen [data-list] > :first-child,
+  .screen [data-list] [role='list'] {
+    --records-columns: 14px minmax(0, 1fr) 72px;
+  }
+
+  .screen [data-list] > :first-child > :nth-child(3),
+  .screen [data-list] > :first-child > :nth-child(4),
+  .screen [data-row] > :nth-child(3),
+  .screen [data-row] > :nth-child(4) {
+    display: none;
+  }
+
+  .item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .itemProps {
+    display: none;
+  }
+
+  .match {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wideChip,
+  .order {
+    display: none;
+  }
+}

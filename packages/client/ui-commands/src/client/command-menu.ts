@@ -45,6 +45,13 @@ export interface CommandMenu {
   contribute(this: void, contribution: CommandMenuContribution): () => void
   /** Close the menu if it is open; its modal layer gives focus back to the element that had it. */
   close(this: void): void
+  /**
+   * Open the menu for the latest contribution with an item, as the Search command does, for a control such as a
+   * top bar's Search button. An open menu stays open. The Application group's Search row runs the search surface of
+   * the latest Search command; before the first Search command the menu has no Application group.
+   * @returns false when no contribution has an item, so the menu stays closed.
+   */
+  open(this: void): boolean
 }
 
 /** One presented act; its callback stays in the menu. */
@@ -99,11 +106,35 @@ export function createCommandMenu(labels: () => CommandMenuLabels): CommandMenuC
   const state = createSnapshotStore<CommandMenuState>({ open: false, occurrence: 0, item: '', rows: [] })
   let runs = new Map<string, () => void>()
   let source: CommandMenuContribution | null = null
+  let lastSearch: (() => void) | null = null
   const close = (): void => {
     if (!state.getSnapshot().open) return
     source = null
     runs = new Map()
     state.set({ ...state.getSnapshot(), open: false, rows: [] })
+  }
+  /**
+   * Open the menu for the latest contribution with an item.
+   * @param search - the search surface of the Application group; null leaves the group out.
+   * @returns false when no contribution has an item.
+   */
+  const show = (search: (() => void) | null): boolean => {
+    for (const contribution of contributions.toReversed()) {
+      const item = contribution.item()
+      if (item === null) continue
+      const copy = labels()
+      const application: CommandMenuGroup[] = search === null ? [] : [{ id: APPLICATION, label: copy.group,
+        acts: [{ id: 'search', label: copy.search, commandId: 'session.search' as ShortcutCommandId, run: search }] }]
+      const groups = [...item.groups, ...application]
+      runs = new Map(groups.flatMap(group => group.acts.map(act => [`${group.id}/${act.id}`, act.run] as const)))
+      source = contribution
+      state.set({ open: true, occurrence: state.getSnapshot().occurrence + 1, item: item.label,
+        rows: groups.flatMap(group => group.acts.map(act => ({ id: `${group.id}/${act.id}`, label: act.label,
+          group: { name: group.id, label: group.label }, disabled: act.disabled === true,
+          ...(act.commandId === undefined ? {} : { commandId: act.commandId }) }))) })
+      return true
+    }
+    return false
   }
   return {
     state,
@@ -118,22 +149,12 @@ export function createCommandMenu(labels: () => CommandMenuLabels): CommandMenuC
       }
     },
     toggle(search) {
+      lastSearch = search
       if (state.getSnapshot().open) { close(); return true }
-      for (const contribution of contributions.toReversed()) {
-        const item = contribution.item()
-        if (item === null) continue
-        const copy = labels()
-        const groups = [...item.groups, { id: APPLICATION, label: copy.group,
-          acts: [{ id: 'search', label: copy.search, commandId: 'session.search' as ShortcutCommandId, run: search }] }]
-        runs = new Map(groups.flatMap(group => group.acts.map(act => [`${group.id}/${act.id}`, act.run] as const)))
-        source = contribution
-        state.set({ open: true, occurrence: state.getSnapshot().occurrence + 1, item: item.label,
-          rows: groups.flatMap(group => group.acts.map(act => ({ id: `${group.id}/${act.id}`, label: act.label,
-            group: { name: group.id, label: group.label }, disabled: act.disabled === true,
-            ...(act.commandId === undefined ? {} : { commandId: act.commandId }) }))) })
-        return true
-      }
-      return false
+      return show(search)
+    },
+    open() {
+      return state.getSnapshot().open || show(lastSearch)
     },
     select(id) {
       const row = state.getSnapshot().rows.find(candidate => candidate.id === id)

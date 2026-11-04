@@ -12,11 +12,13 @@ import css from './Layout.module.css'
  * 1366px an open item fills the view as the item page and the list waits behind it.
  * @param props.list - the list pane.
  * @param props.item - the open item's pane, or null when no item is open (the list fills the view).
+ * @param props.itemWideOnly - the item pane shows only beside the list from 1366px, and the list fills the view below
+ * it, as for the selection of a bulk decision, whose bar docks under the list there.
  * @returns the split view.
  */
-export function QueueSplit({ list, item }: { list: ReactNode; item: ReactNode | null }) {
+export function QueueSplit({ list, item, itemWideOnly = false }: { list: ReactNode; item: ReactNode | null; itemWideOnly?: boolean }) {
   return (
-    <div className={css.split} data-open={item !== null || undefined}>
+    <div className={css.split} data-open={item !== null || undefined} data-wide-only={itemWideOnly || undefined}>
       <div className={css.listPane}>{list}</div>
       {item !== null && <div className={css.itemPane}>{item}</div>}
     </div>
