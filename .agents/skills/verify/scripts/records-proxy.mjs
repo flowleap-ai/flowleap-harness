@@ -14,7 +14,7 @@ if (port === undefined || instance === undefined || record === undefined || run 
   process.exit(2)
 }
 const targets = { instance: new URL(instance), record: new URL(record) }
-const IDENTITY = ['x-flowleap-starter', 'x-flowleap-user', 'x-flowleap-oid', 'x-flowleap-signin', 'x-flowleap-roles']
+const IDENTITY = ['x-flowleap-starter', 'x-flowleap-user', 'x-flowleap-oid', 'x-flowleap-signin', 'x-flowleap-roles', 'x-flowleap-name']
 
 /** The identity headers of <run>/records-headers.json, read at each request so a change needs no restart. */
 function identity() {
