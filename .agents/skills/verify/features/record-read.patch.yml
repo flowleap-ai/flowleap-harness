@@ -1,0 +1,11 @@
+# Overlay for record-read.md (DSH_VERIFY_PATCH): the flowleapRecord provider
+# reads the local Firm Record at $DSH_VERIFY_RECORD_URL (a loopback base URL)
+# with the runtime record token of the FLOWLEAP_RECORD_TOKEN environment
+# variable, which the credential store resolves like the model keys. An
+# override replaces the row's whole config, so apiKeyRef and timeoutMs restate
+# the bundle values.
+- id: flowleap-record-http
+  config:
+    baseURL: !!js process.env.DSH_VERIFY_RECORD_URL
+    apiKeyRef: FLOWLEAP_RECORD_TOKEN
+    timeoutMs: 5000

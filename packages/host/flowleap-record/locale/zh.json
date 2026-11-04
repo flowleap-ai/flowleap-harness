@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "FlowLeap 事务所案卷",
+    "description": "只读工具 record_read：事务所案卷中的一个案件、其期限，以及读取该视图时的案卷位置。"
+  }
+}

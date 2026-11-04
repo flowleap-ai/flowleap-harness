@@ -478,6 +478,24 @@ pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRea
 
 Source: [`packages/host/flowleap-connectors/src/ocr.ts`](../../packages/host/flowleap-connectors/src/ocr.ts)
 
+<a id="ctxflowleaprecord--flowleaprecord"></a>
+
+### `ctx.flowleapRecord` — `FlowleapRecord`
+
+Service Definition of the seam: the Firm Record as a runtime reads it.
+
+```ts cordis-catalog
+/**
+ * Read the current view of one matter.
+ * @param fileNumber - the matter's file number.
+ * @param signal - ends the read; the provider rejects when it fires.
+ * @returns the view at the record position it was read at, or the refusal.
+ */
+matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>
+```
+
+Source: [`packages/host/flowleap-record/src/types.ts`](../../packages/host/flowleap-record/src/types.ts)
+
 <a id="authorization-events"></a>
 
 ### `authorization/*` events

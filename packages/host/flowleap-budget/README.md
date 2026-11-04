@@ -81,7 +81,7 @@ The Host sends `GET <origin of baseURL><path>` with the virtual key as a bearer 
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Config, the gateway read, and the `flowleapBudget` Remote |
+| [`src/index.ts`](src/index.ts) | Config, the gateway read (its body through `readBoundedText` of `dsh-flowleap-connectors`), and the `flowleapBudget` Remote |
 | [`src/types.ts`](src/types.ts) | the client-safe `BudgetMonth` vocabulary |
 | [`tests/`](tests/) | the read against a local gateway double: figures, every unknown reason, and the load checks |
 

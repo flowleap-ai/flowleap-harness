@@ -2830,6 +2830,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-flowleap-dashboard DashboardPage',
       'client-ui-flowleap-dashboard ChatsPage',
       'client-ui-flowleap-dashboard AgentsPage',
+      'client-ui-flowleap-records RecordsPage',
       'client-ui-flowleap-routines NeedsReviewPage',
       'client-ui-flowleap-work-pages OfficeActionBoard',
       'client-ui-plugin-manager PluginManagerPage',
@@ -4577,6 +4578,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'factory \'sidebar.panel.icon\' (client-ui-sidebar), so it exists while that definition is registered',
     occupants: [
       'client-ui-flowleap-dashboard launcher.icon',
+      'client-ui-flowleap-records RecordsIcon',
       'client-ui-flowleap-routines NeedsReviewPanelIcon',
       'client-ui-flowleap-work-pages WorkPagesPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',

@@ -1,0 +1,9 @@
+# The record_read tool over a Firm Record fixture with one matter: the fixture
+# provides flowleapRecord, and the tool row is mounted as the flowleap-web
+# bundle mounts it.
+- insert:
+    - id: flowleap-record-fixture
+      name: './flowleap-record-fixture.mjs'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'
