@@ -6,92 +6,94 @@
 <title>Intake item</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .match { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; }
-  .cand { border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 14px 16px; background: var(--bg-main); }
-  .cand .key { color: var(--text-3); font-variant-numeric: tabular-nums; }
-  .cand .name { font-size: var(--fs-16); font-weight: var(--w-medium); letter-spacing: var(--track-title); margin-top: 2px; }
-  .cand .meta { color: var(--text-3); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .why { margin-top: 14px; display: grid; gap: 10px; }
-  .why-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-2); }
-  .why-row svg { width: 14px; height: 14px; margin-top: 2px; color: var(--st-ok); }
-  .alt { margin-top: 12px; display: flex; gap: 8px; align-items: center; color: var(--text-3); font-size: var(--fs-12); }
+  .match { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+  .alt { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+  @media (max-width: 720px) { .match { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
 <div class="app">
   <nav data-sidebar="matters"></nav>
   <main class="main">
-    <section class="panel">
+    <section class="panel fixed">
       <header class="topbar">
         <div class="crumbs">
-          <span data-i="inbox" class="iconbtn" style="width:auto;height:auto"></span><span>Intake</span><span class="sep">›</span>
+          <span class="ico hide-sm" data-i="inbox"></span><span class="hide-sm">Intake</span><span class="sep hide-sm">›</span>
           <span class="st" data-s="wait"></span><span class="here">Rule 71(3) communication</span>
         </div>
         <div class="bar-right">
-          <span class="pager"><b>1</b>&nbsp;/ 1</span>
+          <span class="pager"><b>1</b>&nbsp;/ 22</span>
           <span class="iconbtn boxed" data-i="up"></span><span class="iconbtn boxed" data-i="down"></span>
-          <span style="width:8px"></span>
-          <span class="iconbtn" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
+          <span class="iconbtn hide-sm" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
         </div>
       </header>
 
-      <div class="detail">
-        <div class="content narrow">
-          <div class="eyebrow"><span class="pill wait"><span class="st" data-s="wait"></span>Match proposed</span><span>Waits for a person since 14:16</span></div>
-          <h1 class="title">Rule 71(3) communication</h1>
-          <p class="lede">attorney.b forwarded this letter to the AI mailbox. The file number on page 1 names one matter.</p>
+      <div class="detail fill">
+        <div class="work">
+          <div class="work-scroll">
+            <div class="eyebrow"><span class="pill wait" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Match proposed</span><span class="hide-sm">Waits for a person since 14:16</span></div>
+            <h1 class="title">Rule 71(3) communication</h1>
+            <p class="lede">Jonas Weber forwarded this letter to the AI mailbox. The file number on page 1 names one matter.</p>
 
-          <div class="decision">
-            <div class="decision-h">
-              <span class="av b av-lg">B</span><span class="lbl">Your decision</span><span class="muted">Which matter is this letter for?</span>
-              <span class="why" data-i="info">Filing puts your name on the record</span>
-            </div>
-            <div class="decision-b">
-              <div class="match">
-                <div>
-                  <div class="letter">
-                    <div class="hd"><div><div class="logo"></div><div style="margin-top:6px;opacity:.7">European Patent Office</div></div><div class="form" style="text-align:right">EPO Form <span class="hl">2004C</span><br><span style="opacity:.7">Date</span> 30.10.2026</div></div>
-                    <div>Your reference <span class="hl">FL-2026-0001</span></div>
-                    <div>Application No. 24 123 456.7 - 1203</div>
-                    <div style="margin-top:10px;font-weight:600">Communication under Rule 71(3) EPC</div>
-                    <div style="margin-top:6px">You are informed that the examining division intends to grant a European patent on the basis of the above application.</div>
-                    <div style="margin-top:6px">Within a period of four months of notification of this communication, you are requested to pay the fee for grant and publishing and to file a translation of the claims.</div>
-                    <div class="ln" style="width:88%;margin-top:12px"></div><div class="ln" style="width:94%"></div><div class="ln" style="width:52%"></div>
-                  </div>
-                  <div class="paper-cap"><span>Page 1 of 1</span><span>r71-3-FL-2026-0001.pdf</span></div>
+            <div class="match">
+              <div>
+                <div class="letter" data-verbatim>
+                  <div class="hd"><div><div class="logo"></div><p>European Patent Office</p></div><div class="form">EPO Form <span class="hl">2004C</span><br>Date 30.10.2026</div></div>
+                  <div>Your reference <span class="hl">FL-2026-0001</span></div>
+                  <div>Application No. 24 123 456.7 - 1203</div>
+                  <p class="strong"><span class="hl">Communication under Rule 71(3) EPC</span></p>
+                  <p>You are informed that the examining division intends to grant a European patent on the basis of the above application.</p>
+                  <div class="ln"></div><div class="ln"></div>
                 </div>
-                <div>
-                  <div class="muted" style="font-size:12px;margin-bottom:6px">Proposed matter</div>
-                  <div class="cand">
-                    <div class="key">FL-2026-0001</div>
-                    <div class="name">Pressure sensor housing</div>
-                    <div class="meta">Demo Client GmbH <span>·</span> <span class="who"><span class="av a">A</span>attorney.a</span> <span>·</span> open</div>
-                  </div>
-                  <div class="why">
-                    <div class="why-row"><span data-i="check"></span><div>Your reference on page 1 reads <span class="quote">FL-2026-0001</span></div></div>
-                    <div class="why-row"><span data-i="check"></span><div>One matter has this file number. No other key gives a second matter.</div></div>
-                    <div class="why-row"><span data-i="check"></span><div>The letter is from the EPO: the form number <span class="quote">EPO Form 2004C</span> is on page 1.</div></div>
-                  </div>
-                  <div class="alt"><span data-i="info" style="width:14px;height:14px;display:inline-grid"></span>Your firm asks a person to confirm each match, also an exact file number.</div>
+                <div class="paper-cap"><span>Page 1 of 1</span><span>r71-3-FL-2026-0001.pdf</span></div>
+              </div>
+              <div>
+                <div class="label-12">Proposed matter</div>
+                <div class="card-matter">
+                  <div class="muted num">FL-2026-0001</div>
+                  <div class="name">Pressure sensor housing</div>
+                  <div class="meta">Kessler Sensorik GmbH <span>·</span> <span class="who"><span class="av a">A</span>Dr. Anna Becker</span> <span>·</span> open</div>
+                </div>
+                <div class="reasons">
+                  <div class="reason" data-i="check"><div>Your reference on page 1 reads <span class="quote">FL-2026-0001</span> <span class="page-ref">p. 1</span></div></div>
+                  <div class="reason" data-i="check"><div>One matter has this file number. No other reference on the letter names a second matter.</div></div>
+                  <div class="reason" data-i="check"><div>The sender is the EPO: the letter head and the title <span class="quote">Communication under Rule 71(3) EPC</span> are on page 1.</div></div>
+                </div>
+                <div class="alt muted t12" data-i="info">Your firm asks a person to confirm each match, also an exact file number.</div>
+              </div>
+            </div>
+
+            <div class="activity">
+              <h2>Activity</h2>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="mail"></span></span><div class="txt"><b>AI mailbox</b> stored the letter that <b>Jonas Weber</b> forwarded<span class="t">14:16</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the letter as a Rule 71(3) communication from the EPO<span class="t">14:16</span></div></div>
+              <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> proposed the matter FL-2026-0001 from the file number<span class="t">14:16</span></div></div>
+            </div>
+            <details class="audit" data-audit><summary data-i="chev">Audit</summary></details>
+          </div>
+
+          <div class="decision-dock">
+            <div class="decision">
+              <div class="decision-h">
+                <span class="av b av-lg">J</span><span class="lbl">Your decision</span><span class="q">Which matter is this letter for?</span>
+                <span class="why hide-sm" data-i="info">Filing puts your name on the record</span>
+              </div>
+              <div class="decision-b">
+                <div class="part">
+                  <span class="st" data-s="ok"></span>
+                  <div><div class="q">FL-2026-0001 Pressure sensor housing</div><div class="d">3 reasons on page 1 agree</div></div>
+                  <span></span>
+                </div>
+              </div>
+              <div class="decision-f">
+                <span class="btn btn-ghost" data-i="x" data-act="reject">Not relevant… <span class="kbd">2</span></span>
+                <div class="acts">
+                  <span class="btn btn-secondary hide-sm" data-i="matters" data-act="other-matter">Other matter… <span class="kbd">M</span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file <span class="kbd">⌘↵</span></span>
                 </div>
               </div>
             </div>
-            <div class="decision-f">
-              <span class="btn btn-ghost" data-i="x">Not relevant… <span class="kbd">2</span></span>
-              <div class="acts">
-                <span class="btn btn-secondary" data-i="matters">Other matter… <span class="kbd">M</span></span>
-                <span class="btn btn-primary btn-lg" data-i="check">Accept and file <span class="kbd">1</span></span>
-              </div>
-            </div>
           </div>
-
-          <div class="activity">
-            <h2>Activity</h2>
-            <div class="ev"><span class="ico"><span class="av sys" data-i="mail"></span></span><div class="txt"><b>AI mailbox</b> stored the letter from the forward of <b>attorney.b</b><span class="t">14:16</span></div></div>
-            <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the letter as a Rule 71(3) communication from the EPO<span class="t">14:16</span></div></div>
-            <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>AI mailbox</b> proposed the matter FL-2026-0001 from the file number<span class="t">14:16</span></div></div>
-          </div>
-          <details class="audit"><summary><span data-i="chev"></span>Audit</summary></details>
         </div>
 
         <aside class="props">
@@ -101,15 +103,15 @@
           <div class="prop"><span class="k">Office</span><span class="v">EPO</span></div>
           <div class="prop"><span class="k">Type</span><span class="v">Rule 71(3) EPC</span></div>
           <div class="prop"><span class="k">Application</span><span class="v num">24 123 456.7</span></div>
-          <div class="prop"><span class="k">Document</span><span class="v"><span data-i="doc" style="display:inline-grid;width:14px;color:var(--text-3)"></span>1 page</span></div>
+          <div class="prop"><span class="k">Document</span><span class="v"><span class="ico-inline" data-i="doc"></span>1 page</span></div>
           <h3>Forward</h3>
-          <div class="prop"><span class="k">From</span><span class="v"><span class="av b">B</span>attorney.b</span></div>
+          <div class="prop"><span class="k">From</span><span class="v"><span class="av b">J</span>Jonas Weber</span></div>
           <div class="prop"><span class="k">Received</span><span class="v num">Today, 14:16</span></div>
           <div class="prop"><span class="k">Subject</span><span class="v">Fwd: EPO communication</span></div>
           <h3>Proposed matter</h3>
           <div class="prop"><span class="k">Matter</span><span class="v"><span class="muted num">FL-2026-0001</span></span></div>
-          <div class="prop"><span class="k">Client</span><span class="v">Demo Client GmbH</span></div>
-          <div class="prop"><span class="k">Responsible</span><span class="v"><span class="av a">A</span>attorney.a</span></div>
+          <div class="prop"><span class="k">Client</span><span class="v">Kessler Sensorik GmbH</span></div>
+          <div class="prop"><span class="k">Responsible</span><span class="v"><span class="av a">A</span>Dr. Anna Becker</span></div>
         </aside>
       </div>
     </section>

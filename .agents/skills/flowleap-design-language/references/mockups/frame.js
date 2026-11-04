@@ -1,8 +1,10 @@
-// Mockup helper: theme from ?theme=, the FlowLeap app sidebar, icons, and view states from ?state=.
+// Mockup helper: the client theme from ?theme=, the FlowLeap app sidebar, icons, and view states from ?state=.
 (() => {
   const q = new URLSearchParams(location.search);
   const theme = q.get('theme') || 'dark';
-  document.documentElement.dataset.theme = theme;
+  // The client's dark theme is body[data-ds-dark-theme]; light is the default.
+  if (theme === 'dark') document.body.setAttribute('data-ds-dark-theme', '');
+  document.documentElement.style.colorScheme = theme;
   const lang = document.documentElement.lang || 'en';
 
   const I = {
@@ -62,13 +64,13 @@
     // waits for a person: open ring with a centre dot
     wait: '<circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-dasharray="2.2 1.6"/><circle cx="8" cy="8" r="2" fill="currentColor"/>',
     // done: filled disc with a check
-    ok: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M5.2 8.2 7.2 10.1 10.9 6" stroke="var(--bg-main)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    ok: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M5.2 8.2 7.2 10.1 10.9 6" stroke="var(--dsw-alias-bg-base)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
     // working: ring with a filled sector
     run: '<circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 4.4A3.6 3.6 0 0 1 11.6 8H8z" fill="currentColor"/><path d="M8 8h3.6A3.6 3.6 0 0 1 8 11.6z" fill="currentColor"/>',
     // refused or rejected: filled disc with a cross
-    bad: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="var(--bg-main)" stroke-width="1.6" stroke-linecap="round"/>',
+    bad: '<circle cx="8" cy="8" r="6.5" fill="currentColor"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="var(--dsw-alias-bg-base)" stroke-width="1.6" stroke-linecap="round"/>',
     // stale or disputed: triangle
-    stale: '<path d="M8 2.2 14.3 13.3H1.7z" fill="currentColor"/><path d="M8 6.5v3M8 11.3v.1" stroke="var(--bg-main)" stroke-width="1.6" stroke-linecap="round"/>',
+    stale: '<path d="M8 2.2 14.3 13.3H1.7z" fill="currentColor"/><path d="M8 6.5v3M8 11.3v.1" stroke="var(--dsw-alias-bg-base)" stroke-width="1.6" stroke-linecap="round"/>',
     // no action needed: ring with a dash
     idle: '<circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M5.5 8h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
   };
@@ -87,16 +89,19 @@
     const item = (k, icon) => `<div class="sb-item${active === k ? ' is-active' : ''}">${svg(icon)}<span>${L[k]}</span></div>`;
     sb.className = 'sidebar';
     sb.innerHTML = `
-      <div class="sb-brand">${logo}<span>${L.brand}</span><span class="collapse">${svg('sidebar', 'width="15" height="15"')}</span></div>
-      <div class="sb-new">${svg('plus', 'width="15" height="15"')}<span>${L.newS}</span></div>
+      <div class="sb-brand">${logo}<span>${L.brand}</span><span class="collapse">${svg('sidebar')}</span></div>
+      <div class="sb-new">${svg('plus')}<span>${L.newS}</span></div>
       ${item('search', 'search')}
-      <div style="height:6px"></div>
+      <div class="sb-gap"></div>
       ${item('dash', 'dash')}${item('chats', 'chats')}${item('plugins', 'plug')}${item('auto', 'clock')}${item('review', 'review')}${item('office', 'office')}${item('matters', 'matters')}${item('agents', 'agents')}${item('more', 'more')}
       <div class="sb-label">${L.pinned}</div><div class="sb-hint">${L.pinHint}</div>
-      <div class="sb-label">${L.ws}<span class="tools">${svg('search', 'width="13" height="13"')}${svg('filter', 'width="13" height="13"')}</span></div>
+      <div class="sb-label">${L.ws}</div>
       ${item('defWs', 'folder')}
       <div class="sb-foot">${item('settings', 'gear')}</div>`;
   }
+
+  // At 390 px the sidebar hides; the top bar starts with the button that opens it.
+  document.querySelectorAll('.topbar').forEach(el => el.insertAdjacentHTML('afterbegin', `<span class="iconbtn only-sm">${svg('sidebar')}</span>`));
 
   document.querySelectorAll('[data-i]').forEach(el => { el.innerHTML = svg(el.dataset.i) + el.innerHTML; });
   document.querySelectorAll('.st[data-s]').forEach(el => {

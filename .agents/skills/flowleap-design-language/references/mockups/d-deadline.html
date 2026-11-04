@@ -5,112 +5,115 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deadline</title>
 <link rel="stylesheet" href="records.css">
-<style>
-  .sub-h { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: var(--w-medium); color: var(--text-1); }
-  .sub-h .muted { font-weight: var(--w-regular); }
-  .calc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .rule-line { color: var(--text-2); margin-top: 10px; font-size: var(--fs-14); }
-</style>
 </head>
 <body>
 <div class="app">
   <nav data-sidebar="matters"></nav>
   <main class="main">
-    <section class="panel">
+    <section class="panel fixed">
       <header class="topbar">
         <div class="crumbs">
-          <span data-i="matters" class="iconbtn" style="width:auto;height:auto"></span><span>Matters</span><span class="sep">›</span>
-          <span class="key">FL-2026-0001</span><span>Pressure sensor housing</span><span class="sep">›</span>
+          <span class="ico hide-sm" data-i="matters"></span><span class="hide-sm">Matters</span><span class="sep hide-sm">›</span>
+          <span class="key hide-sm">FL-2026-0001</span><span class="hide-sm">Pressure sensor housing</span><span class="sep hide-sm">›</span>
           <span class="st" data-s="wait"></span><span class="here">Deadline 1 Mar 2027</span>
         </div>
         <div class="bar-right">
-          <span class="iconbtn" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
+          <span class="iconbtn hide-sm" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
         </div>
       </header>
 
-      <div class="detail">
-        <div class="content">
-          <div class="eyebrow"><span class="pill wait"><span class="st" data-s="wait"></span>Proposed</span><span>Waits for a second person</span></div>
-          <div class="keyfact">
-            <span class="big">Monday, 1 March 2027</span>
-            <span class="left" data-due="2027-03-01"></span>
-          </div>
-          <div class="rule-line">Rule 71(3) EPC: intention to grant <span class="muted">· four months from the communication of 30 Oct 2026</span></div>
-
-          <div class="decision">
-            <div class="decision-h">
-              <span class="av b av-lg">B</span><span class="lbl">Your decision</span><span class="muted">Is this date right?</span>
-              <span class="why" data-i="info">You did not record or classify this letter, so you can confirm</span>
+      <div class="detail fill">
+        <div class="work">
+          <div class="work-scroll">
+            <div class="eyebrow"><span class="pill wait" data-atlas="deadline.deadline_proposed"><span class="st" data-s="wait"></span>Deadline proposed</span><span class="hide-sm">Waits for a second person</span></div>
+            <div class="keyfact">
+              <span class="big">Monday, 1 March 2027</span>
+              <span data-due="2027-03-01"></span>
             </div>
-            <div class="decision-b" style="gap:16px">
-              <div>
-                <div class="sub-h">How FlowLeap computed the date</div>
-                <ol class="steps">
-                  <li><span class="dot"></span><div><div class="what">Delivered on the date of the letter</div><div class="law">Rule 126(2) EPC · Rule 127(2) EPC · OJ EPO 2023, A29</div></div><div class="to num">→ <b>30 Oct 2026</b></div></li>
-                  <li><span class="dot"></span><div><div class="what">Start of the period</div><div class="law">Rule 131(2) EPC, the day after delivery</div></div><div class="to num">→ <b>31 Oct 2026</b></div></li>
-                  <li><span class="dot"></span><div><div class="what">Four months; February has no 30th, so its last day</div><div class="law">Rule 71(3) EPC · Rule 131(4) EPC</div></div><div class="to num">→ <b>Sun, 28 Feb 2027</b></div></li>
-                  <li><span class="dot"></span><div><div class="what">Moved to the next day the EPO is open</div><div class="law">Rule 134(1) EPC</div></div><div class="to num">→ <b>Mon, 1 Mar 2027</b></div></li>
-                </ol>
-                <div class="notice" style="margin-top:4px"><span data-i="info"></span><div>No receipt date is recorded, so the date of the letter counts as delivery.</div></div>
+            <div class="rule-line">Rule 71(3) EPC: intention to grant <span class="muted">· four months from the communication of 30 Oct 2026</span></div>
+
+            <div class="section">
+              <div class="sub-h">How FlowLeap computed the date</div>
+              <ol class="steps">
+                <li><span class="dot"></span><div><div class="what">Delivered on the date of the letter</div><div class="law">Rule 126(2) EPC · Rule 127(2) EPC · OJ EPO 2023, A29</div></div><div class="to num">→ <b>30 Oct 2026</b></div></li>
+                <li><span class="dot"></span><div><div class="what">Start of the period</div><div class="law">Rule 131(2) EPC, the day after delivery</div></div><div class="to num">→ <b>31 Oct 2026</b></div></li>
+                <li><span class="dot"></span><div><div class="what">Four months; February has no 30th, so its last day</div><div class="law">Rule 71(3) EPC · Rule 131(4) EPC</div></div><div class="to num">→ <b>Sun, 28 Feb 2027</b></div></li>
+                <li><span class="dot"></span><div><div class="what">Moved to the next day the EPO is open</div><div class="law">Rule 134(1) EPC</div></div><div class="to num">→ <b>Mon, 1 Mar 2027</b></div></li>
+              </ol>
+              <div class="notice" data-i="info"><div>No receipt date is recorded, so the date of the letter counts as delivery.</div></div>
+            </div>
+
+            <div class="section">
+              <div class="sub-h">What FlowLeap read, twice <span class="muted">· the calculation uses these values</span></div>
+              <div class="cmp">
+                <div class="h"></div><div class="h">From the text</div><div class="h">From the page image</div><div class="h"></div>
+                <div class="k">Office event</div>
+                <div class="v">Rule 71(3) EPC<br><span class="quote">Communication under Rule 71(3) EPC</span> <span class="page-ref">p. 1</span></div>
+                <div class="v">Rule 71(3) EPC</div>
+                <div><span class="agree" data-i="check">Agree</span></div>
+                <div class="k">Document date</div>
+                <div class="v">30 Oct 2026<br><span class="quote">30.10.2026</span> <span class="page-ref">p. 1</span></div>
+                <div class="v">30 Oct 2026</div>
+                <div><span class="agree" data-i="check">Agree</span></div>
+                <div class="k">Application</div>
+                <div class="v">24 123 456.7<br><span class="quote">24 123 456.7 - 1203</span> <span class="page-ref">p. 1</span></div>
+                <div class="v">24 123 456.7</div>
+                <div><span class="agree" data-i="check">Agree</span></div>
               </div>
-              <div>
-                <div class="sub-h">What FlowLeap read, twice <span class="muted">· the calculation uses these values</span></div>
-                <div class="cmp">
-                  <div class="h"></div><div class="h">From the text</div><div class="h">From the page image</div><div class="h"></div>
-                  <div class="k">Office event</div>
-                  <div class="v">Rule 71(3) EPC<br><span class="quote">EPO Form 2004C</span> <span class="page-ref">page 1</span></div>
-                  <div class="v">Rule 71(3) EPC<br><span class="quote">EPO Form 2004C</span></div>
-                  <div><span class="agree"><span data-i="check"></span>Agree</span></div>
-                  <div class="k">Document date</div>
-                  <div class="v">30 Oct 2026<br><span class="quote">30.10.2026</span> <span class="page-ref">page 1</span></div>
-                  <div class="v">30 Oct 2026</div>
-                  <div><span class="agree"><span data-i="check"></span>Agree</span></div>
-                  <div class="k">Application</div>
-                  <div class="v">24 123 456.7<br><span class="quote">24 123 456.7 - 1203</span> <span class="page-ref">page 1</span></div>
-                  <div class="v">24 123 456.7</div>
-                  <div><span class="agree"><span data-i="check"></span>Agree</span></div>
+            </div>
+
+            <div class="section">
+              <div class="sub-h">Legal sources</div>
+              <div class="law-chips">
+                <span class="law-chip">Rule 71 EPC</span><span class="law-chip">Rule 126 EPC</span><span class="law-chip">Rule 127 EPC</span><span class="law-chip">Rule 131 EPC</span><span class="law-chip">Rule 134 EPC</span><span class="law-chip">OJ EPO 2022, A101</span><span class="law-chip">OJ EPO 2023, A29</span>
+              </div>
+            </div>
+
+            <div class="activity">
+              <h2>Activity</h2>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the office event and the date twice; both readings agree<span class="t">14:17</span></div></div>
+              <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> proposed Mon, 1 Mar 2027<span class="t">14:17</span></div></div>
+            </div>
+            <details class="audit" data-audit><summary data-i="chev">Audit</summary></details>
+          </div>
+
+          <div class="decision-dock">
+            <div class="decision">
+              <div class="decision-h">
+                <span class="av b av-lg">J</span><span class="lbl">Your decision</span><span class="q">Is this date right?</span>
+                <span class="why hide-sm" data-i="info">You did not record or classify this letter, so you can confirm</span>
+              </div>
+              <div class="decision-b">
+                <div class="part">
+                  <span class="st" data-s="ok"></span>
+                  <div><div class="q">Mon, 1 Mar 2027</div><div class="d">4 steps · both readings agree · FlowLeap checks the date again when you confirm</div></div>
+                  <span class="btn btn-ghost hide-sm" data-i="doc" data-act="open-letter">Open the letter <span class="kbd">O</span></span>
+                </div>
+              </div>
+              <div class="decision-f">
+                <span class="btn btn-ghost" data-i="x" data-act="reject">Reject… <span class="kbd">2</span></span>
+                <div class="acts">
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Confirm deadline <span class="kbd">⌘↵</span></span>
                 </div>
               </div>
             </div>
-            <div class="decision-f">
-              <span class="btn btn-ghost" data-i="x">Reject… <span class="kbd">2</span></span>
-              <span class="btn btn-ghost" data-i="doc">Open the letter <span class="kbd">O</span></span>
-              <div class="acts">
-                <span class="note">FlowLeap checks the date again when you confirm.</span>
-                <span class="btn btn-primary btn-lg" data-i="check">Confirm deadline <span class="kbd">⌘↵</span></span>
-              </div>
-            </div>
           </div>
-
-          <div class="section">
-            <div class="section-h"><h2>Legal sources</h2></div>
-            <div class="law-chips">
-              <span class="law-chip">Rule 71 EPC</span><span class="law-chip">Rule 126 EPC</span><span class="law-chip">Rule 127 EPC</span><span class="law-chip">Rule 131 EPC</span><span class="law-chip">Rule 134 EPC</span><span class="law-chip">OJ EPO 2022, A101</span><span class="law-chip">OJ EPO 2023, A29</span>
-            </div>
-          </div>
-
-          <div class="activity">
-            <h2>Activity</h2>
-            <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the office event and the date twice; both readings agree<span class="t">14:17</span></div></div>
-            <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> proposed Mon, 1 Mar 2027<span class="t">14:17</span></div></div>
-          </div>
-          <details class="audit"><summary><span data-i="chev"></span>Audit</summary></details>
         </div>
 
         <aside class="props">
           <h3>Deadline</h3>
-          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="wait"></span>Proposed</span></div>
+          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="wait"></span>Deadline proposed</span></div>
           <div class="prop"><span class="k">Due</span><span class="v num">Mon, 1 Mar 2027</span></div>
           <div class="prop"><span class="k">Rule</span><span class="v">Rule 71(3) EPC</span></div>
           <div class="prop"><span class="k">Period</span><span class="v">4 months</span></div>
           <h3>Checks</h3>
-          <div class="prop"><span class="k">Proposed by</span><span class="v"><span class="av sys" data-i="engine"></span>FlowLeap</span></div>
+          <div class="prop"><span class="k">Proposed by</span><span class="v"><span class="av sys" data-i="scale"></span>FlowLeap</span></div>
           <div class="prop"><span class="k">Reading</span><span class="v"><span class="st" data-s="ok"></span>Both readings agree</span></div>
           <div class="prop"><span class="k">Confirm</span><span class="v"><span class="st" data-s="wait"></span>A second person</span></div>
           <h3>Source</h3>
           <div class="prop"><span class="k">Matter</span><span class="v"><span class="muted num">FL-2026-0001</span></span></div>
           <div class="prop"><span class="k">Office event</span><span class="v">EPO, 30 Oct 2026</span></div>
-          <div class="prop"><span class="k">Received</span><span class="v muted">Not recorded</span></div>
+          <div class="prop"><span class="k">Received</span><span class="v"><span class="muted">Not recorded</span></span></div>
         </aside>
       </div>
     </section>
