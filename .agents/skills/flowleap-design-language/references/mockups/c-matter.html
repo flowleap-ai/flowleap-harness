@@ -12,7 +12,10 @@
   .docs .row { grid-template-columns: 14px minmax(0, 1fr) 20px 56px; }
   .content.wide { max-width: 1040px; }
   @media (max-width: 720px) {
-    .dl .row, .dl .thead { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .dl .row, .dl .thead { grid-template-columns: minmax(0, 1fr) auto; }
+    .dl .row { height: auto; min-height: 44px; padding-block: 4px; row-gap: 0; }
+    .dl .row > .status { grid-row: span 2; }
+    .dl .row > :nth-child(2), .dl .row > [data-due] { justify-self: end; }
     .wk .row, .wk .thead { grid-template-columns: auto minmax(0, 1fr) 56px; }
     .docs .row { grid-template-columns: 14px minmax(0, 1fr) 56px; }
     .oe .row, .oe .thead { grid-template-columns: 14px minmax(0, 1fr) 168px; }
@@ -50,7 +53,7 @@
               <div class="row is-selected">
                 <span class="status" data-atlas="deadline.deadline_proposed"><span class="st" data-s="wait"></span>Deadline proposed</span>
                 <span class="strong num">Mon, 1 Mar 2027</span>
-                <span class="hide-sm" data-due="2027-03-01"></span>
+                <span data-due="2027-03-01"></span>
                 <span class="hide-sm">Rule 71(3) EPC</span>
                 <span class="av sys hide-sm" data-i="scale" title="Proposed by FlowLeap" aria-label="Proposed by FlowLeap"></span>
               </div>

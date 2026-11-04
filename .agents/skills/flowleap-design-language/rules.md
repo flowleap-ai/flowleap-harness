@@ -44,7 +44,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 ### R6. Fixed sizes
 
 - **Rule.** The frame and the repeating parts have fixed sizes, so the eye finds them in the same place on every screen. Controls take the client `Button` sizes.
-- **Numbers.** Top bar 44 px. Row 44 px, also for ⌘K items. Group header 36 px. Column header and property row 32 px. Button 28 px (`Button` `sm`), the decision's primary button 36 px (`Button` `md`). Keycap 20 px. UI icon 16 px, status icon 14 px. Avatar 20 px in rows, 24 px in headers and the decision bar. Sidebar 244 px, properties panel 376 px with a 96 px label column, agent dock 376 px, the list of a queue split view 480 px, ⌘K 712 px wide.
+- **Numbers.** Top bar 44 px. Row 44 px, also for ⌘K items. Group header 36 px. Column header and property row 32 px. Button 28 px (`Button` `sm`), the decision's primary button 36 px (`Button` `md`). Keycap 18 px. UI icon 16 px, status icon 14 px. Avatar 20 px in rows, 24 px in headers and the decision bar. Sidebar 244 px, properties panel 376 px with a 96 px label column, agent dock 376 px, the list of a queue split view 480 px, ⌘K 712 px wide.
 - **Check.** Measure each changed part against the numbers.
 - **Source.** [L-TRIAGE-IMG] 44 px view header; [L-LIVE] 44 px rows, 36 px group headers, a properties column of about 376 px, ⌘K 713 px wide with 46 px items. The skill takes 712 px (the nearest multiple of 8) and 44 px items (one row height for every list); `ui-primitives` `Button` gives 28 and 36 px; the other sizes are its own choice.
 
@@ -52,7 +52,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 
 - **Rule.** The role and size bands of [docs/ui-radius.md](../../../docs/ui-radius.md): choose the role first, then the size. An inner radius is the outer radius minus the inset. Every 999px or 50 % radius pairs with `corner-shape: round` in the same rule ([docs/web-styling.md](../../../docs/web-styling.md#component-rules)). The content column is flush with the sidebar, as the client `AppFrame` is, so it has no radius.
 - **Numbers.** `--dsw-radius-xs` 4 px: below 20 px, the keycap, an inline quote, a mention, a skeleton bar. `--dsw-radius-sm` 8 px: 20 to 28 px controls (the `sm` button, an icon button, a tab, a chip, a segment). `--dsw-radius-md` 12 px: 32 to 40 px cells (the `md` button, the group header, a notice, a text field, a ⌘K or picker item, the segmented control track). `--dsw-radius-lg` 16 px: preview cards and grouped content (a file row, the result card, the excerpt popover, the letter drawing, the ⌘K and menu outer, a board column, the empty-state tile). `--dsw-radius-xl` 20 px: independent cards (a board card, the task bubble). `--dsw-radius-panel` 28 px: floating panels (the decision bar, the composer). 999px capsules (the status pill), 50 % circles (avatars, dots).
-- **Check.** `check-css.mjs` fails on a `border-radius` that is not a `--dsw-radius-*` token, 999px or 50 %, and on a full-round radius without `corner-shape: round`. `check-mockups.mjs` fails on a rendered radius off the scale or outside the height band (up to 28 px high: 12 px at most; 32 to 47 px: 8 to 16 px; 48 px and higher: 12 px at least).
+- **Check.** `check-css.mjs` fails on a `border-radius` that is not a `--dsw-radius-*` token, 999px or 50 %, and on a full-round radius without `corner-shape: round`. `check-mockups.mjs` fails on a rendered radius off the scale or outside the height band (below 20 px high: 4 px; 20 to 28 px: 8 px; 29 to 31 px: 8 or 12 px; 32 to 40 px: 12 px; above 40 px: 12 px at least).
 - **Source.** [docs/ui-radius.md](../../../docs/ui-radius.md); [MIFB] concentric radii.
 
 ### R8. Calm surfaces
@@ -82,7 +82,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 
 - **Rule.** A state is an icon shape and a word; colour repeats it. Each atlas state has one shape and one English and German word in [status-map.md](status-map.md). The status component requires the word; an icon alone is allowed only for a row or card under a group or column header of the same state, marked `aria-hidden`. A page shows its subject's status once. Days left are computed from today and written out ("117 days left", never "117 d"); a past date says "Overdue by N days" in the refused colour.
 - **Numbers.** Six status shapes ([components.md](components.md#status-icon-with-the-atlas-word)).
-- **Check.** `status-map.mjs` fails when an atlas state has no row or no German word, a row is not an atlas state, a word repeats in a machine, or a shape contradicts the state's steps. `check-mockups.mjs` fails on a status icon outside a `[data-atlas]` element (except the `aria-hidden` row or card icon above), on a `.pill` or `.status` with no `data-atlas`, when a `[data-atlas]` element shows another shape or the wrong English or German word, and on a typed day or week count in digits or words (`3 days`, `3-day`, `noch 3 Werktage`, `drei Tage`, `in 2 Wochen`) outside the `[data-due]` elements that frame.js fills.
+- **Check.** `status-map.mjs` fails when an atlas state has no row or no German word, a row is not an atlas state, a word repeats in a machine, or a shape contradicts the state's steps. `check-mockups.mjs` fails on a status icon outside a `[data-atlas]` element (except the `aria-hidden` row or card icon above), on a `.pill` or `.status` with no `data-atlas`, when a `[data-atlas]` element shows another shape or the wrong English or German word, when its word is in the text but not seen (a box under 2 × 2 px, a `clip` or `clip-path`, opacity 0 or a transparent colour, as a visually hidden class does), and on a typed day or week count in digits or words (`3 days`, `3-day`, `noch 3 Werktage`, `drei Tage`, `in 2 Wochen`) outside the `[data-due]` elements that frame.js fills.
 - **Source.** [VERCEL] "Don't rely on color alone"; [RUI].
 
 ## Actions and decisions
@@ -90,15 +90,15 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 ### R12. One primary action
 
 - **Rule.** A view has at most one enabled solid accent button: the act that moves the state machine for this person. Other acts are secondary (raised) or tertiary (text). A negative act (Not relevant, Reject) is tertiary and asks for a reason in its own step. Each button shows its key from [keys.md](keys.md).
-- **Numbers.** 1 enabled primary per view. Key label: the keycap ([components.md](components.md#keycap)), 12 px `label-secondary` text in a 20 px box; it is a new part, because the client `ShortcutKeys` is unboxed 12 px text in `label-tertiary`.
-- **Check.** `check-mockups.mjs` counts the enabled controls whose computed fill is the primary button fill, in each state and size, whatever their class. In the built screen, count them in each state.
+- **Numbers.** 1 enabled primary per view. Key label: the keycap ([components.md](components.md#keycap)), 12 px `label-secondary` text in an 18 px box; it is a new part, because the client `ShortcutKeys` is unboxed 12 px text in `label-tertiary`.
+- **Check.** `check-mockups.mjs` counts the enabled controls whose computed fill is the primary button fill, in each state and size, whatever their class. It also fails on a bulk decision bar (`[data-bulk]`) that shows with no row checked, or whose number differs from the checked count. In the built screen, count them in each state.
 - **Source.** [L-TRIAGE] single-key acts; [RUI] actions by hierarchy; [FRONTEND] buttons named by outcome.
 
 ### R13. The decision is in view
 
 - **Rule.** Every decision bar is docked at the bottom of the content column; the content above it scrolls. The bar holds the question, one row for each part with its evidence state, and the acts; the evidence itself is in the content above.
 - **Numbers.** The decision button is inside the view at 1440 × 900, 1366 × 650 (Windows 1366 × 768 and 1920 × 1080 at 125 %) and 390 × 844.
-- **Check.** `check-mockups.mjs` at the three sizes fails when the decision's primary button is outside the view or another element covers its centre (a toast, a fixed bar), unless a modal such as ⌘K is open; measure the built screen at each size without scrolling.
+- **Check.** `check-mockups.mjs` at the three sizes fails when the decision's primary button is outside the view, takes no click (`pointer-events: none`) or another element covers its centre (a toast, a fixed bar), unless a modal such as ⌘K is open. It checks again with each scroll container scrolled to its end and fails when the bar moves, so a bar inside the scrolling content fails. Measure the built screen at each size, before and after scrolling.
 - **Source.** [L-LIVE] Linear keeps the controls of a detail page in place on every detail page while the content scrolls.
 
 ### R14. Evidence is exact
@@ -119,9 +119,9 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 
 ### R16. Keyboard first
 
-- **Rule.** One key map for the product: [keys.md](keys.md). An act has the same key on every screen, in its button, its context-menu item and ⌘K. `⌘K` opens the command menu scoped to the open item, and it shows the key of every act. `J`/`K` or the arrows move in a list, `X` selects, `↵` opens, `Esc` closes. The top bar of a detail page shows "1 / N" with up and down. In the client every key is a rebindable registry command; single keys and `G` sequences work only through the view-scoped layer, never while focus is in a text field, an editable element or a menu. Keys hide on a coarse pointer.
+- **Rule.** One key map for the product: [keys.md](keys.md). An act has the same key on every screen, in its button, its context-menu item and ⌘K. `⌘K` opens the command menu scoped to the open item, and it shows the key of every act. `J`/`K` or the arrows move in a list, `X` selects, `↵` opens, `Esc` closes. The top bar of a detail page shows "1 / N" with up and down. In the client every key except `↵` and `Esc` is a rebindable registry command; `↵` (Open the row) is a fixed key of the view-scoped layer, because the composer's fixed plain Enter holds it ([keys.md](keys.md)). Single keys, `↵` and `G` sequences work only through the view-scoped layer, never while focus is in a text field, an editable element or a menu. A key in a row's context menu acts on that row. Keys hide on a coarse pointer.
 - **Numbers.** The client focus ring (`focus.css`, 2 px `--dsw-alias-state-business-primary`) on `:focus-visible`.
-- **Check.** `check-mockups.mjs` fails on a key that differs from keys.md, a key with no `data-act`, a key typed into a label ("Other matter (O)", "⌘K" as text), a button of an act with a key that shows no keycap, and a keycap on the 390 px touch screen. Use the built screen with the keyboard only: each act is reachable and has a visible focus ring; type each single key into a reason box and see that no act runs.
+- **Check.** `check-mockups.mjs` fails on a key that differs from keys.md, a key with no `data-act`, a key typed into a label ("Other matter (O)", "⌘K" as text), a button of an act with a key that shows no keycap, a label that names two acts or shows two keys on one page ("Not relevant…" for `reject` in the bar and for `accept` in the context menu), and a keycap on the 390 px touch screen. Use the built screen with the keyboard only: each act is reachable and has a visible focus ring; type each single key into a reason box and see that no act runs.
 - **Source.** [L-INBOX] `J` / `K`; [L-TRIAGE] 1 accept, 2 decline; [L-SELECT] `X` selects; [L-LIVE] ⌘K shows a key for every act, with one key scheme; the shortcut registry README for the Web binding rules.
 
 ## Lists and states
@@ -144,7 +144,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 
 - **Rule.** The main view uses the attorney's and the clerk's words. "Rule 71(3) communication", not the form code; "FlowLeap", not an internal actor (router, engine, reader); "work", not "ticket"; "Client report", with the file name in a secondary line; a person's display name from Entra ("Dr. Anna Becker"), never an account handle. Codes, hashes and record positions live in Audit. Sentence case in English and German.
 - **Numbers.** None.
-- **Check.** `check-copy.mjs <locales.ts and mockups>` and `check-mockups.mjs` fail on a deny-list match in the text and in `title`, `aria-label`, `placeholder` and `alt`: form codes with or without the office ("Form 2004C"), hashes, snake_case ids, `seq`, internal actor names in either case (Router, engine; "Intake" as a view name is allowed), account handles (`a.becker`, `Anna.Becker`, `ABECKER`, `KANZLEI\jweber`) and e-mail addresses outside a `data-address` element. `check-copy.mjs` reads the client `locales.ts` dictionaries, fails when one lacks any of the 8 client languages or an English key in one, and fails when it finds no input. The reviewer reads the rest, in English and German.
+- **Check.** `check-copy.mjs <locales.ts and mockups>` and `check-mockups.mjs` fail on a deny-list match in the text and in `title`, `aria-label`, `placeholder` and `alt`: form codes with or without the office ("Form 2004C"), hashes, snake_case ids, `seq`, internal actor names in either case (Router, engine; "Intake" as a view name is allowed), account handles (`a.becker`, `Anna.Becker`, `ABECKER`, `KANZLEI\jweber`) and e-mail addresses outside a `data-address` element. `check-copy.mjs` reads the client `locales.ts` dictionaries, fails when one lacks any of the 8 client languages or an English key in one, fails on a text that is empty or only white space (a German key with `''`), and fails when it finds no input. The reviewer reads the rest, in English and German.
 - **Source.** FlowLeap product rule 4; [dsh-prose-standard](../dsh-prose-standard/SKILL.md) sentence case.
 
 ## Queues
@@ -152,7 +152,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 ### R20. List and detail side by side
 
 - **Rule.** From 1366 px a queue (Intake, later the deadline and work queues) shows its list and the open item side by side; the person works through the queue without leaving the list. Below 1366 px the list fills the view and a row opens the item page with "1 / N". The item pane keeps the docked decision bar of R13.
-- **Numbers.** List 480 px; item pane the rest, with three key properties above the evidence instead of the 376 px properties panel.
+- **Numbers.** List 44 % of the content column, at least 480 px; its Matter column is as wide as a file number (92 px) and the title takes the rest; item pane the rest, with three key properties above the evidence instead of the 376 px properties panel.
 - **Check.** `check-mockups.mjs` at 1440 and 1366 px (the list and the item pane are in view) and at 390 px; each act of the item pane is reachable at 390 px on the item page that `data-narrow-page` names.
 - **Source.** [L-REVIEW2] Linear processes a queue as list plus detail; [L-SELECT] bulk acts.
 

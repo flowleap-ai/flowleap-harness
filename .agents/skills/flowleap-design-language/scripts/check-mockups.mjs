@@ -5,19 +5,25 @@
 // Checks, in each page, view state, theme and size:
 // - the client theme loaded (--dsw-alias-bg-base resolves);
 // - at most one enabled primary button, found by its computed fill, not its class (R12);
-// - the primary button of each decision bar is inside the view and nothing covers it, unless a [data-modal] is open (R13);
+// - the primary button of each decision bar is inside the view, takes a click and nothing covers it, unless a
+//   [data-modal] is open, also with each scroll container scrolled to its end, and it does not move when a container
+//   scrolls (R13);
+// - a bulk decision bar ([data-bulk]) shows only when 1 or more rows are checked, and each number in it is the
+//   checked count (R12);
 // - no page-wide horizontal scroll and nothing cut at the right edge (checklist 25);
 // - each key shown matches keys.md; no key typed into a label; keys hide on a touch screen; a button for an act with a
-//   key shows it on a fine pointer (R16);
+//   key shows it on a fine pointer; one label names one act and one key on a page (R16);
 // - each status icon (.st) sits in a [data-atlas] element with the shape and the English or German word of
-//   status-map.mjs, or is an aria-hidden row or card icon under a group or column header of the same shape; each
-//   .pill and .status is a [data-atlas] element (R11);
+//   status-map.mjs, with the word seen (a box of 2 x 2 px or more, no clip, not transparent), or is an aria-hidden
+//   row or card icon under a group or column header of the same shape; each .pill and .status is a [data-atlas]
+//   element (R11);
 // - no day or week count typed outside the [data-due] elements that frame.js fills (R11);
 // - no deny-list match in the shown text or in title, aria-label, placeholder and alt (R19);
 // - no text in --dsw-alias-label-tertiary (R3);
 // - no box inside the content panel other than the allowed ones of panel-boxes.js, and no element with both a neutral
 //   border and a shadow (R8);
-// - each radius is on the client scale and fits the element's height band (R7);
+// - each radius is on the client scale and fits the element's height band: R4 below 20 px, R8 for 20 to 28 px, R12
+//   for 32 to 40 px, R12 or more above 40 px (R7);
 // - nothing is cut with an ellipsis at 1440 and 1366 px except a title or matter cell of a queue list row (R17);
 // - every act that a button offers at 1440 px is reachable at 390 px: shown, in the menu that a shown
 //   [data-overflow="<menu id>"] opens, or on the
@@ -109,18 +115,37 @@ function inspect({ keys, atlas, deny, view }) {
   const enabled = controls.filter(b => style(b).backgroundColor === fill && b.getAttribute('aria-disabled') !== 'true' && style(b).opacity !== '0.4');
   if (enabled.length > 1) problems.push(`${enabled.length} enabled primary buttons`);
 
-  // R13: the decision is in view and not covered.
+  // R13: the decision is in view, not covered and takes a click, also with each scroll container at its end.
   const modal = [...document.querySelectorAll('[data-modal]')].some(shown);
   const decisionButtons = [...document.querySelectorAll('.decision [data-act]')].filter(shown).filter(b => style(b).backgroundColor === fill);
   const bars = decisionButtons.map(b => b.getBoundingClientRect());
-  decisionButtons.forEach((b, i) => {
-    const r = bars[i];
-    if (r.bottom > innerHeight || r.top < 0) problems.push(`decision button at ${Math.round(r.top)} to ${Math.round(r.bottom)} px, outside the ${innerHeight} px view`);
+  const name = el => `${el.tagName.toLowerCase()}${[...el.classList].map(c => `.${c}`).join('')}`;
+  const reachable = where => decisionButtons.forEach(b => {
+    const r = b.getBoundingClientRect();
+    if (style(b).pointerEvents === 'none') {
+      let from = b;
+      while (from.parentElement && style(from.parentElement).pointerEvents === 'none') from = from.parentElement;
+      problems.push(`the decision button takes no click: ${from === b ? 'it has' : `${name(from)} gives it`} pointer-events: none`);
+    } else if (r.bottom > innerHeight || r.top < 0) problems.push(`decision button at ${Math.round(r.top)} to ${Math.round(r.bottom)} px, outside the ${innerHeight} px view${where}`);
     else if (!modal) {
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      if (!hit || !b.contains(hit)) problems.push(`the decision button is covered by ${hit ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join('.')}` : 'nothing it owns'}`);
+      if (!hit || !b.contains(hit)) problems.push(`the decision button is covered by ${hit ? name(hit) : 'nothing it owns'}${where}`);
     }
   });
+  reachable('');
+  const scrollers = [document.scrollingElement, ...[...document.querySelectorAll('body *')].filter(el => shown(el) && /auto|scroll/.test(style(el).overflowY))]
+    .filter(el => el.scrollHeight > el.clientHeight + 1);
+  for (const el of scrollers) {
+    const at = el.scrollTop;
+    const where = ` when ${el === document.scrollingElement ? 'the page' : name(el)} scrolls to its end`;
+    el.scrollTop = el.scrollHeight;
+    reachable(where);
+    decisionButtons.forEach((b, i) => {
+      const moved = Math.round(b.getBoundingClientRect().top - bars[i].top);
+      if (Math.abs(moved) > 1) problems.push(`the decision bar moves ${moved} px${where}; dock it below the scrolling content`);
+    });
+    el.scrollTop = at;
+  }
 
   // Checklist 25: no sideways scroll, nothing cut at the right edge.
   const wide = document.scrollingElement.scrollWidth - innerWidth;
@@ -165,6 +190,25 @@ function inspect({ keys, atlas, deny, view }) {
     for (let p = row.previousElementSibling; p; p = p.previousElementSibling) if (p.matches('.group')) return p.querySelector('[data-atlas] .st')?.dataset.s ?? null;
     return null;
   };
+  /** Why a status word that innerText reports is not seen, or null: a box under 2 x 2 px, a clip, or no colour. */
+  const wordHidden = owner => {
+    const w = document.createTreeWalker(owner, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode());) {
+      if (!n.textContent.trim()) continue;
+      for (let el = n.parentElement; el && owner.contains(el); el = el.parentElement) {
+        const s = style(el);
+        const b = el.getBoundingClientRect();
+        if (b.width < 2 || b.height < 2) return `${name(el)} is ${Math.round(b.width)} x ${Math.round(b.height)} px`;
+        if (s.clip !== 'auto' && /absolute|fixed/.test(s.position)) return `${name(el)} has clip: ${s.clip}`;
+        if (s.clipPath !== 'none') return `${name(el)} has clip-path: ${s.clipPath}`;
+        if (parseFloat(s.opacity) === 0) return `${name(el)} has opacity: 0`;
+      }
+      const c = style(n.parentElement).color;
+      const alpha = c === 'transparent' ? 0 : c.startsWith('rgba') ? parseFloat(c.split(',').pop()) : c.includes('/') ? parseFloat(c.split('/').pop()) : 1;
+      if (alpha === 0) return `${name(n.parentElement)} has a transparent colour`;
+    }
+    return null;
+  };
   for (const st of document.querySelectorAll('.st[data-s]')) {
     if (!shown(st)) continue;
     const owner = st.closest('[data-atlas]');
@@ -182,6 +226,8 @@ function inspect({ keys, atlas, deny, view }) {
     if (!st || st.dataset.s !== want[0]) problems.push(`${el.dataset.atlas} shows the shape ${st?.dataset.s ?? 'none'}, the status map says ${want[0]}`);
     const word = lang === 'de' ? want[2] : want[1];
     if (el.innerText.trim() !== word) problems.push(`${el.dataset.atlas} shows "${el.innerText.trim()}", the status map says "${word}"`);
+    const hidden = wordHidden(el);
+    if (hidden) problems.push(`${el.dataset.atlas}: the word "${word}" is in the text but not seen: ${hidden}`);
   }
 
   // R11: no typed day or week counts.
@@ -228,8 +274,9 @@ function inspect({ keys, atlas, deny, view }) {
     if (raw.endsWith('%') || r >= Math.min(b.width, b.height) / 2 - 0.5) continue;
     const h = b.height;
     const onScale = [4, 8, 12, 16, 20, 28].includes(r);
-    const band = h <= 28 ? r <= 12 : h < 48 ? r >= 8 && r <= 16 : r >= 12;
-    if (!onScale || !band) { problems.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} is ${Math.round(h)} px high with radius ${r} px; docs/ui-radius.md gives R4 below 20 px, R8 for 20 to 28 px controls, R12 for 32 to 40 px cells, R16 to R28 for cards and panels`); break; }
+    const hh = Math.round(h);
+    const band = hh < 20 ? r === 4 : hh <= 28 ? r === 8 : hh < 32 ? r === 8 || r === 12 : hh <= 40 ? r === 12 : r >= 12;
+    if (!onScale || !band) { problems.push(`${name(el)} is ${hh} px high with radius ${r} px; docs/ui-radius.md gives R4 below 20 px, R8 for 20 to 28 px controls, R12 for 32 to 40 px cells, R16 to R28 for cards and panels`); break; }
   }
 
   // R17: no ellipsis at desktop widths except a queue list row's title or matter cell.
@@ -241,6 +288,32 @@ function inspect({ keys, atlas, deny, view }) {
     }
   }
 
+  // R12: a bulk bar shows only for a selection, with the number of checked rows.
+  const checked = [...document.querySelectorAll('.list .row.is-checked')].filter(r => shown(r) && r.closest('.list.selecting')).length;
+  for (const bulk of document.querySelectorAll('[data-bulk]')) {
+    if (!shown(bulk)) continue;
+    if (!checked) { problems.push('a bulk decision bar shows with 0 rows checked; with no row checked there is no bulk bar'); continue; }
+    const counts = textNodes.filter(n => bulk.contains(n) && !n.parentElement.closest('.kbd')).flatMap(n => n.textContent.match(/\d+/g) ?? []).map(Number);
+    const wrong = counts.find(n => n !== checked);
+    if (!counts.length || wrong !== undefined) problems.push(`a bulk decision bar says ${counts.length ? wrong : 'no number'}; ${checked} rows are checked`);
+  }
+
+  // R16: one label names one act with one key on a page.
+  const labels = new Map();
+  for (const a of document.querySelectorAll('.btn[data-act], .cmdk-i[data-act], .mi[data-act]')) {
+    const label = [...a.childNodes].filter(n => n.nodeType === Node.TEXT_NODE || !n.matches('.kbd, .kbds, svg')).map(n => n.textContent).join('').trim();
+    if (!label) continue;
+    const key = [...a.querySelectorAll('.kbd')].map(k => k.textContent.trim()).join(' ');
+    const e = labels.get(label) ?? { acts: new Set(), keys: new Set() };
+    e.acts.add(a.dataset.act);
+    if (key) e.keys.add(key);
+    labels.set(label, e);
+  }
+  for (const [label, { acts, keys }] of labels) {
+    if (acts.size > 1) problems.push(`the label "${label}" names ${acts.size} acts: ${[...acts].join(', ')}`);
+    if (keys.size > 1) problems.push(`the label "${label}" shows ${keys.size} keys: ${[...keys].join(', ')}`);
+  }
+
   // Checklist 25: the acts a page offers.
   const actOf = el => el.closest('[data-act]')?.dataset.act;
   const acts = [...document.querySelectorAll('.btn[data-act], .cmdk-i[data-act], .mi[data-act], .seg > [data-act]')].filter(shown).map(actOf);
@@ -250,11 +323,12 @@ function inspect({ keys, atlas, deny, view }) {
 }
 
 const { chromium } = loadPlaywright();
-// A phone's primary pointer is coarse and cannot hover; Playwright's touch emulation keeps (pointer: fine), so the
+// channel 'chromium' is the full browser in its new headless mode: the headless shell draws no backdrop-filter, so a
+// menu would show see-through in a screenshot. A phone's primary pointer is coarse and cannot hover; Playwright's touch emulation keeps (pointer: fine), so the
 // 390 px view runs in a browser whose Blink settings declare a touch screen.
 const browsers = {
-  fine: await chromium.launch(),
-  coarse: await chromium.launch({ args: ['--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1'] }),
+  fine: await chromium.launch({ channel: 'chromium' }),
+  coarse: await chromium.launch({ channel: 'chromium', args: ['--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1'] }),
 };
 let failed = 0;
 /** `${file}|${state}|${theme}` -> { wide: acts at 1440, narrow: acts reachable at 390, narrowPages }. */

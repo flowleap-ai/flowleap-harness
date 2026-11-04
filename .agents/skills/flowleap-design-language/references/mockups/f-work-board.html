@@ -11,13 +11,12 @@
   .col-h { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 4px; font-weight: var(--dsw-font-xs-strong-13-font-weight); }
   .col-h .count { color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); font-variant-numeric: tabular-nums; }
   .col-h .owner { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
-  .col.no { background: transparent; border: 1px dashed var(--dsw-alias-border-l3); }
-  .col.no > .col-h { color: var(--dsw-alias-label-secondary); }
+  .board:has(.lifted:not([hidden])) .col.no { background: transparent; border: 1px dashed var(--dsw-alias-border-l3); }
+  .board:has(.lifted:not([hidden])) .col.no > .col-h { color: var(--dsw-alias-label-secondary); }
   .nohint { margin: 8px 4px; display: flex; gap: 8px; align-items: center; color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .nohint > svg { color: var(--dsw-alias-label-secondary); }
-  .empty-col { margin: 8px 4px; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .col:has(.drop-hint:not([hidden])) { border: 1px dashed var(--dsw-alias-state-business-primary); background: var(--dsw-alias-state-business-tertiary); }
-  .drop-hint { margin: 4px; padding: 12px; min-height: 132px; border-radius: var(--dsw-radius-md); border: 1px dashed var(--dsw-alias-state-business-primary); display: grid; place-items: center; text-align: center; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .drop-hint { margin: 8px 0 0; padding: 12px; min-height: 200px; border-radius: var(--dsw-radius-xl); border: 1px dashed var(--dsw-alias-state-business-primary); display: grid; place-items: start center; text-align: center; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .drop-hint b { display: block; font-weight: var(--dsw-font-xs-strong-13-font-weight); margin-bottom: 4px; color: var(--dsw-alias-label-primary); }
   .card { background: var(--dsw-alias-bg-base); border-radius: var(--dsw-radius-xl); padding: 12px; box-shadow: var(--dsw-elevation-panel); margin-top: 8px; }
   .card .top { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); font-variant-numeric: tabular-nums; }
@@ -26,8 +25,8 @@
   .card .sub { color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); margin-top: 2px; }
   .card .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .card .fact { height: 24px; padding: 0 8px; }
-  .slot { margin-top: 8px; height: 172px; border-radius: var(--dsw-radius-xl); border: 1px dashed var(--dsw-alias-border-l3); }
-  .card.lifted { position: absolute; left: 8px; right: 8px; top: 184px; margin: 0; transform: rotate(-1deg); box-shadow: var(--dsw-elevation-prominent); z-index: 4; }
+  .slot { margin-top: 8px; height: 200px; border-radius: var(--dsw-radius-xl); border: 1px dashed var(--dsw-alias-border-l3); }
+  .card.lifted { position: absolute; left: 16px; right: 0; top: 132px; margin: 0; transform: rotate(-1deg); box-shadow: var(--dsw-elevation-prominent); z-index: 4; }
   .other { border-radius: var(--dsw-radius-lg); border: 0.5px solid var(--dsw-alias-border-l3); padding: 4px 8px 8px; }
   .other .row { height: 36px; padding: 0 4px; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
   .viewtoggle { display: inline-flex; padding: 2px; border-radius: var(--dsw-radius-md); border: 0.5px solid var(--dsw-alias-border-l3); gap: 2px; }
@@ -45,7 +44,7 @@
         <div class="tabs">
           <span class="tab hide-sm" data-i="matters">Matters</span>
           <span class="tab hide-sm" data-i="inbox">Intake <span class="count">22</span></span>
-          <span class="tab is-on" data-i="review">Work <span class="count">1</span></span>
+          <span class="tab is-on" data-i="review">Work <span class="count">3</span></span>
         </div>
         <div class="bar-right">
           <span class="viewtoggle hide-sm"><span data-i="chats">List</span><span class="on" data-i="display">Board</span></span>
@@ -58,45 +57,78 @@
         <span class="chip hide-sm">Matter: any</span>
         <span class="chip hide-sm">Office: EPO</span>
         <span class="spacer"></span>
-        <span class="muted hide-sm">A move that is a decision opens the decision bar. Other moves are not allowed.</span>
+        <span class="muted hide-sm" data-state="drag">A move that is a decision opens the decision bar. Other moves are not allowed.</span>
       </div>
 
       <div class="board">
         <div class="col no">
-          <div class="col-h"><span class="status" data-atlas="ticket.routed"><span class="st" data-s="run"></span>Assigned</span><span class="count">0</span><span class="owner">FlowLeap</span></div>
-          <div class="nohint" data-i="x">FlowLeap assigns the work; a person cannot move a card here.</div>
+          <div class="col-h"><span class="status" data-atlas="ticket.routed"><span class="st" data-s="run"></span>Assigned</span><span class="count">2</span><span class="owner">FlowLeap</span></div>
+          <div class="nohint" data-i="x" data-state="drag">FlowLeap assigns the work; a person cannot move a card here.</div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="run" aria-hidden="true"></span>FL-2025-0412<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span></span></div>
+            <div class="ttl">Communication under Article 94(3) EPC</div>
+            <div class="sub">Brake caliper bracket · <span class="num">due 12 Jan 2027</span></div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span></div>
+          </div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="run" aria-hidden="true"></span>FL-2026-0019<span class="stack"><span class="av c" title="Lena Hoffmann" aria-label="Lena Hoffmann">L</span></span></div>
+            <div class="ttl">Extended European search report</div>
+            <div class="sub">Heat pump expansion valve</div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span></div>
+          </div>
         </div>
         <div class="col no">
-          <div class="col-h"><span class="status" data-atlas="ticket.running"><span class="st" data-s="run"></span>Running</span><span class="count">0</span><span class="owner">Agent</span></div>
-          <div class="nohint" data-i="x">Only FlowLeap starts the agent; a person cannot move a card here.</div>
+          <div class="col-h"><span class="status" data-atlas="ticket.running"><span class="st" data-s="run"></span>Running</span><span class="count">1</span><span class="owner">Agent</span></div>
+          <div class="nohint" data-i="x" data-state="drag">Only FlowLeap starts the agent; a person cannot move a card here.</div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="run" aria-hidden="true"></span>FL-2025-0377<span class="stack"><span class="av c" title="Lena Hoffmann" aria-label="Lena Hoffmann">L</span></span></div>
+            <div class="ttl">Examination report</div>
+            <div class="sub">Seat belt pretensioner · <span class="num">due 15 Feb 2027</span></div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span></div>
+          </div>
         </div>
         <div class="col">
-          <div class="col-h"><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span><span class="count">1</span><span class="owner">You</span></div>
+          <div class="col-h"><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span><span class="count">3</span><span class="owner">You</span></div>
           <div class="card" data-state="default">
             <div class="top"><span class="st" data-s="wait" aria-hidden="true"></span>FL-2026-0001<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span><span class="av b pres on" title="Jonas Weber, viewing now" aria-label="Jonas Weber, viewing now">J</span></span></div>
             <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
             <div class="sub">Pressure sensor housing · <span class="num">due 1 Mar 2027</span></div>
-            <div class="chips">
-              <span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span>
-              <span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span>
-              <span class="fact"><span class="k">Reply</span><span class="status" data-atlas="outbox.sent"><span class="st" data-s="ok"></span>Sent</span></span>
-            </div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span></div>
           </div>
           <div class="slot" data-state="drag"></div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="wait" aria-hidden="true"></span>FL-2024-0981<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span></span></div>
+            <div class="ttl">Summons to oral proceedings</div>
+            <div class="sub">Wiper motor gearbox · <span class="num">due 20 Apr 2027</span></div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span></div>
+          </div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="wait" aria-hidden="true"></span>FL-2025-0203<span class="stack"><span class="av b" title="Jonas Weber" aria-label="Jonas Weber">J</span></span></div>
+            <div class="ttl">Notice of allowance</div>
+            <div class="sub">Battery cell spacer · <span class="num">due 2 Feb 2027</span></div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span></div>
+          </div>
         </div>
         <div class="col">
-          <div class="col-h"><span class="status" data-atlas="ticket.decided"><span class="st" data-s="ok"></span>Decided</span><span class="count">0</span><span class="owner">You</span></div>
-          <div class="empty-col" data-state="default">Drag a card here to open your decision. Nothing moves until you record it.</div>
-          <div class="drop-hint" data-state="drag"><div><b>Drop to decide</b>This opens your decision with the report, its evidence and the deadline check.</div></div>
+          <div class="col-h"><span class="status" data-atlas="ticket.decided"><span class="st" data-s="ok"></span>Decided</span><span class="count">2</span><span class="owner">You</span></div>
+          <div class="drop-hint" data-state="drag"><div><b>Drop to decide</b>Nothing moves until you record it.</div></div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="ok" aria-hidden="true"></span>FL-2023-0610<span class="stack"><span class="av c" title="Lena Hoffmann" aria-label="Lena Hoffmann">L</span></span></div>
+            <div class="ttl">Renewal fee reminder</div>
+            <div class="sub">Rotor blade clamp</div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.to_docket"><span class="st" data-s="ok"></span>In the docket</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.sent"><span class="st" data-s="ok"></span>Sent</span></span></div>
+          </div>
+          <div class="card">
+            <div class="top"><span class="st" data-s="ok" aria-hidden="true"></span>FL-2026-0007<span class="stack"><span class="av b" title="Jonas Weber" aria-label="Jonas Weber">J</span></span></div>
+            <div class="ttl">Rule 161/162 communication</div>
+            <div class="sub">Valve seat insert</div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.to_docket"><span class="st" data-s="ok"></span>In the docket</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.sent"><span class="st" data-s="ok"></span>Sent</span></span></div>
+          </div>
           <div class="card lifted" data-state="drag">
             <div class="top">FL-2026-0001<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span><span class="av b pres on" title="Jonas Weber, viewing now" aria-label="Jonas Weber, viewing now">J</span></span></div>
             <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
             <div class="sub">Pressure sensor housing · <span class="num">due 1 Mar 2027</span></div>
-            <div class="chips">
-              <span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span>
-              <span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span>
-              <span class="fact"><span class="k">Reply</span><span class="status" data-atlas="outbox.sent"><span class="st" data-s="ok"></span>Sent</span></span>
-            </div>
+            <div class="chips"><span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span><span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span></div>
           </div>
         </div>
         <div>

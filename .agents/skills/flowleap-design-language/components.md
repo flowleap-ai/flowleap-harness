@@ -11,12 +11,12 @@ Each component lists its anatomy, its sizes and its states, built from client to
 - **Anatomy.** The group's status icon at the start (`aria-hidden`, because the group header carries the word); the title in `label-primary` with its source in `label-secondary` on the same line; structured columns; a person as a 20 px avatar only, with the display name on hover and as its accessible name; the time right-aligned in tabular figures. Rows sit under a 32 px column header and in groups (`.row`, `.thead`, `.grp`, `.group`). A table in a detail page starts with the status and its word instead (`.tbl`).
 - **Sizes.** 44 px, one line, no hairline; 16 px side padding (8 px inside a detail table); 16 px column gap. Group header 36 px on `bg-multi-select`, 12 px radius (a 32 to 40 px cell), inset 8 px: state icon, the atlas word and the count.
 - **States.** Rest; hover `interactive-bg-hover` (under `(hover: hover)` only); selected `interactive-bg-active` plus a 2 px accent bar; unread an 8 px accent dot; loading a skeleton row on the same column grid; error the last rows at full contrast under the notice. The column header and the group header stick to the top of the list while it scrolls; the next group header pushes the last one out. Only a queue row's title and matter cell truncate; the full value is in the detail (R17). At 390 px a row keeps the status, the title and the time.
-- **Selection.** `X` or ⇧ click selects a row: the checkbox replaces the status icon in every row, a checked row takes `interactive-bg-active`, and the decision bar offers the bulk act for the selection with one primary ("Accept and file 3", ⇧⌘↵). Esc clears it (`.selecting`, `.sel`, `.bulk`).
+- **Selection.** `X` or ⇧ click selects a row: the checkbox replaces the status icon in every row, a checked row takes `interactive-bg-active`, and the decision bar offers the bulk act for the selection with one primary ("Accept and file 3", ⇧⌘↵). Esc clears it (`.selecting`, `.sel`, `.bulk`). With 0 rows checked there is no bulk bar: unchecking the last row or Esc leaves selection mode, and the open item's decision bar returns. Each number in the bulk bar is the checked count (`data-bulk` marks the bar in a mockup).
 - **Context menu.** A right-click, Shift+F10 or a long press on a row opens `ui-context-menu` with the row's acts and their keys, the same as its decision bar and ⌘K, then Copy link (`.ctx-menu`, `.mi`).
 
 ## Queue split view
 
-- **Anatomy.** From 1366 px a queue shows the list (480 px) and the open item side by side, separated by a 0.5 px hairline; the item pane has the eyebrow, the title, three key properties, the evidence and its docked decision bar (`.split`, `.list-pane`, `.detail-pane`, `.pane-props`). Below 1366 px the list fills the view and a row opens the item page, which has the "1 / N" control.
+- **Anatomy.** From 1366 px a queue shows the list (44 % of the content column, at least 480 px) and the open item side by side, separated by a 0.5 px hairline; the item pane has the eyebrow, the title, three key properties, the evidence and its docked decision bar (`.split`, `.list-pane`, `.detail-pane`, `.pane-props`). Below 1366 px the list fills the view and a row opens the item page, which has the "1 / N" control.
 - **States.** One item open; several selected (the item pane lists the selection and the bulk decision); empty or loading (the list fills the view).
 
 ## Status icon with the atlas word
@@ -27,7 +27,7 @@ Each component lists its anatomy, its sizes and its states, built from client to
 
 ## Keycap
 
-- **Anatomy.** The current binding from the registry catalog in a 20 px box: 12 px text in `label-secondary`, 0.5 px `border-l3` hairline, 4 px radius, 4 px side padding; a sequence is two keycaps (`.kbd`, `.kbds`). In a primary button the text takes the button's foreground and the box has no line; in a selected ⌘K item the text is `label-primary`.
+- **Anatomy.** The current binding from the registry catalog in an 18 px box: 12 px text in `label-secondary`, 0.5 px `border-l3` hairline, 4 px radius, 4 px side padding; a sequence is two keycaps (`.kbd`, `.kbds`). In a primary button the text takes the button's foreground and the box has no line; in a selected ⌘K item the text is `label-primary`.
 - **States.** Fine pointer: shown beside the act's label. Coarse pointer: hidden, as the `Menu` key hints are.
 
 ## Properties panel

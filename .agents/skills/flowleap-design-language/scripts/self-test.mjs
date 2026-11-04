@@ -1,6 +1,6 @@
 // Regression cases for the skill's checks: each case writes one defect into a fresh copy of the skill and the client
 // theme in a temporary folder, runs one check, and passes only when that check exits 1 with the expected message.
-// The cases include every defect that the second review of PR 288 found passing. The clean copy must pass every check.
+// The cases include every defect that the second and the final review of PR 288 found passing. The clean copy must pass every check.
 // Usage: node self-test.mjs [--only <case id part>] [--theme <ui-theme styles dir>]. Exits 1 when a case does not
 // fail as expected or the clean copy fails. check-mockups cases need Playwright as check-mockups.mjs finds it.
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -25,10 +25,10 @@ function copy(withTheme = true) {
   if (withTheme) cpSync(theme, path.join(root, 'packages/client/ui-theme/src/styles'), { recursive: true });
   return { root, dest, mockups: path.join(dest, 'references/mockups') };
 }
-const edit = (file, find, replace) => {
+const edit = (file, find, replace, all = false) => {
   const s = readFileSync(file, 'utf8');
   if (!s.includes(find)) throw new Error(`self-test: "${find.slice(0, 60)}" is not in ${path.basename(file)}`);
-  writeFileSync(file, s.replace(find, replace));
+  writeFileSync(file, all ? s.replaceAll(find, replace) : s.replace(find, replace));
 };
 /** Writes a CSS, HTML or JS defect file and runs check-css on it. */
 const css = (name, text) => ({ check: 'check-css', run: c => { const f = path.join(c.root, name); writeFileSync(f, text); return [f]; } });
@@ -37,6 +37,14 @@ const mock = (page, find, replace, extra = []) => ({
   check: 'check-mockups',
   run: c => { edit(path.join(c.mockups, page), find, replace); return [c.mockups, '--only', page.replace(/\.html$/, '')].concat(extra); },
 });
+/** Applies several [find, replace, all] edits to one mockup and runs check-mockups on it. */
+const mockAll = (page, edits) => ({
+  check: 'check-mockups',
+  run: c => { for (const [find, replace, all] of edits) edit(path.join(c.mockups, page), find, replace, all); return [c.mockups, '--only', page.replace(/\.html$/, '')]; },
+});
+const STATUS_WORD = '<span class="st" data-s="wait"></span>Proposals ready</span>';
+const hideWord = how => mockAll('c-matter.html', [['</head>', `<style>.vh { ${how} }</style></head>`], [STATUS_WORD, '<span class="st" data-s="wait"></span><span class="vh">Proposals ready</span></span>']]);
+const UNCHECK = [['row is-selected is-checked', 'row is-selected'], ['<div class="row is-checked">', '<div class="row">', true], ['check sel on" data-i="check"', 'check sel"', true]];
 const EYEBROW = '<div class="eyebrow">';
 const EYEBROW_DE = '<div class="eyebrow">';
 
@@ -102,6 +110,28 @@ const CASES = [
   ['8b', 'a neutral border and a shadow on one element', mock('b-intake-item.html', '</head>', '<style>.panel .decision { border: 0.5px solid var(--dsw-alias-border-l2); }</style></head>'), 'has a neutral border and a shadow'],
   ['G7a', 'a truncated rule name', mock('c-matter.html', '<span class="hide-sm">Rule 71(3) EPC</span>', '<span class="hide-sm t">Rule 71(3) EPC: intention to grant, with the text and drawings indicated</span>'), 'is cut with an ellipsis at 1440 px'],
   ['G7b', 'a short day count', mock('c-matter.html', '<span class="r">14:17</span>', '<span class="r">117 d</span>'), 'typed day count "117 d"'],
+  ['N1a', 'a status word visually hidden (1 px box, clip)', hideWord('position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;'), 'is 1 x 1 px'],
+  ['N1b', 'a status word under clip-path', hideWord('clip-path: inset(50%);'), 'has clip-path: inset(50%)'],
+  ['N1c', 'a status word in a transparent colour', hideWord('color: transparent;'), 'has a transparent colour'],
+  ['N2', 'a decision bar that takes no click', mock('b-intake-item.html', '</head>', '<style>.decision-dock { pointer-events: none; }</style></head>'), 'div.decision-dock gives it pointer-events: none'],
+  ['N3a', 'a bulk primary with 0 rows checked', mockAll('a-intake-list.html', [...UNCHECK, ['3 selected', '0 selected']]), 'a bulk decision bar shows with 0 rows checked'],
+  ['N3b', 'a bulk number that is not the checked count', mock('a-intake-list.html', '3 selected', '4 selected'), 'a bulk decision bar says 4; 3 rows are checked'],
+  ['N4', 'a context-menu label with another act and key', mock('a-intake-list.html', '<div class="mi" data-i="x" data-act="reject">Not relevant…<span class="kbds"><span class="kbd">2</span></span></div>', '<div class="mi" data-i="x" data-act="accept">Not relevant…<span class="kbds"><span class="kbd">1</span></span></div>'), 'the label "Not relevant…" names 2 acts'],
+  ['N5', 'an empty and a white-space German text', { check: 'check-copy', run: c => {
+    const f = path.join(c.root, 'locales.ts');
+    writeFileSync(f, ['en', 'de', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'].map(l => `export const ${l} = {\n  'records.accept': '${l === 'de' ? '' : 'Accept and file'}',\n  'records.reject': '${l === 'de' ? '   ' : 'Not relevant'}',\n}\n`).join(''));
+    return [f];
+  } }, 'de.records.accept: the text is empty or only white space'],
+  ['N6', 'a decision bar inside the scrolling content', { check: 'check-mockups', run: c => {
+    const f = path.join(c.mockups, 'a-intake-list.html');
+    const s = readFileSync(f, 'utf8');
+    const start = s.indexOf('            <div class="decision-dock">');
+    const end = s.indexOf('          </div>\n        </div>\n\n        <div class="detail-pane" data-state="select">');
+    if (start < 0 || end < 0) throw new Error('self-test: the docked decision bar of a-intake-list.html moved');
+    const title = '<h1 class="title">Rule 71(3) communication</h1>';
+    writeFileSync(f, (s.slice(0, start) + s.slice(end)).replace(title, title + s.slice(start, end)));
+    return [c.mockups, '--only', 'a-intake-list'];
+  } }, 'the decision bar moves'],
 ];
 
 const SCRIPT = { 'check-css': 'check-css.mjs', 'check-copy': 'check-copy.mjs', 'check-mockups': 'check-mockups.mjs', contrast: 'contrast.mjs' };

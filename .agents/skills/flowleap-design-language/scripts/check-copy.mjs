@@ -2,8 +2,9 @@
 // Usage: node check-copy.mjs <file or dir>... Reads client locale dictionaries (`locales.ts`, `<lang>.ts` under a
 // `locales` folder: every string of every `export const <lang> = {...}`), locale .json files (every string value), and
 // the text and the title, aria-label, placeholder and alt attributes of .html files (<script> and <style> removed).
-// Exits 1 on a match or a dictionary that lacks a client UI language or an English key, 2 on a usage error or when no
-// input file is found. check-mockups.mjs applies `denied` to the rendered text of every mockup state as well.
+// Exits 1 on a match, an empty or white-space text in a dictionary, or a dictionary that lacks a client UI language or
+// an English key, 2 on a usage error or when no input file is found. check-mockups.mjs applies `denied` to the rendered
+// text of every mockup state as well.
 // Exempt in HTML: elements with data-verbatim (a picture of the source letter) and data-audit (the Audit view); an
 // e-mail address inside data-address (a mailbox that the firm configured, shown on purpose).
 import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
@@ -113,6 +114,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
     if (file.endsWith('.ts')) {
       const dicts = tsDictionaries(src);
       texts = Object.entries(dicts).flatMap(([lang, d]) => Object.entries(d).map(([k, v]) => [`${lang}.${k}`, v]));
+      for (const [where, text] of texts) if (!text.trim()) fail(`${rel} ${where}: the text is empty or only white space`);
       if (file.endsWith('locales.ts')) {
         const en = dicts.en;
         for (const lang of LANGUAGES) {

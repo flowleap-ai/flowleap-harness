@@ -6,7 +6,7 @@
 <title>Intake</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1fr) 96px 20px 72px; }
+  .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1fr) 92px 20px 64px; }
   .skel.w40 { width: 40%; } .skel.w45 { width: 45%; } .skel.w50 { width: 50%; } .skel.w55 { width: 55%; } .skel.w60 { width: 60%; } .skel.w65 { width: 65%; } .skel.w70 { width: 70%; } .skel.w75 { width: 75%; }
   .skel.end { justify-self: end; }
   .skel.av20 { width: 20px; height: 20px; border-radius: 50%; corner-shape: round; }
@@ -94,7 +94,7 @@
           </div>
 
           <div class="bulk-dock narrow-only" data-state="select">
-            <div class="decision bulk">
+            <div class="decision bulk" data-bulk>
               <div class="decision-f">
                 <span class="lbl strong">3 selected</span>
                 <div class="acts">
@@ -190,7 +190,7 @@
               </div>
             </div>
             <div class="decision-dock">
-              <div class="decision">
+              <div class="decision" data-bulk>
                 <div class="decision-h">
                   <span class="av b av-lg">J</span><span class="lbl">Your decision</span><span class="q">File 3 letters on their proposed matters?</span>
                 </div>

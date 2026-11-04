@@ -23,7 +23,7 @@ The independent reviews of PR 288 measured and observed linear.app in the browse
 |---|---|---|
 | Font | Inter Variable, weights 450 and 550 | The client font (`--dsw-font-family`), 400 and 500 |
 | Issue row | 44 px, no hairlines | 44 px, no hairlines |
-| Group header | Tinted, 36 px, 8 px radius | Tinted, 36 px, 8 px radius |
+| Group header | Tinted, 36 px, 8 px radius | Tinted, 36 px, 12 px radius (the client radius of a 32 to 40 px cell) |
 | Properties column | About 376 px | 376 px |
 | ⌘K menu | 713 px wide, 46 px items, a key for every act | 712 px (a multiple of 8), 44 px items (the row height), a key for every act, Menu material |
 | Description text | 15 px | 14 px (the client `s-14` role) |
@@ -48,7 +48,7 @@ The Records redesign in [mockups/](mockups/), on the harness client theme and in
 | [c-matter.html](mockups/c-matter.html) | Matter: deadlines, work, office events, documents | |
 | [d-deadline.html](mockups/d-deadline.html) | Deadline: is this date right | `more` |
 | [e-letter-work.html](mockups/e-letter-work.html), [German](mockups/e-letter-work.de.html) | Work on a letter: the client report and the deadline check | `evidence`, `missing`, `activity`, `more` |
-| [f-work-board.html](mockups/f-work-board.html) | Work board at rest, with allowed moves | `drag` |
+| [f-work-board.html](mockups/f-work-board.html) | Work board at rest: four state columns with their cards | `drag` (the allowed moves, and why a column takes no card) |
 
 ## Screenshots
 
@@ -64,8 +64,9 @@ From the mockups above. A list page with a split view and a decision page are on
 | Intake, empty | [1440](screenshots/a-intake-list-empty-dark-1440.png) | | | |
 | Intake, error | | [1440](screenshots/a-intake-list-error-light-1440.png) | | |
 | Intake item | | [1366](screenshots/b-intake-item-light-1366.png) | [dark 1440](screenshots/b-intake-item-de-dark-1440.png) | [overflow menu](screenshots/b-intake-item-more-dark-390.png) |
-| Matter | | [1440](screenshots/c-matter-light-1440.png) | | |
+| Matter | | [1440](screenshots/c-matter-light-1440.png) | | [dark](screenshots/c-matter-dark-390.png) |
 | Deadline | [1366](screenshots/d-deadline-dark-1366.png) | | | |
 | Work on a letter | [1440](screenshots/e-letter-work-dark-1440.png) | | [dark 1440](screenshots/e-letter-work-de-dark-1440.png) | [dark](screenshots/e-letter-work-dark-390.png) |
 | Work, missing evidence | | [1440](screenshots/e-letter-work-missing-light-1440.png) | | |
 | Work board at rest | [1440](screenshots/f-work-board-dark-1440.png) | [1366](screenshots/f-work-board-light-1366.png) | | |
+| Work board, a card dragged | [1440](screenshots/f-work-board-drag-dark-1440.png) | | | |
