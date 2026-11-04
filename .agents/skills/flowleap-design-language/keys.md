@@ -1,26 +1,35 @@
 # Key map
 
-One key for each act, the same on every screen (rule R16). A button, a ⌘K item and a group hint that runs an act carry its `data-act` id in the mockups, and `scripts/check-mockups.mjs` fails when the key that one of them shows differs from this table, or when a key shows without a `data-act`. Mockups show the macOS keys; a German mockup shows the German keycap where this table names one.
+One key for each act, the same on every screen (rule R16). A button, a menu item and a ⌘K item that runs an act carry its `data-act` id in the mockups, and `scripts/check-mockups.mjs` fails when the key that one of them shows differs from the macOS column, when a key shows without a `data-act`, when a key is typed into a label, and when a key shows on a touch screen. The mockups show the macOS desktop defaults; a German mockup shows the German keycap where the table names one.
 
-In the client each act is a command in the shortcut registry ([`packages/client/shortcuts`](../../../packages/client/shortcuts/README.md)) with these keys as its `web:macos` and `web:windows` defaults, and a person can rebind it in the shortcut reference ([`ui-shortcuts`](../../../packages/client/ui-shortcuts/README.md)). A button therefore shows the current binding from the registry's catalog, never a typed key label.
+## How the client binds these keys
 
-| Act | `data-act` | macOS | Windows | German keycap | Labels |
-|---|---|---|---|---|---|
-| Open the command menu | `search` | ⌘K | Ctrl K | | Search |
-| Record the decision (the primary button of a decision bar) | `record` | ⌘↵ | Ctrl ↵ | | Accept and file, Confirm deadline, Record decision |
-| Accept one proposed part | `accept` | 1 | 1 | | Accept |
-| Reject or mark not relevant (opens the reason step) | `reject` | 2 | 2 | | Not relevant…, Reject… |
-| File on another matter | `other-matter` | M | M | | Other matter…, File on another matter… |
-| Preview the work product | `preview` | Space | Space | Leer | Preview |
-| Show the deadline calculation | `calculation` | C | C | | Calculation |
-| Open the source letter | `open-letter` | O | O | | Open the letter |
-| Try again after an error | `retry` | R | R | | Try again |
-| Record an office event | `record-event` | E | E | | Record office event |
-| Show what was filed today | `show-filed` | F | F | | Show filed today |
-| Go to the matter | `go-matter` | G M | G M | | Matter … |
-| Go to Intake | `go-intake` | G I | G I | | Intake |
-| Next or previous row, item | | J, K, ↓, ↑ | J, K, ↓, ↑ | | The "1 / N" control in a detail's top bar |
-| Open the row | | ↵ | ↵ | | |
-| Close a menu, a step or a detail | | Esc | Esc | | |
+Each act is a command in the shortcut registry ([`packages/client/shortcuts`](../../../packages/client/shortcuts/README.md)), so a person can rebind it in [`ui-shortcuts`](../../../packages/client/ui-shortcuts/README.md) and a button shows the current binding from the registry's catalog, never a typed label.
 
-`G M` and `G I` are sequences (G, then M). The shortcut registry has two-key chords that need overlapping presses but no sequences yet ([client-gaps.md](client-gaps.md)).
+- **Modifier defaults follow the registry rules.** Desktop takes the macOS and Windows columns. Web keeps its binding restrictions: a default without Alt becomes Mod+Alt, and a default with Alt becomes Mod+Shift. `⌘↵` is not free: the composer's fixed `Mod+Enter` holds it, and fixed combinations cannot be assigned to editable commands, so Record the decision is `⇧⌘↵`. `⌘K` is the app's `session.search`; the IPMS command menu extends that command to the open item (one ⌘K for the app, as in Linear), so it keeps `⌘K` on desktop and `⌥⌘K` on Web.
+- **Single keys and `G` sequences need a view-scoped layer** ([client-gaps.md](client-gaps.md) item 4). The registry gives every effective binding priority over editors, so a registry single key would fire while a person types a reason. The layer: single keys (1, 2, M, Space, C, O, R, E, F, X, J, K, ↵) and the `G` sequences work only when an IPMS view has focus and focus is not in a text field, an editable element or a menu; each is a rebindable registry command (not `registerFixed()`), shown in the shortcut reference with its view as the scope.
+- **Touch.** Keys hide on a coarse pointer, as the `Menu` key hints do ([`ui-primitives`](../../../packages/client/ui-primitives/README.md)); every act stays reachable by a button or a menu.
+
+## Acts
+
+| Act | `data-act` | Command | macOS | Windows | Web | German keycap | Labels |
+|---|---|---|---|---|---|---|---|
+| Open the command menu | `search` | `session.search` | ⌘K | Ctrl K | ⌥⌘K, Ctrl Alt K | | Search |
+| Record the decision (the primary button of a decision bar) | `record` | `records.decision.record` | ⇧⌘↵ | Ctrl Shift ↵ | ⇧⌘↵, Ctrl Shift ↵ | | Accept and file, Confirm deadline, Record decision |
+| Accept one proposed part | `accept` | `records.part.accept` | 1 | 1 | 1 (layer) | | Accept |
+| Reject or mark not relevant (opens the reason step) | `reject` | `records.part.reject` | 2 | 2 | 2 (layer) | | Not relevant…, Reject… |
+| File on another matter | `other-matter` | `records.intake.otherMatter` | M | M | M (layer) | | Other matter…, File on another matter… |
+| Preview the work product | `preview` | `records.work.preview` | Space | Space | Space (layer) | Leer | Preview |
+| Show the deadline calculation | `calculation` | `records.deadline.calculation` | C | C | C (layer) | | Calculation |
+| Open the source letter | `open-letter` | `records.letter.open` | O | O | O (layer) | | Open the letter |
+| Try again after an error | `retry` | `records.retry` | R | R | R (layer) | | Try again |
+| Record an office event | `record-event` | `records.event.record` | E | E | E (layer) | | Record office event |
+| Show what was filed today | `show-filed` | `records.intake.showFiled` | F | F | F (layer) | | Show filed today |
+| Open the row | `open` | `records.list.open` | ↵ | ↵ | ↵ (layer) | | Open |
+| Go to the matter | `go-matter` | `records.go.matter` | G M | G M | G M (layer) | | Matter … |
+| Go to Intake | `go-intake` | `records.go.intake` | G I | G I | G I (layer) | | Intake |
+| Next or previous row, item | | `records.list.next`, `records.list.previous` | J, K, ↓, ↑ | J, K, ↓, ↑ | J, K (layer), ↓, ↑ | | The up and down buttons of a detail's top bar |
+| Select a row for a bulk act | | `records.list.select` | X, ⇧ click | X, Shift click | X (layer), ⇧ click | | The checkbox in the status slot |
+| Close a menu, a step or a detail; clear the selection | | (fixed: `Esc`) | Esc | Esc | Esc | | |
+
+`G M` and `G I` are sequences (G, then M). The registry has two-key chords with overlapping presses but no sequences, and `registerFixed()` sequences cannot be rebound, so the view-scoped layer adds rebindable sequences.
