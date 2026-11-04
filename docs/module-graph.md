@@ -293,6 +293,7 @@ flowchart TD
     pkg_experimental_computer_use_cua_driver_native["experimental-computer-use-cua-driver-native"]
     pkg_experimental_cot_translation_bundle["experimental-cot-translation-bundle"]
     pkg_experimental_cua_macos["experimental-cua-macos"]
+    pkg_experimental_flowleap_ticket["experimental-flowleap-ticket"]
     pkg_experimental_forge["experimental-forge"]
     pkg_experimental_forge_bundle["experimental-forge-bundle"]
     pkg_experimental_forge_github["experimental-forge-github"]
@@ -1216,11 +1217,6 @@ flowchart TD
   pkg_flowleap_deliverables --> pkg_user_questions
   pkg_flowleap_deliverables --> pkg_util_values
   pkg_flowleap_deliverables --> pkg_working_directory
-  pkg_flowleap_record --> pkg_brand
-  pkg_flowleap_record --> pkg_credentials
-  pkg_flowleap_record --> pkg_flowleap_connectors
-  pkg_flowleap_record --> pkg_llm
-  pkg_flowleap_record --> pkg_tools
   pkg_host_plugin_inventory --> pkg_agent_preset_registry
   pkg_host_plugin_inventory --> pkg_brand
   pkg_host_plugin_inventory --> pkg_typert_protocol
@@ -1500,6 +1496,16 @@ flowchart TD
   pkg_tool_ralph --> pkg_system_prompt
   pkg_tool_ralph --> pkg_tools
   pkg_tool_ralph --> pkg_workflow
+  pkg_flowleap_record --> pkg_agent
+  pkg_flowleap_record --> pkg_brand
+  pkg_flowleap_record --> pkg_credentials
+  pkg_flowleap_record --> pkg_flowleap_connectors
+  pkg_flowleap_record --> pkg_flowleap_office
+  pkg_flowleap_record --> pkg_fs
+  pkg_flowleap_record --> pkg_llm
+  pkg_flowleap_record --> pkg_session
+  pkg_flowleap_record --> pkg_tools
+  pkg_flowleap_record --> pkg_working_directory
   pkg_sdk_protocol --> pkg_commands
   pkg_sdk_protocol --> pkg_llm
   pkg_sdk_protocol --> pkg_session
@@ -1522,6 +1528,12 @@ flowchart TD
   pkg_workflow_ptc --> pkg_tools
   pkg_workflow_ptc --> pkg_workflow
   pkg_workflow_ptc --> pkg_working_directory
+  pkg_experimental_flowleap_ticket --> pkg_brand
+  pkg_experimental_flowleap_ticket --> pkg_credentials
+  pkg_experimental_flowleap_ticket --> pkg_flowleap_record
+  pkg_experimental_flowleap_ticket --> pkg_host_webserver
+  pkg_experimental_flowleap_ticket --> pkg_session
+  pkg_experimental_flowleap_ticket --> pkg_webhook
   pkg_schedule --> pkg_agent
   pkg_schedule --> pkg_api_session_controller
   pkg_schedule --> pkg_brand
@@ -1948,7 +1960,6 @@ flowchart TD
 | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | `host` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`api-remote-access`](../packages/api/remote-access), [`client-connection`](../packages/client/connection), [`flowleap-connectors`](../packages/host/flowleap-connectors), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
 | [`flowleap-budget`](../packages/host/flowleap-budget) | `host` | [`flowleap-connectors`](../packages/host/flowleap-connectors), [`typert-protocol`](../packages/typert/protocol) |
 | [`flowleap-deliverables`](../packages/host/flowleap-deliverables) | `host` | [`agent`](../packages/core/agent), [`api-remote-access`](../packages/api/remote-access), [`brand`](../packages/util/brand), [`commands`](../packages/interaction/commands), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`storage-domain`](../packages/storage/storage-domain), [`tool-present`](../packages/deliverables/tool-present), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`user-approval`](../packages/interaction/user-approval), [`user-questions`](../packages/interaction/user-questions), [`util-values`](../packages/util/values), [`working-directory`](../packages/session/working-directory) |
-| [`flowleap-record`](../packages/host/flowleap-record) | `host` | [`brand`](../packages/util/brand), [`credentials`](../packages/credentials/credentials), [`flowleap-connectors`](../packages/host/flowleap-connectors), [`llm`](../packages/llm/llm), [`tools`](../packages/core/tools) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`brand`](../packages/util/brand), [`typert-protocol`](../packages/typert/protocol) |
 | [`mcp-client`](../packages/mcp/mcp-client) | `mcp` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm), [`mcp-resources`](../packages/mcp/mcp-resources), [`scope`](../packages/core/scope), [`subprocess`](../packages/subprocess/subprocess), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`agent-preset`](../packages/preset/agent-preset) | `preset` | [`agent-preset-registry`](../packages/preset/agent-preset-registry) |
@@ -1988,9 +1999,11 @@ flowchart TD
 | [`experimental-tool-subagent-oar`](../packages/experimental/tool-subagent-oar) | `experimental` | [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools) |
 | [`hooks-claude-code`](../packages/experimental/hooks-claude-code) | `experimental` | [`agent`](../packages/core/agent), [`hook-protocol`](../packages/experimental/hook-protocol), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-ralph`](../packages/experimental/tool-ralph) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
+| [`flowleap-record`](../packages/host/flowleap-record) | `host` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`credentials`](../packages/credentials/credentials), [`flowleap-connectors`](../packages/host/flowleap-connectors), [`flowleap-office`](../packages/host/flowleap-office), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`sdk-protocol`](../packages/sdk/protocol) | `sdk` | [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`user-questions`](../packages/interaction/user-questions) |
 | [`agent-team`](../packages/team/agent-team) | `team` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`subagent`](../packages/subagent/subagent), [`typert-protocol`](../packages/typert/protocol) |
 | [`workflow-ptc`](../packages/workflow/workflow-ptc) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`ptc-runtime`](../packages/ptc-runtime/ptc-runtime), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow), [`working-directory`](../packages/session/working-directory) |
+| [`experimental-flowleap-ticket`](../packages/experimental/flowleap-ticket) | `experimental` | [`brand`](../packages/util/brand), [`credentials`](../packages/credentials/credentials), [`flowleap-record`](../packages/host/flowleap-record), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/experimental/webhook) |
 | [`schedule`](../packages/schedule/schedule) | `schedule` | [`agent`](../packages/core/agent), [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`storage-domain`](../packages/storage/storage-domain), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-time`](../packages/util/time), [`workspace`](../packages/workspace/workspace) |
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
 | [`tool-agent-team`](../packages/team/tool-agent-team) | `team` | [`agent`](../packages/core/agent), [`agent-team`](../packages/team/agent-team), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
