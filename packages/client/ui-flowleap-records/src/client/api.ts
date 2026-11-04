@@ -236,7 +236,10 @@ export type DeadlineDetail = Parsed<typeof deadlineDetail>
 
 // GET intake?view=
 
-/** The three intake lists. */
+/**
+ * The three intake lists. They are filters, not partitions: a letter filed today whose code waits for a person is in
+ * `waiting` and in `filed-today`, and the counts count it twice. Each list is oldest first.
+ */
 export type IntakeView = 'waiting' | 'filed-today' | 'not-relevant'
 
 const intakeRow: Parse<IntakeRow> = (value, path) => {
@@ -248,7 +251,7 @@ const intakeRow: Parse<IntakeRow> = (value, path) => {
     office: nullable(str)(source['office'], `${path}.office`),
     matter: nullable(matterRef)(source['matter'], `${path}.matter`),
     matterCount: num(source['matterCount'], `${path}.matterCount`),
-    forwarder: nullable(person)(source['forwarder'], `${path}.forwarder`),
+    forwarder: nullable(addressee)(source['forwarder'], `${path}.forwarder`),
     receivedAt: isoTime(source['receivedAt'], `${path}.receivedAt`),
     since: isoTime(source['since'], `${path}.since`),
   }
@@ -261,9 +264,9 @@ export interface IntakeRow {
   readonly code: string | null
   readonly office: string | null
   readonly matter: MatterRef | null
-  /** Candidate matters; two or more is ambiguous. */
+  /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
-  readonly forwarder: Person | null
+  readonly forwarder: Addressee | null
   readonly receivedAt: IsoTime
   /** When the letter entered its current state. */
   readonly since: IsoTime
@@ -282,7 +285,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
     document: ids.document, fileName: str, mediaType: str, pages: nullable(num), since: isoTime,
-    mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
+    mail: obj({ forwarder: nullable(addressee), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
     proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['reference']) })),
@@ -303,7 +306,7 @@ export interface IntakeDocument {
   readonly pages: number | null
   readonly status: QueueStatus
   readonly since: IsoTime
-  readonly mail: { readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
+  readonly mail: { readonly forwarder: Addressee | null; readonly receivedAt: IsoTime; readonly subject: string }
   readonly code: string | null
   readonly office: string | null
   readonly documentDate: IsoDate | null
@@ -317,11 +320,11 @@ export interface IntakeDocument {
     readonly responsible: Person | null
     readonly matchedBy: 'reference'
   } | null
-  /** Matters with this reference. */
+  /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly candidates: number
   readonly filed: MatterRef | null
   readonly officeEvent: { readonly id: OfficeEventId; readonly state: DeadlineState } | null
-  /** The "Other matter" picker: only matters the person may see. */
+  /** The "Other matter" picker: only matters the person may see, by file number. */
   readonly matters: readonly MatterRef[]
   readonly mayDecide: MayDecide
   readonly activity: readonly ActivityEvent[]
@@ -472,7 +475,8 @@ export interface RecordsApi {
    */
   perform(act: Act, signal?: AbortSignal): Promise<Fetched<null>>
   /**
-   * The address of a document's bytes for Open the letter and Preview.
+   * The address of a document's bytes for Open the letter and Preview: `documents/<sha>/content`, the person's path
+   * (the os refuses `intake/documents/<sha>/content` to a person).
    * @param document - the document.
    * @returns the same-origin address.
    */
