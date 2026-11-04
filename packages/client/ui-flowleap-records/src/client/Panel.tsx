@@ -14,6 +14,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { Act, DocumentId, Me } from './api.ts'
 import { formatDate } from './format.ts'
+import type { CommandItemRegistry, KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
 import type { NS } from './locales.ts'
@@ -47,6 +48,10 @@ export interface PanelInjected {
   readonly refresh: () => void
   readonly perform: (acts: readonly Act[]) => Promise<ActsResult>
   readonly contentHref: (document: DocumentId) => string
+  /** The key handlers of the mounted screens. */
+  readonly keyActs: KeyActRegistry
+  /** The ⌘K items of the mounted screens. */
+  readonly commandItems: CommandItemRegistry
 }
 
 /** Props of the panel. */
@@ -76,6 +81,8 @@ export function RecordsPanel(props: PanelProps) {
     refresh: props.refresh,
     perform: props.perform,
     contentHref: props.contentHref,
+    keyActs: props.keyActs,
+    commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),
   }
   const tab = TAB_OF[screen.view]

@@ -187,12 +187,22 @@ const reading = { code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNum
 export const deadlineWire = {
   recordSeq: 141,
   deadline: {
-    id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', ruleId: 'EPO:R71(3)', ruleVersion: '2026-01',
+    id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', ruleId: 'ep.r71-3.grant-communication', ruleVersion: 1,
     trace: [
-      { op: 'delivered', from: '2026-10-30', to: '2026-10-30', cite: 'Rule 126(2) EPC' },
+      { op: 'delivery', from: '2026-10-30', to: '2026-10-30', cite: 'Rule 126(2) EPC; Rule 127(2) EPC; OJ EPO 2023, A29' },
       { op: 'start', from: '2026-10-30', to: '2026-10-31', cite: 'Rule 131(2) EPC' },
-      { op: 'add-months', from: '2026-10-31', to: '2027-02-28', cite: 'Rule 131(4) EPC' },
-      { op: 'next-open-day', from: '2027-02-28', to: '2027-03-01', cite: 'Rule 134(1) EPC' },
+      { op: 'month-end', from: '2026-10-30', to: '2027-02-28', cite: 'Rule 71(3) EPC; Rule 131(4) EPC, last day of the month' },
+      { op: 'closure-roll', from: '2027-02-28', to: '2027-03-01', cite: 'Rule 134(1) EPC; EPO calendar 2027' },
+    ],
+    notes: [],
+    sources: [
+      { cite: 'Rule 71 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r71.html' },
+      { cite: 'Rule 126 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r126.html' },
+      { cite: 'Rule 127 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r127.html' },
+      { cite: 'Rule 131 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r131.html' },
+      { cite: 'Rule 134 EPC', url: 'https://www.epo.org/en/legal/epc/2020/r134.html' },
+      { cite: 'OJ EPO 2022, A101', url: 'https://www.epo.org/en/legal/official-journal/2022/11/a101' },
+      { cite: 'OJ EPO 2023, A29', url: 'https://www.epo.org/en/legal/official-journal/2023/03/a29' },
     ],
   },
   matter: ref('FL-2026-0001'),
@@ -259,8 +269,8 @@ export const ticketWire = {
   }],
   deadline: { id: DEADLINE_ID, due: '2027-03-01', state: 'active', confirmer: PEOPLE.jonas },
   reply: { state: 'sent', to: [PEOPLE.jonas, PEOPLE.anna] },
-  run: { model: 'Claude Haiku 5.5', steps: 7, finishedAt: '2026-11-04T14:17:40Z' },
-  mayDecide: { allowed: true },
+  run: { model: 'openrouter', steps: null, finishedAt: '2026-11-04T14:17:40Z', session: 'ses_r71work' },
+  mayDecide: { allowed: true, as: 'responsible' },
   activity: [
     { seq: 150, at: '2026-11-04T14:17:00Z', type: 'ticket/routed', actor: { kind: 'system', name: 'flowleap' }, for: PEOPLE.anna, detail: {} },
     { seq: 151, at: '2026-11-04T14:17:05Z', type: 'ticket/running', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },

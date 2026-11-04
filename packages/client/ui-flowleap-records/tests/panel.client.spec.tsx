@@ -10,6 +10,7 @@ import type { IntakeRowTarget } from '../src/client/row-menu.ts'
 import type { MenuPoint } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { en } from '../src/client/locales.ts'
 import { SKELETON_DELAY_MS } from '../src/client/load.ts'
+import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import { createRecordsModel, TAB_ROUTE, type Route } from '../src/client/model.ts'
 import { RecordsPanel, MattersIcon, type PanelProps } from '../src/client/Panel.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
@@ -58,6 +59,8 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     refresh: () => { model.refresh() },
     perform: (acts: readonly Act[]) => model.perform(acts),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    keyActs: new KeyActRegistry(),
+    commandItems: new CommandItemRegistry(),
   } as PanelProps
   render(<RecordsPanel {...props} />)
   await flush()
@@ -221,7 +224,7 @@ describe('the Matters panel', () => {
     await mount(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId })
     fireEvent.click(screen.getByRole('button', { name: /Record decision/ }))
     await flush()
-    expect(acts.at(-1)?.command).toMatchObject({ kind: 'ticket.decide', deadlineCheck: { id: 'none-yet', state: 'awaiting_code', seq: 142 } })
+    expect(acts.at(-1)?.command).toMatchObject({ kind: 'ticket.decide', deadlineCheck: { id: 'none-yet', state: 'none-yet', seq: 142 } })
   })
 
   it('says who decides when the person may not', async () => {
