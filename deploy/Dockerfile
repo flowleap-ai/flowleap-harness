@@ -151,7 +151,7 @@ RUN set -eu; \
   [ "${printed}" = "${OFFICECLI_VERSION}" ] || { echo "officecli --version printed ${printed}" >&2; exit 1; }; \
   rm -rf /tmp/officecli-home; \
   sed -i -e "s/@OFFICECLI_VERSION@/${OFFICECLI_VERSION}/" -e "s/@OFFICECLI_SHA256@/${sha256}/" /opt/flowleap/patches/office.patch.yml; \
-  ! grep -q '@OFFICECLI_' /opt/flowleap/patches/office.patch.yml; \
+  if grep -q '@OFFICECLI_' /opt/flowleap/patches/office.patch.yml; then echo "office.patch.yml keeps a placeholder" >&2; exit 1; fi; \
   mkdir -p /opt/flowleap/templates
 RUN groupadd --system --gid 10001 harness \
   && useradd --system --uid 10001 --gid harness --home-dir /data/home --shell /bin/bash harness \
@@ -173,13 +173,20 @@ ENV DSH_HOME=/data \
     BIND_HOST=loopback
 # Boot smoke test with the source tree gone: the profile must start and print
 # its URL line from the deployed closure alone (the builder's --dump-config
-# check loads no plugin code).
+# check loads no plugin code). The office rows must print their ready line. A
+# build kernel without a sandbox backend (Docker Desktop has no Landlock) may
+# only fail them with SANDBOX_UNAVAILABLE; every other office failure stops
+# the build.
 RUN set -eu; \
   DSH_HOME=/tmp/smoke HOME=/tmp/smoke/home PUBLIC_URL=http://localhost:3080/ TRUSTED_HOST=localhost \
     harness-entrypoint > /tmp/boot.log 2>&1 & pid=$!; \
   for _ in $(seq 1 90); do grep -q 'dsh web:' /tmp/boot.log && break; sleep 1; done; \
-  kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; \
+  sleep 5; kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; \
   grep -q 'dsh web:' /tmp/boot.log || { cat /tmp/boot.log; exit 1; }; \
+  if ! grep -q "flowleap-office: OfficeCLI ${OFFICECLI_VERSION} ready; its network is blocked" /tmp/boot.log; then \
+    grep -q 'no sandbox backend is usable' /tmp/boot.log || { cat /tmp/boot.log; echo "the office rows did not load" >&2; exit 1; }; \
+    echo "WARNING: the build kernel has no sandbox backend; the office rows were not proven here" >&2; \
+  fi; \
   rm -rf /tmp/smoke /tmp/boot.log /tmp/harness-bind-host
 VOLUME ["/data"]
 EXPOSE 3080
