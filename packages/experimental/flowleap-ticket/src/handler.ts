@@ -9,6 +9,7 @@ import {
 } from '@deepseek-ai/dsh-webhook/http'
 import { deliveryIdOf, parseTicketDelivery, signatureMatches } from './delivery.ts'
 import type { DeliveryLedger } from './ledger.ts'
+import { serverWarn } from './log.ts'
 import { taskTypeOf } from './mandate.ts'
 import type { TicketDeliveryKind } from './types.ts'
 
@@ -31,13 +32,13 @@ export function createTicketHandler(ctx: Context, config: TicketHandlerConfig, l
     try {
       const body = await readJsonPostBody(request, response, config.maxBodyBytes)
       const signature = requiredHeader(request, 'x-flowleap-signature')
-      const deliveryId = requiredHeader(request, 'x-flowleap-delivery')
+      const deliveryId = WebhookDeliveryId(requiredHeader(request, 'x-flowleap-delivery'))
       const credential = await ctx.credentials.resolve(config.secretRef)
       if (credential === undefined || credential.value === '') {
         throw new WebhookHttpError(503, 'Ticket secret is unavailable')
       }
       if (!signatureMatches(body, signature, credential.value)) {
-        ctx.logger.warn('flowleap-ticket: refused a Ticket delivery with a wrong signature')
+        serverWarn('refused a Ticket delivery with a wrong signature')
         throw new WebhookHttpError(401, 'invalid signature')
       }
       const delivery = parseTicketDelivery(body)
@@ -55,7 +56,7 @@ export function createTicketHandler(ctx: Context, config: TicketHandlerConfig, l
       const verified: VerifiedWebhookDelivery<TicketDeliveryKind> = {
         kind: 'flowleap-ticket',
         source: WebhookSourceId(config.source),
-        deliveryId: WebhookDeliveryId(deliveryId),
+        deliveryId,
         event: delivery,
         receivedAt: Date.now(),
       }
@@ -64,7 +65,7 @@ export function createTicketHandler(ctx: Context, config: TicketHandlerConfig, l
       } catch {
         // dispatch throws only while the runtime closes or for a malformed delivery; neither opened a Session.
         ledger.release(deliveryId)
-        ctx.logger.warn('flowleap-ticket: dispatch unavailable')
+        serverWarn('dispatch unavailable')
         throw new WebhookHttpError(503, 'webhook runtime is unavailable')
       }
       respond(response, 202)
@@ -73,7 +74,7 @@ export function createTicketHandler(ctx: Context, config: TicketHandlerConfig, l
         respond(response, error.status, error.message)
         return
       }
-      ctx.logger.warn('flowleap-ticket: request failed')
+      serverWarn('request failed')
       respond(response, 503, 'Ticket ingress is unavailable')
     }
   }

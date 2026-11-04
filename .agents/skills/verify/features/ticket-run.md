@@ -33,5 +33,7 @@ Steps:
 - The model can miss template fields or write a statement over 200 characters; the tool result names the fault and the model corrects it. Each retry is in the Session log.
 - The agent has no tool to read the letter itself yet, so its statements cite the whole letter, not a span.
 - A run for a client whose `aiLetters` is not `allowed` cannot finish (there is no by-hand command yet), so the Firm Record makes it `run_failed` at its time limit.
-- `ctx.logger.warn` lines of this composition do not reach `server.log`, so a 401 or a refused `run-started` is not visible there.
+- `ctx.logger` lines of this composition do not reach `server.log`, because no row mounts a printing logger exporter. The Ticket ingress writes its warnings with `console.warn`, so `grep flowleap-ticket: "$RUN/server.log"` shows a 401, a Session that did not open, and a `run-started` that the Firm Record did not accept, with its refusal code.
+- A `run-started` that the Firm Record refused, or did not answer after `runStartedAttempts` sends, writes no ledger file and gives the claim back: a repeat of the delivery gets 202 and opens a new Session, not 200. The Session that the Firm Record did not accept keeps running until its `record_propose_report` gets `ticket_not_running`.
+- `record_finish_run` makes the Firm Record queue one reply with the drafts to the forwarder and the routed person only (firm addresses); nothing goes to the client. A recipient that is not a firm address makes the outbox item `refused`.
 - Proven live on 2026-11-04: `ticket-run-mandate` and `ticket-run-report` (evidence `~/.local/share/flowleap-os/evidence/r1/live/`); `ticket-ingress-signature` in the delegate's smoke run of the same day.

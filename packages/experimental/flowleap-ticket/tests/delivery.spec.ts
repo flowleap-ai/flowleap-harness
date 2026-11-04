@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { Context } from '@deepseek-ai/cordis'
+import { WebhookSourceId } from '@deepseek-ai/dsh-webhook'
 import { deliveryIdOf, parseTicketDelivery, signatureMatches } from '../src/delivery.ts'
+import { DeliveryLedger } from '../src/ledger.ts'
 import { runMessage, runTitle, taskTypeOf } from '../src/mandate.ts'
+import { ticketRule } from '../src/rule.ts'
 import { DELIVERY, SECRET, sign } from './fixtures.ts'
 
 const BODY = JSON.stringify(DELIVERY)
@@ -22,6 +26,8 @@ describe('the delivery parse', () => {
     expect(delivery).toEqual(DELIVERY)
     expect(deliveryIdOf(delivery)).toBe('tk-1/1')
     expect(parseTicketDelivery(JSON.stringify({ ...DELIVERY, deadline: null, extra: 1 })).deadline).toBeNull()
+    const twenty = { ...DELIVERY, events: Array.from({ length: 20 }, () => DELIVERY.events[0]) }
+    expect(parseTicketDelivery(JSON.stringify(twenty)).events).toHaveLength(20)
   })
 
   it('refuses a body that is not a Ticket delivery with 400', () => {
@@ -32,6 +38,7 @@ describe('the delivery parse', () => {
       JSON.stringify({ ...DELIVERY, ticketId: 'tk/1' }),
       JSON.stringify({ ...DELIVERY, pass: 0 }),
       JSON.stringify({ ...DELIVERY, events: [] }),
+      JSON.stringify({ ...DELIVERY, events: Array.from({ length: 21 }, () => event) }),
       JSON.stringify({ ...DELIVERY, events: [{ ...event, document: 'abc' }] }),
       JSON.stringify({ ...DELIVERY, events: [{ ...event, documentDate: '30.10.2025' }] }),
       JSON.stringify({ ...DELIVERY, deadline: { ...DELIVERY.deadline, state: 'confirmed' } }),
@@ -67,5 +74,22 @@ describe('the run message', () => {
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [{ ...event, code: 'constructor' }] })))).toBeUndefined()
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [event, { ...event, code: 'EPO:R70(2)' }] })))).toBeUndefined()
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [event, { ...event, officeEventSeq: 6 }] })))).toBe('epo-r71-3-report')
+  })
+})
+
+describe('the Ticket rule', () => {
+  it('requests no Session for a delivery of another source, and fails a delivery without a task type', () => {
+    const config = {
+      source: 'firm-record', workspacePath: '/firm/runs', agentPreset: 'patent', permissionPreset: 'workspace-write',
+      template: 'client-report.docx', runStartedAttempts: 1, runStartedBackoffMs: 1,
+    }
+    const rule = ticketRule(new Context(), config, new DeliveryLedger('/unused'))
+    const signal = new AbortController().signal
+    const delivery = parseTicketDelivery(BODY)
+    const verified = { kind: 'flowleap-ticket' as const, source: WebhookSourceId('other'), deliveryId: deliveryIdOf(delivery), event: delivery, receivedAt: 1 }
+    expect(rule.run(verified, signal)).toBeNull()
+    const [event] = DELIVERY.events
+    const unknown = parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [{ ...event, code: 'EPO:R70(2)' }] }))
+    expect(() => rule.run({ ...verified, source: WebhookSourceId('firm-record'), event: unknown }, signal)).toThrow(/no task type/u)
   })
 })

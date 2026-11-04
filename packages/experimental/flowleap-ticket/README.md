@@ -42,6 +42,8 @@ The route is on the runtime's own WebServer, where the Work router finds the run
 | `agentPreset` | required | Agent preset of the run Session, for example `patent` |
 | `permissionPreset` | required | Permission preset of the run Session, for example `workspace-write` |
 | `template` | required | File name of the firm template of the report letter, a `.docx` name without a folder |
+| `runStartedAttempts` | `4` | Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status; 1 to 10 |
+| `runStartedBackoffMs` | `2000` | Wait before the second send of `run-started` in milliseconds; it doubles before each later send; 1 to 60000 |
 
 A relative `stateDir` or `workspacePath`, a template name with a folder, or an invalid path or secret reference fails at load.
 
@@ -61,23 +63,25 @@ The ingress checks the request in this order: method, media type, bounded body, 
 | Status | Meaning |
 |---|---|
 | `202` | The delivery was dispatched; the Ticket stays `waking` until `run-started` arrives |
-| `200` | The same delivery id already opened a Session, or its dispatch is in progress; nothing new starts |
+| `200` | The same delivery id already started its run, or its dispatch is in progress; nothing new starts |
 | `400` | A header, the JSON, the delivery fields, or the delivery id against the body is invalid |
-| `401` | The signature does not match; the Host logs one warning without the body, the signature, or the secret |
+| `401` | The signature does not match; the server log gets one warning without the body, the signature, or the secret |
 | `405` | The method is not `POST` |
 | `413` | The body is larger than `maxBodyBytes` |
 | `415` | The media type is not `application/json` |
 | `422` | No task type has the office event codes of the Ticket (in R1, only `EPO:R71(3)`) |
-| `503` | The secret or the webhook runtime is not available |
+| `503` | The secret, the webhook runtime, or the delivery ledger is not available |
 
-**At most one Session per delivery.** The ledger claims a delivery id in memory before the dispatch, and the rule writes `<stateDir>/<SHA-256 of the delivery id>.json` (`{ deliveryId, session, at }`) with the exclusive-create flag after the Session admitted its prompt. A repeat finds the file or the claim and gets `200`. A restart keeps the files, so a repeat after a restart opens no Session.
+**At most one started run per delivery.** The ledger claims a delivery id in memory before the dispatch. The rule writes `<stateDir>/<SHA-256 of the delivery id>.json` (`{ deliveryId, session, at }`) with the exclusive-create flag when the Session admitted its prompt and the Firm Record accepted its `run-started`. A repeat finds the file or the claim and gets `200`. A restart keeps the files, so a repeat after a restart opens no Session. The rule gives the claim back and writes no file when the Session could not be created, or when the Firm Record refused `run-started` or did not answer after the last send; a repeat of the delivery then gets `202` and opens a new Session. This keeps the Ticket recoverable: the Firm Record sends the delivery again for a Ticket that stays `waking`, and only a Session that the Firm Record accepted can propose or finish.
 
 <a id="the-run-session"></a>
 ## The run Session
 
 The rule returns a `WebhookSessionRequest` with `workspacePath`, `agentPreset`, `permissionPreset`, the title `Report to the client, <file number>`, and the default model. The prompt has five paragraphs: the Mandate of the task type, the steps with the configured template, the line `Ticket: ticket_id "<id>", pass <n>, matter <file number>.`, the line that labels the JSON as data, and `ticket_delivery_json: <the parsed delivery>`. The message source is `webhook` with the provider `flowleap-ticket`, the source, the delivery id, and the rule id `flowleap-ticket-run`, so the Session log alone rebuilds what the model saw.
 
-After the Session admitted its prompt, `started()` records the delivery and calls `flowleapRecord.runStarted(ticketId, { session })`. A refusal is logged as one warning with its code; the Session stays.
+After the Session admitted its prompt, `started()` calls `flowleapRecord.runStarted(ticketId, { session })`. While the Firm Record answers `unreachable` or `service_error`, the rule sends the same command again, with the same Idempotency-Key, up to `runStartedAttempts` sends, and waits `runStartedBackoffMs`, then twice as long before each later send. A receipt records the delivery in the ledger. Any other refusal, or the last failed send, gives the claim back and writes one warning with the refusal code to the server log; the Session stays, and the Firm Record refuses its proposal and finish. When the Session cannot be created, the rule's `failed()` gives the claim back and writes one warning with the error.
+
+**Server log.** The `flowleap-web` composition mounts no `ctx.logger` exporter that prints, so a `ctx.logger` line stays in memory. The ingress writes its warnings with `console.warn` to the process's standard error, which is the server log (`server.log` of the verify skill). The lines never hold the body, the signature, or the secret.
 
 -----
 
@@ -109,9 +113,9 @@ The message starts a new Session, so it establishes that Session's request prefi
 <a id="known-limitations-and-deferred-work"></a>
 
 - **One task type** — only `EPO:R71(3)` has a Mandate; any other code gets `422`, and the Work router's retries end in `run_failed` (`wake-failed`).
-- **A crash between the prompt and the ledger file** — a repeat after such a crash opens a second Session; the Firm Record answers its `run-started` with `409 ticket-not-waking`, so the record keeps one Session.
-- **A failed Session creation keeps its claim** — when the webhook runtime fails to open the Session, the claim stays until the process restarts, and a repeat of that delivery gets `200`; the Ticket then ends `run_failed` by the Work router's time limit.
-- **No retry of `run-started`** — a refused or unreachable `run-started` is logged once; the Ticket then ends `run_failed` by the Work router's time limit.
+- **A crash between the prompt and the ledger file** — a repeat after such a crash opens a second Session. When the Firm Record had accepted the first Session, it answers the second `run-started` with `409 ticket-not-waking`, the rule gives the claim back, and the record keeps one Session.
+- **A Session that the Firm Record did not accept keeps running** — the rule does not stop it; it spends model tokens until its tool calls get `ticket_not_running`, and a repeat of the delivery opens another Session.
+- **The ledger write can fail after the Firm Record accepted the Session** — the rule writes one warning; a repeat of the delivery then opens a second Session, whose `run-started` the Firm Record refuses.
 - **The ledger only grows** — one small file per delivery; pruning is a follow-up.
 - **No run time or budget limit in the runtime** — the Work router's `ticket.runTimeLimit` ends a long run; the runtime reports no `run_failed`.
 - **The run model is the runtime's default** — the Work router checks the client's AI wishes against its `ticket.runModel` setting, not against the model this runtime uses.
@@ -122,6 +126,6 @@ The message starts a new Session, so it establishes that Session's request prefi
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The rule needs the Session id for `run-started`; `WebhookRule.started()` of `dsh-webhook` gives it after the prompt admission.
+The rule needs the Session id for `run-started`; `WebhookRule.started()` of `dsh-webhook` gives it after the prompt admission, and `WebhookRule.failed()` tells the rule that no Session opened, so the rule can give the claim back.
 
 </details>

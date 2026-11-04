@@ -30,6 +30,7 @@ interface AnyWebhookRule {
     delivery: Readonly<VerifiedWebhookDelivery>,
     signal: AbortSignal,
   ): void | Promise<void>
+  failed?(error: unknown, delivery: Readonly<VerifiedWebhookDelivery>): void | Promise<void>
 }
 
 /** One effect-owned rule registration and the invocations that currently use it. */
@@ -140,12 +141,15 @@ export class WebhookRuntime extends Service {
 
   /** Start one contained invocation and attach it to registration teardown. */
   private startInvocation(registration: RuleRegistration, delivery: VerifiedWebhookDelivery): void {
+    const invocation = `webhook: provider=${JSON.stringify(delivery.kind)} source=${JSON.stringify(delivery.source)} `
+      + `delivery=${JSON.stringify(delivery.deliveryId)} rule=${JSON.stringify(registration.rule.id)}`
+    let session: SessionId | undefined
     const tracked = Promise.resolve().then(async () => {
       registration.controller.signal.throwIfAborted()
       const request = await registration.rule.run(delivery, registration.controller.signal)
       registration.controller.signal.throwIfAborted()
       if (request === null) return
-      const session = await createWebhookSession(
+      session = await createWebhookSession(
         this.selfCtx,
         delivery,
         registration.rule.id,
@@ -153,13 +157,17 @@ export class WebhookRuntime extends Service {
         registration.controller.signal,
       )
       await registration.rule.started?.(session, delivery, registration.controller.signal)
-    }).catch((error: unknown) => {
-      const invocation = `webhook: provider=${JSON.stringify(delivery.kind)} source=${JSON.stringify(delivery.source)} `
-        + `delivery=${JSON.stringify(delivery.deliveryId)} rule=${JSON.stringify(registration.rule.id)}`
+    }).catch(async (error: unknown) => {
       if (registration.controller.signal.aborted) {
         this.selfCtx.logger.debug(`${invocation} stopped after disposal: ${errorChain(error)}`)
       } else {
         this.selfCtx.logger.warn(`${invocation} failed: ${errorChain(error)}`)
+      }
+      if (session !== undefined) return
+      try {
+        await registration.rule.failed?.(error, delivery)
+      } catch (failure: unknown) {
+        this.selfCtx.logger.warn(`${invocation} failed() threw: ${errorChain(failure)}`)
       }
     }).finally(() => {
       registration.active.delete(tracked)

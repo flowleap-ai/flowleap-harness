@@ -231,7 +231,40 @@ describe('WebhookRuntime', () => {
     expect(String(warn.mock.calls[0]?.[0])).toContain('rule="throws"')
   })
 
-  it('creates one Session per matching repeated delivery and reports each Session to started()', async () => {
+  it('reports a run() failure and a failed Session creation to failed(), and logs a throw of failed()', async () => {
+    const { ctx, runtime } = harness()
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    const failures: string[] = []
+    const allThree = Promise.withResolvers<boolean>()
+    const note = (rule: string) => (error: unknown) => {
+      failures.push(`${rule}: ${String(error)}`)
+      if (failures.length === 3) allThree.resolve(true)
+    }
+    runtime.register({ id: WebhookRuleId('throws'), kind: 'fixture', run: () => { throw new Error('boom') }, failed: note('throws') })
+    runtime.register({
+      id: WebhookRuleId('no-session-service'),
+      kind: 'fixture',
+      run: () => ({ workspacePath: '/w', title: 't', prompt: 'p', agentPreset: 'a', permissionPreset: 'r' }),
+      failed: note('no-session-service'),
+    })
+    runtime.register({ id: WebhookRuleId('null'), kind: 'fixture', run: () => null, failed: note('null') })
+    runtime.register({
+      id: WebhookRuleId('failed-throws'),
+      kind: 'fixture',
+      run: () => { throw new Error('boom') },
+      failed: (error) => {
+        note('failed-throws')(error)
+        throw new Error('failed hook broke')
+      },
+    })
+    runtime.dispatch(delivery())
+    await allThree.promise
+    const threw = () => warn.mock.calls.some(([line]) => /failed\(\) threw: .*failed hook broke/u.test(String(line)))
+    await vi.waitFor(() => { expect(threw()).toBe(true) })
+    expect(failures.map(line => line.split(':')[0]).sort()).toEqual(['failed-throws', 'no-session-service', 'throws'])
+  })
+
+  it('creates one Session per matching repeated delivery, reports each Session to started(), and never calls failed() after a Session', async () => {
     const ctx = new Context()
     contexts.push(ctx)
     const followedTwice = Promise.withResolvers<boolean>()
@@ -240,6 +273,7 @@ describe('WebhookRuntime', () => {
     const started: Array<{ session: string; delivery: string; followups: number }> = []
     const session = {}
     const attachSession = vi.fn(async () => {})
+    const failed = vi.fn()
     ctx.provide('agentDefaultModel', {
       currentSelection: () => ({ provider: 'p', model: 'm' }),
     } as never)
@@ -290,12 +324,17 @@ describe('WebhookRuntime', () => {
       started(sessionId, input) {
         started.push({ session: sessionId, delivery: input.deliveryId, followups: messages.length })
         if (started.length === 2) startedTwice.resolve(true)
+        if (started.length === 2) throw new Error('the sender refused the report')
       },
+      failed,
     })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
     runtime.dispatch(delivery())
     runtime.dispatch(delivery())
     await followedTwice.promise
     await startedTwice.promise
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledOnce() })
+    expect(failed).not.toHaveBeenCalled()
     expect(started.map(entry => entry.delivery)).toEqual(['delivery-1', 'delivery-1'])
     expect(started.every(entry => entry.session.startsWith('webhook-') && entry.followups >= 1)).toBe(true)
     expect(new Set(started.map(entry => entry.session)).size).toBe(2)

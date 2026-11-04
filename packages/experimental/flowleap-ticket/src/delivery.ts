@@ -5,6 +5,7 @@ import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
   DeadlineId, DocumentSha256, LocalDate, MatterFileNumber, RecordSeq, TicketId,
 } from '@deepseek-ai/dsh-flowleap-record'
+import { WebhookDeliveryId } from '@deepseek-ai/dsh-webhook'
 import { WebhookHttpError } from '@deepseek-ai/dsh-webhook/http'
 import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
 import { z } from 'zod'
@@ -47,7 +48,7 @@ const deliverySchema = z.object({
     fileNumber: z.string().min(1).max(64).transform(value => brandString<MatterFileNumber>(value)),
     title: z.string().max(500),
   }),
-  events: z.array(event).min(1).max(20),
+  events: z.tuple([event], event).refine(events => events.length <= 20),
   deadline: z.object({
     id: z.string().min(1).max(128).transform(value => brandString<DeadlineId>(value)),
     state: z.enum(['proposed', 'active', 'rejected']),
@@ -72,9 +73,7 @@ export function parseTicketDelivery(body: string): TicketDelivery {
   }
   const parsed = deliverySchema.safeParse(snapshotJsonValue(value))
   if (!parsed.success) throw new WebhookHttpError(400, 'request body is not a Ticket delivery')
-  const [first, ...rest] = parsed.data.events
-  if (first === undefined) throw new WebhookHttpError(400, 'request body is not a Ticket delivery')
-  return { ...parsed.data, events: [first, ...rest] }
+  return parsed.data
 }
 
 /**
@@ -82,6 +81,6 @@ export function parseTicketDelivery(body: string): TicketDelivery {
  * @param delivery - the parsed delivery.
  * @returns `<ticketId>/<pass>`.
  */
-export function deliveryIdOf(delivery: TicketDelivery): string {
-  return `${delivery.ticketId}/${String(delivery.pass)}`
+export function deliveryIdOf(delivery: TicketDelivery): WebhookDeliveryId {
+  return WebhookDeliveryId(`${delivery.ticketId}/${String(delivery.pass)}`)
 }
