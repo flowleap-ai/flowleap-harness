@@ -27,8 +27,13 @@ interface PendingSequence {
   readonly timer: ReturnType<typeof setTimeout>
 }
 
-/** Text entry: form fields and an element with any `contenteditable` value except `false`, `plaintext-only` included. */
-export const editableTargets = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+/** Input types that take no typed text: a checkbox, a radio or a button keeps the page's keys. */
+const CONTROL_INPUTS = ['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color']
+/**
+ * Text entry: a text input, a text area, a select, and an element with any `contenteditable` value except `false`,
+ * `plaintext-only` included.
+ */
+export const editableTargets = `input${CONTROL_INPUTS.map(type => `:not([type="${type}"])`).join('')}, textarea, select, [contenteditable]:not([contenteditable="false"])`
 /** Focus targets where the layer never acts: text entry, terminals, and menus. */
 const layerExcluded = `${editableTargets}, [role="textbox"], .xterm, [role="menu"], [role="menubar"]`
 /** Controls that keep their native Space and Enter activation. */

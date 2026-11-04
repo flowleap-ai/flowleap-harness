@@ -214,6 +214,12 @@ it('passes the original input element to a feature target resolver', () => {
   expect(dispatch).toHaveBeenLastCalledWith(expect.anything(), { region: 'editable', modal: null, target: plain }, expect.any(Function))
   press(closed)
   expect(dispatch).toHaveBeenLastCalledWith(expect.anything(), { region: 'page', modal: null, target: closed }, expect.any(Function))
+  const box = document.createElement('input')
+  box.type = 'checkbox'
+  document.body.append(box)
+  press(box)
+  expect(dispatch).toHaveBeenLastCalledWith(expect.anything(), { region: 'page', modal: null, target: box }, expect.any(Function))
+  box.remove()
   plain.remove()
   closed.remove()
   input.remove()
