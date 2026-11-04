@@ -77,6 +77,34 @@ describe('OfficeCliRunner', () => {
     expect(fake.spawned).toEqual([])
   })
 
+  it('keeps a cancellation and a timeout as such when they stop the sandbox', async () => {
+    const { dir, fake, sandbox, runner } = await setup()
+    sandbox.refusal = new Error('the operation was aborted')
+    const cancelled = new AbortController()
+    cancelled.abort()
+    expect((await rejection(runner.run({ kind: 'version' }, dir, cancelled.signal))).code).toBe('aborted')
+    const slow = await setup(1_000)
+    slow.sandbox.confine = (_argv, _policy, bounded) => new Promise((_resolve, reject) => {
+      bounded?.addEventListener('abort', () => { reject(new Error('the operation was aborted')) }, { once: true })
+    })
+    expect((await rejection(slow.runner.run({ kind: 'version' }, slow.dir, signal))).code).toBe('timeout')
+    expect([...fake.spawned, ...slow.fake.spawned]).toEqual([])
+  })
+
+  it('probes the network from a confined child against a loopback listener of this process', async () => {
+    const { dir, fake, sandbox, runner } = await setup()
+    const outcomes: Array<[number | null, string]> = [[3, 'blocked'], [0, 'reached'], [1, 'inconclusive'], [137, 'inconclusive']]
+    for (const [exitCode, outcome] of outcomes) {
+      fake.responder = () => ({ exitCode })
+      expect(await runner.probeNetwork(dir, signal)).toBe(outcome)
+    }
+    const [argv] = fake.calls()
+    expect(fake.spawned[0]?.argv[0]).toBe(process.execPath)
+    expect(argv?.[0]).toBe('-e')
+    expect(Number(argv?.[2])).toBeGreaterThan(0)
+    expect(sandbox.policies).toEqual(outcomes.map(() => ({ mode: 'workspace-write', workspaceRoot: '/state' })))
+  })
+
   it('removes every ambient name and keeps the fixed values', () => {
     expect(spawnEnvironment({ HOME: '/h' }, { HOME: '/real', PATH: '/bin' })).toEqual({ HOME: '/h', PATH: undefined })
   })

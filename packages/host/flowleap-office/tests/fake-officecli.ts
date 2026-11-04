@@ -107,7 +107,7 @@ export class FakeSandbox implements Pick<SandboxProvider, 'confine'> {
   readonly policies: SandboxPolicy[] = []
   refusal: Error | undefined
 
-  confine(argv: readonly string[], policy: SandboxPolicy): Promise<ConfinedArgv> {
+  confine(argv: readonly string[], policy: SandboxPolicy, _signal?: AbortSignal): Promise<ConfinedArgv> {
     this.policies.push(policy)
     if (this.refusal !== undefined) return Promise.reject(this.refusal)
     return Promise.resolve({ argv: [...argv], enforcement: 'full', denialSignatures: [], runnerFailureRules: [] })

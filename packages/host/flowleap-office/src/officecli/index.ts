@@ -1,6 +1,8 @@
 /**
  * The OfficeCLI provider row of `ctx.flowleapOffice`. At load it checks the configured binary: its SHA-256 and its
- * `--version` output must equal the configured values, or the row fails. Then it provides the service. The binary runs
+ * `--version` output must equal the configured values, or the row fails. It also fails unless a process confined by
+ * `ctx.sandbox` cannot open a loopback TCP connection, so the binary never runs with network access. Then it provides
+ * the service. The binary runs
  * only through this row, confined by `ctx.sandbox`, with the environment and the arguments of the runner; the
  * attorney's PATH never holds it.
  *
@@ -107,21 +109,24 @@ function ended(pid: number): boolean {
 /**
  * Remove the folders of runtimes that ended. Each runtime owns `<calls>/<pid>-<random>`; the folders of an ended
  * runtime hold client documents that a crash left behind. A folder without a process id in its name is not of a
- * running runtime of this version, so it goes too.
+ * running runtime of this version, so it goes too. This runtime has no folder yet when it calls this, so a folder with
+ * its own process id is of an earlier runtime: a container gives the harness the same process id at each start.
  * @param calls - the `calls` folder of the state folder.
  */
 async function removeEndedRuntimes(calls: string): Promise<void> {
   for (const folder of await readdir(calls)) {
     const pid = /^(\d+)-/u.exec(folder)?.[1]
-    if (pid === undefined || ended(Number(pid))) await rm(join(calls, folder), { recursive: true, force: true })
+    const earlier = pid === undefined || Number(pid) === process.pid || ended(Number(pid))
+    if (earlier) await rm(join(calls, folder), { recursive: true, force: true })
   }
 }
 
 /**
- * Check the binary and provide `ctx.flowleapOffice`.
+ * Check the binary and the sandbox, then provide `ctx.flowleapOffice`.
  * @param ctx - the row context, carrying `subprocess` and `sandbox`.
  * @param config - binary, folders, bounds, and formats.
- * @throws when a path is not absolute, the binary's SHA-256 or version differs from the config, or `--version` fails.
+ * @throws when a path is not absolute, the binary's SHA-256 or version differs from the config, `--version` fails, or a
+ *   process confined by the sandbox row reaches the network.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   if (!isAbsolute(config.binaryPath)) throw new Error(`flowleap-office: binaryPath must be absolute, got "${config.binaryPath}"`)
@@ -149,8 +154,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (result.exitCode !== 0 || printed !== config.version) {
       throw new Error(`flowleap-office: ${config.binaryPath} --version printed "${printed}" (exit ${String(result.exitCode)}), not ${config.version}`)
     }
+    const network = await runner.probeNetwork(probe, AbortSignal.timeout(config.timeoutMs))
+    if (network !== 'blocked') {
+      throw new Error(`flowleap-office: the sandbox row does not block the network of a confined process (probe ${network}); set its network to deny`)
+    }
   } finally {
     await rm(probe, { recursive: true, force: true })
   }
   ctx.plugin(OfficeCliProvider, { runner, callsDir, tableStyle: config.tableStyle, chart: config.chart })
+  ctx.logger.info(`flowleap-office: OfficeCLI ${config.version} ready; its network is blocked`)
 }

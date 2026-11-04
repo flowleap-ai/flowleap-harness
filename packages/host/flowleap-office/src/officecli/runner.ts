@@ -1,11 +1,12 @@
 /**
- * The one place this package spawns OfficeCLI: through `ctx.subprocess`, confined by `ctx.sandbox`, with arguments from
- * {@link argvOf}, a fixed environment, a deadline, and an output cap. The child gets no ambient environment entry: each one is removed, and
- * only the entries of {@link officeEnvironment} are set, so no update check, no automatic install, no background
- * resident process, and no state outside the provider's folders.
+ * The one place this package spawns a child, OfficeCLI or the network probe: through `ctx.subprocess`, confined by
+ * `ctx.sandbox`, with arguments from {@link argvOf}, a fixed environment, a deadline, and an output cap. The child gets
+ * no ambient environment entry: each one is removed, and only the entries of {@link officeEnvironment} are set, so no
+ * update check, no automatic install, no background resident process, and no state outside the provider's folders.
  * @module
  */
 
+import { createServer, type AddressInfo } from 'node:net'
 import type { SandboxProvider } from '@deepseek-ai/dsh-sandbox'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { z } from 'zod'
@@ -16,6 +17,14 @@ import { argvOf, type OfficeCommand } from './command.ts'
 const TERMINATE_GRACE_MS = 2_000
 /** Retained stderr tail for failure messages. */
 const STDERR_TAIL_BYTES = 16 * 1024
+/** Exit code of {@link NETWORK_PROBE} when its connection fails. */
+const PROBE_BLOCKED = 3
+/**
+ * Node program run by {@link OfficeCliRunner.probeNetwork}: exit 0 when a TCP connection to port `argv[1]` on loopback
+ * opens, {@link PROBE_BLOCKED} when it fails.
+ */
+const NETWORK_PROBE = "const s = require('node:net').connect(Number(process.argv[1]), '127.0.0.1'); "
+  + `s.on('connect', () => process.exit(0)); s.on('error', () => process.exit(${String(PROBE_BLOCKED)}))`
 
 /** The resolved facts every call runs under. */
 export interface OfficeRunnerOptions {
@@ -95,22 +104,45 @@ export class OfficeCliRunner {
    * @throws {FlowleapOfficeError} `timeout`, `aborted`, `output_too_large`, or `engine_failed` when the sandbox refuses
    *   the call or the child cannot spawn.
    */
-  async run(
-    command: OfficeCommand, callDir: string, signal: AbortSignal,
+  run(command: OfficeCommand, callDir: string, signal: AbortSignal): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+    return this.spawnConfined([this.options.binaryPath, ...argvOf(command)], command.kind, callDir, signal)
+  }
+
+  /**
+   * Try one loopback TCP connection from a child confined like every OfficeCLI call. The listener runs in this process, so
+   * only a sandbox that denies the network makes the connection fail.
+   * @param callDir - the private folder of the probe.
+   * @param signal - caller cancellation.
+   * @returns `blocked` when the connection failed, `reached` when it succeeded, `inconclusive` when the probe did not run.
+   * @throws {FlowleapOfficeError} as {@link run} does.
+   */
+  async probeNetwork(callDir: string, signal: AbortSignal): Promise<'blocked' | 'reached' | 'inconclusive'> {
+    const listener = createServer()
+    await new Promise<void>(resolve => listener.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = listener.address() as AddressInfo
+      const result = await this.spawnConfined([process.execPath, '-e', NETWORK_PROBE, String(port)], 'network probe', callDir, signal)
+      return result.exitCode === 0 ? 'reached' : result.exitCode === PROBE_BLOCKED ? 'blocked' : 'inconclusive'
+    } finally {
+      listener.close()
+    }
+  }
+
+  private async spawnConfined(
+    argv: readonly string[], what: string, callDir: string, signal: AbortSignal,
   ): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
-    const argv = argvOf(command)
     const timeout = AbortSignal.timeout(this.options.timeoutMs)
     const bounded = AbortSignal.any([signal, timeout])
-    const confined = await this.sandbox.confine(
-      [this.options.binaryPath, ...argv], { mode: 'workspace-write', workspaceRoot: this.options.writableRoot }, bounded,
-    ).catch((error: unknown) => {
-      throw new FlowleapOfficeError('engine_failed', `The Office engine cannot run confined: ${String(error)}`)
-    })
     const stopped = (): FlowleapOfficeError | undefined => {
-      if (timeout.aborted) return new FlowleapOfficeError('timeout', `The Office engine did not finish ${command.kind} in ${String(this.options.timeoutMs)} ms.`)
-      if (signal.aborted) return new FlowleapOfficeError('aborted', `The Office ${command.kind} call was cancelled.`)
+      if (timeout.aborted) return new FlowleapOfficeError('timeout', `The Office engine did not finish ${what} in ${String(this.options.timeoutMs)} ms.`)
+      if (signal.aborted) return new FlowleapOfficeError('aborted', `The Office ${what} call was cancelled.`)
       return undefined
     }
+    const confined = await this.sandbox.confine(
+      argv, { mode: 'workspace-write', workspaceRoot: this.options.writableRoot }, bounded,
+    ).catch((error: unknown) => {
+      throw stopped() ?? new FlowleapOfficeError('engine_failed', `The Office engine cannot run confined: ${String(error)}`)
+    })
     const early = stopped()
     if (early !== undefined) throw early
     const handle = this.subprocess.spawn({
@@ -130,7 +162,7 @@ export class OfficeCliRunner {
     const stdout = handle.collected.stdout?.readFrom(0) ?? { text: '', lossy: false }
     const stderr = handle.collected.stderr?.readFrom(0).text ?? ''
     /* v8 ignore stop */
-    if (stdout.lossy) throw new FlowleapOfficeError('output_too_large', `The Office engine wrote more than ${String(this.options.maxOutputBytes)} bytes for ${command.kind}.`)
+    if (stdout.lossy) throw new FlowleapOfficeError('output_too_large', `The Office engine wrote more than ${String(this.options.maxOutputBytes)} bytes for ${what}.`)
     return { exitCode: outcome.exitCode, stdout: stdout.text, stderr }
   }
 

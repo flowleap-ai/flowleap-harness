@@ -14,7 +14,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup()
 })
 
-async function setup(printed = '1.0.160\n') {
+async function setup(printed = '1.0.160\n', probeExit = 3) {
   const dir = await mkdtemp(join(tmpdir(), 'flowleap-office-row-'))
   const binaryPath = join(dir, 'officecli')
   await writeFile(binaryPath, 'pinned binary')
@@ -23,7 +23,11 @@ async function setup(printed = '1.0.160\n') {
     await ctx.fiber.dispose()
     await rm(dir, { recursive: true, force: true })
   })
-  const fake = new FakeSubprocess((args, cwd) => args[0] === '--version' ? { exitCode: 0, stdout: printed } : succeed(args, cwd))
+  const fake = new FakeSubprocess((args, cwd) => {
+    if (args[0] === '--version') return { exitCode: 0, stdout: printed }
+    if (args[0] === '-e') return { exitCode: probeExit }
+    return succeed(args, cwd)
+  })
   const sandbox = new FakeSandbox()
   ctx.provide('subprocess', fake)
   ctx.provide('sandbox', sandbox)
@@ -53,8 +57,8 @@ describe('the officecli row', () => {
     await mkdir(join(config.stateDir, 'calls', 'call-stale'), { recursive: true })
     await writeFile(join(config.stateDir, 'calls', 'call-stale', 'client.docx'), 'left behind')
     expect(await load(ctx, config)).toBeUndefined()
-    expect(fake.calls()).toEqual([['--version']])
-    expect(sandbox.policies).toEqual([{ mode: 'workspace-write', workspaceRoot: config.stateDir }])
+    expect(fake.calls().map(argv => argv[0])).toEqual(['--version', '-e'])
+    expect(sandbox.policies).toEqual([1, 2].map(() => ({ mode: 'workspace-write', workspaceRoot: config.stateDir })))
     expect(await readdir(join(config.stateDir, 'calls'))).toEqual([expect.stringMatching(new RegExp(`^${String(process.pid)}-`, 'u'))])
     expect(await readdir(config.stateDir)).toEqual(['calls', 'home', 'state'])
     expect(ctx.get('flowleapOffice')).toBeInstanceOf(row.OfficeCliProvider)
@@ -65,7 +69,8 @@ describe('the officecli row', () => {
     const calls = join(config.stateDir, 'calls')
     const ended = `${String(spawnSync(process.execPath, ['-e', '']).pid)}-ended`
     const live = `${String(process.ppid)}-live`
-    for (const folder of [ended, live]) {
+    const earlierBoot = `${String(process.pid)}-earlier`
+    for (const folder of [ended, live, earlierBoot]) {
       await mkdir(join(calls, folder), { recursive: true })
       await writeFile(join(calls, folder, 'client.docx'), 'client document')
     }
@@ -74,6 +79,7 @@ describe('the officecli row', () => {
     const loaded = await readdir(calls)
     expect(loaded).toContain(live)
     expect(loaded).not.toContain(ended)
+    expect(loaded).not.toContain(earlierBoot)
     expect(loaded.filter(folder => folder.startsWith(`${String(process.pid)}-`))).toHaveLength(1)
     await fiber.dispose()
     expect(await readdir(calls)).toEqual([live])
@@ -89,6 +95,15 @@ describe('the officecli row', () => {
     expect(await load(relativeBinary.ctx, Object.assign({}, relativeBinary.config, { binaryPath: 'officecli' }))).toContain('binaryPath must be absolute')
     const relativeState = await setup()
     expect(await load(relativeState.ctx, Object.assign({}, relativeState.config, { stateDir: 'state' }))).toContain('stateDir must be absolute')
+  })
+
+  it('fails loud when a confined process reaches the network or the probe does not run', async () => {
+    for (const [probeExit, outcome] of [[0, 'reached'], [1, 'inconclusive']] as const) {
+      const open = await setup('1.0.160\n', probeExit)
+      const failure = await load(open.ctx, open.config)
+      expect(failure).toContain(`does not block the network of a confined process (probe ${outcome})`)
+      expect(open.ctx.get('flowleapOffice')).toBeUndefined()
+    }
   })
 
   it('validates its config', () => {
