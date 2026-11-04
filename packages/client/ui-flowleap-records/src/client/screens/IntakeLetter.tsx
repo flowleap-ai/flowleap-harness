@@ -221,6 +221,7 @@ function MatterPicker({ ctx, matters, picked, open, onOpenChange, onPick }: {
       open={open}
       side="top"
       align="end"
+      portal
       autoFocus
       selectedId={picked?.fileNumber}
       items={matters.map(matter => ({ id: matter.fileNumber, label: `${matter.fileNumber} ${matter.title}` }))}
