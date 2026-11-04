@@ -6,10 +6,11 @@
 <title>Arbeit am Schreiben</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .related .row { grid-template-columns: 14px 136px minmax(0, 1fr) auto 16px; }
-  .related .chev { color: var(--dsw-alias-label-tertiary); display: inline-grid; }
+  .related .row { grid-template-columns: 136px 176px minmax(0, 1fr) auto 16px; }
+  .related .chev { display: inline-grid; }
+  .related .chev > svg { color: var(--dsw-alias-label-tertiary); }
   .report-meta { margin-left: 4px; }
-  @media (max-width: 720px) { .related .row { grid-template-columns: 14px minmax(0, 1fr) auto; } }
+  @media (max-width: 720px) { .related .row { grid-template-columns: 112px minmax(0, 1fr) auto; } }
 </style>
 </head>
 <body>
@@ -21,7 +22,7 @@
         <div class="crumbs">
           <span class="ico hide-sm" data-i="matters"></span><span class="hide-sm">Akten</span><span class="sep hide-sm">›</span>
           <span class="key hide-sm">FL-2026-0001</span><span class="sep hide-sm">›</span>
-          <span class="st" data-s="wait"></span><span class="here">Mitteilung nach Regel 71(3) vom 30.10.2026</span>
+          <span class="here">Mitteilung nach Regel 71(3) vom 30.10.2026</span>
         </div>
         <div class="bar-right">
           <span class="viewing hide-sm"><span class="stack"><span class="av b pres on">J</span></span>Jonas Weber sieht sich das an</span>
@@ -34,7 +35,7 @@
       <div class="detail with-dock fill">
         <div class="work">
           <div class="work-scroll">
-            <div class="eyebrow"><span class="pill wait"><span class="st" data-s="wait"></span>Vorschläge bereit</span><span class="hide-sm">Wartet seit 14:17 auf Ihre Entscheidung</span></div>
+            <div class="eyebrow"><span class="pill wait" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Vorschläge bereit</span><span class="hide-sm">Wartet seit 14:17 auf Ihre Entscheidung</span></div>
             <h1 class="title">Mitteilung nach Regel 71(3) vom 30.10.2026</h1>
             <p class="lede">Das EPA beabsichtigt, EP 24 123 456.7 zu erteilen. Der Agent hat den Mandantenbericht entworfen. Nichts ging an den Mandanten.</p>
             <div class="people">
@@ -45,11 +46,11 @@
             </div>
 
             <div class="section">
-              <div class="section-h"><h2>Mandantenbericht</h2><span class="status report-meta"><span class="st" data-s="wait"></span>Vorgeschlagen</span>
+              <div class="section-h"><h2>Mandantenbericht</h2><span class="status report-meta" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Vorgeschlagen</span>
                 <div class="right"><span class="btn btn-ghost hide-sm" data-i="pen">In Word öffnen</span><span class="btn btn-secondary" data-i="eye" data-act="preview">Vorschau <span class="kbd">Leer</span></span></div>
               </div>
               <div class="file">
-                <span class="doc"></span>
+                <span class="doc" data-drawing></span>
                 <div><div class="t">Mandantenbericht zur Mitteilung nach Regel 71(3)</div><div class="s">report-FL-2026-0001-r71-3.docx · Englisch · Kanzleivorlage · 1 Seite</div></div>
               </div>
               <div class="stmt-h"><span>#</span><span>Was der Entwurf sagt</span><span class="hide-sm">Quelle im Schreiben</span></div>
@@ -105,17 +106,17 @@
               <div class="section-h"><h2>Verknüpft</h2><span class="count">2</span></div>
               <div class="tbl related">
                 <div class="row">
-                  <span class="st" data-s="ok"></span>
-                  <span class="strong num">Mon, 1 Mar 2027</span>
-                  <span class="m hide-sm"><span class="status"><span class="st" data-s="ok"></span>Aktiv</span> · Frist · bestätigt von Jonas Weber</span>
+                  <span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Aktiv</span>
+                  <span class="strong num">Frist 1. März 2027</span>
+                  <span class="m hide-sm">Bestätigt von Jonas Weber</span>
                   <span class="r" data-due="2027-03-01"></span>
                   <span class="chev hide-sm" data-i="chev"></span>
                 </div>
                 <div class="row">
-                  <span class="st" data-s="ok"></span>
+                  <span class="status" data-atlas="outbox.sent"><span class="st" data-s="ok"></span>Gesendet</span>
                   <span class="t">Antwort an Jonas Weber</span>
-                  <span class="m hide-sm">Vom KI-Postfach an Jonas Weber und Dr. Anna Becker gesendet, mit dem Entwurf</span>
-                  <span class="r">14:18</span>
+                  <span class="m hide-sm">Mit dem Entwurf, vom KI-Postfach</span>
+                  <span class="r hide-sm">14:18</span>
                   <span class="chev hide-sm" data-i="chev"></span>
                 </div>
               </div>
@@ -124,9 +125,9 @@
             <div class="activity">
               <h2>Aktivität</h2>
               <div class="ev"><span class="ico"><span class="av sys" data-i="split"></span></span><div class="txt"><b>FlowLeap</b> hat die Arbeit eröffnet und <b>Dr. Anna Becker</b> zugewiesen<span class="t">14:17</span></div></div>
-              <div class="ev"><span class="ico"><span class="st" data-s="run"></span></span><div class="txt"><b>Patent-Agent</b> hat mit dem Schreiben begonnen<span class="t">14:17</span></div></div>
-              <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>Patent-Agent</b> hat den Mandantenbericht vorgeschlagen<span class="t">14:17</span></div></div>
-              <div class="ev"><span class="ico"><span class="st" data-s="ok"></span></span><div class="txt"><b>KI-Postfach</b> hat die Antwort an Jonas Weber und Dr. Anna Becker gesendet<span class="t">14:18</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="bot"></span></span><div class="txt"><b>Patent-Agent</b> hat mit dem Schreiben begonnen<span class="t">14:17</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="sparkle"></span></span><div class="txt"><b>Patent-Agent</b> hat den Mandantenbericht vorgeschlagen<span class="t">14:17</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="check"></span></span><div class="txt"><b>KI-Postfach</b> hat die Antwort an Jonas Weber und Dr. Anna Becker gesendet<span class="t">14:18</span></div></div>
               <div class="ev person"><span class="ico"><span class="av b av-lg">J</span></span><div class="txt"><b>Jonas Weber</b> hat die Frist bestätigt; die Prüfung von FlowLeap stimmt zu<span class="t">14:18</span></div></div>
             </div>
             <div class="comment-box">
@@ -152,12 +153,12 @@
               </div>
               <div class="decision-b">
                 <div class="part">
-                  <span class="st" data-s="wait"></span>
+                  <span class="pi" data-i="doc"></span>
                   <div><div class="q">Mandantenbericht</div>
-                    <div class="d" data-state="default evidence activity"><span class="ico-ok" data-i="check"></span>4 von 4 Aussagen haben eine Quelle im Schreiben</div>
+                    <div class="d" data-state="default evidence activity more"><span class="ico-ok" data-i="check"></span>4 von 4 Aussagen haben eine Quelle im Schreiben</div>
                     <div class="d" data-state="missing"><span class="blocked" data-i="warn">Aussage 5 hat keine Quelle, daher wartet Annehmen.</span></div>
                   </div>
-                  <div class="seg" data-state="default evidence activity"><span class="on" data-i="check" data-act="accept">Annehmen <span class="kbd">1</span></span><span data-i="x" data-act="reject">Ablehnen … <span class="kbd">2</span></span></div>
+                  <div class="seg" data-state="default evidence activity more"><span class="on" data-i="check" data-act="accept">Annehmen <span class="kbd">1</span></span><span data-i="x" data-act="reject">Ablehnen … <span class="kbd">2</span></span></div>
                   <div class="seg" data-state="missing"><span aria-disabled="true" data-i="check" data-act="accept">Annehmen <span class="kbd">1</span></span><span data-i="x" data-act="reject">Ablehnen … <span class="kbd">2</span></span></div>
                 </div>
                 <div class="part">
@@ -169,8 +170,9 @@
               <div class="decision-f">
                 <span class="note">Senden Sie den Bericht nach der Entscheidung aus Outlook, mit dem KI-Postfach in Bcc.</span>
                 <div class="acts">
-                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record" data-state="default evidence activity">Entscheidung festhalten <span class="kbd">⌘↵</span></span>
-                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record" aria-disabled="true" data-state="missing">Entscheidung festhalten <span class="kbd">⌘↵</span></span>
+                  <span class="more" data-overflow="more-menu"><span class="iconbtn" data-i="dots" aria-label="Weitere Aktionen"></span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record" data-state="default evidence activity more">Entscheidung festhalten <span class="kbd">⇧⌘↵</span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record" aria-disabled="true" data-state="missing">Entscheidung festhalten <span class="kbd">⇧⌘↵</span></span>
                 </div>
               </div>
             </div>
@@ -192,10 +194,10 @@
               <p>Der Mandantenbericht zur Mitteilung nach Regel 71(3) ist entworfen und Ihnen vorgeschlagen. <b>Nichts wurde gesendet.</b></p>
               <ul><li>Jede Aussage zitiert ihre Quelle im Schreiben.</li><li>Die Frist war <b>vorgeschlagen</b>, als der Agent fertig war.</li></ul>
             </div>
-            <span class="ctx start"><span class="st" data-s="ok"></span>Seitdem: Jonas Weber hat die Frist bestätigt, 14:18</span>
+            <span class="ctx start"><span class="ico-ok" data-i="check"></span>Seitdem: Jonas Weber hat die Frist bestätigt, 14:18</span>
             <div class="result">
-              <div class="result-h"><span class="doc"></span><div><div class="t">Mandantenbericht</div><div class="s">report-FL-2026-0001-r71-3.docx · Entwurf</div></div></div>
-              <div class="result-f"><span class="status"><span class="st" data-s="wait"></span><span class="muted">Wartet auf Ihre Entscheidung</span></span><span class="spacer"></span><span class="btn btn-secondary" data-i="eye">Vorschau</span></div>
+              <div class="result-h"><span class="doc" data-drawing></span><div><div class="t">Mandantenbericht</div><div class="s">report-FL-2026-0001-r71-3.docx · Entwurf</div></div></div>
+              <div class="result-f"><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Vorgeschlagen</span><span class="spacer"></span><span class="btn btn-secondary" data-i="eye">Vorschau</span></div>
             </div>
           </div>
           <div class="composer">
@@ -207,6 +209,7 @@
     </section>
   </main>
 </div>
+<div class="menu ctx-menu overflow-menu" id="more-menu" data-state="more" role="menu"><div class="mi" data-i="calendar" data-act="calculation">Berechnung<span class="kbds"><span class="kbd">C</span></span></div><div class="mi" data-i="pen">In Word öffnen</div></div>
 <script src="frame.js"></script>
 </body>
 </html>

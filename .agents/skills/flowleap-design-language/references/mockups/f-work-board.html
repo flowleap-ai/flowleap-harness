@@ -6,32 +6,34 @@
 <title>Work board</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .board { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)) 208px; gap: 12px; padding: 12px 16px 16px; align-items: start; overflow-x: auto; }
-  .col { border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-multi-select); min-height: 520px; padding: 4px 8px 8px; position: relative; }
+  .board { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 200px; gap: 12px; padding: 12px 16px 16px; align-items: start; overflow-x: auto; }
+  .col { border-radius: var(--dsw-radius-lg); background: var(--dsw-alias-bg-multi-select); min-height: 520px; padding: 4px 8px 8px; position: relative; }
   .col-h { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 4px; font-weight: var(--dsw-font-xs-strong-13-font-weight); }
   .col-h .count { color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); font-variant-numeric: tabular-nums; }
-  .col-h .who { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .col-h .owner { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .col.no { background: transparent; border: 1px dashed var(--dsw-alias-border-l3); }
   .col.no > .col-h { color: var(--dsw-alias-label-secondary); }
-  .nohint { margin: 8px 4px; display: flex; gap: 8px; align-items: center; }
-  .col.drop { border: 1px dashed var(--dsw-alias-state-business-primary); background: var(--dsw-alias-state-business-tertiary); }
-  .drop-hint { margin: 4px; padding: 12px; min-height: 132px; border-radius: var(--dsw-radius-sm); border: 1px dashed var(--dsw-alias-state-business-primary); display: grid; place-items: center; text-align: center; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .nohint { margin: 8px 4px; display: flex; gap: 8px; align-items: center; color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .nohint > svg { color: var(--dsw-alias-label-secondary); }
+  .empty-col { margin: 8px 4px; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .col:has(.drop-hint:not([hidden])) { border: 1px dashed var(--dsw-alias-state-business-primary); background: var(--dsw-alias-state-business-tertiary); }
+  .drop-hint { margin: 4px; padding: 12px; min-height: 132px; border-radius: var(--dsw-radius-md); border: 1px dashed var(--dsw-alias-state-business-primary); display: grid; place-items: center; text-align: center; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .drop-hint b { display: block; font-weight: var(--dsw-font-xs-strong-13-font-weight); margin-bottom: 4px; color: var(--dsw-alias-label-primary); }
-  .card { background: var(--dsw-alias-bg-base); border-radius: var(--dsw-radius-sm); padding: 12px; box-shadow: var(--dsw-elevation-panel); margin-top: 8px; }
+  .card { background: var(--dsw-alias-bg-base); border-radius: var(--dsw-radius-xl); padding: 12px; box-shadow: var(--dsw-elevation-panel); margin-top: 8px; }
   .card .top { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); font-variant-numeric: tabular-nums; }
   .card .top .stack { margin-left: auto; }
   .card .ttl { margin-top: 8px; font-weight: var(--dsw-font-xs-strong-13-font-weight); color: var(--dsw-alias-label-primary); }
   .card .sub { color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); margin-top: 2px; }
   .card .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .card .fact { height: 24px; padding: 0 8px; }
-  .slot { margin-top: 8px; height: 132px; border-radius: var(--dsw-radius-sm); border: 1px dashed var(--dsw-alias-border-l3); }
-  .card.lifted { position: absolute; left: 32px; right: calc(-1 * 16px); top: 200px; transform: rotate(-1deg); box-shadow: var(--dsw-elevation-prominent); z-index: 4; }
-  .other { border-radius: var(--dsw-radius-md); border: 0.5px solid var(--dsw-alias-border-l3); padding: 4px 8px 8px; }
-  .other .row { height: 36px; padding: 0 4px; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; color: var(--dsw-alias-label-secondary); }
-  .viewtoggle { display: inline-flex; padding: 2px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l3); gap: 2px; }
-  .viewtoggle > span { height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 8px; border-radius: var(--dsw-radius-xs); color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+  .slot { margin-top: 8px; height: 172px; border-radius: var(--dsw-radius-xl); border: 1px dashed var(--dsw-alias-border-l3); }
+  .card.lifted { position: absolute; left: 8px; right: 8px; top: 184px; margin: 0; transform: rotate(-1deg); box-shadow: var(--dsw-elevation-prominent); z-index: 4; }
+  .other { border-radius: var(--dsw-radius-lg); border: 0.5px solid var(--dsw-alias-border-l3); padding: 4px 8px 8px; }
+  .other .row { height: 36px; padding: 0 4px; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+  .viewtoggle { display: inline-flex; padding: 2px; border-radius: var(--dsw-radius-md); border: 0.5px solid var(--dsw-alias-border-l3); gap: 2px; }
+  .viewtoggle > span { height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 8px; border-radius: var(--dsw-radius-sm); color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
   .viewtoggle > span.on { background: var(--dsw-alias-interactive-bg-active); color: var(--dsw-alias-label-primary); }
-  @media (max-width: 720px) { .board { grid-template-columns: repeat(5, 280px); } }
+  @media (max-width: 720px) { .board { grid-template-columns: repeat(5, 260px); } }
 </style>
 </head>
 <body>
@@ -47,12 +49,12 @@
         </div>
         <div class="bar-right">
           <span class="viewtoggle hide-sm"><span data-i="chats">List</span><span class="on" data-i="display">Board</span></span>
-          <span class="btn btn-ghost" data-i="search" data-act="search"><span class="hide-sm">Search</span><span class="kbd">⌘K</span></span>
+          <span class="btn btn-ghost" data-i="search" data-act="search" aria-label="Search"><span class="hide-sm">Search</span><span class="kbd">⌘K</span></span>
           <span class="iconbtn boxed" data-i="filter"></span>
         </div>
       </header>
       <div class="viewbar">
-        <span class="chip solid"><span class="av a">A</span>For: me</span>
+        <span class="chip solid">For: me</span>
         <span class="chip hide-sm">Matter: any</span>
         <span class="chip hide-sm">Office: EPO</span>
         <span class="spacer"></span>
@@ -61,30 +63,45 @@
 
       <div class="board">
         <div class="col no">
-          <div class="col-h"><span class="status" data-atlas="ticket.routed"><span class="st" data-s="run"></span>Assigned</span><span class="count">0</span><span class="who">FlowLeap</span></div>
-          <div class="nohint muted" data-i="x">Not an allowed move: FlowLeap assigns the work</div>
+          <div class="col-h"><span class="status" data-atlas="ticket.routed"><span class="st" data-s="run"></span>Assigned</span><span class="count">0</span><span class="owner">FlowLeap</span></div>
+          <div class="nohint" data-i="x">FlowLeap assigns the work; a person cannot move a card here.</div>
         </div>
         <div class="col no">
-          <div class="col-h"><span class="status" data-atlas="ticket.running"><span class="st" data-s="run"></span>Running</span><span class="count">0</span><span class="who">Agent</span></div>
-          <div class="nohint muted" data-i="x">Not an allowed move: only FlowLeap starts the agent</div>
+          <div class="col-h"><span class="status" data-atlas="ticket.running"><span class="st" data-s="run"></span>Running</span><span class="count">0</span><span class="owner">Agent</span></div>
+          <div class="nohint" data-i="x">Only FlowLeap starts the agent; a person cannot move a card here.</div>
         </div>
         <div class="col">
-          <div class="col-h"><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span><span class="count">1</span><span class="who">You</span></div>
-          <div class="slot"></div>
-        </div>
-        <div class="col drop">
-          <div class="col-h"><span class="status" data-atlas="ticket.decided"><span class="st" data-s="ok"></span>Decided</span><span class="count">0</span><span class="who">You</span></div>
-          <div class="drop-hint"><div><b>Drop to decide</b>This opens your decision with the report, its evidence and the deadline check. Nothing moves until you record it.</div></div>
-          <div class="card lifted">
-            <div class="top"><span class="st" data-s="wait"></span>FL-2026-0001<span class="stack"><span class="av a">A</span><span class="av b pres on">J</span></span></div>
+          <div class="col-h"><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span><span class="count">1</span><span class="owner">You</span></div>
+          <div class="card" data-state="default">
+            <div class="top"><span class="st" data-s="wait" aria-hidden="true"></span>FL-2026-0001<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span><span class="av b pres on" title="Jonas Weber, viewing now" aria-label="Jonas Weber, viewing now">J</span></span></div>
             <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
-            <div class="sub">Pressure sensor housing</div>
-            <div class="chips"><span class="fact"><span class="st" data-s="ok"></span><span class="num">1 Mar 2027</span>·<span data-due="2027-03-01" data-due-form="short"></span></span><span class="fact"><span class="st" data-s="wait"></span>Report</span><span class="fact"><span class="st" data-s="ok"></span>Reply sent</span></div>
+            <div class="sub">Pressure sensor housing · <span class="num">due 1 Mar 2027</span></div>
+            <div class="chips">
+              <span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span>
+              <span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span>
+              <span class="fact"><span class="k">Reply</span><span class="status" data-atlas="outbox.sent"><span class="st" data-s="ok"></span>Sent</span></span>
+            </div>
+          </div>
+          <div class="slot" data-state="drag"></div>
+        </div>
+        <div class="col">
+          <div class="col-h"><span class="status" data-atlas="ticket.decided"><span class="st" data-s="ok"></span>Decided</span><span class="count">0</span><span class="owner">You</span></div>
+          <div class="empty-col" data-state="default">Drag a card here to open your decision. Nothing moves until you record it.</div>
+          <div class="drop-hint" data-state="drag"><div><b>Drop to decide</b>This opens your decision with the report, its evidence and the deadline check.</div></div>
+          <div class="card lifted" data-state="drag">
+            <div class="top">FL-2026-0001<span class="stack"><span class="av a" title="Dr. Anna Becker" aria-label="Dr. Anna Becker">A</span><span class="av b pres on" title="Jonas Weber, viewing now" aria-label="Jonas Weber, viewing now">J</span></span></div>
+            <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
+            <div class="sub">Pressure sensor housing · <span class="num">due 1 Mar 2027</span></div>
+            <div class="chips">
+              <span class="fact"><span class="k">Deadline</span><span class="status" data-atlas="deadline.active"><span class="st" data-s="ok"></span>Active</span></span>
+              <span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span>
+              <span class="fact"><span class="k">Reply</span><span class="status" data-atlas="outbox.sent"><span class="st" data-s="ok"></span>Sent</span></span>
+            </div>
           </div>
         </div>
         <div>
           <div class="other">
-            <div class="col-h muted t12">Other states</div>
+            <div class="col-h t12">Other states</div>
             <div class="row"><span data-atlas="ticket.no_person" class="status"><span class="st" data-s="wait"></span>No one assigned</span><span class="r num">0</span></div>
             <div class="row"><span data-atlas="ticket.run_failed" class="status"><span class="st" data-s="bad"></span>Run failed</span><span class="r num">0</span></div>
             <div class="row"><span data-atlas="ticket.observed" class="status"><span class="st" data-s="idle"></span>Observed only</span><span class="r num">0</span></div>

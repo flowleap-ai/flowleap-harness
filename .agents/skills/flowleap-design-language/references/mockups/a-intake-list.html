@@ -6,104 +6,225 @@
 <title>Intake</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1.2fr) minmax(0, 1fr) 176px 88px; }
-  .intake .m .muted { margin-right: 8px; }
-  .hint [data-act] { margin-left: 8px; }
+  .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1fr) 96px 20px 72px; }
   .skel.w40 { width: 40%; } .skel.w45 { width: 45%; } .skel.w50 { width: 50%; } .skel.w55 { width: 55%; } .skel.w60 { width: 60%; } .skel.w65 { width: 65%; } .skel.w70 { width: 70%; } .skel.w75 { width: 75%; }
   .skel.end { justify-self: end; }
-  @media (max-width: 720px) { .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1fr) 72px; } }
+  .skel.av20 { width: 20px; height: 20px; border-radius: 50%; corner-shape: round; }
+  .split:not(:has(> .detail-pane:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
+  .narrow-only { display: block; }
+  .ctx-at { left: 412px; top: 240px; }
+  .match { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+  @media (min-width: 1366px) { .narrow-only { display: none; } }
+  @media (max-width: 720px) { .intake .row, .intake .thead { grid-template-columns: 14px minmax(0, 1fr) 72px; } .ctx-at { left: 16px; top: 240px; } }
 </style>
 </head>
 <body>
 <div class="app">
   <nav data-sidebar="matters"></nav>
   <main class="main">
-    <section class="panel">
+    <section class="panel fixed">
       <header class="topbar">
         <div class="tabs">
           <span class="tab hide-sm" data-i="matters">Matters</span>
           <span class="tab is-on" data-i="inbox">Intake <span class="count">22</span></span>
         </div>
         <div class="bar-right">
-          <span class="btn btn-ghost" data-i="search" data-act="search"><span class="hide-sm">Search</span><span class="kbd">⌘K</span></span>
-          <span class="iconbtn boxed" data-i="filter"></span>
-          <span class="iconbtn boxed hide-sm" data-i="display"></span>
+          <span class="btn btn-ghost" data-i="search" data-act="search" aria-label="Search"><span class="hide-sm">Search</span><span class="kbd">⌘K</span></span>
+          <span class="iconbtn boxed" data-i="filter" aria-label="Filter"></span>
+          <span class="iconbtn boxed hide-sm" data-i="display" aria-label="Display"></span>
         </div>
       </header>
 
       <div class="viewbar">
-        <span class="chip solid"><span class="st" data-s="wait"></span>Waits for a person <span class="num">22</span></span>
-        <span class="chip hide-sm"><span class="st" data-s="ok"></span>Filed today <span class="num">6</span></span>
-        <span class="chip hide-sm"><span class="st" data-s="idle"></span>Not relevant <span class="num">1</span></span>
+        <span class="chip solid">Waits for a person <span class="num">22</span></span>
+        <span class="chip hide-sm">Filed today <span class="num">6</span></span>
+        <span class="chip hide-sm">Not relevant <span class="num">1</span></span>
         <span class="spacer"></span>
         <span class="muted hide-sm">Oldest last</span>
       </div>
 
-      <div class="error-bar" data-state="error">
-        <div class="notice bad" data-i="warn"><div><span class="lead">FlowLeap could not load new letters.</span> The list shows the letters as of 14:16. New letters stay safe in the AI mailbox.</div><span class="spacer"></span><span class="btn btn-secondary" data-i="retry" data-act="retry">Try again <span class="kbd">R</span></span></div>
-      </div>
+      <div class="split">
+        <div class="list-pane">
+          <div class="error-bar" data-state="error">
+            <div class="notice bad" data-i="warn"><div><span class="lead">FlowLeap could not load new letters.</span> The list shows the letters as of 14:16. New letters stay safe in the AI mailbox.</div><span class="spacer"></span><span class="btn btn-secondary" data-i="retry" data-act="retry">Try again <span class="kbd">R</span></span></div>
+          </div>
 
-      <div class="list intake" data-state="default cmdk error">
-        <div class="thead"><span></span><span>Letter</span><span class="hide-sm">Matter</span><span class="hide-sm">Forwarded by</span><span class="end">Received</span></div>
-        <div class="group"><span data-atlas="intake.match_proposed" class="status"><span class="st" data-s="wait"></span>Match proposed</span><span class="count">9</span><span class="hint hide-sm"><span data-act="record"><span class="kbd">⌘↵</span></span>Accept and file<span data-act="other-matter"><span class="kbd">M</span></span>Other matter<span data-act="reject"><span class="kbd">2</span></span>Not relevant</span></div>
-        <div class="row is-selected"><span class="st" data-s="wait"></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0001</span>Pressure sensor housing</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">14:16</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Communication under Article 94(3) EPC<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2025-0412</span>Battery cell cooling plate</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">13:52</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Extended European search report<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0019</span>Heat pump expansion valve</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">12:30</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Examination report<span class="muted">DPMA</span></span><span class="m hide-sm"><span class="muted num">FL-2025-0377</span>Seat belt pretensioner</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">11:05</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Summons to oral proceedings<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2024-0981</span>Lidar mirror mount</span><span class="who hide-sm"><span class="av a">A</span>Dr. Anna Becker</span><span class="r">10:41</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Notice of allowance<span class="muted">USPTO</span></span><span class="m hide-sm"><span class="muted num">FL-2025-0203</span>Insulin pen dose counter</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">09:58</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">International search report<span class="muted">WIPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0044</span>Wind turbine blade root</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">09:12</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Renewal fee reminder<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2023-0610</span>Bicycle hub gear</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">Yesterday</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Rule 161/162 communication<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0007</span>Solar inverter cooling</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">Yesterday</span></div>
-        <div class="group"><span data-atlas="intake.unmatched" class="status"><span class="st" data-s="wait"></span>No matter found</span><span class="count">4</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Communication under Article 94(3) EPC<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted">No file number on the letter</span></span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">14:02</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Office action<span class="muted">DPMA</span></span><span class="m hide-sm"><span class="muted">No file number on the letter</span></span><span class="who hide-sm"><span class="av a">A</span>Dr. Anna Becker</span><span class="r">12:11</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Non-final office action<span class="muted">USPTO</span></span><span class="m hide-sm"><span class="muted">The application number is not on any matter</span></span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">Yesterday</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Filing receipt<span class="muted">DPMA</span></span><span class="m hide-sm"><span class="muted">No file number on the letter</span></span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">Yesterday</span></div>
-        <div class="group"><span data-atlas="intake.ambiguous" class="status"><span class="st" data-s="wait"></span>Two or more matters</span><span class="count">3</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted">FL-2026-0001 or FL-2026-0002</span></span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">13:40</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Decision to grant<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted">2 matters have this application number</span></span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">11:47</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Written opinion<span class="muted">WIPO</span></span><span class="m hide-sm"><span class="muted">3 matters have this reference</span></span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">Yesterday</span></div>
-        <div class="group"><span data-atlas="intake.kind_proposed" class="status"><span class="st" data-s="wait"></span>Kind proposed</span><span class="count">3</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Associate letter<span class="muted">Müller & Partner, Wien</span></span><span class="m hide-sm"><span class="muted num">FL-2025-0377</span>Seat belt pretensioner</span><span class="who hide-sm"><span class="av a">A</span>Dr. Anna Becker</span><span class="r">10:02</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Client mail<span class="muted">Halberg Automotive SE</span></span><span class="m hide-sm"><span class="muted num">FL-2024-0981</span>Lidar mirror mount</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">09:30</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Other<span class="muted">Nordwind Energie AG</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0044</span>Wind turbine blade root</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">Yesterday</span></div>
-        <div class="group"><span data-atlas="intake.duplicate_proposed" class="status"><span class="st" data-s="wait"></span>Duplicate proposed</span><span class="count">2</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0001</span>Same as the letter of 14:16</span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">14:20</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Extended European search report<span class="muted">EPO</span></span><span class="m hide-sm"><span class="muted num">FL-2026-0019</span>Same as the letter of 12:30</span><span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span><span class="r">12:44</span></div>
-        <div class="group"><span data-atlas="intake.unreadable" class="status"><span class="st" data-s="wait"></span>Unreadable</span><span class="count">1</span></div>
-        <div class="row"><span class="st" data-s="wait"></span><span class="t">Scanned letter with no text<span class="muted">DPMA</span></span><span class="m hide-sm"><span class="muted">Add a better scan</span></span><span class="who hide-sm"><span class="av c">L</span>Lena Hoffmann</span><span class="r">08:51</span></div>
-      </div>
+          <div class="list intake" data-state="default cmdk error context select scrolled">
+            <div class="thead"><span></span><span>Letter</span><span class="hide-sm">Matter</span><span class="hide-sm"></span><span class="end">Received</span></div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.match_proposed" class="status"><span class="st" data-s="wait"></span>Match proposed</span><span class="count">9</span></div>
+          <div class="row is-selected is-checked"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel on" data-i="check"></span></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2026-0001</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">14:16</span></div>
+          <div class="row is-context"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Communication under Article 94(3) EPC<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2025-0412</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">13:52</span></div>
+          <div class="row is-checked"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel on" data-i="check"></span></span><span class="t">Extended European search report<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2026-0019</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">12:30</span></div>
+          <div class="row is-checked"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel on" data-i="check"></span></span><span class="t">Examination report<span class="muted">DPMA</span></span><span class="m hide-sm num">FL-2025-0377</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">11:05</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Summons to oral proceedings<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2024-0981</span><span class="av a hide-sm" title="Dr. Anna Becker" aria-label="Forwarded by Dr. Anna Becker">A</span><span class="r">10:41</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Notice of allowance<span class="muted">USPTO</span></span><span class="m hide-sm num">FL-2025-0203</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">09:58</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">International search report<span class="muted">WIPO</span></span><span class="m hide-sm num">FL-2026-0044</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">09:12</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Renewal fee reminder<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2023-0610</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">Yesterday</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Rule 161/162 communication<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2026-0007</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">Yesterday</span></div>
+          </div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.unmatched" class="status"><span class="st" data-s="wait"></span>No matter found</span><span class="count">4</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Communication under Article 94(3) EPC<span class="muted">EPO</span></span><span class="m hide-sm muted">None</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">14:02</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Office action<span class="muted">DPMA</span></span><span class="m hide-sm muted">None</span><span class="av a hide-sm" title="Dr. Anna Becker" aria-label="Forwarded by Dr. Anna Becker">A</span><span class="r">12:11</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Non-final office action<span class="muted">USPTO</span></span><span class="m hide-sm muted">None</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">Yesterday</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Filing receipt<span class="muted">DPMA</span></span><span class="m hide-sm muted">None</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">Yesterday</span></div>
+          </div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.ambiguous" class="status"><span class="st" data-s="wait"></span>Two or more matters</span><span class="count">3</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm muted">2 matters</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">13:40</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Decision to grant<span class="muted">EPO</span></span><span class="m hide-sm muted">2 matters</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">11:47</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Written opinion<span class="muted">WIPO</span></span><span class="m hide-sm muted">3 matters</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">Yesterday</span></div>
+          </div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.kind_proposed" class="status"><span class="st" data-s="wait"></span>Kind proposed</span><span class="count">3</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Associate letter<span class="muted">Müller &amp; Partner, Wien</span></span><span class="m hide-sm num">FL-2025-0377</span><span class="av a hide-sm" title="Dr. Anna Becker" aria-label="Forwarded by Dr. Anna Becker">A</span><span class="r">10:02</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Client mail<span class="muted">Halberg Automotive SE</span></span><span class="m hide-sm num">FL-2024-0981</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">09:30</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Other<span class="muted">Nordwind Energie AG</span></span><span class="m hide-sm num">FL-2026-0044</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">Yesterday</span></div>
+          </div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.duplicate_proposed" class="status"><span class="st" data-s="wait"></span>Duplicate proposed</span><span class="count">2</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Rule 71(3) communication<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2026-0001</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">14:20</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Extended European search report<span class="muted">EPO</span></span><span class="m hide-sm num">FL-2026-0019</span><span class="av b hide-sm" title="Jonas Weber" aria-label="Forwarded by Jonas Weber">J</span><span class="r">12:44</span></div>
+          </div>
+          <div class="grp">
+          <div class="group"><span data-atlas="intake.unreadable" class="status"><span class="st" data-s="wait"></span>Unreadable</span><span class="count">1</span></div>
+          <div class="row"><span class="lead"><span class="st" data-s="wait" aria-hidden="true"></span><span class="check sel"></span></span><span class="t">Scanned letter with no text<span class="muted">DPMA</span></span><span class="m hide-sm muted">None</span><span class="av c hide-sm" title="Lena Hoffmann" aria-label="Forwarded by Lena Hoffmann">L</span><span class="r">08:51</span></div>
+          </div>
+          </div>
 
-      <div class="list intake" data-state="loading">
-        <div class="thead"><span></span><span>Letter</span><span class="hide-sm">Matter</span><span class="hide-sm">Forwarded by</span><span class="end">Received</span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w60"></span><span class="skel w70 hide-sm"></span><span class="skel w50 hide-sm"></span><span class="skel w40 end"></span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w45"></span><span class="skel w55 hide-sm"></span><span class="skel w60 hide-sm"></span><span class="skel w40 end"></span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w70"></span><span class="skel w60 hide-sm"></span><span class="skel w45 hide-sm"></span><span class="skel w40 end"></span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w50"></span><span class="skel w75 hide-sm"></span><span class="skel w55 hide-sm"></span><span class="skel w40 end"></span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w65"></span><span class="skel w50 hide-sm"></span><span class="skel w60 hide-sm"></span><span class="skel w40 end"></span></div>
-        <div class="row"><span class="skel dot"></span><span class="skel w40"></span><span class="skel w65 hide-sm"></span><span class="skel w50 hide-sm"></span><span class="skel w40 end"></span></div>
-      </div>
+          <div class="bulk-dock narrow-only" data-state="select">
+            <div class="decision bulk">
+              <div class="decision-f">
+                <span class="lbl strong">3 selected</span>
+                <div class="acts">
+                  <span class="btn btn-ghost" data-i="x" data-act="reject">Not relevant… <span class="kbd">2</span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file 3 <span class="kbd">⇧⌘↵</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div class="empty" data-state="empty">
-        <div class="empty-in">
-          <div class="empty-art" data-i="inbox"></div>
-          <h2>Nothing waits for you</h2>
-          <p>Forward an office letter to ai-mailbox@firm.test. It shows here when it needs a person, and files itself when it does not.</p>
-          <span class="btn btn-secondary" data-i="check" data-act="show-filed">Show filed today <span class="kbd">F</span></span>
+          <div class="list intake" data-state="loading">
+            <div class="thead"><span></span><span>Letter</span><span class="hide-sm">Matter</span><span class="hide-sm"></span><span class="end">Received</span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w60"></span><span class="skel w70 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w45"></span><span class="skel w55 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w70"></span><span class="skel w60 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w50"></span><span class="skel w75 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w65"></span><span class="skel w50 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+            <div class="row"><span class="skel dot"></span><span class="skel w40"></span><span class="skel w65 hide-sm"></span><span class="skel av20 hide-sm"></span><span class="skel w40 end"></span></div>
+          </div>
+
+          <div class="empty" data-state="empty">
+            <div class="empty-in">
+              <div class="empty-art" data-i="inbox"></div>
+              <h2>Nothing waits for you</h2>
+              <p>Forward an office letter to <span data-address>ai-mailbox@firm.test</span>. It shows here when it needs a person, and files itself when it does not.</p>
+              <span class="btn btn-secondary" data-i="check" data-act="show-filed">Show filed today <span class="kbd">F</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-pane" data-state="default cmdk error context scrolled" data-narrow-page="b-intake-item.html">
+          <div class="work">
+            <div class="work-scroll">
+              <div class="eyebrow"><span class="pill wait" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Match proposed</span><span>Waits for a person since 14:16</span></div>
+              <h1 class="title">Rule 71(3) communication</h1>
+              <p class="lede">Jonas Weber forwarded this letter to the AI mailbox. The file number on page 1 names one matter.</p>
+              <div class="pane-props">
+                <div class="prop"><span class="k">Proposed matter</span><span class="v"><span class="muted num">FL-2026-0001</span>Pressure sensor housing</span></div>
+                <div class="prop"><span class="k">Client</span><span class="v">Kessler Sensorik GmbH</span></div>
+                <div class="prop"><span class="k">Responsible</span><span class="v"><span class="av a">A</span>Dr. Anna Becker</span></div>
+              </div>
+              <div class="match">
+                <div>
+                  <div class="letter" data-verbatim>
+                    <div class="hd"><div><div class="logo"></div><p>European Patent Office</p></div><div class="form">EPO Form <span class="hl">2004C</span><br>Date 30.10.2026</div></div>
+                    <div>Your reference <span class="hl">FL-2026-0001</span></div>
+                    <p class="strong"><span class="hl">Communication under Rule 71(3) EPC</span></p>
+                    <div class="ln"></div><div class="ln"></div>
+                  </div>
+                  <div class="paper-cap"><span>Page 1 of 1</span></div>
+                </div>
+                <div class="reasons">
+                  <div class="reason" data-i="check"><div>Your reference on page 1 reads <span class="quote">FL-2026-0001</span> <span class="page-ref">p. 1</span></div></div>
+                  <div class="reason" data-i="check"><div>One matter has this file number. No other reference on the letter names a second matter.</div></div>
+                  <div class="reason" data-i="check"><div>The sender is the EPO: the letter head and the title are on page 1.</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="decision-dock">
+              <div class="decision">
+                <div class="decision-h">
+                  <span class="av b av-lg">J</span><span class="lbl">Your decision</span><span class="q">Which matter is this letter for?</span>
+                </div>
+                <div class="decision-b">
+                  <div class="part">
+                    <span class="pi" data-i="check"></span>
+                    <div><div class="q">FL-2026-0001 Pressure sensor housing</div><div class="d">3 reasons on page 1 agree</div></div>
+                    <span></span>
+                  </div>
+                </div>
+                <div class="decision-f">
+                  <span class="btn btn-ghost" data-i="x" data-act="reject">Not relevant… <span class="kbd">2</span></span>
+                  <div class="acts">
+                    <span class="btn btn-secondary" data-i="matters" data-act="other-matter">Other matter… <span class="kbd">M</span></span>
+                    <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file <span class="kbd">⇧⌘↵</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-pane" data-state="select">
+          <div class="work">
+            <div class="work-scroll">
+              <div class="eyebrow"><span class="pill wait" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Match proposed</span></div>
+              <h1 class="title">3 letters selected</h1>
+              <p class="lede">Each letter has one proposed matter. Accept files each letter on its own matter; the reasons stay on each letter.</p>
+              <div class="sel-list">
+                <div class="file"><span class="doc" data-drawing></span><div><div class="t">Rule 71(3) communication</div><div class="s">FL-2026-0001 Pressure sensor housing · 3 reasons on page 1 agree</div></div></div>
+                <div class="file"><span class="doc" data-drawing></span><div><div class="t">Extended European search report</div><div class="s">FL-2026-0019 Heat pump expansion valve · 2 reasons on page 1 agree</div></div></div>
+                <div class="file"><span class="doc" data-drawing></span><div><div class="t">Examination report</div><div class="s">FL-2025-0377 Seat belt pretensioner · 3 reasons on page 1 agree</div></div></div>
+              </div>
+            </div>
+            <div class="decision-dock">
+              <div class="decision">
+                <div class="decision-h">
+                  <span class="av b av-lg">J</span><span class="lbl">Your decision</span><span class="q">File 3 letters on their proposed matters?</span>
+                </div>
+                <div class="decision-f">
+                  <span class="btn btn-ghost" data-i="x" data-act="reject">Not relevant… <span class="kbd">2</span></span>
+                  <div class="acts">
+                    <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file 3 <span class="kbd">⇧⌘↵</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   </main>
 </div>
 
-<div class="scrim" data-state="cmdk">
+<div class="menu ctx-menu ctx-at" data-state="context" role="menu">
+            <div class="mi on" data-i="eye" data-act="open">Open<span class="kbds"><span class="kbd">↵</span></span></div>
+            <div class="mi" data-i="check" data-act="record">Accept and file on FL-2025-0412<span class="kbds"><span class="kbd">⇧⌘↵</span></span></div>
+            <div class="mi" data-i="matters" data-act="other-matter">File on another matter…<span class="kbds"><span class="kbd">M</span></span></div>
+            <div class="mi" data-i="x" data-act="reject">Not relevant…<span class="kbds"><span class="kbd">2</span></span></div>
+            <div class="sep"></div>
+            <div class="mi" data-i="link">Copy link</div>
+          </div>
+
+<div class="scrim" data-state="cmdk" data-modal>
   <div class="cmdk menu">
-    <span class="cmdk-ctx"><span class="st" data-s="wait"></span>Rule 71(3) communication</span>
+    <span class="cmdk-ctx" data-i="mail">Rule 71(3) communication</span>
     <div class="cmdk-in">acc<span class="caret"></span></div>
     <div class="cmdk-g">
       <div class="gh">Letter</div>
-      <div class="cmdk-i on" data-i="check" data-act="record">Accept and file on FL-2026-0001<span class="kbds"><span class="kbd">⌘↵</span></span></div>
+      <div class="cmdk-i on" data-i="check" data-act="record">Accept and file on FL-2026-0001<span class="kbds"><span class="kbd">⇧⌘↵</span></span></div>
       <div class="cmdk-i" data-i="matters" data-act="other-matter">File on another matter…<span class="kbds"><span class="kbd">M</span></span></div>
       <div class="cmdk-i" data-i="x" data-act="reject">Not relevant…<span class="kbds"><span class="kbd">2</span></span></div>
       <div class="gh">Go to</div>

@@ -6,15 +6,16 @@
 <title>Matter</title>
 <link rel="stylesheet" href="records.css">
 <style>
-  .dl .row, .dl .thead { grid-template-columns: 14px 124px 96px minmax(0, 1fr) 168px 112px; }
-  .wk .row, .wk .thead { grid-template-columns: 14px minmax(0, 1fr) 168px 168px 56px; }
+  .dl .row, .dl .thead { grid-template-columns: 168px 128px 128px minmax(0, 1fr) 20px; }
+  .wk .row, .wk .thead { grid-template-columns: 168px minmax(0, 1fr) 20px 56px; }
   .oe .row, .oe .thead { grid-template-columns: 14px minmax(0, 1fr) 112px 112px 168px; }
-  .docs .row { grid-template-columns: 14px minmax(0, 1fr) 168px 56px; }
+  .docs .row { grid-template-columns: 14px minmax(0, 1fr) 20px 56px; }
   .content.wide { max-width: 1040px; }
   @media (max-width: 720px) {
-    .dl .row, .dl .thead { grid-template-columns: 14px minmax(0, 1fr) 72px; }
-    .wk .row, .wk .thead, .docs .row { grid-template-columns: 14px minmax(0, 1fr) 56px; }
-    .oe .row, .oe .thead { grid-template-columns: 14px minmax(0, 1fr) 112px; }
+    .dl .row, .dl .thead { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .wk .row, .wk .thead { grid-template-columns: auto minmax(0, 1fr) 56px; }
+    .docs .row { grid-template-columns: 14px minmax(0, 1fr) 56px; }
+    .oe .row, .oe .thead { grid-template-columns: 14px minmax(0, 1fr) 168px; }
   }
 </style>
 </head>
@@ -38,22 +39,20 @@
           <div class="eyebrow"><span class="num">FL-2026-0001</span><span>·</span><span>Kessler Sensorik GmbH</span></div>
           <h1 class="title">Pressure sensor housing</h1>
           <div class="facts">
-            <span class="fact"><span class="st" data-s="wait"></span><b>1</b> deadline waits for a second person</span>
-            <span class="fact"><span class="st" data-s="wait"></span><b>1</b> work item waits for Dr. Anna Becker</span>
+            <span class="fact"><b>1</b> deadline waits for a second person</span>
+            <span class="fact"><b>1</b> work item waits for Dr. Anna Becker</span>
           </div>
 
           <div class="section">
             <div class="section-h"><h2>Deadlines</h2><span class="count">1</span></div>
             <div class="tbl dl">
-              <div class="thead"><span></span><span>Due</span><span class="hide-sm"></span><span class="hide-sm">Rule</span><span class="hide-sm">State</span><span class="hide-sm">Proposed by</span></div>
+              <div class="thead"><span>State</span><span>Due</span><span class="hide-sm"></span><span class="hide-sm">Rule</span><span class="hide-sm"></span></div>
               <div class="row is-selected">
-                <span class="st" data-s="wait"></span>
+                <span class="status" data-atlas="deadline.deadline_proposed"><span class="st" data-s="wait"></span>Deadline proposed</span>
                 <span class="strong num">Mon, 1 Mar 2027</span>
-                <span class="hide-sm" data-due="2027-03-01" data-due-form="short"></span>
-                <span class="t hide-sm">Rule 71(3) EPC: intention to grant</span>
-                <span class="status hide-sm" data-atlas="deadline.deadline_proposed"><span class="st" data-s="wait"></span>Deadline proposed</span>
-                <span class="who hide-sm"><span class="av sys" data-i="scale"></span>FlowLeap</span>
-                <span class="only-sm" data-due="2027-03-01" data-due-form="short"></span>
+                <span class="hide-sm" data-due="2027-03-01"></span>
+                <span class="hide-sm">Rule 71(3) EPC</span>
+                <span class="av sys hide-sm" data-i="scale" title="Proposed by FlowLeap" aria-label="Proposed by FlowLeap"></span>
               </div>
             </div>
           </div>
@@ -61,12 +60,11 @@
           <div class="section">
             <div class="section-h"><h2>Work</h2><span class="count">1</span></div>
             <div class="tbl wk">
-              <div class="thead"><span></span><span>Work</span><span class="hide-sm">State</span><span class="hide-sm">For</span><span class="end">Opened</span></div>
+              <div class="thead"><span>State</span><span>Work</span><span class="hide-sm"></span><span class="end">Opened</span></div>
               <div class="row">
-                <span class="st" data-s="wait"></span>
-                <span class="t">Rule 71(3) communication of 30 Oct 2026<span class="muted hide-sm">Client report and deadline check</span></span>
-                <span class="status hide-sm" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span>
-                <span class="who hide-sm"><span class="av a">A</span>Dr. Anna Becker</span>
+                <span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Proposals ready</span>
+                <span class="t">Rule 71(3) communication of 30 Oct 2026</span>
+                <span class="av a hide-sm" title="For Dr. Anna Becker" aria-label="For Dr. Anna Becker">A</span>
                 <span class="r">14:17</span>
               </div>
             </div>
@@ -74,16 +72,16 @@
 
           <div class="section">
             <div class="section-h"><h2>Office events</h2><span class="count">1</span>
-              <div class="right"><span class="btn btn-secondary" data-i="plus" data-act="record-event"><span class="hide-sm">Record office event</span> <span class="kbd">E</span></span></div>
+              <div class="right"><span class="btn btn-secondary" data-i="plus" data-act="record-event" aria-label="Record office event"><span class="hide-sm">Record office event</span> <span class="kbd">E</span></span></div>
             </div>
             <div class="tbl oe">
               <div class="thead"><span></span><span>Communication</span><span class="hide-sm">Document date</span><span class="hide-sm">Received</span><span>Read</span></div>
               <div class="row">
-                <span class="st" data-s="ok"></span>
-                <span class="t">Rule 71(3) communication<span class="muted hide-sm">Intention to grant</span></span>
+                <span class="ico-inline" data-i="mail"></span>
+                <span class="t">Rule 71(3) communication</span>
                 <span class="num hide-sm">30 Oct 2026</span>
                 <span class="muted hide-sm">Not recorded</span>
-                <span class="status"><span class="ico-ok" data-i="check"></span>Both readings agree</span>
+                <span class="agree"><span class="ico-ok" data-i="check"></span>Both readings agree</span>
               </div>
             </div>
           </div>
@@ -93,8 +91,8 @@
             <div class="tbl docs">
               <div class="row">
                 <span class="ico-inline" data-i="doc"></span>
-                <span class="t">Rule 71(3) communication<span class="muted hide-sm">r71-3-FL-2026-0001.pdf · 1 page</span></span>
-                <span class="who hide-sm"><span class="av b">J</span>Jonas Weber</span>
+                <span class="t">Rule 71(3) communication<span class="muted hide-sm">1 page</span></span>
+                <span class="av b hide-sm" title="Filed by Jonas Weber" aria-label="Filed by Jonas Weber">J</span>
                 <span class="r">14:16</span>
               </div>
             </div>
@@ -104,27 +102,25 @@
             <h2>Activity</h2>
             <div class="ev person"><span class="ico"><span class="av b av-lg">J</span></span><div class="txt"><b>Jonas Weber</b> filed the EPO letter of 30 Oct 2026 on this matter<span class="t">14:16</span></div></div>
             <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the letter twice; both readings agree on Rule 71(3) EPC, 30 Oct 2026<span class="t">14:17</span></div></div>
-            <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> proposed the deadline Mon, 1 Mar 2027<span class="t">14:17</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="sparkle"></span></span><div class="txt"><b>FlowLeap</b> proposed the deadline Mon, 1 Mar 2027<span class="t">14:17</span></div></div>
             <div class="ev"><span class="ico"><span class="av sys" data-i="split"></span></span><div class="txt"><b>FlowLeap</b> opened the work and assigned it to <b>Dr. Anna Becker</b><span class="t">14:17</span></div></div>
             <div class="ev"><span class="ico"><span class="av sys" data-i="bot"></span></span><div class="txt"><b>Patent agent</b> proposed the client report on the firm template<span class="t">14:17</span></div></div>
-            <div class="ev"><span class="ico"><span class="st" data-s="ok"></span></span><div class="txt"><b>AI mailbox</b> sent the reply to Jonas Weber and Dr. Anna Becker<span class="t">14:18</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="check"></span></span><div class="txt"><b>AI mailbox</b> sent the reply to Jonas Weber and Dr. Anna Becker<span class="t">14:18</span></div></div>
           </div>
           <details class="audit" data-audit><summary data-i="chev">Audit</summary></details>
         </div>
 
         <aside class="props">
           <h3>Matter</h3>
-          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="run"></span>Open</span></div>
           <div class="prop"><span class="k">Client</span><span class="v">Kessler Sensorik GmbH</span></div>
           <div class="prop"><span class="k">Responsible</span><span class="v"><span class="av a">A</span>Dr. Anna Becker</span></div>
           <div class="prop"><span class="k">Team</span><span class="v"><span class="stack"><span class="av a">A</span><span class="av b">J</span><span class="av c">L</span></span>3 people</span></div>
           <div class="prop"><span class="k">Application</span><span class="v num">EP 24 123 456.7</span></div>
           <h3>Next deadline</h3>
           <div class="prop"><span class="k">Due</span><span class="v num">Mon, 1 Mar 2027</span></div>
-          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="wait"></span>Deadline proposed</span></div>
           <h3>Client rules</h3>
-          <div class="prop"><span class="k">AI use</span><span class="v"><span class="st" data-s="ok"></span>Allowed</span></div>
-          <div class="prop"><span class="k">AI letters</span><span class="v"><span class="st" data-s="ok"></span>Allowed</span></div>
+          <div class="prop"><span class="k">AI use</span><span class="v"><span class="ico-ok" data-i="check"></span>Allowed</span></div>
+          <div class="prop"><span class="k">AI letters</span><span class="v"><span class="ico-ok" data-i="check"></span>Allowed</span></div>
         </aside>
       </div>
     </section>

@@ -19,7 +19,7 @@
       <header class="topbar">
         <div class="crumbs">
           <span class="ico hide-sm" data-i="inbox"></span><span class="hide-sm">Eingang</span><span class="sep hide-sm">›</span>
-          <span class="st" data-s="wait"></span><span class="here">Mitteilung nach Regel 71(3)</span>
+          <span class="here">Mitteilung nach Regel 71(3)</span>
         </div>
         <div class="bar-right">
           <span class="pager"><b>1</b>&nbsp;/ 22</span>
@@ -31,7 +31,7 @@
       <div class="detail fill">
         <div class="work">
           <div class="work-scroll">
-            <div class="eyebrow"><span class="pill wait"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span class="hide-sm">Wartet seit 14:16 auf eine Person</span></div>
+            <div class="eyebrow"><span class="pill wait" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span class="hide-sm">Wartet seit 14:16 auf eine Person</span></div>
             <h1 class="title">Mitteilung nach Regel 71(3)</h1>
             <p class="lede">Jonas Weber hat dieses Schreiben an das KI-Postfach weitergeleitet. Das Aktenzeichen auf Seite 1 nennt eine Akte.</p>
 
@@ -67,7 +67,7 @@
               <h2>Aktivität</h2>
               <div class="ev"><span class="ico"><span class="av sys" data-i="mail"></span></span><div class="txt"><b>KI-Postfach</b> hat das Schreiben gespeichert, das <b>Jonas Weber</b> weitergeleitet hat<span class="t">14:16</span></div></div>
               <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen<span class="t">14:16</span></div></div>
-              <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> hat die Akte FL-2026-0001 nach dem Aktenzeichen vorgeschlagen<span class="t">14:16</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="sparkle"></span></span><div class="txt"><b>FlowLeap</b> hat die Akte FL-2026-0001 nach dem Aktenzeichen vorgeschlagen<span class="t">14:16</span></div></div>
             </div>
             <details class="audit" data-audit><summary data-i="chev">Prüfprotokoll</summary></details>
           </div>
@@ -80,7 +80,7 @@
               </div>
               <div class="decision-b">
                 <div class="part">
-                  <span class="st" data-s="ok"></span>
+                  <span class="pi" data-i="check"></span>
                   <div><div class="q">FL-2026-0001 Drucksensorgehäuse</div><div class="d">3 Gründe auf Seite 1 stimmen überein</div></div>
                   <span></span>
                 </div>
@@ -88,8 +88,8 @@
               <div class="decision-f">
                 <span class="btn btn-ghost" data-i="x" data-act="reject">Nicht relevant … <span class="kbd">2</span></span>
                 <div class="acts">
-                  <span class="btn btn-secondary hide-sm" data-i="matters" data-act="other-matter">Andere Akte … <span class="kbd">M</span></span>
-                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Annehmen und ablegen <span class="kbd">⌘↵</span></span>
+                  <span class="more" data-overflow="more-menu"><span class="iconbtn" data-i="dots" aria-label="Weitere Aktionen"></span></span><span class="btn btn-secondary hide-sm" data-i="matters" data-act="other-matter">Andere Akte … <span class="kbd">M</span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Annehmen und ablegen <span class="kbd">⇧⌘↵</span></span>
                 </div>
               </div>
             </div>
@@ -98,10 +98,9 @@
 
         <aside class="props">
           <h3>Schreiben</h3>
-          <div class="prop"><span class="k">Status</span><span class="v"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span></div>
           <div class="prop"><span class="k">Art</span><span class="v">Amtsschreiben</span></div>
           <div class="prop"><span class="k">Amt</span><span class="v">EPA</span></div>
-          <div class="prop"><span class="k">Typ</span><span class="v">Rule 71(3) EPC</span></div>
+          <div class="prop"><span class="k">Typ</span><span class="v">Regel 71(3) EPÜ</span></div>
           <div class="prop"><span class="k">Anmeldung</span><span class="v num">24 123 456.7</span></div>
           <div class="prop"><span class="k">Dokument</span><span class="v"><span class="ico-inline" data-i="doc"></span>1 Seite</span></div>
           <h3>Weiterleitung</h3>
@@ -117,6 +116,7 @@
     </section>
   </main>
 </div>
+<div class="menu ctx-menu overflow-menu" id="more-menu" data-state="more" role="menu"><div class="mi" data-i="matters" data-act="other-matter">Andere Akte …<span class="kbds"><span class="kbd">M</span></span></div></div>
 <script src="frame.js"></script>
 </body>
 </html>

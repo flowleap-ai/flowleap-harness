@@ -110,20 +110,19 @@
   });
   document.querySelectorAll('[data-logo]').forEach(el => { el.innerHTML = logo; });
 
-  // Days left come from one fixed demo date, never from typed text. A past date says "overdue".
+  // Days left come from one fixed demo date, never from typed text. A past date says "overdue". No short form ("117 d").
   const TODAY = Date.parse('2026-11-04');
   const D = {
-    en: { left: n => `${n} days left`, one: 'Due tomorrow', today: 'Due today', over: n => `Overdue by ${n} day${n === 1 ? '' : 's'}`, short: n => `${n} d`, overShort: n => `${n} d over` },
-    de: { left: n => `noch ${n} Tage`, one: 'Fällig morgen', today: 'Heute fällig', over: n => `${n} ${n === 1 ? 'Tag' : 'Tage'} überfällig`, short: n => `${n} T`, overShort: n => `${n} T über` }
+    en: { left: n => `${n} days left`, one: 'Due tomorrow', today: 'Due today', over: n => `Overdue by ${n} day${n === 1 ? '' : 's'}` },
+    de: { left: n => `noch ${n} Tage`, one: 'Fällig morgen', today: 'Heute fällig', over: n => `${n} ${n === 1 ? 'Tag' : 'Tage'} überfällig` }
   }[lang];
   document.querySelectorAll('[data-due]').forEach(el => {
     const n = Math.round((Date.parse(el.dataset.due) - TODAY) / 864e5);
-    const short = el.dataset.dueForm === 'short';
-    el.textContent = n < 0 ? (short ? D.overShort(-n) : D.over(-n)) : n === 0 ? D.today : n === 1 && !short ? D.one : short ? D.short(n) : D.left(n);
+    el.textContent = n < 0 ? D.over(-n) : n === 0 ? D.today : n === 1 ? D.one : D.left(n);
     el.classList.add(n < 0 ? 'over' : 'left');
   });
 
-  // view states for the screenshots: ?state=empty|loading|error|cmdk
+  // view states for the screenshots: ?state=<name> shows the [data-state] elements that name it
   const state = q.get('state');
   document.querySelectorAll('[data-state]').forEach(el => {
     const show = el.dataset.state.split(' ').includes(state || 'default');
@@ -132,6 +131,9 @@
   if (state === 'empty') document.querySelectorAll('.tab .count, .chip .num').forEach(el => { el.textContent = '0'; });
   if (state === 'evidence') document.querySelectorAll('[data-hover]').forEach(el => el.classList.add('is-hover'));
   if (state === 'missing') document.querySelectorAll('.is-missing').forEach(el => el.scrollIntoView({ block: 'center' }));
-  // ?state=activity scrolls the work column to its end.
+  // ?state=activity scrolls the work column to its end; ?state=scrolled scrolls a list so its headers stick.
   if (state === 'activity') document.querySelectorAll('.work-scroll').forEach(el => { el.scrollTop = el.scrollHeight; });
+  if (state === 'scrolled') document.querySelectorAll('.list-pane').forEach(el => { el.scrollTop = 500; });
+  if (state === 'select') document.querySelectorAll('.list').forEach(el => el.classList.add('selecting'));
+  if (state === 'context') document.querySelectorAll('.list').forEach(el => el.classList.add('ctx-open'));
 })();
