@@ -38,7 +38,7 @@ The browser asks `GET api/flowleap/records-link` once at start; the Host answers
 
 ### The panel
 
-The panel has a 44 px top bar and one view at a time. On a list the top bar shows the view tabs **Matters**, **Intake** with the count of letters that wait for a person, and **Work**; on a detail page it shows the breadcrumb. The panel opens on Intake.
+The panel has a 44 px top bar and one view at a time. On a list the top bar shows the view tabs **Matters**, **Intake** with the count of letters that wait for a person, and **Work**; on a detail page it shows the breadcrumb. At the right it shows **Search** with the key of the app's Search command, which opens the command menu of the open item (`ctx.commandMenu.open()`), and on the work board the **List** and **Board** layouts. The panel opens on the view that the address names, else on Intake.
 
 | View | Route | Reads |
 |---|---|---|
@@ -47,9 +47,21 @@ The panel has a 44 px top bar and one view at a time. On a list the top bar show
 | Matter | `{ view: 'matter', fileNumber }` | `GET matters/<fileNumber>` |
 | Deadline | `{ view: 'deadline', id }` | `GET deadlines/<id>` |
 | Work on a letter | `{ view: 'work', id }` | `GET tickets/<id>` |
-| Work board | `{ view: 'board' }` | `GET tickets` |
+| Work board, as columns or as a list grouped by state | `{ view: 'board', layout? }` | `GET tickets` |
 
 Every read also holds `GET me` (the deciding person) and the waiting list (the Intake count). A command sends `Content-Type: application/json` and an `Idempotency-Key` of `ipms:<uuid>` that names one act of the person; a retry of the same act sends the same key. After the Records service accepts an act, the panel loads its view and the count again.
+
+### The address
+
+The route is in the browser address beside the client's `page` parameter, so a reload, a bookmark, Copy link and a link in a reply mail open the same view: `?page=flowleap-records&records=<path>`. The query carries it, not the fragment, because a sign-in redirect keeps the query. The paths are `intake`, `intake/filed-today`, `intake/not-relevant`, `intake/<list>/<sha256>` (a letter open on its list), `work/<ticket id>`, `board`, `board/list`, `matters`, `matter/<file number, URI-encoded>` and `deadline/<deadline id>`. While another panel or a chat is open, the address has no `records` parameter.
+
+### Intake
+
+The view bar has the three lists as filter chips with their counts (the lists are filters, so one letter can count in two). The list groups the letters by atlas state under sticky headers with counts, newest first in each group. From 1366 px the open letter is beside the list, and the first letter opens when none is open; below 1366 px a row opens the item page with its properties panel. The letter pane draws the letter from reader 1's fields with each read value marked, gives the reasons with their quotes, and docks the decision bar: **Accept and file** on the proposed matter, **Other matter…** with a picker of only the matters that the person may see, **Not relevant…** with its reason step, or **Record office event** for a reading that waits for a person. `X`, ⇧ click or a checkbox selects letters for one bulk decision, one act for each letter; a letter whose act fails stays selected. `J`, `K` and the arrows move, `↵` opens, `O` opens the PDF, Esc closes a step, clears the selection or (below 1366 px) closes the letter. Every act is in the row's context menu and in ⌘K with the same keys.
+
+### Work board
+
+The board has a column for each state that work waits or works in (Assigned, Running, Proposals ready, Decided) and the count of every other state. A card moves only on an allowed transition by a member of the matter's team: from Proposals ready to Decided, a decision, so its drop opens the work page and nothing moves until the person records it there. While a card is dragged, every other column says why it takes no card. **For me** shows the work routed to the person. At 390 px the board scrolls sideways inside its own area.
 
 ### Loading, empty and error states
 
@@ -80,7 +92,8 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 | [`src/client/load.ts`](src/client/load.ts) | the loading state machine of one read (R18) |
 | [`src/client/model.ts`](src/client/model.ts) | the routes, the screens, the tabs, and the model that loads them and performs acts |
 | [`src/client/Panel.tsx`](src/client/Panel.tsx) | the panel, its top bar with the tabs, the breadcrumb and the pager |
-| [`src/client/screens/`](src/client/screens/) | one screen for each view, placeholders that render their data through the parts |
+| [`src/client/screens/`](src/client/screens/) | one screen for each view: Intake (`IntakeScreen.tsx`, `IntakeLetter.tsx`), the work board (`BoardScreen.tsx`), and the matter, deadline and work screens |
+| [`src/client/address.ts`](src/client/address.ts) | the route in the browser address and the address of Copy link |
 | [`src/client/parts/`](src/client/parts/) | the IPMS parts |
 | [`src/client/row-menu.ts`](src/client/row-menu.ts) | the intake row's context menu contribution |
 | [`src/client/keys.ts`](src/client/keys.ts) | the commands of the acts (keys.md) and their keycaps from the shortcut catalog |
@@ -114,9 +127,9 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The screens are placeholders** — each view renders its data through the parts; the screen work of the R1 IPMS plan replaces them with the approved mockups.
+- **Not every intake state has an act** — a proposed kind or a proposed duplicate is decided by filing the letter on a matter or marking it not relevant; the Records API has no kind or duplicate command in R1.
+- **The board has no Matter and Office filters** — only **For me**; the Work tab shows no count.
 - **The keys show only the registry's current catalog** — a button shows its command's keycap when the key layer registers the command; until then it shows no keycap.
-- **The route is not in the address bar** — the Web app's `?page=` names the Matters panel, not the view inside it, so the row menu has no Copy link.
 - **The panel does not follow changes by itself** — a view loads again after an act of this person or Try again; a change by another person shows on the next load.
 
 <a id="dev-note"></a>
