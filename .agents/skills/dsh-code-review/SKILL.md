@@ -22,6 +22,7 @@ description: Use when reviewing a pull request in the deepseek-harness repo — 
 - [dsh-prose-standard](../dsh-prose-standard/SKILL.md): required coverage and editorial judgment for comments, docs, prompts, and visible strings.
 - [dsh-ci-test-reliability](../dsh-ci-test-reliability/SKILL.md): isolation and regression-proof rules for resource-owning, asynchronous, or flaky tests and fixtures.
 - [dsh-client-ui-ux](../dsh-client-ui-ux/SKILL.md): feedback-surface choice, overlay safety, platform window adaptation, and visual token discipline for product-user-visible GUI changes.
+- [flowleap-design-language](../flowleap-design-language/SKILL.md): the FlowLeap bar and its merge checklist for IPMS screens (the Records features); any FAIL blocks the merge.
 - [dsh-error-handling](../dsh-error-handling/SKILL.md): failure classification, handling ownership, containment, state guarantees, and actionable reports.
 - [dsh-session-projection](../dsh-session-projection/SKILL.md): projection ownership, state size, historical reads, and migrations.
 - [docs/testing.md](../../../docs/testing.md) and the [quality-gates reference](../../../docs/testing.md): required test tiers and gates.
