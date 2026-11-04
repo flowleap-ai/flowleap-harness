@@ -1308,6 +1308,10 @@ export interface Config {
   readonly permissionPreset: string
   /** File name of the firm template of the report letter, in the Office tools' template folder. */
   readonly template: string
+  /** Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status. */
+  readonly runStartedAttempts: number
+  /** Wait in milliseconds before the second send of `run-started`; the wait doubles before each later send. */
+  readonly runStartedBackoffMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-flowleap-ticket -->

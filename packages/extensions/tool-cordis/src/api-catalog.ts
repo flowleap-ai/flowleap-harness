@@ -7774,7 +7774,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MatterView',
-    declaration: 'export interface MatterView {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n    readonly clientRules: ClientRules | null;\n    readonly officeEvents: OfficeEventView[];\n    readonly tickets: TicketSummary[];\n    readonly documents: DocumentView[];\n}',
+    declaration: 'export type MatterView = MatterViewBase & (MatterViewR1 | {\n    readonly [K in keyof MatterViewR1]?: never;\n});',
+  },
+  {
+    name: 'MatterViewBase',
+    declaration: 'export interface MatterViewBase {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n}',
+  },
+  {
+    name: 'MatterViewR1',
+    declaration: 'export interface MatterViewR1 {\n    readonly clientRules: ClientRules | null;\n    readonly officeEvents: OfficeEventView[];\n    readonly tickets: TicketSummary[];\n    readonly documents: DocumentView[];\n}',
   },
   {
     name: 'MatterViewRefusal',
@@ -8550,7 +8558,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RecordCommandRefusal',
-    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'no_proposals\' | \'document_too_large\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
   },
   {
     name: 'RecordCommandResult',
@@ -10902,7 +10910,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WebhookRule',
-    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n    started?(session: SessionId, delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): void | Promise<void>;\n}',
+    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n    started?(session: SessionId, delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): void | Promise<void>;\n    failed?(error: unknown, delivery: Readonly<VerifiedWebhookDelivery<K>>): void | Promise<void>;\n}',
   },
   {
     name: 'WebhookRuleId',
