@@ -14,4 +14,4 @@ Before this release, the firm image (`deploy/Dockerfile`) had no OfficeCLI binar
 1. Make a templates folder beside the compose file and mount it read-only at `/opt/flowleap/templates` in each harness service, as [`deploy/docker-compose.yml`](../../../../deploy/docker-compose.yml) does: `./templates:/opt/flowleap/templates:ro`. An empty folder is valid.
 2. Run the host on a Linux kernel with Landlock (or with bubblewrap usable in the container). Docker Desktop's kernel has no Landlock, so the office row fails there.
 3. If a firm overlay in `PATCH_FILES` sets the `sandbox` row to `network: inherit`, remove that setting; the office row fails with it.
-4. Start the container and confirm the log line `flowleap-office: OfficeCLI 1.0.160 ready; its network is blocked`: `docker compose logs harness-alice | grep 'flowleap-office'`.
+4. Start the container and confirm that no office row is listed under `dsh: warning: … entries did not activate`: `docker compose logs harness-alice | grep '^flowleap-office'` prints nothing.

@@ -173,18 +173,18 @@ ENV DSH_HOME=/data \
     BIND_HOST=loopback
 # Boot smoke test with the source tree gone: the profile must start and print
 # its URL line from the deployed closure alone (the builder's --dump-config
-# check loads no plugin code). The office rows must print their ready line. A
-# build kernel without a sandbox backend (Docker Desktop has no Landlock) may
-# only fail them with SANDBOX_UNAVAILABLE; every other office failure stops
-# the build.
+# check loads no plugin code). The office rows must activate: the startup log
+# lists each entry that did not, by its id. A build kernel without a sandbox
+# backend (Docker Desktop has no Landlock) may only fail the provider row with
+# "no sandbox backend is usable"; every other office failure stops the build.
 RUN set -eu; \
   DSH_HOME=/tmp/smoke HOME=/tmp/smoke/home PUBLIC_URL=http://localhost:3080/ TRUSTED_HOST=localhost \
     harness-entrypoint > /tmp/boot.log 2>&1 & pid=$!; \
   for _ in $(seq 1 90); do grep -q 'dsh web:' /tmp/boot.log && break; sleep 1; done; \
   sleep 5; kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; \
   grep -q 'dsh web:' /tmp/boot.log || { cat /tmp/boot.log; exit 1; }; \
-  if ! grep -q "flowleap-office: OfficeCLI ${OFFICECLI_VERSION} ready; its network is blocked" /tmp/boot.log; then \
-    grep -q 'no sandbox backend is usable' /tmp/boot.log || { cat /tmp/boot.log; echo "the office rows did not load" >&2; exit 1; }; \
+  if grep -q '^flowleap-office' /tmp/boot.log; then \
+    grep -q '^flowleap-office-officecli .*no sandbox backend is usable' /tmp/boot.log || { cat /tmp/boot.log; echo "the office rows did not activate" >&2; exit 1; }; \
     echo "WARNING: the build kernel has no sandbox backend; the office rows were not proven here" >&2; \
   fi; \
   rm -rf /tmp/smoke /tmp/boot.log /tmp/harness-bind-host

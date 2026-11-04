@@ -162,5 +162,4 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     await rm(probe, { recursive: true, force: true })
   }
   ctx.plugin(OfficeCliProvider, { runner, callsDir, tableStyle: config.tableStyle, chart: config.chart })
-  ctx.logger.info(`flowleap-office: OfficeCLI ${config.version} ready; its network is blocked`)
 }
