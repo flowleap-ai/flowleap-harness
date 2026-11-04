@@ -114,7 +114,7 @@ describe('ui-flowleap-records browser half', () => {
     const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected } = await mounted(routes(json({ href: 'records/' })))
     expect(providers.map(provider => provider.protocol)).toEqual(['recordsrun'])
     expect(ctx.slots.entries('records.agent.conversation')).toHaveLength(1)
-    expect(keys).toContain('records')
+    expect(keys).toContain('records.panel')
     expect(keys).toContain('records.decision.record')
     expect(keys).toContain('records.row.open')
     expect(contributions).toHaveLength(1)

@@ -79,7 +79,7 @@ The **agent panel** is a 376 px column at the right of the work page with the pa
 
 ### Keys and ⌘K
 
-`src/client/key-layer.ts` registers the scope `records` (the panel root) and every act of the design language's keys.md once: the single keys and the `G M` and `G I` sequences in the view-scoped layer, `↵` and the arrows as fixed keys, and Record the decision (`⇧⌘↵`, macOS and Windows) as an application command that acts only while focus is in the panel. Each command runs the handler of the latest mounted screen that provides one (`useKeyActs`), and passes the key on otherwise. While focus is in the agent panel, every key of the layer and ⇧⌘↵ pass on, so a key typed in the conversation never acts on the work. A screen gives ⌘K its open item and acts with `useCommandItem`. Each button shows its command's current keycap from the shortcut catalog.
+`src/client/key-layer.ts` registers the scope `records.panel` (the panel root) and every act of the design language's keys.md once: the single keys and the `G M` and `G I` sequences in the view-scoped layer, `↵` and the arrows as fixed keys, and Record the decision (`⇧⌘↵`, macOS and Windows) as an application command that acts only while focus is in the panel and not in a text field or an editable element, also on Desktop, where the key goes first to the application in every region. Each command runs the handler of the latest mounted screen that provides one (`useKeyActs`), and passes the key on otherwise. While focus is in the agent panel, every key of the layer and ⇧⌘↵ pass on, so a key typed in the conversation never acts on the work. A screen gives ⌘K its open item and acts with `useCommandItem`. Each button shows its command's current keycap from the shortcut catalog.
 
 ### The parts
 

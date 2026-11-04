@@ -1,7 +1,7 @@
 /** Main-document keyboard adapter; local controls arbitrate before window bubbling. */
 import { modalSelector, observeComposition } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutContext, ShortcutFixedInput } from './types.ts'
-import type { ShortcutRegistry } from './registry.ts'
+import { editableTargets, type ShortcutRegistry } from './registry.ts'
 import type { ShortcutPlatform, ShortcutRuntime } from '../protocol.ts'
 
 /**
@@ -69,7 +69,7 @@ export function installKeyboard(window: Window,
     const target = event.composedPath().find(value => value instanceof Element)
     const element = target instanceof Element ? target : document.activeElement
     const region = element?.closest('.xterm') ? 'terminal'
-      : element?.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]') ? 'editable' : 'page'
+      : element?.closest(editableTargets) ? 'editable' : 'page'
     // Local handlers can change modals before MutationObserver delivers its records.
     changedModals(observer.takeRecords())
     dialogs ??= document.querySelectorAll<HTMLElement>(modalSelector)

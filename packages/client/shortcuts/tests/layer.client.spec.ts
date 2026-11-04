@@ -72,12 +72,21 @@ describe('view-scoped key layer', () => {
     expect(press(f.reason, 'Digit1').defaultPrevented).toBe(false)
     const editable = document.createElement('div')
     editable.contentEditable = 'true'
+    const plain = document.createElement('div')
+    plain.setAttribute('contenteditable', 'plaintext-only')
+    const plainChild = document.createElement('span')
+    plainChild.tabIndex = -1
+    plain.append(plainChild)
     const menu = document.createElement('div')
     menu.setAttribute('role', 'menu')
     const item = document.createElement('div')
     menu.append(item)
-    f.view.append(editable, menu)
+    f.view.append(editable, plain, menu)
     press(editable, 'Digit1')
+    plainChild.focus()
+    press(plainChild, 'Digit1')
+    press(plainChild, 'KeyG'); press(plainChild, 'KeyI')
+    f.reason.focus()
     press(item, 'Digit1')
     press(f.reason, 'KeyG'); press(f.reason, 'KeyI')
     expect(f.accept).not.toHaveBeenCalled()
@@ -120,6 +129,48 @@ describe('view-scoped key layer', () => {
     expect(f.open).toHaveBeenCalledOnce()
     expect(f.registry.fixedCatalog.getSnapshot()).toEqual([expect.objectContaining({
       id: ids.open, keys: ['↵'], keycaps: [['↵']], scope: { id: INTAKE, label: 'Intake' } })])
+  })
+
+  it.each(['radio', 'combobox', 'treeitem', 'gridcell', 'option', 'switch', 'checkbox', 'menuitem', 'menuitemcheckbox', 'menuitemradio'])(
+    'keeps Space and Enter with a focused %s control', (role) => {
+      const f = mount()
+      const control = document.createElement('div')
+      control.setAttribute('role', role)
+      control.tabIndex = 0
+      f.view.append(control)
+      control.focus()
+      expect(press(control, 'Enter').defaultPrevented).toBe(false)
+      expect(press(control, 'Space').defaultPrevented).toBe(false)
+      expect(f.open).not.toHaveBeenCalled()
+    })
+
+  it('passes the first key of a sequence when no continuation acts on the focused element, and starts it when one acts', () => {
+    vi.useFakeTimers()
+    const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
+    registry.registerScope({ id: INTAKE, label: () => 'Intake' })
+    const goIntake = vi.fn()
+    registry.registerScoped({ ...scoped(ids.goIntake, { code: 'KeyG', thenCode: 'KeyI', modifiers: [] }, goIntake),
+      resolve: ({ target }) => target.closest('[data-elsewhere]') === null ? { status: 'handled', run: goIntake } : { status: 'pass' } })
+    dispose = installKeyboard(window, registry)
+    const view = document.createElement('div')
+    view.dataset.shortcutScope = INTAKE
+    view.tabIndex = -1
+    const dock = document.createElement('div')
+    dock.dataset.elsewhere = ''
+    dock.tabIndex = -1
+    const editable = document.createElement('span')
+    editable.setAttribute('contenteditable', 'false')
+    editable.tabIndex = -1
+    view.append(dock, editable)
+    document.body.append(view)
+    dock.focus()
+    expect(press(dock, 'KeyG').defaultPrevented).toBe(false)
+    expect(press(dock, 'KeyI').defaultPrevented).toBe(false)
+    expect(goIntake).not.toHaveBeenCalled()
+    editable.focus()
+    expect(press(editable, 'KeyG').defaultPrevented).toBe(true)
+    press(editable, 'KeyI')
+    expect(goIntake).toHaveBeenCalledOnce()
   })
 
   it('runs a sequence within the interval and drops it after a timeout or a focus change', () => {
@@ -188,8 +239,12 @@ describe('view-scoped key layer', () => {
     const registry = new ShortcutRegistry('web', 'windows')
     const run = vi.fn()
     expect(() => registry.registerScoped(scoped(ids.accept, { code: 'Digit1', modifiers: [] }, run))).toThrow('Unknown shortcut scope')
+    for (const id of ['records', 'Records.view', 'records.', 'records view']) {
+      expect(() => registry.registerScope({ id: id as ShortcutScopeId, label: () => id })).toThrow(`Invalid shortcut scope id: ${id}`)
+    }
     const offScope = registry.registerScope({ id: INTAKE, label: () => 'Intake' })
     expect(() => registry.registerScope({ id: INTAKE, label: () => 'Again' })).toThrow('Duplicate shortcut scope')
+    expect(parseShortcutDefinitions(registry.definitions())).toEqual([])
     expect(() => registry.registerScoped(scoped(ids.accept, { code: 'Digit1', modifiers: ['primary'] }, run))).toThrow('Unsupported layer')
     expect(() => registry.registerScoped(scoped(ids.accept, { code: 'Escape', modifiers: [] }, run))).toThrow('Unsupported layer')
     const off = registry.registerScoped(scoped(ids.accept, { code: 'KeyG', modifiers: [] }, run))

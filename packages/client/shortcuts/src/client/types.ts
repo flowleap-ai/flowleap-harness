@@ -32,7 +32,7 @@ export interface ShortcutCommand {
 }
 /** A view that owns layer keys while focus is inside an element whose `data-shortcut-scope` attribute holds its id. */
 export interface ShortcutScope {
-  /** Follows the command id pattern, such as `records.intake`. */
+  /** Follows the command id pattern, such as `records.intake`; `registerScope()` throws for another id. */
   readonly id: ShortcutScopeId
   /** Localized view name; the shortcut reference uses it as the group heading. */
   readonly label: () => string
@@ -60,7 +60,9 @@ export interface ShortcutScopedCommand {
   /** Per-profile defaults; an omitted profile is unbound. */
   readonly defaults: Readonly<Partial<Record<ShortcutProfile, ShortcutBinding>>>
   /**
-   * Resolve the target synchronously; `pass` lets the key go to an outer scope or its native action.
+   * Resolve the target synchronously; `pass` lets the key go to an outer scope or its native action. The first key
+   * of a sequence calls the resolver of each continuation and starts the sequence only when one does not pass, so a
+   * resolver has no side effects.
    * @param context - scope, marked element, and focused element.
    * @returns the action to run, a blocked reason, or pass.
    */
@@ -158,7 +160,8 @@ export interface Shortcuts {
   /** Maximum interval between the two keys of a view-layer sequence, in milliseconds. */
   readonly sequenceMs: number
   /**
-   * Declare a view scope; duplicate ids throw. Register it before its commands.
+   * Declare a view scope; an id that is not dotted (such as `records`) and a duplicate id throw. Register it before
+   * its commands.
    * @param scope - id, localized label, and optional predicate.
    * @returns idempotent disposer.
    */

@@ -3,9 +3,10 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installKeyboard } from '@deepseek-ai/dsh-client-shortcuts/src/client/dom.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
+import { parseShortcutDefinitions } from '@deepseek-ai/dsh-client-shortcuts/src/protocol.ts'
 import type { CommandMenuContribution, CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import {
-  CommandItemRegistry, KEYS_ELSEWHERE, KeyActRegistry, registerKeyLayer, useCommandItem, useKeyActs, type KeyActs,
+  CommandItemRegistry, KEYS_ELSEWHERE, KeyActRegistry, RECORDS_SCOPE, registerKeyLayer, useCommandItem, useKeyActs, type KeyActs,
 } from '../src/client/key-layer.ts'
 import { en } from '../src/client/locales.ts'
 
@@ -19,10 +20,11 @@ afterEach(() => {
 
 /**
  * Register the key layer on a real shortcut registry with the keyboard installed on the window.
+ * @param runtime - Web, or Desktop, where the application command goes first in every region.
  * @returns the registries, the ⌘K contributions and the registry.
  */
-function layer() {
-  const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
+function layer(runtime: 'web' | 'desktop' = 'web') {
+  const registry = new ShortcutRegistry(runtime, 'macos', undefined, 500)
   const contributions: CommandMenuContribution[] = []
   const ctx = {
     shortcuts: registry,
@@ -55,7 +57,12 @@ function Screen({ registries, acts, arrows, item }: {
 }) {
   useKeyActs(registries, acts, arrows === undefined ? {} : { arrows })
   useCommandItem(registries, item ?? null)
-  return <div data-shortcut-scope="records" tabIndex={-1} data-testid="scope"><textarea aria-label="reason" /></div>
+  return (
+    <div data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1} data-testid="scope">
+      <textarea aria-label="reason" />
+      <div contentEditable="plaintext-only" suppressContentEditableWarning tabIndex={-1} data-testid="note">note</div>
+    </div>
+  )
 }
 
 describe('the key layer of the Matters panel', () => {
@@ -69,6 +76,7 @@ describe('the key layer of the Matters panel', () => {
     expect(rows.find(row => row.id === 'records.part.accept')?.scope?.label).toBe('Matters')
     const fixed = registry.fixedCatalog.getSnapshot().filter(row => row.id.startsWith('records.'))
     expect(fixed.map(row => row.id)).toEqual(['records.row.open', 'records.list.nextArrow', 'records.list.previousArrow'])
+    expect(parseShortcutDefinitions(registry.definitions())).toHaveLength(registry.definitions().length)
   })
 
   it('runs the handler of the latest mounted screen, only while focus is in the panel and not in a text field', () => {
@@ -89,7 +97,7 @@ describe('the key layer of the Matters panel', () => {
     expect(second).toHaveBeenCalledTimes(1)
     view.unmount()
     const outside = document.createElement('div')
-    outside.dataset.shortcutScope = 'records'
+    outside.dataset.shortcutScope = RECORDS_SCOPE
     outside.tabIndex = -1
     document.body.append(outside)
     outside.focus()
@@ -110,6 +118,20 @@ describe('the key layer of the Matters panel', () => {
     const scope = view.getByTestId('scope')
     scope.focus()
     press(scope, 'Enter', { key: 'Enter', metaKey: true, shiftKey: true })
+    expect(record).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['web', 'desktop'] as const)('passes ⇧⌘↵ on while focus is in a text field or an editable element (%s)', (runtime) => {
+    const registries = layer(runtime)
+    const record = vi.fn()
+    const view = render(<Screen registries={registries} acts={{ record }} />)
+    for (const field of [view.getByLabelText('reason'), view.getByTestId('note')]) {
+      field.focus()
+      press(field, 'Enter', { key: 'Enter', metaKey: true, shiftKey: true })
+    }
+    expect(record).not.toHaveBeenCalled()
+    view.getByTestId('scope').focus()
+    press(view.getByTestId('scope'), 'Enter', { key: 'Enter', metaKey: true, shiftKey: true })
     expect(record).toHaveBeenCalledTimes(1)
   })
 
@@ -160,6 +182,31 @@ describe('the key layer of the Matters panel', () => {
     press(scope, 'KeyG')
     press(scope, 'KeyM')
     expect(goMatter).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes G on when no continuation has a handler, and in a region whose keys belong to another view', () => {
+    const registries = layer()
+    const goMatter = vi.fn()
+    const keyG = (target: HTMLElement) => {
+      const event = new KeyboardEvent('keydown', { code: 'KeyG', key: 'g', bubbles: true, cancelable: true })
+      target.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    const view = render(<Screen registries={registries} acts={{}} />)
+    const scope = view.getByTestId('scope')
+    scope.focus()
+    expect(keyG(scope)).toBe(false)
+    view.rerender(<Screen registries={registries} acts={{ goMatter }} />)
+    const region = document.createElement('div')
+    region.setAttribute(KEYS_ELSEWHERE, '')
+    region.tabIndex = -1
+    scope.append(region)
+    region.focus()
+    expect(keyG(region)).toBe(false)
+    press(region, 'KeyM')
+    expect(goMatter).not.toHaveBeenCalled()
+    scope.focus()
+    expect(keyG(scope)).toBe(true)
   })
 
   it('gives ⌘K the open item of the latest screen that has one', () => {

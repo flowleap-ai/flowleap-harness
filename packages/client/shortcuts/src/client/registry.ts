@@ -1,6 +1,6 @@
 /** Command registration, normalized default bindings, and synchronous dispatch. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { bindingIssue, bindingKey, effectiveScopedShortcuts, effectiveShortcuts, initialShortcutConfig, isWebBindingAllowed, layerBindingIssue, normalizeBinding, overlappingBindings, presentBinding, resolveShortcutDefault } from '../protocol.ts'
+import { bindingIssue, bindingKey, effectiveScopedShortcuts, effectiveShortcuts, initialShortcutConfig, isShortcutId, isWebBindingAllowed, layerBindingIssue, normalizeBinding, overlappingBindings, presentBinding, resolveShortcutDefault } from '../protocol.ts'
 import type { NormalizedBinding, ShortcutCommandId, ShortcutConfigSnapshot, ShortcutDefinition, ShortcutPlatform, ShortcutRuntime, ShortcutScopeId } from '../protocol.ts'
 import { Config } from '../config.ts'
 import type { ShortcutCatalogEntry, ShortcutCommand, ShortcutContext, ShortcutGesture, ShortcutLayerContext,
@@ -27,10 +27,13 @@ interface PendingSequence {
   readonly timer: ReturnType<typeof setTimeout>
 }
 
+/** Text entry: form fields and an element with any `contenteditable` value except `false`, `plaintext-only` included. */
+export const editableTargets = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
 /** Focus targets where the layer never acts: text entry, terminals, and menus. */
-const layerExcluded = 'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"], .xterm, [role="menu"], [role="menubar"]'
+const layerExcluded = `${editableTargets}, [role="textbox"], .xterm, [role="menu"], [role="menubar"]`
 /** Controls that keep their native Space and Enter activation. */
-const activationTargets = 'button, a[href], summary, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]'
+const activationTargets = ['button', 'a[href]', 'summary', ...['button', 'link', 'checkbox', 'radio', 'switch', 'tab', 'menuitem',
+  'menuitemcheckbox', 'menuitemradio', 'option', 'combobox', 'treeitem', 'gridcell'].map(role => `[role="${role}"]`)].join(', ')
 
 /**
  * The normalized default binding of a command on each runtime and platform that has one.
@@ -114,11 +117,12 @@ export class ShortcutRegistry {
   }
 
   /**
-   * Declare a view scope for layer commands.
+   * Declare a view scope for layer commands; an id that is not dotted, such as `records`, or a duplicate id throws.
    * @param scope - id, localized label, and optional predicate.
    * @returns idempotent disposer.
    */
   registerScope(scope: ShortcutScope): () => void {
+    if (!isShortcutId(scope.id)) throw new Error(`Invalid shortcut scope id: ${scope.id}`)
     if (this.scopes.has(scope.id)) throw new Error(`Duplicate shortcut scope: ${scope.id}`)
     return this.add(this.scopes, scope)
   }
@@ -355,7 +359,9 @@ export class ShortcutRegistry {
       const result = entry === undefined ? null : run(entry, scope, element)
       if (result !== null) return result
       const prefix = `${gesture.code}>`
-      if (modifiers.length === 0 && !gesture.repeat && [...keys?.keys() ?? []].some(key => key.startsWith(prefix))) {
+      // A sequence starts only when a continuation would act now, so a first key with no act goes on to the page.
+      if (modifiers.length === 0 && !gesture.repeat
+        && [...keys ?? []].some(([key, next]) => key.startsWith(prefix) && next.resolve({ scope, element, target }).status !== 'pass')) {
         consume()
         this.pending = { scope, element, code: gesture.code, timer: setTimeout(() => { this.pending = null }, this.sequenceMs) }
         return { status: 'pending' }

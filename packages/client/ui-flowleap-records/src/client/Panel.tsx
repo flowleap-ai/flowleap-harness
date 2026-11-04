@@ -18,7 +18,7 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { Act, DocumentId, Me } from './api.ts'
-import type { CommandItemRegistry, KeyActRegistry } from './key-layer.ts'
+import { RECORDS_SCOPE, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
 import type { NS } from './locales.ts'
@@ -131,7 +131,7 @@ export function RecordsPanel(props: PanelProps) {
   const detail = detailBar(screen, ctx)
   const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
-    <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope="records" tabIndex={-1}>
+    <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1}>
       <header className={css.topbar}>
         {detail === null ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}

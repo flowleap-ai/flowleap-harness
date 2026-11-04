@@ -38,6 +38,16 @@ const commandPattern = /^[a-z][a-zA-Z0-9-]*(?:\.[a-zA-Z][a-zA-Z0-9-]*)+$/u
 const bindingFields = new Set(['code', 'secondCode', 'thenCode', 'modifiers'])
 
 /**
+ * Whether an id is valid as a command or scope id: two or more dotted segments, such as `records.view`. Desktop
+ * storage refuses a catalog that holds another id, so the registry refuses it at registration.
+ * @param id - the command or scope id.
+ * @returns true for a valid id.
+ */
+export function isShortcutId(id: string): boolean {
+  return commandPattern.test(id)
+}
+
+/**
  * Validate JSON binding fields before normalization; unknown fields are rejected to prevent lossy rewrites.
  * @param value - file or IPC input.
  * @returns a binding with a supported physical code, or null for explicit removal.

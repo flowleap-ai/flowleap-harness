@@ -1,5 +1,5 @@
 /**
- * The keys and the ⌘K item of the Matters panel. One registration of the scope `records` and of every command of
+ * The keys and the ⌘K item of the Matters panel. One registration of the scope `records.panel` and of every command of
  * `.agents/skills/flowleap-design-language/keys.md` serves all screens: each command runs the handler of the latest
  * mounted screen that provides one, and passes the key on when no screen does. A screen provides its handlers with
  * `useKeyActs` and its open item for ⌘K with `useCommandItem`; it registers no command itself, so two screens never
@@ -15,8 +15,8 @@ import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client
 import { commandId, type CommandName } from './keys.ts'
 import type { FlowleapRecordsKey } from './locales.ts'
 
-/** The scope of the panel root (`data-shortcut-scope="records"`). */
-export const RECORDS_SCOPE = 'records' as ShortcutScopeId
+/** The scope of the panel root (`data-shortcut-scope="records.panel"`); a scope id is dotted, as a command id is. */
+export const RECORDS_SCOPE = 'records.panel' as ShortcutScopeId
 
 /** The handler of each act that a screen runs now. */
 export type KeyActs = Partial<Record<CommandName, () => void>>
@@ -185,7 +185,7 @@ function resolution(target: Element | null, run: (() => void) | undefined): Shor
 }
 
 /**
- * Register the scope `records`, every act of keys.md and the ⌘K contribution, each as an effect of `ctx`.
+ * Register the scope `records.panel`, every act of keys.md and the ⌘K contribution, each as an effect of `ctx`.
  * @param ctx - the client context with `shortcuts` and `commandMenu`.
  * @param acts - the handlers of the mounted screens.
  * @param items - the open items of the mounted screens.
@@ -211,7 +211,8 @@ export function registerKeyLayer(ctx: ClientContext, acts: KeyActRegistry, items
   }
   ctx.effect(() => ctx.shortcuts.register({
     id: commandId('record'), label: () => t('keys.record'), aliases: [], defaults: RECORD_DEFAULTS, regions: ['page'], modals: [],
-    resolve: ({ target }) => (target?.closest(`[data-shortcut-scope="${RECORDS_SCOPE}"]`) ?? null) === null
+    // Desktop on macOS and Windows dispatches this key in every region, so the resolver passes a key typed in a field.
+    resolve: ({ target, region }) => region !== 'page' || (target?.closest(`[data-shortcut-scope="${RECORDS_SCOPE}"]`) ?? null) === null
       ? { status: 'pass' }
       : resolution(target, acts.handler('record')),
   }), 'ui-flowleap-records: key record')
