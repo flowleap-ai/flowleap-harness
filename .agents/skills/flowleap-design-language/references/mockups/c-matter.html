@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matter</title>
+<link rel="stylesheet" href="records.css">
+<style>
+  .dl .row, .dl .thead { grid-template-columns: 16px 124px 100px minmax(0, 1fr) 196px 92px; }
+  .wk .row, .wk .thead { grid-template-columns: 16px minmax(0, 1fr) 150px 132px 56px; }
+  .oe .row, .oe .thead { grid-template-columns: 16px minmax(0, 1fr) 112px 112px 150px; }
+  .docs .row { grid-template-columns: 16px minmax(0, 1fr) 150px 56px; }
+  .due { font-weight: var(--w-medium); font-variant-numeric: tabular-nums; }
+  .left-wait { color: var(--st-wait); font-variant-numeric: tabular-nums; }
+  .content.wide { max-width: 1040px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters"></nav>
+  <main class="main">
+    <section class="panel">
+      <header class="topbar">
+        <div class="crumbs">
+          <span data-i="matters" class="iconbtn" style="width:auto;height:auto"></span><span>Matters</span><span class="sep">›</span>
+          <span class="key">FL-2026-0001</span><span class="here">Pressure sensor housing</span>
+        </div>
+        <div class="bar-right">
+          <span class="iconbtn" data-i="star"></span><span class="iconbtn" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
+        </div>
+      </header>
+
+      <div class="detail">
+        <div class="content wide">
+          <div class="eyebrow"><span class="num">FL-2026-0001</span><span>·</span><span>Demo Client GmbH</span></div>
+          <h1 class="title">Pressure sensor housing</h1>
+          <div class="facts">
+            <span class="fact"><span class="st" data-s="wait"></span><b>1</b> deadline waits for a second person</span>
+            <span class="fact"><span class="st" data-s="wait"></span><b>1</b> work item waits for attorney.a</span>
+          </div>
+
+          <div class="section">
+            <div class="section-h"><h2>Deadlines</h2><span class="count">1</span>
+
+            </div>
+            <div class="tbl dl">
+              <div class="thead"><span></span><span>Due</span><span></span><span>Rule</span><span>State</span><span>Proposed by</span></div>
+              <div class="row is-selected">
+                <span class="st" data-s="wait"></span>
+                <span class="due">Mon, 1 Mar 2027</span>
+                <span class="left-wait" data-due="2027-03-01"></span>
+                <span class="m" style="color:var(--text-1)">Rule 71(3) EPC: intention to grant</span>
+                <span class="status">Proposed</span>
+                <span class="who"><span class="av sys" data-i="engine"></span>FlowLeap</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-h"><h2>Work</h2><span class="count">1</span></div>
+            <div class="tbl wk">
+              <div class="thead"><span></span><span>Work</span><span>State</span><span>For</span><span style="text-align:right">Opened</span></div>
+              <div class="row two">
+                <span class="st" data-s="wait"></span>
+                <div style="min-width:0"><div class="t">Rule 71(3) communication of 30 Oct 2026</div><div class="s">Client report and deadline check</div></div>
+                <span class="status">Proposals ready</span>
+                <span class="who"><span class="av a">A</span>attorney.a</span>
+                <span class="r">14:17</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-h"><h2>Office events</h2><span class="count">1</span>
+              <div class="right"><span class="btn btn-secondary" data-i="plus">Record office event <span class="kbd">E</span></span></div>
+            </div>
+            <div class="tbl oe">
+              <div class="thead"><span></span><span>Communication</span><span>Document date</span><span>Received</span><span>Read by</span></div>
+              <div class="row two">
+                <span class="st" data-s="ok"></span>
+                <div style="min-width:0"><div class="t">Rule 71(3) communication</div><div class="s">Intention to grant</div></div>
+                <span class="num">30 Oct 2026</span>
+                <span class="muted">Not recorded</span>
+                <span class="status"><span data-i="check" style="color:var(--st-ok);display:inline-grid"></span>Both readings agree</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-h"><h2>Documents</h2><span class="count">1</span></div>
+            <div class="tbl docs">
+              <div class="row">
+                <span data-i="doc" style="color:var(--text-3);display:inline-grid"></span>
+                <span>Rule 71(3) communication <span class="muted">· r71-3-FL-2026-0001.pdf · 1 page</span></span>
+                <span class="who"><span class="av b">B</span>filed by attorney.b</span>
+                <span class="r">14:16</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="activity">
+            <h2>Activity</h2>
+            <div class="ev person"><span class="ico"><span class="av b">B</span></span><div class="txt"><b>attorney.b</b> filed the EPO letter of 30 Oct 2026 on this matter<span class="t">14:16</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> read the letter twice; both readings agree on Rule 71(3) EPC, 30 Oct 2026<span class="t">14:17</span></div></div>
+            <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>FlowLeap</b> proposed the deadline Mon, 1 Mar 2027<span class="t">14:17</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="split"></span></span><div class="txt"><b>FlowLeap</b> opened the work and routed it to <b>attorney.a</b><span class="t">14:17</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="bot"></span></span><div class="txt"><b>Patent agent</b> proposed the client report on the firm template<span class="t">14:17</span></div></div>
+            <div class="ev"><span class="ico"><span class="st" data-s="ok"></span></span><div class="txt"><b>AI mailbox</b> sent the reply to attorney.b and attorney.a<span class="t">14:18</span></div></div>
+          </div>
+          <details class="audit"><summary><span data-i="chev"></span>Audit</summary></details>
+        </div>
+
+        <aside class="props">
+          <h3>Matter</h3>
+          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="run"></span>Open</span></div>
+          <div class="prop"><span class="k">Client</span><span class="v">Demo Client GmbH</span></div>
+          <div class="prop"><span class="k">Responsible</span><span class="v"><span class="av a">A</span>attorney.a</span></div>
+          <div class="prop"><span class="k">Team</span><span class="v"><span class="av a">A</span><span class="av b" style="margin-left:-8px;box-shadow:0 0 0 2px var(--bg-main)">B</span>2 people</span></div>
+          <div class="prop"><span class="k">Application</span><span class="v num">EP 24 123 456.7</span></div>
+          <h3>Next deadline</h3>
+          <div class="prop"><span class="k">Due</span><span class="v num">Mon, 1 Mar 2027</span></div>
+          <div class="prop"><span class="k">State</span><span class="v"><span class="st" data-s="wait"></span>Proposed</span></div>
+          <h3>Client rules</h3>
+          <div class="prop"><span class="k">AI use</span><span class="v"><span class="st" data-s="ok"></span>Allowed</span></div>
+          <div class="prop"><span class="k">AI letters</span><span class="v"><span class="st" data-s="ok"></span>Allowed</span></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>

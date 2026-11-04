@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intake list</title>
+<link rel="stylesheet" href="records.css">
+<style>
+  .intake .row, .intake .thead { grid-template-columns: 16px minmax(0, 1fr) 248px 150px 128px 116px 52px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters"></nav>
+  <main class="main">
+    <section class="panel">
+      <header class="topbar">
+        <div class="tabs" style="margin-left:0">
+          <span class="tab" data-i="matters">Matters</span>
+          <span class="tab is-on" data-i="inbox">Intake <span class="count">1</span></span>
+        </div>
+        <div class="bar-right">
+          <span class="btn btn-ghost" data-i="search">Search <span class="kbd">⌘K</span></span>
+          <span class="iconbtn boxed" data-i="filter"></span>
+          <span class="iconbtn boxed" data-i="display"></span>
+        </div>
+      </header>
+
+      <div class="viewbar">
+        <span class="chip solid"><span class="st" data-s="wait"></span>Waits for a person <span class="muted num">1</span></span>
+        <span class="chip"><span class="st" data-s="ok"></span>Filed today <span class="muted num">0</span></span>
+        <span class="chip"><span class="st" data-s="idle"></span>Not relevant <span class="muted num">0</span></span>
+        <span class="spacer"></span>
+        <span class="muted" style="font-size:12px">Oldest first</span>
+      </div>
+
+      <!-- default and command menu -->
+      <div class="list intake" data-state="default cmdk">
+        <div class="thead"><span></span><span>Letter</span><span>Proposed matter</span><span>What you decide</span><span>Forwarded by</span><span>Decides</span><span style="text-align:right">Received</span></div>
+        <div class="group"><span class="st" data-s="wait"></span>Match proposed <span class="count">1</span>
+          <span class="hint"><span class="kbd">1</span> Accept and file <span class="kbd">M</span> Other matter <span class="kbd">2</span> Not relevant</span>
+        </div>
+        <div class="row two is-selected">
+          <span class="st" data-s="wait" title="Waits for a person"></span>
+          <div style="min-width:0">
+            <div class="t">Rule 71(3) communication</div>
+            <div class="s">EPO · r71-3-FL-2026-0001.pdf · 1 page</div>
+          </div>
+          <div style="min-width:0">
+            <div class="t"><span class="muted num" style="font-weight:400">FL-2026-0001</span>&nbsp; Pressure sensor housing</div>
+            <div class="s">Demo Client GmbH · file number on page 1</div>
+          </div>
+          <span class="status">Confirm the matter</span>
+          <span class="who"><span class="av b">B</span>attorney.b</span>
+          <span class="who"><span class="stack"><span class="av a">A</span><span class="av b pres on">B</span></span><span class="muted">Formalities</span></span>
+          <span class="r">14:16</span>
+        </div>
+      </div>
+
+      <!-- loading -->
+      <div class="list intake" data-state="loading">
+        <div class="thead"><span></span><span>Letter</span><span>Proposed matter</span><span>What you decide</span><span>Forwarded by</span><span>Decides</span><span style="text-align:right">Received</span></div>
+        <div class="row two"><span class="skel" style="width:14px;height:14px;border-radius:50%"></span><div><div class="skel" style="width:58%"></div><div class="skel" style="width:40%;margin-top:8px;height:6px"></div></div><div><div class="skel" style="width:70%"></div><div class="skel" style="width:46%;margin-top:8px;height:6px"></div></div><div class="skel" style="width:70%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:70%;justify-self:end"></div></div>
+        <div class="row two"><span class="skel" style="width:14px;height:14px;border-radius:50%"></span><div><div class="skel" style="width:44%"></div><div class="skel" style="width:52%;margin-top:8px;height:6px"></div></div><div><div class="skel" style="width:62%"></div><div class="skel" style="width:38%;margin-top:8px;height:6px"></div></div><div class="skel" style="width:58%"></div><div class="skel" style="width:52%"></div><div class="skel" style="width:70%;justify-self:end"></div></div>
+        <div class="row two"><span class="skel" style="width:14px;height:14px;border-radius:50%"></span><div><div class="skel" style="width:50%"></div><div class="skel" style="width:34%;margin-top:8px;height:6px"></div></div><div><div class="skel" style="width:66%"></div><div class="skel" style="width:42%;margin-top:8px;height:6px"></div></div><div class="skel" style="width:64%"></div><div class="skel" style="width:56%"></div><div class="skel" style="width:70%;justify-self:end"></div></div>
+      </div>
+
+      <!-- error: keep what we had, say what failed, offer the next step -->
+      <div data-state="error" style="padding:12px 16px 0">
+        <div class="notice bad"><span data-i="warn"></span><div><span style="color:var(--text-1)">FlowLeap could not load new letters.</span> The list shows the letters as of 14:16. New letters stay safe in the AI mailbox.</div><span class="spacer"></span><span class="btn btn-secondary" data-i="retry">Try again <span class="kbd">R</span></span></div>
+      </div>
+      <div class="list intake" data-state="error">
+        <div class="thead"><span></span><span>Letter</span><span>Proposed matter</span><span>What you decide</span><span>Forwarded by</span><span>Decides</span><span style="text-align:right">Received</span></div>
+        <div class="row two">
+          <span class="st" data-s="wait"></span>
+          <div style="min-width:0"><div class="t">Rule 71(3) communication</div><div class="s">EPO · r71-3-FL-2026-0001.pdf · 1 page</div></div>
+          <div style="min-width:0"><div class="t"><span class="muted num" style="font-weight:400">FL-2026-0001</span>&nbsp; Pressure sensor housing</div><div class="s">Demo Client GmbH · file number on page 1</div></div>
+          <span class="status">Confirm the matter</span>
+          <span class="who"><span class="av b">B</span>attorney.b</span>
+          <span class="who"><span class="stack"><span class="av a">A</span><span class="av b pres on">B</span></span><span class="muted">Formalities</span></span>
+          <span class="r">14:16</span>
+        </div>
+      </div>
+
+      <!-- empty -->
+      <div class="empty" data-state="empty">
+        <div class="empty-in">
+          <div class="empty-art" data-i="inbox"></div>
+          <h2>Nothing waits for you</h2>
+          <p>Forward an office letter to ai-mailbox@firm.test. It appears here when it needs a person, and files itself when it does not.</p>
+          <span class="btn btn-secondary" data-i="check">Show filed today <span class="kbd">F</span></span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- command menu -->
+<div class="scrim" data-state="cmdk">
+  <div class="cmdk">
+    <span class="cmdk-ctx"><span class="st" data-s="wait"></span>Rule 71(3) communication</span>
+    <div class="cmdk-in">acc<span class="caret"></span></div>
+    <div class="cmdk-g">
+      <div class="gh">Letter</div>
+      <div class="cmdk-i on" data-i="check">Accept and file on FL-2026-0001<span class="kbds"><span class="kbd">1</span></span></div>
+      <div class="cmdk-i" data-i="matters">File on another matter…<span class="kbds"><span class="kbd">M</span></span></div>
+      <div class="cmdk-i" data-i="x">Not relevant…<span class="kbds"><span class="kbd">2</span></span></div>
+      <div class="gh">Go to</div>
+      <div class="cmdk-i" data-i="matters">Matter FL-2026-0001 Pressure sensor housing<span class="kbds"><span class="kbd">G</span><span class="kbd">M</span></span></div>
+      <div class="cmdk-i" data-i="inbox">Intake<span class="kbds"><span class="kbd">G</span><span class="kbd">I</span></span></div>
+    </div>
+  </div>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>

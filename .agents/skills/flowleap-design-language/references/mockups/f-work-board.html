@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work board</title>
+<link rel="stylesheet" href="records.css">
+<style>
+  .board { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 200px; gap: 12px; padding: 12px 16px 16px; align-items: start; }
+  .col { border-radius: var(--r-md); background: var(--bg-sunken); border: 1px solid transparent; min-height: 520px; padding: 4px 6px 8px; position: relative; }
+  .col-h { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 6px; font-weight: var(--w-medium); }
+  .col-h .count { color: var(--text-3); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
+  .col-h .who { margin-left: auto; color: var(--text-3); font-weight: var(--w-regular); font-size: var(--fs-12); }
+  .col.no { background: transparent; border: 1px dashed var(--line-strong); }
+  .col.no > .col-h { opacity: 0.5; } /* inactive target: the reason below stays at full contrast */
+  .col .nohint { margin: 8px 6px; color: var(--text-3); font-size: var(--fs-12); display: flex; gap: 6px; align-items: center; }
+  .col.drop { border: 1px dashed var(--accent-line); background: var(--accent-tint); }
+  .drop-hint { margin: 6px; height: 132px; border-radius: var(--r-md); border: 1px dashed var(--accent-line); display: grid; place-items: center; text-align: center; color: var(--text-2); padding: 12px; }
+  .drop-hint b { display: block; font-weight: var(--w-medium); margin-bottom: 4px; color: var(--text-1); }
+  .card { background: var(--bg-main); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 10px 12px; box-shadow: var(--shadow-1); margin: 6px 0 0; }
+  .card .top { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .card .top .stack { margin-left: auto; }
+  .card .ttl { margin-top: 6px; font-weight: var(--w-medium); color: var(--text-1); }
+  .card .sub { color: var(--text-3); font-size: var(--fs-12); margin-top: 2px; }
+  .card .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .card .chips .fact { height: 22px; }
+  .card.ghost { opacity: 0.35; border-style: dashed; box-shadow: none; }
+  .card.lifted { position: absolute; width: calc(100% - 24px); left: 30px; top: 200px; transform: rotate(-1.5deg); box-shadow: var(--shadow-5); border-color: var(--accent-line); z-index: 4; }
+  .other { border-radius: var(--r-md); border: 1px solid var(--line); padding: 4px 6px 8px; }
+  .other .row { min-height: 30px; padding: 0 6px; border: 0; grid-template-columns: 14px minmax(0, 1fr) auto; color: var(--text-2); }
+  .other .row .r { color: var(--text-3); }
+  .viewtoggle { display: inline-flex; padding: 2px; border-radius: var(--r-sm); border: 1px solid var(--line); gap: 2px; }
+  .viewtoggle span { height: 22px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-xs); color: var(--text-3); }
+  .viewtoggle span.on { background: var(--bg-selected); color: var(--text-1); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters"></nav>
+  <main class="main">
+    <section class="panel">
+      <header class="topbar">
+        <div class="tabs" style="margin-left:0">
+          <span class="tab" data-i="matters">Matters</span>
+          <span class="tab" data-i="inbox">Intake <span class="count">0</span></span>
+          <span class="tab is-on" data-i="review">Work <span class="count">1</span></span>
+        </div>
+        <div class="bar-right">
+          <span class="viewtoggle"><span data-i="chats">List</span><span class="on" data-i="display">Board</span></span>
+          <span class="btn btn-ghost" data-i="search">Search <span class="kbd">⌘K</span></span>
+          <span class="iconbtn boxed" data-i="filter"></span>
+        </div>
+      </header>
+      <div class="viewbar">
+        <span class="chip solid"><span class="av a" style="width:14px;height:14px;font-size:8px">A</span>For: me</span>
+        <span class="chip">Matter: any</span>
+        <span class="chip">Office: EPO</span>
+        <span class="spacer"></span>
+        <span class="muted" style="font-size:12px">A move that is a decision opens the decision panel. Other moves are not allowed.</span>
+      </div>
+
+      <div class="board">
+        <div class="col no">
+          <div class="col-h"><span class="st" data-s="idle"></span>Routed <span class="count">0</span><span class="who">FlowLeap</span></div>
+          <div class="nohint" data-i="x">Not an allowed move</div>
+        </div>
+        <div class="col no">
+          <div class="col-h"><span class="st" data-s="run"></span>Running <span class="count">0</span><span class="who">Agent</span></div>
+          <div class="nohint" data-i="x">Only FlowLeap starts the agent</div>
+        </div>
+        <div class="col">
+          <div class="col-h"><span class="st" data-s="wait"></span>Proposals ready <span class="count">1</span><span class="who">You</span></div>
+          <div class="card ghost">
+            <div class="top"><span class="st" data-s="wait"></span>FL-2026-0001</div>
+            <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
+            <div class="sub">Pressure sensor housing</div>
+            <div class="chips"><span class="fact"><span class="st" data-s="ok"></span><span class="num">1 Mar 2027</span></span><span class="fact"><span class="st" data-s="wait"></span>Report</span></div>
+          </div>
+        </div>
+        <div class="col drop">
+          <div class="col-h"><span class="st" data-s="ok"></span>Decided <span class="count">0</span><span class="who">You</span></div>
+          <div class="drop-hint"><div><b>Drop to decide</b>This opens your decision with the report, its evidence and the deadline check. Nothing moves until you record it.</div></div>
+          <div class="card lifted">
+            <div class="top"><span class="st" data-s="wait"></span>FL-2026-0001<span class="stack"><span class="av a">A</span><span class="av b pres on">B</span></span></div>
+            <div class="ttl">Rule 71(3) communication of 30 Oct 2026</div>
+            <div class="sub">Pressure sensor housing</div>
+            <div class="chips"><span class="fact"><span class="st" data-s="ok"></span><span class="num">1 Mar 2027</span> · <span data-due="2027-03-01" data-due-form="short"></span></span><span class="fact"><span class="st" data-s="wait"></span>Report</span><span class="fact"><span class="st" data-s="ok"></span>Reply sent</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="other">
+            <div class="col-h" style="font-size:12px;color:var(--text-3);font-weight:400">Other states</div>
+            <div class="row"><span class="st" data-s="idle"></span><span>No person</span><span class="r num">0</span></div>
+            <div class="row"><span class="st" data-s="idle"></span><span>Observed</span><span class="r num">0</span></div>
+            <div class="row"><span class="st" data-s="idle"></span><span>By hand</span><span class="r num">0</span></div>
+            <div class="row"><span class="st" data-s="bad"></span><span>Run failed</span><span class="r num">0</span></div>
+            <div class="row"><span class="st" data-s="idle"></span><span>Cancelled</span><span class="r num">0</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>

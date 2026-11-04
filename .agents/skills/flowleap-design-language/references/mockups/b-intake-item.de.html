@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eingangsschreiben</title>
+<link rel="stylesheet" href="records.css">
+<style>
+  .match { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; }
+  .cand { border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 14px 16px; background: var(--bg-main); }
+  .cand .key { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .cand .name { font-size: var(--fs-16); font-weight: var(--w-medium); letter-spacing: var(--track-title); margin-top: 2px; }
+  .cand .meta { color: var(--text-3); margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .why { margin-top: 14px; display: grid; gap: 10px; }
+  .why-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-2); }
+  .why-row svg { width: 14px; height: 14px; margin-top: 2px; color: var(--st-ok); }
+  .alt { margin-top: 12px; display: flex; gap: 8px; align-items: center; color: var(--text-3); font-size: var(--fs-12); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters"></nav>
+  <main class="main">
+    <section class="panel">
+      <header class="topbar">
+        <div class="crumbs">
+          <span data-i="inbox" class="iconbtn" style="width:auto;height:auto"></span><span>Eingang</span><span class="sep">›</span>
+          <span class="st" data-s="wait"></span><span class="here">Mitteilung nach Regel 71(3)</span>
+        </div>
+        <div class="bar-right">
+          <span class="pager"><b>1</b>&nbsp;/ 1</span>
+          <span class="iconbtn boxed" data-i="up"></span><span class="iconbtn boxed" data-i="down"></span>
+          <span style="width:8px"></span>
+          <span class="iconbtn" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
+        </div>
+      </header>
+
+      <div class="detail">
+        <div class="content narrow">
+          <div class="eyebrow"><span class="pill wait"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span>Wartet seit 14:16 auf eine Person</span></div>
+          <h1 class="title">Mitteilung nach Regel 71(3)</h1>
+          <p class="lede">attorney.b hat dieses Schreiben an das KI-Postfach weitergeleitet. Das Aktenzeichen auf Seite 1 nennt eine Akte.</p>
+
+          <div class="decision">
+            <div class="decision-h">
+              <span class="av b av-lg">B</span><span class="lbl">Ihre Entscheidung</span><span class="muted">Zu welcher Akte gehört dieses Schreiben?</span>
+              <span class="why" data-i="info">Die Ablage trägt Ihren Namen in die Akte ein</span>
+            </div>
+            <div class="decision-b">
+              <div class="match">
+                <div>
+                  <div class="letter">
+                    <div class="hd"><div><div class="logo"></div><div style="margin-top:6px;opacity:.7">European Patent Office</div></div><div class="form" style="text-align:right">EPO Form <span class="hl">2004C</span><br><span style="opacity:.7">Date</span> 30.10.2026</div></div>
+                    <div>Your reference <span class="hl">FL-2026-0001</span></div>
+                    <div>Application No. 24 123 456.7 - 1203</div>
+                    <div style="margin-top:10px;font-weight:600">Communication under Rule 71(3) EPC</div>
+                    <div style="margin-top:6px">You are informed that the examining division intends to grant a European patent on the basis of the above application.</div>
+                    <div style="margin-top:6px">Within a period of four months of notification of this communication, you are requested to pay the fee for grant and publishing and to file a translation of the claims.</div>
+                    <div class="ln" style="width:88%;margin-top:12px"></div><div class="ln" style="width:94%"></div><div class="ln" style="width:52%"></div>
+                  </div>
+                  <div class="paper-cap"><span>Seite 1 von 1</span><span>r71-3-FL-2026-0001.pdf</span></div>
+                </div>
+                <div>
+                  <div class="muted" style="font-size:12px;margin-bottom:6px">Vorgeschlagene Akte</div>
+                  <div class="cand">
+                    <div class="key">FL-2026-0001</div>
+                    <div class="name">Pressure sensor housing</div>
+                    <div class="meta">Demo Client GmbH <span>·</span> <span class="who"><span class="av a">A</span>attorney.a</span> <span>·</span> offen</div>
+                  </div>
+                  <div class="why">
+                    <div class="why-row"><span data-i="check"></span><div>Ihr Zeichen auf Seite 1 lautet <span class="quote">FL-2026-0001</span></div></div>
+                    <div class="why-row"><span data-i="check"></span><div>Genau eine Akte hat dieses Aktenzeichen. Kein anderer Schlüssel nennt eine zweite Akte.</div></div>
+                    <div class="why-row"><span data-i="check"></span><div>Das Schreiben kommt vom EPA: Die Formblattnummer <span class="quote">EPO Form 2004C</span> steht auf Seite 1.</div></div>
+                  </div>
+                  <div class="alt"><span data-i="info" style="width:14px;height:14px;display:inline-grid"></span>Ihre Kanzlei lässt jede Zuordnung von einer Person bestätigen, auch bei genauem Aktenzeichen.</div>
+                </div>
+              </div>
+            </div>
+            <div class="decision-f">
+              <span class="btn btn-ghost" data-i="x">Nicht relevant … <span class="kbd">2</span></span>
+              <div class="acts">
+                <span class="btn btn-secondary" data-i="matters">Andere Akte … <span class="kbd">M</span></span>
+                <span class="btn btn-primary btn-lg" data-i="check">Übernehmen und ablegen <span class="kbd">1</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="activity">
+            <h2>Verlauf</h2>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="mail"></span></span><div class="txt"><b>KI-Postfach</b> hat das Schreiben aus der Weiterleitung von <b>attorney.b</b> gespeichert<span class="t">14:16</span></div></div>
+            <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> hat das Schreiben als Mitteilung des EPA nach Regel 71(3) gelesen<span class="t">14:16</span></div></div>
+            <div class="ev"><span class="ico"><span class="st" data-s="wait"></span></span><div class="txt"><b>KI-Postfach</b> hat die Akte FL-2026-0001 nach dem Aktenzeichen vorgeschlagen<span class="t">14:16</span></div></div>
+          </div>
+          <details class="audit"><summary><span data-i="chev"></span>Prüfpfad</summary></details>
+        </div>
+
+        <aside class="props">
+          <h3>Schreiben</h3>
+          <div class="prop"><span class="k">Status</span><span class="v"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span></div>
+          <div class="prop"><span class="k">Art</span><span class="v">Amtsschreiben</span></div>
+          <div class="prop"><span class="k">Amt</span><span class="v">EPA</span></div>
+          <div class="prop"><span class="k">Typ</span><span class="v">Regel 71(3) EPÜ</span></div>
+          <div class="prop"><span class="k">Anmeldung</span><span class="v num">24 123 456.7</span></div>
+          <div class="prop"><span class="k">Dokument</span><span class="v"><span data-i="doc" style="display:inline-grid;width:14px;color:var(--text-3)"></span>1 Seite</span></div>
+          <h3>Weiterleitung</h3>
+          <div class="prop"><span class="k">Von</span><span class="v"><span class="av b">B</span>attorney.b</span></div>
+          <div class="prop"><span class="k">Eingang</span><span class="v num">Heute, 14:16</span></div>
+          <div class="prop"><span class="k">Betreff</span><span class="v">Fwd: EPO communication</span></div>
+          <h3>Vorgeschlagene Akte</h3>
+          <div class="prop"><span class="k">Akte</span><span class="v"><span class="muted num">FL-2026-0001</span></span></div>
+          <div class="prop"><span class="k">Mandant</span><span class="v">Demo Client GmbH</span></div>
+          <div class="prop"><span class="k">Zuständig</span><span class="v"><span class="av a">A</span>attorney.a</span></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>
