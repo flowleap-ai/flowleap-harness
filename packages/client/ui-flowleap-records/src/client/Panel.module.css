@@ -106,6 +106,14 @@
   content: '›';
 }
 
+.crumb:not(:last-child) {
+  flex: none;
+}
+
+.crumb:last-child {
+  overflow: hidden;
+}
+
 .crumbLink {
   padding: 0;
   border: 0;
@@ -170,9 +178,10 @@
     padding: 0 8px;
   }
 
+  /* At 390px the breadcrumb keeps the current page, as the mockups show. */
   .layoutToggle,
   .searchWide,
-  .narrowOnly .crumb:not(:last-child) {
+  .crumb:not(:last-child) {
     display: none;
   }
 
@@ -180,7 +189,7 @@
     display: inline-flex;
   }
 
-  .narrowOnly .crumb + .crumb::before {
+  .crumb + .crumb::before {
     content: none;
   }
 }

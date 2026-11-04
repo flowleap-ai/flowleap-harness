@@ -2,10 +2,7 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocumentId, FileNumber, IntakeDocument, OfficeEventId, RecordsApi } from '../src/client/api.ts'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { en } from '../src/client/locales.ts'
 import { shownOrder } from '../src/client/screens/IntakeScreen.tsx'
-import { deciderText } from '../src/client/screens/shared.tsx'
 import type { Route } from '../src/client/model.ts'
 import { createFixtureApi, fixtures, OUTSIDE_WALL, R71_DOCUMENT, RECEPTION, sha } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
@@ -82,8 +79,6 @@ describe('the intake list', () => {
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ open: null })
     expect(screen.queryByText('1 selected')).toBeNull()
-    expect(deciderText({ t: makeTranslate(en) } as never, { allowed: true })).toBeNull()
-    expect(deciderText({ t: makeTranslate(en) } as never, { allowed: false, reason: 'decided', decider: null })).toBe('Another person decides this.')
     press(panel, 'KeyK')
     expect(document.activeElement?.getAttribute('data-row')).toBe(order.at(-1))
     act(() => { panel.focus() })

@@ -49,7 +49,11 @@ export type Screen =
   | IntakeRoute & { readonly intake: Load<IntakeList>; readonly item: Load<IntakeDocument> | null }
   | MatterRoute & { readonly matter: Load<MatterDetail> }
   | DeadlineRoute & { readonly deadline: Load<DeadlineDetail> }
-  | WorkRoute & { readonly ticket: Load<TicketDetail> }
+  | WorkRoute & {
+    readonly ticket: Load<TicketDetail>
+    /** The board's work, for the "1 / N" of the work that waits for a decision. */
+    readonly queue: Load<TicketsList>
+  }
   | BoardRoute & { readonly tickets: Load<TicketsList> }
 
 /** The screen of one view. */
@@ -208,9 +212,11 @@ export function createRecordsModel(api: RecordsApi, initial: Route): RecordsMode
       }
       case 'work': {
         const ticket = caches.ticket.get(route.id, changed)
+        const queue = caches.tickets.get('all', changed)
         keep.ticket.add(route.id)
-        screen = { ...route, ticket: ticket.source.getSnapshot() }
-        loaders = [ticket]
+        keep.tickets.add('all')
+        screen = { ...route, ticket: ticket.source.getSnapshot(), queue: queue.source.getSnapshot() }
+        loaders = [ticket, queue]
         break
       }
       case 'board': {

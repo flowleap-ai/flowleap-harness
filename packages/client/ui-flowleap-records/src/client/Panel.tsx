@@ -16,7 +16,6 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { Act, DocumentId, Me } from './api.ts'
-import { formatDate } from './format.ts'
 import type { CommandItemRegistry, KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
@@ -25,13 +24,15 @@ import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab }
 import type { IntakeRowTarget } from './row-menu.ts'
 import type { ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
-import { DeadlineScreen, MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
+import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
+import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
 import { ActButton } from './parts/Act.tsx'
 import { BoardScreen } from './screens/BoardScreen.tsx'
 import { shownOrder } from './screens/IntakeScreen.tsx'
 import { actOf } from './screens/context.ts'
+import { formatDay } from './screens/detail.tsx'
 import { copyLink } from './screens/links.ts'
-import { WorkScreen } from './screens/WorkScreens.tsx'
+import { WorkScreen, workQueue, workTitle } from './screens/WorkScreens.tsx'
 import { letterTitle, type Translate } from './words.ts'
 import css from './Panel.module.css'
 
@@ -189,23 +190,19 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
       const index = rows.findIndex(row => row.document === screen.open)
       const current = rows[index]
       const title = current === undefined ? '' : letterTitle(t, current.code, current.status)
-      const previous = rows[index - 1]
-      const next = rows[index + 1]
-      const go = (row: (typeof rows)[number] | undefined) => row === undefined
-        ? undefined
-        : () => { ctx.navigate({ view: 'intake', list: screen.list, open: row.document }) }
       return (
         <>
           <Crumbs t={t} crumbs={[{ label: t('tab.intake'), route: { view: 'intake', list: screen.list, open: null } }, { label: title }]} navigate={ctx.navigate} />
           {index !== -1 && (
-            <div className={css.pager}>
-              <span className={css.pagerText} aria-label={t('pager.label', { index: index + 1, count: rows.length })}>{`${index + 1} / ${rows.length}`}</span>
-              <Button variant="outline" size="sm" aria-label={t('pager.previous')} disabled={previous === undefined} onClick={go(previous)}>
-                <IconChevronUpOutlineRegular size={16} />
-              </Button>
-              <Button variant="outline" size="sm" aria-label={t('pager.next')} disabled={next === undefined} onClick={go(next)}>
-                <IconChevronDownOutlineRegular size={16} />
-              </Button>
+            <Pager
+              t={t}
+              index={index}
+              count={rows.length}
+              go={(place) => {
+                const row = rows[place]
+                return row === undefined ? undefined : () => { ctx.navigate({ view: 'intake', list: screen.list, open: row.document }) }
+              }}
+            >
               <Button
                 variant="ghost"
                 size="sm"
@@ -214,7 +211,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
               >
                 <IconLinkOutlineRegular size={16} />
               </Button>
-            </div>
+            </Pager>
           )}
         </>
       )
@@ -230,7 +227,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
         : [
           matters,
           { label: data.matter.title, key: data.matter.fileNumber, route: { view: 'matter', fileNumber: data.matter.fileNumber } },
-          { label: t('crumb.deadline', { date: formatDate(data.deadline.due, ctx.locale) }) },
+          { label: t('crumb.deadline', { date: formatDay(data.deadline.due, ctx.locale) }) },
         ]
       return <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
     }
@@ -241,11 +238,59 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
         : [
           matters,
           { label: data.matter.fileNumber, route: { view: 'matter', fileNumber: data.matter.fileNumber } },
-          { label: letterTitle(t, data.letter?.code ?? null) },
+          { label: workTitle(ctx, data) },
         ]
-      return <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
+      const queue = workQueue(screen.queue, screen.id)
+      return (
+        <>
+          <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
+          {queue.index !== -1 && (
+            <Pager
+              t={t}
+              index={queue.index}
+              count={queue.rows.length}
+              go={(index) => {
+                const row = queue.rows[index]
+                return row === undefined ? undefined : () => { ctx.navigate({ view: 'work', id: row.id }) }
+              }}
+            />
+          )}
+        </>
+      )
     }
   }
+}
+
+/**
+ * Render the "1 / N" of a detail page with the up and down buttons.
+ * @param props.t - the translate function.
+ * @param props.index - the open item's place, from 0.
+ * @param props.count - the items.
+ * @param props.go - the act that opens the item at a place, or undefined when there is none.
+ * @param props.children - more buttons after the pager, such as Copy link.
+ * @returns the pager.
+ */
+function Pager({ t, index, count, go, children }: {
+  t: Translate
+  index: number
+  count: number
+  go: (index: number) => (() => void) | undefined
+  children?: ReactNode
+}) {
+  const previous = go(index - 1)
+  const next = go(index + 1)
+  return (
+    <div className={css.pager}>
+      <span className={css.pagerText} aria-label={t('pager.label', { index: index + 1, count })}>{`${index + 1} / ${count}`}</span>
+      <Button variant="outline" size="sm" aria-label={t('pager.previous')} disabled={previous === undefined} onClick={previous}>
+        <IconChevronUpOutlineRegular size={16} />
+      </Button>
+      <Button variant="outline" size="sm" aria-label={t('pager.next')} disabled={next === undefined} onClick={next}>
+        <IconChevronDownOutlineRegular size={16} />
+      </Button>
+      {children}
+    </div>
+  )
 }
 
 /**

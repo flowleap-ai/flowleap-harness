@@ -49,6 +49,8 @@ export interface DecisionLabels {
  * @param props.note - a one-line note before the acts; hidden at 390px.
  * @param props.negative - the negative act with its reason step.
  * @param props.secondary - the secondary acts; at 390px they move into the overflow menu.
+ * @param props.overflow - acts that show only in the overflow menu at 390px, because a wider screen shows them in
+ * the content or in a part.
  * @param props.primary - the one primary act; null when the decision is another person's.
  * @param props.blocked - why the primary act waits (missing evidence, R14): it takes the note's place with a warning
  * icon, and the primary act is disabled.
@@ -57,7 +59,7 @@ export interface DecisionLabels {
  * @returns the bar.
  */
 export function DecisionBar({
-  person, question, why, parts, note, negative, secondary = [], primary, blocked = null, decider = null, labels,
+  person, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, labels,
 }: {
   person: Person
   question: string
@@ -66,6 +68,7 @@ export function DecisionBar({
   note?: string | undefined
   negative?: ReasonAct | undefined
   secondary?: readonly ActSpec[]
+  overflow?: readonly ActSpec[]
   primary: ActSpec | null
   blocked?: string | null
   decider?: string | null
@@ -73,6 +76,7 @@ export function DecisionBar({
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const shownPrimary = decider === null ? primary : null
+  const menu = [...secondary, ...overflow]
   return (
     <section className={css.bar} aria-label={labels.yours}>
       <header className={css.head}>
@@ -95,16 +99,16 @@ export function DecisionBar({
             )}
             {decider === null && blocked === null && note !== undefined && <span className={css.note}>{note}</span>}
             <div className={css.acts}>
-              {secondary.length > 0 && (
+              {menu.length > 0 && (
                 <Menu
                   className={css.more}
                   open={moreOpen}
                   side="top"
                   align="end"
-                  items={secondary.map(act => ({ id: act.id, label: act.label, disabled: act.disabled === true }))}
+                  items={menu.map(act => ({ id: act.id, label: act.label, disabled: act.disabled === true }))}
                   onSelect={(id) => {
                     setMoreOpen(false)
-                    secondary.find(act => act.id === id)?.run()
+                    menu.find(act => act.id === id)?.run()
                   }}
                   onClose={() => { setMoreOpen(false) }}
                   anchor={(
