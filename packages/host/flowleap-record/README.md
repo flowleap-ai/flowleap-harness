@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (one matter's view at one record position, and the run commands of a Ticket), the http Provider `@deepseek-ai/dsh-flowleap-record/http`, and two Consumers: `record_read`, a read-only tool whose JSON result names `recordSeq` and `viewHash`, so the Session log holds the record position a model answer rests on; and the run tools of the `@deepseek-ai/dsh-flowleap-record/run` entry, `record_propose_report` and `record_finish_run`, with which a Ticket run proposes the client report letter and ends with its deadline summary.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (a matter's view at one record position, and the run commands of a Ticket), the http Provider `./http`, the read-only `record_read` tool, whose JSON result names `recordSeq` and `viewHash`, and the `./run` entry with `record_propose_report` and `record_finish_run` for a Ticket run.
 
 ## Table of Contents
 
@@ -183,23 +183,33 @@ The schema contributes fixed request-context tokens while the row is mounted. A 
 
 The declaration is stable while the row is mounted. Results append to history.
 
-### The run tool declarations
+### The `record_propose_report` declaration
 
 #### What the model sees
 
 `record_propose_report` description: "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. You do not send the letter, and nobody sends it before the attorney decides." Parameters: `ticket_id`, `file`, `template`, `rules_seq`, and `statements` (each `{ text, evidence: [{ document, span? }] }`), all required. The result is JSON text: `{ proposalId, document, recordSeq }`, or `{ error, message, detail? }`.
 
+#### Token effect
+
+The schema contributes fixed request-context tokens while the run row is mounted. A call grows with its statements; the result is a few hundred characters.
+
+#### KV Cache effect
+
+The declaration is stable while the run row is mounted. Results append to history.
+
+### The `record_finish_run` declaration
+
+#### What the model sees
+
 `record_finish_run` description: "End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then replies to the person who forwarded the letter; you send nothing." Parameters: `ticket_id`, `deadline_id`, `deadline_state`, and `record_seq`, all required. The result is JSON text: `{ recordSeq, outbox: { id, state } }`, or `{ error, message, detail? }`. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one Ticket run over a fixture provider.
 
 #### Token effect
 
-Both schemas contribute fixed request-context tokens while the run row is mounted. A report call grows with its statements; each result is a few hundred characters.
+The schema contributes fixed request-context tokens while the run row is mounted; the result is a few hundred characters.
 
 #### KV Cache effect
 
-The declarations are stable while the run row is mounted. Results append to history.
-
------
+The declaration is stable while the run row is mounted. Results append to history.
 
 ## Known Limitations and Deferred Work
 

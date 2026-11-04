@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-experimental-flowleap-ticket` is the runtime side of the Ticket wake of the R1 AI mailbox ([atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md)). The Work router of the Firm Record posts a signed Ticket delivery to one exact route of the runtime's WebServer. The plugin verifies `X-Flowleap-Signature`, parses the delivery, and dispatches it to `ctx.webhookRuntime`; its rule opens one run Session whose first message starts with the Mandate of the task type ("analyse and draft, never file, send or pay"), followed by the delivery as data. After the Session admitted its prompt, the rule records the delivery in a durable ledger and reports `POST tickets/<id>/run-started { session }` through `ctx.flowleapRecord`. A repeat of the same `X-Flowleap-Delivery` opens no second Session, also after a restart. Use it on an attorney's runtime that the Firm Record wakes for Ticket runs.
+`dsh-experimental-flowleap-ticket` is the runtime side of the Ticket wake of the R1 AI mailbox ([atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md)). The Work router of the Firm Record posts a signed Ticket delivery to one route of the runtime. The plugin verifies `X-Flowleap-Signature`, opens one run Session whose first message starts with the Mandate of the task type, and reports `run-started` with the Session id through `ctx.flowleapRecord`. A repeat of the same `X-Flowleap-Delivery` opens no second Session, also after a restart. Use it on an attorney's runtime that the Firm Record wakes for Ticket runs.
 
 ## Table of Contents
 
@@ -103,8 +103,6 @@ One user message of about 400 tokens plus the delivery JSON, which grows with th
 #### KV Cache effect
 
 The message starts a new Session, so it establishes that Session's request prefix.
-
------
 
 ## Known Limitations and Deferred Work
 

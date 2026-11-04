@@ -1279,6 +1279,39 @@ export type SourceSigning = 'ad-hoc' | {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-cua-macos -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-flowleap-ticket -->
+<a id="deepseek-aidsh-experimental-flowleap-ticket"></a>
+
+## `@deepseek-ai/dsh-experimental-flowleap-ticket`
+
+- `inject`: `webServer` · `webhookRuntime` · `credentials` · `flowleapRecord`
+- `source`: [`packages/experimental/flowleap-ticket/src/index.ts:33`](../packages/experimental/flowleap-ticket/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Adapter instance name carried to the rule. */
+  readonly source: string
+  /** Exact absolute route path; the Work router's `ticket.wake.path`. */
+  readonly path: string
+  /** Credential reference of the shared secret of the runtime's person (the Firm Record's `ticket-keys/<person id>`). */
+  readonly secretRef: string
+  /** Positive raw body ceiling in bytes. */
+  readonly maxBodyBytes: number
+  /** Absolute folder of the delivery ledger; it must outlive a restart. */
+  readonly stateDir: string
+  /** Absolute existing folder of the run Workspace; each run writes its letter there. */
+  readonly workspacePath: string
+  /** Agent preset of the run Session. */
+  readonly agentPreset: string
+  /** Permission preset of the run Session. */
+  readonly permissionPreset: string
+  /** File name of the firm template of the report letter, in the Office tools' template folder. */
+  readonly template: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-flowleap-ticket -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-forge -->
 <a id="deepseek-aidsh-experimental-forge"></a>
 

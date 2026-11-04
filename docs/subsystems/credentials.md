@@ -482,7 +482,7 @@ Source: [`packages/host/flowleap-connectors/src/ocr.ts`](../../packages/host/flo
 
 ### `ctx.flowleapRecord` — `FlowleapRecord`
 
-Service Definition of the seam: the Firm Record as a runtime reads it.
+Service Definition of the seam: the Firm Record as a runtime uses it.
 
 ```ts cordis-catalog
 /**
@@ -492,6 +492,35 @@ Service Definition of the seam: the Firm Record as a runtime reads it.
  * @returns the view at the record position it was read at, or the refusal.
  */
 matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>
+
+/**
+ * Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.
+ * @param ticket - the Ticket of the wake.
+ * @param command - the Session of the run chat.
+ * @param signal - ends the command; the provider rejects when it fires.
+ * @returns the receipt, or the refusal.
+ */
+runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<RecordCommandResult<RunStartReceipt>>
+
+/**
+ * Propose a client report letter for the attorney's decision. A repeat with the same Ticket, Session, and tool call
+ * is the same command.
+ * @param ticket - the running Ticket.
+ * @param command - the letter, its statements with evidence, and its sources.
+ * @param signal - ends the command; the provider rejects when it fires.
+ * @returns the receipt, or the refusal.
+ */
+proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
+
+/**
+ * End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same
+ * command.
+ * @param ticket - the running Ticket.
+ * @param command - the Session and the deadline summary.
+ * @param signal - ends the command; the provider rejects when it fires.
+ * @returns the receipt, or the refusal.
+ */
+finishRun(ticket: TicketId, command: RunFinish, signal: AbortSignal): Promise<RecordCommandResult<RunFinishReceipt>>
 ```
 
 Source: [`packages/host/flowleap-record/src/types.ts`](../../packages/host/flowleap-record/src/types.ts)
