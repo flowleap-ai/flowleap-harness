@@ -6,13 +6,14 @@
 import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { Act, DocumentId, Me } from '../api.ts'
 import { commandId, type CommandName, type KeycapsOf } from '../keys.ts'
+import type { KeyLayerContext } from '../key-layer.ts'
 import type { ActsResult, Route, ScreenOf, View } from '../model.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import type { WordContext } from '../words.ts'
 import type { IntakeRowTarget } from '../row-menu.ts'
 
 /** The shared context of every screen. */
-export interface ScreenContext extends WordContext {
+export interface ScreenContext extends WordContext, KeyLayerContext {
   /** The signed-in person; null until the first answer. */
   readonly me: Me | null
   readonly keycaps: KeycapsOf

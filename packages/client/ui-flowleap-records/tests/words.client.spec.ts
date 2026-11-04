@@ -59,7 +59,7 @@ describe('words of codes and events', () => {
 
   it('names system actors and people by display name', () => {
     expect(actorName(words.t, { kind: 'system', name: 'mailbox' })).toBe('AI mailbox')
-    expect(actorName(words.t, { kind: 'system', name: 'office' })).toBe('Patent office')
+    expect(actorName(words.t, { kind: 'system', name: 'agent' })).toBe('Patent agent')
     expect(actorName(words.t, { kind: 'person', person: fixtures.me.person })).toBe('Dr. Anna Becker')
   })
 

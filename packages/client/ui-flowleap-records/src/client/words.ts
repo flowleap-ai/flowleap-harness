@@ -6,7 +6,7 @@
 
 import { createElement, type ReactNode } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconArchiveOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular,
+  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ActivityEvent, Actor, IsoDate, IsoTime, QueueStatus } from './api.ts'
 import { dueDay, listTime } from './format.ts'
@@ -48,17 +48,16 @@ export function letterTitle(t: Translate, code: string | null, status?: QueueSta
 }
 
 /** The name key of each system actor. */
-const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent', office: 'actor.office' } as const
+const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent' } as const
 
 const SYSTEM_ICONS = {
   flowleap: IconEnhanceOutlineRegular,
   mailbox: IconPaperPlaneOutlineRegular,
   agent: IconAgentPresetOutlineRegular,
-  office: IconArchiveOutlineRegular,
 } as const
 
 /**
- * An actor's name: a person's display name, or the name of FlowLeap, the AI mailbox, the patent agent or the office.
+ * An actor's name: a person's display name, or the name of FlowLeap, the AI mailbox, or the patent agent.
  * @param t - the translate function.
  * @param actor - the actor.
  * @returns the name.

@@ -68,8 +68,8 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           void ctx.perform([createAct({
             kind: 'ticket.decide',
             id: data.ticket.id,
-            reports: data.reports.map(report => ({ proposalId: report.proposalId, decision: 'accept' as const })),
-            deadlineCheck: { id: deadline?.id ?? 'none-yet', state: deadline?.state ?? 'awaiting_code', seq: data.recordSeq },
+            reports: data.reports.map(report => ({ proposalId: report.proposalId, decision: 'approve' as const })),
+            deadlineCheck: deadline === null ? { id: 'none-yet', state: 'none-yet', seq: data.recordSeq } : { id: deadline.id, state: 'active', seq: data.recordSeq },
           })])
         }, { icon: <IconCheckOutlineRegular size={16} /> })}
       />

@@ -56,7 +56,23 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   new RemoteStub(ctx)
   const menus: MenuContribution<'records.intake-row'>[] = []
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
+  const keys: string[] = []
+  const add = (command: { readonly id: string }) => {
+    keys.push(command.id)
+    return () => { keys.splice(keys.indexOf(command.id), 1) }
+  }
+  ctx.provide('shortcuts', {
+    catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]), registerScope: add, registerScoped: add,
+    registerScopedFixed: add, register: add,
+  } as never)
+  const contributions: unknown[] = []
+  ctx.provide('commandMenu', {
+    contribute: (contribution: unknown) => {
+      contributions.push(contribution)
+      return () => { contributions.splice(contributions.indexOf(contribution), 1) }
+    },
+    close: () => {},
+  } as never)
   ctx.provide('contextMenus', {
     register: (contribution: MenuContribution<'records.intake-row'>) => {
       menus.push(contribution)
@@ -72,16 +88,20 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   await settle()
-  return { ctx, fiber, stub, menus }
+  return { ctx, fiber, stub, menus, keys, contributions }
 }
 
 describe('ui-flowleap-records browser half', () => {
   it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'shortcuts', 'contextMenus'])
+    expect(inject).toEqual(['slots', 'locale', 'shortcuts', 'contextMenus', 'commandMenu'])
   })
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
-    const { ctx, fiber, stub, menus } = await mounted(routes(json({ href: 'records/' })))
+    const { ctx, fiber, stub, menus, keys, contributions } = await mounted(routes(json({ href: 'records/' })))
+    expect(keys).toContain('records')
+    expect(keys).toContain('records.decision.record')
+    expect(keys).toContain('records.row.open')
+    expect(contributions).toHaveLength(1)
     expect(stub.mock.calls[0]![0]).toBe(RECORDS_LINK_ROUTE)
     expect(RECORDS_LINK_ROUTE).toBe('api/flowleap/records-link')
     expect(stub.mock.calls.map(([url]) => url)).toContain('records/api/intake?view=waiting')
@@ -112,6 +132,8 @@ describe('ui-flowleap-records browser half', () => {
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
     expect(menus).toEqual([])
+    expect(keys).toEqual([])
+    expect(contributions).toEqual([])
     await ctx.fiber.dispose()
   })
 
