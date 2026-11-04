@@ -193,6 +193,16 @@ describe('decision bar', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('says what a part still needs after its evidence state, and drops it for the missing evidence warning', () => {
+    const { rerender } = render(<DecisionPart icon={<span />} title="Client report" detail="4 of 4 statements have a source" hint="Choose Accept or Reject" />)
+    expect(screen.getByText('Choose Accept or Reject').parentElement!.textContent).toBe('4 of 4 statements have a source·Choose Accept or Reject')
+    rerender(<DecisionPart icon={<span />} title="Client report" hint="Choose Accept or Reject" />)
+    expect(screen.getByText('Choose Accept or Reject')).toBeTruthy()
+    rerender(<DecisionPart icon={<span />} title="Client report" detail="4 of 4" hint="Choose Accept or Reject" missing="Statement 5 has no source, so Accept waits." />)
+    expect(screen.queryByText('Choose Accept or Reject')).toBeNull()
+    expect(screen.getByText('Statement 5 has no source, so Accept waits.')).toBeTruthy()
+  })
+
   it('blocks the primary act with the reason while evidence is missing', () => {
     render(
       <DecisionBar person={me} question="Q" labels={{ yours: 'Your decision', more: 'More acts' }} blocked="Statement 5 has no source, so Accept waits."

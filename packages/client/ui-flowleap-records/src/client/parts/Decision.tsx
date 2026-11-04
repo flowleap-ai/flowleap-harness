@@ -4,14 +4,16 @@
  * evidence state; the footer holds the tertiary negative act, a note, the secondary acts and the one primary act. A
  * negative act asks for its reason in its own step. Missing evidence disables the primary act and says why. When the
  * decision is another person's, the footer says who decides and has no primary act. At 390px the note hides and the
- * secondary acts move into an overflow menu, so every act stays reachable.
+ * secondary acts move into an overflow menu, so every act stays reachable; each part keeps its title and its control.
+ * The bar takes at most 40% of the view height: above that, the part rows scroll inside it, and the header, a failure
+ * notice and the footer with the primary act stay in view (R13).
  */
 
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { Avatar, Button, IconEllipsisOutlineRegular, IconWarningTriangleOutlineRegular, Input, Keycap, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Avatar, Button, IconWarningTriangleOutlineRegular, Input, Keycap } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Person } from '../api.ts'
-import { ActButton, type ActSpec } from './Act.tsx'
+import { ActButton, OverflowActs, type ActSpec } from './Act.tsx'
 import { Notice, type NoticeSpec } from './States.tsx'
 import css from './Decision.module.css'
 
@@ -78,7 +80,6 @@ export function DecisionBar({
   failure?: NoticeSpec | undefined
   labels: DecisionLabels
 }) {
-  const [moreOpen, setMoreOpen] = useState(false)
   const shownPrimary = decider === null ? primary : null
   const menu = [...secondary, ...overflow]
   return (
@@ -104,25 +105,7 @@ export function DecisionBar({
             )}
             {decider === null && blocked === null && note !== undefined && <span className={css.note}>{note}</span>}
             <div className={css.acts}>
-              {menu.length > 0 && (
-                <Menu
-                  className={css.more}
-                  open={moreOpen}
-                  side="top"
-                  align="end"
-                  items={menu.map(act => ({ id: act.id, label: act.label, disabled: act.disabled === true }))}
-                  onSelect={(id) => {
-                    setMoreOpen(false)
-                    menu.find(act => act.id === id)?.run()
-                  }}
-                  onClose={() => { setMoreOpen(false) }}
-                  anchor={(
-                    <Button variant="ghost" size="sm" aria-label={labels.more} aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => { setMoreOpen(open => !open) }}>
-                      <IconEllipsisOutlineRegular size={16} />
-                    </Button>
-                  )}
-                />
-              )}
+              {menu.length > 0 && <OverflowActs className={css.more} label={labels.more} acts={menu} />}
               {secondary.map(act => <ActButton key={act.id} act={act} rank="secondary" className={css.secondary} />)}
               {shownPrimary !== null && (
                 <ActButton act={blocked === null ? shownPrimary : { ...shownPrimary, disabled: true }} rank="primary" size="md" />
@@ -173,18 +156,23 @@ function ReasonStep({ act }: { act: ReasonAct }) {
 }
 
 /**
- * Render one required part of a decision: its icon, what it is, its evidence state, and its control.
+ * Render one required part of a decision: its icon, what it is, its evidence state, and its control. At 390px the
+ * icon and the evidence state hide, and the control follows the title on its line when it fits; a missing evidence
+ * warning stays.
  * @param props.icon - a 16px UI icon; never a status shape.
  * @param props.title - the part, such as "FL-2026-0001 Pressure sensor housing".
  * @param props.detail - its evidence state, such as "3 reasons on page 1 agree".
+ * @param props.hint - what the part still needs, such as "Choose Accept or Reject", after the evidence state; it
+ * hides in a bar narrower than 800px, where the control beside it says the same.
  * @param props.missing - why the part waits for evidence; replaces the detail with a warning (R14).
- * @param props.control - the part's control, such as Accept and Reject; under the text at 390px.
+ * @param props.control - the part's control, such as Accept and Reject.
  * @returns the part row.
  */
-export function DecisionPart({ icon, title, detail, missing = null, control }: {
+export function DecisionPart({ icon, title, detail, hint, missing = null, control }: {
   icon: ReactNode
   title: ReactNode
   detail?: ReactNode
+  hint?: string | undefined
   missing?: string | null
   control?: ReactNode
 }) {
@@ -195,7 +183,12 @@ export function DecisionPart({ icon, title, detail, missing = null, control }: {
         <div className={css.partTitle}>{title}</div>
         {missing !== null
           ? <div className={css.partMissing}><IconWarningTriangleOutlineRegular size={16} />{missing}</div>
-          : detail !== undefined && <div className={css.partDetail}>{detail}</div>}
+          : (detail !== undefined || hint !== undefined) && (
+            <div className={css.partDetail}>
+              {detail}
+              {hint !== undefined && <span className={css.partHint}><span aria-hidden="true">·</span>{hint}</span>}
+            </div>
+          )}
       </div>
       {control !== undefined && <div className={css.partControl}>{control}</div>}
     </div>

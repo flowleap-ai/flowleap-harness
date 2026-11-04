@@ -255,12 +255,10 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                     : (
                       <>
                         <IconCheckOutlineRegular size={16} />
-                        <span>
-                          {t('work.sourced', { count: sourced, total: item.statements.length })}
-                          {choice === undefined && mayDecide.allowed ? ` · ${t('work.choose')}` : ''}
-                        </span>
+                        <span>{t('work.sourced', { count: sourced, total: item.statements.length })}</span>
                       </>
                     )}
+                  hint={choice === undefined && mayDecide.allowed ? t('work.choose') : undefined}
                   control={mayDecide.allowed && (
                     <span className={detail.segment} role="group" aria-label={t('work.clientReport')}>
                       <ActButton
