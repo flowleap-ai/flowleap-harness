@@ -272,7 +272,32 @@
   }
 }
 
+/* Below 1366px the bulk bar docks at the bottom of the list's scroll area; the wrapper takes no box, so the bar
+ * sticks to the list and not to the wrapper. */
+.bulkSlot {
+  display: contents;
+}
+
+@media (min-width: 1366px) {
+  .bulkSlot {
+    display: none;
+  }
+}
+
+/* At 390px a row keeps the status, the title and the time (R17). */
 @media (max-width: 720px) {
+  .screen [data-list] > :first-child,
+  .screen [data-list] [role='list'] {
+    --records-columns: 14px minmax(0, 1fr) 72px;
+  }
+
+  .screen [data-list] > :first-child > :nth-child(3),
+  .screen [data-list] > :first-child > :nth-child(4),
+  .screen [data-row] > :nth-child(3),
+  .screen [data-row] > :nth-child(4) {
+    display: none;
+  }
+
   .item {
     grid-template-columns: minmax(0, 1fr);
   }

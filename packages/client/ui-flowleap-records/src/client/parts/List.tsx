@@ -37,7 +37,7 @@ export function ListFrame({ label, columns, header, selecting = false, children,
 }) {
   const style = { '--records-columns': columns } as CSSProperties
   return (
-    <div className={css.pane} style={style} data-selecting={selecting || undefined}>
+    <div className={css.pane} style={style} data-list="" data-selecting={selecting || undefined}>
       <div className={css.header} aria-hidden="true">
         {header.map((cell, index) => <span key={index} className={css.headerCell}>{cell}</span>)}
       </div>

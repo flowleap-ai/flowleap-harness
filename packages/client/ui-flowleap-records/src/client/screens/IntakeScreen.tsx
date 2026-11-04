@@ -292,9 +292,9 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
   const narrowBulk = !selecting
     ? undefined
     : bulkReason
-      ? <div className={css.narrowOnly}>{bulkBar}</div>
+      ? <div className={css.bulkSlot}>{bulkBar}</div>
       : (
-        <div className={css.narrowOnly}>
+        <div className={css.bulkSlot}>
           <SelectionBar
             label={t('selection.count', { count: checked.size })}
             acts={[{ ...keyedOf(ctx, 'reject'), label: t('act.notRelevant'), icon: <IconCloseOutlineRegular size={16} />, run: () => { setBulkReason(true) } }]}
