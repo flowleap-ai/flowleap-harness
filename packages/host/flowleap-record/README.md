@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phase R0). A runtime reads; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (one matter's view at one record position), the http Provider `@deepseek-ai/dsh-flowleap-record/http`, and the Consumer `record_read`, a read-only tool whose JSON result names `recordSeq` and `viewHash`, so the Session log holds the record position a model answer rests on.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (one matter's view at one record position, and the run commands of a Ticket), the http Provider `@deepseek-ai/dsh-flowleap-record/http`, and two Consumers: `record_read`, a read-only tool whose JSON result names `recordSeq` and `viewHash`, so the Session log holds the record position a model answer rests on; and the run tools of the `@deepseek-ai/dsh-flowleap-record/run` entry, `record_propose_report` and `record_finish_run`, with which a Ticket run proposes the client report letter and ends with its deadline summary.
 
 ## Table of Contents
 
@@ -45,7 +45,20 @@ Mount the provider beside the `credentials` service, which reads the record toke
 | `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's record token, read through `ctx.credentials` and sent as `Authorization: Bearer <token>`; an invalid name fails at load |
 | `timeoutMs` | `5000` | Longest time one read may take, body included, in milliseconds (100 to 60000) |
 
-The tool row has no config. The `flowleap-web` bundle sets `apiKeyRef` to `FLOWLEAP_RECORD_TOKEN`, the ref that the keys document of flowleap-os holds for each runtime, and no `baseURL`; the firm patch of flowleap-os sets `baseURL`. A patch replaces the row's whole `config`, so it restates `apiKeyRef` too. The generated [configuration catalog](../../../docs/config-catalog.md) is the exhaustive source for every accepted field.
+The run row registers `record_propose_report` and `record_finish_run` for a Ticket run; the opt-in overlay of [`dsh-experimental-flowleap-ticket`](../../experimental/flowleap-ticket/README.md) mounts it beside the Ticket ingress:
+
+```yaml
+- id: flowleap-record-run
+  name: '@deepseek-ai/dsh-flowleap-record/run'
+  config:
+    templatesDir: /opt/flowleap/templates
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `templatesDir` | required | Absolute folder of the firm's `.docx` templates, the `templatesDir` of the Office tools; a relative path fails at load. The report's `templateVersion` is `sha256:<hex>` of the named template file there |
+
+The run row injects `flowleapRecord`, `tools`, `fs`, and `workingDirectory`. The tool row has no config. The `flowleap-web` bundle sets `apiKeyRef` to `FLOWLEAP_RECORD_TOKEN`, the ref that the keys document of flowleap-os holds for each runtime, and no `baseURL`; the firm patch of flowleap-os sets `baseURL`. A patch replaces the row's whole `config`, so it restates `apiKeyRef` too. The generated [configuration catalog](../../../docs/config-catalog.md) is the exhaustive source for every accepted field.
 
 ### The seam
 
@@ -77,7 +90,49 @@ The provider sends `GET <origin of baseURL>/records/api/matters/<fileNumber>/vie
 }
 ```
 
-`matter.state` is `open` or `closed`; a deadline `state` is `proposed`, `active`, or `rejected` (the R0 subset of the deadline state machine); dates are `YYYY-MM-DD`. Unknown fields are dropped; a missing or malformed field is an `invalid_answer`.
+The phase R1 view adds four fields, always present (empty lists and `null` when there is nothing):
+
+```json
+{
+  "clientRules": { "seq": 3, "aiUse": "allowed", "aiLetters": "allowed", "reportEvents": "all-office-actions", "language": "en", "text": "Report every office action in English…" },
+  "officeEvents": [{ "id": "oe-1", "seq": 5, "code": "EPO:R71(3)", "documentDate": "2025-10-30", "applicationNumber": "EP23812345.6", "document": "5f2c8a1e…", "state": "observed" }],
+  "tickets": [{ "id": "tk-1", "pass": 1, "state": "running", "routedTo": "A. Novak" }],
+  "documents": [{ "sha256": "5f2c8a1e…", "fileName": "R71-3-communication.pdf", "mediaType": "application/pdf", "source": "mail" }]
+}
+```
+
+`matter.state` is `open` or `closed`; a deadline `state` is `proposed`, `active`, or `rejected` (the R0 subset of the deadline state machine); dates are `YYYY-MM-DD`. `clientRules` is `null` when no person recorded the client's rules; its `aiUse` is `not-recorded`, `allowed`, `local-model-only`, or `not-allowed`, its `aiLetters` is `allowed` or `not-allowed`, its `reportEvents` is `all-office-actions` or a list of event codes, and its `language` is `de` or `en`. An office event's `applicationNumber` and `document` are `null` for an event that a person recorded without a document. A Ticket's `state` is one of the eleven states of [atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md), and `routedTo` is the routed person's display name, or `null` before routing. Document hashes are lower-case SHA-256 hex. Unknown fields are dropped; a missing or malformed field is an `invalid_answer`.
+
+### The run commands
+
+A runtime woken for a Ticket (see [`dsh-experimental-flowleap-ticket`](../../experimental/flowleap-ticket/README.md)) reports to the Firm Record through three seam methods. Each sends `POST <origin>/records/api/tickets/<ticketId>/<action>` with the record token, a JSON body, and an `Idempotency-Key` of `<kind>:<SHA-256 hex of the JSON array of its parts>`, so a repeat of the same command sends the same key:
+
+| Method | Action and body | Key parts | Receipt |
+|---|---|---|---|
+| `runStarted(ticket, { session })` | `run-started`: `{ session }` | `run-started`: Ticket, Session | `200 { recordSeq }` |
+| `proposeReport(ticket, proposal)` | `reports`: `{ fileName, contentBase64, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
+| `finishRun(ticket, { session, deadline })` | `finish`: `{ session, deadline: { id, state, seq } }`, where `id` and `state` are both `none-yet` when the event has no deadline | `finish`: Ticket, Session | `200 { recordSeq, outbox: { id, state } }`, `state` `queued` or `refused` |
+
+A statement is `{ text, evidence: [{ document, span? }] }` with at least one evidence item; a `span` is `{ page, start, end, quote }`. Each method returns the receipt or a `RecordCommandError` `{ error, detail? }`; `detail` is the Firm Record's one-sentence detail, at most 300 characters:
+
+| Refusal | When |
+|---|---|
+| `not_configured`, `no_key`, `unreachable`, `service_error`, `invalid_answer` | as for the view read |
+| `refused` | 401, or 403 without a known code |
+| `agent_cannot_decide` | 403 `agent-cannot-decide` |
+| `not_routed_person` | 403 `not-routed-person`: the Ticket is routed to another person |
+| `not_found` | 404: no Ticket with this id |
+| `invalid_body` | 400 `invalid-body` |
+| `ticket_not_waking` | 409 `ticket-not-waking`: `run-started` for a Ticket that is not `waking` |
+| `ticket_not_running` | 409 `ticket-not-running`: a report or finish for a Ticket that is not `running` |
+| `client_rule_forbids_ai_draft` | 409 `report.no-ai-draft-against-client-rule` |
+| `statement_without_evidence` | 422 `report.statement-has-evidence` |
+| `no_proposals` | 409 `no-proposals`: a finish before a proposal of this Ticket and pass |
+| `document_too_large` | 413 `document-too-large`: the letter is above 5 MiB |
+
+### The run tools
+
+`record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the letter, `templateVersion`, `rules_seq`, the statements, the Session id, and the root tool call id. Each statement needs at least one evidence item `{ document, span? }`; `document` is a lower-case SHA-256, and a `span` has a positive `page`, `start` and `end` with `end` not before `start`, and a `quote` of at most 200 characters. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
 
 -----
 
@@ -91,11 +146,12 @@ The provider sends `GET <origin of baseURL>/records/api/matters/<fileNumber>/vie
 
 | File | Role |
 |---|---|
-| [`src/types.ts`](src/types.ts) | the Service Definition `FlowleapRecord`, the branded ids, the view, and the refusals |
-| [`src/http.ts`](src/http.ts) | the http Provider: Config, the read (its body through `readBoundedText` of `dsh-flowleap-connectors`), and the answer validation |
+| [`src/types.ts`](src/types.ts) | the Service Definition `FlowleapRecord`, the branded ids, the view, the run commands and receipts, and the refusals |
+| [`src/http.ts`](src/http.ts) | the http Provider: Config, the read and the commands (bodies through `readBoundedText` of `dsh-flowleap-connectors`), the idempotency key, the refusal-code map, and the answer validation |
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
 | [`src/index.ts`](src/index.ts) | the function plugin that registers the tool |
-| [`tests/`](tests/) | the provider against a local Firm Record double, the tool with its refusals and disposal, and the Loader composition test with a fixture provider |
+| [`src/run/`](src/run/) | the run entry: `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_finish_run`, their argument rules, and the refusal messages |
+| [`tests/`](tests/) | the provider against a local Firm Record double, the tools with their refusals and disposal, and the Loader composition test with a fixture provider |
 
 </details>
 
@@ -117,21 +173,41 @@ The provider sends `GET <origin of baseURL>/records/api/matters/<fileNumber>/vie
 
 #### What the model sees
 
-The generated tool catalog covers the shipped DeepSeek presets only, so the declaration is stated here. Description: "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app." One required parameter, `file_number` (the firm's file number, for example `FL-2026-0001`). The result is JSON text: the view with `recordSeq`, `viewHash`, `matter`, and `deadlines` (each with its `trace`); or `error` (`invalid_file_number`, `not_found`, `not_configured`, `no_key`, `refused`, `unreachable`, `service_error`, `invalid_answer`) and `message`. The [`flowleap-record-read`](../../../snapshots/session/flowleap-record-read/) snapshot pins one read over a fixture provider; its `tool/result` line holds `"recordSeq":7` verbatim.
+The generated tool catalog covers the shipped DeepSeek presets only, so the declaration is stated here. Description: "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations; the client's recorded rules (AI use, AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, and the documents of the e-file with their SHA-256. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app." One required parameter, `file_number` (the firm's file number, for example `FL-2026-0001`). The result is JSON text: the view with `recordSeq`, `viewHash`, `matter`, `deadlines` (each with its `trace`), `clientRules`, `officeEvents`, `tickets`, and `documents`; or `error` (`invalid_file_number`, `not_found`, `not_configured`, `no_key`, `refused`, `unreachable`, `service_error`, `invalid_answer`) and `message`. The [`flowleap-record-read`](../../../snapshots/session/flowleap-record-read/) snapshot pins one read over a fixture provider; its `tool/result` line holds `"recordSeq":7` verbatim.
 
 #### Token effect
 
-The schema contributes fixed request-context tokens while the row is mounted. A result grows with the number of deadlines and their trace steps, bounded by the provider's 1 MiB answer limit.
+The schema contributes fixed request-context tokens while the row is mounted. A result grows with the number of deadlines and their trace steps, office events, Tickets, and documents, bounded by the provider's 1 MiB answer limit.
 
 #### KV Cache effect
 
 The declaration is stable while the row is mounted. Results append to history.
 
+### The run tool declarations
+
+#### What the model sees
+
+`record_propose_report` description: "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. You do not send the letter, and nobody sends it before the attorney decides." Parameters: `ticket_id`, `file`, `template`, `rules_seq`, and `statements` (each `{ text, evidence: [{ document, span? }] }`), all required. The result is JSON text: `{ proposalId, document, recordSeq }`, or `{ error, message, detail? }`.
+
+`record_finish_run` description: "End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then replies to the person who forwarded the letter; you send nothing." Parameters: `ticket_id`, `deadline_id`, `deadline_state`, and `record_seq`, all required. The result is JSON text: `{ recordSeq, outbox: { id, state } }`, or `{ error, message, detail? }`. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one Ticket run over a fixture provider.
+
+#### Token effect
+
+Both schemas contribute fixed request-context tokens while the run row is mounted. A report call grows with its statements; each result is a few hundred characters.
+
+#### KV Cache effect
+
+The declarations are stable while the run row is mounted. Results append to history.
+
+-----
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Reads only** — a runtime never confirms, rejects, or proposes a deadline; the Firm Record answers every command with a runtime credential with `403 agent-cannot-decide`, and this package offers no tool for one. A person decides in the Records app.
+- **No decisions** — a runtime never confirms or rejects a deadline or a proposal; the Firm Record answers every decision with a runtime credential with `403 agent-cannot-decide`, and this package offers no tool for one. A person decides in the Records app.
+- **No `report/by-hand` or `report/flagged` command** — when the client rules forbid an AI draft, the run can only tell the attorney in the chat; atlas sheet 4 lists `checking_rule → by_hand` and `proposed → flagged` with the agent as actor, but the R1 Firm Record has no command for them.
+- **The run tools are on in every Session of the row** — the model of any chat sees them while the run row is mounted; the Firm Record refuses a command for a Ticket that is not running or not routed to the runtime's person.
 - **One matter per call** — there is no list or search; the model needs the file number. A list tool comes with a later phase, after the Firm Record serves one inside the reader's wall.
 - **No `?at=` read** — the tool reads the current view only; rebuilding the view at a logged `recordSeq` is an auditor's call on the Firm Record, not a model call.
 

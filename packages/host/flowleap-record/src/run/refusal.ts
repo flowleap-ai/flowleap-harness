@@ -1,0 +1,53 @@
+/** The refusals of the run commands as the model reads them. @module */
+
+import type { RecordCommandError, RecordCommandRefusal } from '../types.ts'
+
+/** A refused run command as the model reads it. */
+export interface RunCommandError {
+  readonly error: RecordCommandRefusal
+  /** What the refusal means and what to do. */
+  readonly message: string
+  /** The Firm Record's own sentence, when it gave one. */
+  readonly detail?: string
+}
+
+const MESSAGES: Record<RecordCommandRefusal, string> = {
+  not_configured: 'This runtime has no Firm Record configured, so nothing can be proposed. Tell the attorney in this chat.',
+  no_key: 'This runtime has no record token, so the Firm Record refuses every command. Tell the attorney in this chat.',
+  refused: 'The Firm Record refused the runtime\'s record token. Tell the attorney in this chat.',
+  agent_cannot_decide: 'Only a person decides. Propose, and leave each decision to the attorney in the Records app.',
+  not_routed_person: 'This Ticket is routed to another person, so this runtime cannot act on it. Stop the run.',
+  not_found: 'The Firm Record has no Ticket with this id. Use the ticket id of the run message.',
+  invalid_body: 'The Firm Record found the command invalid. Check the arguments against the tool description and try once again.',
+  ticket_not_waking: 'The Ticket does not wait for a run.',
+  ticket_not_running: 'The Ticket has no running run, so it takes no proposal and no finish. Do not try again; tell the attorney in this chat.',
+  client_rule_forbids_ai_draft: 'The client rules do not allow an AI draft of a letter to the client. Do not draft one; tell the attorney in this chat that the report is due by hand.',
+  statement_without_evidence: 'Every statement needs at least one source document. Add the evidence and propose again.',
+  no_proposals: 'The run has no proposal yet. Propose the report letter with record_propose_report first.',
+  document_too_large: 'The letter is larger than 5 MiB. Write a shorter letter without embedded images.',
+  unreachable: 'The Firm Record did not answer. Try again later.',
+  service_error: 'The Firm Record answered with an error. Try again later.',
+  invalid_answer: 'The Firm Record answered with data that is not a receipt of the command.',
+}
+
+/**
+ * The refusal as the model reads it.
+ * @param refusal - the seam refusal.
+ * @returns the error value with its message and the Firm Record's detail.
+ */
+export function runRefusal(refusal: RecordCommandError): RunCommandError {
+  return refusal.detail === undefined
+    ? { error: refusal.error, message: MESSAGES[refusal.error] }
+    : { error: refusal.error, message: MESSAGES[refusal.error], detail: refusal.detail }
+}
+
+/** The output-schema branch of a refused run command. */
+export const RUN_ERROR_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    error: { type: 'string', required: true },
+    message: { type: 'string', required: true },
+    detail: { type: 'string' },
+  },
+} as const

@@ -101,7 +101,7 @@ export interface ClientRules {
   readonly aiUse: ClientAiUse
   readonly aiLetters: ClientAiLetters
   /** The office event codes that need a report to the client, or all office actions. */
-  readonly reportEvents: 'all-office-actions' | readonly string[]
+  readonly reportEvents: 'all-office-actions' | string[]
   /** The language of letters to the client. */
   readonly language: 'de' | 'en'
   /** The client's wishes in plain language. */

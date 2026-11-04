@@ -15,13 +15,16 @@ afterEach(async () => {
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
 })
 
-/** A record double that answers every read with `result` and keeps the file numbers it was asked for. */
+/** A record double that answers every read with `result` and keeps the file numbers it was asked for; it takes no command. */
 class RecordDouble extends Service implements FlowleapRecord {
   readonly asked: MatterFileNumber[] = []
   readonly matterView = vi.fn(async (fileNumber: MatterFileNumber, _signal: AbortSignal): Promise<MatterViewResult> => {
     this.asked.push(fileNumber)
     return this.result
   })
+  readonly runStarted = async () => ({ error: 'not_configured' as const })
+  readonly proposeReport = async () => ({ error: 'not_configured' as const })
+  readonly finishRun = async () => ({ error: 'not_configured' as const })
 
   constructor(ctx: Context, private readonly result: MatterViewResult) {
     super(ctx, 'flowleapRecord')
