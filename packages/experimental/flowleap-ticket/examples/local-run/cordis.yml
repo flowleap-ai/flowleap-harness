@@ -1,0 +1,37 @@
+# Opt-in overlay over the flowleap-web profile: the Ticket ingress, its rule,
+# and the run tools of a Ticket run. The Work router of the Firm Record posts
+# the signed Ticket delivery to POST /api/flowleap/ticket on the runtime's own
+# WebServer; the route checks its HMAC signature and needs no session cookie.
+#
+# Environment:
+#   FLOWLEAP_RECORD_URL       base URL of the Firm Record, for example http://127.0.0.1:8091
+#   FLOWLEAP_RECORD_TOKEN     the runtime record token (a credential, never printed)
+#   FLOWLEAP_TICKET_SECRET    the person's Ticket key, RECORD_DIR/ticket-keys/<person id>
+#   FLOWLEAP_RUN_WORKSPACE    absolute run Workspace folder (default: the launch folder)
+#   FLOWLEAP_TEMPLATES_DIR    absolute folder of the firm templates (default /opt/flowleap/templates)
+#   FLOWLEAP_REPORT_TEMPLATE  file name of the report template (default client-report.docx)
+
+# A patch replaces the row's whole config, so the row restates apiKeyRef.
+- id: flowleap-record-http
+  config:
+    baseURL: !!js process.env.FLOWLEAP_RECORD_URL ?? ''
+    apiKeyRef: FLOWLEAP_RECORD_TOKEN
+    timeoutMs: 15000
+
+- insert:
+    - id: webhook-runtime
+      name: '@deepseek-ai/dsh-webhook'
+
+    - id: flowleap-record-run
+      name: '@deepseek-ai/dsh-flowleap-record/run'
+      config:
+        templatesDir: !!js process.env.FLOWLEAP_TEMPLATES_DIR ?? '/opt/flowleap/templates'
+
+    - id: flowleap-ticket
+      name: '@deepseek-ai/dsh-experimental-flowleap-ticket'
+      config:
+        stateDir: !!js dshHomePath('flowleap-ticket')
+        workspacePath: !!js process.env.FLOWLEAP_RUN_WORKSPACE ?? process.cwd()
+        agentPreset: patent
+        permissionPreset: workspace-write
+        template: !!js process.env.FLOWLEAP_REPORT_TEMPLATE ?? 'client-report.docx'

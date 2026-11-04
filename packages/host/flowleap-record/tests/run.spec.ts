@@ -202,7 +202,9 @@ describe('record_finish_run', () => {
     const { call, record } = await bench()
     record.finish = { error: 'no_proposals' }
     const result = await call('record_finish_run', { ticket_id: 'tk-1', deadline_id: 'd-1', deadline_state: 'active', record_seq: 7 })
-    expect(JSON.parse(result.text)).toMatchObject({ error: 'no_proposals', message: expect.stringContaining('record_propose_report') })
+    const body = JSON.parse(result.text) as { error: string; message: string }
+    expect(body.error).toBe('no_proposals')
+    expect(body.message).toContain('record_propose_report')
   })
 })
 
