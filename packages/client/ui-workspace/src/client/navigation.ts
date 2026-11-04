@@ -142,6 +142,13 @@ export interface UiWorkspace {
    */
   provideSearch(open: () => void): () => void
   /**
+   * Let an item menu take the Search command first, such as the command menu of a view's open item. On each Search
+   * command the latest registration runs; when it returns false, the search surface of {@link provideSearch} opens.
+   * @param open - receives that search opener, for a menu act that opens it; returns whether it opened its menu.
+   * @returns the disposer; register it as an effect.
+   */
+  provideItemMenu(open: (search: () => void) => boolean): () => void
+  /**
    * Make a main panel the landing page: the client shows it at the start, the start address can name a chat
    * (`?chat=<id>`) or a main panel (`?page=<id>`) to open instead, and the address names the open item from then on.
    * Without a provided landing the client keeps its start and does not read or write the address. The latest
@@ -220,6 +227,8 @@ export class LatestRegistry<T> {
 
 /** The surfaces that replace the Sidebar search for the Search sessions command; the latest wins. */
 export type SearchOpeners = LatestRegistry<() => void>
+/** The item menus that the Search sessions command asks first; the latest wins. */
+export type ItemMenus = LatestRegistry<(search: () => void) => boolean>
 
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
@@ -231,6 +240,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly lifetime = new AbortController()
   /** `provideSearch` registrations, read by the Search sessions command. */
   readonly searchOpeners: SearchOpeners = new LatestRegistry()
+  /** `provideItemMenu` registrations, read by the Search sessions command. */
+  readonly itemMenus: ItemMenus = new LatestRegistry()
   private readonly landings = new LatestRegistry<MainPanelId>(() => { this.startLinks.landingChanged() })
   private readonly main = createSnapshotStore<SessionId | undefined>(undefined)
   readonly mainSession: ObservableSnapshot<SessionId | undefined> = this.main
@@ -498,6 +509,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   provideSearch(open: () => void): () => void {
     return this.searchOpeners.provide(open)
+  }
+
+  provideItemMenu(open: (search: () => void) => boolean): () => void {
+    return this.itemMenus.provide(open)
   }
 
   provideLanding(panelId: MainPanelId): () => void {

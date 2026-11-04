@@ -37,6 +37,12 @@ export const zh = {
   'overlay.aria': '/{command} 选项',
   'listbox.aria': '/{command} 匹配项',
   'notice.attachmentsUnsupported': '/{command} 不接受附件，请先移除附件',
+  'menu.aria': '命令菜单',
+  'menu.placeholder': '输入命令或搜索…',
+  'menu.listbox': '命令',
+  'menu.empty': '没有匹配的命令。清除搜索，或按 Esc 关闭。',
+  'menu.group.application': '应用',
+  'menu.search': '搜索',
 } satisfies Record<string, string>
 
 /** The command namespace key union. */
@@ -72,6 +78,12 @@ export const en = {
   'overlay.aria': '/{command} options',
   'listbox.aria': '/{command} matches',
   'notice.attachmentsUnsupported': '/{command} does not accept attachments; remove them first',
+  'menu.aria': 'Command menu',
+  'menu.placeholder': 'Type a command or search…',
+  'menu.listbox': 'Commands',
+  'menu.empty': 'No command matches. Clear the search or press Esc.',
+  'menu.group.application': 'Application',
+  'menu.search': 'Search',
 } satisfies Record<CommandKey, string>
 
 /** Japanese copy, checked against the English keys. */
@@ -104,6 +116,12 @@ export const ja = {
   'overlay.aria': '/{command} のオプション',
   'listbox.aria': '/{command} の一致項目',
   'notice.attachmentsUnsupported': '/{command} は添付ファイルを受け付けません。先に削除してください',
+  'menu.aria': 'コマンドメニュー',
+  'menu.placeholder': 'コマンドを入力または検索…',
+  'menu.listbox': 'コマンド',
+  'menu.empty': '一致するコマンドがありません。検索を消去するか Esc で閉じてください。',
+  'menu.group.application': 'アプリケーション',
+  'menu.search': '検索',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -136,6 +154,12 @@ export const es = {
   'overlay.aria': 'Opciones de /{command}',
   'listbox.aria': '/{command} coincidencias',
   'notice.attachmentsUnsupported': '/{command} no acepta archivos adjuntos; eliminarlos primero',
+  'menu.aria': 'Menú de comandos',
+  'menu.placeholder': 'Escriba un comando o busque…',
+  'menu.listbox': 'Comandos',
+  'menu.empty': 'Ningún comando coincide. Borre la búsqueda o pulse Esc.',
+  'menu.group.application': 'Aplicación',
+  'menu.search': 'Buscar',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -168,6 +192,12 @@ export const fr = {
   'overlay.aria': 'Options /{command}',
   'listbox.aria': '/{command} correspondances',
   'notice.attachmentsUnsupported': "/{command} n'accepte pas les pièces jointes ; retirez-les d'abord",
+  'menu.aria': 'Menu des commandes',
+  'menu.placeholder': 'Saisissez une commande ou recherchez…',
+  'menu.listbox': 'Commandes',
+  'menu.empty': 'Aucune commande ne correspond. Effacez la recherche ou appuyez sur Échap.',
+  'menu.group.application': 'Application',
+  'menu.search': 'Rechercher',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -200,6 +230,12 @@ export const de = {
   'overlay.aria': '/{command}-Optionen',
   'listbox.aria': '/{command} stimmt überein',
   'notice.attachmentsUnsupported': '/{command} akzeptiert keine Anhänge; Entfernen Sie sie zuerst',
+  'menu.aria': 'Befehlsmenü',
+  'menu.placeholder': 'Befehl eingeben oder suchen…',
+  'menu.listbox': 'Befehle',
+  'menu.empty': 'Kein Befehl passt. Leeren Sie die Suche oder drücken Sie Esc.',
+  'menu.group.application': 'Anwendung',
+  'menu.search': 'Suchen',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -232,6 +268,12 @@ export const ru = {
   'overlay.aria': 'Опции /{command}',
   'listbox.aria': '/{command} совпадений',
   'notice.attachmentsUnsupported': '/{command} не принимает вложения; сначала удали их',
+  'menu.aria': 'Меню команд',
+  'menu.placeholder': 'Введите команду или найдите…',
+  'menu.listbox': 'Команды',
+  'menu.empty': 'Нет подходящих команд. Очистите поиск или нажмите Esc.',
+  'menu.group.application': 'Приложение',
+  'menu.search': 'Поиск',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -264,4 +306,10 @@ export const pt = {
   'overlay.aria': '/{command} opções',
   'listbox.aria': '/{command} correspondências',
   'notice.attachmentsUnsupported': '/{command} não aceita anexos; remova-os primeiro',
+  'menu.aria': 'Menu de comandos',
+  'menu.placeholder': 'Digite um comando ou pesquise…',
+  'menu.listbox': 'Comandos',
+  'menu.empty': 'Nenhum comando corresponde. Limpe a pesquisa ou pressione Esc.',
+  'menu.group.application': 'Aplicativo',
+  'menu.search': 'Pesquisar',
 } satisfies Record<keyof typeof en, string>

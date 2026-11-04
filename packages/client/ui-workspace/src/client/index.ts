@@ -228,7 +228,8 @@ export function apply(ctx: Context): void {
     },
     unarchiveSession,
   })
-  installWorkspaceShortcuts(ctx, uiWorkspace, uiWorkspace.searchOpeners, shortcutControls, archiveInjected().archiveSession,
+  installWorkspaceShortcuts(ctx, uiWorkspace, uiWorkspace.searchOpeners, uiWorkspace.itemMenus, shortcutControls,
+    archiveInjected().archiveSession,
     (reason) => { notify({ kind: 'shortcutForkFailed', reason }) })
   const archiveConfirmInjected = (): SessionArchiveConfirmInjected => ({
     hooks: { archiveRequest },

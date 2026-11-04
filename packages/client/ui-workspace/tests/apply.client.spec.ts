@@ -280,6 +280,11 @@ describe('ui-workspace apply', () => {
     expect(service.searchOpeners.current()).toBe(first)
     disposeFirst()
     expect(service.searchOpeners.current()).toBeUndefined()
+    const menu = vi.fn(() => true)
+    const disposeMenu = service.provideItemMenu(menu)
+    expect(service.itemMenus.current()).toBe(menu)
+    disposeMenu()
+    expect(service.itemMenus.current()).toBeUndefined()
   })
 
   it('hangs Workspace-guarded effects on the calling plugin, so they leave when it unloads', async () => {
