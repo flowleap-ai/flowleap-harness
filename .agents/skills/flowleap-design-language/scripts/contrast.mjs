@@ -1,41 +1,36 @@
-// WCAG 2.x contrast of every text, icon and control token pair in both themes.
-// Usage: node contrast.mjs <tokens.css> [out.md]. Exits 1 when a pair is below its minimum.
-// Add a row to `pairs` for every new text, icon or control colour pair.
-// The CSS must hold the dark set in `:root {` and the light set in `:root[data-theme='light'] {`.
-import { readFileSync, writeFileSync } from 'node:fs';
+// WCAG 2.x contrast of every text, icon and control pair of the harness client theme, in both themes.
+// Usage: node contrast.mjs [out.md] [--theme <ui-theme styles dir>]. Exits 1 when a pair is below its minimum,
+// 2 when the theme is missing. Add a row to `pairs` for every new text, icon or control colour pair; check-css.mjs
+// imports `pairs` and fails on a foreground and background pair in one CSS rule that has no row here.
+import { writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+import { loadTheme, themeDir } from './client-theme.mjs';
 
-const [cssPath, outPath] = process.argv.slice(2);
-const css = readFileSync(cssPath, 'utf8');
+const NAMED = { transparent: [0, 0, 0, 0], white: [255, 255, 255, 1], black: [0, 0, 0, 1] };
 
-function block(selector) {
-  const start = css.indexOf(selector + ' {');
-  if (start < 0) throw new Error(`${cssPath}: no block ${selector}`);
-  const body = css.slice(start, css.indexOf('\n}', start));
-  const vars = {};
-  for (const m of body.matchAll(/(--[\w-]+):\s*([^;]+);/g)) vars[m[1]] = m[2].trim();
-  return vars;
-}
-const dark = block(':root');
-const light = { ...dark, ...block(":root[data-theme='light']") };
-
-// oklch(L C h / a) -> gamma-encoded sRGB in [0,1], clipped to the gamut, plus alpha.
+/** Parses a client colour value (rgb, rgba, var, color-mix in srgb, a named colour) to gamma-encoded sRGB and alpha. */
 function parse(value, vars) {
+  value = value.trim();
   const ref = value.match(/^var\((--[\w-]+)\)$/);
-  if (ref) return parse(vars[ref[1]], vars);
-  const m = value.match(/^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/);
-  if (!m) throw new Error(`not an oklch colour: ${value}`);
-  const [L, C, h] = [Number(m[1]), Number(m[2]), Number(m[3]) * Math.PI / 180];
-  const a = C * Math.cos(h), b = C * Math.sin(h);
-  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
-  const mm = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
-  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
-  const lin = [
-    4.0767416621 * l - 3.3077115913 * mm + 0.2309699292 * s,
-    -1.2684380046 * l + 2.6097574011 * mm - 0.3413193965 * s,
-    -0.0041960863 * l - 0.7034186147 * mm + 1.7076147010 * s,
-  ];
-  const enc = x => { x = Math.min(1, Math.max(0, x)); return x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055; };
-  return { rgb: lin.map(enc), alpha: m[4] === undefined ? 1 : Number(m[4]) };
+  if (ref) {
+    if (!(ref[1] in vars)) throw new Error(`unknown token ${ref[1]}`);
+    return parse(vars[ref[1]], vars);
+  }
+  if (NAMED[value]) { const [r, g, b, a] = NAMED[value]; return { rgb: [r / 255, g / 255, b / 255], alpha: a }; }
+  const rgb = value.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)(%?))?\s*\)$/);
+  if (rgb) {
+    const alpha = rgb[4] === undefined ? 1 : Number(rgb[4]) / (rgb[5] ? 100 : 1);
+    return { rgb: [rgb[1], rgb[2], rgb[3]].map(c => Number(c) / 255), alpha };
+  }
+  const mix = value.match(/^color-mix\(in srgb,\s*(.+?)(?:\s+([\d.]+)%)?,\s*(.+?)(?:\s+([\d.]+)%)?\)$/);
+  if (mix) {
+    const a = parse(mix[1], vars), b = parse(mix[3], vars);
+    const p = mix[2] !== undefined ? Number(mix[2]) / 100 : mix[4] !== undefined ? 1 - Number(mix[4]) / 100 : 0.5;
+    const alpha = a.alpha * p + b.alpha * (1 - p);
+    const rgbOut = a.rgb.map((c, i) => alpha ? (c * a.alpha * p + b.rgb[i] * b.alpha * (1 - p)) / alpha : 0);
+    return { rgb: rgbOut, alpha };
+  }
+  throw new Error(`not a colour: ${value}`);
 }
 // Browsers blend in gamma-encoded sRGB.
 const over = (fg, bg) => fg.rgb.map((c, i) => c * fg.alpha + bg[i] * (1 - fg.alpha));
@@ -46,81 +41,89 @@ const luminance = rgb => {
 // A surface is a stack of colours, bottom first: ['--bg-main', '--bg-selected'].
 function surface(stack, vars) {
   let rgb = [1, 1, 1];
-  for (const token of stack) rgb = over(parse(vars[token] ?? token, vars), rgb);
+  for (const token of stack) rgb = over(parse(`var(${token})`, vars), rgb);
   return rgb;
 }
 const ratio = (fg, bgStack, vars) => {
   const bg = surface(bgStack, vars);
-  const a = luminance(over(parse(vars[fg] ?? fg, vars), bg)), b = luminance(bg);
+  const a = luminance(over(parse(`var(${fg})`, vars), bg)), b = luminance(bg);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 };
 
-// [use, foreground, background stack, minimum]. 4.5 = text below 24 px (18.66 px bold);
+// [use, foreground, background stack bottom first, minimum]. 4.5 = text below 24 px (18.66 px bold);
 // 3 = icons, large text and the border that alone identifies a control (WCAG 1.4.11).
-const TEXT = ['--text-1', '--text-2', '--text-3'];
+const T = t => `--dsw-alias-${t}`;
+// The light theme's --dsw-alias-label-tertiary is 3.71:1 on white, so it is an icon colour here, never text.
+const TEXT = [T('label-primary'), T('label-secondary')];
+const MENU = [T('bg-base'), T('bg-mask-2'), '--dsw-specific-menu'];
 const SURFACES = {
-  main: ['--bg-main'], raised: ['--bg-raised'], sunken: ['--bg-sunken'], overlay: ['--bg-overlay'],
-  'main + hover': ['--bg-main', '--bg-hover'], 'main + selected': ['--bg-main', '--bg-selected'],
-  'overlay + selected': ['--bg-overlay', '--bg-selected'],
+  base: [T('bg-base')], sidebar: ['--dsw-specific-sidebar-fill'], 'layer 1': [T('bg-layer-1')], 'layer 2': [T('bg-layer-2')], 'layer 3': [T('bg-layer-3')],
+  'base + hover': [T('bg-base'), T('interactive-bg-hover')], 'base + selected': [T('bg-base'), T('interactive-bg-active')],
+  'sidebar + selected': ['--dsw-specific-sidebar-fill', T('interactive-bg-active')],
+  'base + group header': [T('bg-base'), T('bg-multi-select')], 'menu material': MENU, 'menu material + highlighted': [...MENU, T('interactive-bg-hover')],
 };
-const pairs = [];
+export const pairs = [];
 for (const fg of TEXT) for (const [name, stack] of Object.entries(SURFACES)) pairs.push([`text on ${name}`, fg, stack, 4.5]);
 pairs.push(
-  ['sidebar text', '--text-sidebar', ['--bg-sidebar'], 4.5],
-  ['sidebar text, active row', '--text-1', ['--bg-sidebar', '--bg-selected'], 4.5],
-  ['sidebar label', '--text-3', ['--bg-sidebar'], 4.5],
-  ['link and law chip', '--accent-text', ['--bg-main', '--bg-hover'], 4.5],
-  ['mention chip', '--accent-text', ['--bg-raised', '--accent-tint'], 4.5],
-  ['primary button text', '--on-accent', ['--accent'], 4.5],
-  ['primary button text, hover', '--on-accent', ['--accent-hover'], 4.5],
-  ['primary button key', '--on-accent-2', ['--accent', '--on-accent-tint'], 4.5],
-  ['key in a button', '--text-3', ['--bg-raised', '--bg-hover'], 4.5],
-  ['status pill, waits', '--st-wait-text', ['--bg-main', '--st-wait-tint'], 4.5],
-  ['status pill, done', '--st-ok-text', ['--bg-main', '--st-ok-tint'], 4.5],
-  ['status pill, refused', '--st-bad-text', ['--bg-main', '--st-bad-tint'], 4.5],
-  ['days left', '--st-wait-text', ['--bg-main'], 4.5],
-  ['overdue', '--st-bad-text', ['--bg-main'], 4.5],
-  ['agree, accepted choice', '--st-ok-text', ['--bg-overlay'], 4.5],
-  ['evidence quote', '--text-1', ['--bg-raised', '--st-wait-tint'], 4.5],
-  ['missing evidence', '--st-wait-text', ['--bg-raised', '--st-wait-tint'], 4.5],
-  ['decision note', '--text-3', ['--bg-sunken'], 4.5],
-  ['letter text', '--paper-ink', ['--paper'], 4.5],
-  ['avatar letter', '--on-avatar', ['--av-1'], 4.5],
-  ['avatar letter', '--on-avatar', ['--av-2'], 4.5],
-  ['icon', '--text-4', ['--bg-main'], 3],
-  ['icon', '--text-4', ['--bg-sidebar'], 3],
-  ['status icon, waits', '--st-wait', ['--bg-main'], 3],
-  ['status icon, done', '--st-ok', ['--bg-main'], 3],
-  ['status icon, working', '--st-run', ['--bg-main'], 3],
-  ['status icon, refused', '--st-bad', ['--bg-main'], 3],
-  ['status icon, no action', '--st-idle', ['--bg-main'], 3],
-  ['status icon on selected row', '--st-wait', ['--bg-main', '--bg-selected'], 3],
-  ['checkbox border', '--line-control', ['--bg-main'], 3],
-  ['selection bar, focus ring', '--accent', ['--bg-main'], 3],
-  ['decision border', '--accent-line', ['--bg-main'], 3],
+  ['primary button text', T('label-primary-foreground'), [T('button-primary-fill')], 4.5],
+  ['primary button text, hover', T('label-primary-foreground'), [T('button-primary-hover')], 4.5],
+  ['checked checkbox mark', T('label-primary-foreground'), [T('brand-primary')], 3],
+  ['send button icon', T('label-primary-foreground'), [T('state-business-primary')], 3],
+  ['mention chip', T('label-primary'), [T('bg-base'), T('state-business-tertiary')], 4.5],
+  ['status pill or quote, waits', T('label-primary'), [T('bg-base'), T('state-warn-tertiary')], 4.5],
+  ['status pill, done', T('label-primary'), [T('bg-base'), T('state-success-tertiary')], 4.5],
+  ['status pill, working', T('label-primary'), [T('bg-base'), T('state-business-tertiary')], 4.5],
+  ['status pill, refused or stale', T('label-primary'), [T('bg-base'), T('interactive-bg-hover-danger')], 4.5],
+  ['status pill, no action', T('label-primary'), [T('bg-base'), T('bg-module-platform')], 4.5],
+  ['quote in the decision bar', T('label-primary'), [T('bg-layer-2'), T('state-warn-tertiary')], 4.5],
+  ['avatar initial', T('label-primary'), [T('bg-overlay')], 4.5],
+  ['letter text', T('label-document-preview'), [T('bg-document-preview')], 4.5],
+  ['letter text, marked span', T('label-document-preview'), [T('bg-document-preview'), T('state-warn-tertiary')], 4.5],
+  ['icon', T('label-tertiary'), [T('bg-base')], 3],
+  ['icon on a selected row', T('label-tertiary'), [T('bg-base'), T('interactive-bg-active')], 3],
+  ['icon in the sidebar', T('label-tertiary'), ['--dsw-specific-sidebar-fill'], 3],
+  ['checkbox border', T('label-tertiary'), [T('bg-base')], 3],
+  ['selection bar, focus ring', T('state-business-primary'), [T('bg-base')], 3],
+  // A status icon always sits beside its word (R11), so the word carries the state and the icon has no minimum;
+  // the rows record the client's state colours for client-gaps.md item 2.
+  ['status icon beside its word, waits', T('state-warn-primary'), [T('bg-base')], 0],
+  ['status icon beside its word, done', T('state-success-primary'), [T('bg-base')], 0],
+  ['status icon beside its word, working', T('state-business-primary'), [T('bg-base')], 0],
+  ['status icon beside its word, refused or stale', T('state-error-primary'), [T('bg-base')], 0],
+  ['status icon beside its word, no action', T('state-idle-primary'), [T('bg-base')], 0],
 );
 
-let failed = 0;
-const rows = [];
-for (const [use, fg, bg, min] of pairs) {
-  const cells = [dark, light].map(vars => {
-    const r = ratio(fg, bg, vars);
-    if (r < min) failed++;
-    return `${r.toFixed(2)}${r < min ? ' FAIL' : ''}`;
-  });
-  rows.push(`| ${use} | \`${fg}\` | ${bg.map(t => `\`${t}\``).join(' + ')} | ${min} | ${cells[0]} | ${cells[1]} |`);
+/** Measures every pair in both themes of the client theme; returns the Markdown table and the failure count. */
+export function measure(dir) {
+  const { light, dark } = loadTheme(dir);
+  let failed = 0;
+  const rows = [];
+  for (const [use, fg, bg, min] of pairs) {
+    const cells = [dark, light].map(vars => {
+      const r = ratio(fg, bg, vars);
+      if (r < min) failed++;
+      return `${r.toFixed(2)}${r < min ? ' FAIL' : ''}`;
+    });
+    rows.push(`| ${use} | \`${fg}\` | ${bg.map(t => `\`${t}\``).join(' + ')} | ${min || 'none'} | ${cells[0]} | ${cells[1]} |`);
+  }
+  const table = [
+    '# Token contrast',
+    '',
+    'Generated by `node scripts/contrast.mjs contrast.md` from the harness client theme (`packages/client/ui-theme/src/styles`). Do not edit by hand.',
+    '',
+    `WCAG 2.x contrast, alpha blended over the surface, bottom of the stack first. ${pairs.length * 2} checks, ${failed} below the minimum. A menu row stacks the Menu material over the scrim (\`--dsw-alias-bg-mask-2\`) over the content panel; the material's backdrop blur is not modelled.`,
+    '',
+    '| Use | Foreground | Surface | Min | Dark | Light |',
+    '|---|---|---|---|---|---|',
+    ...rows,
+  ].join('\n') + '\n';
+  return { table, failed };
 }
-const table = [
-  '# Token contrast',
-  '',
-  'Generated by `node scripts/contrast.mjs tokens.css contrast.md`. Do not edit by hand.',
-  '',
-  `Contrast of ${cssPath.split('/').pop()} (WCAG 2.x, OKLCH converted to sRGB, alpha blended over the surface). ${pairs.length * 2} checks, ${failed} below the minimum.`,
-  '',
-  '| Use | Foreground | Surface | Min | Dark | Light |',
-  '|---|---|---|---|---|---|',
-  ...rows,
-].join('\n') + '\n';
-if (outPath) writeFileSync(outPath, table);
-process.stdout.write(table);
-process.exit(failed ? 1 : 0);
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const out = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--theme');
+  const { table, failed } = measure(themeDir());
+  if (out) writeFileSync(out, table);
+  process.stdout.write(table);
+  process.exit(failed ? 1 : 0);
+}
