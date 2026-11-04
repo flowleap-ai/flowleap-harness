@@ -32,6 +32,24 @@ const layerExcluded = 'input, textarea, select, [contenteditable="true"], [conte
 /** Controls that keep their native Space and Enter activation. */
 const activationTargets = 'button, a[href], summary, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]'
 
+/**
+ * The normalized default binding of a command on each runtime and platform that has one.
+ * @param command - a command with per-profile defaults.
+ * @returns each runtime and platform with its binding.
+ */
+function* platformDefaults(command: Parameters<typeof resolveShortcutDefault>[0]): Generator<{
+  readonly runtime: ShortcutRuntime
+  readonly platform: ShortcutPlatform
+  readonly binding: NormalizedBinding
+}> {
+  for (const runtime of ['desktop', 'web'] as const) {
+    for (const platform of ['macos', 'windows', 'linux'] as const) {
+      const candidate = resolveShortcutDefault(command, runtime, platform)
+      if (candidate !== undefined) yield { runtime, platform, binding: normalizeBinding(candidate, platform) }
+    }
+  }
+}
+
 /** Application command registry; adapters own event listeners, feature plugins own actions. */
 export class ShortcutRegistry {
   private readonly commands = new Map<ShortcutCommandId, ShortcutCommand>()
@@ -113,20 +131,15 @@ export class ShortcutRegistry {
   registerScoped(command: ShortcutScopedCommand): () => void {
     this.assertUnique(command.id)
     this.assertScope(command.scope)
-    for (const runtime of ['desktop', 'web'] as const) {
-      for (const platform of ['macos', 'windows', 'linux'] as const) {
-        const candidate = resolveShortcutDefault(command, runtime, platform)
-        if (candidate === undefined) continue
-        const binding = normalizeBinding(candidate, platform)
-        if (layerBindingIssue(binding) !== null) throw new Error(`Unsupported layer shortcut default: ${command.id}`)
-        const occupied = [...[...this.scopedCommands.values()].filter(other => other.scope === command.scope).flatMap((other) => {
-          const value = resolveShortcutDefault(other, runtime, platform)
-          return value === undefined ? [] : [{ id: other.id, binding: normalizeBinding(value, platform) }]
-        }), ...[...this.scopedFixedCommands.values()].filter(other => other.scope === command.scope)
-          .flatMap(other => other.bindings.map(value => ({ id: other.id, binding: normalizeBinding(value, platform) })))]
-        const other = occupied.find(row => overlappingBindings(binding, row.binding))
-        if (other !== undefined) throw new Error(`Conflicting shortcut defaults: ${command.id} and ${other.id} (${runtime}:${platform})`)
-      }
+    for (const { runtime, platform, binding } of platformDefaults(command)) {
+      if (layerBindingIssue(binding) !== null) throw new Error(`Unsupported layer shortcut default: ${command.id}`)
+      const occupied = [...[...this.scopedCommands.values()].filter(other => other.scope === command.scope).flatMap((other) => {
+        const value = resolveShortcutDefault(other, runtime, platform)
+        return value === undefined ? [] : [{ id: other.id, binding: normalizeBinding(value, platform) }]
+      }), ...[...this.scopedFixedCommands.values()].filter(other => other.scope === command.scope)
+        .flatMap(other => other.bindings.map(value => ({ id: other.id, binding: normalizeBinding(value, platform) })))]
+      const other = occupied.find(row => overlappingBindings(binding, row.binding))
+      if (other !== undefined) throw new Error(`Conflicting shortcut defaults: ${command.id} and ${other.id} (${runtime}:${platform})`)
     }
     return this.add(this.scopedCommands, command)
   }
@@ -186,20 +199,15 @@ export class ShortcutRegistry {
    */
   register(command: ShortcutCommand): () => void {
     this.assertUnique(command.id)
-    for (const runtime of ['desktop', 'web'] as const) {
-      for (const platform of ['macos', 'windows', 'linux'] as const) {
-        const candidate = resolveShortcutDefault(command, runtime, platform)
-        if (candidate === undefined) continue
-        const binding = normalizeBinding(candidate, platform)
-        if (runtime === 'web' && !isWebBindingAllowed(binding, platform)) {
-          throw new Error(`Unsupported Web shortcut: ${command.id}`)
-        }
-        if (bindingIssue(binding, runtime, platform) !== null) throw new Error(`Reserved shortcut default: ${command.id}`)
-        for (const existing of this.commands.values()) {
-          const other = resolveShortcutDefault(existing, runtime, platform)
-          if (other !== undefined && overlappingBindings(binding, normalizeBinding(other, platform))) {
-            throw new Error(`Conflicting shortcut defaults: ${command.id} and ${existing.id} (${runtime}:${platform})`)
-          }
+    for (const { runtime, platform, binding } of platformDefaults(command)) {
+      if (runtime === 'web' && !isWebBindingAllowed(binding, platform)) {
+        throw new Error(`Unsupported Web shortcut: ${command.id}`)
+      }
+      if (bindingIssue(binding, runtime, platform) !== null) throw new Error(`Reserved shortcut default: ${command.id}`)
+      for (const existing of this.commands.values()) {
+        const other = resolveShortcutDefault(existing, runtime, platform)
+        if (other !== undefined && overlappingBindings(binding, normalizeBinding(other, platform))) {
+          throw new Error(`Conflicting shortcut defaults: ${command.id} and ${existing.id} (${runtime}:${platform})`)
         }
       }
     }
