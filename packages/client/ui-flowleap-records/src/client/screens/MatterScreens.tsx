@@ -172,7 +172,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             <Section heading={t('section.deadlines')} count={data.deadlines.length}>
               <DetailTable
                 label={t('section.deadlines')}
-                columns="168px 144px 128px minmax(0, 1fr)"
+                columns="168px 128px 160px minmax(0, 1fr)"
                 narrowColumns="minmax(0, 1fr) auto"
                 header={[{ text: t('matter.col.state') }, { text: t('prop.due') }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
               >

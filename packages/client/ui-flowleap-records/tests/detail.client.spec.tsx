@@ -142,6 +142,11 @@ describe('the matter page', () => {
     expect(within(deadlines).getAllByRole('row')[1]!.querySelector('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.deadline_proposed')
     expect(deadlines.textContent).toContain('Rule 71(3) EPC')
     expect(deadlines.textContent).toContain('117 days left')
+    // The days left are a key fact and never truncate (R17): the column holds the longest of the 8 languages with a
+    // four-digit count, measured at 13px weight 500 in the client font ("Просрочено на 1248 дн.", 157px).
+    const [, date, due] = deadlines.style.getPropertyValue('--detail-columns').split(' ').map(track => Number.parseInt(track, 10))
+    expect(due).toBeGreaterThanOrEqual(157)
+    expect(date).toBeGreaterThanOrEqual(125)
     const panel = screen.getByRole('complementary', { name: 'Properties' })
     expect(panel.textContent).toContain('3 people')
     expect(panel.textContent).toContain('EP 24 123 456.7')
