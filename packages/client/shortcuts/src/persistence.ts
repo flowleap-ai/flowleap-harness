@@ -1,7 +1,7 @@
 /** Serialized preference transactions; storage owners publish only accepted writes or read diagnostics. */
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import { editShortcutDocument, effectiveShortcuts, parseShortcutDocument } from './configuration.ts'
+import { editShortcutDocument, effectiveScopedShortcuts, effectiveShortcuts, parseShortcutDocument } from './configuration.ts'
 import type { BindingIssue, ShortcutDefinition, ShortcutDocument, ShortcutEdit } from './configuration.ts'
 import type { ShortcutCommandId, ShortcutPlatform, ShortcutRuntime } from './binding.ts'
 
@@ -93,7 +93,8 @@ export class ShortcutPersistence {
       if (this.snapshot.status === 'unreadable') return result('unreadable')
       if ((edit.type === 'set' || edit.type === 'reset') && !this.definitions.some(row => row.id === edit.id && row.fixed === undefined)) return result('not-ready')
       const document = editShortcutDocument(this.snapshot.document, edit, this.runtime, this.platform)
-      const rows = effectiveShortcuts(this.definitions, document, this.runtime, this.platform)
+      const rows = [...effectiveShortcuts(this.definitions, document, this.runtime, this.platform),
+        ...effectiveScopedShortcuts(this.definitions, document, this.runtime, this.platform)]
       const invalid = rows.find(row => (edit.type === 'reset-all' || row.id === edit.id)
         && (row.issue !== null || row.conflicts.length > 0))
       // An explicit edit must not silently disable another command's default binding.

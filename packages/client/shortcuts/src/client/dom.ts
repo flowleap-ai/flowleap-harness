@@ -25,16 +25,17 @@ export function detectEnvironment(document: Document, navigator: Navigator): {
  * @param window - input window owned by the client plugin.
  * @param shortcuts - command registry for this window.
  * @param fixed - optional fixed-sequence consumer after local controls.
- * @param native - native input owns configurable bindings; DOM delivery only feeds fixed actions.
+ * @param native - native input owns configurable bindings; DOM delivery only feeds fixed actions and view layers.
  * @returns disposer releasing every listener, the modal observer, and cached nodes.
  */
-export function installKeyboard(window: Window, shortcuts: Pick<ShortcutRegistry, 'dispatch' | 'runtime' | 'platform'>,
+export function installKeyboard(window: Window,
+  shortcuts: Pick<ShortcutRegistry, 'dispatch' | 'dispatchLayer' | 'resetLayer' | 'runtime' | 'platform'>,
   fixed?: (input: ShortcutFixedInput) => void, native = false): () => void {
   const document = window.document
   const composition = observeComposition(document)
   let pending = false
   let pendingTimer: number | undefined
-  const reset = (): void => { fixed?.({ type: 'reset' }) }
+  const reset = (): void => { shortcuts.resetLayer(); fixed?.({ type: 'reset' }) }
   let deadKey = false
   let dialogs: NodeListOf<HTMLElement> | undefined
   const blur = (): void => { deadKey = false; reset() }
@@ -88,9 +89,12 @@ export function installKeyboard(window: Window, shortcuts: Pick<ShortcutRegistry
       if (commandDeadKey) deadKey = false
     }
     fixed?.({ type: 'keydown', gesture, context, consume })
-    if (native) return
-    shortcuts.dispatch({ ...gesture, composing: guarded || (isDead && !commandDeadKey),
-      defaultPrevented: event.defaultPrevented }, context, consume)
+    if (!native) {
+      shortcuts.dispatch({ ...gesture, composing: guarded || (isDead && !commandDeadKey),
+        defaultPrevented: event.defaultPrevented }, context, consume)
+    }
+    // View layers run on every platform after application bindings and local handlers passed the key.
+    shortcuts.dispatchLayer({ ...gesture, defaultPrevented: event.defaultPrevented }, element, top ?? null, consume)
   }
   document.addEventListener('compositionstart', reset, true)
   document.addEventListener('compositionend', reset, true)

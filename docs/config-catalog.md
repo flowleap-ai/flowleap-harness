@@ -575,6 +575,8 @@ export interface Config {
 export interface Config {
   /** Maximum interval between independent Escape presses for stopping a reply, in milliseconds. */
   stopSequenceMs: number
+  /** Maximum interval between the two keys of a view-layer sequence such as G then I, in milliseconds. */
+  sequenceMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-shortcuts -->

@@ -108,7 +108,7 @@ async function mount(options: {
     runtime={runtime} platform={platform}
     edit={(edit, revision) => options.result?.() ?? persistence.edit(edit, revision)}
     describeBinding={options.describe ?? describeBinding}
-    recording={recording} t={makeTranslate(en)}
+    recording={recording} sequenceMs={1000} t={makeTranslate(en)}
     onClose={onClose} onSaved={onSaved} onError={onError} />)
   if (options.recording === undefined) await waitFor(() => { expect((screen.getByRole('button', { name: 'Press a shortcut' })).hasAttribute('disabled')).toBe(false) })
   return { registry, persistence, storage, onClose, onSaved, onError, recording, view }
