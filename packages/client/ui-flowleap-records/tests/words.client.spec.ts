@@ -3,7 +3,7 @@ import type { ShortcutCatalogEntry, ShortcutCommandId, ShortcutFixedCatalogEntry
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createAct, type Act, type DocumentId, type FileNumber, type IsoDate, type IsoTime } from '../src/client/api.ts'
 import type { Route } from '../src/client/model.ts'
-import { dueDay, formatDate, intlLocale, listTime } from '../src/client/format.ts'
+import { dueDay, formatApplicationNumber, formatDate, intlLocale, listTime } from '../src/client/format.ts'
 import { commandId, keycapsFrom } from '../src/client/keys.ts'
 import { de, en } from '../src/client/locales.ts'
 import { rowActions, ROW_MENU_TARGET } from '../src/client/row-menu.ts'
@@ -44,6 +44,13 @@ describe('times and dates', () => {
     expect(intlLocale('de')).toBe('de')
     expect(formatDate('2027-03-01' as IsoDate, 'en')).toBe('Mon, 1 Mar 2027')
     expect(formatDate('2027-03-01' as IsoDate, 'en', 'long')).toBe('Monday, 1 March 2027')
+  })
+})
+
+describe('application numbers', () => {
+  it('writes an EP number in the office format, whatever spaces or prefix the Record holds, and leaves another office\'s number as it is', () => {
+    for (const number of ['24123456.7', '24 123 456.7', 'EP24123456.7', ' EP 24 123 456 . 7 ']) expect(formatApplicationNumber(number)).toBe('EP 24 123 456.7')
+    for (const number of ['10 2024 123 456.7', '17/123,456', 'PCT/EP2024/012345', '2412345.6']) expect(formatApplicationNumber(number)).toBe(number)
   })
 })
 

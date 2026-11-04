@@ -170,7 +170,7 @@ const TICKET_ID = uuid(3)
 /** `GET matters/FL-2026-0001`. */
 export const matterWire = {
   recordSeq: 140,
-  matter: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, state: 'open', applicationNumber: 'EP 24 123 456.7' },
+  matter: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, state: 'open', applicationNumber: '24123456.7' },
   responsible: PEOPLE.anna,
   team: [PEOPLE.anna, PEOPLE.jonas, PEOPLE.lena],
   deadlines: [{ id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', code: 'EPO:R71(3)', officeEventId: OFFICE_EVENT_ID }],

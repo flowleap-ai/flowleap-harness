@@ -370,7 +370,7 @@ describe('the open letter', () => {
     const { panel, model } = await mount(api, open(R71_DOCUMENT))
     expect(screen.getByText('Is this reading of the letter right?')).toBeTruthy()
     expect(within(decision()).getByText('Rule 71(3) communication of Fri, 30 Oct 2026')).toBeTruthy()
-    expect(within(decision()).getByText('Application 24 123 456.7')).toBeTruthy()
+    expect(within(decision()).getByText('Application EP 24 123 456.7')).toBeTruthy()
     expect(mounted!.commandItems.item()!.groups[0]!.acts[0]!.label).toBe('Record office event')
     press(panel, 'KeyE')
     fireEvent.click(within(decision()).getByRole('button', { name: /Record office event/ }))

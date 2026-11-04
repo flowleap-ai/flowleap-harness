@@ -229,6 +229,7 @@ describe('the deadline page', () => {
     ])
     const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
     expect(readings.textContent).toContain('30.10.2026')
+    expect(within(readings).getAllByText('EP 24 123 456.7')).toHaveLength(2)
     expect(within(readings).getAllByText('Agree')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Rule 134 EPC' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/epc/2020/r134.html')
     const panel = screen.getByRole('complementary', { name: 'Properties' })
@@ -470,7 +471,7 @@ describe('the work on a letter', () => {
   it('shows the client report, each statement with its exact quotes, the related records and the two parts', async () => {
     await mount(WORK)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Rule 71(3) communication of 30 Oct 2026')
-    expect(document.body.textContent).toContain('The EPO intends to grant 24 123 456.7. The agent drafted the client report. Nothing went to the client.')
+    expect(document.body.textContent).toContain('The EPO intends to grant EP 24 123 456.7. The agent drafted the client report. Nothing went to the client.')
     expect(document.body.textContent).toMatch(/Waits for your decision since \d\d:\d\d/)
     expect(document.body.textContent).toContain('Inside the wall of FL-2026-0001')
     expect(document.body.textContent).toContain('report-FL-2026-0001-r71-3.docx · English · Firm template · 1 pages')

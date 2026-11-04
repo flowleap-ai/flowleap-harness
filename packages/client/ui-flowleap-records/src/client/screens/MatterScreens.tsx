@@ -9,7 +9,7 @@ import {
   Avatar, IconDeliverDocRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MatterDetail, MattersList } from '../api.ts'
-import { formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
@@ -150,7 +150,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
               { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who person={data.responsible} /> },
               { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
-              { label: t('prop.application'), value: data.matter.applicationNumber ?? t('matter.notRecorded') },
+              { label: t('prop.application'), value: data.matter.applicationNumber === null ? t('matter.notRecorded') : formatApplicationNumber(data.matter.applicationNumber) },
             ],
           },
           ...(nextDue === null ? [] : [{ heading: t('matter.nextDeadline'), rows: [{ label: t('prop.due'), value: formatDate(nextDue, ctx.locale) }] }]),

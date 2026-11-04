@@ -11,7 +11,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
 import type { DeadlineDetail, FieldValue, MayDecideReason, ReaderField } from '../api.ts'
-import { formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs, type KeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -340,7 +340,7 @@ function Readings({ ctx, readers }: { ctx: ScreenContext; readers: DeadlineDetai
     switch (row.value) {
       case 'code': return result.code === null ? null : ruleWords(t, result.code).short
       case 'documentDate': return result.documentDate === null ? null : formatDate(result.documentDate, ctx.locale)
-      case 'applicationNumber': return result.applicationNumber
+      case 'applicationNumber': return result.applicationNumber === null ? null : formatApplicationNumber(result.applicationNumber)
     }
   }
   return (

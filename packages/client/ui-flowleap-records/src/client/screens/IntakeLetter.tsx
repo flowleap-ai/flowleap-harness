@@ -22,7 +22,7 @@ import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, KeyProperties, PropertiesPanel, WorkColumn, type Property } from '../parts/Layout.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate } from '../format.ts'
 import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
@@ -371,7 +371,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
         <DecisionPart
           icon={<IconCheckOutlineRegular size={16} />}
           title={letter.documentDate === null ? title : t('intake.decision.eventTitle', { title, date: formatDate(letter.documentDate, ctx.locale) })}
-          detail={letter.applicationNumber === null ? undefined : t('intake.decision.eventApplication', { number: letter.applicationNumber })}
+          detail={letter.applicationNumber === null ? undefined : t('intake.decision.eventApplication', { number: formatApplicationNumber(letter.applicationNumber) })}
           missing={record === null ? t('intake.decision.eventMissing') : null}
         />
       )
@@ -433,7 +433,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
       rows: [
         { label: t('intake.prop.office'), value: letter.office ?? t('matter.none') },
         { label: t('intake.prop.type'), value: title },
-        { label: t('prop.application'), value: letter.applicationNumber ?? t('matter.none') },
+        { label: t('prop.application'), value: letter.applicationNumber === null ? t('matter.none') : formatApplicationNumber(letter.applicationNumber) },
         { label: t('intake.prop.document'), value: <span className={css.who}><IconPaperclipOutlineRegular size={16} />{letter.pages === null ? letter.fileName : letter.pages === 1 ? t('intake.prop.onePage') : t('intake.prop.pages', { count: letter.pages })}</span>, title: letter.fileName },
       ],
     },

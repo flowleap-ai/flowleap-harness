@@ -18,7 +18,7 @@ import type {
   CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
-import { formatDate, intlLocale } from '../format.ts'
+import { formatApplicationNumber, formatDate, intlLocale } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -401,7 +401,8 @@ function WaitsText({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
  */
 function lede(ctx: ScreenContext, data: TicketDetail): string {
   const { t } = ctx
-  const application = data.letter?.applicationNumber ?? data.matter.fileNumber
+  const number = data.letter?.applicationNumber ?? null
+  const application = number === null ? data.matter.fileNumber : formatApplicationNumber(number)
   const key = data.letter === null || data.letter.code === null ? undefined : LEDES[data.letter.code]
   const sent = data.reports.some(report => report.state === 'sent')
   return [
