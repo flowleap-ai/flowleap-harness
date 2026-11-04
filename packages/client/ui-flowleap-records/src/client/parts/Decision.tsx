@@ -12,6 +12,7 @@ import clsx from 'clsx'
 import { Avatar, Button, IconEllipsisOutlineRegular, IconWarningTriangleOutlineRegular, Input, Keycap, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Person } from '../api.ts'
 import { ActButton, type ActSpec } from './Act.tsx'
+import { Notice, type NoticeSpec } from './States.tsx'
 import css from './Decision.module.css'
 
 /** A negative act (Not relevant, Reject): tertiary, and it asks for a reason in its own step. */
@@ -55,11 +56,13 @@ export interface DecisionLabels {
  * @param props.blocked - why the primary act waits (missing evidence, R14): it takes the note's place with a warning
  * icon, and the primary act is disabled.
  * @param props.decider - who decides when it is not this person, as one sentence; replaces the note and the primary.
+ * @param props.failure - the failure of the decision's last act, in place above the acts: what failed, what is still
+ * safe, and Try again (R18).
  * @param props.labels - the bar's own copy.
  * @returns the bar.
  */
 export function DecisionBar({
-  person, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, labels,
+  person, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, failure, labels,
 }: {
   person: Person
   question: string
@@ -72,6 +75,7 @@ export function DecisionBar({
   primary: ActSpec | null
   blocked?: string | null
   decider?: string | null
+  failure?: NoticeSpec | undefined
   labels: DecisionLabels
 }) {
   const [moreOpen, setMoreOpen] = useState(false)
@@ -86,6 +90,7 @@ export function DecisionBar({
         {why !== undefined && <span className={css.why}>{why}</span>}
       </header>
       {parts !== undefined && <div className={css.parts}>{parts}</div>}
+      {failure !== undefined && <div className={css.failure}><Notice notice={failure} /></div>}
       {negative?.open === true
         ? <ReasonStep act={negative} />
         : (

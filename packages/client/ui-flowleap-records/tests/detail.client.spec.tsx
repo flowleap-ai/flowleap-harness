@@ -5,7 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type {
-  Act, DeadlineDetail, DeadlineId, DocumentId, FileNumber, MatterDetail, RecordsApi, TicketDetail, TicketId,
+  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, MatterDetail, RecordsApi, TicketDetail, TicketId,
 } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
@@ -46,10 +46,15 @@ const sourced: TicketDetail = {
  * @param route - the first route.
  * @param overrides - answers that replace the fixtures.
  * @param language - the UI language.
+ * @param fixture - the fixture API and its acts.
  * @returns the acts sent, the model and the key handlers.
  */
-async function mount(route: Route, overrides: { deadline?: DeadlineDetail; ticket?: TicketDetail; matter?: MatterDetail; perform?: RecordsApi['perform'] } = {}, language: 'en' | 'de' = 'en') {
-  const { api, acts } = createFixtureApi()
+async function mount(
+  route: Route,
+  overrides: { deadline?: DeadlineDetail; ticket?: TicketDetail; matter?: MatterDetail; perform?: RecordsApi['perform'] } = {},
+  language: 'en' | 'de' = 'en',
+  { api, acts } = createFixtureApi(),
+) {
   if (overrides.deadline !== undefined) vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: overrides.deadline })
   if (overrides.ticket !== undefined) vi.spyOn(api, 'ticket').mockResolvedValue({ ok: true, value: overrides.ticket })
   if (overrides.matter !== undefined) vi.spyOn(api, 'matter').mockResolvedValue({ ok: true, value: overrides.matter })
@@ -352,20 +357,90 @@ describe('the deadline page', () => {
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
   })
 
-  it('says when the confirm failed and sends the same act again', async () => {
+  it('after no answer, shows the failure in the bar and tries again with the same act, from Try again or R', async () => {
     let fail = true
-    const sent: string[] = []
-    await mount(DEADLINE, { perform: (act) => { sent.push(act.key); return Promise.resolve(fail ? { ok: false, error: { kind: 'network' } } : { ok: true, value: null }) } })
+    const sent: Act[] = []
+    const { press } = await mount(DEADLINE, { perform: (act) => { sent.push(act); return Promise.resolve(fail ? { ok: false, error: { kind: 'network' } } : { ok: true, value: null }) } })
+    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    await flush()
+    const notice = within(bar()).getByRole('alert')
+    expect(notice.textContent).toBe('FlowLeap could not confirm the deadline. FlowLeap did not answer, so it may be recorded. A second try is safe: FlowLeap records it only one time.Try again')
+    fireEvent.click(within(notice).getByRole('button', { name: /Try again/ }))
+    await flush()
+    await press('retry')
+    fail = false
+    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    await flush()
+    expect(sent.map(act => act.key)).toEqual(Array(4).fill(sent[0]!.key))
+    expect(within(bar()).queryByRole('alert')).toBeNull()
+  })
+
+  it('after a refusal, confirms again with a new act that names the record position on screen now', async () => {
+    const { api } = createFixtureApi()
+    const sent: Act[] = []
+    let seq = 141
+    vi.spyOn(api, 'deadline').mockImplementation(() => Promise.resolve({ ok: true, value: { ...fixtures.deadline, recordSeq: seq } }))
+    await mount(DEADLINE, {
+      perform: (act) => {
+        sent.push(act)
+        seq = 150
+        return Promise.resolve(sent.length === 1 ? { ok: false, error: { kind: 'refused', status: 409, code: 'seen-is-stale', detail: null } } : { ok: true, value: null })
+      },
+    }, 'en', { api, acts: [] })
+    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    await flush()
+    expect(within(bar()).getByRole('alert').textContent).toContain('The record changed after you opened the page, so FlowLeap recorded nothing.')
+    fireEvent.click(within(within(bar()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
+    await flush()
+    expect(sent.map(act => act.command)).toEqual([
+      { kind: 'deadline.confirm', id: FIXTURE_IDS.deadline, seen: 141 },
+      { kind: 'deadline.confirm', id: FIXTURE_IDS.deadline, seen: 150 },
+    ])
+    expect(sent[1]!.key).not.toBe(sent[0]!.key)
+  })
+
+  it('sends one confirm while it runs: the primary is busy, and a click, ⇧⌘↵ and ⌘K send nothing more', async () => {
+    let answer: ((result: Fetched<null>) => void) | undefined
+    const sent: Act[] = []
+    const perform: RecordsApi['perform'] = (act) => {
+      sent.push(act)
+      return new Promise((resolve) => { answer = resolve })
+    }
+    const { press, commandItems } = await mount(DEADLINE, { perform })
     const confirm = () => within(bar()).getByRole('button', { name: /Confirm deadline/ })
     fireEvent.click(confirm())
     await flush()
-    expect(within(bar()).getByText('FlowLeap could not record it. Try again; a second try is safe.')).toBeTruthy()
-    fail = false
+    expect(confirm().getAttribute('aria-busy')).toBe('true')
+    expect(confirm().getAttribute('aria-disabled')).toBe('true')
     fireEvent.click(confirm())
+    await press('record')
+    const record = commandItems.item()!.groups[0]!.acts[0]!
+    expect(record.disabled).toBe(true)
+    act(() => { record.run() })
     await flush()
-    expect(sent).toHaveLength(2)
-    expect(sent[1]).toBe(sent[0])
-    expect(within(bar()).queryByText(/could not record/)).toBeNull()
+    expect(sent).toHaveLength(1)
+    await act(async () => { answer?.({ ok: true, value: null }) })
+    await flush()
+    expect(confirm().getAttribute('aria-busy')).toBeNull()
+  })
+
+  it('says when a reject failed, tries it again with its reason, and hides a confirm failure when the reject step opens', async () => {
+    const sent: Act[] = []
+    const { press } = await mount(DEADLINE, { perform: (act) => { sent.push(act); return Promise.resolve(sent.length < 3 ? { ok: false, error: { kind: 'refused', status: 409, code: 'not-proposed', detail: null } } : { ok: true, value: null }) } })
+    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    await flush()
+    expect(within(bar()).getByRole('alert').textContent).toContain('FlowLeap refused it and recorded nothing.')
+    await press('reject')
+    expect(within(bar()).queryByRole('alert')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Why is this date wrong?'), { target: { value: 'Wrong period' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    await flush()
+    expect(within(bar()).getByRole('alert').textContent).toContain('FlowLeap could not reject the deadline.')
+    await press('retry')
+    expect(sent.map(act => act.command.kind)).toEqual(['deadline.confirm', 'deadline.reject', 'deadline.reject'])
+    expect(sent[2]!.command).toEqual(sent[1]!.command)
+    expect(sent[2]!.key).not.toBe(sent[1]!.key)
+    expect(within(bar()).queryByRole('alert')).toBeNull()
   })
 
   it('shows the German copy of the mockups', async () => {
@@ -588,19 +663,36 @@ describe('the work on a letter', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Letter')
   })
 
-  it('says when the decision failed and keeps it to send again', async () => {
+  it('after no answer, tries the same decision again with its act, and sends a changed decision as a new act', async () => {
     let fail = true
-    const sent: string[] = []
-    await mount(WORK, { ticket: sourced, perform: (act) => { sent.push(act.key); return Promise.resolve(fail ? { ok: false, error: { kind: 'network' } } : { ok: true, value: null }) } })
+    const sent: Act[] = []
+    await mount(WORK, { ticket: sourced, perform: (act) => { sent.push(act); return Promise.resolve(fail ? { ok: false, error: { kind: 'network' } } : { ok: true, value: null }) } })
+    const recordDecision = () => { fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ })) }
+    const check = () => { fireEvent.click(screen.getByRole('checkbox', { name: /I checked the deadline/ })) }
     fireEvent.click(within(bar()).getByRole('button', { name: /^Accept/ }))
-    fireEvent.click(screen.getByRole('checkbox', { name: /I checked the deadline/ }))
-    fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ }))
+    check()
+    recordDecision()
     await flush()
-    expect(within(bar()).getByText('FlowLeap could not record the decision. Try again; a second try is safe.')).toBeTruthy()
+    expect(within(bar()).getByRole('alert').textContent).toContain('FlowLeap could not record the decision. FlowLeap did not answer, so it may be recorded.')
+    fireEvent.click(within(within(bar()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
+    await flush()
+    check()
+    expect(within(bar()).queryByRole('alert')).toBeNull()
+    check()
+    recordDecision()
+    await flush()
+    fireEvent.click(within(bar()).getAllByRole('button', { name: /^Reject/ })[0]!)
+    fireEvent.change(screen.getByLabelText('Why do you reject the client report?'), { target: { value: 'Wrong client' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    expect(within(bar()).queryByRole('alert')).toBeNull()
     fail = false
-    fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ }))
+    recordDecision()
     await flush()
-    expect(sent).toHaveLength(2)
-    expect(sent[1]).toBe(sent[0])
+    expect(sent.map(act => act.command.kind === 'ticket.decide' ? act.command.reports.map(report => report.decision) : [])).toEqual([
+      ['approve'], ['approve'], ['approve'], ['reject'],
+    ])
+    expect(sent.slice(0, 3).map(act => act.key)).toEqual(Array(3).fill(sent[0]!.key))
+    expect(sent[3]!.key).not.toBe(sent[0]!.key)
+    expect(within(bar()).queryByRole('alert')).toBeNull()
   })
 })

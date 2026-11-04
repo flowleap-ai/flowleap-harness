@@ -6,10 +6,11 @@
  * or closes the letter.
  */
 
-import { useEffect, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { Avatar, IconCheckOutlineRegular, IconCloseOutlineRegular, IconPaperPlaneOutlineRegular, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
-import { createAct, type Command, type DocumentId, type IntakeList, type IntakeRow, type IntakeView, type QueueStatus } from '../api.ts'
+import { sameRequest, useActRunner } from '../act-runner.ts'
+import type { Command, DocumentId, IntakeList, IntakeRow, IntakeView, QueueStatus } from '../api.ts'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { DecisionBar } from '../parts/Decision.tsx'
@@ -20,7 +21,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { IntakeLetter } from './IntakeLetter.tsx'
-import { LoadError } from './shared.tsx'
+import { failureNotice, LoadError } from './shared.tsx'
 import css from './Intake.module.css'
 
 /** The column grid of an intake row: status, letter, matter, forwarder, received. */
@@ -44,6 +45,9 @@ type ListLabel = 'intake.list.waiting' | 'intake.list.filedToday' | 'intake.list
 const LIST_LABEL: Readonly<Record<IntakeView, ListLabel>> = {
   'waiting': 'intake.list.waiting', 'filed-today': 'intake.list.filedToday', 'not-relevant': 'intake.list.notRelevant',
 }
+
+/** The command of one letter in a bulk decision. */
+type LetterCommand = Extract<Command, { readonly kind: 'intake.match' | 'intake.notRelevant' }>
 
 /** One group of rows. */
 interface RowGroup {
@@ -142,7 +146,9 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
   const [checked, setChecked] = useState<ReadonlySet<DocumentId>>(new Set())
   const [anchor, setAnchor] = useState<DocumentId | null>(null)
   const [bulkReason, setBulkReason] = useState(false)
-  const [failed, setFailed] = useState(0)
+  const runner = useActRunner(ctx.perform)
+  const busy = runner.run.phase === 'running'
+  const sent = useRef<readonly LetterCommand[]>([])
   const loaded = screen.intake.phase === 'ready' ? screen.intake.data : screen.intake.phase === 'failed' ? screen.intake.last?.data ?? null : null
   const rows = loaded === null ? [] : shownOrder(loaded.rows)
   const order = rows.map(row => row.document)
@@ -158,12 +164,12 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     }
     setChecked(after)
     setAnchor(document)
-    setFailed(0)
+    runner.clear()
   }
   const clear = () => {
     setChecked(new Set())
     setBulkReason(false)
-    setFailed(0)
+    runner.clear()
   }
   // J and K move the focus; with a letter open they also open the next letter, so X then selects the letter shown.
   const step = (by: 1 | -1) => () => {
@@ -176,19 +182,21 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
   const matches = loaded === null ? [] : acceptable(loaded.rows, checked)
   /**
    * Send one act for each letter; the letters whose act failed stay checked, so the person can try again.
-   * @param commands - the letter and the command of each act.
+   * @param commands - the command of each letter.
    */
-  const performEach = (commands: readonly { readonly document: DocumentId; readonly command: Command }[]) => {
-    const acts = commands.map(({ document, command }) => ({ document, act: createAct(command) }))
-    void ctx.perform(acts.map(({ act }) => act)).then((result) => {
-      const failedActs = new Set(result.failed.map(({ act }) => act))
-      setChecked(new Set(acts.filter(({ act }) => failedActs.has(act)).map(({ document }) => document)))
-      setFailed(result.failed.length)
-      setBulkReason(false)
+  const performEach = (commands: readonly LetterCommand[]) => {
+    setBulkReason(false)
+    void runner.submit(commands).then((result) => {
+      if (result === null) return
+      sent.current = commands
+      const failed = commands.filter(command => result.failed.some(({ act }) => sameRequest(act.command, command)))
+      setChecked(new Set(failed.map(command => command.document)))
     })
   }
-  const acceptAll = () => { performEach(matches.map(row => ({ document: row.document, command: { kind: 'intake.match', ...row } }))) }
-  const closeAll = (reason: string) => { performEach([...checked].map(document => ({ document, command: { kind: 'intake.notRelevant', document, reason } }))) }
+  const acceptAll = () => { performEach(matches.map(row => ({ kind: 'intake.match', ...row }))) }
+  const closeAll = (reason: string) => { performEach([...checked].map(document => ({ kind: 'intake.notRelevant', document, reason }))) }
+  // While the failure shows, the checked letters are the letters whose act failed: a change of the selection clears it.
+  const retryAll = () => { performEach(sent.current.filter(command => checked.has(command.document))) }
   const selecting = checked.size > 0
   const split = useSplit()
   const first = rows[0]?.document
@@ -214,13 +222,14 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     goIntake: () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) },
     retry: ctx.retry,
     ...(selecting ? { record: matches.length > 0 ? acceptAll : () => {}, reject: () => { setBulkReason(true) } } : {}),
+    ...(runner.run.phase === 'failed' ? { retry: retryAll } : {}),
   })
   const listItem: CommandMenuItem = {
     label: selecting ? selectedText : t(LIST_LABEL[screen.list]),
     groups: [
       ...(selecting
         ? [{ id: 'selection', label: t('intake.menu.selection'), acts: [
-          { id: 'accept', label: t('act.acceptFileCount', { count: matches.length }), commandId: commandId('record'), disabled: matches.length === 0, run: acceptAll },
+          { id: 'accept', label: t('act.acceptFileCount', { count: matches.length }), commandId: commandId('record'), disabled: matches.length === 0 || busy, run: acceptAll },
           { id: 'reject', label: t('act.notRelevant'), commandId: commandId('reject'), run: () => { setBulkReason(true) } },
           { id: 'clear', label: t('selection.clear'), run: clear },
         ] }]
@@ -240,7 +249,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         person={ctx.me.person}
         question={t('intake.bulk.question', { count: matches.length })}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
-        note={failed > 0 ? t('intake.bulk.failed', { count: failed }) : undefined}
+        failure={failureNotice(ctx, runner.run, retryAll, runner.run.phase === 'failed' ? t('intake.bulk.failed', { count: runner.run.failed.length }) : undefined)}
         negative={{
           ...keyedOf(ctx, 'reject'),
           label: t('act.notRelevant'),
@@ -252,7 +261,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
           cancelLabel: t('act.cancel'),
           onConfirm: closeAll,
         }}
-        primary={actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 })}
+        primary={{ ...actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 }), busy }}
       />
     )
   const statuses = new Set(rows.filter(row => checked.has(row.document)).map(row => keyOf(row.status)))
@@ -298,7 +307,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
           <SelectionBar
             label={t('selection.count', { count: checked.size })}
             acts={[{ ...keyedOf(ctx, 'reject'), label: t('act.notRelevant'), icon: <IconCloseOutlineRegular size={16} />, run: () => { setBulkReason(true) } }]}
-            primary={actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 })}
+            primary={{ ...actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 }), busy }}
           />
         </div>
       )

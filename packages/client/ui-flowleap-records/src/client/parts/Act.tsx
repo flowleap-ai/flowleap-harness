@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from 'react'
-import { Button, Keycap, type KeycapBox } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Keycap, StateDot, type KeycapBox } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 
 /** One act of a person, with the command whose key runs it. */
@@ -20,6 +20,11 @@ export interface ActSpec {
   /** A 16px UI icon before the label. */
   readonly icon?: ReactNode
   readonly disabled?: boolean | undefined
+  /**
+   * The act runs now: the control shows a spinner and is `aria-disabled`, and stays focusable, so the keys of the
+   * view still reach it. The act's runner ignores a second run.
+   */
+  readonly busy?: boolean | undefined
   /** Run the act. */
   readonly run: () => void
 }
@@ -43,13 +48,16 @@ export function ActButton({ act, rank, size = 'sm', className }: {
   size?: 'sm' | 'md'
   className?: string | undefined
 }) {
+  const busy = act.busy === true
   return (
     <Button
       variant={VARIANT[rank]}
       size={size}
-      icon={act.icon}
+      icon={busy ? <StateDot state="ongoing" size={16} /> : act.icon}
       className={className}
       disabled={act.disabled === true}
+      aria-busy={busy || undefined}
+      aria-disabled={busy || undefined}
       data-act={act.id}
       data-command={act.command}
       onClick={act.run}

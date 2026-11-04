@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DocumentId, FileNumber, IntakeDocument, OfficeEventId, RecordsApi } from '../src/client/api.ts'
+import type { DocumentId, Fetched, FileNumber, IntakeDocument, OfficeEventId, RecordsApi } from '../src/client/api.ts'
 import { shownOrder } from '../src/client/screens/IntakeScreen.tsx'
 import type { Route } from '../src/client/model.ts'
 import { createFixtureApi, fixtures, OUTSIDE_WALL, R71_DOCUMENT, RECEPTION, sha } from './fixtures.client.ts'
@@ -174,10 +174,14 @@ describe('the open letter', () => {
     expect(windowOpen).toHaveBeenCalledTimes(2)
   })
 
-  it('records Accept and file with ⇧⌘↵ and with 1, one act with its own key each time', async () => {
+  it('records Accept and file with ⇧⌘↵ and with 1, one act with its own key each time, and no second act while one runs', async () => {
     const { api, acts } = createFixtureApi()
     const { panel } = await mount(api, open(R71_DOCUMENT))
     press(panel, 'Enter', { metaKey: true, shiftKey: true })
+    press(panel, 'Digit1')
+    expect(within(decision()).getByRole('button', { name: /Accept and file/ }).getAttribute('aria-busy')).toBe('true')
+    await flush()
+    expect(acts).toHaveLength(1)
     press(panel, 'Digit1')
     press(panel, 'KeyX')
     await flush()
@@ -209,6 +213,57 @@ describe('the open letter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark not relevant' }))
     await flush()
     expect(acts.map(act => act.command)).toEqual([{ kind: 'intake.notRelevant', document: R71_DOCUMENT, reason: 'Advertising' }])
+  })
+
+  it('shows each failed act of a letter in its bar, tries it again with its act after no answer, and a new one after a pick', async () => {
+    const { api, acts } = createFixtureApi()
+    const answers: Fetched<null>[] = [
+      { ok: false, error: { kind: 'network' } },
+      { ok: false, error: { kind: 'network' } },
+      { ok: false, error: { kind: 'refused', status: 409, code: 'not-ready', detail: null } },
+      { ok: false, error: { kind: 'network' } },
+    ]
+    vi.spyOn(api, 'perform').mockImplementation((next) => {
+      acts.push(next)
+      return Promise.resolve(answers.shift() ?? { ok: true, value: null })
+    })
+    const { panel } = await mount(api, open(R71_DOCUMENT))
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    expect(within(decision()).getByRole('alert').textContent).toContain('FlowLeap could not file the letter. FlowLeap did not answer, so it may be recorded.')
+    press(panel, 'KeyR')
+    await flush()
+    expect(acts[1]!.key).toBe(acts[0]!.key)
+    press(panel, 'KeyM')
+    await flush()
+    expect(within(decision()).queryByRole('alert')).toBeNull()
+    fireEvent.click(within(screen.getByRole('menu')).getByText('FL-2025-0412 Brake caliper bracket'))
+    await flush()
+    fireEvent.click(within(decision()).getByRole('button', { name: /File on FL-2025-0412/ }))
+    await flush()
+    expect(within(decision()).getByRole('alert').textContent).toContain('FlowLeap refused it and recorded nothing.')
+    expect(acts[2]!.key).not.toBe(acts[0]!.key)
+    press(panel, 'Digit2')
+    await flush()
+    expect(within(decision()).queryByRole('alert')).toBeNull()
+    fireEvent.click(within(decision()).getByRole('button', { name: 'Cancel' }))
+    press(panel, 'Digit2')
+    await flush()
+    fireEvent.change(screen.getByLabelText('Why is this letter not relevant?'), { target: { value: 'Advertising' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Mark not relevant' }))
+    await flush()
+    expect(within(decision()).getByRole('alert').textContent).toContain('FlowLeap could not mark the letter not relevant.')
+    fireEvent.click(within(within(decision()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
+    await flush()
+    expect(acts.map(act => act.command)).toEqual([
+      { kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' },
+      { kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' },
+      { kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2025-0412' },
+      { kind: 'intake.notRelevant', document: R71_DOCUMENT, reason: 'Advertising' },
+      { kind: 'intake.notRelevant', document: R71_DOCUMENT, reason: 'Advertising' },
+    ])
+    expect(acts[4]!.key).toBe(acts[3]!.key)
+    expect(within(decision()).queryByRole('alert')).toBeNull()
   })
 
   it('files on another matter: M opens the picker of the matters the person may see, the pick becomes the part', async () => {
@@ -320,6 +375,8 @@ describe('the open letter', () => {
     press(panel, 'KeyE')
     fireEvent.click(within(decision()).getByRole('button', { name: /Record office event/ }))
     await flush()
+    fireEvent.click(within(decision()).getByRole('button', { name: /Record office event/ }))
+    await flush()
     expect(acts.map(act => act.command)).toEqual([
       { kind: 'officeEvent.decide', id: event.id, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' },
       { kind: 'officeEvent.decide', id: event.id, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' },
@@ -406,9 +463,11 @@ describe('the bulk decision', () => {
     const { api, acts } = createFixtureApi()
     const perform = api.perform.bind(api)
     let failNext = true
+    let failedKey: string | undefined
     vi.spyOn(api, 'perform').mockImplementation((next) => {
       if (failNext && next.command.kind === 'intake.match' && next.command.document === sha(3)) {
         failNext = false
+        failedKey = next.key
         return Promise.resolve({ ok: false, error: { kind: 'network' } })
       }
       return perform(next)
@@ -432,6 +491,53 @@ describe('the bulk decision', () => {
     expect(screen.getByText('1 selected')).toBeTruthy()
     expect(screen.getAllByText('1 letter selected').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Not recorded: 1. These letters stay selected, so you can try again.').length).toBeGreaterThan(0)
+    expect(within(decision()).getByRole('alert').textContent).toContain('FlowLeap did not answer, so it may be recorded.')
+    press(panel, 'KeyR')
+    await flush()
+    expect(acts.at(-1)).toMatchObject({ key: failedKey, command: { kind: 'intake.match', document: sha(3) } })
+    expect(screen.queryByText('1 selected')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('sends one act for each letter while a bulk decision runs, so a second ⇧⌘↵ sends no act again', async () => {
+    const { api } = createFixtureApi()
+    const answers: ((result: Fetched<null>) => void)[] = []
+    const sent: string[] = []
+    vi.spyOn(api, 'perform').mockImplementation((next) => {
+      sent.push(next.key)
+      return new Promise((resolve) => { answers.push(resolve) })
+    })
+    const { panel } = await mount(api)
+    const boxes = screen.getAllByRole('checkbox')
+    fireEvent.click(boxes[0]!)
+    fireEvent.click(boxes[1]!)
+    await flush()
+    press(panel, 'Enter', { metaKey: true, shiftKey: true })
+    await flush()
+    expect(within(decision()).getByRole('button', { name: /Accept and file 2/ }).getAttribute('aria-busy')).toBe('true')
+    press(panel, 'Enter', { metaKey: true, shiftKey: true })
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file 2/ }))
+    for (let i = 0; i < 2; i++) {
+      await act(async () => { answers.shift()?.({ ok: true, value: null }) })
+      await flush()
+    }
+    expect(sent).toHaveLength(2)
+    expect(new Set(sent).size).toBe(2)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('keeps a bulk failure until the selection changes', async () => {
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'perform').mockResolvedValue({ ok: false, error: { kind: 'refused', status: 409, code: 'not-ready', detail: null } })
+    const { panel } = await mount(api)
+    fireEvent.click(screen.getAllByRole('checkbox')[0]!)
+    await flush()
+    press(panel, 'Enter', { metaKey: true, shiftKey: true })
+    await flush()
+    expect(within(decision()).getByRole('alert').textContent).toContain('Not recorded: 1. These letters stay selected, so you can try again. FlowLeap refused it and recorded nothing.')
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await flush()
+    expect(within(decision()).queryByRole('alert')).toBeNull()
     fireEvent.keyDown(screen.getByTestId('intake'), { key: 'Escape' })
     await flush()
     expect(screen.queryByText('1 selected')).toBeNull()

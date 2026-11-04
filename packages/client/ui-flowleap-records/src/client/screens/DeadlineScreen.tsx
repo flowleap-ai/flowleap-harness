@@ -9,7 +9,8 @@ import { useRef, useState } from 'react'
 import {
   IconCheckOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { createAct, type Act, type DeadlineDetail, type FieldValue, type MayDecideReason, type ReaderField } from '../api.ts'
+import { useActRunner } from '../act-runner.ts'
+import type { DeadlineDetail, FieldValue, MayDecideReason, ReaderField } from '../api.ts'
 import { formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs, type KeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
@@ -23,7 +24,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { dueText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
-import { LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
 /**
@@ -102,8 +103,8 @@ const READ_ROWS = [
  */
 function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail }) {
   const { t } = ctx
-  const [reasonOpen, setReasonOpen] = useState(false)
-  const [failed, setFailed] = useState<Act | null>(null)
+  const [reasonOpen, setReasonOpenState] = useState(false)
+  const runner = useActRunner(ctx.perform)
   const steps = useRef<HTMLOListElement>(null)
   const { deadline, officeEvent, readers, mayConfirm } = data
   const status = { machine: 'deadline', state: deadline.state } as const
@@ -114,14 +115,20 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const due = formatDate(deadline.due, ctx.locale)
   const letter = officeEvent.document
 
-  const send = async (act: Act) => {
-    const result = await ctx.perform([act])
-    setFailed(result.failed.length === 0 ? null : act)
+  // Opening the reason step changes the decision, so the failure of a confirm no longer applies.
+  const setReasonOpen = (open: boolean) => {
+    setReasonOpenState(open)
+    if (open) runner.clear()
   }
-  const confirm = () => { void send(failed?.command.kind === 'deadline.confirm' ? failed : createAct({ kind: 'deadline.confirm', id: deadline.id, seen: data.recordSeq })) }
+  // The record position is the one on screen now, so a confirm after a refusal names the position the person sees.
+  const confirm = () => { void runner.submit([{ kind: 'deadline.confirm', id: deadline.id, seen: data.recordSeq }]) }
   const reject = (reason: string) => {
     setReasonOpen(false)
-    void send(createAct({ kind: 'deadline.reject', id: deadline.id, reason }))
+    void runner.submit([{ kind: 'deadline.reject', id: deadline.id, reason }])
+  }
+  const retry = () => {
+    if (runner.run.phase === 'failed' && runner.run.failed[0].act.command.kind === 'deadline.confirm') confirm()
+    else void runner.retry()
   }
   const calculation = () => {
     steps.current?.scrollIntoView({ block: 'start' })
@@ -134,6 +141,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     calculation, goMatter,
     ...(openLetter === null ? {} : { openLetter }),
     ...(allowed ? { record: confirm, reject: () => { setReasonOpen(true) } } : {}),
+    ...(runner.run.phase === 'failed' ? { retry } : {}),
   }
   useKeyActs(ctx, acts, { arrows: false })
   const letterAct: ActSpec | null = openLetter === null
@@ -145,7 +153,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       ...(allowed
         ? [{
           id: 'decision', label: t('deadline.group.decision'), acts: [
-            { id: 'record', label: t('act.confirmDeadline'), commandId: commandId('record'), run: confirm },
+            { id: 'record', label: t('act.confirmDeadline'), commandId: commandId('record'), disabled: runner.run.phase === 'running', run: confirm },
             { id: 'reject', label: t('act.rejectStep'), commandId: commandId('reject'), run: () => { setReasonOpen(true) } },
           ],
         }]
@@ -169,7 +177,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         why={allowed ? t('deadline.whyYou') : undefined}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
         decider={mayConfirm.allowed ? null : t(DECIDERS[mayConfirm.reason], { person: mayConfirm.decider?.name ?? t('deadline.secondPerson') })}
-        note={failed === null ? undefined : t('deadline.failed')}
+        failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
             icon={<IconCheckOutlineRegular size={16} />}
@@ -191,7 +199,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           }
           : undefined}
         secondary={letterAct === null ? [] : [letterAct]}
-        primary={actOf(ctx, 'record', t('act.confirmDeadline'), confirm, { icon: <IconCheckOutlineRegular size={16} /> })}
+        primary={{ ...actOf(ctx, 'record', t('act.confirmDeadline'), confirm, { icon: <IconCheckOutlineRegular size={16} /> }), busy: runner.run.phase === 'running' }}
       />
     )
 

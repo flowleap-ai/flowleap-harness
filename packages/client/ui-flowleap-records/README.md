@@ -49,7 +49,7 @@ The panel has a 44 px top bar and one view at a time. On a list the top bar show
 | Work on a letter, with "1 / N" over the work that waits for a decision | `{ view: 'work', id }` | `GET tickets/<id>`, `GET tickets` |
 | Work board, as columns or as a list grouped by state | `{ view: 'board', layout? }` | `GET tickets` |
 
-Every read also holds `GET me` (the deciding person) and the waiting list (the Intake count). A command sends `Content-Type: application/json` and an `Idempotency-Key` of `ipms:<uuid>` that names one act of the person; a retry of the same act sends the same key. After the Records service accepts an act, the panel loads its view and the count again.
+Every read also holds `GET me` (the deciding person) and the waiting list (the Intake count). A command sends `Content-Type: application/json` and an `Idempotency-Key` of `ipms:<uuid>` that names one act of the person. Each decision (a letter, a bulk decision, a deadline, a work item) sends its acts through one act runner (`src/client/act-runner.ts`): while its acts run, the primary act is busy and a second click, key or ⌘K act sends nothing. A failed act keeps its key for the next try only when no answer came back and the command built now is the same request (the same path and body); a refusal, or a changed decision, sends a new act, and a confirm names the `recordSeq` on screen now. The decision bar shows each failure in place: what failed, what is still safe, and **Try again** (`R`); a change of the decision hides it. After each group of acts, the panel loads its view and the count again.
 
 ### The address
 
@@ -83,7 +83,7 @@ The **agent panel** is a 376 px column at the right of the work page with the pa
 
 ### The parts
 
-`src/client/parts/` holds the IPMS parts that every view composes: the list (`ListFrame`, `ListGroup`, `ListRow`, `SkeletonRows`, `SelectionBar` and the cells), the layouts (`QueueSplit`, `DetailLayout`, `WorkColumn`, `DetailHeader`, `KeyFact`, `Section`, `PropertiesPanel`, `KeyProperties`), the decision bar (`DecisionBar`, `DecisionPart`, with the reason step and the 390 px overflow menu), the evidence (`EvidenceQuote`, `MissingEvidence`, `RecordSource`, `StatementTable`, `StatementRow`), the Activity timeline, the board (`BoardColumn`, `BoardCard`, `CardSlot`), the status (`AtlasStatus`, `AtlasPill`, `RowStatusIcon`, which need an `AtlasWord` from the dictionary), the act button (`ActButton`, with its command's keycap) and the states (`EmptyState`, `ErrorNotice`, `PageSpinner`, `LoadView`). The status shapes, the keycap and the avatars are `ui-primitives` parts.
+`src/client/parts/` holds the IPMS parts that every view composes: the list (`ListFrame`, `ListGroup`, `ListRow`, `SkeletonRows`, `SelectionBar` and the cells), the layouts (`QueueSplit`, `DetailLayout`, `WorkColumn`, `DetailHeader`, `KeyFact`, `Section`, `PropertiesPanel`, `KeyProperties`), the decision bar (`DecisionBar`, `DecisionPart`, with the reason step, the failure notice and the 390 px overflow menu), the evidence (`EvidenceQuote`, `MissingEvidence`, `RecordSource`, `StatementTable`, `StatementRow`), the Activity timeline, the board (`BoardColumn`, `BoardCard`, `CardSlot`), the status (`AtlasStatus`, `AtlasPill`, `RowStatusIcon`, which need an `AtlasWord` from the dictionary), the act button (`ActButton`, with its command's keycap) and the states (`EmptyState`, `ErrorNotice`, `Notice`, `PageSpinner`, `LoadView`). The status shapes, the keycap and the avatars are `ui-primitives` parts.
 
 -----
 
@@ -105,6 +105,7 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 | [`src/client/atlas.ts`](src/client/atlas.ts) | the atlas states with their status shapes |
 | [`src/client/load.ts`](src/client/load.ts) | the loading state machine of one read (R18) |
 | [`src/client/model.ts`](src/client/model.ts) | the routes, the screens, the tabs, and the model that loads them and performs acts |
+| [`src/client/act-runner.ts`](src/client/act-runner.ts) | the act runner of one decision: one submit at a time, the key of an act with an unknown outcome, the failure |
 | [`src/client/Panel.tsx`](src/client/Panel.tsx) | the panel, its top bar with the tabs, the breadcrumb and the pager |
 | [`src/client/screens/`](src/client/screens/) | one screen for each view: Intake (`IntakeScreen.tsx`, `IntakeLetter.tsx`), the work board (`BoardScreen.tsx`), and the matter, deadline and work screens; `detail.tsx` holds the detail table, the facts and the rule words of the matter, deadline and work pages |
 | [`src/client/address.ts`](src/client/address.ts) | the route in the browser address and the address of Copy link |

@@ -94,6 +94,11 @@
   gap: 8px;
 }
 
+.failure {
+  padding: 8px 16px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
 .foot,
 .reason {
   display: flex;
@@ -159,6 +164,7 @@
     justify-self: start;
   }
 
+  .failure,
   .foot,
   .reason {
     padding: 8px 12px;

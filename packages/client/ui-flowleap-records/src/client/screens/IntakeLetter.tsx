@@ -11,7 +11,8 @@ import {
   IconInfoOutlineRegular, IconPaperclipOutlineRegular, IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { createAct, type FieldValue, type IntakeDocument, type IntakeView, type Addressee, type MatterRef, type Span } from '../api.ts'
+import { useActRunner } from '../act-runner.ts'
+import type { FieldValue, IntakeDocument, IntakeView, Addressee, MatterRef, Span } from '../api.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
@@ -25,7 +26,7 @@ import { formatDate } from '../format.ts'
 import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
-import { RecordActivity } from './shared.tsx'
+import { failureNotice, RecordActivity } from './shared.tsx'
 import css from './Intake.module.css'
 
 /** What the decision bar of a letter offers. */
@@ -258,20 +259,32 @@ export function IntakeLetter({ ctx, list, letter, step }: {
   const decision = letterDecision(ctx, letter)
   const canPick = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'other-team'
   const canClose = decision.kind === 'match' || decision.kind === 'pick'
-  const [reasonOpen, setReasonOpen] = useState(step === 'reason' && canClose)
+  const [reasonOpen, setReasonOpenState] = useState(step === 'reason' && canClose)
   const [picking, setPicking] = useState((step === 'other-matter' && canPick) || decision.kind === 'pick')
   const [pickerOpen, setPickerOpen] = useState(step === 'other-matter' && canPick)
-  const [picked, setPicked] = useState<MatterRef | null>(null)
+  const [picked, setPickedState] = useState<MatterRef | null>(null)
+  const runner = useActRunner(ctx.perform)
+  const busy = runner.run.phase === 'running'
+  // Each change of the decision is a new act: the failure of the last one no longer applies.
+  const setReasonOpen = (open: boolean) => {
+    setReasonOpenState(open)
+    if (open) runner.clear()
+  }
+  const setPicked = (matter: MatterRef) => {
+    setPickedState(matter)
+    runner.clear()
+  }
   const title = letterTitle(t, letter.code, letter.status)
   const reasons = reasonsOf(ctx, letter)
   const agree = reasons.filter(reason => reason.ok).length
   const agreePage = letter.fields.reference?.span.page ?? 1
   const route = { view: 'intake', list, open: letter.document } as const
   const openLetter = () => { window.open(ctx.contentHref(letter.document), '_blank', 'noopener') }
-  const match = (fileNumber: MatterRef['fileNumber']) => { void ctx.perform([createAct({ kind: 'intake.match', document: letter.document, fileNumber })]) }
+  const match = (fileNumber: MatterRef['fileNumber']) => { void runner.submit([{ kind: 'intake.match', document: letter.document, fileNumber }]) }
   const startPicking = () => {
     setPicking(true)
     setPickerOpen(true)
+    runner.clear()
   }
   const record = (() => {
     if (decision.kind === 'match' && !picking) return () => { match(decision.proposed.fileNumber) }
@@ -280,7 +293,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
       const event = letter.officeEvent
       const { code, documentDate, applicationNumber } = letter
       if (event === null || code === null || documentDate === null || applicationNumber === null) return null
-      return () => { void ctx.perform([createAct({ kind: 'officeEvent.decide', id: event.id, code, documentDate, applicationNumber })]) }
+      return () => { void runner.submit([{ kind: 'officeEvent.decide', id: event.id, code, documentDate, applicationNumber }]) }
     }
     return null
   })()
@@ -296,6 +309,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     ...(canClose ? { reject: () => { setReasonOpen(true) } } : {}),
     ...(canPick ? { otherMatter: startPicking } : {}),
     ...(matterOf === null ? {} : { goMatter: () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) } }),
+    ...(runner.run.phase === 'failed' ? { retry: () => { void runner.retry() } } : {}),
   })
   const menuItem: CommandMenuItem = {
     label: title,
@@ -308,6 +322,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
             id: 'record',
             label: decision.kind === 'match' && !picking ? t('act.acceptOn', { matter: decision.proposed.fileNumber }) : primaryLabel,
             commandId: commandId('record'),
+            disabled: busy,
             run: record,
           }]),
           ...(canPick ? [{ id: 'other-matter', label: t('act.otherMatterMenu'), commandId: commandId('otherMatter'), run: startPicking }] : []),
@@ -374,6 +389,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
         decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
         parts={parts}
+        failure={failureNotice(ctx, runner.run, () => { void runner.retry() })}
         negative={canClose
           ? {
             ...keyedOf(ctx, 'reject'),
@@ -384,12 +400,15 @@ export function IntakeLetter({ ctx, list, letter, step }: {
             reasonLabel: t('reason.notRelevant'),
             confirmLabel: t('act.markNotRelevant'),
             cancelLabel: t('act.cancel'),
-            onConfirm: (reason) => { void ctx.perform([createAct({ kind: 'intake.notRelevant', document: letter.document, reason })]) },
+            onConfirm: (reason) => {
+              setReasonOpenState(false)
+              void runner.submit([{ kind: 'intake.notRelevant', document: letter.document, reason }])
+            },
           }
           : undefined}
         secondary={canPick && !picking ? [actOf(ctx, 'otherMatter', t('act.otherMatter'), startPicking, { icon: <IconFolderOpenOutlineRegular size={16} /> })] : []}
         primary={showPrimary
-          ? actOf(ctx, 'record', primaryLabel, () => { record?.() }, { icon: <IconCheckOutlineRegular size={16} />, disabled: record === null })
+          ? { ...actOf(ctx, 'record', primaryLabel, () => { record?.() }, { icon: <IconCheckOutlineRegular size={16} />, disabled: record === null }), busy }
           : null}
       />
     )

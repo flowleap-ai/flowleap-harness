@@ -31,26 +31,41 @@ export function EmptyState({ icon, title, body, action }: { icon: ReactNode; tit
   )
 }
 
+/** An error notice: what failed, what is still safe, and Try again. */
+export interface NoticeSpec {
+  /** What failed, one plain sentence. */
+  readonly lead: string
+  /** What is still safe, such as "The list shows the letters as of 14:16." */
+  readonly body?: string | undefined
+  /** The Try again act. */
+  readonly retry: ActSpec
+}
+
 /**
- * Render the error notice above the content: what failed, what is still safe and how old the data is, and Try again.
- * @param props.lead - what failed, one plain sentence.
- * @param props.body - what is still safe and the data's time, such as "The list shows the letters as of 14:16."
- * @param props.retry - the Try again act.
+ * Render an error notice in place, such as the failure of an act in its decision bar.
+ * @param props.notice - the notice.
  * @returns the notice.
  */
-export function ErrorNotice({ lead, body, retry }: { lead: string; body?: string | undefined; retry: ActSpec }) {
+export function Notice({ notice }: { notice: NoticeSpec }) {
   return (
-    <div className={css.noticeBar}>
-      <div className={css.notice} role="alert">
-        <IconWarningTriangleOutlineRegular size={16} />
-        <div className={css.noticeText}>
-          <span className={css.lead}>{lead}</span>
-          {body !== undefined && ` ${body}`}
-        </div>
-        <ActButton act={retry} rank="secondary" />
+    <div className={css.notice} role="alert">
+      <IconWarningTriangleOutlineRegular size={16} />
+      <div className={css.noticeText}>
+        <span className={css.lead}>{notice.lead}</span>
+        {notice.body !== undefined && ` ${notice.body}`}
       </div>
+      <ActButton act={notice.retry} rank="secondary" />
     </div>
   )
+}
+
+/**
+ * Render the error notice above the content: what failed, what is still safe and how old the data is, and Try again.
+ * @param props - the notice.
+ * @returns the notice.
+ */
+export function ErrorNotice(props: NoticeSpec) {
+  return <div className={css.noticeBar}><Notice notice={props} /></div>
 }
 
 /**

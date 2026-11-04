@@ -13,10 +13,9 @@ import {
   AvatarStack, Checkbox, IconAlarmClockOutlineRegular, IconCheckOutlineRegular, IconChevronRightOutlineRegular,
   IconCloseOutlineRegular, IconDeliverDocRegular, IconEditOutlineRegular, IconInspectOutlineRegular, IconShieldOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import {
-  createAct, type Act, type CheckedDeadlineState, type DeadlineCheck, type DeadlineId, type ProposalId, type ReportDecision,
-  type TicketDetail,
-  type TicketsList, type WorkRefusal,
+import { useActRunner } from '../act-runner.ts'
+import type {
+  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
 import { formatDate, intlLocale } from '../format.ts'
@@ -35,7 +34,7 @@ import { dueText, letterTitle, listTimeText } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
-import { LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
 /** The work that waits for a decision, in board order, and where the open work item is in it. */
@@ -130,8 +129,9 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
   const [choices, setChoices] = useState<Readonly<Record<string, Choice>>>({})
   const [rejecting, setRejecting] = useState<ProposalId | null>(null)
-  const [checked, setChecked] = useState(false)
-  const [failed, setFailed] = useState<Act | null>(null)
+  const [checked, setCheckedState] = useState(false)
+  const runner = useActRunner(ctx.perform)
+  const busy = runner.run.phase === 'running'
   const { ticket, letter, deadline, mayDecide } = data
   const status = { machine: 'ticket', state: ticket.state } as const
   const title = workTitle(ctx, data)
@@ -146,7 +146,15 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ? { id: 'none-yet', state: 'none-yet', seq: data.recordSeq }
     : isChecked(deadline.state) ? { id: deadline.id, state: deadline.state, seq: data.recordSeq } : null
 
-  const choose = (proposalId: ProposalId, choice: Choice) => { setChoices(current => ({ ...current, [proposalId]: choice })) }
+  // A changed decision is a new act: its failure no longer applies.
+  const choose = (proposalId: ProposalId, choice: Choice) => {
+    setChoices(current => ({ ...current, [proposalId]: choice }))
+    runner.clear()
+  }
+  const setChecked = (next: boolean) => {
+    setCheckedState(next)
+    runner.clear()
+  }
   const firstOpen = proposed.find(report => choices[report.proposalId] === undefined) ?? proposed[0]
   const accept = (report: TicketDetail['reports'][number]) => {
     if (missingOf(report).length === 0) choose(report.proposalId, { decision: 'approve' })
@@ -162,8 +170,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const ready = reports.length === proposed.length && checked && check !== null
   const record = () => {
     if (!ready || blocked !== null) return
-    const act = failed ?? createAct({ kind: 'ticket.decide', id: ticket.id, reports, deadlineCheck: check })
-    void ctx.perform([act]).then((result) => { setFailed(result.failed.length === 0 ? null : act) })
+    void runner.submit([{ kind: 'ticket.decide', id: ticket.id, reports, deadlineCheck: check }])
   }
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
   const calculation = deadline === null ? null : () => { ctx.navigate({ view: 'deadline', id: deadline.id }) }
@@ -181,6 +188,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ...(openLetter === null ? {} : { openLetter }),
     ...(preview === null ? {} : { preview }),
     ...(keyed === null ? {} : { accept: () => { accept(keyed) }, reject: () => { reject(keyed) }, record }),
+    ...(runner.run.phase === 'failed' ? { retry: record } : {}),
   }, { arrows: false })
 
   const calculationOverflow = deadline === null ? [] : [calculationAct(ctx, deadline.id)]
@@ -188,7 +196,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ? null
     : { id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: openInWord }
   const previewAct = preview === null ? null : actOf(ctx, 'preview', t('work.preview'), preview, { icon: <IconInspectOutlineRegular size={16} /> })
-  const recordAct = actOf(ctx, 'record', t('work.recordDecision'), record, { icon: <IconCheckOutlineRegular size={16} />, disabled: !ready })
+  const recordAct = { ...actOf(ctx, 'record', t('work.recordDecision'), record, { icon: <IconCheckOutlineRegular size={16} />, disabled: !ready }), busy }
 
   useCommandItem(ctx, {
     label: `${data.matter.fileNumber} · ${title}`,
@@ -199,7 +207,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           id: 'decision', label: t('deadline.group.decision'), acts: [
             { id: 'accept', label: t('work.accept'), commandId: commandId('accept'), disabled: missingOf(keyed).length > 0, run: () => { accept(keyed) } },
             { id: 'reject', label: t('act.rejectStep'), commandId: commandId('reject'), run: () => { reject(keyed) } },
-            { id: 'record', label: t('work.recordDecision'), commandId: commandId('record'), disabled: !ready || blocked !== null, run: record },
+            { id: 'record', label: t('work.recordDecision'), commandId: commandId('record'), disabled: !ready || blocked !== null || busy, run: record },
           ],
         }]),
       {
@@ -227,7 +235,8 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
         decider={mayDecide.allowed ? null : t(mayDecide.decider === null ? 'work.decider.nobody' : DECIDERS[mayDecide.reason], { person: mayDecide.decider?.name ?? '' })}
         blocked={blocked}
-        note={failed === null ? t('work.note') : t('work.failed')}
+        note={t('work.note')}
+        failure={failureNotice(ctx, runner.run, record)}
         parts={(
           <>
             {proposed.map((item) => {
