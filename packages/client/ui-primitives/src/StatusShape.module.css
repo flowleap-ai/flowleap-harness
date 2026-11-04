@@ -1,0 +1,73 @@
+/* The six status shapes and the status pill. Each shape takes its role colour; idle uses the icon grey because
+ * --dsw-alias-state-idle-primary is 1.48:1 on white. The pill text stays label-primary on the status tint, never
+ * the icon colour, so the word passes contrast in both themes. */
+svg.glyph {
+  display: block;
+  flex: none;
+}
+
+svg.glyph[data-shape='wait'] {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+svg.glyph[data-shape='ok'] {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+svg.glyph[data-shape='run'] {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+svg.glyph[data-shape='bad'],
+svg.glyph[data-shape='stale'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+svg.glyph[data-shape='idle'] {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The check, the cross and the bar are cut out of the filled shape in the surface colour. */
+.cut {
+  stroke: var(--dsw-alias-bg-base);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  corner-shape: round;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  white-space: nowrap;
+}
+
+.pill[data-shape='wait'] {
+  background: var(--dsw-alias-state-warn-tertiary);
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill[data-shape='ok'] {
+  background: var(--dsw-alias-state-success-tertiary);
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill[data-shape='run'] {
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill[data-shape='bad'],
+.pill[data-shape='stale'] {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill[data-shape='idle'] {
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+}

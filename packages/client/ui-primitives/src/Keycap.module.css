@@ -1,0 +1,38 @@
+/* An 18px box with 12px text in label-secondary and a 0.5px hairline. label-tertiary text is 3.71:1 on white, so
+ * the keycap does not use the unboxed ShortcutKeys colour. Keys hide on a coarse pointer, as the Menu key hints do. */
+.keys {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+
+.keycap {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-xs);
+  font-family: var(--dsw-font-family);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: 1;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.keys[data-tone='primary'] .keycap {
+  border: 0;
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.keys[data-tone='selected'] .keycap {
+  color: var(--dsw-alias-label-primary);
+}
+
+@media (pointer: coarse) {
+  .keys {
+    display: none;
+  }
+}

@@ -4,6 +4,8 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import css from './Tag.module.css'
+import shapes from './StatusShape.module.css'
+import { StatusShapeIcon, type StatusShape } from './StatusShape.tsx'
 
 /** Palette selector; each tone names one shipped appearance. */
 export type TagTone =
@@ -24,19 +26,41 @@ export type TagTone =
   /** Tinted red: a failure. */
   | 'danger'
 
-/**
- * Render a read-only tag.
- * @param props.tone - which palette to use (default `outline`).
- * @param props.className - extra class for layout placement.
- * @param props.children - the localized label, owned by the render site.
- * @returns the tag element.
- */
-export function Tag({ tone = 'outline', className, children }: {
+/** Props of a toned tag. */
+interface TagToneProps {
   tone?: TagTone
+  shape?: undefined
   // `| undefined` so a caller can forward an optional class straight through
   // under exactOptionalPropertyTypes (a CSS-module lookup is string|undefined).
   className?: string | undefined
   children?: ReactNode
-}) {
+}
+
+/** Props of a status pill. */
+interface TagShapeProps {
+  shape: StatusShape
+  tone?: undefined
+  className?: string | undefined
+  children: ReactNode
+}
+
+/**
+ * Render a read-only tag, or the status pill when `shape` is set.
+ * @param props.tone - which palette to use (default `outline`).
+ * @param props.shape - instead of `tone`, a status shape: a 24px capsule on the shape's status tint with the shape's
+ * icon before the children; the children are the state word and stay in the primary label colour.
+ * @param props.className - extra class for layout placement.
+ * @param props.children - the localized label, owned by the render site.
+ * @returns the tag element.
+ */
+export function Tag(props: TagToneProps | TagShapeProps) {
+  if (props.shape !== undefined) {
+    return (
+      <span className={clsx(shapes.pill, props.className)} data-shape={props.shape}>
+        <StatusShapeIcon shape={props.shape} />{props.children}
+      </span>
+    )
+  }
+  const { tone = 'outline', className, children } = props
   return <span className={clsx(css.tag, className)} data-tone={tone}>{children}</span>
 }
