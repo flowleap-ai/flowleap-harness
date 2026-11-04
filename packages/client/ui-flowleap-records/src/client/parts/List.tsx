@@ -13,6 +13,7 @@ import type { AtlasRef } from '../atlas.ts'
 import { ActButton, type ActSpec } from './Act.tsx'
 import { AtlasStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
 import css from './List.module.css'
+import bulk from './Selection.module.css'
 
 /**
  * Render a list: its scroll area, the sticky column header and the rows or groups. Every row and the header share
@@ -206,10 +207,10 @@ export function SkeletonRows({ cells, count = 6, label }: { cells: readonly Skel
  */
 export function SelectionBar({ label, acts, primary }: { label: string; acts: readonly ActSpec[]; primary: ActSpec }) {
   return (
-    <div className={css.bulkDock}>
-      <div className={css.bulk} data-bulk="">
-        <span className={css.bulkCount}>{label}</span>
-        <div className={css.bulkActs}>
+    <div className={bulk.bulkDock}>
+      <div className={bulk.bulk} data-bulk="">
+        <span className={bulk.bulkCount}>{label}</span>
+        <div className={bulk.bulkActs}>
           {acts.map(act => <ActButton key={act.id} act={act} rank="tertiary" />)}
           <ActButton act={primary} rank="primary" size="md" />
         </div>

@@ -1,5 +1,6 @@
-/* Evidence (R14): the quote in 12px monospace on the waits tint with its page in 12px label-secondary; a focused
- * or hovered quote gets a 1px ring in the waits colour; missing evidence tints the statement row. */
+/* Evidence (R14): the quote in 12px monospace on the waits tint with its page in 12px label-secondary; a hovered
+ * quote gets a 1px ring in the waits colour and a focused one the client focus ring; missing evidence tints the
+ * statement row. */
 .spanRef {
   display: block;
   min-width: 0;
@@ -16,10 +17,6 @@
   font-family: var(--ds-font-family-code);
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
-}
-
-.quote:focus-visible {
-  box-shadow: 0 0 0 1px var(--dsw-alias-state-warn-primary);
 }
 
 @media (hover: hover) {

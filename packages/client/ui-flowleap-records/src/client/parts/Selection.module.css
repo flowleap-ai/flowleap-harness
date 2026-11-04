@@ -1,0 +1,32 @@
+/* The selection bar: the bulk decision docked at the bottom of a list, an elevated floating panel with no border.
+ * It sits in its own sheet so the list's scroll container keeps the base scrollbar. */
+.bulkDock {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-top: auto;
+  padding: 8px 16px 16px;
+}
+
+.bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.bulkCount {
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.bulkActs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
