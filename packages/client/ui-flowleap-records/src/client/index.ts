@@ -11,7 +11,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
-import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { ILayout, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
 import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
@@ -82,10 +82,12 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['resources', 'sessions'], (scope) => {
     scope.effect(() => scope.resources.register(runSessionProvider(scope.sessions)), 'ui-flowleap-records: run Sessions')
   })
+  // Read before the request: the start restoration of the workspace can rewrite the address while it waits.
+  const startRoute = readRouteAddress(window.location.search, PANEL_ID)
   void readRecordsLink(controller.signal).then((href) => {
     if (href === null || controller.signal.aborted) return
     const api = createRecordsApi(href)
-    const model = createRecordsModel(api, readRouteAddress(window.location.search, PANEL_ID) ?? TAB_ROUTE.intake)
+    const model = createRecordsModel(api, startRoute ?? TAB_ROUTE.intake)
     ctx.effect(() => () => { model.dispose() }, 'ui-flowleap-records: model')
     const linkOf = (route: Route) => writeRouteAddress(window.location.href, PANEL_ID, route)
     registerRowMenu(ctx, model, t, linkOf)
@@ -124,5 +126,37 @@ export function apply(ctx: ClientContext): void {
       children: { 'records.agent.conversation': { kind: 'single', scope: 'session' } },
     }, RecordsPanel))
     ctx.slots.inject('records.agent.conversation', () => ctx.slots.register({ name: 'records.agent.conversation' }, RunConversation))
+    if (startRoute !== null) selectWhenRegistered(ctx.layout, controller.signal)
   })
+}
+
+/** How often and how long the panel tries to select itself for a start address: 20 tries, 50 ms apart. */
+const SELECT_TRIES = 20
+const SELECT_WAIT_MS = 50
+
+/**
+ * Select the panel for a start address that names a route. The panel registers only after the records-link answer;
+ * by then the start restoration may have landed on another page, so the panel selects itself once it is registered.
+ * It stops when the panel is open, when the plugin is disposed, or after the last try.
+ * @param layout - the panel selection.
+ * @param signal - aborted when the plugin is disposed.
+ * @param later - schedules the next try.
+ */
+export function selectWhenRegistered(
+  layout: Pick<ILayout, 'panelInfo' | 'selectPanel'>,
+  signal: AbortSignal,
+  later: (next: () => void) => void = (next) => { setTimeout(next, SELECT_WAIT_MS) },
+): void {
+  let tries = 0
+  const attempt = (): void => {
+    if (signal.aborted || layout.panelInfo.getSnapshot().activePanelId === PANEL_ID) return
+    tries += 1
+    try {
+      layout.selectPanel(PANEL_ID)
+    } catch {
+      // The main slot registers this panel on a later turn; selectPanel throws until it is registered.
+      if (tries < SELECT_TRIES) later(attempt)
+    }
+  }
+  attempt()
 }

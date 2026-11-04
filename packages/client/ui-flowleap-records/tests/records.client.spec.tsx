@@ -7,7 +7,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import type { MenuContribution } from '@deepseek-ai/dsh-client-ui-context-menu/client'
-import { apply, inject, PANEL_ID, RECORDS_LINK_ROUTE, type PanelInjected } from '../src/client/index.ts'
+import { apply, inject, PANEL_ID, RECORDS_LINK_ROUTE, selectWhenRegistered, type PanelInjected } from '../src/client/index.ts'
 import type { DocumentId } from '../src/client/api.ts'
 import { de, NS, zh } from '../src/client/locales.ts'
 import { intakeWaitingWire, meWire } from './fixtures.client.ts'
@@ -76,7 +76,8 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   } as never)
   const opened: boolean[] = []
   const panelInfo = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
-  ctx.provide('layout', { panelInfo } as never)
+  const selected: (string | null)[] = []
+  ctx.provide('layout', { panelInfo, selectPanel: (id: string | null) => { selected.push(id); panelInfo.set({ activePanelId: id }) } } as never)
   const providers: { readonly protocol: string }[] = []
   ctx.provide('sessions', { list: createSnapshotStore({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }) } as never)
   ctx.provide('resources', {
@@ -100,7 +101,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   await settle()
-  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers }
+  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected }
 }
 
 describe('ui-flowleap-records browser half', () => {
@@ -110,7 +111,7 @@ describe('ui-flowleap-records browser half', () => {
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
     window.history.replaceState(null, '', '/?page=flowleap-records&records=board&keep=1')
-    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers } = await mounted(routes(json({ href: 'records/' })))
+    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected } = await mounted(routes(json({ href: 'records/' })))
     expect(providers.map(provider => provider.protocol)).toEqual(['recordsrun'])
     expect(ctx.slots.entries('records.agent.conversation')).toHaveLength(1)
     expect(keys).toContain('records')
@@ -134,8 +135,7 @@ describe('ui-flowleap-records browser half', () => {
     expect(injected.hooks.language.getSnapshot()).toBe('de')
     expect(ctx.locale.bind(NS)('panel')).toBe(de.panel)
     expect(injected.hooks.screen.getSnapshot().view).toBe('board')
-    expect(window.location.search).toBe('?page=flowleap-records&keep=1')
-    panelInfo.set({ activePanelId: PANEL_ID })
+    expect(selected).toEqual([PANEL_ID])
     expect(window.location.search).toBe('?page=flowleap-records&keep=1&records=board')
     injected.navigate({ view: 'intake', list: 'filed-today', open: null })
     expect(window.location.search).toBe('?page=flowleap-records&keep=1&records=intake%2Ffiled-today')
@@ -161,6 +161,39 @@ describe('ui-flowleap-records browser half', () => {
     expect(providers).toEqual([])
     expect(ctx.slots.entries('records.agent.conversation')).toEqual([])
     await ctx.fiber.dispose()
+  })
+
+  it('selects itself for a start address with a route once it is registered, and stops when open, disposed, or after the last try', () => {
+    const active = createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null })
+    let registered = false
+    const select = vi.fn((id: string | null) => {
+      if (!registered) throw new Error('not registered')
+      active.set({ activePanelId: id })
+    })
+    const queued: (() => void)[] = []
+    const later = (next: () => void) => { queued.push(next) }
+    selectWhenRegistered({ panelInfo: active, selectPanel: select } as never, new AbortController().signal, later)
+    expect(select).toHaveBeenCalledTimes(1)
+    registered = true
+    queued.shift()!()
+    expect(active.getSnapshot().activePanelId).toBe(PANEL_ID)
+    selectWhenRegistered({ panelInfo: active, selectPanel: select } as never, new AbortController().signal, later)
+    expect(select).toHaveBeenCalledTimes(2)
+    const aborted = new AbortController()
+    aborted.abort()
+    active.set({ activePanelId: null })
+    selectWhenRegistered({ panelInfo: active, selectPanel: select } as never, aborted.signal, later)
+    expect(select).toHaveBeenCalledTimes(2)
+    registered = false
+    selectWhenRegistered({ panelInfo: active, selectPanel: select } as never, new AbortController().signal, later)
+    while (queued.length > 0) queued.shift()!()
+    expect(select).toHaveBeenCalledTimes(22)
+    vi.useFakeTimers()
+    selectWhenRegistered({ panelInfo: active, selectPanel: select } as never, new AbortController().signal)
+    registered = true
+    vi.advanceTimersByTime(50)
+    expect(active.getSnapshot().activePanelId).toBe(PANEL_ID)
+    vi.useRealTimers()
   })
 
   it('opens Intake when the address names no route', async () => {

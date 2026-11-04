@@ -53,7 +53,7 @@ Every read also holds `GET me` (the deciding person) and the waiting list (the I
 
 ### The address
 
-The route is in the browser address beside the client's `page` parameter, so a reload, a bookmark, Copy link and a link in a reply mail open the same view: `?page=flowleap-records&records=<path>`. The query carries it, not the fragment, because a sign-in redirect keeps the query. The paths are `intake`, `intake/filed-today`, `intake/not-relevant`, `intake/<list>/<sha256>` (a letter open on its list), `work/<ticket id>`, `board`, `board/list`, `matters`, `matter/<file number, URI-encoded>` and `deadline/<deadline id>`. While another panel or a chat is open, the address has no `records` parameter.
+The route is in the browser address beside the client's `page` parameter, so a reload, a bookmark, Copy link and a link in a reply mail open the same view: `?page=flowleap-records&records=<path>`. The query carries it, not the fragment, because a sign-in redirect keeps the query. The paths are `intake`, `intake/filed-today`, `intake/not-relevant`, `intake/<list>/<sha256>` (a letter open on its list), `work/<ticket id>`, `board`, `board/list`, `matters`, `matter/<file number, URI-encoded>` and `deadline/<deadline id>`. While another panel or a chat is open, the address has no `records` parameter. The panel registers only after the records-link answer, so for a start address with a route it selects itself once it is registered (at most 20 tries, 50 ms apart), also when the start restoration has already landed on another page.
 
 ### Intake
 
