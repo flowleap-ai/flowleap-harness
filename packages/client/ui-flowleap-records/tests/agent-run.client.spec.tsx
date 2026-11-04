@@ -2,7 +2,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ISessions, SessionListState, SessionSnapshot, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { ConversationSnapshot, ConversationViewsProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { ConversationViewsProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { runSessionAddress, runSessionProvider, type RunSession } from '../src/client/agent-run.ts'
@@ -129,39 +129,18 @@ describe('the run Session resource', () => {
 })
 
 describe('the run conversation', () => {
-  const props = (session: Partial<SessionSnapshot>, active: number, summaryBlank: boolean | undefined) => {
-    const base: Partial<SessionSnapshot> = { blank: true, awaitingFirstTurn: true, running: false, promptAttempted: false, openState: 'open' }
-    const snapshot = { ...base, ...session } as SessionSnapshot
-    const targets: Partial<ConversationSnapshot> = { activeTargets: new Set(Array.from({ length: active }, (_, i) => String(i))) }
-    const conversation = targets as ConversationSnapshot
-    const listed: Partial<SessionListState> = { ...list('ready', [ID]), byId: { [ID]: { blank: summaryBlank } as SessionSummary } }
-    const sessions = listed as SessionListState
-    const renderFactorySlot = vi.fn(() => null)
-    const all = {
-      sessionId: ID,
-      useSession: <S,>(select: (value: SessionSnapshot) => S) => select(snapshot),
-      useConversation: <S,>(select: (value: ConversationSnapshot) => S) => select(conversation),
-      useSessions: <S,>(select: (value: SessionListState) => S) => select(sessions),
-      renderFactorySlot,
-    } as Partial<RunConversationProps> as RunConversationProps
-    return { all, renderFactorySlot }
-  }
-
-  const ACTIVE = { phase: 'active', hero: false } as const
-  const HERO = { phase: 'hero', hero: true } as const
   it.each([
-    { name: 'active with a target', session: {}, active: 1, summaryBlank: false, expected: ACTIVE },
-    { name: 'active with a turn', session: { blank: false, awaitingFirstTurn: false }, active: 0, summaryBlank: false, expected: ACTIVE },
-    { name: 'running', session: { running: true }, active: 0, summaryBlank: false, expected: ACTIVE },
-    { name: 'engaging', session: { promptAttempted: true }, active: 0, summaryBlank: false, expected: ACTIVE },
-    { name: 'blank and open', session: {}, active: 0, summaryBlank: undefined, expected: HERO },
-    { name: 'blank while loading', session: { openState: 'loading' }, active: 0, summaryBlank: undefined, expected: { phase: 'settling', hero: false } },
-    { name: 'blank in the list while loading', session: { openState: 'loading' }, active: 0, summaryBlank: true, expected: HERO },
-  ] as const)('renders the embedded content $name', ({ session, active, summaryBlank, expected }) => {
-    const { all, renderFactorySlot } = props(session, active, summaryBlank)
-    render(<RunConversation {...all} />)
+    { name: 'settles while a blank history opens', session: { openState: 'loading', blank: true }, phase: 'settling' },
+    { name: 'is active while history with events opens', session: { openState: 'loading', blank: false }, phase: 'active' },
+    { name: 'is active once open', session: { openState: 'open', blank: true }, phase: 'active' },
+  ] as const)('$name', ({ session, phase }) => {
+    const snapshot = session as Partial<SessionSnapshot> as SessionSnapshot
+    const renderFactorySlot = vi.fn(() => null)
+    const useSession = <S,>(select: (value: SessionSnapshot) => S) => select(snapshot)
+    const props: Partial<RunConversationProps> = { useSession, renderFactorySlot }
+    render(<RunConversation {...(props as RunConversationProps)} />)
     const views = { slots: { views: RunChatView } }
-    expect(renderFactorySlot).toHaveBeenCalledWith('conversation.content', { variant: 'embedded', ...expected }, views)
+    expect(renderFactorySlot).toHaveBeenCalledWith('conversation.content', { variant: 'embedded', phase, hero: false }, views)
   })
 
   it('shows the chat view of the Session', () => {

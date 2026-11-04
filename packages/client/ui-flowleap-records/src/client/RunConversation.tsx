@@ -26,18 +26,14 @@ export function RunChatView(props: ConversationViewsProps) {
 export type RunConversationProps = PropsRuntime<'records.agent.conversation'> & PropsRenderFactories
 
 /**
- * Render the run Session's conversation in its embedded variant.
+ * Render the run Session's conversation in its embedded variant. A run Session holds the agent's task, so it is never
+ * a new conversation: it settles while its history opens with nothing shown yet, and is active after that.
  * @param props - the Session share and the factory renderer.
  * @returns the conversation.
  */
-export function RunConversation({ sessionId, useSession, useConversation, useSessions, renderFactorySlot }: RunConversationProps) {
-  const session = useSession(value => value)
-  const conversation = useConversation(value => value)
-  const active = conversation.activeTargets.size > 0 || (!session.blank && !session.awaitingFirstTurn) || session.running
-  const shellPhase = active ? 'active' : session.promptAttempted ? 'engaging' : 'blank'
-  const summaryBlank = useSessions(state => state.byId[sessionId]?.blank)
-  const settling = shellPhase === 'blank' && session.openState === 'loading' && summaryBlank !== true
-  const hero = shellPhase === 'blank' && (session.openState === 'open' || summaryBlank === true)
-  const phase = settling ? 'settling' : hero ? 'hero' : 'active'
-  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero }, { slots: { views: RunChatView } })
+export function RunConversation({ useSession, renderFactorySlot }: RunConversationProps) {
+  const settling = useSession(session => session.openState === 'loading' && session.blank)
+  return renderFactorySlot('conversation.content', { variant: 'embedded', phase: settling ? 'settling' : 'active', hero: false }, {
+    slots: { views: RunChatView },
+  })
 }
