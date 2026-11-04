@@ -44,7 +44,7 @@ Sizes: **S** up to 1 week, **M** 1 to 3 weeks, **L** more than 3 weeks, for one 
 
 1. **Firm Record**, a new control-plane service, the only writer of the record. Every change is a record event with an actor (a person, an agent on behalf of a person, an intake source, an import or a client), a reason and evidence. Relational tables are projections that the service updates in the same transaction, so reports and invoices use plain SQL.
 2. **The deadline engine**, an open-source library of rules as tested code. Each rule names its legal source, a version and an effective date. Each computed date carries a trace of every step (delivery, period, closure day). A deadline is active only when a person confirmed it and an independent check agrees: the engine or a second person.
-3. **Intake**: the "forward it to FlowLeap" mailbox, the MyEPO Mailbox API, the register watch, DPMA and client mail become office events, matched to a matter by code first and by a model only for free text.
+3. **Intake**: the firm's AI mailbox, the MyEPO Mailbox API, the register watch, DPMA and client mail become office events, matched to a matter by code first and by a model only for free text.
 4. **Workflows as agents**: an office event opens a Ticket with a fixed Mandate (#135 to #137); a method (skill) runs in the responsible attorney's runtime and prepares the work products (analysis, client letter, staff instruction, filing package, invoice lines) as proposals and drafts. A person decides on each.
 5. **Walls and trust**: each matter has a wall from Entra groups, enforced by the Firm Record and never by the prompt. A decision request never passes through an agent's runtime.
 
@@ -55,7 +55,7 @@ Sizes: **S** up to 1 week, **M** 1 to 3 weeks, **L** more than 3 weeks, for one 
 | Phase | Goal | Size |
 |---|---|---|
 | R0 Record tracer | One matter and one deadline through every layer | M (2 weeks) |
-| R1 Forward it to FlowLeap | The research's first slice, now writing office events and deadline proposals into the record, in docket observe mode | M to L (3 to 4 weeks) |
+| R1 AI mailbox | The research's first slice, now writing office events and deadline proposals into the record, in docket observe mode | M to L (3 to 4 weeks) |
 | R2 Docket you can trust | EP, PCT and DE rules; two-person confirmation; Records app; PATORG import and shadow difference report | L (6 to 8 weeks) |
 | R3 Run the matter | Tasks and handovers, e-file, letters with communication rules, MyEPO source, morning brief | L (5 to 6 weeks) |
 | R4 Money | Time, fee agreements, invoices with e-invoice, DATEV export, associate invoices | L (5 to 7 weeks) |
@@ -654,7 +654,7 @@ A firm starts with the docket in observe mode [cited: ADR 0002 decision 4]. Dock
 
 | Source | How it arrives | Direction | Credentials | Phase |
 |---|---|---|---|---|
-| **"Forward it to FlowLeap" mailbox** (for example `ki@kanzlei.de`) | Microsoft Graph delta query on one mailbox; the latency is the poll interval [cited: research section 4] | Outbound only | An Entra app with Mail.Read and Mail.Send, scoped to that one mailbox by RBAC for Applications [cited: research section 4]; the secret in the vault (#31) | R1 |
+| **AI mailbox** (for example `ki@kanzlei.de`) | Microsoft Graph delta query on one mailbox; the latency is the poll interval [cited: research section 4] | Outbound only | An Entra app with Mail.Read and Mail.Send, scoped to that one mailbox by RBAC for Applications [cited: research section 4]; the secret in the vault (#31) | R1 |
 | **Register watch** | The existing daily read of EP Register and USPTO events without a model [cited: routines README] | Outbound only | The firm's EPO OPS and USPTO keys | have; moves to a firm-level source in R1 |
 | **MyEPO Mailbox API** | List and read Mailbox communications, due dates, due fees (#154) [cited] | Outbound only | OAuth client credentials of the firm's B2B account. The intake owns them, not a runtime (decision F10) | R3 |
 | **DPMA** | No API found [cited: research section 6.3]. v1: a person forwards DPMA letters to the AI mailbox, or saves them into a watched folder [proposal] | Outbound only | none | R5 |
@@ -885,7 +885,7 @@ The phases are tracer bullets: each one ends in a thing a firm can use and that 
 | Phase | Goal | Modules (section 3.2) | Work | Size | Depends on |
 |---|---|---|---|---|---|
 | **R0 Record tracer** | One matter and one deadline through every layer | 1, 3, 4 | Firm Record with the log, the hash chain, two projections (matter, deadline); `record_read` in the runtime with a logged `recordSeq`; the Records app with one page and one confirm; `flowleap-deadlines` with R.131, R.134, the 2026 calendar and R.71(3); one recorded-session snapshot | M (2 weeks) | ADR 0002 |
-| **R1 Forward it to FlowLeap** | The research's first slice, writing into the record, in observe mode | 5, 6, 7, 15 | AI mailbox intake; match by code; office events; deadline proposals; Ticket with Mandate (#135, #136); wake API; reply to firm addresses; report-letter method; FlowLeap Office plugin with the letter tool and validate; vault (#31) for the intake secrets | M to L (3 to 4 weeks) | R0, #31 |
+| **R1 AI mailbox** | The research's first slice, writing into the record, in observe mode | 5, 6, 7, 15 | AI mailbox intake; match by code; office events; deadline proposals; Ticket with Mandate (#135, #136); wake API; reply to firm addresses; report-letter method; FlowLeap Office plugin with the letter tool and validate; vault (#31) for the intake secrets | M to L (3 to 4 weeks) | R0, #31 |
 | **R2 Docket you can trust** | A firm can run FlowLeap's docket beside PATORG and trust its differences | 2, 3, 4, 13 | Rule set v1 for EP, PCT and DE (section 5.4); two-person confirmation; deletion with evidence; disputes; Records app docket views; walls from Entra groups; PATORG import v0 from the pilot's export; nightly shadow difference report; morning brief for the partner and the PAFA; invariant rows | L (6 to 8 weeks) | R1; the pilot's export (P1) |
 | **R3 Run the matter** | Daily work happens in FlowLeap | 6, 7, 8, 9, 5 | Tasks and handover cards; the e-file; letter templates, communication rules and Outlook drafts (Microsoft 365 plugin and token broker); the claim amendment and claim chart tools; the work views with keyboard and bulk actions; MyEPO Mailbox source (#154, reshaped); matter addresses; morning brief for every role; Needs review stages (#137); run limit (#138) | L (5 to 6 weeks) | R2 |
 | **R4 Money** | The firm bills from FlowLeap | 10 | Time entries with measured review time; fee agreements; invoices with the gapless sequence and e-invoices; DATEV export; associate invoice intake; model cost per matter | L (5 to 7 weeks) | R3 |
