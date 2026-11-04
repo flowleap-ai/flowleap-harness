@@ -38,6 +38,7 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
   ['packages/experimental/webworker-packer/bin.js', 'build-only wrapper'],
   ['packages/experimental/webworker-packer/src/bin.ts', 'build-only implementation'],
   ['packages/host/flowleap-connectors/tests/fixtures/read-only-keys/driver.ts', 'test-only subprocess driver'],
+  ['packages/host/flowleap-record/tests/fixtures/record-read/driver.ts', 'test-only subprocess driver'],
   ['packages/host/flowleap-routines/tests/fixtures/register-watch/driver.ts', 'test-only subprocess driver'],
   ['packages/sandbox/sandbox-local/tests/fixtures/network/driver.ts', 'test-only subprocess driver'],
   ['packages/sdk/client/tests/fake-runtime.ts', 'test-only SDK runtime peer'],

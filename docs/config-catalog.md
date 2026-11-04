@@ -631,6 +631,23 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
+<a id="deepseek-aidsh-client-ui-flowleap-records"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-records`
+
+- `inject`: `connection`
+- `source`: [`packages/client/ui-flowleap-records/src/index.ts:25`](../packages/client/ui-flowleap-records/src/index.ts)
+
+```ts config-catalog
+/** Plugin config: where the Records pages are. */
+export interface Config {
+  /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
+  recordsHref: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
 <a id="deepseek-aidsh-client-ui-plugin-manager"></a>
 
@@ -1753,7 +1770,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-budget`
 
 - `inject`: `credentials`
-- `source`: [`packages/host/flowleap-budget/src/index.ts:26`](../packages/host/flowleap-budget/src/index.ts)
+- `source`: [`packages/host/flowleap-budget/src/index.ts:27`](../packages/host/flowleap-budget/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1780,7 +1797,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:75`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -5439,6 +5456,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-experimental-computer-use-cua-driver-native` | `computerUse` · `tools` · `systemPrompt` | [`packages/experimental/computer-use-cua-driver-native/src/index.ts`](../packages/experimental/computer-use-cua-driver-native/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-session-inspector` | — | [`packages/experimental/session-inspector/src/index.ts`](../packages/experimental/session-inspector/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-tool-worktree` | `tools` · `worktrees` | [`packages/experimental/tool-worktree/src/index.ts`](../packages/experimental/tool-worktree/src/index.ts) |
+| `@deepseek-ai/dsh-flowleap-record` | `tools` · `flowleapRecord` | [`packages/host/flowleap-record/src/index.ts`](../packages/host/flowleap-record/src/index.ts) |
 | `@deepseek-ai/dsh-fs-observation-policy` | — | [`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts) |
 | `@deepseek-ai/dsh-fs-ssh` | `ssh` · `sandboxPolicy` | [`packages/ssh/fs-ssh/src/index.ts`](../packages/ssh/fs-ssh/src/index.ts) |
 | `@deepseek-ai/dsh-goal-round-driver` | `agents` · `goals` · `sessions` | [`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts) |

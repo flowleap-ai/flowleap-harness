@@ -1,0 +1,9 @@
+version: 1
+scenario: flowleap-record-read
+profile: headless
+composition: flowleap-record-read
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-record-read
+  pin: true

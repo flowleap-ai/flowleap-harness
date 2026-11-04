@@ -38,6 +38,7 @@ export {
   compareClaimsTool, decomposeClaim, formatComparisonPackage, registerCompareClaimsTool, selectIndependentClaim,
 } from './compare-claims.ts'
 export type { ClaimElement, CompareClaimsArgs, CompareClaimsValue, FetchedClaims } from './compare-claims.ts'
+export { readBoundedText } from './bounded-body.ts'
 export { FlowleapConnectorsController } from './controller.ts'
 export type { FlowleapConnectorsControllerOptions } from './controller.ts'
 export {

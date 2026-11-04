@@ -1447,6 +1447,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapRecord',
+    summary: 'Service Definition of the seam: the Firm Record as a runtime reads it.',
+    description: 'Service Definition of the seam: the Firm Record as a runtime reads it.',
+    methods: [
+      {
+        signature: 'matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>',
+        description: 'Read the current view of one matter.',
+        parameters: [{ name: 'fileNumber', description: 'the matter\'s file number.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the view at the record position it was read at, or the refusal.',
+      },
+    ],
+  },
+  {
     key: 'flowleapRegister',
     summary: 'Reads the register events of one application.',
     description: 'Reads the register events of one application.',
@@ -6714,6 +6727,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface DailyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'daily\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly scheduledAt: string;\n}',
   },
   {
+    name: 'DeadlineId',
+    declaration: 'export type DeadlineId = Branded<\'DeadlineId\'>;',
+  },
+  {
+    name: 'DeadlineState',
+    declaration: 'export type DeadlineState = \'proposed\' | \'active\' | \'rejected\';',
+  },
+  {
+    name: 'DeadlineView',
+    declaration: 'export interface DeadlineView {\n    readonly id: DeadlineId;\n    readonly ruleId: RuleId;\n    readonly ruleVersion: number;\n    readonly due: LocalDate;\n    readonly state: DeadlineState;\n    readonly trace: TraceStep[];\n}',
+  },
+  {
     name: 'DeepSeekLlmApiExtensionMap',
     declaration: 'export interface DeepSeekLlmApiExtensionMap {\n}',
   },
@@ -7542,6 +7567,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LocalAtInput {\n    readonly date: string;\n    readonly time: string;\n    readonly time_zone: string;\n}',
   },
   {
+    name: 'LocalDate',
+    declaration: 'export type LocalDate = Branded<\'LocalDate\'>;',
+  },
+  {
     name: 'LocalizedText',
     declaration: 'export type LocalizedText = string | {\n    readonly en: string;\n    readonly [locale: string]: string;\n};',
   },
@@ -7684,6 +7713,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MatcherValue',
     declaration: 'export type MatcherValue = string | number | boolean | null | RegExp | readonly (string | number | boolean | null)[];',
+  },
+  {
+    name: 'MatterFileNumber',
+    declaration: 'export type MatterFileNumber = Branded<\'MatterFileNumber\'>;',
+  },
+  {
+    name: 'MatterState',
+    declaration: 'export type MatterState = \'open\' | \'closed\';',
+  },
+  {
+    name: 'MatterSummary',
+    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string;\n    readonly state: MatterState;\n}',
+  },
+  {
+    name: 'MatterView',
+    declaration: 'export interface MatterView {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n}',
+  },
+  {
+    name: 'MatterViewRefusal',
+    declaration: 'export type MatterViewRefusal = \'not_found\' | \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+  },
+  {
+    name: 'MatterViewResult',
+    declaration: 'export type MatterViewResult = MatterView | {\n    readonly error: MatterViewRefusal;\n};',
   },
   {
     name: 'McpCloseResult',
@@ -8434,6 +8487,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RecommendationDetails = {\n    readonly status: \'available\';\n    readonly title: LocalizedText;\n    readonly description: LocalizedText;\n    readonly enabled: boolean;\n} | {\n    readonly status: \'refused\';\n    readonly reason: \'unknown\' | \'unavailable\' | \'not-live-root\' | \'closing\';\n};',
   },
   {
+    name: 'RecordSeq',
+    declaration: 'export type RecordSeq = BrandedNumber<\'RecordSeq\'>;',
+  },
+  {
     name: 'RecurringScheduleRecord',
     declaration: 'export type RecurringScheduleRecord = EveryScheduleRecord | DailyScheduleRecord | WeeklyScheduleRecord | CronScheduleRecord | RRuleScheduleRecord;',
   },
@@ -8696,6 +8753,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RRuleScheduleRecord',
     declaration: 'export interface RRuleScheduleRecord {\n    readonly kind: \'rrule\';\n    readonly id: ScheduleId;\n    readonly title: string;\n    readonly prompt: string;\n    readonly rrule: string;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'RuleId',
+    declaration: 'export type RuleId = Branded<\'RuleId\'>;',
   },
   {
     name: 'RunnerFailureRule',
@@ -10422,6 +10483,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ToolUseSummary {\n    tool_use_id: string;\n    tool: string;\n    input: Record<string, unknown>;\n}',
   },
   {
+    name: 'TraceStep',
+    declaration: 'export interface TraceStep {\n    readonly op: string;\n    readonly from: LocalDate;\n    readonly to: LocalDate;\n    readonly cite: string;\n}',
+  },
+  {
     name: 'TrackedRevision',
     declaration: 'export interface TrackedRevision {\n    readonly id: number;\n    readonly type: string;\n    readonly author: string;\n    readonly date?: string;\n    readonly text: string;\n}',
   },
@@ -10660,6 +10725,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ViewerPluginPolicy',
     declaration: 'export interface ViewerPluginPolicy {\n    readonly plugin: string;\n    readonly mode: \'all\' | \'none\' | \'selected\';\n    readonly endpoints?: readonly string[];\n}',
+  },
+  {
+    name: 'ViewHash',
+    declaration: 'export type ViewHash = Branded<\'ViewHash\'>;',
   },
   {
     name: 'WatchedApplication',

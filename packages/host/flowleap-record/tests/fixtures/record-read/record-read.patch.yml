@@ -1,0 +1,37 @@
+# Test-only patch over the shipped headless profile: a scripted model, a Firm
+# Record fixture with one matter, and the record_read row as the flowleap-web
+# bundle mounts it.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: record-read-mock
+        model: record-read-mock
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- insert:
+    - id: record-read-mock-llm
+      name: './mock-llm.ts'
+
+    - id: recorded-firm-record
+      name: './record-fixture.ts'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'

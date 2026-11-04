@@ -15,6 +15,7 @@ const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
   'packages/bundle/flowleap-web/',
   'packages/host/flowleap-prompt/',
   'packages/host/flowleap-connectors/',
+  'packages/host/flowleap-record/',
   'packages/host/flowleap-deliverables/',
   'packages/host/flowleap-routines/',
   'packages/host/flowleap-budget/',

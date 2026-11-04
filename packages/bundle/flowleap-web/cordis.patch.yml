@@ -380,6 +380,34 @@
     - id: ui-flowleap-budget
       name: '@deepseek-ai/dsh-client-ui-flowleap-budget'
 
+    # The Firm Record of flowleap-os (design PR 214, phase R0): the runtime
+    # reads one matter's view through the flowleapRecord seam and never writes
+    # a decision. The http provider reads GET /records/api/matters/<file
+    # number>/view at the firm patch's baseURL with the runtime's record token
+    # (the FLOWLEAP_RECORD_TOKEN ref of the keys document); without baseURL,
+    # as in a local run, every read answers not_configured. The tool row gives
+    # the model record_read, whose JSON result names recordSeq and viewHash,
+    # so the Session log holds the record position a model answer rests on.
+    - id: flowleap-record-http
+      name: '@deepseek-ai/dsh-flowleap-record/http'
+      config:
+        apiKeyRef: FLOWLEAP_RECORD_TOKEN
+        timeoutMs: 5000
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'
+
+    # The Matters row in the sidebar (German Akten) and the Matters page: the
+    # Records pages of the Firm Record (matter list, matter, confirm), served
+    # by the firm proxy at the same origin under recordsHref, embedded in a
+    # frame with the client's theme; a confirm goes from the page to the Firm
+    # Record, never through the runtime. Without the proxy, as in a local run,
+    # the page says that the firm has no matters yet.
+    - id: ui-flowleap-records
+      name: '@deepseek-ai/dsh-client-ui-flowleap-records'
+      config:
+        recordsHref: records/
+
     # The Firm admin row in the sidebar (flowleap-harness#112), shown only to a
     # firm administrator: the starter of flowleap-os signs an X-Flowleap-Admin
     # header on each request of an administrator, and this row checks it with
