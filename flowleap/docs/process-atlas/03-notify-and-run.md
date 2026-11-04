@@ -31,52 +31,68 @@
 
 ## 3. State machine
 
-It has **11 states and 15 transitions**, plus the start.
+<!-- atlas:ticket -->
+It has **11 states and 24 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
-| start | `opened` | A recorded office event opens the Ticket of the matter and the day | Work router | Office event seq; idempotency key matter plus day (#136) |
-| `opened` | `routed` | The responsible attorney or the deputy is found | Work router | Matter, the absence entry used |
-| `opened` | `no_person` | Nobody responsible is present | Work router | Matter, absence entries |
-| `no_person` | `routed` | The partner assigns a person | person | Assignment |
-| `routed` | `observed` | The task type is at observe; a would-accept Decision only, no model call (#135) | Work router | Policy version |
-| `routed` | `waking` | The task type is at propose or higher | Work router | Policy version |
+| start | `opened` | A recorded office event opens the Ticket of its application and day | Work router | Office event seq; key application, day and pass |
+| `opened` | `routed` | The responsible attorney, or the first present deputy whom the matter wall admits, is found | Work router | Matter, wall check, the absence entry used |
+| `opened` | `no_person` | Nobody responsible is present, or no present deputy is inside the wall | Work router | Matter, absence entries, wall check |
+| `no_person` | `routed` | The partner assigns a person whom the wall admits | person | Assignment, wall check |
+| `no_person` | `no_person` | The assign-within time passes; the task goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
+| `routed` | `by_hand` | The client wishes do not allow AI on the matter or are not recorded, or no contract covers the model provider | Work router | Client rule seq or its absence, the provider contract record |
+| `routed` | `observed` | The task type is at observe; a would-accept Decision only, no model call | Work router | Policy version |
+| `routed` | `waking` | The task type is at propose or higher, and the client wishes allow the model that the run uses | Work router | Policy version, client rule seq, model |
 | `waking` | `running` | The runtime answers; the run chat opens with the Mandate | runtime | SessionRef |
 | `waking` | `run_failed` | The wake fails after the retries | Work router | Error |
-| `running` | `proposals_ready` | The run ends with proposals | agent | SessionRef per proposal |
+| `running` | `proposals_ready` | The run ends with proposals and a deadline summary | agent | SessionRef per proposal; deadline, state and trace read |
 | `running` | `run_failed` | The run fails or passes its time or budget limit | runtime | Error, SessionRef |
+| `running` | `waking` | A second office event joins the Ticket, and the run starts again with both | Work router | The joining event seq |
 | `run_failed` | `waking` | A person starts it again | person | Reason |
-| `run_failed` | `failed` | A person takes the work by hand | person | Reason |
-| `opened` | `cancelled` | The document moves to another matter | person | Correction event |
-| `running` | `cancelled` | The document moves to another matter | person | Correction event |
-| `proposals_ready` | `proposals_ready` | The decide-by time passes; a reminder goes to the person, then the deputy | Firm Record | Time, escalation step |
-| `proposals_ready` | `decided` | The last proposal is decided | person | Decisions |
+| `run_failed` | `by_hand` | A person takes the work by hand | person | Reason |
+| `proposals_ready` | `waking` | A second office event joins, or the record moved under a proposal, and the run makes a second pass | Work router | The joining event seq or the newer seq |
+| `proposals_ready` | `proposals_ready` | The decide-by time passes; a reminder goes to the person, then the deputy, and after the last person it is an alarm | Firm Record | Time, escalation step |
+| `proposals_ready` | `decided` | The attorney decides the last proposal and records the deadline check | person | Decisions; the deadline seen (date, state, trace, seq) |
+| `opened`, `no_person`, `routed`, `waking`, `running`, `run_failed`, `proposals_ready` | `cancelled` | The document moves to another matter, or the event is corrected away | person | Correction event; open proposals become stale |
 
-End states: `observed`, `cancelled`, `decided`, `failed`. A cancelled Ticket leaves its run chat in the Session log; the move opens a new Ticket on the right matter through [sheet 1](01-office-letter-intake.md).
+End states: `observed`, `by_hand`, `decided`, `cancelled`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> opened: a filed office event opens the Ticket of the matter and day
-    opened --> routed: the responsible attorney or the deputy is found
-    opened --> no_person: nobody responsible is present
-    no_person --> routed: the partner assigns a person
-    routed --> observed: the task type is at observe, a would-accept Decision only
-    routed --> waking: the task type is at propose or higher
+    [*] --> opened: a recorded office event opens the Ticket of its application and day
+    opened --> routed: the responsible attorney, or the first present deputy whom the matter wall admits, is found
+    opened --> no_person: nobody responsible is present, or no present deputy is inside the wall
+    no_person --> routed: the partner assigns a person whom the wall admits
+    no_person --> no_person: the assign-within time passes, the task goes to the next person, and after the last person it is an alarm
+    routed --> by_hand: the client wishes do not allow AI on the matter or are not recorded, or no contract covers the model provider
+    routed --> observed: the task type is at observe, a would-accept Decision only, no model call
+    routed --> waking: the task type is at propose or higher, and the client wishes allow the model that the run uses
     waking --> running: the runtime answers, the run chat opens with the Mandate
     waking --> run_failed: the wake fails after the retries
-    running --> proposals_ready: the run ends with proposals
+    running --> proposals_ready: the run ends with proposals and a deadline summary
     running --> run_failed: the run fails or passes its time or budget limit
+    running --> waking: a second office event joins the Ticket, and the run starts again with both
     run_failed --> waking: a person starts it again
-    run_failed --> failed: a person takes the work by hand
-    opened --> cancelled: the document moves to another matter
-    running --> cancelled: the document moves to another matter
-    proposals_ready --> proposals_ready: the decide-by time passes, a reminder goes to the person, then the deputy
-    proposals_ready --> decided: the last proposal is decided
+    run_failed --> by_hand: a person takes the work by hand
+    proposals_ready --> waking: a second office event joins, or the record moved under a proposal, and the run makes a second pass
+    proposals_ready --> proposals_ready: the decide-by time passes, a reminder goes to the person, then the deputy, and after the last person it is an alarm
+    proposals_ready --> decided: the attorney decides the last proposal and records the deadline check
+    opened --> cancelled: the document moves to another matter, or the event is corrected away
+    no_person --> cancelled: the document moves to another matter, or the event is corrected away
+    routed --> cancelled: the document moves to another matter, or the event is corrected away
+    waking --> cancelled: the document moves to another matter, or the event is corrected away
+    running --> cancelled: the document moves to another matter, or the event is corrected away
+    run_failed --> cancelled: the document moves to another matter, or the event is corrected away
+    proposals_ready --> cancelled: the document moves to another matter, or the event is corrected away
     observed --> [*]
-    cancelled --> [*]
+    by_hand --> [*]
     decided --> [*]
-    failed --> [*]
+    cancelled --> [*]
 ```
+<!-- /atlas:ticket -->
+
+A cancelled Ticket leaves its run chat in the Session log; the move opens a new Ticket on the right matter through [sheet 1](01-office-letter-intake.md).
 
 **The notice.** Entering `routed` sends a short notice to the routed person, and entering `proposals_ready` sends the reply to the forwarder and the result to the routed person. Both are messages of [sheet 5](05-firm-internal-message.md). The run chat also gets the Needs review mark (#137).
 

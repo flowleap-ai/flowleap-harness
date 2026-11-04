@@ -32,44 +32,61 @@
 
 ## 3. State machine
 
-It has **9 states and 11 transitions**, plus the start.
+<!-- atlas:report -->
+It has **11 states and 18 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
 | start | `checking_rule` | The run reads the client rules for this event | agent | `record_read` seq of the client rules |
 | `checking_rule` | `not_needed` | The client rule says no report for this event | agent | Rule text and its seq |
+| `checking_rule` | `by_hand` | The client rules do not allow an AI draft of a client letter | agent | Rule text and its seq |
 | `checking_rule` | `proposed` | The agent proposes a letter on the firm template | agent | Spans per statement, template version, SessionRef |
-| `proposed` | `flagged` | The rule check finds a fault (recipient, language, instruction date, AI-use rule) | Firm Record | The rule and the field |
+| `proposed` | `flagged` | The agent finds a fault against a client rule | agent | The rule text and the field |
 | `flagged` | `proposed` | The agent or the attorney corrects the draft | agent or person | Diff |
 | `proposed` | `approved` | The attorney accepts or edits | person | Final document hash, diff |
-| `flagged` | `approved` | The attorney overrides with a reason | person | Reason |
+| `flagged` | `approved` | The attorney overrides the flag with a reason | person | Reason, final document hash |
 | `proposed` | `rejected` | The attorney rejects with a reason | person | Reason (feeds firm memory, principle 7) |
-| `proposed` | `stale` | The record moved under the draft (a deadline changed, the document moved) | Firm Record | The newer seq |
+| `flagged` | `rejected` | The attorney rejects with a reason | person | Reason |
+| `proposed`, `flagged` | `stale` | The record moved under the draft | Firm Record | The newer seq |
+| `approved`, `send_unconfirmed` | `stale` | The record moved under the approved letter before a sent copy arrived | Firm Record | The newer seq; an alarm to the attorney |
 | `approved` | `sent` | The sent copy reaches the AI mailbox | intake | Sent mail, hash match with the approved document |
 | `approved` | `send_unconfirmed` | No sent copy before the reminder time | Firm Record | Time |
 | `send_unconfirmed` | `sent` | The attorney records the send with the sent mail | person | Sent mail |
+| `approved`, `send_unconfirmed` | `withdrawn` | The attorney decides not to send, with a reason | person | Reason |
 
-End states: `not_needed`, `rejected`, `stale`, `sent`. A `stale` draft does not come back: the run proposes a new one on the newer record.
+End states: `not_needed`, `by_hand`, `rejected`, `stale`, `withdrawn`, `sent`.
 
 ```mermaid
 stateDiagram-v2
     [*] --> checking_rule: the run reads the client rules for this event
     checking_rule --> not_needed: the client rule says no report for this event
+    checking_rule --> by_hand: the client rules do not allow an AI draft of a client letter
     checking_rule --> proposed: the agent proposes a letter on the firm template
-    proposed --> flagged: the rule check finds a fault
+    proposed --> flagged: the agent finds a fault against a client rule
     flagged --> proposed: the agent or the attorney corrects the draft
     proposed --> approved: the attorney accepts or edits
-    flagged --> approved: the attorney overrides with a reason
+    flagged --> approved: the attorney overrides the flag with a reason
     proposed --> rejected: the attorney rejects with a reason
+    flagged --> rejected: the attorney rejects with a reason
     proposed --> stale: the record moved under the draft
+    flagged --> stale: the record moved under the draft
+    approved --> stale: the record moved under the approved letter before a sent copy arrived
+    send_unconfirmed --> stale: the record moved under the approved letter before a sent copy arrived
     approved --> sent: the sent copy reaches the AI mailbox
     approved --> send_unconfirmed: no sent copy before the reminder time
     send_unconfirmed --> sent: the attorney records the send with the sent mail
+    approved --> withdrawn: the attorney decides not to send, with a reason
+    send_unconfirmed --> withdrawn: the attorney decides not to send, with a reason
     not_needed --> [*]
+    by_hand --> [*]
     rejected --> [*]
     stale --> [*]
+    withdrawn --> [*]
     sent --> [*]
 ```
+<!-- /atlas:report -->
+
+A `stale` draft does not come back: the run proposes a new one on the newer record.
 
 **How FlowLeap knows that the report was sent.** In R1 the attorney sends from Outlook (ADR 0001 decision 21), so FlowLeap does not see the send. The AI mailbox may read only its own mailbox (fact 1.12 of [sheet 1](01-office-letter-intake.md)), not the attorney's Sent Items. Two ways remain: the attorney puts the AI mailbox in Bcc, and the intake matches the attachment hash to the approved document; or the attorney records the send in the Records app. This sheet uses the Bcc as the typical path and the manual record as the exception [INFERRED; question Q4.3].
 

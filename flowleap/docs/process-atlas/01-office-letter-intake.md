@@ -37,56 +37,74 @@
 
 ## 3. State machine
 
-The machine is per document, not per mail, because one mail can carry several letters for several matters (design section 6.2). It has **11 states and 17 transitions**, plus the start.
+The machine is per document, not per mail, because one mail can carry several letters for several matters (design section 6.2).
+
+<!-- atlas:intake -->
+It has **13 states and 23 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
-| start | `stored` | The mail arrives; a document is split out and hashed | intake | Graph message id, sender, document SHA-256 |
+| start | `stored` | The mail arrives from a firm sender that Exchange authenticated as internal; a document is split out and hashed | intake | Immutable Graph message id, sender, authentication result, document SHA-256 |
 | `stored` | `duplicate` | The hash is already in the record | intake | Hash, the earlier document |
 | `stored` | `unreadable` | No text layer and OCR fails | intake | OCR result and its confidence |
-| `stored` | `read` | Text and document kind are read | intake | Kind with its span (office letter, associate letter, client mail, other) |
+| `stored` | `read` | The text is read; an office signal gives the kind office letter, or the model reads an office letter | intake or agent | Kind, its source (form number, office sender, office name) and its span |
+| `stored` | `kind_proposed` | No office signal, and the model reads another kind | agent | Kind (associate letter, client mail, other) with its span, SessionRef |
+| `kind_proposed` | `read` | A person accepts or changes the kind | person | The proposal and the Decision |
 | `unreadable` | `replaced` | A person adds a better scan | person | Hash of the new document |
-| `unreadable` | `not_relevant` | A person marks it not relevant | person | Reason |
-| `read` | `matched` | One exact key gives one matter | intake | Key, its span and its kind (file number, EP number, PCT number, DPMA Aktenzeichen) |
-| `read` | `match_proposed` | A register lookup or the model proposes a matter | intake or agent | Register response, or quoted span and SessionRef |
-| `read` | `ambiguous` | The keys give two or more matters | intake | Each key with its span and its matter |
-| `read` | `unmatched` | No key and no proposal | intake | The keys searched |
-| `match_proposed` | `matched` | A person accepts or edits the match | person | The proposal and the Decision |
+| `unreadable` | `not_relevant` | An attorney marks it not relevant with a reason | person (attorney) | Reason; the second person when the firm asks for one |
+| `read` | `duplicate_proposed` | An earlier document has the same application number, form and date | intake | Both documents and the fields that agree |
+| `duplicate_proposed` | `duplicate` | A person confirms the duplicate | person | The Decision |
+| `duplicate_proposed` | `read` | A person decides that it is another letter, and the content check does not run again | person | The Decision and its reason |
+| `read` | `matched` | One exact key in a reference or addressee field gives one matter [the firm files without a person] | intake | Key, its field and its span |
+| `read` | `match_proposed` | One exact key [a person confirms], a register lookup or the model proposes a matter | intake or agent | Key and span, register response, or quoted span and SessionRef |
+| `read` | `ambiguous` | The keys give two or more matters | intake | Each key with its field, its span and its matter |
+| `read` | `unmatched` | No key and no proposal | intake | The fields searched |
+| `match_proposed` | `matched` | A person accepts or changes the match | person | The proposal and the Decision |
 | `ambiguous` | `matched` | A person picks the matter | person | The candidates and the Decision |
 | `unmatched` | `matched` | A person picks or opens the matter | person | Reason; `matter/opened` when new |
-| `match_proposed` | `not_relevant` | A person rejects with a reason | person | Reason |
-| `unmatched` | `not_relevant` | A person marks it not relevant | person | Reason |
-| `unmatched` | `unmatched` | The decide-within time passes; the item goes to the next person | Firm Record | Time, escalation step |
+| `match_proposed` | `not_relevant` | A person rejects it with a reason; an office letter needs an attorney | person (attorney for an office letter) | Reason; the second person when the firm asks for one |
+| `unmatched` | `not_relevant` | A person marks it not relevant with a reason; an office letter needs an attorney | person (attorney for an office letter) | Reason; the second person when the firm asks for one |
+| `unmatched` | `unmatched` | The decide-within time passes; the item goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
 | `matched` | `filed` | The document enters the e-file of the matter | Firm Record | Match evidence |
-| `filed` | `filed` | A person moves it to another matter (correction) | person | Reason, old and new matter |
+| `filed` | `filed` | A person moves it to another matter; when the walls differ, the Firm Record records a wall incident | person | Reason, old and new matter, the wall incident |
+| `not_relevant` | `stored` | A person reopens it with a reason | person | Reason |
 
-End states: `duplicate`, `replaced`, `not_relevant`, `filed`. The move of a filed document is a correction on `filed`; it starts the `stale` and `disputed` paths of [sheet 2](02-office-event-to-deadline.md) and the `cancelled` path of [sheet 3](03-notify-and-run.md).
+End states: `duplicate`, `replaced`, `not_relevant`, `filed`. Declared corrections out of an end state: `not_relevant` to `stored`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> stored: the mail arrives, a document is split out and hashed
+    [*] --> stored: the mail arrives from a firm sender that Exchange authenticated as internal, a document is split out and hashed
     stored --> duplicate: the hash is already in the record
     stored --> unreadable: no text layer and OCR fails
-    stored --> read: text and document kind are read
+    stored --> read: the text is read, an office signal gives the kind office letter, or the model reads an office letter
+    stored --> kind_proposed: no office signal, and the model reads another kind
+    kind_proposed --> read: a person accepts or changes the kind
     unreadable --> replaced: a person adds a better scan
-    unreadable --> not_relevant: a person marks it not relevant
-    read --> matched: one exact key gives one matter
-    read --> match_proposed: a register lookup or the model proposes a matter
+    unreadable --> not_relevant: an attorney marks it not relevant with a reason
+    read --> duplicate_proposed: an earlier document has the same application number, form and date
+    duplicate_proposed --> duplicate: a person confirms the duplicate
+    duplicate_proposed --> read: a person decides that it is another letter, and the content check does not run again
+    read --> matched: one exact key in a reference or addressee field gives one matter [the firm files without a person]
+    read --> match_proposed: one exact key [a person confirms], a register lookup or the model proposes a matter
     read --> ambiguous: the keys give two or more matters
     read --> unmatched: no key and no proposal
-    match_proposed --> matched: a person accepts or edits the match
+    match_proposed --> matched: a person accepts or changes the match
     ambiguous --> matched: a person picks the matter
     unmatched --> matched: a person picks or opens the matter
-    match_proposed --> not_relevant: a person rejects with a reason
-    unmatched --> not_relevant: a person marks it not relevant
-    unmatched --> unmatched: the decide-within time passes, the item goes to the next person
+    match_proposed --> not_relevant: a person rejects it with a reason, an office letter needs an attorney
+    unmatched --> not_relevant: a person marks it not relevant with a reason, an office letter needs an attorney
+    unmatched --> unmatched: the decide-within time passes, the item goes to the next person, and after the last person it is an alarm
     matched --> filed: the document enters the e-file of the matter
-    filed --> filed: a person moves it to another matter
+    filed --> filed: a person moves it to another matter, when the walls differ, the Firm Record records a wall incident
+    not_relevant --> stored: a person reopens it with a reason
     duplicate --> [*]
     replaced --> [*]
     not_relevant --> [*]
     filed --> [*]
 ```
+<!-- /atlas:intake -->
+
+The move of a filed document is a correction on `filed`; it starts the `stale` and `disputed` paths of [sheet 2](02-office-event-to-deadline.md) and the `cancelled` path of [sheet 3](03-notify-and-run.md).
 
 **Error and timeout paths.**
 

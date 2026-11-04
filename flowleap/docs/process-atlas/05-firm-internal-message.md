@@ -29,41 +29,48 @@ This sheet covers three kinds of message with one machine: the **reply** in the 
 
 ## 3. State machine
 
-It has **7 states and 10 transitions**, plus the start.
+<!-- atlas:outbox -->
+It has **8 states and 12 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
 | start | `composed` | A run result, an already-worked answer or a notice needs a message | Work router | Ticket, kind, recipients from the record |
 | `composed` | `refused` | A recipient is not a firm address | outbox | The address, the allow-list version; a task for the administrator |
 | `composed` | `queued` | Every recipient is a firm address | outbox | Allow-list version, outbox id |
-| `queued` | `drafted` | The reply draft exists in the AI mailbox | outbox | Graph draft id |
-| `drafted` | `sent` | The send is accepted and the item is in Sent Items | outbox | Message id |
-| `queued` | `retrying` | Graph fails | outbox | Error |
-| `drafted` | `retrying` | Graph fails | outbox | Error |
-| `retrying` | `queued` | The next try starts and no draft exists | outbox | Attempt |
-| `retrying` | `drafted` | The next try finds the draft | outbox | Draft id |
-| `retrying` | `sent` | The next try finds the item in Sent Items | outbox | Message id |
+| `queued` | `drafted` | The draft exists with the outbox stamp, its recipients are set from the record, and the read-back matches | outbox | Immutable draft id, stamp, read-back recipients |
+| `drafted` | `refused` | The read-back recipients differ from the checked list, and the draft is deleted | outbox | Both lists; a task for the administrator |
+| `drafted` | `send_requested` | The outbox records the send request, then calls send | outbox | Time of the request |
+| `send_requested` | `sent` | The Sent Items copy is found by its immutable id or its stamp | outbox | Immutable message id, internet message id |
+| `send_requested` | `dead` | No Sent Items copy before the confirm time; the outbox never sends again | outbox | Time; a task for the administrator |
+| `queued`, `drafted` | `retrying` | Graph fails before the send request | outbox | Error |
+| `retrying` | `queued` | The next try finds no draft with the stamp | outbox | Attempt |
+| `retrying` | `drafted` | The next try finds the draft by its stamp, sets the recipients again and reads them back | outbox | Immutable draft id, read-back recipients |
 | `retrying` | `dead` | The tries are used up | outbox | Errors; a task for the administrator |
 
-End states: `refused`, `sent`, `dead`. A `refused` message is never sent in part: the outbox does not drop the bad address and send to the rest, because a refused address is a fault in the composer that a person must see [INFERRED].
+End states: `refused`, `sent`, `dead`.
 
 ```mermaid
 stateDiagram-v2
     [*] --> composed: a run result, an already-worked answer or a notice needs a message
     composed --> refused: a recipient is not a firm address
     composed --> queued: every recipient is a firm address
-    queued --> drafted: the reply draft exists in the AI mailbox
-    drafted --> sent: the send is accepted and the item is in Sent Items
-    queued --> retrying: Graph fails
-    drafted --> retrying: Graph fails
-    retrying --> queued: the next try starts and no draft exists
-    retrying --> drafted: the next try finds the draft
-    retrying --> sent: the next try finds the item in Sent Items
+    queued --> drafted: the draft exists with the outbox stamp, its recipients are set from the record, and the read-back matches
+    drafted --> refused: the read-back recipients differ from the checked list, and the draft is deleted
+    drafted --> send_requested: the outbox records the send request, then calls send
+    send_requested --> sent: the Sent Items copy is found by its immutable id or its stamp
+    send_requested --> dead: no Sent Items copy before the confirm time, the outbox never sends again
+    queued --> retrying: graph fails before the send request
+    drafted --> retrying: graph fails before the send request
+    retrying --> queued: the next try finds no draft with the stamp
+    retrying --> drafted: the next try finds the draft by its stamp, sets the recipients again and reads them back
     retrying --> dead: the tries are used up
     refused --> [*]
     sent --> [*]
     dead --> [*]
 ```
+<!-- /atlas:outbox -->
+
+A `refused` message is never sent in part: the outbox does not drop the bad address and send to the rest, because a refused address is a fault in the composer that a person must see [INFERRED].
 
 **Error and timeout paths.**
 

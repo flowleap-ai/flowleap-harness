@@ -35,58 +35,74 @@
 
 ## 3. State machine
 
-The machine joins the office event and its deadline proposal, because in R1 one office event gives at most one engine proposal per rule, and the proposal cannot exist without the event. It has **12 states and 18 transitions**, plus the start.
+The machine joins the office event and its deadline proposal, because in R1 one office event gives at most one engine proposal per rule, and the proposal cannot exist without the event.
+
+<!-- atlas:deadline -->
+It has **14 states and 23 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
-| start | `awaiting_code` | A filed document is an office letter | intake | Document kind with its span |
-| `awaiting_code` | `recorded` | The form number maps to one event code | intake | Form number span, code table version |
-| `awaiting_code` | `code_proposed` | No form number; the model reads the code | agent | Quoted span, SessionRef |
-| `code_proposed` | `recorded` | A person accepts or edits the code | person | Proposal and Decision |
+| start | `awaiting_code` | A filed document is an office letter | intake | Document kind with its source and span |
+| `awaiting_code` | `recorded` | The form number maps to one event code, and the date the document bears is read | intake | Form-number span, date span, code table version (`office-event/observed`) |
+| `awaiting_code` | `code_proposed` | No form number; the model reads the event code and the date | agent | Quoted spans, SessionRef |
+| `code_proposed` | `recorded` | A person accepts or changes the code and the date | person | The proposal and the Decision (`office-event/recorded`) |
+| `code_proposed` | `no_event` | An attorney decides that the letter records no office event, with a reason | person (attorney) | Reason, the document |
+| `no_event` | `awaiting_code` | A person reopens it with a reason | person | Reason |
 | `recorded` | `no_period` | The rule table has no period for the code | engine | Rule table version |
-| `recorded` | `deadline_proposed` | The engine computes the date with a trace | engine | Trace, trace hash, document-date span |
+| `recorded` | `deadline_proposed` | The engine computes the date with a trace | engine | Trace, trace hash, date span |
 | `recorded` | `engine_refused` | The engine refuses: calendar missing, unknown event, period not read, rule not effective | engine | Named error |
-| `engine_refused` | `deadline_proposed` | The missing calendar or rule arrives | engine | Trace |
-| `engine_refused` | `manual_proposed` | A person enters the deadline with a reason | person | Reason, date span |
-| `deadline_proposed` | `active` | Another person confirms and the engine agrees | person | Engine check (rule, trace hash) |
-| `manual_proposed` | `active` | A second person confirms | person | Second-person check |
-| `deadline_proposed` | `deadline_proposed` | The confirm-within time passes; the item goes to the next person | Firm Record | Time, escalation step |
-| `deadline_proposed` | `rejected` | A person rejects with a reason | person | Reason |
-| `manual_proposed` | `rejected` | A person rejects with a reason | person | Reason |
-| `deadline_proposed` | `stale` | The document moves or the event is corrected | person | Correction event |
-| `manual_proposed` | `stale` | The document moves or the event is corrected | person | Correction event |
-| `active` | `disputed` | The document moves or the event is corrected | person | Correction event |
-| `disputed` | `active` | A person decides the new date | person | Both traces |
-| `active` | `to_docket` | The docket lifecycle of R2 takes over (met, superseded, closed without its act) | Firm Record | none |
+| `engine_refused` | `deadline_proposed` | The missing calendar or rule arrives | engine | Trace, rule or calendar version |
+| `engine_refused` | `manual_proposed` | A person enters the date, or the agent proposes it from the letter, with the span and a reason | person or agent | Reason, date span; SessionRef for the agent |
+| `deadline_proposed` | `manual_proposed` | A person disagrees with the computed date and enters another with a reason | person | Reason, date span, the trace |
+| `manual_proposed` | `deadline_proposed` | The missing calendar or rule arrives; the engine proposal replaces the manual entry and shows a different date | engine | Trace, the manual entry |
+| `deadline_proposed` | `active` | A person confirms the record position they saw, the engine computes the same trace, and the person did not decide the code | person | Seen seq, engine check (rule, trace hash) |
+| `manual_proposed` | `active` | A second person confirms the record position they saw; in a single-check firm the one confirmer, who is not the proposer | person | Seen seq, second-person check or `single-check` |
+| `deadline_proposed` | `deadline_proposed` | The confirm-within time passes; the item goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
+| `deadline_proposed` | `rejected` | An attorney decides that the event sets no deadline, with a reason and evidence | person (attorney) | Reason, evidence document |
+| `manual_proposed` | `rejected` | An attorney decides that the event sets no deadline, with a reason and evidence | person (attorney) | Reason, evidence document |
+| `deadline_proposed` | `stale` | The document moves, the event is corrected, or a rule or calendar version changes before the confirm | person or Firm Record | Correction event or version |
+| `manual_proposed` | `stale` | The document moves, the event is corrected, or a rule or calendar version changes before the confirm | person or Firm Record | Correction event or version |
+| `active` | `disputed` | The document moves, the event is corrected, a rule or calendar version gives another date, or the engine now computes another date for a manual deadline | person or Firm Record | Correction event or version, both traces |
+| `disputed` | `active` | A person decides the date, and the engine or a second person agrees | person | Both traces, seen seq, the check |
+| `disputed` | `closed_without_act` | An attorney closes it with a reason and evidence, and a second person approves | person (attorney) | Reason from the list, evidence document, approval or `single-check` |
+| `active` | `to_docket` | The docket lifecycle of R2 takes over (met, superseded, closed without its act) | Firm Record | The next docket event |
 
-End states: `no_period`, `rejected`, `stale`, `to_docket`.
+End states: `no_event`, `no_period`, `rejected`, `stale`, `closed_without_act`, `to_docket`. Declared corrections out of an end state: `no_event` to `awaiting_code`.
 
 ```mermaid
 stateDiagram-v2
     [*] --> awaiting_code: a filed document is an office letter
-    awaiting_code --> recorded: the form number maps to one event code
-    awaiting_code --> code_proposed: no form number, the model reads the code
-    code_proposed --> recorded: a person accepts or edits the code
+    awaiting_code --> recorded: the form number maps to one event code, and the date the document bears is read
+    awaiting_code --> code_proposed: no form number, the model reads the event code and the date
+    code_proposed --> recorded: a person accepts or changes the code and the date
+    code_proposed --> no_event: an attorney decides that the letter records no office event, with a reason
+    no_event --> awaiting_code: a person reopens it with a reason
     recorded --> no_period: the rule table has no period for the code
     recorded --> deadline_proposed: the engine computes the date with a trace
-    recorded --> engine_refused: the engine refuses (calendar, period, rule)
+    recorded --> engine_refused: the engine refuses calendar missing, unknown event, period not read, rule not effective
     engine_refused --> deadline_proposed: the missing calendar or rule arrives
-    engine_refused --> manual_proposed: a person enters the deadline with a reason
-    deadline_proposed --> active: another person confirms and the engine agrees
-    manual_proposed --> active: a second person confirms
-    deadline_proposed --> deadline_proposed: the confirm-within time passes, the item goes to the next person
-    deadline_proposed --> rejected: a person rejects with a reason
-    manual_proposed --> rejected: a person rejects with a reason
-    deadline_proposed --> stale: the document moves or the event is corrected
-    manual_proposed --> stale: the document moves or the event is corrected
-    active --> disputed: the document moves or the event is corrected
-    disputed --> active: a person decides the new date
-    active --> to_docket: the docket lifecycle of R2 takes over
+    engine_refused --> manual_proposed: a person enters the date, or the agent proposes it from the letter, with the span and a reason
+    deadline_proposed --> manual_proposed: a person disagrees with the computed date and enters another with a reason
+    manual_proposed --> deadline_proposed: the missing calendar or rule arrives, the engine proposal replaces the manual entry and shows a different date
+    deadline_proposed --> active: a person confirms the record position they saw, the engine computes the same trace, and the person did not decide the code
+    manual_proposed --> active: a second person confirms the record position they saw, in a single-check firm the one confirmer, who is not the proposer
+    deadline_proposed --> deadline_proposed: the confirm-within time passes, the item goes to the next person, and after the last person it is an alarm
+    deadline_proposed --> rejected: an attorney decides that the event sets no deadline, with a reason and evidence
+    manual_proposed --> rejected: an attorney decides that the event sets no deadline, with a reason and evidence
+    deadline_proposed --> stale: the document moves, the event is corrected, or a rule or calendar version changes before the confirm
+    manual_proposed --> stale: the document moves, the event is corrected, or a rule or calendar version changes before the confirm
+    active --> disputed: the document moves, the event is corrected, a rule or calendar version gives another date, or the engine now computes another date for a manual deadline
+    disputed --> active: a person decides the date, and the engine or a second person agrees
+    disputed --> closed_without_act: an attorney closes it with a reason and evidence, and a second person approves
+    active --> to_docket: the docket lifecycle of R2 takes over (met, superseded, closed without its act)
+    no_event --> [*]
     no_period --> [*]
     rejected --> [*]
     stale --> [*]
+    closed_without_act --> [*]
     to_docket --> [*]
 ```
+<!-- /atlas:deadline -->
 
 **The check covers the computation, not the reading.** In R0 the confirm recomputes the date from the stored code and document date and compares the trace hash (`lib/record/deadlines.mjs`). That check is independent of the arithmetic, but not of the reading: a wrong code or a wrong document date gives the same wrong date twice. So the person who confirms is the check of the reading, and the Records app must show the code span and the date span of the letter beside the proposal. A firm can ask for a second person when the model read the code (setting `deadline.readingCheck`) [INFERRED from the R0 code and fact 2.5].
 
