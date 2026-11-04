@@ -1052,6 +1052,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   RunStartReceipt: 'the run-started receipt is owned by packages/host/flowleap-record/README.md',
   ReportProposal: 'the report proposal command is owned by packages/host/flowleap-record/README.md',
   ReportReceipt: 'the report proposal receipt is owned by packages/host/flowleap-record/README.md',
+  DocumentSha256: 'the SHA-256 of a document of the Firm Record is owned by packages/host/flowleap-record/README.md',
+  DocumentText: 'the page text of a document of the Firm Record is owned by packages/host/flowleap-record/README.md',
   RunFinish: 'the finish command with the deadline summary is owned by packages/host/flowleap-record/README.md',
   RunFinishReceipt: 'the finish receipt with the outbox item is owned by packages/host/flowleap-record/README.md',
   AgentId: 'the agent id is owned by packages/host/flowleap-agent-builder/README.md',

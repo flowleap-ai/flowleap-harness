@@ -1,7 +1,9 @@
 /**
  * One Ticket run over fixtures. The Firm Record fixture provides `flowleapRecord`: the matter FL-2026-0001 at record
- * position 7 with its Ticket tk-1 running, and each run command it receives written as JSON under firm-record/ in the
- * working directory, so workspace.expected/ shows what the Firm Record received. The Office fixture provides
+ * position 7 with its Ticket tk-1 running, the two-page text layer of the forwarded letter, and each run command it
+ * receives written as JSON under firm-record/ in the working directory, so workspace.expected/ shows what the Firm Record
+ * received. Like the Firm Record, the fixture refuses a report whose source has no span, whose quote is not in the text of
+ * its page, or whose quote is in it more than once, and it stores the offsets of each quote. The Office fixture provides
  * `flowleapOffice` and writes the letter as UTF-8 text that names the template, the fields, and the blocks.
  */
 
@@ -14,6 +16,19 @@ export const name = 'flowleap-ticket-run-fixture'
 
 /** SHA-256 of the forwarded R.71(3) communication. */
 const LETTER_SHA256 = '5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a'
+
+/** The text layer of the letter, one string per page; a quote of a report must be in the text of its page exactly once. */
+const LETTER_PAGES = [
+  [
+    'Communication under Rule 71(3) EPC',
+    'Application No.: EP23812345.6          Date: 30.10.2025',
+    'You are informed that the examining division intends to grant a European patent on the basis of the text indicated above.',
+  ].join('\n'),
+  [
+    'Within four months of this communication you must pay the fees for grant and publishing and file a translation of the claims',
+    'in the two other official languages. The period under Rule 71(3) EPC cannot be extended.',
+  ].join('\n'),
+]
 
 const VIEW = {
   recordSeq: 7,
@@ -84,14 +99,33 @@ const sessionMark = session => typeof session === 'string' && session !== '' ? '
 
 const decode = bytes => new TextDecoder().decode(bytes).trim()
 
+/**
+ * Check the span of one evidence item the way the Firm Record does.
+ * @returns the evidence with the offsets of its quote, or the refusal.
+ */
+function locate({ document, span }) {
+  if (span === undefined) return { error: 'statement_without_span' }
+  const page = document === LETTER_SHA256 ? LETTER_PAGES[span.page - 1] : undefined
+  const start = page === undefined ? -1 : page.indexOf(span.quote)
+  if (start < 0) return { error: 'quote_not_in_letter' }
+  if (page.indexOf(span.quote, start + 1) >= 0) return { error: 'quote_ambiguous' }
+  return { document, span: { page: span.page, start, end: start + span.quote.length, quote: span.quote } }
+}
+
 /** Provide both fixture services. */
 export function apply(ctx) {
   ctx.provide('flowleapRecord', {
     matterView: async fileNumber => fileNumber === view.matter.fileNumber ? view : { error: 'not_found' },
     runStarted: async () => ({ recordSeq: 8 }),
+    documentText: async document => document === LETTER_SHA256 ? { pages: LETTER_PAGES } : { error: 'not_found' },
     proposeReport: async (ticket, command) => {
-      const { content, session, ...rest } = command
-      received('report.json', { ticket, ...rest, session: sessionMark(session), content: { sha256: sha256(content), bytes: content.byteLength } })
+      const { content, session, statements, ...rest } = command
+      const located = statements.map(statement => ({ text: statement.text, evidence: statement.evidence.map(locate) }))
+      const refusal = located.flatMap(statement => statement.evidence).find(item => 'error' in item)
+      if (refusal !== undefined) return refusal
+      received('report.json', {
+        ticket, ...rest, statements: located, session: sessionMark(session), content: { sha256: sha256(content), bytes: content.byteLength },
+      })
       return { proposalId: 'p-1', document: sha256(content), recordSeq: 10 }
     },
     finishRun: async (ticket, command) => {

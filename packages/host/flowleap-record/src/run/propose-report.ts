@@ -3,12 +3,11 @@
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import { brandString } from '@deepseek-ai/dsh-brand'
 import { callWorkspace, parseArgs, readInput, readTemplate } from '@deepseek-ai/dsh-flowleap-office'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { z } from 'zod'
-import type { DocumentSha256, ReportReceipt, ReportStatement } from '../types.ts'
-import { callSession, nonEmpty, recordSeqArg, ticketIdArg } from './args.ts'
+import type { ReportReceipt, ReportStatement } from '../types.ts'
+import { callSession, nonEmpty, recordSeqArg, sha256Arg, ticketIdArg } from './args.ts'
 import { RUN_ERROR_SCHEMA, runRefusal, type RunCommandError } from './refusal.ts'
 
 /** Tool name. */
@@ -23,17 +22,12 @@ const MAX_TEMPLATE_BYTES = 32 * 1024 * 1024
 /** The canonical value of `record_propose_report`: the receipt, or the refusal. */
 export type ProposeReportResult = ReportReceipt | RunCommandError
 
-const sha256Arg = z.string().regex(/^[0-9a-f]{64}$/u, 'Use the SHA-256 of a document of the record, as record_read lists it.')
-  .transform(value => brandString<DocumentSha256>(value))
-
 const Span = z.object({
   page: z.number().int().positive(),
-  start: z.number().int().nonnegative(),
-  end: z.number().int().nonnegative(),
   quote: z.string().min(1).max(200),
-}).strict().refine(span => span.end >= span.start, 'span.end must not be before span.start.')
+}).strict()
 
-const Evidence = z.object({ document: sha256Arg, span: Span.optional() }).strict()
+const Evidence = z.object({ document: sha256Arg, span: Span }).strict()
 
 const Statement = z.object({
   text: z.string().trim().min(1),
@@ -51,8 +45,11 @@ const Args = z.object({
 const DESCRIPTION =
   'Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working '
   + 'directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about '
-  + 'the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the '
-  + 'record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules '
+  + 'the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document '
+  + 'of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you '
+  + 'copy character for character from that page of the text that record_read_document_text gives. The quote must be on '
+  + 'that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds '
+  + 'the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules '
   + '(clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the '
   + 'attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the '
   + 'run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who '
@@ -107,13 +104,12 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
                   document: { type: 'string', required: true, description: 'SHA-256 of a document of the record.' },
                   span: {
                     type: 'object',
+                    required: true,
                     additionalProperties: false,
-                    description: 'The quoted place in the page text of the document.',
+                    description: 'The exact place in the page text of the document, as record_read_document_text gives it.',
                     properties: {
-                      page: { type: 'integer', required: true },
-                      start: { type: 'integer', required: true },
-                      end: { type: 'integer', required: true },
-                      quote: { type: 'string', required: true, description: 'At most 200 characters.' },
+                      page: { type: 'integer', required: true, description: 'Page number, from 1.' },
+                      quote: { type: 'string', required: true, description: 'Text of that page, copied character for character; 1 to 200 characters; on the page exactly once.' },
                     },
                   },
                 },
@@ -132,7 +128,7 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
       const template = await readTemplate(templatesDir, args.template, MAX_TEMPLATE_BYTES)
       const statements = nonEmpty(args.statements.map((statement): ReportStatement => ({
         text: statement.text,
-        evidence: nonEmpty(statement.evidence.map(({ document, span }) => span === undefined ? { document } : { document, span })),
+        evidence: nonEmpty(statement.evidence),
       })))
       const result = await ctx.flowleapRecord.proposeReport(args.ticket_id, {
         fileName: basename(args.file),

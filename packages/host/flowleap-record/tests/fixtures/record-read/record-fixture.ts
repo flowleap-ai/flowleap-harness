@@ -1,7 +1,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
-  DocumentSha256, FlowleapRecord, MatterFileNumber, MatterViewResult, OutboxId, ProposalId, RecordCommandResult, RecordSeq,
+  DocumentSha256, DocumentText, FlowleapRecord, MatterFileNumber, MatterViewResult, OutboxId, ProposalId, RecordCommandResult, RecordSeq,
   ReportReceipt, RunFinishReceipt, RunStartReceipt,
 } from '@deepseek-ai/dsh-flowleap-record'
 import { VIEW } from './view.ts'
@@ -29,6 +29,10 @@ export default class RecordedFirmRecord extends Service implements FlowleapRecor
       document: brandString<DocumentSha256>('b'.repeat(64)),
       recordSeq: brandNumber<RecordSeq>(10),
     }
+  }
+
+  async documentText(): Promise<RecordCommandResult<DocumentText>> {
+    return { pages: ['The EPO intends to grant a European patent.'] }
   }
 
   async finishRun(): Promise<RecordCommandResult<RunFinishReceipt>> {

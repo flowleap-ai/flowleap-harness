@@ -200,7 +200,7 @@ const REPORT: ReportProposal = {
   templateName: 'client-report.docx',
   templateVersion: `sha256:${'a'.repeat(64)}`,
   rulesSeq: brandNumber<RecordSeq>(3),
-  statements: [{ text: 'The EPO intends to grant the patent.', evidence: [{ document: LETTER_SHA256, span: { page: 1, start: 10, end: 40, quote: 'intends to grant' } }] }],
+  statements: [{ text: 'The EPO intends to grant the patent.', evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: 'intends to grant' } }] }],
   session: SESSION,
   toolCall: ToolCallId('call-7'),
 }
@@ -246,6 +246,34 @@ describe('flowleapRecord run commands over HTTP', () => {
     expect(JSON.parse(double.requests[2]!.body)).toEqual({ session: 'webhook-1', deadline: { id: 'd-1', state: 'proposed', seq: 7 } })
   })
 
+  it('reads the page text of a document with the token and sends no idempotency key', async () => {
+    const double = await record(json(200, { pages: ['Page one.', 'Page two.'] }))
+    const service = await provider({ url: double.url, key: TOKEN })
+    expect(await service.documentText(LETTER_SHA256, new AbortController().signal)).toEqual({ pages: ['Page one.', 'Page two.'] })
+    expect(double.paths).toEqual([`/records/api/documents/${LETTER_SHA256}/text`])
+    expect(double.tokens).toEqual([`Bearer ${TOKEN}`])
+    expect(double.requests.map(request => [request.method, request.key, request.body])).toEqual([['GET', '', '']])
+  })
+
+  it('reports the refusal of a text read, and an answer without pages as invalid', async () => {
+    const signal = new AbortController().signal
+    for (const [status, body, error] of [
+      [404, { error: 'not-found', detail: 'No text.' }, 'not_found'],
+      [403, { error: 'no-identity' }, 'refused'],
+      [500, 'down', 'service_error'],
+      [200, { pages: 'text' }, 'invalid_answer'],
+      [200, { pages: [7] }, 'invalid_answer'],
+      [200, 'not json', 'invalid_answer'],
+    ] as const) {
+      const double = await record(json(status, body))
+      const service = await provider({ url: double.url, key: TOKEN })
+      vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(() => {})
+      expect(await service.documentText(LETTER_SHA256, signal)).toMatchObject({ error })
+    }
+    expect(await (await provider({ url: '', key: TOKEN })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'not_configured' })
+    expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'no_key' })
+  })
+
   it('maps each refusal code of the Firm Record and keeps its detail', async () => {
     for (const [status, code, error] of [
       [403, 'agent-cannot-decide', 'agent_cannot_decide'],
@@ -256,6 +284,9 @@ describe('flowleapRecord run commands over HTTP', () => {
       [409, 'ticket-not-running', 'ticket_not_running'],
       [409, 'report.no-ai-draft-against-client-rule', 'client_rule_forbids_ai_draft'],
       [422, 'report.statement-has-evidence', 'statement_without_evidence'],
+      [422, 'report.statement-has-span', 'statement_without_span'],
+      [422, 'report.quote-not-in-letter', 'quote_not_in_letter'],
+      [422, 'report.quote-ambiguous', 'quote_ambiguous'],
       [409, 'no-proposals', 'no_proposals'],
       [413, 'document-too-large', 'document_too_large'],
       [409, 'idempotency-key-reused', 'idempotency_key_reused'],

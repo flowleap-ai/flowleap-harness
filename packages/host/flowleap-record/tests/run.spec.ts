@@ -21,7 +21,7 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { nonEmpty } from '../src/run/args.ts'
 import * as run from '../src/run/index.ts'
 import type {
-  DocumentSha256, FlowleapRecord, MatterViewResult, OutboxId, ProposalId, RecordCommandError, RecordCommandResult, RecordSeq,
+  DocumentSha256, DocumentText, FlowleapRecord, MatterViewResult, OutboxId, ProposalId, RecordCommandError, RecordCommandResult, RecordSeq,
   ReportProposal, ReportReceipt, RunFinish, RunFinishReceipt, RunStartReceipt, TicketId,
 } from '../src/types.ts'
 import { LETTER_SHA256, VIEW } from './fixtures/record-read/view.ts'
@@ -40,6 +40,8 @@ const FINISHED: RunFinishReceipt = { recordSeq: brandNumber<RecordSeq>(12), outb
 class RecordDouble extends Service implements FlowleapRecord {
   readonly reports: Array<{ ticket: TicketId; command: ReportProposal }> = []
   readonly finishes: Array<{ ticket: TicketId; command: RunFinish }> = []
+  readonly textReads: DocumentSha256[] = []
+  text: RecordCommandResult<DocumentText> = { pages: ['Page one text.', 'Page two text.'] }
   report: RecordCommandResult<ReportReceipt> = RECEIPT
   finish: RecordCommandResult<RunFinishReceipt> = FINISHED
 
@@ -52,6 +54,10 @@ class RecordDouble extends Service implements FlowleapRecord {
   async proposeReport(ticket: TicketId, command: ReportProposal): Promise<RecordCommandResult<ReportReceipt>> {
     this.reports.push({ ticket, command })
     return this.report
+  }
+  async documentText(document: DocumentSha256): Promise<RecordCommandResult<DocumentText>> {
+    this.textReads.push(document)
+    return this.text
   }
   async finishRun(ticket: TicketId, command: RunFinish): Promise<RecordCommandResult<RunFinishReceipt>> {
     this.finishes.push({ ticket, command })
@@ -107,8 +113,8 @@ const reportArgs = {
   template: 'client-report.docx',
   rules_seq: 3,
   statements: [
-    { text: 'The EPO intends to grant the patent.', evidence: [{ document: LETTER_SHA256, span: { page: 1, start: 120, end: 160, quote: 'intends to grant a European patent' } }] },
-    { text: 'The client must instruct us by 2 February 2026.', evidence: [{ document: LETTER_SHA256 }] },
+    { text: 'The EPO intends to grant the patent.', evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: 'intends to grant a European patent' } }] },
+    { text: 'The client must instruct us by 2 February 2026.', evidence: [{ document: LETTER_SHA256, span: { page: 2, quote: 'within four months' } }] },
   ],
 }
 
@@ -131,7 +137,7 @@ describe('record_propose_report', () => {
       toolCall: 'call-7',
       statements: reportArgs.statements,
     })
-    expect(command.statements[1]?.evidence[0]).toEqual({ document: LETTER_SHA256 })
+    expect(command.statements[1]?.evidence[0]).toEqual({ document: LETTER_SHA256, span: { page: 2, quote: 'within four months' } })
   })
 
   it('names the id of a call inside a PTC program as the tool call, not the id of its root call', async () => {
@@ -147,6 +153,9 @@ describe('record_propose_report', () => {
     for (const refusal of [
       { error: 'client_rule_forbids_ai_draft', detail: 'aiLetters is not-allowed.' },
       { error: 'statement_without_evidence' },
+      { error: 'statement_without_span', detail: 'Statement 2 has no span.' },
+      { error: 'quote_not_in_letter', detail: 'Statement 1: the quote is not on page 1.' },
+      { error: 'quote_ambiguous', detail: 'Statement 1: the quote is on page 1 twice.' },
       { error: 'ticket_not_running' },
       { error: 'not_routed_person' },
       { error: 'idempotency_key_reused' },
@@ -161,6 +170,17 @@ describe('record_propose_report', () => {
     }
   })
 
+  it('tells the model how to fix each refusal about a span', async () => {
+    const { call, record } = await bench()
+    const message = async (error: 'statement_without_span' | 'quote_not_in_letter' | 'quote_ambiguous') => {
+      record.report = { error }
+      return (JSON.parse((await call('record_propose_report', reportArgs)).text) as { message: string }).message
+    }
+    expect(await message('statement_without_span')).toContain('record_read_document_text')
+    expect(await message('quote_not_in_letter')).toMatch(/character for character/u)
+    expect(await message('quote_ambiguous')).toMatch(/longer quote/u)
+  })
+
   it('refuses a statement without evidence, a bad hash, a bad span, a bad ticket id, and an unknown template before the Firm Record', async () => {
     const { call, record } = await bench()
     const [first] = reportArgs.statements
@@ -168,8 +188,11 @@ describe('record_propose_report', () => {
       { ...reportArgs, statements: [{ text: 'No source.', evidence: [] }] },
       { ...reportArgs, statements: [] },
       { ...reportArgs, statements: [{ text: 'x', evidence: [{ document: 'abc' }] }] },
-      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, start: 9, end: 3, quote: 'q' } }] }] },
-      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, start: 1, end: 3, quote: 'q'.repeat(201) } }] }] },
+      { ...reportArgs, statements: [{ text: 'No span.', evidence: [{ document: LETTER_SHA256 }] }] },
+      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: 'q'.repeat(201) } }] }] },
+      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: '' } }] }] },
+      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 0, quote: 'q' } }] }] },
+      { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: 'q', start: 1, end: 2 } }] }] },
       { ...reportArgs, ticket_id: 'tk/1' },
       { ...reportArgs, template: 'missing.docx' },
       { ...reportArgs, file: 'out/missing.docx' },
@@ -180,6 +203,37 @@ describe('record_propose_report', () => {
     }
     expect((await call('record_propose_report', reportArgs, false)).isError).toBe(true)
     expect(record.reports).toEqual([])
+  })
+})
+
+describe('record_read_document_text', () => {
+  it('answers the page text of the document from the Firm Record', async () => {
+    const { call, record } = await bench()
+    const result = await call('record_read_document_text', { document: LETTER_SHA256 })
+    expect(result.isError).toBe(false)
+    expect(JSON.parse(result.text)).toEqual({ pages: ['Page one text.', 'Page two text.'] })
+    expect(record.textReads).toEqual([LETTER_SHA256])
+  })
+
+  it('answers a refusal with its code, a message that says what to do, and the detail', async () => {
+    const { call, record } = await bench()
+    record.text = { error: 'not_found', detail: 'No text layer.' }
+    const missing = JSON.parse((await call('record_read_document_text', { document: LETTER_SHA256 })).text) as { error: string; message: string; detail?: string }
+    expect(missing.error).toBe('not_found')
+    expect(missing.message).toContain('no text layer')
+    expect(missing.detail).toBe('No text layer.')
+    record.text = { error: 'unreachable' }
+    const down = JSON.parse((await call('record_read_document_text', { document: LETTER_SHA256 })).text) as { error: string; message: string }
+    expect(down.error).toBe('unreachable')
+    expect(down.message).toContain('did not answer')
+  })
+
+  it('refuses a document that is not a lower-case SHA-256 before the Firm Record', async () => {
+    const { call, record } = await bench()
+    for (const args of [{ document: 'abc' }, { document: LETTER_SHA256.toUpperCase() }, {}, { document: LETTER_SHA256, page: 1 }]) {
+      expect((await call('record_read_document_text', args)).isError, JSON.stringify(args)).toBe(true)
+    }
+    expect(record.textReads).toEqual([])
   })
 })
 
@@ -223,14 +277,19 @@ describe('the run plugin', () => {
   it('fails loud for a relative template folder and removes both tools when it unloads', async () => {
     const { ctx, fiber } = await bench()
     const names = () => ctx.tools.schemas().map(schema => schema.name).filter(name => name.startsWith('record_'))
-    expect(names().sort()).toEqual(['record_finish_run', 'record_propose_report'])
+    expect(names().sort()).toEqual(['record_finish_run', 'record_propose_report', 'record_read_document_text'])
     const description = (name: string) => ctx.tools.schemas().find(schema => schema.name === name)?.description
     expect(description('record_propose_report')).toContain('Nothing goes to the client before the attorney decides')
     expect(description('record_propose_report')).toContain('firm addresses only')
+    expect(description('record_propose_report')).toContain('record_read_document_text')
+    expect(description('record_propose_report')).toContain('character for character')
+    expect(description('record_read_document_text')).toContain('The tool changes nothing in the record')
     expect(description('record_finish_run')).toContain('queues one reply to firm addresses only')
     expect(description('record_finish_run')).toContain('Nothing goes to the client')
     expect(ctx.tools.get('record_propose_report')?.presentCall?.(reportArgs))
       .toMatchObject({ card: 'generic', title: 'Propose the report letter', locations: [{ path: 'out/report.docx' }] })
+    expect(ctx.tools.get('record_read_document_text')?.presentCall?.({ document: LETTER_SHA256 }))
+      .toMatchObject({ card: 'generic', title: 'Read the document text', kind: 'read' })
     expect(ctx.tools.get('record_finish_run')?.presentCall?.({ ticket_id: 'tk-1', deadline_id: 'd-1', deadline_state: 'active', record_seq: 7 })).toMatchObject({ card: 'generic', title: 'Finish the run' })
     expect(() => nonEmpty([])).toThrow(/must not be empty/u)
     await fiber.dispose()

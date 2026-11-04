@@ -1,6 +1,7 @@
 /**
  * Provider of `ctx.flowleapRecord` over HTTP with the runtime's record token as a bearer token: reads
- * `GET <baseURL>/records/api/matters/<fileNumber>/view`, and sends the run commands
+ * `GET <baseURL>/records/api/matters/<fileNumber>/view`, reads the text layer of a document with
+ * `GET <baseURL>/records/api/documents/<sha256>/text`, and sends the run commands
  * `POST <baseURL>/records/api/tickets/<ticketId>/run-started`, `.../reports`, and `.../finish`, each with an
  * `Idempotency-Key` derived from the Ticket, the Session, and (for a report) the tool call, so a repeat is the same
  * command. Without a configured address, without the token, or without a valid answer the call reports the refusal,
@@ -16,7 +17,7 @@ import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { readBoundedText } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {
-  DeadlineId, DocumentSha256, FlowleapRecord, LocalDate, MatterFileNumber, MatterView, MatterViewRefusal, MatterViewResult,
+  DeadlineId, DocumentSha256, DocumentText, FlowleapRecord, LocalDate, MatterFileNumber, MatterView, MatterViewRefusal, MatterViewResult,
   OfficeEventId, OutboxId, ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq,
   ReportProposal, ReportReceipt, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, TicketId, ViewHash,
 } from './types.ts'
@@ -124,6 +125,8 @@ const matterViewSchema = zod.union([
   }).transform(({ recordSeq, viewHash, matter, deadlines }) => ({ recordSeq, viewHash, matter, deadlines })),
 ])
 
+const documentTextSchema = zod.object({ pages: zod.array(zod.string()) })
+
 const runStartSchema = zod.object({ recordSeq: seq })
 
 const reportSchema = zod.object({
@@ -152,6 +155,9 @@ const COMMAND_CODES: Readonly<Record<string, RecordCommandRefusal>> = {
   'ticket-not-running': 'ticket_not_running',
   'report.no-ai-draft-against-client-rule': 'client_rule_forbids_ai_draft',
   'report.statement-has-evidence': 'statement_without_evidence',
+  'report.statement-has-span': 'statement_without_span',
+  'report.quote-not-in-letter': 'quote_not_in_letter',
+  'report.quote-ambiguous': 'quote_ambiguous',
   'no-proposals': 'no_proposals',
   'document-too-large': 'document_too_large',
   'idempotency-key-reused': 'idempotency_key_reused',
@@ -313,6 +319,16 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
   }
 
   /**
+   * Read the text layer of a document of the record.
+   * @param document - the SHA-256 of the document.
+   * @param signal - ends the read; the method rejects when it fires.
+   * @returns the text of each page, or the refusal.
+   */
+  documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>> {
+    return this.send(`documents/${document}/text`, undefined, documentTextSchema, signal)
+  }
+
+  /**
    * End the run with its proposals and the deadline summary.
    * @param ticket - the running Ticket.
    * @param command - the Session and the deadline summary.
@@ -327,15 +343,21 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
     ticket: TicketId, action: 'run-started' | 'reports' | 'finish', idempotency: string, body: object,
     schema: zod.ZodType<T>, signal: AbortSignal,
   ): Promise<RecordCommandResult<T>> {
+    return this.send(`tickets/${encodeURIComponent(ticket)}/${action}`, { idempotency, json: JSON.stringify(body) }, schema, signal)
+  }
+
+  /** One authorized call to the Firm Record: a GET without `post`, else a POST; the receipt or the refusal. */
+  private async send<T>(
+    path: string, post: { idempotency: string; json: string } | undefined, schema: zod.ZodType<T>, signal: AbortSignal,
+  ): Promise<RecordCommandResult<T>> {
     if (this.origin === undefined) return { error: 'not_configured' }
     const key = await this.key()
     if (key === undefined) return { error: 'no_key' }
-    const path = `tickets/${encodeURIComponent(ticket)}/${action}`
-    const exchange = await this.exchange(this.origin, path, key, { idempotency, json: JSON.stringify(body) }, signal)
+    const exchange = await this.exchange(this.origin, path, key, post, signal)
     if ('error' in exchange) return exchange
     if (exchange.status < 200 || exchange.status >= 300) {
       const refusal = commandRefusalOf(exchange.status, exchange.text)
-      if (refusal.error === 'service_error') this.ctx.logger.warn(`flowleap-record: the Firm Record answered HTTP ${String(exchange.status)} to ${action}`)
+      if (refusal.error === 'service_error') this.ctx.logger.warn(`flowleap-record: the Firm Record answered HTTP ${String(exchange.status)} to ${path}`)
       return refusal
     }
     const receipt = exchange.text === undefined ? undefined : parseJson(exchange.text, schema)
