@@ -46,7 +46,7 @@ The panel has a 44 px top bar and one view at a time. On a list the top bar show
 | Intake with the open letter beside it from 1366 px; below 1366 px the open letter is the item page with "1 / N" | `{ view: 'intake', list, open, step? }` | `GET intake?view=<list>`, `GET intake/documents/<sha256>` |
 | Matter | `{ view: 'matter', fileNumber }` | `GET matters/<fileNumber>` |
 | Deadline | `{ view: 'deadline', id }` | `GET deadlines/<id>` |
-| Work on a letter | `{ view: 'work', id }` | `GET tickets/<id>` |
+| Work on a letter, with "1 / N" over the work that waits for a decision | `{ view: 'work', id }` | `GET tickets/<id>`, `GET tickets` |
 | Work board | `{ view: 'board' }` | `GET tickets` |
 
 Every read also holds `GET me` (the deciding person) and the waiting list (the Intake count). A command sends `Content-Type: application/json` and an `Idempotency-Key` of `ipms:<uuid>` that names one act of the person; a retry of the same act sends the same key. After the Records service accepts an act, the panel loads its view and the count again.
@@ -54,6 +54,18 @@ Every read also holds `GET me` (the deciding person) and the waiting list (the I
 ### Loading, empty and error states
 
 Each read follows rule R18: a first load shows nothing for 150 ms, then the skeleton of its list (or one centred spinner on a page) for at least 300 ms. A load over shown data keeps the data. A failure keeps the last data at full contrast under one notice with its time and **Try again**; with no data the notice says that nothing in the record changed.
+
+### The matter, deadline and work pages
+
+The **matters list** is a table of the matters the person may see, next due first; J and K move between the rows. The **matter** page has the file number and the client, the title, the facts that wait for a person ("1 deadline waits for a second person"), the tables of deadlines, work, office events and documents (each row starts with its status and word and opens its record), Activity with Audit, and the properties panel, which stacks under the content at 390 px.
+
+The **deadline** page answers "is this date right": the due date is the key fact, with the days left or "Overdue by N days" from today, the rule, each step of the engine's calculation with its legal citation, the two readings of the letter with the quoted span of each value, and the legal sources. **Confirm deadline** sends the `recordSeq` that the person saw as `seen`; **Reject…** asks for the reason. When the person may not confirm (`mayConfirm`), the evidence stays and the decision bar says who confirms and why, with no primary act. A confirmed or rejected deadline has no decision bar.
+
+The **work on a letter** page shows the client report: its file row (Preview opens the document, Open in Word opens it with the `ms-word:` link), and each statement with its quotes and pages, the excerpt on hover. The decision bar has two parts, Accept or Reject… with a reason for each proposed report, and the check of the deadline (or "no deadline yet"). **Record decision** sends `approve` or `reject` for each report and the `deadlineCheck` with the work's `recordSeq`. A statement with no span blocks Accept and Record decision until the person rejects that report. A person who is not the routed one sees who decides and no primary act; a decided work item has no bar, and Activity shows the decision. A reply recipient that is an address of no person shows as a count, never as text.
+
+### Keys and ⌘K
+
+`src/client/key-layer.ts` registers the scope `records` (the panel root) and every act of the design language's keys.md once: the single keys and the `G M` and `G I` sequences in the view-scoped layer, `↵` and the arrows as fixed keys, and Record the decision (`⇧⌘↵`, macOS and Windows) as an application command that acts only while focus is in the panel. Each command runs the handler of the latest mounted screen that provides one (`useKeyActs`), and passes the key on otherwise. A screen gives ⌘K its open item and acts with `useCommandItem`. Each button shows its command's current keycap from the shortcut catalog.
 
 ### The parts
 
@@ -80,7 +92,8 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 | [`src/client/load.ts`](src/client/load.ts) | the loading state machine of one read (R18) |
 | [`src/client/model.ts`](src/client/model.ts) | the routes, the screens, the tabs, and the model that loads them and performs acts |
 | [`src/client/Panel.tsx`](src/client/Panel.tsx) | the panel, its top bar with the tabs, the breadcrumb and the pager |
-| [`src/client/screens/`](src/client/screens/) | one screen for each view, placeholders that render their data through the parts |
+| [`src/client/screens/`](src/client/screens/) | one screen for each view; `detail.tsx` holds the detail table, the facts and the rule words of the matter, deadline and work pages |
+| [`src/client/key-layer.ts`](src/client/key-layer.ts) | the one registration of the panel's keys and its ⌘K contribution, and the hooks that screens use |
 | [`src/client/parts/`](src/client/parts/) | the IPMS parts |
 | [`src/client/row-menu.ts`](src/client/row-menu.ts) | the intake row's context menu contribution |
 | [`src/client/keys.ts`](src/client/keys.ts) | the commands of the acts (keys.md) and their keycaps from the shortcut catalog |
@@ -114,8 +127,8 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The screens are placeholders** — each view renders its data through the parts; the screen work of the R1 IPMS plan replaces them with the approved mockups.
-- **The keys show only the registry's current catalog** — a button shows its command's keycap when the key layer registers the command; until then it shows no keycap.
+- **The work page has no docked agent panel** — the mockup's 376 px column with the run Session is not built; the matter page has no Record office event and no client rules, because the Records API has no command or field for them.
+- **Record the decision has no Linux default** — the registry reserves Enter with modifiers on Linux, so `⇧⌘↵` is unbound there; the button still records.
 - **The route is not in the address bar** — the Web app's `?page=` names the Matters panel, not the view inside it, so the row menu has no Copy link.
 - **The panel does not follow changes by itself** — a view loads again after an act of this person or Try again; a change by another person shows on the next load.
 

@@ -85,7 +85,10 @@ export class KeyActRegistry extends Sources<KeyActsSource> {
 
 /** The open items of the mounted screens for ⌘K; the latest open item wins. */
 export class CommandItemRegistry extends Sources<Current<CommandMenuItem | null>> {
-  /** @returns the latest open item, or null when no mounted screen has one. */
+  /**
+   * The open item that ⌘K shows: the latest one of the mounted screens.
+   * @returns the item, or null when no mounted screen has one.
+   */
   item(): CommandMenuItem | null {
     return this.latest(source => source.current ?? undefined) ?? null
   }

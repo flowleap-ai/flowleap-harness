@@ -13,7 +13,6 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { Act, DocumentId, Me } from './api.ts'
-import { formatDate } from './format.ts'
 import type { CommandItemRegistry, KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
@@ -22,8 +21,10 @@ import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab }
 import type { IntakeRowTarget } from './row-menu.ts'
 import type { ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
-import { DeadlineScreen, MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
-import { BoardScreen, WorkScreen } from './screens/WorkScreens.tsx'
+import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
+import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
+import { formatDay } from './screens/detail.tsx'
+import { BoardScreen, WorkScreen, workQueue, workTitle } from './screens/WorkScreens.tsx'
 import { letterTitle, type Translate } from './words.ts'
 import css from './Panel.module.css'
 
@@ -192,7 +193,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
         : [
           matters,
           { label: data.matter.title, key: data.matter.fileNumber, route: { view: 'matter', fileNumber: data.matter.fileNumber } },
-          { label: t('crumb.deadline', { date: formatDate(data.deadline.due, ctx.locale) }) },
+          { label: t('crumb.deadline', { date: formatDay(data.deadline.due, ctx.locale) }) },
         ]
       return <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
     }
@@ -203,11 +204,51 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
         : [
           matters,
           { label: data.matter.fileNumber, route: { view: 'matter', fileNumber: data.matter.fileNumber } },
-          { label: letterTitle(t, data.letter?.code ?? null) },
+          { label: workTitle(ctx, data) },
         ]
-      return <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
+      const queue = workQueue(screen.queue, screen.id)
+      return (
+        <>
+          <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
+          {queue.index !== -1 && (
+            <Pager
+              t={t}
+              index={queue.index}
+              count={queue.rows.length}
+              go={(index) => {
+                const row = queue.rows[index]
+                return row === undefined ? undefined : () => { ctx.navigate({ view: 'work', id: row.id }) }
+              }}
+            />
+          )}
+        </>
+      )
     }
   }
+}
+
+/**
+ * Render the "1 / N" of a detail page with the up and down buttons.
+ * @param props.t - the translate function.
+ * @param props.index - the open item's place, from 0.
+ * @param props.count - the items.
+ * @param props.go - the act that opens the item at a place, or undefined when there is none.
+ * @returns the pager.
+ */
+function Pager({ t, index, count, go }: { t: Translate; index: number; count: number; go: (index: number) => (() => void) | undefined }) {
+  const previous = go(index - 1)
+  const next = go(index + 1)
+  return (
+    <div className={css.pager}>
+      <span className={css.pagerText} aria-label={t('pager.label', { index: index + 1, count })}>{`${index + 1} / ${count}`}</span>
+      <Button variant="outline" size="sm" aria-label={t('pager.previous')} disabled={previous === undefined} onClick={previous}>
+        <IconChevronUpOutlineRegular size={16} />
+      </Button>
+      <Button variant="outline" size="sm" aria-label={t('pager.next')} disabled={next === undefined} onClick={next}>
+        <IconChevronDownOutlineRegular size={16} />
+      </Button>
+    </div>
+  )
 }
 
 /**

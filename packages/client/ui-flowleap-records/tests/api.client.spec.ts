@@ -82,6 +82,18 @@ describe('Records API answers', () => {
     expect(refused.mayDecide).toEqual({ allowed: false, reason: 'proposer', decider: { id: 'p-lena', name: 'Lena Hoffmann' } })
     expect(pathOf(() => parsers.intakeDocument({ ...intakeDocumentWire, mayDecide: { allowed: false, reason: 'busy', decider: null } }, 'body'))).toBe('body.mayDecide.reason')
   })
+
+  it('reads why a person may decide a work item, and a reply recipient that is an address of no person', () => {
+    expect(fixtures.ticket.mayDecide).toEqual({ allowed: true, as: 'responsible' })
+    const other = parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: false, reason: 'not-routed-person', decider: { id: 'p-anna', name: 'Dr. Anna Becker' } } }, 'body')
+    expect(other.mayDecide).toEqual({ allowed: false, reason: 'not-routed-person', decider: { id: 'p-anna', name: 'Dr. Anna Becker' } })
+    expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: false, reason: 'proposer', decider: null } }, 'body'))).toBe('body.mayDecide.reason')
+    expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: true } }, 'body'))).toBe('body.mayDecide.as')
+    const reply = parsers.ticketDetail({ ...ticketWire, reply: { state: 'sent', to: [{ id: null, name: 'secretary@firm.test' }] } }, 'body')
+    expect(reply.reply?.to).toEqual([{ id: null, name: 'secretary@firm.test' }])
+    expect(fixtures.ticket.run?.session).toBe('ses_r71work')
+    expect(fixtures.deadline.deadline.ruleVersion).toBe(1)
+  })
 })
 
 describe('the atlas', () => {

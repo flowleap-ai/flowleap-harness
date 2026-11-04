@@ -82,6 +82,24 @@ const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
   'ticket/decided': 'event.ticketDecided',
   'report/proposed': 'event.reportProposed',
   'outbox/sent': 'event.replySent',
+  'matter/opened': 'event.matterOpened',
+  'ticket/opened': 'event.ticketOpened',
+  'ticket/wake-started': 'event.ticketWakeStarted',
+  'ticket/run-started': 'event.ticketRunStarted',
+  'ticket/proposals-ready': 'event.ticketProposalsReady',
+  'ticket/run-failed': 'event.ticketRunFailed',
+  'ticket/by-hand': 'event.ticketByHand',
+  'report/approved': 'event.reportApproved',
+  'report/rejected': 'event.reportRejected',
+  'outbox/composed': 'event.replyComposed',
+  'outbox/queued': 'event.replyQueued',
+  'outbox/drafted': 'event.replyDrafted',
+  'outbox/send-requested': 'event.replySendRequested',
+}
+
+/** The text key of an event type whose text names the person it is for, when the event names no person. */
+const WITHOUT_PERSON: Readonly<Partial<Record<FlowleapRecordsKey, FlowleapRecordsKey>>> = {
+  'event.ticketRouted': 'event.ticketRoutedPlain',
 }
 
 /** How the views write times and dates. */
@@ -131,7 +149,8 @@ export function dueText(words: WordContext, due: IsoDate): string {
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
   return events.map((event) => {
     const params = { person: event.for?.name ?? '' }
-    const key = EVENT_TEXTS[event.type] ?? 'event.other'
+    const text = EVENT_TEXTS[event.type] ?? 'event.other'
+    const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
       ? { kind: 'person' as const, person: event.actor.person }
       : { kind: 'system' as const, name: actorName(words.t, event.actor), icon: systemIcon(event.actor.name) }
