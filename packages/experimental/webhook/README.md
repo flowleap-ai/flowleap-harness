@@ -43,7 +43,7 @@ Successful `Agent.followup()` is the webhook operation's commit point. After it,
 
 Load the runtime on the Web Host plane after Agents, model defaults, agent presets, permission presets, titles, and the Workspace registry. User-authored rule plugins inject `webhookRuntime` and yield the disposer returned by `register()` through their own effect.
 
-Signed adapters share the HTTP intake of the `@deepseek-ai/dsh-webhook/http` entry: `readBoundedUtf8Body` reads the raw body for signature verification within a byte ceiling, `requiredHeader` and `isJsonContentType` check the request, and `WebhookHttpError` with `respond` answers in plain text that carries no request data.
+Signed adapters share the HTTP intake of the `@deepseek-ai/dsh-webhook/http` entry: `readJsonPostBody` checks the method and the JSON media type and reads the raw body for signature verification within a byte ceiling (`readBoundedUtf8Body`), `requiredHeader` and `isJsonContentType` check the request, and `WebhookHttpError` with `respond` answers in plain text that carries no request data.
 
 The [GitHub review guide](../../../docs/user/guide/github-review.md) shows a rule module, dedicated ingress port, secret setup, and Workspace routing.
 

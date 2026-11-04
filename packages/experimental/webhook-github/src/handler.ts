@@ -11,7 +11,7 @@ import {
 } from '@deepseek-ai/dsh-webhook'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
-  isJsonContentType, readBoundedUtf8Body, requiredHeader, respond, WebhookHttpError,
+  readJsonPostBody, requiredHeader, respond, WebhookHttpError,
 } from '@deepseek-ai/dsh-webhook/http'
 import type { GitHubJsonObject } from './types.ts'
 
@@ -51,14 +51,7 @@ export function createGitHubWebhookHandler(
 ): WebRoute['handler'] {
   return async (request, response) => {
     try {
-      if (request.method !== 'POST') {
-        response.setHeader('allow', 'POST')
-        throw new WebhookHttpError(405, 'method not allowed')
-      }
-      if (!isJsonContentType(request.headers['content-type'])) {
-        throw new WebhookHttpError(415, 'content type must be application/json')
-      }
-      const body = await readBoundedUtf8Body(request, config.maxBodyBytes)
+      const body = await readJsonPostBody(request, response, config.maxBodyBytes)
       const signature = requiredHeader(request, 'x-hub-signature-256')
       const deliveryId = requiredHeader(request, 'x-github-delivery')
       const eventName = requiredHeader(request, 'x-github-event')

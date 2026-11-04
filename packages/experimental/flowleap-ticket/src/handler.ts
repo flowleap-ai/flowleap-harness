@@ -5,7 +5,7 @@ import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { WebhookDeliveryId, WebhookSourceId, type VerifiedWebhookDelivery } from '@deepseek-ai/dsh-webhook'
 import {
-  isJsonContentType, readBoundedUtf8Body, requiredHeader, respond, WebhookHttpError,
+  readJsonPostBody, requiredHeader, respond, WebhookHttpError,
 } from '@deepseek-ai/dsh-webhook/http'
 import { deliveryIdOf, parseTicketDelivery, signatureMatches } from './delivery.ts'
 import type { DeliveryLedger } from './ledger.ts'
@@ -29,14 +29,7 @@ export interface TicketHandlerConfig {
 export function createTicketHandler(ctx: Context, config: TicketHandlerConfig, ledger: DeliveryLedger): WebRoute['handler'] {
   return async (request, response) => {
     try {
-      if (request.method !== 'POST') {
-        response.setHeader('allow', 'POST')
-        throw new WebhookHttpError(405, 'method not allowed')
-      }
-      if (!isJsonContentType(request.headers['content-type'])) {
-        throw new WebhookHttpError(415, 'content type must be application/json')
-      }
-      const body = await readBoundedUtf8Body(request, config.maxBodyBytes)
+      const body = await readJsonPostBody(request, response, config.maxBodyBytes)
       const signature = requiredHeader(request, 'x-flowleap-signature')
       const deliveryId = requiredHeader(request, 'x-flowleap-delivery')
       const credential = await ctx.credentials.resolve(config.secretRef)

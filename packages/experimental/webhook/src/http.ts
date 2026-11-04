@@ -121,3 +121,23 @@ export function respond(response: ServerResponse, status: number, message?: stri
   response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' })
   response.end(message)
 }
+
+/**
+ * Read the body of a JSON `POST` for signature verification: the method, the media type, then the bounded body.
+ * @param request - incoming request before any parser consumes it.
+ * @param response - the response; a wrong method sets its `Allow` header.
+ * @param maxBodyBytes - positive byte ceiling.
+ * @returns the exact UTF-8 body text.
+ * @throws {WebhookHttpError} 405 for another method, 415 for another media type, or a body error of
+ * {@link readBoundedUtf8Body}.
+ */
+export async function readJsonPostBody(request: IncomingMessage, response: ServerResponse, maxBodyBytes: number): Promise<string> {
+  if (request.method !== 'POST') {
+    response.setHeader('allow', 'POST')
+    throw new WebhookHttpError(405, 'method not allowed')
+  }
+  if (!isJsonContentType(request.headers['content-type'])) {
+    throw new WebhookHttpError(415, 'content type must be application/json')
+  }
+  return readBoundedUtf8Body(request, maxBodyBytes)
+}
