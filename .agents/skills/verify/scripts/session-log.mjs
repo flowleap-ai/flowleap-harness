@@ -28,7 +28,7 @@ function sessionFile(path) {
   const root = readdirSync(path).includes('sessions') ? join(path, 'sessions') : path
   const dirs = readdirSync(root, { recursive: true })
     .map(rel => join(root, rel))
-    .filter(p => /session-[^/]+$/.test(p) && statSync(p).isDirectory())
+    .filter(p => /(session|webhook)-[^/]+$/.test(p) && statSync(p).isDirectory())
   if (dirs.length === 0) throw new Error(`no Session under ${root}`)
   return sessionFile(newest(dirs))
 }
