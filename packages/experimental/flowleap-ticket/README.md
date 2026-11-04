@@ -88,7 +88,7 @@ After the Session admitted its prompt, `started()` records the delivery and call
 
 #### What the model sees
 
-One user message with source `webhook` opens the run Session. Its first paragraph is the Mandate of the task type, verbatim below for `epo-r71-3-report`; the steps that follow tell the model to read the matter with `record_read`, to stop when the client rules do not allow an AI letter, to write the letter with `office_letter_from_template` on the configured template, to propose it with `record_propose_report`, and to finish with `record_finish_run`; the Ticket delivery follows as JSON, labelled as data, not instructions. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one run message.
+One user message with source `webhook` opens the run Session. Its first paragraph is the Mandate of the task type, verbatim below for `epo-r71-3-report`; the steps that follow tell the model to read the matter with `record_read`, to stop when the client rules do not allow an AI letter, to write the letter with `office_letter_from_template` on the configured template, to propose it with `record_propose_report`, and to finish with `record_finish_run`; the Ticket delivery follows as JSON, labelled as data, not instructions. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one run over fixtures: its task is this run message for the Ticket `tk-1`, and the model reads the matter, writes the letter, proposes it, and finishes; the headless harness has no webhook ingress, so the message source there is `user`.
 
 ##### The Mandate of epo-r71-3-report
 
