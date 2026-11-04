@@ -1,0 +1,15 @@
+# The five FlowLeap Office tools over a fixture flowleapOffice provider in
+# place of the OfficeCLI row: the fixture answers with text files that name
+# what each request asked for, so workspace.expected/ shows the requests.
+# The firm templates are the workspace's templates/ folder.
+- insert:
+    - id: flowleap-office-fixture
+      name: './flowleap-office-fixture.mjs'
+
+    - id: flowleap-office
+      name: '@deepseek-ai/dsh-flowleap-office'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+        revisionAuthor: FlowLeap
+        maxReadChars: 40000
+        maxInputBytes: 33554432

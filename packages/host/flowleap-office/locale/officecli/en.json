@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "FlowLeap Office engine",
+    "description": "Runs the pinned OfficeCLI binary for the FlowLeap Office tools, with no update, install, or background process."
+  }
+}

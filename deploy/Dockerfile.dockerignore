@@ -18,4 +18,6 @@ coverage
 **/dist
 **/*.tsbuildinfo
 apps/desktop/.desktop-build
+# The firm's Word templates are mounted at run time, never built into the image.
+deploy/templates
 *.md

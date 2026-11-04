@@ -48,9 +48,9 @@ if [[ -n $container ]]; then
   docker container inspect "$container" > /dev/null 2>&1 || { echo "log-bundle: no container named $container" >&2; exit 1; }
   doctor() { docker exec "$container" harness-doctor "$@"; }
   scrub() { docker exec -i "$container" harness-doctor --scrub "$@"; }
-  # The container's PATCH_FILES overlays, as its entrypoint applies them.
+  # The container's IMAGE_PATCH_FILES and PATCH_FILES overlays, as its entrypoint applies them.
   dump_config() {
-    docker exec "$container" bash -c 'read -r -a fs <<< "${PATCH_FILES:-}"; p=(); for f in ${fs[@]+"${fs[@]}"}; do p+=(--patch "$f"); done; exec node "$DSH_BIN" ${p[@]+"${p[@]}"} "$@"' \
+    docker exec "$container" bash -c 'read -r -a fs <<< "${IMAGE_PATCH_FILES:-} ${PATCH_FILES:-}"; p=(); for f in ${fs[@]+"${fs[@]}"}; do p+=(--patch "$f"); done; exec node "$DSH_BIN" ${p[@]+"${p[@]}"} "$@"' \
       bash --profile "$profile" --dump-config
   }
   host_label=$container

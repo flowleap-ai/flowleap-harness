@@ -27,6 +27,12 @@ ARG GIT_IMAGE=alpine/git:v2.49.1
 ARG PNPM_VERSION=11.28.5
 ARG FLOWLEAP_CLI_VERSION=v0.12.2
 ARG FLOWLEAP_METHODS_REF=main
+# OfficeCLI, the engine of the office tools: the version and the SHA-256 of each
+# architecture's binary, from the release's SHA256SUMS. A new version needs a
+# review of the evaluation's network table (flowleap-harness#217) first.
+ARG OFFICECLI_VERSION=1.0.160
+ARG OFFICECLI_SHA256_AMD64=baa084b64ec634bd9d41a0592db3ed85f11658b358bab898679537ea7f3e73a9
+ARG OFFICECLI_SHA256_ARM64=e8f06aff6c59f11a73a1a1218bda3ce170299201fd56bce6d62ecd4d0c024e53
 
 # ── skill pack ───────────────────────────────────────────────────────────────
 FROM ${GIT_IMAGE} AS skills-git
@@ -100,9 +106,15 @@ RUN DSH_HOME=/tmp/smoke-home HOME=/tmp/smoke-user FLOWLEAP_SKILLS_DIR=/tmp/no-sk
 # ── runtime ──────────────────────────────────────────────────────────────────
 FROM ${NODE_RUNTIME_IMAGE} AS runtime
 ARG FLOWLEAP_CLI_VERSION
+ARG OFFICECLI_VERSION
+ARG OFFICECLI_SHA256_AMD64
+ARG OFFICECLI_SHA256_ARM64
 ARG TARGETARCH
+# libicu76 and libssl3t64 (trixie's libssl3): OfficeCLI is a self-contained .NET
+# binary that does not start without ICU and OpenSSL. No browser is installed,
+# so OfficeCLI has no headless-Chrome path.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl git tini \
+  && apt-get install -y --no-install-recommends ca-certificates curl git tini libicu76 libssl3t64 \
   && rm -rf /var/lib/apt/lists/*
 # The FlowLeap CLI: the MCP server for the paid tools, verified against the release checksums.
 RUN set -eu; \
@@ -119,6 +131,28 @@ RUN set -eu; \
   echo "${expected}  /usr/local/bin/flowleap" | sha256sum -c -; \
   chmod 0755 /usr/local/bin/flowleap; rm -f /tmp/checksums.txt; \
   /usr/local/bin/flowleap --version
+# OfficeCLI with its Apache-2.0 LICENSE, NOTICE and third-party notices, verified
+# against the pinned SHA-256, and the image overlay that switches on the office
+# rows with that SHA-256. templatesDir is the mount point of the firm's Word
+# templates; it stays empty and read-only when the firm mounts none.
+COPY deploy/officecli/LICENSE deploy/officecli/NOTICE deploy/officecli/THIRD-PARTY-NOTICES.txt /opt/flowleap/officecli/
+COPY deploy/office.patch.yml /opt/flowleap/patches/office.patch.yml
+RUN set -eu; \
+  case "${TARGETARCH}" in \
+    amd64) asset=officecli-linux-x64; sha256="${OFFICECLI_SHA256_AMD64}" ;; \
+    arm64) asset=officecli-linux-arm64; sha256="${OFFICECLI_SHA256_ARM64}" ;; \
+    *) echo "unsupported TARGETARCH ${TARGETARCH}" >&2; exit 1 ;; \
+  esac; \
+  binary=/opt/flowleap/officecli/officecli; \
+  curl -fsSL -o "${binary}" "https://github.com/iOfficeAI/OfficeCLI/releases/download/v${OFFICECLI_VERSION}/${asset}"; \
+  echo "${sha256}  ${binary}" | sha256sum -c -; \
+  chmod 0755 "${binary}"; \
+  printed=$(env -i HOME=/tmp/officecli-home OFFICECLI_SKIP_UPDATE=1 OFFICECLI_NO_AUTO_INSTALL=1 OFFICECLI_NO_AUTO_RESIDENT=1 "${binary}" --version); \
+  [ "${printed}" = "${OFFICECLI_VERSION}" ] || { echo "officecli --version printed ${printed}" >&2; exit 1; }; \
+  rm -rf /tmp/officecli-home; \
+  sed -i -e "s/@OFFICECLI_VERSION@/${OFFICECLI_VERSION}/" -e "s/@OFFICECLI_SHA256@/${sha256}/" /opt/flowleap/patches/office.patch.yml; \
+  if grep -q '@OFFICECLI_' /opt/flowleap/patches/office.patch.yml; then echo "office.patch.yml keeps a placeholder" >&2; exit 1; fi; \
+  mkdir -p /opt/flowleap/templates
 RUN groupadd --system --gid 10001 harness \
   && useradd --system --uid 10001 --gid harness --home-dir /data/home --shell /bin/bash harness \
   && mkdir -p /data/home && chown -R harness:harness /data
@@ -132,19 +166,27 @@ ENV DSH_HOME=/data \
     HARNESS_ROOT=/opt/harness \
     DSH_BIN=/opt/harness/node_modules/@deepseek-ai/dsh/lib/bin.js \
     FLOWLEAP_SKILLS_DIR=/opt/flowleap/skills \
+    IMAGE_PATCH_FILES=/opt/flowleap/patches/office.patch.yml \
     DSH_TELEMETRY_MODE=DISABLED \
     NODE_ENV=production \
     PORT=3080 \
     BIND_HOST=loopback
 # Boot smoke test with the source tree gone: the profile must start and print
 # its URL line from the deployed closure alone (the builder's --dump-config
-# check loads no plugin code).
+# check loads no plugin code). The office rows must activate: the startup log
+# lists each entry that did not, by its id. A build kernel without a sandbox
+# backend (Docker Desktop has no Landlock) may only fail the provider row with
+# "no sandbox backend is usable"; every other office failure stops the build.
 RUN set -eu; \
   DSH_HOME=/tmp/smoke HOME=/tmp/smoke/home PUBLIC_URL=http://localhost:3080/ TRUSTED_HOST=localhost \
     harness-entrypoint > /tmp/boot.log 2>&1 & pid=$!; \
   for _ in $(seq 1 90); do grep -q 'dsh web:' /tmp/boot.log && break; sleep 1; done; \
-  kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; \
+  sleep 5; kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; \
   grep -q 'dsh web:' /tmp/boot.log || { cat /tmp/boot.log; exit 1; }; \
+  if grep -q '^flowleap-office' /tmp/boot.log; then \
+    grep -q '^flowleap-office-officecli .*no sandbox backend is usable' /tmp/boot.log || { cat /tmp/boot.log; echo "the office rows did not activate" >&2; exit 1; }; \
+    echo "WARNING: the build kernel has no sandbox backend; the office rows were not proven here" >&2; \
+  fi; \
   rm -rf /tmp/smoke /tmp/boot.log /tmp/harness-bind-host
 VOLUME ["/data"]
 EXPOSE 3080

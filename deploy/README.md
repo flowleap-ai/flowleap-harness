@@ -6,7 +6,7 @@ FlowLeap installs and configures the first instances with you, gives 15 days of 
 
 ## What you get
 
-- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data) and the FlowLeap skill pack (the patent research methods the agent follows).
+- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data), the FlowLeap skill pack (the patent research methods the agent follows) and OfficeCLI (the engine of the office tools that write Word letters, claim amendments as tracked changes and Excel claim charts).
 - One container per attorney. Each has its own `/data` volume: sessions, settings, keys. Attorneys do not share a process and cannot see each other's data.
 - One Tailscale sidecar per attorney. It gives the instance a name such as `https://harness-alice.tail1234.ts.net/` with a valid HTTPS certificate. Nothing listens on the server's public network interface.
 - Two support tools: a doctor report and a log bundle. Both are scrubbed; they contain no keys, tokens or cookies.
@@ -36,11 +36,13 @@ FlowLeap installs and configures the first instances with you, gives 15 days of 
 
    The first build downloads about 2 GB of packages and takes 10 to 20 minutes on a server; a rebuild with a warm package cache takes about 4 minutes. The build needs about 6 GB of free disk while it runs; the finished image is about 950 MB. It downloads the FlowLeap CLI release pinned in `deploy/Dockerfile` (`FLOWLEAP_CLI_VERSION`) and verifies its checksum, and it fetches the skill pack (the `skills/` folder of `flowleap-ai/flowleap-methods`) at `FLOWLEAP_METHODS_REF`, a branch or a full commit SHA. Pass a commit SHA when the pack must be the newest: with a branch name, Buildx can reuse an older fetch from its cache. The flowleap-os release passes the SHA of `main`. To build from a local copy of the skill pack instead, add `--build-context skills=/path/to/flowleap-methods/skills`.
 
-2. Copy `deploy/.env.example` to `deploy/.env` and fill in `HARNESS_IMAGE` (the tag you built), `TAILNET` (your tailnet's DNS suffix) and `TS_AUTHKEY`.
+2. Put the firm's Word templates (`.docx`) in `deploy/templates/`. The compose file mounts this folder read-only into each container at `/opt/flowleap/templates`; the office tools read letter templates only from there. Without it, the folder is empty and a letter call lists no templates.
 
-3. Edit `deploy/docker-compose.yml`: keep one pair of services per attorney (the file ships `alice` and `bob` as examples), rename them to your attorneys, and list the volumes at the bottom.
+3. Copy `deploy/.env.example` to `deploy/.env` and fill in `HARNESS_IMAGE` (the tag you built), `TAILNET` (your tailnet's DNS suffix) and `TS_AUTHKEY`.
 
-4. Start everything:
+4. Edit `deploy/docker-compose.yml`: keep one pair of services per attorney (the file ships `alice` and `bob` as examples), rename them to your attorneys, and list the volumes at the bottom.
+
+5. Start everything:
 
    ```sh
    cd deploy
@@ -78,9 +80,10 @@ The compose file is the template. One attorney is two services:
       TRUSTED_HOST: harness-alice.${TAILNET}          # what the harness accepts
     volumes:
       - harness-alice-data:/data   # sessions, settings, keys
+      - ./templates:/opt/flowleap/templates:ro   # the firm's Word templates
 ```
 
-`tailscale-serve.json` tells the sidecar to serve HTTPS on port 443 of its tailnet name and proxy to `http://127.0.0.1:3080`, the harness in the shared network namespace. Funnel (public exposure) is off. The harness itself is started by `deploy/entrypoint.sh` as `dsh --profile flowleap-web --no-open --port 3080 --public-url $PUBLIC_URL --trusted-host $TRUSTED_HOST`, with `DSH_HOME=/data`. To change the profile for one deployment, set `PATCH_FILES` to one or more overlay files (`dsh --patch`), separated by spaces and mounted into the container; the entrypoint passes each as `--patch <file>` before `--profile`, in order, and refuses to start when one is not a readable file. The doctor and the log bundle apply the same `PATCH_FILES`.
+`tailscale-serve.json` tells the sidecar to serve HTTPS on port 443 of its tailnet name and proxy to `http://127.0.0.1:3080`, the harness in the shared network namespace. Funnel (public exposure) is off. The harness itself is started by `deploy/entrypoint.sh` as `dsh --profile flowleap-web --no-open --port 3080 --public-url $PUBLIC_URL --trusted-host $TRUSTED_HOST`, with `DSH_HOME=/data`. The entrypoint first applies the image's own overlays in `IMAGE_PATCH_FILES`, which the image sets to `office.patch.yml` (the office tools). To change the profile for one deployment, set `PATCH_FILES` to one or more overlay files (`dsh --patch`), separated by spaces and mounted into the container; the entrypoint passes each as `--patch <file>` before `--profile`, in order, and refuses to start when one is not a readable file. The doctor and the log bundle apply the same `IMAGE_PATCH_FILES` and `PATCH_FILES`.
 
 Two checks worth doing once per tailnet, with the first instance: open the instance in a browser and confirm the page loads and a chat turn answers (the harness checks the `Host` header of every browser request against `TRUSTED_HOST`), and run `docker exec harness-alice harness-doctor` and read the `profile row`, `key store`, and `connector` lines.
 
@@ -183,6 +186,10 @@ The web search and page fetch tools of the harness are present in the profile; w
 
 The agent's `bash` commands run confined by Landlock: a command writes only inside its workspace folder and `/tmp`, and it has no IP network, loopback included, so a command cannot send data out or call the harness itself. Web access goes through the web search and page fetch tools. A command that needs more runs unconfined only after the attorney approves it on an approval card. The image carries the `landlock-run` launcher; it needs a Linux kernel 5.13 or newer with Landlock enabled (`cat /sys/kernel/security/lsm` lists `landlock`) and Docker's default security settings. Do not add `--privileged`, `seccomp=unconfined`, or `apparmor=unconfined` to the container: Landlock and its seccomp network filter need no extra privilege, and these settings only widen what an attack can reach. On a kernel without Landlock, every confined command fails with `SANDBOX_UNAVAILABLE` and never runs unconfined by itself. The firm's own systems (DMS, docketing, Drive, SharePoint) are not connected unless you add an MCP row to the profile; FlowLeap configures those with you.
 
+### The office tools
+
+The office tools run OfficeCLI 1.0.160, a self-contained .NET binary at `/opt/flowleap/officecli/officecli`, beside its Apache-2.0 `LICENSE`, `NOTICE` and `THIRD-PARTY-NOTICES.txt`. The harness checks its SHA-256 and version at each start and refuses to load the tools when they differ. Each call runs confined by the same Landlock sandbox as `bash`, with no IP network, and writes only in `/data/flowleap-office`; the office tools send nothing off the server. The image overlay sets the `sandbox` row to `network: deny` again, and at each start the office row checks that a confined process cannot open a TCP connection; when it can, the row does not load, and the container log lists `flowleap-office-officecli` under `dsh: warning: … entries did not activate` with the reason. On a kernel without Landlock the office tools do not load, and OfficeCLI never runs unconfined. The doctor reports the `sandbox` and office rows of the composed profile. The image build boots the image once and stops when an office row does not activate; on a build kernel without a sandbox backend it accepts only that refusal and prints a warning. The image installs no browser, so OfficeCLI has no headless-Chrome path.
+
 ## Support
 
 Two tools produce everything FlowLeap support needs. Both scrub their output: FlowLeap tokens, model keys, bearer headers, launch tokens, long hexadecimal and base64-looking strings are replaced by `[redacted]` markers before anything is written.
@@ -236,6 +243,8 @@ Plain HTTP is for tests only: the launch token and the session cookie travel in 
 | `tailscale-serve.json` | the sidecar's HTTPS-to-loopback proxy configuration |
 | `.env.example` | the three variables the compose file needs |
 | `entrypoint.sh` | starts the harness from the environment variables |
+| `office.patch.yml` | the image overlay that switches on the office tools with the pinned OfficeCLI binary |
+| `officecli/` | OfficeCLI's `LICENSE`, `NOTICE` and `THIRD-PARTY-NOTICES.txt`, copied into the image beside the binary |
 | `healthcheck.sh` | the container health check on the index route |
 | `doctor.sh` | `harness-doctor` inside the container |
 | `restore-legacy-hoists.mjs` | a build step: completes the production closure pnpm deploys |

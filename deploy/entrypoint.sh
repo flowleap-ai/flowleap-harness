@@ -9,7 +9,8 @@
 #                 auto (the container's own address, for `docker run -p`), or one concrete IP
 #   TLS_CERT, TLS_KEY   optional PEM files to terminate TLS on the listener itself
 #   DSH_HOME      the harness home on the /data volume (set by the image)
-#   PATCH_FILES   optional overlay files (`dsh --patch`), separated by spaces, applied in order after the profile
+#   IMAGE_PATCH_FILES  the image's own overlay files (set by the image), applied in order after the profile
+#   PATCH_FILES   optional overlay files (`dsh --patch`), separated by spaces, applied in order after IMAGE_PATCH_FILES
 #
 # Extra arguments are passed to `dsh --profile flowleap-web` unchanged.
 set -euo pipefail
@@ -24,10 +25,12 @@ mkdir -p "$DSH_HOME" "${HOME:-$DSH_HOME/home}"
 
 # The launcher reads --patch only before the first application flag.
 args=()
-read -r -a patch_files <<< "${PATCH_FILES:-}"
-for patch in ${patch_files[@]+"${patch_files[@]}"}; do
-  [[ -f $patch && -r $patch ]] || { echo "harness-entrypoint: PATCH_FILES names $patch, which is not a readable file" >&2; exit 1; }
-  args+=(--patch "$patch")
+for variable in IMAGE_PATCH_FILES PATCH_FILES; do
+  read -r -a patch_files <<< "${!variable:-}"
+  for patch in ${patch_files[@]+"${patch_files[@]}"}; do
+    [[ -f $patch && -r $patch ]] || { echo "harness-entrypoint: $variable names $patch, which is not a readable file" >&2; exit 1; }
+    args+=(--patch "$patch")
+  done
 done
 args+=(--profile flowleap-web --no-open --port "$port")
 

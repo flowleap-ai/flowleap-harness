@@ -439,6 +439,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Lists and reads the office action work pages that office-action-scaffold saves write, and changes only their review fields; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapOffice',
+    pkg: 'flowleap-office',
+    title: 'FlowLeap Office service',
+    mode: 'service',
+    consumers: ['flowleap-office'],
+    note: 'Writes Word letters on firm templates, claim amendments as Word tracked changes and Excel claim charts, and reads and reviews tracked changes, as bytes in and bytes out; the OfficeCLI provider row of the same package owns the pinned binary; declared off in the flowleap-web profile.',
+  },
+  {
     key: 'flowleapRoutines',
     pkg: 'flowleap-routines',
     title: 'FlowLeap routines Remote',

@@ -3,8 +3,8 @@
  * to FlowLeap support without reading it for secrets first.
  *
  * The report covers the harness version and commit, Node and pnpm, the profile
- * and the FlowLeap rows of `--dump-config` (with the `PATCH_FILES` overlays the
- * image entrypoint applies), the keys the runtime uses (connector presence and
+ * and the FlowLeap rows of `--dump-config` (with the `IMAGE_PATCH_FILES` and
+ * `PATCH_FILES` overlays the image entrypoint applies), the keys the runtime uses (connector presence and
  * reference names with the store that supplies each, never a value: the stores
  * are the ones the composed `credentials` row names, read with the provider's
  * precedence), `flowleap mcp --check`, the vendored
@@ -56,6 +56,9 @@ const FLOWLEAP_ROW_IDS = [
   'agent-default-model',
   'llm-pi-ai',
   'system-prompt',
+  'sandbox',
+  'flowleap-office-officecli',
+  'flowleap-office',
 ] as const
 
 /** Lines of a harness log that count as errors. */
@@ -110,7 +113,7 @@ interface DoctorOptions {
   profile: string
   dshHome: string
   root: string
-  /** Overlay files applied to `--dump-config`, as the image entrypoint applies `PATCH_FILES`. */
+  /** Overlay files applied to `--dump-config`, as the image entrypoint applies `IMAGE_PATCH_FILES`, then `PATCH_FILES`. */
   patches: string[]
   logPath?: string
   url?: string
@@ -656,7 +659,7 @@ function parseCommandLine(argv: string[]): { mode: 'scrub'; config: boolean } | 
       json: values.json,
       profile: values.profile,
       dshHome: resolve(dshHome),
-      patches: (process.env.PATCH_FILES ?? '').split(/\s+/).filter(patch => patch !== ''),
+      patches: [process.env.IMAGE_PATCH_FILES, process.env.PATCH_FILES].flatMap(files => (files ?? '').split(/\s+/)).filter(patch => patch !== ''),
       root: values.root === undefined ? defaultRoot() : resolve(values.root),
       ...values.log === undefined ? {} : { logPath: resolve(values.log) },
       ...values.url === undefined ? {} : { url: values.url },

@@ -1,0 +1,189 @@
+---
+description: "FlowLeap Office tools on OfficeCLI: Word letters on firm templates, claim amendments as Word tracked changes, Excel claim charts, and the reading and review of tracked changes, through the flowleapOffice service whose OfficeCLI provider owns the pinned binary."
+kind: "package-reference"
+---
+
+# @deepseek-ai/dsh-flowleap-office
+
+## Summary
+
+`dsh-flowleap-office` gives the agent five tools for the attorney's Word and Excel files: `office_letter_from_template`, `office_amend_claims`, `office_claim_chart`, `office_read`, and `office_review_changes`, the consumers of one capability seam. The Service Definition is `ctx.flowleapOffice` in [`src/types.ts`](src/types.ts). The Service Provider is the `@deepseek-ai/dsh-flowleap-office/officecli` row, which runs the pinned OfficeCLI binary. The service takes and returns file bytes. It never gets a workspace path, and the provider works only in its own private folder. Client documents stay on the firm server: the provider starts no update check, no automatic install, and no background process, and it refuses every value that starts with `http://` or `https://`.
+
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
+
+<a id="use-this-package"></a>
+## Use this package
+
+Mount two rows. The provider row needs `ctx.subprocess` and `ctx.sandbox`. The main row needs `ctx.flowleapOffice`, the tool registry, the filesystem, the Agent registry, and the Session working directory. The [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle declares both rows with `disabled: true`. The firm image adds the pinned binary and switches them on with its overlay [`deploy/office.patch.yml`](../../../deploy/office.patch.yml).
+
+### No network for the binary
+
+The provider runs every OfficeCLI call through `ctx.sandbox.confine` with `workspace-write` and `stateDir` as the workspace root, so the child writes only in `stateDir` and the backend's temp areas. The `sandbox` row decides the network access of the child: the provider uses the same row as the `bash` tool, and the `dsh-flowleap-web` bundle sets that row to `network: deny`. On Linux the Landlock launcher then installs a seccomp filter that refuses every socket except a Unix socket; on macOS Seatbelt refuses every IP network operation. The `--version` check at load runs confined too, so a host without a usable sandbox backend fails the row at load. After it, the row starts a loopback TCP listener in the harness process and runs a Node probe, confined with the same policy, that tries to connect to it; the row fails at load unless that connection fails. The row accepts `partial` enforcement: a Landlock ABI below 5 (Linux below 6.10, for example Ubuntu 24.04) does not govern device ioctls, while the `--no-net` filter does not depend on the ABI and the probe checks it.
+
+### Minimal configuration
+
+```yaml
+- id: flowleap-office-officecli
+  name: '@deepseek-ai/dsh-flowleap-office/officecli'
+  config:
+    binaryPath: /opt/flowleap/officecli/officecli
+    version: 1.0.160
+    sha256: baa084b64ec634bd9d41a0592db3ed85f11658b358bab898679537ea7f3e73a9
+    stateDir: !!js dshHomePath('flowleap-office')
+    timeoutMs: 60000
+    maxOutputBytes: 4194304
+    tableStyle: FirmTable
+    chart:
+      featureColumnWidth: 10
+      textColumnWidth: 40
+      headerFill: 1F3A5F
+      headerFontColor: FFFFFF
+
+- id: flowleap-office
+  name: '@deepseek-ai/dsh-flowleap-office'
+  config:
+    templatesDir: /srv/flowleap/templates
+    revisionAuthor: FlowLeap
+    maxReadChars: 40000
+    maxInputBytes: 33554432
+```
+
+| Row | Field | Default | Meaning |
+|---|---|---|---|
+| `officecli` | `binaryPath` | required | Absolute path of the pinned binary. |
+| `officecli` | `version` | required | The text the binary must print for `--version`. |
+| `officecli` | `sha256` | required | The SHA-256 of the binary, 64 lowercase hex digits. |
+| `officecli` | `stateDir` | required | Absolute folder for the binary's `HOME`, its state, and the per-operation folders. |
+| `officecli` | `timeoutMs` | `60000` | Longest time of one OfficeCLI call. |
+| `officecli` | `maxOutputBytes` | `4194304` | Most stdout bytes of one OfficeCLI call. |
+| `officecli` | `tableStyle` | `''` | Word table style of letter tables, as the firm template defines it; `''` writes no style. |
+| `officecli` | `chart` | see above | Claim chart column widths in Excel character units and header colors as six hex digits. |
+| main | `templatesDir` | required | Absolute folder of the firm's `.docx` templates. |
+| main | `revisionAuthor` | `FlowLeap` | Author of tracked changes when the call names none. |
+| main | `maxReadChars` | `40000` | Most characters of an `office_read` result: the document text and the lines of headings, tracked changes, and sheets. |
+| main | `maxInputBytes` | `33554432` | Largest input document or template. |
+
+The provider row fails at load when a path is not absolute, when the SHA-256 of the binary is not `sha256`, or when `--version` does not print `version`. The main row fails at load when `templatesDir` is not an absolute path of a folder. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-office) is the complete list of accepted fields.
+
+### The tools
+
+All five tools read and write only in the Session working directory. A model path must be relative and stay inside the working directory. An output must have the tool's extension and must not exist when the tool starts or immediately before the write, so no tool replaces an attorney's file. A template comes from `templatesDir` by its bare file name; an unknown name gets a refusal that lists the available templates. Each tool that writes files shows them on the delivery card through `deliverables/presented` (the event of [`dsh-tool-present`](../../deliverables/tool-present/README.md)) and ends its result with `Delivered to the user; do not call `present` for these files.`
+
+- `office_letter_from_template` takes `template`, `output`, `fields`, and `blocks`. The template's `{{name}}` placeholders get the field values; a placeholder without a value is a refusal (`missing_fields`), and a template that holds tracked changes is a refusal (`invalid_document`), so a letter never carries edits that the attorney does not see. The blocks follow the template text: headings of level 1 or 2 with the Word styles `Heading1` and `Heading2`, paragraphs, and tables with a bold header row that repeats on each page and the `tableStyle` style.
+- `office_amend_claims` takes `claims` (`number`, `before`, `after`), `output`, and optionally `clean_output`, `heading`, `template`, and `author`. It writes a new marked copy; it never edits an existing file. The word-level difference is computed in code with `diffWordsWithSpace` of the `diff` package. Each inserted or deleted run is a tracked change with the author and the date. A deleted claim also gets a deleted paragraph mark, and a new claim gets an inserted paragraph mark, so accepting or rejecting all changes leaves no empty paragraph. The author is the `author` argument, or else `revisionAuthor`; an author with a control character other than tab is a refusal. `clean_output` also writes a clean copy with the texts after the amendment as plain paragraphs. `output` and `clean_output` must name different files; the comparison ignores letter case, because a case-insensitive volume maps `Claims.docx` and `claims.docx` to one file. When the clean copy cannot be written, the refusal names the path of the marked copy that was already written.
+- `office_claim_chart` takes `output`, `sheet`, `header`, and `rows`. Every cell is text, so the feature number `1.10` stays `1.10` and a value such as `=WEBSERVICE("x")` stays a string, not a formula. A chart has at most 16384 columns, the Excel limit. The chart has borders, wrapped text, top alignment, a bold filled header, the column widths, a row height for each row from its text length, a filter, a frozen header row, and a landscape print one page wide.
+- `office_read` takes `path`, a `.docx` or `.xlsx` file. It returns the text (Word tables one row per line with tab-separated cells, Excel cells as `A1=value`), the Word headings, the Word tracked changes with id, type, author, date, and text, or the Excel sheets. The result has one budget of `maxReadChars` characters. The headings, the tracked changes, and the sheets come first, in this order, while their lines fit in half of the budget; the text gets the rest. The result states when the text is cut and how many items of each list it left out.
+- `office_review_changes` takes `path`, `output`, `action` (`accept` or `reject`), and optionally `author` or `ids`. It writes a new copy with all changes, the changes of one author, or the named changes accepted or rejected, and it returns how many changes it removed. The provider resolves an author to the ids of the changes whose author is equal to it, because OfficeCLI's `/revision[@author=…]` value cannot hold `]` and loses quotation marks at its ends.
+
+### The Service Definition
+
+`FlowleapOffice` has five methods: `letter`, `amendClaims`, `claimChart`, `read`, and `reviewChanges`. Each takes a request with file bytes and an `AbortSignal`, and each rejects with a `FlowleapOfficeError` whose `code` is one of `url_refused`, `invalid_request`, `missing_fields`, `invalid_document`, `invalid_output`, `engine_failed`, `timeout`, `output_too_large`, or `aborted`. The tools give the error message to the model. A `RedlineParagraph` is the difference output: its `mark` is the change of the paragraph mark (`same`, `ins` for a new claim, `del` for a deleted claim), and its `segments` are the runs with their change. A `ReviewSelection` is `all`, one `author`, or a list of `ids`. Another provider, for example a fixture in a test, provides the same `flowleapOffice` key.
+
+-----
+
+<a id="understand-the-implementation"></a>
+## Understand the implementation
+
+<details>
+<summary>Implementation internals — click to expand</summary>
+
+The provider owns the OfficeCLI process. [`OfficeCliRunner`](src/officecli/runner.ts) is the one place that spawns it, through `ctx.subprocess`, with the argv that `ctx.sandbox.confine` returns; a sandbox refusal is `engine_failed` and runs nothing. The child environment holds only `HOME=<stateDir>/home`, `OFFICECLI_STATE_DIR=<stateDir>/state`, `OFFICECLI_SKIP_UPDATE=1`, `OFFICECLI_NO_AUTO_INSTALL=1`, `OFFICECLI_NO_AUTO_RESIDENT=1`, and `TMPDIR=<call folder>`; every ambient name of the Host is removed. The call folder is also the working directory of the child. Each call has the `timeoutMs` deadline and the `maxOutputBytes` stdout cap.
+
+Arguments come only from the closed `OfficeCommand` union in [`src/officecli/command.ts`](src/officecli/command.ts): `version`, `create`, `merge`, `batch`, `validate`, `view` with the `text` or `outline` mode, and `query` with the `revision` or `cell` selector, and `raw` of the `/document` part. One table row per kind builds the arguments. There is no passthrough, and no row runs `install`, `skills`, `mcp`, `plugins`, `watch`, `open`, `close`, `refresh`, `dump`, `import`, another `view` mode, or the binary without arguments. Every call except `--version` uses `--json`, and a zod schema parses each reply.
+
+Document changes go through one `batch` call per document, in OfficeCLI's default atomic mode. The closed `BatchItem` union in [`src/officecli/batch.ts`](src/officecli/batch.ts) is the only way to write a batch, and one table row per item kind gives its OfficeCLI JSON. No item kind adds a diagram, an image, a link, or a table from the CSV `data` property: table and sheet cells are written one item per cell. Before a batch, the provider refuses each string of each item, each argument, and each field value that starts with `http://` or `https://` after trimming, in any letter case. A line feed in Word text becomes a line break in the same paragraph, because OfficeCLI starts a new paragraph at a line feed.
+
+A tracked-change claim is one paragraph with one run per segment, each `ins` or `del` run with `revision.author` and `revision.date`. OfficeCLI has no paragraph-mark deletion, and its paragraph-mark insertion copies the mark into later runs, which fails validation. So the provider writes both marks with a `raw-set` item into `w:pPr` of the last paragraph after the paragraph's runs. The mark ids count up from 1, or from one above the highest `w:id` of the template's main document part (`raw /document`), below the ids OfficeCLI assigns from 1048576; a template that holds tracked changes is refused (`invalid_document`), so no id can collide. Each operation runs `validate` on each written file and fails with `invalid_output` when it does not pass.
+
+Several runtimes can share `stateDir`, because `dshHomePath` is per user. Each provider row makes its own folder `<stateDir>/calls/<pid>-<random>` at load and removes it at dispose. Each operation makes a new folder in it, writes the input bytes there with fixed file names, and removes the folder at the end. A failure outside the engine, for example a full disk or a file that the engine did not write, becomes `aborted` when the caller cancelled and `engine_failed` otherwise. At load the provider also removes each folder under `<stateDir>/calls` whose process id names no running process (`process.kill(pid, 0)` fails with `ESRCH`), each folder with the process id of the loading process, because a container gives the harness the same process id at each start, and each folder without a process id in its name, because a folder that a stopped process left holds client documents.
+
+### Source map
+
+| File | Role |
+|---|---|
+| [`src/types.ts`](src/types.ts) | the Service Definition: requests, results, error codes, and `ctx.flowleapOffice` |
+| [`src/error.ts`](src/error.ts) | `FlowleapOfficeError` |
+| [`src/redline.ts`](src/redline.ts) | the word-level difference of claim texts as `RedlineParagraph` values |
+| [`src/officecli/index.ts`](src/officecli/index.ts) | the provider row: Config, the binary check, `apply` |
+| [`src/officecli/command.ts`](src/officecli/command.ts) | the `OfficeCommand` union, its argument table, and the web-address refusal |
+| [`src/officecli/batch.ts`](src/officecli/batch.ts) | the `BatchItem` union, its JSON table, and the item builders of letters, claims, and charts |
+| [`src/officecli/runner.ts`](src/officecli/runner.ts) | the spawn with the fixed environment, the bounds, and the reply parse |
+| [`src/officecli/provider.ts`](src/officecli/provider.ts) | `OfficeCliProvider`: the call folders and the five operations |
+| [`src/index.ts`](src/index.ts) | the main row: Config, the template folder check, the tool registration |
+| [`src/tools/`](src/tools/) | the five tools, the file rules, and the delivery card |
+| [`tests/`](tests/) | unit tests with a scripted OfficeCLI child, the tools over the real filesystem and tool pipeline, and [`officecli.e2e.ts`](tests/officecli.e2e.ts), which runs the real binary when `FLOWLEAP_OFFICECLI` names it |
+
+</details>
+
+-----
+
+<a id="further-exploration"></a>
+## Further Exploration
+
+- [FlowLeap deliverables](../flowleap-deliverables/README.md) — the binary write through the host filesystem that these tools reuse.
+- [Subprocess seam](../../subprocess/subprocess/README.md) — how the provider spawns the binary.
+- [Process ownership decision](../../../.agents/notes/implemented/architecture/2026-11-03-flowleap-office-owns-officecli.md) — why the plugin owns the OfficeCLI process.
+
+-----
+
+<a id="model-experience"></a>
+## Model Experience
+
+### The five tool declarations
+
+#### What the model sees
+
+The generated tool catalog covers the shipped DeepSeek presets only, so the declarations are stated in [`src/tools/`](src/tools/) and pinned by the `flowleap-office` recorded-session snapshot. Each description names what the tool writes or reads, states that a value must not start with `http://` or `https://`, and states that the tool writes only new files. The parameters are the ones that the tool list under Use this package names.
+
+#### Token effect
+
+The five schemas add fixed request-context tokens while the main row is mounted.
+
+#### KV Cache effect
+
+The declarations are stable for one release; no Config field appears in their text.
+
+### Tool results
+
+#### What the model sees
+
+A writing tool returns one sentence that names the written files and counts, then `Delivered to the user; do not call `present` for these files.` `office_amend_claims` names the author and the number of amended, added, deleted, and unchanged claims. `office_read` returns the document text, the headings, the tracked changes, or the sheets within `maxReadChars` characters, with a notice when it cut the text or left out list items. A refusal is an error result with the reason, for example the missing placeholder names or the refused value.
+
+#### Token effect
+
+A writing result is one or two lines. An `office_read` result is at most `maxReadChars` characters of text and list lines, plus the section labels and the notices.
+
+#### KV Cache effect
+
+Each result appends to history and does not change earlier messages.
+
+## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
+
+- **The network block comes from the `sandbox` row, and the provider checks it only at load** — `SandboxPolicy` has no network field, so the provider cannot ask for `deny` per call. It fails at load when its loopback probe connects; a later change of the `sandbox` row needs a reload, which runs the probe again. The probe runs `process.execPath -e`, so the row needs a Node executable host, not Electron. The Windows runner has no `network: deny`, so the row cannot load there.
+- **Word and LibreOffice accept were not tested on the marked copy** — OfficeCLI's accept and reject give the after and the before texts; the evaluation tested LibreOffice rendering of an earlier marked copy only.
+- **Accepting a deleted last claim leaves one empty paragraph** — when the deleted claim is the last paragraph of the marked copy, OfficeCLI's accept keeps its paragraph mark without text, as Word keeps the final paragraph mark of a document; the clean copy has no empty paragraph.
+- **The row height of a claim chart is an estimate** — it counts characters per line from the column width at the default 11 pt font; another font or many wide characters can still cut text in print.
+- **A file can appear between the last check and the write** — each tool checks that the output does not exist immediately before the write, but the write publishes by rename, which replaces a file that another process creates in that short interval; `dsh-fs` has no exclusive publish for binary files.
+- **A long document can push out list items or text** — `office_read` has no paging, so the items over half of `maxReadChars` and the text over the rest are left out; the result counts them.
+- **A crash during an operation leaves its call folder** — the folder holds client documents until a provider row loads again and finds that the process has ended or has the loading process's id; if the operating system gives the process id to another live process first, the folder stays until that process ends.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>

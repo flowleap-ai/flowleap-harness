@@ -351,6 +351,7 @@ flowchart TD
     pkg_flowleap_connectors["flowleap-connectors"]
     pkg_flowleap_deliverables["flowleap-deliverables"]
     pkg_flowleap_models["flowleap-models"]
+    pkg_flowleap_office["flowleap-office"]
     pkg_flowleap_prompt["flowleap-prompt"]
     pkg_flowleap_record["flowleap-record"]
     pkg_flowleap_routines["flowleap-routines"]
@@ -1362,6 +1363,16 @@ flowchart TD
   pkg_webhook_github --> pkg_host_webserver
   pkg_webhook_github --> pkg_session
   pkg_webhook_github --> pkg_webhook
+  pkg_flowleap_office --> pkg_agent
+  pkg_flowleap_office --> pkg_flowleap_deliverables
+  pkg_flowleap_office --> pkg_fs
+  pkg_flowleap_office --> pkg_llm
+  pkg_flowleap_office --> pkg_sandbox
+  pkg_flowleap_office --> pkg_session
+  pkg_flowleap_office --> pkg_subprocess
+  pkg_flowleap_office --> pkg_tool_present
+  pkg_flowleap_office --> pkg_tools
+  pkg_flowleap_office --> pkg_working_directory
   pkg_mcp_manager --> pkg_mcp_client
   pkg_mcp_manager --> pkg_tools
   pkg_mcp_manager --> pkg_typert_protocol
@@ -1958,6 +1969,7 @@ flowchart TD
 | [`experimental-claude-code-mods`](../packages/experimental/claude-code-mods) | `experimental` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`storage-domain`](../packages/storage/storage-domain), [`subprocess`](../packages/subprocess/subprocess), [`token-meter`](../packages/llm/token-meter), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`user-questions`](../packages/interaction/user-questions), [`working-directory`](../packages/session/working-directory) |
 | [`tool-session-query`](../packages/experimental/tool-session-query) | `experimental` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`webhook-github`](../packages/experimental/webhook-github) | `experimental` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/experimental/webhook) |
+| [`flowleap-office`](../packages/host/flowleap-office) | `host` | [`agent`](../packages/core/agent), [`flowleap-deliverables`](../packages/host/flowleap-deliverables), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session), [`subprocess`](../packages/subprocess/subprocess), [`tool-present`](../packages/deliverables/tool-present), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`mcp-manager`](../packages/mcp/mcp-manager) | `mcp` | [`mcp-client`](../packages/mcp/mcp-client), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values) |
 | [`goal-round-driver`](../packages/goal/goal-round-driver) | `goal` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`subagent-acp`](../packages/subagent/subagent-acp) | `subagent` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |

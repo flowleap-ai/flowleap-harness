@@ -1,0 +1,37 @@
+# The image overlay of the office tools (dsh-flowleap-office): the entrypoint
+# applies it before PATCH_FILES. It switches on the two rows that
+# dsh-flowleap-web declares off, with the binary that deploy/Dockerfile
+# downloads and verifies; the build replaces @OFFICECLI_VERSION@ and
+# @OFFICECLI_SHA256@ with the pinned version and the SHA-256 of the binary of
+# the image's architecture.
+#
+# The provider row runs OfficeCLI through the profile's `sandbox` row. This
+# overlay sets that row to `network: deny` again, so a later change of
+# dsh-flowleap-web cannot give OfficeCLI the network: the Landlock launcher's
+# seccomp filter refuses every socket except a Unix socket. At load the
+# provider row also proves that a confined process cannot open a loopback TCP
+# connection, and fails when it can. The firm's Word templates are mounted at
+# templatesDir (deploy/docker-compose.yml).
+
+- id: sandbox
+  config:
+    network: deny
+
+- id: flowleap-office-officecli
+  disabled: false
+  config:
+    binaryPath: /opt/flowleap/officecli/officecli
+    version: '@OFFICECLI_VERSION@'
+    sha256: '@OFFICECLI_SHA256@'
+    stateDir: !!js dshHomePath('flowleap-office')
+    timeoutMs: 60000
+    maxOutputBytes: 4194304
+    tableStyle: ''
+    chart:
+      featureColumnWidth: 10
+      textColumnWidth: 40
+      headerFill: 1F3A5F
+      headerFontColor: FFFFFF
+
+- id: flowleap-office
+  disabled: false

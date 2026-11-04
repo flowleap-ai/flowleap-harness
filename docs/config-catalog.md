@@ -1879,6 +1879,29 @@ export interface ProviderConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-models -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-office -->
+<a id="deepseek-aidsh-flowleap-office"></a>
+
+## `@deepseek-ai/dsh-flowleap-office`
+
+- `inject`: `flowleapOffice` · `tools` · `fs` · `agents` · `workingDirectory`
+- `source`: [`packages/host/flowleap-office/src/index.ts:56`](../packages/host/flowleap-office/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Absolute folder of the firm's `.docx` templates; the firm administrator fills it, the model only names a file. */
+  templatesDir: string
+  /** Author of tracked changes when a call names none. */
+  revisionAuthor: string
+  /** Most characters of an `office_read` result: the document text and the lines of headings, tracked changes, and sheets. */
+  maxReadChars: number
+  /** Largest input document or template, in bytes. */
+  maxInputBytes: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-office -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-prompt -->
 <a id="deepseek-aidsh-flowleap-prompt"></a>
 
