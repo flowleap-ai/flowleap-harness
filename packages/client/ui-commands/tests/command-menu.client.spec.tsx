@@ -93,6 +93,20 @@ describe('command menu controller', () => {
     off()
     expect(menu.state.getSnapshot()).toMatchObject({ open: false, rows: [] })
   })
+
+  it('opens from a control: no Application group before the first Search command, the latest search after it', () => {
+    const menu = createCommandMenu(labels)
+    expect(menu.open()).toBe(false)
+    menu.contribute({ item: () => item({}) })
+    expect(menu.open()).toBe(true)
+    expect(menu.state.getSnapshot().rows.map(row => row.id)).toEqual(['decision/accept', 'decision/reject', 'go/letter'])
+    expect(menu.open()).toBe(true)
+    expect(menu.state.getSnapshot()).toMatchObject({ open: true, occurrence: 1 })
+    menu.toggle(() => {})
+    expect(menu.state.getSnapshot().open).toBe(false)
+    expect(menu.open()).toBe(true)
+    expect(menu.state.getSnapshot().rows.at(-1)?.id).toBe('application/search')
+  })
 })
 
 function view(options: { mobile?: boolean } = {}) {

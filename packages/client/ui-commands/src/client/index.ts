@@ -72,7 +72,7 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const menu = createCommandMenu(() => ({ group: t('menu.group.application'), search: t('menu.search') }))
   ctx.effect(() => {
-    const dispose = ctx.reflect.provide('commandMenu', { contribute: menu.contribute, close: menu.close })
+    const dispose = ctx.reflect.provide('commandMenu', { contribute: menu.contribute, close: menu.close, open: menu.open })
     return () => { menu.close(); void dispose() }
   }, 'ui-commands: command menu')
   ctx.inject(['uiWorkspace'], (scope: ClientContext) => {
