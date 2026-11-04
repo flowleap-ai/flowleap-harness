@@ -159,17 +159,18 @@ export function letterItems(blocks: readonly LetterBlock[], tableStyle: string):
 
 /**
  * The items of a marked claims copy. Each claim is one paragraph with one run per segment; a changed paragraph mark is
- * written after its runs with ids from 1 upward, below the ids OfficeCLI assigns (from 1048576).
+ * written after its runs with ids from `firstId` upward, below the ids OfficeCLI assigns (from 1048576).
  * @param heading - heading paragraph text; `undefined` for none.
  * @param paragraphs - the claim paragraphs.
  * @param author - author of every change.
  * @param date - ISO-8601 date of every change.
+ * @param firstId - the id of the first paragraph mark change; above every `w:id` of the template.
  * @returns the items.
  */
 export function markedClaimsItems(
-  heading: string | undefined, paragraphs: readonly RedlineParagraph[], author: string, date: string,
+  heading: string | undefined, paragraphs: readonly RedlineParagraph[], author: string, date: string, firstId: number,
 ): BatchItem[] {
-  let nextId = 1
+  let nextId = firstId
   const items: BatchItem[] = heading === undefined ? [] : [{ kind: 'paragraph', style: 'Heading1', text: wordText(heading) }]
   for (const paragraph of paragraphs) {
     items.push({ kind: 'paragraph' })

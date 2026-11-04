@@ -135,7 +135,7 @@ describe('claims items', () => {
   const date = '2026-11-03T10:00:00.000Z'
 
   it('writes runs before the paragraph mark of a new or deleted claim, with mark ids from 1', () => {
-    const items = markedClaimsItems('Claims', paragraphs, 'FlowLeap', date)
+    const items = markedClaimsItems('Claims', paragraphs, 'FlowLeap', date, 1)
     const revision = (type: 'ins' | 'del') => ({ type, author: 'FlowLeap', date })
     expect(items).toEqual([
       { kind: 'paragraph', style: 'Heading1', text: 'Claims' },
@@ -153,7 +153,7 @@ describe('claims items', () => {
 
   it('writes the clean copy from the texts after the changes, without the deleted claim', () => {
     expect(cleanClaimsItems(undefined, paragraphs)).toEqual([{ kind: 'paragraph', text: '1. A B' }, { kind: 'paragraph', text: '2. New' }])
-    expect(markedClaimsItems(undefined, [], 'X', date)).toEqual([])
+    expect(markedClaimsItems(undefined, [], 'X', date, 1)).toEqual([])
     expect(cleanClaimsItems('H', [])).toEqual([{ kind: 'paragraph', style: 'Heading1', text: 'H' }])
     expect(cleanText(paragraphs[2])).toBeUndefined()
   })

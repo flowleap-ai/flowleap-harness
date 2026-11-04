@@ -114,6 +114,12 @@ class OfficeCall {
     }
   }
 
+  /** The highest `w:id` in the main document part, or 0 when it has none. */
+  async highestId(file: string): Promise<number> {
+    const xml = await this.ok({ kind: 'raw', file, part: '/document' }, z.string(), 'invalid_document')
+    return Math.max(0, ...Array.from(xml.matchAll(/\bw:id="(\d+)"/gu), match => Number(match[1])))
+  }
+
   async revisions(file: string, failure: FlowleapOfficeErrorCode): Promise<TrackedRevision[]> {
     const data = await this.ok({ kind: 'query', file, selector: 'revision' }, Revisions, failure)
     return data.results.map(({ text, format }) => ({
@@ -185,9 +191,8 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
 
   async amendClaims(request: AmendRequest, signal: AbortSignal): Promise<AmendResult> {
     checkAmend(request)
-    const marked = markedClaimsItems(request.heading, request.paragraphs, request.author, request.date)
     const clean = cleanClaimsItems(request.heading, request.paragraphs)
-    serializeBatch(marked)
+    serializeBatch(markedClaimsItems(request.heading, request.paragraphs, request.author, request.date, 1))
     serializeBatch(clean)
     return this.inCall(signal, async (call) => {
       const start = async (file: string) => {
@@ -197,10 +202,13 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
         }
         await call.write(file, request.template)
       }
+      let firstId = 1
       if (request.template !== undefined) {
         await call.write('template.docx', request.template)
         await call.refuseTrackedChanges('template.docx')
+        firstId = await call.highestId('template.docx') + 1
       }
+      const marked = markedClaimsItems(request.heading, request.paragraphs, request.author, request.date, firstId)
       await start('marked.docx')
       await call.batch('marked.docx', marked)
       await call.validate('marked.docx')
@@ -255,9 +263,7 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
 
   async reviewChanges(request: ReviewRequest, signal: AbortSignal): Promise<ReviewResult> {
     const { selection } = request
-    if (selection.kind === 'author' && (selection.author.trim() === '' || selection.author.includes(']'))) {
-      invalid('The author must be a non-empty name without "]".')
-    }
+    if (selection.kind === 'author' && selection.author.trim() === '') invalid('The author must not be empty.')
     if (selection.kind === 'ids' && selection.ids.length === 0) invalid('Name at least one change id.')
     refuseUrls(selection)
     return this.inCall(signal, async (call) => {
@@ -268,7 +274,11 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
         const unknown = selection.ids.filter(id => !known.has(id))
         if (unknown.length > 0) invalid(`The document holds no tracked change with id ${unknown.join(', ')}.`)
       }
-      await call.batch('review.docx', selectors(selection).map(selector => ({ kind: 'review', selector, action: request.action })))
+      const target = selection.kind === 'author'
+        ? { kind: 'ids' as const, ids: [...new Set(before.filter(revision => revision.author === selection.author).map(revision => revision.id))] }
+        : selection
+      const paths = selectors(target)
+      if (paths.length > 0) await call.batch('review.docx', paths.map(selector => ({ kind: 'review', selector, action: request.action })))
       const after = await call.revisions('review.docx', 'engine_failed')
       await call.validate('review.docx')
       return { file: await call.bytes('review.docx'), changed: before.length - after.length }
@@ -277,14 +287,14 @@ export class OfficeCliProvider extends Service implements FlowleapOffice {
 }
 
 /**
- * The OfficeCLI paths of a review selection.
- * @param selection - which changes.
+ * The OfficeCLI paths of a review selection. An author selection is first resolved to change ids, because OfficeCLI's
+ * `/revision[@author=…]` value cannot hold `]` and loses quotation marks at its ends.
+ * @param selection - all changes, or changes by id.
  * @returns one `/revision` path per item.
  */
-export function selectors(selection: ReviewSelection): string[] {
+export function selectors(selection: Exclude<ReviewSelection, { kind: 'author' }>): string[] {
   switch (selection.kind) {
     case 'all': return ['/revision']
-    case 'author': return [`/revision[@author=${selection.author}]`]
     case 'ids': return selection.ids.map(id => `/revision[@id=${String(id)}]`)
   }
 }

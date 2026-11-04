@@ -17,6 +17,7 @@ export type OfficeCommand =
   | { readonly kind: 'validate'; readonly file: string }
   | { readonly kind: 'view'; readonly file: string; readonly mode: 'text' | 'outline' }
   | { readonly kind: 'query'; readonly file: string; readonly selector: 'revision' | 'cell' }
+  | { readonly kind: 'raw'; readonly file: string; readonly part: '/document' }
 
 /** The kind of an OfficeCLI call. */
 export type OfficeCommandKind = OfficeCommand['kind']
@@ -32,6 +33,7 @@ const ARGV: ArgvTable = {
   validate: command => ['validate', command.file, '--json'],
   view: command => ['view', command.file, command.mode, '--json'],
   query: command => ['query', command.file, command.selector, '--json'],
+  raw: command => ['raw', command.file, command.part, '--json'],
 }
 
 /**

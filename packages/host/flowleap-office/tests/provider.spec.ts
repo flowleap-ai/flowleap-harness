@@ -153,7 +153,17 @@ describe('OfficeCliProvider.amendClaims', () => {
     const result = await office.amendClaims({ ...amendRequest, template: bytes('firm'), clean: false }, signal)
     expect(text(result.marked)).toBe('firm+batch')
     expect(result.clean).toBeUndefined()
-    expect(fake.calls().map(argv => argv[0])).toEqual(['query', 'batch', 'validate'])
+    expect(fake.calls().map(argv => argv[0])).toEqual(['query', 'raw', 'batch', 'validate'])
+  })
+
+  it('numbers the paragraph-mark changes above the highest id of the template', async () => {
+    const xml = '<w:document><w:bookmarkStart w:id="41" w:name="a"/><w:bookmarkEnd w:id="41"/><w:p w14:paraId="7FFFFFFF"/></w:document>'
+    const { fake, office } = await setup((args, cwd) => args[0] === 'raw' ? ok(xml) : revisions([])(args, cwd))
+    const paragraphs: AmendRequest['paragraphs'] = [{ mark: 'ins', segments: [{ kind: 'ins', text: '2. C' }] }, { mark: 'del', segments: [{ kind: 'del', text: '3. D' }] }]
+    await office.amendClaims({ ...amendRequest, paragraphs, template: bytes('firm'), clean: false }, signal)
+    expect(fake.calls()[1]).toEqual(['raw', 'template.docx', '/document', '--json'])
+    const batch = JSON.stringify(fake.spawned.find(entry => entry.batch !== undefined)?.batch)
+    expect([...batch.matchAll(/w:id=\\"(\d+)\\"/gu)].map(match => match[1])).toEqual(['42', '43'])
   })
 
   it('refuses a template that holds tracked changes', async () => {
@@ -266,12 +276,24 @@ describe('OfficeCliProvider.reviewChanges', () => {
     expect((await rejection(office.reviewChanges({ file: bytes('d'), action: 'reject', selection: { kind: 'ids', ids: [9] } }, signal))).message).toContain('9')
   })
 
-  it('refuses an empty selection, a bad author, and a web-address author', async () => {
+  it('selects the changes of one author by id, whatever characters the name holds', async () => {
+    const author = '"Kim" [Kanzlei] / Partner'
+    const changes = [[1, author], [2, 'FlowLeap'], [3, author], [3, author]] as const
+    const { fake, office } = await setup((args, cwd) => args[0] === 'query' && args[2] === 'revision'
+      ? ok({ results: changes.map(([id, name]) => ({ text: 't', format: { 'revision.type': 'ins', 'revision.author': name, 'revision.id': String(id) } })) })
+      : succeed(args, cwd))
+    await office.reviewChanges({ file: bytes('d'), action: 'reject', selection: { kind: 'author', author } }, signal)
+    expect(fake.spawned[1]?.batch).toEqual([1, 3].map(id => ({ command: 'set', path: `/revision[@id=${String(id)}]`, props: { 'revision.action': 'reject' } })))
+    fake.spawned.length = 0
+    expect((await office.reviewChanges({ file: bytes('d'), action: 'reject', selection: { kind: 'author', author: 'Nobody' } }, signal)).changed).toBe(0)
+    expect(fake.calls().map(argv => argv[0])).toEqual(['query', 'query', 'validate'])
+  })
+
+  it('refuses an empty selection, an empty author, and a web-address author', async () => {
     const { office } = await setup()
     const review = (selection: Parameters<typeof office.reviewChanges>[0]['selection']) => office.reviewChanges({ file: bytes('d'), action: 'accept', selection }, signal)
     expect((await rejection(review({ kind: 'ids', ids: [] }))).code).toBe('invalid_request')
     expect((await rejection(review({ kind: 'author', author: ' ' }))).code).toBe('invalid_request')
-    expect((await rejection(review({ kind: 'author', author: 'a]b' }))).code).toBe('invalid_request')
     expect((await rejection(review({ kind: 'author', author: 'https://x' }))).code).toBe('url_refused')
   })
 })
@@ -279,7 +301,6 @@ describe('OfficeCliProvider.reviewChanges', () => {
 describe('selectors and wordReadText', () => {
   it('maps each selection to its revision paths', () => {
     expect(selectors({ kind: 'all' })).toEqual(['/revision'])
-    expect(selectors({ kind: 'author', author: 'Dr. Weiß' })).toEqual(['/revision[@author=Dr. Weiß]'])
     expect(selectors({ kind: 'ids', ids: [1, 2] })).toEqual(['/revision[@id=1]', '/revision[@id=2]'])
   })
 

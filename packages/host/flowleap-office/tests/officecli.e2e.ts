@@ -28,6 +28,34 @@ const claims: ClaimChange[] = [
 ]
 const lines = (key: 'before' | 'after') => claims.flatMap(claim => claim[key] === undefined ? [] : [`${claim.number}. ${claim[key]}`])
 
+const config = async (dir: string): Promise<row.Config> => ({
+  binaryPath: binaryPath ?? '',
+  version: '1.0.160',
+  sha256: process.env['FLOWLEAP_OFFICECLI_SHA256'] ?? await row.fileSha256(binaryPath ?? ''),
+  stateDir: join(dir, 'state'),
+  timeoutMs: 60_000,
+  maxOutputBytes: 4 * 1024 * 1024,
+  tableStyle: 'FirmTable',
+  chart: { featureColumnWidth: 10, textColumnWidth: 40, headerFill: '1F3A5F', headerFontColor: 'FFFFFF' },
+})
+
+describe.skipIf(binaryPath === undefined)('the OfficeCLI row over a sandbox that keeps the network', () => {
+  it('fails at load and provides nothing', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'flowleap-office-e2e-net-'))
+    const ctx = new Context()
+    try {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(LocalSandbox, { network: 'inherit' })
+      const failure = await ctx.plugin(row, await config(dir)).await().then(() => undefined, (error: unknown) => String(error))
+      expect(failure).toContain('does not block the network of a confined process (probe reached)')
+      expect(ctx.get('flowleapOffice')).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
+})
+
 describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real binary', () => {
   let ctx: Context
   let dir: string
@@ -38,17 +66,7 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     ctx = new Context()
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalSandbox, { network: 'deny' })
-    const path = binaryPath ?? ''
-    await ctx.plugin(row, {
-      binaryPath: path,
-      version: '1.0.160',
-      sha256: process.env['FLOWLEAP_OFFICECLI_SHA256'] ?? await row.fileSha256(path),
-      stateDir: join(dir, 'state'),
-      timeoutMs: 60_000,
-      maxOutputBytes: 4 * 1024 * 1024,
-      tableStyle: 'FirmTable',
-      chart: { featureColumnWidth: 10, textColumnWidth: 40, headerFill: '1F3A5F', headerFontColor: 'FFFFFF' },
-    }).await()
+    await ctx.plugin(row, await config(dir)).await()
     office = ctx.flowleapOffice
   }, 60_000)
 
@@ -99,8 +117,10 @@ describe.skipIf(binaryPath === undefined)('OfficeCLI provider over the real bina
     await expect(office.letter({ template, fields: { zeichen: 'x' }, blocks: [] }, signal)).rejects.toMatchObject({ code: 'missing_fields' })
   }, 120_000)
 
-  it('selects the changes of an author with an apostrophe and a comma', async () => {
-    const author = 'O\'Brien, Weiß & Partner'
+  it.each([
+    ['an apostrophe and a comma', 'O\'Brien, Weiß & Partner'],
+    ['quotes, brackets, a slash, and a backslash', '"Kim" [Kanzlei] / Partner \\'],
+  ])('selects the changes of an author with %s', async (_name, author) => {
     const { marked } = await office.amendClaims({ paragraphs: claims.slice(0, 2).map(redlineParagraph), author, date: '2026-11-03T10:00:00.000Z', clean: false }, signal)
     const readout = await office.read({ file: marked, format: 'docx' }, signal)
     if (readout.format !== 'docx') throw new Error('expected a Word readout')
