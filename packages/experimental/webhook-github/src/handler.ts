@@ -1,7 +1,6 @@
 /** GitHub HTTP authentication, parsing, and fire-and-forget dispatch. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { IncomingMessage, ServerResponse } from 'node:http'
 import { Webhooks } from '@octokit/webhooks'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
@@ -11,7 +10,9 @@ import {
   type VerifiedWebhookDelivery,
 } from '@deepseek-ai/dsh-webhook'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
-import { readBoundedUtf8Body, WebhookHttpError } from './body.ts'
+import {
+  isJsonContentType, readBoundedUtf8Body, requiredHeader, respond, WebhookHttpError,
+} from '@deepseek-ai/dsh-webhook/http'
 import type { GitHubJsonObject } from './types.ts'
 
 /** Handler values validated once at plugin load. */
@@ -19,37 +20,6 @@ export interface GitHubWebhookHandlerConfig {
   readonly source: string
   readonly secretEnv: CredentialRef
   readonly maxBodyBytes: number
-}
-
-/** Require one unambiguous non-empty request header. */
-function requiredHeader(request: IncomingMessage, name: string): string {
-  const values = request.headersDistinct[name]
-  const value = values?.[0]
-  if (values?.length !== 1 || value === undefined || value.trim() === '') {
-    throw new WebhookHttpError(400, `missing ${name} header`)
-  }
-  return value
-}
-
-/** Whether Content-Type names JSON with at most one UTF-8 charset parameter. */
-function isJsonContentType(value: string | undefined): boolean {
-  if (value === undefined) return false
-  const parts = value.split(';').map(part => part.trim())
-  const [mediaType, parameter, ...extra] = parts
-  if (mediaType?.toLowerCase() !== 'application/json') return false
-  if (parameter === undefined) return true
-  return extra.length === 0 && /^charset=(?:utf-8|"utf-8")$/i.test(parameter)
-}
-
-/** Send one empty or plain-text response exactly once. */
-function respond(response: ServerResponse, status: number, message?: string): void {
-  if (message === undefined) {
-    response.writeHead(status)
-    response.end()
-    return
-  }
-  response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8' })
-  response.end(message)
 }
 
 /** Convert a parsed value into the adapter's generic signed-object guarantee. */
