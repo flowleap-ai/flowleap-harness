@@ -11,6 +11,7 @@
 - [The shared states](#the-shared-states)
 - [The count, R1 and after the cut-over](#the-count-r1-and-after-the-cut-over)
 - [Founder decision: the independent check of the reading (F1 on F3)](#founder-decision-the-independent-check-of-the-reading-f1-on-f3)
+- [Founder decisions on the R1 settings (2026-11-04)](#founder-decisions-on-the-r1-settings-2026-11-04)
 - [Processes and tickets](#processes-and-tickets)
 - [The method for every phase](#the-method-for-every-phase)
 
@@ -110,7 +111,17 @@ All old counts are INFERRED and the pilot must measure them. R1 costs the PAFA t
 | B. Two independent readers | The intake reads the code and the date by code (form number, the date field of the form), and the model reads them again from the page image, not from the OCR text. The reading counts as checked when both agree; when they differ, or only one reader has a result, the reading is a proposal, and the confirmer cannot be the person who decides it | 1 when both agree; 2 when they differ | A common fault of both readers (for example a bad scan) must make them differ, not agree. Each reader must log its input. The insurer must accept a model as one of two readers (design question P5) |
 | C. A second person for every reading (`always-second-person`) | A second person checks each entry, as in the PATORG way | 2 | Safe, but it keeps the old work, so it fails the AI-native test b (design section 1.1) |
 
-**Recommendation.** B, with A as the fallback for letters without a form. B makes the AI a second, independent reader, so the check of the reading becomes stronger than one person's look, and the typical letter keeps one step. It needs a new value, `deadline.readingCheck: 'two-readers'`, a new evidence type (`ReadingCheck = { kind: 'two-readers'; code: Span; model: SessionRef } | { kind: 'person'; by: PersonId }`), and a test set of misread letters that shows that the readers differ on them. Until the founder decides, the default stays A, and the pilot answers question Q2.2.
+**Decision (founder, 2026-11-04): B, with A as the fallback for letters without a form.** B makes the AI a second, independent reader, so the check of the reading becomes stronger than one person's look, and the typical letter keeps one step. It needs a new value, `deadline.readingCheck: 'two-readers'` (the default), a new evidence type (`ReadingCheck = { kind: 'two-readers'; code: Span; model: SessionRef } | { kind: 'person'; by: PersonId }`), and a test set of misread letters that shows that the readers differ on them. The pilot still answers question Q2.2 for its insurer.
+
+## Founder decisions on the R1 settings (2026-11-04)
+
+| Setting or rule | Decision | Why |
+|---|---|---|
+| `deadline.readingCheck` | `'two-readers'` (option B above); `'confirmer-sees-spans'` for letters without a form | The AI is a second, independent reader of the code and the date |
+| `intake.exactKeyFiles` | `'person-confirms'` in R1 | Switch to `'file-without-person'` only after the shadow period shows no wrong filing |
+| `deadline.observeModeConfirm` | `'confirm'` in R1 | The confirm costs one step but collects the evidence for F3 before the cut-over |
+| Ticket grouping (#136) | One Ticket per application and day; a later event restarts the run from `running` or adds a second pass from `proposals_ready` | Keeps one analysis per application and day without losing a late letter |
+| AI preconditions | A run needs the client's recorded AI wishes (`'not-recorded'` means no run) and, for a cloud model, a § 39c PAO contract in `firm.modelProviders` | epi guidelines and § 39c PAO (sheet 3) |
 
 ## Processes and tickets
 

@@ -128,7 +128,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `deadline.confirmerRoles` | list of roles | `['formalities', 'attorney', 'partner']` | Some firms let only the PAFA team confirm; some only attorneys (question Q2.1) |
 | `deadline.checkPolicy` | `'engine-or-second-person' \| 'always-second-person'` | `'engine-or-second-person'` (F3) | Firms with a written four-eyes rule for every entry |
-| `deadline.readingCheck` | `'confirmer-sees-spans' \| 'second-person-when-model-read'` | `'confirmer-sees-spans'`; the rule "code decider is not the confirmer" applies in both | The risk of a misread code. A third value waits for the founder decision on F1 ([README](README.md#founder-decision-the-independent-check-of-the-reading-f1-on-f3)) |
+| `deadline.readingCheck` | `'two-readers' \| 'confirmer-sees-spans' \| 'second-person-when-model-read'` | `'two-readers'`, with `'confirmer-sees-spans'` for letters without a form; the rule "code decider is not the confirmer" applies in all | The risk of a misread code. Founder decision on F1, 2026-11-04 ([README](README.md#founder-decision-the-independent-check-of-the-reading-f1-on-f3)) |
 | `deadline.observeModeConfirm` | `'confirm' \| 'difference-only'` | `'confirm'` | In R1 PATORG stays the docket, so a FlowLeap confirm is a step with no legal effect. `'confirm'` gives the pilot the evidence for F3; `'difference-only'` saves the step (question Q2.5) |
 | `deadline.confirmWithin` | duration | 1 working day | Firm practice; same-day intake (research section 2.3) [INFERRED] |
 | `deadline.escalation` | ordered list of roles or persons | `['formalities', 'responsible-attorney', 'partner']` | Firm size. After the last entry the item is a daily alarm |
