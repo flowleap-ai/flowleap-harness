@@ -1448,14 +1448,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'flowleapRecord',
-    summary: 'Service Definition of the seam: the Firm Record as a runtime reads it.',
-    description: 'Service Definition of the seam: the Firm Record as a runtime reads it.',
+    summary: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
+    description: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
     methods: [
       {
         signature: 'matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>',
         description: 'Read the current view of one matter.',
         parameters: [{ name: 'fileNumber', description: 'the matter\'s file number.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
         returns: 'the view at the record position it was read at, or the refusal.',
+      },
+      {
+        signature: 'runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<RecordCommandResult<RunStartReceipt>>',
+        description: 'Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.',
+        parameters: [{ name: 'ticket', description: 'the Ticket of the wake.' }, { name: 'command', description: 'the Session of the run chat.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+      {
+        signature: 'proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>',
+        description: 'Propose a client report letter for the attorney\'s decision. A repeat with the same Ticket, Session, and tool call is the same command.',
+        parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the letter, its statements with evidence, and its sources.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+      {
+        signature: 'finishRun(ticket: TicketId, command: RunFinish, signal: AbortSignal): Promise<RecordCommandResult<RunFinishReceipt>>',
+        description: 'End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same command.',
+        parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the Session and the deadline summary.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
       },
     ],
   },
@@ -6347,8 +6365,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ClaimTable {\n    readonly claim: number;\n    readonly heading: string;\n    readonly interpretation: string;\n    readonly rows: readonly ComparisonRow[];\n    readonly arrangement: string;\n}',
   },
   {
+    name: 'ClientAiLetters',
+    declaration: 'export type ClientAiLetters = \'allowed\' | \'not-allowed\';',
+  },
+  {
+    name: 'ClientAiUse',
+    declaration: 'export type ClientAiUse = \'not-recorded\' | \'allowed\' | \'local-model-only\' | \'not-allowed\';',
+  },
+  {
     name: 'ClientArtifactBaseline',
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly ctimeMs: number;\n    readonly size: number;\n}',
+  },
+  {
+    name: 'ClientRules',
+    declaration: 'export interface ClientRules {\n    readonly seq: RecordSeq;\n    readonly aiUse: ClientAiUse;\n    readonly aiLetters: ClientAiLetters;\n    readonly reportEvents: \'all-office-actions\' | string[];\n    readonly language: \'de\' | \'en\';\n    readonly text: string;\n}',
   },
   {
     name: 'CollectedOutput',
@@ -6735,6 +6765,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeadlineState = \'proposed\' | \'active\' | \'rejected\';',
   },
   {
+    name: 'DeadlineSummary',
+    declaration: 'export type DeadlineSummary = {\n    readonly id: DeadlineId;\n    readonly state: DeadlineState;\n    readonly seq: RecordSeq;\n} | {\n    readonly id: \'none-yet\';\n    readonly state: \'none-yet\';\n    readonly seq: RecordSeq;\n};',
+  },
+  {
     name: 'DeadlineView',
     declaration: 'export interface DeadlineView {\n    readonly id: DeadlineId;\n    readonly ruleId: RuleId;\n    readonly ruleVersion: number;\n    readonly due: LocalDate;\n    readonly state: DeadlineState;\n    readonly trace: TraceStep[];\n}',
   },
@@ -6797,6 +6831,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DirectoryRegistrationHandle',
     declaration: 'export interface DirectoryRegistrationHandle {\n    (): void;\n    replace(entries: readonly LlmConfigurableProvider[]): void;\n}',
+  },
+  {
+    name: 'DocumentSha256',
+    declaration: 'export type DocumentSha256 = Branded<\'DocumentSha256\'>;',
+  },
+  {
+    name: 'DocumentSpan',
+    declaration: 'export interface DocumentSpan {\n    readonly page: number;\n    readonly start: number;\n    readonly end: number;\n    readonly quote: string;\n}',
+  },
+  {
+    name: 'DocumentView',
+    declaration: 'export interface DocumentView {\n    readonly sha256: DocumentSha256;\n    readonly fileName: string;\n    readonly mediaType: string;\n    readonly source: string;\n}',
   },
   {
     name: 'Domain',
@@ -7728,7 +7774,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MatterView',
-    declaration: 'export interface MatterView {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n}',
+    declaration: 'export type MatterView = MatterViewBase & (MatterViewR1 | {\n    readonly [K in keyof MatterViewR1]?: never;\n});',
+  },
+  {
+    name: 'MatterViewBase',
+    declaration: 'export interface MatterViewBase {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n}',
+  },
+  {
+    name: 'MatterViewR1',
+    declaration: 'export interface MatterViewR1 {\n    readonly clientRules: ClientRules | null;\n    readonly officeEvents: OfficeEventView[];\n    readonly tickets: TicketSummary[];\n    readonly documents: DocumentView[];\n}',
   },
   {
     name: 'MatterViewRefusal',
@@ -7995,6 +8049,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly summary: string;\n    readonly action: readonly ActionRow[];\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n    readonly dependentClaims: string;\n}',
   },
   {
+    name: 'OfficeEventId',
+    declaration: 'export type OfficeEventId = Branded<\'OfficeEventId\'>;',
+  },
+  {
+    name: 'OfficeEventView',
+    declaration: 'export interface OfficeEventView {\n    readonly id: OfficeEventId;\n    readonly seq: RecordSeq;\n    readonly code: string;\n    readonly documentDate: LocalDate;\n    readonly applicationNumber: string | null;\n    readonly document: DocumentSha256 | null;\n    readonly state: string;\n}',
+  },
+  {
     name: 'OfficeExtension',
     declaration: 'export type OfficeExtension = \'doc\' | \'docx\' | \'xls\' | \'xlsx\' | \'ppt\' | \'pptx\';',
   },
@@ -8061,6 +8123,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OTelEventScalar',
     declaration: 'export type OTelEventScalar = string | number | boolean;',
+  },
+  {
+    name: 'OutboxId',
+    declaration: 'export type OutboxId = Branded<\'OutboxId\'>;',
   },
   {
     name: 'OutlineHeading',
@@ -8487,6 +8553,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RecommendationDetails = {\n    readonly status: \'available\';\n    readonly title: LocalizedText;\n    readonly description: LocalizedText;\n    readonly enabled: boolean;\n} | {\n    readonly status: \'refused\';\n    readonly reason: \'unknown\' | \'unavailable\' | \'not-live-root\' | \'closing\';\n};',
   },
   {
+    name: 'RecordCommandError',
+    declaration: 'export interface RecordCommandError {\n    readonly error: RecordCommandRefusal;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'RecordCommandRefusal',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+  },
+  {
+    name: 'RecordCommandResult',
+    declaration: 'export type RecordCommandResult<T> = T | RecordCommandError;',
+  },
+  {
     name: 'RecordSeq',
     declaration: 'export type RecordSeq = BrandedNumber<\'RecordSeq\'>;',
   },
@@ -8631,6 +8709,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}',
   },
   {
+    name: 'ReportProposal',
+    declaration: 'export interface ReportProposal {\n    readonly fileName: string;\n    readonly content: Uint8Array;\n    readonly templateName: string;\n    readonly templateVersion: string;\n    readonly rulesSeq: RecordSeq;\n    readonly statements: readonly [\n        ReportStatement,\n        ...ReportStatement[]\n    ];\n    readonly session: SessionId;\n    readonly toolCall: ToolCallId;\n}',
+  },
+  {
+    name: 'ReportStatement',
+    declaration: 'export interface ReportStatement {\n    readonly text: string;\n    readonly evidence: readonly [\n        StatementEvidence,\n        ...StatementEvidence[]\n    ];\n}',
+  },
+  {
     name: 'RequestContext',
     declaration: 'export interface RequestContext {\n    provider: string;\n    model: string;\n    contextWindow?: number;\n    systemPromptUpdate?: SystemPromptUpdate;\n}',
   },
@@ -8759,8 +8845,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RuleId = Branded<\'RuleId\'>;',
   },
   {
+    name: 'RunFinish',
+    declaration: 'export interface RunFinish {\n    readonly session: SessionId;\n    readonly deadline: DeadlineSummary;\n}',
+  },
+  {
+    name: 'RunFinishReceipt',
+    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    };\n}',
+  },
+  {
     name: 'RunnerFailureRule',
     declaration: 'export interface RunnerFailureRule {\n    allowedExitCodes?: readonly number[];\n    fatalSignatures: readonly string[];\n    informationalLines?: readonly string[];\n}',
+  },
+  {
+    name: 'RunStart',
+    declaration: 'export interface RunStart {\n    readonly session: SessionId;\n}',
+  },
+  {
+    name: 'RunStartReceipt',
+    declaration: 'export interface RunStartReceipt {\n    readonly recordSeq: RecordSeq;\n}',
   },
   {
     name: 'SandboxEnforcement',
@@ -9947,6 +10049,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
   },
   {
+    name: 'StatementEvidence',
+    declaration: 'export interface StatementEvidence {\n    readonly document: DocumentSha256;\n    readonly span?: DocumentSpan;\n}',
+  },
+  {
     name: 'StopShareRequest',
     declaration: 'export interface StopShareRequest {\n    readonly shareId: string;\n}',
   },
@@ -10297,6 +10403,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TextProps',
     declaration: 'export interface TextProps {\n    readonly color?: string | undefined;\n    readonly bold?: boolean | undefined;\n    readonly dimColor?: boolean | undefined;\n    readonly italic?: boolean | undefined;\n    readonly underline?: boolean | undefined;\n    readonly children?: UiNode | undefined;\n}',
+  },
+  {
+    name: 'TicketId',
+    declaration: 'export type TicketId = Branded<\'TicketId\'>;',
+  },
+  {
+    name: 'TicketState',
+    declaration: 'export type TicketState = \'opened\' | \'no_person\' | \'routed\' | \'observed\' | \'by_hand\' | \'waking\' | \'running\' | \'run_failed\' | \'proposals_ready\' | \'decided\' | \'cancelled\';',
+  },
+  {
+    name: 'TicketSummary',
+    declaration: 'export interface TicketSummary {\n    readonly id: TicketId;\n    readonly pass: number;\n    readonly state: TicketState;\n    readonly routedTo: string | null;\n}',
   },
   {
     name: 'TimedUserQuestionResult',
@@ -10792,7 +10910,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WebhookRule',
-    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n}',
+    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n    started?(session: SessionId, delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): void | Promise<void>;\n    failed?(error: unknown, delivery: Readonly<VerifiedWebhookDelivery<K>>): void | Promise<void>;\n}',
   },
   {
     name: 'WebhookRuleId',

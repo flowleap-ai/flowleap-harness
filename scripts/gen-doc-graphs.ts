@@ -459,8 +459,8 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'flowleap-record',
     title: 'FlowLeap Firm Record reader',
     mode: 'service',
-    consumers: ['flowleap-record'],
-    note: 'Reads one matter\'s view from the Firm Record of flowleap-os with the runtime\'s record token, with the record position the view was read at, or the refusal; the http provider is the package\'s ./http entry, and record_read is its tool; mounted by the flowleap-web profile only.',
+    consumers: ['flowleap-record', 'flowleap-ticket'],
+    note: 'Reads one matter\'s view from the Firm Record of flowleap-os with the runtime\'s record token, with the record position the view was read at, and sends the run commands of a Ticket (run-started, reports, finish), or reports the refusal; the http provider is the package\'s ./http entry, record_read is its tool, the ./run entry holds the run tools, and the Ticket ingress reports run-started; mounted by the flowleap-web profile only.',
   },
   {
     key: 'flowleapBudget',
@@ -1035,7 +1035,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'webhook',
     title: 'Webhook rule runtime',
     mode: 'core',
-    consumers: ['webhook-github'],
+    consumers: ['webhook-github', 'flowleap-ticket'],
     note: 'Provider adapters dispatch authenticated deliveries; trusted plugins register independent process-local rules, and the runtime turns non-null results into ordinary Workspace-backed Sessions without delivery or completion state.',
   },
   {

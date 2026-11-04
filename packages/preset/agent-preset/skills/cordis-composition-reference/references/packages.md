@@ -222,6 +222,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp` | yes | Experimental computer use through an installed Cua Driver MCP executable |
 | `@deepseek-ai/dsh-experimental-computer-use-cua-driver-native` | no | Experimental computer-use provider embedding the Cua Driver native npm SDK |
 | `@deepseek-ai/dsh-experimental-cua-macos` | yes | macOS native provider for shared Computer Use application and window objects |
+| `@deepseek-ai/dsh-experimental-flowleap-ticket` | yes | Signed Ticket ingress of a FlowLeap runtime: a Ticket delivery of the Firm Record opens one run Session that starts with the Mandate |
 | `@deepseek-ai/dsh-experimental-forge` | yes | Provider-neutral change request registry with shared status polling |
 | `@deepseek-ai/dsh-experimental-forge-github` | yes | GitHub provider for the experimental forge registry, read through the GitHub CLI on the host |
 | `@deepseek-ai/dsh-experimental-forge-session` | yes | Binds change requests to the Session that created, pushed, or tracked them |

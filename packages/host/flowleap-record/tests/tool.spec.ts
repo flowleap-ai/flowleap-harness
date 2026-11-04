@@ -15,13 +15,16 @@ afterEach(async () => {
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
 })
 
-/** A record double that answers every read with `result` and keeps the file numbers it was asked for. */
+/** A record double that answers every read with `result` and keeps the file numbers it was asked for; it takes no command. */
 class RecordDouble extends Service implements FlowleapRecord {
   readonly asked: MatterFileNumber[] = []
   readonly matterView = vi.fn(async (fileNumber: MatterFileNumber, _signal: AbortSignal): Promise<MatterViewResult> => {
     this.asked.push(fileNumber)
     return this.result
   })
+  readonly runStarted = async () => ({ error: 'not_configured' as const })
+  readonly proposeReport = async () => ({ error: 'not_configured' as const })
+  readonly finishRun = async () => ({ error: 'not_configured' as const })
 
   constructor(ctx: Context, private readonly result: MatterViewResult) {
     super(ctx, 'flowleapRecord')
@@ -62,6 +65,19 @@ describe('record_read', () => {
     expect(rendered).toContain('"recordSeq":7')
     expect(rendered).toContain(`"viewHash":"${VIEW.viewHash}"`)
     expect(record.asked).toEqual(['FL-2026-0001'])
+  })
+
+  it('answers the view of an R0 Firm Record without the R1 fields, not with empty lists', async () => {
+    const { recordSeq, viewHash, matter, deadlines } = VIEW
+    const r0: MatterViewResult = { recordSeq, viewHash, matter, deadlines }
+    const { ctx } = await host(r0)
+    const result = await call(ctx, 'FL-2026-0001')
+    expect(result.isError).toBe(false)
+    const rendered = JSON.parse(text(result.content)) as Record<string, unknown>
+    expect(rendered).toEqual(r0)
+    expect(Object.keys(rendered).sort()).toEqual(['deadlines', 'matter', 'recordSeq', 'viewHash'])
+    expect(ctx.tools.schemas().find(candidate => candidate.name === 'record_read')?.description)
+      .toContain('A Firm Record before R1 holds none of clientRules, officeEvents, tickets, and documents')
   })
 
   it('passes the call signal to the seam', async () => {

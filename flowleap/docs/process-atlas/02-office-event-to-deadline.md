@@ -45,8 +45,8 @@ It has **14 states and 23 transitions**, plus the start.
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
 | start | `awaiting_code` | A filed document is an office letter | intake | Document kind with its source and span |
-| `awaiting_code` | `recorded` | The form number maps to one event code, and the date the document bears is read | intake | Form-number span, date span, code table version (`office-event/observed`) |
-| `awaiting_code` | `code_proposed` | No form number; the model reads the event code and the date | agent | Quoted spans, SessionRef |
+| `awaiting_code` | `recorded` | Both readers agree: the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image | intake | Form-number span, date span, code table version, the model reading (`office-event/observed`) |
+| `awaiting_code` | `code_proposed` | No form number, the two readers differ, or only one reader has a result | intake | Both readings: quoted spans and the model reading |
 | `code_proposed` | `recorded` | A person accepts or changes the code and the date | person | The proposal and the Decision (`office-event/recorded`) |
 | `code_proposed` | `no_event` | An attorney decides that the letter records no office event, with a reason | person (attorney) | Reason, the document |
 | `no_event` | `awaiting_code` | A person reopens it with a reason | person | Reason |
@@ -74,8 +74,8 @@ End states: `no_event`, `no_period`, `rejected`, `stale`, `closed_without_act`, 
 ```mermaid
 stateDiagram-v2
     [*] --> awaiting_code: a filed document is an office letter
-    awaiting_code --> recorded: the form number maps to one event code, and the date the document bears is read
-    awaiting_code --> code_proposed: no form number, the model reads the event code and the date
+    awaiting_code --> recorded: both readers agree the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image
+    awaiting_code --> code_proposed: no form number, the two readers differ, or only one reader has a result
     code_proposed --> recorded: a person accepts or changes the code and the date
     code_proposed --> no_event: an attorney decides that the letter records no office event, with a reason
     no_event --> awaiting_code: a person reopens it with a reason
@@ -157,12 +157,12 @@ The old count is INFERRED (fact 2.11) for PATORG as its public pages describe it
 
 **What exists in R0** (`lib/record/` of flowleap-os, `main`): `office-event/recorded` (person actor) with the optional `receivedAt`; `deadline/proposed` (engine actor, acting for the person who recorded the event); `deadline/confirmed`; `deadline/rejected` (one person with a reason); the deadline states `proposed`, `active`, `rejected`; the refusals `confirmer-is-proposer`, `engine-missing`, `engine-check-failed`, `not-proposed`; one rule, `ep.r71-3.grant-communication`.
 
-**What is new:** the code states (`awaiting_code`, `code_proposed`, `recorded`, `no_event`, `no_period`), `engine_refused`, `manual_proposed` with the second-person check, `stale`, `disputed`, `closed_without_act`, the escalation event, the seen seq, and the spans as evidence. The intake writes a new event type, `office-event/observed`, with the actor kind `intake`; the design calls the intake's office event `observed` (design section 6.3), and `EVENT_TYPES` binds one actor kind to each type, so a new type is the fit, not a version 2 of `office-event/recorded`. When a person decides a model-read code, the event is R0's `office-event/recorded`, now with the proposal as evidence. The engine actor then acts for the intake or for that person, so `EngineActor.onBehalfOf` widens to `PersonActor | IntakeActor`; this changes a persisted type and needs the acknowledgement of [AGENTS.md](../../../AGENTS.md). The rule "the confirmer is never the proposer" gets a new reading: an intake or engine proposal may be confirmed by any person with the role except the person who decided its model-read code, and a manual proposal never by the person who entered it.
+**What is new:** the code states (`awaiting_code`, `code_proposed`, `recorded`, `no_event`, `no_period`), `engine_refused`, `manual_proposed` with the second-person check, `stale`, `disputed`, `closed_without_act`, the escalation event, the seen seq, and the spans as evidence. With `deadline.readingCheck: 'two-readers'` the intake runs both readers: reader 1 reads the form number, the date and the application number from the text layer, and reader 2 sends only the page image to the model. The Firm Record compares the two results; it writes `office-event/observed` when they agree and `office-event/code-proposed` with both readings when they differ or only one has a result. The model reader runs in the intake, not in a run of an agent, so its evidence is the logged reading (`ModelReading`), not a SessionRef. The intake writes a new event type, `office-event/observed`, with the actor kind `intake`; the design calls the intake's office event `observed` (design section 6.3), and `EVENT_TYPES` binds one actor kind to each type, so a new type is the fit, not a version 2 of `office-event/recorded`. When a person decides a model-read code, the event is R0's `office-event/recorded`, now with the proposal as evidence. The engine actor then acts for the intake or for that person, so `EngineActor.onBehalfOf` widens to `PersonActor | IntakeActor`; this changes a persisted type and needs the acknowledgement of [AGENTS.md](../../../AGENTS.md). The rule "the confirmer is never the proposer" gets a new reading: an intake or engine proposal may be confirmed by any person with the role except the person who decided its model-read code, and a manual proposal never by the person who entered it.
 
 ```ts
 type EventCode = Branded<'EventCode'>   // 'EPO:R71(3)'
 type CodeSource =
-  | { kind: 'form-number'; span: Span; table: CodeTableVersion }               // office-event/observed, actor intake
+  | { kind: 'form-number'; span: Span; table: CodeTableVersion; model: ModelReading } // office-event/observed, actor intake; both readers agree
   | { kind: 'decided'; proposal: ProposalId; decision: RecordSeq; by: PersonId } // office-event/recorded, actor person
 type OfficeEvent =
   | { s: 'awaiting_code'; document: DocumentSha256; matter: MatterId }

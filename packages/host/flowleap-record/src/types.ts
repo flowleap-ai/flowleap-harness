@@ -1,14 +1,20 @@
 /**
  * Vocabulary of the `flowleapRecord` seam: one matter's view as the Firm Record of flowleap-os answers it, with the
- * record position the view was read at, and why a view is not available. Types only.
+ * record position the view was read at, the three run commands of a Ticket run (run started, report proposed, run
+ * finished), and why a view or a command is refused. Types only.
  * @module @deepseek-ai/dsh-flowleap-record/types
  */
 
 import type { Branded, BrandedNumber } from '@deepseek-ai/dsh-brand'
+import type { ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** One matter's view from the Firm Record; a runtime reads, it never writes a decision. */
+    /**
+     * The Firm Record as a runtime uses it: one matter's view, and the run commands of a Ticket routed to the
+     * runtime's person. A runtime proposes and reports; it never writes a decision.
+     */
     flowleapRecord: FlowleapRecord
   }
 }
@@ -67,13 +73,105 @@ export interface DeadlineView {
   readonly trace: TraceStep[]
 }
 
-/** The view of one matter at one record position. */
-export interface MatterView {
+/** Id of a Ticket: one run case per application and day (atlas sheet 3). */
+export type TicketId = Branded<'TicketId'>
+
+/** Id of an office event in the Firm Record. */
+export type OfficeEventId = Branded<'OfficeEventId'>
+
+/** SHA-256 of a document's bytes as lower-case hex; the Firm Record keys every document by it. */
+export type DocumentSha256 = Branded<'DocumentSha256'>
+
+/** Id of a proposal in the Firm Record. */
+export type ProposalId = Branded<'ProposalId'>
+
+/** Id of an outbox item (a reply that the mailbox sends at most once). */
+export type OutboxId = Branded<'OutboxId'>
+
+/** Whether the client allows AI on its matters (atlas sheet 4, `client.aiUse`). */
+export type ClientAiUse = 'not-recorded' | 'allowed' | 'local-model-only' | 'not-allowed'
+
+/** Whether the client allows AI drafts of letters to it (atlas sheet 4, `client.aiLetters`). */
+export type ClientAiLetters = 'allowed' | 'not-allowed'
+
+/** The latest client rules of the matter's client, as a person recorded them. */
+export interface ClientRules {
+  /** The record seq of the `client/rules-recorded` event; a report proposal names it as `rulesSeq`. */
+  readonly seq: RecordSeq
+  readonly aiUse: ClientAiUse
+  readonly aiLetters: ClientAiLetters
+  /** The office event codes that need a report to the client, or all office actions. */
+  readonly reportEvents: 'all-office-actions' | string[]
+  /** The language of letters to the client. */
+  readonly language: 'de' | 'en'
+  /** The client's wishes in plain language. */
+  readonly text: string
+}
+
+/** One office event of the matter. */
+export interface OfficeEventView {
+  readonly id: OfficeEventId
+  /** The record seq of the event that recorded it. */
+  readonly seq: RecordSeq
+  /** The versioned event code, such as `EPO:R71(3)`. */
+  readonly code: string
+  /** The date the document bears. */
+  readonly documentDate: LocalDate
+  /** The application number; `null` for an event that a person recorded without a document. */
+  readonly applicationNumber: string | null
+  /** The document of the event; `null` for an event that a person recorded without a document. */
+  readonly document: DocumentSha256 | null
+  /** The state of the office-event machine of atlas sheet 2, such as `observed`. */
+  readonly state: string
+}
+
+/** The states of the Ticket machine of atlas sheet 3. */
+export type TicketState =
+  | 'opened' | 'no_person' | 'routed' | 'observed' | 'by_hand' | 'waking' | 'running' | 'run_failed'
+  | 'proposals_ready' | 'decided' | 'cancelled'
+
+/** One Ticket of the matter. */
+export interface TicketSummary {
+  readonly id: TicketId
+  /** The pass number; a later event after the end of a Ticket opens the next pass. */
+  readonly pass: number
+  readonly state: TicketState
+  /** The display name of the routed person; `null` before routing. */
+  readonly routedTo: string | null
+}
+
+/** One document in the e-file of the matter. */
+export interface DocumentView {
+  readonly sha256: DocumentSha256
+  readonly fileName: string
+  readonly mediaType: string
+  /** Where the document came from, such as `mail` or `agent`. */
+  readonly source: string
+}
+
+/** The fields of the view that every Firm Record answers, R0 included. */
+export interface MatterViewBase {
   readonly recordSeq: RecordSeq
   readonly viewHash: ViewHash
   readonly matter: MatterSummary
   readonly deadlines: DeadlineView[]
 }
+
+/** The fields that a Firm Record of R1 or later adds to the view; an R0 Firm Record answers none of them. */
+export interface MatterViewR1 {
+  /** The latest client rules, or `null` when no person recorded them (a run then does not start). */
+  readonly clientRules: ClientRules | null
+  readonly officeEvents: OfficeEventView[]
+  readonly tickets: TicketSummary[]
+  readonly documents: DocumentView[]
+}
+
+/**
+ * The view of one matter at one record position. A Firm Record of R1 or later answers all four R1 fields; an R0 Firm
+ * Record answers none, and the view then has none of them, never an empty list in their place, because the R0 record
+ * does not hold the client rules, office events, Tickets, or documents at all.
+ */
+export type MatterView = MatterViewBase & (MatterViewR1 | { readonly [K in keyof MatterViewR1]?: never })
 
 /** Why a view is not available. */
 export type MatterViewRefusal =
@@ -95,7 +193,142 @@ export type MatterViewRefusal =
 /** The view, or why it is not available; never a made-up view. */
 export type MatterViewResult = MatterView | { readonly error: MatterViewRefusal }
 
-/** Service Definition of the seam: the Firm Record as a runtime reads it. */
+/** A place in the page text of a document, as the first reader of the document gives it. */
+export interface DocumentSpan {
+  /** Page number, from 1. */
+  readonly page: number
+  /** Start offset into the page text. */
+  readonly start: number
+  /** End offset into the page text, not before `start`. */
+  readonly end: number
+  /** The quoted text, at most 200 characters. */
+  readonly quote: string
+}
+
+/** The source of one statement of a report: a document of the record, optionally with the quoted place. */
+export interface StatementEvidence {
+  readonly document: DocumentSha256
+  readonly span?: DocumentSpan
+}
+
+/** One statement of a report letter with its sources; a statement without a source is refused. */
+export interface ReportStatement {
+  readonly text: string
+  readonly evidence: readonly [StatementEvidence, ...StatementEvidence[]]
+}
+
+/** `POST tickets/<id>/run-started`: the run chat of the Ticket opened. */
+export interface RunStart {
+  readonly session: SessionId
+}
+
+/** `POST tickets/<id>/reports`: a client report letter, proposed for the attorney's decision. */
+export interface ReportProposal {
+  /** The file name of the letter, such as `report-r71-3.docx`. */
+  readonly fileName: string
+  /** The `.docx` bytes; the Firm Record takes at most 5 MiB. */
+  readonly content: Uint8Array
+  /** The file name of the firm template the letter is on, which the Records app shows. */
+  readonly templateName: string
+  /** The version of the firm template the letter is on, `sha256:<hex>` of the template file. */
+  readonly templateVersion: string
+  /** The record seq of the client rules the letter follows. */
+  readonly rulesSeq: RecordSeq
+  readonly statements: readonly [ReportStatement, ...ReportStatement[]]
+  readonly session: SessionId
+  /** The id of the tool call that proposed the letter; a call inside a PTC program has its own id, not the root call id. */
+  readonly toolCall: ToolCallId
+}
+
+/** The state of the deadline that a run read, or `none-yet` when the event has no deadline in the record. */
+export type SummaryDeadlineState = DeadlineState | 'none-yet'
+
+/** The deadline summary that ends a run: what the run read about the deadline of the event. */
+export type DeadlineSummary =
+  | { readonly id: DeadlineId; readonly state: DeadlineState; readonly seq: RecordSeq }
+  | { readonly id: 'none-yet'; readonly state: 'none-yet'; readonly seq: RecordSeq }
+
+/** `POST tickets/<id>/finish`: the run ends with its proposals and the deadline summary. */
+export interface RunFinish {
+  readonly session: SessionId
+  readonly deadline: DeadlineSummary
+}
+
+/** The Firm Record appended `ticket/run-started`. */
+export interface RunStartReceipt {
+  /** The seq of the last event the command appended. */
+  readonly recordSeq: RecordSeq
+}
+
+/** The Firm Record stored the letter and appended `report/proposed`. */
+export interface ReportReceipt {
+  readonly proposalId: ProposalId
+  /** The SHA-256 of the stored letter. */
+  readonly document: DocumentSha256
+  readonly recordSeq: RecordSeq
+}
+
+/**
+ * The Firm Record appended `ticket/proposals-ready` and composed one reply with the proposed letters attached as drafts
+ * to the forwarder of the office letter and the routed person; it sends to firm addresses only, never to the client.
+ */
+export interface RunFinishReceipt {
+  readonly recordSeq: RecordSeq
+  /** The reply's outbox item: `queued` for the mailbox, or `refused` because a recipient is not a firm address. */
+  readonly outbox: { readonly id: OutboxId; readonly state: 'queued' | 'refused' }
+}
+
+/** Why the Firm Record did not take a run command. */
+export type RecordCommandRefusal =
+  /** No Firm Record address is configured. */
+  | 'not_configured'
+  /** The runtime's record token is not set. */
+  | 'no_key'
+  /** The Firm Record refused the token (HTTP 401, or 403 without a known code). */
+  | 'refused'
+  /** The command is a decision; only a person decides (403 `agent-cannot-decide`). */
+  | 'agent_cannot_decide'
+  /** The Ticket is not routed to the token's person (403 `not-routed-person`). */
+  | 'not_routed_person'
+  /** No Ticket with this id (404). */
+  | 'not_found'
+  /** The Firm Record found the body invalid (400 `invalid-body`). */
+  | 'invalid_body'
+  /** `run-started` for a Ticket that is not `waking` (409 `ticket-not-waking`). */
+  | 'ticket_not_waking'
+  /** A report or finish for a Ticket that is not `running` (409 `ticket-not-running`). */
+  | 'ticket_not_running'
+  /** The client rules do not allow an AI draft of a client letter (409 `report.no-ai-draft-against-client-rule`). */
+  | 'client_rule_forbids_ai_draft'
+  /** A statement has no evidence (422 `report.statement-has-evidence`). */
+  | 'statement_without_evidence'
+  /** A finish without a proposal of this Ticket and pass (409 `no-proposals`). */
+  | 'no_proposals'
+  /** The letter is larger than the Firm Record takes (413 `document-too-large`). */
+  | 'document_too_large'
+  /**
+   * The Firm Record already took a command with the same Idempotency-Key and another body (409
+   * `idempotency-key-reused`): a second finish of the run with another deadline summary, or a report of the same tool call
+   * with another letter.
+   */
+  | 'idempotency_key_reused'
+  /** The connection failed, the service redirected, or the answer did not arrive in time. */
+  | 'unreachable'
+  /** The Firm Record answered with another HTTP error. */
+  | 'service_error'
+  /** The Firm Record answered with a body that is not the command's receipt. */
+  | 'invalid_answer'
+
+/** A refused command, with the Firm Record's one-sentence detail when it gave one. */
+export interface RecordCommandError {
+  readonly error: RecordCommandRefusal
+  readonly detail?: string
+}
+
+/** The receipt, or why the command was refused; never a made-up receipt. */
+export type RecordCommandResult<T> = T | RecordCommandError
+
+/** Service Definition of the seam: the Firm Record as a runtime uses it. */
 export interface FlowleapRecord {
   /**
    * Read the current view of one matter.
@@ -104,4 +337,30 @@ export interface FlowleapRecord {
    * @returns the view at the record position it was read at, or the refusal.
    */
   matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>
+  /**
+   * Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.
+   * @param ticket - the Ticket of the wake.
+   * @param command - the Session of the run chat.
+   * @param signal - ends the command; the provider rejects when it fires.
+   * @returns the receipt, or the refusal.
+   */
+  runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<RecordCommandResult<RunStartReceipt>>
+  /**
+   * Propose a client report letter for the attorney's decision. A repeat with the same Ticket, Session, and tool call
+   * is the same command.
+   * @param ticket - the running Ticket.
+   * @param command - the letter, its statements with evidence, and its sources.
+   * @param signal - ends the command; the provider rejects when it fires.
+   * @returns the receipt, or the refusal.
+   */
+  proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
+  /**
+   * End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same
+   * command.
+   * @param ticket - the running Ticket.
+   * @param command - the Session and the deadline summary.
+   * @param signal - ends the command; the provider rejects when it fires.
+   * @returns the receipt, or the refusal.
+   */
+  finishRun(ticket: TicketId, command: RunFinish, signal: AbortSignal): Promise<RecordCommandResult<RunFinishReceipt>>
 }

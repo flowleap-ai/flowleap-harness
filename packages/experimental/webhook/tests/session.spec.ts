@@ -163,8 +163,8 @@ const delivery: VerifiedWebhookDelivery = {
   receivedAt: 1,
 }
 
-async function create(test: SessionHarness, request = test.request): Promise<void> {
-  await createWebhookSession(
+async function create(test: SessionHarness, request = test.request): Promise<string> {
+  return createWebhookSession(
     test.ctx,
     delivery,
     WebhookRuleId('review'),
@@ -176,7 +176,7 @@ async function create(test: SessionHarness, request = test.request): Promise<voi
 describe('webhook Session creation', () => {
   it('preflights, mounts, attaches, configures, titles, and prompts in order', async () => {
     const test = harness()
-    await create(test)
+    expect(await create(test)).toMatch(/^webhook-[0-9a-f-]{36}$/)
     expect(test.calls).toEqual([
       'default-model',
       'permission-resolve:read-only',

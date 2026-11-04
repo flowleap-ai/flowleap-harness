@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="rule-interface"></a>
 ## Rule interface
 
-`WebhookRule<K>` has a branded unique `id`, a provider `kind`, and `run(delivery, signal)`. A callback may execute arbitrary trusted code and returns either `null` or one `WebhookSessionRequest`. Rules of the same kind start independently, and one throw or rejection is logged without starving siblings.
+`WebhookRule<K>` has a branded unique `id`, a provider `kind`, `run(delivery, signal)`, an optional `started(session, delivery, signal)`, and an optional `failed(error, delivery)`. A callback may execute arbitrary trusted code and returns either `null` or one `WebhookSessionRequest`. Rules of the same kind start independently, and one throw or rejection is logged without starving siblings.
 
 `VerifiedWebhookDelivery` carries provider kind, configured source id, provider delivery id, normalized lossless JSON, and receipt time. The runtime snapshots and freezes the complete value before sharing it. `deliveryId` records the provider's identifier only; repeated delivery runs the rules again.
 
@@ -36,12 +36,14 @@ Registration is an effect. Its awaitable disposer first hides the rule, then abo
 
 The runtime validates presets before mutation, resolves or creates the canonical Workspace, creates an Agent with that Workspace path as `SessionHeader.cwd`, mounts the agent preset before publication, and attaches the Session before applying permissions, title, and prompt. Failed attachment disposes the unpublished action. A later pre-prompt failure detaches the Workspace and disposes the Agent on a best-effort rollback.
 
-Successful `Agent.followup()` is the webhook operation's commit point. The message uses `source.kind: "webhook"` and records the provider, source, delivery, and rule identifiers. The runtime does not wait for idle, flush specially, inspect the reply, or publish completion state; ordinary Agent and Session behavior owns everything afterward.
+Successful `Agent.followup()` is the webhook operation's commit point. After it, the runtime calls the rule's optional `started(session, delivery, signal)` with the new Session id, so a rule can report the Session to the event's sender; a throw there is logged like a `run()` failure, and the Session stays. When `run()` throws or the Session of its request is not created, the runtime logs the failure and then calls the rule's optional `failed(error, delivery)` once, also after disposal, so a rule can release what it reserved for the delivery; it never calls `failed()` after a Session exists or when `run()` returned `null`. The message uses `source.kind: "webhook"` and records the provider, source, delivery, and rule identifiers. The runtime does not wait for idle, flush specially, inspect the reply, or publish completion state; ordinary Agent and Session behavior owns everything afterward.
 
 <a id="composition"></a>
 ## Composition
 
 Load the runtime on the Web Host plane after Agents, model defaults, agent presets, permission presets, titles, and the Workspace registry. User-authored rule plugins inject `webhookRuntime` and yield the disposer returned by `register()` through their own effect.
+
+Signed adapters share the HTTP intake of the `@deepseek-ai/dsh-webhook/http` entry: `readJsonPostBody` checks the method and the JSON media type and reads the raw body for signature verification within a byte ceiling (`readBoundedUtf8Body`), `requiredHeader` and `isJsonContentType` check the request, and `WebhookHttpError` with `respond` answers in plain text that carries no request data.
 
 The [GitHub review guide](../../../docs/user/guide/github-review.md) shows a rule module, dedicated ingress port, secret setup, and Workspace routing.
 

@@ -1,0 +1,36 @@
+# Keyless replay counterpart: the Firm Record and the Office provider stay
+# fixtures; only the model adapter is replaced by replay.
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  disabled: true
+
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+              - id: deepseek-v4-pro
+
+- insert:
+    - id: flowleap-ticket-run-fixture
+      name: './flowleap-ticket-run-fixture.mjs'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'
+
+    - id: flowleap-record-run
+      name: '@deepseek-ai/dsh-flowleap-record/run'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+
+    - id: flowleap-office
+      name: '@deepseek-ai/dsh-flowleap-office'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+        revisionAuthor: FlowLeap
+        maxReadChars: 40000
+        maxInputBytes: 33554432
