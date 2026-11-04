@@ -162,7 +162,7 @@ A statement is `{ text, evidence: [{ document, span? }] }` with at least one evi
 ## Further Exploration
 
 - [dsh-flowleap-web](../../bundle/flowleap-web/README.md) — the bundle rows.
-- [ui-flowleap-records](../../client/ui-flowleap-records/README.md) — the Matters page that embeds the Firm Record's pages, where a person confirms a deadline.
+- [ui-flowleap-records](../../client/ui-flowleap-records/README.md) — the Matters panel, the IPMS views over the Records API, where a person confirms a deadline.
 - [dsh-flowleap-budget](../flowleap-budget/README.md) — the same address, token, and answer rules for the firm's model gateway.
 
 -----

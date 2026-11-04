@@ -347,7 +347,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       '/** Command-row owner share. */\nexport interface CommandRowOwnerProps {\n  node: CommandNode\n  compaction?: CompactionSummaryNode\n}',
     ],
     ownerPropsReferences: [
-      'Command',
       'CommandNode',
       'CompactionSummaryNode',
     ],
@@ -2359,6 +2358,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ConversationViewActionEntry',
+      'View',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -2518,6 +2518,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ConversationViewRequest',
+      'View',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -2830,7 +2831,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-flowleap-dashboard DashboardPage',
       'client-ui-flowleap-dashboard ChatsPage',
       'client-ui-flowleap-dashboard AgentsPage',
-      'client-ui-flowleap-records RecordsPage',
+      'client-ui-flowleap-records RecordsPanel',
       'client-ui-flowleap-routines NeedsReviewPage',
       'client-ui-flowleap-work-pages OfficeActionBoard',
       'client-ui-plugin-manager PluginManagerPage',
@@ -3376,9 +3377,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** Right column owner share: resolved normal geometry and opening eligibility. */\nexport interface RightbarOwnerProps {\n  /** Resolved normal panel width in px, not the saved preference; zero if it cannot fit. */\n  width: number\n  /** Current frame width in px. */\n  viewportWidth: number\n  /**\n   * Whether a normal right panel can retain 300px beside a 400px center.\n   * Before a narrow opening, includes the space from collapsing the left sidebar.\n   */\n  canShow: boolean\n}',
       '/** Identity of one open tab; distinct copies of one content share `contentId`, never `TabId`. */\nexport type TabId = Branded<\'TabId\'>',
+      '/** A view of the panel. */\nexport type View = Route[\'view\']',
     ],
     ownerPropsReferences: [
       'Branded',
+      'Route',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -4578,7 +4581,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'factory \'sidebar.panel.icon\' (client-ui-sidebar), so it exists while that definition is registered',
     occupants: [
       'client-ui-flowleap-dashboard launcher.icon',
-      'client-ui-flowleap-records RecordsIcon',
+      'client-ui-flowleap-records MattersIcon',
       'client-ui-flowleap-routines NeedsReviewPanelIcon',
       'client-ui-flowleap-work-pages WorkPagesPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',

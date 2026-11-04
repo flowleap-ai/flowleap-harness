@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Asuntos",
-    "description": "La fila Asuntos en la barra lateral y la página de asuntos: los asuntos y plazos del registro del despacho, incrustados desde el servidor del despacho en el mismo origen."
+    "description": "La fila Asuntos de la barra lateral y el panel Asuntos: entrada, asuntos, plazos, trabajo sobre una carta y el tablero de trabajo del registro del despacho."
   }
 }

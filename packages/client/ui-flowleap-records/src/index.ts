@@ -1,7 +1,8 @@
 /**
  * FlowLeap records, Host half: the authenticated route `GET /api/flowleap/records-link` answers where the Records
- * pages of the Firm Record are, as a path relative to the document; the browser half (`exports["./client"]`) asks
- * once and shows the Records launcher and page. The pages themselves come from the firm proxy, never from this Host.
+ * service of the Firm Record is, as a path relative to the document; the browser half (`exports["./client"]`) asks
+ * once and shows the Matters launcher and panel, which call the Records API under that path. The service comes from
+ * the firm proxy, never from this Host.
  *
  * See packages/client/ui-flowleap-records/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-records

@@ -11,13 +11,38 @@
     "src/css-modules.d.ts"
   ],
   "references": [
-    { "path": "../../../vendor/cordis" },
-    { "path": "../locale/tsconfig.client.json" },
-    { "path": "../ui-layout" },
-    { "path": "../ui-primitives" },
-    { "path": "../ui-renderer" },
-    { "path": "../ui-sidebar" },
-    { "path": "../ui-slots" },
-    { "path": "../ui-theme/tsconfig.client.json" }
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../shortcuts/tsconfig.client.json"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-context-menu"
+    },
+    {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-sidebar"
+    },
+    {
+      "path": "../ui-slots"
+    }
   ]
 }

@@ -1,5 +1,5 @@
 ---
-description: "The Matters row in the FlowLeap sidebar (German Akten) and the Matters page: the Firm Record's pages of flowleap-os, served by the firm proxy at the same origin, embedded in a frame with the client's theme and UI language; an empty state while the firm has no matters."
+description: "The Matters row in the FlowLeap sidebar (German Akten) and the Matters panel: the IPMS views (intake, matters, deadline, work on a letter, the work board) over the Records API of flowleap-os, built on the client theme and ui-primitives to the FlowLeap design language."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters page, which embeds the Records pages of the Firm Record (the matter list, the matter with its deadlines, Confirm and Reject) in a frame. The firm proxy serves those pages at `records/` on the same origin, behind the same sign-in, so a confirm goes from the embedded page to the Firm Record, never through the runtime. The frame carries the client's color scheme and UI language. Without the proxy the page shows that the firm has no matters yet.
+An attorney sees one **Matters** row among the app launchers of the `flowleap-web` sidebar (German **Akten**). It opens the Matters panel: the IPMS views of the Firm Record as React views on the client theme and `ui-primitives`, to the bar of the [FlowLeap design language](../../../.agents/skills/flowleap-design-language/SKILL.md). The panel reads and writes through the Records API of flowleap-os at `<recordsHref>api/` on the same origin, behind the same sign-in, so a decision goes from the panel to the Firm Record through the firm proxy, never through the runtime. Without the Records service the sidebar shows no Matters row.
 
 ## Table of Contents
 
@@ -32,17 +32,32 @@ Mount the row; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bun
     recordsHref: records/
 ```
 
-`recordsHref` (default `records/`) is the Records pages as a path relative to the document; a value with a scheme, a host, a leading slash, a query or a fragment fails the row at load, so the frame cannot leave the origin of the Web app. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-client-ui-flowleap-records) is the exhaustive source for every accepted field.
+`recordsHref` (default `records/`) is the Records service as a path relative to the document; a value with a scheme, a host, a leading slash, a query or a fragment fails the row at load, so the panel cannot leave the origin of the Web app. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-client-ui-flowleap-records) is the exhaustive source for every accepted field.
 
-The browser asks `GET api/flowleap/records-link` once at start; the Host answers `{ "href": "records/" }`. The browser then registers the **Matters** launcher (`sidebar.panellist`, order 18, an archive glyph) and the Matters page (the keyed `main` slot, panel id `flowleap-records`). For an error status, a failed request, or an answer that it cannot read, the sidebar shows no launcher and no error. The copy is in the `flowleapRecords` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt).
+The browser asks `GET api/flowleap/records-link` once at start; the Host answers `{ "href": "records/" }`. The browser then registers the **Matters** launcher (`sidebar.panellist`, order 18, an archive glyph), the Matters panel (the keyed `main` slot, panel id `flowleap-records`), and the context menu of an intake row (`ui-context-menu` target `records.intake-row`). For an error status, a failed request, or an answer that it cannot read, it registers nothing and shows no error. The copy is in the `flowleapRecords` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt), with the atlas word of every process state under `atlas.<machine>.<state>`.
 
-### The page
+### The panel
 
-When the page opens it asks `GET <recordsHref>?embedded=1` once. A `200` shows the frame; any other status, a failed request, or an abort shows the empty state **No matters yet** (role `status`). The frame's address is `<recordsHref>?embedded=1&theme=<light|dark>&lang=<locale id>`: `embedded=1` tells the Records pages to render without their own top bar, `theme` is the client's color scheme (`ctx.theme`, followed through `theme/change`), and `lang` is the client's UI language (`ctx.locale`, followed through `locale/change`; the pages fall back to English for a language they lack). The frame fills the main column; a theme or language change reloads it. The test id of the page is `flowleap-records`, and the frame's accessible name is the localized "Matters of the firm".
+The panel has a 44 px top bar and one view at a time. On a list the top bar shows the view tabs **Matters**, **Intake** with the count of letters that wait for a person, and **Work**; on a detail page it shows the breadcrumb. The panel opens on Intake.
 
-### What the os side provides
+| View | Route | Reads |
+|---|---|---|
+| Matters list | `{ view: 'matters' }` | `GET matters` |
+| Intake with the open letter beside it from 1366 px; below 1366 px the open letter is the item page with "1 / N" | `{ view: 'intake', list, open, step? }` | `GET intake?view=<list>`, `GET intake/documents/<sha256>` |
+| Matter | `{ view: 'matter', fileNumber }` | `GET matters/<fileNumber>` |
+| Deadline | `{ view: 'deadline', id }` | `GET deadlines/<id>` |
+| Work on a letter | `{ view: 'work', id }` | `GET tickets/<id>` |
+| Work board | `{ view: 'board' }` | `GET tickets` |
 
-The Records pages of flowleap-os accept `?theme=light|dark` and `?lang=<locale id>` (English when they lack the language) and render without their top bar when `embedded=1` is in the query. The sign-in proxy serves them under `/records/` at the firm address, with the same cookie as the Web app. This package owns nothing of those pages.
+Every read also holds `GET me` (the deciding person) and the waiting list (the Intake count). A command sends `Content-Type: application/json` and an `Idempotency-Key` of `ipms:<uuid>` that names one act of the person; a retry of the same act sends the same key. After the Records service accepts an act, the panel loads its view and the count again.
+
+### Loading, empty and error states
+
+Each read follows rule R18: a first load shows nothing for 150 ms, then the skeleton of its list (or one centred spinner on a page) for at least 300 ms. A load over shown data keeps the data. A failure keeps the last data at full contrast under one notice with its time and **Try again**; with no data the notice says that nothing in the record changed.
+
+### The parts
+
+`src/client/parts/` holds the IPMS parts that every view composes: the list (`ListFrame`, `ListGroup`, `ListRow`, `SkeletonRows`, `SelectionBar` and the cells), the layouts (`QueueSplit`, `DetailLayout`, `WorkColumn`, `DetailHeader`, `KeyFact`, `Section`, `PropertiesPanel`, `KeyProperties`), the decision bar (`DecisionBar`, `DecisionPart`, with the reason step and the 390 px overflow menu), the evidence (`EvidenceQuote`, `MissingEvidence`, `RecordSource`, `StatementTable`, `StatementRow`), the Activity timeline, the board (`BoardColumn`, `BoardCard`, `CardSlot`), the status (`AtlasStatus`, `AtlasPill`, `RowStatusIcon`, which need an `AtlasWord` from the dictionary), the act button (`ActButton`, with its command's keycap) and the states (`EmptyState`, `ErrorNotice`, `PageSpinner`, `LoadView`). The status shapes, the keycap and the avatars are `ui-primitives` parts.
 
 -----
 
@@ -52,15 +67,25 @@ The Records pages of flowleap-os accept `?theme=light|dark` and `?lang=<locale i
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half validates `recordsHref` and registers one exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first. The browser half reads the route, keeps the color scheme and the UI language in snapshot stores fed by `theme/change` and `locale/change`, and registers the launcher and the page; `RecordsPage` probes the pages once per mount and renders the frame or the empty state.
+The Host half validates `recordsHref` and registers one exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first. The browser half reads the route, creates the API client and the model, and registers the launcher, the panel and the row menu. The model holds the route and one loader for each read that the route needs; navigating keeps a read that the next view also needs and disposes the others. The panel reads the model through the inject `hooks` compartment and passes each screen its screen (the route with its loads) and a screen context.
 
 | File | Role |
 |---|---|
 | [`src/route.ts`](src/route.ts) | the route path and its JSON answer, shared by both halves |
 | [`src/index.ts`](src/index.ts) | Host half: the config check and the route |
-| [`src/client/index.ts`](src/client/index.ts) | Browser half: the request, the probe, the dictionaries, the color scheme, the UI language, and the registrations |
-| [`src/client/RecordsPage.tsx`](src/client/RecordsPage.tsx) | the Matters page and the launcher glyph |
-| [`tests/`](tests/) | the config rules, the route with its disposal, the registrations with their disposal, the probe, the frame address per theme and language, and the empty state |
+| [`src/client/index.ts`](src/client/index.ts) | Browser half: the request, the dictionaries, the UI language, and the registrations |
+| [`src/client/api.ts`](src/client/api.ts) | the Records API types, the parsers that check each answer at the wire boundary, the reads and the commands |
+| [`src/client/wire.ts`](src/client/wire.ts) | the parser combinators and the ISO time and date brands |
+| [`src/client/atlas.ts`](src/client/atlas.ts) | the atlas states with their status shapes |
+| [`src/client/load.ts`](src/client/load.ts) | the loading state machine of one read (R18) |
+| [`src/client/model.ts`](src/client/model.ts) | the routes, the screens, the tabs, and the model that loads them and performs acts |
+| [`src/client/Panel.tsx`](src/client/Panel.tsx) | the panel, its top bar with the tabs, the breadcrumb and the pager |
+| [`src/client/screens/`](src/client/screens/) | one screen for each view, placeholders that render their data through the parts |
+| [`src/client/parts/`](src/client/parts/) | the IPMS parts |
+| [`src/client/row-menu.ts`](src/client/row-menu.ts) | the intake row's context menu contribution |
+| [`src/client/keys.ts`](src/client/keys.ts) | the commands of the acts (keys.md) and their keycaps from the shortcut catalog |
+| [`src/client/words.ts`](src/client/words.ts), [`src/client/format.ts`](src/client/format.ts) | letter titles, actor names, Activity text, times, dates and days left |
+| [`tests/fixtures.client.ts`](tests/fixtures.client.ts) | answers that match the reference mockups and a fixture `RecordsApi` |
 
 </details>
 
@@ -69,8 +94,9 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 <a id="further-exploration"></a>
 ## Further Exploration
 
+- [flowleap-design-language](../../../.agents/skills/flowleap-design-language/SKILL.md) — the bar, the components and the merge checklist of the IPMS screens.
 - [dsh-flowleap-record](../../host/flowleap-record/README.md) — the `record_read` tool, the model's read of the same record.
-- [ui-flowleap-admin-link](../ui-flowleap-admin-link/README.md) — the same route pattern for a sidebar row.
+- [ui-context-menu](../ui-context-menu/README.md) — the row context menu.
 - [dsh-flowleap-web](../../bundle/flowleap-web/README.md) — the bundle row.
 
 -----
@@ -78,7 +104,7 @@ The Host half validates `recordsHref` and registers one exact Fetch route of `ct
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the package is a sidebar launcher, a page, and an authenticated route that register no model-facing tools or messages.
+None, as the package is a sidebar launcher, a panel, a context menu contribution, and an authenticated route that register no model-facing tools or messages.
 
 #### KV Cache effect
 
@@ -88,9 +114,10 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **A theme or language change reloads the frame** — the color scheme and the UI language travel in the frame's address, so a change of either loads the pages again and an unsaved form inside the frame is lost. A message to the frame would keep the form; it waits for a second consumer of the theme.
-- **One probe per open** — the page asks the pages' address once when it opens; a Firm Record that starts later shows after the page is opened again.
-- **The frame's own navigation is not in the address bar** — the Web app's `?page=` names the Matters page, not the matter inside the frame.
+- **The screens are placeholders** — each view renders its data through the parts; the screen work of the R1 IPMS plan replaces them with the approved mockups.
+- **The keys show only the registry's current catalog** — a button shows its command's keycap when the key layer registers the command; until then it shows no keycap.
+- **The route is not in the address bar** — the Web app's `?page=` names the Matters panel, not the view inside it, so the row menu has no Copy link.
+- **The panel does not follow changes by itself** — a view loads again after an act of this person or Try again; a change by another person shows on the next load.
 
 <a id="dev-note"></a>
 ### Dev Note
