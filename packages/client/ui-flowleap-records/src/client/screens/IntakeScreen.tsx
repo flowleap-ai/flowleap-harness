@@ -13,6 +13,7 @@ import { sameRequest, useActRunner } from '../act-runner.ts'
 import type { Command, DocumentId, IntakeList, IntakeRow, IntakeView, QueueStatus } from '../api.ts'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
+import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar } from '../parts/Decision.tsx'
 import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
@@ -21,6 +22,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { IntakeLetter } from './IntakeLetter.tsx'
+import { copyLink } from './links.ts'
 import { failureNotice, LoadError } from './shared.tsx'
 import css from './Intake.module.css'
 
@@ -298,6 +300,15 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         }}
       />
     ))
+  // A touch screen has no row context menu: the overflow menu offers the acts of the one selected row instead.
+  const [only] = checked.size === 1 ? checked : []
+  const rowActs: ActSpec[] = only === undefined
+    ? []
+    : [
+      { id: 'open', label: t('act.open'), keycaps: [], run: () => { clear(); open(only) } },
+      { id: 'other-matter', label: t('act.otherMatterMenu'), keycaps: [], run: () => { clear(); ctx.navigate({ view: 'intake', list: screen.list, open: only, step: 'other-matter' }) } },
+      { id: 'copy-link', label: t('intake.act.copyLink'), keycaps: [], run: () => { void copyLink(ctx.linkOf({ view: 'intake', list: screen.list, open: only })) } },
+    ]
   const narrowBulk = !selecting
     ? undefined
     : bulkReason
@@ -307,6 +318,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
           <SelectionBar
             label={t('selection.count', { count: checked.size })}
             acts={[{ ...keyedOf(ctx, 'reject'), label: t('act.notRelevant'), icon: <IconCloseOutlineRegular size={16} />, run: () => { setBulkReason(true) } }]}
+            more={{ label: t('decision.more'), acts: [...rowActs, { id: 'clear', label: t('selection.clear'), keycaps: [], run: clear }] }}
             primary={{ ...actOf(ctx, 'record', t('act.acceptFileCount', { count: matches.length }), acceptAll, { icon: <IconCheckOutlineRegular size={16} />, disabled: matches.length === 0 }), busy }}
           />
         </div>

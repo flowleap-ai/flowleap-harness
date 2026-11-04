@@ -30,3 +30,23 @@
   gap: 8px;
   margin-left: auto;
 }
+
+/* An act never squeezes its label onto two lines: an act that does not fit moves onto the line above the primary. */
+.bulkActs > * {
+  flex-shrink: 0;
+}
+
+.bulkActs {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .bulkDock {
+    padding: 8px;
+  }
+
+  .bulk {
+    padding: 12px;
+  }
+}

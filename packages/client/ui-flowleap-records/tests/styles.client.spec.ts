@@ -68,3 +68,13 @@ describe('the list', () => {
     expect(declarations(css, '.groupHeader')).toEqual(expect.arrayContaining(['position: sticky', 'top: var(--records-header-height)']))
   })
 })
+
+describe('the bulk bar', () => {
+  const css = read('Selection.module.css')
+
+  it('keeps each act on one line, moving an act that does not fit onto the line above the primary', () => {
+    expect(declarations(css, '.bulkActs > *')).toEqual(['flex-shrink: 0'])
+    expect(declarations(css.slice(css.indexOf('.bulkActs > *')), '.bulkActs')).toEqual(['flex-wrap: wrap', 'justify-content: flex-end'])
+    expect(declarations(atRule(css, '@media (max-width: 720px)'), '.bulkDock')).toEqual(['padding: 8px'])
+  })
+})

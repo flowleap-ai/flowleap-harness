@@ -101,6 +101,14 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
+/* A long press on a touch screen selects the row; it does not select its text or open the system callout. */
+@media (pointer: coarse) {
+  .row {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
 @media (hover: hover) {
   .row:not([data-open], [data-checked]):hover {
     background: var(--dsw-alias-interactive-bg-hover);

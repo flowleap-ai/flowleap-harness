@@ -1,16 +1,18 @@
 /**
  * Lists are tables (R17): 44px rows with no hairlines under a sticky 32px column header, grouped by atlas state in
  * sticky tinted 36px headers with a count. `X` or ⇧ click selects rows: the checkbox takes the place of the status
- * icon in every row, and the selection bar offers one bulk act. The open row has a 2px accent bar. A row's context
- * menu comes from the `ui-context-menu` trigger props that the screen passes.
+ * icon in every row, and the selection bar offers one bulk act. On a touch screen a long press selects the row, and
+ * while rows are selected a tap checks or unchecks a row instead of opening it. The open row has a 2px accent bar. A
+ * row's context menu comes from the `ui-context-menu` trigger props that the screen passes; a touch has no context
+ * menu, so the selection bar's overflow menu offers the row's acts.
  */
 
-import { useRef, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { AtlasRef } from '../atlas.ts'
-import { ActButton, type ActSpec } from './Act.tsx'
+import { ActButton, OverflowActs, type ActSpec } from './Act.tsx'
 import { AtlasStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
 import css from './List.module.css'
 import bulk from './Selection.module.css'
@@ -41,11 +43,22 @@ export function ListFrame({ label, columns, header, selecting = false, children,
       <div className={css.header} aria-hidden="true">
         {header.map((cell, index) => <span key={index} className={css.headerCell}>{cell}</span>)}
       </div>
-      <div className={css.list} role="list" aria-label={label}>{children}</div>
+      <Selecting.Provider value={selecting}>
+        <div className={css.list} role="list" aria-label={label}>{children}</div>
+      </Selecting.Provider>
       {footer}
     </div>
   )
 }
+
+/** Whether the rows of the list show their checkboxes; a tap on a touch screen then checks a row. */
+const Selecting = createContext(false)
+
+/** How long a touch rests on a row before it selects the row, as the platform long press. */
+const LONG_PRESS_MS = 500
+
+/** How far a touch may move before it is a scroll and not a long press. */
+const PRESS_SLOP_PX = 8
 
 /**
  * Render a group of rows under its sticky header: the state's icon and word and the count. An empty group renders
@@ -104,16 +117,58 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
   children: ReactNode
 }) {
   const range = useRef(false)
+  const selecting = useContext(Selecting)
+  const press = useRef<{ pointer: string; x: number; y: number; timer: ReturnType<typeof setTimeout> | null; done: boolean }>({
+    pointer: 'mouse', x: 0, y: 0, timer: null, done: false,
+  })
+  const cancelPress = () => {
+    if (press.current.timer !== null) clearTimeout(press.current.timer)
+    press.current.timer = null
+  }
+  useEffect(() => cancelPress, [])
+  const pressLong = () => {
+    cancelPress()
+    press.current.done = true
+    selection?.onChange(true, false)
+  }
   const onClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.shiftKey && selection !== undefined) {
-      selection.onChange(!selection.checked, true)
+    if (press.current.done) {
+      // The click that ends a long press: the press selected the row, so the row does not open.
+      press.current.done = false
+      return
+    }
+    if (selection !== undefined && (event.shiftKey || selecting && press.current.pointer === 'touch')) {
+      selection.onChange(!selection.checked, event.shiftKey)
       return
     }
     onOpen()
   }
+  const touchHandlers = selection === undefined
+    ? {}
+    : {
+      onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+        cancelPress()
+        press.current = { pointer: event.pointerType, x: event.clientX, y: event.clientY, timer: null, done: false }
+        if (event.pointerType === 'touch') press.current.timer = setTimeout(pressLong, LONG_PRESS_MS)
+      },
+      onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
+        if (Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > PRESS_SLOP_PX) cancelPress()
+      },
+      onPointerUp: cancelPress,
+      onPointerCancel: cancelPress,
+      // A browser that turns a long press into a context menu (Chrome on Android) selects the row instead.
+      onContextMenu: (event: MouseEvent<HTMLDivElement>) => {
+        if (press.current.pointer === 'touch') {
+          event.preventDefault()
+          if (!press.current.done) pressLong()
+        }
+        menu?.onContextMenu?.(event)
+      },
+    }
   return (
     <div
       {...menu}
+      {...touchHandlers}
       role="listitem"
       className={css.row}
       data-open={open || undefined}
@@ -208,16 +263,26 @@ export function SkeletonRows({ cells, count = 6, label }: { cells: readonly Skel
  * Render the selection bar docked at the bottom of the list: the count and the one bulk decision.
  * @param props.label - the count as text, such as "3 selected".
  * @param props.acts - the tertiary and secondary acts, at the left of the primary.
+ * @param props.more - the overflow menu (⋯) at the left of the primary: its accessible name and its acts, such as the
+ * acts of the one selected row and Clear the selection, which a touch screen reaches nowhere else.
+ * @param props.more.label - the accessible name, "More acts".
+ * @param props.more.acts - the acts.
  * @param props.primary - the bulk primary act, such as "Accept and file 3".
  * @returns the bar; `data-bulk` marks it for the design checks.
  */
-export function SelectionBar({ label, acts, primary }: { label: string; acts: readonly ActSpec[]; primary: ActSpec }) {
+export function SelectionBar({ label, acts, more, primary }: {
+  label: string
+  acts: readonly ActSpec[]
+  more?: { readonly label: string; readonly acts: readonly ActSpec[] } | undefined
+  primary: ActSpec
+}) {
   return (
     <div className={bulk.bulkDock}>
       <div className={bulk.bulk} data-bulk="">
         <span className={bulk.bulkCount}>{label}</span>
         <div className={bulk.bulkActs}>
           {acts.map(act => <ActButton key={act.id} act={act} rank="tertiary" />)}
+          {more !== undefined && more.acts.length > 0 && <OverflowActs label={more.label} acts={more.acts} />}
           <ActButton act={primary} rank="primary" size="md" />
         </div>
       </div>
