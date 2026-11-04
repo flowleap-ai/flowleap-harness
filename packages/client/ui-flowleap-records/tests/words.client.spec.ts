@@ -77,6 +77,26 @@ describe('words of codes and events', () => {
     expect(auditRows(fixtures.ticket.activity)[0]!.cells).toEqual(['150', 'ticket/routed', '2026-11-04T14:17:00Z'])
     expect(JSON.stringify(lines)).not.toContain(OUTSIDE_WALL.name)
   })
+
+  it('words every event type of the Records service', () => {
+    // EVENT_TYPES of flowleap-os lib/record/log.mjs.
+    const types = [
+      'matter/opened', 'office-event/recorded', 'deadline/proposed', 'deadline/confirmed', 'deadline/rejected',
+      'document/stored', 'document/duplicate', 'document/unreadable', 'document/read', 'document/match-proposed',
+      'document/unmatched', 'document/matched', 'document/filed', 'document/not-relevant',
+      'office-event/observed', 'office-event/code-proposed', 'deadline/engine-refused',
+      'client/rules-recorded', 'firm/model-provider-recorded',
+      'ticket/opened', 'ticket/event-joined', 'ticket/routed', 'ticket/by-hand', 'ticket/wake-started',
+      'ticket/run-started', 'ticket/run-failed', 'ticket/proposals-ready', 'ticket/decided', 'ticket/cancelled',
+      'report/proposed', 'report/approved', 'report/rejected',
+      'outbox/composed', 'outbox/refused', 'outbox/queued', 'outbox/drafted', 'outbox/retrying', 'outbox/send-requested',
+      'outbox/sent', 'outbox/dead',
+    ]
+    const base = fixtures.ticket.activity[0]!
+    const texts = activityLines(words, types.map((type, seq) => ({ ...base, seq, type, for: null }))).map(line => line.text)
+    expect(texts).not.toContain('changed the record')
+    expect(new Set(texts).size).toBe(types.length)
+  })
 })
 
 describe('keycaps', () => {

@@ -79,12 +79,10 @@ const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
   'document/matched': 'intake.event.matched',
   'office-event/observed': 'intake.event.observed',
   'office-event/code-proposed': 'intake.event.codeProposed',
-  'deadline/read': 'event.deadlineRead',
   'deadline/proposed': 'event.deadlineProposed',
   'deadline/confirmed': 'event.deadlineConfirmed',
   'deadline/rejected': 'event.deadlineRejected',
   'ticket/routed': 'event.ticketRouted',
-  'ticket/running': 'event.ticketRunning',
   'ticket/decided': 'event.ticketDecided',
   'report/proposed': 'event.reportProposed',
   'outbox/sent': 'event.replySent',
@@ -101,6 +99,15 @@ const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
   'outbox/queued': 'event.replyQueued',
   'outbox/drafted': 'event.replyDrafted',
   'outbox/send-requested': 'event.replySendRequested',
+  'office-event/recorded': 'event.officeEventRecorded',
+  'deadline/engine-refused': 'event.deadlineEngineRefused',
+  'client/rules-recorded': 'event.clientRulesRecorded',
+  'firm/model-provider-recorded': 'event.modelProviderRecorded',
+  'ticket/event-joined': 'event.ticketEventJoined',
+  'ticket/cancelled': 'event.ticketCancelled',
+  'outbox/refused': 'event.replyRefused',
+  'outbox/retrying': 'event.replyRetrying',
+  'outbox/dead': 'event.replyDead',
 }
 
 /** The text key of an event type whose text names the person it is for, when the event names no person. */

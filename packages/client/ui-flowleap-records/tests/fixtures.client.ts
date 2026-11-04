@@ -221,7 +221,7 @@ export const deadlineWire = {
   proposer: null, confirmer: null, rejecter: null, reason: null,
   mayConfirm: { allowed: true },
   activity: [
-    { seq: 130, at: '2026-11-04T14:17:00Z', type: 'deadline/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: {} },
+    { seq: 130, at: '2026-11-04T14:17:00Z', type: 'office-event/code-proposed', actor: { kind: 'system', name: 'mailbox' }, for: null, detail: {} },
     { seq: 131, at: '2026-11-04T14:17:05Z', type: 'deadline/proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { due: '2027-03-01' } },
   ],
 }
@@ -278,7 +278,7 @@ export const ticketWire = {
   mayDecide: { allowed: true, as: 'responsible' },
   activity: [
     { seq: 150, at: '2026-11-04T14:17:00Z', type: 'ticket/routed', actor: { kind: 'system', name: 'flowleap' }, for: PEOPLE.anna, detail: {} },
-    { seq: 151, at: '2026-11-04T14:17:05Z', type: 'ticket/running', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },
+    { seq: 151, at: '2026-11-04T14:17:05Z', type: 'ticket/run-started', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },
     { seq: 152, at: '2026-11-04T14:17:40Z', type: 'report/proposed', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },
     { seq: 153, at: '2026-11-04T14:18:00Z', type: 'outbox/sent', actor: { kind: 'system', name: 'mailbox' }, for: null, detail: {} },
     { seq: 154, at: '2026-11-04T14:18:30Z', type: 'deadline/confirmed', actor: { kind: 'person', person: PEOPLE.jonas }, for: null, detail: {} },
