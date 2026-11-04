@@ -56,7 +56,7 @@ The run row registers `record_propose_report` and `record_finish_run` for a Tick
 
 | Field | Default | Meaning |
 |---|---|---|
-| `templatesDir` | required | Absolute folder of the firm's `.docx` templates, the `templatesDir` of the Office tools; a relative path fails at load. The report's `templateVersion` is `sha256:<hex>` of the named template file there |
+| `templatesDir` | required | Absolute folder of the firm's `.docx` templates, the `templatesDir` of the Office tools; a relative path fails at load. The report names the template by its file name (`templateName`), and its `templateVersion` is `sha256:<hex>` of the named template file there |
 
 The run row injects `flowleapRecord`, `tools`, `fs`, and `workingDirectory`. The tool row has no config. The `flowleap-web` bundle sets `apiKeyRef` to `FLOWLEAP_RECORD_TOKEN`, the ref that the keys document of flowleap-os holds for each runtime, and no `baseURL`; the firm patch of flowleap-os sets `baseURL`. A patch replaces the row's whole `config`, so it restates `apiKeyRef` too. The generated [configuration catalog](../../../docs/config-catalog.md) is the exhaustive source for every accepted field.
 
@@ -110,7 +110,7 @@ A runtime woken for a Ticket (see [`dsh-experimental-flowleap-ticket`](../../exp
 | Method | Action and body | Key parts | Receipt |
 |---|---|---|---|
 | `runStarted(ticket, { session })` | `run-started`: `{ session }` | `run-started`: Ticket, Session | `200 { recordSeq }` |
-| `proposeReport(ticket, proposal)` | `reports`: `{ fileName, contentBase64, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
+| `proposeReport(ticket, proposal)` | `reports`: `{ fileName, contentBase64, templateName, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
 | `finishRun(ticket, { session, deadline })` | `finish`: `{ session, deadline: { id, state, seq } }`, where `id` and `state` are both `none-yet` when the event has no deadline | `finish`: Ticket, Session | `200 { recordSeq, outbox: { id, state } }`: the Firm Record queues one reply with the proposed letters attached as drafts to the forwarder of the office letter and the routed person; `state` is `refused` when a recipient is not a firm address. Nothing goes to the client |
 
 A statement is `{ text, evidence: [{ document, span? }] }` with at least one evidence item; a `span` is `{ page, start, end, quote }`. Each method returns the receipt or a `RecordCommandError` `{ error, detail? }`; `detail` is the Firm Record's one-sentence detail, at most 300 characters:
@@ -133,7 +133,7 @@ A statement is `{ text, evidence: [{ document, span? }] }` with at least one evi
 
 ### The run tools
 
-`record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the letter, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span? }`; `document` is a lower-case SHA-256, and a `span` has a positive `page`, `start` and `end` with `end` not before `start`, and a `quote` of at most 200 characters. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
+`record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span? }`; `document` is a lower-case SHA-256, and a `span` has a positive `page`, `start` and `end` with `end` not before `start`, and a `quote` of at most 200 characters. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
 
 -----
 

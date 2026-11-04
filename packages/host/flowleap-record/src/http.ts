@@ -302,6 +302,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
     const body = {
       fileName: command.fileName,
       contentBase64: Buffer.from(command.content).toString('base64'),
+      templateName: command.templateName,
       templateVersion: command.templateVersion,
       rulesSeq: command.rulesSeq,
       statements: command.statements,

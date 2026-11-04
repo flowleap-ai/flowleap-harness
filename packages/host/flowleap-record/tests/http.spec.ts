@@ -197,6 +197,7 @@ const SESSION = SessionId('webhook-1')
 const REPORT: ReportProposal = {
   fileName: 'report.docx',
   content: new TextEncoder().encode('docx bytes'),
+  templateName: 'client-report.docx',
   templateVersion: `sha256:${'a'.repeat(64)}`,
   rulesSeq: brandNumber<RecordSeq>(3),
   statements: [{ text: 'The EPO intends to grant the patent.', evidence: [{ document: LETTER_SHA256, span: { page: 1, start: 10, end: 40, quote: 'intends to grant' } }] }],
@@ -235,6 +236,7 @@ describe('flowleapRecord run commands over HTTP', () => {
     expect(JSON.parse(double.requests[1]!.body)).toEqual({
       fileName: 'report.docx',
       contentBase64: Buffer.from('docx bytes').toString('base64'),
+      templateName: 'client-report.docx',
       templateVersion: REPORT.templateVersion,
       rulesSeq: 3,
       statements: REPORT.statements,

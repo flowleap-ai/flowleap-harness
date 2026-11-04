@@ -124,6 +124,7 @@ describe('record_propose_report', () => {
     expect(new TextDecoder().decode(command.content)).toBe('letter bytes')
     expect(command).toMatchObject({
       fileName: 'report.docx',
+      templateName: 'client-report.docx',
       templateVersion: `sha256:${createHash('sha256').update(TEMPLATE).digest('hex')}`,
       rulesSeq: 3,
       session: 'webhook-run-1',

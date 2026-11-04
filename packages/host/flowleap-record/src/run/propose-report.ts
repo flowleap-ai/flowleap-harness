@@ -137,6 +137,7 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
       const result = await ctx.flowleapRecord.proposeReport(args.ticket_id, {
         fileName: basename(args.file),
         content,
+        templateName: args.template,
         templateVersion: `sha256:${createHash('sha256').update(template).digest('hex')}`,
         rulesSeq: args.rules_seq,
         statements,

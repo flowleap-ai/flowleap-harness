@@ -228,6 +228,8 @@ export interface ReportProposal {
   readonly fileName: string
   /** The `.docx` bytes; the Firm Record takes at most 5 MiB. */
   readonly content: Uint8Array
+  /** The file name of the firm template the letter is on, which the Records app shows. */
+  readonly templateName: string
   /** The version of the firm template the letter is on, `sha256:<hex>` of the template file. */
   readonly templateVersion: string
   /** The record seq of the client rules the letter follows. */
