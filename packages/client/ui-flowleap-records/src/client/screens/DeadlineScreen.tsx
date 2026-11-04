@@ -18,10 +18,10 @@ import type { FlowleapRecordsKey } from '../locales.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
+import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, KeyFact, PropertiesPanel, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { dueText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
 import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
@@ -252,7 +252,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           <AtlasPill status={status} word={atlasWord(t, status)} />
           {eyebrowText !== null && <span>{eyebrowText}</span>}
         </div>
-        <KeyFact value={formatDate(deadline.due, ctx.locale, 'long')} detail={dueText(ctx, deadline.due)} />
+        <KeyFact value={formatDate(deadline.due, ctx.locale, 'long')} detail={<DueText words={ctx} due={deadline.due} />} />
         <div className={css.ruleLine}>
           {rule.full}
           {rule.period !== null && officeEvent.documentDate !== null

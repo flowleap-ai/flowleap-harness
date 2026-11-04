@@ -11,10 +11,11 @@ import {
 import type { MatterDetail, MattersList } from '../api.ts'
 import { formatApplicationNumber, formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
+import { DueText } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { dueText, letterTitle, listTimeText } from '../words.ts'
+import { letterTitle, listTimeText } from '../words.ts'
 import type { ScreenContext, ScreenProps } from './context.ts'
 import { Cell, dateOrNone, DetailRow, DetailTable, Facts, OpenCell, openDocument, ruleWords, Team, Who } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
@@ -79,7 +80,7 @@ function MattersRows({ ctx, data }: { ctx: ScreenContext; data: MattersList }) {
             <Cell kind="meta" wide>{row.fileNumber}</Cell>
             <Cell kind="icon" wide>{row.responsible !== null && <Avatar person={{ name: row.responsible.name, label: t('matter.responsibleIs', { person: row.responsible.name }) }} />}</Cell>
             <Cell kind="end" wide>{row.openDeadlines}</Cell>
-            <Cell kind="end">{row.nextDue === null ? t('matter.noDeadline') : dueText(ctx, row.nextDue)}</Cell>
+            <Cell kind="end">{row.nextDue === null ? t('matter.noDeadline') : <DueText words={ctx} due={row.nextDue} />}</Cell>
           </DetailRow>
         ))}
       </DetailTable>
@@ -183,9 +184,9 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                       <Cell kind="status"><AtlasStatus status={status} word={atlasWord(t, status)} /></Cell>
                       <OpenCell onOpen={open({ view: 'deadline', id: deadline.id })}>
                         <span className={css.strong}>{formatDate(deadline.due, ctx.locale)}</span>
-                        <span className={css.narrowLine}>{dueText(ctx, deadline.due)}</span>
+                        <span className={css.narrowLine}><DueText words={ctx} due={deadline.due} /></span>
                       </OpenCell>
-                      <Cell kind="main" wide><span className={css.strong}>{dueText(ctx, deadline.due)}</span></Cell>
+                      <Cell kind="main" wide><span className={css.strong}><DueText words={ctx} due={deadline.due} /></span></Cell>
                       <Cell kind="meta" wide>{ruleWords(t, deadline.code).short}</Cell>
                     </DetailRow>
                   )

@@ -85,6 +85,17 @@ pairs.push(
   ['avatar initial', T('label-primary'), [T('bg-overlay')], 4.5],
   ['letter text', T('label-document-preview'), [T('bg-document-preview')], 4.5],
   ['letter text, marked span', T('label-document-preview'), [T('bg-document-preview'), T('state-warn-tertiary')], 4.5],
+  // An overdue date (R11) is the primary-colour text with the stale shape in the refused colour beside it. The refused colour
+  // as text is 4.50:1 on white (4.498), 4.49:1 in dark on a hovered row and 3.68:1 on a selected row, so these rows record it
+  // with no minimum and no text uses it.
+  ['overdue text in the refused colour (not used: below 4.5)', T('state-error-primary'), [T('bg-base')], 0],
+  ['overdue text in the refused colour on a hovered row (not used)', T('state-error-primary'), [T('bg-base'), T('interactive-bg-hover')], 0],
+  ['overdue text in the refused colour on a selected row (not used)', T('state-error-primary'), [T('bg-base'), T('interactive-bg-active')], 0],
+  ['overdue text in the refused colour in the decision bar (not used)', T('state-error-primary'), [T('bg-layer-2')], 0],
+  ['overdue icon, stale shape', T('state-error-primary'), [T('bg-base')], 3],
+  ['overdue icon on a hovered row', T('state-error-primary'), [T('bg-base'), T('interactive-bg-hover')], 3],
+  ['overdue icon on a selected row', T('state-error-primary'), [T('bg-base'), T('interactive-bg-active')], 3],
+  ['overdue icon in the decision bar', T('state-error-primary'), [T('bg-layer-2')], 3],
   ['icon', T('label-tertiary'), [T('bg-base')], 3],
   ['icon on a selected row', T('label-tertiary'), [T('bg-base'), T('interactive-bg-active')], 3],
   ['icon in the sidebar', T('label-tertiary'), ['--dsw-specific-sidebar-fill'], 3],

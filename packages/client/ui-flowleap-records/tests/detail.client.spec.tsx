@@ -304,7 +304,12 @@ describe('the deadline page', () => {
 
   it('counts an overdue date from today', async () => {
     await mount(DEADLINE, { deadline: { ...fixtures.deadline, deadline: { ...fixtures.deadline.deadline, due: '2026-10-26' as never } } })
-    expect(screen.getByText('Overdue by 9 days')).toBeTruthy()
+    expect(screen.getByText('Overdue by 9 days').hasAttribute('data-overdue')).toBe(true)
+  })
+
+  it('marks no date overdue while it is in the future', async () => {
+    await mount(DEADLINE, { deadline: fixtures.deadline })
+    expect(document.querySelector('[data-overdue]')).toBeNull()
   })
 
   it('has no decision bar once the date is confirmed or rejected', async () => {

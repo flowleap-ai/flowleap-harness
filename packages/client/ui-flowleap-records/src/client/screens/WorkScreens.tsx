@@ -27,10 +27,11 @@ import { shownData } from '../load.ts'
 import { ActButton, type ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '../parts/Evidence.tsx'
+import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { dueText, letterTitle, listTimeText } from '../words.ts'
+import { letterTitle, listTimeText } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
@@ -456,8 +457,8 @@ function DeadlinePart({ ctx, data, checked, onCheck, disabled }: {
   }
   const word = atlasWord(t, { machine: 'deadline', state: deadline.state })
   const facts: ReactNode = deadline.confirmer === null
-    ? t('work.deadlineFacts', { state: word, due: dueText(ctx, deadline.due) })
-    : t('work.deadlineFactsConfirmed', { state: word, person: deadline.confirmer.name, due: dueText(ctx, deadline.due) })
+    ? dueSentence(ctx, 'work.deadlineFacts', { state: word }, deadline.due)
+    : dueSentence(ctx, 'work.deadlineFactsConfirmed', { state: word, person: deadline.confirmer.name }, deadline.due)
   return (
     <DecisionPart
       icon={<IconAlarmClockOutlineRegular size={16} />}
@@ -514,7 +515,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               <span className={detail.strong}>{t('crumb.deadline', { date: formatDay(deadline.due, ctx.locale) })}</span>
             </OpenCell>
             <Cell kind="meta" wide>{deadline.confirmer === null ? '' : t('deadline.confirmedBy', { person: deadline.confirmer.name })}</Cell>
-            <Cell kind="end">{dueText(ctx, deadline.due)}</Cell>
+            <Cell kind="end"><DueText words={ctx} due={deadline.due} /></Cell>
             <Cell kind="icon" wide><IconChevronRightOutlineRegular size={16} /></Cell>
           </DetailRow>
         )}

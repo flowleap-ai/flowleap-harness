@@ -6,12 +6,16 @@ import { ActButton, type ActSpec } from '../src/client/parts/Act.tsx'
 import { ActivityTimeline } from '../src/client/parts/Activity.tsx'
 import { BoardCard, BoardColumn, CardSlot } from '../src/client/parts/Board.tsx'
 import { DecisionBar, DecisionPart, type ReasonAct } from '../src/client/parts/Decision.tsx'
+import { DueText, dueSentence } from '../src/client/parts/Due.tsx'
 import { EvidenceQuote, MissingEvidence, RecordSource, StatementRow, StatementTable } from '../src/client/parts/Evidence.tsx'
 import { DetailHeader, DetailLayout, KeyFact, KeyProperties, PropertiesPanel, QueueSplit, Section, WorkColumn } from '../src/client/parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../src/client/parts/List.tsx'
 import { EmptyState, ErrorNotice, LoadView, PageSpinner } from '../src/client/parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord, RowStatusIcon, type AtlasWord } from '../src/client/parts/Status.tsx'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en } from '../src/client/locales.ts'
+import type { IsoDate } from '../src/client/api.ts'
+import type { WordContext } from '../src/client/words.ts'
 import { fixtures } from './fixtures.client.ts'
 
 beforeEach(() => {
@@ -42,6 +46,29 @@ describe('status', () => {
     const { container } = render(<><AtlasPill status={{ machine: 'deadline', state: 'stale' }} word={word('Stale')} /><RowStatusIcon status={waiting} /></>)
     expect(screen.getByText('Stale').closest('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.stale')
     expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(2)
+  })
+})
+
+describe('due text', () => {
+  const words: WordContext = { t: makeTranslate(en), locale: 'en', now: Date.parse('2026-11-04T14:30:00Z'), timeZone: 'UTC' }
+
+  it('marks an overdue date with the stale shape beside the words', () => {
+    render(<DueText words={words} due={'2026-11-01' as IsoDate} />)
+    const due = screen.getByText('Overdue by 3 days')
+    expect(due.hasAttribute('data-overdue')).toBe(true)
+    expect(due.querySelector('svg')?.dataset['shape']).toBe('stale')
+  })
+
+  it.each(['2026-11-04', '2026-11-05', '2027-03-01'])('leaves %s unmarked', (due) => {
+    const { container } = render(<DueText words={words} due={due as IsoDate} />)
+    expect(container.querySelector('[data-overdue]')).toBeNull()
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('puts the marked due text inside a sentence', () => {
+    const { container } = render(<p>{dueSentence(words, 'work.deadlineFacts', { state: 'Active' }, '2026-11-01' as IsoDate)}</p>)
+    expect(container.textContent).toBe('Active · Overdue by 3 days')
+    expect(container.querySelector('[data-overdue]')?.textContent).toBe('Overdue by 3 days')
   })
 })
 

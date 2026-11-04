@@ -1,0 +1,6 @@
+/* An overdue date (R11): the text keeps the primary colour, because the refused colour as text is below 4.5:1 on the surfaces it sits on (contrast.md); the stale shape beside it carries the colour. */
+.overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
