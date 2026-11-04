@@ -96,7 +96,8 @@ describe('the work board', () => {
   })
 
   it('refuses a decision move by a person outside the team and a move that is no transition', () => {
-    const ctx = { t: makeTranslate(en), me: fixtures.me } as unknown as ScreenContext
+    const words: Partial<ScreenContext> = { t: makeTranslate(en), me: fixtures.me }
+    const ctx = words as ScreenContext
     const row: TicketRow = { ...fixtures.tickets.rows[3]!, team: [PEOPLE.jonas] as never }
     expect(mayMove(row, fixtures.me)).toBe(false)
     expect(mayMove(row, null)).toBe(false)
