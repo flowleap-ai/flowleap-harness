@@ -170,11 +170,13 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const { t } = ctx
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
   const waiting = data.deadlines.filter(deadline => WAITING_DEADLINES.has(deadline.state)).length
-  const overdue = data.deadlines.filter(deadline => OPEN_DEADLINES.has(deadline.state) && isOverdue(ctx, deadline.due)).length
+  const openDeadlines = data.deadlines.filter(deadline => OPEN_DEADLINES.has(deadline.state))
+  const overdue = openDeadlines.filter(deadline => isOverdue(ctx, deadline.due)).length
   const ready = data.work.filter(work => work.state === 'proposals_ready')
   const routed = ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo])
   const deciders = [...new Map(routed.map(person => [person.id, person])).values()]
-  const nextDue = data.deadlines.find(deadline => deadline.state === 'deadline_proposed' || deadline.state === 'active')?.due ?? null
+  // ISO dates sort as text, so the first is the earliest open deadline.
+  const nextDue = openDeadlines.map(deadline => deadline.due).toSorted()[0] ?? null
   const titleOfDocument = (document: (typeof data.documents)[number]) => {
     const event = data.officeEvents.find(item => item.document === document.sha256)
     if (event !== undefined) return letterTitle(t, event.code)

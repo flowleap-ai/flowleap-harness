@@ -76,7 +76,7 @@ describe('the agent panel of the work page', () => {
     mounted!.dispose()
     const jonas = { ...PEOPLE.jonas, id: PEOPLE.jonas.id as PersonId }
     await work({ ...fixtures.ticket, ticket: { ...fixtures.ticket.ticket, routedTo: jonas }, run: { ...fixtures.ticket.run!, steps: 7 } })
-    expect(within(dock()!).getByText('Its conversation is in the chats of Jonas Weber.')).toBeTruthy()
+    expect(within(dock()!).getByText('The patent agent ran for Jonas Weber.')).toBeTruthy()
     expect(within(dock()!).getByText(/ · 7 steps$/)).toBeTruthy()
   })
 

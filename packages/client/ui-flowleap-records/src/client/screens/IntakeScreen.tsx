@@ -20,7 +20,7 @@ import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, SelectionBar, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personInText } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, officeName, personInText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { IntakeLetter } from './IntakeLetter.tsx'
 import { copyLink } from './links.ts'
@@ -484,7 +484,7 @@ function IntakeListView({ ctx, data, list, open, checked, onCheck, footer }: {
                 onOpen={() => { ctx.navigate({ view: 'intake', list, open: row.document }) }}
                 menu={ctx.rowMenu({ document: row.document, list, proposed: row.status.state === 'match_proposed' ? row.matter?.fileNumber ?? null : null })}
               >
-                <TitleCell title={title} source={row.office} />
+                <TitleCell title={title} source={row.office === null ? null : officeName(t, row.office)} />
                 <MetaCell truncate>{row.matter?.fileNumber ?? (row.matterCount > 1 ? t('matter.count', { count: row.matterCount }) : t('matter.none'))}</MetaCell>
                 {sender === null
                   ? <span />

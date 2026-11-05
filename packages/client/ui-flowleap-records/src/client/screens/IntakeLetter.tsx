@@ -24,7 +24,7 @@ import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, KeyProperties, PropertiesPanel, WorkColumn, type Property } from '../parts/Layout.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate } from '../format.ts'
-import { avatarOf, letterTitle, listTimeText, personName } from '../words.ts'
+import { avatarOf, fromOffice, letterTitle, listTimeText, officeName, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
 import { decisionHeading, failureNotice, RecordActivity } from './shared.tsx'
@@ -102,14 +102,14 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
     })
   }
   if (letter.code !== null) {
-    const office = letter.office ?? letter.code.split(':')[0]
+    const office = letter.office ?? letter.code.replace(/:.*$/u, '')
     const date = letter.fields.documentDate
     reasons.push({
       key: 'kind',
       ok: true,
       text: date === undefined
-        ? t('intake.reason.kind', { title: letterTitle(t, letter.code), office })
-        : <>{t('intake.reason.kindDated', { title: letterTitle(t, letter.code), office })} {quote(ctx, date.span)}</>,
+        ? t('intake.reason.kind', { title: letterTitle(t, letter.code), from: fromOffice(t, office) })
+        : <>{t('intake.reason.kindDated', { title: letterTitle(t, letter.code), from: fromOffice(t, office) })} {quote(ctx, date.span)}</>,
     })
   }
   return reasons
@@ -423,7 +423,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     ]
     : [
       { label: t('prop.matter'), value: letter.filed === null ? t('matter.none') : <><span className={css.key}>{letter.filed.fileNumber}</span>{letter.filed.title}</> },
-      { label: t('intake.prop.office'), value: letter.office ?? t('matter.none') },
+      { label: t('intake.prop.office'), value: letter.office === null ? t('matter.none') : officeName(t, letter.office) },
       { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) },
     ]
   const received: Property = { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) }
@@ -437,7 +437,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     {
       heading: t('intake.prop.letter'),
       rows: [
-        { label: t('intake.prop.office'), value: letter.office ?? t('matter.none') },
+        { label: t('intake.prop.office'), value: letter.office === null ? t('matter.none') : officeName(t, letter.office) },
         { label: t('intake.prop.type'), value: title },
         { label: t('prop.application'), value: letter.applicationNumber === null ? t('matter.none') : formatApplicationNumber(letter.applicationNumber) },
         pages,

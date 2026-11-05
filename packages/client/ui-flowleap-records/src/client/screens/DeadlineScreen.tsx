@@ -5,7 +5,7 @@
  * When the person may not confirm, the evidence stays and the bar says who confirms and why, with no primary act.
  */
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import {
   IconCheckOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -22,7 +22,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, KeyFact, PropertiesPanel, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { personInText, personName } from '../words.ts'
+import { citeText, officeName, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
@@ -61,6 +61,14 @@ type Reading = NonNullable<NonNullable<DeadlineDetail['readers']['model']>['resu
 function readingOf(readers: DeadlineDetail['readers']): Comparison {
   if (readers.agree !== null) return readers.agree ? 'agree' : 'differ'
   return readers.code === null && readers.model === null ? 'none' : 'one'
+}
+
+/** The icon of the deadline part in the decision bar, by how the two readings compare. */
+const READING_ICONS: Readonly<Record<Comparison, ReactNode>> = {
+  agree: <IconCheckOutlineRegular size={16} />,
+  differ: <IconWarningTriangleOutlineRegular size={16} />,
+  one: <IconInfoOutlineRegular size={16} />,
+  none: <IconWarningTriangleOutlineRegular size={16} />,
 }
 
 /** The words of each step of the engine's calculation. */
@@ -187,7 +195,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
-            icon={<IconCheckOutlineRegular size={16} />}
+            icon={READING_ICONS[reading]}
             title={due}
             detail={`${t(`deadline.part.${reading}`, { count: deadline.trace.length })} · ${t(mayConfirm.allowed ? 'deadline.part.recheck' : 'deadline.part.recheckOther')}`}
           />
@@ -217,7 +225,8 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       : data.rejecter !== null
         ? t('deadline.rejectedBy', { person: personInText(t, data.rejecter), reason: data.reason ?? '' })
         : null
-  const office = officeOf(officeEvent.code)
+  const code = officeOf(officeEvent.code)
+  const office = code === null ? null : officeName(t, code)
   return (
     <DetailLayout decision={decision !== null} properties={(
       <PropertiesPanel label={t('prop.label')} groups={[
@@ -276,7 +285,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
                   <div className={css.what}>
                     {step.op === 'closure-roll' && step.from === step.to ? t('deadline.step.openDay') : t(STEPS[step.op] ?? 'deadline.step.other')}
                   </div>
-                  <div className={css.law}>{step.cite.split('; ').join(' · ')}</div>
+                  <div className={css.law}>{citeText(t, step.cite)}</div>
                 </div>
                 <div className={css.to}>{'→ '}<b>{WEEKDAY_STEPS.has(step.op) ? formatDate(step.to, ctx.locale) : formatDay(step.to, ctx.locale)}</b></div>
               </li>
@@ -308,9 +317,10 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             <div className={css.lawChips}>
               {deadline.sources.map((source) => {
                 const href = httpsHref(source.url)
+                const text = citeText(t, source.cite)
                 return href === null
-                  ? <span key={source.cite} className={css.lawChip}>{source.cite}</span>
-                  : <a key={source.cite} className={css.lawChip} href={href} target="_blank" rel="noopener noreferrer">{source.cite}</a>
+                  ? <span key={source.cite} className={css.lawChip}>{text}</span>
+                  : <a key={source.cite} className={css.lawChip} href={href} target="_blank" rel="noopener noreferrer">{text}</a>
               })}
             </div>
           </section>

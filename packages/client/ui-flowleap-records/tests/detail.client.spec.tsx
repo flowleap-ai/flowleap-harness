@@ -97,6 +97,8 @@ const LANGUAGES = { en, de, es, fr, ja, pt, ru, zh } as const satisfies Readonly
 >
 
 const bar = (heading = 'Your decision') => screen.getByRole('region', { name: heading })
+/** The icon of the deadline part in the decision bar. */
+const partIcon = () => bar().querySelector('[class*="partIcon"] svg')?.getAttribute('data-icon')
 
 describe('the matters list', () => {
   it('lists the matters with their next due date and opens one', async () => {
@@ -279,6 +281,15 @@ describe('the matter page', () => {
     await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(33) as DeadlineId, state: 'deadline_proposed' }], work: [] } })
     expect(document.body.textContent).toContain('2deadlines are overdue')
   })
+
+  it('takes the next deadline as the earliest open one, an entered date included, as the overdue count does', async () => {
+    const first = { ...fixtures.matter.deadlines[0]!, due: '2027-03-01' as IsoDate }
+    const entered = { ...first, id: uuid(34) as DeadlineId, state: 'manual_proposed' as const, due: '2026-03-02' as IsoDate }
+    const done = { ...first, id: uuid(35) as DeadlineId, state: 'rejected' as const, due: '2026-01-05' as IsoDate }
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [done, first, entered], work: [] } })
+    expect(document.body.textContent).toContain('1deadline is overdue')
+    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mon, 2 Mar 2026Overdue by 247 days')
+  })
 })
 
 describe('the deadline page', () => {
@@ -305,6 +316,7 @@ describe('the deadline page', () => {
     expect(panel.textContent).toContain('EPO, 30 Oct 2026')
     expect(within(bar()).getByText('You did not record or classify this letter, so you can confirm')).toBeTruthy()
     expect(within(bar()).getByText('4 steps · both readings agree · FlowLeap checks the date again when you confirm')).toBeTruthy()
+    expect(partIcon()).toBe('dsw-icon-check-outline-regular')
     expect(screen.getByRole('navigation', { name: 'Location' }).textContent).toContain('Deadline 1 Mar 2027')
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
@@ -420,6 +432,7 @@ describe('the deadline page', () => {
     }
     const { keyActs } = await mount(DEADLINE, { deadline: differ })
     expect(within(bar()).getByText(/the readings differ, so check the letter/)).toBeTruthy()
+    expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
     expect(screen.getByText('Differ')).toBeTruthy()
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
     expect(screen.getByText('The office is open on this day')).toBeTruthy()
@@ -434,6 +447,7 @@ describe('the deadline page', () => {
     const oneReading = { code: null, model: differ.readers.model, agree: null }
     await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null }, readers: oneReading } })
     expect(within(bar()).getByText(/one reading only/)).toBeTruthy()
+    expect(partIcon()).toBe('dsw-icon-info-outline-regular')
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Not recorded')
     cleanup()
     const empty = { code: null, documentDate: null, applicationNumber: null }
@@ -445,6 +459,7 @@ describe('the deadline page', () => {
     cleanup()
     await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null } } })
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
+    expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
   })
 
   it('words each engine note by its code, and shows the engine\'s English text only in Audit, also on a German page', async () => {
@@ -571,6 +586,28 @@ describe('the deadline page', () => {
     expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByRole('button', { name: /Frist bestätigen/ })).toBeTruthy()
     // "Vorgeschlagen von" is 115px at 13px and wraps in the 96px label column; "Vorschlag von" is 85px.
     expect(within(screen.getByRole('complementary', { name: 'Eigenschaften' })).getByText('Vorschlag von')).toBeTruthy()
+  })
+
+  it('words the legal citations and the office in the UI language, and keeps a citation it does not know as it is', async () => {
+    const steps = () => within(screen.getByRole('list', { name: 'Wie FlowLeap das Datum berechnet hat' })).getAllByRole('listitem').map(step => step.querySelector('[class*="law"]')?.textContent)
+    const trace = [...fixtures.deadline.deadline.trace, { op: 'start', from: '2026-10-30' as never, to: '2026-10-31' as never, cite: 'Article 94(3) EPC; Guidelines E-VIII, 1' }]
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, deadline: { ...fixtures.deadline.deadline, trace } } }, 'de')
+    expect(steps()).toEqual([
+      'Regel 126(2) EPÜ · Regel 127(2) EPÜ · ABl. EPA 2023, A29',
+      'Regel 131(2) EPÜ',
+      'Regel 71(3) EPÜ · Regel 131(4) EPÜ, letzter Tag des Monats',
+      'Regel 134(1) EPÜ · Kalender des EPA 2027',
+      'Artikel 94(3) EPÜ · Guidelines E-VIII, 1',
+    ])
+    expect(screen.getByRole('link', { name: 'ABl. EPA 2023, A29' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/official-journal/2023/03/a29')
+    expect(screen.getByRole('link', { name: 'Regel 134 EPÜ' })).toBeTruthy()
+    expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('EPA, 30.10.2026')
+    expect(document.body.textContent).not.toMatch(/\bEPO\b|\bEPC\b|\bRule\b|\bOJ\b/)
+    for (const [language, cite] of [['fr', 'Règle 126(2) CBE · Règle 127(2) CBE · JO OEB 2023, A29'], ['es', 'Regla 126(2) CPE · Regla 127(2) CPE · DO OEP 2023, A29']] as const) {
+      cleanup()
+      await mount(DEADLINE, {}, language)
+      expect(document.body.textContent).toContain(cite)
+    }
   })
 })
 

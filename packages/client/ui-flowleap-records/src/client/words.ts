@@ -1,7 +1,7 @@
 /**
  * The words of the IPMS views for values that the Records API sends as codes: a letter's title from its office
- * event code, an actor's name, an Activity event's text, a due date's days left and a list time. Codes, event
- * types and record positions themselves show only in Audit (R19).
+ * event code, an office's name, a legal citation, an actor's name, an Activity event's text, a due date's days left
+ * and a list time. Codes, event types and record positions themselves show only in Audit (R19).
  */
 
 import { createElement, type ReactNode } from 'react'
@@ -45,6 +45,66 @@ export function letterTitle(t: Translate, code: string | null, status?: QueueSta
   if (status?.machine === 'intake' && status.state === 'unreadable') return t('code.unreadable')
   const key = code === null ? undefined : CODE_TITLES[code]
   return t(key ?? 'code.unknown')
+}
+
+/** The key stem of each office that the views word; another office shows its own abbreviation. */
+const OFFICES: Readonly<Record<string, 'epo' | 'dpma' | 'uspto' | 'wipo'>> = { EPO: 'epo', DPMA: 'dpma', USPTO: 'uspto', WIPO: 'wipo' }
+
+/**
+ * An office's name in the UI language, such as "EPA" for the EPO on a German page.
+ * @param t - the translate function.
+ * @param office - the office abbreviation that the Records API sends, such as `EPO`.
+ * @returns the name.
+ */
+export function officeName(t: Translate, office: string): string {
+  const stem = OFFICES[office]
+  return stem === undefined ? office : t(`office.${stem}`)
+}
+
+/**
+ * "From" and the office, with the article that the UI language needs ("from the EPO", "vom EPA").
+ * @param t - the translate function.
+ * @param office - the office abbreviation that the Records API sends.
+ * @returns the phrase.
+ */
+export function fromOffice(t: Translate, office: string): string {
+  const stem = OFFICES[office]
+  return stem === undefined ? t('office.from.other', { office }) : t(`office.from.${stem}`)
+}
+
+/** The citation forms of the deadline engine that the views word, each with its words. */
+const CITES: readonly (readonly [RegExp, (t: Translate, match: RegExpExecArray) => string])[] = [
+  [/^Rule (\S+) EPC$/u, (t, match) => t('cite.rule', { number: match[1] })],
+  [/^Article (\S+) EPC$/u, (t, match) => t('cite.article', { number: match[1] })],
+  [/^OJ EPO (\d{4}), (\S+)$/u, (t, match) => t('cite.journal', { year: match[1], item: match[2] })],
+  [/^EPO calendar (\d{4})$/u, (t, match) => t('cite.calendar', { year: match[1] })],
+]
+
+/** The suffix of a citation part that names the last day of the month. */
+const LAST_DAY = ', last day of the month'
+
+/**
+ * A legal citation of the deadline engine in the UI language: each part (`; ` between parts) becomes the rule,
+ * article, Official Journal or calendar words of the language, with its numbers as they are, and the parts join with
+ * " · ". A part in another form stays as the engine wrote it.
+ * @param t - the translate function.
+ * @param cite - the citation, such as `Rule 126(2) EPC; OJ EPO 2023, A29`.
+ * @returns the citation text, such as "Regel 126(2) EPÜ · ABl. EPA 2023, A29".
+ */
+export function citeText(t: Translate, cite: string): string {
+  return cite.split('; ').map((part) => {
+    const lastDay = part.endsWith(LAST_DAY)
+    const body = lastDay ? part.slice(0, -LAST_DAY.length) : part
+    let text = body
+    for (const [form, words] of CITES) {
+      const match = form.exec(body)
+      if (match !== null) {
+        text = words(t, match)
+        break
+      }
+    }
+    return lastDay ? t('cite.lastDay', { cite: text }) : text
+  }).join(' · ')
 }
 
 /**

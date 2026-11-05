@@ -184,6 +184,18 @@ describe('the split view from 1366px', () => {
   })
 })
 
+describe('the German intake', () => {
+  it('names the office in German in the rows, the reasons and the properties, never by its English code', async () => {
+    mounted = await mountPanel(createFixtureApi().api, open(R71_DOCUMENT), 'de')
+    const row = document.querySelector(`[data-row="${R71_DOCUMENT}"]`)!
+    expect(row.textContent).toContain('EPA')
+    expect(row.textContent).not.toContain('EPO')
+    const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
+    expect(reasons[2]).toContain('FlowLeap hat den Brief als Mitteilung nach Regel 71(3) vom EPA gelesen, datiert')
+    expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('AmtEPA')
+  })
+})
+
 describe('the next letter after a decision', () => {
   const wide = () => { vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} }))) }
   const order = () => shownOrder(fixtures.intake.rows).map(row => row.document)

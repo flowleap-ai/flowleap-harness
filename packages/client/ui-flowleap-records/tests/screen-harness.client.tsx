@@ -12,7 +12,7 @@ import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { MenuPoint } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { Act, DocumentId, RecordsApi } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from '../src/client/key-layer.ts'
-import { en } from '../src/client/locales.ts'
+import { de, en } from '../src/client/locales.ts'
 import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import type { IntakeRowTarget } from '../src/client/row-menu.ts'
@@ -37,9 +37,10 @@ export function press(target: Element, code: string, extra: KeyboardEventInit = 
  * Mount the panel with the real key layer.
  * @param api - the Records API.
  * @param route - the first route.
+ * @param language - the UI language.
  * @returns the model, the registries, the context menu spy, the ⌘K opener spy, the fake run Session and a disposer.
  */
-export async function mountPanel(api: RecordsApi, route: Route) {
+export async function mountPanel(api: RecordsApi, route: Route, language: 'en' | 'de' = 'en') {
   const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
   const disposers: (() => void)[] = []
   const ctx = {
@@ -57,13 +58,13 @@ export async function mountPanel(api: RecordsApi, route: Route) {
   const agent = agentProps()
   const props = {
     ...agent.props,
-    t: makeTranslate(en),
+    t: makeTranslate(language === 'de' ? de : en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
     useWaitingCount: bindSnapshotSelector(model.waitingCount),
     useCatalog: bindSnapshotSelector(registry.catalog),
     useFixedCatalog: bindSnapshotSelector(registry.fixedCatalog),
-    useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
+    useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>(language)),
     useContextMenu: contextMenuHook(openMenu),
     navigate: (next: Route) => { model.navigate(next) },
     retry: () => { model.retry() },
