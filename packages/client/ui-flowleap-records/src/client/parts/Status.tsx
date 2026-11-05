@@ -44,26 +44,27 @@ export function AtlasStatus({ status, word, className }: { status: AtlasRef; wor
 
 /**
  * Render a fact's status with its label first, such as "Report · Sent" or "Reply · Sent", so two records whose
- * states share a shape and a word never look the same (R11). The status word is never cut: by default the label and
- * the status wrap onto two lines when they do not fit; on one line, the label is cut and the full fact shows on hover.
+ * states share a shape and a word never look the same (R11). Neither the label nor the status word is ever cut: the
+ * status wraps onto the next line when the pair does not fit, and a status word wider than its line wraps too.
  * @param props.label - what the fact is about, such as "Report".
  * @param props.status - the atlas state.
  * @param props.word - its word, from `atlasWord`.
- * @param props.oneLine - keep the fact on one line, as a board card's chip does.
+ * @param props.chip - the fact is a chip, as on a board card: its box groups the label and the status, so no dot
+ * separates them.
  * @param props.className - extra class for the chip, such as a card's box.
  * @returns the labelled status.
  */
-export function FactStatus({ label, status, word, oneLine = false, className }: {
+export function FactStatus({ label, status, word, chip = false, className }: {
   label: string
   status: AtlasRef
   word: AtlasWord
-  oneLine?: boolean
+  chip?: boolean
   className?: string | undefined
 }) {
   return (
-    <span className={clsx(css.fact, oneLine && css.oneLine, className)} title={oneLine ? `${label} · ${word}` : undefined}>
-      <span className={css.factLabel}>{label}<span aria-hidden="true"> ·</span></span>
-      <AtlasStatus status={status} word={word} />
+    <span className={clsx(css.fact, className)}>
+      <span className={css.factLabel}>{label}{!chip && <span aria-hidden="true"> ·</span>}</span>
+      <AtlasStatus status={status} word={word} className={css.factStatus} />
     </span>
   )
 }

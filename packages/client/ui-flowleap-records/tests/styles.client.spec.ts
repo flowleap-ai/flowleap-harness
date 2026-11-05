@@ -84,12 +84,19 @@ describe('the board card', () => {
   const css = read('Board.module.css')
   const status = read('Status.module.css')
 
-  it('keeps each fact on one 24px line: the label is cut before the status word, which never shrinks', () => {
-    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'height: 24px', 'padding: 0 8px']))
-    expect(declarations(status, '.oneLine')).toEqual(['flex-wrap: nowrap', 'white-space: nowrap'])
-    expect(declarations(status, '.oneLine > .factLabel')).toEqual(['min-width: 0', 'overflow: hidden', 'text-overflow: ellipsis'])
-    expect(declarations(status, '.oneLine > :last-child')).toEqual(['flex: none'])
-    expect(status.indexOf('.oneLine {')).toBeGreaterThan(status.indexOf('.fact {'))
+  it('cuts no label, status word or matter key: a chip that does not fit puts its status on a second line', () => {
+    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'min-height: 24px', 'padding: 0 8px', 'border-radius: var(--dsw-radius-sm)']))
+    expect(declarations(status, '.fact')).toEqual(expect.arrayContaining(['flex-wrap: wrap', 'max-width: 100%']))
+    expect(declarations(status, '.factStatus')).toEqual(['min-width: 0', 'white-space: normal'])
+    expect(status.indexOf('.factStatus {')).toBeGreaterThan(status.indexOf('.status {'))
+    expect(css).not.toMatch(/text-overflow|line-clamp: 1/)
+  })
+
+  it('keeps the matter key whole: a narrow card hides the column\'s icon, and a large team moves onto its own line', () => {
+    expect(declarations(css, '.card')).toContain('container: card / inline-size')
+    expect(declarations(css, '.key')).toEqual(['flex: none', 'white-space: nowrap'])
+    expect(declarations(css, '.top')).toContain('flex-wrap: wrap')
+    expect(declarations(atRule(css, '@container card (width < 176px)'), '.top > :first-child')).toEqual(['display: none'])
   })
 })
 

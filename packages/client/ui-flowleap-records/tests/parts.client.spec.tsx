@@ -369,11 +369,13 @@ describe('board', () => {
     )
     expect(screen.getByText('Drop to decide')).toBeTruthy()
     expect(screen.getByText('FlowLeap assigns the work.')).toBeTruthy()
+    const chip = screen.getByText('Deadline').parentElement!
+    expect(chip.textContent).toBe('DeadlineActive')
+    expect(chip.title).toBe('')
     expect(screen.getAllByRole('article')[0]!.dataset['lifted']).toBe('true')
     fireEvent.click(screen.getByRole('button', { name: 'Rule 71(3) communication' }))
     expect(onOpen).toHaveBeenCalledOnce()
     expect(screen.getByText('Active').closest('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.active')
-    expect(screen.getByText('Active').closest('[title]')?.getAttribute('title')).toBe('Deadline · Active')
   })
 })
 

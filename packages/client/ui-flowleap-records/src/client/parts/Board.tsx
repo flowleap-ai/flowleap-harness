@@ -80,7 +80,8 @@ export interface CardFact {
 
 /**
  * Render a board card: the column's icon (`aria-hidden`) and the matter key, the team, the title in two lines at
- * most, the matter with the due date, and the labelled facts, each on one line with the full fact on hover.
+ * most, the matter with the due date, and the labelled fact chips. The matter key and every chip's label and status
+ * word are never cut: a chip that does not fit on one line puts its status on a second line.
  * @param props.status - the column's atlas state.
  * @param props.matterKey - the file number.
  * @param props.team - the team inside the matter's wall.
@@ -131,7 +132,7 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
       {facts.length > 0 && (
         <div className={css.facts}>
           {facts.map(fact => (
-            <FactStatus key={fact.label} label={fact.label} status={fact.status} word={fact.word} oneLine className={css.fact} />
+            <FactStatus key={fact.label} label={fact.label} status={fact.status} word={fact.word} chip className={css.fact} />
           ))}
         </div>
       )}

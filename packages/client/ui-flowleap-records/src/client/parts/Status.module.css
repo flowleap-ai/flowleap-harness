@@ -25,18 +25,8 @@
   white-space: nowrap;
 }
 
-/* A fact on one line: the label is cut before the status word, which never shrinks. */
-.oneLine {
-  flex-wrap: nowrap;
-  white-space: nowrap;
-}
-
-.oneLine > .factLabel {
+/* A status word wider than its line wraps after the icon, so it is never cut. */
+.factStatus {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.oneLine > :last-child {
-  flex: none;
+  white-space: normal;
 }
