@@ -126,7 +126,7 @@ export function KeyFact({ value, detail }: { value: string; detail?: ReactNode }
  * row (R18).
  * @param props.heading - the heading.
  * @param props.count - the number of items, when the section lists items.
- * @param props.empty - the one sentence of a section with a count of 0, such as "Nothing on this matter yet.".
+ * @param props.empty - the one sentence of a section with a count of 0, such as "No work on this matter yet.".
  * @param props.actions - controls at the right of the heading.
  * @param props.children - the content.
  * @returns the section.

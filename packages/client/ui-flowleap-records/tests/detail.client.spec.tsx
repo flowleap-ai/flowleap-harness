@@ -230,14 +230,28 @@ describe('the matter page', () => {
     expect(opened).toHaveBeenCalled()
   })
 
-  it('says in one sentence that a section has nothing, instead of a column header with no row', async () => {
-    await mount(MATTER, { matter: { ...fixtures.matter, work: [], deadlines: [] } })
+  it('says in one sentence what a section has none of, instead of a column header with no row', async () => {
+    const section = (name: string) => screen.getByRole('heading', { name }).closest('section')!.textContent
+    await mount(MATTER, { matter: { ...fixtures.matter, work: [] } })
     expect(screen.queryByRole('table', { name: 'Work' })).toBeNull()
-    expect(screen.queryByRole('table', { name: 'Deadlines' })).toBeNull()
-    const work = screen.getByRole('heading', { name: 'Work' }).closest('section')!
-    expect(work.textContent).toBe('Work0Nothing on this matter yet.')
-    expect(screen.getAllByText('Nothing on this matter yet.')).toHaveLength(2)
+    expect(section('Work')).toBe('Work0No work on this matter yet.')
+    expect(screen.getByRole('table', { name: 'Deadlines' })).toBeTruthy()
     expect(screen.getByRole('table', { name: 'Office events' })).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'Documents' })).toBeTruthy()
+    cleanup()
+    const none: MatterDetail = { ...fixtures.matter, deadlines: [], work: [], officeEvents: [], documents: [] }
+    await mount(MATTER, { matter: none })
+    for (const name of ['Deadlines', 'Work', 'Office events', 'Documents']) expect(screen.queryByRole('table', { name })).toBeNull()
+    expect(['Deadlines', 'Work', 'Office events', 'Documents'].map(section)).toEqual([
+      'Deadlines0No deadlines on this matter yet.', 'Work0No work on this matter yet.',
+      'Office events0No office events on this matter yet.', 'Documents0No documents on this matter yet.',
+    ])
+    cleanup()
+    await mount(MATTER, { matter: none }, 'de')
+    expect(['Fristen', 'Arbeit', 'Amtsereignisse', 'Dokumente'].map(section)).toEqual([
+      'Fristen0Noch keine Fristen in dieser Akte.', 'Arbeit0Noch keine Arbeit in dieser Akte.',
+      'Amtsereignisse0Noch keine Amtsereignisse in dieser Akte.', 'Dokumente0Noch keine Dokumente in dieser Akte.',
+    ])
   })
 
   it('counts two work items that wait for one person', async () => {
