@@ -51,13 +51,13 @@ export const PERSON_MOVES: readonly { readonly from: TicketState; readonly to: T
 const LIST_COLUMNS = '14px minmax(0, 1fr) 92px 64px 120px'
 
 /**
- * Whether the signed-in person may make a decision on the work: a member of the matter's team.
+ * Whether the signed-in person may make a decision on the work: the person the work is routed to, as on the work page.
  * @param row - the work.
  * @param me - the signed-in person.
  * @returns true when the person may move the card.
  */
 export function mayMove(row: TicketRow, me: Me | null): boolean {
-  return me !== null && row.team.some(person => person.id === me.person.id)
+  return me !== null && row.routedTo?.id === me.person.id
 }
 
 /**
@@ -71,7 +71,7 @@ export function dropOf(ctx: ScreenContext, column: BoardColumnSpec, card: Ticket
   if (card === null || card.state === column.state) return { kind: 'idle' }
   const allowed = PERSON_MOVES.some(move => move.from === card.state && move.to === column.state)
   if (!allowed) return { kind: 'refused', reason: ctx.t(column.refusal) }
-  if (!mayMove(card, ctx.me)) return { kind: 'refused', reason: ctx.t('board.refused.team') }
+  if (!mayMove(card, ctx.me)) return { kind: 'refused', reason: ctx.t('board.refused.notRouted') }
   return { kind: 'allowed', title: ctx.t('board.drop.title'), body: ctx.t('board.drop.body') }
 }
 

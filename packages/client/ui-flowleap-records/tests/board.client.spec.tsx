@@ -95,14 +95,17 @@ describe('the work board', () => {
     expect(model.screen.getSnapshot().view).toBe('board')
   })
 
-  it('refuses a decision move by a person outside the team and a move that is no transition', () => {
+  it('refuses a decision move by a team member the work is not routed to, and a move that is no transition', () => {
     const words: Partial<ScreenContext> = { t: makeTranslate(en), me: fixtures.me }
     const ctx = words as ScreenContext
-    const row: TicketRow = { ...fixtures.tickets.rows[3]!, team: [PEOPLE.jonas] as never }
+    const routed = fixtures.tickets.rows[3]!
+    expect(mayMove(routed, fixtures.me)).toBe(true)
+    const row: TicketRow = { ...routed, team: [PEOPLE.anna, PEOPLE.jonas] as never, routedTo: PEOPLE.jonas as never }
     expect(mayMove(row, fixtures.me)).toBe(false)
+    expect(mayMove({ ...row, routedTo: null }, fixtures.me)).toBe(false)
     expect(mayMove(row, null)).toBe(false)
     const decided = BOARD_COLUMNS[3]!
-    expect(dropOf(ctx, decided, row)).toEqual({ kind: 'refused', reason: "Only the matter's team decides this work." })
+    expect(dropOf(ctx, decided, row)).toEqual({ kind: 'refused', reason: 'Only the person the work is assigned to decides it.' })
     expect(dropOf(ctx, BOARD_COLUMNS[2]!, { ...row, state: 'decided' })).toEqual({ kind: 'refused', reason: 'The agent prepares the proposals; a person cannot move a card back here.' })
     expect(dropOf(ctx, decided, { ...row, state: 'routed' })).toEqual({ kind: 'refused', reason: 'Only work with proposals ready can be decided.' })
     expect(dropOf(ctx, decided, null)).toEqual({ kind: 'idle' })

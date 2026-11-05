@@ -61,7 +61,7 @@ The view bar has the three lists as filter chips with their counts (the lists ar
 
 ### Work board
 
-The board has a column for each state that work waits or works in (Assigned, Running, Proposals ready, Decided) and the count of every other state. A card moves only on an allowed transition by a member of the matter's team: from Proposals ready to Decided, a decision, so its drop opens the work page and nothing moves until the person records it there. While a card is dragged, every other column says why it takes no card. **For me** shows the work routed to the person. At 390 px the board scrolls sideways inside its own area.
+The board has a column for each state that work waits or works in (Assigned, Running, Proposals ready, Decided) and the count of every other state. A card moves only on an allowed transition by the person the work is routed to: from Proposals ready to Decided, a decision, so its drop opens the work page and nothing moves until the person records it there. While a card is dragged, every other column says why it takes no card. **For me** shows the work routed to the person. At 390 px the board scrolls sideways inside its own area.
 
 ### Loading, empty and error states
 
