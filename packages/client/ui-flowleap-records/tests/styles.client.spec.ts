@@ -67,6 +67,13 @@ describe('the list', () => {
     expect(declarations(css, '.header')).toEqual(expect.arrayContaining(['position: sticky', 'top: 0', 'flex: none', 'height: var(--records-header-height)']))
     expect(declarations(css, '.groupHeader')).toEqual(expect.arrayContaining(['position: sticky', 'top: var(--records-header-height)']))
   })
+
+  it('fades a row only on a pointer hover, so a key that opens or checks a row changes it at once', () => {
+    const hover = atRule(css, '@media (hover: hover) and (prefers-reduced-motion: no-preference)')
+    expect(declarations(hover, '.row:not([data-open], [data-checked]):hover')).toEqual(['transition: background-color var(--ds-transition-duration-fast) ease'])
+    const outside = css.replace(`@media (hover: hover) and (prefers-reduced-motion: no-preference) {${hover}}`, '')
+    expect(outside).not.toContain('transition')
+  })
 })
 
 describe('the bulk bar', () => {

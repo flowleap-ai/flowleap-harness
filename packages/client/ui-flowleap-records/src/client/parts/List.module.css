@@ -115,8 +115,9 @@
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .row {
+/* Only the pointer hover fades; J, K, X and ↵ change the open and checked rows at once (R15). */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .row:not([data-open], [data-checked]):hover {
     transition: background-color var(--ds-transition-duration-fast) ease;
   }
 }
