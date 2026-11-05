@@ -6,8 +6,10 @@
  */
 
 import type { DragEvent, ReactNode } from 'react'
+import clsx from 'clsx'
 import { AvatarStack, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AtlasRef } from '../atlas.ts'
+import { SkeletonBone } from './List.tsx'
 import { AtlasStatus, FactStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
 import css from './Board.module.css'
 
@@ -78,7 +80,7 @@ export interface CardFact {
 
 /**
  * Render a board card: the column's icon (`aria-hidden`) and the matter key, the team, the title in two lines at
- * most, the matter with the due date, and the labelled facts.
+ * most, the matter with the due date, and the labelled facts, each on one line with the full fact on hover.
  * @param props.status - the column's atlas state.
  * @param props.matterKey - the file number.
  * @param props.team - the team inside the matter's wall.
@@ -129,7 +131,7 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
       {facts.length > 0 && (
         <div className={css.facts}>
           {facts.map(fact => (
-            <FactStatus key={fact.label} label={fact.label} status={fact.status} word={fact.word} className={css.fact} />
+            <FactStatus key={fact.label} label={fact.label} status={fact.status} word={fact.word} oneLine className={css.fact} />
           ))}
         </div>
       )}
@@ -143,4 +145,28 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
  */
 export function CardSlot() {
   return <div className={css.slot} aria-hidden="true" />
+}
+
+/**
+ * Render a loading board column (R18): the column with a skeleton header and skeleton cards, no shimmer.
+ * @param props.cards - the skeleton cards in the column.
+ * @param props.place - the column's place, which varies the bar widths.
+ * @returns the column, hidden from assistive technology; the board names the loading state.
+ */
+export function BoardColumnSkeleton({ cards, place }: { cards: number; place: number }) {
+  return (
+    <section className={css.column} aria-hidden="true">
+      <header className={css.columnHead}>
+        <SkeletonBone cell="dot" place={place} />
+        <SkeletonBone cell="bar" place={place} />
+      </header>
+      {Array.from({ length: cards }, (_, card) => (
+        <div key={card} className={clsx(css.card, css.skeletonCard)}>
+          <SkeletonBone cell="bar" place={place + card} />
+          <SkeletonBone cell="bar" place={place + card + 1} />
+          <SkeletonBone cell="bar" place={place + card + 2} />
+        </div>
+      ))}
+    </section>
+  )
 }

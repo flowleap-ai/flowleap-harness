@@ -1,18 +1,21 @@
 /**
  * The docked agent panel (components.md): a 376px column at the right of the work page with a 44px header (the agent's
- * name, its model, minimise, expand and close) and the run's conversation or one sentence of its state. Minimised,
+ * name, its model, minimise, expand and close) and the run's conversation, or its empty state with the run summary and
+ * the composer that starts a new chat. Minimised,
  * the panel stays mounted and hidden, so the conversation keeps its place and its draft; closed, it is not rendered.
  * Full, it fills the work area; at 390px only the full panel shows. The keys of the work page do not act while
  * focus is in the panel, so a key typed in the conversation never records a decision.
  */
 
-import type { MouseEvent, ReactNode } from 'react'
+import { useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
+import clsx from 'clsx'
 import {
   Button, IconAgentPresetOutlineRegular, IconCloseOutlineRegular, IconFullscreenOutlineRegular, IconPanelLeftOutlineRegular,
-  StateDot, type StatusShape, Tooltip,
+  IconSendOutlineRegular, Input, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { KEYS_ELSEWHERE } from '../key-layer.ts'
 import css from './AgentDock.module.css'
+import summary from './AgentSummary.module.css'
 
 /** Where the agent panel is: the right column, the whole work area, hidden but mounted, or closed. */
 export type DockView = 'docked' | 'full' | 'minimised' | 'closed'
@@ -40,7 +43,7 @@ function keepFocus(event: MouseEvent<HTMLElement>) {
  * @param props.model - the run's model, or null when the record names none.
  * @param props.labels - the header controls' labels.
  * @param props.onView - move the panel.
- * @param props.children - the conversation, or the panel's state.
+ * @param props.children - the conversation, or the panel's empty state.
  * @returns the panel, or nothing when it is closed.
  */
 export function AgentDock({ view, name, model, labels, onView, children }: {
@@ -89,17 +92,104 @@ export function AgentDock({ view, name, model, labels, onView, children }: {
   )
 }
 
+/** The proposals of a run as file rows, with the list's accessible name. */
+export interface AgentResults {
+  readonly label: string
+  readonly items: readonly ReactNode[]
+}
+
 /**
- * Render the panel's state when it has no conversation to show: a status icon and one sentence.
- * @param props.shape - `idle` when nothing ran or nothing is recorded, `bad` when the conversation cannot show.
- * @param props.text - the sentence.
+ * Render the panel's empty state when it has no conversation (R18): a 48px tile with a UI icon (or the run's working
+ * or refused shape), the run's state as the heading, one sentence on where the conversation is, then the run's facts
+ * and its proposals.
+ * @param props.notice - a notice above the state, such as a failed read of the conversation; null for none.
+ * @param props.icon - the tile's icon.
+ * @param props.title - the run's state, such as "The patent agent finished this letter".
+ * @param props.body - one sentence on where the conversation is.
+ * @param props.facts - the run's facts on one line, such as "Finished 14:12 · 7 steps"; empty for none.
+ * @param props.results - the run's proposals, or null when it proposed nothing.
  * @returns the state.
  */
-export function AgentDockState({ shape, text }: { shape: Extract<StatusShape, 'idle' | 'bad'>; text: string }) {
+export function AgentEmpty({ notice, icon, title, body, facts, results }: {
+  notice: ReactNode
+  icon: ReactNode
+  title: string
+  body: string
+  facts: string
+  results: AgentResults | null
+}) {
   return (
-    <p className={css.state} data-dock-state={shape}>
-      <StateDot shape={shape} />
-      <span>{text}</span>
-    </p>
+    <div className={css.empty}>
+      {notice}
+      <div className={summary.tile} aria-hidden="true">{icon}</div>
+      <h2 className={summary.emptyTitle}>{title}</h2>
+      <p className={summary.emptyBody}>{body}</p>
+      {facts !== '' && <p className={summary.facts}>{facts}</p>}
+      {results !== null && <ul className={summary.results} aria-label={results.label}>{results.items}</ul>}
+    </div>
+  )
+}
+
+/**
+ * Render one proposal of a run as a file row: its icon, the work product, the file name and its status.
+ * @param props.icon - a 16px UI icon.
+ * @param props.title - the work product, such as "Client report".
+ * @param props.file - the file name, in the secondary line.
+ * @param props.status - the proposal's status with its word.
+ * @returns the row.
+ */
+export function AgentResult({ icon, title, file, status }: { icon: ReactNode; title: string; file: string; status: ReactNode }) {
+  return (
+    <li className={summary.result}>
+      <span className={summary.resultIcon}>{icon}</span>
+      <span className={summary.resultText}>
+        <span className={summary.resultTitle}>{title}</span>
+        <span className={summary.resultFile} title={file}>{file}</span>
+      </span>
+      {status}
+    </li>
+  )
+}
+
+/** The copy of the composer. */
+export interface AskLabels {
+  /** The field's accessible name, "Ask about this letter". */
+  readonly field: string
+  readonly placeholder: string
+  /** The send button's accessible name, "Ask in a new chat". */
+  readonly send: string
+}
+
+/**
+ * Render the composer of a panel with no conversation: a question field and the send button. Sending starts a new
+ * chat about this letter with the question drafted; an empty question sends nothing.
+ * @param props.labels - the composer's copy.
+ * @param props.onAsk - start the new chat with the trimmed question.
+ * @returns the composer.
+ */
+export function AskComposer({ labels, onAsk }: { labels: AskLabels; onAsk: (question: string) => void }) {
+  const [question, setQuestion] = useState('')
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const text = question.trim()
+    if (text === '') return
+    onAsk(text)
+    setQuestion('')
+  }
+  return (
+    <form className={summary.composer} onSubmit={submit}>
+      <Input
+        className={clsx(summary.composerField)}
+        aria-label={labels.field}
+        placeholder={labels.placeholder}
+        value={question}
+        onChange={(event) => { setQuestion(event.target.value) }}
+      />
+      <Tooltip label={labels.send} side="top" delayMs={500}>
+        <Button variant="outline" size="sm" type="submit" aria-label={labels.send} disabled={question.trim() === ''}>
+          <IconSendOutlineRegular size={16} />
+        </Button>
+      </Tooltip>
+    </form>
   )
 }

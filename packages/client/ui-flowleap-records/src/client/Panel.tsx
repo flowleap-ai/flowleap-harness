@@ -3,7 +3,8 @@
  * Intake with its count, Work) on a list, and the breadcrumb on a detail page. An intake list with an open letter
  * shows the tabs from 1366px and, below it, the item page's breadcrumb with "1 / N" and the up and down buttons. On
  * the work page the top bar opens the agent panel again: beside the work after minimise or close, and full screen at
- * 390px.
+ * 390px. In a browser drawer the top bar is also the row of the client frame's sidebar opener (`data-frame-top-row`),
+ * so a narrow screen has one top row.
  */
 
 import { useState, type ReactNode } from 'react'
@@ -25,7 +26,7 @@ import type { NS } from './locales.ts'
 import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab } from './model.ts'
 import type { DockView } from './parts/AgentDock.tsx'
 import type { IntakeRowTarget } from './row-menu.ts'
-import type { ScreenContext } from './screens/context.ts'
+import type { NewChat, ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
 import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
 import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
@@ -54,6 +55,8 @@ export interface PanelInjected {
     readonly fixedCatalog: ObservableSnapshot<readonly ShortcutFixedCatalogEntry[]>
     /** The UI language. */
     readonly language: ObservableSnapshot<LocaleId>
+    /** Start a new chat about a letter; null while the runtime has no Session navigation. */
+    readonly ask: ObservableSnapshot<NewChat | null>
   }
   readonly navigate: (route: Route) => void
   readonly retry: () => void
@@ -82,13 +85,14 @@ const TAB_ORDER: readonly Tab[] = ['matters', 'intake', 'work']
  * @returns the panel.
  */
 export function RecordsPanel(props: PanelProps) {
-  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useContextMenu } = props
+  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useAsk, useContextMenu } = props
   const screen = useScreen(value => value)
   const me = useMe(load => shownData(load)?.data ?? null)
   const waitingCount = useWaitingCount(count => count)
   const catalog = useCatalog(rows => rows)
   const fixedCatalog = useFixedCatalog(rows => rows)
   const locale = useLanguage(language => language)
+  const ask = useAsk(start => start)
   const { getTriggerProps } = useContextMenu()
   const [dock, setDock] = useState<DockView>('docked')
   const ctx: ScreenContext = {
@@ -109,6 +113,7 @@ export function RecordsPanel(props: PanelProps) {
       useResource: props.useResource,
       SessionProvider: props.SessionProvider,
       renderConversation: () => props.renderSlot('records.agent.conversation', {}),
+      ask,
     },
   }
   const tab = TAB_OF[screen.view]
@@ -132,7 +137,7 @@ export function RecordsPanel(props: PanelProps) {
   const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
     <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1}>
-      <header className={css.topbar}>
+      <header className={css.topbar} data-frame-top-row="">
         {detail === null ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}
         {detail !== null && <div className={clsx(css.detailBar, screen.view === 'intake' && css.narrowOnly)}>{detail}</div>}

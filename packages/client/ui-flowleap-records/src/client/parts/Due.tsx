@@ -1,11 +1,13 @@
 /**
- * Days left to a due date as the screens show them (R11). An overdue date reads "Overdue by N days" with the stale shape
- * in the refused colour beside it; the text stays in the surrounding colour because `--dsw-alias-state-error-primary`
- * as text is below 4.5:1 on the base, hovered, selected and decision bar surfaces (contrast.md).
+ * Days left to a due date as the screens show them (R11). An overdue date reads "Overdue by N days" after the
+ * overdue mark: the warning glyph in the refused colour, which is a UI icon and none of the six status shapes, so it
+ * cannot read as the state of the deadline. The text stays in the surrounding colour because
+ * `--dsw-alias-state-error-primary` as text is below 4.5:1 on the base, hovered, selected and decision bar surfaces
+ * (contrast.md); as an icon it is above 3:1 on each of them.
  */
 
 import type { ReactNode } from 'react'
-import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconWarningTriangleOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { dueDay } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { dueText, type WordContext } from '../words.ts'
@@ -16,15 +18,33 @@ import css from './Due.module.css'
 const DUE_MARK = '\u0000'
 
 /**
- * Render the days left to a due date, written out; an overdue date carries `data-overdue` and the stale shape.
+ * Whether a due date is in the past.
+ * @param words - the word context, for today.
+ * @param due - the due date.
+ * @returns true when the date is overdue.
+ */
+export function isOverdue(words: WordContext, due: IsoDate): boolean {
+  return dueDay(due, words.now, words.timeZone).kind === 'overdue'
+}
+
+/**
+ * Render text after the overdue mark: the 16px warning glyph in the refused colour.
+ * @param props.children - the words that say what is overdue.
+ * @returns the marked text; `data-overdue` names it for the tests and the design checks.
+ */
+export function Overdue({ children }: { children: ReactNode }) {
+  return <span className={css.overdue} data-overdue><IconWarningTriangleOutlineRegular size={16} />{children}</span>
+}
+
+/**
+ * Render the days left to a due date, written out; an overdue date carries the overdue mark.
  * @param props.words - the word context.
  * @param props.due - the due date.
  * @returns the due text.
  */
 export function DueText({ words, due }: { words: WordContext; due: IsoDate }) {
   const text = dueText(words, due)
-  if (dueDay(due, words.now, words.timeZone).kind !== 'overdue') return <>{text}</>
-  return <span className={css.overdue} data-overdue><StateDot shape="stale" size={12} />{text}</span>
+  return isOverdue(words, due) ? <Overdue>{text}</Overdue> : <>{text}</>
 }
 
 /**

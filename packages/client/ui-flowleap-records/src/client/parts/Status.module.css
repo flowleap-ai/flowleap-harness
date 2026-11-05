@@ -24,3 +24,19 @@
   color: var(--dsw-alias-label-secondary);
   white-space: nowrap;
 }
+
+/* A fact on one line: the label is cut before the status word, which never shrinks. */
+.oneLine {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.oneLine > .factLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oneLine > :last-child {
+  flex: none;
+}

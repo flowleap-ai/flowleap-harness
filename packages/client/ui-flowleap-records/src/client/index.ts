@@ -2,7 +2,8 @@
  * Browser half of FlowLeap records, the IPMS views: asks the Host route once at start and, when the answer names the
  * Records service, registers the Matters launcher in `sidebar.panellist`, the Matters panel in the keyed `main` slot,
  * the intake row's context menu, and the keys and the ⌘K item of its screens. Where the runtime has Sessions and
- * client resources, it also provides the run Session resource that the work page's agent panel shows. The panel reads
+ * client resources, it also provides the run Session resource that the work page's agent panel shows; where it has
+ * Session navigation, the panel's composer starts a new chat about the letter with the question drafted. The panel reads
  * and writes through the Records API of flowleap-os at `<recordsHref>api/` on the same origin; the firm proxy adds the
  * person's identity.
  * A failed request, an aborted request, or any other answer registers nothing and shows no error.
@@ -18,6 +19,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { RECORDS_LINK_PATH } from '../route.ts'
 import { readRouteAddress, syncRouteAddress, writeRouteAddress } from './address.ts'
 import { createRecordsApi } from './api.ts'
@@ -28,6 +30,7 @@ import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from './key-lay
 import { registerRowMenu } from './row-menu.ts'
 import { runSessionProvider } from './agent-run.ts'
 import { RunConversation } from './RunConversation.tsx'
+import type { NewChat } from './screens/context.ts'
 
 export type { FlowleapRecordsKey } from './locales.ts'
 export type { PanelInjected, PanelProps } from './Panel.tsx'
@@ -82,6 +85,14 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['resources', 'sessions'], (scope) => {
     scope.effect(() => scope.resources.register(runSessionProvider(scope.sessions)), 'ui-flowleap-records: run Sessions')
   })
+  // The agent panel's composer starts a new chat only where the runtime has Session navigation; without it, no composer.
+  const ask = createSnapshotStore<NewChat | null>(null)
+  ctx.inject(['uiWorkspace'], (scope) => {
+    scope.effect(() => {
+      ask.set({ start: (prompt) => { scope.uiWorkspace.startSession(undefined, { prompt, whenDraftExists: 'append' }) } })
+      return () => { ask.set(null) }
+    }, 'ui-flowleap-records: new chat')
+  })
   // Read before the request: the start restoration of the workspace can rewrite the address while it waits.
   const startRoute = readRouteAddress(window.location.search, PANEL_ID)
   void readRecordsLink(controller.signal).then((href) => {
@@ -106,7 +117,7 @@ export function apply(ctx: ClientContext): void {
     const injected: PanelInjected = {
       hooks: {
         screen: model.screen, me: model.me, waitingCount: model.waitingCount, catalog: ctx.shortcuts.catalog,
-        fixedCatalog: ctx.shortcuts.fixedCatalog, language,
+        fixedCatalog: ctx.shortcuts.fixedCatalog, language, ask,
       },
       navigate: (route) => { model.navigate(route) },
       retry: () => { model.retry() },

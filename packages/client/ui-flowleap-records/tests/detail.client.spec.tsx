@@ -5,7 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type {
-  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, MatterDetail, RecordsApi, TicketDetail, TicketId,
+  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, RecordsApi, TicketDetail, TicketId,
 } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
@@ -120,7 +120,7 @@ describe('the matters list', () => {
     const props = {
       t: makeTranslate(en), useScreen: bindSnapshotSelector(model.screen), useMe: bindSnapshotSelector(model.me),
       useWaitingCount: bindSnapshotSelector(model.waitingCount), useCatalog: bindSnapshotSelector(createSnapshotStore([])),
-      useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
+      useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')), useAsk: bindSnapshotSelector(createSnapshotStore(null)),
       useContextMenu: contextMenuHook(), navigate: () => {}, retry: () => {}, refresh: () => {},
       perform: () => Promise.resolve({ failed: [] }),
       contentHref: () => '', keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
@@ -128,6 +128,29 @@ describe('the matters list', () => {
     render(<RecordsPanel {...props} />)
     await flush()
     expect(screen.getByText('Kessler Sensorik GmbH · closed')).toBeTruthy()
+  })
+
+  it('shows skeleton rows on the list\'s column grid while loading, then the empty list with its next step', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(Date.parse('2026-11-04T15:00:00Z'))
+    const fixture = createFixtureApi()
+    let answer: ((value: Fetched<{ rows: [] }>) => void) | null = null
+    vi.spyOn(fixture.api, 'matters').mockImplementation(() => new Promise((resolve) => { answer = resolve }))
+    const { model, keyActs } = await mount({ view: 'matters' }, {}, 'en', fixture)
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    expect(document.querySelector('[role="status"][aria-label="Loading"] svg')).toBeNull()
+    const table = within(screen.getByRole('status', { name: 'Loading' })).getByRole('table', { name: 'Matters' })
+    expect(table.className).toContain('mattersColumns')
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['', 'Matter', 'File number', '', 'Open deadlines', 'Next due'])
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(6)
+    for (const row of rows) expect(within(row).getAllByRole('cell')).toHaveLength(6)
+    await act(async () => { answer?.({ ok: true, value: { rows: [] } }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(screen.getByText('No matters yet')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Go to Intake/ })).toBeTruthy()
+    act(() => { keyActs.handler('goIntake')?.() })
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake' })
   })
 })
 
@@ -216,6 +239,30 @@ describe('the matter page', () => {
     await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [{ ...fixtures.matter.deadlines[0]!, state: 'active' }], work: [] } })
     expect(document.body.textContent).not.toContain('waits for')
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Next deadline')
+  })
+
+  it('marks an overdue active deadline in its row, in a fact chip and in the next deadline, with the warning glyph', async () => {
+    const overdue = { ...fixtures.matter.deadlines[0]!, state: 'active' as const, due: '2026-03-02' as IsoDate }
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(32) as DeadlineId, state: 'rejected' }], work: [] } })
+    const marks = [...document.querySelectorAll<HTMLElement>('[data-overdue]')]
+    const where = (element: HTMLElement) => element.closest('[role="table"], aside')?.getAttribute('aria-label') ?? 'facts'
+    expect(marks.map(mark => [where(mark), mark.textContent])).toEqual([
+      ['facts', '1'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Properties', 'Overdue by 247 days'],
+    ])
+    for (const mark of marks) {
+      expect(mark.firstElementChild!.tagName.toLowerCase()).toBe('svg')
+      expect(mark.querySelector('[data-shape]')).toBeNull()
+    }
+    expect(document.body.textContent).toContain('1deadline is overdue')
+    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mon, 2 Mar 2026Overdue by 247 days')
+    cleanup()
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(33) as DeadlineId, state: 'deadline_proposed' }], work: [] } })
+    expect(document.body.textContent).toContain('2deadlines are overdue')
   })
 })
 
@@ -517,7 +564,8 @@ describe('the work on a letter', () => {
     const report = sourced.reports[0]!
     await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
     const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
-    expect(sent.map(status => status.parentElement!.textContent)).toEqual(['Report ·Sent', 'Reply ·Sent'])
+    // The agent panel's result card names the work product in its title row, before the file and the status.
+    expect(sent.map(status => status.parentElement!.textContent)).toEqual(['Report ·Sent', 'Reply ·Sent', 'Client reportreport-FL-2026-0001-r71-3.docxSent'])
     expect(document.querySelector('[data-atlas="deadline.active"]')!.parentElement!.textContent).toBe('Deadline ·Active')
   })
 

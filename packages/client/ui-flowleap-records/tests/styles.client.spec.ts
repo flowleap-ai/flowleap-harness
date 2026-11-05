@@ -48,9 +48,13 @@ describe('the decision bar', () => {
     expect(declarations(css, '.parts')).toEqual(expect.arrayContaining(['flex: 0 1 auto', 'min-height: 0', 'overflow-y: auto']))
   })
 
-  it('keeps each part to its title and its control at 390px, and keeps the note beside the acts on a wide bar', () => {
+  it('keeps why the person may decide and each part\'s evidence state on one line at 390px, and the note beside the acts on a wide bar', () => {
     const narrow = atRule(css, '@media (max-width: 720px)')
-    expect(declarations(narrow, '.partIcon, .partDetail')).toEqual(['display: none'])
+    const oneLine = ['overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap']
+    expect(declarations(narrow, '.partIcon')).toEqual(['display: none'])
+    expect(declarations(narrow, '.partDetail')).toEqual(['display: block', ...oneLine])
+    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%', 'min-width: 0', 'margin-left: 0', ...oneLine])
+    expect(declarations(narrow, '.note, .secondary')).toEqual(['display: none'])
     expect(declarations(narrow, '.part')).toEqual(expect.arrayContaining(['display: flex', 'flex-wrap: wrap']))
     expect(declarations(narrow, '.partControl')).toEqual(['margin-left: auto'])
     expect(declarations(atRule(css, '@container decision (max-width: 800px)'), '.partHint')).toEqual(['display: none'])
@@ -73,6 +77,19 @@ describe('the list', () => {
     expect(declarations(hover, '.row:not([data-open], [data-checked]):hover')).toEqual(['transition: background-color var(--ds-transition-duration-fast) ease'])
     const outside = css.replace(`@media (hover: hover) and (prefers-reduced-motion: no-preference) {${hover}}`, '')
     expect(outside).not.toContain('transition')
+  })
+})
+
+describe('the board card', () => {
+  const css = read('Board.module.css')
+  const status = read('Status.module.css')
+
+  it('keeps each fact on one 24px line: the label is cut before the status word, which never shrinks', () => {
+    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['height: 24px', 'padding: 0 8px']))
+    expect(declarations(status, '.oneLine')).toEqual(['flex-wrap: nowrap', 'white-space: nowrap'])
+    expect(declarations(status, '.oneLine > .factLabel')).toEqual(['min-width: 0', 'overflow: hidden', 'text-overflow: ellipsis'])
+    expect(declarations(status, '.oneLine > :last-child')).toEqual(['flex: none'])
+    expect(status.indexOf('.oneLine {')).toBeGreaterThan(status.indexOf('.fact {'))
   })
 })
 

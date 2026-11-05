@@ -160,6 +160,7 @@
 }
 
 .bone {
+  display: block;
   height: 8px;
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-bg-skeleton);
@@ -181,6 +182,7 @@
 
 .end {
   justify-self: end;
+  margin-left: auto;
 }
 
 .w40 { width: 40%; }

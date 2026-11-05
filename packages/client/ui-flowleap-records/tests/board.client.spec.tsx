@@ -126,8 +126,11 @@ describe('the work board', () => {
     vi.spyOn(api, 'tickets').mockResolvedValue({ ok: true, value: { rows: [] } })
     mounted?.dispose()
     cleanup()
-    await mount(api)
+    const { model: empty } = await mount(api)
     expect(screen.getByText('No work for you')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Go to Intake/ }))
+    await flush()
+    expect(empty.screen.getSnapshot()).toMatchObject({ view: 'intake' })
   })
 
   it('switches to the list layout, groups the work by state with the other states after the columns, and opens a row with ↵', async () => {
@@ -177,7 +180,7 @@ describe('the work board', () => {
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake' })
   })
 
-  it('shows the list skeleton while loading, tries again with R after an error, and goes to Intake with G I', async () => {
+  it('shows the list and board skeletons on their own grids while loading, tries again with R after an error, and goes to Intake with G I', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     vi.setSystemTime(Date.parse('2026-11-04T15:00:00Z'))
     const { api } = createFixtureApi()
@@ -185,10 +188,15 @@ describe('the work board', () => {
     const tickets = vi.spyOn(api, 'tickets').mockImplementation(() => new Promise((resolve) => { answer = resolve }))
     const { panel, model } = await mount(api, { view: 'board', layout: 'list' })
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy()
+    const list = screen.getByRole('status', { name: 'Loading' })
+    expect(list.style.getPropertyValue('--records-columns')).toBe('14px minmax(0, 1fr) 92px 64px 120px')
+    expect(list.firstElementChild!.textContent).toBe('WorkMatterTeamDue')
+    expect(list.querySelector('[data-skeleton]')!.firstElementChild!.children).toHaveLength(5)
     act(() => { model.navigate(BOARD) })
     await act(async () => { await vi.advanceTimersByTimeAsync(10) })
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy()
+    const board = screen.getByRole('status', { name: 'Loading' })
+    expect(board.querySelectorAll('section')).toHaveLength(4)
+    expect([...board.querySelectorAll('section')].map(column => column.querySelectorAll('header ~ div').length)).toEqual([2, 1, 2, 1])
     await act(async () => { answer?.({ ok: false, error: { kind: 'network' } }) })
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
     expect(screen.getByRole('alert').textContent).toContain('FlowLeap could not load this view.')

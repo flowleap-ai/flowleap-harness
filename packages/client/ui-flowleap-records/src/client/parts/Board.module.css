@@ -146,12 +146,18 @@
   margin-top: 12px;
 }
 
-/* The box of a fact chip; `FactStatus` wraps its label and status inside it, so the board never cuts a status word. */
+/* The box of a fact chip: one 24px line, as `FactStatus` `oneLine` keeps it. */
 .fact {
-  min-height: 24px;
-  padding: 2px 8px;
+  height: 24px;
+  padding: 0 8px;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-sm);
+}
+
+/* A loading card: three skeleton bars on the card's surface. */
+.skeletonCard {
+  display: grid;
+  gap: 12px;
 }
 
 .slot {

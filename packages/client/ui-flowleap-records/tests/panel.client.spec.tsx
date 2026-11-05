@@ -72,6 +72,14 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
 }
 
 describe('the Matters panel', () => {
+  it('marks its 44px top bar as the client frame\'s top row, so a browser drawer puts the sidebar opener in it', async () => {
+    await mount()
+    const bar = screen.getByTestId('flowleap-records').firstElementChild!
+    expect(bar.tagName.toLowerCase()).toBe('header')
+    expect(bar.hasAttribute('data-frame-top-row')).toBe(true)
+    expect(document.querySelectorAll('[data-frame-top-row]')).toHaveLength(1)
+  })
+
   it('takes the focus when it mounts, so its keys work at once, but leaves a text field that has the focus', () => {
     const panel = document.createElement('section')
     panel.tabIndex = -1

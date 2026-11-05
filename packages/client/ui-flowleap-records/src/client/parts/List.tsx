@@ -37,16 +37,35 @@ export function ListFrame({ label, columns, header, selecting = false, children,
   children: ReactNode
   footer?: ReactNode
 }) {
-  const style = { '--records-columns': columns } as CSSProperties
   return (
-    <div className={css.pane} style={style} data-list="" data-selecting={selecting || undefined}>
-      <div className={css.header} aria-hidden="true">
-        {header.map((cell, index) => <span key={index} className={css.headerCell}>{cell}</span>)}
-      </div>
+    <div className={css.pane} style={columnsStyle(columns)} data-list="" data-selecting={selecting || undefined}>
+      <ListHeader header={header} />
       <Selecting.Provider value={selecting}>
         <div className={css.list} role="list" aria-label={label}>{children}</div>
       </Selecting.Provider>
       {footer}
+    </div>
+  )
+}
+
+/**
+ * The style that puts a list's header and rows on one column grid.
+ * @param columns - the `grid-template-columns`.
+ * @returns the style.
+ */
+function columnsStyle(columns: string): CSSProperties {
+  return { '--records-columns': columns } as CSSProperties
+}
+
+/**
+ * Render the sticky column header of a list.
+ * @param props.header - one cell for each column.
+ * @returns the header, hidden from assistive technology because each row names its own values.
+ */
+function ListHeader({ header }: { header: readonly ReactNode[] }) {
+  return (
+    <div className={css.header} aria-hidden="true">
+      {header.map((cell, index) => <span key={index} className={css.headerCell}>{cell}</span>)}
     </div>
   )
 }
@@ -239,22 +258,41 @@ export type SkeletonCell = 'dot' | 'avatar' | 'bar' | 'end'
 const WIDTHS = [60, 45, 70, 50, 65, 40, 55, 75] as const
 
 /**
- * Render skeleton rows on the real column grid (R18): no shimmer, the skeleton colour.
- * @param props.cells - one entry for each column.
- * @param props.count - the rows (default 6).
- * @param props.label - the accessible name of the loading list.
- * @returns the rows.
+ * Render one bone of a skeleton row on the skeleton colour, with no shimmer; a bar takes a width that varies by place.
+ * @param props.cell - the kind of bone.
+ * @param props.place - the bone's place in the skeleton, which picks a bar's width.
+ * @returns the bone.
  */
-export function SkeletonRows({ cells, count = 6, label }: { cells: readonly SkeletonCell[]; count?: number; label: string }) {
+export function SkeletonBone({ cell, place }: { cell: SkeletonCell; place: number }) {
+  return <span className={clsx(css.bone, css[cell], (cell === 'bar' || cell === 'end') && css[`w${WIDTHS[place % WIDTHS.length]}`])} />
+}
+
+/**
+ * Render a loading list (R18): the list's column header and skeleton rows on the same column grid as its real rows.
+ * @param props.label - the accessible name of the loading list, such as "Loading".
+ * @param props.columns - the `grid-template-columns` of the real rows.
+ * @param props.header - the cells of the real column header.
+ * @param props.cells - one bone for each column.
+ * @param props.count - the rows (default 6).
+ * @returns the loading list.
+ */
+export function ListSkeleton({ label, columns, header, cells, count = 6 }: {
+  label: string
+  columns: string
+  header: readonly ReactNode[]
+  cells: readonly SkeletonCell[]
+  count?: number
+}) {
   return (
-    <div className={css.skeleton} role="status" aria-label={label}>
-      {Array.from({ length: count }, (_, row) => (
-        <div key={row} className={css.row} aria-hidden="true">
-          {cells.map((cell, column) => (
-            <span key={column} className={clsx(css.bone, css[cell], (cell === 'bar' || cell === 'end') && css[`w${WIDTHS[(row + column) % WIDTHS.length]}`])} />
-          ))}
-        </div>
-      ))}
+    <div className={css.pane} style={columnsStyle(columns)} data-list="" role="status" aria-label={label}>
+      <ListHeader header={header} />
+      <div className={css.skeleton} data-skeleton="" aria-hidden="true">
+        {Array.from({ length: count }, (_, row) => (
+          <div key={row} className={css.row}>
+            {cells.map((cell, column) => <SkeletonBone key={column} cell={cell} place={row + column} />)}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

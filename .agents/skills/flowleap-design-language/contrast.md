@@ -52,10 +52,10 @@ WCAG 2.x contrast, alpha blended over the surface, bottom of the stack first. 10
 | overdue text in the refused colour on a hovered row (not used) | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-hover` | none | 4.49 | 4.04 |
 | overdue text in the refused colour on a selected row (not used) | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-active` | none | 3.68 | 3.75 |
 | overdue text in the refused colour in the decision bar (not used) | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-layer-2` | none | 4.24 | 4.50 |
-| overdue icon, stale shape | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` | 3 | 5.55 | 4.50 |
-| overdue icon on a hovered row | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-hover` | 3 | 4.49 | 4.04 |
-| overdue icon on a selected row | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-active` | 3 | 3.68 | 3.75 |
-| overdue icon in the decision bar | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-layer-2` | 3 | 4.24 | 4.50 |
+| overdue warning glyph | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` | 3 | 5.55 | 4.50 |
+| overdue warning glyph on a hovered row | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-hover` | 3 | 4.49 | 4.04 |
+| overdue warning glyph on a selected row | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-active` | 3 | 3.68 | 3.75 |
+| overdue warning glyph in the decision bar | `--dsw-alias-state-error-primary` | `--dsw-alias-bg-layer-2` | 3 | 4.24 | 4.50 |
 | icon | `--dsw-alias-label-tertiary` | `--dsw-alias-bg-base` | 3 | 8.54 | 3.71 |
 | icon on a selected row | `--dsw-alias-label-tertiary` | `--dsw-alias-bg-base` + `--dsw-alias-interactive-bg-active` | 3 | 5.67 | 3.09 |
 | icon in the sidebar | `--dsw-alias-label-tertiary` | `--dsw-specific-sidebar-fill` | 3 | 8.06 | 3.55 |

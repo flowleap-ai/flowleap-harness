@@ -299,6 +299,20 @@
   padding-top: max(0px, calc(48px - var(--dsh-frame-top-clearance, 0px)));
 }
 
+/* A browser global panel whose 44px top row carries data-frame-top-row owns the drawer's top row: the panel takes no
+   top padding, the seat centres its 28px opener on that row (8 + 28 + 8), and the row's start clears the seat. */
+:global(html:not([data-platform])) .frame[data-sidebar-drawer] .mainPanel[data-global-panel]:has([data-frame-top-row]) {
+  padding-top: 0;
+}
+
+:global(html:not([data-platform])) .frame[data-sidebar-drawer]:has(.mainPanel [data-frame-top-row]) .leadingSeat {
+  top: 8px;
+}
+
+:global(html:not([data-platform])) .frame[data-sidebar-drawer] .mainPanel [data-frame-top-row] {
+  padding-inline-start: var(--dsh-frame-leading-clearance);
+}
+
 .frame[data-sidebar-drawer] .sidebarCol {
   position: absolute;
   grid-area: auto;
