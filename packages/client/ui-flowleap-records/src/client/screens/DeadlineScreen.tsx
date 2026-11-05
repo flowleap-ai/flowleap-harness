@@ -47,8 +47,11 @@ export function DeadlineScreen({ screen, ctx }: ScreenProps<'deadline'>) {
   )
 }
 
-/** How the two readings of the letter compare. */
-type Comparison = 'agree' | 'differ' | 'one' | 'none'
+/**
+ * How the two readings of the letter compare; `noLetter` for an office event that a person entered by hand, which has
+ * no source letter to read (a second person confirms it, R14).
+ */
+type Comparison = 'agree' | 'differ' | 'one' | 'none' | 'noLetter'
 
 /** What one reader read. */
 type Reading = NonNullable<NonNullable<DeadlineDetail['readers']['model']>['result']>
@@ -58,7 +61,8 @@ type Reading = NonNullable<NonNullable<DeadlineDetail['readers']['model']>['resu
  * @param readers - the readings.
  * @returns the comparison.
  */
-function readingOf(readers: DeadlineDetail['readers']): Comparison {
+function readingOf(readers: DeadlineDetail['readers'], letter: DeadlineDetail['officeEvent']['document']): Comparison {
+  if (letter === null) return 'noLetter'
   if (readers.agree !== null) return readers.agree ? 'agree' : 'differ'
   return readers.code === null && readers.model === null ? 'none' : 'one'
 }
@@ -69,6 +73,7 @@ const READING_ICONS: Readonly<Record<Comparison, ReactNode>> = {
   differ: <IconWarningTriangleOutlineRegular size={16} />,
   one: <IconInfoOutlineRegular size={16} />,
   none: <IconWarningTriangleOutlineRegular size={16} />,
+  noLetter: <IconInfoOutlineRegular size={16} />,
 }
 
 /** The words of each step of the engine's calculation. */
@@ -126,7 +131,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const proposed = deadline.state === 'deadline_proposed' || deadline.state === 'manual_proposed'
   const allowed = proposed && mayConfirm.allowed
   const rule = ruleWords(t, officeEvent.code)
-  const reading = readingOf(readers)
+  const reading = readingOf(readers, officeEvent.document)
   const due = formatDate(deadline.due, ctx.locale)
   const letter = officeEvent.document
 
@@ -241,7 +246,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         {
           heading: t('deadline.prop.checks'),
           rows: [
-            { label: t('deadline.prop.proposedBy'), value: data.proposer === null ? t('actor.flowleap') : <Who t={t} person={data.proposer} /> },
+            { label: t(reading === 'noLetter' ? 'deadline.prop.enteredBy' : 'deadline.prop.proposedBy'), value: data.proposer === null ? t('actor.flowleap') : <Who t={t} person={data.proposer} /> },
             { label: t('deadline.prop.reading'), value: t(`deadline.reading.${reading}`) },
             {
               label: t('deadline.prop.confirm'),
@@ -304,11 +309,13 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           })}
         </section>
 
-        <section className={css.section}>
+        <section className={css.section} aria-label={t('deadline.read')}>
           <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t('deadline.readHint')}`}</span></h2>
-          {reading === 'none'
-            ? <p className={css.subHint}>{t('deadline.noReading')}</p>
-            : <Readings ctx={ctx} readers={readers} />}
+          {reading === 'noLetter'
+            ? <NoSourceLetter ctx={ctx} data={data} />
+            : reading === 'none'
+              ? <p className={css.subHint}>{t('deadline.noReading')}</p>
+              : <Readings ctx={ctx} readers={readers} />}
         </section>
 
         {deadline.sources.length > 0 && (
@@ -350,6 +357,34 @@ function httpsHref(url: string): string | null {
     return null
   }
   return parsed.protocol === 'https:' ? parsed.href : null
+}
+
+/**
+ * Render the place of the readings for an office event that a person entered by hand: "No source letter" instead of
+ * a quote (never "Missing evidence": the second person's confirm is its evidence, R14), and who entered it and who
+ * confirmed it.
+ * @param props.ctx - the screen context.
+ * @param props.data - the deadline.
+ * @returns the note and the people.
+ */
+function NoSourceLetter({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail }) {
+  const { t } = ctx
+  const entered = data.proposer === null ? null : personInText(t, data.proposer)
+  return (
+    <>
+      <div className={css.note}>
+        <IconInfoOutlineRegular size={16} />
+        <span>{t('evidence.noSourceLetter')}</span>
+      </div>
+      {entered !== null && (
+        <p className={css.subHint}>
+          {data.confirmer === null
+            ? t('deadline.entered', { person: entered })
+            : t('deadline.enteredConfirmed', { entered, confirmed: personInText(t, data.confirmer) })}
+        </p>
+      )}
+    </>
+  )
 }
 
 /**

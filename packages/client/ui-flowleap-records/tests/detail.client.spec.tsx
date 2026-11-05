@@ -5,7 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type {
-  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, RecordsApi, TicketDetail, TicketId,
+  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, PersonId, RecordsApi, TicketDetail, TicketId,
 } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
@@ -427,10 +427,10 @@ describe('the deadline page', () => {
         notes: [{ kind: 'late-receipt', text: 'late', cite: 'Rule 126(2) EPC' }, { kind: 'other', text: 'An engine note.', cite: '' }],
         sources: [],
       },
-      officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:UNKNOWN', documentDate: null, document: null },
+      officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:UNKNOWN', documentDate: null },
       readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false },
     }
-    const { keyActs } = await mount(DEADLINE, { deadline: differ })
+    await mount(DEADLINE, { deadline: differ })
     expect(within(bar()).getByText(/the readings differ, so check the letter/)).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
     expect(screen.getByText('Differ')).toBeTruthy()
@@ -442,7 +442,6 @@ describe('the deadline page', () => {
     expect(screen.getAllByText('An engine note.').every(cell => cell.closest('[data-audit]') !== null)).toBe(true)
     expect(screen.queryByText('Legal sources')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('EPO')
-    expect(keyActs.handler('openLetter')).toBeUndefined()
     cleanup()
     const oneReading = { code: null, model: differ.readers.model, agree: null }
     await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null }, readers: oneReading } })
@@ -586,6 +585,30 @@ describe('the deadline page', () => {
     expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByRole('button', { name: /Frist bestätigen/ })).toBeTruthy()
     // "Vorgeschlagen von" is 115px at 13px and wraps in the 96px label column; "Vorschlag von" is 85px.
     expect(within(screen.getByRole('complementary', { name: 'Eigenschaften' })).getByText('Vorschlag von')).toBeTruthy()
+  })
+
+  it('shows "No source letter" for an office event entered by hand, and names who entered it and who confirmed it', async () => {
+    const byHand: DeadlineDetail = {
+      ...fixtures.deadline,
+      deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
+      officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
+      readers: { code: null, model: null, agree: null },
+      proposer: { ...PEOPLE.jonas, id: PEOPLE.jonas.id as PersonId },
+    }
+    const { keyActs } = await mount(DEADLINE, { deadline: byHand }, 'de')
+    expect(keyActs.handler('openLetter')).toBeUndefined()
+    const read = screen.getByRole('region', { name: 'Was FlowLeap gelesen hat, zweimal' })
+    expect(read.textContent).toContain('Kein Quellschreiben')
+    expect(read.textContent).toContain('Jonas Weber hat das Amtsereignis von Hand erfasst. Eine zweite Person bestätigt es.')
+    expect(within(bar('Ihre Entscheidung')).getByText(/Kein Quellschreiben/)).toBeTruthy()
+    expect(document.body.textContent).not.toContain('Beleg fehlt')
+    expect(document.body.textContent).not.toContain('FlowLeap hat dieses Schreiben nicht gelesen')
+    const panel = screen.getByRole('complementary', { name: 'Eigenschaften' })
+    expect(panel.textContent).toContain('Erfasst vonJJonas Weber')
+    expect(panel.textContent).toContain('LesungKein Quellschreiben')
+    cleanup()
+    await mount(DEADLINE, { deadline: { ...byHand, deadline: { ...byHand.deadline, state: 'active' }, confirmer: { ...PEOPLE.anna, id: PEOPLE.anna.id as PersonId } } })
+    expect(screen.getByRole('region', { name: 'What FlowLeap read, twice' }).textContent).toContain('No source letterJonas Weber entered the office event by hand, and Dr. Anna Becker confirmed it.')
   })
 
   it('words the legal citations and the office in the UI language, and keeps a citation it does not know as it is', async () => {
