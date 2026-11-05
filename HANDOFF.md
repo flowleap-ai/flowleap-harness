@@ -10,8 +10,8 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
   own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
   drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
   (dossier, FTO, prior art); the dossier case also passes on the synced code.
-- **Base:** `flowleap` is on upstream `master` as of `dsh 0.2.2-alpha.3` (2026-11-03, sync branch
-  `claude/upstream-sync-1103-f3256c`; 666 commits after upstream PR #7552), with all 8 upstream UI languages and the
+- **Base:** `flowleap` is on upstream `master` as of `dsh 0.2.2-rc.1` (2026-11-05, sync branch
+  `claude/upstream-sync-rc1`; 260 commits after `dsh 0.2.2-alpha.3`), with all 8 upstream UI languages and the
   FlowLeap copy translated into each. `master` on the org remote still equals `dsh 0.2.2-alpha.2`.
 - **Next product:** the self-hosted firm OS, decided in
   [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (27
@@ -112,6 +112,12 @@ Changes to upstream-owned code that an upstream sync must keep. Each code site h
 
 ## Open decisions
 
+- **Upstream sync to `dsh 0.2.2-rc.1` (2026-11-05):** 260 upstream commits after `dsh 0.2.2-alpha.3`, merged on
+  branch `claude/upstream-sync-rc1` with the same procedure; every decision is in
+  `flowleap/docs/2026-11-05-upstream-sync-decisions.tsv`. 14 content conflicts after `strip-zh.sh`; no upstream
+  package added, moved or deleted, and `flowleap-web` mounts nothing new. Upstream adds a play action that continues a
+  failed turn, a replay check that accepts a resent prompt once by request id (kept before the fork model admission),
+  and CSS-anchored menus and submenus.
 - **Upstream sync to `dsh 0.2.2-alpha.3` (2026-11-03):** 666 upstream commits after upstream PR #7552, merged on
   branch `claude/upstream-sync-1103-f3256c` with the same procedure; every decision is in
   `flowleap/docs/2026-11-03-upstream-sync-decisions.tsv`. 35 content conflicts and 8 modify/delete rows. Upstream adds
