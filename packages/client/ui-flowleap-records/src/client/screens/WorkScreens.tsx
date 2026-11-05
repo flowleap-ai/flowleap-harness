@@ -515,7 +515,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         <h2 className={detail.subHeading}>{t('work.related')}</h2>
         <span className={detail.subHint}>{count}</span>
       </div>
-      <DetailTable label={t('work.related')} columns="200px 176px minmax(0, 1fr) auto 16px" narrowColumns="136px minmax(0, 1fr) auto" header={null}>
+      <DetailTable label={t('work.related')} grid={detail.relatedColumns} header={null}>
         {deadline !== null && (
           <DetailRow opens>
             <Cell kind="status"><FactStatus label={t('fact.deadline')} status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>

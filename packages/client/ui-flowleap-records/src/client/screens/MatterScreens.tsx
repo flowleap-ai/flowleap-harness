@@ -63,8 +63,7 @@ function MattersRows({ ctx, data }: { ctx: ScreenContext; data: MattersList }) {
       <DetailTable
         label={t('matters.listLabel')}
         variant="list"
-        columns="14px minmax(0, 1fr) 112px 20px 112px 136px"
-        narrowColumns="14px minmax(0, 1fr) auto"
+        grid={css.mattersColumns}
         header={[
           { text: '' }, { text: t('matter.list.matter') }, { text: t('matter.list.fileNumber'), wide: true }, { text: '', wide: true },
           { text: t('matter.list.deadlines'), wide: true, end: true }, { text: t('matter.list.nextDue'), end: true },
@@ -176,8 +175,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             <Section heading={t('section.deadlines')} count={data.deadlines.length}>
               <DetailTable
                 label={t('section.deadlines')}
-                columns="168px 128px 160px minmax(0, 1fr)"
-                narrowColumns="minmax(0, 1fr) auto"
+                grid={css.deadlinesColumns}
                 header={[{ text: t('matter.col.state') }, { text: t('prop.due') }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
               >
                 {data.deadlines.map((deadline) => {
@@ -199,8 +197,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             <Section heading={t('section.work')} count={data.work.length}>
               <DetailTable
                 label={t('section.work')}
-                columns="168px minmax(0, 1fr) 20px 64px"
-                narrowColumns="auto minmax(0, 1fr) 56px"
+                grid={css.workColumns}
                 header={[{ text: t('matter.col.state') }, { text: t('matter.col.work') }, { text: '', wide: true }, { text: t('matter.col.updated'), end: true }]}
               >
                 {data.work.map((work) => {
@@ -219,8 +216,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             <Section heading={t('matter.officeEvents')} count={data.officeEvents.length}>
               <DetailTable
                 label={t('matter.officeEvents')}
-                columns="168px minmax(0, 1fr) 120px 120px"
-                narrowColumns="auto minmax(0, 1fr)"
+                grid={css.officeEventsColumns}
                 header={[
                   { text: t('matter.col.state') }, { text: t('matter.col.communication') }, { text: t('matter.col.documentDate'), wide: true },
                   { text: t('matter.col.received'), wide: true },
@@ -247,7 +243,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               </DetailTable>
             </Section>
             <Section heading={t('matter.documents')} count={data.documents.length}>
-              <DetailTable label={t('matter.documents')} columns="14px minmax(0, 1fr) 64px" narrowColumns="14px minmax(0, 1fr) 56px" header={null}>
+              <DetailTable label={t('matter.documents')} grid={css.documentsColumns} header={null}>
                 {data.documents.map(document => (
                   <DetailRow key={document.sha256} opens>
                     <Cell kind="icon">{document.source === 'mail' ? <IconPaperPlaneOutlineRegular size={14} /> : <IconDeliverDocRegular size={14} />}</Cell>

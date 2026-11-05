@@ -4,7 +4,7 @@
  * rule. A row opens its record through the button in its main cell, so Tab, ↵ and a click open the same record.
  */
 
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DocumentId, IsoDate, Person } from '../api.ts'
@@ -19,23 +19,22 @@ import css from './Detail.module.css'
  * @param props.label - the table's accessible name.
  * @param props.variant - `detail` (a table inside a page, 8px inset) or `list` (a page-wide list with 16px side
  * padding and a column header that sticks while the list scrolls).
- * @param props.columns - the `grid-template-columns` of the header and the rows, the status column first.
- * @param props.narrowColumns - the columns at 390px, where the cells marked `wide` hide.
+ * @param props.grid - the class of `Detail.module.css` that sets the table's column grid: `--detail-columns` for the
+ * header and the rows, the status column first, and `--detail-columns-narrow` at 390px, where the cells marked `wide`
+ * hide.
  * @param props.header - one header cell for each column; `null` hides the header (a table with one kind of row).
  * @param props.children - the rows.
  * @returns the table.
  */
-export function DetailTable({ label, variant = 'detail', columns, narrowColumns, header, children }: {
+export function DetailTable({ label, variant = 'detail', grid, header, children }: {
   label: string
   variant?: 'detail' | 'list'
-  columns: string
-  narrowColumns: string
+  grid: string | undefined
   header: readonly HeaderCell[] | null
   children: ReactNode
 }) {
-  const style = { '--detail-columns': columns, '--detail-columns-narrow': narrowColumns } as CSSProperties
   return (
-    <div className={clsx(css.table, variant === 'list' && css.list)} role="table" aria-label={label} style={style}>
+    <div className={clsx(css.table, grid, variant === 'list' && css.list)} role="table" aria-label={label}>
       {header !== null && (
         <div className={css.thead} role="row">
           {header.map((cell, index) => (

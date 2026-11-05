@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const read = (name: string): string =>
-  readFileSync(fileURLToPath(new URL(`../src/client/parts/${name}`, import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ')
+const read = (name: string, folder = 'parts'): string =>
+  readFileSync(fileURLToPath(new URL(`../src/client/${folder}/${name}`, import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ')
 
 /**
  * The body of the first at-rule whose prelude starts with `prelude`.
@@ -83,5 +83,22 @@ describe('the bulk bar', () => {
     expect(declarations(css, '.bulkActs > *')).toEqual(['flex-shrink: 0'])
     expect(declarations(css.slice(css.indexOf('.bulkActs > *')), '.bulkActs')).toEqual(['flex-wrap: wrap', 'justify-content: flex-end'])
     expect(declarations(atRule(css, '@media (max-width: 720px)'), '.bulkDock')).toEqual(['padding: 8px'])
+  })
+})
+
+describe('the detail tables', () => {
+  const css = read('Detail.module.css', 'screens')
+
+  it('keeps every column grid in the CSS, where the design checks read it, with the Related status wide enough for its label', () => {
+    for (const grid of ['mattersColumns', 'deadlinesColumns', 'workColumns', 'officeEventsColumns', 'documentsColumns', 'relatedColumns']) {
+      expect(declarations(css, `.${grid}`).map(line => line.split(':')[0])).toEqual(['--detail-columns', '--detail-columns-narrow'])
+    }
+    // The days left are a key fact and never truncate (R17): the column holds the longest of the 8 languages with a
+    // four-digit count, measured at 13px weight 500 in the client font ("Просрочено на 1248 дн.", 157px).
+    const deadlines = declarations(css, '.deadlinesColumns')[0]!.replace('--detail-columns:', '').trim()
+    const [, date, due] = deadlines.split(' ').map(track => Number.parseInt(track, 10))
+    expect(due).toBeGreaterThanOrEqual(157)
+    expect(date).toBeGreaterThanOrEqual(125)
+    expect(declarations(css, '.relatedColumns')).toEqual(['--detail-columns: 200px 176px minmax(0, 1fr) auto 16px', '--detail-columns-narrow: 136px minmax(0, 1fr) auto'])
   })
 })
