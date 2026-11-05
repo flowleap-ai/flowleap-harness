@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DocumentId, Fetched, FileNumber, IntakeDocument, OfficeEventId, RecordsApi } from '../src/client/api.ts'
+import type { DocumentId, Fetched, FileNumber, IntakeDocument, OfficeEventId, RecordsApi, TicketId } from '../src/client/api.ts'
 import { shownOrder } from '../src/client/screens/IntakeScreen.tsx'
 import { rowActions } from '../src/client/row-menu.ts'
 import { menuEntries } from '@deepseek-ai/dsh-client-ui-context-menu/src/client/View.tsx'
 import type { Route } from '../src/client/model.ts'
-import { createFixtureApi, fixtures, OUTSIDE_WALL, OUTSIDER, R71_DOCUMENT, sha } from './fixtures.client.ts'
+import { createFixtureApi, FIXTURE_IDS, fixtures, OUTSIDE_WALL, OUTSIDER, R71_DOCUMENT, sha } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
@@ -185,6 +185,12 @@ describe('the split view from 1366px', () => {
 })
 
 describe('the German intake', () => {
+  it('words the Space keycap in German, as keys.md gives it', async () => {
+    mounted = await mountPanel(createFixtureApi().api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId }, 'de')
+    const preview = screen.getAllByRole('button', { name: /Vorschau/ })[0]!
+    expect(preview.querySelector('kbd')?.textContent).toBe('Leer')
+  })
+
   it('names the office in German in the rows, the reasons and the properties, never by its English code', async () => {
     mounted = await mountPanel(createFixtureApi().api, open(R71_DOCUMENT), 'de')
     const row = document.querySelector(`[data-row="${R71_DOCUMENT}"]`)!

@@ -120,19 +120,20 @@ describe('words of codes and events', () => {
 })
 
 describe('keycaps', () => {
-  it('reads the catalog keycaps of a command and of a fixed key, and nothing for an unbound or unknown one', () => {
+  it('reads the catalog keycaps of a command and of a fixed key, worded in the UI language, and nothing for an unbound or unknown one', () => {
     const row = (id: string, keycaps?: readonly (readonly string[])[]): ShortcutCatalogEntry => ({
       id: id as ShortcutCommandId, label: id, aliases: [], keys: [], ...(keycaps === undefined ? {} : { keycaps }), aria: undefined,
       binding: null, modified: false, conflicts: [], issue: null,
     })
     const fixed: ShortcutFixedCatalogEntry = { id: 'records.row.open' as ShortcutCommandId, label: 'Open', keys: ['↵'], keycaps: [['↵']], bindings: [], group: 'application' }
-    const keycaps = keycapsFrom([row('records.intake.otherMatter', [['M']]), row('records.go.matter', [['G'], ['M']]), row('records.part.reject', []), row('records.retry')], [fixed])
+    const keycaps = keycapsFrom([row('records.intake.otherMatter', [['M']]), row('records.go.matter', [['G'], ['M']]), row('records.part.reject', []), row('records.retry'), row('records.work.preview', [['Space']])], [fixed], { Space: 'Leer' })
     expect(keycaps(commandId('otherMatter'))).toEqual([['M']])
     expect(keycaps(commandId('goMatter'))).toEqual([['G'], ['M']])
     expect(keycaps(commandId('open'))).toEqual([['↵']])
     expect(keycaps(commandId('reject'))).toEqual([])
     expect(keycaps(commandId('retry'))).toEqual([])
     expect(keycaps(commandId('search'))).toEqual([])
+    expect(keycaps(commandId('preview'))).toEqual([['Leer']])
   })
 })
 

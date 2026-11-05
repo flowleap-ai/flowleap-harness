@@ -97,7 +97,7 @@ export function RecordsPanel(props: PanelProps) {
   const [dock, setDock] = useState<DockView>('docked')
   const ctx: ScreenContext = {
     t, locale, now: Date.now(), me,
-    keycaps: keycapsFrom(catalog, fixedCatalog),
+    keycaps: keycapsFrom(catalog, fixedCatalog, { Space: t('keycap.space') }),
     navigate: props.navigate,
     retry: props.retry,
     refresh: props.refresh,

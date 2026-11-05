@@ -47,13 +47,19 @@ const NONE: readonly KeycapBox[] = []
 
 /**
  * The keycaps of each command in the shortcut catalogs: a rebindable command's current binding (`entry.keycaps`, one
- * box for a key or a combination, one for each step of a sequence), and a fixed key such as ↵ Open the row.
+ * box for a key or a combination, one for each step of a sequence), and a fixed key such as ↵ Open the row. The
+ * catalog names keys in English for the whole app; a key with a word in `keyWords` shows that word instead, such as
+ * "Leer" for Space on a German page (keys.md).
  * @param rows - the catalog of rebindable commands.
  * @param fixedRows - the catalog of fixed keys.
+ * @param keyWords - the UI language's word of a catalog key name.
  * @returns the lookup.
  */
-export function keycapsFrom(rows: readonly ShortcutCatalogEntry[], fixedRows: readonly ShortcutFixedCatalogEntry[]): KeycapsOf {
+export function keycapsFrom(
+  rows: readonly ShortcutCatalogEntry[], fixedRows: readonly ShortcutFixedCatalogEntry[], keyWords: Readonly<Record<string, string>>,
+): KeycapsOf {
   const byId = new Map<string, readonly KeycapBox[]>()
-  for (const row of [...fixedRows, ...rows]) byId.set(row.id, row.keycaps ?? NONE)
+  const worded = (box: KeycapBox): KeycapBox => box.map(label => keyWords[label] ?? label)
+  for (const row of [...fixedRows, ...rows]) byId.set(row.id, row.keycaps?.map(worded) ?? NONE)
   return command => byId.get(command) ?? NONE
 }
