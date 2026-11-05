@@ -22,6 +22,7 @@ description: Use when reviewing a pull request in the deepseek-harness repo — 
 - [dsh-prose-standard](../dsh-prose-standard/SKILL.md): required coverage and editorial judgment for comments, docs, prompts, and visible strings.
 - [dsh-ci-test-reliability](../dsh-ci-test-reliability/SKILL.md): isolation and regression-proof rules for resource-owning, asynchronous, or flaky tests and fixtures.
 - [dsh-client-ui-ux](../dsh-client-ui-ux/SKILL.md): feedback-surface choice, overlay safety, platform window adaptation, and visual token discipline for product-user-visible GUI changes.
+- [flowleap-design-language](../flowleap-design-language/SKILL.md): the FlowLeap bar and its merge checklist for IPMS screens (the Records features); a blocking FAIL stops the merge, a small visual FAIL becomes a ticket.
 - [dsh-error-handling](../dsh-error-handling/SKILL.md): failure classification, handling ownership, containment, state guarantees, and actionable reports.
 - [dsh-session-projection](../dsh-session-projection/SKILL.md): projection ownership, state size, historical reads, and migrations.
 - [docs/testing.md](../../../docs/testing.md) and the [quality-gates reference](../../../docs/testing.md): required test tiers and gates.
@@ -38,6 +39,7 @@ description: Use when reviewing a pull request in the deepseek-harness repo — 
 
 ## Manual checks
 
+- **UI review coverage:** apply the [UI change workflow](../dsh-client-ui-ux/SKILL.md#required-review-loop) to the cumulative visible diff. Verify its [minimum checks](../dsh-client-ui-ux/SKILL.md#minimum-checks-for-affected-ui) for the changed properties and consumers. Missing required inspection remains a gap; missing optional reports does not. Do not demand full-audit records for ordinary changes. Recheck only new interactions or invalidated evidence. Existing tests, GUI GIFs and designer/product approval remain required under their original triggers.
 - **Intent and interface contracts:** trace both sides of every changed interface. Confirm the implementation matches the PR and any Agent Note, including errors, cancellation, ownership, and disposal.
 - **Error handling:** apply [dsh-error-handling](../dsh-error-handling/SKILL.md) to changed failure paths, including their state guarantees and final user-visible reports. Reject catch-and-continue unless the state owner establishes that subsequent work's preconditions hold, including after recovery.
 - **Lifecycle and concurrency:** for async setup, callbacks, processes, or teardown, apply [defensive-patterns/general.md](../../../docs/defensive-patterns/general.md). Check races before publication, cancellation during awaits, independent error reporting, callback containment, ownership before reentry, complete detach cleanup, and quiescent disposal.

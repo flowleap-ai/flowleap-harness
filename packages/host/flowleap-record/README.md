@@ -45,7 +45,7 @@ Mount the provider beside the `credentials` service, which reads the record toke
 | `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's record token, read through `ctx.credentials` and sent as `Authorization: Bearer <token>`; an invalid name fails at load |
 | `timeoutMs` | `5000` | Longest time one read may take, body included, in milliseconds (100 to 60000) |
 
-The run row registers `record_propose_report` and `record_finish_run` for a Ticket run; the opt-in overlay of [`dsh-experimental-flowleap-ticket`](../../experimental/flowleap-ticket/README.md) mounts it beside the Ticket ingress:
+The run row registers `record_propose_report` and `record_finish_run` for a Ticket run; the opt-in overlay of [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md) mounts it beside the Ticket ingress:
 
 ```yaml
 - id: flowleap-record-run
@@ -105,7 +105,7 @@ The phase R1 view adds four fields, always present (empty lists and `null` when 
 
 ### The run commands
 
-A runtime woken for a Ticket (see [`dsh-experimental-flowleap-ticket`](../../experimental/flowleap-ticket/README.md)) reports to the Firm Record through three seam methods. Each sends `POST <origin>/records/api/tickets/<ticketId>/<action>` with the record token, a JSON body, and an `Idempotency-Key` of `<kind>:<SHA-256 hex of the JSON array of its parts>`, so a repeat of the same command sends the same key:
+A runtime woken for a Ticket (see [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md)) reports to the Firm Record through three seam methods. Each sends `POST <origin>/records/api/tickets/<ticketId>/<action>` with the record token, a JSON body, and an `Idempotency-Key` of `<kind>:<SHA-256 hex of the JSON array of its parts>`, so a repeat of the same command sends the same key:
 
 | Method | Action and body | Key parts | Receipt |
 |---|---|---|---|

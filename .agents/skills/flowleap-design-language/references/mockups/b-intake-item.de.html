@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eingangsschreiben</title>
+<link rel="stylesheet" href="records.css">
+<style>
+  .match { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+  .alt { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+  @media (max-width: 720px) { .match { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters"></nav>
+  <main class="main">
+    <section class="panel fixed">
+      <header class="topbar">
+        <div class="crumbs">
+          <span class="ico hide-sm" data-i="inbox"></span><span class="hide-sm">Eingang</span><span class="sep hide-sm">›</span>
+          <span class="here">Mitteilung nach Regel 71(3)</span>
+        </div>
+        <div class="bar-right">
+          <span class="pager"><b>1</b>&nbsp;/ 22</span>
+          <span class="iconbtn boxed" data-i="up"></span><span class="iconbtn boxed" data-i="down"></span>
+          <span class="iconbtn hide-sm" data-i="link"></span><span class="iconbtn" data-i="dots"></span>
+        </div>
+      </header>
+
+      <div class="detail fill">
+        <div class="work">
+          <div class="work-scroll">
+            <div class="eyebrow"><span class="pill wait" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span class="hide-sm">Wartet seit 14:16 auf eine Person</span></div>
+            <h1 class="title">Mitteilung nach Regel 71(3)</h1>
+            <p class="lede">Jonas Weber hat dieses Schreiben an das KI-Postfach weitergeleitet. Das Aktenzeichen auf Seite 1 nennt eine Akte.</p>
+
+            <div class="match">
+              <div>
+                <div class="letter" data-verbatim>
+                  <div class="hd"><div><div class="logo"></div><p>European Patent Office</p></div><div class="form">EPO Form <span class="hl">2004C</span><br>Date 30.10.2026</div></div>
+                  <div>Your reference <span class="hl">FL-2026-0001</span></div>
+                  <div>Application No. 24 123 456.7 - 1203</div>
+                  <p class="strong"><span class="hl">Communication under Rule 71(3) EPC</span></p>
+                  <p>You are informed that the examining division intends to grant a European patent on the basis of the above application.</p>
+                  <div class="ln"></div><div class="ln"></div>
+                </div>
+                <div class="paper-cap"><span>Seite 1 von 1</span><span>r71-3-FL-2026-0001.pdf</span></div>
+              </div>
+              <div>
+                <div class="label-12">Vorgeschlagene Akte</div>
+                <div class="card-matter">
+                  <div class="muted num">FL-2026-0001</div>
+                  <div class="name">Drucksensorgehäuse</div>
+                  <div class="meta">Kessler Sensorik GmbH <span>·</span> <span class="who"><span class="av a">A</span>Dr. Anna Becker</span> <span>·</span> offen</div>
+                </div>
+                <div class="reasons">
+                  <div class="reason" data-i="check"><div>Ihr Zeichen auf Seite 1 lautet <span class="quote">FL-2026-0001</span> <span class="page-ref">p. 1</span></div></div>
+                  <div class="reason" data-i="check"><div>Genau eine Akte hat dieses Aktenzeichen. Keine andere Angabe im Schreiben nennt eine zweite Akte.</div></div>
+                  <div class="reason" data-i="check"><div>Absender ist das EPA: Briefkopf und Titel <span class="quote">Communication under Rule 71(3) EPC</span> stehen auf Seite 1.</div></div>
+                </div>
+                <div class="alt muted t12" data-i="info">Ihre Kanzlei lässt jede Zuordnung von einer Person bestätigen, auch bei genauem Aktenzeichen.</div>
+              </div>
+            </div>
+
+            <div class="activity">
+              <h2>Aktivität</h2>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="mail"></span></span><div class="txt"><b>KI-Postfach</b> hat das Schreiben gespeichert, das <b>Jonas Weber</b> weitergeleitet hat<span class="t">14:16</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="eye"></span></span><div class="txt"><b>FlowLeap</b> hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen<span class="t">14:16</span></div></div>
+              <div class="ev"><span class="ico"><span class="av sys" data-i="sparkle"></span></span><div class="txt"><b>FlowLeap</b> hat die Akte FL-2026-0001 nach dem Aktenzeichen vorgeschlagen<span class="t">14:16</span></div></div>
+            </div>
+            <details class="audit" data-audit><summary data-i="chev">Prüfprotokoll</summary></details>
+          </div>
+
+          <div class="decision-dock">
+            <div class="decision">
+              <div class="decision-h">
+                <span class="av b av-lg">J</span><span class="lbl">Ihre Entscheidung</span><span class="q">Zu welcher Akte gehört dieses Schreiben?</span>
+                <span class="why hide-sm" data-i="info">Die Ablage trägt Ihren Namen in die Akte ein</span>
+              </div>
+              <div class="decision-b">
+                <div class="part">
+                  <span class="pi" data-i="check"></span>
+                  <div><div class="q">FL-2026-0001 Drucksensorgehäuse</div><div class="d">3 Gründe auf Seite 1 stimmen überein</div></div>
+                  <span></span>
+                </div>
+              </div>
+              <div class="decision-f">
+                <span class="btn btn-ghost" data-i="x" data-act="reject">Nicht relevant … <span class="kbd">2</span></span>
+                <div class="acts">
+                  <span class="more" data-overflow="more-menu"><span class="iconbtn" data-i="dots" aria-label="Weitere Aktionen"></span></span><span class="btn btn-secondary hide-sm" data-i="matters" data-act="other-matter">Andere Akte … <span class="kbd">M</span></span>
+                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Annehmen und ablegen <span class="kbd">⇧⌘↵</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="props">
+          <h3>Schreiben</h3>
+          <div class="prop"><span class="k">Art</span><span class="v">Amtsschreiben</span></div>
+          <div class="prop"><span class="k">Amt</span><span class="v">EPA</span></div>
+          <div class="prop"><span class="k">Typ</span><span class="v">Regel 71(3) EPÜ</span></div>
+          <div class="prop"><span class="k">Anmeldung</span><span class="v num">24 123 456.7</span></div>
+          <div class="prop"><span class="k">Dokument</span><span class="v"><span class="ico-inline" data-i="doc"></span>1 Seite</span></div>
+          <h3>Weiterleitung</h3>
+          <div class="prop"><span class="k">Von</span><span class="v"><span class="av b">J</span>Jonas Weber</span></div>
+          <div class="prop"><span class="k">Eingegangen</span><span class="v num">Heute, 14:16</span></div>
+          <div class="prop"><span class="k">Betreff</span><span class="v">WG: EPA-Mitteilung</span></div>
+          <h3>Vorgeschlagene Akte</h3>
+          <div class="prop"><span class="k">Akte</span><span class="v"><span class="muted num">FL-2026-0001</span></span></div>
+          <div class="prop"><span class="k">Mandant</span><span class="v">Kessler Sensorik GmbH</span></div>
+          <div class="prop"><span class="k">Zuständig</span><span class="v"><span class="av a">A</span>Dr. Anna Becker</span></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="menu ctx-menu overflow-menu" id="more-menu" data-state="more" role="menu"><div class="mi" data-i="matters" data-act="other-matter">Andere Akte …<span class="kbds"><span class="kbd">M</span></span></div><div class="sep"></div><div class="mi" data-i="link">Link kopieren</div></div>
+<script src="frame.js"></script>
+</body>
+</html>

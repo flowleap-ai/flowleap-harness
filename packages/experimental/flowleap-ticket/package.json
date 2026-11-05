@@ -1,7 +1,7 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-flowleap-ticket",
+  "name": "@deepseek-ai/dsh-flowleap-ticket",
   "description": "Signed Ticket ingress of a FlowLeap runtime: a Ticket delivery of the Firm Record opens one run Session that starts with the Mandate",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

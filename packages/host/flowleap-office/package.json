@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-office",
   "description": "FlowLeap Office tools on OfficeCLI: reply letters on a firm Word template, claim amendments as Word tracked changes, Excel claim charts, and the reading and review of tracked changes, through the flowleapOffice service whose OfficeCLI provider owns the pinned binary, its environment and its arguments",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

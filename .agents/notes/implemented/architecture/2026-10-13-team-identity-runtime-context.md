@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[Catalog names](2026-11-02-subagent-catalog-names.md) supersede the Session-id identity text below: agents see their own, direct parent, and root names. The runtime-context retention decision remains active.
+
 ## Problem
 
 A teammate identity embedded in its initial task depends on ordinary history retention. Compaction can remove it, and an ordinary fork from that teammate can retain the old role even though the fork is an independent Lead. Identity must reflect the current subagent tree while keeping shared system instructions uniform.

@@ -1,7 +1,7 @@
 /**
  * The Ticket delivery: the signed body that the Work router of the Firm Record posts to wake the routed person's
  * runtime for one Ticket pass. Types only.
- * @module @deepseek-ai/dsh-experimental-flowleap-ticket/types
+ * @module @deepseek-ai/dsh-flowleap-ticket/types
  */
 
 import type {
