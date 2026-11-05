@@ -72,6 +72,12 @@ const STEPS: Readonly<Record<string, FlowleapRecordsKey>> = {
   'closure-roll': 'deadline.step.closureRoll',
 }
 
+/**
+ * The words of each note code of the engine. A note with another code shows only in Audit, because its text is the
+ * engine's English (R19).
+ */
+const NOTES: Readonly<Record<string, FlowleapRecordsKey>> = { 'late-receipt': 'deadline.note.lateReceipt' }
+
 /** The steps whose date shows its weekday, because a closed day moves the end of a period. */
 const WEEKDAY_STEPS: ReadonlySet<string> = new Set(['month-end', 'add-period', 'closure-roll'])
 
@@ -276,12 +282,17 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
               </li>
             ))}
           </ol>
-          {deadline.notes.map((note, index) => (
-            <div key={`${index}:${note.kind}`} className={css.note}>
-              <IconInfoOutlineRegular size={16} />
-              <span>{note.kind === 'late-receipt' ? t('deadline.note.lateReceipt') : note.text}</span>
-            </div>
-          ))}
+          {deadline.notes.flatMap((note, index) => {
+            const key = NOTES[note.kind]
+            return key === undefined
+              ? []
+              : [(
+                <div key={`${index}:${note.kind}`} className={css.note}>
+                  <IconInfoOutlineRegular size={16} />
+                  <span>{t(key)}</span>
+                </div>
+              )]
+          })}
         </section>
 
         <section className={css.section}>
@@ -304,7 +315,11 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             </div>
           </section>
         )}
-        <RecordActivity ctx={ctx} events={data.activity} />
+        <RecordActivity
+          ctx={ctx}
+          events={data.activity}
+          audit={deadline.notes.map((note, index) => ({ key: `note:${index}`, cells: [note.kind, note.text, note.cite] }))}
+        />
       </WorkColumn>
     </DetailLayout>
   )

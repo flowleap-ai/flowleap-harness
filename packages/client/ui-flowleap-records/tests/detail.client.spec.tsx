@@ -347,7 +347,7 @@ describe('the deadline page', () => {
     expect(screen.getByText('Calculation step')).toBeTruthy()
     expect(screen.getByText('Period added')).toBeTruthy()
     expect(screen.getByText(/The letter reached the firm late/)).toBeTruthy()
-    expect(screen.getByText('An engine note.')).toBeTruthy()
+    expect(screen.getAllByText('An engine note.').every(cell => cell.closest('[data-audit]') !== null)).toBe(true)
     expect(screen.queryByText('Legal sources')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('EPO')
     expect(keyActs.handler('openLetter')).toBeUndefined()
@@ -366,6 +366,22 @@ describe('the deadline page', () => {
     cleanup()
     await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null } } })
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
+  })
+
+  it('words each engine note by its code, and shows the engine\'s English text only in Audit, also on a German page', async () => {
+    const notes = [
+      { kind: 'late-receipt', text: 'The letter arrived 12 days after the date it bears.', cite: 'Rule 126(2) EPC' },
+      { kind: 'holiday-shift', text: 'An engine note in English.', cite: 'Rule 134 EPC' },
+    ]
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, deadline: { ...fixtures.deadline.deadline, notes } } }, 'de')
+    const audit = document.querySelector('[data-audit]')!
+    const page = (document.body.textContent ?? '').replace(audit.textContent ?? '', '')
+    expect(page).toContain(de['deadline.note.lateReceipt'])
+    for (const note of notes) {
+      expect(page).not.toContain(note.text)
+      expect(audit.textContent).toContain(note.text)
+      expect(audit.textContent).toContain(note.kind)
+    }
   })
 
   it('after no answer, shows the failure in the bar and tries again with the same act, from Try again or R', async () => {

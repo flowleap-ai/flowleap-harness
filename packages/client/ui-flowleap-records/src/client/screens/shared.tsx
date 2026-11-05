@@ -7,7 +7,7 @@ import type { ActRun } from '../act-runner.ts'
 import type { ActivityEvent, Command, IsoTime } from '../api.ts'
 import { useKeyActs } from '../key-layer.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
-import { ActivityTimeline } from '../parts/Activity.tsx'
+import { ActivityTimeline, type AuditRow } from '../parts/Activity.tsx'
 import type { QuoteLabels } from '../parts/Evidence.tsx'
 import { ErrorNotice, type NoticeSpec } from '../parts/States.tsx'
 import { activityLines, auditRows, listTimeText } from '../words.ts'
@@ -75,14 +75,19 @@ export function quoteLabels(ctx: ScreenContext, page: number): QuoteLabels {
  * The Activity of a record with its Audit.
  * @param props.ctx - the screen context.
  * @param props.events - the record's events.
+ * @param props.audit - more verbatim Audit rows after the events', such as the engine's notes in its own words.
  * @returns the timeline.
  */
-export function RecordActivity({ ctx, events }: { ctx: ScreenContext; events: readonly ActivityEvent[] }) {
+export function RecordActivity({ ctx, events, audit = [] }: {
+  ctx: ScreenContext
+  events: readonly ActivityEvent[]
+  audit?: readonly AuditRow[]
+}) {
   return (
     <ActivityTimeline
       heading={ctx.t('activity.title')}
       lines={activityLines(ctx, events)}
-      audit={{ label: ctx.t('activity.audit'), rows: auditRows(events) }}
+      audit={{ label: ctx.t('activity.audit'), rows: [...auditRows(events), ...audit] }}
     />
   )
 }
