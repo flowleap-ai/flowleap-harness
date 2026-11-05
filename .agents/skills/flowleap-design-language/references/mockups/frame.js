@@ -120,6 +120,7 @@
     const n = Math.round((Date.parse(el.dataset.due) - TODAY) / 864e5);
     el.textContent = n < 0 ? D.over(-n) : n === 0 ? D.today : n === 1 ? D.one : D.left(n);
     el.classList.add(n < 0 ? 'over' : 'left');
+    if (n < 0) el.insertAdjacentHTML('afterbegin', svg('warn', 'aria-hidden="true"'));
   });
 
   // view states for the screenshots: ?state=<name> shows the [data-state] elements that name it

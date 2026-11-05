@@ -96,10 +96,10 @@
           <div class="bulk-dock narrow-only" data-state="select">
             <div class="decision bulk" data-bulk>
               <div class="decision-f">
-                <span class="lbl strong">3 selected</span>
+                <span class="iconbtn" data-i="x" aria-label="Clear the selection"></span><span class="lbl strong">3 selected</span>
                 <div class="acts">
                   <span class="btn btn-ghost" data-i="x" data-act="reject">Not relevant… <span class="kbd">2</span></span>
-                  <span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file 3 <span class="kbd">⇧⌘↵</span></span>
+                  <span class="more" data-overflow="row-menu"><span class="iconbtn" data-i="dots" aria-label="More acts"></span></span><span class="btn btn-primary btn-lg" data-i="check" data-act="record">Accept and file 3 <span class="kbd">⇧⌘↵</span></span>
                 </div>
               </div>
             </div>
@@ -209,7 +209,7 @@
   </main>
 </div>
 
-<div class="menu ctx-menu ctx-at" data-state="context" role="menu">
+<div class="menu ctx-menu ctx-at" id="row-menu" data-state="context" role="menu">
             <div class="mi on" data-i="eye" data-act="open">Open<span class="kbds"><span class="kbd">↵</span></span></div>
             <div class="mi" data-i="check" data-act="record">Accept and file on FL-2025-0412<span class="kbds"><span class="kbd">⇧⌘↵</span></span></div>
             <div class="mi" data-i="matters" data-act="other-matter">File on another matter…<span class="kbds"><span class="kbd">M</span></span></div>

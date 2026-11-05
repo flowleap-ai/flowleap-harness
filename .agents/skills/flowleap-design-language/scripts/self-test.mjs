@@ -100,6 +100,8 @@ const CASES = [
   ['18', 'a key typed into a label', mock('b-intake-item.html', 'Other matter… <span class="kbd">M</span></span>\n', 'Other matter (O)</span>\n'), 'key "(O)" typed into a label'],
   ['19', 'the decision bar covered by a fixed overlay', mock('b-intake-item.html', '<script src="frame.js"></script>', '<div style="position: fixed; left: 0; right: 0; bottom: 0; height: 240px; background: var(--dsw-alias-bg-layer-3); z-index: 9">Toast</div><script src="frame.js"></script>'), 'the decision button is covered by div'],
   ['20', 'Activity lines drawn as boxes (light)', mock('b-intake-item.html', '</head>', '<style>.ev { background: var(--dsw-alias-bg-layer-2); box-shadow: var(--dsw-elevation-panel); }</style></head>'), 'a box inside the panel: div.ev'],
+  ['20b', 'a box inside the built app\'s Records view', { ...mock('b-intake-item.html', '</body>', '<div data-testid="flowleap-records"><div class="GLRFEW_row" style="height: 44px; box-shadow: var(--dsw-elevation-panel)">Row</div><section class="nk-x6W_bar" data-fdl-part="decision" style="height: 44px; box-shadow: var(--dsw-elevation-prominent)">Bar</section></div></body>'), absent: 'nk-x6W_bar' }, 'a box inside the panel: div.GLRFEW_row'],
+  ['20c', 'a card by class name and a card drawn as a button in the built app', mock('b-intake-item.html', '</body>', '<div data-testid="flowleap-records"><section class="QQ_card" style="height: 44px; box-shadow: var(--dsw-elevation-panel)">Card</section><button class="ZZ_summary" style="display: block; height: 96px; box-shadow: var(--dsw-elevation-panel)">Summary</button></div></body>'), 'a box inside the panel: section.QQ_card'],
   ['4r', 'rendered text in the icon grey', mock('b-intake-item.html', EYEBROW, `<p style="color: var(--dsw-alias-label-tertiary)">Received today at 14:16</p>${EYEBROW}`), 'in --dsw-alias-label-tertiary'],
   ['B3', 'a large surface with a 4 px radius', mock('b-intake-item.html', '</head>', '<style>.decision { border-radius: var(--dsw-radius-xs); }</style></head>'), 'with radius 4 px'],
   ['B5a', 'a board chip status with no word', mock('f-work-board.html', '<span class="fact"><span class="k">Report</span><span class="status" data-atlas="report.proposed"><span class="st" data-s="wait"></span>Proposed</span></span>', '<span class="fact"><span class="st" data-s="wait"></span>Report</span>'), 'a status icon (wait) with no word'],
@@ -146,7 +148,7 @@ for (const [id, what, test, expect] of CASES) {
     const out = `${r.stdout}${r.stderr}`;
     const want = test.exit ?? 1;
     const hit = out.split('\n').find(l => l.includes(expect));
-    const ok = r.status === want && !!hit;
+    const ok = r.status === want && !!hit && !(test.absent && out.includes(test.absent));
     if (!ok) bad++;
     console.log(`${ok ? 'PASS' : 'FAIL'} ${id.padEnd(5)} ${what.padEnd(48)} ${test.check} exit ${r.status} (want ${want})${hit ? `: ${hit.replace(/\S*fdl-\w+\//g, '').replace(/^FAIL /, '').trim().slice(0, 150)}` : `; no line with "${expect}"`}`);
   } finally { rmSync(c.root, { recursive: true, force: true }); }
