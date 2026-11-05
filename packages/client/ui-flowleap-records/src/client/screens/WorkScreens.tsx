@@ -357,7 +357,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           <RecordActivity ctx={ctx} events={data.activity} />
         </WorkColumn>
       </div>
-      <AgentRun ctx={ctx} data={data} />
+      <AgentRun ctx={ctx} data={data} title={title} />
     </div>
   )
 }

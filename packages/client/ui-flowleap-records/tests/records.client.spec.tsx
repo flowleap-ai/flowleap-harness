@@ -79,6 +79,8 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const selected: (string | null)[] = []
   ctx.provide('layout', { panelInfo, selectPanel: (id: string | null) => { selected.push(id); panelInfo.set({ activePanelId: id }) } } as never)
   const providers: { readonly protocol: string }[] = []
+  const started: unknown[][] = []
+  ctx.provide('uiWorkspace', { startSession: (...args: unknown[]) => { started.push(args) } } as never)
   ctx.provide('sessions', { list: createSnapshotStore({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }) } as never)
   ctx.provide('resources', {
     register: (provider: { readonly protocol: string }) => {
@@ -101,7 +103,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   await settle()
-  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected }
+  return { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected, started }
 }
 
 describe('ui-flowleap-records browser half', () => {
@@ -111,7 +113,7 @@ describe('ui-flowleap-records browser half', () => {
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
     window.history.replaceState(null, '', '/?page=flowleap-records&records=board&keep=1')
-    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected } = await mounted(routes(json({ href: 'records/' })))
+    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected, started } = await mounted(routes(json({ href: 'records/' })))
     expect(providers.map(provider => provider.protocol)).toEqual(['recordsrun'])
     expect(ctx.slots.entries('records.agent.conversation')).toHaveLength(1)
     expect(keys).toContain('records.panel')
@@ -148,6 +150,8 @@ describe('ui-flowleap-records browser half', () => {
     injected.refresh()
     expect(await injected.perform([])).toEqual({ failed: [] })
     expect(injected.contentHref('a'.repeat(64) as DocumentId)).toBe(`records/api/documents/${'a'.repeat(64)}/content`)
+    injected.hooks.ask.getSnapshot()!.start('About matter FL-2026-0001, Rule 71(3) communication: Which deadline applies?')
+    expect(started).toEqual([[undefined, { prompt: 'About matter FL-2026-0001, Rule 71(3) communication: Which deadline applies?', whenDraftExists: 'append' }]])
     expect(menus).toHaveLength(1)
     expect(menus[0]!.target).toBe('records.intake-row')
     const actions = await menus[0]!.resolve({ document: 'a'.repeat(64) as DocumentId, list: 'waiting', proposed: null }, new AbortController().signal)
@@ -160,6 +164,7 @@ describe('ui-flowleap-records browser half', () => {
     expect(contributions).toEqual([])
     expect(providers).toEqual([])
     expect(ctx.slots.entries('records.agent.conversation')).toEqual([])
+    expect(injected.hooks.ask.getSnapshot()).toBeNull()
     await ctx.fiber.dispose()
   })
 

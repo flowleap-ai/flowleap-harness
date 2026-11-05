@@ -25,7 +25,7 @@ import type { NS } from './locales.ts'
 import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab } from './model.ts'
 import type { DockView } from './parts/AgentDock.tsx'
 import type { IntakeRowTarget } from './row-menu.ts'
-import type { ScreenContext } from './screens/context.ts'
+import type { NewChat, ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
 import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
 import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
@@ -54,6 +54,8 @@ export interface PanelInjected {
     readonly fixedCatalog: ObservableSnapshot<readonly ShortcutFixedCatalogEntry[]>
     /** The UI language. */
     readonly language: ObservableSnapshot<LocaleId>
+    /** Start a new chat about a letter; null while the runtime has no Session navigation. */
+    readonly ask: ObservableSnapshot<NewChat | null>
   }
   readonly navigate: (route: Route) => void
   readonly retry: () => void
@@ -82,13 +84,14 @@ const TAB_ORDER: readonly Tab[] = ['matters', 'intake', 'work']
  * @returns the panel.
  */
 export function RecordsPanel(props: PanelProps) {
-  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useContextMenu } = props
+  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useAsk, useContextMenu } = props
   const screen = useScreen(value => value)
   const me = useMe(load => shownData(load)?.data ?? null)
   const waitingCount = useWaitingCount(count => count)
   const catalog = useCatalog(rows => rows)
   const fixedCatalog = useFixedCatalog(rows => rows)
   const locale = useLanguage(language => language)
+  const ask = useAsk(start => start)
   const { getTriggerProps } = useContextMenu()
   const [dock, setDock] = useState<DockView>('docked')
   const ctx: ScreenContext = {
@@ -109,6 +112,7 @@ export function RecordsPanel(props: PanelProps) {
       useResource: props.useResource,
       SessionProvider: props.SessionProvider,
       renderConversation: () => props.renderSlot('records.agent.conversation', {}),
+      ask,
     },
   }
   const tab = TAB_OF[screen.view]

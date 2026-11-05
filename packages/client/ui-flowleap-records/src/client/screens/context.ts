@@ -1,7 +1,7 @@
 /**
  * What each screen of the Matters panel receives: its screen (the route with its loads) and the screen context, the
  * copy, the time, the signed-in person, the keycaps of the acts, navigation, the acts, the row context menu and the
- * agent panel of the work page.
+ * agent panel of the work page with its new chat.
  */
 
 import type { ReactNode } from 'react'
@@ -47,6 +47,17 @@ export interface AgentSeat {
   readonly SessionProvider: SessionProviderComponent
   /** Render the conversation slot inside the Session binding. */
   readonly renderConversation: () => ReactNode
+  /** Starts a new chat with a drafted prompt; null where the runtime has no Session navigation. */
+  readonly ask: NewChat | null
+}
+
+/** Starts a new chat; an object, because a snapshot store takes a function value as an updater. */
+export interface NewChat {
+  /**
+   * Open a new chat with a prompt drafted for the person to send.
+   * @param prompt - the drafted prompt.
+   */
+  readonly start: (prompt: string) => void
 }
 
 /** The props of the screen of one view. */

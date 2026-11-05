@@ -120,7 +120,7 @@ describe('the matters list', () => {
     const props = {
       t: makeTranslate(en), useScreen: bindSnapshotSelector(model.screen), useMe: bindSnapshotSelector(model.me),
       useWaitingCount: bindSnapshotSelector(model.waitingCount), useCatalog: bindSnapshotSelector(createSnapshotStore([])),
-      useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
+      useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')), useAsk: bindSnapshotSelector(createSnapshotStore(null)),
       useContextMenu: contextMenuHook(), navigate: () => {}, retry: () => {}, refresh: () => {},
       perform: () => Promise.resolve({ failed: [] }),
       contentHref: () => '', keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),

@@ -64,18 +64,16 @@
   overflow: hidden;
 }
 
-.state {
+/* With no conversation: the empty state (R18) scrolls at the top of the body on the base surface; its raised parts
+ * are in AgentSummary.module.css. */
+.empty {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
   padding: 16px;
-  color: var(--dsw-alias-label-secondary);
-}
-
-.state > svg {
-  flex: none;
-  margin-top: 2px;
+  overflow: auto;
 }
 
 @media (max-width: 720px) {
