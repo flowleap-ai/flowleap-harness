@@ -412,14 +412,14 @@ describe('the open letter', () => {
     expect(within(decision()).getByRole('alert').textContent).toContain('The decision may be recorded.')
     expect(document.body.textContent).not.toContain('refused')
     expect(document.body.textContent).not.toContain('could not file')
-    expect(screen.getAllByRole('button', { name: /Try again/ })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: /Try again/ }).map(button => button.textContent)).toEqual(['Try again', 'Try againR'])
     expect(screen.getAllByRole('row').length).toBeGreaterThan(1)
     fireEvent.click(within(within(decision()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
     await flush()
     expect(acts.map(act => act.key)).toEqual([acts[0]!.key, acts[0]!.key])
   })
 
-  it('gives R and the one Try again to the act in the decision bar when the act and the view both failed', async () => {
+  it('gives R to the act in the decision bar when the act and the view both failed, and keeps a Try again with no keycap on the view', async () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
     const { api, acts } = createFixtureApi()
     const down: Fetched<never> = { ok: false, error: { kind: 'service', status: 503 } }
@@ -434,11 +434,18 @@ describe('the open letter', () => {
     await flush()
     const [loadNotice, actNotice] = screen.getAllByRole('alert')
     expect(loadNotice!.textContent).toContain('FlowLeap could not load this view.')
-    expect(within(loadNotice!).queryByRole('button', { name: /Try again/ })).toBeNull()
+    expect(within(loadNotice!).getByRole('button', { name: /Try again/ }).textContent).toBe('Try again')
     expect(within(actNotice!).getByRole('button', { name: /Try again/ }).textContent).toBe('Try againR')
     press(panel, 'KeyR')
     await flush()
     expect(acts.map(act => act.key)).toEqual([acts[0]!.key, acts[0]!.key])
+    // The view's Try again loads the view again and sends no act.
+    const intake = vi.spyOn(api, 'intake')
+    const loads = intake.mock.calls.length
+    fireEvent.click(within(screen.getAllByRole('alert')[0]!).getByRole('button', { name: /Try again/ }))
+    await flush()
+    expect(intake.mock.calls.length).toBeGreaterThan(loads)
+    expect(acts).toHaveLength(2)
   })
 
   it('gives R to the view when only the view failed, and shows its Try again with the keycap', async () => {

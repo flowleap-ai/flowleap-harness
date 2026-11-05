@@ -15,9 +15,9 @@ import { activityLines, auditRows, avatarOf, listTimeText, personName } from '..
 import { actOf, type ScreenContext } from './context.ts'
 
 /**
- * The error notice of a failed load, with the time of the data that stays on screen, and Try again with R. While a
- * failed act in a decision bar holds R, the notice has no Try again: that act is the person's pending decision, and
- * its Try again also loads the view again, so the screen shows one Try again.
+ * The error notice of a failed load, with the time of the data that stays on screen, and Try again, which loads the
+ * view again. While a failed act in a decision bar holds R, the notice's Try again has no key and shows no keycap: R
+ * tries the person's pending decision again, which also loads the view again.
  * @param props.ctx - the screen context.
  * @param props.at - the time of the last data, or null when there is none.
  * @returns the notice.
@@ -26,7 +26,11 @@ export function LoadError({ ctx, at }: { ctx: ScreenContext; at: number | null }
   useKeyActs(ctx, { retry: ctx.retry })
   const held = useRetryHeld(ctx)
   const body = at === null ? ctx.t('error.noData') : ctx.t('error.asOf', { time: listTimeText(ctx, new Date(at).toISOString() as IsoTime) })
-  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={held ? undefined : actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry)} />
+  // A held R belongs to the decision bar, so this Try again is a keyless act of its own (R16: a keyed act shows its key).
+  const retry = held
+    ? { id: 'reload', label: ctx.t('act.retry'), keycaps: [], run: ctx.retry }
+    : actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry)
+  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={retry} />
 }
 
 /**
