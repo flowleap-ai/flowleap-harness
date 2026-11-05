@@ -80,28 +80,30 @@ export interface CardFact {
 
 /**
  * Render a board card: the column's icon (`aria-hidden`) and the matter key, the team, the title in two lines at
- * most, the matter with the due date, and the labelled facts, one line each ("Deadline · Active"). The matter key and
+ * most, the matter name with the due date, and the labelled facts, one line each ("Deadline · Active"). The matter key and
  * every fact's label and status word are never cut and never wrap: the board column takes the width of its longest
  * fact.
  * @param props.status - the column's atlas state.
  * @param props.matterKey - the file number.
  * @param props.team - the team inside the matter's wall.
  * @param props.title - the work's title.
- * @param props.sub - the matter name and the due date.
+ * @param props.matterName - the matter's name, which hides at 390px, where the matter key names the matter.
+ * @param props.due - the due date as text, such as "due Mon, 1 Mar 2027", or null for work with no due date.
  * @param props.facts - the labelled facts.
  * @param props.lifted - the card is drawn lifted, as while it is dragged.
  * @param props.drag - the card can move: start and end of its drag. A dragged card leaves the dashed empty slot at
  * its place while the browser draws the moving card.
  * @param props.dragging - the card is being dragged.
- * @param props.onOpen - open the work.
+ * @param props.onOpen - open the work: a click anywhere on the card, or ↵ on its title. A drag does not click.
  * @returns the card.
  */
-export function BoardCard({ status, matterKey, team, title, sub, facts, lifted = false, drag, dragging = false, onOpen }: {
+export function BoardCard({ status, matterKey, team, title, matterName, due, facts, lifted = false, drag, dragging = false, onOpen }: {
   status: AtlasRef
   matterKey: string
   team: readonly AvatarPerson[]
   title: string
-  sub: ReactNode
+  matterName: string
+  due: string | null
   facts: readonly CardFact[]
   lifted?: boolean
   drag?: { readonly id: string; readonly onStart: () => void; readonly onEnd: () => void } | undefined
@@ -122,14 +124,19 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
           drag.onStart()
         }}
       onDragEnd={drag?.onEnd}
+      onClick={onOpen}
     >
       <div className={css.top}>
         <RowStatusIcon status={status} />
         <span className={css.key}>{matterKey}</span>
         <AvatarStack people={team} className={css.team} />
       </div>
-      <button type="button" className={css.title} onClick={onOpen}>{title}</button>
-      <div className={css.sub}>{sub}</div>
+      {/* The keyboard's way into the card: ↵ or Space on the title clicks it, and the card's click opens the work. */}
+      <button type="button" className={css.title}>{title}</button>
+      <div className={css.sub}>
+        <span className={css.matterName}>{matterName}</span>
+        {due !== null && <span className={css.due}>{due}</span>}
+      </div>
       {facts.length > 0 && (
         <div className={css.facts}>
           {facts.map(fact => (

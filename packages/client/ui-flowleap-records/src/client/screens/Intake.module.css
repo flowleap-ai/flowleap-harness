@@ -22,6 +22,12 @@
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
+/* A filter chip at rest is the raised chip of the board's view bar: in light bg-layer-2 equals bg-base, so the panel
+ * elevation (its first layer is the 0.5px stroke) draws its edge in both themes. Pressed, it keeps the Pill's fill. */
+.viewbar .chip:not([aria-pressed='true']) {
+  box-shadow: var(--dsw-elevation-panel);
+}
+
 .count {
   color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums;
@@ -157,28 +163,19 @@
   line-height: var(--dsw-font-xxs-12-line-height);
 }
 
-.letterHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
 .logo {
   width: 48px;
   height: 12px;
+  margin-bottom: 12px;
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-border-l3);
 }
 
-.office {
-  margin: 8px 0 0;
-}
-
-.form {
-  font-family: var(--ds-font-family-code);
-  text-align: right;
+/* One line of the drawing: the cells of a page line, or a label and its value, which wrap between cells. */
+.letterLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
 }
 
 .hl {
@@ -187,11 +184,6 @@
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-state-warn-tertiary);
   color: var(--dsw-alias-label-document-preview);
-}
-
-.letterTitle {
-  margin: 8px 0 0;
-  font-weight: var(--dsw-font-xs-strong-13-font-weight);
 }
 
 .line {

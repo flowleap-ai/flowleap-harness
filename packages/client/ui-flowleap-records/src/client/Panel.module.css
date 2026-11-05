@@ -148,7 +148,8 @@
 }
 
 .searchNarrow,
-.agentNarrow {
+.agentNarrow,
+.layoutMenu {
   display: none;
 }
 
@@ -193,7 +194,8 @@
   }
 
   .searchNarrow,
-  .agentNarrow {
+  .agentNarrow,
+  .layoutMenu {
     display: inline-flex;
   }
 

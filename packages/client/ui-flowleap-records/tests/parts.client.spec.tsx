@@ -104,7 +104,7 @@ describe('list', () => {
     expect(within(list).getByText('Match proposed')).toBeTruthy()
     expect(within(list).queryByText('No matter found')).toBeNull()
     expect(screen.getByText('EPO')).toBeTruthy()
-    expect(screen.getByText('A').textContent).toBe('AEPO')
+    expect(screen.getByText('A').parentElement!.textContent).toBe('AEPO')
   })
 
   it('opens a row on click, selects a range with shift, and leaves the open row selected', () => {
@@ -357,13 +357,13 @@ describe('board', () => {
     render(
       <>
         <BoardColumn status={ready} word={word('Proposals ready')} count={1} owner="You" drop={{ kind: 'allowed', title: 'Drop to decide', body: 'Nothing moves until you record it.' }}>
-          <BoardCard status={ready} matterKey="FL-2026-0001" team={[{ name: 'Dr. Anna Becker' }]} title="Rule 71(3) communication" sub="Pressure sensor housing" lifted
+          <BoardCard status={ready} matterKey="FL-2026-0001" team={[{ name: 'Dr. Anna Becker' }]} title="Rule 71(3) communication" matterName="Pressure sensor housing" due={null} lifted
             facts={[{ label: 'Deadline', status: { machine: 'deadline', state: 'active' }, word: word('Active') }]} onOpen={onOpen} />
           <CardSlot />
         </BoardColumn>
         <BoardColumn status={{ machine: 'ticket', state: 'routed' }} word={word('Assigned')} count={0} owner="FlowLeap" drop={{ kind: 'refused', reason: 'FlowLeap assigns the work.' }}>{null}</BoardColumn>
         <BoardColumn status={{ machine: 'ticket', state: 'decided' }} word={word('Decided')} count={1} owner="You">
-          <BoardCard status={{ machine: 'ticket', state: 'decided' }} matterKey="FL-2023-0610" team={[]} title="Renewal fee reminder" sub="Rotor blade clamp" facts={[]} onOpen={onOpen} />
+          <BoardCard status={{ machine: 'ticket', state: 'decided' }} matterKey="FL-2023-0610" team={[]} title="Renewal fee reminder" matterName="Rotor blade clamp" due="due Mon, 1 Mar 2027" facts={[]} onOpen={onOpen} />
         </BoardColumn>
       </>,
     )

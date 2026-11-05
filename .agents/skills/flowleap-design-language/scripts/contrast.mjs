@@ -114,6 +114,14 @@ pairs.push(
   ['status icon beside its word, working', T('state-business-primary'), [T('bg-base')], 0],
   ['status icon beside its word, refused or stale', T('state-error-primary'), [T('bg-base')], 0],
   ['client state-idle colour (not used for the status icon)', T('state-idle-primary'), [T('bg-base')], 0],
+  // The ⌘K group heading: 12 px secondary text on the menu material, and on its stuck fill while the list scrolls.
+  ['⌘K group heading', T('label-secondary'), MENU, 4.5],
+  ['⌘K group heading, stuck', T('label-secondary'), [...MENU, T('menu-group-header-fill')], 4.5],
+  // The ring of a deadline calculation step is an icon in the icon grey.
+  ['deadline calculation step ring', T('label-tertiary'), [T('bg-base')], 3],
+  // On the open or a checked row the avatar fill (bg-overlay) equals the selected tint in light, so it takes label-secondary.
+  ['avatar on a selected row', T('label-secondary'), [T('bg-base'), T('interactive-bg-active')], 3],
+  ['avatar initial on a selected row', T('label-primary-foreground'), [T('bg-base'), T('interactive-bg-active'), T('label-secondary')], 4.5],
 );
 
 /** Measures every pair in both themes of the client theme; returns the Markdown table and the failure count. */

@@ -100,6 +100,13 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
+/* The avatar of the open or a checked row: in light the avatar fill equals the selected tint (1.01:1), so it takes the
+ * secondary label colour with the initial in the foreground colour (contrast.md). */
+.row:is([data-open], [data-checked]) span[data-size] {
+  background: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
 /* A long press on a touch screen selects the row; it does not select its text or open the system callout. */
 @media (pointer: coarse) {
   .row {
@@ -196,13 +203,27 @@
 .w75 { width: 75%; }
 
 .title {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
   white-space: nowrap;
 }
 
+.titleText,
 .source {
-  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleText {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.source {
+  flex: none;
+  max-width: 50%;
   color: var(--dsw-alias-label-secondary);
 }
 

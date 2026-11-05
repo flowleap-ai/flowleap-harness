@@ -12,7 +12,7 @@ import {
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { Command, FieldValue, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
+import type { Command, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
 import type { ActsResult } from '../model.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
@@ -26,6 +26,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate } from '../format.ts'
 import { avatarOf, fromOffice, letterTitle, listTimeText, officeName, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
+import { letterLines } from '../letter-text.ts'
 import { copyLink } from './links.ts'
 import { decisionHeading, failureNotice, RecordActivity } from './shared.tsx'
 import css from './Intake.module.css'
@@ -152,33 +153,32 @@ function Who({ ctx, person }: { ctx: ScreenContext; person: Person | null }) {
 }
 
 /**
- * Render a drawing of the letter from what reader 1 read, with each read value marked. It is a picture of the
- * source, so its text is exempt from the deny-list (`data-verbatim`).
+ * Render a drawing of the letter from what reader 1 read: the lines of the page that hold the read values, in the
+ * letter's own words and in every UI language, with each read value marked (`letterLines`). It is a picture of the
+ * source, so its text is exempt from the deny-list (`data-verbatim`); it never translates or names the letter.
  * @param props.ctx - the screen context.
  * @param props.letter - the letter.
+ * @param props.onOpen - open the PDF.
  * @returns the drawing with its page caption and Open the letter.
  */
 export function LetterDrawing({ ctx, letter, onOpen }: { ctx: ScreenContext; letter: IntakeDocument; onOpen: () => void }) {
   const { t } = ctx
   const { formNumber, documentDate, applicationNumber, reference } = letter.fields
-  const marked = (field: FieldValue) => <mark className={css.hl}>{field.span.quote}</mark>
+  const read = [formNumber, documentDate, reference, applicationNumber].flatMap(field => field === undefined ? [] : [field.span])
   const page = reference?.span.page ?? formNumber?.span.page ?? 1
   return (
     <figure className={css.paper}>
       <div className={css.letter} data-verbatim="" aria-label={t('intake.letter.label', { page })} role="img">
-        <div className={css.letterHead}>
-          <div>
-            <div className={css.logo} />
-            {letter.office !== null && <p className={css.office}>{letter.office}</p>}
+        <div className={css.logo} />
+        {letterLines(read).map(line => (
+          <div key={line.key} className={css.letterLine}>
+            {line.cells.map((cell, index) => (
+              <span key={index}>
+                {cell.map((run, place) => run.read ? <mark key={place} className={css.hl}>{run.text}</mark> : run.text)}
+              </span>
+            ))}
           </div>
-          <div className={css.form}>
-            {formNumber !== undefined && <div>{letter.office === null ? '' : `${letter.office} `}{t('intake.letter.form')} {marked(formNumber)}</div>}
-            {documentDate !== undefined && <div>{t('intake.letter.date')} {marked(documentDate)}</div>}
-          </div>
-        </div>
-        {reference !== undefined && <div>{t('intake.letter.reference')} {marked(reference)}</div>}
-        {applicationNumber !== undefined && <div>{t('intake.letter.application')} {marked(applicationNumber)}</div>}
-        {letter.code !== null && <p className={css.letterTitle}>{letterTitle(t, letter.code)}</p>}
+        ))}
         <div className={css.line} />
         <div className={css.line} />
       </div>

@@ -200,3 +200,55 @@ describe('the list grids', () => {
     expect(declarations(read('List.module.css'), '.pane')).not.toContainEqual(expect.stringContaining('--records-columns'))
   })
 })
+
+describe('the review-3 visual fixes', () => {
+  it('keeps a short source such as the office code whole: the title truncates first, a long source takes half the cell', () => {
+    const css = read('List.module.css')
+    expect(declarations(css, '.title')).toEqual(expect.arrayContaining(['display: flex', 'min-width: 0']))
+    expect(declarations(css, '.title')).not.toContain('overflow: hidden')
+    expect(declarations(css, '.titleText')).toEqual(['flex: 0 1 auto', 'min-width: 0'])
+    expect(declarations(css, '.titleText,\n.source')).toEqual(['overflow: hidden', 'text-overflow: ellipsis'])
+    expect(declarations(css, '.source')).toEqual(expect.arrayContaining(['flex: none', 'max-width: 50%']))
+  })
+
+  it('gives the avatar of the open or a checked row a fill that stands out from the selected tint', () => {
+    expect(declarations(read('List.module.css'), '.row:is([data-open], [data-checked]) span[data-size]')).toEqual([
+      'background: var(--dsw-alias-label-secondary)', 'color: var(--dsw-alias-label-primary-foreground)',
+    ])
+  })
+
+  it('draws the resting filter chips of Intake with the raised edge of the board chip, in both themes', () => {
+    expect(declarations(read('Intake.module.css', 'screens'), ".viewbar .chip:not([aria-pressed='true'])")).toEqual(['box-shadow: var(--dsw-elevation-panel)'])
+  })
+
+  it('draws the calculation step ring in the icon grey, which has 3:1 in both themes', () => {
+    expect(declarations(read('Detail.module.css', 'screens'), '.dot')).toContain('border: 1px solid var(--dsw-alias-label-tertiary)')
+  })
+
+  it('sets "Overdue by N days" on the baseline of its words, with the glyph centred on the line', () => {
+    const css = read('Due.module.css')
+    expect(declarations(css, '.overdue')).toContain('align-items: baseline')
+    expect(declarations(css, '.overdue > svg')).toContain('align-self: center')
+  })
+
+  it('at 390px aligns the Due header with its right-aligned values and gives a fact chip the cell radius it may wrap into', () => {
+    const narrow = atRule(read('Detail.module.css', 'screens'), '@media (max-width: 720px)')
+    expect(declarations(narrow, '.endNarrow')).toEqual(['text-align: right'])
+    expect(declarations(narrow, '.fact')).toEqual(['min-height: 32px', 'padding: 4px 12px', 'border-radius: var(--dsw-radius-md)'])
+  })
+
+  it('at 390px hides the matter name of a card and a work row, where the key names the matter, and wraps the other states', () => {
+    const card = atRule(read('Board.module.css'), '@media (max-width: 720px)')
+    expect(declarations(card, '.matterName')).toEqual(['display: none'])
+    expect(declarations(card, '.matterName + .due::before')).toEqual(['content: none'])
+    const board = atRule(read('BoardScreen.module.css', 'screens'), '@media (max-width: 720px)')
+    expect(declarations(board, '.screen [data-row] [data-source]')).toEqual(['display: none'])
+    expect(declarations(board, '.other')).toEqual(expect.arrayContaining(['display: grid', 'height: auto', 'white-space: normal']))
+    expect(declarations(board, '.otherRows')).toEqual(expect.arrayContaining(['grid-template-columns: repeat(2, minmax(0, 1fr))']))
+    expect(declarations(read('BoardScreen.module.css', 'screens'), '.board')).toContain('scroll-padding-inline: 16px')
+  })
+
+  it('shows the board card as one click target', () => {
+    expect(declarations(read('Board.module.css'), '.card')).toContain('cursor: pointer')
+  })
+})

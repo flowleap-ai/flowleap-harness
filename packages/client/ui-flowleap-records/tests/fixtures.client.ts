@@ -122,6 +122,31 @@ const span = (quote: string, start: number, before: string, after: string) => ({
   page: 1, start, end: start + quote.length, quote, excerpt: { before, after },
 })
 
+/** Page 1 of the Rule 71(3) letter as `pdftotext -layout` gives it: the header table and the form line. */
+const R71_PAGE = [
+  '      European Patent Office',
+  '      FlowLeap Test Firm',
+  '',
+  '      Application No.             Ref.                  Date',
+  '      24 123 456.7 - 1203         FL-2026-0001          30.10.2026',
+  '',
+  '      Communication under Rule 71(3) EPC',
+  '',
+  '      EPO Form 2004C 12.07',
+].join('\n')
+
+/**
+ * A span of page 1 of the Rule 71(3) letter with up to 160 characters of the page around it, as the os sends it.
+ * @param quote - the quote; it stands once on the page.
+ * @returns the span.
+ */
+const onPage = (quote: string) => {
+  const start = R71_PAGE.indexOf(quote)
+  const end = start + quote.length
+  const excerpt = { before: R71_PAGE.slice(Math.max(0, start - 160), start), after: R71_PAGE.slice(end, end + 160) }
+  return { page: 1, start, end, quote, excerpt }
+}
+
 /** `GET intake/documents/<R71_DOCUMENT>`. */
 export const intakeDocumentWire = {
   document: R71_DOCUMENT,
@@ -137,10 +162,10 @@ export const intakeDocumentWire = {
   documentDate: '2026-10-30',
   applicationNumber: '24 123 456.7',
   fields: {
-    reference: { value: 'FL-2026-0001', span: span('FL-2026-0001', 64, 'European Patent Office. Your reference ', '. Application No. 24 123 456.7') },
-    documentDate: { value: '2026-10-30', span: span('30.10.2026', 30, 'Form 2004C. Date ', '. Your reference FL-2026-0001') },
-    formNumber: { value: '2004C', span: span('2004C', 19, 'European Patent Office. EPO Form ', '. Date 30.10.2026') },
-    applicationNumber: { value: '24 123 456.7', span: span('24 123 456.7', 94, 'Your reference FL-2026-0001. Application No. ', ' - 1203') },
+    reference: { value: 'FL-2026-0001', span: onPage('FL-2026-0001') },
+    documentDate: { value: '2026-10-30', span: onPage('30.10.2026') },
+    formNumber: { value: '2004C', span: onPage('2004C') },
+    applicationNumber: { value: '24 123 456.7', span: onPage('24 123 456.7') },
   },
   proposed: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, responsible: PEOPLE.anna, matchedBy: 'reference' },
   candidates: 1,
