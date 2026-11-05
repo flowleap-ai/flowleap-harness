@@ -197,7 +197,7 @@ describe('the German intake', () => {
     expect(row.textContent).toContain('EPA')
     expect(row.textContent).not.toContain('EPO')
     const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
-    expect(reasons[2]).toContain('FlowLeap hat den Brief als Mitteilung nach Regel 71(3) vom EPA gelesen, datiert')
+    expect(reasons[2]).toContain('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen, datiert')
     expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('AmtEPA')
   })
 })

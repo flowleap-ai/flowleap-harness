@@ -119,6 +119,12 @@ describe('words of codes and events', () => {
   })
 })
 
+describe('the German copy', () => {
+  it('names the letter with one word, "Schreiben", as the German mockups do; only the atlas word of the gate differs', () => {
+    expect(Object.entries(de).filter(([, text]) => /brief/iu.test(text))).toEqual([['atlas.deadline.awaiting_code', 'Brief wird gelesen']])
+  })
+})
+
 describe('keycaps', () => {
   it('reads the catalog keycaps of a command and of a fixed key, worded in the UI language, and nothing for an unbound or unknown one', () => {
     const row = (id: string, keycaps?: readonly (readonly string[])[]): ShortcutCatalogEntry => ({
