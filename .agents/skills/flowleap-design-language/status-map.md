@@ -28,7 +28,7 @@ Each atlas state shows one of the six shapes of [components.md](components.md#st
 | intake | `duplicate` | idle | Duplicate | Duplikat |
 | intake | `replaced` | idle | Replaced | Ersetzt |
 | intake | `not_relevant` | idle | Not relevant | Nicht relevant |
-| deadline | `awaiting_code` | run | Reading the letter | Brief wird gelesen |
+| deadline | `awaiting_code` | run | Reading the letter | Schreiben wird gelesen |
 | deadline | `recorded` | run | Office event recorded | Amtsereignis erfasst |
 | deadline | `code_proposed` | wait | Office event proposed | Amtsereignis vorgeschlagen |
 | deadline | `deadline_proposed` | wait | Deadline proposed | Frist vorgeschlagen |

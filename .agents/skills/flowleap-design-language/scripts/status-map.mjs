@@ -30,7 +30,7 @@ export const STATUS = {
     filed: ['ok', 'Filed', 'Abgelegt'], duplicate: ['idle', 'Duplicate', 'Duplikat'], replaced: ['idle', 'Replaced', 'Ersetzt'], not_relevant: ['idle', 'Not relevant', 'Nicht relevant'],
   },
   deadline: {
-    awaiting_code: ['run', 'Reading the letter', 'Brief wird gelesen'], recorded: ['run', 'Office event recorded', 'Amtsereignis erfasst'],
+    awaiting_code: ['run', 'Reading the letter', 'Schreiben wird gelesen'], recorded: ['run', 'Office event recorded', 'Amtsereignis erfasst'],
     code_proposed: ['wait', 'Office event proposed', 'Amtsereignis vorgeschlagen'], deadline_proposed: ['wait', 'Deadline proposed', 'Frist vorgeschlagen'],
     manual_proposed: ['wait', 'Entered date proposed', 'Eingegebenes Datum vorgeschlagen'], engine_refused: ['bad', 'Not computed', 'Nicht berechnet'],
     active: ['ok', 'Active', 'Aktiv'], to_docket: ['ok', 'In the docket', 'Im Fristenkalender'],
