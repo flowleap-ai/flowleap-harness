@@ -213,6 +213,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'shell.overlay\' (client-ui-context-menu), so it exists while that entry is mounted',
     occupants: [
       'client-ui-file-actions Icon',
+      'client-ui-flowleap-records Icon',
       'client-ui-open-in-app Icon',
       'client-ui-open-in-app ContextMenuApplicationIcon key \'open-in-app.application\'',
       'client-ui-sidebar-right IconCloseOutlineRegular key \'sidebar.close\'',
