@@ -103,7 +103,7 @@ Each rule gives the numbers, the check, and the source. A script check runs from
 
 ### R14. Evidence is exact
 
-- **Rule.** Each draft statement and each read value points to an exact span of its source: a quote and a page, with the excerpt on hover. A statement without a span is "Missing evidence", and Accept is blocked with the reason in the decision bar. Never "the whole letter".
+- **Rule.** Each draft statement and each read value points to an exact span of its source: a quote and a page, with the excerpt on hover. A statement without a span is "Missing evidence", and Accept is blocked with the reason in the decision bar. Never "the whole letter". An office event entered by hand has no source letter: it is evidence for a deadline only when a second person, not the person who entered it, confirms it, and the screens show "No source letter" (German "Kein Quellschreiben") in place of the quote, and name both people (founder decision, 2026-11-05; atlas sheet 2 applies the same rule to a manual deadline).
 - **Numbers.** Quote 12 px monospace on `--dsw-alias-state-warn-tertiary`; page reference 12 px `--dsw-alias-label-secondary`.
 - **Check.** Every statement row has at least one span or the missing-evidence warning; the missing state disables Accept and the primary button.
 - **Source.** FlowLeap product rule: a decision is a person's act, made on evidence the person can check.
