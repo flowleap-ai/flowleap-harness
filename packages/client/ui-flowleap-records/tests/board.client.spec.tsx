@@ -56,6 +56,25 @@ describe('the work board at 390px', () => {
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'board', layout: 'board' })
   })
 
+  it('opens the rendered board on the first column with cards when it is wider than the view', async () => {
+    const { api } = createFixtureApi()
+    const rows = fixtures.tickets.rows.filter(row => row.state !== 'routed' && row.state !== 'running')
+    vi.spyOn(api, 'tickets').mockResolvedValue({ ok: true, value: { rows } })
+    // jsdom lays nothing out: each element is as wide as four 280 px columns and its area is the 390 px view.
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(1120)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(390)
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    try {
+      await mount(api)
+      expect(scrolled).toHaveBeenCalledTimes(1)
+      expect(scrolled.mock.contexts[0]).toBe(column('Proposals ready'))
+      expect(scrolled).toHaveBeenCalledWith({ block: 'nearest', inline: 'start' })
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView
+    }
+  })
+
   it('starts a board wider than its area at the first column with cards', () => {
     const board = document.createElement('div')
     const empty = board.appendChild(document.createElement('section'))
