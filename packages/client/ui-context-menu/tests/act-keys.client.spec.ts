@@ -28,7 +28,7 @@ it('runs the item whose command key matches while the menu is open, on the captu
     row('records.go.matter' as ShortcutCommandId, { code: 'KeyG', thenCode: 'KeyM', modifiers: [] }),
   ]) } as never)
   let store!: ReturnType<ReturnType<typeof createMenuStore>['create']>
-  ctx.provide('slots', { provideRoot: () => () => {},
+  ctx.provide('slots', { provideRoot: () => () => {}, registerFactory: () => () => {},
     inject: (_name: string, register: Parameters<SlotRegistry['inject']>[1]) => ctx.effect(register),
     register: (entry: { inject: () => MenuOverlayInjected; store: ReturnType<typeof createMenuStore> }) => {
       store = entry.store.create(); return () => {}

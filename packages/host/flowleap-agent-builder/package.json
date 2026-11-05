@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-agent-builder",
   "description": "FlowLeap agent builder: agents from instructions, files and chosen connectors, one agent preset for each agent folder, with a full-text index over the agent's files",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

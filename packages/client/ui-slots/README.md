@@ -23,7 +23,7 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose UI through this package whenever you write a client plugin: register a component into a slot your parent declared, or declare child slots your component renders. The four kinds cover the composition shapes — `single` (one occupant), `list` (ordered entries), `keyed` (dispatch by a key), and `chain` (entries elect themselves).
+Compose UI through this package whenever you write a client plugin: register a component into a slot your parent declared, or declare child slots your component renders. The five kinds cover the composition shapes — `single` (one occupant), `list` (ordered entries), `keyed` (dispatch by a key), `chain` (entries elect themselves), and `hoc` (entries nest around the owner's `children`).
 
 ### Reusable Component Factories
 

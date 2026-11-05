@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-budget",
   "description": "The attorney's model spend and budget of this month from the firm's model gateway: the flowleapBudget Remote, read with the runtime's own virtual key",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

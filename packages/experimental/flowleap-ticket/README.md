@@ -3,11 +3,11 @@ description: "Signed Ticket ingress of a FlowLeap runtime for maintainers compos
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-flowleap-ticket
+# @deepseek-ai/dsh-flowleap-ticket
 
 ## Summary
 
-`dsh-experimental-flowleap-ticket` is the runtime side of the Ticket wake of the R1 AI mailbox ([atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md)). The Work router of the Firm Record posts a signed Ticket delivery to one route of the runtime. The plugin verifies `X-Flowleap-Signature`, opens one run Session whose first message starts with the Mandate of the task type, and reports `run-started` with the Session id through `ctx.flowleapRecord`. A repeat of the same `X-Flowleap-Delivery` opens no second Session, also after a restart. Use it on an attorney's runtime that the Firm Record wakes for Ticket runs.
+`dsh-flowleap-ticket` is the runtime side of the Ticket wake of the R1 AI mailbox ([atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md)). The Work router of the Firm Record posts a signed Ticket delivery to one route of the runtime. The plugin verifies `X-Flowleap-Signature`, opens one run Session whose first message starts with the Mandate of the task type, and reports `run-started` with the Session id through `ctx.flowleapRecord`. A repeat of the same `X-Flowleap-Delivery` opens no second Session, also after a restart. Use it on an attorney's runtime that the Firm Record wakes for Ticket runs.
 
 ## Table of Contents
 

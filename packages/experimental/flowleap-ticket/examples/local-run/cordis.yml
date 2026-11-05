@@ -28,7 +28,7 @@
         templatesDir: !!js process.env.FLOWLEAP_TEMPLATES_DIR ?? '/opt/flowleap/templates'
 
     - id: flowleap-ticket
-      name: '@deepseek-ai/dsh-experimental-flowleap-ticket'
+      name: '@deepseek-ai/dsh-flowleap-ticket'
       config:
         stateDir: !!js dshHomePath('flowleap-ticket')
         workspacePath: !!js process.env.FLOWLEAP_RUN_WORKSPACE ?? process.cwd()

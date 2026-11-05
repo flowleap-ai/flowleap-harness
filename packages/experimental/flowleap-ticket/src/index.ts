@@ -2,7 +2,7 @@
  * The Ticket ingress of an attorney's runtime: the Work router of the Firm Record posts a signed Ticket delivery to one
  * exact route; the ingress verifies `X-Flowleap-Signature`, parses the delivery, opens at most one run Session per
  * `X-Flowleap-Delivery`, and the rule reports the Session to the Firm Record as `run-started`.
- * @module @deepseek-ai/dsh-experimental-flowleap-ticket
+ * @module @deepseek-ai/dsh-flowleap-ticket
  */
 
 import { isAbsolute } from 'node:path'

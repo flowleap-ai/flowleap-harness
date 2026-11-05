@@ -177,7 +177,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-agent-team`
 
 - `inject`: `agents` · `sessions` · `sessionPersistence` · `sessionProjections` · `subagents`
-- `source`: [`packages/team/agent-team/src/types.ts:132`](../packages/team/agent-team/src/types.ts)
+- `source`: [`packages/team/agent-team/src/types.ts:136`](../packages/team/agent-team/src/types.ts)
 
 ```ts config-catalog
 /** Team-service defaults and deployment limits. */
@@ -1193,7 +1193,7 @@ export interface CotTranslationPreferences {
 ## `@deepseek-ai/dsh-experimental-client-ui-forge`
 
 - `inject`: `forge` · `forgeSession` · `sessionProjections` · `workingDirectory` · `fs` · `subprocess` · `sandbox` · `sandboxPolicy` · `agents`
-- `source`: [`packages/experimental/client-ui-forge/src/types.ts:318`](../packages/experimental/client-ui-forge/src/types.ts)
+- `source`: [`packages/experimental/client-ui-forge/src/types.ts:345`](../packages/experimental/client-ui-forge/src/types.ts)
 
 ```ts config-catalog
 /** Host settings of the forge panel Remote. */
@@ -1208,14 +1208,14 @@ export interface Config {
   maxOutputBytes?: number
   /** Deadline in milliseconds for one provider sign-in probe. */
   readinessTimeoutMs?: number
-  /** Most local branches listed as worktree bases. */
+  /** Most local branches listed as worktree bases, and most branches in each group of base branches listed for the `branch` scope. */
   maxBranches?: number
   /**
    * Prefix of the branch and checkout directory created for a Session worktree; the first eight
    * hexadecimal digits of the Session id's UUID, a hyphen, and four random hexadecimal digits follow it.
    */
   worktreePrefix?: string
-  /** Largest diff, or file read to show unchanged lines, in bytes. */
+  /** Largest diff, file read to show unchanged lines, or list of base branch refs, in bytes. */
   maxDiffBytes?: number
   /** Most untracked files a local diff or the local changes card includes. */
   maxUntrackedFiles?: number
@@ -1280,43 +1280,6 @@ export type SourceSigning = 'ad-hoc' | {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-cua-macos -->
-
-<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-flowleap-ticket -->
-<a id="deepseek-aidsh-experimental-flowleap-ticket"></a>
-
-## `@deepseek-ai/dsh-experimental-flowleap-ticket`
-
-- `inject`: `webServer` · `webhookRuntime` · `credentials` · `flowleapRecord`
-- `source`: [`packages/experimental/flowleap-ticket/src/index.ts:33`](../packages/experimental/flowleap-ticket/src/index.ts)
-
-```ts config-catalog
-/** Plugin config. */
-export interface Config {
-  /** Adapter instance name carried to the rule. */
-  readonly source: string
-  /** Exact absolute route path; the Work router's `ticket.wake.path`. */
-  readonly path: string
-  /** Credential reference of the shared secret of the runtime's person (the Firm Record's `ticket-keys/<person id>`). */
-  readonly secretRef: string
-  /** Positive raw body ceiling in bytes. */
-  readonly maxBodyBytes: number
-  /** Absolute folder of the delivery ledger; it must outlive a restart. */
-  readonly stateDir: string
-  /** Absolute existing folder of the run Workspace; each run writes its letter there. */
-  readonly workspacePath: string
-  /** Agent preset of the run Session. */
-  readonly agentPreset: string
-  /** Permission preset of the run Session. */
-  readonly permissionPreset: string
-  /** File name of the firm template of the report letter, in the Office tools' template folder. */
-  readonly template: string
-  /** Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status. */
-  readonly runStartedAttempts: number
-  /** Wait in milliseconds before the second send of `run-started`; the wait doubles before each later send. */
-  readonly runStartedBackoffMs: number
-}
-```
-<!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-flowleap-ticket -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-forge -->
 <a id="deepseek-aidsh-experimental-forge"></a>
@@ -1415,7 +1378,7 @@ export interface InspectorOptions {
   readonly maxJournalBytes?: number
   /** Maximum active and completed fetch requests retained by the Worker. */
   readonly maxRetainedRequests?: number
-  /** Maximum encoded bytes accepted in one source transport frame. */
+  /** Maximum encoded bytes accepted in one source transport frame; values below 5121 leave no Cordis snapshot budget and fail. */
   readonly maxSourceFrameBytes?: number
   /** Maximum observation records accepted in one source batch. */
   readonly maxSourceRecordsPerFrame?: number
@@ -1982,6 +1945,43 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-routines -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-flowleap-ticket -->
+<a id="deepseek-aidsh-flowleap-ticket"></a>
+
+## `@deepseek-ai/dsh-flowleap-ticket`
+
+- `inject`: `webServer` · `webhookRuntime` · `credentials` · `flowleapRecord`
+- `source`: [`packages/experimental/flowleap-ticket/src/index.ts:33`](../packages/experimental/flowleap-ticket/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Adapter instance name carried to the rule. */
+  readonly source: string
+  /** Exact absolute route path; the Work router's `ticket.wake.path`. */
+  readonly path: string
+  /** Credential reference of the shared secret of the runtime's person (the Firm Record's `ticket-keys/<person id>`). */
+  readonly secretRef: string
+  /** Positive raw body ceiling in bytes. */
+  readonly maxBodyBytes: number
+  /** Absolute folder of the delivery ledger; it must outlive a restart. */
+  readonly stateDir: string
+  /** Absolute existing folder of the run Workspace; each run writes its letter there. */
+  readonly workspacePath: string
+  /** Agent preset of the run Session. */
+  readonly agentPreset: string
+  /** Permission preset of the run Session. */
+  readonly permissionPreset: string
+  /** File name of the firm template of the report letter, in the Office tools' template folder. */
+  readonly template: string
+  /** Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status. */
+  readonly runStartedAttempts: number
+  /** Wait in milliseconds before the second send of `run-started`; the wait doubles before each later send. */
+  readonly runStartedBackoffMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-ticket -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-fs-local -->
 <a id="deepseek-aidsh-fs-local"></a>
@@ -2695,7 +2695,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 - `inject`: `llm`
 - `refs`: [`LlmModelBadge`](../packages/llm/llm/src/index.ts) · [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · [`SystemPromptUpdate`](../packages/llm/llm/src/index.ts) · [`ToolUpdate`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/test-support/llm-replay/src/index.ts:1135`](../packages/test-support/llm-replay/src/index.ts)
+- `source`: [`packages/test-support/llm-replay/src/index.ts:1115`](../packages/test-support/llm-replay/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the {@link ReplayConfig} inputs, each defaulting to its `DSH_SNAPSHOT_*` env var in `apply`. */
@@ -3299,6 +3299,8 @@ export interface Config {
   maxMessageBytes?: number
   /** Maximum simultaneous host binding calls accepted from a program. */
   maxPendingCalls?: number
+  /** Time to wait for cooperative stop acknowledgment before terminating the process. */
+  stopGraceMs?: number
   /** Managed process termination and output-drain grace in milliseconds. */
   graceMs?: number
 }
@@ -4141,7 +4143,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory` · `sessionProjections`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:181`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:186`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -4593,6 +4595,8 @@ export interface Config {
 ```ts config-catalog
 /** Program execution limits. */
 export interface Config {
+  /** Nested tool-call attempts per minute of resolved runtime timeout, including failed calls. */
+  maxSubCallsPerMinute: number
   /** Maximum overlapping concurrency-safe program subcalls. */
   maxParallelSubCalls: number
 }
@@ -4962,7 +4966,7 @@ export interface PresetSelectionConfig {
 ## `@deepseek-ai/dsh-tool-subagent-control`
 
 - `inject`: `tools` · `subagents` · `agents` · `systemPrompt`
-- `source`: [`packages/subagent/tool-subagent-control/src/index.ts:26`](../packages/subagent/tool-subagent-control/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent-control/src/index.ts:24`](../packages/subagent/tool-subagent-control/src/index.ts)
 
 ```ts config-catalog
 /** Optional subagent control tools. */
