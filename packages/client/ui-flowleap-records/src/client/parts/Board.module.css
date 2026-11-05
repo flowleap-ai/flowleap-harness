@@ -146,21 +146,29 @@
   margin-top: 12px;
 }
 
-/* A fact that does not fit the card's width wraps inside its chip; the board never cuts a status word. */
+/* A fact keeps one 24px line: when the card is too narrow, its label is cut with the full fact on hover, and the
+ * status word is never cut. */
 .fact {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0 8px;
+  gap: 8px;
   max-width: 100%;
-  min-height: 24px;
-  padding: 2px 8px;
+  height: 24px;
+  padding: 0 8px;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-sm);
+  white-space: nowrap;
 }
 
 .factLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--dsw-alias-label-secondary);
+}
+
+.fact > :last-child {
+  flex: none;
 }
 
 /* A loading card: three skeleton bars on the card's surface. */

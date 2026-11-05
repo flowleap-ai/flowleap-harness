@@ -73,6 +73,17 @@ describe('the list', () => {
   })
 })
 
+describe('the board card', () => {
+  const css = read('Board.module.css')
+
+  it('keeps each fact on one 24px line: the label is cut before the status word, which never shrinks', () => {
+    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['height: 24px', 'white-space: nowrap', 'max-width: 100%']))
+    expect(declarations(css, '.fact')).not.toContain('flex-wrap: wrap')
+    expect(declarations(css, '.factLabel')).toEqual(expect.arrayContaining(['min-width: 0', 'overflow: hidden', 'text-overflow: ellipsis']))
+    expect(declarations(css, '.fact > :last-child')).toEqual(['flex: none'])
+  })
+})
+
 describe('the bulk bar', () => {
   const css = read('Selection.module.css')
 

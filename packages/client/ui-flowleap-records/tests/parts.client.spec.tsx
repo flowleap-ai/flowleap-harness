@@ -365,6 +365,7 @@ describe('board', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rule 71(3) communication' }))
     expect(onOpen).toHaveBeenCalledOnce()
     expect(screen.getByText('Active').closest('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.active')
+    expect(screen.getByText('Active').closest('[title]')?.getAttribute('title')).toBe('Deadline · Active')
   })
 })
 
