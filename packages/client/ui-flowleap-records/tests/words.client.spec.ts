@@ -7,7 +7,7 @@ import { dueDay, formatApplicationNumber, formatDate, intlLocale, listTime } fro
 import { commandId, keycapsFrom } from '../src/client/keys.ts'
 import { de, en } from '../src/client/locales.ts'
 import { rowActions, ROW_MENU_TARGET } from '../src/client/row-menu.ts'
-import { activityLines, actorName, auditRows, dueText, letterTitle, listTimeText, type WordContext } from '../src/client/words.ts'
+import { activityLines, actorName, auditRows, citeText, dueText, fromOffice, letterTitle, listTimeText, officeName, type WordContext } from '../src/client/words.ts'
 import { fixtures, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
 
 const NOW = Date.parse('2026-11-04T14:30:00Z')
@@ -116,6 +116,20 @@ describe('words of codes and events', () => {
     const texts = activityLines(words, types.map((type, seq) => ({ ...base, seq, type, for: null }))).map(line => line.text)
     expect(texts).not.toContain('changed the record')
     expect(new Set(texts).size).toBe(types.length)
+  })
+})
+
+describe('offices and citations', () => {
+  const german = makeTranslate(de)
+
+  it('names a known office in the UI language with its article, and another office by its own abbreviation', () => {
+    expect([officeName(german, 'EPO'), fromOffice(german, 'EPO'), fromOffice(german, 'WIPO')]).toEqual(['EPA', 'vom EPA', 'von der WIPO'])
+    expect([officeName(german, 'JPO'), fromOffice(german, 'JPO')]).toEqual(['JPO', 'von JPO'])
+  })
+
+  it('words each citation part it knows and keeps any other part as the engine wrote it', () => {
+    expect(citeText(german, 'Article 94(3) EPC; EPO calendar 2027; Rule 131(4) EPC, last day of the month; PCT Rule 80.5'))
+      .toBe('Artikel 94(3) EPÜ · Kalender des EPA 2027 · Regel 131(4) EPÜ, letzter Tag des Monats · PCT Rule 80.5')
   })
 })
 
