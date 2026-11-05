@@ -85,7 +85,7 @@ describe('the board card', () => {
   const status = read('Status.module.css')
 
   it('keeps each fact on one 24px line: the label is cut before the status word, which never shrinks', () => {
-    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['height: 24px', 'padding: 0 8px']))
+    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'height: 24px', 'padding: 0 8px']))
     expect(declarations(status, '.oneLine')).toEqual(['flex-wrap: nowrap', 'white-space: nowrap'])
     expect(declarations(status, '.oneLine > .factLabel')).toEqual(['min-width: 0', 'overflow: hidden', 'text-overflow: ellipsis'])
     expect(declarations(status, '.oneLine > :last-child')).toEqual(['flex: none'])
