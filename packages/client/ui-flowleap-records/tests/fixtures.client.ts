@@ -162,6 +162,7 @@ export const intakeDocumentWire = {
   documentDate: '2026-10-30',
   applicationNumber: '24 123 456.7',
   fields: {
+    title: { value: 'Communication under Rule 71(3) EPC', span: onPage('Communication under Rule 71(3) EPC') },
     reference: { value: 'FL-2026-0001', span: onPage('FL-2026-0001') },
     documentDate: { value: '2026-10-30', span: onPage('30.10.2026') },
     formNumber: { value: '2004C', span: onPage('2004C') },

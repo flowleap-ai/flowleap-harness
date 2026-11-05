@@ -28,7 +28,7 @@ import { avatarOf, fromOffice, letterTitle, listTimeText, officeName, personName
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { letterLines } from '../letter-text.ts'
 import { copyLink } from './links.ts'
-import { decisionHeading, failureNotice, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, formNumberAudit, RecordActivity } from './shared.tsx'
 import css from './Intake.module.css'
 
 /** What the decision bar of a letter offers. */
@@ -105,14 +105,15 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
   if (letter.code !== null) {
     const office = letter.office ?? letter.code.replace(/:.*$/u, '')
     const words = { title: letterTitle(t, letter.code), from: fromOffice(t, office) }
-    // The form number's span supports the kind and the office (its excerpt names the office); the date has its own.
-    const { formNumber: form, documentDate: date } = letter.fields
+    // The title line's span supports the kind; the date has its own. A reading without a title quotes nothing for the
+    // kind: the form code is not the person's word (R19) and shows only in Audit.
+    const { title, documentDate: date } = letter.fields
     const dated = date === undefined ? null : <>{t('intake.reason.dated')} {quote(ctx, date.span)}</>
     reasons.push({
       key: 'kind',
       ok: true,
-      text: form !== undefined
-        ? <>{t('intake.reason.kindQuoted', words)} {quote(ctx, form.span)}{dated}</>
+      text: title !== undefined
+        ? <>{t('intake.reason.kindQuoted', words)} {quote(ctx, title.span)}{dated}</>
         : date === undefined
           ? t('intake.reason.kind', words)
           : <>{t('intake.reason.kindDated', words)} {quote(ctx, date.span)}</>,
@@ -168,9 +169,9 @@ function Who({ ctx, person }: { ctx: ScreenContext; person: Person | null }) {
  */
 export function LetterDrawing({ ctx, letter, onOpen }: { ctx: ScreenContext; letter: IntakeDocument; onOpen: () => void }) {
   const { t } = ctx
-  const { formNumber, documentDate, applicationNumber, reference } = letter.fields
-  const read = [formNumber, documentDate, reference, applicationNumber].flatMap(field => field === undefined ? [] : [field.span])
-  const page = reference?.span.page ?? formNumber?.span.page ?? 1
+  const { title, formNumber, documentDate, applicationNumber, reference } = letter.fields
+  const read = [title, formNumber, documentDate, reference, applicationNumber].flatMap(field => field === undefined ? [] : [field.span])
+  const page = reference?.span.page ?? title?.span.page ?? formNumber?.span.page ?? 1
   return (
     <figure className={css.paper}>
       <div className={css.letter} data-verbatim="" aria-label={t('intake.letter.label', { page })} role="img">
@@ -504,7 +505,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           </div>
         </div>
         <section className={css.letterFacts} aria-label={t('intake.prop.letter')}><KeyProperties rows={[received, subject, pages]} /></section>
-        <RecordActivity ctx={ctx} events={letter.activity} />
+        <RecordActivity ctx={ctx} events={letter.activity} audit={formNumberAudit(ctx, letter.fields)} />
       </WorkColumn>
       <div className={css.itemProps}>
         <PropertiesPanel label={t('prop.label')} groups={groups} />

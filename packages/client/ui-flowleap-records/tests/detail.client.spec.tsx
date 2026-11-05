@@ -14,6 +14,7 @@ import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import { agentProps } from './agent-fakes.client.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, PEOPLE, R71_DOCUMENT, uuid } from './fixtures.client.ts'
+import { deniedText, FORM_CODE, mainViewText } from './screen-harness.client.tsx'
 
 const opened = vi.fn()
 beforeEach(() => {
@@ -323,11 +324,10 @@ describe('the deadline page', () => {
     ])
     const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
     expect(readings.textContent).toContain('30.10.2026')
-    // Each read value from the text has its span: the office event its form number, quoted as the letter has it.
+    // Each read value from the text has its span: the office event the letter's title line, never its form code.
     expect(within(readings).getAllByRole('row').slice(1).map(row => row.querySelector('[role="cell"]')?.textContent)).toEqual([
-      'Rule 71(3) EPC2004Cp. 1', 'Fri, 30 Oct 202630.10.2026p. 1', 'EP 24 123 456.724 123 456.7p. 1',
+      'Rule 71(3) EPCCommunication under Rule 71(3) EPCp. 1', 'Fri, 30 Oct 202630.10.2026p. 1', 'EP 24 123 456.724 123 456.7p. 1',
     ])
-    expect(within(readings).getByText('2004C').closest('[data-verbatim]')).not.toBeNull()
     expect(within(readings).getAllByText('EP 24 123 456.7')).toHaveLength(2)
     expect(within(readings).getAllByText('Agree')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Rule 134 EPC' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/epc/2020/r134.html')
@@ -340,6 +340,21 @@ describe('the deadline page', () => {
     expect(partIcon()).toBe('dsw-icon-check-outline-regular')
     expect(screen.getByRole('navigation', { name: 'Location' }).textContent).toContain('Deadline 1 Mar 2027')
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
+  })
+
+  it('quotes the letter\'s title line for the office event and shows the form code only in Audit', async () => {
+    await mount(DEADLINE)
+    expect(mainViewText()).not.toMatch(FORM_CODE)
+    expect(deniedText()).toContain('Communication under Rule 71(3) EPCp. 1')
+    expect(document.querySelector('[data-audit]')!.textContent).toContain('formNumber2004Cp. 1')
+    cleanup()
+    // A reading with no title line quotes nothing for the office event, and never falls back to the form code.
+    const { title: _title, ...fields } = fixtures.deadline.readers.code!.fields
+    const code = { ...fixtures.deadline.readers.code!, fields }
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, readers: { ...fixtures.deadline.readers, code } } })
+    const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
+    expect(readings.querySelector('[role="cell"]')!.textContent).toBe('Rule 71(3) EPC')
+    expect(mainViewText()).not.toMatch(FORM_CODE)
   })
 
   it('confirms with the record position the person saw, from the button and from ⇧⌘↵', async () => {
@@ -689,7 +704,10 @@ describe('the deadline page', () => {
     expect(screen.getByRole('link', { name: 'ABl. EPA 2023, A29' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/official-journal/2023/03/a29')
     expect(screen.getByRole('link', { name: 'Regel 134 EPÜ' })).toBeTruthy()
     expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('EPA, 30.10.2026')
-    expect(document.body.textContent).not.toMatch(/\bEPO\b|\bEPC\b|\bRule\b|\bOJ\b/)
+    // A quote keeps the letter's own words, which the UI language does not translate.
+    const words = document.body.cloneNode(true) as HTMLElement
+    for (const quote of words.querySelectorAll('[class*="quote"]')) quote.remove()
+    expect(words.textContent).not.toMatch(/\bEPO\b|\bEPC\b|\bRule\b|\bOJ\b/)
     for (const [language, cite] of [['fr', 'Règle 126(2) CBE · Règle 127(2) CBE · JO OEB 2023, A29'], ['es', 'Regla 126(2) CPE · Regla 127(2) CPE · DO OEP 2023, A29']] as const) {
       cleanup()
       await mount(DEADLINE, {}, language)

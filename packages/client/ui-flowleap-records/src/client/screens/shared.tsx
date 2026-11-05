@@ -1,10 +1,10 @@
 /**
  * Pieces that several screens share: the error notice of a failed load, the heading and the failure notice of a
- * decision bar, the copy of an evidence quote, and the Activity of a record.
+ * decision bar, the copy of an evidence quote, and the Activity of a record with its Audit.
  */
 
 import type { ActRun } from '../act-runner.ts'
-import type { ActivityEvent, Command, IsoTime, Person } from '../api.ts'
+import type { ActivityEvent, Command, FieldValue, IsoTime, Person, ReaderField } from '../api.ts'
 import { useKeyActs, useRetryHeld } from '../key-layer.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { ActivityTimeline, type AuditRow } from '../parts/Activity.tsx'
@@ -100,6 +100,18 @@ export function failureNotice(ctx: ScreenContext, run: ActRun, retry: () => void
  */
 export function quoteLabels(ctx: ScreenContext, page: number): QuoteLabels {
   return { page: ctx.t('evidence.page', { page }), excerpt: ctx.t('evidence.excerpt', { page }), exact: ctx.t('evidence.exact') }
+}
+
+/**
+ * The Audit row of a letter's form code: reader 1's span of it, verbatim. The main view quotes the letter's title line
+ * instead, because a form code is not the person's word (R19).
+ * @param ctx - the screen context.
+ * @param fields - what reader 1 read, or undefined when it read nothing.
+ * @returns the row, or no row when reader 1 read no form code.
+ */
+export function formNumberAudit(ctx: ScreenContext, fields: Partial<Readonly<Record<ReaderField, FieldValue>>> | undefined): AuditRow[] {
+  const form = fields?.formNumber
+  return form === undefined ? [] : [{ key: 'field:formNumber', cells: ['formNumber', form.span.quote, ctx.t('evidence.page', { page: form.span.page })] }]
 }
 
 /**

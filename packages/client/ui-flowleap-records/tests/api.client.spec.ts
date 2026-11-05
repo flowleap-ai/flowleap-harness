@@ -64,6 +64,7 @@ describe('Records API answers', () => {
     expect(fixtures.intake.rows).toHaveLength(22)
     expect(fixtures.intake.rows[0]!.status).toEqual({ machine: 'intake', state: 'match_proposed' })
     expect(fixtures.intakeDocument.fields.reference?.span.quote).toBe('FL-2026-0001')
+    expect(fixtures.deadline.readers.code?.fields.title?.span.quote).toBe('Communication under Rule 71(3) EPC')
     expect(fixtures.tickets.rows).toHaveLength(8)
     expect(fixtures.ticket.reports[0]!.statements[4]!.evidence[0]!.span).toBeNull()
   })

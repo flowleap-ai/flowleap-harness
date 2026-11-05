@@ -25,7 +25,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { citeText, officeName, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
-import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, formNumberAudit, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
 /**
@@ -142,10 +142,10 @@ function stepWords(step: DeadlineDetail['deadline']['trace'][number], letter: De
 
 /**
  * The reading rows: the reader field whose span quotes the value, and the label. The office event's span is the
- * letter's form number, a verbatim quote of the letter (R14); the row's value is the rule in words (R19).
+ * letter's title line (R14), never its form code (R19); the row's value is the rule in words.
  */
 const READ_ROWS = [
-  { value: 'code', field: 'formNumber', label: 'deadline.field.code' },
+  { value: 'code', field: 'title', label: 'deadline.field.code' },
   { value: 'documentDate', field: 'documentDate', label: 'deadline.field.documentDate' },
   { value: 'applicationNumber', field: 'applicationNumber', label: 'deadline.field.application' },
 ] as const satisfies readonly { value: string; field: ReaderField; label: FlowleapRecordsKey }[]
@@ -376,7 +376,10 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         <RecordActivity
           ctx={ctx}
           events={data.activity}
-          audit={deadline.notes.map((note, index) => ({ key: `note:${index}`, cells: [note.kind, note.text, note.cite] }))}
+          audit={[
+            ...formNumberAudit(ctx, data.readers.code?.fields),
+            ...deadline.notes.map((note, index) => ({ key: `note:${index}`, cells: [note.kind, note.text, note.cite] })),
+          ]}
         />
       </WorkColumn>
     </DetailLayout>

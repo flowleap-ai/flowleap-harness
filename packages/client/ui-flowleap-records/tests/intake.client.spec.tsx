@@ -7,7 +7,7 @@ import { rowActions } from '../src/client/row-menu.ts'
 import { menuEntries } from '@deepseek-ai/dsh-client-ui-context-menu/src/client/View.tsx'
 import type { Route } from '../src/client/model.ts'
 import { createFixtureApi, FIXTURE_IDS, fixtures, OUTSIDE_WALL, OUTSIDER, R71_DOCUMENT, sha } from './fixtures.client.ts'
-import { flush, mountPanel, press } from './screen-harness.client.tsx'
+import { deniedText, flush, FORM_CODE, mainViewText, mountPanel, press } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
 beforeEach(() => {
@@ -224,7 +224,7 @@ describe('the German intake', () => {
   it('draws the letter in its own words, which the UI language does not translate', async () => {
     mounted = await mountPanel(createFixtureApi().api, open(R71_DOCUMENT), 'de')
     const drawing = screen.getByRole('img', { name: 'Zeichnung von Seite 1 des Schreibens' })
-    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'EPO Form 2004C 12.07'])
+    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'Communication under Rule 71(3) EPC', 'EPO Form 2004C 12.07'])
     expect(drawing.textContent).not.toMatch(/Formblatt|Ihr Zeichen|Anmeldenummer|Datum|Mitteilung/u)
   })
 
@@ -240,7 +240,7 @@ describe('the German intake', () => {
     expect(row.textContent).toContain('EPA')
     expect(row.textContent).not.toContain('EPO')
     const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
-    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen 2004CS. 1, datiert 30.10.2026S. 1')
+    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen Communication under Rule 71(3) EPCS. 1, datiert 30.10.2026S. 1')
     expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('AmtEPA')
   })
 })
@@ -323,14 +323,14 @@ describe('the open letter', () => {
     const { panel } = await mount(undefined, open(R71_DOCUMENT))
     const drawing = screen.getByRole('img', { name: 'Drawing of page 1 of the letter' })
     expect(drawing.hasAttribute('data-verbatim')).toBe(true)
-    expect([...drawing.querySelectorAll('mark')].map(mark => mark.textContent)).toEqual(['24 123 456.7', 'FL-2026-0001', '30.10.2026', '2004C'])
-    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'EPO Form 2004C 12.07'])
+    expect([...drawing.querySelectorAll('mark')].map(mark => mark.textContent)).toEqual(['24 123 456.7', 'FL-2026-0001', '30.10.2026', 'Communication under Rule 71(3) EPC', '2004C'])
+    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'Communication under Rule 71(3) EPC', 'EPO Form 2004C 12.07'])
     expect(screen.getByText('Page 1 of 1')).toBeTruthy()
     const reasons = within(screen.getByRole('list', { name: 'Reasons' })).getAllByRole('listitem').map(item => item.textContent)
     expect(reasons[0]).toContain('Your reference on page 1 reads FL-2026-0001')
     expect(reasons[1]).toBe('One matter that you may see has this file number.')
-    // The kind and its office come from the form number's span, whose excerpt names the office; the date from its own.
-    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO 2004Cp. 1, dated 30.10.2026p. 1')
+    // The kind is quoted by the letter's title line, never by its form code (R19); the date by its own span.
+    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1, dated 30.10.2026p. 1')
     expect(within(decision()).getByText('3 reasons on page 1 agree')).toBeTruthy()
     expect(screen.getByText('Filing puts your name on the record')).toBeTruthy()
     expect(screen.getAllByText('Dr. Anna Becker').length).toBeGreaterThan(0)
@@ -527,6 +527,15 @@ describe('the open letter', () => {
     expect(acts.map(act => act.command)).toEqual([{ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2025-0412' }])
   })
 
+  it('quotes the letter\'s title line for its kind and shows the form code only in Audit and in the drawing', async () => {
+    await mount(undefined, open(R71_DOCUMENT))
+    expect(mainViewText()).not.toMatch(FORM_CODE)
+    // The deny-list reads every quote: only the drawing is a picture of the letter (components.md, evidence quote).
+    expect(deniedText()).toContain('Communication under Rule 71(3) EPCp. 1')
+    expect(document.querySelector('[data-audit]')!.textContent).toContain('formNumber2004Cp. 1')
+    expect(screen.getByRole('img', { name: 'Drawing of page 1 of the letter' }).textContent).toContain('EPO Form 2004C 12.07')
+  })
+
   it('opens the picker first for a letter with no proposal, and its row menu step opens with the letter', async () => {
     const { api, acts } = createFixtureApi()
     vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter({
@@ -549,7 +558,8 @@ describe('the open letter', () => {
     const cases: [Partial<IntakeDocument>, string][] = [
       [{ fields: {}, office: null }, 'The file number on page 1 names one matter.'],
       [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.'],
-      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO 2004Cp. 1Your firm asks'],
+      [{ fields: { title: fixtures.intakeDocument.fields.title! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1Your firm asks'],
+      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.Your firm asks'],
       [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated 30.10.2026p. 1'],
       [{ status: { machine: 'intake', state: 'ambiguous' }, proposed: null, candidates: 2 }, 'Two or more matters have its file number.'],
       [{ status: { machine: 'intake', state: 'unreadable' }, proposed: null, fields: {}, code: null }, 'FlowLeap could not read its text.'],

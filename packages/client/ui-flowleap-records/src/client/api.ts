@@ -177,8 +177,12 @@ const matterRef = obj({ fileNumber: ids.fileNumber, title: str })
 /** A matter by its file number and title. */
 export type MatterRef = Parsed<typeof matterRef>
 
-/** The reader fields of a letter. */
-export const READER_FIELDS = ['formNumber', 'documentDate', 'applicationNumber', 'reference'] as const
+/**
+ * The reader fields of a letter. `title` is the letter's title line, such as "Communication under Rule 71(3) EPC",
+ * which the views quote for the letter's kind; `formNumber` is the office's form code, which shows only in Audit (R19).
+ * Each field is optional: a reading without its span has no quote.
+ */
+export const READER_FIELDS = ['title', 'formNumber', 'documentDate', 'applicationNumber', 'reference'] as const
 /** One reader field. */
 export type ReaderField = (typeof READER_FIELDS)[number]
 const fieldValue = obj({ value: str, span })

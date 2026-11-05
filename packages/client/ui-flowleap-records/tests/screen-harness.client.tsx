@@ -18,6 +18,34 @@ import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import type { IntakeRowTarget } from '../src/client/row-menu.ts'
 import { agentProps } from './agent-fakes.client.tsx'
 
+/** A form code in any of its forms, such as "2004C" or "EPO Form 2004C" (R19). */
+export const FORM_CODE = /2004C|\bForm(?:blatt)?\s*\d+/u
+
+/**
+ * The text of the page outside the elements that match a selector, as a person reads it.
+ * @param exempt - the elements to leave out.
+ * @returns the text.
+ */
+function textOutside(exempt: string): string {
+  const page = document.body.cloneNode(true) as HTMLElement
+  for (const element of page.querySelectorAll(exempt)) element.remove()
+  return page.textContent
+}
+
+/**
+ * The main view's text: the page without the Audit disclosure and the letter drawing, the two places where a form
+ * code may show (R19).
+ * @returns the text.
+ */
+export const mainViewText = (): string => textOutside('[data-audit], [role="img"][data-verbatim]')
+
+/**
+ * The text that the deny-list of `check-copy.mjs` and `check-mockups.mjs` reads: the page without the elements that
+ * they exempt (`data-verbatim`, `data-audit`, `data-address`).
+ * @returns the text.
+ */
+export const deniedText = (): string => textOutside('[data-verbatim], [data-audit], [data-address]')
+
 /** Let the fixture answers and the effects settle. */
 export const flush = async () => { for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve() }) }
 
