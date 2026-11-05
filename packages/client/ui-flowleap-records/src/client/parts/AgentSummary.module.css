@@ -1,0 +1,120 @@
+/* The raised parts of the agent panel's empty state (R18): the 48px icon tile, the heading and sentence, the run's
+ * facts, its proposals as file rows (16px radius), and the composer (28px radius) docked at the bottom. None of them
+ * scrolls; the empty state that holds them scrolls on the base surface (AgentDock.module.css). */
+.tile {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.emptyBody,
+.facts {
+  max-width: 360px;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.facts {
+  font-variant-numeric: tabular-nums;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A file row: the work product and its status on the first line, the file name under them across the full width. A
+ * file name is not a queue title, so it is never cut (R17); a name wider than the row breaks onto the next line. */
+.result {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon title status'
+    'icon file file';
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.resultIcon {
+  display: inline-grid;
+  grid-area: icon;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.resultText {
+  display: contents;
+}
+
+.resultTitle {
+  grid-area: title;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.resultFile {
+  grid-area: file;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  overflow-wrap: anywhere;
+}
+
+.result > :last-child {
+  grid-area: status;
+}
+
+.composer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin: 12px;
+  padding: 8px 8px 8px 16px;
+  border: 0;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.composerField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The field is part of the composer's one raised surface: no frame or fill of its own. Its placeholder takes the
+ * secondary label colour, as the Input default (label-dimmed) is below 4.5:1 (R10). */
+.composer .composerField {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.composer .composerField input::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}

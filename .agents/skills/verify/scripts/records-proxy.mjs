@@ -2,8 +2,8 @@
 // Firm proxy double for the Records recipe (features/record-read.md): forwards each request and WebSocket upgrade to
 // the instance, except paths under /records, which go to the local Firm Record with the identity headers of
 // <run>/records-headers.json (the proxy headers a person carries on a firm), so the embedded Records pages and the
-// Web app share one origin, as behind the sign-in proxy of flowleap-os. It never forwards the browser's own identity
-// headers.
+// Web app share one origin, as behind the sign-in proxy of flowleap-os. It never forwards a browser-sent
+// `x-flowleap-*` header, as the local proxy of flowleap-os does not, so a browser cannot name an identity.
 import { readFileSync } from 'node:fs'
 import { createServer, request as forward } from 'node:http'
 import { join } from 'node:path'
@@ -14,7 +14,6 @@ if (port === undefined || instance === undefined || record === undefined || run 
   process.exit(2)
 }
 const targets = { instance: new URL(instance), record: new URL(record) }
-const IDENTITY = ['x-flowleap-starter', 'x-flowleap-user', 'x-flowleap-oid', 'x-flowleap-signin', 'x-flowleap-roles']
 
 /** The identity headers of <run>/records-headers.json, read at each request so a change needs no restart. */
 function identity() {
@@ -35,7 +34,7 @@ function routeFor(url) {
 
 function headersFor(request, target, route) {
   const headers = { ...request.headers, host: target.host }
-  for (const name of IDENTITY) delete headers[name]
+  for (const name of Object.keys(headers)) if (name.startsWith('x-flowleap-')) delete headers[name]
   if (headers.origin !== undefined) headers.origin = target.origin
   if (route === 'record') Object.assign(headers, identity())
   return headers

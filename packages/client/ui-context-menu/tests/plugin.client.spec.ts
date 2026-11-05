@@ -18,7 +18,7 @@ declare module '@deepseek-ai/dsh-client-ui-context-menu/client' {
 
 it('lets an external contribution open another menu and withdraws its actions when its fiber unloads', async () => {
   const ctx = new Context()
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   let overlay!: MenuOverlayInjected
   let store!: ReturnType<ReturnType<typeof createMenuStore>['create']>
   ctx.provide('slots', { provideRoot: () => () => {}, registerFactory: () => () => {},
@@ -94,7 +94,7 @@ it('lets an external contribution open another menu and withdraws its actions wh
 it('waits for metadata, toggles nearby repeated gestures, replaces occurrences, and cancels pending openings', async () => {
   vi.useFakeTimers()
   const ctx = new Context()
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   let store!: ReturnType<ReturnType<typeof createMenuStore>['create']>
   ctx.provide('slots', { provideRoot: () => () => {}, registerFactory: () => () => {},
     inject: (_name: string, register: Parameters<SlotRegistry['inject']>[1]) => ctx.effect(register),
@@ -141,7 +141,7 @@ it('waits for metadata, toggles nearby repeated gestures, replaces occurrences, 
 it('keeps trigger focus through replacement and ignores non-dismissal events and late feedback', async () => {
   vi.useFakeTimers()
   const ctx = new Context()
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   let overlay!: MenuOverlayInjected
   ctx.provide('slots', { provideRoot: () => () => {}, registerFactory: () => () => {},
     inject: (_name: string, register: Parameters<SlotRegistry['inject']>[1]) => ctx.effect(register),
@@ -187,7 +187,7 @@ it('keeps trigger focus through replacement and ignores non-dismissal events and
 
 it('leaves unbound keyboard gestures native', async () => {
   const ctx = new Context()
-  ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   let button!: ContextMenuButtonInjected
   ctx.provide('slots', { provideRoot: () => () => {},
     registerFactory: (entry: { inject: () => ContextMenuButtonInjected }) => { button = entry.inject(); return () => {} },

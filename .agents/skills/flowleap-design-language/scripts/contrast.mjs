@@ -85,6 +85,18 @@ pairs.push(
   ['avatar initial', T('label-primary'), [T('bg-overlay')], 4.5],
   ['letter text', T('label-document-preview'), [T('bg-document-preview')], 4.5],
   ['letter text, marked span', T('label-document-preview'), [T('bg-document-preview'), T('state-warn-tertiary')], 4.5],
+  // An overdue date (R11) is the primary-colour text after the warning glyph (a UI icon, none of the six status shapes) in the
+  // refused colour, in a row, a fact chip, the properties panel and the decision bar. The refused colour
+  // as text is 4.50:1 on white (4.498), 4.49:1 in dark on a hovered row and 3.68:1 on a selected row, so these rows record it
+  // with no minimum and no text uses it.
+  ['overdue text in the refused colour (not used: below 4.5)', T('state-error-primary'), [T('bg-base')], 0],
+  ['overdue text in the refused colour on a hovered row (not used)', T('state-error-primary'), [T('bg-base'), T('interactive-bg-hover')], 0],
+  ['overdue text in the refused colour on a selected row (not used)', T('state-error-primary'), [T('bg-base'), T('interactive-bg-active')], 0],
+  ['overdue text in the refused colour in the decision bar (not used)', T('state-error-primary'), [T('bg-layer-2')], 0],
+  ['overdue warning glyph', T('state-error-primary'), [T('bg-base')], 3],
+  ['overdue warning glyph on a hovered row', T('state-error-primary'), [T('bg-base'), T('interactive-bg-hover')], 3],
+  ['overdue warning glyph on a selected row', T('state-error-primary'), [T('bg-base'), T('interactive-bg-active')], 3],
+  ['overdue warning glyph in the decision bar', T('state-error-primary'), [T('bg-layer-2')], 3],
   ['icon', T('label-tertiary'), [T('bg-base')], 3],
   ['icon on a selected row', T('label-tertiary'), [T('bg-base'), T('interactive-bg-active')], 3],
   ['icon in the sidebar', T('label-tertiary'), ['--dsw-specific-sidebar-fill'], 3],
@@ -92,6 +104,9 @@ pairs.push(
   ['status icon, no action, on a group header', T('label-tertiary'), [T('bg-base'), T('bg-multi-select')], 3],
   ['checkbox border', T('label-tertiary'), [T('bg-base')], 3],
   ['selection bar, focus ring', T('state-business-primary'), [T('bg-base')], 3],
+  // The act icon of a row context menu item, drawn by the client Menu in its icon colour.
+  ['context menu icon', T('menu-icon'), MENU, 3],
+  ['context menu icon, highlighted', T('menu-icon'), [...MENU, T('interactive-bg-hover')], 3],
   // A status icon always sits beside its word (R11), so the word carries the state and these icons have no minimum;
   // the rows record the client's state colours for client-gaps.md item 2. No action is drawn in the icon grey above.
   ['status icon beside its word, waits', T('state-warn-primary'), [T('bg-base')], 0],
@@ -99,6 +114,14 @@ pairs.push(
   ['status icon beside its word, working', T('state-business-primary'), [T('bg-base')], 0],
   ['status icon beside its word, refused or stale', T('state-error-primary'), [T('bg-base')], 0],
   ['client state-idle colour (not used for the status icon)', T('state-idle-primary'), [T('bg-base')], 0],
+  // The ⌘K group heading: 12 px secondary text on the menu material, and on its stuck fill while the list scrolls.
+  ['⌘K group heading', T('label-secondary'), MENU, 4.5],
+  ['⌘K group heading, stuck', T('label-secondary'), [...MENU, T('menu-group-header-fill')], 4.5],
+  // The ring of a deadline calculation step is an icon in the icon grey.
+  ['deadline calculation step ring', T('label-tertiary'), [T('bg-base')], 3],
+  // On the open or a checked row the avatar fill (bg-overlay) equals the selected tint in light, so it takes label-secondary.
+  ['avatar on a selected row', T('label-secondary'), [T('bg-base'), T('interactive-bg-active')], 3],
+  ['avatar initial on a selected row', T('label-primary-foreground'), [T('bg-base'), T('interactive-bg-active'), T('label-secondary')], 4.5],
 );
 
 /** Measures every pair in both themes of the client theme; returns the Markdown table and the failure count. */

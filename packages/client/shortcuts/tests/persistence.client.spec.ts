@@ -71,7 +71,7 @@ describe('serialized preference persistence', () => {
     expect((await restarted.store.readCurrent()).document).toEqual(f.state().document)
   })
 
-  it.each(['{broken', '{"schemaVersion":3,"profiles":{}}'])('retains accepted bindings and original bytes after reading %s', async (raw) => {
+  it.each(['{broken', '{"schemaVersion":4,"profiles":{}}'])('retains accepted bindings and original bytes after reading %s', async (raw) => {
     const f = fixture(); await f.store.readCurrent(); await f.store.edit(edit, f.state().revision)
     const accepted = f.state().document
     f.external(raw)

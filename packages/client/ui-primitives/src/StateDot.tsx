@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import css from './StateDot.module.css'
 import { IconCheckOutlineRegular } from './icons/index.tsx'
+import { StatusShapeIcon, type StatusShape } from './StatusShape.tsx'
 
 /**
  * State semantic: green done / amber user-attention / tertiary-grey loading /
@@ -33,20 +34,36 @@ function pinSpinner(element: SVGSVGElement): void {
   for (const animation of spinner.getAnimations?.({ subtree: true }) ?? []) animation.startTime = 0
 }
 
+/** Props of the colour dot: one of the five states, drawn as a dot, a loader or a step. */
+interface StateDotStateProps {
+  state: StateDotState
+  shape?: undefined
+  size?: number | undefined
+  className?: string | undefined
+  appearance?: 'dot' | 'step'
+}
+
+/** Props of the status icon: one of the six status shapes. */
+interface StateDotShapeProps {
+  shape: StatusShape
+  state?: undefined
+  size?: number | undefined
+  className?: string | undefined
+  appearance?: undefined
+}
+
 /**
- * Render a state dot.
+ * Render a state dot, or a status icon when `shape` is set.
  * @param props.state - which of `done`, `warning`, `ongoing`, `error`, or `idle` to show.
- * @param props.size - outer diameter in px; defaults to 14 for ongoing and 10 for solid states.
+ * @param props.shape - instead of `state`, one of the six status shapes, drawn as a 14px icon in its role colour.
+ * @param props.size - outer diameter in px; defaults to 14 for ongoing and a shape, and 10 for solid states.
  * @param props.className - extra class for layout placement.
  * @param props.appearance - compact dot by default; step uses a filled check or hollow pending circle.
  * @returns the dot element (aria-hidden; pair with text for accessibility).
  */
-export function StateDot({ state, size, className, appearance = 'dot' }: {
-  state: StateDotState
-  size?: number | undefined
-  className?: string | undefined
-  appearance?: 'dot' | 'step'
-}) {
+export function StateDot(props: StateDotStateProps | StateDotShapeProps) {
+  if (props.shape !== undefined) return <StatusShapeIcon shape={props.shape} size={props.size} className={props.className} />
+  const { state, size, className, appearance = 'dot' } = props
   const edge = size ?? (state === 'ongoing' ? 14 : 10)
   if (state === 'ongoing') {
     return (

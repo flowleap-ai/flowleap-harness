@@ -1,0 +1,32 @@
+/* The status icon and its word (R11): the word in the primary label colour beside the 14px shape. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.pill {
+  display: inline-flex;
+}
+
+/* A fact's label, then its status; the pair wraps inside its cell rather than cutting the word. */
+.fact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  max-width: 100%;
+}
+
+.factLabel {
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+}
+
+/* A status word wider than its line wraps after the icon, so it is never cut. */
+.factStatus {
+  min-width: 0;
+  white-space: normal;
+}

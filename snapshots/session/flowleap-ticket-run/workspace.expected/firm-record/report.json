@@ -4,12 +4,19 @@
   "templateName": "client-report.docx",
   "templateVersion": "sha256:141f358f5c65be092b7640ade27d3561551b10d0f89ecc34467b9f80e7cc50ae",
   "rulesSeq": 3,
+  "toolCall": "call_00_ticketrun000000000004",
   "statements": [
     {
       "text": "The EPO intends to grant a European patent on EP23812345.6.",
       "evidence": [
         {
-          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a"
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 1,
+            "start": 136,
+            "end": 211,
+            "quote": "intends to grant a European patent on the basis of the text indicated above"
+          }
         }
       ]
     },
@@ -17,7 +24,13 @@
       "text": "The communication is dated 30 October 2025.",
       "evidence": [
         {
-          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a"
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 1,
+            "start": 74,
+            "end": 90,
+            "quote": "Date: 30.10.2025"
+          }
         }
       ]
     },
@@ -25,12 +38,17 @@
       "text": "The time limit is 2 March 2026.",
       "evidence": [
         {
-          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a"
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 2,
+            "start": 0,
+            "end": 40,
+            "quote": "Within four months of this communication"
+          }
         }
       ]
     }
   ],
-  "toolCall": "call_00_ticketrun000000000003",
   "session": "the run Session",
   "content": {
     "sha256": "51b467369b3b495acbb0d0cfb7142348be0f5efff3fc24957120d8f2ff43844b",

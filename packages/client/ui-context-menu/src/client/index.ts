@@ -132,6 +132,12 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     })
   }
   ctx.provide('contextMenus', contextMenus)
+  const select = (id: string): void => {
+    const selected = active?.resolution
+    active?.unsubscribe(); active = undefined
+    targetSource.set(null); opener.set(null); dismiss(false)
+    selected?.select(id); selected?.dispose()
+  }
   ctx.slots.registerFactory({
     name: 'contextMenu.button', scope: 'root',
     inject: () => ({
@@ -157,14 +163,32 @@ export function apply(ctx: Context, config: Config = Config({})): void {
         event.preventDefault(); event.stopImmediatePropagation(); close()
       }
     }
+    // An open menu runs an item whose command's current single-key binding matches, on the captured target.
+    const actKey = (event: KeyboardEvent): void => {
+      const state = instance.getSnapshot()
+      if (state.target === null || state.closing || event.isComposing || event.repeat) return
+      const modifiers = (['control', 'alt', 'shift', 'meta'] as const).filter(modifier => ({
+        control: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, meta: event.metaKey })[modifier])
+      const catalog = ctx.shortcuts.catalog.getSnapshot()
+      const item = state.items.find((candidate) => {
+        const binding = catalog.find(row => row.id === candidate.commandId && row.issue === null && row.conflicts.length === 0)?.binding
+        return candidate.disabled !== true && binding != null && binding.code === event.code && binding.secondCode === undefined
+          && binding.thenCode === undefined && binding.modifiers.join('+') === modifiers.join('+')
+      })
+      if (item === undefined) return
+      event.preventDefault(); event.stopImmediatePropagation()
+      select(item.id)
+    }
     document.addEventListener('pointerdown', outside)
     document.addEventListener('contextmenu', context)
     window.addEventListener('keydown', escape, true)
+    window.addEventListener('keydown', actKey, true)
     return () => {
       disposed = true; cancelOpening(); clearTimeout(closeTimer); registry.dispose(); instance.actions.close()
       document.removeEventListener('pointerdown', outside)
       document.removeEventListener('contextmenu', context)
       window.removeEventListener('keydown', escape, true)
+      window.removeEventListener('keydown', actKey, true)
     }
   }, 'context menu: lifetime')
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
@@ -173,10 +197,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'contextMenu.content': { kind: 'keyed', scope: 'root' },
       'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true },
     },
-    inject: () => ({ hooks: { catalog: ctx.shortcuts.catalog }, close, returnFocus: () => returnFocus, select: (id: string) => {
-      const selected = active?.resolution
-      active?.unsubscribe(); active = undefined
-      targetSource.set(null); opener.set(null); dismiss(false)
-      selected?.select(id); selected?.dispose() } }),
+    inject: () => ({
+      hooks: { catalog: ctx.shortcuts.catalog, fixedCatalog: ctx.shortcuts.fixedCatalog }, close, returnFocus: () => returnFocus, select,
+    }),
   }, MenuOverlay))
 }

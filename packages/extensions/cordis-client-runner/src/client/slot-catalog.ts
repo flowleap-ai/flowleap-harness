@@ -216,6 +216,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'shell.overlay\' (client-ui-context-menu), so it exists while that entry is mounted',
     occupants: [
       'client-ui-file-actions Icon',
+      'client-ui-flowleap-records Icon',
       'client-ui-open-in-app Icon',
       'client-ui-open-in-app ContextMenuApplicationIcon key \'open-in-app.application\'',
       'client-ui-sidebar-right IconCloseOutlineRegular key \'sidebar.close\'',
@@ -351,7 +352,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       '/** Command-row owner share. */\nexport interface CommandRowOwnerProps {\n  node: CommandNode\n  compaction?: CompactionSummaryNode\n}',
     ],
     ownerPropsReferences: [
-      'Command',
       'CommandNode',
       'CompactionSummaryNode',
     ],
@@ -917,6 +917,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       '/** Owner values used to elect a composer takeover. */\nexport interface ComposerChainProps {\n  /** Current Session identity used by temporary business-owned entries. */\n  sessionId: SessionId | undefined\n  /** Current Session lifecycle state, absent without a selected Session. */\n  session: SessionSnapshot | undefined\n  /** Effective business-owned interaction awaiting the user in this Session. */\n  pendingInteraction: SessionPendingInteraction | undefined\n}',
     ],
     ownerPropsReferences: [
+      'Current',
       'SessionId',
       'SessionPendingInteraction',
       'SessionSnapshot',
@@ -1441,6 +1442,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ComposerAttachment',
+      'Current',
       'DraftAttachmentId',
       'DraftFileUploads',
     ],
@@ -2408,6 +2410,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ConversationViewActionEntry',
+      'View',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -2567,6 +2570,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'ConversationViewRequest',
+      'View',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -2879,7 +2883,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-flowleap-dashboard DashboardPage',
       'client-ui-flowleap-dashboard ChatsPage',
       'client-ui-flowleap-dashboard AgentsPage',
-      'client-ui-flowleap-records RecordsPage',
+      'client-ui-flowleap-records RecordsPanel',
       'client-ui-flowleap-routines NeedsReviewPage',
       'client-ui-flowleap-work-pages OfficeActionBoard',
       'client-ui-plugin-manager PluginManagerPage',
@@ -3382,6 +3386,47 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:124',
   },
   {
+    key: 'records.agent.conversation',
+    kind: 'single',
+    scope: 'session',
+    summary: 'The run Session\'s conversation in the agent panel of the work page.',
+    doc: 'The run Session\'s conversation in the agent panel of the work page.',
+    registerOptions: [],
+    ownerProps: [],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useRemoteAccess: (action: RemoteEndpoint) => boolean',
+      'useResource: UseResource',
+      'useContextMenu: UseContextMenu',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'usePanelInfo: UsePanelInfo',
+      'useSessions: UseSessions',
+      'useSessionStatus: UseSessionStatus',
+      'useSessionRetainInfo: UseSessionRetainInfo',
+      'useSessionAccess: (sessionId: SessionId, action: RemoteEndpoint) => boolean',
+      'useWorkspaceAccess: (workspaceId: WorkspaceId, action: RemoteEndpoint) => boolean',
+      'useChat: UseChat',
+      'useConversation: UseConversation',
+      'useInput: SnapshotSelectorHook<InputState>',
+      'inputActions: InputActions',
+      'useSession: SessionSnapshotSelector',
+      'sessionId: SessionId',
+      'useProjection: UseProjection',
+      'useAccess: (action: RemoteEndpoint) => boolean',
+      'useTrajectory: UseTrajectory',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'main\' (client-ui-flowleap-records), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-flowleap-records RunConversation',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'records.agent.conversation\', () => ctx.slots.register(\n      { name: \'records.agent.conversation\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-flowleap-records/src/client/RunConversation.tsx:12',
+  },
+  {
     key: 'rightbar',
     kind: 'single',
     scope: 'root',
@@ -3391,7 +3436,9 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** Right column owner share: resolved normal geometry and opening eligibility. */\nexport interface RightbarOwnerProps {\n  /** Resolved normal panel width in px, not the saved preference; zero if it cannot fit. */\n  width: number\n  /** Current frame width in px. */\n  viewportWidth: number\n  /**\n   * Whether a normal right panel can retain 300px beside a 400px center.\n   * Before a narrow opening, includes the space from collapsing the left sidebar.\n   */\n  canShow: boolean\n}',
     ],
-    ownerPropsReferences: [],
+    ownerPropsReferences: [
+      'Current',
+    ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
       'useResource: UseResource',
@@ -3425,9 +3472,12 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** Right column owner share: resolved normal geometry and opening eligibility. */\nexport interface RightbarOwnerProps {\n  /** Resolved normal panel width in px, not the saved preference; zero if it cannot fit. */\n  width: number\n  /** Current frame width in px. */\n  viewportWidth: number\n  /**\n   * Whether a normal right panel can retain 300px beside a 400px center.\n   * Before a narrow opening, includes the space from collapsing the left sidebar.\n   */\n  canShow: boolean\n}',
       '/** Identity of one open tab; distinct copies of one content share `contentId`, never `TabId`. */\nexport type TabId = Branded<\'TabId\'>',
+      '/** A view of the panel. */\nexport type View = Route[\'view\']',
     ],
     ownerPropsReferences: [
       'Branded',
+      'Current',
+      'Route',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -4185,7 +4235,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     kind: 'single',
     scope: 'root',
     summary: 'Window-chrome seat at the frame\'s top-left, over every main panel.',
-    doc: 'Window-chrome seat at the frame\'s top-left, over every main panel.\nMounted for narrow drawers and collapsed macOS desktop sidebars. macOS\ntraffic lights sit before it outside native fullscreen; browser controls\nstart at the frame edge.\nOCCUPIED by ui-sidebar\'s reopen/New Session controls.\n\nWhile the seat is mounted the frame publishes\n`--dsh-frame-leading-clearance` (the inline inset the seat\'s band\noccupies, measured from the frame\'s left edge); a main panel whose\ncontent reaches the top-left corner pads by it so nothing lands under\nthe lights or the controls.',
+    doc: 'Window-chrome seat at the frame\'s top-left, over every main panel.\nMounted for narrow drawers and collapsed macOS desktop sidebars. macOS\ntraffic lights sit before it outside native fullscreen; browser controls\nstart at the frame edge.\nOCCUPIED by ui-sidebar\'s reopen/New Session controls.\n\nWhile the seat is mounted the frame publishes\n`--dsh-frame-leading-clearance` (the inline inset the seat\'s band\noccupies, measured from the frame\'s left edge); a main panel whose\ncontent reaches the top-left corner pads by it so nothing lands under\nthe lights or the controls.\n\nIn a browser drawer the frame pads a global panel\'s top by one 48px\nrow for the seat. A global panel whose own 44px top row carries\n`data-frame-top-row` shares that row instead: the frame drops the\ntop padding, centres the seat on the row, and insets the row\'s start\nby the clearance.',
     registerOptions: [],
     ownerProps: [],
     ownerPropsReferences: [],
@@ -4210,7 +4260,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'shell.leading\', () => ctx.slots.register(\n      { name: \'shell.leading\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-layout/src/client/index.ts:121',
+    source: 'packages/client/ui-layout/src/client/index.ts:127',
   },
   {
     key: 'shell.overlay',
@@ -4259,6 +4309,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-agent-team TeamDisableConfirmation id \'agent-team.disable\'',
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
+      'client-ui-commands CommandMenuView id \'command-menu\'',
       'client-ui-context-menu MenuOverlay id \'context-menu\'',
       'client-ui-file-drag FileDragFeedback id \'file-drag.feedback\'',
       'client-ui-flowleap-agent-builder AgentFormDialog id \'flowleap-agent-form\'',
@@ -4628,7 +4679,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'factory \'sidebar.panel.icon\' (client-ui-sidebar), so it exists while that definition is registered',
     occupants: [
       'client-ui-flowleap-dashboard launcher.icon',
-      'client-ui-flowleap-records RecordsIcon',
+      'client-ui-flowleap-records MattersIcon',
       'client-ui-flowleap-routines NeedsReviewPanelIcon',
       'client-ui-flowleap-work-pages WorkPagesPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',

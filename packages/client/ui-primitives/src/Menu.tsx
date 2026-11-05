@@ -9,8 +9,21 @@ import { usePointerGrace } from './pointer-grace.ts'
 import { isBehindModal } from './useModalLayer.ts'
 import { observeComposition } from './keyboard-composition.ts'
 import { focusWithoutRing } from './focus.ts'
+import type { KeycapBox } from './Keycap.tsx'
 import { MenuSurface } from './MenuSurface.tsx'
 import css from './Menu.module.css'
+
+/** Effective binding of a menu row, supplied by the command owner. */
+export interface MenuShortcutSpec {
+  /** Key labels drawn as unboxed caption text. */
+  keys: readonly string[]
+  aria?: string | undefined
+  /**
+   * The binding as keycap boxes, one for a key or a combination, one for each step of a sequence; when set, the row
+   * draws them as boxed `Keycap`s instead of the caption text, as the IPMS menus do.
+   */
+  keycaps?: readonly KeycapBox[] | undefined
+}
 
 /** Selectable row (optionally with a nested submenu). */
 export interface MenuItem {
@@ -18,7 +31,7 @@ export interface MenuItem {
   label: ReactNode
   disabled?: boolean
   /** Effective binding supplied by the command owner; omitted for unbound actions. */
-  shortcut?: { keys: readonly string[]; aria?: string | undefined }
+  shortcut?: MenuShortcutSpec
   /** Leading icon (figma .Menu_cell gap 8). */
   icon?: ReactNode
   /** Destructive row: error-colored text/icon and danger hover fill. */

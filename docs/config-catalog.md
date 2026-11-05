@@ -575,6 +575,8 @@ export interface Config {
 export interface Config {
   /** Maximum interval between independent Escape presses for stopping a reply, in milliseconds. */
   stopSequenceMs: number
+  /** Maximum interval between the two keys of a view-layer sequence such as G then I, in milliseconds. */
+  sequenceMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-shortcuts -->
@@ -637,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-records`
 
 - `inject`: `connection`
-- `source`: [`packages/client/ui-flowleap-records/src/index.ts:25`](../packages/client/ui-flowleap-records/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-records/src/index.ts:26`](../packages/client/ui-flowleap-records/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the Records pages are. */

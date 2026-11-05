@@ -66,6 +66,12 @@ export interface MenuActionView {
   readonly label: string
   /** Command identity for live shortcut display only; selection still invokes this action’s run callback. */
   readonly commandId?: ShortcutCommandId
+  /**
+   * How the shortcut of `commandId` reads: `keycap` writes each keycap box of the binding (one for a combination,
+   * one for each step of a sequence) as `keycapText` of `ui-primitives` does, such as `⇧⌘↵`, as the IPMS views draw
+   * keys beside buttons; by default the catalog's key labels show.
+   */
+  readonly keyText?: 'keycap'
   readonly disabled?: boolean
   readonly icon?: ContextMenuIcon
   readonly danger?: boolean

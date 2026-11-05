@@ -1,0 +1,14 @@
+/* An overdue date (R11): the warning glyph in the refused colour before the words, which keep the surrounding text colour, because the refused colour as text is below 4.5:1 on the surfaces it sits on (contrast.md). */
+.overdue {
+  display: inline-flex;
+  /* The words, not the glyph, give the mark its baseline, so "Overdue by N days" sits on the line of the text around it. */
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.overdue > svg {
+  flex: none;
+  align-self: center;
+  color: var(--dsw-alias-state-error-primary);
+}

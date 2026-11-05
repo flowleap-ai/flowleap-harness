@@ -1,7 +1,7 @@
 /** Main-document keyboard adapter; local controls arbitrate before window bubbling. */
 import { modalSelector, observeComposition } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ShortcutContext, ShortcutFixedInput } from './types.ts'
-import type { ShortcutRegistry } from './registry.ts'
+import { editableTargets, type ShortcutRegistry } from './registry.ts'
 import type { ShortcutPlatform, ShortcutRuntime } from '../protocol.ts'
 
 /**
@@ -25,16 +25,17 @@ export function detectEnvironment(document: Document, navigator: Navigator): {
  * @param window - input window owned by the client plugin.
  * @param shortcuts - command registry for this window.
  * @param fixed - optional fixed-sequence consumer after local controls.
- * @param native - native input owns configurable bindings; DOM delivery only feeds fixed actions.
+ * @param native - native input owns configurable bindings; DOM delivery only feeds fixed actions and view layers.
  * @returns disposer releasing every listener, the modal observer, and cached nodes.
  */
-export function installKeyboard(window: Window, shortcuts: Pick<ShortcutRegistry, 'dispatch' | 'runtime' | 'platform'>,
+export function installKeyboard(window: Window,
+  shortcuts: Pick<ShortcutRegistry, 'dispatch' | 'dispatchLayer' | 'resetLayer' | 'runtime' | 'platform'>,
   fixed?: (input: ShortcutFixedInput) => void, native = false): () => void {
   const document = window.document
   const composition = observeComposition(document)
   let pending = false
   let pendingTimer: number | undefined
-  const reset = (): void => { fixed?.({ type: 'reset' }) }
+  const reset = (): void => { shortcuts.resetLayer(); fixed?.({ type: 'reset' }) }
   let deadKey = false
   let dialogs: NodeListOf<HTMLElement> | undefined
   const blur = (): void => { deadKey = false; reset() }
@@ -68,7 +69,7 @@ export function installKeyboard(window: Window, shortcuts: Pick<ShortcutRegistry
     const target = event.composedPath().find(value => value instanceof Element)
     const element = target instanceof Element ? target : document.activeElement
     const region = element?.closest('.xterm') ? 'terminal'
-      : element?.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]') ? 'editable' : 'page'
+      : element?.closest(editableTargets) ? 'editable' : 'page'
     // Local handlers can change modals before MutationObserver delivers its records.
     changedModals(observer.takeRecords())
     dialogs ??= document.querySelectorAll<HTMLElement>(modalSelector)
@@ -88,9 +89,12 @@ export function installKeyboard(window: Window, shortcuts: Pick<ShortcutRegistry
       if (commandDeadKey) deadKey = false
     }
     fixed?.({ type: 'keydown', gesture, context, consume })
-    if (native) return
-    shortcuts.dispatch({ ...gesture, composing: guarded || (isDead && !commandDeadKey),
-      defaultPrevented: event.defaultPrevented }, context, consume)
+    if (!native) {
+      shortcuts.dispatch({ ...gesture, composing: guarded || (isDead && !commandDeadKey),
+        defaultPrevented: event.defaultPrevented }, context, consume)
+    }
+    // View layers run on every platform after application bindings and local handlers passed the key.
+    shortcuts.dispatchLayer({ ...gesture, defaultPrevented: event.defaultPrevented }, element, top ?? null, consume)
   }
   document.addEventListener('compositionstart', reset, true)
   document.addEventListener('compositionend', reset, true)

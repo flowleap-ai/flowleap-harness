@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (a matter's view at one record position, and the run commands of a Ticket), the http Provider `./http`, the read-only `record_read` tool, whose JSON result names `recordSeq` and `viewHash`, and the `./run` entry with `record_propose_report` and `record_finish_run` for a Ticket run.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (a matter's view at one record position, and the run commands of a Ticket), the http Provider `./http`, the read-only `record_read` tool, whose JSON result names `recordSeq` and `viewHash`, and the `./run` entry with `record_read_document_text`, `record_propose_report`, and `record_finish_run` for a Ticket run.
 
 ## Table of Contents
 
@@ -105,7 +105,7 @@ The phase R1 view adds four fields, always present (empty lists and `null` when 
 
 ### The run commands
 
-A runtime woken for a Ticket (see [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md)) reports to the Firm Record through three seam methods. Each sends `POST <origin>/records/api/tickets/<ticketId>/<action>` with the record token, a JSON body, and an `Idempotency-Key` of `<kind>:<SHA-256 hex of the JSON array of its parts>`, so a repeat of the same command sends the same key:
+A runtime woken for a Ticket (see [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md)) reports to the Firm Record through three seam methods, and reads the text of a document with a fourth. The three commands each send `POST <origin>/records/api/tickets/<ticketId>/<action>` with the record token, a JSON body, and an `Idempotency-Key` of `<kind>:<SHA-256 hex of the JSON array of its parts>`, so a repeat of the same command sends the same key:
 
 | Method | Action and body | Key parts | Receipt |
 |---|---|---|---|
@@ -113,7 +113,9 @@ A runtime woken for a Ticket (see [`dsh-flowleap-ticket`](../../experimental/flo
 | `proposeReport(ticket, proposal)` | `reports`: `{ fileName, contentBase64, templateName, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
 | `finishRun(ticket, { session, deadline })` | `finish`: `{ session, deadline: { id, state, seq } }`, where `id` and `state` are both `none-yet` when the event has no deadline | `finish`: Ticket, Session | `200 { recordSeq, outbox: { id, state } }`: the Firm Record queues one reply with the proposed letters attached as drafts to the forwarder of the office letter and the routed person; `state` is `refused` when a recipient is not a firm address. Nothing goes to the client |
 
-A statement is `{ text, evidence: [{ document, span? }] }` with at least one evidence item; a `span` is `{ page, start, end, quote }`. Each method returns the receipt or a `RecordCommandError` `{ error, detail? }`; `detail` is the Firm Record's one-sentence detail, at most 300 characters:
+`documentText(document)` sends `GET <origin>/records/api/documents/<sha256>/text` with the record token and no `Idempotency-Key`, and reads `200 { pages: string[] }`, where `pages[0]` is page 1. The text is the text layer that the Firm Record stores with the document, the same text that the Firm Record searches for a quote. The answer is at most 1 MiB, as for the view.
+
+A statement is `{ text, evidence: [{ document, span }] }` with at least one evidence item, and every item has a `span`. A `span` is `{ page, quote }`: the page number from 1, and a quote of 1 to 200 characters that the run copies character for character from that page of the document text. The run sends no offsets. The Firm Record finds the quote on the page, which must hold it exactly once, and stores the offsets. Each method returns the receipt or a `RecordCommandError` `{ error, detail? }`; `detail` is the Firm Record's one-sentence detail, at most 300 characters:
 
 | Refusal | When |
 |---|---|
@@ -121,19 +123,22 @@ A statement is `{ text, evidence: [{ document, span? }] }` with at least one evi
 | `refused` | 401, or 403 without a known code |
 | `agent_cannot_decide` | 403 `agent-cannot-decide` |
 | `not_routed_person` | 403 `not-routed-person`: the Ticket is routed to another person |
-| `not_found` | 404: no Ticket with this id |
+| `not_found` | 404: no Ticket with this id; for `documentText`, no document with this hash or no text layer for it |
 | `invalid_body` | 400 `invalid-body` |
 | `ticket_not_waking` | 409 `ticket-not-waking`: `run-started` for a Ticket that is not `waking` |
 | `ticket_not_running` | 409 `ticket-not-running`: a report or finish for a Ticket that is not `running` |
 | `client_rule_forbids_ai_draft` | 409 `report.no-ai-draft-against-client-rule` |
 | `statement_without_evidence` | 422 `report.statement-has-evidence` |
+| `statement_without_span` | 422 `report.statement-has-span`: an evidence item has no span |
+| `quote_not_in_letter` | 422 `report.quote-not-in-letter`: a quote is not in the text of its page |
+| `quote_ambiguous` | 422 `report.quote-ambiguous`: a quote is in the text of its page more than once |
 | `no_proposals` | 409 `no-proposals`: a finish before a proposal of this Ticket and pass |
 | `document_too_large` | 413 `document-too-large`: the letter is above 5 MiB |
 | `idempotency_key_reused` | 409 `idempotency-key-reused`: the key came before with another body, such as a second finish of the run with another deadline summary, or a report of the same tool call with another letter |
 
 ### The run tools
 
-`record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span? }`; `document` is a lower-case SHA-256, and a `span` has a positive `page`, `start` and `end` with `end` not before `start`, and a `quote` of at most 200 characters. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
+`record_read_document_text` takes `document`, a lower-case SHA-256, calls `documentText`, and answers `{ pages }` or the refusal. It changes nothing in the record. `record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span }`; `document` is a lower-case SHA-256, and the `span` is required: a positive `page` and a `quote` of 1 to 200 characters. A `span` with `start` or `end` is a tool error, because the Firm Record finds the offsets. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
 
 -----
 
@@ -151,7 +156,7 @@ A statement is `{ text, evidence: [{ document, span? }] }` with at least one evi
 | [`src/http.ts`](src/http.ts) | the http Provider: Config, the read and the commands (bodies through `readBoundedText` of `dsh-flowleap-connectors`), the idempotency key, the refusal-code map, and the answer validation |
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
 | [`src/index.ts`](src/index.ts) | the function plugin that registers the tool |
-| [`src/run/`](src/run/) | the run entry: `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_finish_run`, their argument rules, and the refusal messages |
+| [`src/run/`](src/run/) | the run entry: `record_read_document_text`, `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_finish_run`, their argument rules, and the refusal messages |
 | [`tests/`](tests/) | the provider against a local Firm Record double, the tools with their refusals and disposal, and the Loader composition test with a fixture provider |
 
 </details>
@@ -162,7 +167,7 @@ A statement is `{ text, evidence: [{ document, span? }] }` with at least one evi
 ## Further Exploration
 
 - [dsh-flowleap-web](../../bundle/flowleap-web/README.md) — the bundle rows.
-- [ui-flowleap-records](../../client/ui-flowleap-records/README.md) — the Matters page that embeds the Firm Record's pages, where a person confirms a deadline.
+- [ui-flowleap-records](../../client/ui-flowleap-records/README.md) — the Matters panel, the IPMS views over the Records API, where a person confirms a deadline.
 - [dsh-flowleap-budget](../flowleap-budget/README.md) — the same address, token, and answer rules for the firm's model gateway.
 
 -----
@@ -188,11 +193,25 @@ The declaration is stable while the row is mounted. Results append to history.
 
 #### What the model sees
 
-`record_propose_report` description: "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter." Parameters: `ticket_id`, `file`, `template`, `rules_seq`, and `statements` (each `{ text, evidence: [{ document, span? }] }`), all required. The result is JSON text: `{ proposalId, document, recordSeq }`, or `{ error, message, detail? }`.
+`record_propose_report` description: "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter." Parameters: `ticket_id`, `file`, `template`, `rules_seq`, and `statements` (each `{ text, evidence: [{ document, span: { page, quote } }] }`), all required. The result is JSON text: `{ proposalId, document, recordSeq }`, or `{ error, message, detail? }`.
 
 #### Token effect
 
 The schema contributes fixed request-context tokens while the run row is mounted. A call grows with its statements; the result is a few hundred characters.
+
+#### KV Cache effect
+
+The declaration is stable while the run row is mounted. Results append to history.
+
+### The `record_read_document_text` declaration
+
+#### What the model sees
+
+`record_read_document_text` description: "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record." One required parameter, `document`. The result is JSON text: `{ pages }`, or `{ error, message, detail? }`.
+
+#### Token effect
+
+The schema contributes fixed request-context tokens while the run row is mounted. A result is the full text of the document, bounded by the provider's 1 MiB answer limit, and it stays in the history of the run.
 
 #### KV Cache effect
 

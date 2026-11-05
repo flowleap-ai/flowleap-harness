@@ -1,0 +1,48 @@
+/* A round avatar: the initial in label-primary on bg-overlay. A stack overlaps by 4px with a 2px ring in the
+ * surface colour; the presence dot is 8px in the success colour with the same ring. */
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: 1;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-overlay);
+}
+
+.avatar[data-size='24'] {
+  width: 24px;
+  height: 24px;
+}
+
+.avatar[data-present]::after {
+  content: '';
+  position: absolute;
+  right: calc(-1 * 2px);
+  bottom: calc(-1 * 2px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-state-success-primary);
+  box-shadow: 0 0 0 2px var(--dsw-alias-bg-base);
+}
+
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.stack .avatar {
+  box-shadow: 0 0 0 2px var(--dsw-alias-bg-base);
+}
+
+.stack .avatar + .avatar {
+  margin-left: calc(-1 * 4px);
+}

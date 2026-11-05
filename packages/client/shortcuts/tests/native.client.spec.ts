@@ -165,3 +165,25 @@ it('checks the focused browser guest lease before dispatch and retains its embed
     off()
   }
 })
+
+it('names the editable region for a field, any contenteditable value except false, and an element inside one', () => {
+  const registry = new ShortcutRegistry('desktop', 'macos')
+  const regions: string[] = []
+  registry.register({ id: 'session.new' as ShortcutCommandId, label: () => 'New', aliases: [],
+    defaults: { 'desktop:macos': { code: 'KeyN', modifiers: ['primary'] } }, regions: ['page'], modals: [],
+    resolve: (context) => { regions.push(context.region); return { status: 'pass' } } })
+  let deliver: (input: DesktopShortcutInput) => void = () => {}
+  installNativeKeyboard(window, { subscribe: (listener) => { deliver = listener; return () => {} }, closeWindow: vi.fn() },
+    registry, () => registry.config.getSnapshot())
+  const input: DesktopShortcutInput = { kind: 'keyboard', frameName: '', revision: registry.config.getSnapshot().revision,
+    code: 'KeyN', control: false, alt: false, shift: false, meta: true, repeat: false }
+  for (const value of ['plaintext-only', 'true', 'false']) {
+    const host = document.createElement('div')
+    host.setAttribute('contenteditable', value)
+    host.tabIndex = -1
+    document.body.append(host)
+    host.focus()
+    deliver(input)
+  }
+  expect(regions).toEqual(['editable', 'editable', 'page'])
+})

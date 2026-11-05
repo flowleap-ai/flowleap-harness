@@ -117,6 +117,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * occupies, measured from the frame's left edge); a main panel whose
      * content reaches the top-left corner pads by it so nothing lands under
      * the lights or the controls.
+     *
+     * In a browser drawer the frame pads a global panel's top by one 48px
+     * row for the seat. A global panel whose own 44px top row carries
+     * `data-frame-top-row` shares that row instead: the frame drops the
+     * top padding, centres the seat on the row, and insets the row's start
+     * by the clearance.
      */
     'shell.leading': { kind: 'single'; scope: 'root' }
   }

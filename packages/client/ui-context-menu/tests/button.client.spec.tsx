@@ -24,7 +24,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 it('shows late registered kinds without preparing actions and withdraws them with the contributing fiber', async () => {
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
-  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   runtime.ctx.provide('locale', { register: () => () => {}, bind: () => (key: string) => key } as never)
   await runtime.root.declare({}, ({ renderFactorySlot }) => <>
     {renderFactorySlot('contextMenu.button', { target: target('header'), label: 'Header menu', size: 'sm' })}
@@ -61,7 +61,7 @@ it('toggles moved buttons by target identity, replaces other targets, and preser
   vi.useFakeTimers()
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
-  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)
@@ -138,7 +138,7 @@ it('toggles moved buttons by target identity, replaces other targets, and preser
 it('keeps an open button expanded after its owner updates display metadata in the target', async () => {
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
-  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   runtime.ctx.provide('locale', { register: () => () => {}, bind: () => (key: string) => key } as never)
   const entity = (title: string): ContextMenuTarget => ({ kind: 'entity', value: { id: 'same', title } })
   let update!: (target: ContextMenuTarget) => void

@@ -1,0 +1,306 @@
+/* Queue split view (R20), detail page with the 376px properties panel, and the work column whose content scrolls
+ * above the docked decision bar (R13). The content column is flush on bg-base, with no boxes (R8). */
+.split {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.listPane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.itemPane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Below 1366px an open item is the item page; the list waits behind it. */
+.split[data-open] .listPane {
+  display: none;
+}
+
+.split[data-wide-only] .listPane {
+  display: flex;
+}
+
+.split[data-wide-only] .itemPane {
+  display: none;
+}
+
+@media (min-width: 1366px) {
+  .split[data-open] {
+    grid-template-columns: minmax(480px, 44%) minmax(0, 1fr);
+  }
+
+  .split[data-open] .listPane {
+    display: flex;
+  }
+
+  .split[data-wide-only] .itemPane {
+    display: flex;
+  }
+
+  .itemPane {
+    border-left: 0.5px solid var(--dsw-alias-border-l2);
+  }
+}
+
+/* The item pane while the queue loads: the bones of the eyebrow pill, the title, two lede lines, the three key
+ * properties and the letter drawing, at the places of the open letter. */
+.itemSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 32px;
+}
+
+.itemSkeleton > .keyProps {
+  margin-top: 4px;
+}
+
+.itemSkeleton .keyProp {
+  gap: 8px;
+}
+
+.itemSkeleton .pillBone {
+  width: 120px;
+  height: 24px;
+  border-radius: 999px;
+  corner-shape: round;
+}
+
+.itemSkeleton .titleBone {
+  height: 12px;
+  margin: 8px 0 4px;
+}
+
+.itemSkeleton .letterBone {
+  width: 260px;
+  height: 200px;
+  margin-top: 12px;
+  border-radius: var(--dsw-radius-lg);
+}
+
+.detail {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 376px;
+  min-height: 0;
+}
+
+.work {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.workScroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 32px 32px 24px;
+}
+
+.dock {
+  padding: 0 16px 16px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+}
+
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--dsw-font-l-20-font-size);
+  line-height: var(--dsw-font-l-20-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+  text-wrap: balance;
+}
+
+.lede {
+  max-width: 64ch;
+  margin: 12px 0 0;
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  color: var(--dsw-alias-label-secondary);
+  text-wrap: pretty;
+}
+
+.keyFact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.keyFactValue {
+  font-size: var(--dsw-font-xl-24-font-size);
+  line-height: var(--dsw-font-xl-24-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-primary);
+}
+
+.keyFactDetail {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.section {
+  margin-top: 32px;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.count {
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one sentence of a section with no items, inset as a detail table's rows are. */
+.sectionEmpty {
+  margin: 0;
+  padding: 0 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sectionActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.props {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 16px 24px;
+  border-left: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.propGroup + .propGroup {
+  margin-top: 16px;
+}
+
+.propHeading {
+  margin: 0 0 4px;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.propList,
+.keyProps {
+  margin: 0;
+}
+
+.prop {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.propLabel {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.propValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.keyProps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+
+.keyProp {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.keyValue {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+@media (max-width: 720px) {
+  .detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .props {
+    border-left: 0;
+    border-top: 0.5px solid var(--dsw-alias-border-l2);
+  }
+
+  .detail[data-decision] .props {
+    display: none;
+  }
+
+  .workScroll {
+    padding: 24px 16px;
+  }
+
+  .dock {
+    padding: 0 8px 8px;
+  }
+
+  .keyProps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .keyFactValue {
+    font-size: var(--dsw-font-l-20-font-size);
+    line-height: var(--dsw-font-l-20-line-height);
+  }
+}

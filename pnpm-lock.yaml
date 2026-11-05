@@ -4267,6 +4267,9 @@ importers:
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale
+      '@deepseek-ai/dsh-client-shortcuts':
+        specifier: workspace:*
+        version: link:../shortcuts
       '@deepseek-ai/dsh-client-store':
         specifier: workspace:*
         version: link:../store
@@ -4279,6 +4282,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-input-trigger':
         specifier: workspace:*
         version: link:../ui-input-trigger
+      '@deepseek-ai/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../ui-layout
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -4291,6 +4297,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../ui-slots
+      '@deepseek-ai/dsh-client-ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
       '@deepseek-ai/dsh-commands':
         specifier: workspace:*
         version: link:../../interaction/commands
@@ -5055,18 +5064,39 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:*
         version: link:../connection
       '@deepseek-ai/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale
+      '@deepseek-ai/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@deepseek-ai/dsh-client-shortcuts':
+        specifier: workspace:*
+        version: link:../shortcuts
       '@deepseek-ai/dsh-client-store':
         specifier: workspace:*
         version: link:../store
       '@deepseek-ai/dsh-client-test-runtime':
         specifier: workspace:*
         version: link:../../test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-commands':
+        specifier: workspace:*
+        version: link:../ui-commands
+      '@deepseek-ai/dsh-client-ui-context-menu':
+        specifier: workspace:*
+        version: link:../ui-context-menu
+      '@deepseek-ai/dsh-client-ui-conversation':
+        specifier: workspace:*
+        version: link:../ui-conversation
       '@deepseek-ai/dsh-client-ui-layout':
         specifier: workspace:*
         version: link:../ui-layout
@@ -5076,18 +5106,30 @@ importers:
       '@deepseek-ai/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-session':
+        specifier: workspace:*
+        version: link:../ui-session
       '@deepseek-ai/dsh-client-ui-sidebar':
         specifier: workspace:*
         version: link:../ui-sidebar
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:*
         version: link:../ui-slots
-      '@deepseek-ai/dsh-client-ui-theme':
+      '@deepseek-ai/dsh-client-ui-workspace':
         specifier: workspace:*
-        version: link:../ui-theme
+        version: link:../ui-workspace
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@deepseek-ai/dsh-util-values':
+        specifier: workspace:*
+        version: link:../../util/values
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
       react:
         specifier: ^18.2.0
         version: 18.3.1

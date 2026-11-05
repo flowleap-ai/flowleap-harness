@@ -3,7 +3,8 @@
  * capability-keyed directory cache, the '/' command source, the client
  * contribution registry, and the per-session popupSelect controllers; the
  * popupSelect shell self-registers into conversation.input.overlay with
- * per-session resolution.
+ * per-session resolution. The item-scoped command menu (`ctx.commandMenu`)
+ * takes the app's Search command first while a view contributes an open item.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -15,6 +16,13 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
+import { createCommandMenu } from './command-menu.ts'
+import type { CommandMenu } from './command-menu.ts'
+import { CommandMenuView } from './CommandMenuView.tsx'
+import type { CommandMenuInjected } from './CommandMenuView.tsx'
 import { CommandUiRuntime } from './service.ts'
 import type { PopupSelectInjected } from './PopupSelectView.tsx'
 import { PopupSelectView } from './PopupSelectView.tsx'
@@ -31,10 +39,13 @@ export type {
   SelectConfirmation, SelectOption, SelectOptionGroup, PopupSearchMode,
 } from './contract.ts'
 export type { CommandKey } from './locales.ts'
+export type { CommandMenu, CommandMenuAct, CommandMenuContribution, CommandMenuGroup, CommandMenuItem } from './command-menu.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
     commandUi: CommandUiRuntime
+    /** Item-scoped command menu behind the Search command. */
+    commandMenu: CommandMenu
   }
 }
 
@@ -58,6 +69,22 @@ export const inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands',
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-commands: dictionaries')
   ctx.plugin(CommandUiRuntime)
+  const t = ctx.locale.bind(NS)
+  const menu = createCommandMenu(() => ({ group: t('menu.group.application'), search: t('menu.search') }))
+  ctx.effect(() => {
+    const dispose = ctx.reflect.provide('commandMenu', { contribute: menu.contribute, close: menu.close, open: menu.open })
+    return () => { menu.close(); void dispose() }
+  }, 'ui-commands: command menu')
+  ctx.inject(['uiWorkspace'], (scope: ClientContext) => {
+    scope.effect(() => scope.uiWorkspace.provideItemMenu(search => menu.toggle(search)), 'ui-commands: Search item menu')
+  })
+  ctx.inject(['slots', 'shortcuts'], (scope: ClientContext) => {
+    scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay', id: 'command-menu', locale: NS,
+      inject: (): CommandMenuInjected => ({ hooks: { menu: menu.state, catalog: scope.shortcuts.catalog },
+        select: menu.select, close: menu.close }),
+    }, CommandMenuView))
+  })
   ctx.inject(['slots', 'commandUi', 'sessions'], (scope: ClientContext) => {
     const command = scope.commandUi
     const sessions = scope.get('sessions') as ISessions

@@ -573,7 +573,7 @@
     },
     {
       "name": "record_propose_report",
-      "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source: the SHA-256 of a document of the record (record_read lists them) and, when you can, the quoted place. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter.",
+      "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -616,33 +616,27 @@
                       },
                       "span": {
                         "type": "object",
-                        "description": "The quoted place in the page text of the document.",
+                        "description": "The exact place in the page text of the document, as record_read_document_text gives it.",
                         "additionalProperties": false,
                         "properties": {
                           "page": {
-                            "type": "integer"
-                          },
-                          "start": {
-                            "type": "integer"
-                          },
-                          "end": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Page number, from 1."
                           },
                           "quote": {
                             "type": "string",
-                            "description": "At most 200 characters."
+                            "description": "Text of that page, copied character for character; 1 to 200 characters; on the page exactly once."
                           }
                         },
                         "required": [
                           "page",
-                          "start",
-                          "end",
                           "quote"
                         ]
                       }
                     },
                     "required": [
-                      "document"
+                      "document",
+                      "span"
                     ]
                   }
                 }
@@ -676,6 +670,22 @@
         },
         "required": [
           "file_number"
+        ]
+      }
+    },
+    {
+      "name": "record_read_document_text",
+      "description": "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string",
+            "description": "SHA-256 of a document of the record, as record_read lists it."
+          }
+        },
+        "required": [
+          "document"
         ]
       }
     },

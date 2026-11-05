@@ -74,7 +74,7 @@ it('honors prevented and nested gestures, portals, repeats, composition, and mis
 it('injects the hook through the root Slot and withdraws both its prop and retained handlers on unload', async () => {
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
-  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   runtime.ctx.provide('locale', { register: () => () => {}, bind: () => (key: string) => key } as never)
   let retained: ContextMenuTriggerProps = {}
   let received = false

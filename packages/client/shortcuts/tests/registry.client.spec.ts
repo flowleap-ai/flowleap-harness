@@ -71,10 +71,10 @@ describe('physical key registry', () => {
   it('normalizes primary/control together on Windows and presents platform-specific keys', () => {
     const binding = { code: 'KeyB', modifiers: ['primary', 'control', 'shift'] as const }
     expect(bindingKey(normalizeBinding(binding, 'windows'))).toBe('control+shift+KeyB')
-    expect(presentBinding(normalizeBinding(binding, 'macos'), 'macos')).toEqual({ keys: ['⌃', '⇧', '⌘', 'B'], aria: 'Control+Shift+Meta+B' })
+    expect(presentBinding(normalizeBinding(binding, 'macos'), 'macos')).toEqual({ keys: ['⌃', '⇧', '⌘', 'B'], keycaps: [['⌃', '⇧', '⌘', 'B']], aria: 'Control+Shift+Meta+B' })
     expect(presentBinding(normalizeBinding({ code: 'Slash', modifiers: ['primary'] }, 'windows'), 'windows'))
-      .toEqual({ keys: ['Ctrl', '+', '/'], aria: 'Control+/' })
-    expect(presentBinding(null, 'linux')).toEqual({ keys: [], aria: undefined })
+      .toEqual({ keys: ['Ctrl', '+', '/'], keycaps: [['Ctrl', '+', '/']], aria: 'Control+/' })
+    expect(presentBinding(null, 'linux')).toEqual({ keys: [], keycaps: [], aria: undefined })
     expect(() => normalizeBinding({ code: 'Unidentified', modifiers: [] }, 'macos')).toThrow('Unsupported')
   })
 

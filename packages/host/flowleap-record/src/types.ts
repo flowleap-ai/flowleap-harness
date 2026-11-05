@@ -193,22 +193,27 @@ export type MatterViewRefusal =
 /** The view, or why it is not available; never a made-up view. */
 export type MatterViewResult = MatterView | { readonly error: MatterViewRefusal }
 
-/** A place in the page text of a document, as the first reader of the document gives it. */
+/**
+ * A place in the page text of a document, as a run names it. The Firm Record finds the quote on the page and stores the
+ * offsets itself, so a run sends no offsets.
+ */
 export interface DocumentSpan {
   /** Page number, from 1. */
   readonly page: number
-  /** Start offset into the page text. */
-  readonly start: number
-  /** End offset into the page text, not before `start`. */
-  readonly end: number
-  /** The quoted text, at most 200 characters. */
+  /** The text of the place, copied character for character from the page text; 1 to 200 characters. */
   readonly quote: string
 }
 
-/** The source of one statement of a report: a document of the record, optionally with the quoted place. */
+/** The text layer of a document of the record: the text of each page, in page order. */
+export interface DocumentText {
+  /** The text of each page; `pages[0]` is page 1. */
+  readonly pages: readonly string[]
+}
+
+/** The source of one statement of a report: a document of the record and the exact place in its page text. */
 export interface StatementEvidence {
   readonly document: DocumentSha256
-  readonly span?: DocumentSpan
+  readonly span: DocumentSpan
 }
 
 /** One statement of a report letter with its sources; a statement without a source is refused. */
@@ -302,6 +307,12 @@ export type RecordCommandRefusal =
   | 'client_rule_forbids_ai_draft'
   /** A statement has no evidence (422 `report.statement-has-evidence`). */
   | 'statement_without_evidence'
+  /** An evidence item has no span (422 `report.statement-has-span`). */
+  | 'statement_without_span'
+  /** A quote is not in the page text of the document (422 `report.quote-not-in-letter`). */
+  | 'quote_not_in_letter'
+  /** A quote is in the page text of the document more than once (422 `report.quote-ambiguous`). */
+  | 'quote_ambiguous'
   /** A finish without a proposal of this Ticket and pass (409 `no-proposals`). */
   | 'no_proposals'
   /** The letter is larger than the Firm Record takes (413 `document-too-large`). */
@@ -354,6 +365,13 @@ export interface FlowleapRecord {
    * @returns the receipt, or the refusal.
    */
   proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
+  /**
+   * Read the text layer of a document of the record, the text that a quote of a report must be copied from.
+   * @param document - the SHA-256 of the document.
+   * @param signal - ends the read; the provider rejects when it fires.
+   * @returns the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).
+   */
+  documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>
   /**
    * End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same
    * command.

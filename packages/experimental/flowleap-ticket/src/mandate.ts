@@ -39,7 +39,11 @@ const TASKS: Readonly<Record<TicketTaskType, TaskText>> = {
       '1. Read the matter with record_read.',
       '2. If clientRules is null or clientRules.aiLetters is not "allowed", do not draft a letter; say in this chat that the report is due by hand, and stop.',
       `3. Write the report letter with office_letter_from_template on the firm template "${template}", in the language of clientRules.language, to a new file in the working directory.`,
-      '4. Propose the letter with record_propose_report. Give every statement of the letter with at least one source document from record_read.',
+      '4. Read the text of the office letter with record_read_document_text, with the document hash of the office event from record_read. '
+      + 'Then propose the letter with record_propose_report. Give every statement of the letter at least one source. '
+      + 'A source is the document hash and a span: the page number and a quote of the part of the letter that supports the statement. '
+      + 'Copy the quote character for character from that page of the letter text. Use at most 200 characters, '
+      + 'and enough of them that the quote is on the page only once.',
       '5. Finish with record_finish_run and the deadline summary of the office event from record_read.',
     ].join('\n'),
     title: fileNumber => `Report to the client, ${fileNumber}`,

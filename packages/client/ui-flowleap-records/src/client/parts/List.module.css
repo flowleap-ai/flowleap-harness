@@ -1,0 +1,246 @@
+/* Lists are tables (R17): 44px rows with no hairlines, a sticky 32px column header and sticky tinted 36px group
+ * headers inset 8px that stick under it at its height. The open row is active with a 2px accent bar; hover only
+ * under (hover: hover). */
+.pane {
+  --records-header-height: 32px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* The pane is a scrolling flex column: a long list would shrink a shrinkable header to its 18px line. */
+  flex: none;
+  display: grid;
+  grid-template-columns: var(--records-columns, minmax(0, 1fr));
+  align-items: center;
+  column-gap: 16px;
+  height: var(--records-header-height);
+  padding: 0 16px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  font-weight: var(--dsw-font-xs-13-font-weight);
+}
+
+.headerCell {
+  min-width: 0;
+}
+
+.headerCell:last-child {
+  text-align: right;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 24px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupHeader {
+  position: sticky;
+  top: var(--records-header-height);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 8px 8px 0;
+  padding: 0 8px;
+  border-radius: var(--dsw-radius-md);
+  background: linear-gradient(var(--dsw-alias-bg-multi-select), var(--dsw-alias-bg-multi-select)), var(--dsw-alias-bg-base);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.count {
+  color: var(--dsw-alias-label-secondary);
+  font-weight: var(--dsw-font-xs-13-font-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--records-columns, minmax(0, 1fr));
+  align-items: center;
+  column-gap: 16px;
+  height: 44px;
+  padding: 0 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.row > * {
+  min-width: 0;
+}
+
+.row[data-open],
+.row[data-checked] {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.row[data-open]::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-state-business-primary);
+}
+
+/* The avatar of the open or a checked row: in light the avatar fill equals the selected tint (1.01:1), so it takes the
+ * secondary label colour with the initial in the foreground colour (contrast.md). */
+.row:is([data-open], [data-checked]) span[data-size] {
+  background: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+/* A long press on a touch screen selects the row; it does not select its text or open the system callout. */
+@media (pointer: coarse) {
+  .row {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+@media (hover: hover) {
+  .row:not([data-open], [data-checked]):hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+
+/* Only the pointer hover fades; J, K, X and ↵ change the open and checked rows at once (R15). */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .row:not([data-open], [data-checked]):hover {
+    transition: background-color var(--ds-transition-duration-fast) ease;
+  }
+}
+
+.lead {
+  display: inline-grid;
+  place-items: center;
+}
+
+.icon {
+  display: inline-grid;
+}
+
+.check {
+  display: none;
+}
+
+/* The checkbox keeps its accessible name; the label text is not drawn in the 14px status column. */
+.check > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pane[data-selecting] .icon {
+  display: none;
+}
+
+.pane[data-selecting] .check {
+  display: inline-flex;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 24px;
+}
+
+.bone {
+  display: block;
+  height: 8px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-bg-skeleton);
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  corner-shape: round;
+}
+
+.avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  corner-shape: round;
+}
+
+/* A bar at the end of a row; in an `auto` column, as at 390px, its percentage width has no base, so it keeps 48px. */
+.end {
+  justify-self: end;
+  min-width: 48px;
+  margin-left: auto;
+}
+
+.w40 { width: 40%; }
+.w45 { width: 45%; }
+.w50 { width: 50%; }
+.w55 { width: 55%; }
+.w60 { width: 60%; }
+.w65 { width: 65%; }
+.w70 { width: 70%; }
+.w75 { width: 75%; }
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.titleText,
+.source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleText {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.source {
+  flex: none;
+  max-width: 50%;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.meta {
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.time {
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

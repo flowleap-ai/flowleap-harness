@@ -2,9 +2,10 @@
 import { useId } from 'react'
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import clsx from 'clsx'
-import type { MenuEntry, MenuItemButtonProps, MenuLabel, MenuSeparator } from './Menu.tsx'
+import type { MenuEntry, MenuItemButtonProps, MenuLabel, MenuSeparator, MenuShortcutSpec } from './Menu.tsx'
 import { IconCheckOutlineRegular, IconChevronRightOutlineRegular } from './icons/index.tsx'
 import { ShortcutKeys } from './ShortcutKeys.tsx'
+import { Keycap } from './Keycap.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import css from './Menu.module.css'
 
@@ -47,13 +48,28 @@ export function MenuRow({ children, icon, shortcut, current, disabled = false, d
         aria-current={current === true ? 'page' : undefined} onClick={explained ? undefined : button.onClick}>
         {(icon !== undefined || reserveIcon) && <span aria-hidden={decorativeIcon || undefined} className={css.itemIcon}>{icon}</span>}
         <span className={css.itemLabel}>{children}</span>
-        {shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={shortcut.keys} className={css.shortcutKeys} /></span>}
+        {shortcut !== undefined && <MenuShortcut shortcut={shortcut} />}
         {selected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
         {button['aria-haspopup'] === 'menu' && <IconChevronRightOutlineRegular aria-hidden="true" className={css.check} />}
       </button>
     </Tooltip>
     {explained && <span id={reasonId} hidden>{disabledReason}</span>}
   </div>
+}
+
+/**
+ * Render the trailing key of a row: boxed keycaps when the binding carries them, else the caption text.
+ * @param props.shortcut - the row's binding.
+ * @returns the key, hidden from assistive technology because `aria-keyshortcuts` names it.
+ */
+function MenuShortcut({ shortcut }: { shortcut: MenuShortcutSpec }) {
+  return (
+    <span aria-hidden="true" className={css.shortcut}>
+      {shortcut.keycaps === undefined
+        ? <ShortcutKeys keys={shortcut.keys} className={css.shortcutKeys} />
+        : <Keycap keycaps={shortcut.keycaps} />}
+    </span>
+  )
 }
 
 /** Mark icon columns within each separator-delimited data group.

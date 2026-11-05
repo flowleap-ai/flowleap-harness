@@ -25,6 +25,7 @@ class RecordDouble extends Service implements FlowleapRecord {
   readonly runStarted = async () => ({ error: 'not_configured' as const })
   readonly proposeReport = async () => ({ error: 'not_configured' as const })
   readonly finishRun = async () => ({ error: 'not_configured' as const })
+  readonly documentText = async () => ({ error: 'not_configured' as const })
 
   constructor(ctx: Context, private readonly result: MatterViewResult) {
     super(ctx, 'flowleapRecord')

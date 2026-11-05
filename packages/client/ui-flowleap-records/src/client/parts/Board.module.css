@@ -1,0 +1,200 @@
+/* The work board: a column is grouped content (16px radius on the group tint), a card is an independent card (20px
+ * radius, panel elevation, no border); a lifted card takes the prominent elevation and a 1 degree tilt. */
+.column {
+  position: relative;
+  min-height: 520px;
+  padding: 4px 8px 8px;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-multi-select);
+}
+
+.column[data-drop='allowed'] {
+  border: 1px dashed var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-state-business-tertiary);
+}
+
+.column[data-drop='refused'] {
+  border: 1px dashed var(--dsw-alias-border-l3);
+  background: transparent;
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 4px;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.column[data-drop='refused'] .columnHead {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.count,
+.owner {
+  color: var(--dsw-alias-label-secondary);
+  font-weight: var(--dsw-font-xs-13-font-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.owner {
+  margin-left: auto;
+}
+
+.refused {
+  margin: 8px 4px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.dropHint {
+  display: grid;
+  place-items: start center;
+  min-height: 200px;
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px dashed var(--dsw-alias-state-business-primary);
+  border-radius: var(--dsw-radius-xl);
+  color: var(--dsw-alias-label-secondary);
+  text-align: center;
+}
+
+.dropTitle {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.card {
+  margin-top: 8px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-xl);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: var(--dsw-elevation-panel);
+  cursor: pointer;
+}
+
+/* The dragged card's place: the dashed empty slot with no text, while the browser draws the moving card. */
+.card[data-dragging] {
+  border: 1px dashed var(--dsw-alias-border-l3);
+  background: transparent;
+  box-shadow: none;
+}
+
+.card[data-dragging] > * {
+  visibility: hidden;
+}
+
+.card[draggable='true'] {
+  cursor: grab;
+}
+
+.card[data-lifted] {
+  box-shadow: var(--dsw-elevation-prominent);
+  transform: rotate(-1deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    transition: transform var(--ds-transition-duration) var(--ds-ease-in-out), box-shadow var(--ds-transition-duration) var(--ds-ease-in-out);
+  }
+}
+
+/* The top line is the size container, not the card: a container has no intrinsic width, and the card's width must
+ * come from its facts. */
+.top {
+  container: card / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.key {
+  flex: none;
+  white-space: nowrap;
+}
+
+.team {
+  margin-left: auto;
+}
+
+/* A card narrower than its matter key and a team of three hides the column's icon, which repeats the column header,
+ * so the key is never cut (R17); a larger team moves onto its own line. */
+@container card (width < 176px) {
+  .top > :first-child {
+    display: none;
+  }
+}
+
+.title {
+  display: -webkit-box;
+  width: 100%;
+  margin-top: 8px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  text-align: left;
+  cursor: inherit;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.sub {
+  margin-top: 2px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.matterName + .due::before {
+  content: ' · ';
+}
+
+/* At 390px the matter key names the matter: the name hides, and the due date stays. */
+@media (max-width: 720px) {
+  .matterName {
+    display: none;
+  }
+
+  .matterName + .due::before {
+    content: none;
+  }
+}
+
+/* One fact on each line, as text with its status icon and no box: the label, its dot and the status word stay on one
+ * line, and the board column grows to the card's longest fact (BoardScreen.module.css `.board`), so nothing is cut. */
+.facts {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.facts > .fact {
+  flex-wrap: nowrap;
+}
+
+.facts > .fact,
+.facts > .fact > * {
+  white-space: nowrap;
+}
+
+/* A loading card: three skeleton bars on the card's surface. */
+.skeletonCard {
+  display: grid;
+  gap: 12px;
+}
+
+.slot {
+  height: 200px;
+  margin-top: 8px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-xl);
+}

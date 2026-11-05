@@ -1,0 +1,75 @@
+/* Empty, loading and error states (R18): a centred empty state at most 360px wide with a 48px raised tile, one
+ * centred spinner on a page that is not a list, and an error notice that never dims the data below it. */
+.empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+}
+
+.emptyInner {
+  max-width: 360px;
+  text-align: center;
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border: 0;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.emptyBody {
+  margin: 8px 0 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.noticeBar {
+  padding: 12px 16px 0;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-state-error-secondary);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-multi-select);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.notice > svg {
+  flex: none;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.noticeText {
+  flex: 1;
+  min-width: 0;
+}
+
+.lead {
+  color: var(--dsw-alias-label-primary);
+}
+
+.spinner {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+}

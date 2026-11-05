@@ -185,6 +185,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   contextMenus: 'client-side interface-typed menu registry — packages/client/ui-context-menu/README.md owns the API',
+  commandMenu: 'client-side interface-typed item-scoped command menu — packages/client/ui-commands/README.md owns the API',
   settingsNavigation: 'client-side interface-typed Settings opener — packages/client/ui-settings/README.md owns the API',
   fileActions: 'client-side interface-typed file actions — packages/client/ui-file-actions/README.md owns the API',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
@@ -1054,6 +1055,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   RunStartReceipt: 'the run-started receipt is owned by packages/host/flowleap-record/README.md',
   ReportProposal: 'the report proposal command is owned by packages/host/flowleap-record/README.md',
   ReportReceipt: 'the report proposal receipt is owned by packages/host/flowleap-record/README.md',
+  DocumentSha256: 'the SHA-256 of a document of the Firm Record is owned by packages/host/flowleap-record/README.md',
+  DocumentText: 'the page text of a document of the Firm Record is owned by packages/host/flowleap-record/README.md',
   RunFinish: 'the finish command with the deadline summary is owned by packages/host/flowleap-record/README.md',
   RunFinishReceipt: 'the finish receipt with the outbox item is owned by packages/host/flowleap-record/README.md',
   AgentId: 'the agent id is owned by packages/host/flowleap-agent-builder/README.md',

@@ -22,7 +22,7 @@ it('renders legacy Session actions before data contributions and restores More f
   const useStore = bindSnapshotSelector(store)
   const view = render(<>
     <button onClick={() => { store.actions.open({ kind: 'session', value: { sessionId: SessionId('clicked'), displayTitle: 'Clicked' } }, { x: 20, y: 30 }) }}>More</button>
-    <MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useCatalog={select => select([])} useStore={useStore} actions={store.actions} close={close} select={run}
+    <MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useCatalog={select => select([])} useFixedCatalog={select => select([])} useStore={useStore} actions={store.actions} close={close} select={run}
       renderSlot={(_key, owner: object) => {
         const { target, dismiss } = owner as { target: ContextMenuTarget; dismiss: () => void }
         return <MenuItemButton onSelect={() => {
@@ -56,7 +56,7 @@ it('renders disabled, grouped and nested data actions and keeps feedback after m
     { id: 'parent', label: 'Export', children: [{ id: 'child', label: 'Original' }, { id: 'other', label: 'Other', separatorBefore: true }] },
     { id: 'footer', label: 'Folder', afterContent: true },
   ])
-  const view = render(<MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useCatalog={select => select([])} useStore={bindSnapshotSelector(store)} actions={store.actions}
+  const view = render(<MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useCatalog={select => select([])} useFixedCatalog={select => select([])} useStore={bindSnapshotSelector(store)} actions={store.actions}
     close={() => { store.actions.close() }} select={select} renderSlot={() => null} />)
   expect(view.getByRole('menuitem', { name: 'Unavailable' }).hasAttribute('disabled')).toBe(true)
   fireEvent.click(view.getByRole('menuitem', { name: 'Open' }))
@@ -90,7 +90,7 @@ function PluginIcon({ icon }: PropsRuntime<'contextMenu.icon'>) {
 it('dispatches captured icon keys in rows, submenus and footers and retires renderer registrations on unload', async () => {
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
-  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never)
+  runtime.ctx.provide('shortcuts', { catalog: createSnapshotStore([]), fixedCatalog: createSnapshotStore([]) } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)
@@ -147,7 +147,8 @@ it('tracks configured shortcuts for nested and footer actions without invoking c
   ])
   const select = vi.fn()
   const view = render(<MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useStore={bindSnapshotSelector(store)} actions={store.actions}
-    useCatalog={bindSnapshotSelector(shortcuts.catalog)} close={vi.fn()} select={select} renderSlot={() => null} />)
+    useCatalog={bindSnapshotSelector(shortcuts.catalog)} useFixedCatalog={bindSnapshotSelector(shortcuts.fixedCatalog)}
+    close={vi.fn()} select={select} renderSlot={() => null} />)
   const item = view.getByRole('menuitem', { name: 'Rename' })
   expect(item.getAttribute('aria-keyshortcuts')).toBe('Alt+Meta+G')
   expect(view.getByRole('menuitem', { name: 'Unknown command' }).getAttribute('aria-keyshortcuts')).toBeNull()
@@ -166,4 +167,55 @@ it('tracks configured shortcuts for nested and footer actions without invoking c
   fireEvent.click(item)
   expect(select).toHaveBeenCalledWith('rename')
   expect(resolveCommand).not.toHaveBeenCalled()
+})
+
+it('writes an action key as a keycap when the action asks for it, and as the catalog labels otherwise', () => {
+  const shortcuts = new ShortcutRegistry('desktop', 'macos')
+  const commandId = 'records.decision.record' as ShortcutCommandId
+  shortcuts.register({ id: commandId, label: () => 'Record', aliases: [],
+    defaults: { 'desktop:macos': { code: 'Enter', modifiers: ['primary', 'shift'] } }, regions: ['page'], modals: [], resolve: () => ({ status: 'pass' as const }) })
+  const store = createMenuStore().create()
+  store.actions.open({ kind: 'session', value: { sessionId: SessionId('captured'), displayTitle: 'Captured' } }, { x: 30, y: 40 })
+  store.actions.items([
+    { id: 'keycap', label: 'Accept', commandId, keyText: 'keycap' },
+    { id: 'plain', label: 'Plain', commandId },
+    { id: 'unknown', label: 'Unknown', commandId: 'absent' as ShortcutCommandId, keyText: 'keycap' },
+  ])
+  const view = render(<MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useStore={bindSnapshotSelector(store)} actions={store.actions}
+    useCatalog={bindSnapshotSelector(shortcuts.catalog)} useFixedCatalog={bindSnapshotSelector(shortcuts.fixedCatalog)}
+    close={vi.fn()} select={vi.fn()} renderSlot={() => null} />)
+  const keys = (name: string) => [...view.getByRole('menuitem', { name }).querySelectorAll('kbd')].map(kbd => kbd.textContent)
+  expect(keys('Accept')).toEqual(['⇧⌘↵'])
+  expect(keys('Plain')).not.toEqual(['⇧⌘↵'])
+  expect(keys('Plain').length).toBeGreaterThan(1)
+  expect(keys('Unknown')).toEqual([])
+  expect(view.getByRole('menuitem', { name: 'Accept' }).getAttribute('aria-keyshortcuts')).toBe(view.getByRole('menuitem', { name: 'Plain' }).getAttribute('aria-keyshortcuts'))
+})
+
+it('draws a keycap action key as a boxed keycap, also for a fixed key such as ↵, and the catalog labels of a row without keycaps', () => {
+  const shortcuts = new ShortcutRegistry('desktop', 'macos')
+  const record = 'records.decision.record' as ShortcutCommandId
+  const open = 'records.row.open' as ShortcutCommandId
+  shortcuts.register({ id: record, label: () => 'Record', aliases: [],
+    defaults: { 'desktop:macos': { code: 'Enter', modifiers: ['primary', 'shift'] } }, regions: ['page'], modals: [], resolve: () => ({ status: 'pass' as const }) })
+  shortcuts.registerFixed({ id: open, label: () => 'Open', keys: ['Enter'], bindings: [{ code: 'Enter', modifiers: [] }], group: 'application' })
+  const store = createMenuStore().create()
+  store.actions.open({ kind: 'session', value: { sessionId: SessionId('captured'), displayTitle: 'Captured' } }, { x: 30, y: 40 })
+  store.actions.items([
+    { id: 'open', label: 'Open', commandId: open, keyText: 'keycap' },
+    { id: 'accept', label: 'Accept', commandId: record, keyText: 'keycap' },
+    { id: 'plain', label: 'Plain', commandId: record },
+    { id: 'bare', label: 'Bare', commandId: 'bare' as ShortcutCommandId, keyText: 'keycap' },
+  ])
+  const bare = { id: 'bare' as ShortcutCommandId, label: 'Bare', aliases: [], keys: ['B'], aria: 'B', binding: null, modified: false, conflicts: [], issue: null }
+  const view = render(<MenuOverlay t={key => key === 'back' ? 'Back' : 'Failed'} useStore={bindSnapshotSelector(store)} actions={store.actions}
+    useCatalog={select => select([...shortcuts.catalog.getSnapshot(), bare])} useFixedCatalog={bindSnapshotSelector(shortcuts.fixedCatalog)}
+    close={vi.fn()} select={vi.fn()} renderSlot={() => null} />)
+  const boxed = (name: string) => [...view.getByRole('menuitem', { name }).querySelectorAll('[data-tone] > kbd')].map(kbd => kbd.textContent)
+  expect(boxed('Open')).toEqual(['↵'])
+  expect(boxed('Accept')).toEqual(['⇧⌘↵'])
+  expect(boxed('Plain')).toEqual([])
+  expect(boxed('Bare')).toEqual([])
+  expect(view.getByRole('menuitem', { name: 'Bare' }).getAttribute('aria-keyshortcuts')).toBe('B')
+  expect(view.getByRole('menuitem', { name: 'Open' }).getAttribute('aria-keyshortcuts')).toBeNull()
 })

@@ -1470,6 +1470,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the receipt, or the refusal.',
       },
       {
+        signature: 'documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>',
+        description: 'Read the text layer of a document of the record, the text that a quote of a report must be copied from.',
+        parameters: [{ name: 'document', description: 'the SHA-256 of the document.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).',
+      },
+      {
         signature: 'finishRun(ticket: TicketId, command: RunFinish, signal: AbortSignal): Promise<RecordCommandResult<RunFinishReceipt>>',
         description: 'End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same command.',
         parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the Session and the deadline summary.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
@@ -6859,7 +6865,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DocumentSpan',
-    declaration: 'export interface DocumentSpan {\n    readonly page: number;\n    readonly start: number;\n    readonly end: number;\n    readonly quote: string;\n}',
+    declaration: 'export interface DocumentSpan {\n    readonly page: number;\n    readonly quote: string;\n}',
+  },
+  {
+    name: 'DocumentText',
+    declaration: 'export interface DocumentText {\n    readonly pages: readonly string[];\n}',
   },
   {
     name: 'DocumentView',
@@ -8591,7 +8601,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RecordCommandRefusal',
-    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
   },
   {
     name: 'RecordCommandResult',
@@ -10083,7 +10093,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StatementEvidence',
-    declaration: 'export interface StatementEvidence {\n    readonly document: DocumentSha256;\n    readonly span?: DocumentSpan;\n}',
+    declaration: 'export interface StatementEvidence {\n    readonly document: DocumentSha256;\n    readonly span: DocumentSpan;\n}',
   },
   {
     name: 'StopShareRequest',

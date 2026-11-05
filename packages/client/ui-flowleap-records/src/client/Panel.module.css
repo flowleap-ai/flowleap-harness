@@ -1,0 +1,209 @@
+/* The Matters panel: flush on bg-base like the client AppFrame content column (R8), with a 44px top bar (R6) that
+ * holds the view tabs or the breadcrumb. An intake list with an open letter switches between the two at 1366px. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  font-weight: var(--dsw-font-xs-13-font-weight);
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.topbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px 0 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+}
+
+.tab[aria-current='page'] {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+@media (hover: hover) {
+  .tab:not([aria-current='page']):hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.count {
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.detailBar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.crumbs {
+  flex: 1;
+  min-width: 0;
+}
+
+.crumbList {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.crumb + .crumb::before {
+  content: '›';
+}
+
+.crumb:not(:last-child) {
+  flex: none;
+}
+
+.crumb:last-child {
+  overflow: hidden;
+}
+
+.crumbLink {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+}
+
+.key {
+  font-variant-numeric: tabular-nums;
+}
+
+.here {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dsw-alias-label-primary);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.pagerText {
+  margin-right: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.searchNarrow,
+.agentNarrow,
+.layoutMenu {
+  display: none;
+}
+
+.agentWide[data-dock='docked'],
+.agentWide[data-dock='full'] {
+  display: none;
+}
+
+.barRight {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.wideOnly {
+  display: none;
+}
+
+@media (min-width: 1366px) {
+  .wideOnly {
+    display: flex;
+  }
+
+  .narrowOnly {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    padding: 0 8px;
+  }
+
+  /* At 390px the breadcrumb keeps the current page, as the mockups show. */
+  .layoutToggle,
+  .searchWide,
+  .agentWide,
+  .crumb:not(:last-child) {
+    display: none;
+  }
+
+  .searchNarrow,
+  .agentNarrow,
+  .layoutMenu {
+    display: inline-flex;
+  }
+
+  .agentNarrow[data-dock='full'] {
+    display: none;
+  }
+
+  .crumb + .crumb::before {
+    content: none;
+  }
+}
