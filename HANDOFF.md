@@ -2,41 +2,26 @@
 
 Read this first, then `AGENTS.md` (the upstream operating guide: commands, gates, architecture).
 This file is the FlowLeap state: what this fork is for, what changed, what is open. Last updated
-2026-10-30. Earlier sessions live in `git log -- HANDOFF.md`.
+2026-11-05. Earlier sessions live in `git log -- HANDOFF.md`.
 
-## Current state (2026-10-26)
+## Current state (2026-11-05)
 
-- **Product:** the `flowleap-web` profile runs the Patent Agent prompt, 34 native office tools on the firm's
-  own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export,
-  drafting gates, the FTO Markets card). All three S5 cases have a current PASS with an empty skills folder
-  (dossier, FTO, prior art); the dossier case also passes on the synced code.
-- **Base:** `flowleap` is on upstream `master` as of `dsh 0.2.2-alpha.3` (2026-11-03, sync branch
-  `claude/upstream-sync-1103-f3256c`; 666 commits after upstream PR #7552), with all 8 upstream UI languages and the
-  FlowLeap copy translated into each. `master` on the org remote still equals `dsh 0.2.2-alpha.2`.
-- **Next product:** the self-hosted firm OS, decided in
-  [flowleap/docs/adr/0001-self-hosted-firm-os.md](flowleap/docs/adr/0001-self-hosted-firm-os.md) (27
-  decisions, including off-site access, mobile continuation and support access; on 2026-10-27 a study of
-  EveryApp added credential injection in the egress proxy, the MCP door's own OAuth server, tool risk levels,
-  argument digests in the audit trail and a security invariant register; decision 27 adds routines, work
-  that a register event starts, on top of the existing scheduler) with the architecture and phases P0 to P6 in
-  [flowleap/docs/2026-10-26-firm-os-architecture.md](flowleap/docs/2026-10-26-firm-os-architecture.md).
-  **P0 is DONE (2026-10-26):** the private repository `flowleap-ai/flowleap-os` has the installer, a release
-  pipeline with a loopback-only zot registry and per-firm update keys, the seam A driver with all three S5
-  cases, nightly encrypted backups with a tested fresh-VM restore, an updater with automatic rollback, and the
-  release gate. The Hetzner test firm runs the gated release. The next step is **P1** (control-plane core).
-  Spec: issue flowleap-ai/flowleap-harness#11; work is tracked as sub-issues of it.
-- **Known defects:** Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the
-  prior-art case takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
-- **Default model rows:** the OpenRouter id of Sonnet 5.5 is `anthropic/claude-sonnet-5.5` (with a dot); the
-  Anthropic route id is `claude-sonnet-5-5`. A row that names a model its route does not list shows "Select
-  model", and the first send is refused with `session/model-unavailable` (issue 12).
-- **Not run on the synced code:** the desktop build. The three S5 cases pass on the synced code through the
-  seam A driver on the test firm (P0, tickets 15 and 16).
-- **Test firm:** Hetzner CPX22 in Falkenstein (SSH key only, ufw: SSH only); details in issue 13. Backups go to
-  Storage Box u702313 (the restic key is in the founder's password manager). Its default model route is
-  OpenRouter (`DEFAULT_MODEL` in `/etc/flowleap/firm.env`), because the founder's Anthropic credits are limited.
-- **Merge gate while GitHub Actions cannot run** (a billing stop on the organisation): the coordinator's review
-  plus local checks, reported as a comment on each PR (founder decision 2026-10-26).
+- **Product:** the `flowleap-web` profile runs the Patent Agent prompt, 34 native office tools on the firm's own keys, the paid MCP row, and the deliverables plugin (writer, templates, evidence ledger, Word export, drafting gates, the FTO Markets card). The skill pack comes from the public repository `flowleap-methods`. All three S5 cases (dossier, FTO, prior art) have a current PASS.
+- **Delivery:** the self-hosted firm OS ([ADR 0001](flowleap/docs/adr/0001-self-hosted-firm-os.md), [architecture](flowleap/docs/2026-10-26-firm-os-architecture.md)). P0 is DONE (2026-10-26): the private repository `flowleap-ai/flowleap-os` has the installer, the release pipeline with a loopback-only registry and per-firm update keys, nightly encrypted backups with a tested restore, an updater with automatic rollback, and the release gate. No SaaS offer until the firm OS is complete.
+- **Direction:** FlowLeap Patent AI is the AI-native IP management system (IPMS) and the system of record of a patent firm, not an AI layer on PATORG ([ADR 0002](flowleap/docs/adr/0002-system-of-record.md), accepted 2026-11-03). The design, the module map and the phases R0 to R8 are in [2026-11-03-ai-native-ipms-design.md](flowleap/docs/2026-11-03-ai-native-ipms-design.md) (PR 214, decisions F1 to F12). The founder tracks the phases and checkpoints on the roadmap artifact https://claude.ai/artifact/AMa8bE4MDW26AC5jCkDDss.
+- **Process first:** every process gets a researched state-machine sheet in the [process atlas](flowleap/docs/process-atlas/README.md) that the founder approves before it is built. Part 1 (PR 284) has the five R1 processes. The R2 sheets wait for the end of the UI freeze.
+- **UI freeze (founder, 2026-11-04):** no new features until the new IPMS screens (the Records features taken from PATORG: intake, matter, deadline, work on a letter, the board) meet the Linear bar ("don't accept any UI less than https://linear.app/"). The rest of the app keeps its current design. The rules, the seven checks and the review checklist are the project skill [flowleap-design-language](.agents/skills/flowleap-design-language/SKILL.md) (PR 288). IPMS screens are React views in `packages/client` on the harness theme tokens and `ui-primitives`; flowleap-os serves only the API. Any checklist FAIL blocks the merge. When an agent is stuck on a design choice, it looks at how Linear solves it first.
+- **R0 Record tracer: DONE and live.** The Firm Record is a Postgres 17 container (`flowleap-record-db`, own internal network, row-level security, in `backup.sh`); the harness SQLite keeps only the attorneys' sessions. Harness PR 247 (the Firm Record seam, `record_read`, the Matters page), os PR 61. The FlowLeap Office plugin on a pinned OfficeCLI (PR 248, 249; os PR 64) has no network for the office process, with Landlock proven on the test firm. Releases 2026.11.04.0739 and 2026.11.04.1130 passed the gate; 1130 is on `current`.
+- **Deadline engine:** the public MIT repository `flowleap-ai/flowleap-deadlines`. Rule 71(3) EPC v1 is independently verified (1,308 dates with 0 differences, a mutation check, 15 real EP files) and refuses bad input with `invalid-input`. The German (DPMA, PatG) rules are tickets.
+- **R1 AI mailbox: in design review.** Logic: draft harness PR 289 and os PR 67. Screens: draft harness PR 290 and os PR 68. Three independent design reviews ran (14, about 30, then 12 FAILs, verdict "merge after fixes", no redesign); round 4 fixes are in progress, then a short fourth check. Draft PR 291 holds six gate rule changes and a light-theme avatar colour from the build, for founder approval.
+- **Founder decisions on R1 (2026-11-04 and 2026-11-05):** two readers for each deadline reading (F1, #286); the person confirms; one Ticket for each application and day; AI work needs recorded client wishes and a § 39c PAO provider contract; an overdue deadline shows a red warning glyph (not a status shape) with the text in label-primary; a hand-entered office event has no source letter, shows "No source letter", and counts as evidence only after a second person confirms it.
+- **Upstream sync:** `flowleap` is on `dsh 0.2.2-alpha.3`. PR 292 merges `dsh 0.2.2-rc.1` (260 commits); on 2026-11-05 its CI had 25 checks pass and `windows node 24 / coverage` fail. The R1 PRs take the sync before they merge.
+- **Merge order:** PR 292, then R1 (289 with os 67, 290 with os 68, and 291 if approved), then a release to the test firm, then the freeze ends and R2 starts.
+- **Tickets filed (2026-11-04 and 2026-11-05):** #251 to #276 (PATORG gaps from the cross-check, PR 250), #277 (calendar view and Teams sync), #281 and #282 (family view, Global Dossier), #285 (the agent opens a matter), #286 (two readers), #287 (admin UI, later); flowleap-os #69 (model usage analytics) and #70 (Mistral as a gateway route; on a firm today Mistral is used only for OCR).
+- **Known defects:** the desktop build has not run on the synced code; Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the prior-art case takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
+- **Default model rows:** the OpenRouter id of Sonnet 5.5 is `anthropic/claude-sonnet-5.5` (with a dot); the Anthropic route id is `claude-sonnet-5-5`. A row that names a model its route does not list shows "Select model", and the first send is refused with `session/model-unavailable` (issue 12).
+- **Test firm:** Hetzner CPX22 in Falkenstein (SSH key only, ufw: SSH only); details in issue 13. Backups go to Storage Box u702313 (the restic key is in the founder's password manager). Its default model route is OpenRouter (`DEFAULT_MODEL` in `/etc/flowleap/firm.env`). Model calls go through the LiteLLM gateway in flowleap-os, with a "Budgets and spend" page in the console.
+- **Merge gate:** the repository is public since 2026-10-29 and CI runs on free runners. The `flowleap` branch requires only the `signoff` status: run `gh signoff --commit <full sha>` as a command of its own, after the local checks pass. The founder merges, or approves each merge. A docs-only PR may merge without waiting for CI when the founder says so.
 
 ## What this is
 
@@ -57,8 +42,8 @@ one isolated instance per user), ADR 0006 (plugins monorepo and MCP registry).
 
 - `master` tracks upstream `origin/master` and is never edited. Base: the merge of upstream
   `release/dsh-0.2.1-rc.2` on 2026-10-17 (dsh 0.2.1-rc.2).
-- Hosted at https://github.com/flowleap-ai/flowleap-harness (private, default branch `flowleap`) since
-  2026-10-23. Remotes: `origin` = upstream deepseek-ai/deepseek-harness (fetch only, for `master`),
+- Hosted at https://github.com/flowleap-ai/flowleap-harness (default branch `flowleap`) since
+  2026-10-23, public since 2026-10-29. Remotes: `origin` = upstream deepseek-ai/deepseek-harness (fetch only, for `master`),
   `flowleap` = the org repository (push `master` and `flowleap` there). The pre-push hook runs the
   typecheck.
 - `flowleap` is the working branch. Everything FlowLeap lands here. Keep history shared with
