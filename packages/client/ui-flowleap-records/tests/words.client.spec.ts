@@ -134,8 +134,9 @@ describe('offices and citations', () => {
 })
 
 describe('the German copy', () => {
-  it('names the letter with one word, "Schreiben", as the German mockups do; only the atlas word of the gate differs', () => {
-    expect(Object.entries(de).filter(([, text]) => /brief/iu.test(text))).toEqual([['atlas.deadline.awaiting_code', 'Brief wird gelesen']])
+  it('names the letter with one word, "Schreiben", as the German mockups and the atlas word of the gate do', () => {
+    expect(Object.entries(de).filter(([, text]) => /brief/iu.test(text))).toEqual([])
+    expect(de['atlas.deadline.awaiting_code']).toBe('Schreiben wird gelesen')
   })
 
   it('calls what a reader read of a letter an "Auslesung", never a "Lesung", and a person decides "über" work', () => {

@@ -1026,7 +1026,7 @@ export const de = {
   'atlas.intake.duplicate': 'Duplikat',
   'atlas.intake.replaced': 'Ersetzt',
   'atlas.intake.not_relevant': 'Nicht relevant',
-  'atlas.deadline.awaiting_code': 'Brief wird gelesen',
+  'atlas.deadline.awaiting_code': 'Schreiben wird gelesen',
   'atlas.deadline.recorded': 'Amtsereignis erfasst',
   'atlas.deadline.code_proposed': 'Amtsereignis vorgeschlagen',
   'atlas.deadline.deadline_proposed': 'Frist vorgeschlagen',
