@@ -5,7 +5,7 @@ import { createAct, type Act, type DocumentId, type FileNumber, type IsoDate, ty
 import type { Route } from '../src/client/model.ts'
 import { dueDay, formatApplicationNumber, formatDate, intlLocale, listTime } from '../src/client/format.ts'
 import { commandId, keycapsFrom } from '../src/client/keys.ts'
-import { de, en } from '../src/client/locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh } from '../src/client/locales.ts'
 import { rowActions, ROW_MENU_TARGET } from '../src/client/row-menu.ts'
 import { activityLines, actorName, auditRows, citeText, dueText, fromOffice, letterTitle, listTimeText, officeName, type WordContext } from '../src/client/words.ts'
 import { fixtures, OUTSIDE_WALL, R71_DOCUMENT } from './fixtures.client.ts'
@@ -136,6 +136,27 @@ describe('offices and citations', () => {
 describe('the German copy', () => {
   it('names the letter with one word, "Schreiben", as the German mockups do; only the atlas word of the gate differs', () => {
     expect(Object.entries(de).filter(([, text]) => /brief/iu.test(text))).toEqual([['atlas.deadline.awaiting_code', 'Brief wird gelesen']])
+  })
+
+  it('calls what a reader read of a letter an "Auslesung", never a "Lesung", and a person decides "über" work', () => {
+    expect(Object.entries(de).filter(([, text]) => /(?<!Aus)lesung/iu.test(text))).toEqual([])
+    expect(de['deadline.prop.reading']).toBe('Auslesung')
+    expect(Object.entries(de).filter(([, text]) => /entscheidet diese/u.test(text))).toEqual([])
+    expect(de['work.decider.notRoutedPerson']).toBe('{person} entscheidet über diese Arbeit: FlowLeap hat sie zugewiesen.')
+  })
+})
+
+describe('the copy of every language', () => {
+  it('puts no space before an ellipsis', () => {
+    for (const dictionary of [en, de, es, fr, ja, pt, ru, zh]) {
+      expect(Object.entries(dictionary).filter(([, text]) => /\s…|\s\.\.\./u.test(text))).toEqual([])
+    }
+    expect(de['act.rejectStep']).toBe('Ablehnen…')
+  })
+
+  it('says that FlowLeap records a decision "only once"', () => {
+    expect(Object.entries(en).filter(([, text]) => /one time/u.test(text))).toEqual([])
+    expect(en['failure.unknown']).toBe('The decision may be recorded. A second try is safe: FlowLeap records it only once.')
   })
 })
 
