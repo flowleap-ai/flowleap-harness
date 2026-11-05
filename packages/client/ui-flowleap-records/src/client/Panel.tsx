@@ -3,7 +3,8 @@
  * Intake with its count, Work) on a list, and the breadcrumb on a detail page. An intake list with an open letter
  * shows the tabs from 1366px and, below it, the item page's breadcrumb with "1 / N" and the up and down buttons. On
  * the work page the top bar opens the agent panel again: beside the work after minimise or close, and full screen at
- * 390px.
+ * 390px. In a browser drawer the top bar is also the row of the client frame's sidebar opener (`data-frame-top-row`),
+ * so a narrow screen has one top row.
  */
 
 import { useState, type ReactNode } from 'react'
@@ -136,7 +137,7 @@ export function RecordsPanel(props: PanelProps) {
   const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
     <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1}>
-      <header className={css.topbar}>
+      <header className={css.topbar} data-frame-top-row="">
         {detail === null ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}
         {detail !== null && <div className={clsx(css.detailBar, screen.view === 'intake' && css.narrowOnly)}>{detail}</div>}
