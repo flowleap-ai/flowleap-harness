@@ -48,9 +48,13 @@ describe('the decision bar', () => {
     expect(declarations(css, '.parts')).toEqual(expect.arrayContaining(['flex: 0 1 auto', 'min-height: 0', 'overflow-y: auto']))
   })
 
-  it('keeps each part to its title and its control at 390px, and keeps the note beside the acts on a wide bar', () => {
+  it('keeps why the person may decide and each part\'s evidence state on one line at 390px, and the note beside the acts on a wide bar', () => {
     const narrow = atRule(css, '@media (max-width: 720px)')
-    expect(declarations(narrow, '.partIcon, .partDetail')).toEqual(['display: none'])
+    const oneLine = ['overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap']
+    expect(declarations(narrow, '.partIcon')).toEqual(['display: none'])
+    expect(declarations(narrow, '.partDetail')).toEqual(['display: block', ...oneLine])
+    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%', 'min-width: 0', 'margin-left: 0', ...oneLine])
+    expect(declarations(narrow, '.note, .secondary')).toEqual(['display: none'])
     expect(declarations(narrow, '.part')).toEqual(expect.arrayContaining(['display: flex', 'flex-wrap: wrap']))
     expect(declarations(narrow, '.partControl')).toEqual(['margin-left: auto'])
     expect(declarations(atRule(css, '@container decision (max-width: 800px)'), '.partHint')).toEqual(['display: none'])
