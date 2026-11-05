@@ -2,9 +2,10 @@
  * The Matters panel: a 44px top bar and the screen of the current route. The top bar shows the view tabs (Matters,
  * Intake with its count, Work) on a list, and the breadcrumb on a detail page. An intake list with an open letter
  * shows the tabs from 1366px and, below it, the item page's breadcrumb with "1 / N" and the up and down buttons. On
- * the work page the top bar opens the agent panel again: beside the work after minimise or close, and full screen at
- * 390px. In a browser drawer the top bar is also the row of the client frame's sidebar opener (`data-frame-top-row`),
- * so a narrow screen has one top row.
+ * the work page in a view 700px high or less, the top bar also shows the responsible person and the team, which the
+ * page header then hides. On the work page the top bar opens the agent panel again: beside the work after minimise or
+ * close, and full screen at 390px. In a browser drawer the top bar is also the row of the client frame's sidebar
+ * opener (`data-frame-top-row`), so a narrow screen has one top row.
  */
 
 import { useState, type ReactNode } from 'react'
@@ -36,7 +37,7 @@ import { shownOrder } from './screens/IntakeScreen.tsx'
 import { actOf } from './screens/context.ts'
 import { formatDay } from './screens/detail.tsx'
 import { copyLink } from './screens/links.ts'
-import { WorkScreen, workQueue, workTitle } from './screens/WorkScreens.tsx'
+import { BarPeople, WorkScreen, workQueue, workTitle } from './screens/WorkScreens.tsx'
 import { letterTitle, type Translate } from './words.ts'
 import css from './Panel.module.css'
 
@@ -280,6 +281,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
       return (
         <>
           <Crumbs t={t} crumbs={crumbs} navigate={ctx.navigate} />
+          {data !== undefined && <BarPeople ctx={ctx} data={data} />}
           {queue.index !== -1 && (
             <Pager
               t={t}

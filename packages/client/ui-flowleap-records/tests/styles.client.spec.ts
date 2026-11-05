@@ -222,3 +222,20 @@ describe('the list grids', () => {
     expect(declarations(read('List.module.css'), '.pane')).not.toContainEqual(expect.stringContaining('--records-columns'))
   })
 })
+
+describe('the work page header', () => {
+  const css = read('Detail.module.css', 'screens')
+  const short = atRule(css, '@media (max-height: 700px) and (min-width: 721px)')
+  const outside = css.replace(`@media (max-height: 700px) and (min-width: 721px) {${short}}`, '')
+
+  it('in a view 700px high or less, hides the lede and the people line and shows the people in the top bar instead', () => {
+    expect(declarations(short, '.lede, .people')).toEqual(['display: none'])
+    expect(declarations(short, '.barPeople')).toEqual(['display: inline-flex'])
+  })
+
+  it('above 700px, shows the lede and the people line and keeps the people out of the top bar', () => {
+    expect(outside).not.toMatch(/\.(lede|people)\s*(,[^{]*)?\{[^}]*display:\s*none/)
+    expect(declarations(css, '.people')).toContain('display: flex')
+    expect(declarations(css, '.barPeople')).toContain('display: none')
+  })
+})

@@ -373,6 +373,35 @@
   margin-left: auto;
 }
 
+/* The responsible person and the team in the top bar: only in a short view, where the people line hides. */
+.barPeople {
+  display: none;
+  flex: none;
+  align-items: center;
+}
+
+.hiddenText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A short view (1366 x 650, a laptop at 125 %) keeps the evidence above the decision bar: the lede hides, and the
+ * people line moves into the top bar. */
+@media (max-height: 700px) and (min-width: 721px) {
+  .lede,
+  .people {
+    display: none;
+  }
+
+  .barPeople {
+    display: inline-flex;
+  }
+}
+
 .file {
   display: flex;
   align-items: center;

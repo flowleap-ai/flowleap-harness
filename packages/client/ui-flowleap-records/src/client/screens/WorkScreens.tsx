@@ -371,6 +371,37 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
 }
 
 /**
+ * Render the responsible person and the team of a work item as one avatar stack in the top bar. The stack shows only
+ * in a short view, where the page header hides its people line; each avatar shows its name on hover, and a hidden
+ * line gives a screen reader who is responsible and who is in the team.
+ * @param props.ctx - the screen context.
+ * @param props.data - the work.
+ * @returns the stack, or nothing for a work item with no responsible person and no team.
+ */
+export function BarPeople({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
+  const { t } = ctx
+  const { responsible, team } = data
+  const others = responsible === null ? team : team.filter(person => person.id !== responsible.id)
+  const people = [
+    ...(responsible === null ? [] : [avatarOf(t, responsible, t('work.barResponsible', { person: personName(t, responsible) }))]),
+    ...others.map(person => avatarOf(t, person)),
+  ]
+  if (people.length === 0) return null
+  const names = new Intl.ListFormat(intlLocale(ctx.locale), { type: 'conjunction' }).format(team.map(person => personName(t, person)))
+  const line = responsible === null
+    ? t('work.barTeam', { team: names })
+    : team.length === 0
+      ? t('work.barResponsible', { person: personName(t, responsible) })
+      : t('work.barPeople', { responsible: personName(t, responsible), team: names })
+  return (
+    <span className={detail.barPeople}>
+      <span className={detail.hiddenText}>{line}</span>
+      <AvatarStack people={people} />
+    </span>
+  )
+}
+
+/**
  * The Calculation act of a work item's deadline: it opens the deadline page with its calculation.
  * @param ctx - the screen context.
  * @param id - the deadline.

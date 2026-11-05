@@ -253,6 +253,33 @@ describe('the Matters panel', () => {
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
+  it('names the responsible person and the team of the work in the top bar, for the short view that hides the people line', async () => {
+    const { api } = createFixtureApi()
+    const ticket = vi.spyOn(api, 'ticket')
+    const { model } = await mount(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId })
+    const bar = () => within(document.querySelector<HTMLElement>('[data-frame-top-row]')!)
+    expect(bar().getByText('Responsible: Dr. Anna Becker, Team: Dr. Anna Becker, Jonas Weber and Lena Hoffmann')).toBeTruthy()
+    expect(bar().getAllByRole('img').map(avatar => avatar.getAttribute('aria-label'))).toEqual(['Responsible: Dr. Anna Becker', 'Jonas Weber', 'Lena Hoffmann'])
+
+    ticket.mockResolvedValue({ ok: true, value: { ...fixtures.ticket, responsible: null } })
+    act(() => { model.refresh() })
+    await flush()
+    expect(bar().getByText('Team: Dr. Anna Becker, Jonas Weber and Lena Hoffmann')).toBeTruthy()
+    expect(bar().getAllByRole('img').map(avatar => avatar.getAttribute('aria-label'))).toEqual(['Dr. Anna Becker', 'Jonas Weber', 'Lena Hoffmann'])
+
+    ticket.mockResolvedValue({ ok: true, value: { ...fixtures.ticket, team: [] } })
+    act(() => { model.refresh() })
+    await flush()
+    expect(bar().getByText('Responsible: Dr. Anna Becker', { selector: 'span:not([role])' })).toBeTruthy()
+    expect(bar().getAllByRole('img').map(avatar => avatar.getAttribute('aria-label'))).toEqual(['Responsible: Dr. Anna Becker'])
+
+    ticket.mockResolvedValue({ ok: true, value: { ...fixtures.ticket, responsible: null, team: [] } })
+    act(() => { model.refresh() })
+    await flush()
+    expect(bar().queryByText(/^Team:/)).toBeNull()
+    expect(bar().queryAllByRole('img')).toHaveLength(0)
+  })
+
   it('records the work decision when every statement has a span', async () => {
     const { api, acts } = createFixtureApi()
     const reports = fixtures.ticket.reports.map(report => ({ ...report, statements: report.statements.slice(0, 4) }))
