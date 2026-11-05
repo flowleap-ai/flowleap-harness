@@ -427,6 +427,13 @@ export function IntakeLetter({ ctx, list, letter, step }: {
       { label: t('intake.prop.office'), value: letter.office ?? t('matter.none') },
       { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) },
     ]
+  const received: Property = { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) }
+  const subject: Property = { label: t('intake.prop.subject'), value: letter.mail.subject, title: letter.mail.subject }
+  const pages: Property = {
+    label: t('intake.prop.document'),
+    value: <span className={css.who}><IconPaperclipOutlineRegular size={16} />{letter.pages === null ? letter.fileName : letter.pages === 1 ? t('intake.prop.onePage') : t('intake.prop.pages', { count: letter.pages })}</span>,
+    title: letter.fileName,
+  }
   const groups = [
     {
       heading: t('intake.prop.letter'),
@@ -434,15 +441,15 @@ export function IntakeLetter({ ctx, list, letter, step }: {
         { label: t('intake.prop.office'), value: letter.office ?? t('matter.none') },
         { label: t('intake.prop.type'), value: title },
         { label: t('prop.application'), value: letter.applicationNumber === null ? t('matter.none') : formatApplicationNumber(letter.applicationNumber) },
-        { label: t('intake.prop.document'), value: <span className={css.who}><IconPaperclipOutlineRegular size={16} />{letter.pages === null ? letter.fileName : letter.pages === 1 ? t('intake.prop.onePage') : t('intake.prop.pages', { count: letter.pages })}</span>, title: letter.fileName },
+        pages,
       ],
     },
     {
       heading: t('intake.prop.forward'),
       rows: [
         { label: t('intake.prop.from'), value: forwarder === null ? t('matter.none') : <Sender sender={forwarder} /> },
-        { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) },
-        { label: t('intake.prop.subject'), value: letter.mail.subject, title: letter.mail.subject },
+        received,
+        subject,
       ],
     },
     ...(proposed === null ? [] : [{
@@ -494,6 +501,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
             {decision.kind === 'match' && <p className={css.note}><IconInfoOutlineRegular size={16} />{t('intake.note.confirm')}</p>}
           </div>
         </div>
+        <section className={css.letterFacts} aria-label={t('intake.prop.letter')}><KeyProperties rows={[received, subject, pages]} /></section>
         <RecordActivity ctx={ctx} events={letter.activity} />
       </WorkColumn>
       <div className={css.itemProps}>

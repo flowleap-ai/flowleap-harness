@@ -152,7 +152,7 @@ describe('the split view from 1366px', () => {
 })
 
 describe('the open letter', () => {
-  it('draws the letter from reader 1 with the read spans marked, gives the reasons and opens the PDF with O', async () => {
+  it('draws the letter from reader 1 with the read spans marked, gives the reasons and the letter facts, and opens the PDF with O', async () => {
     const windowOpen = vi.fn()
     vi.stubGlobal('open', windowOpen)
     const { panel } = await mount(undefined, open(R71_DOCUMENT))
@@ -167,7 +167,9 @@ describe('the open letter', () => {
     expect(within(decision()).getByText('3 reasons on page 1 agree')).toBeTruthy()
     expect(screen.getByText('Filing puts your name on the record')).toBeTruthy()
     expect(screen.getAllByText('Dr. Anna Becker').length).toBeGreaterThan(0)
-    expect(screen.getByText('Fwd: EPO communication')).toBeTruthy()
+    const facts = screen.getByRole('region', { name: 'Letter' })
+    expect([...facts.querySelectorAll('dt')].map(label => label.textContent)).toEqual(['Received', 'Subject', 'Document'])
+    expect([...facts.querySelectorAll('dd')].map(value => value.textContent)).toEqual([expect.stringMatching(/^\d\d:\d\d$/), 'Fwd: EPO communication', '1 page'])
     press(panel, 'KeyO')
     expect(windowOpen).toHaveBeenCalledWith(`records/api/documents/${R71_DOCUMENT}/content`, '_blank', 'noopener')
     fireEvent.click(screen.getByRole('button', { name: /Open the letter/ }))
@@ -339,7 +341,7 @@ describe('the open letter', () => {
     expect(screen.getAllByText('None').length).toBeGreaterThan(1)
     expect(screen.getByText('No matter that you may see has this file number.')).toBeTruthy()
     expect(within(decision()).getByText('1 reason on page 1')).toBeTruthy()
-    expect(screen.getByText('3 pages')).toBeTruthy()
+    expect(screen.getAllByText('3 pages')).toHaveLength(2)
   })
 
   it('lets a person outside the proposed team file the letter on another matter only', async () => {

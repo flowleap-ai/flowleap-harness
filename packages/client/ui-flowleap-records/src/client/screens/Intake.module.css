@@ -272,6 +272,14 @@
   }
 }
 
+/* Where the properties panel does not show (the split pane from 1366px and the item page at 390px), the letter's
+ * received time, subject and pages show under the evidence. */
+@media (min-width: 721px) and (max-width: 1365px) {
+  .letterFacts {
+    display: none;
+  }
+}
+
 /* Below 1366px the bulk bar docks at the bottom of the list's scroll area; the wrapper takes no box, so the bar
  * sticks to the list and not to the wrapper. */
 .bulkSlot {
