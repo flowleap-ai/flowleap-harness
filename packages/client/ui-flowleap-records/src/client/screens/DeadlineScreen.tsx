@@ -189,7 +189,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           <DecisionPart
             icon={<IconCheckOutlineRegular size={16} />}
             title={due}
-            detail={t(`deadline.part.${reading}`, { count: deadline.trace.length })}
+            detail={`${t(`deadline.part.${reading}`, { count: deadline.trace.length })} · ${t(mayConfirm.allowed ? 'deadline.part.recheck' : 'deadline.part.recheckOther')}`}
           />
         )}
         negative={allowed

@@ -9,7 +9,7 @@ import type {
 } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
-import { de, en } from '../src/client/locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh, type FlowleapRecordsKey } from '../src/client/locales.ts'
 import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import { agentProps } from './agent-fakes.client.tsx'
@@ -52,7 +52,7 @@ const sourced: TicketDetail = {
 async function mount(
   route: Route,
   overrides: { deadline?: DeadlineDetail; ticket?: TicketDetail; matter?: MatterDetail; perform?: RecordsApi['perform'] } = {},
-  language: 'en' | 'de' = 'en',
+  language: keyof typeof LANGUAGES = 'en',
   { api, acts } = createFixtureApi(),
 ) {
   if (overrides.deadline !== undefined) vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: overrides.deadline })
@@ -64,7 +64,7 @@ async function mount(
   const commandItems = new CommandItemRegistry()
   const props = {
     ...agentProps().props,
-    t: makeTranslate(language === 'de' ? de : en),
+    t: makeTranslate(LANGUAGES[language]),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
     useWaitingCount: bindSnapshotSelector(model.waitingCount),
@@ -90,6 +90,11 @@ async function mount(
   }
   return { acts, model, keyActs, commandItems, press }
 }
+
+/** The copy of each language the panel ships in. */
+const LANGUAGES = { en, de, es, fr, ja, pt, ru, zh } as const satisfies Readonly<
+  Record<string, Readonly<Record<FlowleapRecordsKey, string>>>
+>
 
 const bar = (heading = 'Your decision') => screen.getByRole('region', { name: heading })
 
@@ -359,6 +364,21 @@ describe('the deadline page', () => {
     await mount(DEADLINE, { deadline: { ...fixtures.deadline, mayConfirm: { allowed: false, reason, decider: decider as never } } })
     expect(screen.queryByText('Your decision')).toBeNull()
     expect(within(bar(heading)).getByText(text)).toBeTruthy()
+  })
+
+  it.each([
+    ['en', 'you'], ['de', 'sie'], ['es', 'usted'], ['fr', 'vous'], ['ja', 'あなた'], ['pt', 'você'], ['ru', 'вы'], ['zh', '[您你]'],
+  ] as const)('speaks of the confirmation without the second person in the bar of a person who may not confirm (%s)', async (language, pronoun) => {
+    const you = new RegExp(`(?<!\\p{L})${pronoun}(?!\\p{L})`, 'iu')
+    const copy = LANGUAGES[language]
+    const partOf = (heading: string, tail: string) => within(bar(heading)).getByText(
+      (_, element) => element?.textContent.endsWith(tail) === true && element.children.length === 0,
+    )
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, mayConfirm: { allowed: false, reason: 'not-in-team', decider: null } } }, language)
+    expect(partOf(copy['decision.notYoursHeading'], copy['deadline.part.recheckOther']).textContent).not.toMatch(you)
+    cleanup()
+    await mount(DEADLINE, {}, language)
+    expect(partOf(copy['decision.yours'], copy['deadline.part.recheck'])).toBeTruthy()
   })
 
   it('counts an overdue date from today', async () => {
