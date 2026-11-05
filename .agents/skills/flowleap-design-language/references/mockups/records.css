@@ -173,7 +173,8 @@ button { font: inherit; letter-spacing: inherit; color: inherit; }
 .keyfact { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
 .keyfact .big { font-size: var(--dsw-font-xl-24-font-size); line-height: var(--dsw-font-xl-24-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); font-variant-numeric: tabular-nums; }
 .left { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); font-variant-numeric: tabular-nums; }
-.over { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.over { display: inline-flex; align-items: baseline; gap: 4px; color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.over svg { flex: none; align-self: center; width: 16px; height: 16px; color: var(--dsw-alias-state-error-primary); }
 .rule-line { color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); margin-top: 12px; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); }
 
 /* ---------- the work column: content scrolls, the decision bar is docked at its bottom (R13) ---------- */
