@@ -468,7 +468,7 @@ describe('FileSystemSkillProvider', () => {
     ]
     for (const [file, text] of files) await writeFile(join(root, file), text)
     await mkdir(join(root, 'g-binary'), { recursive: true })
-    await writeFile(join(root, 'g-binary/SKILL.md'), Buffer.from([0xff, 0xfe, 0x00, 0x41]))
+    await writeFile(join(root, 'g-binary', 'SKILL.md'), Buffer.from([0xff, 0xfe, 0x00, 0x41]))
 
     const ctx = new Context()
     await ctx.plugin(SkillRegistry)
@@ -485,7 +485,7 @@ describe('FileSystemSkillProvider', () => {
       ['d-no-description.md', 'missing-field'],
       ['e-bad-name.md', 'invalid-name'],
       ['f-bad-invocation.md', 'invalid-invocation'],
-      ['g-binary/SKILL.md', 'not-text'],
+      [join('g-binary', 'SKILL.md'), 'not-text'],
     ])
     expect(inventory.faults.every(fault => fault.provider === 'filesystem' && fault.source === 'user-dsh')).toBe(true)
     const facts = inventory.faults.map(({ reason }) => {
