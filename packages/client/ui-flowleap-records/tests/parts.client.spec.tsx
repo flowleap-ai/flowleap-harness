@@ -187,7 +187,7 @@ describe('layout', () => {
 })
 
 describe('decision bar', () => {
-  const me = { name: 'Dr. Anna Becker' }
+  const yours = { person: { name: 'Dr. Anna Becker' }, text: 'Your decision' }
 
   function reasonAct(open: boolean, extra: Partial<ReasonAct> = {}): ReasonAct {
     return {
@@ -201,8 +201,8 @@ describe('decision bar', () => {
     const negative = reasonAct(false)
     render(
       <DecisionBar
-        person={me} question="Which matter is this letter for?" why="Filing puts your name on the record" note="After you record it"
-        labels={{ yours: 'Your decision', more: 'More acts' }}
+        heading={yours} question="Which matter is this letter for?" why="Filing puts your name on the record" note="After you record it"
+        labels={{ more: 'More acts' }}
         parts={<DecisionPart icon={<span />} title="FL-2026-0001" detail="3 reasons agree" control={<button type="button">Choose</button>} />}
         negative={negative} secondary={[act('otherMatter', 'Other matter…')]} primary={accept}
       />,
@@ -219,7 +219,7 @@ describe('decision bar', () => {
   it('gives why the person may decide and each evidence state their full text on hover, for the one line at 390px', () => {
     const { rerender } = render(
       <DecisionBar
-        person={me} question="Q" why="Only you can decide. The agent never files, sends or pays." labels={{ yours: 'Your decision', more: 'More acts' }}
+        heading={yours} question="Q" why="Only you can decide. The agent never files, sends or pays." labels={{ more: 'More acts' }}
         parts={<DecisionPart icon={<span />} title="Client report" detail="4 of 4 statements have a source" />} primary={null}
       />,
     )
@@ -231,7 +231,7 @@ describe('decision bar', () => {
 
   it('moves the secondary acts into the overflow menu', () => {
     const other = act('otherMatter', 'Other matter…')
-    render(<DecisionBar person={me} question="Q" labels={{ yours: 'Your decision', more: 'More acts' }} secondary={[other, act('x', 'Other', { disabled: true })]} primary={null} />)
+    render(<DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} secondary={[other, act('x', 'Other', { disabled: true })]} primary={null} />)
     const more = screen.getByRole('button', { name: 'More acts' })
     fireEvent.click(more)
     fireEvent.click(screen.getByRole('menuitem', { name: /Other matter/ }))
@@ -253,7 +253,7 @@ describe('decision bar', () => {
 
   it('blocks the primary act with the reason while evidence is missing', () => {
     render(
-      <DecisionBar person={me} question="Q" labels={{ yours: 'Your decision', more: 'More acts' }} blocked="Statement 5 has no source, so Accept waits."
+      <DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} blocked="Statement 5 has no source, so Accept waits."
         parts={<DecisionPart icon={<span />} title="Client report" missing="Statement 5 has no source, so Accept waits." />}
         primary={act('record', 'Record decision')} />,
     )
@@ -262,14 +262,22 @@ describe('decision bar', () => {
   })
 
   it('says who decides and shows no primary act when the decision is another person\'s', () => {
-    render(<DecisionBar person={me} question="Q" labels={{ yours: 'Your decision', more: 'More acts' }} decider="Jonas Weber decides this." primary={act('record', 'Confirm deadline')} />)
+    const { container, rerender } = render(
+      <DecisionBar heading={{ person: { name: 'Jonas Weber' }, text: 'Jonas Weber decides' }} question="Q" labels={{ more: 'More acts' }}
+        decider="Jonas Weber decides this." primary={act('record', 'Confirm deadline')} />,
+    )
+    expect(screen.getByRole('region', { name: 'Jonas Weber decides' })).toBeTruthy()
+    expect(screen.queryByText('Your decision')).toBeNull()
     expect(screen.getByText('Jonas Weber decides this.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Confirm deadline/ })).toBeNull()
+    expect(container.querySelector('header')!.textContent).toBe('JJonas Weber decidesQ')
+    rerender(<DecisionBar heading={{ person: null, text: 'Not your decision' }} question="Q" labels={{ more: 'More acts' }} decider="A second person decides this." primary={null} />)
+    expect(container.querySelector('header')!.textContent).toBe('Not your decisionQ')
   })
 
   it('asks for the reason of a negative act and records it', () => {
     const negative = reasonAct(true)
-    render(<DecisionBar person={me} question="Q" labels={{ yours: 'Your decision', more: 'More acts' }} negative={negative} primary={act('record', 'Accept')} />)
+    render(<DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} negative={negative} primary={act('record', 'Accept')} />)
     const field = screen.getByLabelText('Why?')
     const confirm = screen.getByRole('button', { name: 'Mark not relevant' }) as HTMLButtonElement
     expect(confirm.disabled).toBe(true)

@@ -22,10 +22,10 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, KeyFact, PropertiesPanel, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, personInText, personName } from '../words.ts'
+import { personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
-import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
 /**
@@ -179,10 +179,10 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     ? null
     : (
       <DecisionBar
-        person={avatarOf(t, ctx.me.person)}
+        heading={decisionHeading(ctx, ctx.me.person, mayConfirm)}
         question={t('decision.dateRight')}
         why={allowed ? t('deadline.whyYou') : undefined}
-        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
+        labels={{ more: t('decision.more') }}
         decider={mayConfirm.allowed ? null : t(DECIDERS[mayConfirm.reason], { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(

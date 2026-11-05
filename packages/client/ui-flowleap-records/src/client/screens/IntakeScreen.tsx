@@ -23,7 +23,7 @@ import { avatarOf, letterTitle, listTimeText, personInText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { IntakeLetter } from './IntakeLetter.tsx'
 import { copyLink } from './links.ts'
-import { failureNotice, LoadError } from './shared.tsx'
+import { decisionHeading, failureNotice, LoadError } from './shared.tsx'
 import css from './Intake.module.css'
 
 /**
@@ -254,9 +254,9 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     ? null
     : (
       <DecisionBar
-        person={avatarOf(t, ctx.me.person)}
+        heading={decisionHeading(ctx, ctx.me.person, { allowed: true })}
         question={t('intake.bulk.question', { count: matches.length })}
-        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
+        labels={{ more: t('decision.more') }}
         failure={failureNotice(ctx, runner.run, retryAll, runner.run.phase === 'failed' ? t('intake.bulk.failed', { count: runner.run.failed.length }) : undefined)}
         negative={{
           ...keyedOf(ctx, 'reject'),

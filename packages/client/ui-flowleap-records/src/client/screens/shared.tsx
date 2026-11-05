@@ -1,16 +1,17 @@
 /**
- * Pieces that several screens share: the error notice of a failed load, the failure notice of a decision's act, the
- * copy of an evidence quote, and the Activity of a record.
+ * Pieces that several screens share: the error notice of a failed load, the heading and the failure notice of a
+ * decision bar, the copy of an evidence quote, and the Activity of a record.
  */
 
 import type { ActRun } from '../act-runner.ts'
-import type { ActivityEvent, Command, IsoTime } from '../api.ts'
+import type { ActivityEvent, Command, IsoTime, Person } from '../api.ts'
 import { useKeyActs } from '../key-layer.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { ActivityTimeline, type AuditRow } from '../parts/Activity.tsx'
+import type { DecisionHeading } from '../parts/Decision.tsx'
 import type { QuoteLabels } from '../parts/Evidence.tsx'
 import { ErrorNotice, type NoticeSpec } from '../parts/States.tsx'
-import { activityLines, auditRows, listTimeText } from '../words.ts'
+import { activityLines, auditRows, avatarOf, listTimeText, personName } from '../words.ts'
 import { actOf, type ScreenContext } from './context.ts'
 
 /**
@@ -23,6 +24,23 @@ export function LoadError({ ctx, at }: { ctx: ScreenContext; at: number | null }
   useKeyActs(ctx, { retry: ctx.retry })
   const body = at === null ? ctx.t('error.noData') : ctx.t('error.asOf', { time: listTimeText(ctx, new Date(at).toISOString() as IsoTime) })
   return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry)} />
+}
+
+/**
+ * Who decides, for the header of a decision bar: the signed-in person may decide ("Your decision"), or another person
+ * decides and the header names them ("Dr. Anna Becker decides"), never "Your decision" (product rule 6).
+ * @param ctx - the screen context.
+ * @param me - the signed-in person.
+ * @param may - whether this person may decide, and who decides when not.
+ * @returns the heading.
+ */
+export function decisionHeading(
+  ctx: ScreenContext, me: Person, may: { readonly allowed: true } | { readonly allowed: false; readonly decider: Person | null },
+): DecisionHeading {
+  const { t } = ctx
+  if (may.allowed) return { person: avatarOf(t, me), text: t('decision.yours') }
+  if (may.decider === null) return { person: null, text: t('decision.notYoursHeading') }
+  return { person: avatarOf(t, may.decider), text: t('decision.theirs', { person: personName(t, may.decider) }) }
 }
 
 /** What failed, by the command of the first failed act. */

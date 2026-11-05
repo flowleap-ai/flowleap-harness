@@ -36,7 +36,7 @@ import { avatarOf, letterTitle, listTimeText, personInText, personName } from '.
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
-import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
 /** The work that waits for a decision, in board order, and where the open work item is in it. */
@@ -233,12 +233,12 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ? null
     : (
       <DecisionBar
-        person={avatarOf(t, ctx.me.person)}
+        heading={decisionHeading(ctx, ctx.me.person, mayDecide)}
         question={t(proposed.length + 1 === 2 ? 'work.partsTwo' : 'work.partsMany', { count: proposed.length + 1 })}
         why={mayDecide.allowed
           ? mayDecide.as === 'responsible' ? t('work.whyResponsible') : t('work.whyDeputy', { person: data.responsible === null ? '' : personInText(t, data.responsible) })
           : undefined}
-        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
+        labels={{ more: t('decision.more') }}
         decider={mayDecide.allowed ? null : t(mayDecide.decider === null ? 'work.decider.nobody' : DECIDERS[mayDecide.reason], { person: mayDecide.decider === null ? '' : personName(t, mayDecide.decider) })}
         blocked={blocked}
         note={t('work.note')}

@@ -1,6 +1,7 @@
 /**
  * The decision bar (product rule 6, R12 to R14): an elevated panel docked at the bottom of the work column. The header
- * names the deciding person, the question and why this person may decide; one row for each required part shows its
+ * names the deciding person ("Your decision", or "Dr. Anna Becker decides" when it is another person's), the question
+ * and why this person may decide; one row for each required part shows its
  * evidence state; the footer holds the tertiary negative act, a note, the secondary acts and the one primary act. A
  * negative act asks for its reason in its own step. Missing evidence disables the primary act and says why. When the
  * decision is another person's, the footer says who decides and has no primary act. At 390px the note hides and the
@@ -35,17 +36,23 @@ export interface ReasonAct extends Omit<ActSpec, 'run'> {
   readonly onConfirm: (reason: string) => void
 }
 
+/** Who decides, as the bar's header names them. */
+export interface DecisionHeading {
+  /** The deciding person as a 24px avatar; null when the bar does not know who decides. */
+  readonly person: AvatarPerson | null
+  /** "Your decision", "Dr. Anna Becker decides", or "Not your decision"; also the bar's accessible name. */
+  readonly text: string
+}
+
 /** Copy of the decision bar. */
 export interface DecisionLabels {
-  /** "Your decision". */
-  readonly yours: string
   /** The accessible name of the overflow menu button at 390px, "More acts". */
   readonly more: string
 }
 
 /**
  * Render the docked decision bar.
- * @param props.person - the deciding person, as a 24px avatar.
+ * @param props.heading - who decides: the signed-in person, or the person who decides when it is not them.
  * @param props.question - the decision in plain words, such as "Which matter is this letter for?".
  * @param props.why - why this person may decide; one line at 390px, with the full text on hover.
  * @param props.parts - one `DecisionPart` for each required part.
@@ -64,9 +71,9 @@ export interface DecisionLabels {
  * @returns the bar.
  */
 export function DecisionBar({
-  person, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, failure, labels,
+  heading, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, failure, labels,
 }: {
-  person: AvatarPerson
+  heading: DecisionHeading
   question: string
   why?: string | undefined
   parts?: ReactNode
@@ -83,10 +90,10 @@ export function DecisionBar({
   const shownPrimary = decider === null ? primary : null
   const menu = [...secondary, ...overflow]
   return (
-    <section className={css.bar} aria-label={labels.yours}>
+    <section className={css.bar} aria-label={heading.text}>
       <header className={css.head}>
-        <Avatar person={person} size={24} nameShown />
-        <span className={css.yours}>{labels.yours}</span>
+        {heading.person !== null && <Avatar person={heading.person} size={24} nameShown />}
+        <span className={css.yours}>{heading.text}</span>
         <span className={css.question}>{question}</span>
         {why !== undefined && <span className={css.why} title={why}>{why}</span>}
       </header>

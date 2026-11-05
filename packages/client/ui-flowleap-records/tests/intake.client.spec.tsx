@@ -36,7 +36,7 @@ function letter(patch: Partial<IntakeDocument>): IntakeDocument {
   return { ...fixtures.intakeDocument, ...patch }
 }
 
-const decision = () => screen.getAllByRole('region', { name: 'Your decision' }).at(-1)!
+const decision = (heading = 'Your decision') => screen.getAllByRole('region', { name: heading }).at(-1)!
 
 describe('the intake list', () => {
   it('shows the three lists as chips with their counts, newest first in each group, and a forwarder outside the team unnamed', async () => {
@@ -358,7 +358,8 @@ describe('the open letter', () => {
       expect(document.body.textContent).toContain(text)
     }
     expect(screen.getByText('FlowLeap is still reading this letter.')).toBeTruthy()
-    expect(within(decision()).queryByRole('button', { name: /Accept and file/ })).toBeNull()
+    expect(screen.queryByText('Your decision')).toBeNull()
+    expect(within(decision('Not your decision')).queryByRole('button', { name: /Accept and file/ })).toBeNull()
     spy.mockResolvedValue({ ok: true, value: letter({ document: sha(60) as DocumentId, candidates: 3, pages: null, fields: { reference: fixtures.intakeDocument.fields.reference! }, code: 'EPO:R71(3)' }) })
     act(() => { model.navigate(open(sha(60))) })
     await flush()
@@ -381,8 +382,8 @@ describe('the open letter', () => {
     const { api, acts } = createFixtureApi()
     vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter({ mayDecide: { allowed: false, reason: 'not-in-team', decider: null } }) })
     const { panel } = await mount(api, open(R71_DOCUMENT))
-    expect(within(decision()).getByText("Only the matter's team accepts this match. You can file the letter on another matter.")).toBeTruthy()
-    expect(within(decision()).queryByRole('button', { name: /Not relevant/ })).toBeNull()
+    expect(within(decision('Not your decision')).getByText("Only the matter's team accepts this match. You can file the letter on another matter.")).toBeTruthy()
+    expect(within(decision('Not your decision')).queryByRole('button', { name: /Not relevant/ })).toBeNull()
     press(panel, 'Digit1')
     press(panel, 'Digit2')
     expect(acts).toEqual([])
@@ -390,6 +391,7 @@ describe('the open letter', () => {
     await flush()
     fireEvent.click(within(screen.getByRole('menu')).getByText('FL-2025-0412 Brake caliper bracket'))
     await flush()
+    expect(decision('Your decision')).toBeTruthy()
     press(panel, 'Enter', { metaKey: true, shiftKey: true })
     await flush()
     expect(acts.map(act => act.command)).toEqual([{ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2025-0412' }])

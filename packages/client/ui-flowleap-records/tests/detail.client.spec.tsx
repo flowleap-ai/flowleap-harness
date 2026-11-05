@@ -91,7 +91,7 @@ async function mount(
   return { acts, model, keyActs, commandItems, press }
 }
 
-const bar = () => screen.getByRole('region', { name: 'Your decision' })
+const bar = (heading = 'Your decision') => screen.getByRole('region', { name: heading })
 
 describe('the matters list', () => {
   it('lists the matters with their next due date and opens one', async () => {
@@ -331,22 +331,24 @@ describe('the deadline page', () => {
   it('keeps the evidence and names who confirms when the person proposed the date, with no primary act', async () => {
     const deadline: DeadlineDetail = { ...fixtures.deadline, proposer: fixtures.matter.team[0]!, mayConfirm: { allowed: false, reason: 'proposer', decider: null } }
     const { keyActs } = await mount(DEADLINE, { deadline })
-    expect(within(bar()).getByText('You proposed this date, so a second person confirms it.')).toBeTruthy()
-    expect(within(bar()).queryByRole('button', { name: /Confirm deadline/ })).toBeNull()
-    expect(within(bar()).queryByRole('button', { name: /Reject/ })).toBeNull()
+    expect(screen.queryByText('Your decision')).toBeNull()
+    expect(within(bar('Not your decision')).getByText('You proposed this date, so a second person confirms it.')).toBeTruthy()
+    expect(within(bar('Not your decision')).queryByRole('button', { name: /Confirm deadline/ })).toBeNull()
+    expect(within(bar('Not your decision')).queryByRole('button', { name: /Reject/ })).toBeNull()
     expect(keyActs.handler('record')).toBeUndefined()
     expect(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).toBeTruthy()
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Dr. Anna Becker')
   })
 
   it.each([
-    ['code-decider', null, 'You classified this letter, so a second person confirms the date.'],
-    ['not-in-team', null, 'Only the team of this matter confirms the date.'],
-    ['not-ready', null, 'FlowLeap cannot check the date now. Try again later.'],
-    ['decided', PEOPLE.jonas, 'Jonas Weber decides this.'],
-  ] as const)('says why for %s', async (reason, decider, text) => {
+    ['code-decider', null, 'Not your decision', 'You classified this letter, so a second person confirms the date.'],
+    ['not-in-team', null, 'Not your decision', 'Only the team of this matter confirms the date.'],
+    ['not-ready', null, 'Not your decision', 'FlowLeap cannot check the date now. Try again later.'],
+    ['not-routed-person', PEOPLE.jonas, 'Jonas Weber decides', 'Jonas Weber decides this.'],
+  ] as const)('says why for %s, and names the decider in the bar\'s header', async (reason, decider, heading, text) => {
     await mount(DEADLINE, { deadline: { ...fixtures.deadline, mayConfirm: { allowed: false, reason, decider: decider as never } } })
-    expect(within(bar()).getByText(text)).toBeTruthy()
+    expect(screen.queryByText('Your decision')).toBeNull()
+    expect(within(bar(heading)).getByText(text)).toBeTruthy()
   })
 
   it('counts an overdue date from today', async () => {
@@ -669,9 +671,12 @@ describe('the work on a letter', () => {
 
   it('names the routed person and has no primary act when the decision is another person\'s', async () => {
     const { keyActs } = await mount(WORK, { ticket: { ...sourced, mayDecide: { allowed: false, reason: 'not-routed-person', decider: PEOPLE.anna as never } } })
-    expect(within(bar()).getByText('Dr. Anna Becker decides this work: FlowLeap assigned it to them.')).toBeTruthy()
-    expect(within(bar()).queryByRole('button', { name: /Record decision/ })).toBeNull()
-    expect(within(bar()).queryByRole('button', { name: /^Accept/ })).toBeNull()
+    expect(screen.queryByText('Your decision')).toBeNull()
+    const theirs = bar('Dr. Anna Becker decides')
+    expect(theirs.querySelector('header')!.textContent).toBe('ADr. Anna Becker decides2 parts, both required')
+    expect(within(theirs).getByText('Dr. Anna Becker decides this work: FlowLeap assigned it to them.')).toBeTruthy()
+    expect(within(theirs).queryByRole('button', { name: /Record decision/ })).toBeNull()
+    expect(within(theirs).queryByRole('button', { name: /^Accept/ })).toBeNull()
     expect(screen.getByRole('checkbox', { name: /I checked the deadline/ })).toHaveProperty('disabled', true)
     expect(document.body.textContent).toContain('Waits for the decision of Dr. Anna Becker')
     expect(keyActs.handler('record')).toBeUndefined()
@@ -683,10 +688,10 @@ describe('the work on a letter', () => {
     expect(within(bar()).getByText('You decide as the deputy of Dr. Anna Becker. The agent never files, sends or pays.')).toBeTruthy()
     cleanup()
     await mount(WORK, { ticket: { ...sourced, mayDecide: { allowed: false, reason: 'not-ready', decider: PEOPLE.anna as never } } })
-    expect(within(bar()).getByText('The agent has not finished. Dr. Anna Becker decides when it has.')).toBeTruthy()
+    expect(within(bar('Dr. Anna Becker decides')).getByText('The agent has not finished. Dr. Anna Becker decides when it has.')).toBeTruthy()
     cleanup()
     await mount(WORK, { ticket: { ...sourced, mayDecide: { allowed: false, reason: 'not-ready', decider: null } } })
-    expect(within(bar()).getByText('Another person decides this work.')).toBeTruthy()
+    expect(within(bar('Not your decision')).getByText('Another person decides this work.')).toBeTruthy()
     cleanup()
     await mount(WORK, { ticket: { ...sourced, responsible: null, mayDecide: { allowed: true, as: 'deputy' } } })
     expect(within(bar()).getByText('You decide as the deputy of . The agent never files, sends or pays.')).toBeTruthy()

@@ -26,7 +26,7 @@ import { formatApplicationNumber, formatDate } from '../format.ts'
 import { avatarOf, letterTitle, listTimeText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
-import { failureNotice, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, RecordActivity } from './shared.tsx'
 import css from './Intake.module.css'
 
 /** What the decision bar of a letter offers. */
@@ -374,10 +374,10 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     ? null
     : (
       <DecisionBar
-        person={avatarOf(t, ctx.me.person)}
+        heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
         question={decision.kind === 'code' ? t('intake.decision.whatLetter') : t('decision.whichMatter')}
         why={decision.kind === 'none' ? undefined : t('intake.decision.why')}
-        labels={{ yours: t('decision.yours'), more: t('decision.more') }}
+        labels={{ more: t('decision.more') }}
         decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
         parts={parts}
         failure={failureNotice(ctx, runner.run, () => { void runner.retry() })}
