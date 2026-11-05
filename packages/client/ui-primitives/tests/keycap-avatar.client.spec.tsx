@@ -79,6 +79,14 @@ describe('Avatar', () => {
     expect(avatar.dataset['size']).toBe('24')
   })
 
+  it('draws a neutral glyph and no initial for a person with no display name to show', () => {
+    render(<Avatar person={{ name: 'A person outside the team', anonymous: true }} />)
+    const avatar = screen.getByRole('img', { name: 'A person outside the team' })
+    expect(avatar.textContent).toBe('')
+    expect(avatar.querySelector('svg')).not.toBeNull()
+    expect(avatar.dataset['anonymous']).toBe('true')
+  })
+
   it('is decorative when the name shows beside it', () => {
     const { container } = render(<Avatar person={{ name: 'Dr. Anna Becker' }} nameShown className="placed" />)
     const avatar = container.firstElementChild as HTMLElement

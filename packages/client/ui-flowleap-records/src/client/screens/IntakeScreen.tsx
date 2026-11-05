@@ -19,7 +19,7 @@ import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { letterTitle, listTimeText } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { IntakeLetter } from './IntakeLetter.tsx'
 import { copyLink } from './links.ts'
@@ -248,7 +248,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     ? null
     : (
       <DecisionBar
-        person={ctx.me.person}
+        person={avatarOf(t, ctx.me.person)}
         question={t('intake.bulk.question', { count: matches.length })}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
         failure={failureNotice(ctx, runner.run, retryAll, runner.run.phase === 'failed' ? t('intake.bulk.failed', { count: runner.run.failed.length }) : undefined)}
@@ -438,7 +438,7 @@ function IntakeListView({ ctx, data, list, open, checked, onCheck, footer }: {
                 <MetaCell truncate>{row.matter?.fileNumber ?? (row.matterCount > 1 ? t('matter.count', { count: row.matterCount }) : t('matter.none'))}</MetaCell>
                 {sender === null
                   ? <span />
-                  : <span data-address={sender.id === null ? '' : undefined}><Avatar person={{ name: sender.name, label: t('row.forwardedBy', { person: sender.name }) }} /></span>}
+                  : <Avatar person={avatarOf(t, sender, t('row.forwardedBy', { person: personInText(t, sender) }))} />}
                 <TimeCell>{listTimeText(ctx, row.receivedAt)}</TimeCell>
               </ListRow>
             )

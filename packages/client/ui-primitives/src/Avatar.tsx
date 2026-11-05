@@ -1,10 +1,12 @@
 /**
- * People avatars of the IPMS design language: a round avatar with the initial of the given name, and a stack of
- * them for a team. A person shows by display name only, never by an account handle; the render site passes the
- * display name and decides whether the name also shows as text beside the avatar.
+ * People avatars of the IPMS design language: a round avatar with the initial of the given name, or a neutral glyph
+ * for a person with no display name to show, and a stack of them for a team. A person shows by display name only,
+ * never by an account handle; the render site passes the display name and decides whether the name also shows as text
+ * beside the avatar.
  */
 
 import clsx from 'clsx'
+import { IconUserOutlineRegular } from './icons/index.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import css from './Avatar.module.css'
 
@@ -19,6 +21,11 @@ export interface AvatarPerson {
   readonly present?: boolean | undefined
   /** Accessible name and hover text, such as `Jonas Weber, viewing now`; the display name when absent. */
   readonly label?: string | undefined
+  /**
+   * The person has no display name to show, such as a person outside a matter's wall: the avatar draws a neutral
+   * person glyph instead of the initial of `name`, which is then a description such as `Unnamed person`.
+   */
+  readonly anonymous?: boolean | undefined
 }
 
 /**
@@ -53,10 +60,11 @@ export function Avatar({ person, size = 20, nameShown = false, className }: {
       className={clsx(css.avatar, className)}
       data-size={size}
       data-present={person.present === true || undefined}
+      data-anonymous={person.anonymous === true || undefined}
       role={nameShown ? undefined : 'img'}
       aria-label={nameShown ? undefined : label}
       aria-hidden={nameShown || undefined}
-    >{avatarInitial(person.name)}</span>
+    >{person.anonymous === true ? <IconUserOutlineRegular size={12} /> : avatarInitial(person.name)}</span>
   )
   return nameShown ? avatar : <Tooltip label={label} side="top">{avatar}</Tooltip>
 }

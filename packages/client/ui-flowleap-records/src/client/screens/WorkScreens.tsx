@@ -32,7 +32,7 @@ import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord, FactStatus } from '../parts/Status.tsx'
-import { letterTitle, listTimeText } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
@@ -233,13 +233,13 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ? null
     : (
       <DecisionBar
-        person={ctx.me.person}
+        person={avatarOf(t, ctx.me.person)}
         question={t(proposed.length + 1 === 2 ? 'work.partsTwo' : 'work.partsMany', { count: proposed.length + 1 })}
         why={mayDecide.allowed
-          ? mayDecide.as === 'responsible' ? t('work.whyResponsible') : t('work.whyDeputy', { person: data.responsible?.name ?? '' })
+          ? mayDecide.as === 'responsible' ? t('work.whyResponsible') : t('work.whyDeputy', { person: data.responsible === null ? '' : personInText(t, data.responsible) })
           : undefined}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
-        decider={mayDecide.allowed ? null : t(mayDecide.decider === null ? 'work.decider.nobody' : DECIDERS[mayDecide.reason], { person: mayDecide.decider?.name ?? '' })}
+        decider={mayDecide.allowed ? null : t(mayDecide.decider === null ? 'work.decider.nobody' : DECIDERS[mayDecide.reason], { person: mayDecide.decider === null ? '' : personName(t, mayDecide.decider) })}
         blocked={blocked}
         note={t('work.note')}
         failure={failureNotice(ctx, runner.run, record)}
@@ -318,9 +318,9 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           <h1 className={detail.pageTitle}>{title}</h1>
           <p className={detail.lede}>{lede(ctx, data)}</p>
           <div className={detail.people}>
-            {data.responsible !== null && <><span className={detail.peopleKey}>{t('work.responsible')}</span><Who person={data.responsible} /></>}
+            {data.responsible !== null && <><span className={detail.peopleKey}>{t('work.responsible')}</span><Who t={t} person={data.responsible} /></>}
             <span className={detail.peopleKey}>{t('prop.team')}</span>
-            <AvatarStack people={data.team} />
+            <AvatarStack people={data.team.map(person => avatarOf(t, person))} />
             <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
           </div>
           {data.reports.map(item => (
@@ -391,12 +391,12 @@ function WaitsText({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
   const { ticket, mayDecide } = data
   if (ticket.state === 'decided' && ticket.decidedBy !== null) {
-    return <span>{t('work.decidedBy', { person: ticket.decidedBy.name, time: ticket.decidedAt === null ? '' : listTimeText(ctx, ticket.decidedAt) })}</span>
+    return <span>{t('work.decidedBy', { person: personInText(t, ticket.decidedBy), time: ticket.decidedAt === null ? '' : listTimeText(ctx, ticket.decidedAt) })}</span>
   }
   if (ticket.state !== 'proposals_ready') return null
   return mayDecide.allowed
     ? <span>{t('work.waitsYou', { time: listTimeText(ctx, ticket.since) })}</span>
-    : <span>{t('work.waitsFor', { person: ticket.routedTo?.name ?? '' })}</span>
+    : <span>{t('work.waitsFor', { person: ticket.routedTo === null ? '' : personInText(t, ticket.routedTo) })}</span>
 }
 
 /**
@@ -465,7 +465,7 @@ function DeadlinePart({ ctx, data, checked, onCheck, disabled }: {
   const word = atlasWord(t, { machine: 'deadline', state: deadline.state })
   const facts: ReactNode = deadline.confirmer === null
     ? dueSentence(ctx, 'work.deadlineFacts', { state: word }, deadline.due)
-    : dueSentence(ctx, 'work.deadlineFactsConfirmed', { state: word, person: deadline.confirmer.name }, deadline.due)
+    : dueSentence(ctx, 'work.deadlineFactsConfirmed', { state: word, person: personInText(t, deadline.confirmer) }, deadline.due)
   return (
     <DecisionPart
       icon={<IconAlarmClockOutlineRegular size={16} />}
@@ -485,16 +485,17 @@ function DeadlinePart({ ctx, data, checked, onCheck, disabled }: {
 }
 
 /**
- * The recipients of a reply by display name. An address that belongs to no person is a sign-in address, which shows
- * only in Audit, so it counts as "other addresses".
+ * The recipients of a reply: the team members by name, then the count of the people outside the team, whom the os
+ * does not name (product rule 8).
  * @param ctx - the screen context.
  * @param to - the recipients.
  * @returns the names.
  */
 function recipients(ctx: ScreenContext, to: NonNullable<TicketDetail['reply']>['to']): string {
-  const names = to.flatMap(person => person.id === null ? [] : [person.name])
-  const others = to.length - names.length
-  return [...names, ...(others === 0 ? [] : [ctx.t(others === 1 ? 'work.address' : 'work.addresses', { count: others })])].join(', ')
+  const names = to.flatMap(person => person.id === null ? [] : [personInText(ctx.t, person)])
+  const outside = to.length - names.length
+  const others = outside === 0 ? [] : [outside === 1 ? ctx.t('person.outsideInText') : ctx.t('person.outsideCount', { count: outside })]
+  return [...names, ...others].join(', ')
 }
 
 /**
@@ -521,7 +522,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <OpenCell onOpen={() => { ctx.navigate({ view: 'deadline', id: deadline.id }) }}>
               <span className={detail.strong}>{t('crumb.deadline', { date: formatDay(deadline.due, ctx.locale) })}</span>
             </OpenCell>
-            <Cell kind="meta" wide>{deadline.confirmer === null ? '' : t('deadline.confirmedBy', { person: deadline.confirmer.name })}</Cell>
+            <Cell kind="meta" wide>{deadline.confirmer === null ? '' : t('deadline.confirmedBy', { person: personInText(t, deadline.confirmer) })}</Cell>
             <Cell kind="end"><DueText words={ctx} due={deadline.due} /></Cell>
             <Cell kind="icon" wide><IconChevronRightOutlineRegular size={16} /></Cell>
           </DetailRow>

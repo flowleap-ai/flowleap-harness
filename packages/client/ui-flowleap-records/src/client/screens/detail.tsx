@@ -10,7 +10,7 @@ import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DocumentId, IsoDate, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
-import { letterTitle, type Translate } from '../words.ts'
+import { avatarOf, letterTitle, personName, type Translate } from '../words.ts'
 import type { ScreenContext } from './context.ts'
 import css from './Detail.module.css'
 
@@ -109,12 +109,13 @@ export function Facts({ facts }: { facts: readonly { readonly key: string; reado
 }
 
 /**
- * Render a person as a 20px avatar and the display name.
+ * Render a person as a 20px avatar and the name: the display name, or the words for a person the os does not name.
+ * @param props.t - the translate function.
  * @param props.person - the person.
  * @returns the person.
  */
-export function Who({ person }: { person: Person }) {
-  return <span className={css.who}><Avatar person={person} nameShown />{person.name}</span>
+export function Who({ t, person }: { t: Translate; person: Person }) {
+  return <span className={css.who}><Avatar person={avatarOf(t, person)} nameShown />{personName(t, person)}</span>
 }
 
 /**
@@ -124,7 +125,7 @@ export function Who({ person }: { person: Person }) {
  * @returns the team.
  */
 export function Team({ t, team }: { t: Translate; team: readonly Person[] }) {
-  return <span className={css.who}><AvatarStack people={team} />{t('matter.people', { count: team.length })}</span>
+  return <span className={css.who}><AvatarStack people={team.map(person => avatarOf(t, person))} />{t('matter.people', { count: team.length })}</span>
 }
 
 /** The words of a deadline rule. */

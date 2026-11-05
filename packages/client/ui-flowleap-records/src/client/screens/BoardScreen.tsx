@@ -19,7 +19,7 @@ import { BoardCard, BoardColumn, type CardFact, type DropState } from '../parts/
 import { ListFrame, ListGroup, ListRow, MetaCell, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { letterTitle } from '../words.ts'
+import { avatarOf, letterTitle } from '../words.ts'
 import type { ScreenContext, ScreenProps } from './context.ts'
 import { LoadError } from './shared.tsx'
 import css from './BoardScreen.module.css'
@@ -216,7 +216,7 @@ function Board({ ctx, data, dragged, onDrag }: {
                   key={card.id}
                   status={status}
                   matterKey={card.matter.fileNumber}
-                  team={card.team}
+                  team={card.team.map(person => avatarOf(t, person))}
                   title={letterTitle(t, card.code)}
                   sub={subOf(ctx, card)}
                   facts={factsOf(ctx, card)}
@@ -279,7 +279,7 @@ function WorkList({ ctx, rows }: { ctx: ScreenContext; rows: readonly TicketRow[
               <ListRow key={row.id} rowKey={row.id} status={status} onOpen={() => { ctx.navigate({ view: 'work', id: row.id }) }}>
                 <TitleCell title={letterTitle(t, row.code)} source={row.matter.title} />
                 <MetaCell truncate>{row.matter.fileNumber}</MetaCell>
-                <AvatarStack people={row.team} />
+                <AvatarStack people={row.team.map(person => avatarOf(t, person))} />
                 <TimeCell>{row.due === null ? '' : formatDate(row.due, ctx.locale)}</TimeCell>
               </ListRow>
             ))}

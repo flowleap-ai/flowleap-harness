@@ -1,9 +1,10 @@
 /**
  * Records API answers that match the reference mockups of the IPMS design language, as wire JSON and parsed. The
  * demo date is 2026-11-04. The people are Dr. Anna Becker (responsible attorney), Jonas Weber (attorney) and Lena
- * Hoffmann (formalities); Markus Brandt works in the firm but is outside the wall of every matter here, so no answer
- * names him and no view may show him (review checklist item 24). `createFixtureApi` serves these answers as a
- * `RecordsApi`, for component tests and for a screen without the os.
+ * Hoffmann (formalities); Markus Brandt works in the firm but is outside the wall of every matter here. He forwarded
+ * the unreadable letter and receives the reply of the Rule 71(3) work, and the os sends him as it sends anyone
+ * outside a matter's team, with no id and no name, so no view may show him (review checklist item 24).
+ * `createFixtureApi` serves these answers as a `RecordsApi`, for component tests and for a screen without the os.
  */
 
 import { parsers, type Act, type DocumentId, type Fetched, type FileNumber, type IntakeView, type RecordsApi } from '../src/client/api.ts'
@@ -20,6 +21,16 @@ export const PEOPLE = {
 
 /** A person of the firm outside every matter's wall; no answer names this person. */
 export const OUTSIDE_WALL = { id: 'p-markus', name: 'Markus Brandt' } as const
+
+/** How the os sends a person outside the matter's team, and a mail address of no person: no id and no name. */
+export const OUTSIDER = { id: null, name: null } as const
+
+/**
+ * A person as the os sends them in an answer about a matter: a team member as they are, anyone else as `OUTSIDER`.
+ * @param person - the person.
+ * @returns the wire person.
+ */
+export const sent = (person: { readonly id: string; readonly name: string }) => person.id === OUTSIDE_WALL.id ? OUTSIDER : person
 
 /**
  * A fixture SHA-256: the number in hex, padded to 64 digits.
@@ -51,10 +62,7 @@ export const MATTERS = {
 type MatterKey = keyof typeof MATTERS
 const ref = (fileNumber: MatterKey) => ({ fileNumber, title: MATTERS[fileNumber].title })
 
-/** A forwarder who never signed in: the os sends the mail address with no person id. */
-export const RECEPTION = { id: null, name: 'empfang@kanzlei.test' } as const
-
-type Who = keyof typeof PEOPLE | 'reception'
+type Who = keyof typeof PEOPLE | 'markus'
 type IntakeGroup = 'match_proposed' | 'unmatched' | 'ambiguous' | 'kind_proposed' | 'duplicate_proposed' | 'unreadable'
 
 /** One intake letter: group, code, office, matter, matter count, forwarder, received time. */
@@ -83,7 +91,7 @@ const LETTERS: readonly Letter[] = [
   ['kind_proposed', null, null, 'FL-2026-0044', 1, 'lena', '2026-11-03T09:05:00Z'],
   ['duplicate_proposed', 'EPO:R71(3)', 'EPO', 'FL-2026-0001', 1, 'lena', '2026-11-04T14:20:00Z'],
   ['duplicate_proposed', 'EPO:EESR', 'EPO', 'FL-2026-0019', 1, 'jonas', '2026-11-04T12:44:00Z'],
-  ['unreadable', null, 'DPMA', null, 0, 'reception', '2026-11-04T08:51:00Z'],
+  ['unreadable', null, 'DPMA', null, 0, 'markus', '2026-11-04T08:51:00Z'],
 ]
 
 /** The wire rows of the waiting list, in the order of the mockup. */
@@ -95,7 +103,7 @@ export const intakeRowsWire = LETTERS.map(([state, code, office, matter, matterC
   office,
   matter: matter === null ? null : ref(matter),
   matterCount,
-  forwarder: who === 'reception' ? RECEPTION : PEOPLE[who],
+  forwarder: sent(who === 'markus' ? OUTSIDE_WALL : PEOPLE[who]),
   receivedAt,
   since: receivedAt,
 }))
@@ -273,7 +281,7 @@ export const ticketWire = {
     ],
   }],
   deadline: { id: DEADLINE_ID, due: '2027-03-01', state: 'active', confirmer: PEOPLE.jonas },
-  reply: { state: 'sent', to: [PEOPLE.jonas, PEOPLE.anna] },
+  reply: { state: 'sent', to: [PEOPLE.jonas, PEOPLE.anna, sent(OUTSIDE_WALL)] },
   run: { model: 'openrouter', steps: null, finishedAt: '2026-11-04T14:17:40Z', session: 'ses_r71work' },
   mayDecide: { allowed: true, as: 'responsible' },
   activity: [

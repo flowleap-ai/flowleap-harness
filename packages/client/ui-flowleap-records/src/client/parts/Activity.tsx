@@ -6,13 +6,12 @@
  */
 
 import type { ReactNode } from 'react'
-import { Avatar } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { Person } from '../api.ts'
+import { Avatar, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './Activity.module.css'
 
 /** Who did the event. */
 export type ActivityActor =
-  | { readonly kind: 'person'; readonly person: Person }
+  | { readonly kind: 'person'; readonly person: AvatarPerson }
   | { readonly kind: 'system'; readonly name: string; readonly icon: ReactNode }
 
 /** One worded event. */

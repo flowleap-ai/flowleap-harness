@@ -22,6 +22,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, KeyFact, PropertiesPanel, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
+import { avatarOf, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
 import { failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
@@ -172,11 +173,11 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     ? null
     : (
       <DecisionBar
-        person={ctx.me.person}
+        person={avatarOf(t, ctx.me.person)}
         question={t('decision.dateRight')}
         why={allowed ? t('deadline.whyYou') : undefined}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
-        decider={mayConfirm.allowed ? null : t(DECIDERS[mayConfirm.reason], { person: mayConfirm.decider?.name ?? t('deadline.secondPerson') })}
+        decider={mayConfirm.allowed ? null : t(DECIDERS[mayConfirm.reason], { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
@@ -206,9 +207,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const eyebrowText = proposed
     ? t('deadline.waitsSecond')
     : data.confirmer !== null
-      ? t('deadline.confirmedBy', { person: data.confirmer.name })
+      ? t('deadline.confirmedBy', { person: personInText(t, data.confirmer) })
       : data.rejecter !== null
-        ? t('deadline.rejectedBy', { person: data.rejecter.name, reason: data.reason ?? '' })
+        ? t('deadline.rejectedBy', { person: personInText(t, data.rejecter), reason: data.reason ?? '' })
         : null
   const office = officeOf(officeEvent.code)
   return (
@@ -225,11 +226,11 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         {
           heading: t('deadline.prop.checks'),
           rows: [
-            { label: t('deadline.prop.proposedBy'), value: data.proposer === null ? t('actor.flowleap') : <Who person={data.proposer} /> },
+            { label: t('deadline.prop.proposedBy'), value: data.proposer === null ? t('actor.flowleap') : <Who t={t} person={data.proposer} /> },
             { label: t('deadline.prop.reading'), value: t(`deadline.reading.${reading}`) },
             {
               label: t('deadline.prop.confirm'),
-              value: data.confirmer !== null ? <Who person={data.confirmer} /> : data.rejecter !== null ? <Who person={data.rejecter} /> : t('deadline.secondPerson'),
+              value: data.confirmer !== null ? <Who t={t} person={data.confirmer} /> : data.rejecter !== null ? <Who t={t} person={data.rejecter} /> : t('deadline.secondPerson'),
             },
           ],
         },

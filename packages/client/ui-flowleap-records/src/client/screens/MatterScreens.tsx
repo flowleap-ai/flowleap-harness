@@ -15,7 +15,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { letterTitle, listTimeText } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import type { ScreenContext, ScreenProps } from './context.ts'
 import { Cell, dateOrNone, DetailRow, DetailTable, Facts, OpenCell, openDocument, ruleWords, Team, Who } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
@@ -78,7 +78,7 @@ function MattersRows({ ctx, data }: { ctx: ScreenContext; data: MattersList }) {
               <span className={css.source}>{row.state === 'closed' ? t('matter.closedClient', { client: row.client }) : row.client}</span>
             </OpenCell>
             <Cell kind="meta" wide>{row.fileNumber}</Cell>
-            <Cell kind="icon" wide>{row.responsible !== null && <Avatar person={{ name: row.responsible.name, label: t('matter.responsibleIs', { person: row.responsible.name }) }} />}</Cell>
+            <Cell kind="icon" wide>{row.responsible !== null && <Avatar person={avatarOf(t, row.responsible, t('matter.responsibleIs', { person: personName(t, row.responsible) }))} />}</Cell>
             <Cell kind="end" wide>{row.openDeadlines}</Cell>
             <Cell kind="end">{row.nextDue === null ? t('matter.noDeadline') : <DueText words={ctx} due={row.nextDue} />}</Cell>
           </DetailRow>
@@ -121,7 +121,8 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
   const waiting = data.deadlines.filter(deadline => WAITING_DEADLINES.has(deadline.state)).length
   const ready = data.work.filter(work => work.state === 'proposals_ready')
-  const deciders = [...new Set(ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo.name]))]
+  const deciders = [...new Set(ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo.id]))]
+    .map(id => ready.filter(work => work.routedTo !== null && work.routedTo.id === id))
   const nextDue = data.deadlines.find(deadline => deadline.state === 'deadline_proposed' || deadline.state === 'active')?.due ?? null
   const titleOfDocument = (document: (typeof data.documents)[number]) => {
     const event = data.officeEvents.find(item => item.document === document.sha256)
@@ -149,7 +150,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             heading: t('prop.matter'),
             rows: [
               { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
-              { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who person={data.responsible} /> },
+              { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who t={t} person={data.responsible} /> },
               { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
               { label: t('prop.application'), value: data.matter.applicationNumber === null ? t('matter.notRecorded') : formatApplicationNumber(data.matter.applicationNumber) },
             ],
@@ -165,9 +166,11 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             />
             <Facts facts={[
               ...(waiting === 0 ? [] : [{ key: 'deadlines', count: waiting, text: t(waiting === 1 ? 'matter.factDeadline' : 'matter.factDeadlines') }]),
-              ...deciders.map((person) => {
-                const count = ready.filter(work => work.routedTo?.name === person).length
-                return { key: `work:${person}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }
+              ...deciders.flatMap(([first, ...rest]) => {
+                if (first?.routedTo == null) return []
+                const count = rest.length + 1
+                const person = personInText(t, first.routedTo)
+                return [{ key: `work:${first.routedTo.id ?? 'outside'}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }]
               }),
             ]} />
             <Section heading={t('section.deadlines')} count={data.deadlines.length}>
@@ -206,7 +209,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                     <DetailRow key={work.id} opens>
                       <Cell kind="status"><AtlasStatus status={status} word={atlasWord(t, status)} /></Cell>
                       <OpenCell onOpen={open({ view: 'work', id: work.id })}>{letterTitle(t, work.code)}</OpenCell>
-                      <Cell kind="icon" wide>{work.routedTo !== null && <Avatar person={{ name: work.routedTo.name, label: t('matter.forPerson', { person: work.routedTo.name }) }} />}</Cell>
+                      <Cell kind="icon" wide>{work.routedTo !== null && <Avatar person={avatarOf(t, work.routedTo, t('matter.forPerson', { person: personInText(t, work.routedTo) }))} />}</Cell>
                       <Cell kind="end">{listTimeText(ctx, work.updatedAt)}</Cell>
                     </DetailRow>
                   )

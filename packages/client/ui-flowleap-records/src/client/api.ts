@@ -84,13 +84,35 @@ export type QueueStatus = Extract<AtlasRef, { machine: 'intake' | 'deadline' }>
 
 // Common types.
 
-const person = obj({ id: ids.person, name: str })
-/** A person by display name; the id only keys the person. */
-export type Person = Parsed<typeof person>
+/** A member of the matter's team: the id keys the person; `name` is the display name, or null when it has none yet. */
+export interface TeamMember {
+  readonly id: PersonId
+  readonly name: string | null
+}
 
-const addressee = obj({ id: nullable(ids.person), name: str })
-/** A recipient of a mail: a person, or an address of no signed-in person (no id, the address as its name). */
-export type Addressee = Parsed<typeof addressee>
+/** Anyone outside the matter's team, and any mail address of no person: the os names neither (product rule 8). */
+export interface Outsider {
+  readonly id: null
+  readonly name: null
+}
+
+/** A person in an answer: a member of the matter's team, or someone outside it whom the views never name. */
+export type Person = TeamMember | Outsider
+
+const person: Parse<Person> = (value, path) => {
+  const source = objectAt(value, path)
+  const id = nullable(ids.person)(source['id'], `${path}.id`)
+  const name = nullable(str)(source['name'], `${path}.name`)
+  if (id !== null) return { id, name }
+  if (name !== null) throw new WireError(`${path}.name`, 'null for a person outside the team')
+  return { id: null, name: null }
+}
+
+const member: Parse<TeamMember> = (value, path) => {
+  const parsed = person(value, path)
+  if (parsed.id === null) throw new WireError(`${path}.id`, 'a person id of a team member')
+  return parsed
+}
 
 const excerpt = obj({ before: str, after: str })
 const span = obj({ page: num, start: num, end: num, quote: str, excerpt: nullable(excerpt) })
@@ -165,7 +187,7 @@ export type FieldValue = Parsed<typeof fieldValue>
 
 // GET me
 
-const me = obj({ person, admin: bool })
+const me = obj({ person: member, admin: bool })
 /** The signed-in person. */
 export type Me = Parsed<typeof me>
 
@@ -187,7 +209,7 @@ const matterDetail = obj({
   recordSeq: num,
   matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, state: oneOf(['open', 'closed']), applicationNumber: nullable(str) }),
   responsible: nullable(person),
-  team: arrayOf(person),
+  team: arrayOf(member),
   deadlines: arrayOf(obj({
     id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: ids.officeEvent,
   })),
@@ -251,7 +273,7 @@ const intakeRow: Parse<IntakeRow> = (value, path) => {
     office: nullable(str)(source['office'], `${path}.office`),
     matter: nullable(matterRef)(source['matter'], `${path}.matter`),
     matterCount: num(source['matterCount'], `${path}.matterCount`),
-    forwarder: nullable(addressee)(source['forwarder'], `${path}.forwarder`),
+    forwarder: nullable(person)(source['forwarder'], `${path}.forwarder`),
     receivedAt: isoTime(source['receivedAt'], `${path}.receivedAt`),
     since: isoTime(source['since'], `${path}.since`),
   }
@@ -266,7 +288,7 @@ export interface IntakeRow {
   readonly matter: MatterRef | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
-  readonly forwarder: Addressee | null
+  readonly forwarder: Person | null
   readonly receivedAt: IsoTime
   /** When the letter entered its current state. */
   readonly since: IsoTime
@@ -285,7 +307,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
     document: ids.document, fileName: str, mediaType: str, pages: nullable(num), since: isoTime,
-    mail: obj({ forwarder: nullable(addressee), receivedAt: isoTime, subject: str }),
+    mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
     proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['reference']) })),
@@ -306,7 +328,7 @@ export interface IntakeDocument {
   readonly pages: number | null
   readonly status: QueueStatus
   readonly since: IsoTime
-  readonly mail: { readonly forwarder: Addressee | null; readonly receivedAt: IsoTime; readonly subject: string }
+  readonly mail: { readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
   readonly code: string | null
   readonly office: string | null
   readonly documentDate: IsoDate | null
@@ -333,7 +355,7 @@ export interface IntakeDocument {
 // GET tickets
 
 const ticketRow = obj({
-  id: ids.ticket, state: ticketState, code: nullable(str), matter: matterRef, team: arrayOf(person), routedTo: nullable(person),
+  id: ids.ticket, state: ticketState, code: nullable(str), matter: matterRef, team: arrayOf(member), routedTo: nullable(person),
   due: nullable(isoDate), deadline: nullable(obj({ state: deadlineState })), report: nullable(obj({ state: reportState })),
   reply: nullable(obj({ state: outboxState })), updatedAt: isoTime,
 })
@@ -356,7 +378,7 @@ const ticketDetail = obj({
   }),
   matter: matterRef,
   responsible: nullable(person),
-  team: arrayOf(person),
+  team: arrayOf(member),
   letter: nullable(obj({
     document: ids.document, fileName: str, pages: nullable(num), code: nullable(str), documentDate: nullable(isoDate),
     applicationNumber: nullable(str),
@@ -366,7 +388,7 @@ const ticketDetail = obj({
     language: nullable(str), pages: nullable(num), statements: arrayOf(statement),
   })),
   deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
-  reply: nullable(obj({ state: outboxState, to: arrayOf(addressee) })),
+  reply: nullable(obj({ state: outboxState, to: arrayOf(person) })),
   run: nullable(obj({ model: nullable(str), steps: nullable(num), finishedAt: nullable(isoTime), session: nullable(ids.session) })),
   mayDecide: workMayDecide,
   activity,

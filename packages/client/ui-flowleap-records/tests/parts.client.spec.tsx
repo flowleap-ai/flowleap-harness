@@ -179,7 +179,7 @@ describe('layout', () => {
 })
 
 describe('decision bar', () => {
-  const me = fixtures.me.person
+  const me = { name: 'Dr. Anna Becker' }
 
   function reasonAct(open: boolean, extra: Partial<ReasonAct> = {}): ReasonAct {
     return {
@@ -307,7 +307,7 @@ describe('activity', () => {
         heading="Activity"
         lines={[
           { key: '1', actor: { kind: 'system', name: 'FlowLeap', icon: <svg /> }, text: 'read the letter', time: '14:16' },
-          { key: '2', actor: { kind: 'person', person: fixtures.me.person }, text: 'filed the letter', time: '14:17' },
+          { key: '2', actor: { kind: 'person', person: { name: 'Dr. Anna Becker' } }, text: 'filed the letter', time: '14:17' },
         ]}
         comment={<p>comment</p>}
         audit={{ label: 'Audit', rows: [{ key: '1', cells: ['101', 'intake/read', '2026-11-04T14:16:00Z'] }] }}

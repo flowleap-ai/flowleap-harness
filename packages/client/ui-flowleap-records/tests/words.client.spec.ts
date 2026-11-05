@@ -68,6 +68,19 @@ describe('words of codes and events', () => {
     expect(actorName(words.t, { kind: 'system', name: 'mailbox' })).toBe('AI mailbox')
     expect(actorName(words.t, { kind: 'system', name: 'agent' })).toBe('Patent agent')
     expect(actorName(words.t, { kind: 'person', person: fixtures.me.person })).toBe('Dr. Anna Becker')
+    expect(actorName(words.t, { kind: 'person', person: { id: null, name: null } })).toBe('A person outside the team')
+    expect(actorName(words.t, { kind: 'person', person: { id: 'p-lena' as never, name: null } })).toBe('Unnamed person')
+  })
+
+  it('words a person outside the team and an unnamed member inside an event, with a neutral avatar', () => {
+    const outsider = { id: null, name: null } as const
+    const routed = { ...fixtures.ticket.activity[0]!, for: outsider }
+    const filed = { ...fixtures.ticket.activity[4]!, actor: { kind: 'person' as const, person: outsider } }
+    const lines = activityLines(words, [routed, filed, { ...routed, for: { id: 'p-lena' as never, name: null } }])
+    expect(lines.map(line => line.text)).toEqual([
+      'opened the work and assigned it to a person outside the team', 'confirmed the deadline', 'opened the work and assigned it to an unnamed person',
+    ])
+    expect(lines[1]!.actor).toEqual({ kind: 'person', person: { name: 'A person outside the team', anonymous: true, label: undefined } })
   })
 
   it('words Activity events and keeps codes and positions for Audit', () => {

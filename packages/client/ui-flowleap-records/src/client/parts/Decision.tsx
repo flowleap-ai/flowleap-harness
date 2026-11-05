@@ -11,8 +11,7 @@
 
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { Avatar, Button, IconWarningTriangleOutlineRegular, Input, Keycap } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { Person } from '../api.ts'
+import { Avatar, Button, IconWarningTriangleOutlineRegular, Input, Keycap, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ActButton, OverflowActs, type ActSpec } from './Act.tsx'
 import { Notice, type NoticeSpec } from './States.tsx'
 import css from './Decision.module.css'
@@ -66,7 +65,7 @@ export interface DecisionLabels {
 export function DecisionBar({
   person, question, why, parts, note, negative, secondary = [], overflow = [], primary, blocked = null, decider = null, failure, labels,
 }: {
-  person: Person
+  person: AvatarPerson
   question: string
   why?: string | undefined
   parts?: ReactNode

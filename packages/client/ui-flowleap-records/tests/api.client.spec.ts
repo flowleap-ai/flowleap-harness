@@ -83,16 +83,28 @@ describe('Records API answers', () => {
     expect(pathOf(() => parsers.intakeDocument({ ...intakeDocumentWire, mayDecide: { allowed: false, reason: 'busy', decider: null } }, 'body'))).toBe('body.mayDecide.reason')
   })
 
-  it('reads why a person may decide a work item, and a reply recipient that is an address of no person', () => {
+  it('reads why a person may decide a work item', () => {
     expect(fixtures.ticket.mayDecide).toEqual({ allowed: true, as: 'responsible' })
     const other = parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: false, reason: 'not-routed-person', decider: { id: 'p-anna', name: 'Dr. Anna Becker' } } }, 'body')
     expect(other.mayDecide).toEqual({ allowed: false, reason: 'not-routed-person', decider: { id: 'p-anna', name: 'Dr. Anna Becker' } })
     expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: false, reason: 'proposer', decider: null } }, 'body'))).toBe('body.mayDecide.reason')
     expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, mayDecide: { allowed: true } }, 'body'))).toBe('body.mayDecide.as')
-    const reply = parsers.ticketDetail({ ...ticketWire, reply: { state: 'sent', to: [{ id: null, name: 'secretary@firm.test' }] } }, 'body')
-    expect(reply.reply?.to).toEqual([{ id: null, name: 'secretary@firm.test' }])
     expect(fixtures.ticket.run?.session).toBe('ses_r71work')
     expect(fixtures.deadline.deadline.ruleVersion).toBe(1)
+  })
+})
+
+describe('people', () => {
+  it('reads a team member with or without a display name, and anyone outside the team with neither id nor name', () => {
+    const reply = parsers.ticketDetail({ ...ticketWire, reply: { state: 'sent', to: [{ id: 'p-lena', name: null }, { id: null, name: null }] } }, 'body')
+    expect(reply.reply?.to).toEqual([{ id: 'p-lena', name: null }, { id: null, name: null }])
+    expect(fixtures.ticket.reply?.to.at(-1)).toEqual({ id: null, name: null })
+  })
+
+  it('refuses a name for a person outside the team, and a team or a signed-in person with no id', () => {
+    expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, reply: { state: 'sent', to: [{ id: null, name: 'Markus Brandt' }] } }, 'body'))).toBe('body.reply.to[0].name')
+    expect(pathOf(() => parsers.ticketDetail({ ...ticketWire, team: [{ id: null, name: null }] }, 'body'))).toBe('body.team[0].id')
+    expect(pathOf(() => parsers.me({ person: { id: null, name: null }, admin: false }, 'body'))).toBe('body.person.id')
   })
 })
 

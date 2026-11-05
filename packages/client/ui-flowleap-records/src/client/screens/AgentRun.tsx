@@ -9,6 +9,7 @@ import { runSessionAddress } from '../agent-run.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { AgentDock, AgentDockState } from '../parts/AgentDock.tsx'
 import { PageSpinner } from '../parts/States.tsx'
+import { personInText } from '../words.ts'
 import type { ScreenContext } from './context.ts'
 
 /** The words of the cloud model providers that the Records service names. */
@@ -71,5 +72,5 @@ function RunSessionBody({ ctx, session, routedTo }: { ctx: ScreenContext; sessio
   }
   if (resource.status === 'loading') return <PageSpinner label={t('agent.loading')} />
   const elsewhere = routedTo !== null && routedTo.id !== ctx.me?.person.id
-  return <AgentDockState shape="bad" text={elsewhere ? t('agent.elsewhere', { person: routedTo.name }) : t('agent.missing')} />
+  return <AgentDockState shape="bad" text={elsewhere ? t('agent.elsewhere', { person: personInText(t, routedTo) }) : t('agent.missing')} />
 }

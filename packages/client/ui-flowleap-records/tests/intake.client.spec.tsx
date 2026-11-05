@@ -6,7 +6,7 @@ import { shownOrder } from '../src/client/screens/IntakeScreen.tsx'
 import { rowActions } from '../src/client/row-menu.ts'
 import { menuEntries } from '@deepseek-ai/dsh-client-ui-context-menu/src/client/View.tsx'
 import type { Route } from '../src/client/model.ts'
-import { createFixtureApi, fixtures, OUTSIDE_WALL, R71_DOCUMENT, RECEPTION, sha } from './fixtures.client.ts'
+import { createFixtureApi, fixtures, OUTSIDE_WALL, OUTSIDER, R71_DOCUMENT, sha } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
@@ -39,7 +39,7 @@ function letter(patch: Partial<IntakeDocument>): IntakeDocument {
 const decision = () => screen.getAllByRole('region', { name: 'Your decision' }).at(-1)!
 
 describe('the intake list', () => {
-  it('shows the three lists as chips with their counts, newest first in each group, and the forwarder of no person as an address', async () => {
+  it('shows the three lists as chips with their counts, newest first in each group, and a forwarder outside the team unnamed', async () => {
     const { model } = await mount()
     const chips = screen.getAllByRole('button', { pressed: true }).concat(screen.getAllByRole('button', { pressed: false }))
     expect(chips.map(chip => chip.textContent).toSorted()).toEqual(['Filed today6', 'Not relevant1', 'Waits for a person22'])
@@ -48,8 +48,10 @@ describe('the intake list', () => {
     expect(rows).toEqual(shownOrder(fixtures.intake.rows).map(row => row.document))
     expect(rows.slice(0, 2)).toEqual([sha(1), sha(2)])
     expect(rows.indexOf(sha(9))).toBe(rows.indexOf(sha(8)) + 1)
-    const address = document.querySelector('[data-row="' + sha(22) + '"] [data-address]')
-    expect(address?.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(`Forwarded by ${RECEPTION.name}`)
+    const outsider = document.querySelector('[data-row="' + sha(22) + '"] [role="img"]')
+    expect(outsider?.getAttribute('aria-label')).toBe('Forwarded by a person outside the team')
+    expect(outsider?.textContent).toBe('')
+    expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
     fireEvent.click(screen.getByRole('button', { name: /Filed today/ }))
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ list: 'filed-today', open: null })
@@ -124,6 +126,18 @@ describe('the intake list', () => {
     press(panel, 'KeyJ')
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ open: order.at(-1) })
+  })
+
+  it('shows Markus Brandt, who forwarded a letter from outside the wall, as a person outside the team with no initial', async () => {
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter({ document: sha(22) as DocumentId, mail: { ...fixtures.intakeDocument.mail, forwarder: OUTSIDER } }) })
+    await mount(api, open(sha(22)))
+    expect(document.body.textContent).toContain('A person outside the team forwarded this letter to the AI mailbox.')
+    const from = screen.getAllByText('From').map(label => label.parentElement!.textContent)
+    expect(from).toContain('FromA person outside the team')
+    expect([...document.querySelectorAll('[data-anonymous]')].every(avatar => avatar.textContent === '')).toBe(true)
+    expect(document.querySelectorAll('[data-anonymous]').length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
   it('Esc closes the open letter, and the person outside the wall shows nowhere', async () => {
@@ -331,7 +345,7 @@ describe('the open letter', () => {
       [{ status: { machine: 'intake', state: 'duplicate_proposed' }, proposed: null }, 'FlowLeap found the same letter on the record.'],
       [{ status: { machine: 'intake', state: 'not_relevant' }, proposed: null, mayDecide: { allowed: false, reason: 'decided', decider: { id: 'p-jonas' as never, name: 'Jonas Weber' } } }, 'A person marked it not relevant.'],
       [{ status: { machine: 'intake', state: 'filed' }, proposed: null, filed: { fileNumber: 'FL-2026-0001' as FileNumber, title: 'Pressure sensor housing' }, mayDecide: { allowed: false, reason: 'decided', decider: null } }, 'It is filed on FL-2026-0001.'],
-      [{ status: { machine: 'intake', state: 'matched' }, proposed: null, mail: { ...fixtures.intakeDocument.mail, forwarder: RECEPTION } }, 'This letter came to the AI mailbox from'],
+      [{ status: { machine: 'intake', state: 'matched' }, proposed: null, mail: { ...fixtures.intakeDocument.mail, forwarder: OUTSIDER } }, 'A person outside the team forwarded this letter to the AI mailbox.'],
       [{ status: { machine: 'deadline', state: 'awaiting_code' }, proposed: null, mayDecide: { allowed: false, reason: 'not-ready', decider: null } }, 'FlowLeap is still reading this letter.'],
     ]
     const { model } = await mount(api, open(sha(30)))

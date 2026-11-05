@@ -44,19 +44,19 @@ export function rowActions(model: Pick<RecordsModel, 'navigate' | 'perform'>, t:
   const open = (step?: 'other-matter' | 'reason') => { model.navigate({ view: 'intake', list: row.list, open: row.document, step }) }
   const proposed = row.proposed
   return [
-    { id: 'open', label: t('act.open'), commandId: commandId('open'), keyText: 'keycap', run: () => { open() } },
+    { id: 'open', label: t('act.open'), commandId: commandId('open'), keyText: 'keycap' as const, run: () => { open() } },
     ...(proposed === null ? [] : [{
       id: 'accept',
       label: t('act.acceptOn', { matter: proposed }),
-      commandId: commandId('record'), keyText: 'keycap',
+      commandId: commandId('record'), keyText: 'keycap' as const,
       failureLabel: t('act.acceptFailed'),
       run: async () => {
         const result = await model.perform([createAct({ kind: 'intake.match', document: row.document, fileNumber: proposed })])
         if (result.failed.length > 0) throw new Error('records: the letter was not filed')
       },
     }]),
-    { id: 'other-matter', label: t('act.otherMatterMenu'), commandId: commandId('otherMatter'), keyText: 'keycap', run: () => { open('other-matter') } },
-    { id: 'not-relevant', label: t('act.notRelevant'), commandId: commandId('reject'), keyText: 'keycap', run: () => { open('reason') } },
+    { id: 'other-matter', label: t('act.otherMatterMenu'), commandId: commandId('otherMatter'), keyText: 'keycap' as const, run: () => { open('other-matter') } },
+    { id: 'not-relevant', label: t('act.notRelevant'), commandId: commandId('reject'), keyText: 'keycap' as const, run: () => { open('reason') } },
     {
       id: 'copy-link',
       label: t('intake.act.copyLink'),

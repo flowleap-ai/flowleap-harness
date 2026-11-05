@@ -6,9 +6,9 @@
 
 import { createElement, type ReactNode } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular,
+  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular, type AvatarPerson,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ActivityEvent, Actor, IsoDate, IsoTime, QueueStatus } from './api.ts'
+import type { ActivityEvent, Actor, IsoDate, IsoTime, Person, QueueStatus } from './api.ts'
 import { dueDay, listTime } from './format.ts'
 import type { FlowleapRecordsKey } from './locales.ts'
 import type { ActivityLine, AuditRow } from './parts/Activity.tsx'
@@ -47,6 +47,40 @@ export function letterTitle(t: Translate, code: string | null, status?: QueueSta
   return t(key ?? 'code.unknown')
 }
 
+/**
+ * A person as a label or at the start of a sentence: the display name, "Unnamed person" for a team member with no
+ * display name yet, or "A person outside the team" for anyone the os does not name (product rule 8).
+ * @param t - the translate function.
+ * @param person - the person.
+ * @returns the name, never a sign-in or an id.
+ */
+export function personName(t: Translate, person: Person): string {
+  return person.id === null ? t('person.outside') : person.name ?? t('person.unnamed')
+}
+
+/**
+ * A person inside a sentence, after other words: the display name, or the lower-case form of `personName`, such as
+ * "Forwarded by a person outside the team".
+ * @param t - the translate function.
+ * @param person - the person.
+ * @returns the name in running text.
+ */
+export function personInText(t: Translate, person: Person): string {
+  return person.id === null ? t('person.outsideInText') : person.name ?? t('person.unnamedInText')
+}
+
+/**
+ * A person as an avatar draws them: the display name, or a neutral glyph with `personName` as its name when the os
+ * sends no display name.
+ * @param t - the translate function.
+ * @param person - the person.
+ * @param label - the accessible name and hover text, when it says more than the name.
+ * @returns the avatar person.
+ */
+export function avatarOf(t: Translate, person: Person, label?: string): AvatarPerson {
+  return { name: personName(t, person), anonymous: person.name === null || undefined, label }
+}
+
 /** The name key of each system actor. */
 const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent' } as const
 
@@ -63,7 +97,7 @@ const SYSTEM_ICONS = {
  * @returns the name.
  */
 export function actorName(t: Translate, actor: Actor): string {
-  return actor.kind === 'person' ? actor.person.name : t(SYSTEM_NAMES[actor.name])
+  return actor.kind === 'person' ? personName(t, actor.person) : t(SYSTEM_NAMES[actor.name])
 }
 
 /** The text key of each Activity event type that the views word. */
@@ -161,11 +195,11 @@ export function dueText(words: WordContext, due: IsoDate): string {
  */
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
   return events.map((event) => {
-    const params = { person: event.for?.name ?? '' }
+    const params = { person: event.for === null ? '' : personInText(words.t, event.for) }
     const text = EVENT_TEXTS[event.type] ?? 'event.other'
     const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
-      ? { kind: 'person' as const, person: event.actor.person }
+      ? { kind: 'person' as const, person: avatarOf(words.t, event.actor.person) }
       : { kind: 'system' as const, name: actorName(words.t, event.actor), icon: systemIcon(event.actor.name) }
     return { key: String(event.seq), actor, text: words.t(key, params), time: listTimeText(words, event.at) }
   })

@@ -701,13 +701,27 @@ describe('the work on a letter', () => {
     expect(box()).toHaveProperty('checked', false)
   })
 
-  it('shows a reply address of no person as a count, never as text', async () => {
-    await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never, { id: null, name: 'secretary@firm.test' }, { id: null, name: 'b@firm.test' }] } } })
-    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, 2 other addresses')
-    expect(document.body.textContent).not.toContain('firm.test')
+  it('names the reply recipients of the team and counts the people outside it, so Markus Brandt shows nowhere', async () => {
+    await mount(WORK)
+    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, Dr. Anna Becker, a person outside the team')
+    expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
     cleanup()
-    await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [{ id: null, name: 'secretary@firm.test' }] } } })
-    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to 1 other address')
+    await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never, { id: null, name: null }, { id: null, name: null }] } } })
+    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, 2 people outside the team')
+  })
+
+  it('shows a team member with no display name as an unnamed person with no initial', async () => {
+    const unnamed = { id: 'p-lena', name: null } as const
+    await mount(WORK, {
+      ticket: {
+        ...sourced,
+        responsible: unnamed as never,
+        team: [PEOPLE.anna as never, unnamed as never],
+        activity: [{ ...sourced.activity[0]!, actor: { kind: 'person', person: unnamed as never } }],
+      },
+    })
+    expect(screen.getAllByText('Unnamed person').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByRole('img', { name: 'Unnamed person' }).textContent).toBe('')
   })
 
   it('words a letter with no report, another office event, no letter date and no responsible attorney', async () => {

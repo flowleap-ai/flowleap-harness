@@ -12,7 +12,7 @@ import {
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { FieldValue, IntakeDocument, IntakeView, Addressee, MatterRef, Span } from '../api.ts'
+import type { FieldValue, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
@@ -23,7 +23,7 @@ import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, KeyProperties, PropertiesPanel, WorkColumn, type Property } from '../parts/Layout.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate } from '../format.ts'
-import { letterTitle, listTimeText } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
 import { failureNotice, RecordActivity } from './shared.tsx'
@@ -53,7 +53,7 @@ export function letterDecision(ctx: ScreenContext, letter: IntakeDocument): Lett
   if (!may.allowed) {
     if (may.reason === 'not-in-team') return { kind: 'other-team' }
     if (may.reason === 'not-ready') return { kind: 'none', why: ctx.t('intake.decision.notReady') }
-    return { kind: 'none', why: may.decider === null ? ctx.t('decision.notYours') : ctx.t('decision.decider', { person: may.decider.name }) }
+    return { kind: 'none', why: may.decider === null ? ctx.t('decision.notYours') : ctx.t('decision.decider', { person: personName(ctx.t, may.decider) }) }
   }
   if (letter.status.machine === 'deadline') return { kind: 'code' }
   return letter.status.state === 'match_proposed' && letter.proposed !== null ? { kind: 'match', proposed: letter.proposed } : { kind: 'pick' }
@@ -138,25 +138,16 @@ function ledeOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
 }
 
 /**
- * Render a mail sender: a person's avatar and display name, or the mail address of no signed-in person inside a
- * `data-address` element (R19).
- * @param props.sender - the sender.
- * @returns the sender.
- */
-export function Sender({ sender }: { sender: Addressee }) {
-  return sender.id === null
-    ? <span className={css.who} data-address="">{sender.name}</span>
-    : <span className={css.who}><Avatar person={{ name: sender.name }} nameShown />{sender.name}</span>
-}
-
-/**
- * Render a person or nobody as an avatar and the display name.
+ * Render a person or nobody as an avatar and the name: the display name, or the words for a person the os does not
+ * name, such as a forwarder outside the team.
  * @param props.ctx - the screen context.
  * @param props.person - the person.
  * @returns the person.
  */
-function Who({ ctx, person }: { ctx: ScreenContext; person: { readonly name: string } | null }) {
-  return person === null ? <>{ctx.t('matter.none')}</> : <span className={css.who}><Avatar person={{ name: person.name }} nameShown />{person.name}</span>
+function Who({ ctx, person }: { ctx: ScreenContext; person: Person | null }) {
+  return person === null
+    ? <>{ctx.t('matter.none')}</>
+    : <span className={css.who}><Avatar person={avatarOf(ctx.t, person)} nameShown />{personName(ctx.t, person)}</span>
 }
 
 /**
@@ -383,7 +374,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     ? null
     : (
       <DecisionBar
-        person={ctx.me.person}
+        person={avatarOf(t, ctx.me.person)}
         question={decision.kind === 'code' ? t('intake.decision.whatLetter') : t('decision.whichMatter')}
         why={decision.kind === 'none' ? undefined : t('intake.decision.why')}
         labels={{ yours: t('decision.yours'), more: t('decision.more') }}
@@ -440,7 +431,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     {
       heading: t('intake.prop.forward'),
       rows: [
-        { label: t('intake.prop.from'), value: forwarder === null ? t('matter.none') : <Sender sender={forwarder} /> },
+        { label: t('intake.prop.from'), value: <Who ctx={ctx} person={forwarder} /> },
         { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) },
         { label: t('intake.prop.subject'), value: letter.mail.subject, title: letter.mail.subject },
       ],
@@ -462,9 +453,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
           title={title}
           lede={(
             <>
-              {forwarder !== null && (forwarder.id === null
-                ? <>{t('intake.lede.forwardedFrom')} <span data-address="">{forwarder.name}</span>.</>
-                : t('item.forwarded', { person: forwarder.name }))}
+              {forwarder !== null && t('item.forwarded', { person: personName(t, forwarder) })}
               {lede !== null && ` ${lede}`}
             </>
           )}
