@@ -17,7 +17,7 @@ The founder's bar is Linear (https://linear.app). A screen meets the bar when it
 2. **When you are stuck on a design choice, find the matching Linear screen or pattern first**, in linear.app, its docs and changelog, and [references](references/README.md). Note in the PR which one you used and why.
 3. **Founder approval.** The founder approves the mockups before any code. Link the approval in the PR.
 4. **Build** with the client tokens, `ui-primitives` and the components. A value that is not a client token or in [rules.md](rules.md) needs a new rule first.
-5. **Design review before merge.** A reviewer checks the built screen against [review-checklist.md](review-checklist.md) and writes PASS or FAIL for each item in the PR. Any FAIL blocks the merge.
+5. **Design review before merge.** A reviewer checks the built screen against [review-checklist.md](review-checklist.md) and writes PASS or FAIL for each item in the PR. A blocking FAIL stops the merge; a small visual FAIL becomes a ticket that is fixed after the merge ([review-checklist.md](review-checklist.md#blocking-fail-or-ticket)).
 
 ```sh
 node scripts/check-css.mjs <mockup dir or CSS> [--pairs]   # R1, R2, R5, R7, R8, R9, R10, R15: client tokens only

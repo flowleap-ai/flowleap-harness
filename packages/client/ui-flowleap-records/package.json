@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-records",
   "description": "The Matters row in the FlowLeap sidebar (German Akten) and the Matters page: the Firm Record's pages of flowleap-os, served by the firm proxy at the same origin, embedded in a frame with the client's theme; an empty state while the firm has no matters",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },
