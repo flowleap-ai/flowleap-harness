@@ -208,6 +208,11 @@ describe('the matter page', () => {
     expect(document.body.textContent).toContain('2deadlines wait for a second person')
     expect(document.body.textContent).toContain('2work items wait for Dr. Anna Becker')
     cleanup()
+    const outsider = { ...fixtures.matter.work[0]!, routedTo: { id: null, name: null } } as const
+    await mount(MATTER, { matter: { ...matter, work: [...matter.work, outsider, { ...outsider, id: uuid(32) as TicketId }] } })
+    expect(document.body.textContent).toContain('2work items wait for a person outside the team')
+    expect(screen.getAllByRole('img', { name: 'For a person outside the team' }).every(avatar => avatar.textContent === '')).toBe(true)
+    cleanup()
     await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [{ ...fixtures.matter.deadlines[0]!, state: 'active' }], work: [] } })
     expect(document.body.textContent).not.toContain('waits for')
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Next deadline')
@@ -719,6 +724,9 @@ describe('the work on a letter', () => {
     cleanup()
     await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never, { id: null, name: null }, { id: null, name: null }] } } })
     expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, 2 people outside the team')
+    cleanup()
+    await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never] } } })
+    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas WeberWith')
   })
 
   it('shows a team member with no display name as an unnamed person with no initial', async () => {

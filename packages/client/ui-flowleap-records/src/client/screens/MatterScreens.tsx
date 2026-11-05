@@ -120,8 +120,8 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
   const waiting = data.deadlines.filter(deadline => WAITING_DEADLINES.has(deadline.state)).length
   const ready = data.work.filter(work => work.state === 'proposals_ready')
-  const deciders = [...new Set(ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo.id]))]
-    .map(id => ready.filter(work => work.routedTo !== null && work.routedTo.id === id))
+  const routed = ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo])
+  const deciders = [...new Map(routed.map(person => [person.id, person])).values()]
   const nextDue = data.deadlines.find(deadline => deadline.state === 'deadline_proposed' || deadline.state === 'active')?.due ?? null
   const titleOfDocument = (document: (typeof data.documents)[number]) => {
     const event = data.officeEvents.find(item => item.document === document.sha256)
@@ -165,11 +165,10 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             />
             <Facts facts={[
               ...(waiting === 0 ? [] : [{ key: 'deadlines', count: waiting, text: t(waiting === 1 ? 'matter.factDeadline' : 'matter.factDeadlines') }]),
-              ...deciders.flatMap(([first, ...rest]) => {
-                if (first?.routedTo == null) return []
-                const count = rest.length + 1
-                const person = personInText(t, first.routedTo)
-                return [{ key: `work:${first.routedTo.id ?? 'outside'}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }]
+              ...deciders.map((decider) => {
+                const count = routed.filter(person => person.id === decider.id).length
+                const person = personInText(t, decider)
+                return { key: `work:${decider.id ?? 'outside'}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }
               }),
             ]} />
             <Section heading={t('section.deadlines')} count={data.deadlines.length}>
