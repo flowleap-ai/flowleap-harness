@@ -105,6 +105,42 @@ const DECIDERS: Readonly<Record<MayDecideReason, FlowleapRecordsKey>> = {
 }
 
 /**
+ * Why the signed-in person may confirm: a person who did not record or classify the letter, or, for an office event
+ * that a person entered by hand, not the person who entered it.
+ * @param ctx - the screen context.
+ * @param data - the deadline.
+ * @returns the why line of the decision bar.
+ */
+function whyYou({ t }: ScreenContext, data: DeadlineDetail): string {
+  if (data.officeEvent.document !== null) return t('deadline.whyYou')
+  return data.proposer === null ? t('deadline.whyEnteredPlain') : t('deadline.whyEntered', { person: personInText(t, data.proposer) })
+}
+
+/**
+ * Why the signed-in person may not confirm. The person who entered an office event by hand entered no date: FlowLeap
+ * computed it, so the words name the entry.
+ * @param reason - the refusal of a confirm.
+ * @param letter - the source letter, or null for an office event entered by hand.
+ * @returns the text key.
+ */
+function deciderOf(reason: MayDecideReason, letter: DeadlineDetail['officeEvent']['document']): FlowleapRecordsKey {
+  return reason === 'proposer' && letter === null ? 'deadline.decider.entered' : DECIDERS[reason]
+}
+
+/**
+ * The words of one step of the calculation. An office event entered by hand has no letter, so its delivery step
+ * names the date of the office event.
+ * @param step - the step.
+ * @param letter - the source letter, or null for an office event entered by hand.
+ * @returns the text key.
+ */
+function stepWords(step: DeadlineDetail['deadline']['trace'][number], letter: DeadlineDetail['officeEvent']['document']): FlowleapRecordsKey {
+  if (step.op === 'closure-roll' && step.from === step.to) return 'deadline.step.openDay'
+  if (step.op === 'delivery' && letter === null) return 'deadline.step.deliveryEvent'
+  return STEPS[step.op] ?? 'deadline.step.other'
+}
+
+/**
  * The reading rows: the reader field whose span quotes the value, and the label. The office event has no quote: its
  * reader field is the form code, which shows only in Audit (R19).
  */
@@ -194,9 +230,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       <DecisionBar
         heading={decisionHeading(ctx, ctx.me.person, mayConfirm)}
         question={t('decision.dateRight')}
-        why={allowed ? t('deadline.whyYou') : undefined}
+        why={allowed ? whyYou(ctx, data) : undefined}
         labels={{ more: t('decision.more') }}
-        decider={mayConfirm.allowed ? null : t(DECIDERS[mayConfirm.reason], { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
+        decider={mayConfirm.allowed ? null : t(deciderOf(mayConfirm.reason, letter), { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
@@ -288,7 +324,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
                 <span className={css.dot} aria-hidden="true" />
                 <div>
                   <div className={css.what}>
-                    {step.op === 'closure-roll' && step.from === step.to ? t('deadline.step.openDay') : t(STEPS[step.op] ?? 'deadline.step.other')}
+                    {t(stepWords(step, letter))}
                   </div>
                   <div className={css.law}>{citeText(t, step.cite)}</div>
                 </div>
@@ -309,14 +345,19 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           })}
         </section>
 
-        <section className={css.section} aria-label={t('deadline.read')}>
-          <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t('deadline.readHint')}`}</span></h2>
-          {reading === 'noLetter'
-            ? <NoSourceLetter ctx={ctx} data={data} />
-            : reading === 'none'
-              ? <p className={css.subHint}>{t('deadline.noReading')}</p>
-              : <Readings ctx={ctx} readers={readers} />}
-        </section>
+        {reading === 'noLetter'
+          ? (
+            <section className={css.section} aria-label={t('deadline.eventHeading')}>
+              <h2 className={css.subHeading}>{t('deadline.eventHeading')}</h2>
+              <NoSourceLetter ctx={ctx} data={data} />
+            </section>
+          )
+          : (
+            <section className={css.section} aria-label={t('deadline.read')}>
+              <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t('deadline.readHint')}`}</span></h2>
+              {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
+            </section>
+          )}
 
         {deadline.sources.length > 0 && (
           <section className={css.section}>

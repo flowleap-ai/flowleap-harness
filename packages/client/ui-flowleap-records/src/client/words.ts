@@ -204,6 +204,17 @@ const EVENT_TEXTS: Readonly<Record<string, FlowleapRecordsKey>> = {
   'outbox/dead': 'event.replyDead',
 }
 
+/**
+ * The text key of an event. A person records an office event from a letter (the event names its document) or enters
+ * it by hand (no document): only the first confirms a reading.
+ * @param event - the event.
+ * @returns the text key.
+ */
+function eventText(event: ActivityEvent): FlowleapRecordsKey {
+  if (event.type === 'office-event/recorded' && typeof event.detail['document'] !== 'string') return 'event.officeEventEntered'
+  return EVENT_TEXTS[event.type] ?? 'event.other'
+}
+
 /** The text key of an event type whose text names the person it is for, when the event names no person. */
 const WITHOUT_PERSON: Readonly<Partial<Record<FlowleapRecordsKey, FlowleapRecordsKey>>> = {
   'event.ticketRouted': 'event.ticketRoutedPlain',
@@ -256,7 +267,7 @@ export function dueText(words: WordContext, due: IsoDate): string {
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
   return events.map((event) => {
     const params = { person: event.for === null ? '' : personInText(words.t, event.for) }
-    const text = EVENT_TEXTS[event.type] ?? 'event.other'
+    const text = eventText(event)
     const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
       ? { kind: 'person' as const, person: avatarOf(words.t, event.actor.person) }

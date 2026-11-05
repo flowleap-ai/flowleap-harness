@@ -597,7 +597,7 @@ describe('the deadline page', () => {
     }
     const { keyActs } = await mount(DEADLINE, { deadline: byHand }, 'de')
     expect(keyActs.handler('openLetter')).toBeUndefined()
-    const read = screen.getByRole('region', { name: 'Was FlowLeap gelesen hat, zweimal' })
+    const read = screen.getByRole('region', { name: 'Das Amtsereignis' })
     expect(read.textContent).toContain('Kein Quellschreiben')
     expect(read.textContent).toContain('Jonas Weber hat das Amtsereignis von Hand erfasst. Eine zweite Person bestätigt es.')
     expect(within(bar('Ihre Entscheidung')).getByText(/Kein Quellschreiben/)).toBeTruthy()
@@ -608,10 +608,50 @@ describe('the deadline page', () => {
     expect(panel.textContent).toContain('LesungKein Quellschreiben')
     cleanup()
     await mount(DEADLINE, { deadline: { ...byHand, proposer: null } })
-    expect(screen.getByRole('region', { name: 'What FlowLeap read, twice' }).textContent).toBe('What FlowLeap read, twice· the calculation uses these valuesNo source letter')
+    expect(screen.getByRole('region', { name: 'The office event' }).textContent).toBe('The office eventNo source letter')
     cleanup()
     await mount(DEADLINE, { deadline: { ...byHand, deadline: { ...byHand.deadline, state: 'active' }, confirmer: { ...PEOPLE.anna, id: PEOPLE.anna.id as PersonId } } })
-    expect(screen.getByRole('region', { name: 'What FlowLeap read, twice' }).textContent).toContain('No source letterJonas Weber entered the office event by hand, and Dr. Anna Becker confirmed it.')
+    expect(screen.getByRole('region', { name: 'The office event' }).textContent).toContain('No source letterJonas Weber entered the office event by hand, and Dr. Anna Becker confirmed it.')
+  })
+
+  it('words an office event entered by hand as an entry by its person, never as a letter that FlowLeap read', async () => {
+    const jonas = { ...PEOPLE.jonas, id: PEOPLE.jonas.id as PersonId }
+    const entered = { officeEventId: FIXTURE_IDS.officeEvent, code: 'EPO:R71(3)', documentDate: '2026-10-30', receivedAt: null }
+    const byHand: DeadlineDetail = {
+      ...fixtures.deadline,
+      deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
+      officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
+      readers: { code: null, model: null, agree: null },
+      proposer: jonas,
+      activity: [
+        { seq: 120, at: '2026-11-04T14:10:00Z' as never, type: 'office-event/recorded', actor: { kind: 'person', person: jonas }, for: null, detail: entered },
+        ...fixtures.deadline.activity.slice(1),
+      ],
+    }
+    await mount(DEADLINE, { deadline: byHand })
+    expect(within(bar()).getByText('Jonas Weber entered this office event, so you can confirm it')).toBeTruthy()
+    expect(document.body.textContent).not.toContain('You did not record or classify this letter')
+    expect(screen.queryByRole('region', { name: 'What FlowLeap read, twice' })).toBeNull()
+    expect(screen.getByRole('region', { name: 'The office event' }).textContent).toBe('The office eventNo source letterJonas Weber entered the office event by hand. A second person confirms it.')
+    const steps = within(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).getAllByRole('listitem')
+    expect(steps[0]!.textContent).toContain('Delivered on the date of the office event')
+    expect(document.body.textContent).not.toContain('the date of the letter')
+    expect(document.body.textContent).toContain('Jonas Weber entered the office event by hand')
+    cleanup()
+    await mount(DEADLINE, { deadline: { ...byHand, proposer: null } })
+    expect(within(bar()).getByText('Another person entered this office event, so you can confirm it')).toBeTruthy()
+    cleanup()
+    await mount(DEADLINE, { deadline: { ...byHand, mayConfirm: { allowed: false, reason: 'proposer', decider: null } } })
+    expect(bar('Not your decision').textContent).toContain('You entered this office event, so another person confirms its deadline.')
+    expect(document.body.textContent).not.toContain('You proposed this date')
+    cleanup()
+    // An office event that a person recorded from a letter names its document; it stays a confirm of the reading.
+    const fromLetter = { ...entered, document: R71_DOCUMENT, codeSource: { kind: 'decided' } }
+    await mount(DEADLINE, { deadline: { ...fixtures.deadline, activity: [{ ...byHand.activity[0]!, detail: fromLetter }], mayConfirm: { allowed: false, reason: 'proposer', decider: null } } })
+    expect(document.body.textContent).toContain('Jonas Weber confirmed the office event')
+    expect(document.body.textContent).not.toContain('entered the office event by hand')
+    expect(within(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).getAllByRole('listitem')[0]!.textContent).toContain('Delivered on the date of the letter')
+    expect(bar('Not your decision').textContent).toContain('You proposed this date, so a second person confirms it.')
   })
 
   it('words the legal citations and the office in the UI language, and keeps a citation it does not know as it is', async () => {
