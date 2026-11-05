@@ -8,7 +8,7 @@
 import type { DragEvent, ReactNode } from 'react'
 import { AvatarStack, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AtlasRef } from '../atlas.ts'
-import { AtlasStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
+import { AtlasStatus, FactStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
 import css from './Board.module.css'
 
 /** How a column answers a lifted card. */
@@ -129,10 +129,7 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
       {facts.length > 0 && (
         <div className={css.facts}>
           {facts.map(fact => (
-            <span key={fact.label} className={css.fact}>
-              <span className={css.factLabel}>{fact.label}</span>
-              <AtlasStatus status={fact.status} word={fact.word} />
-            </span>
+            <FactStatus key={fact.label} label={fact.label} status={fact.status} word={fact.word} className={css.fact} />
           ))}
         </div>
       )}

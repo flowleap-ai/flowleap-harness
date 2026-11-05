@@ -10,3 +10,17 @@
 .pill {
   display: inline-flex;
 }
+
+/* A fact's label, then its status; the pair wraps inside its cell rather than cutting the word. */
+.fact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  max-width: 100%;
+}
+
+.factLabel {
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+}

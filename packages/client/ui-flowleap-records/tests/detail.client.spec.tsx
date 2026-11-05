@@ -497,6 +497,14 @@ describe('the work on a letter', () => {
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
+  it('labels each status of the page, so a sent report and a sent reply never read the same', async () => {
+    const report = sourced.reports[0]!
+    await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
+    const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
+    expect(sent.map(status => status.parentElement!.textContent)).toEqual(['Report ·Sent', 'Reply ·Sent'])
+    expect(document.querySelector('[data-atlas="deadline.active"]')!.parentElement!.textContent).toBe('Deadline ·Active')
+  })
+
   it('blocks Accept and Record decision while a statement has no source, and lets the person reject the report', async () => {
     const { acts, keyActs } = await mount(WORK)
     expect(within(bar()).getAllByText('Statement 5 has no source, so Accept waits.').length).toBeGreaterThan(0)

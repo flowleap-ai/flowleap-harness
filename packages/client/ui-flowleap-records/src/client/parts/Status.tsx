@@ -43,6 +43,30 @@ export function AtlasStatus({ status, word, className }: { status: AtlasRef; wor
 }
 
 /**
+ * Render a fact's status with its label first, such as "Report · Sent" or "Reply · Sent", so two records whose
+ * states share a shape and a word never look the same (R11). The label and the status wrap onto two lines when they
+ * do not fit; the status word is never cut.
+ * @param props.label - what the fact is about, such as "Report".
+ * @param props.status - the atlas state.
+ * @param props.word - its word, from `atlasWord`.
+ * @param props.className - extra class for the chip, such as a card's box.
+ * @returns the labelled status.
+ */
+export function FactStatus({ label, status, word, className }: {
+  label: string
+  status: AtlasRef
+  word: AtlasWord
+  className?: string | undefined
+}) {
+  return (
+    <span className={clsx(css.fact, className)}>
+      <span className={css.factLabel}>{label}<span aria-hidden="true"> ·</span></span>
+      <AtlasStatus status={status} word={word} />
+    </span>
+  )
+}
+
+/**
  * Render a status as the pill of a header eyebrow; a page shows its subject's status once.
  * @param props.status - the atlas state.
  * @param props.word - its word, from `atlasWord`.

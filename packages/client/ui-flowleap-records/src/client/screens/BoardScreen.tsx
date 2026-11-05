@@ -84,9 +84,9 @@ export function dropOf(ctx: ScreenContext, column: BoardColumnSpec, card: Ticket
 function factsOf(ctx: ScreenContext, row: TicketRow): CardFact[] {
   const { t } = ctx
   return [
-    ...(row.deadline === null ? [] : [{ label: t('board.deadline'), status: { machine: 'deadline', state: row.deadline.state } as const }]),
-    ...(row.report === null ? [] : [{ label: t('board.report'), status: { machine: 'report', state: row.report.state } as const }]),
-    ...(row.reply === null ? [] : [{ label: t('board.reply'), status: { machine: 'outbox', state: row.reply.state } as const }]),
+    ...(row.deadline === null ? [] : [{ label: t('fact.deadline'), status: { machine: 'deadline', state: row.deadline.state } as const }]),
+    ...(row.report === null ? [] : [{ label: t('fact.report'), status: { machine: 'report', state: row.report.state } as const }]),
+    ...(row.reply === null ? [] : [{ label: t('fact.reply'), status: { machine: 'outbox', state: row.reply.state } as const }]),
   ].map(fact => ({ ...fact, word: atlasWord(t, fact.status) }))
 }
 

@@ -31,7 +31,7 @@ import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '..
 import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
-import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
+import { AtlasPill, atlasWord, FactStatus } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
@@ -327,7 +327,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
                 <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
-                <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
+                <FactStatus label={t('fact.report')} status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
                 <div className={detail.sectionActs}>
                   {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
                   {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
@@ -514,10 +514,10 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         <h2 className={detail.subHeading}>{t('work.related')}</h2>
         <span className={detail.subHint}>{count}</span>
       </div>
-      <DetailTable label={t('work.related')} columns="136px 176px minmax(0, 1fr) auto 16px" narrowColumns="112px minmax(0, 1fr) auto" header={null}>
+      <DetailTable label={t('work.related')} columns="200px 176px minmax(0, 1fr) auto 16px" narrowColumns="136px minmax(0, 1fr) auto" header={null}>
         {deadline !== null && (
           <DetailRow opens>
-            <Cell kind="status"><AtlasStatus status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
+            <Cell kind="status"><FactStatus label={t('fact.deadline')} status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
             <OpenCell onOpen={() => { ctx.navigate({ view: 'deadline', id: deadline.id }) }}>
               <span className={detail.strong}>{t('crumb.deadline', { date: formatDay(deadline.due, ctx.locale) })}</span>
             </OpenCell>
@@ -528,7 +528,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         )}
         {reply !== null && (
           <DetailRow>
-            <Cell kind="status"><AtlasStatus status={{ machine: 'outbox', state: reply.state }} word={atlasWord(t, { machine: 'outbox', state: reply.state })} /></Cell>
+            <Cell kind="status"><FactStatus label={t('fact.reply')} status={{ machine: 'outbox', state: reply.state }} word={atlasWord(t, { machine: 'outbox', state: reply.state })} /></Cell>
             <Cell kind="main">{t('work.replyTo', { people: recipients(ctx, reply.to) })}</Cell>
             <Cell kind="meta" wide>{t('work.replyFrom')}</Cell>
             <Cell kind="end" />
