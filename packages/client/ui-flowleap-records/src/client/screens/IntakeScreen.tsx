@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import clsx from 'clsx'
 import { Avatar, IconCheckOutlineRegular, IconCloseOutlineRegular, IconPaperPlaneOutlineRegular, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { sameRequest, useActRunner } from '../act-runner.ts'
@@ -16,7 +17,7 @@ import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { viewFailure } from '../load.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar } from '../parts/Decision.tsx'
-import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
+import { DetailHeader, QueueItemSkeleton, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
 import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, SelectionBar, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
@@ -324,7 +325,10 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         </ul>
       </WorkColumn>
     )
-  const item = selection ?? (screen.item === null || screen.open === null
+  // From 1366px the list keeps its split width while it loads and until the first letter opens (R18): the item pane
+  // holds the skeleton of a letter.
+  const awaitingLetter = split && screen.open === null && !selecting && (screen.intake.phase === 'skeleton' || first !== undefined)
+  const letterPane = screen.item === null || screen.open === null
     ? null
     : (
       <LoadView
@@ -345,7 +349,8 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
           ),
         }}
       />
-    ))
+    )
+  const item = selection ?? (awaitingLetter ? <QueueItemSkeleton /> : letterPane)
   // A touch screen has no row context menu: the overflow menu offers the acts of the one selected row instead.
   const [only] = checked.size === 1 ? checked : []
   const rowActs: ActSpec[] = only === undefined
@@ -408,7 +413,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
             key={name}
             active={name === screen.list}
             aria-pressed={name === screen.list}
-            className={name === 'waiting' ? undefined : css.wideChip}
+            className={clsx(css.chip, name !== 'waiting' && css.wideChip)}
             onClick={() => { ctx.navigate({ view: 'intake', list: name, open: null }) }}
           >
             {t(label)}

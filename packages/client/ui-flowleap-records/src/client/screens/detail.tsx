@@ -39,7 +39,7 @@ export function DetailTable({ label, variant = 'detail', grid, header, children 
       {header !== null && (
         <div className={css.thead} role="row">
           {header.map((cell, index) => (
-            <span key={index} role="columnheader" className={clsx(cell.end === true && css.end, cell.wide === true && css.wide)}>{cell.text}</span>
+            <span key={index} role="columnheader" className={clsx(cell.end === true && css.end, cell.endNarrow === true && css.endNarrow, cell.wide === true && css.wide)}>{cell.text}</span>
           ))}
         </div>
       )}
@@ -53,6 +53,8 @@ export interface HeaderCell {
   readonly text: string
   /** Right-aligned, over a time or a count. */
   readonly end?: boolean
+  /** Right-aligned at 390px only, over a value that moves to the right edge there. */
+  readonly endNarrow?: boolean
   /** Hidden at 390px. */
   readonly wide?: boolean
 }

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RecordsApi, TicketRow } from '../src/client/api.ts'
-import { BOARD_COLUMNS, dropOf, mayMove } from '../src/client/screens/BoardScreen.tsx'
+import { BOARD_COLUMNS, dropOf, mayMove, startAtFirstCards } from '../src/client/screens/BoardScreen.tsx'
 import type { ScreenContext } from '../src/client/screens/context.ts'
 import { en } from '../src/client/locales.ts'
 import type { Route } from '../src/client/model.ts'
@@ -41,6 +41,47 @@ function drag(type: 'dragStart' | 'dragOver' | 'drop' | 'dragEnd', target: Eleme
   return dataTransfer
 }
 
+describe('the work board at 390px', () => {
+  it('offers the List and Board switch in the top bar overflow menu, which has no room for the segmented control', async () => {
+    const { model } = await mount()
+    const more = screen.getByRole('button', { name: 'Layout' })
+    expect(more.getAttribute('aria-haspopup')).toBe('menu')
+    fireEvent.click(more)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'List' }))
+    await flush()
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'board', layout: 'list' })
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Board' }))
+    await flush()
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'board', layout: 'board' })
+  })
+
+  it('starts a board wider than its area at the first column with cards', () => {
+    const board = document.createElement('div')
+    const empty = board.appendChild(document.createElement('section'))
+    const full = board.appendChild(document.createElement('section'))
+    full.appendChild(document.createElement('article'))
+    const scrolled = vi.fn()
+    for (const column of [empty, full]) column.scrollIntoView = scrolled
+    const size = (scroll: number, client: number) => {
+      Object.defineProperty(board, 'scrollWidth', { configurable: true, value: scroll })
+      Object.defineProperty(board, 'clientWidth', { configurable: true, value: client })
+    }
+    size(1120, 1120)
+    startAtFirstCards(board)
+    expect(scrolled).not.toHaveBeenCalled()
+    size(1120, 390)
+    startAtFirstCards(board)
+    expect(scrolled).toHaveBeenCalledTimes(1)
+    expect(scrolled.mock.contexts[0]).toBe(full)
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest', inline: 'start' })
+    empty.appendChild(document.createElement('article'))
+    startAtFirstCards(board)
+    startAtFirstCards(null)
+    expect(scrolled).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('the work board', () => {
   it('shows a column for each state that work waits or works in, the cards with their facts, and the other states', async () => {
     await mount()
@@ -50,7 +91,7 @@ describe('the work board', () => {
     expect(within(column('Proposals ready')).getAllByRole('article')).toHaveLength(3)
     const r71 = card('FL-2026-0001')
     expect(r71.textContent).toContain('Rule 71(3) communication')
-    expect(r71.textContent).toContain('Pressure sensor housing · due Mon, 1 Mar 2027')
+    expect(within(r71).getByText('Pressure sensor housing').nextElementSibling!.textContent).toBe('due Mon, 1 Mar 2027')
     expect(within(r71).getByText('Deadline').parentElement!.textContent).toBe('Deadline ·Active')
     expect(within(r71).getByText('Report').parentElement!.textContent).toBe('Report ·Proposed')
     const other = screen.getByRole('region', { name: 'Other states' })
@@ -111,11 +152,18 @@ describe('the work board', () => {
     expect(dropOf(ctx, decided, null)).toEqual({ kind: 'idle' })
   })
 
-  it('opens a card, filters to the work routed to the person, and shows the empty board', async () => {
+  it('opens a card from anywhere on it, filters to the work routed to the person, and shows the empty board', async () => {
     const { model } = await mount()
+    const navigate = vi.spyOn(model, 'navigate')
     fireEvent.click(screen.getByRole('button', { name: 'Notice of allowance' }))
     await flush()
-    expect(model.screen.getSnapshot()).toMatchObject({ view: 'work' })
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'work', id: fixtures.tickets.rows[5]!.id })
+    expect(navigate).toHaveBeenCalledTimes(1)
+    act(() => { model.navigate(BOARD) })
+    await flush()
+    fireEvent.click(within(card('FL-2026-0001')).getByText('Deadline'))
+    await flush()
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'work', id: fixtures.tickets.rows[3]!.id })
     act(() => { model.navigate(BOARD) })
     await flush()
     fireEvent.click(screen.getByRole('button', { name: 'For me' }))
@@ -196,6 +244,11 @@ describe('the work board', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(10) })
     const board = screen.getByRole('status', { name: 'Loading' })
     expect(board.querySelectorAll('section')).toHaveLength(4)
+    // The "Other states" line keeps its place above the columns while the board loads, so the columns do not move.
+    const other = board.previousElementSibling!
+    expect(other.getAttribute('aria-hidden')).toBe('true')
+    expect(other.className).toContain('other')
+    expect(other.querySelectorAll('li')).toHaveLength(5)
     expect([...board.querySelectorAll('section')].map(column => column.querySelectorAll('header ~ div').length)).toEqual([2, 1, 2, 1])
     await act(async () => { answer?.({ ok: false, error: { kind: 'network' } }) })
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })

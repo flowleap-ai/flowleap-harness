@@ -172,6 +172,8 @@ describe('the matter page', () => {
     expect(within(deadlines).getAllByRole('row')[1]!.querySelector('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.deadline_proposed')
     expect(deadlines.textContent).toContain('Rule 71(3) EPC')
     expect(deadlines.textContent).toContain('117 days left')
+    // At 390px the due date moves to the right edge of its row, and its header with it.
+    expect(within(deadlines).getByRole('columnheader', { name: 'Due' }).className).toContain('endNarrow')
     const panel = screen.getByRole('complementary', { name: 'Properties' })
     expect(panel.textContent).toContain('3 people')
     expect(panel.textContent).toContain('EP 24 123 456.7')

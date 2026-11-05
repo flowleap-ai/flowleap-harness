@@ -244,11 +244,12 @@
   padding: 0 0 16px;
 }
 
+/* A step's ring is an icon: the icon grey, 3:1 on the page in both themes (contrast.md), where a hairline is not. */
 .dot {
   width: 14px;
   height: 14px;
   margin-top: 2px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
+  border: 1px solid var(--dsw-alias-label-tertiary);
   border-radius: 50%;
   corner-shape: round;
 }
@@ -559,6 +560,18 @@
 
   .row:has(.narrowLine) .open {
     text-align: right;
+  }
+
+  /* The header over a value that moves to the right edge at 390px, as the due date and its days left do. */
+  .endNarrow {
+    text-align: right;
+  }
+
+  /* A fact chip can wrap onto a second line here: it takes the 32 to 40px cell radius, and 12px above 40px (R7). */
+  .fact {
+    min-height: 32px;
+    padding: 4px 12px;
+    border-radius: var(--dsw-radius-md);
   }
 
   .withDock {

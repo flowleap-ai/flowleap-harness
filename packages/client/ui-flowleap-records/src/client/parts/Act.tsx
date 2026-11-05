@@ -70,19 +70,29 @@ export function ActButton({ act, rank, size = 'sm', className }: {
 }
 
 /**
- * Render the overflow menu (⋯) of a bar: a ghost icon button that opens a `Menu` of acts above it.
+ * Render the overflow menu (⋯) of a bar: a ghost icon button that opens a `Menu` of acts above it, or below it in a
+ * top bar.
  * @param props.label - the button's accessible name, "More acts".
  * @param props.acts - the acts of the menu.
  * @param props.className - extra class, such as one that shows the menu only at 390px.
+ * @param props.side - where the menu opens: `top` (default, a bar at the bottom) or `bottom` (a top bar).
+ * @param props.selectedId - the act shown as selected, such as the current layout.
  * @returns the menu and its button.
  */
-export function OverflowActs({ label, acts, className }: { label: string; acts: readonly ActSpec[]; className?: string | undefined }) {
+export function OverflowActs({ label, acts, className, side = 'top', selectedId }: {
+  label: string
+  acts: readonly ActSpec[]
+  className?: string | undefined
+  side?: 'top' | 'bottom'
+  selectedId?: string | undefined
+}) {
   const [open, setOpen] = useState(false)
   return (
     <Menu
       className={className}
       open={open}
-      side="top"
+      side={side}
+      selectedId={selectedId}
       align="end"
       items={acts.map(act => ({ id: act.id, label: act.label, disabled: act.disabled === true }))}
       onSelect={(id) => {

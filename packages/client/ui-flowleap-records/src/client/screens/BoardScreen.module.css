@@ -39,6 +39,8 @@
   min-height: 0;
   padding: 4px 16px 16px;
   overflow: auto;
+  /* A column scrolled into view keeps the board's side padding. */
+  scroll-padding-inline: 16px;
 }
 
 /* The states with no column, as one line between the view bar and the columns: the heading, then each state with its
@@ -76,6 +78,7 @@
   flex: none;
   align-items: center;
   gap: 8px;
+  min-height: 20px;
 }
 
 .otherLink {
@@ -91,6 +94,18 @@
 .otherCount {
   color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* The bones of the loading line, about as wide as the heading and a state with its count, and as high as their
+ * lines, so the line has the height of the loaded line also where it wraps at 390px. */
+.other .otherBone {
+  width: 96px;
+}
+
+.other .otherHeadBone {
+  width: 72px;
+  height: 10px;
+  margin: 4px 0;
 }
 
 /* The column grid of the list (`ListFrame` `grid`): status, work, matter, team, due. */
@@ -111,6 +126,26 @@
   }
 
   .hint {
+    display: none;
+  }
+
+  /* The other states wrap in two columns inside the line instead of running past the right edge. */
+  .other {
+    display: grid;
+    height: auto;
+    gap: 8px;
+    padding: 8px 16px;
+    white-space: normal;
+  }
+
+  .otherRows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 16px;
+  }
+
+  /* The matter key under the title names the matter, so the matter name after the title hides. */
+  .screen [data-row] [data-source] {
     display: none;
   }
 

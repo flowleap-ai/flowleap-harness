@@ -73,6 +73,7 @@
   border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-bg-base);
   box-shadow: var(--dsw-elevation-panel);
+  cursor: pointer;
 }
 
 /* The dragged card's place: the dashed empty slot with no text, while the browser draws the moving card. */
@@ -142,6 +143,7 @@
   font: inherit;
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
   text-align: left;
+  cursor: inherit;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -149,6 +151,21 @@
 .sub {
   margin-top: 2px;
   color: var(--dsw-alias-label-secondary);
+}
+
+.matterName + .due::before {
+  content: ' · ';
+}
+
+/* At 390px the matter key names the matter: the name hides, and the due date stays. */
+@media (max-width: 720px) {
+  .matterName {
+    display: none;
+  }
+
+  .matterName + .due::before {
+    content: none;
+  }
 }
 
 /* One fact on each line, as text with its status icon and no box: the label, its dot and the status word stay on one

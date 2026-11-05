@@ -36,9 +36,25 @@ function letter(patch: Partial<IntakeDocument>): IntakeDocument {
   return { ...fixtures.intakeDocument, ...patch }
 }
 
+/**
+ * The lines of a letter drawing, each with its cells joined by one space.
+ * @param drawing - the drawing.
+ * @returns the lines.
+ */
+const drawingLines = (drawing: HTMLElement) => [...drawing.querySelectorAll(':scope > div')]
+  .filter(line => line.children.length > 0)
+  .map(line => [...line.children].map(cell => cell.textContent).join(' '))
+
 const decision = (heading = 'Your decision') => screen.getAllByRole('region', { name: heading }).at(-1)!
 
 describe('the intake list', () => {
+  it('draws every filter chip with the class whose resting edge shows in both themes', async () => {
+    await mount()
+    const chips = [...document.querySelectorAll('[aria-pressed]')]
+    expect(chips).toHaveLength(3)
+    for (const chip of chips) expect(chip.className).toMatch(/chip/u)
+  })
+
   it('shows the three lists as chips with their counts, newest first in each group, and a forwarder outside the team unnamed', async () => {
     const { model } = await mount()
     const chips = screen.getAllByRole('button', { pressed: true }).concat(screen.getAllByRole('button', { pressed: false }))
@@ -163,6 +179,25 @@ describe('the intake list', () => {
 })
 
 describe('the split view from 1366px', () => {
+  it('keeps the split while the list loads: the item pane holds the skeleton of a letter until the first letter opens', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(Date.parse('2026-11-04T15:00:00Z'))
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
+    const { api } = createFixtureApi()
+    const intake = api.intake.bind(api)
+    let answer: (() => void) | null = null
+    vi.spyOn(api, 'intake').mockImplementation((view, signal) => new Promise((resolve) => { answer = () => { void intake(view, signal).then(resolve) } }))
+    const { model } = await mount(api)
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    const split = screen.getByRole('status', { name: 'Loading' }).closest('[data-open]')!
+    expect(split.children).toHaveLength(2)
+    expect(split.lastElementChild!.querySelector('[data-skeleton][aria-hidden="true"]')).not.toBeNull()
+    await act(async () => { answer?.() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(model.screen.getSnapshot()).toMatchObject({ open: shownOrder(fixtures.intake.rows)[0]!.document })
+    expect(screen.getByTestId('intake').querySelector('[data-open]')!.children).toHaveLength(2)
+  })
+
   it('opens the first letter beside the list, follows the width, and keeps the letter open on Esc', async () => {
     const listeners: (() => void)[] = []
     let wide = true
@@ -186,6 +221,13 @@ describe('the split view from 1366px', () => {
 })
 
 describe('the German intake', () => {
+  it('draws the letter in its own words, which the UI language does not translate', async () => {
+    mounted = await mountPanel(createFixtureApi().api, open(R71_DOCUMENT), 'de')
+    const drawing = screen.getByRole('img', { name: 'Zeichnung von Seite 1 des Schreibens' })
+    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'EPO Form 2004C 12.07'])
+    expect(drawing.textContent).not.toMatch(/Formblatt|Ihr Zeichen|Anmeldenummer|Datum|Mitteilung/u)
+  })
+
   it('words the Space keycap in German, as keys.md gives it', async () => {
     mounted = await mountPanel(createFixtureApi().api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId }, 'de')
     const preview = screen.getAllByRole('button', { name: /Vorschau/ })[0]!
@@ -281,7 +323,8 @@ describe('the open letter', () => {
     const { panel } = await mount(undefined, open(R71_DOCUMENT))
     const drawing = screen.getByRole('img', { name: 'Drawing of page 1 of the letter' })
     expect(drawing.hasAttribute('data-verbatim')).toBe(true)
-    expect([...drawing.querySelectorAll('mark')].map(mark => mark.textContent)).toEqual(['2004C', '30.10.2026', 'FL-2026-0001', '24 123 456.7'])
+    expect([...drawing.querySelectorAll('mark')].map(mark => mark.textContent)).toEqual(['24 123 456.7', 'FL-2026-0001', '30.10.2026', '2004C'])
+    expect(drawingLines(drawing)).toEqual(['Application No. 24 123 456.7 - 1203', 'Ref. FL-2026-0001', 'Date 30.10.2026', 'EPO Form 2004C 12.07'])
     expect(screen.getByText('Page 1 of 1')).toBeTruthy()
     const reasons = within(screen.getByRole('list', { name: 'Reasons' })).getAllByRole('listitem').map(item => item.textContent)
     expect(reasons[0]).toContain('Your reference on page 1 reads FL-2026-0001')

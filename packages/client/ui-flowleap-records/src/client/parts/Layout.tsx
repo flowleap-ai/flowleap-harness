@@ -5,6 +5,7 @@
  */
 
 import type { ReactNode } from 'react'
+import { SkeletonBone } from './List.tsx'
 import css from './Layout.module.css'
 
 /**
@@ -21,6 +22,32 @@ export function QueueSplit({ list, item, itemWideOnly = false }: { list: ReactNo
     <div className={css.split} data-open={item !== null || undefined} data-wide-only={itemWideOnly || undefined}>
       <div className={css.listPane}>{list}</div>
       {item !== null && <div className={css.itemPane}>{item}</div>}
+    </div>
+  )
+}
+
+/**
+ * Render the item pane of a queue while its list loads and before its first item opens (R18): the skeleton of the
+ * eyebrow, the title, the lede, the three key properties and the letter, on the skeleton colour with no shimmer, so
+ * the list keeps its split width.
+ * @returns the skeleton, hidden from assistive technology; the list's skeleton names the loading state.
+ */
+export function QueueItemSkeleton() {
+  return (
+    <div className={css.itemSkeleton} data-skeleton="" aria-hidden="true">
+      <SkeletonBone cell="bar" place={0} className={css.pillBone} />
+      <SkeletonBone cell="bar" place={2} className={css.titleBone} />
+      <SkeletonBone cell="bar" place={2} />
+      <SkeletonBone cell="bar" place={1} />
+      <div className={css.keyProps}>
+        {[3, 4, 5].map(place => (
+          <div key={place} className={css.keyProp}>
+            <SkeletonBone cell="bar" place={place + 2} />
+            <SkeletonBone cell="bar" place={place} />
+          </div>
+        ))}
+      </div>
+      <SkeletonBone cell="bar" place={0} className={css.letterBone} />
     </div>
   )
 }

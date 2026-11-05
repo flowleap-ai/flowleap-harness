@@ -31,7 +31,7 @@ import type { NewChat, ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
 import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
 import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
-import { ActButton } from './parts/Act.tsx'
+import { ActButton, OverflowActs } from './parts/Act.tsx'
 import { BoardScreen } from './screens/BoardScreen.tsx'
 import { shownOrder } from './screens/IntakeScreen.tsx'
 import { actOf } from './screens/context.ts'
@@ -144,14 +144,29 @@ export function RecordsPanel(props: PanelProps) {
         {detail !== null && <div className={clsx(css.detailBar, screen.view === 'intake' && css.narrowOnly)}>{detail}</div>}
         <div className={css.barRight}>
           {screen.view === 'board' && (
-            <SegmentedControl
-              id="records-board-layout"
-              className={css.layoutToggle}
-              label={t('board.layout')}
-              value={screen.layout ?? 'board'}
-              options={[{ value: 'list', label: t('board.layoutList') }, { value: 'board', label: t('board.layoutBoard') }]}
-              onChange={(layout) => { props.navigate({ view: 'board', layout }) }}
-            />
+            <>
+              <SegmentedControl
+                id="records-board-layout"
+                className={css.layoutToggle}
+                label={t('board.layout')}
+                value={screen.layout ?? 'board'}
+                options={[{ value: 'list', label: t('board.layoutList') }, { value: 'board', label: t('board.layoutBoard') }]}
+                onChange={(layout) => { props.navigate({ view: 'board', layout }) }}
+              />
+              {/* At 390px the switch has no room in the top bar: the overflow menu holds it. */}
+              <OverflowActs
+                className={css.layoutMenu}
+                label={t('board.layout')}
+                side="bottom"
+                selectedId={screen.layout ?? 'board'}
+                acts={(['list', 'board'] as const).map(layout => ({
+                  id: layout,
+                  label: t(layout === 'list' ? 'board.layoutList' : 'board.layoutBoard'),
+                  keycaps: [],
+                  run: () => { props.navigate({ view: 'board', layout }) },
+                }))}
+              />
+            </>
           )}
           {screen.view === 'work' && (
             <>

@@ -210,7 +210,8 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
 
 /**
  * Render a row's title cell: the title, then its source in the secondary colour. In a queue row only this cell
- * and the matter cell truncate; the full value is in the detail.
+ * and the matter cell truncate; the full value is in the detail. The title truncates first, so a short source such
+ * as the office code stays whole; a long source takes at most half of the cell.
  * @param props.title - the title.
  * @param props.source - the source, such as the office.
  * @returns the cell.
@@ -218,8 +219,8 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
 export function TitleCell({ title, source }: { title: string; source?: string | null | undefined }) {
   return (
     <span className={css.title}>
-      {title}
-      {source != null && source !== '' && <span className={css.source}>{source}</span>}
+      <span className={css.titleText}>{title}</span>
+      {source != null && source !== '' && <span className={css.source} data-source="">{source}</span>}
     </span>
   )
 }
@@ -252,10 +253,11 @@ const WIDTHS = [60, 45, 70, 50, 65, 40, 55, 75] as const
  * Render one bone of a skeleton row on the skeleton colour, with no shimmer; a bar takes a width that varies by place.
  * @param props.cell - the kind of bone.
  * @param props.place - the bone's place in the skeleton, which picks a bar's width.
+ * @param props.className - a class of the caller's skeleton that sizes the bone, such as a pill or a letter tile.
  * @returns the bone.
  */
-export function SkeletonBone({ cell, place }: { cell: SkeletonCell; place: number }) {
-  return <span className={clsx(css.bone, css[cell], (cell === 'bar' || cell === 'end') && css[`w${WIDTHS[place % WIDTHS.length]}`])} />
+export function SkeletonBone({ cell, place, className }: { cell: SkeletonCell; place: number; className?: string | undefined }) {
+  return <span className={clsx(css.bone, css[cell], (cell === 'bar' || cell === 'end') && css[`w${WIDTHS[place % WIDTHS.length]}`], className)} />
 }
 
 /**

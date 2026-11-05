@@ -71,6 +71,14 @@
   overflow-y: auto;
 }
 
+/* The group headings of the client MenuGroup are 11px in the icon grey, 3.22:1 on the light menu material; the command
+ * menu draws them as 12px labels in the secondary text colour. */
+.viewport [data-menu-group-heading] {
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  color: var(--dsw-alias-label-secondary);
+}
+
 .row {
   display: flex;
   align-items: center;

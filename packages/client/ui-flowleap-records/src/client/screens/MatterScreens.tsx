@@ -238,7 +238,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               <DetailTable
                 label={t('section.deadlines')}
                 grid={css.deadlinesColumns}
-                header={[{ text: t('matter.col.state') }, { text: t('prop.due') }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
+                header={[{ text: t('matter.col.state') }, { text: t('prop.due'), endNarrow: true }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
               >
                 {data.deadlines.map((deadline) => {
                   const status = { machine: 'deadline', state: deadline.state } as const

@@ -16,7 +16,7 @@ import type { FlowleapRecordsKey } from '../locales.ts'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { BoardCard, BoardColumn, BoardColumnSkeleton, type CardFact, type DropState } from '../parts/Board.tsx'
-import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, TimeCell, TitleCell } from '../parts/List.tsx'
+import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, SkeletonBone, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, letterTitle } from '../words.ts'
@@ -100,13 +100,15 @@ function factsOf(ctx: ScreenContext, row: TicketRow): CardFact[] {
 }
 
 /**
- * The matter name and the due date of a card.
- * @param ctx - the screen context.
- * @param row - the work.
- * @returns the text.
+ * Scroll a board that is wider than its area so that the first column with cards starts at its left edge, as at
+ * 390px, where the board would else open on an empty Assigned column. As a stable ref callback it runs only when the
+ * board mounts, so a drag or a filter keeps the person's scroll place.
+ * @param board - the mounted board, or null on unmount.
  */
-function subOf(ctx: ScreenContext, row: TicketRow): string {
-  return row.due === null ? row.matter.title : `${row.matter.title} · ${ctx.t('board.due', { date: formatDate(row.due, ctx.locale) })}`
+export function startAtFirstCards(board: HTMLElement | null): void {
+  if (board === null || board.scrollWidth <= board.clientWidth) return
+  const first = [...board.children].find(column => column.querySelector('article') !== null)
+  if (first !== undefined && first !== board.firstElementChild) first.scrollIntoView({ block: 'nearest', inline: 'start' })
 }
 
 /**
@@ -160,9 +162,12 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
           loading: () => layout === 'list'
             ? <ListSkeleton label={t('loading')} grid={css.listColumns} header={listHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />
             : (
-              <div className={css.board} role="status" aria-label={t('loading')}>
-                {SKELETON_CARDS.map((cards, place) => <BoardColumnSkeleton key={place} cards={cards} place={place} />)}
-              </div>
+              <>
+                <OtherStatesSkeleton />
+                <div className={css.board} role="status" aria-label={t('loading')}>
+                  {SKELETON_CARDS.map((cards, place) => <BoardColumnSkeleton key={place} cards={cards} place={place} />)}
+                </div>
+              </>
             ),
           failed: at => <LoadError ctx={ctx} at={at} />,
           ready: (data) => {
@@ -183,6 +188,27 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
           },
         }}
       />
+    </div>
+  )
+}
+
+/**
+ * Render the "Other states" line while the board loads: its heading and the five states as bones, so the columns
+ * keep their place when the board loads (R18).
+ * @returns the line, hidden from assistive technology; the board names the loading state.
+ */
+function OtherStatesSkeleton() {
+  return (
+    <div className={css.other} aria-hidden="true">
+      <SkeletonBone cell="bar" place={0} className={css.otherHeadBone} />
+      <ul className={css.otherRows}>
+        {OTHER_STATES.map((state, place) => (
+          <li key={state} className={css.otherRow}>
+            <SkeletonBone cell="dot" place={place} />
+            <SkeletonBone cell="bar" place={place} className={css.otherBone} />
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -228,7 +254,7 @@ function Board({ ctx, data, dragged, onDrag }: {
           })}
         </ul>
       </section>
-      <div className={css.board}>
+      <div ref={startAtFirstCards} className={css.board}>
         {BOARD_COLUMNS.map((column) => {
           const status = { machine: 'ticket', state: column.state } as const
           const cards = data.rows.filter(row => row.state === column.state)
@@ -255,7 +281,8 @@ function Board({ ctx, data, dragged, onDrag }: {
                     matterKey={card.matter.fileNumber}
                     team={card.team.map(person => avatarOf(t, person))}
                     title={letterTitle(t, card.code)}
-                    sub={subOf(ctx, card)}
+                    matterName={card.matter.title}
+                    due={card.due === null ? null : ctx.t('board.due', { date: formatDate(card.due, ctx.locale) })}
                     facts={factsOf(ctx, card)}
                     dragging={dragged?.id === card.id}
                     drag={movable ? { id: card.id, onStart: () => { onDrag(card) }, onEnd: () => { onDrag(null) } } : undefined}
