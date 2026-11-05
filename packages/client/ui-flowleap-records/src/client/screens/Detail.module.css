@@ -171,6 +171,14 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* The next deadline's value when it is overdue: the date, then "Overdue by N days" with its mark on a second line. */
+.dueValue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+
 .fact b {
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
   color: var(--dsw-alias-label-primary);

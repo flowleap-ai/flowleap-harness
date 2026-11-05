@@ -52,11 +52,14 @@ describe('status', () => {
 describe('due text', () => {
   const words: WordContext = { t: makeTranslate(en), locale: 'en', now: Date.parse('2026-11-04T14:30:00Z'), timeZone: 'UTC' }
 
-  it('marks an overdue date with the stale shape beside the words', () => {
+  it('marks an overdue date with the warning glyph before the words, and with no status shape', () => {
     render(<DueText words={words} due={'2026-11-01' as IsoDate} />)
     const due = screen.getByText('Overdue by 3 days')
     expect(due.hasAttribute('data-overdue')).toBe(true)
-    expect(due.querySelector('svg')?.dataset['shape']).toBe('stale')
+    const glyph = due.firstElementChild!
+    expect(glyph.tagName.toLowerCase()).toBe('svg')
+    expect(glyph.hasAttribute('data-shape')).toBe(false)
+    expect(due.querySelector('[data-shape]')).toBeNull()
   })
 
   it.each(['2026-11-04', '2026-11-05', '2027-03-01'])('leaves %s unmarked', (due) => {

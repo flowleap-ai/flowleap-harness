@@ -9,6 +9,7 @@ import clsx from 'clsx'
 import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DocumentId, IsoDate, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
+import { Overdue } from '../parts/Due.tsx'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { letterTitle, type Translate } from '../words.ts'
 import type { ScreenContext } from './context.ts'
@@ -96,16 +97,30 @@ export function OpenCell({ children, onOpen, label }: { children: ReactNode; onO
 
 /**
  * Render the fact chips under a title, such as "1 deadline waits for a second person".
- * @param props.facts - each fact's count and its text.
+ * @param props.facts - each fact's count, its text and whether it is overdue.
  * @returns the chips, or nothing when no fact applies.
  */
-export function Facts({ facts }: { facts: readonly { readonly key: string; readonly count: number; readonly text: string }[] }) {
+export function Facts({ facts }: { facts: readonly Fact[] }) {
   if (facts.length === 0) return null
   return (
     <div className={css.facts}>
-      {facts.map(fact => <span key={fact.key} className={css.fact}><b>{fact.count}</b>{fact.text}</span>)}
+      {facts.map(fact => (
+        <span key={fact.key} className={css.fact}>
+          {fact.overdue === true ? <Overdue><b>{fact.count}</b></Overdue> : <b>{fact.count}</b>}
+          {fact.text}
+        </span>
+      ))}
     </div>
   )
+}
+
+/** One fact chip under a title: the count, its text, and whether it counts overdue records. */
+export interface Fact {
+  readonly key: string
+  readonly count: number
+  readonly text: string
+  /** The count is of overdue records, so the chip carries the overdue mark. */
+  readonly overdue?: boolean
 }
 
 /**

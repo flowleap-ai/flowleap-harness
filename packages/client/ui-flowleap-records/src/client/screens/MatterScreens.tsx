@@ -11,7 +11,7 @@ import {
 import type { MatterDetail, MattersList } from '../api.ts'
 import { formatApplicationNumber, formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
-import { DueText } from '../parts/Due.tsx'
+import { DueText, isOverdue } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
@@ -110,6 +110,9 @@ export function MatterScreen({ screen, ctx }: ScreenProps<'matter'>) {
 /** Deadline states that wait for a second person. */
 const WAITING_DEADLINES = new Set(['deadline_proposed', 'manual_proposed'])
 
+/** Deadline states that still run: an overdue one is a fact that waits for a person. */
+const OPEN_DEADLINES = new Set(['deadline_proposed', 'manual_proposed', 'active'])
+
 /**
  * Render a matter: the header and its facts, the four detail tables, Activity and the properties panel.
  * @param props.ctx - the screen context.
@@ -120,6 +123,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const { t } = ctx
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
   const waiting = data.deadlines.filter(deadline => WAITING_DEADLINES.has(deadline.state)).length
+  const overdue = data.deadlines.filter(deadline => OPEN_DEADLINES.has(deadline.state) && isOverdue(ctx, deadline.due)).length
   const ready = data.work.filter(work => work.state === 'proposals_ready')
   const deciders = [...new Set(ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo.name]))]
   const nextDue = data.deadlines.find(deadline => deadline.state === 'deadline_proposed' || deadline.state === 'active')?.due ?? null
@@ -154,7 +158,15 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               { label: t('prop.application'), value: data.matter.applicationNumber === null ? t('matter.notRecorded') : formatApplicationNumber(data.matter.applicationNumber) },
             ],
           },
-          ...(nextDue === null ? [] : [{ heading: t('matter.nextDeadline'), rows: [{ label: t('prop.due'), value: formatDate(nextDue, ctx.locale) }] }]),
+          ...(nextDue === null ? [] : [{
+            heading: t('matter.nextDeadline'),
+            rows: [{
+              label: t('prop.due'),
+              value: isOverdue(ctx, nextDue)
+                ? <span className={css.dueValue}>{formatDate(nextDue, ctx.locale)}<DueText words={ctx} due={nextDue} /></span>
+                : formatDate(nextDue, ctx.locale),
+            }],
+          }]),
         ]} />
       )}>
         <div className={css.content}>
@@ -164,6 +176,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               title={data.matter.title}
             />
             <Facts facts={[
+              ...(overdue === 0 ? [] : [{ key: 'overdue', count: overdue, text: t(overdue === 1 ? 'matter.factOverdue' : 'matter.factOverdues'), overdue: true }]),
               ...(waiting === 0 ? [] : [{ key: 'deadlines', count: waiting, text: t(waiting === 1 ? 'matter.factDeadline' : 'matter.factDeadlines') }]),
               ...deciders.map((person) => {
                 const count = ready.filter(work => work.routedTo?.name === person).length

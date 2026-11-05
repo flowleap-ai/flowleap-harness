@@ -5,7 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type {
-  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, MatterDetail, RecordsApi, TicketDetail, TicketId,
+  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, RecordsApi, TicketDetail, TicketId,
 } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
@@ -216,6 +216,30 @@ describe('the matter page', () => {
     await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [{ ...fixtures.matter.deadlines[0]!, state: 'active' }], work: [] } })
     expect(document.body.textContent).not.toContain('waits for')
     expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Next deadline')
+  })
+
+  it('marks an overdue active deadline in its row, in a fact chip and in the next deadline, with the warning glyph', async () => {
+    const overdue = { ...fixtures.matter.deadlines[0]!, state: 'active' as const, due: '2026-03-02' as IsoDate }
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(32) as DeadlineId, state: 'rejected' }], work: [] } })
+    const marks = [...document.querySelectorAll<HTMLElement>('[data-overdue]')]
+    const where = (element: HTMLElement) => element.closest('[role="table"], aside')?.getAttribute('aria-label') ?? 'facts'
+    expect(marks.map(mark => [where(mark), mark.textContent])).toEqual([
+      ['facts', '1'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Deadlines', 'Overdue by 247 days'],
+      ['Properties', 'Overdue by 247 days'],
+    ])
+    for (const mark of marks) {
+      expect(mark.firstElementChild!.tagName.toLowerCase()).toBe('svg')
+      expect(mark.querySelector('[data-shape]')).toBeNull()
+    }
+    expect(document.body.textContent).toContain('1deadline is overdue')
+    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mon, 2 Mar 2026Overdue by 247 days')
+    cleanup()
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(33) as DeadlineId, state: 'deadline_proposed' }], work: [] } })
+    expect(document.body.textContent).toContain('2deadlines are overdue')
   })
 })
 
