@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-budget",
   "description": "Budget used and Budget this month on the FlowLeap dashboard, over the flowleapBudget Remote of dsh-flowleap-budget",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },

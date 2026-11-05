@@ -15,7 +15,7 @@ This file is the FlowLeap state: what this fork is for, what changed, what is op
 - **Deadline engine:** the public MIT repository `flowleap-ai/flowleap-deadlines`. Rule 71(3) EPC v1 is independently verified (1,308 dates with 0 differences, a mutation check, 15 real EP files) and refuses bad input with `invalid-input`. The German (DPMA, PatG) rules are tickets.
 - **R1 AI mailbox: in design review.** Logic: draft harness PR 289 and os PR 67. Screens: draft harness PR 290 and os PR 68. Three independent design reviews ran (14, about 30, then 12 FAILs, verdict "merge after fixes", no redesign); round 4 fixes are in progress, then a short fourth check. Draft PR 291 holds six gate rule changes and a light-theme avatar colour from the build, for founder approval.
 - **Founder decisions on R1 (2026-11-04 and 2026-11-05):** two readers for each deadline reading (F1, #286); the person confirms; one Ticket for each application and day; AI work needs recorded client wishes and a § 39c PAO provider contract; an overdue deadline shows a red warning glyph (not a status shape) with the text in label-primary; a hand-entered office event has no source letter, shows "No source letter", and counts as evidence only after a second person confirms it.
-- **Upstream sync:** `flowleap` is on `dsh 0.2.2-alpha.3`. PR 292 merges `dsh 0.2.2-rc.1` (260 commits); on 2026-11-05 its CI had 25 checks pass and `windows node 24 / coverage` fail. The R1 PRs take the sync before they merge.
+- **Upstream sync:** `flowleap` is on `dsh 0.2.2-rc.1` since PR 292 (260 upstream commits after `dsh 0.2.2-alpha.3`; every decision is in `flowleap/docs/2026-11-05-upstream-sync-decisions.tsv`). The R1 PRs take the sync before they merge.
 - **Merge order:** PR 292, then R1 (289 with os 67, 290 with os 68, and 291 if approved), then a release to the test firm, then the freeze ends and R2 starts.
 - **Tickets filed (2026-11-04 and 2026-11-05):** #251 to #276 (PATORG gaps from the cross-check, PR 250), #277 (calendar view and Teams sync), #281 and #282 (family view, Global Dossier), #285 (the agent opens a matter), #286 (two readers), #287 (admin UI, later); flowleap-os #69 (model usage analytics) and #70 (Mistral as a gateway route; on a firm today Mistral is used only for OCR).
 - **Known defects:** the desktop build has not run on the synced code; Settings > Built-in plugins lists the disabled DeepSeek rows by package name; the prior-art case takes a long path (free-form saves before the structured one). Token use is 1 to 2.4M per case.
@@ -97,6 +97,12 @@ Changes to upstream-owned code that an upstream sync must keep. Each code site h
 
 ## Open decisions
 
+- **Upstream sync to `dsh 0.2.2-rc.1` (2026-11-05):** 260 upstream commits after `dsh 0.2.2-alpha.3`, merged on
+  branch `claude/upstream-sync-rc1` with the same procedure; every decision is in
+  `flowleap/docs/2026-11-05-upstream-sync-decisions.tsv`. 14 content conflicts after `strip-zh.sh`; no upstream
+  package added, moved or deleted, and `flowleap-web` mounts nothing new. Upstream adds a play action that continues a
+  failed turn, a replay check that accepts a resent prompt once by request id (kept before the fork model admission),
+  and CSS-anchored menus and submenus.
 - **Upstream sync to `dsh 0.2.2-alpha.3` (2026-11-03):** 666 upstream commits after upstream PR #7552, merged on
   branch `claude/upstream-sync-1103-f3256c` with the same procedure; every decision is in
   `flowleap/docs/2026-11-03-upstream-sync-decisions.tsv`. 35 content conflicts and 8 modify/delete rows. Upstream adds
