@@ -292,11 +292,14 @@
   }
 }
 
-/* At 390px a row and a skeleton row keep the status, the title and the time (R17). */
+/* The column grid of the list (`ListFrame` `grid`): status, letter, matter, forwarder, received. At 390px a row and a
+ * skeleton row keep the status, the title and the time (R17). */
+.intakeColumns {
+  --records-columns: 14px minmax(0, 1fr) 92px 20px 64px;
+}
+
 @media (max-width: 720px) {
-  .screen [data-list] > :first-child,
-  .screen [data-list] [role='list'],
-  .screen [data-list] [data-skeleton] {
+  .intakeColumns {
     --records-columns: 14px minmax(0, 1fr) 72px;
   }
 

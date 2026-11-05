@@ -26,9 +26,6 @@ import { copyLink } from './links.ts'
 import { failureNotice, LoadError } from './shared.tsx'
 import css from './Intake.module.css'
 
-/** The column grid of an intake row: status, letter, matter, forwarder, received. */
-export const INTAKE_COLUMNS = '14px minmax(0, 1fr) 92px 20px 64px'
-
 /**
  * The column header of an intake list: status, letter, matter, forwarder, received.
  * @param t - the translate function.
@@ -336,7 +333,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     <LoadView
       load={screen.intake}
       render={{
-        loading: () => <ListSkeleton label={t('loading')} columns={INTAKE_COLUMNS} header={intakeHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
+        loading: () => <ListSkeleton label={t('loading')} grid={css.intakeColumns} header={intakeHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
         failed: at => <LoadError ctx={ctx} at={at} />,
         ready: data => (
           <IntakeListView
@@ -423,7 +420,7 @@ function IntakeListView({ ctx, data, list, open, checked, onCheck, footer }: {
   return (
     <ListFrame
       label={t('intake.listLabel')}
-      columns={INTAKE_COLUMNS}
+      grid={css.intakeColumns}
       header={intakeHeader(t)}
       selecting={checked.size > 0}
       footer={footer}

@@ -47,9 +47,6 @@ export const PERSON_MOVES: readonly { readonly from: TicketState; readonly to: T
   { from: 'proposals_ready', to: 'decided' },
 ]
 
-/** The column grid of the list layout: status, work, matter, team, due. */
-const LIST_COLUMNS = '14px minmax(0, 1fr) 92px 64px 120px'
-
 /** The skeleton cards of each column while the board loads. */
 const SKELETON_CARDS = [2, 1, 2, 1] as const
 
@@ -161,7 +158,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
         load={screen.tickets}
         render={{
           loading: () => layout === 'list'
-            ? <ListSkeleton label={t('loading')} columns={LIST_COLUMNS} header={listHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />
+            ? <ListSkeleton label={t('loading')} grid={css.listColumns} header={listHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />
             : (
               <div className={css.board} role="status" aria-label={t('loading')}>
                 {SKELETON_CARDS.map((cards, place) => <BoardColumnSkeleton key={place} cards={cards} place={place} />)}
@@ -287,7 +284,7 @@ function WorkList({ ctx, rows }: { ctx: ScreenContext; rows: readonly TicketRow[
   }
   const states = [...new Set(rows.map(row => row.state))].toSorted((left, right) => rank(left) - rank(right))
   return (
-    <ListFrame label={t('board.listLabel')} columns={LIST_COLUMNS} header={listHeader(t)}>
+    <ListFrame label={t('board.listLabel')} grid={css.listColumns} header={listHeader(t)}>
       {states.map((state) => {
         const status = { machine: 'ticket', state } as const
         const group = rows.filter(row => row.state === state)

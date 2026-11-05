@@ -92,3 +92,8 @@
     display: none;
   }
 }
+
+/* The column grid of the list (`ListFrame` `grid`): status, work, matter, team, due. */
+.listColumns {
+  --records-columns: 14px minmax(0, 1fr) 92px 64px 120px;
+}

@@ -189,7 +189,7 @@ describe('the work board', () => {
     const { panel, model } = await mount(api, { view: 'board', layout: 'list' })
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
     const list = screen.getByRole('status', { name: 'Loading' })
-    expect(list.style.getPropertyValue('--records-columns')).toBe('14px minmax(0, 1fr) 92px 64px 120px')
+    expect(list.className).toContain('listColumns')
     expect(list.firstElementChild!.textContent).toBe('WorkMatterTeamDue')
     expect(list.querySelector('[data-skeleton]')!.firstElementChild!.children).toHaveLength(5)
     act(() => { model.navigate(BOARD) })

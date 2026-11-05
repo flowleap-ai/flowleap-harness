@@ -119,3 +119,12 @@ describe('the detail tables', () => {
     expect(declarations(css, '.relatedColumns')).toEqual(['--detail-columns: 200px 176px minmax(0, 1fr) auto 16px', '--detail-columns-narrow: 136px minmax(0, 1fr) auto'])
   })
 })
+
+describe('the list grids', () => {
+  it('keeps the column grid of each list in the screen\'s CSS, where the design checks read it', () => {
+    expect(declarations(read('Intake.module.css', 'screens'), '.intakeColumns')).toEqual(['--records-columns: 14px minmax(0, 1fr) 92px 20px 64px'])
+    expect(declarations(atRule(read('Intake.module.css', 'screens'), '@media (max-width: 720px)'), '.intakeColumns')).toEqual(['--records-columns: 14px minmax(0, 1fr) 72px'])
+    expect(declarations(read('BoardScreen.module.css', 'screens'), '.listColumns')).toEqual(['--records-columns: 14px minmax(0, 1fr) 92px 64px 120px'])
+    expect(declarations(read('List.module.css'), '.pane')).not.toContainEqual(expect.stringContaining('--records-columns'))
+  })
+})

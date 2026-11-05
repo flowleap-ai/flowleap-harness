@@ -2,7 +2,6 @@
  * headers inset 8px that stick under it at its height. The open row is active with a 2px accent bar; hover only
  * under (hover: hover). */
 .pane {
-  --records-columns: minmax(0, 1fr);
   --records-header-height: 32px;
   position: relative;
   display: flex;
@@ -18,7 +17,7 @@
   /* The pane is a scrolling flex column: a long list would shrink a shrinkable header to its 18px line. */
   flex: none;
   display: grid;
-  grid-template-columns: var(--records-columns);
+  grid-template-columns: var(--records-columns, minmax(0, 1fr));
   align-items: center;
   column-gap: 16px;
   height: var(--records-header-height);
@@ -73,7 +72,7 @@
 .row {
   position: relative;
   display: grid;
-  grid-template-columns: var(--records-columns);
+  grid-template-columns: var(--records-columns, minmax(0, 1fr));
   align-items: center;
   column-gap: 16px;
   height: 44px;

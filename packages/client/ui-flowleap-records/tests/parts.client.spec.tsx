@@ -91,7 +91,7 @@ describe('act button', () => {
 describe('list', () => {
   it('renders the header, groups with counts, and hides an empty group', () => {
     render(
-      <ListFrame label="Letters" columns="14px 1fr" header={['', 'Letter']}>
+      <ListFrame label="Letters" grid="letters" header={['', 'Letter']}>
         <ListGroup status={waiting} word={word('Match proposed')} count={1}>
           <ListRow status={waiting} selection={{ checked: false, label: 'Select A', onChange: vi.fn() }} onOpen={vi.fn()}>
             <TitleCell title="A" source="EPO" /><MetaCell>FL-1</MetaCell><TimeCell>14:16</TimeCell>
@@ -112,7 +112,7 @@ describe('list', () => {
     const onChange = vi.fn()
     const menuOpen = vi.fn()
     render(
-      <ListFrame label="Letters" columns="14px 1fr" header={['', 'Letter']} selecting>
+      <ListFrame label="Letters" grid="letters" header={['', 'Letter']} selecting>
         <ListRow status={waiting} open selection={{ checked: true, label: 'Select A', onChange }} onOpen={onOpen} menu={{ onContextMenu: menuOpen }}>
           <TitleCell title="A" source={null} />
         </ListRow>
@@ -134,9 +134,9 @@ describe('list', () => {
   it('draws skeleton rows on the column grid and the selection bar', () => {
     const accept = act('record', 'Accept and file 3')
     const clear = act('clear', 'Clear the selection', { keycaps: [] })
-    render(<><ListSkeleton label="Loading" columns="14px minmax(0, 1fr) 20px 64px" header={['', 'Letter', '', 'Received']} cells={['dot', 'bar', 'avatar', 'end']} count={2} /><SelectionBar label="3 selected" acts={[clear]} primary={accept} /></>)
+    render(<><ListSkeleton label="Loading" grid="letters" header={['', 'Letter', '', 'Received']} cells={['dot', 'bar', 'avatar', 'end']} count={2} /><SelectionBar label="3 selected" acts={[clear]} primary={accept} /></>)
     const loading = screen.getByRole('status', { name: 'Loading' })
-    expect(loading.style.getPropertyValue('--records-columns')).toBe('14px minmax(0, 1fr) 20px 64px')
+    expect(loading.classList.contains('letters')).toBe(true)
     const [header, rows] = [...loading.children] as HTMLElement[]
     expect([...header!.children].map(cell => cell.textContent)).toEqual(['', 'Letter', '', 'Received'])
     expect(rows!.children).toHaveLength(2)
@@ -144,7 +144,7 @@ describe('list', () => {
     expect(screen.getByText('3 selected').closest('[data-bulk]')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Accept and file 3/ }))
     expect(accept.run).toHaveBeenCalledOnce()
-    render(<ListSkeleton label="Loading two" columns="minmax(0, 1fr)" header={['Letter']} cells={['bar']} />)
+    render(<ListSkeleton label="Loading two" grid={undefined} header={['Letter']} cells={['bar']} />)
     expect(screen.getByRole('status', { name: 'Loading two' }).querySelector('[data-skeleton]')!.children).toHaveLength(6)
     render(<MetaCell truncate>FL-2026-0001 Pressure sensor housing</MetaCell>)
     expect(screen.getByText('FL-2026-0001 Pressure sensor housing').className).toContain('truncate')

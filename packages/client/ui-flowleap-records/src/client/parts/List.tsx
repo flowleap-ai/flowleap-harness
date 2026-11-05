@@ -7,7 +7,7 @@
  * menu, so the selection bar's overflow menu offers the row's acts.
  */
 
-import { createContext, useContext, useEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
@@ -21,24 +21,24 @@ import bulk from './Selection.module.css'
  * Render a list: its scroll area, the sticky column header and the rows or groups. Every row and the header share
  * the column grid.
  * @param props.label - the list's accessible name.
- * @param props.columns - the `grid-template-columns` of the rows, the status column first, such as
- * `14px minmax(0, 1fr) 92px 20px 64px`.
+ * @param props.grid - the class of the screen's CSS that sets `--records-columns`, the `grid-template-columns` of the
+ * header and the rows with the status column first; without it the list has one column.
  * @param props.header - the cells of the column header, one for each column; the first is the status column.
  * @param props.selecting - whether the rows show their checkboxes.
  * @param props.children - the groups or rows.
  * @param props.footer - the selection bar, docked at the bottom of the scroll area.
  * @returns the list.
  */
-export function ListFrame({ label, columns, header, selecting = false, children, footer }: {
+export function ListFrame({ label, grid, header, selecting = false, children, footer }: {
   label: string
-  columns: string
+  grid: string | undefined
   header: readonly ReactNode[]
   selecting?: boolean
   children: ReactNode
   footer?: ReactNode
 }) {
   return (
-    <div className={css.pane} style={columnsStyle(columns)} data-list="" data-selecting={selecting || undefined}>
+    <div className={clsx(css.pane, grid)} data-list="" data-selecting={selecting || undefined}>
       <ListHeader header={header} />
       <Selecting.Provider value={selecting}>
         <div className={css.list} role="list" aria-label={label}>{children}</div>
@@ -46,15 +46,6 @@ export function ListFrame({ label, columns, header, selecting = false, children,
       {footer}
     </div>
   )
-}
-
-/**
- * The style that puts a list's header and rows on one column grid.
- * @param columns - the `grid-template-columns`.
- * @returns the style.
- */
-function columnsStyle(columns: string): CSSProperties {
-  return { '--records-columns': columns } as CSSProperties
 }
 
 /**
@@ -270,21 +261,21 @@ export function SkeletonBone({ cell, place }: { cell: SkeletonCell; place: numbe
 /**
  * Render a loading list (R18): the list's column header and skeleton rows on the same column grid as its real rows.
  * @param props.label - the accessible name of the loading list, such as "Loading".
- * @param props.columns - the `grid-template-columns` of the real rows.
+ * @param props.grid - the column grid class of the real list, as `ListFrame` takes it.
  * @param props.header - the cells of the real column header.
  * @param props.cells - one bone for each column.
  * @param props.count - the rows (default 6).
  * @returns the loading list.
  */
-export function ListSkeleton({ label, columns, header, cells, count = 6 }: {
+export function ListSkeleton({ label, grid, header, cells, count = 6 }: {
   label: string
-  columns: string
+  grid: string | undefined
   header: readonly ReactNode[]
   cells: readonly SkeletonCell[]
   count?: number
 }) {
   return (
-    <div className={css.pane} style={columnsStyle(columns)} data-list="" role="status" aria-label={label}>
+    <div className={clsx(css.pane, grid)} data-list="" role="status" aria-label={label}>
       <ListHeader header={header} />
       <div className={css.skeleton} data-skeleton="" aria-hidden="true">
         {Array.from({ length: count }, (_, row) => (
