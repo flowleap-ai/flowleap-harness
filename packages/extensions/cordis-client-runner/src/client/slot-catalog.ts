@@ -4185,7 +4185,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     kind: 'single',
     scope: 'root',
     summary: 'Window-chrome seat at the frame\'s top-left, over every main panel.',
-    doc: 'Window-chrome seat at the frame\'s top-left, over every main panel.\nMounted for narrow drawers and collapsed macOS desktop sidebars. macOS\ntraffic lights sit before it outside native fullscreen; browser controls\nstart at the frame edge.\nOCCUPIED by ui-sidebar\'s reopen/New Session controls.\n\nWhile the seat is mounted the frame publishes\n`--dsh-frame-leading-clearance` (the inline inset the seat\'s band\noccupies, measured from the frame\'s left edge); a main panel whose\ncontent reaches the top-left corner pads by it so nothing lands under\nthe lights or the controls.',
+    doc: 'Window-chrome seat at the frame\'s top-left, over every main panel.\nMounted for narrow drawers and collapsed macOS desktop sidebars. macOS\ntraffic lights sit before it outside native fullscreen; browser controls\nstart at the frame edge.\nOCCUPIED by ui-sidebar\'s reopen/New Session controls.\n\nWhile the seat is mounted the frame publishes\n`--dsh-frame-leading-clearance` (the inline inset the seat\'s band\noccupies, measured from the frame\'s left edge); a main panel whose\ncontent reaches the top-left corner pads by it so nothing lands under\nthe lights or the controls.\n\nIn a browser drawer the frame pads a global panel\'s top by one 48px\nrow for the seat. A global panel whose own 44px top row carries\n`data-frame-top-row` shares that row instead: the frame drops the\ntop padding, centres the seat on the row, and insets the row\'s start\nby the clearance.',
     registerOptions: [],
     ownerProps: [],
     ownerPropsReferences: [],
@@ -4210,7 +4210,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'shell.leading\', () => ctx.slots.register(\n      { name: \'shell.leading\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-layout/src/client/index.ts:121',
+    source: 'packages/client/ui-layout/src/client/index.ts:127',
   },
   {
     key: 'shell.overlay',
