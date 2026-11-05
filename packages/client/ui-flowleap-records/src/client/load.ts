@@ -112,6 +112,20 @@ export function createLoader<T>(read: (signal: AbortSignal) => Promise<Fetched<T
 }
 
 /**
+ * The failure of a view that shows several loads, such as the intake list and its open letter: the view shows one
+ * notice for all of them, with the time of the oldest data that stays on screen.
+ * @param loads - the loads that the view shows.
+ * @returns null when no load failed; else `at`, the time of the oldest last data of a failed load, or null when no
+ * failed load has data.
+ */
+export function viewFailure(loads: readonly Load<unknown>[]): { readonly at: number | null } | null {
+  const failed = loads.flatMap(load => load.phase === 'failed' ? [load] : [])
+  if (failed.length === 0) return null
+  const times = failed.flatMap(load => load.last === null ? [] : [load.last.at])
+  return { at: times.length === 0 ? null : Math.min(...times) }
+}
+
+/**
  * The data a load can show: the ready data, or the last data of a failure.
  * @param load - the load.
  * @returns the data with its time, or null when there is none.

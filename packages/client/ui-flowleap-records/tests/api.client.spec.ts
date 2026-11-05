@@ -142,12 +142,13 @@ describe('createRecordsApi', () => {
     expect(api.contentHref(R71_DOCUMENT as DocumentId)).toBe(`records/api/documents/${R71_DOCUMENT}/content`)
   })
 
-  it('tells a refusal, a malformed answer, no answer and an abort apart', async () => {
+  it('tells a refusal, a service failure, a malformed answer, no answer and an abort apart', async () => {
     const signal = new AbortController().signal
     const answer = (response: Response) => createRecordsApi('records/', () => Promise.resolve(response)).me(signal)
     expect(await answer(json({ error: 'not-signed-in', detail: 'Sign in again.' }, 403))).toEqual({ ok: false, error: { kind: 'refused', status: 403, code: 'not-signed-in', detail: 'Sign in again.' } })
     expect(await answer(json({ error: 1 }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: null, detail: null } })
-    expect(await answer(new Response('<html>', { status: 502 }))).toEqual({ ok: false, error: { kind: 'refused', status: 502, code: null, detail: null } })
+    expect(await answer(new Response('<html>', { status: 502 }))).toEqual({ ok: false, error: { kind: 'service', status: 502 } })
+    expect(await answer(new Response('<html>', { status: 404 }))).toEqual({ ok: false, error: { kind: 'refused', status: 404, code: null, detail: null } })
     expect(await answer(new Response('not json', { status: 200 }))).toEqual({ ok: false, error: { kind: 'malformed', path: 'body' } })
     expect(await answer(json({ person: null, admin: true }))).toEqual({ ok: false, error: { kind: 'malformed', path: 'body.person' } })
     const offline = createRecordsApi('records/', () => Promise.reject(new TypeError('Failed to fetch')))

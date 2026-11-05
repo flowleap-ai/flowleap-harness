@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Act, DeadlineId, DocumentId, Fetched, FileNumber, RecordsApi, TicketId } from '../src/client/api.ts'
-import { createLoader, shownData, SKELETON_DELAY_MS, SKELETON_MIN_MS, type Load } from '../src/client/load.ts'
+import { createLoader, shownData, SKELETON_DELAY_MS, SKELETON_MIN_MS, viewFailure, type Load } from '../src/client/load.ts'
 import { createRecordsModel, TAB_OF, TAB_ROUTE, type Screen } from '../src/client/model.ts'
 import { createFixtureApi, fixtures, FIXTURE_IDS, R71_DOCUMENT } from './fixtures.client.ts'
 
@@ -109,6 +109,20 @@ describe('createLoader', () => {
     expect(phases(loader.source.getSnapshot())).toBe('waiting')
     loader.load()
     expect(pending).toHaveLength(2)
+  })
+})
+
+describe('viewFailure', () => {
+  const down = { kind: 'service', status: 503 } as const
+  it('gives one failure for the loads of a view, with the time of the oldest data that stays on screen', () => {
+    const ready: Load<string> = { phase: 'ready', data: 'a', at: 10, refreshing: false }
+    expect(viewFailure([ready, { phase: 'skeleton' }])).toBeNull()
+    expect(viewFailure([ready, { phase: 'failed', error: down, last: null, retrying: false }])).toEqual({ at: null })
+    expect(viewFailure([
+      { phase: 'failed', error: down, last: { data: 'a', at: 30 }, retrying: false },
+      { phase: 'failed', error: { kind: 'network' }, last: { data: 'b', at: 20 }, retrying: true },
+      { phase: 'failed', error: down, last: null, retrying: false },
+    ])).toEqual({ at: 20 })
   })
 })
 

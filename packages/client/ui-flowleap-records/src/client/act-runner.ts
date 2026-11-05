@@ -2,14 +2,14 @@
  * The act runner of one decision. A decision that a person records is a legal act, so the runner sends it at most
  * once at a time and never sends an old decision again. While the acts of a submit run, another submit does
  * nothing, so a second click, key or ⌘K act sends no second act. A failed act keeps its `Idempotency-Key` for the
- * next submit only when its outcome is unknown (no answer) and the command built for that submit is the same request
+ * next submit only when its outcome is unknown (no answer, or a service failure) and the command built for that submit is the same request
  * (the same path and the same body, as the Records service compares them); every other command gets a new act. The
  * failure shows until the next submit or until the person changes the decision (`clear`).
  */
 
 import { useRef, useState } from 'react'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import { commandRequest, createAct, type Act, type Command } from './api.ts'
+import { commandRequest, createAct, outcomeUnknown, type Act, type Command } from './api.ts'
 import type { ActsResult } from './model.ts'
 
 /** One failed act with its failure. */
@@ -66,7 +66,7 @@ export function useActRunner(perform: (acts: readonly Act[]) => Promise<ActsResu
     setRun({ phase: 'running' })
     const result = await perform(acts)
     running.current = false
-    unknown.current = result.failed.flatMap(({ act, error }) => error.kind === 'network' ? [act] : [])
+    unknown.current = result.failed.flatMap(({ act, error }) => outcomeUnknown(error) ? [act] : [])
     const [first, ...rest] = result.failed
     setRun(first === undefined ? { phase: 'ready' } : { phase: 'failed', failed: [first, ...rest] })
     return result

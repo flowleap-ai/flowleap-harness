@@ -13,6 +13,7 @@ import { sameRequest, useActRunner } from '../act-runner.ts'
 import type { Command, DocumentId, IntakeList, IntakeRow, IntakeView, QueueStatus } from '../api.ts'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
+import { viewFailure } from '../load.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar } from '../parts/Decision.tsx'
 import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
@@ -301,7 +302,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         load={screen.item}
         render={{
           loading: () => <PageSpinner label={t('loading')} />,
-          failed: at => <LoadError ctx={ctx} at={at} />,
+          failed: () => null,
           ready: letter => <IntakeLetter key={`${letter.document}:${screen.step ?? ''}`} ctx={ctx} list={screen.list} letter={letter} step={screen.step} />,
         }}
       />
@@ -334,7 +335,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
       load={screen.intake}
       render={{
         loading: () => <ListSkeleton label={t('loading')} grid={css.intakeColumns} header={intakeHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: () => null,
         ready: data => (
           <IntakeListView
             ctx={ctx}
@@ -349,6 +350,9 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
       }}
     />
   )
+  // The list and the open letter share one load notice (R18); the failure of an act shows only in its decision bar.
+  const itemLoad = selection === null && screen.open !== null ? screen.item : null
+  const failure = viewFailure(itemLoad === null ? [screen.intake] : [screen.intake, itemLoad])
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Escape' || event.defaultPrevented || ownedElsewhere(event.target)) return
     if (bulkReason) setBulkReason(false)
@@ -374,6 +378,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         ))}
         <span className={css.order}>{t('intake.order')}</span>
       </div>
+      {failure !== null && <LoadError ctx={ctx} at={failure.at} />}
       <QueueSplit list={list} item={item} itemWideOnly={selecting} />
     </div>
   )

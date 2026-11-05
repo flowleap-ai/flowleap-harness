@@ -402,15 +402,27 @@ export const parsers = { me, mattersList, matterDetail, deadlineDetail, intakeLi
 // Failures.
 
 /**
- * Why a read or a command failed: no answer (`network`), a refusal of the Records service (`refused`, with its code
- * and status), an answer that does not match the contract (`malformed`, with the path), or a request that the view
- * stopped (`aborted`, never shown).
+ * Why a read or a command failed: no answer (`network`), a failure of the Records service or of a proxy before it
+ * (`service`, a 5xx status), a refusal of the Records service (`refused`, a 4xx status with its code), an answer that
+ * does not match the contract (`malformed`, with the path), or a request that the view stopped (`aborted`, never
+ * shown).
  */
 export type RecordsError =
   | { readonly kind: 'network' }
+  | { readonly kind: 'service'; readonly status: number }
   | { readonly kind: 'refused'; readonly status: number; readonly code: string | null; readonly detail: string | null }
   | { readonly kind: 'malformed'; readonly path: string }
   | { readonly kind: 'aborted' }
+
+/**
+ * Whether the outcome of a failed command is unknown: with no answer or a service failure, the command may be
+ * recorded, so a second try sends the same act; a refusal or a malformed answer recorded nothing.
+ * @param error - the failure.
+ * @returns true when the command may be recorded.
+ */
+export function outcomeUnknown(error: RecordsError): boolean {
+  return error.kind === 'network' || error.kind === 'service'
+}
 
 /** The answer of a read or a command. */
 export type Fetched<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: RecordsError }
@@ -506,11 +518,13 @@ export interface RecordsApi {
 }
 
 /**
- * The failure of a non-2xx answer: the refusal code and detail when the body is the os refusal JSON.
+ * The failure of a non-2xx answer: a service failure for a 5xx status, else a refusal with the code and detail when
+ * the body is the os refusal JSON.
  * @param response - the answer.
- * @returns the refusal.
+ * @returns the failure.
  */
 async function refusal(response: Response): Promise<RecordsError> {
+  if (response.status >= 500) return { kind: 'service', status: response.status }
   let code: string | null = null
   let detail: string | null = null
   try {

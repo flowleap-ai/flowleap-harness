@@ -301,6 +301,31 @@ describe('the open letter', () => {
     expect(within(decision()).queryByRole('alert')).toBeNull()
   })
 
+  it('shows one load notice for the list and the open letter, and a service failure of an act only in its bar, as no answer', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
+    const { api, acts } = createFixtureApi()
+    const down: Fetched<never> = { ok: false, error: { kind: 'service', status: 503 } }
+    vi.spyOn(api, 'perform').mockImplementation((next) => {
+      acts.push(next)
+      vi.spyOn(api, 'intake').mockResolvedValue(down)
+      vi.spyOn(api, 'intakeDocument').mockResolvedValue(down)
+      return Promise.resolve(down)
+    })
+    await mount(api, open(R71_DOCUMENT))
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    const notices = screen.getAllByRole('alert')
+    expect(notices.map(notice => notice.textContent?.split('.')[0])).toEqual(['FlowLeap could not load this view', 'FlowLeap could not file the letter'])
+    expect(notices[0]!.textContent).toMatch(/It shows the data as of \d\d:\d\d\./)
+    expect(within(decision()).getByRole('alert').textContent).toContain('FlowLeap did not answer, so it may be recorded.')
+    expect(document.body.textContent).not.toContain('refused')
+    expect(screen.getAllByRole('button', { name: /Try again/ })).toHaveLength(2)
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1)
+    fireEvent.click(within(within(decision()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
+    await flush()
+    expect(acts.map(act => act.key)).toEqual([acts[0]!.key, acts[0]!.key])
+  })
+
   it('files on another matter: M opens the picker of the matters the person may see, the pick becomes the part', async () => {
     const { api, acts } = createFixtureApi()
     const { panel } = await mount(api, open(R71_DOCUMENT))

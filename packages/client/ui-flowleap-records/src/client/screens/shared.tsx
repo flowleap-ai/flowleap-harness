@@ -57,8 +57,8 @@ const FAILED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
 const STALE: ReadonlySet<string> = new Set(['seen-is-stale'])
 
 /**
- * The failure notice of a decision's last acts: what failed, what is still safe, and Try again. With no answer, the
- * outcome is unknown and a second try sends the same act; a refusal recorded nothing.
+ * The failure notice of a decision's last acts: what failed, what is still safe, and Try again. With no answer or a
+ * service failure (5xx), the outcome is unknown and a second try sends the same act; a refusal (4xx) recorded nothing.
  * @param ctx - the screen context.
  * @param run - the decision's act runner state.
  * @param retry - Try again.

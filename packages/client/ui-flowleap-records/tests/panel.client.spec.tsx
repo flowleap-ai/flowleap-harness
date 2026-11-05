@@ -328,13 +328,13 @@ describe('the Matters panel', () => {
   })
 
   it('shows the error notice on every view whose read fails', async () => {
-    const down = () => Promise.resolve<Fetched<never>>({ ok: false, error: { kind: 'refused', status: 503, code: null, detail: null } })
+    const down = () => Promise.resolve<Fetched<never>>({ ok: false, error: { kind: 'service', status: 503 } })
     const api: RecordsApi = {
       me: down, matters: down, matter: down, deadline: down, intake: down, intakeDocument: down, tickets: down, ticket: down,
       perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '',
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })
-    expect(screen.getAllByRole('alert')).toHaveLength(2)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('navigation', { name: 'Location' }).textContent).toBe('Intake')
     const routes: Route[] = [{ view: 'matters' }, { view: 'matter', fileNumber: 'FL-1' as FileNumber }, { view: 'deadline', id: 'd' as DeadlineId }, { view: 'work', id: 'w' as TicketId }, { view: 'board' }]
     for (const route of routes) {
