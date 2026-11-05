@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-models",
   "description": "The desktop model step: the flowleapModels Remote tests a stored Anthropic, OpenAI or OpenRouter key at that provider only and connects OpenRouter through its OAuth PKCE flow",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"
   },
