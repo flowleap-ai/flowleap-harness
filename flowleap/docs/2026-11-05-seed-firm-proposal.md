@@ -31,7 +31,7 @@ Labels, as in the [IPMS design](2026-11-03-ai-native-ipms-design.md):
 - **The hard cases are real.** EP20706232 (Phoenix Contact) has a Rule 71(3) communication dated 29 August 2025. Its four-month period ends in the EPO closure of 24 December 2025 to 1 January 2026 and moves to 2 January 2026. The register shows the loss of rights effective on 3 January 2026, the day after the moved date [cited: `get_legal_status EP3935617A1`, 18D effectiveDate 2026-01-03]. EP22213933 (WAGO) has a Rule 71(3) communication of 1 April 2026 whose period ended on 3 August 2026, and no act is recorded up to the fetch: the overdue deadline at the seed date [cited: `get_legal_status EP4170443A1`; the end date is inferred].
 - **Two of the six named cases need the public file.** The letter with two dates and the scan with no text layer are properties of a PDF. FlowLeap has no EP file-inspection tool, and the European Patent Register refuses scripted requests. Section 3 names the candidate documents in the download list of decision D2.
 - **Eight fictional users** (partner, three attorneys, two PAFAs, one assistant, one IT administrator) with Entra object ids and the app roles `FlowLeap.Administrator` and `FlowLeap.User`. Three client groups, seven matter teams and one screen. Every matter has users outside its wall, and one attorney is screened from one matter of a client that the attorney otherwise sees.
-- **Recommendation: a new public repository `flowleap-ai/flowleap-seed-firm`,** pinned by commit in each consumer, as flowleap-os pins `flowleap-deadlines` today (section 10).
+- **The seed package lives in the public repository [`flowleap-ai/flowleap-seed-firm`](https://github.com/flowleap-ai/flowleap-seed-firm),** created on 2026-11-05 after the founder's approval. Each consumer pins it by commit, as flowleap-os pins `flowleap-deadlines` today (section 10).
 
 ## 2. Sources and what we could fetch
 
@@ -310,11 +310,11 @@ The engine golden cases do not use a clock. They use the trigger dates of sectio
 
 ## 10. Where the seed package lives
 
-**Recommendation: a new public repository, `flowleap-ai/flowleap-seed-firm`.** Each consumer pins it by commit, as flowleap-os pins `flowleap-deadlines` today (`lib/record/package.json`: `github:flowleap-ai/flowleap-deadlines#<sha>`) [cited].
+**Decision: the public repository [`flowleap-ai/flowleap-seed-firm`](https://github.com/flowleap-ai/flowleap-seed-firm),** approved by the founder and created on 2026-11-05 (default branch `main`, MIT license). The package work goes there by pull request, never by a direct push to `main`. Each consumer pins it by commit, as flowleap-os pins `flowleap-deadlines` today (`lib/record/package.json`: `github:flowleap-ai/flowleap-deadlines#<sha>`) [cited].
 
 | Option | Readers it serves | Why not |
 |---|---|---|
-| **A. Own public repository (recommended)** | flowleap-os tests and its verify skill (git pin), flowleap-deadlines golden cases (git pin as a dev dependency), the harness client fixtures and the harness verify skill, the demo firm (#246) | Needs one more repository and a release step |
+| **A. Own public repository (chosen)** | flowleap-os tests and its verify skill (git pin), flowleap-deadlines golden cases (git pin as a dev dependency), the harness client fixtures and the harness verify skill, the demo firm (#246) | Needs one more repository and a release step |
 | B. In flowleap-harness (`flowleap/seed-firm/`) | The harness | `flowleap-deadlines`, a small pure library, would depend on the large harness repository, and the private flowleap-os would have to fetch the harness to run a test |
 | C. In flowleap-os | flowleap-os | The repository is private, so the public CI of the harness and of `flowleap-deadlines` cannot read it |
 | D. In flowleap-deadlines | The engine | Users, groups and walls are not deadline rules; the library would carry firm data that its readers do not need |
