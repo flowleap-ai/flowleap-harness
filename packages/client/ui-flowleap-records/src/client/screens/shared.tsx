@@ -15,8 +15,9 @@ import { activityLines, auditRows, avatarOf, listTimeText, personName } from '..
 import { actOf, type ScreenContext } from './context.ts'
 
 /**
- * The error notice of a failed load, with the time of the data that stays on screen; R tries again, unless a failed
- * act in a decision bar holds R: that act is the person's pending decision, so this Try again shows no keycap.
+ * The error notice of a failed load, with the time of the data that stays on screen, and Try again with R. While a
+ * failed act in a decision bar holds R, the notice has no Try again: that act is the person's pending decision, and
+ * its Try again also loads the view again, so the screen shows one Try again.
  * @param props.ctx - the screen context.
  * @param props.at - the time of the last data, or null when there is none.
  * @returns the notice.
@@ -25,7 +26,7 @@ export function LoadError({ ctx, at }: { ctx: ScreenContext; at: number | null }
   useKeyActs(ctx, { retry: ctx.retry })
   const held = useRetryHeld(ctx)
   const body = at === null ? ctx.t('error.noData') : ctx.t('error.asOf', { time: listTimeText(ctx, new Date(at).toISOString() as IsoTime) })
-  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={{ ...actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry), ...(held ? { keycaps: [] } : {}) }} />
+  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={held ? undefined : actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry)} />
 }
 
 /**
@@ -45,8 +46,8 @@ export function decisionHeading(
   return { person: avatarOf(t, may.decider), text: t('decision.theirs', { person: personName(t, may.decider) }) }
 }
 
-/** What failed, by the command of the first failed act. */
-const FAILED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
+/** What FlowLeap refused, by the command of the first failed act. */
+const REFUSED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
   'intake.match': 'failure.match',
   'intake.notRelevant': 'failure.notRelevant',
   'officeEvent.decide': 'failure.officeEvent',
@@ -59,25 +60,31 @@ const FAILED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
 const STALE: ReadonlySet<string> = new Set(['seen-is-stale'])
 
 /**
- * The failure notice of a decision's last acts: what failed, what is still safe, and Try again. With no answer or a
- * service failure (5xx), the outcome is unknown and a second try sends the same act; a refusal (4xx) recorded nothing.
+ * The failure notice of a decision's last acts, with one lead for each outcome and one Try again. With no answer or a
+ * service failure (5xx) for any act, the outcome is unknown: the decision may be recorded, and a second try sends the
+ * same act. When FlowLeap refused every act (4xx), the lead says what it refused, and nothing is recorded.
  * @param ctx - the screen context.
  * @param run - the decision's act runner state.
  * @param retry - Try again.
- * @param lead - what failed, when the command of the first failed act does not say it (a bulk decision).
+ * @param bulk - the acts are the letters of a bulk decision, which stay selected.
  * @returns the notice, or undefined when the last acts did not fail.
  */
-export function failureNotice(ctx: ScreenContext, run: ActRun, retry: () => void, lead?: string): NoticeSpec | undefined {
+export function failureNotice(ctx: ScreenContext, run: ActRun, retry: () => void, bulk = false): NoticeSpec | undefined {
   if (run.phase !== 'failed') return undefined
+  const { t } = ctx
   const errors = run.failed.map(({ error }) => error)
   const refusals = errors.flatMap(error => error.kind === 'refused' ? [error] : [])
-  const body: FlowleapRecordsKey = refusals.length < errors.length
-    ? 'failure.unknown'
-    : refusals.some(error => error.code !== null && STALE.has(error.code)) ? 'failure.stale' : 'failure.refused'
+  const again = actOf(ctx, 'retry', t('act.retry'), retry)
+  if (refusals.length < errors.length) {
+    const unknown = errors.length - refusals.length
+    return { lead: t('failure.noAnswer'), body: bulk ? t('intake.bulk.unknown', { count: unknown }) : t('failure.unknown'), retry: again }
+  }
+  const stale = refusals.some(error => error.code !== null && STALE.has(error.code))
+  const body: FlowleapRecordsKey = stale ? 'failure.stale' : bulk ? 'intake.bulk.refusedBody' : 'failure.refused'
   return {
-    lead: lead ?? ctx.t(FAILED[run.failed[0].act.command.kind]),
-    body: ctx.t(body),
-    retry: actOf(ctx, 'retry', ctx.t('act.retry'), retry),
+    lead: bulk ? t('intake.bulk.refused', { count: refusals.length }) : t(REFUSED[run.failed[0].act.command.kind]),
+    body: t(body),
+    retry: again,
   }
 }
 

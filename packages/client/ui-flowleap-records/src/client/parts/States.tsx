@@ -31,14 +31,14 @@ export function EmptyState({ icon, title, body, action }: { icon: ReactNode; tit
   )
 }
 
-/** An error notice: what failed, what is still safe, and Try again. */
+/** An error notice: what failed, what is still safe, and Try again unless another notice on the screen has it. */
 export interface NoticeSpec {
   /** What failed, one plain sentence. */
   readonly lead: string
   /** What is still safe, such as "The list shows the letters as of 14:16." */
   readonly body?: string | undefined
-  /** The Try again act. */
-  readonly retry: ActSpec
+  /** The Try again act; none when another notice's Try again also does this one's work. */
+  readonly retry?: ActSpec | undefined
 }
 
 /**
@@ -54,7 +54,7 @@ export function Notice({ notice }: { notice: NoticeSpec }) {
         <span className={css.lead}>{notice.lead}</span>
         {notice.body !== undefined && ` ${notice.body}`}
       </div>
-      <ActButton act={notice.retry} rank="secondary" />
+      {notice.retry !== undefined && <ActButton act={notice.retry} rank="secondary" />}
     </div>
   )
 }

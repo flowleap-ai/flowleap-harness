@@ -288,7 +288,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         heading={decisionHeading(ctx, ctx.me.person, { allowed: true })}
         question={t('intake.bulk.question', { count: matches.length })}
         labels={{ more: t('decision.more') }}
-        failure={failureNotice(ctx, runner.run, retryAll, runner.run.phase === 'failed' ? t('intake.bulk.failed', { count: runner.run.failed.length }) : undefined)}
+        failure={failureNotice(ctx, runner.run, retryAll, true)}
         negative={{
           ...keyedOf(ctx, 'reject'),
           label: t('act.notRelevant'),

@@ -166,7 +166,7 @@ describe('the intake row menu', () => {
     const failed = { failed: [{ act: createAct({ kind: 'intake.match', document: target.document, fileNumber: 'FL-2026-0001' as FileNumber }), error: { kind: 'network' as const } }] }
     const model = { navigate: vi.fn(), perform: vi.fn(() => Promise.resolve(failed)) }
     const accept = rowActions(model, words.t, target, () => '')[1]!
-    expect(accept.failureLabel).toBe('FlowLeap could not file the letter. Open it and try again.')
+    expect(accept.failureLabel).toBe('FlowLeap did not confirm that it filed the letter. Open the letter to check it.')
     await expect(accept.run?.()).rejects.toThrow('not filed')
     expect(rowActions(model, words.t, { ...target, proposed: null }, () => '').map(act => act.id)).toEqual(['open', 'other-matter', 'not-relevant', 'copy-link'])
   })
