@@ -158,6 +158,17 @@ What we know and what the download adds:
 | 18 | R2 | [EP23771920](https://register.epo.org/application?number=EP23771920&lng=en&tab=doclist) | 2026-09-29 (`GRAP`, `INTG`) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C) | English Rule 71(3); due date in 2027; handover (case S2) |
 | 19 | R2 | [EP23771920](https://register.epo.org/application?number=EP23771920&lng=en&tab=doclist) | 2026-09-29 | Text intended for grant | the text that the attorney checks after the handover |
 
+### What the downloads showed (2026-11-05)
+
+The founder downloaded all 19 documents on 2026-11-05; none was missing. The package [`flowleap-ai/flowleap-seed-firm`](https://github.com/flowleap-ai/flowleap-seed-firm) records 18 of them. These facts come from the PDFs [cited: `pdffonts`, `pdfinfo` and the page images]:
+
+- **The date on each Rule 71(3) letter is the `INTG` effective date**, not the `GRAP` gazette date: rows 1, 9 and 13 bear 20.06.2025, 30.07.2025 and 28.07.2025, one day after `GRAP`. So W1's first period ended on 20 October 2025 and P1's on Sunday 30 November 2025, moved to 1 December 2025 [inferred]. The closure cases do not change: rows 2 and 10 bear 29.08.2025.
+- **No PDF has a text layer.** Each register copy is a set of 300 dpi CCITT page images; `pdffonts` lists no font in any of the 19. So every seed letter is a scan, and the case "a scan with no text layer" needs no applicant document. Row 12 is a WIPO copy of the PCT priority document; the package leaves it out (decision D3).
+- **Nearly every EPO form has two dates.** The footer prints a date beside the form number, for example `EPA Form 2004C 10.24AUWF (17.06.2025)` on the letter of 20.06.2025, and the decisions to grant also print "zur Poststelle am". Only rows 8 and 11 have no footer date.
+- **The chosen two-date case is row 11** (EPA Form 2015C of 21.01.2026). Its body names the Rule 71(3) communication of 29.08.2025, and the further-processing period runs from this letter, so a reader that takes the body date computes a wrong deadline. Row 15 (EPA Form 2317A of 14.10.2026, footer "(06/10/26)") stays as a second case.
+- **German letters print "EPA Form", "Datum", "Zeichen" and "Anmeldung Nr."**; English letters print "EPO Form", "Date", "Ref." and "Application No.". The "Ref." field holds the real representative's reference (decision D4).
+- **The register document ids are not in the PDFs.** A person copies them from the "All documents" page; until then the package lists them as open items.
+
 ## 4. Coverage of the R1 processes and the R2 rule set
 
 | Case named in #294 or the brief | Matter | Label |
@@ -165,8 +176,8 @@ What we know and what the download adds:
 | Rule 71(3) communication, Form 2004C | W1 (two), W2, P1 (two), P2, R2 | [cited] for the events; the form number from the fetch |
 | Rule 94(3) communication | W3 (German), R1 (English), and the first communications of W2 and P1 | [cited] |
 | A deadline in the closure of 24 December 2025 to 1 January 2026 | W1 (met) and P1 (missed); both end on 2 January 2026 | [cited] for the dates; the roll is [inferred] and P1's `18D` agrees |
-| An EPO letter with two dates | P1, the Rule 112(1) communication; P2, the communication of the notice of opposition | [inferred]; the download confirms it (rows 11 and 15) |
-| A scan with no text layer | The certified copy of the DE priority document of P1, if its file holds it | [inferred]; `pdffonts` decides at the download (row 12) |
+| An EPO letter with two dates | P1, the Rule 112(1) communication (row 11, chosen); P2, the communication of the notice of opposition (row 15); and the footer date of nearly every form | [cited]: the page images |
+| A scan with no text layer | Every register PDF of the seed | [cited]: `pdffonts` lists no font in any of the 19 |
 | An overdue deadline | W2 at the seed date (section 9); P1 at the closure clock | [cited] for the absent act up to the fetch |
 | A superseded deadline | W1 and P1, the first Rule 71(3) communications | [cited] |
 | A weekend roll | W2 (Saturday 1 August 2026 to Monday 3 August) | [inferred] |
