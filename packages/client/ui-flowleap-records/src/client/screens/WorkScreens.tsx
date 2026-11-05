@@ -2,7 +2,8 @@
  * The work on a letter (mockup e-letter-work). The work page shows the letter's work: the client
  * report with its file row and the statement table, each statement with its exact spans in the letter, the related
  * deadline and reply, and Activity. The docked decision bar has two parts, the client report (Accept or Reject with
- * a reason) and the deadline check, and Record decision sends both with the record position that the person saw.
+ * a reason) and the deadline check, and Record decision sends both with the deadline and the record position that the
+ * person saw when they ticked the check.
  * A statement with no span blocks Accept and Record decision (R14); another person's decision shows who decides and
  * has no primary act; a decided work item has no bar, and Activity shows the decision. The work board is in
  * `BoardScreen.tsx`.
@@ -130,7 +131,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
   const [choices, setChoices] = useState<Readonly<Record<string, Choice>>>({})
   const [rejecting, setRejecting] = useState<ProposalId | null>(null)
-  const [checked, setCheckedState] = useState(false)
+  const [ticked, setTicked] = useState<DeadlineCheck | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
   const { ticket, letter, deadline, mayDecide } = data
@@ -146,6 +147,10 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const check: DeadlineCheck | null = deadline === null
     ? { id: 'none-yet', state: 'none-yet', seq: data.recordSeq }
     : isChecked(deadline.state) ? { id: deadline.id, state: deadline.state, seq: data.recordSeq } : null
+  // The tick holds the deadline as the person saw it; a refresh that shows another deadline or state clears it.
+  const stale = ticked !== null && (check === null || check.id !== ticked.id || check.state !== ticked.state)
+  if (stale) setTicked(null)
+  const checked = stale ? null : ticked
 
   // A changed decision is a new act: its failure no longer applies.
   const choose = (proposalId: ProposalId, choice: Choice) => {
@@ -153,7 +158,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     runner.clear()
   }
   const setChecked = (next: boolean) => {
-    setCheckedState(next)
+    setTicked(next ? check : null)
     runner.clear()
   }
   const firstOpen = proposed.find(report => choices[report.proposalId] === undefined) ?? proposed[0]
@@ -168,10 +173,10 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
       ? { proposalId: report.proposalId, decision: 'approve' }
       : { proposalId: report.proposalId, decision: 'reject', reason: choice.reason }]
   })
-  const ready = reports.length === proposed.length && checked && check !== null
+  const ready = reports.length === proposed.length && checked !== null
   const record = () => {
     if (!ready || blocked !== null) return
-    void runner.submit([{ kind: 'ticket.decide', id: ticket.id, reports, deadlineCheck: check }])
+    void runner.submit([{ kind: 'ticket.decide', id: ticket.id, reports, deadlineCheck: checked }])
   }
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
   const calculation = deadline === null ? null : () => { ctx.navigate({ view: 'deadline', id: deadline.id }) }
@@ -279,7 +284,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                 />
               )
             })}
-            <DeadlinePart ctx={ctx} data={data} checked={checked} onCheck={setChecked} disabled={!mayDecide.allowed} />
+            <DeadlinePart ctx={ctx} data={data} checked={checked !== null} onCheck={setChecked} disabled={!mayDecide.allowed} />
           </>
         )}
         negative={rejectingReport === undefined
