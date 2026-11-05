@@ -94,16 +94,20 @@ export function KeyFact({ value, detail }: { value: string; detail?: ReactNode }
 }
 
 /**
- * Render a section of a detail page: a 13px heading with its count and its actions, then the content.
+ * Render a section of a detail page: a 13px heading with its count and its actions, then the content. A section that
+ * lists no items shows its `empty` sentence instead of the content, so a table never shows a column header with no
+ * row (R18).
  * @param props.heading - the heading.
  * @param props.count - the number of items, when the section lists items.
+ * @param props.empty - the one sentence of a section with a count of 0, such as "Nothing on this matter yet.".
  * @param props.actions - controls at the right of the heading.
  * @param props.children - the content.
  * @returns the section.
  */
-export function Section({ heading, count, actions, children }: {
+export function Section({ heading, count, empty, actions, children }: {
   heading: string
   count?: number
+  empty?: string
   actions?: ReactNode
   children: ReactNode
 }) {
@@ -114,7 +118,7 @@ export function Section({ heading, count, actions, children }: {
         {count !== undefined && <span className={css.count}>{count}</span>}
         {actions !== undefined && <div className={css.sectionActions}>{actions}</div>}
       </div>
-      {children}
+      {count === 0 && empty !== undefined ? <p className={css.sectionEmpty}>{empty}</p> : children}
     </section>
   )
 }

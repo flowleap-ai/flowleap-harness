@@ -31,7 +31,7 @@ import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '..
 import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
-import { AtlasPill, atlasWord, FactStatus } from '../parts/Status.tsx'
+import { AtlasPill, AtlasStatus, atlasWord, FactStatus } from '../parts/Status.tsx'
 import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
@@ -327,7 +327,8 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
                 <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
-                <FactStatus label={t('fact.report')} status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
+                {/* The heading names the report, so its status needs no "Report" label (R11). */}
+                <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
                 <div className={detail.sectionActs}>
                   {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
                   {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}

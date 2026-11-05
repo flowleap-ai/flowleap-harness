@@ -156,6 +156,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The one sentence of a section with no items, inset as a detail table's rows are. */
+.sectionEmpty {
+  margin: 0;
+  padding: 0 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .sectionActions {
   display: flex;
   gap: 8px;

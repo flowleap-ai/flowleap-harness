@@ -232,7 +232,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                 return { key: `work:${decider.id ?? 'outside'}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }
               }),
             ]} />
-            <Section heading={t('section.deadlines')} count={data.deadlines.length}>
+            <Section heading={t('section.deadlines')} count={data.deadlines.length} empty={t('section.empty')}>
               <DetailTable
                 label={t('section.deadlines')}
                 grid={css.deadlinesColumns}
@@ -254,7 +254,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                 })}
               </DetailTable>
             </Section>
-            <Section heading={t('section.work')} count={data.work.length}>
+            <Section heading={t('section.work')} count={data.work.length} empty={t('section.empty')}>
               <DetailTable
                 label={t('section.work')}
                 grid={css.workColumns}
@@ -273,7 +273,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                 })}
               </DetailTable>
             </Section>
-            <Section heading={t('matter.officeEvents')} count={data.officeEvents.length}>
+            <Section heading={t('matter.officeEvents')} count={data.officeEvents.length} empty={t('section.empty')}>
               <DetailTable
                 label={t('matter.officeEvents')}
                 grid={css.officeEventsColumns}
@@ -302,7 +302,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                 })}
               </DetailTable>
             </Section>
-            <Section heading={t('matter.documents')} count={data.documents.length}>
+            <Section heading={t('matter.documents')} count={data.documents.length} empty={t('section.empty')}>
               <DetailTable label={t('matter.documents')} grid={css.documentsColumns} header={null}>
                 {data.documents.map(document => (
                   <DetailRow key={document.sha256} opens>

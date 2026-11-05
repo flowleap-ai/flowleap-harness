@@ -221,6 +221,16 @@ describe('the matter page', () => {
     expect(opened).toHaveBeenCalled()
   })
 
+  it('says in one sentence that a section has nothing, instead of a column header with no row', async () => {
+    await mount(MATTER, { matter: { ...fixtures.matter, work: [], deadlines: [] } })
+    expect(screen.queryByRole('table', { name: 'Work' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Deadlines' })).toBeNull()
+    const work = screen.getByRole('heading', { name: 'Work' }).closest('section')!
+    expect(work.textContent).toBe('Work0Nothing on this matter yet.')
+    expect(screen.getAllByText('Nothing on this matter yet.')).toHaveLength(2)
+    expect(screen.getByRole('table', { name: 'Office events' })).toBeTruthy()
+  })
+
   it('counts two work items that wait for one person', async () => {
     const matter: MatterDetail = {
       ...fixtures.matter,
@@ -539,6 +549,8 @@ describe('the deadline page', () => {
     await mount(DEADLINE, {}, 'de')
     expect(screen.getByText('Wie FlowLeap das Datum berechnet hat')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByRole('button', { name: /Frist bestätigen/ })).toBeTruthy()
+    // "Vorgeschlagen von" is 115px at 13px and wraps in the 96px label column; "Vorschlag von" is 85px.
+    expect(within(screen.getByRole('complementary', { name: 'Eigenschaften' })).getByText('Vorschlag von')).toBeTruthy()
   })
 })
 
@@ -567,7 +579,9 @@ describe('the work on a letter', () => {
     await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
     const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
     // The agent panel's result card names the work product in its title row, before the file and the status.
-    expect(sent.map(status => status.parentElement!.textContent)).toEqual(['Report ·Sent', 'Reply ·Sent', 'Client reportreport-FL-2026-0001-r71-3.docxSent'])
+    // The report's section heading names it once ("Client report"), so its status carries no second "Report" label.
+    expect(sent.map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Client report', 'Reply ·', 'Client reportreport-FL-2026-0001-r71-3.docx'])
+    expect(sent[0]!.parentElement!.textContent).not.toContain('Report')
     expect(document.querySelector('[data-atlas="deadline.active"]')!.parentElement!.textContent).toBe('Deadline ·Active')
   })
 
