@@ -2,7 +2,7 @@
  * 44px part rows and the footer of acts. It takes at most 40% of the view height: the part rows scroll inside it, and
  * the header, the failure notice and the footer keep their height, so the primary act stays in view (R13). At 390px the
  * note hides, the secondary acts move into the overflow menu, and why the person may decide and each part's evidence
- * state each keep one line. */
+ * state wrap under their line instead of being cut. */
 .bar {
   container: decision / inline-size;
   display: flex;
@@ -24,7 +24,9 @@
   flex: none;
 }
 
+/* The padding counts inside the 44px, so a one-line header is 44px high (R6). */
 .head {
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -181,14 +183,12 @@
     display: none;
   }
 
-  /* Why this person may decide stays, on its own line under the question, cut to one line with the full text on hover. */
+  /* Why this person may decide stays, on its own lines under the question; it wraps and is never cut, as a touch
+   * screen has no hover to show a cut text. */
   .why {
     flex: 1 1 100%;
     min-width: 0;
     margin-left: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .more {
@@ -209,12 +209,9 @@
     display: none;
   }
 
-  /* The evidence state stays under the part's title, cut to one line with the full text on hover. */
+  /* The evidence state stays under the part's title and wraps; it is never cut. */
   .partDetail {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .partDetail > svg {

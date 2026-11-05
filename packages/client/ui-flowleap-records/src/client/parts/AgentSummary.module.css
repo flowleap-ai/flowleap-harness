@@ -42,11 +42,16 @@
   list-style: none;
 }
 
+/* A file row: the work product and its status on the first line, the file name under them across the full width. A
+ * file name is not a queue title, so it is never cut (R17); a name wider than the row breaks onto the next line. */
 .result {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon title status'
+    'icon file file';
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
   padding: 8px 12px;
   border: 0;
   border-radius: var(--dsw-radius-lg);
@@ -56,27 +61,32 @@
 
 .resultIcon {
   display: inline-grid;
+  grid-area: icon;
   color: var(--dsw-alias-label-secondary);
 }
 
 .resultText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  display: contents;
 }
 
 .resultTitle {
+  grid-area: title;
+  min-width: 0;
   color: var(--dsw-alias-label-primary);
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
 }
 
 .resultFile {
-  overflow: hidden;
+  grid-area: file;
+  min-width: 0;
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.result > :last-child {
+  grid-area: status;
 }
 
 .composer {
@@ -95,4 +105,16 @@
 .composerField {
   flex: 1;
   min-width: 0;
+}
+
+/* The field is part of the composer's one raised surface: no frame or fill of its own. Its placeholder takes the
+ * secondary label colour, as the Input default (label-dimmed) is below 4.5:1 (R10). */
+.composer .composerField {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.composer .composerField input::placeholder {
+  color: var(--dsw-alias-label-secondary);
 }

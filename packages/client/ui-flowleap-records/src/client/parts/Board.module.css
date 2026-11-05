@@ -67,7 +67,6 @@
 }
 
 .card {
-  container: card / inline-size;
   margin-top: 8px;
   padding: 12px;
   border: 0;
@@ -102,7 +101,10 @@
   }
 }
 
+/* The top line is the size container, not the card: a container has no intrinsic width, and the card's width must
+ * come from its facts. */
 .top {
+  container: card / inline-size;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -149,22 +151,22 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* One fact on each line, as text with its status icon and no box: the label, its dot and the status word stay on one
+ * line, and the board column grows to the card's longest fact (BoardScreen.module.css `.board`), so nothing is cut. */
 .facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  justify-items: start;
+  gap: 4px;
   margin-top: 12px;
 }
 
-/* The box of a fact chip: a 24px line, or two stacked lines when the label and the status do not fit on one, with the
- * same R8 radius (docs/ui-radius.md: wrapping does not select a larger radius); its padding and border count inside
- * the card's width, so the chip never passes the card's edge. */
-.fact {
-  box-sizing: border-box;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: var(--dsw-radius-sm);
+.facts > .fact {
+  flex-wrap: nowrap;
+}
+
+.facts > .fact,
+.facts > .fact > * {
+  white-space: nowrap;
 }
 
 /* A loading card: three skeleton bars on the card's surface. */

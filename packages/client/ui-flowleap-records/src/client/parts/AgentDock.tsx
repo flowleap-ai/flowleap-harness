@@ -131,10 +131,10 @@ export function AgentEmpty({ notice, icon, title, body, facts, results }: {
 }
 
 /**
- * Render one proposal of a run as a file row: its icon, the work product, the file name and its status.
+ * Render one proposal of a run as a file row: its icon, the work product and its status, and the file name under them.
  * @param props.icon - a 16px UI icon.
  * @param props.title - the work product, such as "Client report".
- * @param props.file - the file name, in the secondary line.
+ * @param props.file - the file name, in the secondary line across the row; it is never cut.
  * @param props.status - the proposal's status with its word.
  * @returns the row.
  */
@@ -144,7 +144,7 @@ export function AgentResult({ icon, title, file, status }: { icon: ReactNode; ti
       <span className={summary.resultIcon}>{icon}</span>
       <span className={summary.resultText}>
         <span className={summary.resultTitle}>{title}</span>
-        <span className={summary.resultFile} title={file}>{file}</span>
+        <span className={summary.resultFile}>{file}</span>
       </span>
       {status}
     </li>

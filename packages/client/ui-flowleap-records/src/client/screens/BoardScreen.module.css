@@ -1,5 +1,6 @@
-/* The work board: the 44px view bar, four state columns and the "Other states" panel, which all fit at 1366px; at
- * 390px the board scrolls sideways inside its own area, never the page. */
+/* The work board: the 44px view bar, the "Other states" line and four state columns, which all fit at 1366px; each
+ * column is at least as wide as its longest card fact, so a fact stays on one line. At 390px the board and the line
+ * scroll sideways inside their own areas, never the page. */
 .screen {
   display: flex;
   flex: 1;
@@ -18,6 +19,12 @@
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
+/* The "For me" filter at rest is the raised chip of the mockup: in light, bg-layer-2 equals bg-base, so the panel
+ * elevation (its first layer is the 0.5px stroke) draws its edge. Pressed, it keeps the Pill's active fill and ring. */
+.viewbar .filter:not([aria-pressed='true']) {
+  box-shadow: var(--dsw-elevation-panel);
+}
+
 .hint {
   margin-left: auto;
   color: var(--dsw-alias-label-secondary);
@@ -26,26 +33,30 @@
 .board {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) 200px;
+  grid-template-columns: repeat(4, minmax(min-content, 1fr));
   align-items: start;
   gap: 12px;
   min-height: 0;
-  padding: 12px 16px 16px;
+  padding: 4px 16px 16px;
   overflow: auto;
 }
 
+/* The states with no column, as one line between the view bar and the columns: the heading, then each state with its
+ * count; a state with work opens the list layout. */
 .other {
-  padding: 4px 8px 8px;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: var(--dsw-radius-lg);
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  height: 36px;
+  padding: 0 16px;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .otherHead {
-  display: flex;
-  align-items: center;
-  height: 36px;
+  flex: none;
   margin: 0;
-  padding: 0 4px;
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
@@ -53,23 +64,22 @@
 }
 
 .otherRows {
+  display: flex;
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .otherRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 4px;
 }
 
 .otherLink {
   display: flex;
-  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -83,17 +93,58 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The column grid of the list (`ListFrame` `grid`): status, work, matter, team, due. */
+.listColumns {
+  --records-columns: 14px minmax(0, 1fr) 92px 64px 120px;
+}
+
 @media (max-width: 720px) {
+  /* Each column is 260px, or wider for a longer fact: the board overflows here, so a track would not grow past a
+   * fixed minimum, but the column's own minimum width counts in its min-content size. */
   .board {
-    grid-template-columns: repeat(5, 260px);
+    grid-template-columns: repeat(4, min-content);
+  }
+
+  .board > * {
+    box-sizing: border-box;
+    min-width: 260px;
   }
 
   .hint {
     display: none;
   }
-}
 
-/* The column grid of the list (`ListFrame` `grid`): status, work, matter, team, due. */
-.listColumns {
-  --records-columns: 14px minmax(0, 1fr) 92px 64px 120px;
+  /* The list keeps the status, the title and the due date; the matter key moves under the title, and the team hides. */
+  .listColumns {
+    --records-columns: 14px minmax(0, 1fr) auto;
+  }
+
+  .screen [data-list] > :first-child > :nth-child(3),
+  .screen [data-list] > :first-child > :nth-child(4),
+  .screen [data-row] > :nth-child(4),
+  .screen [data-skeleton] > * > :nth-child(3),
+  .screen [data-skeleton] > * > :nth-child(4) {
+    display: none;
+  }
+
+  .screen [data-row] {
+    grid-template-rows: auto auto;
+    align-content: center;
+  }
+
+  .screen [data-row] > :nth-child(1),
+  .screen [data-row] > :nth-child(5) {
+    grid-row: 1 / span 2;
+  }
+
+  .screen [data-row] > :nth-child(3) {
+    grid-row: 2;
+    grid-column: 2;
+    font-size: var(--dsw-font-xxs-12-font-size);
+    line-height: var(--dsw-font-xxs-12-line-height);
+  }
+
+  .screen [data-row] > :nth-child(5) {
+    grid-column: 3;
+  }
 }

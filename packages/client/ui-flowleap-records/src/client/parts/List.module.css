@@ -179,8 +179,10 @@
   corner-shape: round;
 }
 
+/* A bar at the end of a row; in an `auto` column, as at 390px, its percentage width has no base, so it keeps 48px. */
 .end {
   justify-self: end;
+  min-width: 48px;
   margin-left: auto;
 }
 
