@@ -183,6 +183,7 @@
 
 .hl {
   padding: 0 2px;
+  white-space: nowrap;
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-state-warn-tertiary);
   color: var(--dsw-alias-label-document-preview);
@@ -297,7 +298,7 @@
 /* The column grid of the list (`ListFrame` `grid`): status, letter, matter, forwarder, received. At 390px a row and a
  * skeleton row keep the status, the title and the time (R17). */
 .intakeColumns {
-  --records-columns: 14px minmax(0, 1fr) 92px 20px 64px;
+  --records-columns: 14px minmax(0, 1fr) 92px 20px 80px;
 }
 
 @media (max-width: 720px) {

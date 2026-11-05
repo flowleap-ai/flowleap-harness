@@ -479,6 +479,25 @@
   display: none;
 }
 
+/*
+ * A table with a status column holds its column grid itself, and its header and rows use it (subgrid): each
+ * `max-content` column is as wide as its longest value in its rows, in every UI language, so a status word, a date or
+ * the days left are never cut, and every row keeps the same columns.
+ */
+.deadlinesColumns,
+.workColumns,
+.officeEventsColumns {
+  grid-template-columns: var(--detail-columns);
+  column-gap: 16px;
+}
+
+:is(.deadlinesColumns, .workColumns, .officeEventsColumns) > [role='rowgroup'],
+:is(.deadlinesColumns, .workColumns, .officeEventsColumns) :is(.thead, .row) {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
 @media (max-width: 720px) {
   .page {
     display: block;
@@ -516,7 +535,14 @@
   .withDock {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .deadlinesColumns,
+  .workColumns,
+  .officeEventsColumns {
+    grid-template-columns: var(--detail-columns-narrow);
+  }
 }
+
 
 /* The column grid of each detail table (`DetailTable` `grid`): the wide columns, then the columns at 390px. */
 .mattersColumns {
@@ -525,17 +551,17 @@
 }
 
 .deadlinesColumns {
-  --detail-columns: 168px 128px 160px minmax(0, 1fr);
+  --detail-columns: max-content max-content max-content minmax(0, 1fr);
   --detail-columns-narrow: minmax(0, 1fr) auto;
 }
 
 .workColumns {
-  --detail-columns: 168px minmax(0, 1fr) 20px 64px;
+  --detail-columns: max-content minmax(0, 1fr) 20px max-content;
   --detail-columns-narrow: auto minmax(0, 1fr) 56px;
 }
 
 .officeEventsColumns {
-  --detail-columns: 168px minmax(0, 1fr) 120px 120px;
+  --detail-columns: max-content minmax(0, 1fr) max-content max-content;
   --detail-columns-narrow: auto minmax(0, 1fr);
 }
 
