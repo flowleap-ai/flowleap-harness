@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act as act_, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Load } from '../src/client/load.ts'
 import { ActButton, type ActSpec } from '../src/client/parts/Act.tsx'
@@ -25,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
@@ -239,6 +240,53 @@ describe('decision bar', () => {
     fireEvent.click(more)
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('puts why the person may decide beside the question in the header row, so it can take a second line of its own', () => {
+    const { container } = render(<DecisionBar heading={yours} question="Which matter is this letter for?" why="Filing puts your name on the record" labels={{ more: 'More acts' }} primary={null} />)
+    const header = container.querySelector('header')!
+    const text = header.querySelector('[class*="headText"]')!
+    expect([...text.children].map(child => child.textContent)).toEqual(['Your decisionWhich matter is this letter for?', 'Filing puts your name on the record'])
+    expect(header.querySelector('[class*="headAvatar"]')!.textContent).toBe('A')
+  })
+
+  it('moves the secondary acts into the overflow menu while the acts do not fit on one row, and back once the bar is wider', () => {
+    const observers: (() => void)[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { observers.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    let wrapped = true
+    let width = 540
+    const box = (top: number, height: number) => ({ top, bottom: top + height, height }) as DOMRect
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === 'BUTTON') return box(0, 28)
+      return this.className.includes('acts') ? box(wrapped ? 40 : 0, 36) : box(0, 0)
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width)
+    const { container } = render(
+      <DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} negative={reasonAct(false)}
+        secondary={[act('otherMatter', 'Other matter…')]} primary={act('record', 'Accept and file')} />,
+    )
+    const foot = () => container.querySelector('footer')!
+    expect(foot().dataset['crowded']).toBe('true')
+    wrapped = false
+    act_(() => { observers.at(-1)!() })
+    expect(foot().dataset['crowded']).toBe('true')
+    width = 600
+    act_(() => { observers.at(-1)!() })
+    expect(foot().dataset['crowded']).toBeUndefined()
+    act_(() => { observers.at(-1)!() })
+    expect(foot().dataset['crowded']).toBeUndefined()
+  })
+
+  it('finds no crowded acts before the footer has a layout, or with only the row of acts', () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    const { container, rerender } = render(<DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} negative={reasonAct(false)} primary={act('record', 'Accept')} />)
+    expect(container.querySelector('footer')!.dataset['crowded']).toBeUndefined()
+    rerender(<DecisionBar heading={yours} question="Q" labels={{ more: 'More acts' }} primary={act('record', 'Accept')} />)
+    expect(container.querySelector('footer')!.dataset['crowded']).toBeUndefined()
   })
 
   it('says what a part still needs after its evidence state, and drops it for the missing evidence warning', () => {

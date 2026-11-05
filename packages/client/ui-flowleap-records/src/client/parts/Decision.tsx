@@ -4,14 +4,15 @@
  * and why this person may decide; one row for each required part shows its
  * evidence state; the footer holds the tertiary negative act, a note, the secondary acts and the one primary act. A
  * negative act asks for its reason in its own step. Missing evidence disables the primary act and says why. When the
- * decision is another person's, the footer says who decides and has no primary act. At 390px the note hides and the
- * secondary acts move into an overflow menu, so every act stays reachable; each part's evidence state wraps under its
- * title, and why the person may decide wraps under the question. No text is cut, so none needs a hover.
- * The bar takes at most 40% of the view height: above that, the part rows scroll inside it, and the header, a failure
- * notice and the footer with the primary act stay in view (R13).
+ * decision is another person's, the footer says who decides and has no primary act. The header is one 44px row; when
+ * why the person may decide does not fit on it, in any language, it is a second line under the question. When the
+ * acts do not fit on one row, the secondary acts move into the overflow menu, so every act stays reachable on one row;
+ * at 390px they always do, the note hides, and each part's evidence state wraps under its title. No text is cut, so
+ * none needs a hover. The bar takes at most 40% of the view height: above that, the part rows scroll inside it, and the
+ * header, a failure notice and the footer with the primary act stay in view (R13).
  */
 
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import clsx from 'clsx'
 import { Avatar, Button, IconWarningTriangleOutlineRegular, Input, Keycap, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ActButton, OverflowActs, type ActSpec } from './Act.tsx'
@@ -54,11 +55,13 @@ export interface DecisionLabels {
  * Render the docked decision bar.
  * @param props.heading - who decides: the signed-in person, or the person who decides when it is not them.
  * @param props.question - the decision in plain words, such as "Which matter is this letter for?".
- * @param props.why - why this person may decide; at 390px it wraps on its own lines under the question.
+ * @param props.why - why this person may decide: at the right of the header row, or on a second line under the
+ * question when it does not fit there.
  * @param props.parts - one `DecisionPart` for each required part.
  * @param props.note - a one-line note before the acts; hidden at 390px.
  * @param props.negative - the negative act with its reason step.
- * @param props.secondary - the secondary acts; at 390px they move into the overflow menu.
+ * @param props.secondary - the secondary acts; when the acts do not fit on one row, and always at 390px, they move into
+ * the overflow menu.
  * @param props.overflow - acts that show only in the overflow menu at 390px, because a wider screen shows them in
  * the content or in a part.
  * @param props.primary - the one primary act; null when the decision is another person's.
@@ -89,20 +92,26 @@ export function DecisionBar({
 }) {
   const shownPrimary = decider === null ? primary : null
   const menu = [...secondary, ...overflow]
+  const foot = useRef<HTMLElement>(null)
+  const crowded = useCrowded(foot)
   return (
     <section className={css.bar} aria-label={heading.text}>
       <header className={css.head}>
-        {heading.person !== null && <Avatar person={heading.person} size={24} nameShown />}
-        <span className={css.yours}>{heading.text}</span>
-        <span className={css.question}>{question}</span>
-        {why !== undefined && <span className={css.why}>{why}</span>}
+        {heading.person !== null && <span className={css.headAvatar}><Avatar person={heading.person} size={24} nameShown /></span>}
+        <div className={css.headText}>
+          <span className={css.headLead}>
+            <span className={css.yours}>{heading.text}</span>
+            <span className={css.question}>{question}</span>
+          </span>
+          {why !== undefined && <span className={css.why}>{why}</span>}
+        </div>
       </header>
       {parts !== undefined && <div className={css.parts}>{parts}</div>}
       {failure !== undefined && <div className={css.failure}><Notice notice={failure} /></div>}
       {negative?.open === true
         ? <ReasonStep act={negative} />
         : (
-          <footer className={css.foot}>
+          <footer className={css.foot} ref={foot} data-crowded={crowded || undefined}>
             {negative !== undefined && (
               <ActButton act={{ ...negative, run: () => { negative.onOpenChange(true) } }} rank="tertiary" />
             )}
@@ -122,6 +131,44 @@ export function DecisionBar({
         )}
     </section>
   )
+}
+
+/**
+ * Whether the acts of a footer do not fit on one row with every secondary act shown: then the bar moves its secondary
+ * acts into the overflow menu. The footer wraps when its acts start below its first control. Once crowded, it tries
+ * the full row again only when it grows wider than it was then.
+ * @param ref - the footer; null while the reason step replaces it.
+ * @returns true while the secondary acts are in the overflow menu.
+ */
+function useCrowded(ref: RefObject<HTMLElement | null>): boolean {
+  const [crowded, setCrowded] = useState(false)
+  const crowdedAt = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const foot = ref.current
+    if (foot === null) return
+    const check = () => {
+      if (crowdedAt.current !== null) {
+        if (foot.clientWidth <= crowdedAt.current) return
+        crowdedAt.current = null
+        setCrowded(false)
+        return
+      }
+      const first = foot.firstElementChild
+      const acts = foot.lastElementChild
+      if (first === null || acts === null || first === acts) return
+      const lead = first.getBoundingClientRect()
+      // A box with no height has no layout yet, so nothing wraps.
+      if (lead.height === 0 || acts.getBoundingClientRect().top < lead.bottom) return
+      crowdedAt.current = foot.clientWidth
+      setCrowded(true)
+    }
+    check()
+    // A runtime with no ResizeObserver keeps the first measure.
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(check)
+    observer?.observe(foot)
+    return () => { observer?.disconnect() }
+  })
+  return crowded
 }
 
 /**

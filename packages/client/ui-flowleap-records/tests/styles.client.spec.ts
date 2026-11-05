@@ -48,8 +48,29 @@ describe('the decision bar', () => {
     expect(declarations(css, '.parts')).toEqual(expect.arrayContaining(['flex: 0 1 auto', 'min-height: 0', 'overflow-y: auto']))
   })
 
-  it('keeps a one-line header at 44px: its padding counts inside the minimum height', () => {
-    expect(declarations(css, '.head')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'min-height: 44px', 'padding: 8px 16px']))
+  it('keeps the header row at 44px in every language: why the person may decide fits at its right or takes a second line under the question', () => {
+    expect(declarations(css, '.head')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'min-height: 44px', 'padding: 0 16px']))
+    expect(declarations(css, '.head').join(';')).not.toMatch(/border-bottom/)
+    expect(declarations(css, '.headAvatar')).toEqual(expect.arrayContaining(['align-items: center', 'height: 44px']))
+    expect(declarations(css, '.headText')).toEqual(expect.arrayContaining(['flex-wrap: wrap', 'justify-content: space-between', 'padding: 12px 0']))
+    expect(declarations(css, '.why')).not.toContain('margin-left: auto')
+    expect(declarations(css, '.parts')).toContain('border-top: 0.5px solid var(--dsw-alias-border-l2)')
+  })
+
+  it('moves the secondary acts into the overflow menu while the acts do not fit on one row', () => {
+    expect(declarations(css, '.foot[data-crowded] .secondary')).toEqual(['display: none'])
+    expect(declarations(css, '.foot[data-crowded] .more')).toEqual(['display: inline-flex'])
+  })
+
+  it('in a view 700px high or less, hides the note, puts each part on one row and keeps the footer to its row of acts', () => {
+    const short = atRule(css, '@media (max-height: 700px) and (min-width: 721px)')
+    expect(declarations(short, '.note')).toEqual(['display: none'])
+    expect(declarations(short, '.partText')).toEqual(expect.arrayContaining(['display: flex', 'flex-wrap: wrap']))
+    expect(declarations(short, '.foot')).toEqual(['padding: 8px 16px'])
+  })
+
+  it('lets the bar grow on a phone while a failure shows, so every part stays in view beside the notice', () => {
+    expect(declarations(atRule(css, '@media (max-width: 720px)'), '.bar:has(> .failure)')).toEqual(['max-height: max(60dvh, 200px)'])
   })
 
   it('wraps why the person may decide and each part\'s evidence state at 390px instead of cutting them, and keeps the note beside the acts on a wide bar', () => {
@@ -57,7 +78,8 @@ describe('the decision bar', () => {
     expect(narrow).not.toMatch(/text-overflow|white-space: nowrap/)
     expect(declarations(narrow, '.partIcon')).toEqual(['display: none'])
     expect(declarations(narrow, '.partDetail')).toEqual(['display: block'])
-    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%', 'min-width: 0', 'margin-left: 0'])
+    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%'])
+    expect(declarations(narrow, '.question')).toEqual(['white-space: normal'])
     expect(declarations(narrow, '.note, .secondary')).toEqual(['display: none'])
     expect(declarations(narrow, '.part')).toEqual(expect.arrayContaining(['display: flex', 'flex-wrap: wrap']))
     expect(declarations(narrow, '.partControl')).toEqual(['margin-left: auto'])
