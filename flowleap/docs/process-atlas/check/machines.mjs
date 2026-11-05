@@ -45,8 +45,8 @@ export const machines = {
     corrections: [['no_event', 'awaiting_code']],
     t: [
       ['[*]', 'awaiting_code', 'A filed document is an office letter', 'intake', 'Document kind with its source and span'],
-      ['awaiting_code', 'recorded', 'The form number maps to one event code, and the date the document bears is read', 'intake', 'Form-number span, date span, code table version (`office-event/observed`)'],
-      ['awaiting_code', 'code_proposed', 'No form number; the model reads the event code and the date', 'agent', 'Quoted spans, SessionRef'],
+      ['awaiting_code', 'recorded', 'Both readers agree: the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image', 'intake', 'Form-number span, date span, code table version, the model reading (`office-event/observed`)'],
+      ['awaiting_code', 'code_proposed', 'No form number, the two readers differ, or only one reader has a result', 'intake', 'Both readings: quoted spans and the model reading'],
       ['code_proposed', 'recorded', 'A person accepts or changes the code and the date', 'person', 'The proposal and the Decision (`office-event/recorded`)'],
       ['code_proposed', 'no_event', 'An attorney decides that the letter records no office event, with a reason', 'person (attorney)', 'Reason, the document'],
       ['no_event', 'awaiting_code', 'A person reopens it with a reason', 'person', 'Reason'],

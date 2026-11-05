@@ -1,7 +1,8 @@
 /**
  * The Firm Record with one matter as the `flowleapRecord` service: FL-2026-0001 at record position 7, with the R.71(3)
  * deadline the engine proposed from a communication dated 2025-10-30 (four months from the day after delivery, the
- * month end of February, the Saturday rolled to Monday 2026-03-02). The view hash is the SHA-256 of the canonical JSON
+ * month end of February, the Saturday rolled to Monday 2026-03-02), the client rules, the event's running Ticket, and the
+ * letter in the e-file. The view hash is the SHA-256 of the canonical JSON
  * of the view, as the Firm Record computes it.
  */
 
@@ -9,6 +10,9 @@ import { createHash } from 'node:crypto'
 
 /** Cordis plugin name. */
 export const name = 'flowleap-record-fixture'
+
+/** SHA-256 of the forwarded R.71(3) communication. */
+const LETTER_SHA256 = '5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a'
 
 const VIEW = {
   recordSeq: 7,
@@ -32,6 +36,25 @@ const VIEW = {
       { op: 'closure-roll', from: '2026-02-28', to: '2026-03-02', cite: 'R.134(1) EPC' },
     ],
   }],
+  clientRules: {
+    seq: 3,
+    aiUse: 'allowed',
+    aiLetters: 'allowed',
+    reportEvents: 'all-office-actions',
+    language: 'en',
+    text: 'Report every office action in English to the IP department, never to the inventor directly.',
+  },
+  officeEvents: [{
+    id: 'oe-1',
+    seq: 5,
+    code: 'EPO:R71(3)',
+    documentDate: '2025-10-30',
+    applicationNumber: 'EP23812345.6',
+    document: LETTER_SHA256,
+    state: 'observed',
+  }],
+  tickets: [{ id: 'tk-1', pass: 1, state: 'running', routedTo: 'A. Novak' }],
+  documents: [{ sha256: LETTER_SHA256, fileName: 'R71-3-communication.pdf', mediaType: 'application/pdf', source: 'mail' }],
 }
 
 /** Canonical JSON: keys sorted at every level, no spaces. */

@@ -9,9 +9,14 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../flowleap-connectors" },
+    { "path": "../flowleap-office" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
     { "path": "../../core/tools" },
     { "path": "../../credentials/credentials" },
+    { "path": "../../fs/fs" },
     { "path": "../../llm/llm" },
+    { "path": "../../session/working-directory" },
     { "path": "../../util/brand" }
   ]
 }

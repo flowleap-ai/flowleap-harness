@@ -1,0 +1,24 @@
+# One Ticket run over fixtures: the Firm Record fixture provides
+# flowleapRecord and writes each run command it receives into the workspace,
+# and the Office fixture writes the letter as text. The tool rows are mounted
+# as the flowleap-web bundle and the flowleap-ticket overlay mount them; the
+# firm templates are the workspace's templates/ folder.
+- insert:
+    - id: flowleap-ticket-run-fixture
+      name: './flowleap-ticket-run-fixture.mjs'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'
+
+    - id: flowleap-record-run
+      name: '@deepseek-ai/dsh-flowleap-record/run'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+
+    - id: flowleap-office
+      name: '@deepseek-ai/dsh-flowleap-office'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+        revisionAuthor: FlowLeap
+        maxReadChars: 40000
+        maxInputBytes: 33554432

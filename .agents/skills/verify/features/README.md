@@ -44,3 +44,4 @@ Each feature file has an H1 title, one paragraph on the user-visible behavior, a
 - [Firm Record](./record-read.md): the `record_read` tool and its record position in the Session log, and the Matters page that embeds the Firm Record's pages. Not proven yet: `record-read-turn`, `record-read-not-configured`, `records-page-empty` and `records-page-embedded` wait for the local Firm Record of flowleap-os.
 
 Not mapped yet: Word export, the other skills of the skill pack, and the brand. Add a file when a change touches one of them.
+- [Ticket run](./ticket-run.md): the signed Ticket delivery of the Firm Record opens a run Session with the Mandate, and the agent drafts and proposes the client report. `ticket-run-mandate` and `ticket-run-report` were proven on 2026-11-04 with a local Firm Record, the fake Graph and Haiku 5.5.

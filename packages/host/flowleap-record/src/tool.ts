@@ -38,6 +38,8 @@ const MESSAGES: Record<RecordReadRefusal, string> = {
 
 const LOCAL_DATE = { type: 'string', description: 'YYYY-MM-DD' } as const
 
+const STRING_OR_NULL = { oneOf: [{ type: 'string' }, { type: 'null' }] } as const
+
 const OUTPUT_SCHEMA = {
   oneOf: [
     {
@@ -87,6 +89,69 @@ const OUTPUT_SCHEMA = {
             },
           },
         },
+        clientRules: {
+          description: 'The client\'s latest recorded rules; null when none are recorded; absent from a Firm Record before R1.',
+          oneOf: [{ type: 'null' }, {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              seq: { type: 'integer', required: true, description: 'Record seq of the rules; a report names it as rules_seq.' },
+              aiUse: { type: 'string', required: true, enum: ['not-recorded', 'allowed', 'local-model-only', 'not-allowed'] },
+              aiLetters: { type: 'string', required: true, enum: ['allowed', 'not-allowed'] },
+              reportEvents: {
+                required: true,
+                oneOf: [{ type: 'string', enum: ['all-office-actions'] }, { type: 'array', items: { type: 'string' } }],
+              },
+              language: { type: 'string', required: true, enum: ['de', 'en'] },
+              text: { type: 'string', required: true },
+            },
+          }],
+        },
+        officeEvents: {
+          type: 'array',
+          description: 'Absent from a Firm Record before R1.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string', required: true },
+              seq: { type: 'integer', required: true },
+              code: { type: 'string', required: true },
+              documentDate: { ...LOCAL_DATE, required: true },
+              applicationNumber: { ...STRING_OR_NULL, required: true },
+              document: { ...STRING_OR_NULL, required: true, description: 'SHA-256 of the document.' },
+              state: { type: 'string', required: true },
+            },
+          },
+        },
+        tickets: {
+          type: 'array',
+          description: 'Absent from a Firm Record before R1.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string', required: true },
+              pass: { type: 'integer', required: true },
+              state: { type: 'string', required: true },
+              routedTo: { ...STRING_OR_NULL, required: true, description: 'The routed person; null before routing.' },
+            },
+          },
+        },
+        documents: {
+          type: 'array',
+          description: 'Absent from a Firm Record before R1.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              sha256: { type: 'string', required: true },
+              fileName: { type: 'string', required: true },
+              mediaType: { type: 'string', required: true },
+              source: { type: 'string', required: true },
+            },
+          },
+        },
       },
     },
     {
@@ -102,7 +167,11 @@ const OUTPUT_SCHEMA = {
 
 const DESCRIPTION =
   'Read one matter of the firm\'s record: its file number, title, client, responsible attorney, state, and each deadline '
-  + 'with its rule, due date, state, and the computation trace with legal citations. The result names recordSeq, the '
+  + 'with its rule, due date, state, and the computation trace with legal citations; the client\'s recorded rules (AI use, '
+  + 'AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, '
+  + 'and the documents of the e-file with their SHA-256. A Firm Record before R1 holds none of clientRules, officeEvents, '
+  + 'tickets, and documents: the result then has none of these four fields, and you do not know the client\'s rules, '
+  + 'so you do not assume them. The result names recordSeq, the '
   + 'position of the record log the view was read at, and viewHash, so the view can be rebuilt later. '
   + 'The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person '
   + 'confirms it in the Records app.'
