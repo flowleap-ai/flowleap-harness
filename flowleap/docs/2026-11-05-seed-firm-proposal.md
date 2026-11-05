@@ -1,6 +1,6 @@
 # The seed firm: proposal
 
-Status: proposal of 2026-11-05 for [#294](https://github.com/flowleap-ai/flowleap-harness/issues/294), parts 1 and 2. The founder approves the matter list before the seed package is built. Nothing in this document changes code or fixtures.
+Status: approved by the founder on 2026-11-05 (decisions D1 to D7 of section 12). This is the design of [#294](https://github.com/flowleap-ai/flowleap-harness/issues/294), parts 1 and 2. Nothing in this document changes code or fixtures. The EP document tool of decision D2 is [#323](https://github.com/flowleap-ai/flowleap-harness/issues/323).
 
 **Goal.** From now on, every test and every evidence run of FlowLeap Patent AI uses one shared seed firm. Its matters are real public EP files, copied exactly. Its people are fictional users of a fictional firm, with the ids, groups and walls that a real firm has. This document chooses the matters, defines the users, the walls and the sharing cases, and recommends where the one copy of the seed lives.
 
@@ -23,13 +23,13 @@ Labels, as in the [IPMS design](2026-11-03-ai-native-ipms-design.md):
 9. [The seed clock](#9-the-seed-clock)
 10. [Where the seed package lives](#10-where-the-seed-package-lives)
 11. [The fetch script and its checks](#11-the-fetch-script-and-its-checks)
-12. [Decisions for the founder](#12-decisions-for-the-founder)
+12. [Decisions of the founder](#12-decisions-of-the-founder)
 
 ## 1. Summary
 
 - **Seven matters, three clients.** WAGO Verwaltungsgesellschaft mbH (three matters, German), PHOENIX CONTACT GmbH & Co. KG (two matters, German) and Renishaw plc (two matters, English). WAGO and Phoenix Contact make competing products, so a firm that acts for both needs walls between them [inferred].
 - **The hard cases are real.** EP20706232 (Phoenix Contact) has a Rule 71(3) communication dated 29 August 2025. Its four-month period ends in the EPO closure of 24 December 2025 to 1 January 2026 and moves to 2 January 2026. The register shows the loss of rights effective on 3 January 2026, the day after the moved date [cited: `get_legal_status EP3935617A1`, 18D effectiveDate 2026-01-03]. EP22213933 (WAGO) has a Rule 71(3) communication of 1 April 2026 whose period ended on 3 August 2026, and no act is recorded up to the fetch: the overdue deadline at the seed date [cited: `get_legal_status EP4170443A1`; the end date is inferred].
-- **Two of the six named cases need the public file.** The letter with two dates and the scan with no text layer are properties of a PDF. FlowLeap has no EP file-inspection tool, and the European Patent Register refuses scripted requests. Section 2 names the candidates and decision D2 asks how to get the PDFs.
+- **Two of the six named cases need the public file.** The letter with two dates and the scan with no text layer are properties of a PDF. FlowLeap has no EP file-inspection tool, and the European Patent Register refuses scripted requests. Section 3 names the candidate documents in the download list of decision D2.
 - **Eight fictional users** (partner, three attorneys, two PAFAs, one assistant, one IT administrator) with Entra object ids and the app roles `FlowLeap.Administrator` and `FlowLeap.User`. Three client groups, seven matter teams and one screen. Every matter has users outside its wall, and one attorney is screened from one matter of a client that the attorney otherwise sees.
 - **Recommendation: a new public repository `flowleap-ai/flowleap-seed-firm`,** pinned by commit in each consumer, as flowleap-os pins `flowleap-deadlines` today (section 10).
 
@@ -81,7 +81,7 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 - First Rule 71(3) communication, `GRAP` 2025-06-19. Examination resumed (`GRAJ`, gazette 2025-07-18), and the register deleted the first intention to grant (`INTC`). The deadline of the first letter becomes `superseded` (design section 5.5).
 - Second Rule 71(3) communication (Form 2004C), dated 2025-08-29. Four months end on Monday 29 December 2025, inside the closure, so the period ends on Friday 2 January 2026.
 - The grant fee is recorded (`GRAS`, gazette 2025-10-15), so the deadline is `met`. Mention of grant 2025-11-19 (`AK`, B1). The opposition period ended on 2026-08-19, and `26N` (no opposition) is effective 2026-08-20.
-- Documents: both Rule 71(3) communications, the communication on the resumption, the decision to grant.
+- Documents: both Rule 71(3) communications and the decision to grant. `GRAJ` covers both a disapproval by the applicant and a resumption by the EPO, so the download shows whether an EPO letter sits between the two communications [inferred].
 
 **W2, EP22213933. A Rule 71(3) deadline that rolls over a weekend, and the overdue deadline at the seed date.**
 
@@ -89,7 +89,7 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 - Rule 71(3) communication (Form 2004C), dated 2026-04-01. Four months end on Saturday 1 August 2026, so the period ends on Monday 3 August 2026.
 - No `GRAS`, `GRAA` or `18D` event up to the fetch [cited]. At the seed date the deadline is past and no act is recorded [inferred]. The public file shows whether the applicant filed amendments under Rule 71(6) EPC or let the period pass; the seed copies what it shows.
 - Documents: the Rule 71(3) communication, and the first Article 94(3) communication of 2024-09-11 (`17Q`).
-- Candidate for the scan with no text layer: the certified copy of the DE priority document, if the public file holds it [inferred].
+- W2 is a divisional, so its DE priority document is in the file of the parent EP14724725, not in this file [inferred]. W2 is not a candidate for the scan.
 
 **W3, EP24166597. A German Article 94(3) communication, open at the seed date.**
 
@@ -104,7 +104,7 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 - First Rule 71(3) communication, `GRAP` 2025-07-29. Examination resumed (`GRAJ`, gazette 2025-08-12), and the register deleted that intention to grant (`INTC`, gazette 2025-09-17). This deadline becomes `superseded`.
 - Second Rule 71(3) communication (Form 2004C), dated 2025-08-29. The period ends on 2 January 2026, as for W1. No grant fee is recorded. The loss of rights is effective on 3 January 2026 (`18D`), and the status became "deemed to be withdrawn" on 2026-04-24.
 - Between these dates the EPO notified the loss of rights under Rule 112(1) EPC [inferred: the status change comes months after `18D`]. That communication bears its own date and names the date on which the period expired, so it is the planned letter with two dates [inferred; the fetch confirms it]. It also starts the two months for further processing (Article 121, Rule 135 EPC).
-- Documents: both Rule 71(3) communications, the communication on the resumption, the Rule 112(1) communication.
+- Documents: the first Article 94(3) communication, both Rule 71(3) communications and the Rule 112(1) communication. As for W1, `GRAJ` does not show whether an EPO letter sits between the two communications.
 - Candidate for the scan with no text layer: the certified copy of DE102019105526 [inferred].
 
 **P2, EP21810318. A granted patent under opposition, with the opposition filed on the last day.**
@@ -112,7 +112,8 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 - Rule 71(3) communication, effective 2025-07-28 (`INTG`). Mention of grant 2025-12-31 (`AK`, B1).
 - Nine months from the mention end on Wednesday 30 September 2026. HARTING Electric Stiftung & Co. KG filed its opposition on 2026-09-30, and the register shows it as admissible [cited: `search_register`].
 - The opponent is a party of the firm's conflict check (design section 4.4).
-- Documents: the Rule 71(3) communication, the decision to grant, the EPO communication that sends the notice of opposition to the patent proprietor and invites a reply. The notice itself is the opponent's document (decision D3).
+- The EPO sent the notice of opposition to the proprietor with a request to file observations and a time limit (`PLAX`, original code EPIDOSNOBS2, gazette 2026-10-14) [cited]. If the time limit is four months (Rule 79(1) EPC), it ends on Sunday 14 February 2027 and moves to Monday 15 February 2027 [inferred].
+- Documents: the Rule 71(3) communication, the decision to grant and the `PLAX` communication. The notice of opposition itself is the opponent's document, so the seed leaves it out (decision D3).
 
 **R1, EP23755468. An English Article 94(3) communication.**
 
@@ -124,6 +125,39 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 - Euro-PCT (`PUAI`). Rule 71(3) communication (Form 2004C), dated 2026-09-29. Four months end on Friday 29 January 2027, so the engine needs the 2027 calendar, as for W3.
 - Documents: the Rule 71(3) communication with the text intended for grant.
 
+### The download list (decision D2)
+
+A person downloads these 19 documents in a browser from the register's "All documents" page of each matter, and `add-documents.mjs` records them (section 11). All are EPO-issued, except row 12, which a case needs (decision D3).
+
+What we know and what the download adds:
+
+- **Dates.** The date column is from `get_legal_status` of 2026-11-05 [cited]. The `GRAP` gazette date is the despatch date of a Rule 71(3) communication, and `INTG` is the same date or one day later. The date that the PDF bears is the authority, and `add-documents.mjs` records it.
+- **Document names** are the names that the register usually shows for these documents [inferred]. The person picks the document of the right date and kind.
+- **Document ids and page counts are not known.** FlowLeap has no EP document data, and the register was not reachable by script (section 2). The person reads them on the "All documents" page, and `add-documents.mjs` checks the page count in the PDF.
+- **The two candidate cases** depend on rows 11, 12 and 15. Row 11 bears its own date and names the date on which the period expired [inferred]. Row 15 bears its own date and names a time limit; it can also name the date of the notice of opposition [inferred]. The seed uses the first of the two that has two dates in its header or first page. For the scan, `add-documents.mjs` runs `pdffonts` on every document. P1 is a Euro-PCT application, and the EPO usually takes the priority document from WIPO (Rule 17.1 PCT), so its EP file can lack row 12 [inferred]. If row 12 is not there or has a text layer, the scan case uses the first document of this list with no text layer. If no document qualifies, the scan case stays open and the founder chooses a replacement under decision D1.
+
+| # | Matter | All documents page | Date (FlowLeap source) | Document (expected register name) | Case |
+|---|---|---|---|---|---|
+| 1 | W1 | [EP21755382](https://register.epo.org/application?number=EP21755382&lng=en&tab=doclist) | 2025-06-19 (`GRAP`; `INTG` 2025-06-20) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C), first | superseded deadline |
+| 2 | W1 | [EP21755382](https://register.epo.org/application?number=EP21755382&lng=en&tab=doclist) | 2025-08-29 (`GRAP`, `INTG`) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C), second | closure; deadline met |
+| 3 | W1 | [EP21755382](https://register.epo.org/application?number=EP21755382&lng=en&tab=doclist) | read at download (`GRAA` gazette 2025-10-17) | Decision to grant a European patent | the act after the met deadline |
+| 4 | W2 | [EP22213933](https://register.epo.org/application?number=EP22213933&lng=en&tab=doclist) | 2024-09-11 (`17Q`) | Communication from the Examining Division, Article 94(3) EPC (Form 2001) | first Article 94(3) communication |
+| 5 | W2 | [EP22213933](https://register.epo.org/application?number=EP22213933&lng=en&tab=doclist) | 2026-04-01 (`GRAP`, `INTG`) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C) | weekend roll; overdue at the seed date |
+| 6 | W3 | [EP24166597](https://register.epo.org/application?number=EP24166597&lng=en&tab=doclist) | 2026-09-18 (`17Q`, status change) | Communication from the Examining Division, Article 94(3) EPC (Form 2001) | German Article 94(3); due date in 2027 |
+| 7 | W3 | [EP24166597](https://register.epo.org/application?number=EP24166597&lng=en&tab=doclist) | 2026-09-18 | Annex to the communication | source text of the German report (sheet 4) |
+| 8 | P1 | [EP20706232](https://register.epo.org/application?number=EP20706232&lng=en&tab=doclist) | 2024-02-21 (`17Q`) | Communication from the Examining Division, Article 94(3) EPC (Form 2001) | first Article 94(3) communication |
+| 9 | P1 | [EP20706232](https://register.epo.org/application?number=EP20706232&lng=en&tab=doclist) | 2025-07-29 (`GRAP`; `INTG` 2025-07-30) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C), first | superseded deadline |
+| 10 | P1 | [EP20706232](https://register.epo.org/application?number=EP20706232&lng=en&tab=doclist) | 2025-08-29 (`GRAP`, `INTG`) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C), second | closure; deadline missed |
+| 11 | P1 | [EP20706232](https://register.epo.org/application?number=EP20706232&lng=en&tab=doclist) | read at download (after `18D` 2026-01-03, before the status change of 2026-04-24) | Noting of loss of rights, Rule 112(1) EPC | **two dates, candidate 1**; hand-entered office event (case S3b) |
+| 12 | P1 | [EP20706232](https://register.epo.org/application?number=EP20706232&lng=en&tab=doclist) | read at download | Certified copy of the priority document DE102019105526, only if the file holds it | **no text layer, candidate** |
+| 13 | P2 | [EP21810318](https://register.epo.org/application?number=EP21810318&lng=en&tab=doclist) | 2025-07-27 (`GRAP` gazette; `INTG` 2025-07-28) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C) | Rule 71(3) before the grant |
+| 14 | P2 | [EP21810318](https://register.epo.org/application?number=EP21810318&lng=en&tab=doclist) | read at download (`GRAA` gazette 2025-11-28) | Decision to grant a European patent | mention of grant 2025-12-31; opposition period |
+| 15 | P2 | [EP21810318](https://register.epo.org/application?number=EP21810318&lng=en&tab=doclist) | 2026-10-14 (`PLAX` gazette) | Communication of a notice of opposition, request to file observations and time limit | **two dates, candidate 2**; Rule 79(1) time limit |
+| 16 | R1 | [EP23755468](https://register.epo.org/application?number=EP23755468&lng=en&tab=doclist) | 2026-06-09 (`17Q`; status change 2026-06-05) | Communication from the Examining Division, Article 94(3) EPC (Form 2001) | English Article 94(3) |
+| 17 | R1 | [EP23755468](https://register.epo.org/application?number=EP23755468&lng=en&tab=doclist) | same date as row 16 | Annex to the communication | source text of an English report (sheet 4) |
+| 18 | R2 | [EP23771920](https://register.epo.org/application?number=EP23771920&lng=en&tab=doclist) | 2026-09-29 (`GRAP`, `INTG`) | Communication about intention to grant, Rule 71(3) EPC (Form 2004C) | English Rule 71(3); due date in 2027; handover (case S2) |
+| 19 | R2 | [EP23771920](https://register.epo.org/application?number=EP23771920&lng=en&tab=doclist) | 2026-09-29 | Text intended for grant | the text that the attorney checks after the handover |
+
 ## 4. Coverage of the R1 processes and the R2 rule set
 
 | Case named in #294 or the brief | Matter | Label |
@@ -131,8 +165,8 @@ The dates are from `get_legal_status` (effectiveDate, or the `GRAP` gazette date
 | Rule 71(3) communication, Form 2004C | W1 (two), W2, P1 (two), P2, R2 | [cited] for the events; the form number from the fetch |
 | Rule 94(3) communication | W3 (German), R1 (English), and the first communications of W2 and P1 | [cited] |
 | A deadline in the closure of 24 December 2025 to 1 January 2026 | W1 (met) and P1 (missed); both end on 2 January 2026 | [cited] for the dates; the roll is [inferred] and P1's `18D` agrees |
-| An EPO letter with two dates | P1, the Rule 112(1) communication | [inferred]; the fetch confirms it |
-| A scan with no text layer | The certified copy of the DE priority document of P1 or W2 | [inferred]; `pdffonts` decides at the fetch |
+| An EPO letter with two dates | P1, the Rule 112(1) communication; P2, the communication of the notice of opposition | [inferred]; the download confirms it (rows 11 and 15) |
+| A scan with no text layer | The certified copy of the DE priority document of P1, if its file holds it | [inferred]; `pdffonts` decides at the download (row 12) |
 | An overdue deadline | W2 at the seed date (section 9); P1 at the closure clock | [cited] for the absent act up to the fetch |
 | A superseded deadline | W1 and P1, the first Rule 71(3) communications | [cited] |
 | A weekend roll | W2 (Saturday 1 August 2026 to Monday 3 August) | [inferred] |
@@ -145,8 +179,8 @@ The five R1 sheets of the [process atlas](process-atlas/README.md):
 |---|---|
 | 1 Office letter intake | Each EPO letter of section 3 goes through the AI mailbox. The scan with no text layer becomes `unreadable`. The two spellings of Phoenix Contact test the party match |
 | 2 Office event to deadline | Form 2004C letters with two agreeing readers (W1, R2); the letter with two dates where the readers differ (P1); a hand-entered office event and a manual deadline with a second person (P1, case S3b); `superseded` (W1, P1); the engine refusal (W3, R2) |
-| 3 Notify and run | The Ticket routed to one person (W3, case S4); a client whose rules do not allow AI (decision D6); the agent run that reads only what its person may see (case S5) |
-| 4 Report to the client | A German report (W3) and an English report (R1) on a real Article 94(3) communication |
+| 3 Notify and run | The Ticket routed to one person (W3, case S4); the three client AI rules of decision D7: a run for WAGO, a by-hand Ticket for Phoenix Contact (local model only), a "not recorded" Ticket for Renishaw; the agent run that reads only what its person may see (case S5) |
+| 4 Report to the client | A German report on a real Article 94(3) communication (W3). Renishaw records no AI wishes (decision D7), so a test that needs an English report first records Renishaw's wishes as a firm event in that test (R1) |
 | 5 Firm-internal message | The reply to the forwarder and the notice to the responsible attorney for each letter; the notice after the handover goes to the new attorney (R2, case S2) |
 
 The R2 EP rule set of design section 5.4:
@@ -175,7 +209,7 @@ The users are fictional [proposal]. Anna Becker, Jonas Weber and Lena Hoffmann k
 | `lena` | Lena Hoffmann | attorney | `FlowLeap.User` | `2b3c4d5e-6f70-4b8c-9d0e-1f2a3b4c5d6e` | `lena.hoffmann@seed-firm.test` |
 | `sabine` | Sabine Wolf | formalities (PAFA) | `FlowLeap.User` | `adfbb95a-2c5f-4571-8091-452a266f8353` | `sabine.wolf@seed-firm.test` |
 | `tobias` | Tobias Schmitt | formalities (PAFA) | `FlowLeap.User` | `8279562c-e5ec-431b-a839-f6bdc2966368` | `tobias.schmitt@seed-firm.test` |
-| `miriam` | Miriam Yilmaz | assistant (no `Role` member yet, decision D5) | `FlowLeap.User` | `74e45f9c-c4a1-4033-8fe3-726d4d7961ca` | `miriam.yilmaz@seed-firm.test` |
+| `miriam` | Miriam Yilmaz | assistant (new `Role` member, decision D5; until it exists, `formalities` without the confirm right) | `FlowLeap.User` | `74e45f9c-c4a1-4033-8fe3-726d4d7961ca` | `miriam.yilmaz@seed-firm.test` |
 | `felix` | Felix Neumann | administrator | `FlowLeap.Administrator` | `c2569871-8b89-4ab2-b4ca-c82ceb770f37` | `felix.neumann@seed-firm.test` |
 
 Rules for the users [proposal]:
@@ -206,15 +240,15 @@ Our reading of section 4.4 for the seed: a user may see a matter when the user i
 
 The firm-side fields of each matter [proposal]:
 
-| Matter | Firm file number | Responsible attorney | Matter type |
-|---|---|---|---|
-| W1 | SF-2021-0011 | jonas (shared with lena, case S1) | prosecution |
-| W2 | SF-2022-0024 | lena | prosecution |
-| W3 | SF-2024-0007 | jonas | prosecution |
-| P1 | SF-2020-0031 | anna | prosecution |
-| P2 | SF-2026-0019 | anna | opposition (the firm defends the patent) |
-| R1 | SF-2023-0042 | lena | prosecution |
-| R2 | SF-2023-0045 | lena, then anna from 2026-10-15 (case S2) | prosecution |
+| Matter | Firm file number | Responsible attorney | Matter type | Client AI rules (decision D7) |
+|---|---|---|---|---|
+| W1 | SF-2021-0011 | jonas (shared with lena, case S1) | prosecution | AI allowed, cloud model |
+| W2 | SF-2022-0024 | lena | prosecution | AI allowed, cloud model |
+| W3 | SF-2024-0007 | jonas | prosecution | AI allowed, cloud model |
+| P1 | SF-2020-0031 | anna | prosecution | local model only |
+| P2 | SF-2026-0019 | anna | opposition (the firm defends the patent) | local model only |
+| R1 | SF-2023-0042 | lena | prosecution | not recorded |
+| R2 | SF-2023-0045 | lena, then anna from 2026-10-15 (case S2) | prosecution | not recorded |
 
 Who sees what, with the screen and the handover applied:
 
@@ -323,16 +357,16 @@ The fetch is a script that a person can run again [proposal]. It is package code
 - **`check/compare.mjs`** fetches each register response again and fails on any difference in a field that the seed uses. It names the matter, the tool and the field. This is the first acceptance criterion of #294.
 - **`check/check-seed.mjs`** runs in CI without network. It fails when a PDF hash differs from `documents.json`, when a user name equals a natural-person name of a seed matter, when a wall leaves no user outside a matter, or when a matter has no register URL and fetch date.
 
-## 12. Decisions for the founder
+## 12. Decisions of the founder
 
-| # | Decision | Our recommendation |
+| # | Decision | Decided by the founder on 2026-11-05 (as recommended) |
 |---|---|---|
-| D1 | Approve the seven matters and the three clients of section 3 | Approve. Replace a matter only if its public file does not show the case that it is for (section 4) |
-| D2 | How do we get the EPO letters? FlowLeap has no EP file-inspection tool, and the register refuses scripted requests | For the first version, a person downloads the listed documents from the register's "All documents" page in a browser, and `add-documents.mjs` records them. Open a ticket for an EP file-inspection tool in the FlowLeap backend through an EPO service that allows it |
+| D1 | Approve the seven matters and the three clients of section 3 | Approved. Replace a matter only if its public file does not show the case that it is for (section 4) |
+| D2 | How do we get the EPO letters? FlowLeap has no EP file-inspection tool, and the register refuses scripted requests | For the first version, a person downloads the documents of the [download list](#the-download-list-decision-d2) from the register's "All documents" page in a browser, and `add-documents.mjs` records them. The EP file-inspection tool in the FlowLeap backend is [#323](https://github.com/flowleap-ai/flowleap-harness/issues/323) |
 | D3 | May the public repository hold the EPO letters and the names in them? The founder decided on 2026-11-05 to keep names as published | Yes for EPO-issued letters. Leave out documents that the applicant wrote (for example a priority document) unless a case needs one, and then take the shortest one |
 | D4 | The firm file numbers are fictional (`SF-...`). The real letters carry the reference of the real representative in the "Ref." field | Keep fictional file numbers and match the letters by the EP application number. Store the printed "Ref." as read, never as our file number |
-| D5 | The design `Role` union has no assistant | Add `assistant` to the union: it may see and forward, and it may not confirm a deadline. Until then the seed marks miriam as `formalities` without the confirm right |
+| D5 | The design `Role` union has no assistant | Add `assistant` to the `Role` union of design section 4.2: an assistant may see and forward, and may not confirm a deadline. Until the union has it, the seed marks miriam as `formalities` without the confirm right |
 | D6 | The FlowLeap CLI account answers HTTP 402 | Give the fetch a FlowLeap account with an active plan, as a personal API token (`fl_pat_`) in the environment, never in the repository |
-| D7 | The AI rules of the three clients for sheet 3 | WAGO allows AI with a cloud model, Phoenix Contact allows only a local model, Renishaw records no wishes. Then the seed has a run, a by-hand Ticket and a "not recorded" Ticket |
+| D7 | The AI rules of the three clients for sheet 3 | WAGO allows AI with a cloud model, Phoenix Contact allows only a local model, Renishaw records no wishes. So the seed has a run, a by-hand Ticket and a "not recorded" Ticket (section 6) |
 
 After approval, the next steps of #294 are the fetch and the package (part 3), and after the R1 merges, the move of the tests to the package. This PR changes no fixture of R1.
