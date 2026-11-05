@@ -1,6 +1,6 @@
 # Design review checklist
 
-The checklist applies to the IPMS screens only. The reviewer checks the built screen, not the mockup, at 1440 × 900, 1366 × 650 and 390 px, in light and dark, and in German. Copy this list into the PR and write PASS or FAIL after each item, with a screenshot or a measurement for each FAIL. **Any FAIL blocks the merge.** An item that does not apply to the screen is PASS with the reason ("no list on this screen"). Script paths are relative to the skill folder.
+The checklist applies to the IPMS screens only. The reviewer checks the built screen, not the mockup, at 1440 × 900, 1366 × 650 and 390 px, in light and dark, and in German. Copy this list into the PR and write PASS or FAIL after each item, with a screenshot or a measurement for each FAIL. An item that does not apply to the screen is PASS with the reason ("no list on this screen"). Script paths are relative to the skill folder.
 
 1. The founder approved the mockups of this screen before the code, and the PR links the approval.
 2. The PR has a table: choice, Linear screen URL, why. One row for each new component, token or value not a client token or in rules.md.
@@ -28,3 +28,20 @@ The checklist applies to the IPMS screens only. The reviewer checks the built sc
 24. A fixture has one person outside the matter's wall. That person is in no row, card, picker or Activity line. The PR links the test (product rule 8).
 25. At 390 px on a touch screen there is no overlap, clipping or page-wide horizontal scroll; no key shows; the primary action stays in view; and every act of the 1440 px screen is reachable, shown or in an overflow menu ([dsh-responsive-ui](../dsh-responsive-ui/SKILL.md)).
 26. From 1366 px a queue shows its list and the open item side by side, with the decision bar in view (R20).
+
+## Blocking FAIL or ticket
+
+The reviewer marks each FAIL as blocking or as a ticket. A blocking FAIL stops the merge. A ticket does not stop the merge: the reviewer gives it a title and a fix, the PR author files it before the merge, and it is fixed after the merge. The verdict is MERGE when no blocking FAIL remains (founder decision, 2026-11-05).
+
+A FAIL is blocking when it has one of these effects:
+
+- copy that is not true, or that shows an internal id, code or account handle (items 20 to 22);
+- a person or a fact outside the matter's wall shows (item 24);
+- an act that a person cannot reach, by pointer, keyboard or touch, or a primary button that is not in view (items 13, 14, 17, 25);
+- text or a status icon below the contrast minimum (items 5, 10);
+- evidence that is wrong or missing, or Accept that is not blocked when evidence is missing (item 15);
+- a status, a date or a count that misleads, such as a past date with no overdue flag (items 11, 12);
+- a decision or a board move that the product rules do not allow (items 22, 23);
+- no approved mockup for the screen (item 1), or a check script that does not exit 0.
+
+Every other FAIL is a ticket: a small visual item that misleads nobody and loses no act, such as a wrap, a gap, a size or a radius off the rules, a missing icon in an overflow menu, or a skeleton offset.
