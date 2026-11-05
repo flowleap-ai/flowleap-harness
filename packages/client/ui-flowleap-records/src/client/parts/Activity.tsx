@@ -54,7 +54,7 @@ export function ActivityTimeline({ heading, lines, comment, audit }: {
             <span className={css.icon}>
               {line.actor.kind === 'person'
                 ? <Avatar person={line.actor.person} size={24} nameShown />
-                : <span className={css.system}>{line.actor.icon}</span>}
+                : <span className={css.system} data-fdl-part="av">{line.actor.icon}</span>}
             </span>
             <span className={css.text}>
               <b className={css.actor}>{line.actor.kind === 'person' ? line.actor.person.name : line.actor.name}</b>

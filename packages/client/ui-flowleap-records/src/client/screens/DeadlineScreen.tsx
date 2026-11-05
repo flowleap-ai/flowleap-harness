@@ -337,7 +337,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             return key === undefined
               ? []
               : [(
-                <div key={`${index}:${note.kind}`} className={css.note}>
+                <div key={`${index}:${note.kind}`} className={css.note} data-fdl-part="notice">
                   <IconInfoOutlineRegular size={16} />
                   <span>{t(key)}</span>
                 </div>
@@ -416,7 +416,7 @@ function NoSourceLetter({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetai
   const entered = data.proposer === null ? null : personInText(t, data.proposer)
   return (
     <>
-      <div className={css.note}>
+      <div className={css.note} data-fdl-part="notice">
         <IconInfoOutlineRegular size={16} />
         <span>{t('evidence.noSourceLetter')}</span>
       </div>

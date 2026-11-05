@@ -95,7 +95,7 @@ export function DecisionBar({
   const foot = useRef<HTMLElement>(null)
   const crowded = useCrowded(foot)
   return (
-    <section className={css.bar} aria-label={heading.text}>
+    <section className={css.bar} data-fdl-part="decision" aria-label={heading.text}>
       <header className={css.head}>
         {heading.person !== null && <span className={css.headAvatar}><Avatar person={heading.person} size={24} nameShown /></span>}
         <div className={css.headText}>

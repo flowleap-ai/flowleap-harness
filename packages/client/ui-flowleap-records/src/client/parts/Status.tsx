@@ -59,7 +59,7 @@ export function FactStatus({ label, status, word, className }: {
   className?: string | undefined
 }) {
   return (
-    <span className={clsx(css.fact, className)}>
+    <span className={clsx(css.fact, className)} data-fdl-part="fact">
       <span className={css.factLabel}>{label}<span aria-hidden="true"> ·</span></span>
       <AtlasStatus status={status} word={word} className={css.factStatus} />
     </span>

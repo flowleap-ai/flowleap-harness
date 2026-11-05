@@ -309,7 +309,7 @@ export function SelectionBar({ label, acts, more, primary }: {
 }) {
   return (
     <div className={bulk.bulkDock}>
-      <div className={bulk.bulk} data-bulk="">
+      <div className={bulk.bulk} data-fdl-part="decision" data-bulk="">
         <span className={bulk.bulkCount}>{label}</span>
         <div className={bulk.bulkActs}>
           {acts.map(act => <ActButton key={act.id} act={act} rank="tertiary" />)}

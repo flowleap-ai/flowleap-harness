@@ -28,7 +28,7 @@ export interface QuoteLabels {
  */
 export function EvidenceQuote({ span, labels }: { span: Span; labels: QuoteLabels }) {
   // The quote shows in the main view, so the deny-list reads it (R19); only the excerpt, a picture of the page, is exempt.
-  const quote = <span className={css.quote} tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
+  const quote = <span className={css.quote} data-fdl-part="quote" tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
   return (
     <span className={css.spanRef}>
       {span.excerpt === null
@@ -40,7 +40,7 @@ export function EvidenceQuote({ span, labels }: { span: Span; labels: QuoteLabel
             openDelayMs={200}
             anchor={quote}
             content={(
-              <span className={css.excerpt}>
+              <span className={css.excerpt} data-fdl-part="excerpt">
                 <span className={css.caption}><span>{labels.excerpt}</span><span>{labels.exact}</span></span>
                 <span className={css.page} data-verbatim="">
                   <span className={css.fade}>{span.excerpt.before}</span>
@@ -63,7 +63,7 @@ export function EvidenceQuote({ span, labels }: { span: Span; labels: QuoteLabel
  * @returns the chip.
  */
 export function RecordSource({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return <span className={css.source}>{icon}{children}</span>
+  return <span className={css.source} data-fdl-part="chip">{icon}{children}</span>
 }
 
 /** Copy of the missing-evidence state. */
@@ -88,7 +88,7 @@ export interface MissingLabels {
 export function MissingEvidence({ labels, onFind, onRemove }: { labels: MissingLabels; onFind: () => void; onRemove: () => void }) {
   return (
     <span className={css.missingBlock}>
-      <span className={css.missing}><IconWarningTriangleOutlineRegular size={16} />{labels.title}</span>
+      <span className={css.missing} data-fdl-part="chip"><IconWarningTriangleOutlineRegular size={16} />{labels.title}</span>
       <span className={css.why}>{labels.why}</span>
       <span className={css.missingActs}>
         <Button variant="ghost" size="sm" icon={<IconSearchOutlineRegular size={16} />} onClick={onFind}>{labels.find}</Button>

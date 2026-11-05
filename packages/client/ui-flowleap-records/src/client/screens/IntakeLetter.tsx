@@ -174,7 +174,7 @@ export function LetterDrawing({ ctx, letter, onOpen }: { ctx: ScreenContext; let
   const page = reference?.span.page ?? title?.span.page ?? formNumber?.span.page ?? 1
   return (
     <figure className={css.paper}>
-      <div className={css.letter} data-verbatim="" aria-label={t('intake.letter.label', { page })} role="img">
+      <div className={css.letter} data-fdl-part="letter" data-verbatim="" aria-label={t('intake.letter.label', { page })} role="img">
         <div className={css.logo} />
         {letterLines(read).map(line => (
           <div key={line.key} className={css.letterLine}>

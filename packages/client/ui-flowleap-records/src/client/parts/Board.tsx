@@ -48,6 +48,7 @@ export function BoardColumn({ status, word, count, owner, drop = { kind: 'idle' 
   return (
     <section
       className={css.column}
+      data-fdl-part="col"
       data-drop={drop.kind}
       aria-label={word}
       onDragOver={over}
@@ -113,6 +114,7 @@ export function BoardCard({ status, matterKey, team, title, matterName, due, fac
   return (
     <article
       className={css.card}
+      data-fdl-part="card"
       data-lifted={lifted || undefined}
       data-dragging={dragging || undefined}
       draggable={drag !== undefined || undefined}
@@ -164,13 +166,13 @@ export function CardSlot() {
  */
 export function BoardColumnSkeleton({ cards, place }: { cards: number; place: number }) {
   return (
-    <section className={css.column} aria-hidden="true">
+    <section className={css.column} data-fdl-part="col" aria-hidden="true">
       <header className={css.columnHead}>
         <SkeletonBone cell="dot" place={place} />
         <SkeletonBone cell="bar" place={place} />
       </header>
       {Array.from({ length: cards }, (_, card) => (
-        <div key={card} className={clsx(css.card, css.skeletonCard)}>
+        <div key={card} className={clsx(css.card, css.skeletonCard)} data-fdl-part="card">
           <SkeletonBone cell="bar" place={place + card} />
           <SkeletonBone cell="bar" place={place + card + 1} />
           <SkeletonBone cell="bar" place={place + card + 2} />

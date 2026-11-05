@@ -268,7 +268,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                     )}
                   hint={choice === undefined && mayDecide.allowed ? t('work.choose') : undefined}
                   control={mayDecide.allowed && (
-                    <span className={detail.segment} role="group" aria-label={t('work.clientReport')}>
+                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('work.clientReport')}>
                       <ActButton
                         act={{ ...actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 }), ...keys }}
                         rank="tertiary"
@@ -334,7 +334,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                   {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
                 </div>
               </div>
-              <div className={detail.file}>
+              <div className={detail.file} data-fdl-part="file">
                 <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
                 <div>
                   <div className={detail.fileTitle}>{t('work.reportOn', { title: letterTitle(t, letter?.code ?? null) })}</div>

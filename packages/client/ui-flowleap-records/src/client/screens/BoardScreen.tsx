@@ -199,7 +199,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
  */
 function OtherStatesSkeleton() {
   return (
-    <div className={css.other} aria-hidden="true">
+    <div className={css.other} data-fdl-part="other" aria-hidden="true">
       <SkeletonBone cell="bar" place={0} className={css.otherHeadBone} />
       <ul className={css.otherRows}>
         {OTHER_STATES.map((state, place) => (
@@ -233,7 +233,7 @@ function Board({ ctx, data, dragged, onDrag }: {
     .filter((state, index, all) => !shown.has(state) && all.indexOf(state) === index)
   return (
     <>
-      <section className={css.other} aria-label={t('board.otherStates')}>
+      <section className={css.other} data-fdl-part="other" aria-label={t('board.otherStates')}>
         <h2 className={css.otherHead}>{t('board.otherStates')}</h2>
         <ul className={css.otherRows}>
           {others.map((state) => {

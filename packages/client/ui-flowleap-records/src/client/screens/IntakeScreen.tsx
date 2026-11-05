@@ -317,7 +317,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         />
         <ul className={css.files}>
           {rows.filter(row => checked.has(row.document)).map(row => (
-            <li key={row.document} className={css.file}>
+            <li key={row.document} className={css.file} data-fdl-part="file">
               <span className={css.fileTitle}>{letterTitle(t, row.code, row.status)}</span>
               <span className={css.fileSub}>{row.matter === null ? atlasWord(t, row.status) : `${row.matter.fileNumber} ${row.matter.title}`}</span>
             </li>

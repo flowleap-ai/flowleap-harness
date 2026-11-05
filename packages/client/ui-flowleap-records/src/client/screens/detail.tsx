@@ -106,7 +106,7 @@ export function Facts({ facts }: { facts: readonly Fact[] }) {
   return (
     <div className={css.facts}>
       {facts.map(fact => (
-        <span key={fact.key} className={css.fact}>
+        <span key={fact.key} className={css.fact} data-fdl-part="fact">
           {fact.overdue === true ? <Overdue><b>{fact.count}</b></Overdue> : <b>{fact.count}</b>}
           {fact.text}
         </span>

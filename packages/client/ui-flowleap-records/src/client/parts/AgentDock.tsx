@@ -74,7 +74,7 @@ export function AgentDock({ view, name, model, labels, onView, children }: {
     </Tooltip>
   )
   return (
-    <aside className={css.dock} data-view={view} aria-label={name} hidden={view === 'minimised'} {...{ [KEYS_ELSEWHERE]: '' }}>
+    <aside className={css.dock} data-fdl-part="dock" data-view={view} aria-label={name} hidden={view === 'minimised'} {...{ [KEYS_ELSEWHERE]: '' }}>
       <header className={css.head}>
         <span className={css.icon}><IconAgentPresetOutlineRegular size={16} /></span>
         <span className={css.name}>{name}</span>

@@ -22,7 +22,7 @@ export function EmptyState({ icon, title, body, action }: { icon: ReactNode; tit
   return (
     <div className={css.empty}>
       <div className={css.emptyInner}>
-        <div className={css.tile} aria-hidden="true">{icon}</div>
+        <div className={css.tile} data-fdl-part="empty-art" aria-hidden="true">{icon}</div>
         <h2 className={css.emptyTitle}>{title}</h2>
         <p className={css.emptyBody}>{body}</p>
         <ActButton act={action} rank="secondary" />
@@ -48,7 +48,7 @@ export interface NoticeSpec {
  */
 export function Notice({ notice }: { notice: NoticeSpec }) {
   return (
-    <div className={css.notice} role="alert">
+    <div className={css.notice} data-fdl-part="notice" role="alert">
       <IconWarningTriangleOutlineRegular size={16} />
       <div className={css.noticeText}>
         <span className={css.lead}>{notice.lead}</span>
