@@ -184,6 +184,77 @@ describe('the split view from 1366px', () => {
   })
 })
 
+describe('the next letter after a decision', () => {
+  const wide = () => { vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} }))) }
+  const order = () => shownOrder(fixtures.intake.rows).map(row => row.document)
+  const opened = () => mounted!.model.screen.getSnapshot()
+
+  it('opens the next letter after Accept and file, Not relevant and Other matter, else the previous one', async () => {
+    wide()
+    const rows = order()
+    const { panel, model } = await mount()
+    expect(opened()).toMatchObject({ open: rows[0] })
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    expect(opened()).toMatchObject({ open: rows[1] })
+    press(panel, 'Digit2')
+    await flush()
+    fireEvent.change(screen.getByLabelText('Why is this letter not relevant?'), { target: { value: 'Advertising' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Mark not relevant' }))
+    await flush()
+    expect(opened()).toMatchObject({ open: rows[2] })
+    press(panel, 'KeyM')
+    await flush()
+    fireEvent.click(within(screen.getByRole('menu')).getByText('FL-2025-0412 Brake caliper bracket'))
+    await flush()
+    fireEvent.click(within(decision()).getByRole('button', { name: /File on FL-2025-0412/ }))
+    await flush()
+    expect(opened()).toMatchObject({ open: rows[3] })
+    act(() => { model.navigate(open(rows.at(-1)!)) })
+    await flush()
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    expect(opened()).toMatchObject({ open: rows.at(-2) })
+  })
+
+  it('opens no letter after the last one, and keeps a letter that the person opened while the act ran', async () => {
+    wide()
+    const { api } = createFixtureApi()
+    const [only, other] = fixtures.intake.rows
+    const intake = vi.spyOn(api, 'intake').mockResolvedValue({ ok: true, value: { ...fixtures.intake, rows: [only!] } })
+    const { model } = await mount(api)
+    expect(opened()).toMatchObject({ open: only!.document })
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    expect(opened()).toMatchObject({ open: null })
+    expect(document.querySelector(`[data-row="${only!.document}"]`)).toBeTruthy()
+    intake.mockResolvedValue({ ok: true, value: { ...fixtures.intake, rows: [only!, other!] } })
+    let answer: (result: Fetched<null>) => void = () => {}
+    vi.spyOn(api, 'perform').mockImplementation(() => new Promise((resolve) => { answer = resolve }))
+    act(() => { model.navigate(open(other!.document)) })
+    await flush()
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    act(() => { model.navigate(open(only!.document)) })
+    await act(async () => { answer({ ok: true, value: null }) })
+    await flush()
+    expect(opened()).toMatchObject({ open: only!.document })
+  })
+
+  it('opens the next letter that the bulk accept did not decide', async () => {
+    wide()
+    const rows = order()
+    const { panel } = await mount()
+    press(panel, 'KeyX')
+    fireEvent.click(document.querySelector(`[data-row="${rows[2]}"]`)!, { shiftKey: true })
+    await flush()
+    expect(screen.getByText('3 selected')).toBeTruthy()
+    press(panel, 'Enter', { metaKey: true, shiftKey: true })
+    await flush()
+    expect(screen.queryByText('3 selected')).toBeNull()
+    expect(opened()).toMatchObject({ open: rows[3] })
+  })
+})
+
 describe('the open letter', () => {
   it('draws the letter from reader 1 with the read spans marked, gives the reasons and the letter facts, and opens the PDF with O', async () => {
     const windowOpen = vi.fn()
@@ -211,19 +282,21 @@ describe('the open letter', () => {
 
   it('records Accept and file with ⇧⌘↵ and with 1, one act with its own key each time, and no second act while one runs', async () => {
     const { api, acts } = createFixtureApi()
-    const { panel } = await mount(api, open(R71_DOCUMENT))
+    const { panel, model } = await mount(api, open(R71_DOCUMENT))
+    const next = shownOrder(fixtures.intake.rows)[1]!.document
     press(panel, 'Enter', { metaKey: true, shiftKey: true })
     press(panel, 'Digit1')
     expect(within(decision()).getByRole('button', { name: /Accept and file/ }).getAttribute('aria-busy')).toBe('true')
     await flush()
     expect(acts).toHaveLength(1)
+    expect(model.screen.getSnapshot()).toMatchObject({ open: next })
     press(panel, 'Digit1')
     press(panel, 'KeyX')
     await flush()
     expect(screen.getByText('1 selected')).toBeTruthy()
     expect(acts.map(act => act.command)).toEqual([
       { kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' },
-      { kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' },
+      { kind: 'intake.match', document: next, fileNumber: 'FL-2026-0001' },
     ])
     expect(acts[0]!.key).not.toBe(acts[1]!.key)
   })
@@ -374,12 +447,13 @@ describe('the open letter', () => {
     fireEvent.click(within(menu).getByText('FL-2025-0412 Brake caliper bracket'))
     await flush()
     expect(within(decision()).getByText('FL-2025-0412 Brake caliper bracket')).toBeTruthy()
+    fireEvent.click(within(decision()).getByRole('button', { name: 'Change…' }))
+    await flush()
+    fireEvent.click(within(screen.getByRole('menu')).getByText('FL-2025-0412 Brake caliper bracket'))
+    await flush()
     fireEvent.click(within(decision()).getByRole('button', { name: /File on FL-2025-0412/ }))
     await flush()
     expect(acts.map(act => act.command)).toEqual([{ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2025-0412' }])
-    fireEvent.click(within(decision()).getByRole('button', { name: 'Change…' }))
-    await flush()
-    expect(screen.getByRole('menu')).toBeTruthy()
   })
 
   it('opens the picker first for a letter with no proposal, and its row menu step opens with the letter', async () => {
@@ -514,18 +588,20 @@ describe('the open letter', () => {
       ],
       [['Matter FL-2026-0001', 'records.go.matter'], ['Intake', 'records.go.intake']],
     ])
-    const run = (group: number, index: number) => { act(() => { item.groups[group]!.acts[index]!.run() }) }
-    run(0, 0)
+    const run = (group: number, index: number) => { act(() => { commandItems.item()!.groups[group]!.acts[index]!.run() }) }
     run(0, 3)
     run(0, 4)
+    run(0, 0)
     await flush()
     expect(acts).toHaveLength(1)
     expect(windowOpen).toHaveBeenCalledOnce()
     expect(writeText).toHaveBeenCalledWith('https://firm.test/?page=flowleap-records&records=intake')
+    act(() => { model.navigate(open(R71_DOCUMENT)) })
+    await flush()
     run(0, 1)
     await flush()
     expect(screen.getByRole('menu')).toBeTruthy()
-    run(0, 2)
+    act(() => { commandItems.item()!.groups[0]!.acts.find(entry => entry.label === 'Not relevant…')!.run() })
     await flush()
     expect(screen.getByLabelText('Why is this letter not relevant?')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))

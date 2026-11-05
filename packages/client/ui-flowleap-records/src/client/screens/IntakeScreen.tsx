@@ -6,7 +6,7 @@
  * or closes the letter.
  */
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react'
 import { Avatar, IconCheckOutlineRegular, IconCloseOutlineRegular, IconPaperPlaneOutlineRegular, Pill } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { sameRequest, useActRunner } from '../act-runner.ts'
@@ -111,6 +111,20 @@ export function acceptable(rows: readonly IntakeRow[], checked: ReadonlySet<Docu
     : [])
 }
 
+/**
+ * The letter that opens after a decision, as Linear's triage does: the next row of the list as it showed when the
+ * person decided, else the previous row, else none. A letter decided in this view is skipped.
+ * @param order - the rows in display order when the person decided.
+ * @param from - the decided open letter.
+ * @param decided - the letters decided in this view, `from` included.
+ * @returns the letter to open, or null for none.
+ */
+export function nextAfter(order: readonly DocumentId[], from: DocumentId, decided: ReadonlySet<DocumentId>): DocumentId | null {
+  const index = order.indexOf(from)
+  const waiting = (document: DocumentId) => !decided.has(document)
+  return order.slice(index + 1).find(waiting) ?? order.slice(0, index).findLast(waiting) ?? null
+}
+
 /** The width from which a queue shows its list and the open item side by side (R20). */
 export const SPLIT_QUERY = '(min-width: 1366px)'
 
@@ -158,6 +172,10 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
   const sent = useRef<readonly LetterCommand[]>([])
+  const [decided, setDecided] = useState<ReadonlySet<DocumentId>>(new Set())
+  // The letter open now, for a decision whose act ends after the person opened another letter.
+  const openNow = useRef(screen.open)
+  useLayoutEffect(() => { openNow.current = screen.open })
   const loaded = screen.intake.phase === 'ready' ? screen.intake.data : screen.intake.phase === 'failed' ? screen.intake.last?.data ?? null : null
   const rows = loaded === null ? [] : shownOrder(loaded.rows)
   const order = rows.map(row => row.document)
@@ -188,6 +206,17 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     if (screen.open !== null) open(next)
     document.querySelector<HTMLElement>(`[data-row="${next}"]`)?.focus()
   }
+  /**
+   * Note the decided letters; when the open letter is one of them and is still open, open the next letter.
+   * @param done - the letters whose act succeeded.
+   * @param before - the rows in display order when the person decided.
+   * @param from - the letter open when the person decided.
+   */
+  const moveOn = (done: readonly DocumentId[], before: readonly DocumentId[], from: DocumentId | null) => {
+    const after = new Set([...decided, ...done])
+    setDecided(after)
+    if (from !== null && done.includes(from) && openNow.current === from) open(nextAfter(before, from, after))
+  }
   const matches = loaded === null ? [] : acceptable(loaded.rows, checked)
   /**
    * Send one act for each letter; the letters whose act failed stay checked, so the person can try again.
@@ -200,6 +229,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
       sent.current = commands
       const failed = commands.filter(command => result.failed.some(({ act }) => sameRequest(act.command, command)))
       setChecked(new Set(failed.map(command => command.document)))
+      moveOn(commands.filter(command => !failed.includes(command)).map(command => command.document), order, screen.open)
     })
   }
   const acceptAll = () => { performEach(matches.map(row => ({ kind: 'intake.match', ...row }))) }
@@ -208,9 +238,9 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
   const retryAll = () => { performEach(sent.current.filter(command => checked.has(command.document))) }
   const selecting = checked.size > 0
   const split = useSplit()
-  const first = rows[0]?.document
-  // From 1366px the queue always shows a letter beside the list, as Linear's triage does: the first one until the
-  // person opens another.
+  const first = rows.find(row => !decided.has(row.document))?.document
+  // From 1366px the queue always shows a letter beside the list, as Linear's triage does: the first letter not decided
+  // in this view, until the person opens another.
   useEffect(() => {
     if (split && screen.open === null && !selecting && first !== undefined) ctx.navigate({ view: 'intake', list: screen.list, open: first })
   }, [split, screen.open, selecting, first, screen.list, ctx.navigate])
@@ -303,7 +333,16 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
         render={{
           loading: () => <PageSpinner label={t('loading')} />,
           failed: () => null,
-          ready: letter => <IntakeLetter key={`${letter.document}:${screen.step ?? ''}`} ctx={ctx} list={screen.list} letter={letter} step={screen.step} />,
+          ready: letter => (
+            <IntakeLetter
+              key={`${letter.document}:${screen.step ?? ''}`}
+              ctx={ctx}
+              list={screen.list}
+              letter={letter}
+              step={screen.step}
+              onDecided={() => { moveOn([letter.document], order, letter.document) }}
+            />
+          ),
         }}
       />
     ))

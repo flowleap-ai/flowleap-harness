@@ -12,7 +12,8 @@ import {
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { FieldValue, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
+import type { Command, FieldValue, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
+import type { ActsResult } from '../model.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
@@ -238,13 +239,15 @@ function MatterPicker({ ctx, matters, picked, open, onOpenChange, onPick }: {
  * @param props.list - the open list.
  * @param props.letter - the letter.
  * @param props.step - the step that opened with the letter.
+ * @param props.onDecided - the decision's act succeeded: the queue opens the next letter.
  * @returns the work column, and the properties panel of the item page.
  */
-export function IntakeLetter({ ctx, list, letter, step }: {
+export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   ctx: ScreenContext
   list: IntakeView
   letter: IntakeDocument
   step: IntakeStep | undefined
+  onDecided: () => void
 }) {
   const { t } = ctx
   const decision = letterDecision(ctx, letter)
@@ -256,6 +259,11 @@ export function IntakeLetter({ ctx, list, letter, step }: {
   const [picked, setPickedState] = useState<MatterRef | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
+  const settle = (sent: Promise<ActsResult | null>) => {
+    void sent.then((result) => { if (result !== null && result.failed.length === 0) onDecided() })
+  }
+  const decide = (command: Command) => { settle(runner.submit([command])) }
+  const retry = () => { settle(runner.retry()) }
   // Each change of the decision is a new act: the failure of the last one no longer applies.
   const setReasonOpen = (open: boolean) => {
     setReasonOpenState(open)
@@ -271,7 +279,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
   const agreePage = letter.fields.reference?.span.page ?? 1
   const route = { view: 'intake', list, open: letter.document } as const
   const openLetter = () => { window.open(ctx.contentHref(letter.document), '_blank', 'noopener') }
-  const match = (fileNumber: MatterRef['fileNumber']) => { void runner.submit([{ kind: 'intake.match', document: letter.document, fileNumber }]) }
+  const match = (fileNumber: MatterRef['fileNumber']) => { decide({ kind: 'intake.match', document: letter.document, fileNumber }) }
   const startPicking = () => {
     setPicking(true)
     setPickerOpen(true)
@@ -284,7 +292,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
       const event = letter.officeEvent
       const { code, documentDate, applicationNumber } = letter
       if (event === null || code === null || documentDate === null || applicationNumber === null) return null
-      return () => { void runner.submit([{ kind: 'officeEvent.decide', id: event.id, code, documentDate, applicationNumber }]) }
+      return () => { decide({ kind: 'officeEvent.decide', id: event.id, code, documentDate, applicationNumber }) }
     }
     return null
   })()
@@ -300,7 +308,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     ...(canClose ? { reject: () => { setReasonOpen(true) } } : {}),
     ...(canPick ? { otherMatter: startPicking } : {}),
     ...(matterOf === null ? {} : { goMatter: () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) } }),
-    ...(runner.run.phase === 'failed' ? { retry: () => { void runner.retry() } } : {}),
+    ...(runner.run.phase === 'failed' ? { retry } : {}),
   }, { failed: runner.run.phase === 'failed' })
   const menuItem: CommandMenuItem = {
     label: title,
@@ -380,7 +388,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
         labels={{ more: t('decision.more') }}
         decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
         parts={parts}
-        failure={failureNotice(ctx, runner.run, () => { void runner.retry() })}
+        failure={failureNotice(ctx, runner.run, retry)}
         negative={canClose
           ? {
             ...keyedOf(ctx, 'reject'),
@@ -393,7 +401,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
             cancelLabel: t('act.cancel'),
             onConfirm: (reason) => {
               setReasonOpenState(false)
-              void runner.submit([{ kind: 'intake.notRelevant', document: letter.document, reason }])
+              decide({ kind: 'intake.notRelevant', document: letter.document, reason })
             },
           }
           : undefined}

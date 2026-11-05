@@ -117,7 +117,7 @@ describe('the Matters panel', () => {
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
-  it('opens a letter beside the list with its decision, pager and breadcrumb, and files it', async () => {
+  it('opens a letter beside the list with its decision, pager and breadcrumb, and files it, which opens the next letter', async () => {
     const { api, acts } = createFixtureApi()
     const { model } = await mount(api)
     fireEvent.click(screen.getAllByText('Rule 71(3) communication')[0]!)
@@ -134,9 +134,10 @@ describe('the Matters panel', () => {
     fireEvent.click(record)
     await flush()
     expect(acts.at(-1)?.command).toEqual({ kind: 'intake.match', document: R71_DOCUMENT, fileNumber: 'FL-2026-0001' })
+    expect(screen.getByLabelText('Letter 2 of 22')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Next letter' }))
     await flush()
-    expect(screen.getByLabelText('Letter 2 of 22')).toBeTruthy()
+    expect(screen.getByLabelText('Letter 3 of 22')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Previous letter' }))
     await flush()
     fireEvent.click(screen.getAllByRole('button', { name: /Other matter/ }).at(-1)!)
