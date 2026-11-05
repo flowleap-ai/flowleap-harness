@@ -65,7 +65,7 @@ The board has a column for each state that work waits or works in (Assigned, Run
 
 ### Loading, empty and error states
 
-Each read follows rule R18: a first load shows nothing for 150 ms, then the skeleton of its list (or one centred spinner on a page) for at least 300 ms. A load over shown data keeps the data. A failure keeps the last data at full contrast under one notice with its time and **Try again**; with no data the notice says that nothing in the record changed.
+Each read follows rule R18: a first load shows nothing for 150 ms, then its loading state for at least 300 ms: a list shows its column header and skeleton rows on its own column grid, the board shows skeleton columns, and a page that is not a list shows one centred spinner. A load over shown data keeps the data. A failure keeps the last data at full contrast under one notice with its time and **Try again**; with no data the notice says that nothing in the record changed.
 
 ### The matter, deadline and work pages
 
@@ -85,7 +85,7 @@ The **agent panel** is a 376 px column at the right of the work page with the pa
 
 ### The parts
 
-`src/client/parts/` holds the IPMS parts that every view composes: the list (`ListFrame`, `ListGroup`, `ListRow`, `SkeletonRows`, `SelectionBar` and the cells), the layouts (`QueueSplit`, `DetailLayout`, `WorkColumn`, `DetailHeader`, `KeyFact`, `Section`, `PropertiesPanel`, `KeyProperties`), the decision bar (`DecisionBar`, `DecisionPart`, with the reason step, the failure notice and the 390 px overflow menu), the evidence (`EvidenceQuote`, `MissingEvidence`, `RecordSource`, `StatementTable`, `StatementRow`), the Activity timeline, the board (`BoardColumn`, `BoardCard`, `CardSlot`), the status (`AtlasStatus`, `AtlasPill`, `RowStatusIcon`, which need an `AtlasWord` from the dictionary), the act button (`ActButton`, with its command's keycap) and the states (`EmptyState`, `ErrorNotice`, `Notice`, `PageSpinner`, `LoadView`). The status shapes, the keycap and the avatars are `ui-primitives` parts.
+`src/client/parts/` holds the IPMS parts that every view composes: the list (`ListFrame`, `ListGroup`, `ListRow`, `ListSkeleton`, `SkeletonBone`, `SelectionBar` and the cells), the layouts (`QueueSplit`, `DetailLayout`, `WorkColumn`, `DetailHeader`, `KeyFact`, `Section`, `PropertiesPanel`, `KeyProperties`), the decision bar (`DecisionBar`, `DecisionPart`, with the reason step, the failure notice and the 390 px overflow menu), the evidence (`EvidenceQuote`, `MissingEvidence`, `RecordSource`, `StatementTable`, `StatementRow`), the Activity timeline, the board (`BoardColumn`, `BoardCard`, `CardSlot`, `BoardColumnSkeleton`), the status (`AtlasStatus`, `AtlasPill`, `RowStatusIcon`, which need an `AtlasWord` from the dictionary), the act button (`ActButton`, with its command's keycap) and the states (`EmptyState`, which always offers its next step, `ErrorNotice`, `Notice`, `PageSpinner`, `LoadView`). The status shapes, the keycap and the avatars are `ui-primitives` parts.
 
 -----
 

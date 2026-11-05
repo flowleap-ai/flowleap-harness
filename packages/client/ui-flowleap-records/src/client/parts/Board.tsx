@@ -6,8 +6,10 @@
  */
 
 import type { DragEvent, ReactNode } from 'react'
+import clsx from 'clsx'
 import { AvatarStack, type AvatarPerson } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AtlasRef } from '../atlas.ts'
+import { SkeletonBone } from './List.tsx'
 import { AtlasStatus, RowStatusIcon, type AtlasWord } from './Status.tsx'
 import css from './Board.module.css'
 
@@ -146,4 +148,28 @@ export function BoardCard({ status, matterKey, team, title, sub, facts, lifted =
  */
 export function CardSlot() {
   return <div className={css.slot} aria-hidden="true" />
+}
+
+/**
+ * Render a loading board column (R18): the column with a skeleton header and skeleton cards, no shimmer.
+ * @param props.cards - the skeleton cards in the column.
+ * @param props.place - the column's place, which varies the bar widths.
+ * @returns the column, hidden from assistive technology; the board names the loading state.
+ */
+export function BoardColumnSkeleton({ cards, place }: { cards: number; place: number }) {
+  return (
+    <section className={css.column} aria-hidden="true">
+      <header className={css.columnHead}>
+        <SkeletonBone cell="dot" place={place} />
+        <SkeletonBone cell="bar" place={place} />
+      </header>
+      {Array.from({ length: cards }, (_, card) => (
+        <div key={card} className={clsx(css.card, css.skeletonCard)}>
+          <SkeletonBone cell="bar" place={place + card} />
+          <SkeletonBone cell="bar" place={place + card + 1} />
+          <SkeletonBone cell="bar" place={place + card + 2} />
+        </div>
+      ))}
+    </section>
+  )
 }

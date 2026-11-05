@@ -15,17 +15,17 @@ import css from './States.module.css'
  * @param props.icon - a 16px UI icon on a 48px raised tile.
  * @param props.title - the good outcome, such as "Nothing waits for you".
  * @param props.body - one sentence on what appears here and how.
- * @param props.action - the next step as one secondary act.
+ * @param props.action - the next step as one secondary act with its key; every empty state offers one.
  * @returns the state.
  */
-export function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ActSpec | undefined }) {
+export function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action: ActSpec }) {
   return (
     <div className={css.empty}>
       <div className={css.emptyInner}>
         <div className={css.tile} aria-hidden="true">{icon}</div>
         <h2 className={css.emptyTitle}>{title}</h2>
         <p className={css.emptyBody}>{body}</p>
-        {action !== undefined && <ActButton act={action} rank="secondary" />}
+        <ActButton act={action} rank="secondary" />
       </div>
     </div>
   )

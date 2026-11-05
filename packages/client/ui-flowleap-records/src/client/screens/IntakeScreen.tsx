@@ -16,7 +16,7 @@ import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar } from '../parts/Decision.tsx'
 import { DetailHeader, QueueSplit, WorkColumn } from '../parts/Layout.tsx'
-import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
+import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, SelectionBar, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
@@ -28,6 +28,15 @@ import css from './Intake.module.css'
 
 /** The column grid of an intake row: status, letter, matter, forwarder, received. */
 export const INTAKE_COLUMNS = '14px minmax(0, 1fr) 92px 20px 64px'
+
+/**
+ * The column header of an intake list: status, letter, matter, forwarder, received.
+ * @param t - the translate function.
+ * @returns the header cells.
+ */
+function intakeHeader(t: ScreenContext['t']): readonly string[] {
+  return ['', t('col.letter'), t('col.matter'), '', t('col.received')]
+}
 
 /** The group order of the lists, as the intake mockup shows it; other states follow. */
 const GROUP_ORDER: readonly string[] = [
@@ -327,7 +336,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     <LoadView
       load={screen.intake}
       render={{
-        loading: () => <SkeletonRows label={t('loading')} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
+        loading: () => <ListSkeleton label={t('loading')} columns={INTAKE_COLUMNS} header={intakeHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />,
         failed: at => <LoadError ctx={ctx} at={at} />,
         ready: data => (
           <IntakeListView
@@ -415,7 +424,7 @@ function IntakeListView({ ctx, data, list, open, checked, onCheck, footer }: {
     <ListFrame
       label={t('intake.listLabel')}
       columns={INTAKE_COLUMNS}
-      header={['', t('col.letter'), t('col.matter'), '', t('col.received')]}
+      header={intakeHeader(t)}
       selecting={checked.size > 0}
       footer={footer}
     >

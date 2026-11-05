@@ -129,6 +129,29 @@ describe('the matters list', () => {
     await flush()
     expect(screen.getByText('Kessler Sensorik GmbH · closed')).toBeTruthy()
   })
+
+  it('shows skeleton rows on the list\'s column grid while loading, then the empty list with its next step', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(Date.parse('2026-11-04T15:00:00Z'))
+    const fixture = createFixtureApi()
+    let answer: ((value: Fetched<{ rows: [] }>) => void) | null = null
+    vi.spyOn(fixture.api, 'matters').mockImplementation(() => new Promise((resolve) => { answer = resolve }))
+    const { model, keyActs } = await mount({ view: 'matters' }, {}, 'en', fixture)
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    expect(document.querySelector('[role="status"][aria-label="Loading"] svg')).toBeNull()
+    const table = within(screen.getByRole('status', { name: 'Loading' })).getByRole('table', { name: 'Matters' })
+    expect(table.style.getPropertyValue('--detail-columns')).toBe('14px minmax(0, 1fr) 112px 20px 112px 136px')
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['', 'Matter', 'File number', '', 'Open deadlines', 'Next due'])
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(6)
+    for (const row of rows) expect(within(row).getAllByRole('cell')).toHaveLength(6)
+    await act(async () => { answer?.({ ok: true, value: { rows: [] } }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(screen.getByText('No matters yet')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Go to Intake/ })).toBeTruthy()
+    act(() => { keyActs.handler('goIntake')?.() })
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake' })
+  })
 })
 
 describe('the matter page', () => {

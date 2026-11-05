@@ -163,6 +163,12 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* A loading card: three skeleton bars on the card's surface. */
+.skeletonCard {
+  display: grid;
+  gap: 12px;
+}
+
 .slot {
   height: 200px;
   margin-top: 8px;

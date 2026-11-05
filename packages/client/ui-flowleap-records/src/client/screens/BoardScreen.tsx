@@ -15,12 +15,12 @@ import { formatDate } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
-import { BoardCard, BoardColumn, type CardFact, type DropState } from '../parts/Board.tsx'
-import { ListFrame, ListGroup, ListRow, MetaCell, SkeletonRows, TimeCell, TitleCell } from '../parts/List.tsx'
+import { BoardCard, BoardColumn, BoardColumnSkeleton, type CardFact, type DropState } from '../parts/Board.tsx'
+import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { letterTitle } from '../words.ts'
-import type { ScreenContext, ScreenProps } from './context.ts'
+import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { LoadError } from './shared.tsx'
 import css from './BoardScreen.module.css'
 
@@ -49,6 +49,18 @@ export const PERSON_MOVES: readonly { readonly from: TicketState; readonly to: T
 
 /** The column grid of the list layout: status, work, matter, team, due. */
 const LIST_COLUMNS = '14px minmax(0, 1fr) 92px 64px 120px'
+
+/** The skeleton cards of each column while the board loads. */
+const SKELETON_CARDS = [2, 1, 2, 1] as const
+
+/**
+ * The column header of the list layout.
+ * @param t - the translate function.
+ * @returns the header cells.
+ */
+function listHeader(t: ScreenContext['t']): readonly string[] {
+  return ['', t('board.col.work'), t('col.matter'), t('board.col.team'), t('board.col.due')]
+}
 
 /**
  * Whether the signed-in person may make a decision on the work: a member of the matter's team.
@@ -122,11 +134,12 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
   const [mine, setMine] = useState(false)
   const [dragged, setDragged] = useState<TicketRow | null>(null)
   const layout = screen.layout ?? 'board'
+  const goIntake = () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) }
   useKeyActs(ctx, {
     retry: ctx.retry,
     next: () => { focusRow(1) },
     previous: () => { focusRow(-1) },
-    goIntake: () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) },
+    goIntake,
     open: () => { document.activeElement?.closest<HTMLElement>('[data-row]')?.click() },
   })
   const item: CommandMenuItem = {
@@ -134,7 +147,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
     groups: [{ id: 'layout', label: t('board.layout'), acts: [
       { id: 'board', label: t('board.layoutBoard'), run: () => { ctx.navigate({ view: 'board', layout: 'board' }) } },
       { id: 'list', label: t('board.layoutList'), run: () => { ctx.navigate({ view: 'board', layout: 'list' }) } },
-      { id: 'intake', label: t('tab.intake'), commandId: commandId('goIntake'), run: () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) } },
+      { id: 'intake', label: t('tab.intake'), commandId: commandId('goIntake'), run: goIntake },
     ] }],
   }
   useCommandItem(ctx, item)
@@ -148,8 +161,12 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
         load={screen.tickets}
         render={{
           loading: () => layout === 'list'
-            ? <SkeletonRows label={t('loading')} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />
-            : <SkeletonRows label={t('loading')} cells={['dot', 'bar', 'bar', 'avatar', 'end']} count={4} />,
+            ? <ListSkeleton label={t('loading')} columns={LIST_COLUMNS} header={listHeader(t)} cells={['dot', 'bar', 'bar', 'avatar', 'end']} />
+            : (
+              <div className={css.board} role="status" aria-label={t('loading')}>
+                {SKELETON_CARDS.map((cards, place) => <BoardColumnSkeleton key={place} cards={cards} place={place} />)}
+              </div>
+            ),
           failed: at => <LoadError ctx={ctx} at={at} />,
           ready: (data) => {
             const rows = mine ? data.rows.filter(row => row.routedTo?.id === ctx.me?.person.id) : data.rows
@@ -159,6 +176,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
                   icon={<IconLayersOutlineRegular size={16} />}
                   title={t('board.empty.title')}
                   body={t('board.empty.body')}
+                  action={actOf(ctx, 'goIntake', t('keys.goIntake'), goIntake)}
                 />
               )
             }
@@ -269,7 +287,7 @@ function WorkList({ ctx, rows }: { ctx: ScreenContext; rows: readonly TicketRow[
   }
   const states = [...new Set(rows.map(row => row.state))].toSorted((left, right) => rank(left) - rank(right))
   return (
-    <ListFrame label={t('board.listLabel')} columns={LIST_COLUMNS} header={['', t('board.col.work'), t('col.matter'), t('board.col.team'), t('board.col.due')]}>
+    <ListFrame label={t('board.listLabel')} columns={LIST_COLUMNS} header={listHeader(t)}>
       {states.map((state) => {
         const status = { machine: 'ticket', state } as const
         const group = rows.filter(row => row.state === state)

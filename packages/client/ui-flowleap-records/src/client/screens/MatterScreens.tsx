@@ -13,14 +13,61 @@ import { formatApplicationNumber, formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { DueText, isOverdue } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
+import { SkeletonBone, type SkeletonCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { letterTitle, listTimeText } from '../words.ts'
-import type { ScreenContext, ScreenProps } from './context.ts'
-import { Cell, dateOrNone, DetailRow, DetailTable, Facts, OpenCell, openDocument, ruleWords, Team, Who } from './detail.tsx'
+import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
+import { Cell, dateOrNone, DetailRow, DetailTable, Facts, OpenCell, openDocument, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
+/** The column grid of the matters list: icon, matter, file number, responsible, deadlines, next due; and at 390px. */
+const MATTERS_COLUMNS = '14px minmax(0, 1fr) 112px 20px 112px 136px'
+const MATTERS_COLUMNS_NARROW = '14px minmax(0, 1fr) auto'
+
+/** The bone of each column of a loading matters row, and whether the column hides at 390px. */
+const MATTERS_SKELETON: readonly { readonly cell: SkeletonCell; readonly kind: 'icon' | 'main' | 'meta' | 'end'; readonly wide: boolean }[] = [
+  { cell: 'dot', kind: 'icon', wide: false },
+  { cell: 'bar', kind: 'main', wide: false },
+  { cell: 'bar', kind: 'meta', wide: true },
+  { cell: 'avatar', kind: 'icon', wide: true },
+  { cell: 'end', kind: 'end', wide: true },
+  { cell: 'end', kind: 'end', wide: false },
+]
+
+/**
+ * The column header of the matters list.
+ * @param t - the translate function.
+ * @returns the header cells.
+ */
+function mattersHeader(t: ScreenContext['t']): readonly HeaderCell[] {
+  return [
+    { text: '' }, { text: t('matter.list.matter') }, { text: t('matter.list.fileNumber'), wide: true }, { text: '', wide: true },
+    { text: t('matter.list.deadlines'), wide: true, end: true }, { text: t('matter.list.nextDue'), end: true },
+  ]
+}
+
+/**
+ * Render the loading matters list (R18): the column header and skeleton rows on the list's own column grid.
+ * @param props.ctx - the screen context.
+ * @returns the loading list.
+ */
+function MattersSkeleton({ ctx }: { ctx: ScreenContext }) {
+  return (
+    <div className={css.listPage} role="status" aria-label={ctx.t('loading')}>
+      <DetailTable label={ctx.t('matters.listLabel')} variant="list" columns={MATTERS_COLUMNS} narrowColumns={MATTERS_COLUMNS_NARROW} header={mattersHeader(ctx.t)}>
+        {Array.from({ length: 6 }, (_, row) => (
+          <DetailRow key={row}>
+            {MATTERS_SKELETON.map(({ cell, kind, wide }, column) => (
+              <Cell key={column} kind={kind} wide={wide}><SkeletonBone cell={cell} place={row + column} /></Cell>
+            ))}
+          </DetailRow>
+        ))}
+      </DetailTable>
+    </div>
+  )
+}
 
 /**
  * Render the matters list.
@@ -33,7 +80,7 @@ export function MattersScreen({ screen, ctx }: ScreenProps<'matters'>) {
     <LoadView
       load={screen.matters}
       render={{
-        loading: () => <PageSpinner label={ctx.t('loading')} />,
+        loading: () => <MattersSkeleton ctx={ctx} />,
         failed: at => <LoadError ctx={ctx} at={at} />,
         ready: data => <MattersRows ctx={ctx} data={data} />,
       }}
@@ -54,21 +101,26 @@ function MattersRows({ ctx, data }: { ctx: ScreenContext; data: MattersList }) {
     const index = buttons.findIndex(button => button === document.activeElement)
     buttons[Math.min(Math.max(index + step, 0), buttons.length - 1)]?.focus()
   }
-  useKeyActs(ctx, { next: move(1), previous: move(-1) })
+  const goIntake = () => { ctx.navigate({ view: 'intake', list: 'waiting', open: null }) }
+  useKeyActs(ctx, { next: move(1), previous: move(-1), goIntake })
   if (data.rows.length === 0) {
-    return <EmptyState icon={<IconFolderOpenOutlineRegular size={16} />} title={t('empty.matters.title')} body={t('empty.matters.body')} />
+    return (
+      <EmptyState
+        icon={<IconFolderOpenOutlineRegular size={16} />}
+        title={t('empty.matters.title')}
+        body={t('empty.matters.body')}
+        action={actOf(ctx, 'goIntake', t('keys.goIntake'), goIntake)}
+      />
+    )
   }
   return (
     <div className={css.listPage} data-matters-list="">
       <DetailTable
         label={t('matters.listLabel')}
         variant="list"
-        columns="14px minmax(0, 1fr) 112px 20px 112px 136px"
-        narrowColumns="14px minmax(0, 1fr) auto"
-        header={[
-          { text: '' }, { text: t('matter.list.matter') }, { text: t('matter.list.fileNumber'), wide: true }, { text: '', wide: true },
-          { text: t('matter.list.deadlines'), wide: true, end: true }, { text: t('matter.list.nextDue'), end: true },
-        ]}
+        columns={MATTERS_COLUMNS}
+        narrowColumns={MATTERS_COLUMNS_NARROW}
+        header={mattersHeader(t)}
       >
         {data.rows.map(row => (
           <DetailRow key={row.fileNumber} opens>

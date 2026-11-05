@@ -9,7 +9,7 @@ import { DecisionBar, DecisionPart, type ReasonAct } from '../src/client/parts/D
 import { DueText, dueSentence } from '../src/client/parts/Due.tsx'
 import { EvidenceQuote, MissingEvidence, RecordSource, StatementRow, StatementTable } from '../src/client/parts/Evidence.tsx'
 import { DetailHeader, DetailLayout, KeyFact, KeyProperties, PropertiesPanel, QueueSplit, Section, WorkColumn } from '../src/client/parts/Layout.tsx'
-import { ListFrame, ListGroup, ListRow, MetaCell, SelectionBar, SkeletonRows, TimeCell, TitleCell } from '../src/client/parts/List.tsx'
+import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, SelectionBar, TimeCell, TitleCell } from '../src/client/parts/List.tsx'
 import { EmptyState, ErrorNotice, LoadView, PageSpinner } from '../src/client/parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord, RowStatusIcon, type AtlasWord } from '../src/client/parts/Status.tsx'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -134,13 +134,18 @@ describe('list', () => {
   it('draws skeleton rows on the column grid and the selection bar', () => {
     const accept = act('record', 'Accept and file 3')
     const clear = act('clear', 'Clear the selection', { keycaps: [] })
-    render(<><SkeletonRows label="Loading" cells={['dot', 'bar', 'avatar', 'end']} count={2} /><SelectionBar label="3 selected" acts={[clear]} primary={accept} /></>)
-    expect(screen.getByRole('status', { name: 'Loading' }).children).toHaveLength(2)
+    render(<><ListSkeleton label="Loading" columns="14px minmax(0, 1fr) 20px 64px" header={['', 'Letter', '', 'Received']} cells={['dot', 'bar', 'avatar', 'end']} count={2} /><SelectionBar label="3 selected" acts={[clear]} primary={accept} /></>)
+    const loading = screen.getByRole('status', { name: 'Loading' })
+    expect(loading.style.getPropertyValue('--records-columns')).toBe('14px minmax(0, 1fr) 20px 64px')
+    const [header, rows] = [...loading.children] as HTMLElement[]
+    expect([...header!.children].map(cell => cell.textContent)).toEqual(['', 'Letter', '', 'Received'])
+    expect(rows!.children).toHaveLength(2)
+    for (const row of rows!.children) expect(row.children).toHaveLength(4)
     expect(screen.getByText('3 selected').closest('[data-bulk]')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Accept and file 3/ }))
     expect(accept.run).toHaveBeenCalledOnce()
-    render(<SkeletonRows label="Loading two" cells={['bar']} />)
-    expect(screen.getByRole('status', { name: 'Loading two' }).children).toHaveLength(6)
+    render(<ListSkeleton label="Loading two" columns="minmax(0, 1fr)" header={['Letter']} cells={['bar']} />)
+    expect(screen.getByRole('status', { name: 'Loading two' }).querySelector('[data-skeleton]')!.children).toHaveLength(6)
     render(<MetaCell truncate>FL-2026-0001 Pressure sensor housing</MetaCell>)
     expect(screen.getByText('FL-2026-0001 Pressure sensor housing').className).toContain('truncate')
   })
@@ -369,7 +374,6 @@ describe('states', () => {
     render(
       <>
         <EmptyState icon={<svg />} title="Nothing waits for you" body="Forward a letter." action={act('showFiled', 'Show filed today')} />
-        <EmptyState icon={<svg />} title="No matters yet" body="Matters show here." />
         <ErrorNotice lead="FlowLeap could not load this view." body="It shows the data as of 14:16." retry={retry} />
         <ErrorNotice lead="Second failure." retry={retry} />
         <PageSpinner label="Loading" />
