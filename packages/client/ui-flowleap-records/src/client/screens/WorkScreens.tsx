@@ -245,6 +245,8 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               const firstOfReport = missing[0]
               const choice = choices[item.proposalId]
               const sourced = item.statements.length - missing.length
+              // The keys 1 and 2 act on the first open part only, so only that part shows them.
+              const keys = item === keyed ? {} : { keycaps: [] }
               return (
                 <DecisionPart
                   key={item.proposalId}
@@ -263,12 +265,12 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                   control={mayDecide.allowed && (
                     <span className={detail.segment} role="group" aria-label={t('work.clientReport')}>
                       <ActButton
-                        act={actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 })}
+                        act={{ ...actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 }), ...keys }}
                         rank="tertiary"
                         className={choice?.decision === 'approve' ? detail.on : undefined}
                       />
                       <ActButton
-                        act={actOf(ctx, 'reject', t('act.rejectStep'), () => { reject(item) }, { icon: <IconCloseOutlineRegular size={16} /> })}
+                        act={{ ...actOf(ctx, 'reject', t('act.rejectStep'), () => { reject(item) }, { icon: <IconCloseOutlineRegular size={16} /> }), ...keys }}
                         rank="tertiary"
                         className={choice?.decision === 'reject' ? detail.on : undefined}
                       />

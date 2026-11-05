@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocumentId, Fetched, FileNumber, IntakeDocument, OfficeEventId, RecordsApi } from '../src/client/api.ts'
 import { shownOrder } from '../src/client/screens/IntakeScreen.tsx'
+import { rowActions } from '../src/client/row-menu.ts'
+import { menuEntries } from '@deepseek-ai/dsh-client-ui-context-menu/src/client/View.tsx'
 import type { Route } from '../src/client/model.ts'
 import { createFixtureApi, fixtures, OUTSIDE_WALL, R71_DOCUMENT, RECEPTION, sha } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
@@ -55,6 +57,23 @@ describe('the intake list', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Waits for a person/ })[0]!)
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ list: 'waiting' })
+  })
+
+  it('draws the keys of the row context menu as the decision bar draws them', async () => {
+    const { model, registry } = await mount(createFixtureApi().api, open(R71_DOCUMENT))
+    const barKeys = (name: RegExp) => [...within(decision()).getByRole('button', { name }).querySelectorAll('kbd')].map(kbd => kbd.textContent)
+    const acts = rowActions(model, key => key, {
+      document: R71_DOCUMENT as DocumentId, list: 'waiting', proposed: 'FL-2026-0001' as FileNumber,
+    }, () => '')
+    const entries = menuEntries(acts, registry.catalog.getSnapshot(), () => null)
+    const menuKeys = (id: string) => {
+      const entry = entries.find(item => item.id === id)
+      return entry !== undefined && 'shortcut' in entry ? entry.shortcut?.keys : undefined
+    }
+    expect(barKeys(/^Accept and file/)).toEqual(['⇧⌘↵'])
+    expect(menuKeys('accept')).toEqual(['⇧⌘↵'])
+    expect(menuKeys('not-relevant')).toEqual(barKeys(/^Not relevant/))
+    expect(menuKeys('other-matter')).toEqual(barKeys(/^Other matter/))
   })
 
   it('shows the empty waiting list with the next step', async () => {

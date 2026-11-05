@@ -1,5 +1,5 @@
 /** Shared Web renderer for Client menu contributions. */
-import { Menu, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import { keycapText, Menu, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsStore, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { Shortcuts, ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -17,7 +17,10 @@ export function menuEntries(
   renderSlot: PropsRenderSlots<'contextMenu.icon'>['renderSlot'],
 ): MenuEntry[] {
   return actions.flatMap((action) => {
-    const shortcut = catalog.find(entry => entry.id === action.commandId)
+    const entry = catalog.find(row => row.id === action.commandId)
+    const shortcut = entry === undefined || action.keyText !== 'keycap' || entry.keycaps === undefined
+      ? entry
+      : { keys: entry.keycaps.map(keycapText), aria: entry.aria }
     const item: MenuEntry = { id: action.id, label: action.label,
       ...(shortcut === undefined ? {} : { shortcut }),
       ...(action.disabled === undefined ? {} : { disabled: action.disabled }),

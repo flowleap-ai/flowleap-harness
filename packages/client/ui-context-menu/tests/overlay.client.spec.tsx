@@ -164,3 +164,25 @@ it('tracks configured shortcuts for nested and footer actions without invoking c
   expect(select).toHaveBeenCalledWith('rename')
   expect(resolveCommand).not.toHaveBeenCalled()
 })
+
+it('writes an action key as a keycap when the action asks for it, and as the catalog labels otherwise', () => {
+  const shortcuts = new ShortcutRegistry('desktop', 'macos')
+  const commandId = 'records.decision.record' as ShortcutCommandId
+  shortcuts.register({ id: commandId, label: () => 'Record', aliases: [],
+    defaults: { 'desktop:macos': { code: 'Enter', modifiers: ['primary', 'shift'] } }, regions: ['page'], modals: [], resolve: () => ({ status: 'pass' as const }) })
+  const store = createMenuStore().create()
+  store.actions.open({ kind: 'session', value: { sessionId: SessionId('captured'), displayTitle: 'Captured' } }, { x: 30, y: 40 })
+  store.actions.items([
+    { id: 'keycap', label: 'Accept', commandId, keyText: 'keycap' },
+    { id: 'plain', label: 'Plain', commandId },
+    { id: 'unknown', label: 'Unknown', commandId: 'absent' as ShortcutCommandId, keyText: 'keycap' },
+  ])
+  const view = render(<MenuOverlay useStore={bindSnapshotSelector(store)} actions={store.actions}
+    useCatalog={bindSnapshotSelector(shortcuts.catalog)} close={vi.fn()} select={vi.fn()} renderSlot={() => null} />)
+  const keys = (name: string) => [...view.getByRole('menuitem', { name }).querySelectorAll('kbd')].map(kbd => kbd.textContent)
+  expect(keys('Accept')).toEqual(['⇧⌘↵'])
+  expect(keys('Plain')).not.toEqual(['⇧⌘↵'])
+  expect(keys('Plain').length).toBeGreaterThan(1)
+  expect(keys('Unknown')).toEqual([])
+  expect(view.getByRole('menuitem', { name: 'Accept' }).getAttribute('aria-keyshortcuts')).toBe(view.getByRole('menuitem', { name: 'Plain' }).getAttribute('aria-keyshortcuts'))
+})
