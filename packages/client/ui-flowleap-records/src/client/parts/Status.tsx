@@ -49,21 +49,18 @@ export function AtlasStatus({ status, word, className }: { status: AtlasRef; wor
  * @param props.label - what the fact is about, such as "Report".
  * @param props.status - the atlas state.
  * @param props.word - its word, from `atlasWord`.
- * @param props.chip - the fact is a chip, as on a board card: its box groups the label and the status, so no dot
- * separates them.
- * @param props.className - extra class for the chip, such as a card's box.
+ * @param props.className - extra class for layout placement, such as a board card's one-line fact.
  * @returns the labelled status.
  */
-export function FactStatus({ label, status, word, chip = false, className }: {
+export function FactStatus({ label, status, word, className }: {
   label: string
   status: AtlasRef
   word: AtlasWord
-  chip?: boolean
   className?: string | undefined
 }) {
   return (
     <span className={clsx(css.fact, className)}>
-      <span className={css.factLabel}>{label}{!chip && <span aria-hidden="true"> ·</span>}</span>
+      <span className={css.factLabel}>{label}<span aria-hidden="true"> ·</span></span>
       <AtlasStatus status={status} word={word} className={css.factStatus} />
     </span>
   )

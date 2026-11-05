@@ -22,6 +22,23 @@ it('places pointer menus at the cursor above the frame inset and focuses after p
   expect(close).toHaveBeenCalledOnce()
 })
 
+it('draws a row key as boxed keycaps when the binding carries them, and as caption text otherwise, in rows, submenus and component rows', () => {
+  const boxed = { keys: ['⇧⌘↵'], aria: 'Shift+Meta+Enter', keycaps: [['⇧', '⌘', 'Enter']] }
+  const view = render(<Menu open portal contextual anchor={null} onClose={vi.fn()}
+    items={[{ id: 'accept', label: 'Accept', shortcut: boxed }, { id: 'copy', label: 'Copy', shortcut: { keys: ['⌘', 'C'] } },
+      { id: 'more', label: 'More', submenu: [{ id: 'open', label: 'Open', shortcut: { keys: ['↵'], keycaps: [['Enter']] } }] }]}>
+    <MenuItemButton shortcut={{ keys: ['G', 'M'], keycaps: [['G'], ['M']] }} onSelect={() => {}}>Matter</MenuItemButton>
+  </Menu>)
+  const boxes = (name: string) => [...view.getByRole('menuitem', { name }).querySelectorAll('[data-tone] > kbd')].map(kbd => kbd.textContent)
+  expect(boxes('Accept')).toEqual(['⇧⌘↵'])
+  expect(view.getByRole('menuitem', { name: 'Accept' }).getAttribute('aria-keyshortcuts')).toBe('Shift+Meta+Enter')
+  expect(boxes('Copy')).toEqual([])
+  expect(view.getByRole('menuitem', { name: 'Copy' }).textContent).toContain('C')
+  expect(boxes('Matter')).toEqual(['G', 'M'])
+  fireEvent.click(view.getByRole('menuitem', { name: 'More' }))
+  expect(boxes('Open')).toEqual(['↵'])
+})
+
 it('groups data icons per divider, preserves component rows, and makes exit frames inert', () => {
   const props = { open: true, portal: true, contextual: true, anchor: null, onClose: vi.fn(),
     items: [{ id: 'first', label: 'First', icon: <svg /> }, { id: 'second', label: 'Second' },

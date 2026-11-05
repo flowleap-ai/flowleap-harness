@@ -216,17 +216,17 @@ describe('decision bar', () => {
     expect(negative.onOpenChange).toHaveBeenCalledWith(true)
   })
 
-  it('gives why the person may decide and each evidence state their full text on hover, for the one line at 390px', () => {
+  it('shows why the person may decide and each evidence state in full, with no text that only a hover shows', () => {
     const { rerender } = render(
       <DecisionBar
         heading={yours} question="Q" why="Only you can decide. The agent never files, sends or pays." labels={{ more: 'More acts' }}
         parts={<DecisionPart icon={<span />} title="Client report" detail="4 of 4 statements have a source" />} primary={null}
       />,
     )
-    expect(screen.getByText('Only you can decide. The agent never files, sends or pays.').title).toBe('Only you can decide. The agent never files, sends or pays.')
-    expect(screen.getByText('4 of 4 statements have a source').title).toBe('4 of 4 statements have a source')
+    expect(screen.getByText('Only you can decide. The agent never files, sends or pays.').hasAttribute('title')).toBe(false)
+    expect(screen.getByText('4 of 4 statements have a source').hasAttribute('title')).toBe(false)
     rerender(<DecisionPart icon={<span />} title="Client report" detail={<><svg /><span>Rejected: wrong matter</span></>} />)
-    expect(screen.getByText('Rejected: wrong matter').parentElement!.title).toBe('Rejected: wrong matter')
+    expect(screen.getByText('Rejected: wrong matter').parentElement!.hasAttribute('title')).toBe(false)
   })
 
   it('moves the secondary acts into the overflow menu', () => {
@@ -369,9 +369,9 @@ describe('board', () => {
     )
     expect(screen.getByText('Drop to decide')).toBeTruthy()
     expect(screen.getByText('FlowLeap assigns the work.')).toBeTruthy()
-    const chip = screen.getByText('Deadline').parentElement!
-    expect(chip.textContent).toBe('DeadlineActive')
-    expect(chip.title).toBe('')
+    const fact = screen.getByText('Deadline').parentElement!
+    expect(fact.textContent).toBe('Deadline ·Active')
+    expect(fact.title).toBe('')
     expect(screen.getAllByRole('article')[0]!.dataset['lifted']).toBe('true')
     fireEvent.click(screen.getByRole('button', { name: 'Rule 71(3) communication' }))
     expect(onOpen).toHaveBeenCalledOnce()

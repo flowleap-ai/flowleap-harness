@@ -48,12 +48,16 @@ describe('the decision bar', () => {
     expect(declarations(css, '.parts')).toEqual(expect.arrayContaining(['flex: 0 1 auto', 'min-height: 0', 'overflow-y: auto']))
   })
 
-  it('keeps why the person may decide and each part\'s evidence state on one line at 390px, and the note beside the acts on a wide bar', () => {
+  it('keeps a one-line header at 44px: its padding counts inside the minimum height', () => {
+    expect(declarations(css, '.head')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'min-height: 44px', 'padding: 8px 16px']))
+  })
+
+  it('wraps why the person may decide and each part\'s evidence state at 390px instead of cutting them, and keeps the note beside the acts on a wide bar', () => {
     const narrow = atRule(css, '@media (max-width: 720px)')
-    const oneLine = ['overflow: hidden', 'text-overflow: ellipsis', 'white-space: nowrap']
+    expect(narrow).not.toMatch(/text-overflow|white-space: nowrap/)
     expect(declarations(narrow, '.partIcon')).toEqual(['display: none'])
-    expect(declarations(narrow, '.partDetail')).toEqual(['display: block', ...oneLine])
-    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%', 'min-width: 0', 'margin-left: 0', ...oneLine])
+    expect(declarations(narrow, '.partDetail')).toEqual(['display: block'])
+    expect(declarations(narrow, '.why')).toEqual(['flex: 1 1 100%', 'min-width: 0', 'margin-left: 0'])
     expect(declarations(narrow, '.note, .secondary')).toEqual(['display: none'])
     expect(declarations(narrow, '.part')).toEqual(expect.arrayContaining(['display: flex', 'flex-wrap: wrap']))
     expect(declarations(narrow, '.partControl')).toEqual(['margin-left: auto'])
@@ -78,25 +82,71 @@ describe('the list', () => {
     const outside = css.replace(`@media (hover: hover) and (prefers-reduced-motion: no-preference) {${hover}}`, '')
     expect(outside).not.toContain('transition')
   })
+
+  it('draws the end bone of a loading row in an auto column, where its percentage width has no base', () => {
+    expect(declarations(css, '.end')).toContain('min-width: 48px')
+  })
 })
 
 describe('the board card', () => {
   const css = read('Board.module.css')
   const status = read('Status.module.css')
 
-  it('cuts no label, status word or matter key: a chip that does not fit puts its status on a second line', () => {
-    expect(declarations(css, '.fact')).toEqual(expect.arrayContaining(['box-sizing: border-box', 'min-height: 24px', 'padding: 0 8px', 'border-radius: var(--dsw-radius-sm)']))
+  it('shows each fact as one line of text with no chip box, and lets the column grow to the longest fact instead of cutting it', () => {
+    expect(declarations(css, '.facts')).toEqual(['display: grid', 'justify-items: start', 'gap: 4px', 'margin-top: 12px'])
+    expect(declarations(css, '.facts > .fact')).toEqual(['flex-wrap: nowrap'])
+    expect(declarations(css, '.facts > .fact,\n.facts > .fact > *')).toEqual(['white-space: nowrap'])
+    expect(css).not.toMatch(/\}\s*\.fact \{|text-overflow|line-clamp: 1/)
     expect(declarations(status, '.fact')).toEqual(expect.arrayContaining(['flex-wrap: wrap', 'max-width: 100%']))
-    expect(declarations(status, '.factStatus')).toEqual(['min-width: 0', 'white-space: normal'])
-    expect(status.indexOf('.factStatus {')).toBeGreaterThan(status.indexOf('.status {'))
-    expect(css).not.toMatch(/text-overflow|line-clamp: 1/)
+    const board = read('BoardScreen.module.css', 'screens')
+    expect(declarations(board, '.board')).toContain('grid-template-columns: repeat(4, minmax(min-content, 1fr))')
+    expect(declarations(atRule(board, '@media (max-width: 720px)'), '.board')).toEqual(['grid-template-columns: repeat(4, min-content)'])
+    expect(declarations(atRule(board, '@media (max-width: 720px)'), '.board > *')).toEqual(['box-sizing: border-box', 'min-width: 260px'])
+    // A size container has no intrinsic width, so the card itself must not be one, or its facts could not widen it.
+    expect(declarations(css, '.card')).not.toContainEqual(expect.stringContaining('container'))
   })
 
   it('keeps the matter key whole: a narrow card hides the column\'s icon, and a large team moves onto its own line', () => {
-    expect(declarations(css, '.card')).toContain('container: card / inline-size')
+    expect(declarations(css, '.top')).toEqual(expect.arrayContaining(['container: card / inline-size', 'flex-wrap: wrap']))
     expect(declarations(css, '.key')).toEqual(['flex: none', 'white-space: nowrap'])
-    expect(declarations(css, '.top')).toContain('flex-wrap: wrap')
     expect(declarations(atRule(css, '@container card (width < 176px)'), '.top > :first-child')).toEqual(['display: none'])
+  })
+})
+
+describe('the board screen', () => {
+  const css = read('BoardScreen.module.css', 'screens')
+
+  it('shows the other states as one line above the columns, not as a fifth column', () => {
+    expect(declarations(css, '.other')).toEqual(expect.arrayContaining(['display: flex', 'flex: none', 'height: 36px', 'overflow-x: auto', 'white-space: nowrap']))
+    expect(css).not.toMatch(/\) 200px/)
+  })
+
+  it('gives the For me filter at rest the raised edge of the mockup chip, which bg-layer-2 alone does not draw in light', () => {
+    expect(declarations(css, ".viewbar .filter:not([aria-pressed='true'])")).toEqual(['box-shadow: var(--dsw-elevation-panel)'])
+  })
+
+  it('keeps the status, the title and the due date of a work row at 390px, with the matter key under the title', () => {
+    const narrow = atRule(css, '@media (max-width: 720px)')
+    expect(declarations(narrow, '.listColumns')).toEqual(['--records-columns: 14px minmax(0, 1fr) auto'])
+    expect(declarations(narrow, '.screen [data-row] > :nth-child(3)')).toEqual(expect.arrayContaining(['grid-row: 2', 'grid-column: 2']))
+    expect(declarations(narrow, '.screen [data-row] > :nth-child(1),\n  .screen [data-row] > :nth-child(5)')).toEqual(['grid-row: 1 / span 2'])
+    expect(narrow).toContain('.screen [data-list] > :first-child > :nth-child(3)')
+    expect(narrow).toContain('.screen [data-row] > :nth-child(4)')
+  })
+})
+
+describe('the agent panel', () => {
+  const css = read('AgentSummary.module.css')
+
+  it('never cuts a result\'s file name: it takes the full width of the row under the title and the status, and breaks if it must', () => {
+    expect(declarations(css, '.resultFile')).toEqual(expect.arrayContaining(['grid-area: file', 'overflow-wrap: anywhere']))
+    expect(declarations(css, '.resultFile')).not.toContainEqual(expect.stringMatching(/text-overflow|nowrap/))
+    expect(declarations(css, '.result')).toContain("grid-template-areas:\n    'icon title status'\n    'icon file file'")
+  })
+
+  it('draws the composer as one surface, with its placeholder in the secondary label colour', () => {
+    expect(declarations(css, '.composer .composerField')).toEqual(['padding: 0', 'border: 0', 'background: transparent'])
+    expect(declarations(css, '.composer .composerField input::placeholder')).toEqual(['color: var(--dsw-alias-label-secondary)'])
   })
 })
 

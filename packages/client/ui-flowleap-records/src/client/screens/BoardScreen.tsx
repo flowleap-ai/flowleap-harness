@@ -151,7 +151,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
   return (
     <div className={css.screen}>
       <div className={css.viewbar}>
-        <Pill active={mine} aria-pressed={mine} onClick={() => { setMine(!mine) }}>{t('board.forMe')}</Pill>
+        <Pill className={css.filter} active={mine} aria-pressed={mine} onClick={() => { setMine(!mine) }}>{t('board.forMe')}</Pill>
         {dragged !== null && <span className={css.hint}>{t('board.dragHint')}</span>}
       </div>
       <LoadView
@@ -206,44 +206,7 @@ function Board({ ctx, data, dragged, onDrag }: {
   const others = [...OTHER_STATES, ...data.rows.map(row => row.state).filter(state => !OTHER_STATES.includes(state))]
     .filter((state, index, all) => !shown.has(state) && all.indexOf(state) === index)
   return (
-    <div className={css.board}>
-      {BOARD_COLUMNS.map((column) => {
-        const status = { machine: 'ticket', state: column.state } as const
-        const cards = data.rows.filter(row => row.state === column.state)
-        const drop = dropOf(ctx, column, dragged)
-        return (
-          <BoardColumn
-            key={column.state}
-            status={status}
-            word={atlasWord(t, status)}
-            count={cards.length}
-            owner={t(column.owner)}
-            drop={drop}
-            onDrop={dragged === null ? undefined : () => {
-              onDrag(null)
-              ctx.navigate({ view: 'work', id: dragged.id })
-            }}
-          >
-            {cards.map((card) => {
-              const movable = mayMove(card, ctx.me) && PERSON_MOVES.some(move => move.from === card.state)
-              return (
-                <BoardCard
-                  key={card.id}
-                  status={status}
-                  matterKey={card.matter.fileNumber}
-                  team={card.team.map(person => avatarOf(t, person))}
-                  title={letterTitle(t, card.code)}
-                  sub={subOf(ctx, card)}
-                  facts={factsOf(ctx, card)}
-                  dragging={dragged?.id === card.id}
-                  drag={movable ? { id: card.id, onStart: () => { onDrag(card) }, onEnd: () => { onDrag(null) } } : undefined}
-                  onOpen={() => { ctx.navigate({ view: 'work', id: card.id }) }}
-                />
-              )
-            })}
-          </BoardColumn>
-        )
-      })}
+    <>
       <section className={css.other} aria-label={t('board.otherStates')}>
         <h2 className={css.otherHead}>{t('board.otherStates')}</h2>
         <ul className={css.otherRows}>
@@ -265,7 +228,46 @@ function Board({ ctx, data, dragged, onDrag }: {
           })}
         </ul>
       </section>
-    </div>
+      <div className={css.board}>
+        {BOARD_COLUMNS.map((column) => {
+          const status = { machine: 'ticket', state: column.state } as const
+          const cards = data.rows.filter(row => row.state === column.state)
+          const drop = dropOf(ctx, column, dragged)
+          return (
+            <BoardColumn
+              key={column.state}
+              status={status}
+              word={atlasWord(t, status)}
+              count={cards.length}
+              owner={t(column.owner)}
+              drop={drop}
+              onDrop={dragged === null ? undefined : () => {
+                onDrag(null)
+                ctx.navigate({ view: 'work', id: dragged.id })
+              }}
+            >
+              {cards.map((card) => {
+                const movable = mayMove(card, ctx.me) && PERSON_MOVES.some(move => move.from === card.state)
+                return (
+                  <BoardCard
+                    key={card.id}
+                    status={status}
+                    matterKey={card.matter.fileNumber}
+                    team={card.team.map(person => avatarOf(t, person))}
+                    title={letterTitle(t, card.code)}
+                    sub={subOf(ctx, card)}
+                    facts={factsOf(ctx, card)}
+                    dragging={dragged?.id === card.id}
+                    drag={movable ? { id: card.id, onStart: () => { onDrag(card) }, onEnd: () => { onDrag(null) } } : undefined}
+                    onOpen={() => { ctx.navigate({ view: 'work', id: card.id }) }}
+                  />
+                )
+              })}
+            </BoardColumn>
+          )
+        })}
+      </div>
+    </>
   )
 }
 

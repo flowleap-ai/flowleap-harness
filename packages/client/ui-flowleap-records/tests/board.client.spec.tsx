@@ -51,8 +51,8 @@ describe('the work board', () => {
     const r71 = card('FL-2026-0001')
     expect(r71.textContent).toContain('Rule 71(3) communication')
     expect(r71.textContent).toContain('Pressure sensor housing · due Mon, 1 Mar 2027')
-    expect(within(r71).getByText('Deadline').parentElement!.textContent).toBe('DeadlineActive')
-    expect(within(r71).getByText('Report').parentElement!.textContent).toBe('ReportProposed')
+    expect(within(r71).getByText('Deadline').parentElement!.textContent).toBe('Deadline ·Active')
+    expect(within(r71).getByText('Report').parentElement!.textContent).toBe('Report ·Proposed')
     const other = screen.getByRole('region', { name: 'Other states' })
     expect(within(other).getAllByRole('listitem').map(item => item.textContent)).toEqual([
       'No one assigned0', 'Run failed0', 'Observed only0', 'By hand0', 'Cancelled0',
@@ -145,7 +145,7 @@ describe('the work board', () => {
     expect(commandItems.item()!.label).toBe('Work board')
     const other = screen.getByRole('region', { name: 'Other states' })
     expect(within(other).getAllByRole('listitem').map(item => item.textContent)).toContain('Starting1')
-    expect(within(column('Assigned')).getByText('Reply').parentElement!.textContent).toBe('ReplySent')
+    expect(within(column('Assigned')).getByText('Reply').parentElement!.textContent).toBe('Reply ·Sent')
     fireEvent.click(within(other).getByRole('button', { name: 'Run failed' }))
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'board', layout: 'list' })

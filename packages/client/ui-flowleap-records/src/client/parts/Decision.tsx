@@ -5,8 +5,8 @@
  * evidence state; the footer holds the tertiary negative act, a note, the secondary acts and the one primary act. A
  * negative act asks for its reason in its own step. Missing evidence disables the primary act and says why. When the
  * decision is another person's, the footer says who decides and has no primary act. At 390px the note hides and the
- * secondary acts move into an overflow menu, so every act stays reachable; each part keeps its title, its control and
- * its evidence state on one line, and why the person may decide keeps one line under the question.
+ * secondary acts move into an overflow menu, so every act stays reachable; each part's evidence state wraps under its
+ * title, and why the person may decide wraps under the question. No text is cut, so none needs a hover.
  * The bar takes at most 40% of the view height: above that, the part rows scroll inside it, and the header, a failure
  * notice and the footer with the primary act stay in view (R13).
  */
@@ -54,7 +54,7 @@ export interface DecisionLabels {
  * Render the docked decision bar.
  * @param props.heading - who decides: the signed-in person, or the person who decides when it is not them.
  * @param props.question - the decision in plain words, such as "Which matter is this letter for?".
- * @param props.why - why this person may decide; one line at 390px, with the full text on hover.
+ * @param props.why - why this person may decide; at 390px it wraps on its own lines under the question.
  * @param props.parts - one `DecisionPart` for each required part.
  * @param props.note - a one-line note before the acts; hidden at 390px.
  * @param props.negative - the negative act with its reason step.
@@ -95,7 +95,7 @@ export function DecisionBar({
         {heading.person !== null && <Avatar person={heading.person} size={24} nameShown />}
         <span className={css.yours}>{heading.text}</span>
         <span className={css.question}>{question}</span>
-        {why !== undefined && <span className={css.why} title={why}>{why}</span>}
+        {why !== undefined && <span className={css.why}>{why}</span>}
       </header>
       {parts !== undefined && <div className={css.parts}>{parts}</div>}
       {failure !== undefined && <div className={css.failure}><Notice notice={failure} /></div>}
@@ -122,14 +122,6 @@ export function DecisionBar({
         )}
     </section>
   )
-}
-
-/**
- * Give an element that may be cut to one line its full text on hover.
- * @param element - the mounted element, or null on unmount.
- */
-function titleFromText(element: HTMLElement | null): void {
-  if (element !== null) element.title = element.textContent
 }
 
 /**
@@ -172,8 +164,8 @@ function ReasonStep({ act }: { act: ReasonAct }) {
 
 /**
  * Render one required part of a decision: its icon, what it is, its evidence state, and its control. At 390px the
- * icon hides, the evidence state is cut to one line with the full text on hover, and the control follows the title on
- * its line when it fits; a missing evidence warning stays.
+ * icon hides, the evidence state wraps under the title, and the control follows the title on its line when it fits; a
+ * missing evidence warning stays.
  * @param props.icon - a 16px UI icon; never a status shape.
  * @param props.title - the part, such as "FL-2026-0001 Pressure sensor housing".
  * @param props.detail - its evidence state, such as "3 reasons on page 1 agree".
@@ -199,7 +191,7 @@ export function DecisionPart({ icon, title, detail, hint, missing = null, contro
         {missing !== null
           ? <div className={css.partMissing}><IconWarningTriangleOutlineRegular size={16} />{missing}</div>
           : (detail !== undefined || hint !== undefined) && (
-            <div className={css.partDetail} ref={(element) => { titleFromText(element) }}>
+            <div className={css.partDetail}>
               {detail}
               {hint !== undefined && <span className={css.partHint}><span aria-hidden="true">·</span>{hint}</span>}
             </div>
