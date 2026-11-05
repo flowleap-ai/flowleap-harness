@@ -150,7 +150,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     ...(allowed ? { record: confirm, reject: () => { setReasonOpen(true) } } : {}),
     ...(runner.run.phase === 'failed' ? { retry } : {}),
   }
-  useKeyActs(ctx, acts, { arrows: false })
+  useKeyActs(ctx, acts, { arrows: false, failed: runner.run.phase === 'failed' })
   const letterAct: ActSpec | null = openLetter === null
     ? null
     : actOf(ctx, 'openLetter', t('deadline.openLetter'), openLetter, { icon: <IconDeliverDocRegular size={16} /> })

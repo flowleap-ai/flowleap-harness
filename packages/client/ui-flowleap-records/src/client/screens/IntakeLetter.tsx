@@ -301,7 +301,7 @@ export function IntakeLetter({ ctx, list, letter, step }: {
     ...(canPick ? { otherMatter: startPicking } : {}),
     ...(matterOf === null ? {} : { goMatter: () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) } }),
     ...(runner.run.phase === 'failed' ? { retry: () => { void runner.retry() } } : {}),
-  })
+  }, { failed: runner.run.phase === 'failed' })
   const menuItem: CommandMenuItem = {
     label: title,
     groups: [

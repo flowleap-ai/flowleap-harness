@@ -232,7 +232,7 @@ export function IntakeScreen({ screen, ctx }: ScreenProps<'intake'>) {
     retry: ctx.retry,
     ...(selecting ? { record: matches.length > 0 ? acceptAll : () => {}, reject: () => { setBulkReason(true) } } : {}),
     ...(runner.run.phase === 'failed' ? { retry: retryAll } : {}),
-  })
+  }, { failed: runner.run.phase === 'failed' })
   const listItem: CommandMenuItem = {
     label: selecting ? selectedText : t(LIST_LABEL[screen.list]),
     groups: [

@@ -49,13 +49,14 @@ const press = (target: Element, code: string, extra: KeyboardEventInit = {}) => 
 }
 
 /** A screen that provides its handlers and its ⌘K item. */
-function Screen({ registries, acts, arrows, item }: {
+function Screen({ registries, acts, arrows, failed, item }: {
   registries: { keyActs: KeyActRegistry; commandItems: CommandItemRegistry }
   acts: KeyActs
   arrows?: boolean
+  failed?: boolean
   item?: CommandMenuItem | null
 }) {
-  useKeyActs(registries, acts, arrows === undefined ? {} : { arrows })
+  useKeyActs(registries, acts, { ...(arrows === undefined ? {} : { arrows }), ...(failed === undefined ? {} : { failed }) })
   useCommandItem(registries, item ?? null)
   return (
     <div data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1} data-testid="scope">
@@ -103,6 +104,30 @@ describe('the key layer of the Matters panel', () => {
     outside.focus()
     press(outside, 'Digit1')
     expect(second).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives R to a screen whose decision failed, even when a later screen also runs it, and tells when it is held', () => {
+    const registries = layer()
+    const act = vi.fn()
+    const load = vi.fn()
+    const held: boolean[] = []
+    disposers.push(registries.keyActs.subscribe(() => { held.push(registries.keyActs.retryHeld()) }))
+    const view = render(<Screen registries={registries} acts={{ retry: act }} failed />)
+    const later = render(<Screen registries={registries} acts={{ retry: load }} />)
+    const scope = view.getAllByTestId('scope')[0]!
+    scope.focus()
+    press(scope, 'KeyR')
+    expect(act).toHaveBeenCalledTimes(1)
+    expect(load).not.toHaveBeenCalled()
+    expect(registries.keyActs.retryHeld()).toBe(true)
+    view.rerender(<Screen registries={registries} acts={{ retry: act }} />)
+    expect(registries.keyActs.retryHeld()).toBe(false)
+    press(scope, 'KeyR')
+    expect(load).toHaveBeenCalledTimes(1)
+    view.rerender(<Screen registries={registries} acts={{ retry: act }} failed />)
+    view.unmount()
+    later.unmount()
+    expect(held).toEqual([true, false, true, false])
   })
 
   it('records the decision with ⇧⌘↵ inside the panel and passes it on elsewhere', () => {

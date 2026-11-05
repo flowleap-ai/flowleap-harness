@@ -6,7 +6,7 @@
  * register the same command id.
  */
 
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {
   ShortcutBinding, ShortcutCommandId, ShortcutResolution, ShortcutScopeId,
@@ -25,6 +25,11 @@ export type KeyActs = Partial<Record<CommandName, () => void>>
 export interface KeyActsOptions {
   /** ↓ and ↑ run the `next` and `previous` handlers; false on a page whose content the arrows scroll. Default true. */
   readonly arrows?: boolean
+  /**
+   * The screen holds a decision whose last act failed, so its handlers outrank those of the view's own notices: R
+   * retries the act, not the load of the view. Default false.
+   */
+  readonly failed?: boolean
 }
 
 /** A value that a screen updates on each render. */
@@ -36,6 +41,8 @@ export interface Current<T> {
 export interface KeyActsSource {
   readonly acts: Current<KeyActs>
   readonly arrows: boolean
+  /** The screen holds a decision whose last act failed; absent means false. */
+  readonly failed?: Current<boolean>
 }
 
 /** The sources of the mounted screens, in mount order; the latest source with a value wins. */
@@ -69,17 +76,66 @@ class Sources<S> {
   }
 }
 
-/** The handlers of the mounted screens; the latest provider of an act wins. */
+/**
+ * The handlers of the mounted screens. The latest provider of an act wins, except that a screen whose decision has a
+ * failed act (`failed`) outranks the others, because the failed act is the person's pending decision.
+ */
 export class KeyActRegistry extends Sources<KeyActsSource> {
+  readonly #listeners = new Set<() => void>()
+  #held = false
+
+  /**
+   * Add a screen's handlers.
+   * @param source - read on each key.
+   * @returns idempotent disposer.
+   */
+  override provide(source: KeyActsSource): () => void {
+    const dispose = super.provide(source)
+    this.notify()
+    return () => {
+      dispose()
+      this.notify()
+    }
+  }
+
   /**
    * The handler of an act.
    * @param name - the act.
    * @param arrow - the key is ↓ or ↑: the act runs only when its provider lets the arrows move.
-   * @returns the latest handler, or undefined when no mounted screen runs the act.
+   * @returns the handler of the latest screen with a failed decision that runs the act, else the latest handler, or
+   * undefined when no mounted screen runs the act.
    */
   handler(name: CommandName, arrow = false): (() => void) | undefined {
-    const found = this.latest(source => source.acts.current[name] === undefined ? undefined : source)
+    const runs = (source: KeyActsSource) => source.acts.current[name] === undefined ? undefined : source
+    const found = this.latest(source => source.failed?.current === true ? runs(source) : undefined) ?? this.latest(runs)
     return found === undefined || (arrow && !found.arrows) ? undefined : found.acts.current[name]
+  }
+
+  /**
+   * Whether a failed decision holds R, so the notice of a failed load shows its Try again without a keycap.
+   * @returns true while a mounted screen with a failed decision runs `retry`.
+   */
+  retryHeld(): boolean {
+    const holds = (source: KeyActsSource) => source.failed?.current === true && source.acts.current.retry !== undefined ? source : undefined
+    return this.latest(holds) !== undefined
+  }
+
+  /**
+   * Listen for a change of `retryHeld`.
+   * @param listener - called after `retryHeld` changed.
+   * @returns the disposer.
+   */
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.#listeners.add(listener)
+    return () => { this.#listeners.delete(listener) }
+  }
+
+  /** Tell the listeners when `retryHeld` changed. A screen calls this after it renders with new handlers. */
+  notify(): void {
+    const held = this.retryHeld()
+    if (held === this.#held) return
+    this.#held = held
+    for (const listener of this.#listeners) listener()
   }
 }
 
@@ -108,9 +164,23 @@ export interface KeyLayerContext {
  */
 export function useKeyActs(ctx: KeyLayerContext, acts: KeyActs, options: KeyActsOptions = {}): void {
   const current = useRef(acts)
-  useLayoutEffect(() => { current.current = acts })
+  const failed = useRef(options.failed ?? false)
+  useLayoutEffect(() => {
+    current.current = acts
+    failed.current = options.failed ?? false
+    ctx.keyActs.notify()
+  })
   const arrows = options.arrows ?? true
-  useEffect(() => ctx.keyActs.provide({ acts: current, arrows }), [ctx.keyActs, arrows])
+  useEffect(() => ctx.keyActs.provide({ acts: current, arrows, failed }), [ctx.keyActs, arrows])
+}
+
+/**
+ * Whether a failed decision holds R, which the notice of a failed load uses to show its Try again without a keycap.
+ * @param ctx - the screen context.
+ * @returns true while a mounted screen with a failed decision runs `retry`.
+ */
+export function useRetryHeld(ctx: KeyLayerContext): boolean {
+  return useSyncExternalStore(ctx.keyActs.subscribe, () => ctx.keyActs.retryHeld())
 }
 
 /**

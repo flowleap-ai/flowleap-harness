@@ -5,7 +5,7 @@
 
 import type { ActRun } from '../act-runner.ts'
 import type { ActivityEvent, Command, IsoTime, Person } from '../api.ts'
-import { useKeyActs } from '../key-layer.ts'
+import { useKeyActs, useRetryHeld } from '../key-layer.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { ActivityTimeline, type AuditRow } from '../parts/Activity.tsx'
 import type { DecisionHeading } from '../parts/Decision.tsx'
@@ -15,15 +15,17 @@ import { activityLines, auditRows, avatarOf, listTimeText, personName } from '..
 import { actOf, type ScreenContext } from './context.ts'
 
 /**
- * The error notice of a failed load, with the time of the data that stays on screen; R tries again.
+ * The error notice of a failed load, with the time of the data that stays on screen; R tries again, unless a failed
+ * act in a decision bar holds R: that act is the person's pending decision, so this Try again shows no keycap.
  * @param props.ctx - the screen context.
  * @param props.at - the time of the last data, or null when there is none.
  * @returns the notice.
  */
 export function LoadError({ ctx, at }: { ctx: ScreenContext; at: number | null }) {
   useKeyActs(ctx, { retry: ctx.retry })
+  const held = useRetryHeld(ctx)
   const body = at === null ? ctx.t('error.noData') : ctx.t('error.asOf', { time: listTimeText(ctx, new Date(at).toISOString() as IsoTime) })
-  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry)} />
+  return <ErrorNotice lead={ctx.t('error.load')} body={body} retry={{ ...actOf(ctx, 'retry', ctx.t('act.retry'), ctx.retry), ...(held ? { keycaps: [] } : {}) }} />
 }
 
 /**

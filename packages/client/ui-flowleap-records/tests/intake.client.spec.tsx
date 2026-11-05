@@ -326,6 +326,44 @@ describe('the open letter', () => {
     expect(acts.map(act => act.key)).toEqual([acts[0]!.key, acts[0]!.key])
   })
 
+  it('gives R to the act in the decision bar when the act and the view both failed, and shows the view\'s Try again without a keycap', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
+    const { api, acts } = createFixtureApi()
+    const down: Fetched<never> = { ok: false, error: { kind: 'service', status: 503 } }
+    vi.spyOn(api, 'perform').mockImplementation((next) => {
+      acts.push(next)
+      vi.spyOn(api, 'intake').mockResolvedValue(down)
+      vi.spyOn(api, 'intakeDocument').mockResolvedValue(down)
+      return Promise.resolve(down)
+    })
+    const { panel } = await mount(api, open(R71_DOCUMENT))
+    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    await flush()
+    const [loadNotice, actNotice] = screen.getAllByRole('alert')
+    expect(loadNotice!.textContent).toContain('FlowLeap could not load this view.')
+    expect(within(loadNotice!).getByRole('button', { name: /Try again/ }).textContent).toBe('Try again')
+    expect(within(actNotice!).getByRole('button', { name: /Try again/ }).textContent).toBe('Try againR')
+    press(panel, 'KeyR')
+    await flush()
+    expect(acts.map(act => act.key)).toEqual([acts[0]!.key, acts[0]!.key])
+  })
+
+  it('gives R to the view when only the view failed, and shows its Try again with the keycap', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
+    const { api } = createFixtureApi()
+    const { panel } = await mount(api, open(R71_DOCUMENT))
+    const intake = vi.spyOn(api, 'intake').mockResolvedValue({ ok: false, error: { kind: 'service', status: 503 } })
+    vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: false, error: { kind: 'service', status: 503 } })
+    mounted!.model.refresh()
+    await flush()
+    const notice = screen.getByRole('alert')
+    expect(within(notice).getByRole('button', { name: /Try again/ }).textContent).toBe('Try againR')
+    const loads = intake.mock.calls.length
+    press(panel, 'KeyR')
+    await flush()
+    expect(intake.mock.calls.length).toBeGreaterThan(loads)
+  })
+
   it('files on another matter: M opens the picker of the matters the person may see, the pick becomes the part', async () => {
     const { api, acts } = createFixtureApi()
     const { panel } = await mount(api, open(R71_DOCUMENT))

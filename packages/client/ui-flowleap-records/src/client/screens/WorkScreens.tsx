@@ -195,7 +195,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
     ...(preview === null ? {} : { preview }),
     ...(keyed === null ? {} : { accept: () => { accept(keyed) }, reject: () => { reject(keyed) }, record }),
     ...(runner.run.phase === 'failed' ? { retry: record } : {}),
-  }, { arrows: false })
+  }, { arrows: false, failed: runner.run.phase === 'failed' })
 
   const calculationOverflow = deadline === null ? [] : [calculationAct(ctx, deadline.id)]
   const wordAct: ActSpec | null = openInWord === null
