@@ -31,17 +31,20 @@ The checklist applies to the IPMS screens only. The reviewer checks the built sc
 
 ## Blocking FAIL or ticket
 
-The reviewer marks each FAIL as blocking or as a ticket. A blocking FAIL stops the merge. A ticket does not stop the merge: the reviewer gives it a title and a fix, the PR author files it before the merge, and it is fixed after the merge. The verdict is MERGE when no blocking FAIL remains (founder decision, 2026-11-05).
+The reviewer marks each FAIL as blocking or as a ticket. A blocking FAIL stops the merge. A ticket does not stop the merge: the reviewer gives it a title and a fix, the PR author files it as a GitHub issue in `flowleap-ai/flowleap-harness` and links it in the PR before the merge, and it is fixed after the merge. The screen meets the Linear bar only when all its tickets are closed. The verdict is MERGE when no blocking FAIL remains (founder decision, 2026-11-05).
 
 A FAIL is blocking when it has one of these effects:
 
 - copy that is not true, or that shows an internal id, code or account handle (items 20 to 22);
 - a person or a fact outside the matter's wall shows (item 24);
-- an act that a person cannot reach, by pointer, keyboard or touch, or a primary button that is not in view (items 13, 14, 17, 25);
+- an act that a person cannot reach, by pointer, keyboard or touch, or a primary button that is not in view (items 14, 17, 25, 26);
+- a part of product rule 1 that is missing: grouping by state with a count, row selection for a bulk act, the row context menu, or the list and the open item side by side from 1366 px (items 18, 26);
+- more than one enabled primary button in a view state, or a keycap that does not run its act (item 13);
 - text or a status icon below the contrast minimum (items 5, 10);
 - evidence that is wrong or missing, or Accept that is not blocked when evidence is missing (item 15);
-- a status, a date or a count that misleads, such as a past date with no overdue flag (items 11, 12);
+- a status, a date, a count or a view state that misleads, such as a past date with no overdue flag, or an error that shows as an empty list or with no data time or Try again (items 11, 12, 19);
 - a decision or a board move that the product rules do not allow (items 22, 23);
-- no approved mockup for the screen (item 1), or a check script that does not exit 0.
+- no approved mockup for the screen (item 1);
+- a failure of `check-copy.mjs`, `contrast.mjs` or `status-map.mjs`, or a failure of `check-css.mjs` or `check-mockups.mjs` that has one of the effects above.
 
 Every other FAIL is a ticket: a small visual item that misleads nobody and loses no act, such as a wrap, a gap, a size or a radius off the rules, a missing icon in an overflow menu, or a skeleton offset.
