@@ -103,13 +103,18 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
   }
   if (letter.code !== null) {
     const office = letter.office ?? letter.code.replace(/:.*$/u, '')
-    const date = letter.fields.documentDate
+    const words = { title: letterTitle(t, letter.code), from: fromOffice(t, office) }
+    // The form number's span supports the kind and the office (its excerpt names the office); the date has its own.
+    const { formNumber: form, documentDate: date } = letter.fields
+    const dated = date === undefined ? null : <>{t('intake.reason.dated')} {quote(ctx, date.span)}</>
     reasons.push({
       key: 'kind',
       ok: true,
-      text: date === undefined
-        ? t('intake.reason.kind', { title: letterTitle(t, letter.code), from: fromOffice(t, office) })
-        : <>{t('intake.reason.kindDated', { title: letterTitle(t, letter.code), from: fromOffice(t, office) })} {quote(ctx, date.span)}</>,
+      text: form !== undefined
+        ? <>{t('intake.reason.kindQuoted', words)} {quote(ctx, form.span)}{dated}</>
+        : date === undefined
+          ? t('intake.reason.kind', words)
+          : <>{t('intake.reason.kindDated', words)} {quote(ctx, date.span)}</>,
     })
   }
   return reasons

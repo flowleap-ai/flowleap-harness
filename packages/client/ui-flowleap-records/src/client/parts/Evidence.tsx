@@ -27,7 +27,8 @@ export interface QuoteLabels {
  * @returns the quote.
  */
 export function EvidenceQuote({ span, labels }: { span: Span; labels: QuoteLabels }) {
-  const quote = <span className={css.quote} tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
+  // The quote is the source's own text, so it is exempt from the deny-list (`data-verbatim`), as the excerpt is.
+  const quote = <span className={css.quote} data-verbatim="" tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
   return (
     <span className={css.spanRef}>
       {span.excerpt === null

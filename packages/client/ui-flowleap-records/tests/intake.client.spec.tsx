@@ -198,7 +198,7 @@ describe('the German intake', () => {
     expect(row.textContent).toContain('EPA')
     expect(row.textContent).not.toContain('EPO')
     const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
-    expect(reasons[2]).toContain('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen, datiert')
+    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen 2004CS. 1, datiert 30.10.2026S. 1')
     expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('AmtEPA')
   })
 })
@@ -286,7 +286,8 @@ describe('the open letter', () => {
     const reasons = within(screen.getByRole('list', { name: 'Reasons' })).getAllByRole('listitem').map(item => item.textContent)
     expect(reasons[0]).toContain('Your reference on page 1 reads FL-2026-0001')
     expect(reasons[1]).toBe('One matter that you may see has this file number.')
-    expect(reasons[2]).toContain('FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated 30.10.2026')
+    // The kind and its office come from the form number's span, whose excerpt names the office; the date from its own.
+    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO 2004Cp. 1, dated 30.10.2026p. 1')
     expect(within(decision()).getByText('3 reasons on page 1 agree')).toBeTruthy()
     expect(screen.getByText('Filing puts your name on the record')).toBeTruthy()
     expect(screen.getAllByText('Dr. Anna Becker').length).toBeGreaterThan(0)
@@ -505,6 +506,8 @@ describe('the open letter', () => {
     const cases: [Partial<IntakeDocument>, string][] = [
       [{ fields: {}, office: null }, 'The file number on page 1 names one matter.'],
       [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.'],
+      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO 2004Cp. 1Your firm asks'],
+      [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated 30.10.2026p. 1'],
       [{ status: { machine: 'intake', state: 'ambiguous' }, proposed: null, candidates: 2 }, 'Two or more matters have its file number.'],
       [{ status: { machine: 'intake', state: 'unreadable' }, proposed: null, fields: {}, code: null }, 'FlowLeap could not read its text.'],
       [{ status: { machine: 'intake', state: 'kind_proposed' }, proposed: null }, 'FlowLeap proposes the kind of this letter.'],

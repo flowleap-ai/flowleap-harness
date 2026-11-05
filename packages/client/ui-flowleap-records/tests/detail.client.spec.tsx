@@ -307,6 +307,11 @@ describe('the deadline page', () => {
     ])
     const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
     expect(readings.textContent).toContain('30.10.2026')
+    // Each read value from the text has its span: the office event its form number, quoted as the letter has it.
+    expect(within(readings).getAllByRole('row').slice(1).map(row => row.querySelector('[role="cell"]')?.textContent)).toEqual([
+      'Rule 71(3) EPC2004Cp. 1', 'Fri, 30 Oct 202630.10.2026p. 1', 'EP 24 123 456.724 123 456.7p. 1',
+    ])
+    expect(within(readings).getByText('2004C').closest('[data-verbatim]')).not.toBeNull()
     expect(within(readings).getAllByText('EP 24 123 456.7')).toHaveLength(2)
     expect(within(readings).getAllByText('Agree')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Rule 134 EPC' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/epc/2020/r134.html')
