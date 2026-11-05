@@ -170,6 +170,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'contextMenu.content': { kind: 'keyed', scope: 'root' },
       'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true },
     },
-    inject: () => ({ hooks: { catalog: ctx.shortcuts.catalog }, close, returnFocus: () => returnFocus, select }),
+    inject: () => ({
+      hooks: { catalog: ctx.shortcuts.catalog, fixedCatalog: ctx.shortcuts.fixedCatalog }, close, returnFocus: () => returnFocus, select,
+    }),
   }, MenuOverlay))
 }

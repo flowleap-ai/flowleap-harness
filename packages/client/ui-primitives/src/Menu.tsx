@@ -9,9 +9,22 @@ import { isBehindModal } from './useModalLayer.ts'
 import { observeComposition } from './keyboard-composition.ts'
 import { focusWithoutRing } from './focus.ts'
 import { ShortcutKeys } from './ShortcutKeys.tsx'
+import { Keycap, type KeycapBox } from './Keycap.tsx'
 import { MenuSurface } from './MenuSurface.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import css from './Menu.module.css'
+
+/** Effective binding of a menu row, supplied by the command owner. */
+export interface MenuShortcutSpec {
+  /** Key labels drawn as unboxed caption text. */
+  keys: readonly string[]
+  aria?: string | undefined
+  /**
+   * The binding as keycap boxes, one for a key or a combination, one for each step of a sequence; when set, the row
+   * draws them as boxed `Keycap`s instead of the caption text, as the IPMS menus do.
+   */
+  keycaps?: readonly KeycapBox[] | undefined
+}
 
 /** Selectable row (optionally with a nested submenu). */
 export interface MenuItem {
@@ -19,7 +32,7 @@ export interface MenuItem {
   label: ReactNode
   disabled?: boolean
   /** Effective binding supplied by the command owner; omitted for unbound actions. */
-  shortcut?: { keys: readonly string[]; aria?: string | undefined }
+  shortcut?: MenuShortcutSpec
   /** Leading icon (figma .Menu_cell gap 8). */
   icon?: ReactNode
   /** Destructive row: error-colored text/icon and danger hover fill. */
@@ -117,11 +130,26 @@ export function MenuItemButton({
         >
           {icon !== undefined && <span className={css.itemIcon}>{icon}</span>}
           <span className={css.itemLabel}>{children}</span>
-          {shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={shortcut.keys} className={css.shortcutKeys} /></span>}
+          {shortcut !== undefined && <MenuShortcut shortcut={shortcut} />}
         </button>
       </Tooltip>
       {explained && <span id={reasonId} hidden>{disabledReason}</span>}
     </div>
+  )
+}
+
+/**
+ * Render the trailing key of a row: boxed keycaps when the binding carries them, else the caption text.
+ * @param props.shortcut - the row's binding.
+ * @returns the key, hidden from assistive technology because `aria-keyshortcuts` names it.
+ */
+function MenuShortcut({ shortcut }: { shortcut: MenuShortcutSpec }) {
+  return (
+    <span aria-hidden="true" className={css.shortcut}>
+      {shortcut.keycaps === undefined
+        ? <ShortcutKeys keys={shortcut.keys} className={css.shortcutKeys} />
+        : <Keycap keycaps={shortcut.keycaps} />}
+    </span>
   )
 }
 
@@ -514,7 +542,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
         >
           {(entry.icon !== undefined || columns.has(entry)) && <span aria-hidden="true" className={css.itemIcon}>{entry.icon}</span>}
           <span className={css.itemLabel}>{entry.label}</span>
-          {entry.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={entry.shortcut.keys} className={css.shortcutKeys} /></span>}
+          {entry.shortcut !== undefined && <MenuShortcut shortcut={entry.shortcut} />}
           {/* Selection marker is a trailing check (figma .Menu_cell) unless the fill mode carries it. */}
           {selected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
         </button>
@@ -534,7 +562,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
                 >
                   {(sub.icon !== undefined || subColumns.has(sub)) && <span aria-hidden="true" className={css.itemIcon}>{sub.icon}</span>}
                   <span className={css.itemLabel}>{sub.label}</span>
-                  {sub.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={sub.shortcut.keys} className={css.shortcutKeys} /></span>}
+                  {sub.shortcut !== undefined && <MenuShortcut shortcut={sub.shortcut} />}
                 </button>
               ))}
           </MenuSurface>

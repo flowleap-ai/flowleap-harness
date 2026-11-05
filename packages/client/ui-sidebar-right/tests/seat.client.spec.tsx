@@ -79,7 +79,7 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
   const catalog = createSnapshotStore<readonly ShortcutCatalogEntry[]>([])
-  runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog } as never)
+  runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog, fixedCatalog: createSnapshotStore([]) } as never)
   runtime.slots.installLocale(locale)
   await runtime.mount({ inject: [...injectMenus], apply: applyMenus })
   await runtime.declare({

@@ -59,6 +59,11 @@
   outline: none;
 }
 
+/* Without this rule the browser draws the placeholder in its own grey, about 3:1 on the menu material. */
+.search::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
 .viewport {
   display: flex;
   flex-direction: column;

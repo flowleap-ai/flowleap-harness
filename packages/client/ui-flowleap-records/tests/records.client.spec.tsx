@@ -9,6 +9,7 @@ import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-c
 import type { MenuContribution } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { apply, inject, PANEL_ID, RECORDS_LINK_ROUTE, selectWhenRegistered, type PanelInjected } from '../src/client/index.ts'
 import type { DocumentId } from '../src/client/api.ts'
+import { ROW_MENU_ICONS } from '../src/client/row-menu.ts'
 import { de, NS, zh } from '../src/client/locales.ts'
 import { intakeWaitingWire, meWire } from './fixtures.client.ts'
 
@@ -97,7 +98,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   ctx.slots.register({
     name: 'root',
-    children: { 'sidebar.panellist': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' } },
+    children: { 'sidebar.panellist': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' }, 'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true } },
   } as never, () => null)
   ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -156,9 +157,12 @@ describe('ui-flowleap-records browser half', () => {
     expect(menus[0]!.target).toBe('records.intake-row')
     const actions = await menus[0]!.resolve({ document: 'a'.repeat(64) as DocumentId, list: 'waiting', proposed: null }, new AbortController().signal)
     expect(actions.map(action => action.id)).toEqual(['open', 'other-matter', 'not-relevant', 'copy-link'])
+    expect(ctx.slots.entries('contextMenu.icon').map(entry => (entry.options as { key: string }).key)).toEqual(Object.keys(ROW_MENU_ICONS))
+    expect(actions.map(action => action.icon?.key)).toEqual(['records.row.open', 'records.row.otherMatter', 'records.row.notRelevant', 'records.row.copyLink'])
     await fiber.dispose()
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
+    expect(ctx.slots.entries('contextMenu.icon')).toEqual([])
     expect(menus).toEqual([])
     expect(keys).toEqual([])
     expect(contributions).toEqual([])

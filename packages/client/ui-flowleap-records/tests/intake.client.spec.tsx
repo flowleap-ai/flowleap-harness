@@ -67,7 +67,7 @@ describe('the intake list', () => {
     const acts = rowActions(model, key => key, {
       document: R71_DOCUMENT as DocumentId, list: 'waiting', proposed: 'FL-2026-0001' as FileNumber,
     }, () => '')
-    const entries = menuEntries(acts, registry.catalog.getSnapshot(), () => null)
+    const entries = menuEntries(acts, registry.catalog.getSnapshot(), registry.fixedCatalog.getSnapshot(), () => null)
     const menuKeys = (id: string) => {
       const entry = entries.find(item => item.id === id)
       return entry !== undefined && 'shortcut' in entry ? entry.shortcut?.keys : undefined
@@ -76,6 +76,7 @@ describe('the intake list', () => {
     expect(menuKeys('accept')).toEqual(['⇧⌘↵'])
     expect(menuKeys('not-relevant')).toEqual(barKeys(/^Not relevant/))
     expect(menuKeys('other-matter')).toEqual(barKeys(/^Other matter/))
+    expect(menuKeys('open')).toEqual(['↵'])
   })
 
   it('shows the empty waiting list with the next step', async () => {

@@ -104,6 +104,9 @@ pairs.push(
   ['status icon, no action, on a group header', T('label-tertiary'), [T('bg-base'), T('bg-multi-select')], 3],
   ['checkbox border', T('label-tertiary'), [T('bg-base')], 3],
   ['selection bar, focus ring', T('state-business-primary'), [T('bg-base')], 3],
+  // The act icon of a row context menu item, drawn by the client Menu in its icon colour.
+  ['context menu icon', T('menu-icon'), MENU, 3],
+  ['context menu icon, highlighted', T('menu-icon'), [...MENU, T('interactive-bg-hover')], 3],
   // A status icon always sits beside its word (R11), so the word carries the state and these icons have no minimum;
   // the rows record the client's state colours for client-gaps.md item 2. No action is drawn in the icon grey above.
   ['status icon beside its word, waits', T('state-warn-primary'), [T('bg-base')], 0],
