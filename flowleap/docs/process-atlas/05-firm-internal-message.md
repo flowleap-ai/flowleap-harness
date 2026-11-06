@@ -2,6 +2,8 @@
 
 **Starts when** a run result, a duplicate forward, or a routing notice needs a message. **Ends when** the message is sent, is refused, or is dead (its tries are used up, or its send cannot be confirmed). **Record object:** the outbound message. **Ticket:** [#222](https://github.com/flowleap-ai/flowleap-harness/issues/222). Method: [the atlas README](README.md#the-method-for-every-phase).
 
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#3-the-task-model): each waiting state of this sheet opens the task that sheet 0 names.
+
 This sheet covers three kinds of message with one machine: the **reply** in the thread to the person who forwarded the letter, the **notice** to the routed attorney when that person is not the forwarder, and the **already-worked** answer to the forwarder of a duplicate. The [README](README.md#the-r1-processes) says why they are one machine.
 
 ## 1. The process today

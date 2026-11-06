@@ -2,6 +2,8 @@
 
 **Starts when** a mail arrives in the AI mailbox. **Ends when** each document of the mail is filed on one matter, is a duplicate, or is not relevant. **Record object:** the document. **Ticket:** [#220](https://github.com/flowleap-ai/flowleap-harness/issues/220). Method: [the atlas README](README.md#the-method-for-every-phase).
 
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#6-how-a-letter-reaches-its-matter): the document also arrives through the MyEPO API, scan-to-email and the Fristen mailbox, and the forward is the fallback; a person files an unreadable scan with the page image in view; a MyEPO communication files on its two EPO keys. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
+
 ## 1. The process today
 
 | # | Fact | Label and source |
@@ -41,22 +43,23 @@
 The machine is per document, not per mail, because one mail can carry several letters for several matters (design section 6.2).
 
 <!-- atlas:intake -->
-It has **13 states and 23 transitions**, plus the start.
+It has **13 states and 24 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
-| start | `stored` | The mail arrives from a firm sender that Exchange authenticated as internal; a document is split out and hashed | intake | Immutable Graph message id, sender, authentication result, document SHA-256 |
+| start | `stored` | A document arrives by a route of the firm (MyEPO API, scan-to-email, the Fristen mailbox, or a forward) and passes the sender check of its route; it is split out and hashed | intake | Route; MyEPO communication id, or immutable Graph message id, sender and authentication result; document SHA-256 |
 | `stored` | `duplicate` | The hash is already in the record | intake | Hash, the earlier document |
 | `stored` | `unreadable` | No text layer and OCR fails | intake | OCR result and its confidence |
 | `stored` | `read` | The text is read; an office signal gives the kind office letter, or the model reads an office letter | intake or agent | Kind, its source (form number, office sender, office name) and its span |
 | `stored` | `kind_proposed` | No office signal, and the model reads another kind | agent | Kind (associate letter, client mail, other) with its span, SessionRef |
 | `kind_proposed` | `read` | A person accepts or changes the kind | person | The proposal and the Decision |
 | `unreadable` | `replaced` | A person adds a better scan | person | Hash of the new document |
+| `unreadable` | `matched` | A person files the scan on a matter with the page image in view; a matter from the mail subject or the file name is only a proposal | person | Page image hash, the proposal key, the Decision |
 | `unreadable` | `not_relevant` | An attorney marks it not relevant with a reason | person (attorney) | Reason; the second person when the firm asks for one |
 | `read` | `duplicate_proposed` | An earlier document has the same application number, form and date | intake | Both documents and the fields that agree |
 | `duplicate_proposed` | `duplicate` | A person confirms the duplicate | person | The Decision |
 | `duplicate_proposed` | `read` | A person decides that it is another letter, and the content check does not run again | person | The Decision and its reason |
-| `read` | `matched` | One exact key in a reference or addressee field gives one matter [the firm files without a person] | intake | Key, its field and its span |
+| `read` | `matched` | One exact key in a reference or addressee field gives one matter [the firm files without a person], or the firm reference and the application number of a MyEPO communication both name that matter | intake | Key, its field and its span; or both MyEPO fields |
 | `read` | `match_proposed` | One exact key [a person confirms], a register lookup or the model proposes a matter | intake or agent | Key and span, register response, or quoted span and SessionRef |
 | `read` | `ambiguous` | The keys give two or more matters | intake | Each key with its field, its span and its matter |
 | `read` | `unmatched` | No key and no proposal | intake | The fields searched |
@@ -74,18 +77,19 @@ End states: `duplicate`, `replaced`, `not_relevant`, `filed`. Declared correctio
 
 ```mermaid
 stateDiagram-v2
-    [*] --> stored: the mail arrives from a firm sender that Exchange authenticated as internal, a document is split out and hashed
+    [*] --> stored: a document arrives by a route of the firm (MyEPO API, scan-to-email, the Fristen mailbox, or a forward) and passes the sender check of its route, it is split out and hashed
     stored --> duplicate: the hash is already in the record
     stored --> unreadable: no text layer and OCR fails
     stored --> read: the text is read, an office signal gives the kind office letter, or the model reads an office letter
     stored --> kind_proposed: no office signal, and the model reads another kind
     kind_proposed --> read: a person accepts or changes the kind
     unreadable --> replaced: a person adds a better scan
+    unreadable --> matched: a person files the scan on a matter with the page image in view, a matter from the mail subject or the file name is only a proposal
     unreadable --> not_relevant: an attorney marks it not relevant with a reason
     read --> duplicate_proposed: an earlier document has the same application number, form and date
     duplicate_proposed --> duplicate: a person confirms the duplicate
     duplicate_proposed --> read: a person decides that it is another letter, and the content check does not run again
-    read --> matched: one exact key in a reference or addressee field gives one matter [the firm files without a person]
+    read --> matched: one exact key in a reference or addressee field gives one matter [the firm files without a person], or the firm reference and the application number of a MyEPO communication both name that matter
     read --> match_proposed: one exact key [a person confirms], a register lookup or the model proposes a matter
     read --> ambiguous: the keys give two or more matters
     read --> unmatched: no key and no proposal

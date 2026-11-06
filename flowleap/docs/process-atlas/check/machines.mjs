@@ -1,4 +1,4 @@
-// One transition table per R1 process. check.mjs checks each table and writes its table and chart into the sheet.
+// One transition table per atlas process. check.mjs checks each table and writes its table and chart into the sheet.
 // t: [from, to, event, actor, evidence]; '[*]' is the start; a list in 'from' is one row for each state in it.
 // terminal: end states. loops: declared self steps (escalation, correction). corrections: declared steps out of an end state.
 const LIVE_TICKET = ['opened', 'no_person', 'routed', 'waking', 'running', 'run_failed', 'proposals_ready']
@@ -11,18 +11,19 @@ export const machines = {
     loops: [['unmatched', 'unmatched'], ['filed', 'filed']],
     corrections: [['not_relevant', 'stored']],
     t: [
-      ['[*]', 'stored', 'The mail arrives from a firm sender that Exchange authenticated as internal; a document is split out and hashed', 'intake', 'Immutable Graph message id, sender, authentication result, document SHA-256'],
+      ['[*]', 'stored', 'A document arrives by a route of the firm (MyEPO API, scan-to-email, the Fristen mailbox, or a forward) and passes the sender check of its route; it is split out and hashed', 'intake', 'Route; MyEPO communication id, or immutable Graph message id, sender and authentication result; document SHA-256'],
       ['stored', 'duplicate', 'The hash is already in the record', 'intake', 'Hash, the earlier document'],
       ['stored', 'unreadable', 'No text layer and OCR fails', 'intake', 'OCR result and its confidence'],
       ['stored', 'read', 'The text is read; an office signal gives the kind office letter, or the model reads an office letter', 'intake or agent', 'Kind, its source (form number, office sender, office name) and its span'],
       ['stored', 'kind_proposed', 'No office signal, and the model reads another kind', 'agent', 'Kind (associate letter, client mail, other) with its span, SessionRef'],
       ['kind_proposed', 'read', 'A person accepts or changes the kind', 'person', 'The proposal and the Decision'],
       ['unreadable', 'replaced', 'A person adds a better scan', 'person', 'Hash of the new document'],
+      ['unreadable', 'matched', 'A person files the scan on a matter with the page image in view; a matter from the mail subject or the file name is only a proposal', 'person', 'Page image hash, the proposal key, the Decision'],
       ['unreadable', 'not_relevant', 'An attorney marks it not relevant with a reason', 'person (attorney)', 'Reason; the second person when the firm asks for one'],
       ['read', 'duplicate_proposed', 'An earlier document has the same application number, form and date', 'intake', 'Both documents and the fields that agree'],
       ['duplicate_proposed', 'duplicate', 'A person confirms the duplicate', 'person', 'The Decision'],
       ['duplicate_proposed', 'read', 'A person decides that it is another letter, and the content check does not run again', 'person', 'The Decision and its reason'],
-      ['read', 'matched', 'One exact key in a reference or addressee field gives one matter [the firm files without a person]', 'intake', 'Key, its field and its span'],
+      ['read', 'matched', 'One exact key in a reference or addressee field gives one matter [the firm files without a person], or the firm reference and the application number of a MyEPO communication both name that matter', 'intake', 'Key, its field and its span; or both MyEPO fields'],
       ['read', 'match_proposed', 'One exact key [a person confirms], a register lookup or the model proposes a matter', 'intake or agent', 'Key and span, register response, or quoted span and SessionRef'],
       ['read', 'ambiguous', 'The keys give two or more matters', 'intake', 'Each key with its field, its span and its matter'],
       ['read', 'unmatched', 'No key and no proposal', 'intake', 'The fields searched'],
@@ -46,6 +47,8 @@ export const machines = {
     t: [
       ['[*]', 'awaiting_code', 'A filed document is an office letter', 'intake', 'Document kind with its source and span'],
       ['awaiting_code', 'recorded', 'Both readers agree: the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image', 'intake', 'Form-number span, date span, code table version, the model reading (`office-event/observed`)'],
+      ['awaiting_code', 'recorded', 'A person enters the code and the date from the page image of a scan', 'person', 'Page image hash, the Decision (`office-event/recorded`)'],
+      ['[*]', 'recorded', 'The register check finds a communication that the EPO dispatched and the firm has not received; the event is recorded from the register data with the mark "letter not received"', 'register check', 'OPS register event, dispatch date, response hash (`office-event/observed` with the source register)'],
       ['awaiting_code', 'code_proposed', 'No form number, the two readers differ, or only one reader has a result', 'intake', 'Both readings: quoted spans and the model reading'],
       ['code_proposed', 'recorded', 'A person accepts or changes the code and the date', 'person', 'The proposal and the Decision (`office-event/recorded`)'],
       ['code_proposed', 'no_event', 'An attorney decides that the letter records no office event, with a reason', 'person (attorney)', 'Reason, the document'],
@@ -77,7 +80,7 @@ export const machines = {
     loops: [['no_person', 'no_person'], ['proposals_ready', 'proposals_ready']],
     corrections: [],
     t: [
-      ['[*]', 'opened', 'A recorded office event opens the Ticket of its application and day', 'Work router', 'Office event seq; key application, day and pass'],
+      ['[*]', 'opened', 'A recorded office event whose letter is filed opens the Ticket of its application and day', 'Work router', 'Office event seq, the filed document; key application, day and pass'],
       ['opened', 'routed', 'The responsible attorney, or the first present deputy whom the matter wall admits, is found', 'Work router', 'Matter, wall check, the absence entry used'],
       ['opened', 'no_person', 'Nobody responsible is present, or no present deputy is inside the wall', 'Work router', 'Matter, absence entries, wall check'],
       ['no_person', 'routed', 'The partner assigns a person whom the wall admits', 'person', 'Assignment, wall check'],
@@ -144,4 +147,87 @@ export const machines = {
       ['retrying', 'dead', 'The tries are used up', 'outbox', 'Errors; a task for the administrator'],
     ],
   },
+  arrival: {
+    sheet: '00-connected-flow.md',
+    start: 'expected',
+    terminal: ['received', 'not_for_firm'],
+    loops: [['expected', 'expected']],
+    corrections: [],
+    t: [
+      ['[*]', 'expected', 'The register check finds a communication that the EPO dispatched for a matter, and no document of that dispatch is on file', 'register check', 'OPS register event, dispatch date, matter, response hash'],
+      ['expected', 'received', 'A document of that dispatch arrives by any route, and its EPO data or its reading agrees with the register', 'intake', 'Document hash, the fields that agree'],
+      ['expected', 'mismatch', 'A document of that dispatch arrives, but its code or its date differs from the register', 'intake', 'Both values'],
+      ['mismatch', 'received', 'A person decides which value is right; a wrong office event is corrected', 'person', 'The Decision; the correction event'],
+      ['expected', 'not_for_firm', 'A person decides that the communication did not go to the firm, for example to another representative, with a reason', 'person', 'Reason, evidence document'],
+      ['expected', 'expected', 'The get-letter task passes its due time and escalates', 'Firm Record', 'Time, escalation step'],
+    ],
+  },
+  task: {
+    sheet: '00-connected-flow.md',
+    start: 'assigned',
+    terminal: ['done', 'cancelled'],
+    loops: [['assigned', 'assigned'], ['escalated', 'escalated']],
+    corrections: [],
+    t: [
+      ['[*]', 'assigned', 'An object enters a waiting state, a schedule falls due, or a person mentions a colleague; the owner rule of the task kind names a present person inside the wall', 'Firm Record', 'Object and state, task kind, owner rule, owner, due time'],
+      ['[*]', 'queued', 'The owner rule finds no present person inside the wall', 'Firm Record', 'Owner rule, absence entries, wall check, the queue keeper'],
+      ['queued', 'assigned', 'A person of the role inside the wall takes the task', 'person', 'The person, time'],
+      ['assigned', 'assigned', 'The owner, the queue keeper or the partner hands the task to another person inside the wall, with a note', 'person', 'Old and new owner, note, wall check'],
+      ['assigned', 'queued', 'The owner becomes absent, and no deputy inside the wall is present', 'Firm Record', 'Absence entry, wall check'],
+      [['assigned', 'queued'], 'escalated', 'The due time passes; the next person of the chain becomes the owner, and the earlier owner keeps the task in sight', 'Firm Record', 'Time, chain step, new owner'],
+      ['escalated', 'escalated', 'The due time passes again; the next person of the chain becomes the owner', 'Firm Record', 'Time, chain step, new owner'],
+      ['escalated', 'alarm', 'The last person of the chain passes the due time', 'Firm Record', 'Time; every person of the chain and the administrator'],
+      [['escalated', 'alarm'], 'assigned', 'A person of the chain takes the task', 'person', 'The person, time'],
+      [['assigned', 'queued', 'escalated', 'alarm'], 'done', 'The act of the task is recorded on its object: a decision, a confirmation, a filing, a check or an answer in the thread', 'person', 'The object event that the act wrote'],
+      [['assigned', 'queued', 'escalated', 'alarm'], 'cancelled', 'The object leaves its waiting state without the act (moved, corrected, stale or cancelled), or the person who asked withdraws the mention', 'Firm Record or person', 'The object event, or the withdrawal'],
+    ],
+  },
+}
+
+// The task of each state that waits for a person: machine -> state -> task kind, or { none: reason } when a person
+// acts there only to correct. check.mjs requires an entry for every state that is not an end state and has a step
+// that a person takes, and writes the mapping table into 00-connected-flow.md. An end state may also open a task.
+export const tasks = {
+  intake: {
+    unreadable: 'file-letter', kind_proposed: 'file-letter', duplicate_proposed: 'file-letter',
+    match_proposed: 'file-letter', ambiguous: 'file-letter', unmatched: 'file-letter',
+  },
+  deadline: {
+    awaiting_code: 'enter-office-event', code_proposed: 'decide-office-event', engine_refused: 'enter-date',
+    deadline_proposed: 'confirm-deadline', manual_proposed: 'confirm-deadline', disputed: 'decide-dispute',
+    active: { none: 'A person changes an active deadline only by a correction; the follow-up and end-of-day check tasks run on it' },
+  },
+  ticket: {
+    opened: { none: 'The system works; a person only cancels it by a correction of the document or the event' },
+    routed: { none: 'The system works; a person only cancels it by a correction of the document or the event' },
+    waking: { none: 'The system works; a person only cancels it by a correction of the document or the event' },
+    running: { none: 'The system works; a person only cancels it by a correction of the document or the event' },
+    no_person: 'assign-person', run_failed: 'restart-run', proposals_ready: 'decide-work', by_hand: 'work-by-hand',
+  },
+  report: { proposed: 'decide-work', flagged: 'decide-work', approved: 'send-report', send_unconfirmed: 'send-report' },
+  outbox: { refused: 'fix-message', dead: 'fix-message' },
+  arrival: { expected: 'get-letter', mismatch: 'decide-arrival' },
+}
+
+// One row per task kind: the words of the list, the owner rule, the due time and the escalation chain (settings of
+// the sheets or of 00-connected-flow.md), and the act that closes it. from: 'state' (a waiting state above),
+// 'schedule' (a date of an active deadline or a daily time) or 'mention' (a person asks a colleague).
+export const taskKinds = {
+  'file-letter': { from: 'state', words: 'File this letter', owner: 'The formalities person of the proposed matter; with no matter, the first present person of the intake queue', due: '`intake.decideWithin`', chain: '`intake.escalation`', closes: 'The document is filed, replaced, a duplicate or not relevant' },
+  'enter-office-event': { from: 'state', words: 'Enter the office event', owner: 'The person who filed the scan; opens only for a filed scan with no reading, because the readers move every other letter', due: '`intake.decideWithin`', chain: '`intake.escalation`', closes: 'The code and the date are recorded, or an attorney decides that there is no event' },
+  'decide-office-event': { from: 'state', words: 'Check the office event', owner: 'The formalities person of the matter', due: '`deadline.confirmWithin`', chain: '`deadline.escalation`', closes: 'The code and the date are decided, or an attorney decides that there is no event' },
+  'enter-date': { from: 'state', words: 'Enter the due date', owner: 'The formalities person of the matter', due: '`deadline.confirmWithin`', chain: '`deadline.escalation`', closes: 'A date is entered or computed' },
+  'confirm-deadline': { from: 'state', words: 'Confirm the deadline', owner: 'The formalities person of the matter, unless that person proposed the date or decided its code; then the next person of `deadline.confirmerRoles` inside the wall', due: '`deadline.confirmWithin`', chain: '`deadline.escalation`', closes: 'The deadline is active, rejected or stale' },
+  'decide-dispute': { from: 'state', words: 'Decide the disputed deadline', owner: 'The responsible attorney', due: '`deadline.confirmWithin`', chain: '`deadline.escalation`', closes: 'The deadline is active again, or closed without its act' },
+  'assign-person': { from: 'state', words: 'Assign a person', owner: 'The first present person of `ticket.noPersonChain`', due: '`ticket.assignWithin`', chain: '`ticket.noPersonChain`', closes: 'The Ticket is routed' },
+  'restart-run': { from: 'state', words: 'Start the work again or take it by hand', owner: 'The routed attorney', due: '`ticket.assignWithin`', chain: '`ticket.deputies`, then `ticket.noPersonChain`', closes: 'The run starts again, or the attorney takes the work by hand' },
+  'decide-work': { from: 'state', words: 'Review the work', owner: 'The routed attorney (the responsible attorney or the deputy)', due: '`ticket.decideBy`', chain: '`ticket.deputies`, then `ticket.noPersonChain`', closes: 'The Ticket is decided or cancelled' },
+  'work-by-hand': { from: 'state', words: 'Do this work by hand', owner: 'The routed attorney', due: 'The first internal date of the deadline', chain: '`deadline.escalation`', closes: 'The attorney records the work as done, with its document' },
+  'send-report': { from: 'state', words: 'Send the client report', owner: 'The person of `report.approver`', due: '`report.sendReminder`', chain: 'The approver, then the responsible attorney', closes: 'The report is sent or withdrawn' },
+  'fix-message': { from: 'state', words: 'Fix the message', owner: 'The administrator', due: '`tasks.adminWithin`', chain: 'The administrator, then the partner', closes: 'The administrator records what was done' },
+  'get-letter': { from: 'state', words: 'Get the missing letter', owner: 'The formalities person of the matter', due: '`register.getWithin`', chain: '`deadline.escalation`', closes: 'The letter is received, or a person decides that it did not go to the firm' },
+  'decide-arrival': { from: 'state', words: 'Check the letter against the Register', owner: 'The formalities person of the matter', due: '`deadline.confirmWithin`', chain: '`deadline.escalation`', closes: 'A person decides which value is right' },
+  'follow-up': { from: 'schedule', words: 'Follow up the deadline', owner: 'The responsible attorney', due: 'Each internal date (Vorfrist) of an active deadline', chain: '`deadline.escalation`', closes: 'The act of the deadline is recorded, or the next internal date comes' },
+  'day-check': { from: 'schedule', words: 'Check the deadlines due today', owner: 'The person of `tasks.dayCheck.person`', due: '`tasks.dayCheck.at` on each working day', chain: 'The partner', closes: 'The person records the check of each deadline due that day' },
+  'answer': { from: 'mention', words: 'Answer', owner: 'The person who is mentioned', due: '`tasks.answerWithin`, or the time the asker sets', chain: 'The asker, then the responsible attorney', closes: 'The person answers in the thread, or does the act that was asked' },
 }
