@@ -1,0 +1,15 @@
+# Overlay of flowleap/dev-loop.sh (flowleap/docs/dev-loop.md): the flowleapRecord provider reads the local Firm
+# Record at $FLOWLEAP_DEV_RECORD_URL (the service port of the flowleap-os record-local.sh run, a loopback base URL)
+# with the record token of FLOWLEAP_RECORD_TOKEN, which the credential store resolves from the environment like the
+# model keys. The token belongs to the seed user that `dev-loop.sh as` names. An override replaces the row's whole
+# config, so apiKeyRef and timeoutMs restate the bundle values.
+- id: flowleap-record-http
+  config:
+    baseURL: !!js process.env.FLOWLEAP_DEV_RECORD_URL
+    apiKeyRef: FLOWLEAP_RECORD_TOKEN
+    timeoutMs: 5000
+
+# The Default workspace is the run dir's workspace folder (the server's working directory), not ~/Documents.
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js process.cwd()

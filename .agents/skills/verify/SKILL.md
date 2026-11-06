@@ -39,6 +39,10 @@ The instance runs with `--profile flowleap-web`, the overlay [`apps/web/tests/pi
 
 After a Host change, stop and start again. For a client-only change, run `pnpm run dev:web --skip-build --no-serve` beside the instance: the server reloads the page when a bundle changes.
 
+### Which loop
+
+While you build, use the development loop ([flowleap/docs/dev-loop.md](../../../flowleap/docs/dev-loop.md)): `flowleap/dev-loop.sh up --os <flowleap-os checkout>` runs the Firm Record with the seed firm, the app from source and the client watchers, and `flowleap/dev-loop.sh as <seed handle>` acts as another seed user. Use `web.sh` for the proof of a PR with a live model turn and the founder's connector keys. The development loop and `web.sh` prove no firm: run the local firm of flowleap-os (`scripts/local-firm.sh`) for each test round, and for every change to the installer, the images, the sandbox, the sign-in, the per-attorney containers, the gateway or the updater.
+
 ## Doctor
 
 Run this first, and again when something looks wrong:
