@@ -2,6 +2,8 @@
 
 **Starts when** an office event is recorded on a matter. **Ends when** every proposal of the run is decided, the task type is at observe, the Ticket is cancelled, or a person works by hand (also when the client's AI wishes do not allow a run). **Record object:** the Ticket. **Tickets:** [#221](https://github.com/flowleap-ai/flowleap-harness/issues/221), with #135 to #138. Method: [the atlas README](README.md#the-method-for-every-phase).
 
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#3-the-task-model): each waiting state of this sheet opens the task that sheet 0 names.
+
 ## 1. The process today
 
 | # | Fact | Label and source |

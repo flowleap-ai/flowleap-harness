@@ -53,6 +53,10 @@ export const STATUS = {
     composed: ['run', 'Composed', 'Verfasst'], queued: ['run', 'Queued', 'In der Warteschlange'], drafted: ['run', 'Drafted', 'Als Entwurf'], send_requested: ['run', 'Sending', 'Wird gesendet'],
     retrying: ['run', 'Retrying', 'Neuer Versuch'], sent: ['ok', 'Sent', 'Gesendet'], refused: ['bad', 'Refused', 'Abgewiesen'], dead: ['bad', 'Not sent', 'Nicht gesendet'],
   },
+  task: {
+    assigned: ['wait', 'Assigned', 'Zugewiesen'], queued: ['wait', 'Open for the team', 'Offen für das Team'], escalated: ['wait', 'Escalated', 'Eskaliert'],
+    alarm: ['wait', 'Alarm', 'Alarm'], done: ['ok', 'Done', 'Erledigt'], cancelled: ['idle', 'Cancelled', 'Entfallen'],
+  },
 };
 
 const skill = path.resolve(import.meta.dirname, '..');

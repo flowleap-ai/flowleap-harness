@@ -72,3 +72,9 @@ Each atlas state shows one of the six shapes of [components.md](components.md#st
 | outbox | `sent` | ok | Sent | Gesendet |
 | outbox | `refused` | bad | Refused | Abgewiesen |
 | outbox | `dead` | bad | Not sent | Nicht gesendet |
+| task | `assigned` | wait | Assigned | Zugewiesen |
+| task | `queued` | wait | Open for the team | Offen für das Team |
+| task | `escalated` | wait | Escalated | Eskaliert |
+| task | `alarm` | wait | Alarm | Alarm |
+| task | `done` | ok | Done | Erledigt |
+| task | `cancelled` | idle | Cancelled | Entfallen |

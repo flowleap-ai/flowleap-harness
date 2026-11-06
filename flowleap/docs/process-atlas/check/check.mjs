@@ -1,10 +1,11 @@
-// Checks each transition table of machines.mjs against the method rules of the atlas README and
-// compares the generated table and Mermaid chart with the block between the markers in each sheet.
+// Checks each transition table of machines.mjs against the method rules of the atlas README, checks that every
+// state that waits for a person has a task (sheet 00), and compares the generated tables and Mermaid charts with
+// the blocks between the markers in each sheet.
 // Usage: node check.mjs (check), node check.mjs --write (rewrite the blocks). No dependencies.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { machines } from './machines.mjs'
+import { machines, taskKinds, tasks } from './machines.mjs'
 
 const atlas = join(dirname(fileURLToPath(import.meta.url)), '..')
 const write = process.argv.includes('--write')
@@ -51,17 +52,50 @@ function render(m, rows, count) {
   ].join('\n')
 }
 
-for (const [name, m] of Object.entries(machines)) {
-  const rows = expand(m)
-  const block = render(m, rows, check(name, m, rows))
-  const path = join(atlas, m.sheet)
+function checkTasks() {
+  for (const [name, m] of Object.entries(machines)) {
+    if (name === 'task') continue
+    const rows = expand(m)
+    const states = new Set(rows.flatMap(([f, to]) => [f, to]).filter((s) => s !== '[*]'))
+    const waits = [...states].filter((s) => !m.terminal.includes(s) && rows.some(([f, , , actor]) => f === s && /^person/.test(actor)))
+    for (const s of waits) if (!tasks[name]?.[s]) fail('tasks', `${name}.${s} waits for a person and has no task`)
+    for (const [s, kind] of Object.entries(tasks[name] ?? {})) {
+      if (!states.has(s)) fail('tasks', `${name}.${s} is not a state`)
+      else if (typeof kind === 'string' ? !taskKinds[kind] : !kind.none) fail('tasks', `${name}.${s} names no task kind and no reason`)
+    }
+  }
+  for (const name of Object.keys(tasks)) if (!machines[name]) fail('tasks', `${name} is not a machine`)
+  const used = new Set(Object.values(tasks).flatMap((m) => Object.values(m)).filter((k) => typeof k === 'string'))
+  for (const [kind, k] of Object.entries(taskKinds)) {
+    if (!['state', 'schedule', 'mention'].includes(k.from)) fail('tasks', `${kind} has no source`)
+    if ((k.from === 'state') !== used.has(kind)) fail('tasks', `${kind} is ${k.from === 'state' ? 'a state task that no state opens' : 'opened by a state but not marked from: state'}`)
+    if (!k.words || !k.owner || !k.due || !k.chain || !k.closes) fail('tasks', `${kind} lacks words, owner, due, chain or closes`)
+  }
+}
+
+function renderTasks() {
+  const kind = (k) => `**${taskKinds[k].words}** (\`${k}\`) | ${taskKinds[k].demo ? 'Yes' : 'Later'} | ${taskKinds[k].owner} | ${taskKinds[k].due} | ${taskKinds[k].chain} | ${taskKinds[k].closes}`
+  const mapped = Object.entries(tasks).flatMap(([name, m]) => Object.entries(m).map(([s, k]) => `| ${name} | \`${s}\` | ${typeof k === 'string' ? kind(k) : `no task: ${k.none} | | | | |`} |`))
+  const other = Object.keys(taskKinds).filter((k) => taskKinds[k].from !== 'state').map((k) => `| ${taskKinds[k].from} | | ${kind(k)} |`)
+  return ['| Machine | State | Task | First demo | Owner | Due | Escalation | Closes when |', '|---|---|---|---|---|---|---|---|', ...mapped, ...other].join('\n')
+}
+
+function sync(sheet, name, block) {
+  const path = join(atlas, sheet)
   const text = readFileSync(path, 'utf8')
   const open = `<!-- atlas:${name} -->\n`; const close = `\n<!-- /atlas:${name} -->`
   const a = text.indexOf(open); const b = text.indexOf(close)
-  if (a < 0 || b < a) { fail(name, `${m.sheet} has no ${open.trim()} block`); continue }
+  if (a < 0 || b < a) { fail(name, `${sheet} has no ${open.trim()} block`); return }
   const updated = text.slice(0, a + open.length) + block + text.slice(b)
   if (write) writeFileSync(path, updated)
-  else if (updated !== text) fail(name, `${m.sheet} differs from the generated table or chart; run node check.mjs --write`)
+  else if (updated !== text) fail(name, `${sheet} differs from the generated table or chart; run node check.mjs --write`)
 }
-if (!failed) console.log(`ok: ${Object.keys(machines).length} machines`)
+
+for (const [name, m] of Object.entries(machines)) {
+  const rows = expand(m)
+  sync(m.sheet, name, render(m, rows, check(name, m, rows)))
+}
+checkTasks()
+sync(machines.task.sheet, 'task-map', renderTasks())
+if (!failed) console.log(`ok: ${Object.keys(machines).length} machines, ${Object.keys(taskKinds).length} task kinds`)
 process.exit(failed ? 1 : 0)

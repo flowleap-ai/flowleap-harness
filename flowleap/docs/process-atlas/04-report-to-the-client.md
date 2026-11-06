@@ -2,6 +2,8 @@
 
 **Starts when** the run reads the client rules for the office event. **Ends when** the report is sent, is withdrawn, is not needed, is written by hand, is rejected, or is stale. **Record object:** the report proposal. **Tickets:** [#223](https://github.com/flowleap-ai/flowleap-harness/issues/223), with #217 (letter tool) and #233 (client rules and Outlook drafts, R3). Method: [the atlas README](README.md#the-method-for-every-phase).
 
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#3-the-task-model): each waiting state of this sheet opens the task that sheet 0 names.
+
 ## 1. The process today
 
 | # | Fact | Label and source |
