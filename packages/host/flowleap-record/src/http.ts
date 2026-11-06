@@ -1,6 +1,7 @@
 /**
  * Provider of `ctx.flowleapRecord` over HTTP with the runtime's record token as a bearer token: reads
- * `GET <baseURL>/records/api/matters/<fileNumber>/view`, reads the text layer of a document with
+ * `GET <baseURL>/records/api/matters/<fileNumber>/view`, reads the work of the token's person with
+ * `GET <baseURL>/records/api/my-work`, reads the text layer of a document with
  * `GET <baseURL>/records/api/documents/<sha256>/text`, and sends the run commands
  * `POST <baseURL>/records/api/tickets/<ticketId>/run-started`, `.../reports`, and `.../finish`, each with an
  * `Idempotency-Key` derived from the Ticket, the Session, and (for a report) the tool call, so a repeat is the same
@@ -18,8 +19,9 @@ import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { readBoundedText } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {
   DeadlineId, DocumentSha256, DocumentText, FlowleapRecord, LocalDate, MatterFileNumber, MatterView, MatterViewRefusal, MatterViewResult,
-  OfficeEventId, OutboxId, ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq,
-  ReportProposal, ReportReceipt, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, TicketId, ViewHash,
+  MyWork, MyWorkResult, OfficeEventId, OutboxId, PersonId, ProposalId, RecordCommandError, RecordCommandRefusal,
+  RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt,
+  TicketId, ViewHash,
 } from './types.ts'
 
 /** Plugin config. */
@@ -124,6 +126,43 @@ const matterViewSchema = zod.union([
     documents: zod.never().optional(),
   }).transform(({ recordSeq, viewHash, matter, deadlines }) => ({ recordSeq, viewHash, matter, deadlines })),
 ])
+
+/** A work item. The kind is any non-empty string, so a kind that this runtime does not know is still an item. */
+const workItem = zod.object({
+  id: zod.string().min(1),
+  kind: zod.string().min(1),
+  title: zod.string(),
+  why: zod.string(),
+  matter: zod.object({
+    fileNumber: zod.string().min(1).transform(value => brandString<MatterFileNumber>(value)),
+    title: zod.string(),
+  }).nullable(),
+  due: localDate.nullable(),
+  since: zod.iso.datetime({ offset: true }),
+  act: zod.string().min(1),
+})
+
+/** The Firm Record's answer to a work read. */
+const myWorkSchema = zod.object({
+  recordSeq: seq,
+  person: zod.object({
+    id: zod.string().min(1).transform(value => brandString<PersonId>(value)),
+    name: zod.string().nullable(),
+  }),
+  work: zod.array(workItem),
+  matters: zod.array(zod.object({
+    fileNumber: zod.string().min(1).transform(value => brandString<MatterFileNumber>(value)),
+    title: zod.string(),
+    client: zod.string(),
+    role: zod.enum(['responsible', 'team']),
+    state: zod.enum(['open', 'closed']),
+    nextDeadline: zod.object({
+      id: zod.string().min(1).transform(value => brandString<DeadlineId>(value)),
+      due: localDate,
+      state: zod.enum(['deadline_proposed', 'active']),
+    }).nullable(),
+  })),
+})
 
 const documentTextSchema = zod.object({ pages: zod.array(zod.string()) })
 
@@ -284,6 +323,28 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
     }
     const view: MatterView | undefined = exchange.text === undefined ? undefined : parseJson(exchange.text, matterViewSchema)
     return view ?? { error: 'invalid_answer' }
+  }
+
+  /**
+   * Read the work of the token's person from the Firm Record. The request has no person id: the Firm Record takes the
+   * person from the token.
+   * @param signal - ends the read; the method rejects when it fires.
+   * @returns the work, or the refusal. A 404 (a Firm Record without this path) is a `service_error`.
+   */
+  async myWork(signal: AbortSignal): Promise<MyWorkResult> {
+    if (this.origin === undefined) return { error: 'not_configured' }
+    const key = await this.key()
+    if (key === undefined) return { error: 'no_key' }
+    const exchange = await this.exchange(this.origin, 'my-work', key, undefined, signal)
+    if ('error' in exchange) return exchange
+    const refusal = viewRefusalOf(exchange.status)
+    if (refusal !== undefined) {
+      const error = refusal === 'not_found' ? 'service_error' : refusal
+      if (error === 'service_error') this.ctx.logger.warn(`flowleap-record: the Firm Record answered HTTP ${String(exchange.status)} to my-work`)
+      return { error }
+    }
+    const work: MyWork | undefined = exchange.text === undefined ? undefined : parseJson(exchange.text, myWorkSchema)
+    return work ?? { error: 'invalid_answer' }
   }
 
   /**

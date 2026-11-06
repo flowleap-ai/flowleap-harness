@@ -21,8 +21,8 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { nonEmpty } from '../src/run/args.ts'
 import * as run from '../src/run/index.ts'
 import type {
-  DocumentSha256, DocumentText, FlowleapRecord, MatterViewResult, OutboxId, ProposalId, RecordCommandError, RecordCommandResult, RecordSeq,
-  ReportProposal, ReportReceipt, RunFinish, RunFinishReceipt, RunStartReceipt, TicketId,
+  DocumentSha256, DocumentText, FlowleapRecord, MatterViewResult, MyWorkResult, OutboxId, ProposalId, RecordCommandError,
+  RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, RunFinish, RunFinishReceipt, RunStartReceipt, TicketId,
 } from '../src/types.ts'
 import { LETTER_SHA256, VIEW } from './fixtures/record-read/view.ts'
 
@@ -50,6 +50,7 @@ class RecordDouble extends Service implements FlowleapRecord {
   }
 
   async matterView(): Promise<MatterViewResult> { return VIEW }
+  async myWork(): Promise<MyWorkResult> { return { error: 'not_configured' } }
   async runStarted(): Promise<RecordCommandResult<RunStartReceipt>> { return { error: 'ticket_not_waking' } }
   async proposeReport(ticket: TicketId, command: ReportProposal): Promise<RecordCommandResult<ReportReceipt>> {
     this.reports.push({ ticket, command })
