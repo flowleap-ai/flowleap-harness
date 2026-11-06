@@ -2,6 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { LOCAL_DATE, REFUSAL_OUTPUT, SEAM_MESSAGES, STRING_OR_NULL } from './tool-output.ts'
 import type { MyWork, MyWorkRefusal } from './types.ts'
 
 /** Tool name. */
@@ -18,17 +19,11 @@ export interface RecordMyWorkError {
 export type RecordMyWorkResult = MyWork | RecordMyWorkError
 
 const MESSAGES: Record<MyWorkRefusal, string> = {
+  ...SEAM_MESSAGES,
   not_configured: 'This runtime has no Firm Record configured, so no work can be read.',
-  no_key: 'This runtime has no record token, so the Firm Record refuses every read.',
-  refused: 'The Firm Record refused the runtime\'s record token.',
-  unreachable: 'The Firm Record did not answer. Try again later.',
   service_error: 'The Firm Record answered with an error, or has no list of work. Try again later.',
   invalid_answer: 'The Firm Record answered with data that is not a list of work.',
 }
-
-const LOCAL_DATE = { type: 'string', description: 'YYYY-MM-DD' } as const
-
-const STRING_OR_NULL = { oneOf: [{ type: 'string' }, { type: 'null' }] } as const
 
 const OUTPUT_SCHEMA = {
   oneOf: [
@@ -104,14 +99,7 @@ const OUTPUT_SCHEMA = {
         },
       },
     },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        error: { type: 'string', required: true },
-        message: { type: 'string', required: true },
-      },
-    },
+    REFUSAL_OUTPUT,
   ],
 } as const
 
