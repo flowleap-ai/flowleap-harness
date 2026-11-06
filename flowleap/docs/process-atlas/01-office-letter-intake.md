@@ -147,7 +147,7 @@ The move of a filed document is a correction on `filed`; it starts the `stale` a
 | `intake.escalation` | ordered list of roles or persons | `['formalities', 'partner']` | Firm size and roles. After the last entry the item is an alarm, not a silent wait |
 | `intake.acceptFrom` | `'firm-addresses-authenticated'` | `'firm-addresses-authenticated'` | Fixed in R1 (F7); a matter address per matter comes in R3 (design section 6.1) |
 | `intake.unreadableTo` | `'forwarder' \| 'formalities'` | `'forwarder'` | Who rescans |
-| `intake.persons` | list of Entra object ids, validated at load | none: the firm must set it. A missing or empty list stops the Firm Record, and nothing falls back to the whole firm | Who works the intake queue and reads letters before they are filed. From R2 it is an Entra group ([#227](https://github.com/flowleap-ai/flowleap-harness/issues/227)) |
+| `intake.persons` | list of person ids, validated at load: Entra object ids, or `admin`, the local admin of the sign-in proxy on a firm without Entra | none: the firm must set it. A missing or empty list stops the Firm Record, and nothing falls back to the whole firm | Who works the intake queue and reads letters before they are filed. From R2 it is an Entra group ([#227](https://github.com/flowleap-ai/flowleap-harness/issues/227)) |
 
 The rule "the model never lowers a kind" and the content-duplicate fields (application number, form, date) are not settings. They protect the deadline, so a firm cannot turn them off.
 
