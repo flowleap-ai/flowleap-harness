@@ -81,6 +81,23 @@ describe('record_read', () => {
       .toContain('A Firm Record before R1 holds none of clientRules, officeEvents, tickets, and documents')
   })
 
+  it('gives the model a view whose responsible attorney has no display name yet and whose letter has no code and date yet, and says what each null means', async () => {
+    const [event] = VIEW.officeEvents
+    const view: MatterViewResult = {
+      ...VIEW,
+      matter: { ...VIEW.matter, responsible: null },
+      officeEvents: [{ ...event!, code: null, documentDate: null, state: 'unclassified' }],
+    }
+    const { ctx } = await host(view)
+    const result = await call(ctx, 'FL-2026-0001')
+    expect(result.isError).toBe(false)
+    expect(JSON.parse(text(result.content))).toEqual(view)
+    const description = ctx.tools.schemas().find(candidate => candidate.name === 'record_read')?.description
+    expect(description).toContain('responsible is null while the responsible attorney has no display name yet')
+    expect(description).toContain('every matter has a responsible attorney')
+    expect(description).toContain('code and documentDate are null')
+  })
+
   it('passes the call signal to the seam', async () => {
     const { ctx, record } = await host()
     const controller = new AbortController()
