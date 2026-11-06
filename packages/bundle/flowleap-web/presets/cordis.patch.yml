@@ -1,4 +1,4 @@
-# Override of the upstream `cordis` preset, Creator mode
+# Override of the upstream Creator mode preset
 # (packages/bundle/web-app/presets/cordis.patch.yml): a full copy of its
 # `config`, because an override replaces the whole `config` and a patch cannot
 # target a row inside a preset's plugin list. Only the `tool-web` row differs.
