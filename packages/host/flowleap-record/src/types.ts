@@ -58,8 +58,11 @@ export interface MatterSummary {
   readonly fileNumber: MatterFileNumber
   readonly title: string
   readonly client: string
-  /** The responsible attorney. */
-  readonly responsible: string
+  /**
+   * The display name of the responsible attorney; `null` while that person has no display name, as before the
+   * firm's sign-in gives names. A matter always has a responsible attorney; the view never names one by the sign-in.
+   */
+  readonly responsible: string | null
   readonly state: MatterState
 }
 
@@ -113,10 +116,10 @@ export interface OfficeEventView {
   readonly id: OfficeEventId
   /** The record seq of the event that recorded it. */
   readonly seq: RecordSeq
-  /** The versioned event code, such as `EPO:R71(3)`. */
-  readonly code: string
-  /** The date the document bears. */
-  readonly documentDate: LocalDate
+  /** The versioned event code, such as `EPO:R71(3)`; `null` for a letter the intake filed before a person or reader decided its code. */
+  readonly code: string | null
+  /** The date the document bears; `null` for a letter the intake filed before its date was read. */
+  readonly documentDate: LocalDate | null
   /** The application number; `null` for an event that a person recorded without a document. */
   readonly applicationNumber: string | null
   /** The document of the event; `null` for an event that a person recorded without a document. */
