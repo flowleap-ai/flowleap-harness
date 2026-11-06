@@ -123,7 +123,7 @@ The move of a filed document is a correction on `filed`; it starts the `stale` a
 **Who reads a letter before it is filed** (founder decision of 2026-11-06, [#324](https://github.com/flowleap-ai/flowleap-harness/issues/324)). Before a document is `filed`, no matter's wall applies to it, so the Firm Record applies this rule to every read of it: the intake list and card, its text, its bytes and its readings.
 
 - Only the person who forwarded its mail and the intake persons (setting `intake.persons`) read it. The team of a proposed matter does not read it until it is filed. No agent reads it.
-- When the intake proposes a matter for it (`match_proposed`, and each matter of `ambiguous`), a person who is screened from that matter does not read it. This applies to the intake persons and to the forwarder too. With no proposed matter, every intake person reads it.
+- When the intake proposes a matter for it (`match_proposed`, and each matter of `ambiguous`), a person who is screened from that matter does not read it, also after that proposal is closed. This applies to the intake persons and to the forwarder too. With no proposed matter, every intake person reads it.
 - A person who cannot read a document cannot decide it: no match and no "not relevant".
 - After `filed`, the wall of its matter applies.
 - A wrong proposal can hide a letter from a person who may read it. The letter never leaks to a person outside the rule.
