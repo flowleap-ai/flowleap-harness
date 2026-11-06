@@ -93,7 +93,7 @@ describe('record_my_work', () => {
       { ...MY_WORK, work: [{ ...item!, why: undefined }] },
       { ...MY_WORK, work: [{ ...item!, matter: undefined }] },
     ]) {
-      const { ctx } = await host(broken as unknown as MyWorkResult)
+      const { ctx } = await host(JSON.parse(JSON.stringify(broken)) as MyWorkResult)
       const result = await call(ctx)
       expect(result.isError).toBe(true)
       expect(text(result.content)).toContain('returned invalid output')
