@@ -76,6 +76,17 @@ describe('flowleapRecord.matterView over HTTP', () => {
     expect(double.paths).toEqual(['/records/api/matters/FL-2026-0001/view'])
   })
 
+  it('reads a view whose responsible attorney has no display name yet and whose letter the intake filed before its code and date', async () => {
+    const [event] = VIEW.officeEvents
+    const view = {
+      ...VIEW,
+      matter: { ...VIEW.matter, responsible: null },
+      officeEvents: [{ ...event!, code: null, documentDate: null, state: 'unclassified' }],
+    }
+    const double = await record(json(200, view))
+    expect(await read(await provider({ url: double.url, key: TOKEN }))).toEqual(view)
+  })
+
   it('reads the view of an R0 Firm Record without the R1 fields, and refuses a view with only some of them', async () => {
     const { recordSeq, viewHash, matter, deadlines } = VIEW
     const r0 = { recordSeq, viewHash, matter, deadlines }
