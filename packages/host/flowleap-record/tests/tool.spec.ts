@@ -94,7 +94,7 @@ describe('record_read', () => {
     expect(JSON.parse(text(result.content))).toEqual(view)
     const description = ctx.tools.schemas().find(candidate => candidate.name === 'record_read')?.description
     expect(description).toContain('responsible is null while the responsible attorney has no display name yet')
-    expect(description).toContain('every matter has a responsible attorney')
+    expect(description).toContain('Every matter has a responsible attorney')
     expect(description).toContain('code and documentDate are null')
   })
 
