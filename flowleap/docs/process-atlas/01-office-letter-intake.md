@@ -2,7 +2,7 @@
 
 **Starts when** a mail arrives in the AI mailbox. **Ends when** each document of the mail is filed on one matter, is a duplicate, or is not relevant. **Record object:** the document. **Ticket:** [#220](https://github.com/flowleap-ai/flowleap-harness/issues/220). Method: [the atlas README](README.md#the-method-for-every-phase).
 
-**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#6-how-a-letter-reaches-its-matter): the document also arrives through the MyEPO API, scan-to-email and the Fristen mailbox, and the forward is the fallback; a person files an unreadable scan with the page image in view; a MyEPO communication files on its two EPO keys. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#5-the-demo-path-step-by-step): the document also arrives by scan-to-email, and later through the MyEPO API and the Fristen mailbox, and the forward is the fallback; a person files an unreadable scan with the page image in view; a MyEPO communication files on its two EPO keys. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
 
 ## 1. The process today
 

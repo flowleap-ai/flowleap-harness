@@ -53,10 +53,6 @@ export const STATUS = {
     composed: ['run', 'Composed', 'Verfasst'], queued: ['run', 'Queued', 'In der Warteschlange'], drafted: ['run', 'Drafted', 'Als Entwurf'], send_requested: ['run', 'Sending', 'Wird gesendet'],
     retrying: ['run', 'Retrying', 'Neuer Versuch'], sent: ['ok', 'Sent', 'Gesendet'], refused: ['bad', 'Refused', 'Abgewiesen'], dead: ['bad', 'Not sent', 'Nicht gesendet'],
   },
-  arrival: {
-    expected: ['wait', 'Letter not received', 'Schreiben nicht eingegangen'], received: ['ok', 'Received', 'Eingegangen'],
-    mismatch: ['stale', 'Differs from the Register', 'Weicht vom Register ab'], not_for_firm: ['idle', 'Not for the firm', 'Nicht für die Kanzlei'],
-  },
   task: {
     assigned: ['wait', 'Assigned', 'Zugewiesen'], queued: ['wait', 'Open for the team', 'Offen für das Team'], escalated: ['wait', 'Escalated', 'Eskaliert'],
     alarm: ['wait', 'Alarm', 'Alarm'], done: ['ok', 'Done', 'Erledigt'], cancelled: ['idle', 'Cancelled', 'Entfallen'],

@@ -74,10 +74,10 @@ function checkTasks() {
 }
 
 function renderTasks() {
-  const kind = (k) => `**${taskKinds[k].words}** (\`${k}\`) | ${taskKinds[k].owner} | ${taskKinds[k].due} | ${taskKinds[k].chain} | ${taskKinds[k].closes}`
-  const mapped = Object.entries(tasks).flatMap(([name, m]) => Object.entries(m).map(([s, k]) => `| ${name} | \`${s}\` | ${typeof k === 'string' ? kind(k) : `no task: ${k.none} | | | |`} |`))
+  const kind = (k) => `**${taskKinds[k].words}** (\`${k}\`) | ${taskKinds[k].demo ? 'Yes' : 'Later'} | ${taskKinds[k].owner} | ${taskKinds[k].due} | ${taskKinds[k].chain} | ${taskKinds[k].closes}`
+  const mapped = Object.entries(tasks).flatMap(([name, m]) => Object.entries(m).map(([s, k]) => `| ${name} | \`${s}\` | ${typeof k === 'string' ? kind(k) : `no task: ${k.none} | | | | |`} |`))
   const other = Object.keys(taskKinds).filter((k) => taskKinds[k].from !== 'state').map((k) => `| ${taskKinds[k].from} | | ${kind(k)} |`)
-  return ['| Machine | State | Task | Owner | Due | Escalation | Closes when |', '|---|---|---|---|---|---|---|', ...mapped, ...other].join('\n')
+  return ['| Machine | State | Task | First demo | Owner | Due | Escalation | Closes when |', '|---|---|---|---|---|---|---|---|', ...mapped, ...other].join('\n')
 }
 
 function sync(sheet, name, block) {

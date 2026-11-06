@@ -2,7 +2,7 @@
 
 **Starts when** a filed document is an office letter. **Ends when** the deadline is active and the docket lifecycle of R2 takes it over; or an attorney decides that the letter records no event, that the event sets no deadline, or that a disputed deadline closes without its act; or the deadline is stale; or the event has no period. **Record objects:** the office event and its deadline proposal. **Tickets:** [#220](https://github.com/flowleap-ai/flowleap-harness/issues/220), with #219 (R0 confirm). Method: [the atlas README](README.md#the-method-for-every-phase).
 
-**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#6-how-a-letter-reaches-its-matter): a person enters the code and the date of a scan by hand; the register check records an office event from the register data, marked "letter not received". Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#5-the-demo-path-step-by-step): a person enters the code and the date of a scan by hand. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
 
 ## 1. The process today
 
@@ -49,7 +49,6 @@ It has **14 states and 24 transitions**, plus the start.
 | start | `awaiting_code` | A filed document is an office letter | intake | Document kind with its source and span |
 | `awaiting_code` | `recorded` | Both readers agree: the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image | intake | Form-number span, date span, code table version, the model reading (`office-event/observed`) |
 | `awaiting_code` | `recorded` | A person enters the code and the date from the page image of a scan | person | Page image hash, the Decision (`office-event/recorded`) |
-| start | `recorded` | The register check finds a communication that the EPO dispatched and the firm has not received; the event is recorded from the register data with the mark "letter not received" | register check | OPS register event, dispatch date, response hash (`office-event/observed` with the source register) |
 | `awaiting_code` | `code_proposed` | No form number, the two readers differ, or only one reader has a result | intake | Both readings: quoted spans and the model reading |
 | `code_proposed` | `recorded` | A person accepts or changes the code and the date | person | The proposal and the Decision (`office-event/recorded`) |
 | `code_proposed` | `no_event` | An attorney decides that the letter records no office event, with a reason | person (attorney) | Reason, the document |
@@ -80,7 +79,6 @@ stateDiagram-v2
     [*] --> awaiting_code: a filed document is an office letter
     awaiting_code --> recorded: both readers agree the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image
     awaiting_code --> recorded: a person enters the code and the date from the page image of a scan
-    [*] --> recorded: the register check finds a communication that the EPO dispatched and the firm has not received, the event is recorded from the register data with the mark "letter not received"
     awaiting_code --> code_proposed: no form number, the two readers differ, or only one reader has a result
     code_proposed --> recorded: a person accepts or changes the code and the date
     code_proposed --> no_event: an attorney decides that the letter records no office event, with a reason

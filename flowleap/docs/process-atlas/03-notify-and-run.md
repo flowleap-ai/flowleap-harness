@@ -2,7 +2,7 @@
 
 **Starts when** an office event is recorded on a matter. **Ends when** every proposal of the run is decided, the task type is at observe, the Ticket is cancelled, or a person works by hand (also when the client's AI wishes do not allow a run). **Record object:** the Ticket. **Tickets:** [#221](https://github.com/flowleap-ai/flowleap-harness/issues/221), with #135 to #138. Method: [the atlas README](README.md#the-method-for-every-phase).
 
-**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#6-how-a-letter-reaches-its-matter): a recorded office event opens its Ticket only when its letter is filed. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
+**Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#3-the-task-model): each waiting state of this sheet opens the task that sheet 0 names.
 
 ## 1. The process today
 
@@ -43,7 +43,7 @@ It has **11 states and 24 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
-| start | `opened` | A recorded office event whose letter is filed opens the Ticket of its application and day | Work router | Office event seq, the filed document; key application, day and pass |
+| start | `opened` | A recorded office event opens the Ticket of its application and day | Work router | Office event seq; key application, day and pass |
 | `opened` | `routed` | The responsible attorney, or the first present deputy whom the matter wall admits, is found | Work router | Matter, wall check, the absence entry used |
 | `opened` | `no_person` | Nobody responsible is present, or no present deputy is inside the wall | Work router | Matter, absence entries, wall check |
 | `no_person` | `routed` | The partner assigns a person whom the wall admits | person | Assignment, wall check |
@@ -67,7 +67,7 @@ End states: `observed`, `by_hand`, `decided`, `cancelled`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> opened: a recorded office event whose letter is filed opens the Ticket of its application and day
+    [*] --> opened: a recorded office event opens the Ticket of its application and day
     opened --> routed: the responsible attorney, or the first present deputy whom the matter wall admits, is found
     opened --> no_person: nobody responsible is present, or no present deputy is inside the wall
     no_person --> routed: the partner assigns a person whom the wall admits

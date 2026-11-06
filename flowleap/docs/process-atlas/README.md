@@ -1,6 +1,6 @@
 # The firm process atlas
 
-**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for phase R1.5: one task model, the matter dossier and My work, collaboration, and letters that arrive without a person.
+**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for the first demo of phase R1.5: one task model, My work and the matter dossier, and a letter that arrives without a person.
 
 **Goal.** The founder's words of 2026-11-04: "Each step, even a small step, is a process, and a process has a state machine." Each firm works differently, but FlowLeap must know each process before it builds it, and the AI-native way must do the work that people did by hand in the PATORG way. The atlas holds one sheet per process. Each sheet gives the process today from primary sources, the actors, the state machine, the firm variation points, the AI-native redesign, the map to the code, and the open questions for the pilot attorney.
 
@@ -19,7 +19,7 @@
 
 | # | Sheet | Starts when | Ends when |
 |---|---|---|---|
-| 0 | [The connected flow](00-connected-flow.md) | An office communication exists for a matter, a schedule falls due, or a person mentions a colleague | Every task that the item opened is done or cancelled |
+| 0 | [The connected flow](00-connected-flow.md) | An office letter for a matter arrives, or a schedule falls due | Every task that the item opened is done or cancelled |
 | 1 | [Office letter intake](01-office-letter-intake.md) | A mail arrives in the AI mailbox | Each document of the mail is filed on one matter, is a duplicate, is replaced by a better scan, or is not relevant |
 | 2 | [Office event to deadline](02-office-event-to-deadline.md) | A filed document is an office letter | The deadline is active, stale, or closed without its act; or an attorney decides that there is no event or no deadline; or the event has no period |
 | 3 | [Notify and run](03-notify-and-run.md) | An office event is recorded on a matter | Every proposal of the run is decided, the task type is at observe, the Ticket is cancelled, or a person works by hand |
@@ -55,7 +55,7 @@ The office event opens the Ticket at once. The run does not wait for the deadlin
 
 ## The shared states
 
-Eight record objects carry the state across the sheets. Each sheet adds only its own states.
+Seven record objects carry the state across the sheets. Each sheet adds only its own states.
 
 | Object | States | Owner | Used by sheets |
 |---|---|---|---|
@@ -66,7 +66,6 @@ Eight record objects carry the state across the sheets. Each sheet adds only its
 | **Ticket** | `opened`, `no_person`, `routed`, `observed`, `by_hand`, `waking`, `running`, `run_failed`, `proposals_ready`, `decided`, `cancelled` | Work router (sheet 3) | 3, 4, 5 |
 | **Outbound message** | `composed`, `refused`, `queued`, `drafted`, `retrying`, `send_requested`, `sent`, `dead` | Outbox (sheet 5) | 3, 5 |
 | **Task** | `assigned`, `queued`, `escalated`, `alarm`, `done`, `cancelled` | Firm Record (sheet 0) | 0, and every waiting state of 1 to 5 |
-| **Expected communication** | `expected`, `received`, `mismatch`, `not_for_firm` | Register check (sheet 0) | 0, 1, 2 |
 
 A Decision is not a state of its own. It is the record event that moves a Proposal from `proposed` to `accepted`, `edited` or `rejected`, with the person, the time, the reason, the record position that the person saw, and for a guarded change the independent check (design section 4.3).
 
@@ -130,7 +129,7 @@ All old counts are INFERRED and the pilot must measure them. R1 costs the PAFA t
 
 | Sheet | R1 ticket | Other tickets | What no ticket covers yet |
 |---|---|---|---|
-| 0 The connected flow | none yet (phase R1.5) | #154 (MyEPO source, moved from R3), #227 (People service), #325 (scan filing), #136 (Ticket) | The task, the comment and the expected communication; My work and the dossier; the register check; the receipt reply; the Graph name sync; sign-out and the account picker |
+| 0 The connected flow | none yet (phase R1.5) | #227 (People service), #325 (scan filing), #326 (calendar), #294 (seed dates), #154 (MyEPO source, later) | The task; My work and the dossier; scan-to-email and OCR; the Graph name sync; sign-out and the account picker; search |
 | 1 Office letter intake | [#220](https://github.com/flowleap-ai/flowleap-harness/issues/220) | #31 (vault for the Graph secret), #232 (e-file, R3) | The unreadable scan, the kind proposal, the content duplicate, the decide-within escalation and its end alarm, the move of a filed document with the wall incident, the sender authentication |
 | 2 Office event to deadline | [#220](https://github.com/flowleap-ai/flowleap-harness/issues/220) (engine proposes in observe mode) | #219 (R0 confirm), #226 (disputes, R2), #225 (DPMA delivery, R2) | `office-event/observed` and the intake actor; the manual deadline with a second person; the attorney-only end without a deadline; `stale`, `disputed` and `closed_without_act`; the seen seq; the F1 decision |
 | 3 Notify and run | [#221](https://github.com/flowleap-ai/flowleap-harness/issues/221) | #135 to #138 (Decision, Ticket, Needs review, run limit) | The client's AI wishes and the provider contract before a run; deputies, the wall check and absence; the routing when nobody is present and its end alarm; the second-pass run; the attorney's recorded deadline check |
