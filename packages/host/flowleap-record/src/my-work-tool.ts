@@ -115,8 +115,9 @@ const DESCRIPTION =
   + 'applicationNumber is null when the record holds none. Use the tool when the person '
   + 'asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The '
   + 'lists hold only what this person may see. A null name means that the person has no display name yet: do not say that '
-  + 'the person has no name or does not exist. A runtime never lists a letter that is not filed yet, so do not say that '
-  + 'no letter waits to be filed. The result names recordSeq, the position of the record log the lists were read at. The '
+  + 'the person has no name or does not exist. A letter in the Intake that waits to be filed is a file-letter item when '
+  + 'this person forwarded it or is an intake person; you cannot read such a letter before it is filed. The result names '
+  + 'recordSeq, the position of the record log the lists were read at. The '
   + 'read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber.'
 
 /**

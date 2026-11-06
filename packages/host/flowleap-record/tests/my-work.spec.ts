@@ -145,7 +145,7 @@ describe('record_my_work', () => {
     expect(schema?.description).toContain('no display name yet')
     expect(schema?.description).toContain('record_read')
     expect(schema?.description).toContain('also for a kind that you do not know')
-    expect(schema?.description).toContain('never lists a letter that is not filed yet')
+    expect(schema?.description).toContain('you cannot read such a letter before it is filed')
     expect(JSON.stringify(schema?.parameters)).not.toContain('person')
     expect(ctx.tools.get('record_my_work')?.presentCall?.({}))
       .toMatchObject({ card: 'generic', kind: 'read', title: 'Read my work' })
