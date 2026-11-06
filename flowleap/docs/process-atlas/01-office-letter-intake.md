@@ -120,6 +120,15 @@ The move of a filed document is a correction on `filed`; it starts the `stale` a
 - **Mail from outside the firm:** in R1 the AI mailbox accepts mail only from firm addresses. The From header can be set by any sender (fact 1.15), so the intake also needs the Exchange result that the mail was authenticated inside the organization. A mail without it is stored, gets no reply, and goes to the formalities queue [INFERRED from F7 and design section 6.3; questions Q1.3 and Q1.10].
 - **The same letter forwarded twice:** the second document is a `duplicate` by its hash. Its forwarder gets a short message with the link to the first result ([sheet 5](05-firm-internal-message.md)). A rescan or a print of the same letter has another hash, so the intake compares the application number, the form and the date of the letter too; a match there is `duplicate_proposed`, and a person decides it. A `duplicate` by hash has the same bytes as the first document, so a correction applies to the first document, not to the duplicate.
 
+**Who reads a letter before it is filed** (founder decision of 2026-11-06, [#324](https://github.com/flowleap-ai/flowleap-harness/issues/324)). Before a document is `filed`, no matter's wall applies to it, so the Firm Record applies this rule to every read of it: the intake list and card, its text, its bytes and its readings.
+
+- Only the person who forwarded its mail and the intake persons (setting `intake.persons`) read it. The team of a proposed matter does not read it until it is filed. No agent reads it.
+- When the intake proposes a matter for it (`match_proposed`, and each matter of `ambiguous`), a person who is screened from that matter does not read it. This applies to the intake persons and to the forwarder too. With no proposed matter, every intake person reads it.
+- A person who cannot read a document cannot decide it: no match and no "not relevant".
+- After `filed`, the wall of its matter applies.
+- A wrong proposal can hide a letter from a person who may read it. The letter never leaks to a person outside the rule.
+- The screen of a matter is the list of persons that the wall keeps out of the matter, also when a client group admits them (design section 4.4). In R1 the Firm Record keeps the screen of each matter. A person of the matter's team records the whole list with a reason (`matter/screen-recorded`), and no screened person can be in the team. From R2, the walls come from Entra groups ([#227](https://github.com/flowleap-ai/flowleap-harness/issues/227)), and the screens and `intake.persons` move there.
+
 ## 4. Firm variation points
 
 | Setting | Type | Default | Why firms differ |
@@ -134,6 +143,7 @@ The move of a filed document is a correction on `filed`; it starts the `stale` a
 | `intake.escalation` | ordered list of roles or persons | `['formalities', 'partner']` | Firm size and roles. After the last entry the item is an alarm, not a silent wait |
 | `intake.acceptFrom` | `'firm-addresses-authenticated'` | `'firm-addresses-authenticated'` | Fixed in R1 (F7); a matter address per matter comes in R3 (design section 6.1) |
 | `intake.unreadableTo` | `'forwarder' \| 'formalities'` | `'forwarder'` | Who rescans |
+| `intake.persons` | list of Entra object ids, validated at load | none: the firm must set it. A missing or empty list stops the Firm Record, and nothing falls back to the whole firm | Who works the intake queue and reads letters before they are filed. From R2 it is an Entra group ([#227](https://github.com/flowleap-ai/flowleap-harness/issues/227)) |
 
 The rule "the model never lowers a kind" and the content-duplicate fields (application number, form, date) are not settings. They protect the deadline, so a firm cannot turn them off.
 
@@ -199,7 +209,7 @@ type IntakeCommand =
   | { c: 'reopen'; from: NotRelevant; by: PersonId; reason: string }
 ```
 
-New record events: `document/stored`, `document/duplicate`, `document/duplicate-proposed`, `document/unreadable`, `document/kind-proposed`, `document/read`, `document/match-proposed`, `document/matched`, `document/filed`, `document/moved`, `document/not-relevant`, `document/reopened`, `wall/incident-recorded`. The invariants for the release gate: `intake.exact-key-only-from-key-fields`, `intake.no-agent-decides-match`, `intake.model-never-lowers-kind`, `intake.not-relevant-office-letter-needs-attorney`, `intake.duplicate-by-hash`.
+New record events: `document/stored`, `document/duplicate`, `document/duplicate-proposed`, `document/unreadable`, `document/kind-proposed`, `document/read`, `document/match-proposed`, `document/matched`, `document/filed`, `document/moved`, `document/not-relevant`, `document/reopened`, `wall/incident-recorded`, `matter/screen-recorded`. The invariants for the release gate: `intake.unfiled-letter-readers`, `intake.exact-key-only-from-key-fields`, `intake.no-agent-decides-match`, `intake.model-never-lowers-kind`, `intake.not-relevant-office-letter-needs-attorney`, `intake.duplicate-by-hash`.
 
 ## 7. Open questions for the pilot attorney
 
