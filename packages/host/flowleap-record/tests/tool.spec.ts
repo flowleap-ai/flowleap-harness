@@ -22,6 +22,7 @@ class RecordDouble extends Service implements FlowleapRecord {
     this.asked.push(fileNumber)
     return this.result
   })
+  readonly myWork = async () => ({ error: 'not_configured' as const })
   readonly runStarted = async () => ({ error: 'not_configured' as const })
   readonly proposeReport = async () => ({ error: 'not_configured' as const })
   readonly finishRun = async () => ({ error: 'not_configured' as const })

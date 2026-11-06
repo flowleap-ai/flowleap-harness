@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-record",
-  "description": "The Firm Record of flowleap-os in the harness: the flowleapRecord seam (one matter's view with its record position), its http provider, and the read-only record_read tool",
+  "description": "The Firm Record of flowleap-os in the harness: the flowleapRecord seam (one matter's view with its record position, and the work of the token's person), its http provider, and the read-only record_read and record_my_work tools",
   "version": "0.2.2-rc.1",
   "publishConfig": {
     "access": "public"

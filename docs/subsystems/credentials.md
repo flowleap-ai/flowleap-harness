@@ -494,6 +494,13 @@ Service Definition of the seam: the Firm Record as a runtime uses it.
 matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>
 
 /**
+ * Read the work of the person that the runtime's record token names. The call has no person argument.
+ * @param signal - ends the read; the provider rejects when it fires.
+ * @returns the work and the matters of the person at the record position they were read at, or the refusal.
+ */
+myWork(signal: AbortSignal): Promise<MyWorkResult>
+
+/**
  * Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.
  * @param ticket - the Ticket of the wake.
  * @param command - the Session of the run chat.

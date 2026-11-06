@@ -1,7 +1,8 @@
 /**
  * Vocabulary of the `flowleapRecord` seam: one matter's view as the Firm Record of flowleap-os answers it, with the
- * record position the view was read at, the three run commands of a Ticket run (run started, report proposed, run
- * finished), and why a view or a command is refused. Types only.
+ * record position the view was read at, the work of the token's person (work items and matters), the three run
+ * commands of a Ticket run (run started, report proposed, run finished), and why a read or a command is refused.
+ * Types only.
  * @module @deepseek-ai/dsh-flowleap-record/types
  */
 
@@ -12,8 +13,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /**
-     * The Firm Record as a runtime uses it: one matter's view, and the run commands of a Ticket routed to the
-     * runtime's person. A runtime proposes and reports; it never writes a decision.
+     * The Firm Record as a runtime uses it: one matter's view, the work of the runtime's person, and the run commands
+     * of a Ticket routed to the runtime's person. A runtime proposes and reports; it never writes a decision.
      */
     flowleapRecord: FlowleapRecord
   }
@@ -196,6 +197,92 @@ export type MatterViewRefusal =
 /** The view, or why it is not available; never a made-up view. */
 export type MatterViewResult = MatterView | { readonly error: MatterViewRefusal }
 
+/** Id of a person in the Firm Record: an Entra object ID, or `admin` for the local administrator. */
+export type PersonId = Branded<'PersonId'>
+
+/** The person that the runtime's record token names. */
+export interface MyWorkPerson {
+  readonly id: PersonId
+  /** The display name; `null` while the person has no display name yet. */
+  readonly name: string | null
+}
+
+/** How the person stands in a matter. */
+export type MatterRole = 'responsible' | 'team'
+
+/** The earliest proposed or active deadline of a matter. */
+export interface NextDeadline {
+  readonly id: DeadlineId
+  readonly due: LocalDate
+  /** Here a deadline is `deadline_proposed` (a person has not confirmed it) or `active`. */
+  readonly state: 'deadline_proposed' | 'active'
+}
+
+/** One matter inside the person's walls. */
+export interface MyWorkMatter {
+  readonly fileNumber: MatterFileNumber
+  readonly title: string
+  readonly client: string
+  readonly role: MatterRole
+  readonly state: MatterState
+  /** `null` when the matter has no proposed or active deadline. */
+  readonly nextDeadline: NextDeadline | null
+}
+
+/** The matter of a work item, with the title that a person reads. */
+export interface WorkMatter {
+  readonly fileNumber: MatterFileNumber
+  readonly title: string
+}
+
+/** The kinds of work that the Firm Record lists today. A later Firm Record may list more; see {@link WorkKind}. */
+export type KnownWorkKind = 'confirm-deadline' | 'decide-office-event' | 'decide-work' | 'file-letter'
+
+/**
+ * The kind of a work item. The union is merge-extensible: a Firm Record that has new features lists new kinds without a
+ * change of the runtime, so any string is a kind. Code that switches on a kind handles the {@link KnownWorkKind}
+ * literals and treats every other kind through the common fields of {@link WorkItem}, never as an error.
+ */
+export type WorkKind = KnownWorkKind | (string & {})
+
+/** One thing that waits for the person. Every kind has these fields, so a reader needs no knowledge of the kind. */
+export interface WorkItem {
+  /** `<kind>:<object id>`. */
+  readonly id: string
+  readonly kind: WorkKind
+  /** What the person does, in plain words. */
+  readonly title: string
+  /** Why this work is the person's, in plain words. */
+  readonly why: string
+  /** `null` when the work has no matter that the person may see, such as a letter with no proposed matter. */
+  readonly matter: WorkMatter | null
+  /** The legal date when there is one; otherwise `null`. */
+  readonly due: LocalDate | null
+  /** When the object began to wait for the person, as an ISO 8601 timestamp. */
+  readonly since: string
+  /** The address in the Records app where the person acts, such as `deadline/<id>`, `work/<id>`, or `intake/waiting/<sha256>`. */
+  readonly act: string
+}
+
+/**
+ * The work of the person that the runtime's record token names, at one record position. It holds only what that person
+ * may see. The runtime never gives a person id: the token names the person.
+ */
+export interface MyWork {
+  readonly recordSeq: RecordSeq
+  readonly person: MyWorkPerson
+  /** Every kind of work that waits for the person, by due date (no date last), then by the time it began to wait. */
+  readonly work: WorkItem[]
+  /** The matters inside the person's walls, the matter with the nearest due date first; the context beside `work`. */
+  readonly matters: MyWorkMatter[]
+}
+
+/** Why the work is not available; the same reasons as for a view, except that no matter is looked up. */
+export type MyWorkRefusal = Exclude<MatterViewRefusal, 'not_found'>
+
+/** The work, or why it is not available; never made-up work. */
+export type MyWorkResult = MyWork | { readonly error: MyWorkRefusal }
+
 /**
  * A place in the page text of a document, as a run names it. The Firm Record finds the quote on the page and stores the
  * offsets itself, so a run sends no offsets.
@@ -351,6 +438,12 @@ export interface FlowleapRecord {
    * @returns the view at the record position it was read at, or the refusal.
    */
   matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>
+  /**
+   * Read the work of the person that the runtime's record token names. The call has no person argument.
+   * @param signal - ends the read; the provider rejects when it fires.
+   * @returns the work and the matters of the person at the record position they were read at, or the refusal.
+   */
+  myWork(signal: AbortSignal): Promise<MyWorkResult>
   /**
    * Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.
    * @param ticket - the Ticket of the wake.

@@ -1049,6 +1049,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   BudgetMonth: 'the month\'s spend and budget from the model gateway are owned by packages/host/flowleap-budget/README.md',
   MatterFileNumber: 'the matter file number of the Firm Record is owned by packages/host/flowleap-record/README.md',
   MatterViewResult: 'the matter view and its refusals of the Firm Record are owned by packages/host/flowleap-record/README.md',
+  MyWorkResult: 'the work of the token\'s person and its refusals are owned by packages/host/flowleap-record/README.md',
   TicketId: 'the Ticket id of the Firm Record is owned by packages/host/flowleap-record/README.md',
   RecordCommandResult: 'a run command receipt or its refusal is owned by packages/host/flowleap-record/README.md',
   RunStart: 'the run-started command is owned by packages/host/flowleap-record/README.md',

@@ -7,8 +7,9 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import FlowleapRecordHttp, { idempotencyKey } from '../src/http.ts'
 import type {
-  DeadlineId, FlowleapRecord, MatterFileNumber, MatterViewResult, RecordSeq, ReportProposal, TicketId,
+  DeadlineId, FlowleapRecord, MatterFileNumber, MatterViewResult, MyWorkResult, RecordSeq, ReportProposal, TicketId,
 } from '../src/types.ts'
+import { FILE_LETTER_SHA256, MY_WORK } from './fixtures/record-read/my-work.ts'
 import { LETTER_SHA256, VIEW } from './fixtures/record-read/view.ts'
 
 const TOKEN = 'rt-runtime-record-token'
@@ -346,5 +347,123 @@ describe('flowleapRecord run commands over HTTP', () => {
     const warn = vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(() => {})
     expect(await service.finishRun(TICKET, FINISH, new AbortController().signal)).toEqual({ error: 'unreachable' })
     expect(warn.mock.calls.map(([line]) => String(line)).join('\n')).not.toContain(TOKEN)
+  })
+})
+
+const work = (service: FlowleapRecord): Promise<MyWorkResult> => service.myWork(new AbortController().signal)
+
+describe('flowleapRecord.myWork over HTTP', () => {
+  it('reads the work of the token\'s person with the record token, sends no person id, and keeps the record position', async () => {
+    const double = await record(json(200, MY_WORK))
+    const service = await provider({ url: double.url, key: TOKEN })
+    expect(await work(service)).toEqual(MY_WORK)
+    expect(double.tokens).toEqual([`Bearer ${TOKEN}`])
+    expect(double.paths).toEqual(['/records/api/my-work'])
+    expect(double.requests.map(({ method, body }) => [method, body])).toEqual([['GET', '']])
+  })
+
+  it('reads the work on the origin of the base URL', async () => {
+    const double = await record(json(200, MY_WORK))
+    await work(await provider({ url: `${double.url}/records/`, key: TOKEN }))
+    expect(double.paths).toEqual(['/records/api/my-work'])
+  })
+
+  it('reads an empty list of matters, a file-letter item with no matter, and a person with a name', async () => {
+    const answer = {
+      ...MY_WORK,
+      person: { id: 'e1a2b3c4-0000-4000-8000-000000000001', name: 'A. Novak' },
+      work: [{
+        id: `file-letter:${FILE_LETTER_SHA256}`, kind: 'file-letter', title: 'File the letter', why: 'The intake proposes no matter for it.',
+        matter: null, due: null, since: '2026-11-06T09:00:00Z', act: `intake/waiting/${FILE_LETTER_SHA256}`,
+      }],
+      matters: [],
+    }
+    const double = await record(json(200, answer))
+    expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(answer)
+  })
+
+  it('reads work of a kind that it does not know, unchanged, and work with no items', async () => {
+    const [item] = MY_WORK.work
+    const answer = {
+      ...MY_WORK,
+      work: [{ ...item, id: 'send-report:tk-9', kind: 'send-report', title: 'Send the report', act: 'report/tk-9' }, ...MY_WORK.work],
+    }
+    const double = await record(json(200, answer))
+    expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(answer)
+    const none = await record(json(200, { ...MY_WORK, work: [] }))
+    expect(await work(await provider({ url: none.url, key: TOKEN }))).toEqual({ ...MY_WORK, work: [] })
+  })
+
+  it('reports the refusal, never work, without an address or a token', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch')
+    expect(await work(await provider({ url: '', key: TOKEN }))).toEqual({ error: 'not_configured' })
+    expect(await work(await provider({ url: 'http://127.0.0.1:9', key: undefined }))).toEqual({ error: 'no_key' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('reports a refused token or sender, an error status, a missing path, a redirect, a slow service, and a closed port', async () => {
+    const warn = vi.fn()
+    for (const [handler, error] of [
+      [json(401, { error: 'no identity' }), 'refused'],
+      [json(403, { error: 'wrong-sender' }), 'refused'],
+      [json(404, { error: 'not-found' }), 'service_error'],
+      [json(500, { error: 'down' }), 'service_error'],
+      [(_request: IncomingMessage, response: ServerResponse) => { response.writeHead(204).end() }, 'invalid_answer'],
+      [(_request: IncomingMessage, response: ServerResponse) => { response.writeHead(302, { location: 'http://127.0.0.1:9/' }).end() }, 'unreachable'],
+      [() => { /* never answers */ }, 'unreachable'],
+    ] as const) {
+      const double = await record(handler)
+      const service = await provider({ url: double.url, key: TOKEN, timeoutMs: 200 })
+      vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(warn)
+      expect(await work(service)).toEqual({ error })
+    }
+    expect(warn.mock.calls.map(([line]) => String(line)).join('\n')).toContain('HTTP 404')
+    expect(warn.mock.calls.map(([line]) => String(line)).join('\n')).not.toContain(TOKEN)
+  })
+
+  it('rejects when the caller ends the read', async () => {
+    const double = await record(() => { /* never answers */ })
+    const service = await provider({ url: double.url, key: TOKEN })
+    const controller = new AbortController()
+    const pending = service.myWork(controller.signal)
+    controller.abort()
+    await expect(pending).rejects.toThrow()
+  })
+
+  it('reports an answer that is not the work of a person as invalid', async () => {
+    const [matter] = MY_WORK.matters
+    const [item] = MY_WORK.work
+    for (const body of [
+      'not json',
+      { ...MY_WORK, recordSeq: -1 },
+      { ...MY_WORK, person: { id: '', name: null } },
+      { ...MY_WORK, person: { id: 'admin' } },
+      { ...MY_WORK, matters: [{ ...matter, role: 'owner' }] },
+      { ...MY_WORK, matters: [{ ...matter, state: 'pending' }] },
+      { ...MY_WORK, matters: [{ ...matter, nextDeadline: { ...matter!.nextDeadline, state: 'rejected' } }] },
+      { ...MY_WORK, matters: [{ ...matter, nextDeadline: { ...matter!.nextDeadline, due: '2 March 2026' } }] },
+      { ...MY_WORK, work: [{ ...item, kind: '' }] },
+      { ...MY_WORK, work: [{ ...item, kind: undefined }] },
+      { ...MY_WORK, work: [{ ...item, id: '' }] },
+      { ...MY_WORK, work: [{ ...item, title: undefined }] },
+      { ...MY_WORK, work: [{ ...item, why: undefined }] },
+      { ...MY_WORK, work: [{ ...item, act: '' }] },
+      { ...MY_WORK, work: [{ ...item, act: undefined }] },
+      { ...MY_WORK, work: [{ ...item, due: 'soon' }] },
+      { ...MY_WORK, work: [{ ...item, since: 'yesterday' }] },
+      { ...MY_WORK, work: [{ ...item, matter: undefined }] },
+      { ...MY_WORK, work: [{ ...item, matter: { fileNumber: 'FL-2026-0001' } }] },
+      { ...MY_WORK, work: undefined },
+      { ...MY_WORK, matters: undefined },
+      { recordSeq: 45 },
+    ]) {
+      const double = await record(json(200, body))
+      expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual({ error: 'invalid_answer' })
+    }
+  })
+
+  it('reports a body above 1 MiB as invalid without reading the rest', async () => {
+    const double = await record(json(200, `{"recordSeq":45,"pad":"${'x'.repeat(1_100_000)}"}`))
+    expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual({ error: 'invalid_answer' })
   })
 })

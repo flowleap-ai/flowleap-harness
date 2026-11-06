@@ -1,0 +1,11 @@
+version: 1
+scenario: flowleap-record-my-work
+profile: headless
+composition: flowleap-record-my-work
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-record-read
+  pin: true
+  systemPromptSource: flowleap-record-read
+  toolSchemasSource: flowleap-record-read
