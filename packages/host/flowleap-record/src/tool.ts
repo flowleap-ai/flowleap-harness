@@ -56,7 +56,7 @@ const OUTPUT_SCHEMA = {
             fileNumber: { type: 'string', required: true },
             title: { type: 'string', required: true },
             client: { type: 'string', required: true },
-            responsible: { type: 'string', required: true },
+            responsible: { ...STRING_OR_NULL, required: true, description: 'Display name of the responsible attorney; null when the person has none yet.' },
             state: { type: 'string', required: true, enum: ['open', 'closed'] },
           },
         },
@@ -116,8 +116,8 @@ const OUTPUT_SCHEMA = {
             properties: {
               id: { type: 'string', required: true },
               seq: { type: 'integer', required: true },
-              code: { type: 'string', required: true },
-              documentDate: { ...LOCAL_DATE, required: true },
+              code: { ...STRING_OR_NULL, required: true, description: 'Event code; null for a filed letter whose code is not decided yet.' },
+              documentDate: { oneOf: [LOCAL_DATE, { type: 'null' }], required: true, description: 'Date of the document; null until it is read.' },
               applicationNumber: { ...STRING_OR_NULL, required: true },
               document: { ...STRING_OR_NULL, required: true, description: 'SHA-256 of the document.' },
               state: { type: 'string', required: true },
@@ -171,7 +171,10 @@ const DESCRIPTION =
   + 'AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, '
   + 'and the documents of the e-file with their SHA-256. A Firm Record before R1 holds none of clientRules, officeEvents, '
   + 'tickets, and documents: the result then has none of these four fields, and you do not know the client\'s rules, '
-  + 'so you do not assume them. The result names recordSeq, the '
+  + 'so you do not assume them. Every matter has a responsible attorney: matter.responsible is that person\'s display '
+  + 'name, and responsible is null while the responsible attorney has no display name yet, so you do not say that the '
+  + 'matter has none. An office event\'s code and documentDate are null while the letter is filed but its event code is '
+  + 'not decided and its date is not read. The result names recordSeq, the '
   + 'position of the record log the view was read at, and viewHash, so the view can be rebuilt later. '
   + 'The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person '
   + 'confirms it in the Records app.'

@@ -7813,7 +7813,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MatterSummary',
-    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string;\n    readonly state: MatterState;\n}',
+    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string | null;\n    readonly state: MatterState;\n}',
   },
   {
     name: 'MatterView',
@@ -8097,7 +8097,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OfficeEventView',
-    declaration: 'export interface OfficeEventView {\n    readonly id: OfficeEventId;\n    readonly seq: RecordSeq;\n    readonly code: string;\n    readonly documentDate: LocalDate;\n    readonly applicationNumber: string | null;\n    readonly document: DocumentSha256 | null;\n    readonly state: string;\n}',
+    declaration: 'export interface OfficeEventView {\n    readonly id: OfficeEventId;\n    readonly seq: RecordSeq;\n    readonly code: string | null;\n    readonly documentDate: LocalDate | null;\n    readonly applicationNumber: string | null;\n    readonly document: DocumentSha256 | null;\n    readonly state: string;\n}',
   },
   {
     name: 'OfficeExtension',

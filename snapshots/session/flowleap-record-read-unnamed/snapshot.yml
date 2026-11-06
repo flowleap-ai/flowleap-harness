@@ -1,0 +1,11 @@
+version: 1
+scenario: flowleap-record-read-unnamed
+profile: headless
+composition: flowleap-record-read-unnamed
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-record-read
+  pin: true
+  systemPromptSource: flowleap-record-read
+  toolSchemasSource: flowleap-record-read
