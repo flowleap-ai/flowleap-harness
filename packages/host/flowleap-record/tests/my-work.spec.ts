@@ -63,6 +63,19 @@ describe('record_my_work', () => {
     expect(record.myWork).toHaveBeenCalledOnce()
   })
 
+  it('gives the model the application number of each matter, null when the record holds none, and tells it to use the number', async () => {
+    const { ctx } = await host()
+    const result = await call(ctx)
+    expect(result.isError).toBe(false)
+    const { matters } = JSON.parse(text(result.content)) as { matters: Array<{ fileNumber: string; applicationNumber: string | null }> }
+    expect(matters.map(({ fileNumber, applicationNumber }) => [fileNumber, applicationNumber]))
+      .toEqual([['FL-2026-0001', 'EP24166597'], ['FL-2026-0002', null]])
+    const description = ctx.tools.schemas().find(candidate => candidate.name === 'record_my_work')?.description
+    expect(description).toContain('applicationNumber, the application number of the matter')
+    expect(description).toContain('do not ask the person for a publication number or an application number')
+    expect(description).toContain('applicationNumber is null when the record holds none')
+  })
+
   it('answers a person with no matter and no work', async () => {
     const empty: MyWorkResult = { ...MY_WORK, matters: [], work: [] }
     const { ctx } = await host(empty)
@@ -89,6 +102,9 @@ describe('record_my_work', () => {
     for (const broken of [
       { ...MY_WORK, person: { id: 'admin' } },
       { ...MY_WORK, matters: [{ ...matter!, role: 'owner' }] },
+      { ...MY_WORK, matters: [{ ...matter!, applicationNumber: 7 }] },
+      { ...MY_WORK, matters: [{ ...matter!, applicationNumber: {} }] },
+      { ...MY_WORK, matters: [{ ...matter!, applicationNumber: undefined }] },
       { ...MY_WORK, work: [{ ...item!, kind: 7 }] },
       { ...MY_WORK, work: [{ ...item!, why: undefined }] },
       { ...MY_WORK, work: [{ ...item!, matter: undefined }] },

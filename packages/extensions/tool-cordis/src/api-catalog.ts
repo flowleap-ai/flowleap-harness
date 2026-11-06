@@ -7827,7 +7827,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MatterSummary',
-    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string | null;\n    readonly state: MatterState;\n}',
+    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string | null;\n    readonly applicationNumber: string | null;\n    readonly state: MatterState;\n}',
   },
   {
     name: 'MatterView',
@@ -8083,7 +8083,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MyWorkMatter',
-    declaration: 'export interface MyWorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly role: MatterRole;\n    readonly state: MatterState;\n    readonly nextDeadline: NextDeadline | null;\n}',
+    declaration: 'export interface MyWorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly applicationNumber: string | null;\n    readonly role: MatterRole;\n    readonly state: MatterState;\n    readonly nextDeadline: NextDeadline | null;\n}',
   },
   {
     name: 'MyWorkPerson',

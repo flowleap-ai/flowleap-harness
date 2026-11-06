@@ -99,6 +99,32 @@ describe('record_read', () => {
     expect(description).toContain('code and documentDate are null')
   })
 
+  it('gives the model the application number of the matter, null when the record holds none, and tells it to use the number', async () => {
+    const { ctx } = await host()
+    const result = await call(ctx, 'FL-2026-0001')
+    expect(result.isError).toBe(false)
+    expect(JSON.parse(text(result.content))).toMatchObject({ matter: { applicationNumber: 'EP24166597' } })
+    const none: MatterViewResult = { ...VIEW, matter: { ...VIEW.matter, applicationNumber: null } }
+    const { ctx: noneCtx } = await host(none)
+    const noneResult = await call(noneCtx, 'FL-2026-0001')
+    expect(noneResult.isError).toBe(false)
+    expect(text(noneResult.content)).toContain('"applicationNumber":null')
+    const description = ctx.tools.schemas().find(candidate => candidate.name === 'record_read')?.description
+    expect(description).toContain('matter.applicationNumber is the application number of the matter')
+    expect(description).toContain('do not ask the person for a publication number or an application number')
+    expect(description).toContain('applicationNumber is null when the record holds none')
+  })
+
+  it('rejects a view whose application number is missing or is neither a string nor null', async () => {
+    const { applicationNumber: _applicationNumber, ...withoutField } = VIEW.matter
+    for (const matter of [{ ...VIEW.matter, applicationNumber: 7 }, { ...VIEW.matter, applicationNumber: {} }, withoutField]) {
+      const { ctx } = await host(JSON.parse(JSON.stringify({ ...VIEW, matter })) as MatterViewResult)
+      const result = await call(ctx, 'FL-2026-0001')
+      expect(result.isError).toBe(true)
+      expect(text(result.content)).toContain('returned invalid output')
+    }
+  })
+
   it('passes the call signal to the seam', async () => {
     const { ctx, record } = await host()
     const controller = new AbortController()

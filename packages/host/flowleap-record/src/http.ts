@@ -94,6 +94,9 @@ const recordDocument = zod.object({
   source: zod.string().min(1),
 })
 
+/** A Firm Record before the application number sends no such field; the model then reads `null`, never a missing field. */
+const applicationNumber = zod.string().min(1).nullable().default(null)
+
 /** The fields of a view that every Firm Record answers. */
 const viewSchema = zod.object({
   recordSeq: seq,
@@ -103,6 +106,7 @@ const viewSchema = zod.object({
     title: zod.string(),
     client: zod.string(),
     responsible: zod.string().nullable(),
+    applicationNumber,
     state: zod.enum(['open', 'closed']),
   }),
   deadlines: zod.array(deadline),
@@ -154,6 +158,7 @@ const myWorkSchema = zod.object({
     fileNumber: zod.string().min(1).transform(value => brandString<MatterFileNumber>(value)),
     title: zod.string(),
     client: zod.string(),
+    applicationNumber,
     role: zod.enum(['responsible', 'team']),
     state: zod.enum(['open', 'closed']),
     nextDeadline: zod.object({

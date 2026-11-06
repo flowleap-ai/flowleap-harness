@@ -24,6 +24,7 @@ const unhashed: Omit<MatterViewBase, 'viewHash'> & MatterViewR1 = {
     title: 'Heat pump control',
     client: 'Nordwind Energie GmbH',
     responsible: 'A. Novak',
+    applicationNumber: 'EP24166597',
     state: 'open',
   },
   deadlines: [{
