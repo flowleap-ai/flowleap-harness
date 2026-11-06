@@ -88,6 +88,20 @@ describe('flowleapRecord.matterView over HTTP', () => {
     expect(await read(await provider({ url: double.url, key: TOKEN }))).toEqual(view)
   })
 
+  it('reads the application number of the matter, null when the record holds none, and null from a Firm Record that sends no such field', async () => {
+    const { applicationNumber, ...withoutField } = VIEW.matter
+    expect(applicationNumber).toBe('EP24166597')
+    const none = { ...VIEW, matter: { ...VIEW.matter, applicationNumber: null } }
+    const noneDouble = await record(json(200, none))
+    expect(await read(await provider({ url: noneDouble.url, key: TOKEN }))).toEqual(none)
+    const olderDouble = await record(json(200, { ...VIEW, matter: withoutField }))
+    expect(await read(await provider({ url: olderDouble.url, key: TOKEN }))).toEqual(none)
+    const { recordSeq, viewHash, deadlines } = VIEW
+    const olderR0Double = await record(json(200, { recordSeq, viewHash, matter: withoutField, deadlines }))
+    expect(await read(await provider({ url: olderR0Double.url, key: TOKEN })))
+      .toEqual({ recordSeq, viewHash, matter: none.matter, deadlines })
+  })
+
   it('reads the view of an R0 Firm Record without the R1 fields, and refuses a view with only some of them', async () => {
     const { recordSeq, viewHash, matter, deadlines } = VIEW
     const r0 = { recordSeq, viewHash, matter, deadlines }
@@ -168,6 +182,8 @@ describe('flowleapRecord.matterView over HTTP', () => {
       { ...VIEW, recordSeq: '7' },
       { ...VIEW, viewHash: 'abc' },
       { ...VIEW, matter: { ...VIEW.matter, state: 'pending' } },
+      { ...VIEW, matter: { ...VIEW.matter, applicationNumber: '' } },
+      { ...VIEW, matter: { ...VIEW.matter, applicationNumber: 7 } },
       { ...VIEW, deadlines: [{ ...deadline, due: '2 March 2026' }] },
       { ...VIEW, deadlines: [{ ...deadline, state: 'confirmed' }] },
       { ...VIEW, deadlines: [{ ...deadline, trace: [{ op: 'start', from: '2025-10-30' }] }] },
@@ -362,6 +378,19 @@ describe('flowleapRecord.myWork over HTTP', () => {
     expect(double.requests.map(({ method, body }) => [method, body])).toEqual([['GET', '']])
   })
 
+  it('reads the application number of each matter, null when the record holds none, and null from a Firm Record that sends no such field', async () => {
+    const [first, second] = MY_WORK.matters
+    expect(first!.applicationNumber).toBe('EP24166597')
+    expect(second!.applicationNumber).toBeNull()
+    const older = {
+      ...MY_WORK,
+      matters: MY_WORK.matters.map(({ applicationNumber: _applicationNumber, ...matter }) => matter),
+    }
+    const double = await record(json(200, older))
+    expect(await work(await provider({ url: double.url, key: TOKEN })))
+      .toEqual({ ...MY_WORK, matters: [{ ...first, applicationNumber: null }, second] })
+  })
+
   it('reads the work on the origin of the base URL', async () => {
     const double = await record(json(200, MY_WORK))
     await work(await provider({ url: `${double.url}/records/`, key: TOKEN }))
@@ -440,6 +469,8 @@ describe('flowleapRecord.myWork over HTTP', () => {
       { ...MY_WORK, person: { id: 'admin' } },
       { ...MY_WORK, matters: [{ ...matter, role: 'owner' }] },
       { ...MY_WORK, matters: [{ ...matter, state: 'pending' }] },
+      { ...MY_WORK, matters: [{ ...matter, applicationNumber: '' }] },
+      { ...MY_WORK, matters: [{ ...matter, applicationNumber: 7 }] },
       { ...MY_WORK, matters: [{ ...matter, nextDeadline: { ...matter!.nextDeadline, state: 'rejected' } }] },
       { ...MY_WORK, matters: [{ ...matter, nextDeadline: { ...matter!.nextDeadline, due: '2 March 2026' } }] },
       { ...MY_WORK, work: [{ ...item, kind: '' }] },

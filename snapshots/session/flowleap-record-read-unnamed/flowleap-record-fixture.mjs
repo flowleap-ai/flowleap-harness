@@ -20,6 +20,7 @@ const VIEW = {
     title: 'Pump seal',
     client: 'Nordwind Energie GmbH',
     responsible: null,
+    applicationNumber: null,
     state: 'open',
   },
   deadlines: [],

@@ -52,6 +52,7 @@ const OUTPUT_SCHEMA = {
             title: { type: 'string', required: true },
             client: { type: 'string', required: true },
             responsible: { ...STRING_OR_NULL, required: true, description: 'Display name of the responsible attorney; null when the person has none yet.' },
+            applicationNumber: { ...STRING_OR_NULL, required: true, description: 'The application number of the matter, for example EP24166597; null when the record holds none.' },
             state: { type: 'string', required: true, enum: ['open', 'closed'] },
           },
         },
@@ -161,7 +162,9 @@ const DESCRIPTION =
   + 'tickets, and documents: the result then has none of these four fields, and you do not know the client\'s rules, '
   + 'so you do not assume them. Every matter has a responsible attorney: matter.responsible is that person\'s display '
   + 'name, and responsible is null while the responsible attorney has no display name yet, so you do not say that the '
-  + 'matter has none. An office event\'s code and documentDate are null while the letter is filed but its event code is '
+  + 'matter has none. matter.applicationNumber is the application number of the matter, for example EP24166597. The '
+  + 'register and patent tools take it. When it has a value, use it, and do not ask the person for a publication number or '
+  + 'an application number. applicationNumber is null when the record holds none. An office event\'s code and documentDate are null while the letter is filed but its event code is '
   + 'not decided and its date is not read. The result names recordSeq, the '
   + 'position of the record log the view was read at, and viewHash, so the view can be rebuilt later. '
   + 'The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person '

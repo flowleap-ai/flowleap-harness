@@ -64,6 +64,8 @@ export interface MatterSummary {
    * firm's sign-in gives names. A matter always has a responsible attorney; the view never names one by the sign-in.
    */
   readonly responsible: string | null
+  /** The application number as the firm recorded it, for example `EP24166597`; `null` when the record holds none. */
+  readonly applicationNumber: string | null
   readonly state: MatterState
 }
 
@@ -223,6 +225,8 @@ export interface MyWorkMatter {
   readonly fileNumber: MatterFileNumber
   readonly title: string
   readonly client: string
+  /** The application number as the firm recorded it, for example `EP24166597`; `null` when the record holds none. */
+  readonly applicationNumber: string | null
   readonly role: MatterRole
   readonly state: MatterState
   /** `null` when the matter has no proposed or active deadline. */

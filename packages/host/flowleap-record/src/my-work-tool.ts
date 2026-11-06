@@ -79,6 +79,7 @@ const OUTPUT_SCHEMA = {
               fileNumber: { type: 'string', required: true, description: 'Give this to record_read to read the matter in full.' },
               title: { type: 'string', required: true },
               client: { type: 'string', required: true },
+              applicationNumber: { ...STRING_OR_NULL, required: true, description: 'The application number of the matter, for example EP24166597; null when the record holds none.' },
               role: { type: 'string', required: true, enum: ['responsible', 'team'] },
               state: { type: 'string', required: true, enum: ['open', 'closed'] },
               nextDeadline: {
@@ -108,11 +109,15 @@ const DESCRIPTION =
   + 'this person. Today the Firm Record derives it from the states of the record. Read each item through title, why, '
   + 'matter, due, since, and act, also for a kind that you do not know: a new kind is work too, and you do not skip it. '
   + 'The list matters is the context beside it: the matters inside the person\'s walls, each with the role of the person '
-  + '(responsible or team), its state, and its next open deadline (null when it has none). Use the tool when the person '
+  + '(responsible or team), its state, and its next open deadline (null when it has none). Each matter has '
+  + 'applicationNumber, the application number of the matter, for example EP24166597. The register and patent tools take it. '
+  + 'When it has a value, use it, and do not ask the person for a publication number or an application number. '
+  + 'applicationNumber is null when the record holds none. Use the tool when the person '
   + 'asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The '
   + 'lists hold only what this person may see. A null name means that the person has no display name yet: do not say that '
-  + 'the person has no name or does not exist. A runtime never lists a letter that is not filed yet, so do not say that '
-  + 'no letter waits to be filed. The result names recordSeq, the position of the record log the lists were read at. The '
+  + 'the person has no name or does not exist. A letter in the Intake that waits to be filed is a file-letter item when '
+  + 'this person forwarded it or is an intake person; you cannot read such a letter before it is filed. The result names '
+  + 'recordSeq, the position of the record log the lists were read at. The '
   + 'read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber.'
 
 /**
