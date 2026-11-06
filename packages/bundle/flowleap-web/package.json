@@ -47,7 +47,8 @@
         "./cordis.patch.yml",
         "./presets/patent.patch.yml",
         "./presets/standard.patch.yml",
-        "./presets/ptc.patch.yml"
+        "./presets/ptc.patch.yml",
+        "./presets/cordis.patch.yml"
       ],
       "lockedRows": [
         "plugin-manager",
