@@ -460,7 +460,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'FlowLeap Firm Record reader',
     mode: 'service',
     consumers: ['flowleap-record', 'flowleap-ticket'],
-    note: 'Reads one matter\'s view from the Firm Record of flowleap-os with the runtime\'s record token, with the record position the view was read at, and sends the run commands of a Ticket (run-started, reports, finish), or reports the refusal; the http provider is the package\'s ./http entry, record_read is its tool, the ./run entry holds the run tools, and the Ticket ingress reports run-started; mounted by the flowleap-web profile only.',
+    note: 'Reads one matter\'s view from the Firm Record of flowleap-os with the runtime\'s record token, with the record position the view was read at, reads the work of the token\'s person (work items and matters), and sends the run commands of a Ticket (run-started, reports, finish), or reports the refusal; the http provider is the package\'s ./http entry, record_read and record_my_work are its tools, the ./run entry holds the run tools, and the Ticket ingress reports run-started; mounted by the flowleap-web profile only.',
   },
   {
     key: 'flowleapBudget',

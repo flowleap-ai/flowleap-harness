@@ -1458,6 +1458,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the view at the record position it was read at, or the refusal.',
       },
       {
+        signature: 'myWork(signal: AbortSignal): Promise<MyWorkResult>',
+        description: 'Read the work of the person that the runtime\'s record token names. The call has no person argument.',
+        parameters: [{ name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the work and the matters of the person at the record position they were read at, or the refusal.',
+      },
+      {
         signature: 'runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<RecordCommandResult<RunStartReceipt>>',
         description: 'Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.',
         parameters: [{ name: 'ticket', description: 'the Ticket of the wake.' }, { name: 'command', description: 'the Session of the run chat.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
@@ -7528,6 +7534,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type KnownSubagentCatalogFields = {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n} | {\n    readonly mode: \'external\';\n    readonly label?: string;\n    readonly name?: string;\n} | {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly name?: string;\n};',
   },
   {
+    name: 'KnownWorkKind',
+    declaration: 'export type KnownWorkKind = \'confirm-deadline\' | \'decide-office-event\' | \'decide-work\' | \'file-letter\';',
+  },
+  {
     name: 'KvFacet',
     declaration: 'export interface KvFacet {\n    open(descriptor: KvUnitDescriptor): Promise<KvUnit>;\n}',
   },
@@ -7808,6 +7818,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MatterFileNumber = Branded<\'MatterFileNumber\'>;',
   },
   {
+    name: 'MatterRole',
+    declaration: 'export type MatterRole = \'responsible\' | \'team\';',
+  },
+  {
     name: 'MatterState',
     declaration: 'export type MatterState = \'open\' | \'closed\';',
   },
@@ -8064,8 +8078,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ModTier = \'prepend\' | \'user\' | \'append\' | \'builtin\' | \'core\';',
   },
   {
+    name: 'MyWork',
+    declaration: 'export interface MyWork {\n    readonly recordSeq: RecordSeq;\n    readonly person: MyWorkPerson;\n    readonly work: WorkItem[];\n    readonly matters: MyWorkMatter[];\n}',
+  },
+  {
+    name: 'MyWorkMatter',
+    declaration: 'export interface MyWorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly role: MatterRole;\n    readonly state: MatterState;\n    readonly nextDeadline: NextDeadline | null;\n}',
+  },
+  {
+    name: 'MyWorkPerson',
+    declaration: 'export interface MyWorkPerson {\n    readonly id: PersonId;\n    readonly name: string | null;\n}',
+  },
+  {
+    name: 'MyWorkRefusal',
+    declaration: 'export type MyWorkRefusal = Exclude<MatterViewRefusal, \'not_found\'>;',
+  },
+  {
+    name: 'MyWorkResult',
+    declaration: 'export type MyWorkResult = MyWork | {\n    readonly error: MyWorkRefusal;\n};',
+  },
+  {
     name: 'NativeFileApplication',
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
+  },
+  {
+    name: 'NextDeadline',
+    declaration: 'export interface NextDeadline {\n    readonly id: DeadlineId;\n    readonly due: LocalDate;\n    readonly state: \'deadline_proposed\' | \'active\';\n}',
   },
   {
     name: 'NpmFileSource',
@@ -8246,6 +8284,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PermissionCatalog',
     declaration: 'export interface PermissionCatalog {\n    options: PresetOption[];\n    defaultOptions: PresetOption[];\n    defaultPreset: string;\n}',
+  },
+  {
+    name: 'PersonId',
+    declaration: 'export type PersonId = Branded<\'PersonId\'>;',
   },
   {
     name: 'PiAiRequestHeaderContext',
@@ -11090,6 +11132,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkItem',
+    declaration: 'export interface WorkItem {\n    readonly id: string;\n    readonly kind: WorkKind;\n    readonly title: string;\n    readonly why: string;\n    readonly matter: WorkMatter | null;\n    readonly due: LocalDate | null;\n    readonly since: string;\n    readonly act: string;\n}',
+  },
+  {
+    name: 'WorkKind',
+    declaration: 'export type WorkKind = KnownWorkKind | (string & {});',
+  },
+  {
+    name: 'WorkMatter',
+    declaration: 'export interface WorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n}',
   },
   {
     name: 'WorkPageFile',

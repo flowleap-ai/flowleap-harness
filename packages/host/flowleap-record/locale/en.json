@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "FlowLeap firm record",
-    "description": "The record_read tool: one matter of the Firm Record with its deadlines and the record position the view was read at; with the run row, the report proposal and the end of a Ticket run."
+    "description": "The record_read and record_my_work tools: one matter of the Firm Record with its deadlines and the record position the view was read at, and the work that waits for the signed-in person and the person's matters; with the run row, the report proposal and the end of a Ticket run."
   }
 }

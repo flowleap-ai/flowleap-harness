@@ -1,5 +1,5 @@
 ---
-description: "The Firm Record of flowleap-os in the harness: the flowleapRecord seam that reads one matter's view with its record position, its http provider, and the read-only record_read tool whose JSON result names recordSeq and viewHash in the Session log."
+description: "The Firm Record of flowleap-os in the harness: the flowleapRecord seam that reads one matter's view with its record position and the work of the token's person, its http provider, and the read-only record_read and record_my_work tools whose JSON results name recordSeq in the Session log."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214, phases R0 and R1). A runtime reads and proposes; it never writes a decision. The package is one capability seam: the Service Definition `ctx.flowleapRecord` (a matter's view at one record position, and the run commands of a Ticket), the http Provider `./http`, the read-only `record_read` tool, whose JSON result names `recordSeq` and `viewHash`, and the `./run` entry with `record_read_document_text`, `record_propose_report`, and `record_finish_run` for a Ticket run.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214). A runtime reads and proposes; it never writes a decision. The Service Definition `ctx.flowleapRecord` reads a matter's view and the work of the token's person, and sends the run commands of a Ticket. The http Provider is `./http`. The read-only tools are `record_read` (its result names `recordSeq` and `viewHash`) and `record_my_work`. The `./run` entry adds the tools of a Ticket run.
 
 ## Table of Contents
 
@@ -74,6 +74,8 @@ The run row injects `flowleapRecord`, `tools`, `fs`, and `workingDirectory`. The
 | `service_error` | the Firm Record answers another HTTP error status; the Host logs the status |
 | `invalid_answer` | the body is larger than 1 MiB, is not JSON, or is not a matter view |
 
+`ctx.flowleapRecord.myWork(signal)` returns a `MyWorkResult`: the `MyWork` (`recordSeq`, `person`, `work`, `matters`), or `{ error }` with a `MyWorkRefusal`, which is a `MatterViewRefusal` without `not_found`. The call has no person argument: the Firm Record takes the person from the record token, so the model never names one. `PersonId` is branded like the other ids. A `WorkItem` has the same fields for every kind of work: `id`, `kind`, `title`, `why`, `matter`, `due`, `since`, and `act`. `WorkKind` is a merge-extensible union: `KnownWorkKind` (`confirm-deadline`, `decide-office-event`, `decide-work`, `file-letter`) plus any other string, because a Firm Record with new features lists new kinds without a change of the runtime. Code that switches on a kind handles the known kinds and treats every other kind through the common fields; the provider and the tool pass an unknown kind on unchanged. The refusals are those of the view read with two differences: a 404 (an old Firm Record without the path) is a `service_error`, and the Host logs the status.
+
 ### The http read
 
 The provider sends `GET <origin of baseURL>/records/api/matters/<fileNumber>/view` with the token as a bearer token; the file number is percent-encoded. It does not follow a redirect and reads at most 1 MiB of the body. The Firm Record answers `200` with this JSON body:
@@ -102,6 +104,29 @@ The phase R1 view adds four fields, always present (empty lists and `null` when 
 ```
 
 `matter.responsible` is the display name of the matter's responsible attorney, or `null` while that person has no display name (the firm's sign-in gives no names until the People service; the view never names a person by the sign-in). `matter.state` is `open` or `closed`; a deadline `state` is `proposed`, `active`, or `rejected` (the R0 subset of the deadline state machine); dates are `YYYY-MM-DD`. `clientRules` is `null` when no person recorded the client's rules; its `aiUse` is `not-recorded`, `allowed`, `local-model-only`, or `not-allowed`, its `aiLetters` is `allowed` or `not-allowed`, its `reportEvents` is `all-office-actions` or a list of event codes, and its `language` is `de` or `en`. An office event's `applicationNumber` and `document` are `null` for an event that a person recorded without a document, and its `code` and `documentDate` are `null` for a letter that the intake filed before its code was decided and its date was read. A Ticket's `state` is one of the eleven states of [atlas sheet 3](../../../flowleap/docs/process-atlas/03-notify-and-run.md), and `routedTo` is the routed person's display name, or `null` before routing. Document hashes are lower-case SHA-256 hex. Unknown fields are dropped; a missing or malformed field is an `invalid_answer`. **An R0 Firm Record** answers no `clientRules`, `officeEvents`, `tickets`, or `documents`: the view then has none of these four keys, not `null` or empty lists, because an empty list would tell the model that the matter has no Tickets or documents and `null` would tell it that no person recorded the client's rules. A view with only some of the four is an `invalid_answer`.
+
+### The http work read
+
+The provider sends `GET <origin of baseURL>/records/api/my-work` with the token as a bearer token and no query and no body, with the same timeout, redirect rule, and 1 MiB limit as the view read. The Firm Record answers `200` with this JSON body:
+
+```json
+{
+  "recordSeq": 45,
+  "person": { "id": "admin", "name": null },
+  "work": [{
+    "id": "confirm-deadline:0b2d5a8e-…", "kind": "confirm-deadline", "title": "Confirm the deadline",
+    "why": "The deadline is proposed and needs a second person; you did not record its office event or decide its code, so you may confirm it.",
+    "matter": { "fileNumber": "FL-2026-0001", "title": "Heat pump control" }, "due": "2026-03-02",
+    "since": "2026-11-06T10:00:00.000Z", "act": "deadline/0b2d5a8e-…"
+  }],
+  "matters": [{
+    "fileNumber": "FL-2026-0001", "title": "Heat pump control", "client": "Nordwind Energie GmbH", "role": "responsible", "state": "open",
+    "nextDeadline": { "id": "0b2d5a8e-…", "due": "2026-03-02", "state": "deadline_proposed" }
+  }]
+}
+```
+
+`person.id` is an Entra object ID or `admin`; `person.name` is `null` while the person has no display name. `work` holds every kind of work that waits for the person, by `due` (no date last), then by `since`. Every item has the same fields: `id` (`<kind>:<object id>`), `kind` (a non-empty string; today `confirm-deadline`, `decide-office-event`, `decide-work`, or `file-letter`), `title` and `why` (plain words), `matter` (`{ fileNumber, title }`, or `null` when the work has no matter that the person may see), `due` (the legal date or `null`), `since` (the ISO 8601 timestamp at which the object began to wait), and `act` (the address in the Records app where the person acts, such as `deadline/<id>`, `work/<id>`, or `intake/waiting/<sha256>`). The provider checks `kind` as a non-empty string and not as a list, so an unknown kind is valid work and reaches the model unchanged. `matters` holds the matters inside the person's walls, the nearest due date first, as context beside `work`; `role` is `responsible` or `team`; `state` is `open` or `closed`; `nextDeadline` is `null` or the earliest proposed or active deadline, whose `state` is `deadline_proposed` or `active`. A missing or malformed field, or an empty `kind`, `id`, or `act`, is an `invalid_answer`; unknown fields are dropped. The Firm Record never lists a letter that is not yet filed to a runtime.
 
 ### The run commands
 
@@ -148,14 +173,15 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`FlowleapRecordHttp` (the `./http` entry) is a Cordis `Service` under the `flowleapRecord` name. The constructor validates `baseURL` and `apiKeyRef` (through `credentialRef`); each call reads the token, sends one request, maps the status to a refusal, and validates the body with a strict zod schema whose transforms brand the ids and dates. `registerRecordReadTool` defines the tool with `defineTool`; the plugin entry registers it through `ctx.effect`, so disposing the row removes the tool.
+`FlowleapRecordHttp` (the `./http` entry) is a Cordis `Service` under the `flowleapRecord` name. The constructor validates `baseURL` and `apiKeyRef` (through `credentialRef`); each call reads the token, sends one request, maps the status to a refusal, and validates the body with a strict zod schema whose transforms brand the ids and dates. `registerRecordReadTool` and `registerRecordMyWorkTool` define the tools with `defineTool`; the plugin entry registers each through its own `ctx.effect`, so disposing the row removes both tools.
 
 | File | Role |
 |---|---|
 | [`src/types.ts`](src/types.ts) | the Service Definition `FlowleapRecord`, the branded ids, the view, the run commands and receipts, and the refusals |
 | [`src/http.ts`](src/http.ts) | the http Provider: Config, the read and the commands (bodies through `readBoundedText` of `dsh-flowleap-connectors`), the idempotency key, the refusal-code map, and the answer validation |
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
-| [`src/index.ts`](src/index.ts) | the function plugin that registers the tool |
+| [`src/my-work-tool.ts`](src/my-work-tool.ts) | the Consumer: the `record_my_work` schema (no parameter), the description, and the refusal messages |
+| [`src/index.ts`](src/index.ts) | the function plugin that registers the tools |
 | [`src/run/`](src/run/) | the run entry: `record_read_document_text`, `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_finish_run`, their argument rules, and the refusal messages |
 | [`tests/`](tests/) | the provider against a local Firm Record double, the tools with their refusals and disposal, and the Loader composition test with a fixture provider |
 
@@ -184,6 +210,20 @@ The generated tool catalog covers the shipped DeepSeek presets only, so the decl
 #### Token effect
 
 The schema contributes fixed request-context tokens while the row is mounted. A result grows with the number of deadlines and their trace steps, office events, Tickets, and documents, bounded by the provider's 1 MiB answer limit.
+
+#### KV Cache effect
+
+The declaration is stable while the row is mounted. Results append to history.
+
+### The `record_my_work` declaration
+
+#### What the model sees
+
+Description: "List who you are in the firm's record and what waits for you. The list work holds every kind of work that waits for this person. Today the Firm Record derives it from the states of the record. Read each item through title, why, matter, due, since, and act, also for a kind that you do not know: a new kind is work too, and you do not skip it. The list matters is the context beside it: the matters inside the person's walls, each with the role of the person (responsible or team), its state, and its next open deadline (null when it has none). Use the tool when the person asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The lists hold only what this person may see. A null name means that the person has no display name yet: do not say that the person has no name or does not exist. A runtime never lists a letter that is not filed yet, so do not say that no letter waits to be filed. The result names recordSeq, the position of the record log the lists were read at. The read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber." No parameter. The result is JSON text: `recordSeq`, `person` (`id` and `name`, which is `null` while the person has no display name), `work` (each item with `id`, `kind`, `title`, `why`, `matter`, `due`, `since`, and `act`), and `matters` (each with `fileNumber`, `title`, `client`, `role`, `state`, and `nextDeadline`); or `error` (`not_configured`, `no_key`, `refused`, `unreachable`, `service_error`, `invalid_answer`) and `message`. The [`flowleap-record-my-work`](../../../snapshots/session/flowleap-record-my-work/) snapshot pins one call over a fixture provider; the person there has no display name, and one work item has a kind that the harness does not know.
+
+#### Token effect
+
+The schema contributes fixed request-context tokens while the row is mounted. A result grows with the number of work items and matters of the person, bounded by the provider's 1 MiB answer limit.
 
 #### KV Cache effect
 
@@ -238,7 +278,8 @@ The declaration is stable while the run row is mounted. Results append to histor
 - **No decisions** — a runtime never confirms or rejects a deadline or a proposal; the Firm Record answers every decision with a runtime credential with `403 agent-cannot-decide`, and this package offers no tool for one. A person decides in the Records app.
 - **No `report/by-hand` or `report/flagged` command** — when the client rules forbid an AI draft, the run can only tell the attorney in the chat; atlas sheet 4 lists `checking_rule → by_hand` and `proposed → flagged` with the agent as actor, but the R1 Firm Record has no command for them.
 - **The run tools are on in every Session of the row** — the model of any chat sees them while the run row is mounted; the Firm Record refuses a command for a Ticket that is not running or not routed to the runtime's person.
-- **One matter per call** — there is no list or search; the model needs the file number. A list tool comes with a later phase, after the Firm Record serves one inside the reader's wall.
+- **One matter per read, no search** — `record_read` reads one matter by file number; `record_my_work` lists only the matters of the token's person. There is no search over other matters.
+- **No letter that is not filed yet** — the Firm Record never lists such a letter to a runtime, so `record_my_work` cannot tell the attorney that one waits.
 - **No `?at=` read** — the tool reads the current view only; rebuilding the view at a logged `recordSeq` is an auditor's call on the Firm Record, not a model call.
 
 <a id="dev-note"></a>
