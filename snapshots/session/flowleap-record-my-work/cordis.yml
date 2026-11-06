@@ -1,0 +1,9 @@
+# record_my_work over a Firm Record fixture whose person has no display name yet,
+# with two matters and three waiting items: the fixture provides flowleapRecord,
+# and the tool row is mounted as the flowleap-web bundle mounts it.
+- insert:
+    - id: flowleap-record-fixture
+      name: './flowleap-record-fixture.mjs'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'

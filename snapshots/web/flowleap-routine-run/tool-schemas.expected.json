@@ -434,6 +434,14 @@
       }
     },
     {
+      "name": "record_my_work",
+      "description": "List who you are in the firm's record and what waits for you. The list work holds every kind of work that waits for this person. Today the Firm Record derives it from the states of the record. Read each item through title, why, matter, due, since, and act, also for a kind that you do not know: a new kind is work too, and you do not skip it. The list matters is the context beside it: the matters inside the person's walls, each with the role of the person (responsible or team), its state, and its next open deadline (null when it has none). Use the tool when the person asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The lists hold only what this person may see. A null name means that the person has no display name yet: do not say that the person has no name or does not exist. A runtime never lists a letter that is not filed yet, so do not say that no letter waits to be filed. The result names recordSeq, the position of the record log the lists were read at. The read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "record_read",
       "description": "Read one matter of the firm's record: its file number, title, client, responsible attorney, state, and each deadline with its rule, due date, state, and the computation trace with legal citations; the client's recorded rules (AI use, AI letters, the events that need a report, the letter language, and their text); the office events, the Tickets, and the documents of the e-file with their SHA-256. A Firm Record before R1 holds none of clientRules, officeEvents, tickets, and documents: the result then has none of these four fields, and you do not know the client's rules, so you do not assume them. Every matter has a responsible attorney: matter.responsible is that person's display name, and responsible is null while the responsible attorney has no display name yet, so you do not say that the matter has none. An office event's code and documentDate are null while the letter is filed but its event code is not decided and its date is not read. The result names recordSeq, the position of the record log the view was read at, and viewHash, so the view can be rebuilt later. The read is read-only: you cannot change the record, and a proposed deadline becomes active only when a person confirms it in the Records app.",
       "parameters": {

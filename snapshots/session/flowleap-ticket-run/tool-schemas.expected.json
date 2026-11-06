@@ -572,6 +572,14 @@
       }
     },
     {
+      "name": "record_my_work",
+      "description": "List who you are in the firm's record and what waits for you. The list work holds every kind of work that waits for this person. Today the Firm Record derives it from the states of the record. Read each item through title, why, matter, due, since, and act, also for a kind that you do not know: a new kind is work too, and you do not skip it. The list matters is the context beside it: the matters inside the person's walls, each with the role of the person (responsible or team), its state, and its next open deadline (null when it has none). Use the tool when the person asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The lists hold only what this person may see. A null name means that the person has no display name yet: do not say that the person has no name or does not exist. A runtime never lists a letter that is not filed yet, so do not say that no letter waits to be filed. The result names recordSeq, the position of the record log the lists were read at. The read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "record_propose_report",
       "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter.",
       "parameters": {
