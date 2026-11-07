@@ -38,7 +38,7 @@
 .columns {
   /* The status column fits the longest atlas word of a task ("Office event proposed"); the client takes a share of the
    * free width, so a long client name shows in full from 1366px where it can. */
-  --records-columns: minmax(0, 1fr) 176px 104px minmax(112px, 0.6fr) 120px 104px;
+  --records-columns: minmax(0, 1fr) 176px 104px minmax(112px, 0.6fr) 128px 104px;
 }
 
 /* The task's reason goes under the task's name when the two do not fit on one line, as at 1280px or in German, so it

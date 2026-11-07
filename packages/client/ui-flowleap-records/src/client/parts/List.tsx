@@ -219,7 +219,7 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
 /**
  * Render a row's title cell: the title, then its source in the secondary colour. In a queue row only this cell
  * and the matter cell truncate; the full value is in the detail. The title truncates first, so a short source such
- * as the office code stays whole; a long source takes at most half of the cell.
+ * as the office code stays whole; a long source takes at most half of the cell, and a cut source shows in full on hover.
  * @param props.title - the title.
  * @param props.source - the source, such as the office.
  * @returns the cell.
@@ -228,7 +228,7 @@ export function TitleCell({ title, source }: { title: string; source?: string | 
   return (
     <span className={css.title}>
       <span className={css.titleText}>{title}</span>
-      {source != null && source !== '' && <span className={css.source} data-source="">{source}</span>}
+      {source != null && source !== '' && <span className={css.source} data-source="" title={source}>{source}</span>}
     </span>
   )
 }
