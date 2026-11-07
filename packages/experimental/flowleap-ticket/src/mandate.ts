@@ -33,20 +33,26 @@ const MANDATE_CORE = 'Mandate: you work for the responsible attorney of this mat
 
 const TASKS: Readonly<Record<TicketTaskType, TaskText>> = {
   'epo-r71-3-report': {
-    mandate: `${MANDATE_CORE} Task type: epo-r71-3-report, the report to the client on an EPO communication under Rule 71(3) EPC.`,
+    mandate: `${MANDATE_CORE} Task type: epo-r71-3-report, the draft reply to the EPO and the report to the client `
+      + 'on an EPO communication under Rule 71(3) EPC.',
     steps: template => [
       'Steps:',
       '1. Read the matter with record_read.',
-      '2. If clientRules is null or clientRules.aiLetters is not "allowed", do not draft a letter; say in this chat that the report is due by hand, and stop.',
-      `3. Write the report letter with office_letter_from_template on the firm template "${template}", in the language of clientRules.language, to a new file in the working directory.`,
-      '4. Read the text of the office letter with record_read_document_text, with the document hash of the office event from record_read. '
-      + 'Then propose the letter with record_propose_report. Give every statement of the letter at least one source. '
-      + 'A source is the document hash and a span: the page number and a quote of the part of the letter that supports the statement. '
+      '2. Read the text of the office letter with record_read_document_text, with the document hash of the office event from record_read.',
+      `3. Write the draft reply to the EPO with office_letter_from_template on the firm template "${template}", in the language of the office letter, to a new file in the working directory. `
+      + 'The reply says that the applicant approves the text intended for grant and verifies the bibliographic data, that the translations of the claims '
+      + 'in the two other official languages are enclosed, and that the fees are paid, as the office letter asks. '
+      + 'Do not state an amount, a claim number or a date that the office letter does not give.',
+      '4. Propose the draft reply with record_propose_report and kind "office-reply". Give every statement of the letter at least one source. '
+      + 'A source is the document hash and a span: the page number and a quote of the part of the office letter that supports the statement. '
       + 'Copy the quote character for character from that page of the letter text. Use at most 200 characters, '
       + 'and enough of them that the quote is on the page only once.',
-      '5. Finish with record_finish_run and the deadline summary of the office event from record_read.',
+      '5. If clientRules is null or clientRules.aiLetters is not "allowed", do not draft the report to the client; say in this chat that the report is due by hand, and go to step 7.',
+      `6. Write the report letter to the client with office_letter_from_template on the firm template "${template}", in the language of clientRules.language, to a new file in the working directory. `
+      + 'Propose it with record_propose_report and kind "client-report", with sources as in step 4.',
+      '7. Finish with record_finish_run and the deadline summary of the office event from record_read.',
     ].join('\n'),
-    title: fileNumber => `Report to the client, ${fileNumber}`,
+    title: fileNumber => `Reply and report, ${fileNumber}`,
   },
 }
 

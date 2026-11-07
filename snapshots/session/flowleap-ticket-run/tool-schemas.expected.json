@@ -536,7 +536,7 @@
     },
     {
       "name": "record_finish_run",
-      "description": "End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then queues one reply to firm addresses only, the person who forwarded the office letter and the routed attorney, with the proposed letters attached as drafts. Nothing goes to the client, and you send nothing.",
+      "description": "End this Ticket run after you proposed its letters. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then queues one reply to firm addresses only, the person who forwarded the office letter and the routed attorney, with the proposed letters attached as drafts. Nothing goes to the client, and you send nothing.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -581,13 +581,21 @@
     },
     {
       "name": "record_propose_report",
-      "description": "Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send the letter.",
+      "description": "Propose a letter of this Ticket run to the attorney: the report to the client (kind client-report, the default), or the draft reply to the office (kind office-reply). The client rules on AI letters apply to the client report only. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client or to the office before the attorney decides: when the run finishes, the Firm Record attaches the letters as drafts to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send or file a letter.",
       "parameters": {
         "type": "object",
         "properties": {
           "ticket_id": {
             "type": "string",
             "description": "The ticket id of the run message."
+          },
+          "kind": {
+            "type": "string",
+            "description": "client-report (the default) or office-reply.",
+            "enum": [
+              "client-report",
+              "office-reply"
+            ]
           },
           "file": {
             "type": "string",

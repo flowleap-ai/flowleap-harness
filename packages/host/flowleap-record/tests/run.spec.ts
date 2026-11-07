@@ -130,6 +130,7 @@ describe('record_propose_report', () => {
     expect(ticket).toBe('tk-1')
     expect(new TextDecoder().decode(command.content)).toBe('letter bytes')
     expect(command).toMatchObject({
+      kind: 'client-report',
       fileName: 'report.docx',
       templateName: 'client-report.docx',
       templateVersion: `sha256:${createHash('sha256').update(TEMPLATE).digest('hex')}`,
@@ -139,6 +140,13 @@ describe('record_propose_report', () => {
       statements: reportArgs.statements,
     })
     expect(command.statements[1]?.evidence[0]).toEqual({ document: LETTER_SHA256, span: { page: 2, quote: 'within four months' } })
+  })
+
+  it('sends the draft reply to the office as its own report kind', async () => {
+    const { call, record } = await bench()
+    const result = await call('record_propose_report', { ...reportArgs, kind: 'office-reply' })
+    expect(result.isError).toBe(false)
+    expect(record.reports.map(report => report.command.kind)).toEqual(['office-reply'])
   })
 
   it('names the id of a call inside a PTC program as the tool call, not the id of its root call', async () => {
@@ -195,6 +203,7 @@ describe('record_propose_report', () => {
       { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 0, quote: 'q' } }] }] },
       { ...reportArgs, statements: [{ ...first, evidence: [{ document: LETTER_SHA256, span: { page: 1, quote: 'q', start: 1, end: 2 } }] }] },
       { ...reportArgs, ticket_id: 'tk/1' },
+      { ...reportArgs, kind: 'office-letter' },
       { ...reportArgs, template: 'missing.docx' },
       { ...reportArgs, file: 'out/missing.docx' },
       { ...reportArgs, file: '../outside.docx' },
@@ -280,7 +289,7 @@ describe('the run plugin', () => {
     const names = () => ctx.tools.schemas().map(schema => schema.name).filter(name => name.startsWith('record_'))
     expect(names().sort()).toEqual(['record_finish_run', 'record_propose_report', 'record_read_document_text'])
     const description = (name: string) => ctx.tools.schemas().find(schema => schema.name === name)?.description
-    expect(description('record_propose_report')).toContain('Nothing goes to the client before the attorney decides')
+    expect(description('record_propose_report')).toContain('Nothing goes to the client or to the office before the attorney decides')
     expect(description('record_propose_report')).toContain('firm addresses only')
     expect(description('record_propose_report')).toContain('record_read_document_text')
     expect(description('record_propose_report')).toContain('character for character')

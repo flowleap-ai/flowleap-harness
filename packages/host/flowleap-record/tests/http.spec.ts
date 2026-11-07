@@ -223,6 +223,7 @@ describe('flowleapRecord.matterView over HTTP', () => {
 const TICKET = brandString<TicketId>('tk-1')
 const SESSION = SessionId('webhook-1')
 const REPORT: ReportProposal = {
+  kind: 'office-reply',
   fileName: 'report.docx',
   content: new TextEncoder().encode('docx bytes'),
   templateName: 'client-report.docx',
@@ -262,6 +263,7 @@ describe('flowleapRecord run commands over HTTP', () => {
     for (const { key } of double.requests) expect(key).toMatch(/^[A-Za-z0-9._:-]{8,128}$/u)
     expect(JSON.parse(double.requests[0]!.body)).toEqual({ session: 'webhook-1' })
     expect(JSON.parse(double.requests[1]!.body)).toEqual({
+      kind: 'office-reply',
       fileName: 'report.docx',
       contentBase64: Buffer.from('docx bytes').toString('base64'),
       templateName: 'client-report.docx',

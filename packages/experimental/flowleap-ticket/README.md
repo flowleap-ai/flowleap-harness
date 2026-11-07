@@ -77,7 +77,7 @@ The ingress checks the request in this order: method, media type, bounded body, 
 <a id="the-run-session"></a>
 ## The run Session
 
-The rule returns a `WebhookSessionRequest` with `workspacePath`, `agentPreset`, `permissionPreset`, the title `Report to the client, <file number>`, and the default model. The prompt has five paragraphs: the Mandate of the task type, the steps with the configured template, the line `Ticket: ticket_id "<id>", pass <n>, matter <file number>.`, the line that labels the JSON as data, and `ticket_delivery_json: <the parsed delivery>`. The message source is `webhook` with the provider `flowleap-ticket`, the source, the delivery id, and the rule id `flowleap-ticket-run`, so the Session log alone rebuilds what the model saw.
+The rule returns a `WebhookSessionRequest` with `workspacePath`, `agentPreset`, `permissionPreset`, the title `Reply and report, <file number>`, and the default model. The prompt has five paragraphs: the Mandate of the task type, the steps with the configured template, the line `Ticket: ticket_id "<id>", pass <n>, matter <file number>.`, the line that labels the JSON as data, and `ticket_delivery_json: <the parsed delivery>`. The message source is `webhook` with the provider `flowleap-ticket`, the source, the delivery id, and the rule id `flowleap-ticket-run`, so the Session log alone rebuilds what the model saw.
 
 After the Session admitted its prompt, `started()` calls `flowleapRecord.runStarted(ticketId, { session })`. While the Firm Record answers `unreachable` or `service_error`, the rule sends the same command again, with the same Idempotency-Key, up to `runStartedAttempts` sends, and waits `runStartedBackoffMs`, then twice as long before each later send. A receipt records the delivery in the ledger. Any other refusal, or the last failed send, gives the claim back and writes one warning with the refusal code to the server log; the Session stays, and the Firm Record refuses its proposal and finish. When the Session cannot be created, the rule's `failed()` gives the claim back and writes one warning with the error.
 
@@ -92,17 +92,17 @@ After the Session admitted its prompt, `started()` calls `flowleapRecord.runStar
 
 #### What the model sees
 
-One user message with source `webhook` opens the run Session. Its first paragraph is the Mandate of the task type, verbatim below for `epo-r71-3-report`; the steps that follow tell the model to read the matter with `record_read`, to stop when the client rules do not allow an AI letter, to write the letter with `office_letter_from_template` on the configured template, to read the text of the office letter with `record_read_document_text`, to propose the letter with `record_propose_report` with at least one exact quote and its page for every statement (copied character for character, at most 200 characters), and to finish with `record_finish_run`; the Ticket delivery follows as JSON, labelled as data, not instructions. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one run over fixtures: its task is this run message for the Ticket `tk-1`, and the model reads the matter, writes the letter, reads the text of the office letter, proposes the letter with a quote for every statement, and finishes; the headless harness has no webhook ingress, so the message source there is `user`.
+One user message with source `webhook` opens the run Session. Its first paragraph is the Mandate of the task type, verbatim below for `epo-r71-3-report`; the steps that follow tell the model to read the matter with `record_read` and the text of the office letter with `record_read_document_text`, to write the draft reply to the EPO with `office_letter_from_template` on the configured template and propose it with `record_propose_report` and kind `office-reply`, then, only when the client rules allow an AI letter, to write the report to the client the same way and propose it with kind `client-report`, and to finish with `record_finish_run`. Every statement of each letter has at least one exact quote and its page (copied character for character, at most 200 characters). The reply says only what the office letter asks for: the approval of the text, the translations of the claims, and the fees; the Ticket delivery follows as JSON, labelled as data, not instructions. The [`flowleap-ticket-run`](../../../snapshots/session/flowleap-ticket-run/) snapshot pins one run over fixtures: its task is this run message for the Ticket `tk-1`, and the model reads the matter and the text of the office letter, writes and proposes the draft reply, writes and proposes the client report, each with a quote for every statement, and finishes; the headless harness has no webhook ingress, so the message source there is `user`.
 
 ##### The Mandate of epo-r71-3-report
 
 ```markdown
-Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay. You do not decide: each result is a proposal that the attorney decides in the Records app. You do not compute or change a date. Task type: epo-r71-3-report, the report to the client on an EPO communication under Rule 71(3) EPC.
+Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay. You do not decide: each result is a proposal that the attorney decides in the Records app. You do not compute or change a date. Task type: epo-r71-3-report, the draft reply to the EPO and the report to the client on an EPO communication under Rule 71(3) EPC.
 ```
 
 #### Token effect
 
-One user message of about 400 tokens plus the delivery JSON, which grows with the number of events (at most 20).
+One user message of about 550 tokens plus the delivery JSON, which grows with the number of events (at most 20).
 
 #### KV Cache effect
 

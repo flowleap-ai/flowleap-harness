@@ -353,8 +353,15 @@ export interface RunStart {
   readonly session: SessionId
 }
 
-/** `POST tickets/<id>/reports`: a client report letter, proposed for the attorney's decision. */
+/**
+ * What a proposed letter is: the report to the client, or the draft reply to the office. The client's `aiLetters` rule
+ * applies to a client report only, and an accepted office reply opens no task to send it.
+ */
+export type ReportKind = 'client-report' | 'office-reply'
+
+/** `POST tickets/<id>/reports`: a letter of the run, proposed for the attorney's decision. */
 export interface ReportProposal {
+  readonly kind: ReportKind
   /** The file name of the letter, such as `report-r71-3.docx`. */
   readonly fileName: string
   /** The `.docx` bytes; the Firm Record takes at most 5 MiB. */

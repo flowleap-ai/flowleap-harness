@@ -380,6 +380,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
    */
   proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>> {
     const body = {
+      kind: command.kind,
       fileName: command.fileName,
       contentBase64: Buffer.from(command.content).toString('base64'),
       templateName: command.templateName,

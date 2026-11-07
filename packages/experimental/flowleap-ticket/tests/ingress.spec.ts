@@ -150,7 +150,7 @@ describe('the Ticket ingress', () => {
     expect(created).toHaveLength(1)
     const [run] = created as [Created]
     expect(run).toMatchObject({
-      title: 'Report to the client, FL-2026-0001', workspace: '/firm/runs', agentPreset: 'patent', permission: 'workspace-write',
+      title: 'Reply and report, FL-2026-0001', workspace: '/firm/runs', agentPreset: 'patent', permission: 'workspace-write',
     })
     expect(run.prompt.startsWith('Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay.')).toBe(true)
     expect(run.prompt).toContain('"client-report.docx"')

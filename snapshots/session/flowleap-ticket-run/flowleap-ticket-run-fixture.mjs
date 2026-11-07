@@ -3,7 +3,8 @@
  * position 7 with its Ticket tk-1 running, the two-page text layer of the forwarded letter, and each run command it
  * receives written as JSON under firm-record/ in the working directory, so workspace.expected/ shows what the Firm Record
  * received. Like the Firm Record, the fixture refuses a report whose source has no span, whose quote is not in the text of
- * its page, or whose quote is in it more than once, and it stores the offsets of each quote. The Office fixture provides
+ * its page, or whose quote is in it more than once, and it stores the offsets of each quote. Each report is written under
+ * its kind, so the draft reply to the office and the client report are two files. The Office fixture provides
  * `flowleapOffice` and writes the letter as UTF-8 text that names the template, the fields, and the blocks.
  */
 
@@ -88,6 +89,8 @@ const view = Object.freeze({ ...VIEW, viewHash: createHash('sha256').update(cano
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
+let reports = 0
+
 /** Write one received command under firm-record/ in the working directory. */
 function received(file, value) {
   const dir = join(process.cwd(), 'firm-record')
@@ -124,10 +127,11 @@ export function apply(ctx) {
       const located = statements.map(statement => ({ text: statement.text, evidence: statement.evidence.map(locate) }))
       const refusal = located.flatMap(statement => statement.evidence).find(item => 'error' in item)
       if (refusal !== undefined) return refusal
-      received('report.json', {
+      received(`report-${command.kind}.json`, {
         ticket, ...rest, statements: located, session: sessionMark(session), content: { sha256: sha256(content), bytes: content.byteLength },
       })
-      return { proposalId: 'p-1', document: sha256(content), recordSeq: 10 }
+      reports += 1
+      return { proposalId: `p-${reports}`, document: sha256(content), recordSeq: 9 + reports }
     },
     finishRun: async (ticket, command) => {
       received('finish.json', { ticket, ...command, session: sessionMark(command.session) })

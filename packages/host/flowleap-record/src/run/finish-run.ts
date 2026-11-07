@@ -28,7 +28,7 @@ const Args = z.object({
 )
 
 const DESCRIPTION =
-  'End this Ticket run after you proposed the report letter. Give the deadline summary: the id and state of the deadline '
+  'End this Ticket run after you proposed its letters. Give the deadline summary: the id and state of the deadline '
   + 'of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state '
   + 'when the record has no deadline for the event. You do not compute or change a date: the attorney checks the '
   + 'deadline and decides each proposal in the Records app. The Firm Record then queues one reply to firm addresses '

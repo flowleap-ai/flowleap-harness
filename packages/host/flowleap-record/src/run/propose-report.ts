@@ -1,4 +1,8 @@
-/** The `record_propose_report` tool: the client report letter of a Ticket run, proposed with its evidence. @module */
+/**
+ * The `record_propose_report` tool: a letter of a Ticket run, the client report or the draft reply to the office,
+ * proposed with its evidence.
+ * @module
+ */
 
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
@@ -6,7 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { callWorkspace, parseArgs, readInput, readTemplate } from '@deepseek-ai/dsh-flowleap-office'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { z } from 'zod'
-import type { ReportReceipt, ReportStatement } from '../types.ts'
+import type { ReportKind, ReportReceipt, ReportStatement } from '../types.ts'
 import { callSession, nonEmpty, recordSeqArg, sha256Arg, ticketIdArg } from './args.ts'
 import { RUN_ERROR_SCHEMA, runRefusal, type RunCommandError } from './refusal.ts'
 
@@ -34,8 +38,11 @@ const Statement = z.object({
   evidence: z.array(Evidence).min(1, 'Every statement needs at least one source document.'),
 }).strict()
 
+const KINDS = ['client-report', 'office-reply'] as const satisfies readonly ReportKind[]
+
 const Args = z.object({
   ticket_id: ticketIdArg,
+  kind: z.enum(KINDS).default('client-report'),
   file: z.string().min(1),
   template: z.string().min(1),
   rules_seq: recordSeqArg,
@@ -43,7 +50,9 @@ const Args = z.object({
 }).strict()
 
 const DESCRIPTION =
-  'Propose the client report letter of this Ticket run to the attorney. The letter is a .docx file in the working '
+  'Propose a letter of this Ticket run to the attorney: the report to the client (kind client-report, the default), or '
+  + 'the draft reply to the office (kind office-reply). The client rules on AI letters apply to the client report only. '
+  + 'The letter is a .docx file in the working '
   + 'directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about '
   + 'the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document '
   + 'of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you '
@@ -51,9 +60,9 @@ const DESCRIPTION =
   + 'that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds '
   + 'the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules '
   + '(clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the '
-  + 'attorney accepts or rejects it in the Records app. Nothing goes to the client before the attorney decides: when the '
-  + 'run finishes, the Firm Record attaches the letter as a draft to one reply to firm addresses only, the person who '
-  + 'forwarded the office letter and the routed attorney. You do not send the letter.'
+  + 'attorney accepts or rejects it in the Records app. Nothing goes to the client or to the office before the attorney '
+  + 'decides: when the run finishes, the Firm Record attaches the letters as drafts to one reply to firm addresses only, '
+  + 'the person who forwarded the office letter and the routed attorney. You do not send or file a letter.'
 
 const OUTPUT_SCHEMA = {
   oneOf: [
@@ -82,6 +91,7 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
     description: DESCRIPTION,
     parameters: {
       ticket_id: { type: 'string', required: true, description: 'The ticket id of the run message.' },
+      kind: { type: 'string', enum: [...KINDS], description: 'client-report (the default) or office-reply.' },
       file: { type: 'string', required: true, description: 'The .docx letter, relative to the working directory.' },
       template: { type: 'string', required: true, description: 'File name of the firm template the letter is on, as given to office_letter_from_template.' },
       rules_seq: { type: 'integer', required: true, description: 'clientRules.seq of record_read.' },
@@ -131,6 +141,7 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
         evidence: nonEmpty(statement.evidence),
       })))
       const result = await ctx.flowleapRecord.proposeReport(args.ticket_id, {
+        kind: args.kind,
         fileName: basename(args.file),
         content,
         templateName: args.template,
@@ -143,7 +154,10 @@ export function proposeReportTool(ctx: Context, templatesDir: string): ToolDefin
       return 'error' in result ? runRefusal(result) : result
     },
     presentCall: args => ({
-      card: 'generic', title: 'Propose the report letter', kind: 'other', locations: [{ path: args.file }],
+      card: 'generic',
+      title: args.kind === 'office-reply' ? 'Propose the draft reply' : 'Propose the report letter',
+      kind: 'other',
+      locations: [{ path: args.file }],
     }),
   })
 }
