@@ -80,6 +80,7 @@ describe('a scan whose office event reader 1 could not tell, with its date and a
     await mountLetter(letterWithNoCode)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Letter of 30 Oct 2026')
     expect(document.body.textContent).toContain('FlowLeap read the date and the application number, but not which office event this letter is.')
+    expect(screen.getByRole('navigation', { name: 'Location' }).textContent).toContain('Letter of 30 Oct 2026')
     expect(screen.getByRole('table', { name: 'What FlowLeap read' }).textContent).toContain('Fri, 30 Oct 202630.10.2026p. 1')
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Application' }).value).toBe('24 123 456.7')
     expect(document.querySelector<HTMLInputElement>('input[name="documentDate"]')!.value).toBe('2026-10-30')

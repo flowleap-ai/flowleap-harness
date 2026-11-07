@@ -37,6 +37,7 @@ import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
 import { ActButton, OverflowActs } from './parts/Act.tsx'
 import { BoardScreen } from './screens/BoardScreen.tsx'
 import { LetterScreen } from './screens/LetterScreen.tsx'
+import { letterPageTitle } from './screens/IntakeLetter.tsx'
 import { MyWorkScreen } from './screens/MyWorkScreen.tsx'
 import { shownOrder } from './screens/IntakeScreen.tsx'
 import { actOf } from './screens/context.ts'
@@ -295,7 +296,7 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
       return null
     case 'letter': {
       const data = shownData(screen.item)?.data
-      return <Crumbs t={t} crumbs={[{ label: t('tab.intake'), route: TAB_ROUTE.intake }, { label: data === undefined ? '' : letterTitle(t, data.code, data.status) }]} navigate={ctx.navigate} />
+      return <Crumbs t={t} crumbs={[{ label: t('tab.intake'), route: TAB_ROUTE.intake }, { label: data === undefined ? '' : letterPageTitle(ctx, data) }]} navigate={ctx.navigate} />
     }
     case 'intake': {
       if (screen.open === null) return null
@@ -395,7 +396,7 @@ function myWorkBar(screen: Screen, ctx: ScreenContext, myWork: MyWork | null): R
       case 'my-work': return null
       case 'letter': {
         const data = shownData(screen.item)?.data
-        return data === undefined ? '' : letterTitle(t, data.code, data.status)
+        return data === undefined ? '' : letterPageTitle(ctx, data)
       }
       case 'deadline': {
         const data = shownData(screen.deadline)?.data

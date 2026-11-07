@@ -219,13 +219,13 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
 }
 
 /**
- * The title of a letter: its office event, or, for a letter whose office event no reader could tell, the date it
- * bears.
+ * The title of a letter page and its breadcrumb: its office event, or, for a letter whose office event no reader could
+ * tell, the date it bears.
  * @param ctx - the screen context.
  * @param letter - the letter.
  * @returns the title.
  */
-function titleOf(ctx: ScreenContext, letter: IntakeDocument): string {
+export function letterPageTitle(ctx: Pick<ScreenContext, 't' | 'locale'>, letter: IntakeDocument): string {
   const date = letter.documentDate ?? letter.entry?.read?.documentDate ?? isoDateOf(letter.fields.documentDate?.value)
   if (letter.code === null && date !== null) return ctx.t('letter.titleOf', { date: formatDay(date, ctx.locale) })
   // A letter with read values but no office event is no scan without text: its title is the plain kind.
@@ -508,7 +508,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     setPickedState(matter)
     runner.clear()
   }
-  const title = titleOf(ctx, letter)
+  const title = letterPageTitle(ctx, letter)
   const reasons = reasonsOf(ctx, letter)
   const agree = reasons.filter(reason => reason.ok).length
   const agreePage = letter.fields.reference?.span.page ?? 1
