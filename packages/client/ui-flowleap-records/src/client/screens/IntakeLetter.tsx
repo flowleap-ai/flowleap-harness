@@ -488,6 +488,13 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       )}
     />
   )
+  // Who gets Confirm the deadline when this person decides the date or enters the event now (the two-person rule), as
+  // the mockups name it: in the part of the two dates when the readings differ, else in the note. Filing decides
+  // neither, so its bar names nobody.
+  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' ? letter.nextConfirmer : null
+  const nextNote = next === null || (decision.kind === 'code' && dates !== null)
+    ? undefined
+    : t(next.queued ? 'letter.next.queued' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.decide', { person: personInText(t, next.person) })
   const parts = (() => {
     switch (decision.kind) {
       case 'match': return picking
@@ -519,7 +526,11 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
                 </span>
               )}
             />
-            <DecisionPart icon={<IconInfoOutlineRegular size={16} />} title={t('letter.differ.second')} detail={t('letter.differ.secondWhy')} />
+            <DecisionPart
+              icon={<IconInfoOutlineRegular size={16} />}
+              title={next === null || next.queued ? t('letter.differ.second') : t('letter.next.part', { person: personInText(t, next.person) })}
+              detail={next?.queued === true ? t('letter.next.queued', { person: personInText(t, next.person) }) : t('letter.differ.secondWhy')}
+            />
           </>
         )
         : (
@@ -543,12 +554,6 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     }
   })()
   const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
-  // Who gets Confirm the deadline when this person decides the date or enters the event now (the two-person rule), as
-  // the mockups name it; filing decides neither, so its bar names nobody.
-  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' ? letter.nextConfirmer : null
-  const nextNote = next === null
-    ? undefined
-    : t(next.queued ? 'letter.next.queued' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.decide', { person: personInText(t, next.person) })
   const bar = ctx.me === null || decision.kind === 'done'
     ? null
     : (

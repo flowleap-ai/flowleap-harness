@@ -95,6 +95,20 @@ describe('the readings and the next confirmer of a letter', () => {
     await mountLetter({ ...waiting, nextConfirmer: null })
     expect(screen.queryByText(/confirms the deadline/u)).toBeNull()
   })
+
+  it('names the next confirmer in the part of the two dates when the readings differ, and not again in the note', async () => {
+    const readers = fixtures.intakeDocument.readers
+    await mountLetter({
+      ...fixtures.intakeDocument,
+      status: { machine: 'deadline', state: 'code_proposed' },
+      officeEvent: { id: FIXTURE_IDS.officeEvent as OfficeEventId, state: 'code_proposed' },
+      proposed: null,
+      filed: { fileNumber: 'FL-2026-0001' as FileNumber, title: 'Pressure sensor housing' },
+      readers: { ...readers, model: { ...readers.model!, result: { ...readers.model!.result!, documentDate: '2026-10-25' as never } }, agree: false, differences: ['documentDate'] },
+    })
+    expect(screen.getByText('Lena Hoffmann confirms the deadline')).toBeTruthy()
+    expect(screen.queryByText(/because you decide the date/u)).toBeNull()
+  })
 })
 
 describe('the draft reply', () => {

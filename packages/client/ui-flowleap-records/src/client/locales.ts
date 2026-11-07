@@ -672,6 +672,7 @@ export const en = {
   'dossier.wall.screened.one': '1 person screened',
   'dossier.wall.screened': '{count} people screened',
   'dossier.rejectedBy': 'Rejected by {person}',
+  'letter.next.part': '{person} confirms the deadline',
 } as const
 
 /** Key domain of the namespace. */
@@ -1342,6 +1343,7 @@ export const de = {
   'dossier.wall.screened.one': '1 Person ausgeschlossen',
   'dossier.wall.screened': '{count} Personen ausgeschlossen',
   'dossier.rejectedBy': 'Abgelehnt von {person}',
+  'letter.next.part': '{person} bestätigt die Frist',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2009,6 +2011,7 @@ export const es = {
   'dossier.wall.screened.one': '1 persona excluida',
   'dossier.wall.screened': '{count} personas excluidas',
   'dossier.rejectedBy': 'Rechazado por {person}',
+  'letter.next.part': '{person} confirma el plazo',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2676,6 +2679,7 @@ export const fr = {
   'dossier.wall.screened.one': '1 personne exclue',
   'dossier.wall.screened': '{count} personnes exclues',
   'dossier.rejectedBy': 'Rejeté par {person}',
+  'letter.next.part': '{person} confirme le délai',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3343,6 +3347,7 @@ export const ja = {
   'dossier.wall.screened.one': '1 人を除外',
   'dossier.wall.screened': '{count} 人を除外',
   'dossier.rejectedBy': '{person} が却下',
+  'letter.next.part': '{person} が期限を確認します',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4010,6 +4015,7 @@ export const pt = {
   'dossier.wall.screened.one': '1 pessoa excluída',
   'dossier.wall.screened': '{count} pessoas excluídas',
   'dossier.rejectedBy': 'Rejeitado por {person}',
+  'letter.next.part': '{person} confirma o prazo',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -4677,6 +4683,7 @@ export const ru = {
   'dossier.wall.screened.one': 'исключён 1 человек',
   'dossier.wall.screened': 'исключено человек: {count}',
   'dossier.rejectedBy': 'Отклонено: {person}',
+  'letter.next.part': '{person} подтверждает срок',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5344,4 +5351,5 @@ export const zh = {
   'dossier.wall.screened.one': '已隔离 1 人',
   'dossier.wall.screened': '已隔离 {count} 人',
   'dossier.rejectedBy': '{person} 已驳回',
+  'letter.next.part': '{person} 确认期限',
 } satisfies Record<FlowleapRecordsKey, string>
