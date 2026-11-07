@@ -107,6 +107,16 @@ function readNothing(letter: Pick<IntakeDocument, 'activity'>): boolean {
   return letter.activity.some(event => event.type === 'document/unreadable')
 }
 
+/**
+ * Whether reader 1 read the date or the application number of a letter whose office event it could not tell: the
+ * record stores such a letter as `unreadable` and keeps the reading, so the hand entry starts from the read values.
+ * @param letter - the letter.
+ * @returns true when the card quotes the date or the application number.
+ */
+function readValues(letter: Pick<IntakeDocument, 'fields'>): boolean {
+  return letter.fields.documentDate !== undefined || letter.fields.applicationNumber !== undefined
+}
+
 /** One reason that FlowLeap gives for its reading or its proposal. */
 interface Reason {
   readonly key: string
@@ -134,7 +144,7 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
   const { t } = ctx
   const reasons: Reason[] = []
   if (letter.status.machine === 'intake' && letter.status.state === 'unreadable') {
-    reasons.push({ key: 'unreadable', ok: false, text: t('intake.reason.unreadable') })
+    reasons.push({ key: 'unreadable', ok: false, text: t(readValues(letter) ? 'intake.reason.noCode' : 'intake.reason.unreadable') })
   }
   const reference = letter.fields.reference
   const number = letter.fields.applicationNumber
@@ -193,7 +203,7 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
  */
 function titleOf(ctx: ScreenContext, letter: IntakeDocument): string {
   const date = letter.documentDate ?? isoDateOf(letter.fields.documentDate?.value)
-  return letter.code === null && date !== null && !(letter.status.machine === 'intake' && letter.status.state === 'unreadable')
+  return letter.code === null && date !== null
     ? ctx.t('letter.titleOf', { date: formatDay(date, ctx.locale) })
     : letterTitle(ctx.t, letter.code, letter.status)
 }
@@ -256,7 +266,7 @@ function ledeOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
       : t('intake.lede.matchProposed', { page: letter.fields.reference?.span.page ?? 1 })
     case 'unmatched': return t('intake.lede.unmatched')
     case 'ambiguous': return t('intake.lede.ambiguous')
-    case 'unreadable': return t('intake.lede.unreadable')
+    case 'unreadable': return t(readValues(letter) ? 'intake.lede.noCode' : 'intake.lede.unreadable')
     case 'kind_proposed': return t('intake.lede.kindProposed')
     case 'duplicate_proposed': return t('intake.lede.duplicateProposed')
     case 'not_relevant': return t('intake.lede.notRelevant')
@@ -447,7 +457,10 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const [picked, setPickedState] = useState<MatterRef | null>(null)
   const dates = differingDates(letter)
   const [hand, setHandState] = useState<HandValues>({
-    fileNumber: '', applicationNumber: letter.applicationNumber ?? '', code: letter.entry?.codes[0]?.code ?? '', documentDate: '',
+    fileNumber: '',
+    applicationNumber: letter.applicationNumber ?? letter.fields.applicationNumber?.value ?? '',
+    code: letter.entry?.codes[0]?.code ?? '',
+    documentDate: letter.documentDate ?? isoDateOf(letter.fields.documentDate?.value) ?? '',
   })
   const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
   const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
@@ -690,7 +703,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const proposed = letter.proposed
   const unreadable = letter.status.machine === 'intake' && letter.status.state === 'unreadable'
   // A scan filed by hand has no reading: the values on the card are the entry, which Activity names.
-  const read = !readNothing(letter)
+  const read = !readNothing(letter) || readValues(letter)
   const { readers } = letter
   return (
     <div className={css.item}>
@@ -719,7 +732,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             onOpen={openLetter}
           />
         )}>
-          {read && !unreadable && (
+          {read && (
             <section aria-label={t('letter.read')}>
               <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t(readTwice(readers) ? 'letter.readTwice' : 'letter.readOnce')}`}</span></h2>
               <Readings ctx={ctx} readers={readers} />
