@@ -22,6 +22,8 @@ Preconditions:
 - Start the instance with `DSH_VERIFY_PATCH=<joined file>`, the Office variables of [office.md](office.md), `FLOWLEAP_RECORD_URL=http://127.0.0.1:<record service port>`, `FLOWLEAP_RECORD_TOKEN` and `FLOWLEAP_TICKET_SECRET` from the two files of person A, `FLOWLEAP_TEMPLATES_DIR=<template folder>` and `FLOWLEAP_RUN_WORKSPACE=<an empty folder>`.
 - Act as the host that starts runtimes: write `<rec run>/starter/runtimes/<A>.json` with `{"url":"http://127.0.0.1:<instance port>/","session":"local-proof"}`. The Work router reads it after it writes `starter/requests/<A>`.
 
+With the development loop instead of `web.sh` (flowleap/docs/dev-loop.md): run `dev-loop.sh up --os <flowleap-os checkout> --as <routed person> --no-letters`, write `<run>/record/ticket-keys/<oid>` (a random key, mode 0600) and `<run>/record/starter/runtimes/<oid>.json` with the dsh port (`--port` plus 1), then `dev-loop.sh restart` with `FLOWLEAP_DEV_PATCHES=<joined file>` and the variables above (`FLOWLEAP_RECORD_URL` is the record's service port, `FLOWLEAP_TICKET_SECRET` the content of the key file). Add the `agent-default-model` row of [`verify.patch.yml`](../verify.patch.yml) to the joined file: without it the run takes the bundle's Anthropic route and fails at the first model call when the shell has only `OPENROUTER_API_KEY`.
+
 Steps:
 
 - **Run.** Let the flowleap-os side record the office event (or post the reading as its verify skill says). The Firm Record log shows `ticket/wake-started`, then `ticket/run-started` from the runtime. Wait until the matter view shows the Ticket in `proposals_ready`.

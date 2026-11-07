@@ -13,6 +13,8 @@
 # so the other commands take none. Ports: the app on <port> (default 3270) through the records proxy, dsh on <port>+1,
 # the probe on <port>+2; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
 # The model keys come from this shell's environment only; with none, the app starts and chats fail at the model call.
+# FLOWLEAP_DEV_PATCHES adds overlay files (colon-separated absolute paths) after the loop's own, for example the Ticket
+# and Office overlays of a Ticket run (.agents/skills/verify/features/ticket-run.md); give it to `up` and `restart`.
 set -euo pipefail
 
 HARNESS=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -81,6 +83,9 @@ act_as() {
 dsh() {
   local dir=$1 port=$2; shift 2
   local tsx; tsx=$(cd "$HARNESS" && node --input-type=module -e "console.log(import.meta.resolve('tsx/esm'))")
+  local p patch patches=()
+  IFS=: read -ra patch <<< "${FLOWLEAP_DEV_PATCHES:-}"
+  for p in ${patch[@]+"${patch[@]}"}; do [[ -z $p ]] || patches+=(--patch "$p"); done
   local skills=${FLOWLEAP_SKILLS_DIR:-$HOME/flowleap/flowleap-methods/skills}
   # The skill pack row fails at load when its folder does not exist; an empty folder means no FlowLeap skill.
   [[ -d $skills ]] || { skills=$RUN/no-skills; mkdir -p "$skills"; }
@@ -89,7 +94,7 @@ dsh() {
   export FLOWLEAP_SKILLS_DIR=$skills TSX_TSCONFIG_PATH=$HARNESS/tsconfig.json FLOWLEAP_DEV_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) \
     FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents
   cd "$dir/workspace" && exec node --import "$tsx" "$HARNESS/apps/cli/src/bin.ts" --profile flowleap-web \
-    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" "$@" --no-open --port "$port"
+    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" ${patches[@]+"${patches[@]}"} "$@" --no-open --port "$port"
 }
 dsh_url() { grep -Eo "http://127\.0\.0\.1:$((PORT + 1))/\?token=[^ ]*" "$LOGS/dsh.log" 2> /dev/null | head -1 || true; }
 start_dsh() {
