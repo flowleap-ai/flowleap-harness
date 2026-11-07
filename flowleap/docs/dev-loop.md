@@ -11,7 +11,7 @@ The local firm is the only path to the test firm: `release/gate.sh` refuses a ca
 
 ## What the development loop runs
 
-One command starts six processes on this Mac. They do not collide with the local firm (Lima VM `flowleap-local-firm`, port 14180) or with the default ports of the verify skills (3180, 8095).
+One command starts six processes on this Mac (`--demo` adds the starter, the mailbox and one Ticket runtime for each woken person). They do not collide with the local firm (Lima VM `flowleap-local-firm`, port 14180) or with the default ports of the verify skills (3180, 8095).
 
 | Process | Port | Source |
 |---|---|---|
@@ -57,6 +57,39 @@ After an edit:
 - The Firm Record (`lib/record/` of flowleap-os): `flowleap/dev-loop.sh down` and `up`. The data stays.
 
 `flowleap/dev-loop.sh status` shows what runs and as whom. `flowleap/dev-loop.sh down` stops everything. Nothing stays up after `down`; the record's data, the seed and the Sessions stay in the run dir (`~/.local/share/flowleap-harness/dev-loop`, or `FLOWLEAP_DEV_RUN`). Remove the run dir to start with an empty record.
+
+## The full first demo
+
+`up --demo` runs the first demo of atlas sheet 00 with no manual step, from the letter in the AI mailbox to Review the work of the attorney. Use a new run dir, because the seed letters go in once per run dir:
+
+```bash
+FLOWLEAP_DEV_RUN=~/.local/share/flowleap-harness/demo flowleap/dev-loop.sh up --os ~/flowleap/flowleap-os --demo --officecli <OfficeCLI 1.0.160 binary>
+```
+
+It needs:
+
+- `OPENROUTER_API_KEY` in the shell: the Ticket run uses OpenRouter (`anthropic/claude-haiku-5.5`), the run model of the local record.
+- The OfficeCLI 1.0.160 binary of this Mac (`--officecli` or `FLOWLEAP_OFFICECLI`). The loop pins its SHA-256 at `up`.
+- A Mistral key file with the line `MISTRAL_API_KEY=...` (default `~/.config/flowleap/mistral.env`, or `--ocr-key-file`) and the firm's runtime image (default `registry.flowleap.co/flowleap/runtime:current`, or `--ocr-image`). `seed-letters.mjs` of flowleap-os reads each of the 18 scans with OCR in a one-shot container of that image through a local model gateway. That is 18 OCR calls, about USD 0.30. The key goes only to the gateway.
+
+In addition to the normal loop, `--demo` does these steps:
+
+1. **Setup.** [`dev-loop-demo-setup.mjs`](../dev-loop-demo-setup.mjs) records what the seed firm does not record yet: the OpenRouter provider contract, the AI wishes of the client of SF-2023-0045 (AI drafts and the client report allowed), and one sign-in of each seed person, so that the notices have mail addresses. A second `up` appends nothing.
+2. **Letters and the reader loop.** `seed-letters.mjs` of flowleap-os posts the 18 letters with OCR, and its mailbox keeps the reader loop running, so a filed letter gets its readings with no manual pass.
+3. **The starter.** The loop acts as the host of a firm. When a confirmed deadline opens a Ticket, the Work router of the record writes `starter/requests/<person id>`. The starter then starts that person's Ticket runtime on port `<port>`+10 (the next person on +11), with the Ticket overlay of `flowleap-ticket`, the Office rows, the firm templates of `examples/local-run/templates/` (the letter to the EPO and the client report) and [`dev-loop-ticket.patch.yml`](../dev-loop-ticket.patch.yml). It writes the runtime's own record token to `runtime-tokens/<person id>` and the person's Ticket key to `ticket-keys/<person id>`, and then `starter/runtimes/<person id>.json`. The Work router posts the Ticket, and the run starts. The log is `logs/starter.log`, and each runtime's log is `runtimes/<person id>/dsh.log`.
+
+The demo starts as `tobias` (the formalities person of SF-2023-0045). The path:
+
+1. As `tobias`, open My work: **File this letter** for the R71(3) letter of SF-2023-0045 (OCR proposes the matter). File it.
+2. The reader loop reads the filed letter. As `tobias`, **Check the office event** and record it, then **Confirm the deadline** (2027-01-29).
+3. The Ticket wakes Dr. Anna Becker's runtime. The run proposes the draft reply to the EPO, then the client report, and finishes (a few minutes).
+4. `as anna`: My work has **Review the work**, with both drafts.
+
+A person with a Ticket runtime keeps that runtime's record token, because the record finds a token in one person's file only. So after `as anna` the Records screens work, but the chat agent of the app cannot read the record as Anna. `restart` and `down` stop the Ticket runtimes and remove `starter/runtimes/*.json`; the next wake starts them again from source.
+
+## Sign out
+
+When the records row of the bundle has `signOutHref` (harness PR 346), the loop adds [`dev-loop-signout.patch.yml`](../dev-loop-signout.patch.yml): **Sign out** in the account menu goes to `/_dev/people`, a person picker of the records proxy. A choice runs `dev-loop.sh as <handle>` and opens the app as that person. Without that row, the account menu has no Sign out, and `dev-loop.sh as` changes the person.
 
 ## Model keys
 
