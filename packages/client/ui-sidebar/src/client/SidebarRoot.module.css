@@ -779,6 +779,20 @@
   white-space: nowrap;
 }
 
+/* The `sidebar.panellist.count` occupant at the row's end; an empty seat takes no space. */
+.panelCount {
+  flex: none;
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.panelCount:empty {
+  display: none;
+}
+
 .collapsed .panelList {
   gap: 12px;
   margin-bottom: 12px;
