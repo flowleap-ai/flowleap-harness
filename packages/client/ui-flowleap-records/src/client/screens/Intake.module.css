@@ -416,3 +416,11 @@
     display: none;
   }
 }
+
+/* On a touch screen the field takes 16 px, so iOS Safari does not zoom into it (R1 exception, dsh-responsive-ui §9.2). */
+@media (pointer: coarse) {
+  .fields input,
+  .fields select {
+    font-size: var(--dsw-font-base-16-font-size);
+  }
+}

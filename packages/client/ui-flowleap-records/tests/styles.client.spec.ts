@@ -309,3 +309,14 @@ describe('the review-3 visual fixes', () => {
     expect(declarations(read('Board.module.css'), '.card')).toContain('cursor: pointer')
   })
 })
+
+describe('text fields on a touch screen', () => {
+  it('gives every text field of the views 16 px under a coarse pointer, so iOS Safari does not zoom into it', () => {
+    const coarse = (name: string, folder: string) => atRule(read(name, folder), '@media (pointer: coarse)')
+    const size = 'font-size: var(--dsw-font-base-16-font-size);'
+    expect(coarse('FindDialog.module.css', '.')).toMatch(/input\.search\s*\{\s*font-size: var\(--dsw-font-base-16-font-size\);/u)
+    expect(coarse('Intake.module.css', 'screens')).toContain(`.fields input,\n  .fields select {\n    ${size}`)
+    expect(coarse('Decision.module.css', 'parts')).toContain(`.reasonField input {\n    ${size}`)
+    expect(coarse('AgentSummary.module.css', 'parts')).toContain(`.composerField input {\n    ${size}`)
+  })
+})

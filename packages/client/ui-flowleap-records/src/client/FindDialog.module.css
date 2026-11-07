@@ -117,3 +117,10 @@
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
 }
+
+/* On a touch screen the field takes 16 px, so iOS Safari does not zoom into it (R1 exception, dsh-responsive-ui §9.2). */
+@media (pointer: coarse) {
+  input.search {
+    font-size: var(--dsw-font-base-16-font-size);
+  }
+}
