@@ -35,6 +35,7 @@
     "presets/patent.patch.yml",
     "presets/standard.patch.yml",
     "presets/ptc.patch.yml",
+    "presets/cordis.patch.yml",
     "prompt/patent-agent.md",
     "brand/brand.json",
     "brand/flowleap-mark.svg",
@@ -47,7 +48,8 @@
         "./cordis.patch.yml",
         "./presets/patent.patch.yml",
         "./presets/standard.patch.yml",
-        "./presets/ptc.patch.yml"
+        "./presets/ptc.patch.yml",
+        "./presets/cordis.patch.yml"
       ],
       "lockedRows": [
         "plugin-manager",
@@ -67,6 +69,7 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-agent-instructions": "workspace:*",
     "@deepseek-ai/dsh-agent-preset": "workspace:*",
     "@deepseek-ai/dsh-client-ui-brand-flowleap": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-admin-link": "workspace:*",
@@ -78,6 +81,10 @@
     "@deepseek-ai/dsh-client-ui-flowleap-work-pages": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-skills": "workspace:*",
+    "@deepseek-ai/dsh-command-compact": "workspace:*",
+    "@deepseek-ai/dsh-command-goal": "workspace:*",
+    "@deepseek-ai/dsh-compaction-basic": "workspace:*",
+    "@deepseek-ai/dsh-compaction-tool-result-pruner": "workspace:*",
     "@deepseek-ai/dsh-flowleap-agent-builder": "workspace:*",
     "@deepseek-ai/dsh-flowleap-budget": "workspace:*",
     "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
@@ -86,7 +93,30 @@
     "@deepseek-ai/dsh-flowleap-prompt": "workspace:*",
     "@deepseek-ai/dsh-flowleap-record": "workspace:*",
     "@deepseek-ai/dsh-flowleap-routines": "workspace:*",
-    "@deepseek-ai/dsh-mcp-client": "workspace:*"
+    "@deepseek-ai/dsh-mcp-client": "workspace:*",
+    "@deepseek-ai/dsh-persona": "workspace:*",
+    "@deepseek-ai/dsh-plan-mode": "workspace:*",
+    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
+    "@deepseek-ai/dsh-plugin-market": "workspace:*",
+    "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
+    "@deepseek-ai/dsh-time-context": "workspace:*",
+    "@deepseek-ai/dsh-tool-ask-user": "workspace:*",
+    "@deepseek-ai/dsh-tool-bash": "workspace:*",
+    "@deepseek-ai/dsh-tool-cordis": "workspace:*",
+    "@deepseek-ai/dsh-tool-fs": "workspace:*",
+    "@deepseek-ai/dsh-tool-fs-search": "workspace:*",
+    "@deepseek-ai/dsh-tool-goal": "workspace:*",
+    "@deepseek-ai/dsh-tool-jobs": "workspace:*",
+    "@deepseek-ai/dsh-tool-present": "workspace:*",
+    "@deepseek-ai/dsh-tool-pwsh": "workspace:*",
+    "@deepseek-ai/dsh-tool-schedule": "workspace:*",
+    "@deepseek-ai/dsh-tool-skill": "workspace:*",
+    "@deepseek-ai/dsh-tool-subagent": "workspace:*",
+    "@deepseek-ai/dsh-tool-subagent-control": "workspace:*",
+    "@deepseek-ai/dsh-tool-todo": "workspace:*",
+    "@deepseek-ai/dsh-tool-web": "workspace:*",
+    "@deepseek-ai/dsh-tool-workflow": "workspace:*",
+    "@deepseek-ai/dsh-workflow-ptc": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~"
