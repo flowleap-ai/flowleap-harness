@@ -49,6 +49,7 @@ The Records redesign in [mockups/](mockups/), on the harness client theme and in
 | [d-deadline.html](mockups/d-deadline.html) | Deadline: is this date right | `more` |
 | [e-letter-work.html](mockups/e-letter-work.html), [German](mockups/e-letter-work.de.html) | Work on a letter: the client report and the deadline check | `evidence`, `missing`, `activity`, `more` |
 | [f-work-board.html](mockups/f-work-board.html) | Work board at rest: four state columns with their cards | `drag` (the allowed moves, and why a column takes no card) |
+| [g-my-work.html](mockups/g-my-work.html) | My work: the person's steps grouped by due time, the one exception to product rule 1 (R17); a row opens its decision page | `context` (the row menu: Open, Open matter, Copy link) |
 
 ## Screenshots
 

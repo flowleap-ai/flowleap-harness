@@ -19,7 +19,15 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 | [6-mail-attorney.html](6-mail-attorney.html) | Dr. Anna Becker | 4. The worked letter waits for the attorney | | 28, 38 |
 | [6-mail-second.html](6-mail-second.html) | Lena Hoffmann | 3. The named second confirmer gets the notice | | 22, 31 |
 
-The primary action of each decision page is the one that sheet 00 names: **File**, **Confirm** and **Record decision**; the hand entry has **Enter office event**. A decision starts with nothing chosen: **Record decision** stays disabled until each part is decided, and the bar names the open parts. The first line of My work is counted from its rows. My work groups by due time (Overdue, Today, Later), has no row selection, and its row context menu holds Open, Open matter and Copy link; this is the founder's exception to product rule 1 for My work only (R17 of the skill). Each mail button opens the decision page and decides nothing (README decision F2 of the atlas).
+The primary action of each decision page is the one that sheet 00 names: **File**, **Confirm** and **Record decision**; the hand entry has **Enter office event**. A decision starts with nothing chosen: **Record decision** stays disabled until each part is decided, and the bar names the open parts. The first line of My work is counted from its rows. My work follows founder decision B9 below. The German pages search with ⌘K, because the `/` key types `-` on a German keyboard ([client-gaps.md](../../../../.agents/skills/flowleap-design-language/client-gaps.md) item 4). Each mail button opens the decision page and decides nothing (README decision F2 of the atlas).
+
+## Founder decisions
+
+The founder decided three items of the design review on 2026-11-07:
+
+- **B1, demo day.** The demo day is the viewer's day in the real calendar. The letter of 29 September arrives today, and the pages say so without an explanation; the handover of 15 October does not name the letter. The demo story is valid until 14 January 2027, the day before the client report's instruction date of 15 January 2027.
+- **B2, AI wishes.** The seed firm records AI wishes for Renishaw plc that allow drafts and the client report. Review the work and the dossier show them.
+- **B9, My work.** My work takes an exception to product rule 1, for My work only ([R17](../../../../.agents/skills/flowleap-design-language/rules.md#r17-lists-are-tables)): it groups by due time (Overdue, Today, Later) as sheet 00 asks, each row opens its decision page, there are no row checkboxes, no bulk acts and no item pane beside the list, and a row context menu holds Open, Open matter and Copy link.
 
 ## Data
 
@@ -27,11 +35,10 @@ All data comes from the seed firm (`flowleap-seed-firm`, commit cee0c11) and the
 
 - The demo letter is the real Rule 71(3) communication of seed case `r71-3-en-open` (row 18 of EP23771920), dated 29 September 2026. Its page images in [scan/](scan/) are the register PDF rendered at 110 dpi; the quotes are its exact text.
 - The due date is Friday 29 January 2027: delivery on the date of the letter (Rule 126(2) EPC), start on 30 September 2026 (Rule 131(2) EPC), four months (Rule 71(3) and Rule 131(4) EPC), and no move, because the EPO filing offices are open that day (Rule 134(1) EPC, closing days of 2027 in OJ EPO 2026, A30). The engine has no 2027 calendar yet (#326), so it refuses this date today; the steps follow its rule `ep.r71-3.grant-communication` version 1.
-- The demo day is the viewer's day in the real calendar (founder decision of 2026-11-07): the letter of 29 September arrives today, and the pages say so. `frame.js` computes every "days left" and the date line of My work from the real clock.
+- `frame.js` computes every "days left" and the date line of My work from the real clock (decision B1).
 - The "Readings differ" state uses the second date of the real letter: the footer prints 25.09.2026 beside the form number.
 - The persons follow the seed wall of SF-2023-0045 (coordinator decision of 2026-11-07, `HANDOFF.md`): Tobias Schmitt is the formalities person, Dr. Anna Becker the responsible attorney since 15 October 2026 (seed case `S2`, the handover from Lena Hoffmann), and Lena Hoffmann the other confirmer. Sheet 00 names Sabine Wolf and Jonas Weber; they are outside the wall of this matter. The persons are one table at the top of `build.mjs`, so a change of the cast is one edit.
 - The second row of the attorney is the notice of opposition of SF-2026-0019 (seed case `r79-1-opposition`; four months from 14 October 2026 end on a Sunday, so on Monday 15 February 2027). Its worked state and its task due date of 15 January 2027 are demo assumptions (`ticket.decideBy` one month before the legal date), and no mockup page opens it.
-- The client's AI wishes are recorded in the seed firm: Renishaw plc allows AI drafts and the client report (founder decision of 2026-11-07). The Matter properties of Review the work and the dossier show them.
 - The client report asks Renishaw for instructions by Friday 15 January 2027 (`INSTRUCT_BY`, two weeks before the due date), a firm choice.
 - The persons, the task words and the task kinds are those of sheet 00 sections 3 and 9. The status words come from the skill's status map.
 

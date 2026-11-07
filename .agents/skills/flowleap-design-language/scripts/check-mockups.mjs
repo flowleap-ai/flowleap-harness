@@ -25,9 +25,10 @@
 // - each radius is on the client scale and fits the element's height band: R4 below 20 px, R8 for 20 to 28 px, R12
 //   for 32 to 40 px, R12 or more above 40 px (R7);
 // - nothing is cut with an ellipsis at 1440 and 1366 px except a title or matter cell of a queue list row (R17);
-// - a due-time group (Overdue, Today, Later) shows only in the My work list ([data-list="my-work"]); that list has only
-//   due-time groups, no row checkbox, no bulk bar, and a row context menu (#row-menu) with only Open and Open matter
-//   as acts (R17, the My work exception);
+// - a due-time group (Overdue, Today, Later) shows only in the My work list ([data-list="my-work"]), which is only on
+//   the My work screen (nav[data-sidebar="mywork"]); that list has only due-time groups, no row checkbox, no bulk bar,
+//   no item pane beside it (.split, .detail-pane), and a row context menu (#row-menu) whose items are exactly Open,
+//   Open matter and Copy link (R17, R20, the My work exception);
 // - every act that a button offers at 1440 px is reachable at 390 px: shown, in the menu that a shown
 //   [data-overflow="<menu id>"] opens, or on the
 //   page that [data-narrow-page] names (checklist 25).
@@ -282,11 +283,11 @@ function inspect({ keys, atlas, deny, view }) {
     if (!onScale || !band) { problems.push(`${name(el)} is ${hh} px high with radius ${r} px; docs/ui-radius.md gives R4 below 20 px, R8 for 20 to 28 px controls, R12 for 32 to 40 px cells, R16 to R28 for cards and panels`); break; }
   }
 
-  // R17: no ellipsis at desktop widths except a queue list row's title or matter cell.
+  // R17: no ellipsis at desktop widths except a queue list row's title or matter cell; My work is not a queue (R20).
   if (view !== '390') {
     for (const el of document.querySelectorAll('body *')) {
       if (!shown(el) || style(el).textOverflow !== 'ellipsis' || el.scrollWidth <= el.clientWidth + 1) continue;
-      if (el.matches('.list .row .t, .list .row .m')) continue;
+      if (el.matches('.list .row .t, .list .row .m') && !el.closest('[data-list="my-work"]')) continue;
       problems.push(`"${el.textContent.trim().slice(0, 48)}" is cut with an ellipsis at ${innerWidth} px; shorten the value or give it room`);
     }
   }
@@ -302,11 +303,12 @@ function inspect({ keys, atlas, deny, view }) {
     if (!due && g.closest('[data-list="my-work"]')) problems.push(`the My work group "${word}" is not a due-time group (Overdue, Today, Later) (R17)`);
   }
   if (myWork) {
+    if (!document.querySelector('nav[data-sidebar="mywork"]')) problems.push('a list takes the My work exception (data-list="my-work") on a screen that is not My work (nav[data-sidebar="mywork"]) (R17)');
     if (myWork.querySelector('.row .check') || [...document.querySelectorAll('[data-bulk]')].some(shown)) problems.push('My work has a row checkbox or a bulk bar; its rows open their decision page and take no bulk act (R17)');
+    if (document.querySelector('.split, .detail-pane')) problems.push('My work has an item pane beside the list (.split or .detail-pane); a row opens its decision page (R20)');
     const menu = document.getElementById('row-menu');
-    const extra = menu && [...menu.querySelectorAll('[data-act]')].map(m => m.dataset.act).filter(a => !['open', 'go-matter'].includes(a));
-    if (!menu) problems.push('My work has no row context menu (#row-menu) with Open, Open matter and Copy link (R17)');
-    else if (extra.length) problems.push(`the My work row menu offers ${extra.join(', ')}; it holds only Open, Open matter and Copy link (R17)`);
+    const items = menu ? [...menu.querySelectorAll('.mi')].map(m => m.dataset.act ?? m.dataset.i) : [];
+    if (items.join() !== 'open,go-matter,link') problems.push(`the My work row menu holds ${items.length ? items.join(', ') : 'nothing'}; it holds exactly Open, Open matter and Copy link (open, go-matter, link) (R17)`);
   }
 
   // R12: a bulk bar shows only for a selection, with the number of checked rows.

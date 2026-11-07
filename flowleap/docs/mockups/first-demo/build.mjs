@@ -17,11 +17,11 @@ const P = {
   lena: { name: 'Lena Hoffmann', role: ['Patent attorney', 'Patentanwältin'] },
 };
 const M = {
-  demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en',
+  demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', short: 'Renishaw plc', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en',
     // The client's recorded AI wishes (seed firm, founder 2026-11-07): AI use and AI drafts of client letters allowed.
     aiWishes: ['Drafts, client report', 'Entwürfe, Mandantenbericht'] },
-  labels: { key: 'SF-2020-0031', title: 'Labelling materials for marking electrical installations and method for producing a labelling strip', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 20 706 232.4' },
-  terminal: { key: 'SF-2026-0019', title: 'Terminal for electrical wire', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 21 810 318.2' },
+  labels: { key: 'SF-2020-0031', title: 'Labelling materials for marking electrical installations and method for producing a labelling strip', short: 'Phoenix Contact', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 20 706 232.4' },
+  terminal: { key: 'SF-2026-0019', title: 'Terminal for electrical wire', short: 'Phoenix Contact', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 21 810 318.2' },
 };
 // The Rule 71(3) communication of seed case r71-3-en-open (row 18): dated 2026-09-29, footer date 2026-09-25.
 // Due date from flowleap-deadlines rule ep.r71-3.grant-communication v1 with the EPO 2027 closing days (OJ EPO 2026, A30).
@@ -68,6 +68,8 @@ const ev = (icon, html, time, person) => person
 const b = s => `<b>${s}</b>`;
 const FL = '<b>FlowLeap</b>';
 
+/** Wraps each file number in the text (not in attributes) so it never breaks at its hyphen. */
+const keepKeys = html => html.replace(/>([^<]+)</g, (m, text) => `>${text.replace(/\bSF-\d{4}-\d{4}\b/g, k => `<span class="fn">${k}</span>`)}<`);
 const page = ({ name, title, body, after = '' }) => `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -79,8 +81,8 @@ const page = ({ name, title, body, after = '' }) => `<!doctype html>
 <link rel="stylesheet" href="first-demo.css">
 </head>
 <body>
-${body}
-${after}<script src="frame.js"></script>
+${keepKeys(body)}
+${keepKeys(after)}<script src="frame.js"></script>
 </body>
 </html>
 `;
@@ -93,7 +95,9 @@ ${body}
     </section>
   </main>
 </div>`;
-const findBtn = () => `<span class="btn btn-ghost" data-i="search" data-act="find" aria-label="${t('Find a matter', 'Akte finden')}"><span class="hide-sm">${t('Find a matter', 'Akte finden')}</span>${caps('find')}</span>`;
+// On a German QWERTZ keyboard the physical / key types -, so the German pages search with ⌘K (client-gaps.md item 4).
+const findAct = () => t('find', 'search');
+const findBtn = () => `<span class="btn btn-ghost" data-i="search" data-act="${findAct()}" aria-label="${t('Find a matter', 'Akte finden')}"><span class="hide-sm">${t('Find a matter', 'Akte finden')}</span>${caps(findAct())}</span>`;
 const topbar = (crumbs, right = '') => `      <header class="topbar">
         <div class="crumbs">${crumbs}</div>
         <div class="bar-right">${right}</div>
@@ -158,7 +162,7 @@ function myWork({ person, time, rows, states = false }) {
   const groups = [['over', 'warn', t('Overdue', 'Überfällig')], ['today', 'today', t('Today', 'Heute')], ['later', 'later', t('Later', 'Später')]];
   const row = r => {
     const tag = r.page ? 'a' : 'div';
-    return `<${tag} class="row${r === rows[0] ? ' is-context' : ''}"${r.page ? ` href="${href(r.page)}"` : ''}><span class="t c-task"><span class="task">${r.task}</span><span class="muted hide-sm">${r.why}</span></span>${status(r.atlas)}<span class="m num c-key">${r.m.key}</span><span class="m hide-sm">${r.m.client}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r c-due" data-due="${r.due}"></span></${tag}>`;
+    return `<${tag} class="row${r === rows[0] ? ' is-context' : ''}"${r.page ? ` href="${href(r.page)}"` : ''}><span class="t c-task"><span class="task">${r.task}</span><span class="muted hide-sm">${r.why}</span></span>${status(r.atlas)}<span class="m num c-key">${r.m.key}</span><span class="m hide-sm" title="${r.m.client}">${r.m.short}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r c-due" data-due="${r.due}"></span></${tag}>`;
   };
   const list = groups.map(([g, icon, word]) => {
     const rs = rows.filter(r => r.group === g);
@@ -206,13 +210,13 @@ ${skel}
 }
 
 const formalRows = () => [
-  { group: 'today', kind: 'file-letter', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t(`Letter of ${short(LETTER)} · arrived today`, `Schreiben vom ${short(LETTER)} · heute eingegangen`), m: M.demo, legal: null, due: TODAY },
+  { group: 'today', kind: 'file-letter', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t(`Letter of ${short(LETTER)} · arrived today`, `vom ${short(LETTER)} · heute eingegangen`), m: M.demo, legal: null, due: TODAY },
 ];
 // Seed case r79-1-opposition: four months from 2026-10-14 end on Sunday, so Monday 2027-02-15. Its worked state is a
 // demo assumption, with ticket.decideBy one month before the legal date; no mockup page opens it.
 const attorneyRows = () => [
-  { group: 'today', kind: 'decide-work', page: '4-review-work', atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t(`Rule 71(3) communication worked; deadline confirmed by ${P.formal.name}`, `Mitteilung nach Regel 71(3) bearbeitet; Frist von ${P.formal.name} bestätigt`), m: M.demo, legal: DUE, due: TODAY },
-  { group: 'later', kind: 'decide-work', page: null, atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t('Notice of opposition worked; draft observations ready', 'Mitteilung über den Einspruch bearbeitet; Entwurf der Stellungnahme liegt vor'), m: M.terminal, legal: '2027-02-15', due: '2027-01-15' },
+  { group: 'today', kind: 'decide-work', page: '4-review-work', atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t('Rule 71(3) EPC · deadline confirmed', 'Regel 71(3) EPÜ · Frist bestätigt'), m: M.demo, legal: DUE, due: TODAY },
+  { group: 'later', kind: 'decide-work', page: null, atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t('Opposition · observations drafted', 'Einspruch · Entwurf bereit'), m: M.terminal, legal: '2027-02-15', due: '2027-01-15' },
 ];
 
 // ---------- 2. File this letter, with the states "readings differ" and "no reading" ----------
@@ -386,8 +390,11 @@ function confirmDeadline({ person }) {
   const acts = btn('record', t('Confirm', 'Bestätigen'), { kind: 'primary', cls: 'btn-lg' });
   const left = btn('reject', t('Reject…', 'Ablehnen…'), { kind: 'ghost', icon: 'x' });
   const letterBtn = btn('open-letter', t('Open the letter', 'Schreiben öffnen'), { icon: 'doc', cls: 'hide-sm' });
-  const crumbs = myWorkCrumb(t(`Deadline ${day(DUE)}`, `Frist ${day(DUE)}`));
-  const pg = `${pager(1, 1)}<span class="iconbtn" data-i="dots"></span>`;
+  const here = t(`Deadline ${day(DUE)}`, `Frist ${day(DUE)}`);
+  // In "waiting" nothing waits for the formalities person, so the page is a deadline of the matter, not a My work item.
+  const matterCrumb = `<span class="ico hide-sm" data-i="matters"></span><span class="hide-sm">${t('Matters', 'Akten')}</span><span class="sep hide-sm">›</span><span class="num hide-sm">${M.demo.key}</span><span class="sep hide-sm">›</span><span class="here">${here}</span>`;
+  const crumbs = lenaView ? myWorkCrumb(here) : `<span class="cset" data-state="default more">${myWorkCrumb(here)}</span><span class="cset" data-state="waiting">${matterCrumb}</span>`;
+  const pg = `${lenaView ? pager(1, 1) : `<span class="cset" data-state="default more">${pager(1, 1)}</span>`}<span class="iconbtn" data-i="dots"></span>`;
   let inner;
   if (lenaView) {
     inner = `          <div class="work-scroll">

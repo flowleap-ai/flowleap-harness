@@ -16,7 +16,7 @@ Each act is a command in the shortcut registry ([`packages/client/shortcuts`](..
 | Act | `data-act` | Command | macOS | Windows | Web | German keycap | Labels |
 |---|---|---|---|---|---|---|---|
 | Open the command menu | `search` | `session.search` | ⌘K | Ctrl K | ⌥⌘K, Ctrl Alt K | | Search |
-| Find a matter by file number, title, client, application number or person (Linear opens Search with `/`) | `find` | `records.search.find` | / | / | / (layer) | | Find a matter |
+| Find a matter by file number, title, client, application number or person (Linear opens Search with `/`) | `find` | `records.search.find` | / | / | / (layer) | | Find a matter (the German mockups show ⌘K, `search`, until the QWERTZ question of [client-gaps.md](client-gaps.md) item 4 is decided) |
 | Record the decision (the primary button of a decision bar) | `record` | `records.decision.record` | ⇧⌘↵ | Ctrl Shift ↵ | ⇧⌘↵, Ctrl Shift ↵ | | File, Confirm, Enter office event, Record decision (Accept and file and Confirm deadline in the Records reference mockups) |
 | Accept one proposed part | `accept` | `records.part.accept` | 1 | 1 | 1 (layer) | | Accept |
 | Reject or mark not relevant (opens the reason step) | `reject` | `records.part.reject` | 2 | 2 | 2 (layer) | | Not relevant…, Reject… |

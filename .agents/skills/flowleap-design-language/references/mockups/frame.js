@@ -55,7 +55,10 @@
     star: '<path d="M8 2.5l1.7 3.5 3.8.5-2.8 2.6.7 3.8L8 11.1l-3.4 1.8.7-3.8L2.5 6.5l3.8-.5z"/>',
     branch: '<circle cx="5" cy="4" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="6" r="1.5"/><path d="M5 5.5v5M11 7.5c0 2-2 2.5-6 3"/>',
     cmd: '<path d="M6 6V4.5A1.5 1.5 0 1 0 4.5 6H11.5A1.5 1.5 0 1 0 10 4.5V11.5A1.5 1.5 0 1 0 11.5 10H4.5A1.5 1.5 0 1 0 6 11.5z"/>',
-    retry: '<path d="M3 8a5 5 0 1 0 1.5-3.5M3 3v2.5h2.5"/>'
+    retry: '<path d="M3 8a5 5 0 1 0 1.5-3.5M3 3v2.5h2.5"/>',
+    mywork: '<circle cx="8" cy="8" r="5.75"/><circle cx="8" cy="8" r="2.25"/>',
+    today: '<circle cx="8" cy="8" r="5.75"/><path d="M8 4.5V8h3"/>',
+    later: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3M5.5 9.5h5"/>'
   };
   const svg = (name, extra = '') => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[name] || ''}</svg>`;
 

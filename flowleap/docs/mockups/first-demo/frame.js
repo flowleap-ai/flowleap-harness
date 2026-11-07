@@ -94,7 +94,9 @@
   // signed-in person and opens the account menu (finding 1). data-name, data-role and data-count come from build.mjs.
   const sb = document.querySelector('[data-sidebar]');
   if (sb) {
-    const { sidebar: active, name = '', role = '', count = '' } = sb.dataset;
+    const { sidebar, name = '', role = '', count = '', zero = '' } = sb.dataset;
+    // In a state where nothing waits for the person (data-zero), the page is reached from its matter, not from My work.
+    const active = zero.split(' ').includes(q.get('state')) ? 'matters' : sidebar;
     const item = (k, icon, extra = '') => `<div class="sb-item${active === k ? ' is-active' : ''}">${svg(icon)}<span>${L[k]}</span>${extra}</div>`;
     sb.className = 'sidebar';
     sb.innerHTML = `
