@@ -136,7 +136,8 @@ function PanelView(props: PanelViewProps) {
   const locale = useLanguage(language => language)
   const ask = useAsk(start => start)
   const { getTriggerProps } = useContextMenu()
-  const [dock, setDock] = useState<DockView>('docked')
+  // The work page opens with its properties panel; Drafted by opens the agent panel (mockup 4-review-work).
+  const [dock, setDock] = useState<DockView>('closed')
   const ctx: ScreenContext = {
     t, locale, now: Date.now(), me,
     keycaps: keycapsFrom(catalog, fixedCatalog, { Space: t('keycap.space') }),

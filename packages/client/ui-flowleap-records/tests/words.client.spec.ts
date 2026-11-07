@@ -51,6 +51,7 @@ describe('application numbers', () => {
   it('writes an EP number in the office format, whatever spaces or prefix the Record holds, and leaves another office\'s number as it is', () => {
     for (const number of ['24123456.7', '24 123 456.7', 'EP24123456.7', ' EP 24 123 456 . 7 ']) expect(formatApplicationNumber(number)).toBe('EP 24 123 456.7')
     for (const number of ['10 2024 123 456.7', '17/123,456', 'PCT/EP2024/012345', '2412345.6']) expect(formatApplicationNumber(number)).toBe(number)
+    for (const number of ['EP23771920', '23771920']) expect(formatApplicationNumber(number)).toBe('EP 23 771 920')
   })
 })
 
@@ -89,11 +90,13 @@ describe('words of codes and events', () => {
       'FlowLeap opened the work and assigned it to Dr. Anna Becker',
       'Patent agent started on the letter',
       'Patent agent proposed the client report',
-      'AI mailbox sent the reply',
+      'AI mailbox sent the mail with the drafts to the forwarder',
       'Jonas Weber confirmed the deadline',
     ])
+    // An event that the views do not word is noise in Activity: only Audit lists it.
     const unknown = { ...fixtures.ticket.activity[0]!, type: 'ticket/archived', for: null }
-    expect(activityLines(words, [unknown])[0]!.text).toBe('changed the record')
+    expect(activityLines(words, [unknown])).toEqual([])
+    expect(auditRows([unknown])[0]!.cells[1]).toBe('ticket/archived')
     expect(auditRows(fixtures.ticket.activity)[0]!.cells).toEqual(['150', 'ticket/routed', '2026-11-04T14:17:00Z'])
     expect(JSON.stringify(lines)).not.toContain(OUTSIDE_WALL.name)
   })

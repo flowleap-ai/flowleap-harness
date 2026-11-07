@@ -1,5 +1,6 @@
 /* The decision bar: an elevated floating panel (28px radius, prominent elevation, no border, R8) with a 44px header
- * row, 44px part rows and the footer of acts. It takes at most 40% of the view height: the part rows scroll inside it,
+ * row, 44px part rows and the footer of acts. It takes at most 40% of the view height (48% in a view 700px high or
+ * less): the part rows scroll inside it, with a shade at the edge that has more parts,
  * and the header, the failure notice and the footer keep their height, so the primary act stays in view (R13). Why the
  * person may decide sits at the right of the header row, or on a second line under the question when it does not fit,
  * so the header row stays 44px in every language. When the acts do not fit on one row (`data-crowded`), and always at
@@ -81,6 +82,10 @@
 }
 
 /* The hairline under the header is the top line of what follows it, so the header row is 44px with no line inside. */
+/*
+ * When the parts scroll, a shade at the edge that has more parts shows it: the covers move with the content (`local`)
+ * and hide the shades (`scroll`) at an end.
+ */
 .parts {
   flex: 0 1 auto;
   min-height: 0;
@@ -88,6 +93,11 @@
   overscroll-behavior: contain;
   padding: 0 16px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
+  background:
+    linear-gradient(var(--dsw-alias-bg-layer-2) 40%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--dsw-alias-bg-layer-2) 60%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--dsw-alias-border-l4), transparent) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--dsw-alias-border-l4), transparent) bottom / 100% 8px no-repeat scroll;
 }
 
 .part {
@@ -279,6 +289,11 @@
 /* A short view (1366 x 650, a laptop at 125 %) keeps the content above the bar: the note hides, each part is one row
  * with its title, its evidence state and its control, and the footer is the row of acts. */
 @media (max-height: 700px) and (min-width: 721px) {
+  /* A short window shows each part on one line and gives the bar room for three of them (1366 x 650). */
+  .bar {
+    max-height: max(48dvh, 200px);
+  }
+
   .note {
     display: none;
   }

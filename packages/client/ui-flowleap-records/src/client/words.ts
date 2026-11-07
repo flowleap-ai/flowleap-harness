@@ -313,8 +313,10 @@ export function dueText(words: WordContext, due: IsoDate): string {
  * @returns the worded lines.
  */
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
-  return events.map((event) => {
-    const params = { person: event.for === null ? '' : personInText(words.t, event.for) }
+  const objects = objectWords(words.t, events)
+  // An event that the views do not word ("changed the record") is noise in Activity; Audit lists it.
+  return events.filter(event => eventText(event) !== 'event.other').map((event) => {
+    const params = { person: event.for === null ? '' : personInText(words.t, event.for), ...objects(event) }
     const text = eventText(event)
     const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
@@ -322,6 +324,41 @@ export function activityLines(words: WordContext, events: readonly ActivityEvent
       : { kind: 'system' as const, name: actorName(words.t, event.actor), icon: systemIcon(event.actor.name) }
     return { key: String(event.seq), actor, text: words.t(key, params), time: listTimeText(words, event.at) }
   })
+}
+
+/** The words of what a report or an outbox event acts on, by its kind. */
+const OBJECT_WORDS = {
+  'office-reply': 'event.object.draftReply',
+  'client-report': 'event.object.clientReport',
+  'notice': 'event.object.notice',
+  'reply': 'event.object.reply',
+} as const satisfies Record<string, FlowleapRecordsKey>
+
+/**
+ * The words of what each report or outbox event acts on: the draft reply or the client report, the notice to a person
+ * or the mail with the drafts to the person who forwarded the letter. An event names its `kind`; one that does not takes
+ * the kind of the event of the same proposal or mail in the list (`report/proposed`, `outbox/composed`).
+ * @param t - the translate function.
+ * @param events - the events of the record.
+ * @returns the `draft` and `mail` words of an event.
+ */
+function objectWords(t: Translate, events: readonly ActivityEvent[]): (event: ActivityEvent) => { draft: string; mail: string } {
+  const kindOf = (detail: ActivityEvent['detail']): string | null => typeof detail['kind'] === 'string' ? detail['kind'] : null
+  const known = new Map<string, string>()
+  for (const event of events) {
+    const kind = kindOf(event.detail)
+    const id = event.detail['proposalId'] ?? event.detail['outboxId']
+    if (kind !== null && typeof id === 'string') known.set(id, kind)
+  }
+  const word = (kind: string | null | undefined, fallback: keyof typeof OBJECT_WORDS): string => {
+    const known = kind !== null && kind !== undefined && kind in OBJECT_WORDS ? kind as keyof typeof OBJECT_WORDS : fallback
+    return t(OBJECT_WORDS[known])
+  }
+  return (event) => {
+    const id = event.detail['proposalId'] ?? event.detail['outboxId']
+    const kind = kindOf(event.detail) ?? (typeof id === 'string' ? known.get(id) : undefined)
+    return { draft: word(kind, 'client-report'), mail: word(kind, 'reply') }
+  }
 }
 
 /**

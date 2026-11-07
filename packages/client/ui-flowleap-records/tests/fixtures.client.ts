@@ -296,7 +296,7 @@ export const matterWire = {
   officeEvents: [{ id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', state: 'deadline_proposed', document: R71_DOCUMENT, receivedAt: null }],
   documents: [{ sha256: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' }],
   activity: [
-    { seq: 120, at: '2026-11-04T14:16:00Z', type: 'intake/filed', actor: { kind: 'person', person: PEOPLE.jonas }, for: null, detail: {} },
+    { seq: 120, at: '2026-11-04T14:16:00Z', type: 'document/filed', actor: { kind: 'person', person: PEOPLE.jonas }, for: null, detail: {} },
     { seq: 121, at: '2026-11-04T14:17:00Z', type: 'deadline/proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { due: '2027-03-01' } },
     { seq: 122, at: '2026-11-04T14:17:10Z', type: 'ticket/routed', actor: { kind: 'system', name: 'flowleap' }, for: PEOPLE.anna, detail: {} },
     { seq: 123, at: '2026-11-04T14:17:40Z', type: 'report/proposed', actor: { kind: 'system', name: 'agent' }, for: PEOPLE.anna, detail: {} },

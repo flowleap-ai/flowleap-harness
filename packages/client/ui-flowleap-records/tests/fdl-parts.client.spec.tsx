@@ -79,6 +79,7 @@ describe('the design-language part markers (R8)', () => {
     await mount({ view: 'work', id: FIXTURE_IDS.ticket as TicketId })
     expect(part(screen.getByRole('region', { name: 'Your decision' }))).toBe('decision')
     expect(part(screen.getByRole('group', { name: 'Client report' }))).toBe('seg')
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Properties' })).getByRole('button', { name: 'Patent agent' }))
     expect(part(screen.getByRole('complementary', { name: 'Patent agent' }))).toBe('dock')
     expect(parts('file')).toHaveLength(1)
     expectAllowedNames()

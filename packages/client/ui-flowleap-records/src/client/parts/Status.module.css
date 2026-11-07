@@ -3,8 +3,16 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
   white-space: nowrap;
   color: var(--dsw-alias-label-primary);
+}
+
+/* In a column too narrow for the word, the word ends in an ellipsis (R17); the dot keeps its size. */
+.word {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pill {

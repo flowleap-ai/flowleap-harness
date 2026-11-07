@@ -208,7 +208,8 @@ function isoDateOf(value: string | undefined): IsoDate | null {
 }
 
 /**
- * Who the letter waits for, by the bar's decision: FlowLeap while it reads a filed letter, nobody once it is done.
+ * Who the letter waits for, by the bar's decision: the person when the decision is theirs, FlowLeap while it reads a
+ * filed letter, nobody once it is done.
  * @param decision - the decision of the bar.
  * @returns the text key of the line after the eyebrow pill.
  */
@@ -216,6 +217,10 @@ function sinceKey(decision: LetterDecision): FlowleapRecordsKey {
   switch (decision.kind) {
     case 'filed': return 'letter.waitsFlowLeap'
     case 'done': return 'letter.doneSince'
+    case 'match':
+    case 'pick':
+    case 'code':
+    case 'hand': return 'item.sinceYou'
     default: return 'item.since'
   }
 }

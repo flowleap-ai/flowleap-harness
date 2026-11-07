@@ -523,6 +523,27 @@
   display: none;
 }
 
+.workProps {
+  display: grid;
+  min-height: 0;
+}
+
+.agentLink {
+  gap: 8px;
+  margin-left: -8px;
+}
+
+.accepted {
+  margin-right: 8px;
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  color: var(--dsw-alias-label-primary);
+}
+
+.segment .onAccept {
+  background: var(--dsw-alias-state-success-tertiary);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
 /*
  * A table with a status column holds its column grid itself, and its header and rows use it (subgrid): each
  * `max-content` column is as wide as its longest value in its rows, in every UI language, so a status word, a date or
@@ -590,6 +611,11 @@
 
   .withDock {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* At 390px the decision bar carries the decision, so the work page hides its properties as other decision pages do. */
+  .workProps {
+    display: none;
   }
 
   .deadlinesColumns,

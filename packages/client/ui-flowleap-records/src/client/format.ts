@@ -79,18 +79,24 @@ export function listTime(time: IsoTime, now: number, locale: string, timeZone?: 
   return { kind: 'date', text: new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', timeZone }).format(at) }
 }
 
-/** An EP application number: two digits of the year, six digits and the check digit, with or without `EP` and spaces. */
-const EP_APPLICATION = /^(?:EP\s*)?(\d{2})\s*(\d{3})\s*(\d{3})\s*\.\s*(\d)$/u
+/**
+ * An EP application number: two digits of the year and six digits, with or without `EP` and spaces, and the check
+ * digit when the Record holds it.
+ */
+const EP_APPLICATION = /^(?:EP\s*)?(\d{2})\s*(\d{3})\s*(\d{3})(?:\s*\.\s*(\d))?$/u
 
 /**
  * An application number as the office writes it: an EP number as `EP 24 123 456.7`, whether the Record holds
- * `24123456.7`, `24 123 456.7` or `EP24123456.7`. A number in another office's format shows as the Record holds it.
+ * `24123456.7`, `24 123 456.7` or `EP24123456.7`, and as `EP 24 123 456` when the Record holds no check digit
+ * (`EP24123456`). A number in another office's format shows as the Record holds it.
  * @param number - the application number from the Record.
  * @returns the number to show.
  */
 export function formatApplicationNumber(number: string): string {
   const match = EP_APPLICATION.exec(number.trim())
-  return match === null ? number : `EP ${match[1]} ${match[2]} ${match[3]}.${match[4]}`
+  if (match === null) return number
+  const digits = `EP ${match[1]} ${match[2]} ${match[3]}`
+  return match[4] === undefined ? digits : `${digits}.${match[4]}`
 }
 
 /**

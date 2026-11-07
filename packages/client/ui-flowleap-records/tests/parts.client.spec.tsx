@@ -37,7 +37,7 @@ const waiting = { machine: 'intake', state: 'match_proposed' } as const
 describe('status', () => {
   it('shows the shape with its word and names the atlas state', () => {
     render(<AtlasStatus status={waiting} word={atlasWord(t, waiting)} className="placed" />)
-    const status = screen.getByText('Match proposed')
+    const status = screen.getByText('Match proposed').closest<HTMLElement>('[data-atlas]')!
     expect(status.dataset['atlas']).toBe('intake.match_proposed')
     expect(status.querySelector('svg')?.dataset['shape']).toBe('wait')
     expect(status.classList.contains('placed')).toBe(true)

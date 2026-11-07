@@ -731,13 +731,14 @@ describe('the work on a letter', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Rule 71(3) communication of 30 Oct 2026')
     expect(document.body.textContent).toContain('The EPO intends to grant EP 24 123 456.7. The agent drafted the client report. Nothing went to the client.')
     expect(document.body.textContent).toMatch(/Waits for your decision since \d\d:\d\d/)
-    expect(document.body.textContent).toContain('Inside the wall of FL-2026-0001')
-    expect(document.body.textContent).toContain('report-FL-2026-0001-r71-3.docx · English · Firm template · 1 pages')
+    const properties = screen.getByRole('complementary', { name: 'Properties' })
+    expect(properties.textContent).toContain('Drafted byPatent agent')
+    expect(properties.textContent).toContain('Mail toJonas Weber, Dr. Anna Becker, a person outside the team · Sent')
+    expect(document.body.textContent).toContain('Letter to the client · English · 1 page')
+    expect(document.body.textContent).not.toContain('Firm template')
     expect(screen.getAllByText('Communication under Rule 71(3) EPC').length).toBeGreaterThan(0)
     expect(screen.getByText('Missing evidence')).toBeTruthy()
-    const related = screen.getByRole('table', { name: 'Related' })
-    expect(related.textContent).toContain('Confirmed by Jonas Weber')
-    expect(related.textContent).toContain('Reply to Jonas Weber, Dr. Anna Becker')
+    expect(screen.getByRole('table', { name: 'Deadline' }).textContent).toContain('Confirmed by Jonas Weber')
     expect(within(bar()).getByText('2 parts, both required')).toBeTruthy()
     expect(within(bar()).getByText('Only you can decide. The agent never files, sends or pays.')).toBeTruthy()
     expect(within(bar()).getByText('Active · confirmed by Jonas Weber · 117 days left')).toBeTruthy()
@@ -745,25 +746,28 @@ describe('the work on a letter', () => {
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
-  it('shows the related deadline and reply before the client report', async () => {
+  it('shows the deadline before the drafts, and the properties panel in place of the agent panel until Drafted by opens it', async () => {
     await mount(WORK)
     const headings = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)
-    expect(headings.indexOf('Related')).toBeGreaterThanOrEqual(0)
-    expect(headings.indexOf('Related')).toBeLessThan(headings.indexOf('Client report'))
+    expect(headings.indexOf('Deadline')).toBeGreaterThanOrEqual(0)
+    expect(headings.indexOf('Deadline')).toBeLessThan(headings.indexOf('Client report'))
+    expect(screen.queryByRole('complementary', { name: 'Patent agent' })).toBeNull()
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Properties' })).getByRole('button', { name: 'Patent agent' }))
+    expect(screen.getByRole('complementary', { name: 'Patent agent' })).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
   })
 
   it('names the record of each status on the page, so a sent report and a sent reply never read the same', async () => {
     const report = sourced.reports[0]!
     const sentReport = { ...report, state: 'sent' } as const
     await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [sentReport], clientReport: sentReport } })
-    const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
-    // A related record's row names it in its main cell (mockup 4-review-work). The report's section heading names it once
-    // ("Client report"), so its status carries no second "Report" label. The agent panel's result card names the work
-    // product in its title row, before the file and the status.
-    expect(sent[0]!.closest('[role="row"]')!.textContent).toMatch(/^Sent\s*Reply to /u)
-    expect(sent.slice(1).map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Client report', 'Client reportreport-FL-2026-0001-r71-3.docx'])
-    expect(sent[1]!.parentElement!.textContent).not.toContain('Report')
-    expect(document.querySelector('[data-atlas="deadline.active"]')!.closest('[role="row"]')!.textContent).toMatch(/^Active\s*Deadline /u)
+    const sent = [...document.querySelectorAll('[data-atlas="report.sent"]')]
+    // The report's section heading names it once ("Client report"), so its status carries no second "Report" label; the
+    // mail to the forwarder is a property with its own word.
+    expect(sent.map(status => status.previousElementSibling?.textContent)).toEqual(['Client report'])
+    expect(sent[0]!.parentElement!.textContent).not.toContain('Report')
+    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mail toJonas Weber, Dr. Anna Becker, a person outside the team · Sent')
+    expect(document.querySelector('[data-atlas="deadline.active"]')!.closest('[role="row"]')!.textContent).toMatch(/^Active\s*Mon, 1 Mar 2027/u)
   })
 
   it('blocks Accept and Record decision while a statement has no source, and lets the person reject the report', async () => {
@@ -837,7 +841,7 @@ describe('the work on a letter', () => {
     expect(model.screen.getSnapshot().view).toBe('matter')
     act(() => { model.navigate(WORK) })
     await flush()
-    fireEvent.click(within(screen.getByRole('table', { name: 'Related' })).getByRole('button'))
+    fireEvent.click(within(screen.getByRole('table', { name: 'Deadline' })).getByRole('button'))
     await flush()
     expect(model.screen.getSnapshot().view).toBe('deadline')
     act(() => { model.navigate(WORK) })
@@ -925,7 +929,7 @@ describe('the work on a letter', () => {
     fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ }))
     await flush()
     expect(acts.at(-1)?.command).toMatchObject({ deadlineCheck: { id: 'none-yet', state: 'none-yet', seq: 142 } })
-    expect(screen.queryByRole('table', { name: 'Related' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Deadline' })).toBeNull()
     cleanup()
     await mount(WORK, { ticket: { ...sourced, deadline: { ...sourced.deadline!, state: 'stale', confirmer: null } } })
     expect(within(bar()).getByText('The deadline is in the state "Stale". Open it and settle it first.')).toBeTruthy()
@@ -967,14 +971,15 @@ describe('the work on a letter', () => {
 
   it('names the reply recipients of the team and counts the people outside it, so Markus Brandt shows nowhere', async () => {
     await mount(WORK)
-    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, Dr. Anna Becker, a person outside the team')
+    const mail = () => screen.getByRole('complementary', { name: 'Properties' }).textContent
+    expect(mail()).toContain('Jonas Weber, Dr. Anna Becker, a person outside the team')
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
     cleanup()
     await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never, { id: null, name: null }, { id: null, name: null }] } } })
-    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas Weber, 2 people outside the team')
+    expect(mail()).toContain('Jonas Weber, 2 people outside the team')
     cleanup()
     await mount(WORK, { ticket: { ...sourced, reply: { state: 'sent', to: [PEOPLE.jonas as never] } } })
-    expect(screen.getByRole('table', { name: 'Related' }).textContent).toContain('Reply to Jonas WeberWith')
+    expect(mail()).toContain('Mail toJonas Weber · Sent')
   })
 
   it('shows a team member with no display name as an unnamed person with no initial', async () => {
@@ -1008,7 +1013,7 @@ describe('the work on a letter', () => {
     cleanup()
     const report = sourced.reports[0]!
     await mount(WORK, { ticket: { ...sourced, letter: null, reports: [{ ...report, language: null, templateName: null, pages: null }, { ...report, proposalId: 'proposal-2' as never }] } })
-    expect(document.body.textContent).toContain('report-FL-2026-0001-r71-3.docx')
+    expect(document.querySelector('[title="report-FL-2026-0001-r71-3.docx"]')).toBeTruthy()
     expect(within(bar()).getByText('3 parts, all required')).toBeTruthy()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Letter')
   })

@@ -28,6 +28,8 @@ async function work(ticket?: TicketDetail) {
   const { api } = createFixtureApi()
   const records: RecordsApi = ticket === undefined ? api : { ...api, ticket: () => Promise.resolve({ ok: true, value: ticket }) }
   mounted = await mountPanel(records, WORK)
+  // The work page opens with its properties panel; the top bar's Patent agent button opens the agent panel.
+  fireEvent.click(mounted.panel.querySelector('button[data-dock]:not([aria-label])')!)
   return mounted
 }
 
@@ -140,14 +142,15 @@ describe('the agent panel of the work page', () => {
     const minimise = within(dock()!).getByRole('button', { name: 'Minimise' })
     act(() => { minimise.focus() })
     fireEvent.click(minimise)
-    expect(panel.querySelector('aside')!.hidden).toBe(true)
-    expect(workArea().getAttribute('data-dock')).toBe('minimised')
+    // A minimised or closed agent panel gives its column back to the properties panel.
+    expect(dock()).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'Properties' })).toBeTruthy()
     expect(document.activeElement).toBe(panel)
     fireEvent.click(reopen())
     expect(dock()!.hidden).toBe(false)
 
     fireEvent.click(within(dock()!).getByRole('button', { name: 'Close' }))
-    expect(panel.querySelector('aside')).toBeNull()
+    expect(dock()).toBeNull()
     fireEvent.click(reopen())
     expect(dock()).toBeTruthy()
 
