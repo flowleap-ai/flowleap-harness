@@ -20,7 +20,7 @@ import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, letterTitle, listTimeText, personInText, personName, type Translate } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, DetailRow, DetailTable, OpenCell, openDocument, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, OpenCell, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -217,7 +217,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
           {
             heading: t('dossier.prop.people'),
             rows: [
-              { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who t={t} person={data.responsible} /> },
+              responsibleRow(t, data.responsible),
               { label: t('dossier.prop.formalities'), value: data.formalitiesPerson === null ? t('matter.none') : <Who t={t} person={data.formalitiesPerson} /> },
               { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
               { label: t('dossier.prop.wall'), value: wallWords(t, data.wall) },

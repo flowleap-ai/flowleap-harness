@@ -11,6 +11,7 @@ import type { DocumentId, IsoDate, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, letterTitle, personName, type Translate } from '../words.ts'
+import type { Property } from '../parts/Layout.tsx'
 import type { ScreenContext } from './context.ts'
 import css from './Detail.module.css'
 
@@ -112,6 +113,16 @@ export interface Fact {
  */
 export function Who({ t, person }: { t: Translate; person: Person }) {
   return <span className={css.who}><Avatar person={avatarOf(t, person)} nameShown />{personName(t, person)}</span>
+}
+
+/**
+ * The Responsible row of a properties panel, as the dossier and the work page show it.
+ * @param t - the translate function.
+ * @param person - the responsible person, or null for none.
+ * @returns the row.
+ */
+export function responsibleRow(t: Translate, person: Person | null): Property {
+  return { label: t('prop.responsible'), value: person === null ? t('matter.none') : <Who t={t} person={person} /> }
 }
 
 /**

@@ -35,7 +35,7 @@ import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, responsibleRow } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
@@ -635,7 +635,7 @@ function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
       {
         heading: t('dossier.prop.people'),
         rows: [
-          { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who t={t} person={data.responsible} /> },
+          responsibleRow(t, data.responsible),
           { label: t('prop.team'), value: <AvatarStack people={data.team.map(person => avatarOf(t, person))} /> },
         ],
       },
