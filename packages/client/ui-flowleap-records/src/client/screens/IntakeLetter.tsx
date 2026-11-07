@@ -226,10 +226,10 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
  * @returns the title.
  */
 function titleOf(ctx: ScreenContext, letter: IntakeDocument): string {
-  const date = letter.documentDate ?? isoDateOf(letter.fields.documentDate?.value)
-  return letter.code === null && date !== null
-    ? ctx.t('letter.titleOf', { date: formatDay(date, ctx.locale) })
-    : letterTitle(ctx.t, letter.code, letter.status)
+  const date = letter.documentDate ?? letter.entry?.read?.documentDate ?? isoDateOf(letter.fields.documentDate?.value)
+  if (letter.code === null && date !== null) return ctx.t('letter.titleOf', { date: formatDay(date, ctx.locale) })
+  // A letter with read values but no office event is no scan without text: its title is the plain kind.
+  return letterTitle(ctx.t, letter.code, readValues(letter) ? undefined : letter.status)
 }
 
 /**
