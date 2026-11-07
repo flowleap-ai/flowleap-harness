@@ -135,7 +135,7 @@ A runtime woken for a Ticket (see [`dsh-flowleap-ticket`](../../experimental/flo
 | Method | Action and body | Key parts | Receipt |
 |---|---|---|---|
 | `runStarted(ticket, { session })` | `run-started`: `{ session }` | `run-started`: Ticket, Session | `200 { recordSeq }` |
-| `proposeReport(ticket, proposal)` | `reports`: `{ fileName, contentBase64, templateName, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
+| `proposeReport(ticket, proposal)` | `reports`: `{ kind, fileName, contentBase64, templateName, templateVersion, rulesSeq, statements, session, toolCall }` | `report`: Ticket, Session, tool call | `201 { proposalId, document, recordSeq }` |
 | `finishRun(ticket, { session, deadline })` | `finish`: `{ session, deadline: { id, state, seq } }`, where `id` and `state` are both `none-yet` when the event has no deadline | `finish`: Ticket, Session | `200 { recordSeq, outbox: { id, state } }`: the Firm Record queues one reply with the proposed letters attached as drafts to the forwarder of the office letter and the routed person; `state` is `refused` when a recipient is not a firm address. Nothing goes to the client |
 
 `documentText(document)` sends `GET <origin>/records/api/documents/<sha256>/text` with the record token and no `Idempotency-Key`, and reads `200 { pages: string[] }`, where `pages[0]` is page 1. The text is the text layer that the Firm Record stores with the document, the same text that the Firm Record searches for a quote. The answer is at most 1 MiB, as for the view.

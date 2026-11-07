@@ -13,7 +13,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import { WebhookRuleId, type VerifiedWebhookDelivery, type WebhookRule } from '@deepseek-ai/dsh-webhook'
 import type { DeliveryLedger } from './ledger.ts'
 import { serverWarn } from './log.ts'
-import { runMessage, runTitle, taskTypeOf } from './mandate.ts'
+import { type LetterTemplates, runMessage, runTitle, taskTypeOf } from './mandate.ts'
 import type { TicketDeliveryKind } from './types.ts'
 
 /** Rule values validated once at plugin load. */
@@ -22,7 +22,7 @@ export interface TicketRuleConfig {
   readonly workspacePath: string
   readonly agentPreset: string
   readonly permissionPreset: string
-  readonly template: string
+  readonly templates: LetterTemplates
   /** How many times the rule sends `run-started` at most while the Firm Record does not answer or answers 5xx. */
   readonly runStartedAttempts: number
   /** The wait before the second send in milliseconds; it doubles before each later send. */
@@ -38,7 +38,7 @@ const TRANSIENT: ReadonlySet<RecordCommandRefusal> = new Set(['unreachable', 'se
 /**
  * Build the Ticket rule.
  * @param ctx - context with `flowleapRecord`.
- * @param config - the source, the run Workspace, the presets, the firm template, and the `run-started` repeats.
+ * @param config - the source, the run Workspace, the presets, the firm templates, and the `run-started` repeats.
  * @param ledger - the delivery ledger of this plugin instance.
  * @returns the rule to register.
  */
@@ -64,7 +64,7 @@ export function ticketRule(ctx: Context, config: TicketRuleConfig, ledger: Deliv
         agentPreset: config.agentPreset,
         permissionPreset: config.permissionPreset,
         title: runTitle(taskType, delivery.event),
-        prompt: runMessage(taskType, delivery.event, config.template),
+        prompt: runMessage(taskType, delivery.event, config.templates),
       }
     },
     async started(session, delivery, signal) {

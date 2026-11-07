@@ -9,7 +9,8 @@
 #   FLOWLEAP_TICKET_SECRET    the person's Ticket key, RECORD_DIR/ticket-keys/<person id>
 #   FLOWLEAP_RUN_WORKSPACE    absolute run Workspace folder (default: the launch folder)
 #   FLOWLEAP_TEMPLATES_DIR    absolute folder of the firm templates (default /opt/flowleap/templates)
-#   FLOWLEAP_REPORT_TEMPLATE  file name of the report template (default client-report.docx)
+#   FLOWLEAP_REPLY_TEMPLATE   file name of the template of the draft reply to the EPO (default epo-reply.docx)
+#   FLOWLEAP_REPORT_TEMPLATE  file name of the template of the client report (default client-report.docx)
 
 # A patch replaces the row's whole config, so the row restates apiKeyRef.
 - id: flowleap-record-http
@@ -34,4 +35,5 @@
         workspacePath: !!js process.env.FLOWLEAP_RUN_WORKSPACE ?? process.cwd()
         agentPreset: patent
         permissionPreset: workspace-write
-        template: !!js process.env.FLOWLEAP_REPORT_TEMPLATE ?? 'client-report.docx'
+        replyTemplate: !!js process.env.FLOWLEAP_REPLY_TEMPLATE ?? 'epo-reply.docx'
+        reportTemplate: !!js process.env.FLOWLEAP_REPORT_TEMPLATE ?? 'client-report.docx'

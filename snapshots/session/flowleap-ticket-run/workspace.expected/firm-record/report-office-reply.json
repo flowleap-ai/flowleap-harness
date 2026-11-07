@@ -2,8 +2,8 @@
   "ticket": "tk-1",
   "kind": "office-reply",
   "fileName": "office-reply-tk-1.docx",
-  "templateName": "client-report.docx",
-  "templateVersion": "sha256:141f358f5c65be092b7640ade27d3561551b10d0f89ecc34467b9f80e7cc50ae",
+  "templateName": "epo-reply.docx",
+  "templateVersion": "sha256:c842701ea02d1c4ede8e10b0c00120b4201c7cd4cbfb03845466c82bd4f57715",
   "rulesSeq": 3,
   "toolCall": "call_00_ticketrun000000000004",
   "statements": [
@@ -52,7 +52,7 @@
   ],
   "session": "the run Session",
   "content": {
-    "sha256": "929fc675d714ddaff6241114d5fb40347cde6a61254e79cbf428f2d7ea2fd262",
-    "bytes": 413
+    "sha256": "3e5c202035db02a24282cb87ad7bd262b78b6a8b671eebc1e3105d1599f3885c",
+    "bytes": 523
   }
 }

@@ -54,13 +54,18 @@ describe('the run message', () => {
     const delivery = parseTicketDelivery(BODY)
     const taskType = taskTypeOf(delivery)
     expect(taskType).toBe('epo-r71-3-report')
-    const message = runMessage('epo-r71-3-report', delivery, 'client-report.docx')
+    const message = runMessage('epo-r71-3-report', delivery, { reply: 'epo-reply.docx', report: 'client-report.docx' })
     const [mandate, steps, ticket, label, data] = message.split('\n\n')
     expect(mandate).toBe('Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay. '
       + 'You do not decide: each result is a proposal that the attorney decides in the Records app. You do not compute or '
       + 'change a date. Task type: epo-r71-3-report, the draft reply to the EPO and the report to the client on an EPO '
       + 'communication under Rule 71(3) EPC.')
-    expect(steps).toContain('office_letter_from_template on the firm template "client-report.docx"')
+    expect(steps).toMatch(
+      /3\. Write the draft reply to the EPO with office_letter_from_template on the firm template "epo-reply\.docx", the firm's letter/u,
+    )
+    expect(steps).toMatch(
+      /6\. Write the report letter to the client with office_letter_from_template on the firm template "client-report\.docx"/u,
+    )
     expect(steps).toContain('record_read_document_text')
     expect(steps).toMatch(
       /4\. Propose the draft reply with record_propose_report and kind "office-reply".*character for character.*at most 200 characters/u,
@@ -92,7 +97,7 @@ describe('the Ticket rule', () => {
   it('requests no Session for a delivery of another source, and fails a delivery without a task type', () => {
     const config = {
       source: 'firm-record', workspacePath: '/firm/runs', agentPreset: 'patent', permissionPreset: 'workspace-write',
-      template: 'client-report.docx', runStartedAttempts: 1, runStartedBackoffMs: 1,
+      templates: { reply: 'epo-reply.docx', report: 'client-report.docx' }, runStartedAttempts: 1, runStartedBackoffMs: 1,
     }
     const rule = ticketRule(new Context(), config, new DeliveryLedger('/unused'))
     const signal = new AbortController().signal
