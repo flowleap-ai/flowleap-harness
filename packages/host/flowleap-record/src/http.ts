@@ -144,7 +144,13 @@ const workItem = zod.object({
   due: localDate.nullable(),
   since: zod.iso.datetime({ offset: true }),
   act: zod.string().min(1),
+  task: zod.string().min(1).exactOptional(),
+  state: zod.enum(['assigned', 'queued', 'escalated', 'alarm']).exactOptional(),
+  group: zod.enum(['overdue', 'today', 'later']).exactOptional(),
+  dueAt: zod.iso.datetime({ offset: true }).exactOptional(),
 })
+
+const count = zod.number().int().nonnegative()
 
 /** The Firm Record's answer to a work read. */
 const myWorkSchema = zod.object({
@@ -153,7 +159,9 @@ const myWorkSchema = zod.object({
     id: zod.string().min(1).transform(value => brandString<PersonId>(value)),
     name: zod.string().nullable(),
   }),
+  summary: zod.object({ lettersArrived: count, needYou: count, overdue: count, today: count, later: count }).exactOptional(),
   work: zod.array(workItem),
+  inSight: zod.array(workItem).exactOptional(),
   matters: zod.array(zod.object({
     fileNumber: zod.string().min(1).transform(value => brandString<MatterFileNumber>(value)),
     title: zod.string(),

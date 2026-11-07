@@ -7535,7 +7535,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'KnownWorkKind',
-    declaration: 'export type KnownWorkKind = \'confirm-deadline\' | \'decide-office-event\' | \'decide-work\' | \'file-letter\';',
+    declaration: 'export type KnownWorkKind = \'file-letter\' | \'enter-office-event\' | \'decide-office-event\' | \'enter-date\' | \'confirm-deadline\' | \'restart-run\' | \'decide-work\' | \'send-report\';',
   },
   {
     name: 'KvFacet',
@@ -8079,7 +8079,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MyWork',
-    declaration: 'export interface MyWork {\n    readonly recordSeq: RecordSeq;\n    readonly person: MyWorkPerson;\n    readonly work: WorkItem[];\n    readonly matters: MyWorkMatter[];\n}',
+    declaration: 'export interface MyWork {\n    readonly recordSeq: RecordSeq;\n    readonly person: MyWorkPerson;\n    readonly summary?: MyWorkSummary;\n    readonly work: WorkItem[];\n    readonly inSight?: WorkItem[];\n    readonly matters: MyWorkMatter[];\n}',
   },
   {
     name: 'MyWorkMatter',
@@ -8096,6 +8096,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MyWorkResult',
     declaration: 'export type MyWorkResult = MyWork | {\n    readonly error: MyWorkRefusal;\n};',
+  },
+  {
+    name: 'MyWorkSummary',
+    declaration: 'export interface MyWorkSummary {\n    readonly lettersArrived: number;\n    readonly needYou: number;\n    readonly overdue: number;\n    readonly today: number;\n    readonly later: number;\n}',
   },
   {
     name: 'NativeFileApplication',
@@ -10366,6 +10370,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
   },
   {
+    name: 'TaskState',
+    declaration: 'export type TaskState = \'assigned\' | \'queued\' | \'escalated\' | \'alarm\';',
+  },
+  {
     name: 'TeamTaskAction',
     declaration: 'export type TeamTaskAction = \'claim\' | \'release\' | \'edit\' | \'set_dependencies\' | \'complete\' | \'reopen\' | \'reassign\' | \'delete\';',
   },
@@ -11134,8 +11142,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
   },
   {
+    name: 'WorkGroup',
+    declaration: 'export type WorkGroup = \'overdue\' | \'today\' | \'later\';',
+  },
+  {
     name: 'WorkItem',
-    declaration: 'export interface WorkItem {\n    readonly id: string;\n    readonly kind: WorkKind;\n    readonly title: string;\n    readonly why: string;\n    readonly matter: WorkMatter | null;\n    readonly due: LocalDate | null;\n    readonly since: string;\n    readonly act: string;\n}',
+    declaration: 'export interface WorkItem {\n    readonly id: string;\n    readonly task?: string;\n    readonly state?: TaskState;\n    readonly group?: WorkGroup;\n    readonly dueAt?: string;\n    readonly kind: WorkKind;\n    readonly title: string;\n    readonly why: string;\n    readonly matter: WorkMatter | null;\n    readonly due: LocalDate | null;\n    readonly since: string;\n    readonly act: string;\n}',
   },
   {
     name: 'WorkKind',

@@ -391,6 +391,21 @@ describe('flowleapRecord.myWork over HTTP', () => {
       .toEqual({ ...MY_WORK, matters: [{ ...first, applicationNumber: null }, second] })
   })
 
+  it('reads the work of a Firm Record of schema 9, which has no tasks: no first line, no task fields and no tasks in sight', async () => {
+    const { summary: _summary, inSight: _inSight, ...rest } = MY_WORK
+    const older = { ...rest, work: MY_WORK.work.map(({ task: _task, state: _state, group: _group, dueAt: _dueAt, ...item }) => item) }
+    const double = await record(json(200, older))
+    expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(older)
+  })
+
+  it('refuses an answer whose task state or group is not one of the task model', async () => {
+    const [item] = MY_WORK.work
+    for (const change of [{ state: 'done' }, { group: 'tomorrow' }]) {
+      const double = await record(json(200, { ...MY_WORK, work: [{ ...item, ...change }] }))
+      expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual({ error: 'invalid_answer' })
+    }
+  })
+
   it('reads the work on the origin of the base URL', async () => {
     const double = await record(json(200, MY_WORK))
     await work(await provider({ url: `${double.url}/records/`, key: TOKEN }))
@@ -415,7 +430,7 @@ describe('flowleapRecord.myWork over HTTP', () => {
     const [item] = MY_WORK.work
     const answer = {
       ...MY_WORK,
-      work: [{ ...item, id: 'send-report:tk-9', kind: 'send-report', title: 'Send the report', act: 'report/tk-9' }, ...MY_WORK.work],
+      work: [{ ...item, id: 'day-check:2026-11-09', kind: 'day-check', title: 'Check the deadlines due today', act: 'deadlines/today' }, ...MY_WORK.work],
     }
     const double = await record(json(200, answer))
     expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(answer)

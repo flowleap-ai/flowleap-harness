@@ -5,7 +5,7 @@
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
-#   flowleap/dev-loop.sh probe [file number]        one record_read through the tool executor, no model call (default SF-2021-0011)
+#   flowleap/dev-loop.sh probe [file number|my-work] one record_read (default SF-2021-0011), or record_my_work, through the tool executor; no model call
 #   flowleap/dev-loop.sh status                     what runs, the person, the model key names
 #   flowleap/dev-loop.sh down                       stop everything; the record data and the Sessions stay in the run dir
 #
@@ -142,7 +142,12 @@ up() {
   local intake
   intake=$(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'
 console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u) => u.objectId).join(' '))")
-  RECORD_INTAKE_PERSONS=$intake "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
+  # The firm roles of the seed name the confirmers and the escalation chains of the tasks (atlas sheet 0); an os checkout
+  # before the task model has no --roles, and its record-local.sh ignores RECORD_ROLES. The seed's file numbers are SF-<year>-<number>.
+  local roles=''
+  if grep -q -- '--roles' "$OS/acceptance/seed-firm.mjs"; then roles=$(node "$OS/acceptance/seed-firm.mjs" --roles) || die "seed-firm.mjs --roles failed"; fi
+  RECORD_INTAKE_PERSONS=$intake RECORD_ROLES=$roles RECORD_FILE_NUMBER_PATTERN='^SF-\d{4}-\d{4}$' \
+    "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
     { cat "$LOGS/record-start.log" >&2; die "record-local.sh start failed"; }
   node -e '
     const persons = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).intake.persons.join(" ")
@@ -191,10 +196,11 @@ restart() {
 
 probe() {
   load_options
-  local matter=${1:-SF-2021-0011} dir=$RUN/probe out
+  local target=${1:-SF-2021-0011} dir=$RUN/probe out tool arguments
+  if [[ $target == my-work ]]; then tool=record_my_work arguments='{}'; else tool=record_read arguments="{\"file_number\":\"$target\"}"; fi
   rm -rf "$dir"; mkdir -p "$dir"
-  # The probe plugin of flowleap-os sends one record_read through ctx.tools.execute, prints its line and ends dsh.
-  (FLOWLEAP_PROBE_FILE_NUMBER=$matter dsh "$dir" $((PORT + 2)) --patch "$OS/scripts/local-firm/record-read-probe.patch.yml" > "$dir/probe.log" 2>&1 & echo $! > "$dir/pid")
+  # The probe plugin of flowleap-os sends one call of FLOWLEAP_PROBE_TOOL through ctx.tools.execute, prints its line and ends dsh.
+  (FLOWLEAP_PROBE_TOOL=$tool FLOWLEAP_PROBE_ARGUMENTS=$arguments dsh "$dir" $((PORT + 2)) --patch "$OS/scripts/local-firm/record-read-probe.patch.yml" > "$dir/probe.log" 2>&1 & echo $! > "$dir/pid")
   for _ in $(seq 1 240); do alive "$dir/pid" || break; sleep 0.5; done
   stop_pid "$dir/pid"
   out=$(grep -m1 '^FLOWLEAP-RECORD-PROBE ' "$dir/probe.log" || true)
