@@ -1,13 +1,13 @@
 /**
  * The account button at the sidebar foot (sheet 00 section 6, finding 1): the signed-in person's avatar and display
- * name. It opens the account menu: the person, Settings, Sign out (only where the deployment names a sign-out path),
+ * name. It opens the account menu: the person, Sign out (only where the deployment names a sign-out path),
  * and one line that says what happens after Sign out. Sign out leaves the app for the firm proxy's path, which ends
  * the FlowLeap session.
  */
 
 import { useState } from 'react'
 import {
-  Avatar, IconChevronsUpDownOutlineRegular, IconRightUpOutlineRegular, IconSettingsOutlineRegular, Menu, type MenuEntry,
+  Avatar, IconChevronsUpDownOutlineRegular, IconRightUpOutlineRegular, Menu, type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -25,8 +25,6 @@ export interface AccountInjected {
   }
   /** Where Sign out goes, or null when the deployment has no sign-in. */
   readonly signOutHref: string | null
-  /** Open the Settings panel; null where the runtime has no Settings shell. */
-  readonly openSettings: (() => void) | null
   /** Leave the app for an address, as Sign out does. */
   readonly leave: (href: string) => void
 }
@@ -36,7 +34,7 @@ export type AccountProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<t
 
 /**
  * Render the account button and its menu; nothing until the person is known.
- * @param props - the sidebar width, the person, Settings and Sign out.
+ * @param props - the sidebar width, the person and Sign out.
  * @returns the button.
  */
 export function AccountButton(props: AccountProps) {
@@ -51,7 +49,6 @@ export function AccountButton(props: AccountProps) {
     { type: 'label', id: 'who', text: name },
     ...(role === null ? [] : [{ type: 'label' as const, id: 'role', text: role }]),
     { type: 'separator', id: 'sep' },
-    ...(props.openSettings === null ? [] : [{ id: 'settings', label: t('account.settings'), icon: <IconSettingsOutlineRegular size={16} /> }]),
     ...(props.signOutHref === null ? [] : [{ id: 'sign-out', label: t('account.signOut'), icon: <IconRightUpOutlineRegular size={16} /> }]),
   ]
   return (
@@ -65,7 +62,6 @@ export function AccountButton(props: AccountProps) {
       onClose={() => { setOpen(false) }}
       onSelect={(id) => {
         setOpen(false)
-        if (id === 'settings') props.openSettings?.()
         if (id === 'sign-out' && props.signOutHref !== null) props.leave(props.signOutHref)
       }}
       anchor={(

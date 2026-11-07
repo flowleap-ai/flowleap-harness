@@ -47,7 +47,7 @@ My work is the projection of the person's open tasks (`GET my-work`), the first 
 
 ### The account button
 
-The sidebar foot shows the signed-in person's avatar, display name and firm role (`GET me` `role`; none for `null`). Its menu names the person and the role and has **Settings** (the Settings panel), **Sign out**, which leaves the app for `signOutHref`, and the line that Microsoft asks which account signs in next.
+The sidebar foot shows the signed-in person's avatar, display name and firm role (`GET me` `role`; none for `null`). Its menu names the person and the role and has **Sign out**, which leaves the app for `signOutHref`, and the line that Microsoft asks which account signs in next. Settings stays the sidebar's own entry at the foot, so the app shows it once.
 
 ### The panel
 

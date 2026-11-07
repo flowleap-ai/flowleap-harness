@@ -183,7 +183,7 @@ describe('the account menu', () => {
     const load: Load<Me> = { phase: 'ready', data: me, at: 0, refreshing: false }
     const props = {
       t: makeTranslate(language === 'de' ? de : en), wide: true, useMe: bindSnapshotSelector(createSnapshotStore(load)),
-      signOutHref: null, openSettings: null, leave: vi.fn(),
+      signOutHref: null, leave: vi.fn(),
     } as AccountProps
     render(<AccountButton {...props} />)
   }

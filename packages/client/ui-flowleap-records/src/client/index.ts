@@ -238,7 +238,6 @@ export function apply(ctx: ClientContext): void {
     const account: AccountInjected = {
       hooks: { me: myWork.me },
       signOutHref: answer.signOutHref,
-      openSettings: () => { ctx.get('settingsNavigation')?.openSection('general') },
       leave: (href) => { window.location.assign(href) },
     }
     ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

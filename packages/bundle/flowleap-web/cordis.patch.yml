@@ -349,10 +349,15 @@
         maxEventsPerRun: 50
         maxEventTextLength: 300
 
-    # Settings > Patent data connectors (one card per connector) and the
-    # first-run key wizard; the row id is also the wizard's settings namespace.
+    # Settings > Patent data connectors (one card per connector); the row id is
+    # also the wizard's settings namespace. The firm's people land on My work,
+    # and the data keys are the administrator's task, so the first-run key
+    # wizard never opens here: `wizardDismissed` starts true, and an
+    # administrator enters the keys in Settings > Patent data connectors.
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
+      config:
+        wizardDismissed: true
 
     # The dashboard (flowleap-harness#60): the landing page of ui-workspace,
     # so the first screen after sign-in, or the chat or page that the address

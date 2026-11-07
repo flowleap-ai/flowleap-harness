@@ -22,7 +22,7 @@ import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@d
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { routeOfAct, routePath } from './address.ts'
 import type { Act, DocumentId, Me, MyWork, PageHref, RecordsApi } from './api.ts'
-import { RECORDS_SCOPE, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
+import { RECORDS_SCOPE, useKeyActs, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
 import type { NS } from './locales.ts'
@@ -163,6 +163,8 @@ function PanelView(props: PanelViewProps) {
       ask,
     },
   }
+  // `/` opens Find a matter from every view of the panel; a view's own acts come later and win for their keys.
+  useKeyActs(ctx, { find: props.openFind }, { arrows: false })
   const tab = TAB_OF[screen.view]
   const tabs = (
     <nav className={css.tabs} aria-label={t('tabs.label')}>
