@@ -31,7 +31,7 @@ import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '..
 import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
-import { AtlasPill, AtlasStatus, atlasWord, FactStatus } from '../parts/Status.tsx'
+import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
@@ -531,7 +531,8 @@ function recipients(ctx: ScreenContext, to: NonNullable<TicketDetail['reply']>['
 }
 
 /**
- * Render the records related to the work: its deadline and its reply, each with its status and word.
+ * Render the records related to the work: its deadline and its reply, each with its status and word; the main cell names
+ * the record, so the status has no label (mockup 4-review-work).
  * @param props.ctx - the screen context.
  * @param props.data - the work.
  * @returns the section, or nothing when the work has neither.
@@ -550,7 +551,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
       <DetailTable label={t('work.related')} grid={detail.relatedColumns} header={null}>
         {deadline !== null && (
           <DetailRow opens>
-            <Cell kind="status"><FactStatus label={t('fact.deadline')} status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
+            <Cell kind="status"><AtlasStatus status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
             <OpenCell onOpen={() => { ctx.navigate({ view: 'deadline', id: deadline.id }) }}>
               <span className={detail.strong}>{t('crumb.deadline', { date: formatDay(deadline.due, ctx.locale) })}</span>
             </OpenCell>
@@ -561,7 +562,7 @@ function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         )}
         {reply !== null && (
           <DetailRow>
-            <Cell kind="status"><FactStatus label={t('fact.reply')} status={{ machine: 'outbox', state: reply.state }} word={atlasWord(t, { machine: 'outbox', state: reply.state })} /></Cell>
+            <Cell kind="status"><AtlasStatus status={{ machine: 'outbox', state: reply.state }} word={atlasWord(t, { machine: 'outbox', state: reply.state })} /></Cell>
             <Cell kind="main">{t('work.replyTo', { people: recipients(ctx, reply.to) })}</Cell>
             <Cell kind="meta" wide>{t('work.replyFrom')}</Cell>
             <Cell kind="end" />

@@ -27,7 +27,7 @@ import { readRouteAddress, syncRouteAddress, writeRouteAddress } from './address
 import { createRecordsApi } from './api.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRecordsKey } from './locales.ts'
 import { createRecordsModel, ROOT_ROUTE, type Route } from './model.ts'
-import { MattersIcon, MyWorkIcon, MyWorkPanel, RecordsPanel, type PanelInjected } from './Panel.tsx'
+import { MattersIcon, MyWorkCount, MyWorkIcon, MyWorkPanel, RecordsPanel, type PanelInjected } from './Panel.tsx'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from './key-layer.ts'
 import { FindDialog, type FindInjected } from './FindDialog.tsx'
 import { AccountButton, type AccountInjected } from './Account.tsx'
@@ -185,6 +185,11 @@ export function apply(ctx: ClientContext): void {
       ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
         name: 'sidebar.panellist', id: panel.id, order: panel.order, locale: NS, label: () => t(panel.label),
       }, panel.icon)),
+      ...panel.root === 'my-work'
+        ? [ctx.slots.inject('sidebar.panellist.count', () => ctx.slots.register({
+          name: 'sidebar.panellist.count', id: panel.id, inject: () => ({ hooks: { myWork: panel.model.myWork } }),
+        }, MyWorkCount))]
+        : [],
       // A slot is declared by one entry, so each panel declares its own conversation slot for the agent panel.
       panel.root === 'my-work'
         ? ctx.slots.inject('main', () => ctx.slots.register({

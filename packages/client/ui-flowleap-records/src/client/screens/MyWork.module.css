@@ -39,6 +39,18 @@
   --records-columns: minmax(0, 1fr) 148px 104px 112px 144px 104px;
 }
 
+/* The task's reason goes under the task's name when the two do not fit on one line, as at 1280px or in German, so it
+ * is never cut; two 18px lines still fit the 44px row. */
+.screen [data-row] > :first-child {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 0;
+}
+
+.screen [data-row] > :first-child > [data-source] {
+  max-width: 100%;
+}
+
 .status,
 .client,
 .legal {
@@ -69,6 +81,11 @@
     padding: 16px 16px 8px;
   }
 
+  /* With the column header hidden, a group header that sticks under it would sit 24px over the first row. */
+  .screen [data-list] {
+    --records-header-height: 0px;
+  }
+
   .screen [data-list] > :first-child {
     display: none;
   }
@@ -80,6 +97,11 @@
     min-height: 44px;
     padding-block: 8px;
     row-gap: 2px;
+  }
+
+  /* Here the row grows with its content, so the reason wraps to every line it needs. */
+  .screen [data-row] > :first-child > [data-source] {
+    white-space: normal;
   }
 
   .screen [data-row] > :nth-child(1) { grid-area: task; }

@@ -60,3 +60,29 @@ export function useMatterSearch(search: RecordsApi['search'], query: string): Fi
 export function extraMatches(matter: SearchMatter): readonly string[] {
   return matter.matched.flatMap(match => match.field === 'applicationNumber' || match.field === 'person' ? [match.value] : [])
 }
+
+/** A field that a search can match. */
+export type MatchField = SearchMatter['matched'][number]['field']
+
+/** The found matters that matched one field first. */
+export interface MatchGroup {
+  readonly field: MatchField | null
+  readonly matters: readonly SearchMatter[]
+}
+
+/**
+ * Group the found matters by the field that each matched first, in the answer's order, so that each group's heading
+ * names its field, as "Matters · client" does in the mockup.
+ * @param matters - the found matters, in the answer's order.
+ * @returns the groups; the matters with no matched field are in the group whose field is null.
+ */
+export function groupByMatch(matters: readonly SearchMatter[]): readonly MatchGroup[] {
+  const groups = new Map<MatchField | null, SearchMatter[]>()
+  for (const matter of matters) {
+    const field = matter.matched[0]?.field ?? null
+    const group = groups.get(field)
+    if (group === undefined) groups.set(field, [matter])
+    else group.push(matter)
+  }
+  return [...groups].map(([field, members]) => ({ field, matters: members }))
+}

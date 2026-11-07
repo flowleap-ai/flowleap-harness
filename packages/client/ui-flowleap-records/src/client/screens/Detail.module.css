@@ -515,13 +515,14 @@
  * the days left are never cut, and every row keeps the same columns.
  */
 .deadlinesColumns,
-.waitsColumns {
+.waitsColumns,
+.relatedColumns {
   grid-template-columns: var(--detail-columns);
   column-gap: 16px;
 }
 
-:is(.deadlinesColumns, .waitsColumns) > [role='rowgroup'],
-:is(.deadlinesColumns, .waitsColumns) :is(.thead, .row) {
+:is(.deadlinesColumns, .waitsColumns, .relatedColumns) > [role='rowgroup'],
+:is(.deadlinesColumns, .waitsColumns, .relatedColumns) :is(.thead, .row) {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
@@ -578,7 +579,8 @@
   }
 
   .deadlinesColumns,
-  .waitsColumns {
+  .waitsColumns,
+  .relatedColumns {
     grid-template-columns: var(--detail-columns-narrow);
   }
 }
@@ -613,6 +615,7 @@
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  white-space: nowrap;
 }
 
 .registerLink {
@@ -633,6 +636,12 @@
 }
 
 .relatedColumns {
-  --detail-columns: 200px 176px minmax(0, 1fr) auto 16px;
-  --detail-columns-narrow: 136px minmax(0, 1fr) auto;
+  --detail-columns: max-content max-content minmax(0, 1fr) max-content 16px;
+  --detail-columns-narrow: max-content minmax(0, 1fr) max-content;
+}
+
+/* Beside the agent panel or the properties, and at 390px, a table can be 300 to 560px wide: a record's name and its
+ * meta wrap rather than cut, and two lines still fit the 44px row. */
+:is(.relatedColumns, .waitsColumns, .documentsColumns) :is(.main, .meta, .open) {
+  white-space: normal;
 }

@@ -747,16 +747,17 @@ describe('the work on a letter', () => {
     expect(headings.indexOf('Related')).toBeLessThan(headings.indexOf('Client report'))
   })
 
-  it('labels each status of the page, so a sent report and a sent reply never read the same', async () => {
+  it('names the record of each status on the page, so a sent report and a sent reply never read the same', async () => {
     const report = sourced.reports[0]!
     await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
     const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
-    // The agent panel's result card names the work product in its title row, before the file and the status.
-    // The related records come before the report. The report's section heading names it once ("Client report"), so its
-    // status carries no second "Report" label.
-    expect(sent.map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Reply ·', 'Client report', 'Client reportreport-FL-2026-0001-r71-3.docx'])
+    // A related record's row names it in its main cell (mockup 4-review-work). The report's section heading names it once
+    // ("Client report"), so its status carries no second "Report" label. The agent panel's result card names the work
+    // product in its title row, before the file and the status.
+    expect(sent[0]!.closest('[role="row"]')!.textContent).toMatch(/^Sent\s*Reply to /u)
+    expect(sent.slice(1).map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Client report', 'Client reportreport-FL-2026-0001-r71-3.docx'])
     expect(sent[1]!.parentElement!.textContent).not.toContain('Report')
-    expect(document.querySelector('[data-atlas="deadline.active"]')!.parentElement!.textContent).toBe('Deadline ·Active')
+    expect(document.querySelector('[data-atlas="deadline.active"]')!.closest('[role="row"]')!.textContent).toMatch(/^Active\s*Deadline /u)
   })
 
   it('blocks Accept and Record decision while a statement has no source, and lets the person reject the report', async () => {

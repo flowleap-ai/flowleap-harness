@@ -647,6 +647,11 @@ export const en = {
   'letter.hand.incomplete': 'Enter the matter, the application number, the office event and the date of the letter.',
   'code.epoLossOfRights': 'Communication of a loss of rights',
   'code.epoOpposition': 'Communication of notices of opposition',
+  'find.field.fileNumber': 'file number',
+  'find.field.title': 'title',
+  'find.field.client': 'client',
+  'find.field.applicationNumber': 'application number',
+  'find.field.person': 'person',
 } as const
 
 /** Key domain of the namespace. */
@@ -1292,6 +1297,11 @@ export const de = {
   'letter.hand.incomplete': 'Geben Sie die Akte, die Anmeldenummer, das Amtsereignis und das Datum des Schreibens ein.',
   'code.epoLossOfRights': 'Mitteilung eines Rechtsverlusts',
   'code.epoOpposition': 'Mitteilung von Einsprüchen',
+  'find.field.fileNumber': 'Aktenzeichen',
+  'find.field.title': 'Titel',
+  'find.field.client': 'Mandant',
+  'find.field.applicationNumber': 'Anmeldenummer',
+  'find.field.person': 'Person',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -1934,6 +1944,11 @@ export const es = {
   'letter.hand.incomplete': 'Indique el asunto, el número de solicitud, el acto de la oficina y la fecha de la carta.',
   'code.epoLossOfRights': 'Comunicación de pérdida de derechos',
   'code.epoOpposition': 'Comunicación de escritos de oposición',
+  'find.field.fileNumber': 'número de expediente',
+  'find.field.title': 'título',
+  'find.field.client': 'cliente',
+  'find.field.applicationNumber': 'número de solicitud',
+  'find.field.person': 'persona',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2576,6 +2591,11 @@ export const fr = {
   'letter.hand.incomplete': 'Saisissez l\'affaire, le numéro de demande, l\'acte de l\'office et la date de la lettre.',
   'code.epoLossOfRights': 'Notification d\'une perte de droits',
   'code.epoOpposition': 'Notification des actes d\'opposition',
+  'find.field.fileNumber': 'numéro de dossier',
+  'find.field.title': 'titre',
+  'find.field.client': 'client',
+  'find.field.applicationNumber': 'numéro de demande',
+  'find.field.person': 'personne',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3218,6 +3238,11 @@ export const ja = {
   'letter.hand.incomplete': '案件、出願番号、庁の手続、書簡の日付を入力してください。',
   'code.epoLossOfRights': '権利喪失の通知',
   'code.epoOpposition': '異議申立ての通知',
+  'find.field.fileNumber': '整理番号',
+  'find.field.title': '名称',
+  'find.field.client': '依頼者',
+  'find.field.applicationNumber': '出願番号',
+  'find.field.person': '担当者',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -3860,6 +3885,11 @@ export const pt = {
   'letter.hand.incomplete': 'Informe o processo, o número do pedido, o ato do instituto e a data da carta.',
   'code.epoLossOfRights': 'Comunicação de perda de direitos',
   'code.epoOpposition': 'Comunicação de oposições',
+  'find.field.fileNumber': 'número do processo',
+  'find.field.title': 'título',
+  'find.field.client': 'cliente',
+  'find.field.applicationNumber': 'número do pedido',
+  'find.field.person': 'pessoa',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -4502,6 +4532,11 @@ export const ru = {
   'letter.hand.incomplete': 'Укажите дело, номер заявки, действие ведомства и дату письма.',
   'code.epoLossOfRights': 'Уведомление об утрате прав',
   'code.epoOpposition': 'Уведомление о возражениях',
+  'find.field.fileNumber': 'номер дела',
+  'find.field.title': 'название',
+  'find.field.client': 'клиент',
+  'find.field.applicationNumber': 'номер заявки',
+  'find.field.person': 'человек',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5144,4 +5179,9 @@ export const zh = {
   'letter.hand.incomplete': '请输入案件、申请号、官方事件和信函日期。',
   'code.epoLossOfRights': '权利丧失通知',
   'code.epoOpposition': '异议通知',
+  'find.field.fileNumber': '案号',
+  'find.field.title': '标题',
+  'find.field.client': '客户',
+  'find.field.applicationNumber': '申请号',
+  'find.field.person': '人员',
 } satisfies Record<FlowleapRecordsKey, string>

@@ -378,6 +378,10 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
 function myWorkBar(screen: Screen, ctx: ScreenContext, myWork: MyWork | null): ReactNode {
   const { t } = ctx
   const root: Crumb = { label: t('mywork.panel'), route: { view: 'my-work' } }
+  if (screen.view === 'matter') {
+    const data = shownData(screen.matter)?.data
+    return <Crumbs t={t} crumbs={[root, { label: data?.matter.title ?? '', key: screen.fileNumber }]} navigate={ctx.navigate} />
+  }
   const title = (() => {
     switch (screen.view) {
       case 'my-work': return null
@@ -500,6 +504,25 @@ export function MattersIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) 
  */
 export function MyWorkIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) {
   return <IconGoalOutlineRegular size={size} />
+}
+
+/** Injected share of the My work count beside its sidebar row. */
+export interface MyWorkCountInjected {
+  readonly hooks: {
+    /** The person's tasks, as the My work panel loads them. */
+    readonly myWork: ObservableSnapshot<Load<MyWork> | null>
+  }
+}
+
+/**
+ * Render the number of the person's tasks beside My work in the sidebar (mockup 1-my-work): nothing before My work
+ * has loaded once and nothing when no task waits; after a failed load, the last count.
+ * @param props.useMyWork - the person's tasks.
+ * @returns the count, or nothing.
+ */
+export function MyWorkCount({ useMyWork }: InjectFace<MyWorkCountInjected>) {
+  const count = useMyWork(load => (load === null ? null : shownData(load))?.data.work.length ?? 0)
+  return count === 0 ? null : <>{count}</>
 }
 
 /**

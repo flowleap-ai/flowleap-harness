@@ -1,8 +1,8 @@
 /**
  * The Find a matter dialog: a 712 px menu on a scrim with the Matters chip, the query input, and the matters that
- * `GET search` finds inside the person's walls, each with its file number and title, its client and the application
- * number or person that the query matched. ↑ and ↓ move, ↵ opens the dossier, Esc and the scrim close it. It opens
- * and closes with no motion (R15).
+ * `GET search` finds inside the person's walls, grouped under a heading that names the matched field, each with its file
+ * number and title, its client and the application number or person that the query matched. ↑ and ↓ move, ↵ opens the
+ * dossier, Esc and the scrim close it. It opens and closes with no motion (R15).
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -11,7 +11,7 @@ import { MenuGroup, MenuSurface, isMobileDevice, useModalLayer } from '@deepseek
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { FileNumber, RecordsApi, SearchMatter } from './api.ts'
-import { extraMatches, MAX_QUERY, useMatterSearch } from './find.ts'
+import { extraMatches, groupByMatch, MAX_QUERY, useMatterSearch } from './find.ts'
 import type { NS } from './locales.ts'
 import css from './FindDialog.module.css'
 
@@ -56,7 +56,9 @@ function FindBody({ search, close, openMatter, t }: Pick<FindDialogProps, 'searc
   const [active, setActive] = useState(0)
   useModalLayer(dialog, true, close)
   const found = useMatterSearch(search, query)
-  const rows: readonly SearchMatter[] = found.phase === 'ready' ? found.answer.matters : found.phase === 'searching' ? found.last?.matters ?? [] : []
+  const groups = groupByMatch(found.phase === 'ready' ? found.answer.matters : found.phase === 'searching' ? found.last?.matters ?? [] : [])
+  const rows: readonly SearchMatter[] = groups.flatMap(group => group.matters)
+  const starts = groups.map((_, place) => groups.slice(0, place).reduce((count, group) => count + group.matters.length, 0))
   useEffect(() => {
     viewport.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [active, rows])
@@ -107,27 +109,33 @@ function FindBody({ search, close, openMatter, t }: Pick<FindDialogProps, 'searc
         {status !== null && <div className={css.status} role="status">{status}</div>}
         {rows.length > 0 && (
           <div ref={viewport} role="listbox" aria-label={t('find.label')} className={css.viewport}>
-            <MenuGroup label={t('find.label')}>
-              {rows.map((matter, index) => {
-                const extra = extraMatches(matter)
-                return (
-                  <div
-                    key={matter.fileNumber}
-                    role="option"
-                    aria-selected={index === active}
-                    className={clsx(css.row, index === active && css.rowActive)}
-                    onClick={() => { open(matter) }}
-                    onMouseMove={() => { if (index !== active) setActive(index) }}
-                  >
-                    <span className={css.key}>{matter.fileNumber}</span>
-                    <span className={css.sub}>
-                      <span className={css.title}>{matter.title}</span>
-                      <span className={css.client}>{[matter.client, ...extra].join(' · ')}</span>
-                    </span>
-                  </div>
-                )
-              })}
-            </MenuGroup>
+            {groups.map(({ field, matters }, group) => {
+              const first = starts[group] ?? 0
+              return (
+                <MenuGroup key={field ?? ''} label={field === null ? t('find.label') : `${t('find.label')} · ${t(`find.field.${field}`)}`}>
+                  {matters.map((matter, place) => {
+                    const index = first + place
+                    const extra = extraMatches(matter)
+                    return (
+                      <div
+                        key={matter.fileNumber}
+                        role="option"
+                        aria-selected={index === active}
+                        className={clsx(css.row, index === active && css.rowActive)}
+                        onClick={() => { open(matter) }}
+                        onMouseMove={() => { if (index !== active) setActive(index) }}
+                      >
+                        <span className={css.key}>{matter.fileNumber}</span>
+                        <span className={css.sub}>
+                          <span className={css.title}>{matter.title}</span>
+                          <span className={css.client}>{[matter.client, ...extra].join(' · ')}</span>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </MenuGroup>
+              )
+            })}
           </div>
         )}
         <div className={css.note}>{found.phase === 'ready' && found.answer.more ? t('find.more') : t('find.group')}</div>

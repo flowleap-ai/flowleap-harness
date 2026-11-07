@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { MyWork, RecordsApi, WorkItem } from '../src/client/api.ts'
+import type { Load } from '../src/client/load.ts'
 import { en } from '../src/client/locales.ts'
 import { groupWork, ledeCounts, letterOf, taskDueDay, workStatus } from '../src/client/my-work.ts'
+import { MyWorkCount } from '../src/client/Panel.tsx'
 import { createFixtureApi, fixtures, FIXTURE_IDS, sha } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
 
@@ -65,6 +69,30 @@ describe('the view logic of My work', () => {
   })
 })
 
+describe('the My work count in the sidebar', () => {
+  /**
+   * Render the count over one state of the My work load.
+   * @param load - the load, or null before the panel has one.
+   * @returns the rendered text.
+   */
+  function countOf(load: Load<MyWork> | null): string {
+    const props = { useMyWork: bindSnapshotSelector(createSnapshotStore(load)) } as Parameters<typeof MyWorkCount>[0]
+    const view = render(<MyWorkCount {...props} />)
+    const text = view.container.textContent ?? ''
+    view.unmount()
+    return text
+  }
+
+  it('counts the tasks once My work has loaded, keeps the last count after a failure, and shows no zero', () => {
+    const ready = { phase: 'ready', data: fixtures.myWork, at: 0, refreshing: false } as const
+    expect(countOf(null)).toBe('')
+    expect(countOf({ phase: 'skeleton' })).toBe('')
+    expect(countOf(ready)).toBe(String(fixtures.myWork.work.length))
+    expect(countOf({ phase: 'failed', error: { kind: 'network' }, last: { data: fixtures.myWork, at: 0 }, retrying: false })).toBe('3')
+    expect(countOf({ ...ready, data: { ...fixtures.myWork, work: [] } })).toBe('')
+  })
+})
+
 describe('My work', () => {
   it('opens with the first line, the day with the count of each group, and the tasks in the groups by due time', async () => {
     await mountMyWork()
@@ -114,6 +142,16 @@ describe('My work', () => {
     const crumbs = screen.getByRole('navigation', { name: en['crumbs.label'] })
     expect(crumbs.textContent).toContain(en['mywork.panel'])
     expect(screen.getByLabelText('Task 3 of 3')).toBeTruthy()
+  })
+
+  it('names a dossier opened from My work in the breadcrumb by its file number and title', async () => {
+    const { model } = await mountMyWork()
+    model.navigate({ view: 'matter', fileNumber: 'FL-2026-0001' as never })
+    await flush()
+    const crumbs = screen.getByRole('navigation', { name: en['crumbs.label'] })
+    expect(crumbs.textContent).toContain(en['mywork.panel'])
+    expect(crumbs.textContent).toContain('FL-2026-0001')
+    expect(crumbs.textContent).toContain('Pressure sensor housing')
   })
 
   it('opens the row menu of a task with Open, Open matter and Copy link', async () => {

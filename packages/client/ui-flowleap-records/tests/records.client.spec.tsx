@@ -105,7 +105,9 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   ctx.slots.register({
     name: 'root',
-    children: { 'sidebar.panellist': { kind: 'list', scope: 'root' }, 'sidebar.footer.action': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' }, 'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true } },
+    children: {
+      'sidebar.panellist': { kind: 'list', scope: 'root' }, 'sidebar.panellist.count': { kind: 'list', scope: 'root' },
+      'sidebar.footer.action': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' }, 'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true } },
   } as never, () => null)
   ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -140,6 +142,7 @@ describe('ui-flowleap-records browser half', () => {
     expect((launchers[1]!.options as { label: () => string }).label()).toBe(zh.panel)
     const pages = ctx.slots.entries('main')
     expect(pages.map(page => page.options)).toMatchObject([{ key: MY_WORK_PANEL_ID }, { key: PANEL_ID }])
+    expect(ctx.slots.entries('sidebar.panellist.count').map(count => count.options)).toMatchObject([{ id: MY_WORK_PANEL_ID }])
     const accounts = ctx.slots.entries('sidebar.footer.action')
     expect(accounts.map(account => account.options)).toMatchObject([{ id: 'flowleap-account' }])
     const injected: unknown = pages[1]!.inject!()
@@ -174,6 +177,7 @@ describe('ui-flowleap-records browser half', () => {
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
     expect(ctx.slots.entries('sidebar.footer.action')).toEqual([])
+    expect(ctx.slots.entries('sidebar.panellist.count')).toEqual([])
     expect(ctx.slots.entries('contextMenu.icon')).toEqual([])
     expect(landings).toEqual([])
     expect(menus).toEqual([])

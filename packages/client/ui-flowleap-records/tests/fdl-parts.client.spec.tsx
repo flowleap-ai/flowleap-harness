@@ -81,7 +81,6 @@ describe('the design-language part markers (R8)', () => {
     expect(part(screen.getByRole('group', { name: 'Client report' }))).toBe('seg')
     expect(part(screen.getByRole('complementary', { name: 'Patent agent' }))).toBe('dock')
     expect(parts('file')).toHaveLength(1)
-    expect(parts('fact').length).toBeGreaterThan(0)
     expectAllowedNames()
   })
 

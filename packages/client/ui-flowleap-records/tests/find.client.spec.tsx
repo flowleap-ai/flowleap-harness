@@ -70,6 +70,7 @@ describe('Find a matter', () => {
     expect(search).not.toHaveBeenCalled()
     await settle()
     expect(search).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Matters · client')).toBeTruthy()
     expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
       'FL-2026-0019Heat pump expansion valveNordwind Energie AG',
       'FL-2026-0044Offshore cable clampNordwind Energie AG',
@@ -79,6 +80,24 @@ describe('Find a matter', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' })
     expect(close).toHaveBeenCalled()
     expect(openMatter).toHaveBeenCalledWith('FL-2026-0044')
+  })
+
+  it('groups the matters under the field that each matched, and moves through the groups in order', async () => {
+    const answer = parsers.searchAnswer(searchWire('kessler'), 'search')
+    type Found = typeof answer.matters[number]
+    const [first, second, third] = answer.matters as [Found, Found, Found]
+    const byNumber = { ...second, matched: [{ field: 'applicationNumber' as const, value: 'EP24123456' }] }
+    const mixed = vi.fn<RecordsApi['search']>(async () => ({ ok: true, value: { ...answer, matters: [first, byNumber, third] } }))
+    const { openMatter } = mountDialog(mixed, 'de')
+    type('kessler')
+    await settle()
+    expect(screen.getByText('Akten · Mandant')).toBeTruthy()
+    expect(screen.getByText('Akten · Anmeldenummer')).toBeTruthy()
+    expect(screen.getAllByRole('option').map(option => option.textContent?.slice(0, 12))).toEqual([first.fileNumber, third.fileNumber, second.fileNumber])
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' })
+    expect(openMatter).toHaveBeenCalledWith(second.fileNumber)
   })
 
   it('reads once after the person stops typing, and says when nothing matches', async () => {
