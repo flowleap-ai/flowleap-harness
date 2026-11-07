@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de" data-today="2026-11-09">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,12 +20,12 @@
       <div class="list-pane">
         <div class="mw-head">
           <h1 class="title">2 Schreiben bearbeitet, 2 brauchen Sie</h1>
-          <p class="lede">Montag, 9. November · 1 heute fällig, 1 später</p>
+          <p class="lede"><span data-day></span> · 1 heute fällig, 1 später</p>
         </div>
-        <div class="list mw">
+        <div class="list mw" data-list="my-work">
           <div class="thead"><span>Aufgabe</span><span>Status</span><span>Akte</span><span>Mandant</span><span>Fristende</span><span class="end">Fällig</span></div>
 <div class="group"><span class="gi" data-i="today"></span>Heute<span class="count">1</span></div>
-<a class="row" href="4-review-work.de.html"><span class="t c-task"><span class="task">Arbeit prüfen</span><span class="muted hide-sm">Mitteilung nach Regel 71(3) bearbeitet; Frist von Tobias Schmitt bestätigt</span></span><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Vorschläge bereit</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"><span class="legal" data-i="scale">Fr., 29. Jan. 2027</span></span><span class="r c-due" data-due="2026-11-09"></span></a>
+<a class="row is-context" href="4-review-work.de.html"><span class="t c-task"><span class="task">Arbeit prüfen</span><span class="muted hide-sm">Mitteilung nach Regel 71(3) bearbeitet; Frist von Tobias Schmitt bestätigt</span></span><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Vorschläge bereit</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"><span class="legal" data-i="scale">Fr., 29. Jan. 2027</span></span><span class="r c-due" data-due="today"></span></a>
 <div class="group"><span class="gi" data-i="later"></span>Später<span class="count">1</span></div>
 <div class="row"><span class="t c-task"><span class="task">Arbeit prüfen</span><span class="muted hide-sm">Mitteilung über den Einspruch bearbeitet; Entwurf der Stellungnahme liegt vor</span></span><span class="status" data-atlas="ticket.proposals_ready"><span class="st" data-s="wait"></span>Vorschläge bereit</span><span class="m num c-key">SF-2026-0019</span><span class="m hide-sm">Phoenix Contact GmbH & Co. KG</span><span class="hide-sm"><span class="legal" data-i="scale">Mo., 15. Feb. 2027</span></span><span class="r c-due" data-due="2027-01-15"></span></div>
         </div>
@@ -34,6 +34,11 @@
     </section>
   </main>
 </div>
-<script src="frame.js"></script>
+<div class="menu ctx-menu ctx-at" id="row-menu" data-state="context" role="menu">
+  <div class="mi on" data-i="eye" data-act="open">Öffnen<span class="kbds"><span class="kbd">↵</span></span></div>
+  <div class="mi" data-i="matters" data-act="go-matter">Akte öffnen<span class="kbds"><span class="kbd">G</span><span class="kbd">M</span></span></div>
+  <div class="sep"></div>
+  <div class="mi" data-i="link">Link kopieren</div>
+</div><script src="frame.js"></script>
 </body>
 </html>

@@ -17,15 +17,18 @@ const P = {
   lena: { name: 'Lena Hoffmann', role: ['Patent attorney', 'Patentanwältin'] },
 };
 const M = {
-  demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en' },
+  demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en',
+    // The client's recorded AI wishes (seed firm, founder 2026-11-07): AI use and AI drafts of client letters allowed.
+    aiWishes: ['Drafts, client report', 'Entwürfe, Mandantenbericht'] },
   labels: { key: 'SF-2020-0031', title: 'Labelling materials for marking electrical installations and method for producing a labelling strip', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 20 706 232.4' },
   terminal: { key: 'SF-2026-0019', title: 'Terminal for electrical wire', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 21 810 318.2' },
 };
 // The Rule 71(3) communication of seed case r71-3-en-open (row 18): dated 2026-09-29, footer date 2026-09-25.
 // Due date from flowleap-deadlines rule ep.r71-3.grant-communication v1 with the EPO 2027 closing days (OJ EPO 2026, A30).
 const LETTER = '2026-09-29', FOOTER = '2026-09-25', START = '2026-09-30', DUE = '2027-01-29';
-// The demo day; frame.js reads it from <html data-today>, so every "days left" follows this one value.
-const TODAY = '2026-11-09';
+// The demo day is the viewer's day in the real calendar (founder, 2026-11-07): the letter of 29 September arrives
+// today. frame.js fills every "days left" and the [data-day] line from the real clock; 'today' in a row's due is that day.
+const TODAY = 'today';
 // The date by which the client report asks the client for instructions: a firm choice, two weeks before the due date.
 const INSTRUCT_BY = '2027-01-15';
 
@@ -34,7 +37,7 @@ const t = (en, de) => (lang === 'de' ? de : en);
 const role = p => t(...P[p].role);
 const initial = p => P[p].name.replace(/^Dr\. /, '')[0];
 
-// ---------- dates, written out; frame.js computes every "days left" from the demo date ----------
+// ---------- dates, written out; frame.js computes every "days left" from today ----------
 const WD = { en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], de: ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'] };
 const WDL = { en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], de: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'] };
 const MO = { en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], de: ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'] };
@@ -42,7 +45,6 @@ const MOL = { en: ['January', 'February', 'March', 'April', 'May', 'June', 'July
 const parts = iso => { const d = new Date(`${iso}T12:00:00Z`); return [d.getUTCDay(), d.getUTCDate(), d.getUTCMonth(), d.getUTCFullYear()]; };
 const day = iso => { const [w, d, m, y] = parts(iso); return lang === 'de' ? `${WD.de[w]}, ${d}. ${MO.de[m]} ${y}` : `${WD.en[w]}, ${d} ${MO.en[m]} ${y}`; };
 const long = iso => { const [w, d, m, y] = parts(iso); return lang === 'de' ? `${WDL.de[w]}, ${d}. ${MOL.de[m]} ${y}` : `${WDL.en[w]}, ${d} ${MOL.en[m]} ${y}`; };
-const dayMonth = iso => { const [w, d, m] = parts(iso); return lang === 'de' ? `${WDL.de[w]}, ${d}. ${MOL.de[m]}` : `${WDL.en[w]}, ${d} ${MOL.en[m]}`; };
 const short = iso => { const [, d, m] = parts(iso); return lang === 'de' ? `${d}. ${MO.de[m]}` : `${d} ${MO.en[m]}`; };
 
 // ---------- parts ----------
@@ -67,7 +69,7 @@ const b = s => `<b>${s}</b>`;
 const FL = '<b>FlowLeap</b>';
 
 const page = ({ name, title, body, after = '' }) => `<!doctype html>
-<html lang="${lang}" data-today="${TODAY}">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -145,18 +147,18 @@ function firstLine(rows) {
   const need = rows.length === 1 ? t('1 needs you', '1 braucht Sie') : t(`${rows.length} need you`, `${rows.length} brauchen Sie`);
   return [arrived && `${letters(arrived)} ${t('arrived', 'eingegangen')}`, worked && `${letters(worked)} ${t('worked', 'bearbeitet')}`].filter(Boolean).join(', ') + `, ${need}`;
 }
-/** The second line: the demo day and the count of each due group. */
+/** The second line: today and the count of each due group. */
 function subLine(rows) {
   const n = g => rows.filter(r => r.group === g).length;
   const counts = [n('over') && t(`${n('over')} overdue`, `${n('over')} überfällig`), n('today') && t(`${n('today')} due today`, `${n('today')} heute fällig`), n('later') && t(`${n('later')} later`, `${n('later')} später`)].filter(Boolean);
-  return `${dayMonth(TODAY)} · ${counts.join(', ')}`;
+  return `<span data-day></span> · ${counts.join(', ')}`;
 }
 /** rows: { group: 'over'|'today'|'later', kind, page (a mockup page, or none), atlas, task, why, m, legal, due } */
 function myWork({ person, time, rows, states = false }) {
   const groups = [['over', 'warn', t('Overdue', 'Überfällig')], ['today', 'today', t('Today', 'Heute')], ['later', 'later', t('Later', 'Später')]];
   const row = r => {
     const tag = r.page ? 'a' : 'div';
-    return `<${tag} class="row"${r.page ? ` href="${href(r.page)}"` : ''}><span class="t c-task"><span class="task">${r.task}</span><span class="muted hide-sm">${r.why}</span></span>${status(r.atlas)}<span class="m num c-key">${r.m.key}</span><span class="m hide-sm">${r.m.client}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r c-due" data-due="${r.due}"></span></${tag}>`;
+    return `<${tag} class="row${r === rows[0] ? ' is-context' : ''}"${r.page ? ` href="${href(r.page)}"` : ''}><span class="t c-task"><span class="task">${r.task}</span><span class="muted hide-sm">${r.why}</span></span>${status(r.atlas)}<span class="m num c-key">${r.m.key}</span><span class="m hide-sm">${r.m.client}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r c-due" data-due="${r.due}"></span></${tag}>`;
   };
   const list = groups.map(([g, icon, word]) => {
     const rs = rows.filter(r => r.group === g);
@@ -165,16 +167,24 @@ function myWork({ person, time, rows, states = false }) {
   const thead = `<div class="thead"><span>${t('Task', 'Aufgabe')}</span><span>${t('Status', 'Status')}</span><span>${t('Matter', 'Akte')}</span><span>${t('Client', 'Mandant')}</span><span>${t('Legal date', 'Fristende')}</span><span class="end">${t('Due', 'Fällig')}</span></div>`;
   const skel = ['w70', 'w50', 'w80', 'w60'].map(w => `<div class="row"><span class="skel ${w} c-task"></span><span class="skel w80"></span><span class="skel w80 c-key"></span><span class="skel w60 hide-sm"></span><span class="skel w70 hide-sm"></span><span class="skel w50 end c-due"></span></div>`).join('\n');
   const S = s => (states ? ` data-state="${s}"` : '');
+  // My work has no row selection and no bulk act (founder exception to product rule 1); a row's context menu opens it,
+  // opens its matter or copies its link.
+  const rowMenu = `<div class="menu ctx-menu ctx-at" id="row-menu" data-state="context" role="menu">
+  ${mi('open', t('Open', 'Öffnen'), 'eye').replace('class="mi"', 'class="mi on"')}
+  ${mi('go-matter', t('Open matter', 'Akte öffnen'), 'matters')}
+  <div class="sep"></div>
+  ${mi('', t('Copy link', 'Link kopieren'), 'link')}
+</div>`;
   const body = app({ person, side: 'mywork', count: rows.length, body: `${topbar(`<span class="ico" data-i="mywork"></span><span class="here">${t('My work', 'Meine Arbeit')}</span>`, `${findBtn()}<span class="iconbtn boxed" data-i="filter" aria-label="${t('Filter', 'Filter')}"></span><span class="iconbtn boxed hide-sm" data-i="display" aria-label="${t('Display', 'Anzeige')}"></span>`)}
       <div class="list-pane">
-        <div class="mw-head"${S('default error')}>
+        <div class="mw-head"${S('default error context')}>
           <h1 class="title">${firstLine(rows)}</h1>
           <p class="lede">${subLine(rows)}</p>
         </div>
 ${states ? `        <div class="error-bar"${S('error')}>
           <div class="notice bad" data-i="warn"><div><span class="lead">${t('FlowLeap could not load your work.', 'FlowLeap konnte Ihre Arbeit nicht laden.')}</span> ${t(`The list shows your work as of ${time}. Nothing in the record changed.`, `Die Liste zeigt Ihre Arbeit mit Stand ${time} Uhr. Im Record hat sich nichts geändert.`)}</div><span class="spacer"></span>${btn('retry', t('Try again', 'Erneut versuchen'), { icon: 'retry' })}</div>
         </div>
-` : ''}        <div class="list mw"${S('default error')}>
+` : ''}        <div class="list mw" data-list="my-work"${S('default error context')}>
           ${thead}
 ${list}
         </div>
@@ -192,11 +202,11 @@ ${skel}
           </div>
         </div>` : ''}
       </div>` });
-  return body;
+  return { body, after: rowMenu };
 }
 
 const formalRows = () => [
-  { group: 'today', kind: 'file-letter', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t('Rule 71(3) communication; its application number names one matter', 'Mitteilung nach Regel 71(3); ihre Anmeldenummer nennt eine Akte'), m: M.demo, legal: null, due: TODAY },
+  { group: 'today', kind: 'file-letter', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t(`Letter of ${short(LETTER)} · arrived today`, `Schreiben vom ${short(LETTER)} · heute eingegangen`), m: M.demo, legal: null, due: TODAY },
 ];
 // Seed case r79-1-opposition: four months from 2026-10-14 end on Sunday, so Monday 2027-02-15. Its worked state is a
 // demo assumption, with ticket.decideBy one month before the legal date; no mockup page opens it.
@@ -515,6 +525,7 @@ ${reviewBar(true)}
           <h3>${t('Matter', 'Akte')}</h3>
           <div class="prop"><span class="k">${t('File number', 'Aktenzeichen')}</span><span class="v num">${M.demo.key}</span></div>
           <div class="prop"><span class="k">${t('Client', 'Mandant')}</span><span class="v">${M.demo.client}</span></div>
+          <div class="prop"><span class="k">${t('AI allowed for', 'KI erlaubt für')}</span><span class="v">${t(M.demo.aiWishes[0], M.demo.aiWishes[1])}</span></div>
           <div class="prop"><span class="k">${t('Application', 'Anmeldung')}</span><span class="v num">${M.demo.app}</span></div>
           <h3>${t('People', 'Personen')}</h3>
           <div class="prop"><span class="k">${t('Responsible', 'Verantwortlich')}</span><span class="v">${av('attorney')}${P.attorney.name}</span></div>
@@ -554,12 +565,12 @@ function dossier() {
           <div class="section">
             <div class="section-h"><h2>${t('E-file', 'E-Akte')}</h2><span class="count">2</span></div>
             <div class="tbl efile">
-              <a class="row" href="${href('2-file-letter')}">${status('intake.filed')}<span class="c">${t('Rule 71(3) communication', 'Mitteilung nach Regel 71(3)')} <span class="muted hide-sm">· EPO</span></span><span class="c muted hide-sm">${t(`Letter of ${short(LETTER)} · filed today`, `Schreiben vom ${short(LETTER)} · heute abgelegt`)}</span><span class="r hide-sm">${who('formal')}</span><span class="chev hide-sm" data-i="chev"></span></a>
+              <a class="row" href="${href('2-file-letter')}">${status('intake.filed')}<span class="c">${t('Rule 71(3) communication', 'Mitteilung nach Regel 71(3)')} <span class="muted hide-sm">· EPO</span></span><span class="c muted hide-sm">${t(`Letter of ${short(LETTER)} · arrived today`, `Schreiben vom ${short(LETTER)} · heute eingegangen`)}</span><span class="r hide-sm">${who('formal')}</span><span class="chev hide-sm" data-i="chev"></span></a>
               <a class="row" href="${href('4-review-work')}">${status('report.proposed')}<span class="c">${t('Client report', 'Mandantenbericht')} <span class="muted hide-sm">· ${t('draft', 'Entwurf')}</span></span><span class="c muted hide-sm">${t('By the patent agent', 'Vom Patent-Agenten')}</span><span class="r num hide-sm">${t('Today', 'Heute')}</span><span class="chev hide-sm" data-i="chev"></span></a>
             </div>
           </div>
 ${activity([
-    ev('', t(`${b(P.lena.name)} handed the matter to ${b(P.attorney.name)}: check the text intended for grant of the Rule 71(3) communication of 29 September 2026`, `${b(P.lena.name)} hat die Akte an ${b(P.attorney.name)} übergeben: Text für die Erteilung der Mitteilung nach Regel 71(3) vom 29. September 2026 prüfen`), t('15 Oct', '15. Okt.'), 'lena'),
+    ev('', t(`${b(P.lena.name)} handed the matter to ${b(P.attorney.name)}`, `${b(P.lena.name)} hat die Akte an ${b(P.attorney.name)} übergeben`), t('15 Oct', '15. Okt.'), 'lena'),
     ev('scan', t(`${b('Scan mailbox')} delivered a scan of 4 pages`, `${b('Scan-Postfach')} hat einen Scan mit 4 Seiten geliefert`), '08:00'),
     ev('eye', t(`${FL} read the scan twice; both readings agree`, `${FL} hat den Scan zweimal gelesen; beide Lesungen stimmen überein`), '08:02'),
     ev('', t(`${b(P.formal.name)} filed the Rule 71(3) communication`, `${b(P.formal.name)} hat die Mitteilung nach Regel 71(3) abgelegt`), '08:03', 'formal'),
@@ -572,6 +583,7 @@ ${activity([
           <h3>${t('Matter', 'Akte')}</h3>
           <div class="prop"><span class="k">${t('File number', 'Aktenzeichen')}</span><span class="v num">${M.demo.key}</span></div>
           <div class="prop"><span class="k">${t('Client', 'Mandant')}</span><span class="v">${M.demo.client}</span></div>
+          <div class="prop"><span class="k">${t('AI allowed for', 'KI erlaubt für')}</span><span class="v">${t(M.demo.aiWishes[0], M.demo.aiWishes[1])}</span></div>
           <div class="prop"><span class="k">${t('Language', 'Sprache')}</span><span class="v">${t('English', 'Englisch')}</span></div>
           <h3>${t('People', 'Personen')}</h3>
           <div class="prop"><span class="k">${t('Responsible', 'Verantwortlich')}</span><span class="v">${av('attorney')}${P.attorney.name} <span class="muted">${t('since 15 Oct', 'seit 15. Okt.')}</span></span></div>
@@ -647,8 +659,8 @@ const mailSecond = () => mail({
 
 // ---------- write ----------
 const PAGES = [
-  ['1-my-work-formalities', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'formal', time: '08:01', states: true, rows: formalRows() }) })],
-  ['1-my-work-attorney', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'attorney', time: '08:24', rows: attorneyRows() }) })],
+  ['1-my-work-formalities', () => t('My work', 'Meine Arbeit'), () => myWork({ person: 'formal', time: '08:01', states: true, rows: formalRows() })],
+  ['1-my-work-attorney', () => t('My work', 'Meine Arbeit'), () => myWork({ person: 'attorney', time: '08:24', rows: attorneyRows() })],
   ['2-file-letter', () => t('File this letter', 'Dieses Schreiben ablegen'), fileLetter],
   ['3-confirm-deadline', () => t('Confirm the deadline', 'Frist bestätigen'), () => confirmDeadline({ person: 'formal' })],
   ['3-confirm-deadline-second', () => t('Confirm the deadline', 'Frist bestätigen'), () => confirmDeadline({ person: 'lena' })],

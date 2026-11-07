@@ -25,6 +25,9 @@
 // - each radius is on the client scale and fits the element's height band: R4 below 20 px, R8 for 20 to 28 px, R12
 //   for 32 to 40 px, R12 or more above 40 px (R7);
 // - nothing is cut with an ellipsis at 1440 and 1366 px except a title or matter cell of a queue list row (R17);
+// - a due-time group (Overdue, Today, Later) shows only in the My work list ([data-list="my-work"]); that list has only
+//   due-time groups, no row checkbox, no bulk bar, and a row context menu (#row-menu) with only Open and Open matter
+//   as acts (R17, the My work exception);
 // - every act that a button offers at 1440 px is reachable at 390 px: shown, in the menu that a shown
 //   [data-overflow="<menu id>"] opens, or on the
 //   page that [data-narrow-page] names (checklist 25).
@@ -286,6 +289,24 @@ function inspect({ keys, atlas, deny, view }) {
       if (el.matches('.list .row .t, .list .row .m')) continue;
       problems.push(`"${el.textContent.trim().slice(0, 48)}" is cut with an ellipsis at ${innerWidth} px; shorten the value or give it room`);
     }
+  }
+
+  // R17: only My work groups by due time; it has no row selection and a row menu with Open and Open matter.
+  const DUE_GROUPS = ['Overdue', 'Today', 'Later', 'Überfällig', 'Heute', 'Später'];
+  const myWork = document.querySelector('[data-list="my-work"]');
+  for (const g of document.querySelectorAll('.list .group')) {
+    if (!shown(g)) continue;
+    const word = [...g.childNodes].filter(n => n.nodeType === Node.TEXT_NODE || !n.matches('.count, .gi, svg')).map(n => n.textContent).join('').trim();
+    const due = DUE_GROUPS.includes(word);
+    if (due && !g.closest('[data-list="my-work"]')) problems.push(`the group "${word}" groups by due time outside My work; group the list by atlas state (R17)`);
+    if (!due && g.closest('[data-list="my-work"]')) problems.push(`the My work group "${word}" is not a due-time group (Overdue, Today, Later) (R17)`);
+  }
+  if (myWork) {
+    if (myWork.querySelector('.row .check') || [...document.querySelectorAll('[data-bulk]')].some(shown)) problems.push('My work has a row checkbox or a bulk bar; its rows open their decision page and take no bulk act (R17)');
+    const menu = document.getElementById('row-menu');
+    const extra = menu && [...menu.querySelectorAll('[data-act]')].map(m => m.dataset.act).filter(a => !['open', 'go-matter'].includes(a));
+    if (!menu) problems.push('My work has no row context menu (#row-menu) with Open, Open matter and Copy link (R17)');
+    else if (extra.length) problems.push(`the My work row menu offers ${extra.join(', ')}; it holds only Open, Open matter and Copy link (R17)`);
   }
 
   // R12: a bulk bar shows only for a selection, with the number of checked rows.

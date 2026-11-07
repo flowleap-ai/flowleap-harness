@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-today="2026-11-09">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,17 +18,17 @@
         <div class="bar-right"><span class="btn btn-ghost" data-i="search" data-act="find" aria-label="Find a matter"><span class="hide-sm">Find a matter</span><span class="kbd">/</span></span><span class="iconbtn boxed" data-i="filter" aria-label="Filter"></span><span class="iconbtn boxed hide-sm" data-i="display" aria-label="Display"></span></div>
       </header>
       <div class="list-pane">
-        <div class="mw-head" data-state="default error">
+        <div class="mw-head" data-state="default error context">
           <h1 class="title">1 letter arrived, 1 needs you</h1>
-          <p class="lede">Monday, 9 November · 1 due today</p>
+          <p class="lede"><span data-day></span> · 1 due today</p>
         </div>
         <div class="error-bar" data-state="error">
           <div class="notice bad" data-i="warn"><div><span class="lead">FlowLeap could not load your work.</span> The list shows your work as of 08:01. Nothing in the record changed.</div><span class="spacer"></span><span class="btn btn-secondary" data-i="retry" data-act="retry">Try again <span class="kbd">R</span></span></div>
         </div>
-        <div class="list mw" data-state="default error">
+        <div class="list mw" data-list="my-work" data-state="default error context">
           <div class="thead"><span>Task</span><span>Status</span><span>Matter</span><span>Client</span><span>Legal date</span><span class="end">Due</span></div>
 <div class="group"><span class="gi" data-i="today"></span>Today<span class="count">1</span></div>
-<a class="row" href="2-file-letter.html"><span class="t c-task"><span class="task">File this letter</span><span class="muted hide-sm">Rule 71(3) communication; its application number names one matter</span></span><span class="status" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Match proposed</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"></span><span class="r c-due" data-due="2026-11-09"></span></a>
+<a class="row is-context" href="2-file-letter.html"><span class="t c-task"><span class="task">File this letter</span><span class="muted hide-sm">Letter of 29 Sep · arrived today</span></span><span class="status" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Match proposed</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"></span><span class="r c-due" data-due="today"></span></a>
         </div>
         <div class="mw-head mw" data-state="loading"><div class="skel w50"></div></div>
         <div class="list mw" data-state="loading">
@@ -50,6 +50,11 @@
     </section>
   </main>
 </div>
-<script src="frame.js"></script>
+<div class="menu ctx-menu ctx-at" id="row-menu" data-state="context" role="menu">
+  <div class="mi on" data-i="eye" data-act="open">Open<span class="kbds"><span class="kbd">↵</span></span></div>
+  <div class="mi" data-i="matters" data-act="go-matter">Open matter<span class="kbds"><span class="kbd">G</span><span class="kbd">M</span></span></div>
+  <div class="sep"></div>
+  <div class="mi" data-i="link">Copy link</div>
+</div><script src="frame.js"></script>
 </body>
 </html>

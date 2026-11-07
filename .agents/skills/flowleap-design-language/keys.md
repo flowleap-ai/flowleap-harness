@@ -28,7 +28,7 @@ Each act is a command in the shortcut registry ([`packages/client/shortcuts`](..
 | Record an office event | `record-event` | `records.event.record` | E | E | E (layer) | | Record office event |
 | Show what was filed today | `show-filed` | `records.intake.showFiled` | F | F | F (layer) | | Show filed today |
 | Open the row | `open` | (fixed: `↵`, view-scoped layer) | ↵ | ↵ | ↵ (layer, fixed) | | Open |
-| Go to the matter | `go-matter` | `records.go.matter` | G M | G M | G M (layer) | | Matter … |
+| Go to the matter | `go-matter` | `records.go.matter` | G M | G M | G M (layer) | | Matter …, Open matter (the My work row menu) |
 | Go to Intake | `go-intake` | `records.go.intake` | G I | G I | G I (layer) | | Intake |
 | Next or previous row, item | | `records.list.next`, `records.list.previous` | J, K, ↓, ↑ | J, K, ↓, ↑ | J, K (layer), ↓, ↑ | | The up and down buttons of a detail's top bar |
 | Select a row for a bulk act | | `records.list.select` | X, ⇧ click | X, Shift click | X (layer), ⇧ click | | The checkbox in the status slot |

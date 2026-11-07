@@ -118,6 +118,8 @@ const CASES = [
   ['N2', 'a decision bar that takes no click', mock('b-intake-item.html', '</head>', '<style>.decision-dock { pointer-events: none; }</style></head>'), 'div.decision-dock gives it pointer-events: none'],
   ['N3a', 'a bulk primary with 0 rows checked', mockAll('a-intake-list.html', [...UNCHECK, ['3 selected', '0 selected']]), 'a bulk decision bar shows with 0 rows checked'],
   ['N3b', 'a bulk number that is not the checked count', mock('a-intake-list.html', '3 selected', '4 selected'), 'a bulk decision bar says 4; 3 rows are checked'],
+  ['R17a', 'a due-time group outside My work', mock('a-intake-list.html', '<div class="group"><span data-atlas="intake.unreadable" class="status"><span class="st" data-s="wait"></span>Unreadable</span>', '<div class="group"><span class="gi"></span>Today'), 'the group "Today" groups by due time outside My work'],
+  ['R17b', 'a list marked My work with row checkboxes, state groups and no row menu', mockAll('a-intake-list.html', [['<div class="list intake" data-state="default cmdk error context select scrolled">', '<div class="list intake" data-list="my-work" data-state="default cmdk error context select scrolled">'], ['id="row-menu"', 'id="intake-row-menu"']]), 'My work has a row checkbox or a bulk bar'],
   ['N4', 'a context-menu label with another act and key', mock('a-intake-list.html', '<div class="mi" data-i="x" data-act="reject">Not relevant…<span class="kbds"><span class="kbd">2</span></span></div>', '<div class="mi" data-i="x" data-act="accept">Not relevant…<span class="kbds"><span class="kbd">1</span></span></div>'), 'the label "Not relevant…" names 2 acts'],
   ['N5', 'an empty and a white-space German text', { check: 'check-copy', run: c => {
     const f = path.join(c.root, 'locales.ts');

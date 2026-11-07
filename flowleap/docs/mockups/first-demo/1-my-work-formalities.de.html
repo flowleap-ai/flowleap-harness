@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de" data-today="2026-11-09">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,17 +18,17 @@
         <div class="bar-right"><span class="btn btn-ghost" data-i="search" data-act="find" aria-label="Akte finden"><span class="hide-sm">Akte finden</span><span class="kbd">/</span></span><span class="iconbtn boxed" data-i="filter" aria-label="Filter"></span><span class="iconbtn boxed hide-sm" data-i="display" aria-label="Anzeige"></span></div>
       </header>
       <div class="list-pane">
-        <div class="mw-head" data-state="default error">
+        <div class="mw-head" data-state="default error context">
           <h1 class="title">1 Schreiben eingegangen, 1 braucht Sie</h1>
-          <p class="lede">Montag, 9. November · 1 heute fällig</p>
+          <p class="lede"><span data-day></span> · 1 heute fällig</p>
         </div>
         <div class="error-bar" data-state="error">
           <div class="notice bad" data-i="warn"><div><span class="lead">FlowLeap konnte Ihre Arbeit nicht laden.</span> Die Liste zeigt Ihre Arbeit mit Stand 08:01 Uhr. Im Record hat sich nichts geändert.</div><span class="spacer"></span><span class="btn btn-secondary" data-i="retry" data-act="retry">Erneut versuchen <span class="kbd">R</span></span></div>
         </div>
-        <div class="list mw" data-state="default error">
+        <div class="list mw" data-list="my-work" data-state="default error context">
           <div class="thead"><span>Aufgabe</span><span>Status</span><span>Akte</span><span>Mandant</span><span>Fristende</span><span class="end">Fällig</span></div>
 <div class="group"><span class="gi" data-i="today"></span>Heute<span class="count">1</span></div>
-<a class="row" href="2-file-letter.de.html"><span class="t c-task"><span class="task">Dieses Schreiben ablegen</span><span class="muted hide-sm">Mitteilung nach Regel 71(3); ihre Anmeldenummer nennt eine Akte</span></span><span class="status" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"></span><span class="r c-due" data-due="2026-11-09"></span></a>
+<a class="row is-context" href="2-file-letter.de.html"><span class="t c-task"><span class="task">Dieses Schreiben ablegen</span><span class="muted hide-sm">Schreiben vom 29. Sept. · heute eingegangen</span></span><span class="status" data-atlas="intake.match_proposed"><span class="st" data-s="wait"></span>Akte vorgeschlagen</span><span class="m num c-key">SF-2023-0045</span><span class="m hide-sm">Renishaw plc</span><span class="hide-sm"></span><span class="r c-due" data-due="today"></span></a>
         </div>
         <div class="mw-head mw" data-state="loading"><div class="skel w50"></div></div>
         <div class="list mw" data-state="loading">
@@ -50,6 +50,11 @@
     </section>
   </main>
 </div>
-<script src="frame.js"></script>
+<div class="menu ctx-menu ctx-at" id="row-menu" data-state="context" role="menu">
+  <div class="mi on" data-i="eye" data-act="open">Öffnen<span class="kbds"><span class="kbd">↵</span></span></div>
+  <div class="mi" data-i="matters" data-act="go-matter">Akte öffnen<span class="kbds"><span class="kbd">G</span><span class="kbd">M</span></span></div>
+  <div class="sep"></div>
+  <div class="mi" data-i="link">Link kopieren</div>
+</div><script src="frame.js"></script>
 </body>
 </html>

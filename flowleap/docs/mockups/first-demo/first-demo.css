@@ -156,3 +156,6 @@ a.law-chip > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-terti
 .detail.solo { grid-template-columns: minmax(0, 1fr); }
 a.row { text-decoration: none; }
 .panel > .list-pane { flex: 1; }
+/* The My work row menu (state context), opened by a right-click near the first row. */
+.ctx-at { left: 560px; top: 250px; }
+@media (max-width: 720px) { .ctx-at { left: 16px; top: 226px; } }

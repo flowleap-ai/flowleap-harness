@@ -117,15 +117,19 @@
   });
   document.querySelectorAll('[data-logo]').forEach(el => { el.innerHTML = logo; });
 
-  // Days left come from the demo date that build.mjs writes into <html data-today>, never from typed text. A past date
-  // says "overdue". No short form ("117 d").
-  const TODAY = Date.parse(document.documentElement.dataset.today);
+  // Days left come from the viewer's day in the real calendar, never from typed text; data-due="today" is that day. A
+  // past date says "overdue". No short form ("117 d").
+  const now = new Date();
+  const TODAY = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const D = {
-    en: { left: n => `${n} days left`, one: 'Due tomorrow', today: 'Due today', over: n => `Overdue by ${n} day${n === 1 ? '' : 's'}` },
-    de: { left: n => `noch ${n} Tage`, one: 'Fällig morgen', today: 'Heute fällig', over: n => `${n} ${n === 1 ? 'Tag' : 'Tage'} überfällig` }
+    en: { left: n => `${n} days left`, one: 'Due tomorrow', today: 'Due today', over: n => `Overdue by ${n} day${n === 1 ? '' : 's'}`,
+      day: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], month: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], date: (w, d, m) => `${w}, ${d} ${m}` },
+    de: { left: n => `noch ${n} Tage`, one: 'Fällig morgen', today: 'Heute fällig', over: n => `${n} ${n === 1 ? 'Tag' : 'Tage'} überfällig`,
+      day: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'], month: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'], date: (w, d, m) => `${w}, ${d}. ${m}` }
   }[lang];
+  document.querySelectorAll('[data-day]').forEach(el => { el.textContent = D.date(D.day[now.getDay()], now.getDate(), D.month[now.getMonth()]); });
   document.querySelectorAll('[data-due]').forEach(el => {
-    const n = Math.round((Date.parse(el.dataset.due) - TODAY) / 864e5);
+    const n = Math.round(((el.dataset.due === 'today' ? TODAY : Date.parse(el.dataset.due)) - TODAY) / 864e5);
     el.textContent = n < 0 ? D.over(-n) : n === 0 ? D.today : n === 1 ? D.one : D.left(n);
     el.classList.add(n < 0 ? 'over' : 'left');
     if (n < 0) el.insertAdjacentHTML('afterbegin', svg('warn', 'aria-hidden="true"'));
