@@ -3,7 +3,10 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { parsers, type IntakeDocument, type MatterDetail, type Me, type PersonId, type TicketDetail, type TicketId } from '../src/client/api.ts'
+import {
+  parsers, type FileNumber, type IntakeDocument, type MatterDetail, type Me, type OfficeEventId, type PersonId, type TicketDetail,
+  type TicketId,
+} from '../src/client/api.ts'
 import { AccountButton, type AccountProps } from '../src/client/Account.tsx'
 import type { Load } from '../src/client/load.ts'
 import { de, en } from '../src/client/locales.ts'
@@ -69,21 +72,28 @@ describe('the readings and the next confirmer of a letter', () => {
     expect(screen.getByRole('columnheader', { name: 'From the OCR text' })).toBeTruthy()
   })
 
-  it('says in the decision bar who confirms the deadline when the person files now', async () => {
+  it('says in the decision bar who confirms the deadline when the person decides the date, and nobody when the person only files', async () => {
     await mountLetter(fixtures.intakeDocument)
-    expect(screen.getByText('Lena Hoffmann confirms the deadline.')).toBeTruthy()
+    expect(screen.queryByText(/confirms the deadline|Warteschlange/u)).toBeNull()
     cleanup()
     mounted?.dispose()
-    await mountLetter({ ...fixtures.intakeDocument, nextConfirmer: { person: anna, queued: false } })
-    expect(screen.getByText('You confirm the deadline.')).toBeTruthy()
+    const waiting: IntakeDocument = {
+      ...fixtures.intakeDocument,
+      status: { machine: 'deadline', state: 'code_proposed' },
+      officeEvent: { id: FIXTURE_IDS.officeEvent as OfficeEventId, state: 'code_proposed' },
+      proposed: null,
+      filed: { fileNumber: 'FL-2026-0001' as FileNumber, title: 'Pressure sensor housing' },
+    }
+    await mountLetter(waiting)
+    expect(screen.getByText('Lena Hoffmann confirms the deadline, because you decide the date.')).toBeTruthy()
     cleanup()
     mounted?.dispose()
-    await mountLetter({ ...fixtures.intakeDocument, nextConfirmer: { person: lena, queued: true } }, 'de')
+    await mountLetter({ ...waiting, nextConfirmer: { person: lena, queued: true } }, 'de')
     expect(screen.getByText('Die Frist geht zur Bestätigung in die Warteschlange von Lena Hoffmann.')).toBeTruthy()
     cleanup()
     mounted?.dispose()
-    await mountLetter({ ...fixtures.intakeDocument, nextConfirmer: null })
-    expect(screen.queryByText(/confirms? the deadline/u)).toBeNull()
+    await mountLetter({ ...waiting, nextConfirmer: null })
+    expect(screen.queryByText(/confirms the deadline/u)).toBeNull()
   })
 })
 

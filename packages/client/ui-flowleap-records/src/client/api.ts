@@ -487,7 +487,7 @@ const report = obj({
   templateName: nullable(str), language: nullable(str), pages: nullable(num), statements: arrayOf(statement),
 })
 /** One proposed draft of the work: the client report or the reply to the office, with its statements. */
-export type Report = Parsed<typeof report>
+export type WorkDraft = Parsed<typeof report>
 const ticketDetail = obj({
   recordSeq: num,
   ticket: obj({

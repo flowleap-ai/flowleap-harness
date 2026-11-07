@@ -543,15 +543,12 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     }
   })()
   const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
-  // Who gets Confirm the deadline when this person decides now (the two-person rule): the reason names this decision.
-  const next = decision.kind === 'hand' ? handConfirmer : letter.nextConfirmer
+  // Who gets Confirm the deadline when this person decides the date or enters the event now (the two-person rule), as
+  // the mockups name it; filing decides neither, so its bar names nobody.
+  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' ? letter.nextConfirmer : null
   const nextNote = next === null
     ? undefined
-    : next.queued
-      ? t('letter.next.queued', { person: personInText(t, next.person) })
-      : next.person.id === ctx.me?.person.id
-        ? t('letter.next.you')
-        : t(decision.kind === 'code' ? 'letter.next.decide' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.confirms', { person: personInText(t, next.person) })
+    : t(next.queued ? 'letter.next.queued' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.decide', { person: personInText(t, next.person) })
   const bar = ctx.me === null || decision.kind === 'done'
     ? null
     : (

@@ -16,7 +16,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
 import type {
-  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, Report, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
+  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkDraft, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
 import { formatApplicationNumber, formatDate, intlLocale, languageName } from '../format.ts'
@@ -134,7 +134,7 @@ const LEDES: Readonly<Record<string, FlowleapRecordsKey>> = { 'EPO:R71(3)': 'wor
  * @param kind - the draft's kind.
  * @returns the heading and the file title.
  */
-function draftWords(ctx: ScreenContext, data: TicketDetail, kind: Report['kind']): { readonly heading: string; readonly file: string } {
+function draftWords(ctx: ScreenContext, data: TicketDetail, kind: WorkDraft['kind']): { readonly heading: string; readonly file: string } {
   const { t } = ctx
   const title = letterTitle(t, data.letter?.code ?? null)
   switch (kind) {
@@ -226,10 +226,10 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   }, { arrows: false, failed: runner.run.phase === 'failed' })
 
   const calculationOverflow = deadline === null ? [] : [calculationAct(ctx, deadline.id)]
-  const wordAct = (draft: Report): ActSpec => ({
+  const wordAct = (draft: WorkDraft): ActSpec => ({
     id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: () => { openWord(ctx, draft) },
   })
-  const previewAct = (draft: Report): ActSpec => {
+  const previewAct = (draft: WorkDraft): ActSpec => {
     const act = actOf(ctx, 'preview', t('work.preview'), () => { openDocument(ctx, draft.document) }, { icon: <IconInspectOutlineRegular size={16} /> })
     return draft === report ? act : { ...act, keycaps: [] }
   }
@@ -500,7 +500,7 @@ function drafted(ctx: ScreenContext, data: TicketDetail): string {
  * @param ctx - the screen context.
  * @param draft - the draft.
  */
-function openWord(ctx: ScreenContext, draft: Report): void {
+function openWord(ctx: ScreenContext, draft: WorkDraft): void {
   window.open(`ms-word:ofe|u|${new URL(ctx.contentHref(draft.document), window.location.href).href}`, '_self')
 }
 
