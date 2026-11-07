@@ -16,10 +16,10 @@ export type {
   ClientAiLetters, ClientAiUse, ClientRules, DeadlineId, DeadlineState, DeadlineSummary, DeadlineView, DocumentSha256,
   DocumentSpan, DocumentText, DocumentView, FlowleapRecord, KnownWorkKind, LocalDate, MatterFileNumber, MatterRole,
   MatterState, MatterSummary, MatterView, MatterViewBase, MatterViewR1, MatterViewRefusal, MatterViewResult, MyWork,
-  MyWorkMatter, MyWorkPerson, MyWorkRefusal, MyWorkResult, NextDeadline, OfficeEventId, OfficeEventView, OutboxId,
+  MyWorkMatter, MyWorkPerson, MyWorkRefusal, MyWorkResult, MyWorkSummary, NextDeadline, OfficeEventId, OfficeEventView, OutboxId,
   PersonId, ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportProposal,
   ReportReceipt, ReportStatement, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, StatementEvidence,
-  SummaryDeadlineState, TicketId, TicketState, TicketSummary, TraceStep, ViewHash, WorkItem, WorkKind, WorkMatter,
+  SummaryDeadlineState, TaskState, TicketId, TicketState, TicketSummary, TraceStep, ViewHash, WorkGroup, WorkItem, WorkKind, WorkMatter,
 } from './types.ts'
 export { parseFileNumber, RECORD_READ_NAME, refusal, registerRecordReadTool } from './tool.ts'
 export { RECORD_MY_WORK_NAME, registerRecordMyWorkTool } from './my-work-tool.ts'

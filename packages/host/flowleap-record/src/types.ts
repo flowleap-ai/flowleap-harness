@@ -239,8 +239,18 @@ export interface WorkMatter {
   readonly title: string
 }
 
-/** The kinds of work that the Firm Record lists today. A later Firm Record may list more; see {@link WorkKind}. */
-export type KnownWorkKind = 'confirm-deadline' | 'decide-office-event' | 'decide-work' | 'file-letter'
+/**
+ * The task kinds of the first demo (atlas sheet 0, the task map) that the Firm Record lists today. A later Firm Record may
+ * list more; see {@link WorkKind}.
+ */
+export type KnownWorkKind =
+  | 'file-letter' | 'enter-office-event' | 'decide-office-event' | 'enter-date' | 'confirm-deadline' | 'restart-run' | 'decide-work' | 'send-report'
+
+/** The state of an open task: with its owner, in the queue that its owner keeps, past its due time, or past its whole chain. */
+export type TaskState = 'assigned' | 'queued' | 'escalated' | 'alarm'
+
+/** The group of My work: by the earlier of the task's due time and the end of its legal date, in the firm's time zone. */
+export type WorkGroup = 'overdue' | 'today' | 'later'
 
 /**
  * The kind of a work item. The union is merge-extensible: a Firm Record that has new features lists new kinds without a
@@ -249,10 +259,19 @@ export type KnownWorkKind = 'confirm-deadline' | 'decide-office-event' | 'decide
  */
 export type WorkKind = KnownWorkKind | (string & {})
 
-/** One thing that waits for the person. Every kind has these fields, so a reader needs no knowledge of the kind. */
+/**
+ * One open task of the person. Every kind has these fields, so a reader needs no knowledge of the kind. A Firm Record of
+ * schema 9 or earlier has no task, so `task`, `state`, `group` and `dueAt` are absent in its answer.
+ */
 export interface WorkItem {
   /** `<kind>:<object id>`. */
   readonly id: string
+  /** The task id. */
+  readonly task?: string
+  readonly state?: TaskState
+  readonly group?: WorkGroup
+  /** The task's own due time, as an ISO 8601 timestamp; `due` is the legal date. */
+  readonly dueAt?: string
   readonly kind: WorkKind
   /** What the person does, in plain words. */
   readonly title: string
@@ -262,7 +281,7 @@ export interface WorkItem {
   readonly matter: WorkMatter | null
   /** The legal date when there is one; otherwise `null`. */
   readonly due: LocalDate | null
-  /** When the object began to wait for the person, as an ISO 8601 timestamp. */
+  /** When the task opened, as an ISO 8601 timestamp. */
   readonly since: string
   /** The address in the Records app where the person acts, such as `deadline/<id>`, `work/<id>`, or `intake/waiting/<sha256>`. */
   readonly act: string
@@ -275,10 +294,23 @@ export interface WorkItem {
 export interface MyWork {
   readonly recordSeq: RecordSeq
   readonly person: MyWorkPerson
-  /** Every kind of work that waits for the person, by due date (no date last), then by the time it began to wait. */
+  /** The first line of My work; absent from a Firm Record of schema 9 or earlier. */
+  readonly summary?: MyWorkSummary
+  /** The person's open tasks, the next step first: by the earlier of the task's due time and the end of its legal date. */
   readonly work: WorkItem[]
+  /** The open tasks that the person held before they escalated to the next person of their chain. */
+  readonly inSight?: WorkItem[]
   /** The matters inside the person's walls, the matter with the nearest due date first; the context beside `work`. */
   readonly matters: MyWorkMatter[]
+}
+
+/** "N letters arrived, M need you": the letters stored today that the person may see, and the person's open tasks by group. */
+export interface MyWorkSummary {
+  readonly lettersArrived: number
+  readonly needYou: number
+  readonly overdue: number
+  readonly today: number
+  readonly later: number
 }
 
 /** Why the work is not available; the same reasons as for a view, except that no matter is looked up. */
