@@ -11,14 +11,14 @@ import {
 import { routeOfAct } from '../address.ts'
 import { taskDueDay, workStatus } from '../my-work.ts'
 import type { MatterDetail, MattersList } from '../api.ts'
-import { formatApplicationNumber, formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate, languageName } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { DueText } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { SkeletonBone, type SkeletonCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personName } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText, personName, type Translate } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, openDocument, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
@@ -209,6 +209,8 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
             rows: [
               { label: t('dossier.prop.fileNumber'), value: data.matter.fileNumber },
               { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
+              { label: t('dossier.prop.ai'), value: aiAllowed(t, data.clientRules) },
+              { label: t('dossier.prop.language'), value: data.language === null ? t('matter.notRecorded') : languageName(ctx.locale, data.language) },
               { label: t('prop.application'), value: application === null ? t('matter.notRecorded') : formatApplicationNumber(application) },
             ],
           },
@@ -218,6 +220,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who t={t} person={data.responsible} /> },
               { label: t('dossier.prop.formalities'), value: data.formalitiesPerson === null ? t('matter.none') : <Who t={t} person={data.formalitiesPerson} /> },
               { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
+              { label: t('dossier.prop.wall'), value: wallWords(t, data.wall) },
             ],
           },
         ]} />
@@ -244,7 +247,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                 header={[{ text: t('matter.col.state') }, { text: t('mywork.col.task') }, { text: t('dossier.col.owner'), wide: true }, { text: t('mywork.col.due'), end: true }]}
               >
                 {data.waits.map((item, index) => {
-                  const status = workStatus(item, null)
+                  const status = workStatus(item, null, null)
                   const route = routeOfAct(item.act)
                   return (
                     <DetailRow key={item.id} opens={route !== null}>
@@ -268,7 +271,10 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               <DetailTable
                 label={t('section.deadlines')}
                 grid={css.deadlinesColumns}
-                header={[{ text: t('matter.col.state') }, { text: t('prop.due'), endNarrow: true }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
+                header={[
+                  { text: t('matter.col.state') }, { text: t('prop.due'), endNarrow: true }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true },
+                  { text: '', wide: true },
+                ]}
               >
                 {data.deadlines.map((deadline) => {
                   const status = { machine: 'deadline', state: deadline.state } as const
@@ -281,6 +287,11 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                       </OpenCell>
                       <Cell kind="main" wide><span className={css.strong}><DueText words={ctx} due={deadline.due} /></span></Cell>
                       <Cell kind="meta" wide>{ruleWords(t, deadline.code).short}</Cell>
+                      <Cell kind="meta" wide>
+                        {deadline.confirmedBy !== null
+                          ? t('deadline.confirmedBy', { person: personInText(t, deadline.confirmedBy) })
+                          : deadline.rejectedBy === null ? '' : t('dossier.rejectedBy', { person: personInText(t, deadline.rejectedBy) })}
+                      </Cell>
                     </DetailRow>
                   )
                 })}
@@ -306,4 +317,33 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
       </DetailLayout>
     </div>
   )
+}
+
+/**
+ * What the client allows the AI to do, in the mockup's words ("Drafts, client report"): the drafts of the work, with the
+ * local model only where the client asks for it, and the client report where the client allows an AI letter.
+ * @param t - the translate function.
+ * @param rules - the client's rules, or null where none are recorded.
+ * @returns the words.
+ */
+function aiAllowed(t: Translate, rules: MatterDetail['clientRules']): string {
+  if (rules === null) return t('matter.notRecorded')
+  const report = rules.aiLetters === 'allowed'
+  switch (rules.aiUse) {
+    case 'not-recorded': return t('matter.notRecorded')
+    case 'not-allowed': return t('dossier.ai.nothing')
+    case 'allowed': return t(report ? 'dossier.ai.draftsReport' : 'dossier.ai.drafts')
+    case 'local-model-only': return t(report ? 'dossier.ai.localReport' : 'dossier.ai.local')
+  }
+}
+
+/**
+ * Who sees the matter: the team, and the count of people the wall screens from it.
+ * @param t - the translate function.
+ * @param wall - the matter's wall.
+ * @returns the words, such as "The team · 2 people screened".
+ */
+function wallWords(t: Translate, wall: MatterDetail['wall']): string {
+  const team = t('dossier.wall.team')
+  return wall.screened === 0 ? team : `${team} · ${t(wall.screened === 1 ? 'dossier.wall.screened.one' : 'dossier.wall.screened', { count: wall.screened })}`
 }

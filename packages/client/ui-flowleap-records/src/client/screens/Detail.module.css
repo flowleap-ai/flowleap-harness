@@ -593,7 +593,7 @@
 }
 
 .deadlinesColumns {
-  --detail-columns: max-content max-content max-content minmax(0, 1fr);
+  --detail-columns: max-content max-content max-content max-content minmax(0, 1fr);
   --detail-columns-narrow: minmax(0, 1fr) auto;
 }
 
@@ -642,6 +642,6 @@
 
 /* Beside the agent panel or the properties, and at 390px, a table can be 300 to 560px wide: a record's name and its
  * meta wrap rather than cut, and two lines still fit the 44px row. */
-:is(.relatedColumns, .waitsColumns, .documentsColumns) :is(.main, .meta, .open) {
+:is(.relatedColumns, .waitsColumns, .documentsColumns, .deadlinesColumns) :is(.main, .meta, .open) {
   white-space: normal;
 }

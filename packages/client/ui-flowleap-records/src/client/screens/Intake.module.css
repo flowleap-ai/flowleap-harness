@@ -246,6 +246,45 @@
   background: var(--dsw-alias-border-l3);
 }
 
+/* The letter's page images (`LetterPages`), each at its own aspect ratio from its width and height. */
+.pages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-document-preview);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+/* Each read value with its quote and page, beside the image: the OCR gives no position on the page. */
+.marks {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 12px 0 0;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+}
+
+.markRow {
+  display: contents;
+}
+
+.marks dt {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.marks dd {
+  margin: 0;
+  min-width: 0;
+}
+
 .paperCap {
   display: flex;
   align-items: center;

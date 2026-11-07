@@ -105,6 +105,8 @@ export async function mountPanel(api: RecordsApi, route: Route, language: 'en' |
     refresh: () => { model.refresh() },
     perform: (acts: readonly Act[]) => model.perform(acts),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    pageHref: href => api.pageHref(href),
+    nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
     keyActs,
     commandItems,
     linkOf: (next: Route) => `https://firm.test/?page=flowleap-records&records=${next.view}`,

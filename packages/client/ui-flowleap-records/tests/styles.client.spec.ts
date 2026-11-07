@@ -190,7 +190,7 @@ describe('the detail tables', () => {
       expect(declarations(css, `.${grid}`).map(line => line.split(':')[0])).toEqual(['--detail-columns', '--detail-columns-narrow'])
     }
     // The days left are a key fact and never truncate (R17): their column takes the width of its longest value.
-    expect(declarations(css, '.deadlinesColumns')[0]).toBe('--detail-columns: max-content max-content max-content minmax(0, 1fr)')
+    expect(declarations(css, '.deadlinesColumns')[0]).toBe('--detail-columns: max-content max-content max-content max-content minmax(0, 1fr)')
     expect(declarations(css, '.relatedColumns')).toEqual([
       '--detail-columns: max-content max-content minmax(0, 1fr) max-content 16px', '--detail-columns-narrow: max-content minmax(0, 1fr) max-content',
     ])
@@ -210,9 +210,9 @@ describe('the detail tables', () => {
 })
 
 describe('the cells that wrap', () => {
-  it('wraps a record\'s name and meta in the Related, What waits and E-file tables, and never the next-step tag', () => {
+  it('wraps a record\'s name and meta in the Related, What waits, E-file and Deadlines tables, and never the next-step tag', () => {
     const css = read('Detail.module.css', 'screens')
-    expect(declarations(css, ':is(.relatedColumns, .waitsColumns, .documentsColumns) :is(.main, .meta, .open)')).toEqual(['white-space: normal'])
+    expect(declarations(css, ':is(.relatedColumns, .waitsColumns, .documentsColumns, .deadlinesColumns) :is(.main, .meta, .open)')).toEqual(['white-space: normal'])
     expect(declarations(css, '.nextTag')).toContain('white-space: nowrap')
   })
 

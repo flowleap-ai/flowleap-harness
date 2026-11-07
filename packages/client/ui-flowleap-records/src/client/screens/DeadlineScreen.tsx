@@ -24,7 +24,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { citeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, openDocument, ruleWords } from './detail.tsx'
-import { LetterDrawing, Readings } from './evidence.tsx'
+import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
 import { decisionHeading, failureNotice, formNumberAudit, LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -258,7 +258,15 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         : null
   const drawing = openLetter === null
     ? null
-    : <LetterDrawing ctx={ctx} letter={{ fields: readers.code?.fields ?? {}, pages: null }} onOpen={openLetter} />
+    : (
+      <LetterPages
+        ctx={ctx}
+        images={data.pageImages}
+        marks={data.marks}
+        fallback={<LetterDrawing ctx={ctx} letter={{ fields: readers.code?.fields ?? {}, pages: null }} onOpen={openLetter} />}
+        onOpen={openLetter}
+      />
+    )
   return (
     <DetailLayout decision={decision !== null} properties={null}>
       <WorkColumn decision={decision}>

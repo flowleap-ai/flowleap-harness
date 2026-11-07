@@ -148,6 +148,24 @@ const onPage = (quote: string) => {
 }
 
 /** `GET intake/documents/<R71_DOCUMENT>`. */
+const reading = { formNumber: '2004C', code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' }
+
+/** What reader 1 read on the Rule 71(3) letter, each with its span. */
+const letterFields = {
+  title: { value: 'Communication under Rule 71(3) EPC', span: onPage('Communication under Rule 71(3) EPC') },
+  reference: { value: 'FL-2026-0001', span: onPage('FL-2026-0001') },
+  documentDate: { value: '2026-10-30', span: onPage('30.10.2026') },
+  formNumber: { value: '2004C', span: onPage('2004C') },
+  applicationNumber: { value: '24 123 456.7', span: onPage('24 123 456.7') },
+}
+
+/** The read values of the Rule 71(3) letter with their page and quote, as the intake sends them. */
+const marksWire = [
+  { field: 'formNumber', page: 1, quote: '2004C', excerpt: { before: 'EPO Form ', after: ' 10.24' } },
+  { field: 'documentDate', page: 1, quote: '30.10.2026', excerpt: { before: 'Date ', after: '' } },
+  { field: 'applicationNumber', page: 1, quote: '24 123 456.7', excerpt: { before: 'Application No. ', after: ' - 1203' } },
+]
+
 export const intakeDocumentWire = {
   document: R71_DOCUMENT,
   fileName: 'r71-3-FL-2026-0001.pdf',
@@ -161,19 +179,18 @@ export const intakeDocumentWire = {
   office: 'EPO',
   documentDate: '2026-10-30',
   applicationNumber: '24 123 456.7',
-  fields: {
-    title: { value: 'Communication under Rule 71(3) EPC', span: onPage('Communication under Rule 71(3) EPC') },
-    reference: { value: 'FL-2026-0001', span: onPage('FL-2026-0001') },
-    documentDate: { value: '2026-10-30', span: onPage('30.10.2026') },
-    formNumber: { value: '2004C', span: onPage('2004C') },
-    applicationNumber: { value: '24 123 456.7', span: onPage('24 123 456.7') },
-  },
+  fields: letterFields,
   proposed: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, responsible: PEOPLE.anna, matchedBy: 'reference' },
   candidates: 1,
   filed: null,
   officeEvent: null,
   matters: (Object.keys(MATTERS) as MatterKey[]).map(ref),
   mayDecide: { allowed: true },
+  readers: { code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } }, model: { result: reading, model: 'Claude Haiku 5.5' }, agree: true, differences: [] },
+  // A letter stored before the intake sent page images, so the page shows the drawing.
+  pageImages: [],
+  marks: marksWire,
+  nextConfirmer: { person: PEOPLE.lena, queued: false },
   activity: [
     { seq: 101, at: '2026-11-04T14:16:00Z', type: 'document/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
     { seq: 102, at: '2026-11-04T14:16:10Z', type: 'document/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
@@ -182,7 +199,7 @@ export const intakeDocumentWire = {
 }
 
 /** `GET me`: Dr. Anna Becker. */
-export const meWire = { person: PEOPLE.anna, admin: false }
+export const meWire = { person: PEOPLE.anna, admin: false, roles: ['attorney'], role: 'attorney' }
 
 /** `GET matters`. */
 export const mattersWire = {
@@ -208,22 +225,28 @@ const TICKET_ID = uuid(3)
 export const myWorkWire = {
   recordSeq: 150,
   person: PEOPLE.anna,
-  summary: { lettersArrived: 1, needYou: 3, overdue: 1, today: 1, later: 1 },
+  summary: { lettersArrived: 1, lettersToFile: 1, lettersWorked: 1, needYou: 3, overdue: 1, today: 1, later: 1 },
   work: [
     {
       id: `decide-work:${uuid(3)}`, task: uuid(21), kind: 'decide-work', title: 'Review the work', why: 'Proposals are ready.', state: 'escalated',
       group: 'overdue', matter: ref('FL-2026-0001'), due: '2027-03-01', dueAt: '2026-11-01T09:00:00Z',
       since: '2026-10-30T09:00:00Z', act: `work/${uuid(3)}`,
+      reason: { en: 'Drafts wait for your decision', de: 'Entwürfe warten auf Ihre Entscheidung' },
+      subject: { letterDate: '2026-10-30', arrivedAt: '2026-10-30T08:50:00Z', code: 'EPO:R71(3)', deadline: { due: '2027-03-01', state: 'active', confirmedBy: PEOPLE.jonas } },
     },
     {
       id: `file-letter:${sha(1)}`, task: uuid(22), kind: 'file-letter', title: 'File this letter', why: 'You are the formalities person.', state: 'assigned',
       group: 'today', matter: ref('FL-2026-0001'), due: null, dueAt: '2026-11-04T18:00:00Z',
       since: '2026-11-04T14:16:00Z', act: `intake/waiting/${sha(1)}`,
+      reason: { en: 'Rule 71(3) communication · arrived today', de: 'Mitteilung nach Regel 71(3) · heute eingegangen' },
+      subject: { letterDate: '2026-10-30', arrivedAt: '2026-11-04T14:16:00Z', code: 'EPO:R71(3)', deadline: null },
     },
     {
       id: `confirm-deadline:${uuid(1)}`, task: uuid(23), kind: 'confirm-deadline', title: 'Confirm the deadline', why: 'A second person confirms.', state: 'assigned',
       group: 'later', matter: ref('FL-2026-0001'), due: '2027-03-01', dueAt: '2026-11-06T18:00:00Z',
       since: '2026-11-04T14:17:00Z', act: `deadline/${uuid(1)}`,
+      reason: { en: 'Letter of 30 Oct · a second person confirms', de: 'Schreiben vom 30.10. · eine zweite Person bestätigt' },
+      subject: { letterDate: '2026-10-30', arrivedAt: '2026-11-04T14:16:00Z', code: 'EPO:R71(3)', deadline: { due: '2027-03-01', state: 'deadline_proposed', confirmedBy: null } },
     },
   ],
   inSight: [],
@@ -265,7 +288,10 @@ export const matterWire = {
     state: 'assigned', group: 'today', matter: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title }, due: '2027-03-01',
     dueAt: '2026-11-04T18:00:00Z', since: '2026-11-04T14:17:00Z', act: `deadline/${DEADLINE_ID}`, owner: PEOPLE.lena,
   }],
-  deadlines: [{ id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', code: 'EPO:R71(3)', officeEventId: OFFICE_EVENT_ID }],
+  deadlines: [{ id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', code: 'EPO:R71(3)', officeEventId: OFFICE_EVENT_ID, confirmedBy: null, rejectedBy: null }],
+  clientRules: { aiUse: 'allowed', aiLetters: 'allowed', reportEvents: 'all-office-actions', language: 'en', text: 'Drafts and the client report may use AI.', recordSeq: 90 },
+  language: 'en',
+  wall: { team: [{ ...PEOPLE.anna, role: 'responsible' }, { ...PEOPLE.lena, role: 'formalities' }, { ...PEOPLE.jonas, role: 'team' }], screened: 2 },
   work: [{ id: TICKET_ID, state: 'proposals_ready', code: 'EPO:R71(3)', routedTo: PEOPLE.anna, updatedAt: '2026-11-04T14:17:00Z', report: { state: 'proposed' }, reply: { state: 'sent' } }],
   officeEvents: [{ id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', state: 'deadline_proposed', document: R71_DOCUMENT, receivedAt: null }],
   documents: [{ sha256: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' }],
@@ -277,8 +303,6 @@ export const matterWire = {
     { seq: 124, at: '2026-11-04T14:18:00Z', type: 'outbox/sent', actor: { kind: 'system', name: 'mailbox' }, for: null, detail: {} },
   ],
 }
-
-const reading = { code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' }
 
 /** `GET deadlines/<id>` of the Rule 71(3) deadline: proposed, Jonas Weber may confirm. */
 export const deadlineWire = {
@@ -306,10 +330,13 @@ export const deadlineWire = {
   responsible: PEOPLE.anna,
   officeEvent: { id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7', document: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', state: 'deadline_proposed' },
   readers: {
-    code: { result: reading, fields: intakeDocumentWire.fields },
+    code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } },
     model: { result: reading, model: 'Claude Haiku 5.5' },
     agree: true,
+    differences: [],
   },
+  pageImages: [],
+  marks: [],
   proposer: null, confirmer: null, rejecter: null, reason: null,
   mayConfirm: { allowed: true },
   activity: [
@@ -335,6 +362,30 @@ export const ticketsWire = {
   })),
 }
 
+/** The client report of the Rule 71(3) work: five statements, the fifth without a span. */
+const clientReportWire = {
+  kind: 'client-report',
+  proposalId: 'proposal-1', document: sha(100), fileName: 'report-FL-2026-0001-r71-3.docx', state: 'proposed',
+  templateName: 'Firm template', language: 'en', pages: 1,
+  statements: [
+    { text: 'The EPO issued a communication under Rule 71(3) EPC on EP 24 123 456.7, dated 30 October 2026.', evidence: [
+      { document: R71_DOCUMENT, span: span('Communication under Rule 71(3) EPC', 120, 'Application No. 24 123 456.7 - 1203. ', '. You are informed that') },
+      { document: R71_DOCUMENT, span: span('Date 30.10.2026', 25, 'EPO Form 2004C. ', '. Your reference') },
+    ] },
+    { text: 'The examining division intends to grant the patent on the text on file.', evidence: [
+      { document: R71_DOCUMENT, span: span('intends to grant a European patent', 200, 'You are informed that the examining division ', ' on the basis of the above application') },
+    ] },
+    { text: 'To go on, the client must approve the text, pay the fee for grant and publishing, and file the translations of the claims.', evidence: [
+      { document: R71_DOCUMENT, span: span('pay the fee for grant and publishing', 320, 'you are requested to ', ' and to file') },
+      { document: R71_DOCUMENT, span: span('file a translation of the claims', 368, 'and to ', ' in the two official languages') },
+    ] },
+    { text: 'The time limit for this ends on Monday, 1 March 2027.', evidence: [
+      { document: R71_DOCUMENT, span: span('Within a period of four months', 290, '', ' of notification of this communication') },
+    ] },
+    { text: 'The fee for grant and publishing is EUR 1,050.', evidence: [{ document: R71_DOCUMENT, span: null }] },
+  ],
+}
+
 /** `GET tickets/<id>` of the Rule 71(3) work: the client report with five statements, the fifth without a span. */
 export const ticketWire = {
   recordSeq: 142,
@@ -343,27 +394,9 @@ export const ticketWire = {
   responsible: PEOPLE.anna,
   team: [PEOPLE.anna, PEOPLE.jonas, PEOPLE.lena],
   letter: { document: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', pages: 1, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' },
-  reports: [{
-    proposalId: 'proposal-1', document: sha(100), fileName: 'report-FL-2026-0001-r71-3.docx', state: 'proposed',
-    templateName: 'Firm template', language: 'en', pages: 1,
-    statements: [
-      { text: 'The EPO issued a communication under Rule 71(3) EPC on EP 24 123 456.7, dated 30 October 2026.', evidence: [
-        { document: R71_DOCUMENT, span: span('Communication under Rule 71(3) EPC', 120, 'Application No. 24 123 456.7 - 1203. ', '. You are informed that') },
-        { document: R71_DOCUMENT, span: span('Date 30.10.2026', 25, 'EPO Form 2004C. ', '. Your reference') },
-      ] },
-      { text: 'The examining division intends to grant the patent on the text on file.', evidence: [
-        { document: R71_DOCUMENT, span: span('intends to grant a European patent', 200, 'You are informed that the examining division ', ' on the basis of the above application') },
-      ] },
-      { text: 'To go on, the client must approve the text, pay the fee for grant and publishing, and file the translations of the claims.', evidence: [
-        { document: R71_DOCUMENT, span: span('pay the fee for grant and publishing', 320, 'you are requested to ', ' and to file') },
-        { document: R71_DOCUMENT, span: span('file a translation of the claims', 368, 'and to ', ' in the two official languages') },
-      ] },
-      { text: 'The time limit for this ends on Monday, 1 March 2027.', evidence: [
-        { document: R71_DOCUMENT, span: span('Within a period of four months', 290, '', ' of notification of this communication') },
-      ] },
-      { text: 'The fee for grant and publishing is EUR 1,050.', evidence: [{ document: R71_DOCUMENT, span: null }] },
-    ],
-  }],
+  reports: [clientReportWire],
+  draftReply: null,
+  clientReport: clientReportWire,
   deadline: { id: DEADLINE_ID, due: '2027-03-01', state: 'active', confirmer: PEOPLE.jonas },
   reply: { state: 'sent', to: [PEOPLE.jonas, PEOPLE.anna, sent(OUTSIDE_WALL)] },
   run: { model: 'openrouter', steps: null, finishedAt: '2026-11-04T14:17:40Z', session: 'ses_r71work' },
@@ -424,6 +457,8 @@ export function createFixtureApi(): { api: RecordsApi; acts: Act[] } {
         return ok(null)
       },
       contentHref: id => `records/api/documents/${id}/content`,
+      pageHref: href => `records/api/${href}`,
+      nextConfirmer: () => ok(fixtures.intakeDocument.nextConfirmer),
     },
   }
 }

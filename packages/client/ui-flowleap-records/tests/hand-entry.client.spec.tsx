@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { IntakeDocument, IsoDate } from '../src/client/api.ts'
+import { createRecordsApi, type FileNumber, type IntakeDocument, type IsoDate } from '../src/client/api.ts'
 import { en } from '../src/client/locales.ts'
 import { handCommand } from '../src/client/screens/IntakeLetter.tsx'
-import { createFixtureApi, fixtures } from './fixtures.client.ts'
+import { createFixtureApi, fixtures, intakeDocumentWire, PEOPLE } from './fixtures.client.ts'
 import { flush, mountPanel } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
@@ -36,8 +36,9 @@ const scan: IntakeDocument = {
 async function mountScan(letter: IntakeDocument) {
   const { api, acts } = createFixtureApi()
   vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter })
+  const confirmer = vi.spyOn(api, 'nextConfirmer')
   mounted = await mountPanel(api, { view: 'letter', document: letter.document }, 'en', 'my-work')
-  return acts
+  return Object.assign(acts, { confirmer })
 }
 
 const enter = () => screen.getByRole('button', { name: /^Enter office event/u })
@@ -69,6 +70,22 @@ describe('the hand entry of a scan with no reading', () => {
       kind: 'intake.file', document: scan.document, fileNumber: 'FL-2026-0001', code: 'EPO:R71(3)', documentDate: '2026-10-30',
       applicationNumber: '24 123 456.7',
     }])
+  })
+
+  it('names who confirms the deadline once the person picks the matter, as the record answers for that matter', async () => {
+    const acts = await mountScan({ ...scan, nextConfirmer: null })
+    expect(screen.queryByText(/confirms the deadline/u)).toBeNull()
+    fireEvent.change(screen.getByRole('combobox', { name: en['prop.matter'] }), { target: { value: 'FL-2026-0001' } })
+    await flush()
+    expect(acts.confirmer).toHaveBeenCalledWith(scan.document, 'FL-2026-0001', expect.any(AbortSignal))
+    expect(screen.getByText('Lena Hoffmann confirms the deadline, because you entered the event.')).toBeTruthy()
+  })
+
+  it('asks the card with the picked matter for its next confirmer', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify(intakeDocumentWire), { status: 200 }))
+    const answer = await createRecordsApi('records/', fetchImpl).nextConfirmer(scan.document, 'FL-2026-0001' as FileNumber, new AbortController().signal)
+    expect(fetchImpl.mock.calls[0]![0]).toBe(`records/api/intake/documents/${scan.document}?matter=FL-2026-0001`)
+    expect(answer).toEqual({ ok: true, value: { person: PEOPLE.lena, queued: false } })
   })
 
   it('blocks the act as not available when the record offers no hand entry', async () => {

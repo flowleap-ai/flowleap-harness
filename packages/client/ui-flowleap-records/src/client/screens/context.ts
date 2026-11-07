@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 import type { UseResource } from '@deepseek-ai/dsh-client-resources/client'
 import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { SessionProviderComponent } from '@deepseek-ai/dsh-client-ui-slots'
-import type { Act, DocumentId, Me } from '../api.ts'
+import type { Act, DocumentId, Me, PageHref, RecordsApi } from '../api.ts'
 import { commandId, type CommandName, type KeycapsOf } from '../keys.ts'
 import type { KeyLayerContext } from '../key-layer.ts'
 import type { ActsResult, Route, ScreenOf, View } from '../model.ts'
@@ -28,6 +28,10 @@ export interface ScreenContext extends WordContext, KeyLayerContext {
   readonly perform: (acts: readonly Act[]) => Promise<ActsResult>
   /** The same-origin address of a document's bytes. */
   readonly contentHref: (document: DocumentId) => string
+  /** The same-origin address of one page image of a letter. */
+  readonly pageHref: (href: PageHref) => string
+  /** Who confirms the deadline of a hand entry on a picked matter. */
+  readonly nextConfirmer: RecordsApi['nextConfirmer']
   /** The context menu trigger props of an intake row. */
   readonly rowMenu: (target: IntakeRowTarget) => ContextMenuTriggerProps
   /** The context menu trigger props of a My work row. */

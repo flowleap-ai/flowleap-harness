@@ -169,6 +169,8 @@ export function apply(ctx: ClientContext): void {
       refresh: () => { panel.model.refresh() },
       perform: acts => panel.model.perform(acts),
       contentHref: document => api.contentHref(document),
+      pageHref: href => api.pageHref(href),
+      nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
       keyActs,
       commandItems,
       linkOf: linkOf(panel.id),

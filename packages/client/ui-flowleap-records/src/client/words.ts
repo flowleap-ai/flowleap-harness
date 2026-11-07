@@ -76,6 +76,17 @@ export function fromOffice(t: Translate, office: string): string {
   return stem === undefined ? t('office.from.other', { office }) : t(`office.from.${stem}`)
 }
 
+/**
+ * "To" and the office, with the article that the UI language needs ("to the EPO", "an das EPA").
+ * @param t - the translate function.
+ * @param office - the office abbreviation that the Records API sends.
+ * @returns the phrase.
+ */
+export function toOffice(t: Translate, office: string): string {
+  const stem = OFFICES[office]
+  return stem === undefined ? t('office.to.other', { office }) : t(`office.to.${stem}`)
+}
+
 /** The citation forms of the deadline engine that the views word, each with its words. */
 const CITES: readonly (readonly [RegExp, (t: Translate, match: RegExpExecArray) => string])[] = [
   [/^Rule (\S+) EPC$/u, (t, match) => t('cite.rule', { number: match[1] })],

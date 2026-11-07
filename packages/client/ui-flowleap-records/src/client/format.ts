@@ -24,6 +24,17 @@ export function intlLocale(locale: string): string {
 }
 
 /**
+ * The name of a language in the UI language, such as "Englisch" for `en` on a German page.
+ * @param locale - the UI language.
+ * @param code - an ISO 639 language code.
+ * @returns the name.
+ */
+export function languageName(locale: string, code: string): string {
+  /* v8 ignore next -- Intl.DisplayNames answers undefined only for a code it cannot read; the os sends ISO 639 codes. */
+  return new Intl.DisplayNames([intlLocale(locale)], { type: 'language' }).of(code) ?? code
+}
+
+/**
  * The calendar day of a time in a time zone, as `YYYY-MM-DD`.
  * @param time - epoch milliseconds.
  * @param timeZone - the time zone; the browser's when absent.

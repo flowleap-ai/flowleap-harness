@@ -16,10 +16,10 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
 import type {
-  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
+  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, Report, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
-import { formatApplicationNumber, formatDate, intlLocale } from '../format.ts'
+import { formatApplicationNumber, formatDate, intlLocale, languageName } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -32,7 +32,7 @@ import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
@@ -127,6 +127,34 @@ const LEDES: Readonly<Record<string, FlowleapRecordsKey>> = { 'EPO:R71(3)': 'wor
  * @param props.data - the work.
  * @returns the decision page.
  */
+/**
+ * The words of a draft by its kind: its heading ("Draft reply to the EPO", "Client report") and its file title.
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @param kind - the draft's kind.
+ * @returns the heading and the file title.
+ */
+function draftWords(ctx: ScreenContext, data: TicketDetail, kind: Report['kind']): { readonly heading: string; readonly file: string } {
+  const { t } = ctx
+  const title = letterTitle(t, data.letter?.code ?? null)
+  switch (kind) {
+    case 'client-report': return { heading: t('work.clientReport'), file: t('work.reportOn', { title }) }
+    case 'office-reply': {
+      const office = officeOf(data)
+      return { heading: office === null ? t('work.draftReplyPlain') : t('work.draftReply', { to: toOffice(t, office) }), file: t('work.replyOn', { title }) }
+    }
+  }
+}
+
+/**
+ * The office of the work's letter, from its code (`EPO:R71(3)`).
+ * @param data - the work.
+ * @returns the office abbreviation, or null for a letter with no code.
+ */
+function officeOf(data: TicketDetail): string | null {
+  return data.letter?.code?.split(':')[0] ?? null
+}
+
 function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
   const [choices, setChoices] = useState<Readonly<Record<string, Choice>>>({})
@@ -181,11 +209,11 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
   const calculation = deadline === null ? null : () => { ctx.navigate({ view: 'deadline', id: deadline.id }) }
   const openLetter = letter === null ? null : () => { openDocument(ctx, letter.document) }
-  const report = data.reports[0]
+  // The draft reply comes before the client report (mockup 4-review-work); Space previews the first one shown.
+  const drafts = [data.draftReply, data.clientReport].flatMap(draft => draft === null ? [] : [draft])
+  const report = drafts[0]
   const preview = report === undefined ? null : () => { openDocument(ctx, report.document) }
-  const openInWord = report === undefined ? null : () => {
-    window.open(`ms-word:ofe|u|${new URL(ctx.contentHref(report.document), window.location.href).href}`, '_self')
-  }
+  const openInWord = report === undefined ? null : () => { openWord(ctx, report) }
   const allowed = deciding && mayDecide.allowed
   const keyed = allowed && firstOpen !== undefined ? firstOpen : null
   useKeyActs(ctx, {
@@ -198,10 +226,13 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   }, { arrows: false, failed: runner.run.phase === 'failed' })
 
   const calculationOverflow = deadline === null ? [] : [calculationAct(ctx, deadline.id)]
-  const wordAct: ActSpec | null = openInWord === null
-    ? null
-    : { id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: openInWord }
-  const previewAct = preview === null ? null : actOf(ctx, 'preview', t('work.preview'), preview, { icon: <IconInspectOutlineRegular size={16} /> })
+  const wordAct = (draft: Report): ActSpec => ({
+    id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: () => { openWord(ctx, draft) },
+  })
+  const previewAct = (draft: Report): ActSpec => {
+    const act = actOf(ctx, 'preview', t('work.preview'), () => { openDocument(ctx, draft.document) }, { icon: <IconInspectOutlineRegular size={16} /> })
+    return draft === report ? act : { ...act, keycaps: [] }
+  }
   const recordAct = { ...actOf(ctx, 'record', t('work.recordDecision'), record, { icon: <IconCheckOutlineRegular size={16} />, disabled: !ready }), busy }
 
   useCommandItem(ctx, {
@@ -256,7 +287,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                 <DecisionPart
                   key={item.proposalId}
                   icon={<IconDeliverDocRegular size={16} />}
-                  title={t('work.clientReport')}
+                  title={draftWords(ctx, data, item.kind).heading}
                   missing={firstOfReport !== undefined && choice?.decision !== 'reject' ? t('decision.statementMissing', { number: firstOfReport.number }) : null}
                   detail={choice?.decision === 'reject'
                     ? t('work.rejected', { reason: choice.reason })
@@ -268,7 +299,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                     )}
                   hint={choice === undefined && mayDecide.allowed ? t('work.choose') : undefined}
                   control={mayDecide.allowed && (
-                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('work.clientReport')}>
+                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={draftWords(ctx, data, item.kind).heading}>
                       <ActButton
                         act={{ ...actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 }), ...keys }}
                         rank="tertiary"
@@ -302,7 +333,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               setRejecting(null)
             },
           }}
-        overflow={[...calculationOverflow, wordAct].filter((item): item is ActSpec => item !== null)}
+        overflow={[...calculationOverflow, ...report === undefined ? [] : [wordAct(report)]]}
         primary={recordAct}
       />
     )
@@ -324,21 +355,21 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
           </div>
           <Related ctx={ctx} data={data} />
-          {data.reports.map(item => (
+          {drafts.map(item => (
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
-                <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
-                {/* The heading names the report, so its status needs no "Report" label (R11). */}
+                <h2 className={detail.subHeading}>{draftWords(ctx, data, item.kind).heading}</h2>
+                {/* The heading names the draft, so its status needs no "Report" label (R11). */}
                 <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
                 <div className={detail.sectionActs}>
-                  {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
-                  {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
+                  <ActButton act={wordAct(item)} rank="tertiary" className={detail.wideOnly} />
+                  <ActButton act={previewAct(item)} rank="secondary" />
                 </div>
               </div>
               <div className={detail.file} data-fdl-part="file">
                 <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
                 <div>
-                  <div className={detail.fileTitle}>{t('work.reportOn', { title: letterTitle(t, letter?.code ?? null) })}</div>
+                  <div className={detail.fileTitle}>{draftWords(ctx, data, item.kind).file}</div>
                   <div className={detail.fileMeta}>{fileFacts(ctx, item).join(' · ')}</div>
                 </div>
               </div>
@@ -445,9 +476,32 @@ function lede(ctx: ScreenContext, data: TicketDetail): string {
   const sent = data.reports.some(report => report.state === 'sent')
   return [
     t(key ?? 'work.lede.letter', { application }),
-    t(data.reports.length > 0 ? 'work.lede.drafted' : 'work.lede.noDraft'),
+    drafted(ctx, data),
     t(sent ? 'work.lede.sent' : 'work.lede.notSent'),
   ].join(' ')
+}
+
+/**
+ * The lede's sentence on what the agent drafted: the reply to the office, the client report, both, or nothing.
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @returns the sentence.
+ */
+function drafted(ctx: ScreenContext, data: TicketDetail): string {
+  const { t } = ctx
+  const office = officeOf(data)
+  const to = office === null ? '' : toOffice(t, office)
+  if (data.draftReply !== null) return t(data.clientReport === null ? 'work.lede.draftedReply' : 'work.lede.draftedBoth', { to })
+  return t(data.clientReport === null ? 'work.lede.noDraft' : 'work.lede.drafted')
+}
+
+/**
+ * Open a draft in Word on the desktop through its `ms-word:` link.
+ * @param ctx - the screen context.
+ * @param draft - the draft.
+ */
+function openWord(ctx: ScreenContext, draft: Report): void {
+  window.open(`ms-word:ofe|u|${new URL(ctx.contentHref(draft.document), window.location.href).href}`, '_self')
 }
 
 /**
@@ -457,8 +511,7 @@ function lede(ctx: ScreenContext, data: TicketDetail): string {
  * @returns the facts.
  */
 function fileFacts(ctx: ScreenContext, report: TicketDetail['reports'][number]): string[] {
-  /* v8 ignore next -- Intl.DisplayNames answers undefined only for a code it cannot read; the os sends ISO 639 codes. */
-  const language = report.language === null ? null : new Intl.DisplayNames([intlLocale(ctx.locale)], { type: 'language' }).of(report.language) ?? null
+  const language = report.language === null ? null : languageName(ctx.locale, report.language)
   return [
     report.fileName,
     ...(language === null ? [] : [language]),

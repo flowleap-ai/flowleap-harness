@@ -13,7 +13,7 @@ import {
 import type { ReactNode } from 'react'
 import { routeOfAct } from '../address.ts'
 import type { IntakeList, MyWork, WorkGroup, WorkItem } from '../api.ts'
-import { formatDate, formatToday, listTime } from '../format.ts'
+import { formatDate, formatToday } from '../format.ts'
 import { useKeyActs } from '../key-layer.ts'
 import { shownData } from '../load.ts'
 import { clientsOf, groupWork, ledeCounts, taskDueDay, workStatus } from '../my-work.ts'
@@ -21,7 +21,6 @@ import { DueText } from '../parts/Due.tsx'
 import { ListFrame, ListGroup, ListRow, ListSkeleton, MetaCell, TimeCell, TitleCell } from '../parts/List.tsx'
 import { EmptyState, LoadView } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { letterTitle, listTimeText } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { LoadError } from './shared.tsx'
 import css from './MyWork.module.css'
@@ -70,37 +69,31 @@ export function MyWorkScreen({ screen, ctx }: ScreenProps<'my-work'>) {
 }
 
 /**
- * The first line of My work: the letters that arrived today and the tasks that need the person.
+ * The first line of My work, counted as the mockup counts its rows: the letters to file ("arrived"), the letters whose
+ * work waits for a decision ("worked"), each only when there is one, and the tasks that need the person.
  * @param t - the translate function.
  * @param data - My work.
- * @returns the line, such as "1 letter arrived, 1 needs you".
+ * @returns the line, such as "1 letter worked, 1 needs you".
  */
 export function firstLine(t: ScreenContext['t'], data: MyWork): string {
-  const { lettersArrived: arrived, needYou: need } = data.summary
-  return t('mywork.first', {
-    arrived: t(arrived === 1 ? 'mywork.arrived.one' : 'mywork.arrived', { count: arrived }),
-    need: t(need === 1 ? 'mywork.need.one' : 'mywork.need', { count: need }),
-  })
+  const { lettersToFile: arrived, lettersWorked: worked, needYou: need } = data.summary
+  const parts = [
+    ...arrived === 0 ? [] : [t(arrived === 1 ? 'mywork.arrived.one' : 'mywork.arrived', { count: arrived })],
+    ...worked === 0 ? [] : [t(worked === 1 ? 'mywork.worked.one' : 'mywork.worked', { count: worked })],
+    need === 0 ? t('mywork.need.none') : t(need === 1 ? 'mywork.need.one' : 'mywork.need', { count: need }),
+  ]
+  return parts.reduce((line, part) => t('mywork.list', { first: line, next: part }))
 }
 
 /**
- * The secondary words of a task: the letter and when it arrived for a letter, else the kind's reason.
+ * The reason of a task in the UI language: the os words it in English and German, and the other languages take the
+ * English.
  * @param ctx - the screen context.
  * @param item - the task.
- * @param letters - the intake waiting list.
- * @returns the words.
+ * @returns the reason.
  */
-function taskSource(ctx: ScreenContext, item: WorkItem, letters: IntakeList | null): string {
-  const { t } = ctx
-  if (item.kind === 'file-letter') {
-    const row = letters?.rows.find(candidate => item.act.endsWith(`/${candidate.document}`))
-    if (row !== undefined) {
-      const title = letterTitle(t, row.code, row.status)
-      const arrived = listTime(row.receivedAt, ctx.now, ctx.locale, ctx.timeZone)
-      return arrived.kind === 'today' ? t('mywork.source.letterToday', { title }) : t('mywork.source.letter', { title, time: listTimeText(ctx, row.receivedAt) })
-    }
-  }
-  return t(`mywork.why.${item.kind}`)
+function reasonOf(ctx: ScreenContext, item: WorkItem): string {
+  return item.reason[ctx.locale === 'de' ? 'de' : 'en']
 }
 
 /**
@@ -164,7 +157,7 @@ function MyWorkList({ ctx, data, letters }: { ctx: ScreenContext; data: MyWork; 
             {groups.map(({ group, items }) => (
               <ListGroup key={group} icon={GROUP_ICONS[group]} label={t(`mywork.group.${group}`)} count={items.length}>
                 {items.map((item) => {
-                  const status = workStatus(item, letters)
+                  const status = workStatus(item, letters, item.subject.deadline?.state ?? null)
                   const fileNumber = item.matter?.fileNumber ?? null
                   const client = fileNumber === null ? undefined : clients.get(fileNumber)
                   return (
@@ -174,7 +167,7 @@ function MyWorkList({ ctx, data, letters }: { ctx: ScreenContext; data: MyWork; 
                       onOpen={() => { open(item) }}
                       menu={ctx.workRowMenu({ act: item.act, fileNumber })}
                     >
-                      <TitleCell title={t(`mywork.task.${item.kind}`)} source={taskSource(ctx, item, letters)} />
+                      <TitleCell title={t(`mywork.task.${item.kind}`)} source={reasonOf(ctx, item)} />
                       <span className={css.status}>
                         {status !== null && <AtlasStatus status={status} word={atlasWord(t, status)} />}
                       </span>

@@ -46,8 +46,10 @@ export function AccountButton(props: AccountProps) {
   if (me === null) return null
   const person = avatarOf(t, me.person)
   const name = personName(t, me.person)
+  const role = me.role === null ? null : t(`account.role.${me.role}`)
   const items: MenuEntry[] = [
     { type: 'label', id: 'who', text: name },
+    ...(role === null ? [] : [{ type: 'label' as const, id: 'role', text: role }]),
     { type: 'separator', id: 'sep' },
     ...(props.openSettings === null ? [] : [{ id: 'settings', label: t('account.settings'), icon: <IconSettingsOutlineRegular size={16} /> }]),
     ...(props.signOutHref === null ? [] : [{ id: 'sign-out', label: t('account.signOut'), icon: <IconRightUpOutlineRegular size={16} /> }]),
@@ -77,7 +79,12 @@ export function AccountButton(props: AccountProps) {
           onClick={() => { setOpen(!open) }}
         >
           <Avatar person={person} size={24} />
-          {wide && <span className={css.name}>{name}</span>}
+          {wide && (
+            <span className={css.who}>
+              <span className={css.name}>{name}</span>
+              {role !== null && <span className={css.role}>{role}</span>}
+            </span>
+          )}
           {wide && <IconChevronsUpDownOutlineRegular size={16} />}
         </button>
       )}

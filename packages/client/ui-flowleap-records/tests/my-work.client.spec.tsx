@@ -53,13 +53,16 @@ describe('the view logic of My work', () => {
     const letter = item('file-letter', `intake/waiting/${sha(1)}`)
     expect(letterOf(letter)).toBe(sha(1))
     expect(letterOf(item('decide-work', `work/${FIXTURE_IDS.ticket}`))).toBeNull()
-    expect(workStatus(letter, fixtures.intake)).toEqual(fixtures.intake.rows.find(row => row.document === sha(1))!.status)
-    expect(workStatus(letter, null)).toBeNull()
-    expect(workStatus(item('file-letter', `intake/waiting/${sha(99)}`), fixtures.intake)).toBeNull()
-    expect(workStatus(item('confirm-deadline', 'deadline/x'), null)).toEqual({ machine: 'deadline', state: 'deadline_proposed' })
-    expect(workStatus(item('decide-office-event', 'intake/waiting/x'), null)).toEqual({ machine: 'deadline', state: 'code_proposed' })
-    expect(workStatus(item('decide-work', 'work/x'), null)).toEqual({ machine: 'ticket', state: 'proposals_ready' })
-    expect(workStatus(item('answer', 'x'), null)).toBeNull()
+    expect(workStatus(letter, fixtures.intake, null)).toEqual(fixtures.intake.rows.find(row => row.document === sha(1))!.status)
+    expect(workStatus(letter, null, null)).toBeNull()
+    expect(workStatus(item('file-letter', `intake/waiting/${sha(99)}`), fixtures.intake, null)).toBeNull()
+    // A deadline task takes the state of the deadline that its subject names, so an entered date never reads as proposed.
+    expect(workStatus(item('confirm-deadline', 'deadline/x'), null, 'manual_proposed')).toEqual({ machine: 'deadline', state: 'manual_proposed' })
+    expect(workStatus(item('decide-work', 'work/x'), null, 'active')).toEqual({ machine: 'ticket', state: 'proposals_ready' })
+    expect(workStatus(item('confirm-deadline', 'deadline/x'), null, null)).toEqual({ machine: 'deadline', state: 'deadline_proposed' })
+    expect(workStatus(item('decide-office-event', 'intake/waiting/x'), null, null)).toEqual({ machine: 'deadline', state: 'code_proposed' })
+    expect(workStatus(item('decide-work', 'work/x'), null, null)).toEqual({ machine: 'ticket', state: 'proposals_ready' })
+    expect(workStatus(item('answer', 'x'), null, null)).toBeNull()
   })
 
   it('counts each group that has tasks for the lede, and takes the day of a task due time', () => {
@@ -96,7 +99,7 @@ describe('the My work count in the sidebar', () => {
 describe('My work', () => {
   it('opens with the first line, the day with the count of each group, and the tasks in the groups by due time', async () => {
     await mountMyWork()
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('1 letter arrived, 3 need you')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('1 letter arrived, 1 letter worked, 3 need you')
     expect(screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent).toBe('Wednesday 4 November · 1 overdue · 1 due today · 1 later')
     const list = screen.getByRole('list', { name: en['mywork.label'] })
     const groups = within(list).getAllByRole('listitem').filter(node => node.parentElement === list)
@@ -161,9 +164,10 @@ describe('My work', () => {
   })
 
   it('says that nothing waits, with Show filed today as the next step', async () => {
-    const empty: MyWork = { ...fixtures.myWork, summary: { lettersArrived: 0, needYou: 0, overdue: 0, today: 0, later: 0 }, work: [] }
+    const summary = { lettersArrived: 0, lettersToFile: 0, lettersWorked: 0, needYou: 0, overdue: 0, today: 0, later: 0 }
+    const empty: MyWork = { ...fixtures.myWork, summary, work: [] }
     const { openInMatters } = await mountMyWork({ ok: true, value: empty })
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('0 letters arrived, 0 need you')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Nothing needs you')
     expect(screen.getByText(en['mywork.empty.title'])).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Show filed today/u }))
     expect(openInMatters).toHaveBeenCalledWith({ view: 'intake', list: 'filed-today', open: null })
@@ -185,7 +189,7 @@ describe('My work', () => {
 
   it('shows the German copy of the mockups', async () => {
     await mountMyWork(undefined, 'de')
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('1 Schreiben eingegangen, 3 brauchen Sie')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('1 Schreiben eingegangen, 1 Schreiben bearbeitet, 3 brauchen Sie')
     expect(screen.getByText('Dieses Schreiben ablegen')).toBeTruthy()
     expect(screen.getAllByRole('button', { name: /Akte finden/u }).length).toBeGreaterThan(0)
   })

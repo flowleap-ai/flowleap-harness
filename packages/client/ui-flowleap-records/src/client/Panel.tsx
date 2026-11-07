@@ -21,7 +21,7 @@ import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { routeOfAct, routePath } from './address.ts'
-import type { Act, DocumentId, Me, MyWork } from './api.ts'
+import type { Act, DocumentId, Me, MyWork, PageHref, RecordsApi } from './api.ts'
 import { RECORDS_SCOPE, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
@@ -72,6 +72,8 @@ export interface PanelInjected {
   readonly refresh: () => void
   readonly perform: (acts: readonly Act[]) => Promise<ActsResult>
   readonly contentHref: (document: DocumentId) => string
+  readonly pageHref: (href: PageHref) => string
+  readonly nextConfirmer: RecordsApi['nextConfirmer']
   /** The key handlers of the mounted screens. */
   readonly keyActs: KeyActRegistry
   /** The ⌘K items of the mounted screens. */
@@ -143,6 +145,8 @@ function PanelView(props: PanelViewProps) {
     refresh: props.refresh,
     perform: props.perform,
     contentHref: props.contentHref,
+    pageHref: props.pageHref,
+    nextConfirmer: props.nextConfirmer,
     keyActs: props.keyActs,
     commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),

@@ -1,12 +1,12 @@
 /**
  * The view logic of My work (atlas sheet 0, decision B9): the groups by due time, the status of each task's object,
- * the matter's client, and the first line. The Records API sends a task's kind, its due-time group and its record
- * address; it sends no state of the object, so the status comes from the intake list for a letter and from the one
- * waiting state of the kind otherwise.
+ * the matter's client, and the first line. The status of a letter comes from the intake list, of a deadline task from
+ * the deadline that the task's subject names, and otherwise from the one waiting state of the kind.
  */
 
 import type { AtlasRef } from './atlas.ts'
-import type { FileNumber, IntakeList, IsoDate, MyWork, TaskKind, WorkGroup, WorkItem } from './api.ts'
+import type { DeadlineState } from './atlas.ts'
+import type { FileNumber, IntakeList, IsoDate, MyWork, Task, TaskKind, WorkGroup, WorkItem } from './api.ts'
 import { dayOf } from './format.ts'
 
 /** The due-time groups, in the order My work shows them. */
@@ -38,7 +38,7 @@ const KIND_STATUS: Readonly<Record<Exclude<TaskKind, 'file-letter'>, AtlasRef | 
  * @param item - the task.
  * @returns the document's SHA-256, or null for a task on another object.
  */
-export function letterOf(item: WorkItem): string | null {
+export function letterOf(item: Task): string | null {
   const [view, , document] = item.act.split('/')
   return view === 'intake' && document !== undefined ? document : null
 }
@@ -47,12 +47,16 @@ export function letterOf(item: WorkItem): string | null {
  * The status of a task's object.
  * @param item - the task.
  * @param letters - the intake waiting list, or null while it has not loaded.
+ * @param deadline - the state of the deadline that the task is about, or null where the answer names none.
  * @returns the object's atlas state, or null when it is not known yet.
  */
-export function workStatus(item: WorkItem, letters: IntakeList | null): AtlasRef | null {
-  if (item.kind !== 'file-letter') return KIND_STATUS[item.kind]
-  const document = letterOf(item)
-  return letters?.rows.find(row => row.document === document)?.status ?? null
+export function workStatus(item: Task, letters: IntakeList | null, deadline: DeadlineState | null): AtlasRef | null {
+  if (item.kind === 'file-letter') {
+    const document = letterOf(item)
+    return letters?.rows.find(row => row.document === document)?.status ?? null
+  }
+  const status = KIND_STATUS[item.kind]
+  return status?.machine === 'deadline' && deadline !== null ? { machine: 'deadline', state: deadline } : status
 }
 
 /**
@@ -82,7 +86,7 @@ export function clientsOf(data: MyWork): ReadonlyMap<FileNumber, string> {
  * @param timeZone - the time zone of "today"; the browser's when absent.
  * @returns the day.
  */
-export function taskDueDay(item: WorkItem, timeZone?: string): IsoDate {
+export function taskDueDay(item: Task, timeZone?: string): IsoDate {
   return dayOf(Date.parse(item.dueAt), timeZone) as IsoDate
 }
 

@@ -5,7 +5,7 @@
  * offers follows the letter's atlas state and whether the person may decide (`letterDecision`).
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   Avatar, Button, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular,
   IconEditOutlineRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
@@ -21,10 +21,10 @@ import type { IntakeStep } from '../model.ts'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
-import { LetterDrawing, Readings } from './evidence.tsx'
+import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate } from '../format.ts'
-import { avatarOf, fromOffice, letterTitle, listTimeText, personName } from '../words.ts'
+import { avatarOf, fromOffice, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
 import { decisionHeading, failureNotice, formNumberAudit, RecordActivity } from './shared.tsx'
@@ -84,8 +84,8 @@ interface DateChoice {
  * the readings agree on the date.
  */
 export function differingDates(letter: Pick<IntakeDocument, 'readers'>): readonly [DateChoice, DateChoice] | null {
-  const text = letter.readers?.code?.result?.documentDate ?? null
-  const image = letter.readers?.model?.result?.documentDate ?? null
+  const text = letter.readers.code?.result?.documentDate ?? null
+  const image = letter.readers.model?.result?.documentDate ?? null
   return text === null || image === null || text === image ? null : [{ source: 'text', date: text }, { source: 'image', date: image }]
 }
 
@@ -285,6 +285,30 @@ export function handCommand(letter: Pick<IntakeDocument, 'document' | 'matters'>
  * @param props.onChange - a field changed.
  * @returns the fields.
  */
+/**
+ * Who confirms the deadline of a hand entry on the matter that the person picked: before the filing the card names
+ * nobody, so this asks the record for the picked matter, and forgets the answer when the pick changes.
+ * @param ctx - the screen context.
+ * @param letter - the scan.
+ * @param fileNumber - the picked matter, or empty.
+ * @returns the next confirmer, or null before an answer or for no pick.
+ */
+function useHandConfirmer(ctx: ScreenContext, letter: IntakeDocument, fileNumber: string): IntakeDocument['nextConfirmer'] {
+  const [next, setNext] = useState<IntakeDocument['nextConfirmer']>(null)
+  const read = ctx.nextConfirmer
+  const picked = letter.entry === null ? undefined : letter.matters.find(matter => matter.fileNumber === fileNumber)?.fileNumber
+  useEffect(() => {
+    setNext(null)
+    if (picked === undefined) return undefined
+    const controller = new AbortController()
+    void read(letter.document, picked, controller.signal).then((result) => {
+      if (!controller.signal.aborted && result.ok) setNext(result.value)
+    })
+    return () => { controller.abort() }
+  }, [read, letter.document, picked])
+  return next
+}
+
 function HandEntryFields({ ctx, letter, values, onChange }: {
   ctx: ScreenContext
   letter: IntakeDocument
@@ -356,6 +380,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     fileNumber: '', applicationNumber: letter.applicationNumber ?? '', code: letter.entry?.codes[0]?.code ?? '', documentDate: '',
   })
   const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
+  const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
   const [chosenDate, setChosenDate] = useState<IsoDate | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
@@ -518,6 +543,15 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     }
   })()
   const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
+  // Who gets Confirm the deadline when this person decides now (the two-person rule): the reason names this decision.
+  const next = decision.kind === 'hand' ? handConfirmer : letter.nextConfirmer
+  const nextNote = next === null
+    ? undefined
+    : next.queued
+      ? t('letter.next.queued', { person: personInText(t, next.person) })
+      : next.person.id === ctx.me?.person.id
+        ? t('letter.next.you')
+        : t(decision.kind === 'code' ? 'letter.next.decide' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.confirms', { person: personInText(t, next.person) })
   const bar = ctx.me === null || decision.kind === 'done'
     ? null
     : (
@@ -528,6 +562,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         labels={{ more: t('decision.more') }}
         decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
         parts={parts}
+        note={nextNote}
         failure={failureNotice(ctx, runner.run, retry)}
         negative={canClose
           ? {
@@ -558,14 +593,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const unreadable = letter.status.machine === 'intake' && letter.status.state === 'unreadable'
   // A scan filed by hand has no reading: the values on the card are the entry, which Activity names.
   const read = !readNothing(letter)
-  const readers = letter.readers ?? {
-    code: {
-      result: { code: letter.code, documentDate: letter.documentDate, applicationNumber: letter.applicationNumber },
-      fields: letter.fields,
-    },
-    model: null,
-    agree: null,
-  }
+  const { readers } = letter
   return (
     <div className={css.item}>
       <WorkColumn decision={bar}>
@@ -579,7 +607,15 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             </>
           )}
         />
-        <EvidenceSplit evidence={<LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />}>
+        <EvidenceSplit evidence={(
+          <LetterPages
+            ctx={ctx}
+            images={letter.pageImages}
+            marks={letter.marks}
+            fallback={<LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />}
+            onOpen={openLetter}
+          />
+        )}>
           {unreadable
             ? (
               <HandEntryFields

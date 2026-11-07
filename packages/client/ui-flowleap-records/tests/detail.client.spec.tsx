@@ -79,6 +79,8 @@ async function mount(
     refresh: () => { model.refresh() },
     perform: (sent: readonly Act[]) => model.perform(sent),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    pageHref: href => api.pageHref(href),
+    nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
     openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
     keyActs,
     commandItems,
@@ -134,7 +136,7 @@ describe('the matters list', () => {
       useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')), useAsk: bindSnapshotSelector(createSnapshotStore(null)),
       useContextMenu: contextMenuHook(), navigate: () => {}, retry: () => {}, refresh: () => {},
       perform: () => Promise.resolve({ failed: [] }),
-      contentHref: () => '', keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
+      contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }), keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
       openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
     } as PanelProps<'records.agent.conversation'>
     render(<RecordsPanel {...props} />)
@@ -191,12 +193,15 @@ describe('the matter page', () => {
     expect(within(deadlines).getByRole('columnheader', { name: 'Due' }).className).toContain('endNarrow')
     const panel = screen.getByRole('complementary', { name: 'Properties' })
     expect([...panel.querySelectorAll('h3')].map(heading => heading.textContent)).toEqual(['Matter', 'People'])
-    expect([...panel.querySelectorAll('dt')].map(label => label.textContent)).toEqual(['File number', 'Client', 'Application', 'Responsible', 'Formalities', 'Team'])
+    expect([...panel.querySelectorAll('dt')].map(label => label.textContent)).toEqual([
+      'File number', 'Client', 'AI allowed for', 'Language', 'Application', 'Responsible', 'Formalities', 'Team', 'Wall',
+    ])
     const values = [...panel.querySelectorAll('dd')].map(value => value.textContent)
-    expect(values.slice(0, 3)).toEqual(['FL-2026-0001', 'Kessler Sensorik GmbH', 'EP 24 123 456.7'])
-    expect(values[3]).toContain('Dr. Anna Becker')
-    expect(values[4]).toContain('Lena Hoffmann')
-    expect(values[5]).toContain('3 people')
+    expect(values.slice(0, 5)).toEqual(['FL-2026-0001', 'Kessler Sensorik GmbH', 'Drafts, client report', 'English', 'EP 24 123 456.7'])
+    expect(values[5]).toContain('Dr. Anna Becker')
+    expect(values[6]).toContain('Lena Hoffmann')
+    expect(values[7]).toContain('3 people')
+    expect(values[8]).toBe('The team · 2 people screened')
     expect(panel.textContent).not.toContain('Next deadline')
     expect(screen.getByRole('table', { name: 'E-file' }).textContent).toContain('Rule 71(3) communication')
     expect(document.querySelector('[data-audit]')).not.toBeNull()
@@ -237,7 +242,7 @@ describe('the matter page', () => {
     }
     const { commandItems } = await mount(MATTER, { matter })
     const properties = screen.getByRole('complementary', { name: 'Properties' })
-    expect([...properties.querySelectorAll('dd')].slice(3, 5).map(value => value.textContent)).toEqual(['None', 'None'])
+    expect([...properties.querySelectorAll('dd')].slice(5, 7).map(value => value.textContent)).toEqual(['None', 'None'])
     expect(properties.textContent).not.toContain('Next deadline')
     const waits = screen.getByRole('table', { name: 'What waits' })
     expect(waits.textContent).toContain('Jonas Weber')
@@ -474,7 +479,7 @@ describe('the deadline page', () => {
         sources: [],
       },
       officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:UNKNOWN', documentDate: null },
-      readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false },
+      readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { formNumber: null, code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false, differences: ['documentDate'] as const },
     }
     await mount(DEADLINE, { deadline: differ })
     expect(within(bar()).getByText(/the readings differ, so check the letter/)).toBeTruthy()
@@ -489,16 +494,16 @@ describe('the deadline page', () => {
     expect(screen.queryByText('Legal sources')).toBeNull()
     expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
     cleanup()
-    const oneReading = { code: null, model: differ.readers.model, agree: null }
+    const oneReading = { code: null, model: differ.readers.model, agree: null, differences: null }
     await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null }, readers: oneReading } })
     expect(within(bar()).getByText(/one reading only/)).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-info-outline-regular')
     cleanup()
-    const empty = { code: null, documentDate: null, applicationNumber: null }
-    await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {} }, model: null, agree: null } } })
+    const empty = { formNumber: null, code: null, documentDate: null, applicationNumber: null }
+    await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {}, source: { kind: 'text-layer' } as const }, model: null, agree: null, differences: null } } })
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
     cleanup()
-    await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null } } })
+    await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null, differences: null } } })
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
   })
@@ -634,7 +639,7 @@ describe('the deadline page', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null },
+      readers: { code: null, model: null, agree: null, differences: null },
       proposer: { ...PEOPLE.jonas, id: PEOPLE.jonas.id as PersonId },
     }
     const { keyActs } = await mount(DEADLINE, { deadline: byHand }, 'de')
@@ -662,7 +667,7 @@ describe('the deadline page', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null },
+      readers: { code: null, model: null, agree: null, differences: null },
       proposer: jonas,
       activity: [
         { seq: 120, at: '2026-11-04T14:10:00Z' as never, type: 'office-event/recorded', actor: { kind: 'person', person: jonas }, for: null, detail: entered },
@@ -749,7 +754,8 @@ describe('the work on a letter', () => {
 
   it('names the record of each status on the page, so a sent report and a sent reply never read the same', async () => {
     const report = sourced.reports[0]!
-    await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
+    const sentReport = { ...report, state: 'sent' } as const
+    await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [sentReport], clientReport: sentReport } })
     const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
     // A related record's row names it in its main cell (mockup 4-review-work). The report's section heading names it once
     // ("Client report"), so its status carries no second "Report" label. The agent panel's result card names the work
@@ -991,6 +997,7 @@ describe('the work on a letter', () => {
       responsible: null,
       letter: { ...sourced.letter!, code: 'EPO:ART94(3)', documentDate: null, applicationNumber: null },
       reports: [],
+      clientReport: null,
       ticket: { ...sourced.ticket, state: 'running' },
       run: null,
     }

@@ -1,12 +1,14 @@
 /**
  * The evidence of a letter that the letter page and the deadline page share: the two readings side by side with the
- * spans of the text reading, and the drawing of the letter from reader 1's fields with each read value marked.
+ * spans of the text reading, and the letter's page images with each read value quoted beside them, or, for a letter
+ * stored without page images, the drawing of the letter from reader 1's fields with each read value marked.
  */
 
+import type { ReactNode } from 'react'
 import {
   IconCheckOutlineRegular, IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DeadlineDetail, FieldValue, IntakeDocument, ReaderField } from '../api.ts'
+import type { DeadlineDetail, FieldValue, IntakeDocument, Mark, PageImage, ReaderField } from '../api.ts'
 import { formatApplicationNumber, formatDate } from '../format.ts'
 import { letterLines } from '../letter-text.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -52,7 +54,7 @@ export function Readings({ ctx, readers }: { ctx: ScreenContext; readers: Deadli
     <div className={detailCss.compare} role="table" aria-label={t('deadline.read')}>
       <div role="row" className={detailCss.compareRow}>
         <span role="columnheader" className={detailCss.compareHead} />
-        <span role="columnheader" className={detailCss.compareHead}>{t('deadline.fromText')}</span>
+        <span role="columnheader" className={detailCss.compareHead}>{t(readers.code?.source.kind === 'ocr' ? 'deadline.fromOcr' : 'deadline.fromText')}</span>
         <span role="columnheader" className={detailCss.compareHead}>{t('deadline.fromImage')}</span>
         <span role="columnheader" className={detailCss.compareHead} />
       </div>
@@ -115,6 +117,65 @@ export function LetterDrawing({ ctx, letter, onOpen }: { ctx: ScreenContext; let
       </div>
       <figcaption className={intakeCss.paperCap}>
         <span>{letter.pages === null ? t('intake.letter.pageUnknown', { page }) : t('intake.letter.page', { page, count: letter.pages })}</span>
+        <ActButton act={actOf(ctx, 'openLetter', t('intake.act.openLetter'), onOpen, { icon: <IconRightUpOutlineRegular size={16} /> })} rank="tertiary" />
+      </figcaption>
+    </figure>
+  )
+}
+
+/** The marks that the main view quotes: a form number is a form code, which shows only in Audit (R19). */
+const MARK_LABELS = {
+  documentDate: 'deadline.field.documentDate',
+  applicationNumber: 'deadline.field.application',
+} as const satisfies Partial<Record<Mark['field'], FlowleapRecordsKey>>
+
+/**
+ * Render the letter's page images, each at its own size, with the read values beside them: each quote with its page.
+ * The OCR gives no position on the page, so nothing is drawn on the image. With no page image, render the fallback.
+ * @param props.ctx - the screen context.
+ * @param props.images - the page images, in page order.
+ * @param props.marks - the read values with their page and quote.
+ * @param props.fallback - what shows for a letter with no page image: the drawing.
+ * @param props.onOpen - open the PDF.
+ * @returns the pages, or the fallback.
+ */
+export function LetterPages({ ctx, images, marks, fallback, onOpen }: {
+  ctx: ScreenContext
+  images: readonly PageImage[]
+  marks: readonly Mark[]
+  fallback: ReactNode
+  onOpen: () => void
+}) {
+  const { t } = ctx
+  if (images.length === 0) return fallback
+  const quoted = marks.flatMap(mark => mark.field === 'formNumber' ? [] : [{ ...mark, label: MARK_LABELS[mark.field] }])
+  return (
+    <figure className={intakeCss.paper}>
+      <div className={intakeCss.pages} data-fdl-part="letter">
+        {images.map(image => (
+          <img
+            key={image.page}
+            className={intakeCss.pageImage}
+            src={ctx.pageHref(image.href)}
+            width={image.width}
+            height={image.height}
+            loading="lazy"
+            alt={t('intake.letter.image', { page: image.page, count: images.length })}
+          />
+        ))}
+      </div>
+      {quoted.length > 0 && (
+        <dl className={intakeCss.marks} aria-label={t('intake.letter.marks')}>
+          {quoted.map(mark => (
+            <div key={mark.field} className={intakeCss.markRow}>
+              <dt>{t(mark.label)}</dt>
+              <dd><EvidenceQuote span={mark} labels={quoteLabels(ctx, mark.page)} /></dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <figcaption className={intakeCss.paperCap}>
+        <span>{t(images.length === 1 ? 'intake.letter.pages.one' : 'intake.letter.pages', { count: images.length })}</span>
         <ActButton act={actOf(ctx, 'openLetter', t('intake.act.openLetter'), onOpen, { icon: <IconRightUpOutlineRegular size={16} /> })} rank="tertiary" />
       </figcaption>
     </figure>
