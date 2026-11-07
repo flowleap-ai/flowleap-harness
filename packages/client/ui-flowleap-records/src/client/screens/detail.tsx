@@ -9,7 +9,6 @@ import clsx from 'clsx'
 import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DocumentId, IsoDate, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
-import { Overdue } from '../parts/Due.tsx'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, letterTitle, personName, type Translate } from '../words.ts'
 import type { ScreenContext } from './context.ts'
@@ -96,25 +95,6 @@ export function OpenCell({ children, onOpen, label }: { children: ReactNode; onO
   )
 }
 
-/**
- * Render the fact chips under a title, such as "1 deadline waits for a second person".
- * @param props.facts - each fact's count, its text and whether it is overdue.
- * @returns the chips, or nothing when no fact applies.
- */
-export function Facts({ facts }: { facts: readonly Fact[] }) {
-  if (facts.length === 0) return null
-  return (
-    <div className={css.facts}>
-      {facts.map(fact => (
-        <span key={fact.key} className={css.fact} data-fdl-part="fact">
-          {fact.overdue === true ? <Overdue><b>{fact.count}</b></Overdue> : <b>{fact.count}</b>}
-          {fact.text}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 /** One fact chip under a title: the count, its text, and whether it counts overdue records. */
 export interface Fact {
   readonly key: string
@@ -183,16 +163,6 @@ export function ruleWords(t: Translate, code: string | null): RuleWords {
  */
 export function officeOf(code: string | null): string | null {
   return code?.split(':')[0] ?? null
-}
-
-/**
- * A date without the weekday, or the "not recorded" word.
- * @param ctx - the screen context.
- * @param date - the date.
- * @returns the text.
- */
-export function dateOrNone(ctx: ScreenContext, date: IsoDate | null): string {
-  return date === null ? ctx.t('matter.notRecorded') : formatDay(date, ctx.locale)
 }
 
 /**

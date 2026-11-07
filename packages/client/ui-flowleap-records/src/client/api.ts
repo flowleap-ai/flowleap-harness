@@ -207,13 +207,40 @@ export type MatterRow = Parsed<typeof matterRow>
 /** The matters the person may see, next due first. */
 export type MattersList = Parsed<typeof mattersList>
 
+// Tasks
+
+/** The task kinds of atlas sheet 0; the views word each kind and never show the os text of `title` or `why`. */
+export const TASK_KINDS = [
+  'file-letter', 'enter-office-event', 'decide-office-event', 'enter-date', 'confirm-deadline', 'decide-dispute',
+  'assign-person', 'restart-run', 'decide-work', 'work-by-hand', 'send-report', 'fix-message', 'follow-up', 'day-check',
+  'answer',
+] as const
+/** One task kind. */
+export type TaskKind = (typeof TASK_KINDS)[number]
+/** The due-time groups of My work. */
+export type WorkGroup = 'overdue' | 'today' | 'later'
+
+const workItemShape = {
+  id: str, task: str, kind: oneOf(TASK_KINDS), state: oneOf(['assigned', 'queued', 'escalated', 'alarm']),
+  group: oneOf(['overdue', 'today', 'later']), matter: nullable(matterRef), due: nullable(isoDate), dueAt: isoTime,
+  since: isoTime, act: str,
+}
+const workItem = obj(workItemShape)
+/**
+ * One open task: its kind, its task state, its due-time group, the matter (null for a letter that is not filed, to an
+ * owner outside the proposed matter's team), the legal date of its deadline (`due`) apart from the task's own due time
+ * (`dueAt`), and `act`, the record address of its object: `intake/<list>/<sha256>`, `deadline/<id>` or `work/<id>`.
+ */
+export type WorkItem = Parsed<typeof workItem>
 // GET matters/<fileNumber>
 
 const matterDetail = obj({
   recordSeq: num,
   matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, state: oneOf(['open', 'closed']), applicationNumber: nullable(str) }),
   responsible: nullable(person),
+  formalitiesPerson: nullable(person),
   team: arrayOf(member),
+  waits: arrayOf(obj({ ...workItemShape, owner: person })),
   deadlines: arrayOf(obj({
     id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: ids.officeEvent,
   })),
@@ -234,6 +261,13 @@ export type MatterDetail = Parsed<typeof matterDetail>
 // GET deadlines/<id>
 
 const reading = obj({ code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str) })
+const readers = obj({
+  code: nullable(obj({ result: nullable(reading), fields: partialRecord(READER_FIELDS, fieldValue) })),
+  model: nullable(obj({ result: nullable(reading), model: str })),
+  agree: nullable(bool),
+})
+/** The two readings of a letter: reader 1 from the text with its spans, reader 2 from the page image, and whether they agree. */
+export type Readers = Parsed<typeof readers>
 const deadlineDetail = obj({
   recordSeq: num,
   deadline: obj({
@@ -248,11 +282,7 @@ const deadlineDetail = obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     document: nullable(ids.document), fileName: nullable(str), state: deadlineState,
   }),
-  readers: obj({
-    code: nullable(obj({ result: nullable(reading), fields: partialRecord(READER_FIELDS, fieldValue) })),
-    model: nullable(obj({ result: nullable(reading), model: str })),
-    agree: nullable(bool),
-  }),
+  readers,
   proposer: nullable(person), confirmer: nullable(person), rejecter: nullable(person), reason: nullable(str),
   mayConfirm: mayDecide,
   activity,
@@ -314,7 +344,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
     mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
-    proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['reference']) })),
+    proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['application-number', 'reference']) })),
     candidates: num,
     filed: nullable(matterRef),
     officeEvent: nullable(obj({ id: ids.officeEvent, state: deadlineState })),
@@ -322,7 +352,9 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
     mayDecide,
     activity,
   })(value, path)
-  return { ...rest, status: queueStatus(source, path) }
+  // The os sends the two readings of a letter only once it holds reader 2's; before, the card has reader 1's fields.
+  const both = source['readers'] === undefined ? null : readers(source['readers'], `${path}.readers`)
+  return { ...rest, status: queueStatus(source, path), readers: both }
 }
 /** One letter of intake with its reading, the proposed matter, the matters the person may pick, and Activity. */
 export interface IntakeDocument {
@@ -344,7 +376,8 @@ export interface IntakeDocument {
     readonly title: string
     readonly client: string
     readonly responsible: Person | null
-    readonly matchedBy: 'reference'
+    /** The key that found the matter: the application number of an office form, or the firm's reference. */
+    readonly matchedBy: 'application-number' | 'reference'
   } | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly candidates: number
@@ -354,6 +387,8 @@ export interface IntakeDocument {
   readonly matters: readonly MatterRef[]
   readonly mayDecide: MayDecide
   readonly activity: readonly ActivityEvent[]
+  /** Both readings, where the os sends them; null where it sends reader 1's fields only. */
+  readonly readers: Readers | null
 }
 
 // GET tickets
@@ -400,8 +435,30 @@ const ticketDetail = obj({
 /** One work item on a letter: the letter, the proposed reports with their statements, the deadline, the reply. */
 export type TicketDetail = Parsed<typeof ticketDetail>
 
+// GET my-work
+
+const myMatter = obj({
+  fileNumber: ids.fileNumber, title: str, client: str, applicationNumber: nullable(str), role: oneOf(['responsible', 'team']),
+  state: oneOf(['open', 'closed']),
+  nextDeadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState })),
+})
+/** One matter of the person's teams, beside My work. */
+export type MyMatter = Parsed<typeof myMatter>
+const myWork = obj({
+  recordSeq: num,
+  person: member,
+  summary: obj({ lettersArrived: num, needYou: num, overdue: num, today: num, later: num }),
+  work: arrayOf(workItem),
+  inSight: arrayOf(workItem),
+  matters: arrayOf(myMatter),
+})
+/** The person's open tasks, the first line's counts, the tasks held in sight after an escalation, and the person's matters. */
+export type MyWork = Parsed<typeof myWork>
+
 /** The parsers of every read, for tests and fixtures. */
-export const parsers = { me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail } as const
+export const parsers = {
+  me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail, myWork,
+} as const
 
 // Failures.
 
@@ -507,6 +564,16 @@ export interface RecordsApi {
   intakeDocument(document: DocumentId, signal: AbortSignal): Promise<Fetched<IntakeDocument>>
   tickets(signal: AbortSignal): Promise<Fetched<TicketsList>>
   ticket(id: TicketId, signal: AbortSignal): Promise<Fetched<TicketDetail>>
+  myWork(signal: AbortSignal): Promise<Fetched<MyWork>>
+  /**
+   * Find the matters inside the person's walls whose file number, title or client holds the query, case-insensitively,
+   * in the order of the matters list (next due first). Until the Records API has a search read, it filters
+   * `GET matters`, which holds only the matters the person may see and no application number or person.
+   * @param query - the text the person typed; an empty query finds every matter.
+   * @param signal - stops the read.
+   * @returns the matters found.
+   */
+  searchMatters(query: string, signal: AbortSignal): Promise<Fetched<readonly MatterRow[]>>
   /**
    * Send one act. A retry of the same act passes the same `Act`, so its key is the same.
    * @returns ok with no value, or the failure; a network failure leaves the outcome unknown, so retry with the act.
@@ -569,17 +636,43 @@ async function exchange<T>(
 }
 
 /**
+ * The matters whose file number, title or client holds the query, case-insensitively; an empty query keeps them all.
+ * @param rows - the matters the person may see.
+ * @param query - the text the person typed.
+ * @returns the matching rows in their order.
+ */
+export function findMatters(rows: readonly MatterRow[], query: string): readonly MatterRow[] {
+  const needle = query.trim().toLocaleLowerCase()
+  if (needle === '') return rows
+  return rows.filter(row => [row.fileNumber, row.title, row.client].some(text => text.toLocaleLowerCase().includes(needle)))
+}
+
+/**
  * Create the Records API client.
- * @param recordsHref - the Records service as a document-relative path ending in `/`, such as `records/`.
+ * @param recordsHref - the Records service as a document-relative path ending in `/`, such as `records/`, or the
+ * promise of it while the Host has not answered; a promise of null (no Records service) fails every request with no
+ * answer (`network`), and `contentHref` is empty until it resolves.
  * @param fetchImpl - the fetch to use; the global fetch by default.
  * @returns the client.
  */
 export function createRecordsApi(
-  recordsHref: string, fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
+  recordsHref: string | Promise<string | null>, fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
 ): RecordsApi {
-  const base = `${recordsHref}api/`
+  let known: string | null = typeof recordsHref === 'string' ? `${recordsHref}api/` : null
+  const baseOf = typeof recordsHref === 'string'
+    ? Promise.resolve(known)
+    : recordsHref.then((href) => {
+      known = href === null ? null : `${href}api/`
+      return known
+    })
+  /** Fetch a path under the base, or reject as no answer when there is no Records service. */
+  const fetchAt = async (path: string, init: RequestInit): Promise<Response> => {
+    const base = await baseOf
+    if (base === null) throw new TypeError('records: no Records service')
+    return fetchImpl(`${base}${path}`, init)
+  }
   const get = <T>(path: string, parse: Parse<T>, signal: AbortSignal): Promise<Fetched<T>> => exchange(
-    () => fetchImpl(`${base}${path}`, { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' }, signal }),
+    () => fetchAt(path, { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' }, signal }),
     async response => parse(await response.json(), 'body'),
     signal,
   )
@@ -592,10 +685,15 @@ export function createRecordsApi(
     intakeDocument: (document, signal) => get(`intake/documents/${document}`, intakeDocument, signal),
     tickets: signal => get('tickets', ticketsList, signal),
     ticket: (id, signal) => get(`tickets/${id}`, ticketDetail, signal),
+    myWork: signal => get('my-work', myWork, signal),
+    searchMatters: async (query, signal) => {
+      const list = await get('matters', mattersList, signal)
+      return list.ok ? { ok: true, value: findMatters(list.value.rows, query) } : list
+    },
     perform: (act, signal) => {
       const { path, body } = commandRequest(act.command)
       return exchange(
-        () => fetchImpl(`${base}${path}`, {
+        () => fetchAt(path, {
           method: 'POST', credentials: 'include', cache: 'no-store', signal: signal ?? null,
           headers: { 'content-type': 'application/json', accept: 'application/json', 'idempotency-key': act.key },
           body: JSON.stringify(body),
@@ -604,6 +702,6 @@ export function createRecordsApi(
         signal,
       )
     },
-    contentHref: document => `${base}documents/${document}/content`,
+    contentHref: document => known === null ? '' : `${known}documents/${document}/content`,
   }
 }

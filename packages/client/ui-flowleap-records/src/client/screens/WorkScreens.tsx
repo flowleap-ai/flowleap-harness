@@ -75,7 +75,7 @@ export function WorkScreen({ screen, ctx }: ScreenProps<'work'>) {
       load={screen.ticket}
       render={{
         loading: () => <PageSpinner label={ctx.t('loading')} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
         ready: data => <WorkView key={data.ticket.id} ctx={ctx} data={data} />,
       }}
     />
@@ -323,6 +323,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <AvatarStack people={data.team.map(person => avatarOf(t, person))} />
             <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
           </div>
+          <Related ctx={ctx} data={data} />
           {data.reports.map(item => (
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
@@ -361,7 +362,6 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               </StatementTable>
             </section>
           ))}
-          <Related ctx={ctx} data={data} />
           <RecordActivity ctx={ctx} events={data.activity} />
         </WorkColumn>
       </div>

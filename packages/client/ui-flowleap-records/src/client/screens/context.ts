@@ -15,7 +15,7 @@ import type { ActsResult, Route, ScreenOf, View } from '../model.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import type { DockView } from '../parts/AgentDock.tsx'
 import type { WordContext } from '../words.ts'
-import type { IntakeRowTarget } from '../row-menu.ts'
+import type { IntakeRowTarget, WorkRowTarget } from '../row-menu.ts'
 
 /** The shared context of every screen. */
 export interface ScreenContext extends WordContext, KeyLayerContext {
@@ -30,6 +30,12 @@ export interface ScreenContext extends WordContext, KeyLayerContext {
   readonly contentHref: (document: DocumentId) => string
   /** The context menu trigger props of an intake row. */
   readonly rowMenu: (target: IntakeRowTarget) => ContextMenuTriggerProps
+  /** The context menu trigger props of a My work row. */
+  readonly workRowMenu: (target: WorkRowTarget) => ContextMenuTriggerProps
+  /** Open a route in the Matters panel, such as the dossier from My work or a found matter. */
+  readonly openInMatters: (route: Route) => void
+  /** Open My work. */
+  readonly openMyWork: () => void
   /** The address of a route, for Copy link. */
   readonly linkOf: (route: Route) => string
   /** The agent panel of the work page. */

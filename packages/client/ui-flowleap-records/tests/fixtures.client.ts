@@ -7,7 +7,7 @@
  * `createFixtureApi` serves these answers as a `RecordsApi`, for component tests and for a screen without the os.
  */
 
-import { parsers, type Act, type DocumentId, type Fetched, type FileNumber, type IntakeView, type RecordsApi } from '../src/client/api.ts'
+import { findMatters, parsers, type Act, type DocumentId, type Fetched, type FileNumber, type IntakeView, type RecordsApi } from '../src/client/api.ts'
 
 /** Today in the fixtures. */
 export const TODAY = '2026-11-04'
@@ -201,12 +201,50 @@ const DEADLINE_ID = uuid(1)
 const OFFICE_EVENT_ID = uuid(2)
 const TICKET_ID = uuid(3)
 
+/**
+ * `GET my-work` of Dr. Anna Becker: one letter to file today (the R71(3) letter of the intake list), a deadline to
+ * confirm later, and an overdue work item; one letter arrived today.
+ */
+export const myWorkWire = {
+  recordSeq: 150,
+  person: PEOPLE.anna,
+  summary: { lettersArrived: 1, needYou: 3, overdue: 1, today: 1, later: 1 },
+  work: [
+    {
+      id: `decide-work:${uuid(3)}`, task: uuid(21), kind: 'decide-work', title: 'Review the work', why: 'Proposals are ready.', state: 'escalated',
+      group: 'overdue', matter: ref('FL-2026-0001'), due: '2027-03-01', dueAt: '2026-11-01T09:00:00Z',
+      since: '2026-10-30T09:00:00Z', act: `work/${uuid(3)}`,
+    },
+    {
+      id: `file-letter:${sha(1)}`, task: uuid(22), kind: 'file-letter', title: 'File this letter', why: 'You are the formalities person.', state: 'assigned',
+      group: 'today', matter: ref('FL-2026-0001'), due: null, dueAt: '2026-11-04T18:00:00Z',
+      since: '2026-11-04T14:16:00Z', act: `intake/waiting/${sha(1)}`,
+    },
+    {
+      id: `confirm-deadline:${uuid(1)}`, task: uuid(23), kind: 'confirm-deadline', title: 'Confirm the deadline', why: 'A second person confirms.', state: 'assigned',
+      group: 'later', matter: ref('FL-2026-0001'), due: '2027-03-01', dueAt: '2026-11-06T18:00:00Z',
+      since: '2026-11-04T14:17:00Z', act: `deadline/${uuid(1)}`,
+    },
+  ],
+  inSight: [],
+  matters: [{
+    ...ref('FL-2026-0001'), client: MATTERS['FL-2026-0001'].client, applicationNumber: '24123456.7', role: 'responsible', state: 'open',
+    nextDeadline: { id: uuid(1), due: '2027-03-01', state: 'deadline_proposed' },
+  }],
+}
+
 /** `GET matters/FL-2026-0001`. */
 export const matterWire = {
   recordSeq: 140,
   matter: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title, client: MATTERS['FL-2026-0001'].client, state: 'open', applicationNumber: '24123456.7' },
   responsible: PEOPLE.anna,
+  formalitiesPerson: PEOPLE.lena,
   team: [PEOPLE.anna, PEOPLE.jonas, PEOPLE.lena],
+  waits: [{
+    id: `confirm-deadline:${DEADLINE_ID}`, task: uuid(20), kind: 'confirm-deadline', title: 'Confirm the deadline', why: 'You are the formalities person.',
+    state: 'assigned', group: 'today', matter: { fileNumber: 'FL-2026-0001', title: MATTERS['FL-2026-0001'].title }, due: '2027-03-01',
+    dueAt: '2026-11-04T18:00:00Z', since: '2026-11-04T14:17:00Z', act: `deadline/${DEADLINE_ID}`, owner: PEOPLE.lena,
+  }],
   deadlines: [{ id: DEADLINE_ID, due: '2027-03-01', state: 'deadline_proposed', code: 'EPO:R71(3)', officeEventId: OFFICE_EVENT_ID }],
   work: [{ id: TICKET_ID, state: 'proposals_ready', code: 'EPO:R71(3)', routedTo: PEOPLE.anna, updatedAt: '2026-11-04T14:17:00Z', report: { state: 'proposed' }, reply: { state: 'sent' } }],
   officeEvents: [{ id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', state: 'deadline_proposed', document: R71_DOCUMENT, receivedAt: null }],
@@ -332,6 +370,7 @@ export const fixtures = {
   intakeDocument: parsers.intakeDocument(intakeDocumentWire, 'intakeDocument'),
   tickets: parsers.ticketsList(ticketsWire, 'tickets'),
   ticket: parsers.ticketDetail(ticketWire, 'ticket'),
+  myWork: parsers.myWork(myWorkWire, 'myWork'),
 }
 
 /** The empty intake lists of filed today and not relevant. */
@@ -358,6 +397,8 @@ export function createFixtureApi(): { api: RecordsApi; acts: Act[] } {
       intakeDocument: id => ok(document(id)),
       tickets: () => ok(fixtures.tickets),
       ticket: () => ok(fixtures.ticket),
+      myWork: () => ok(fixtures.myWork),
+      searchMatters: query => ok(findMatters(fixtures.matters.rows, query)),
       perform: (act) => {
         acts.push(act)
         return ok(null)

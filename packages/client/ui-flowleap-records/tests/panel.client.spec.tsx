@@ -51,7 +51,7 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     t: makeTranslate(en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
-    useWaitingCount: bindSnapshotSelector(model.waitingCount),
+    useMyWork: bindSnapshotSelector(model.myWork), useWaitingCount: bindSnapshotSelector(model.waitingCount),
     useCatalog: bindSnapshotSelector(createSnapshotStore(CATALOG)),
     useFixedCatalog: bindSnapshotSelector(createSnapshotStore(FIXED)),
     useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
@@ -65,7 +65,8 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     commandItems: new CommandItemRegistry(),
     linkOf: (next: Route) => `https://firm.test/?records=${next.view}`,
     openSearch: () => {},
-  } as PanelProps
+    openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
+  } as PanelProps<'records.agent.conversation'>
   render(<RecordsPanel {...props} />)
   await flush()
   return { model, openMenu }
@@ -125,11 +126,13 @@ describe('the Matters panel', () => {
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'intake', open: R71_DOCUMENT })
     expect(screen.getByRole('region', { name: 'Your decision' })).toBeTruthy()
     expect(screen.getByText('Which matter is this letter for?')).toBeTruthy()
-    expect(screen.getAllByText('Pressure sensor housing', { selector: 'dd' })[0]!.textContent).toBe('FL-2026-0001Pressure sensor housing')
+    const proposed = within(screen.getByRole('region', { name: 'Proposed matter' }))
+    expect(proposed.getByText('FL-2026-0001')).toBeTruthy()
+    expect(proposed.getByText('Pressure sensor housing')).toBeTruthy()
     expect(screen.getByLabelText('Letter 1 of 22').textContent).toBe('1 / 22')
     const lede = /^Jonas Weber forwarded this letter to the AI mailbox\. The file number on page 1 names one matter\.$/
     expect(screen.getByText(lede)).toBeTruthy()
-    const record = screen.getByRole('button', { name: /Accept and file/ })
+    const record = screen.getByRole('button', { name: /^File\b/ })
     expect(record.querySelector('kbd')?.textContent).toBe('⇧⌘↵')
     fireEvent.click(record)
     await flush()
@@ -209,15 +212,16 @@ describe('the Matters panel', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Pressure sensor housing' })).toBeTruthy()
     expect(screen.getAllByText('Deadline proposed').length).toBeGreaterThan(0)
     expect(screen.getByText('Jonas Weber', { selector: 'b' })).toBeTruthy()
-    fireEvent.click(within(screen.getByRole('table', { name: 'Work' })).getByRole('button', { name: /Rule 71\(3\) communication/ }))
+    expect(screen.queryByRole('table', { name: 'Work' })).toBeNull()
+    fireEvent.click(within(screen.getByRole('table', { name: 'What waits' })).getByRole('button', { name: /Confirm the deadline/ }))
     await flush()
-    expect(model.screen.getSnapshot().view).toBe('work')
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'deadline', id: FIXTURE_IDS.deadline })
     model.navigate({ view: 'matter', fileNumber: 'FL-2026-0001' as FileNumber })
     await flush()
     fireEvent.click(screen.getByRole('button', { name: /Mon, 1 Mar 2027/ }))
     await flush()
     expect(screen.getByText('Monday, 1 March 2027')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     expect(acts.at(-1)?.command).toEqual({ kind: 'deadline.confirm', id: FIXTURE_IDS.deadline, seen: 141 })
     fireEvent.click(screen.getByRole('button', { name: /Reject/ }))
@@ -340,6 +344,7 @@ describe('the Matters panel', () => {
     const never = () => new Promise<Fetched<never>>(() => {})
     const api: RecordsApi = {
       me: never, matters: never, matter: never, deadline: never, intake: never, intakeDocument: never, tickets: never, ticket: never,
+      myWork: never, searchMatters: never,
       perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '',
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })
@@ -359,6 +364,7 @@ describe('the Matters panel', () => {
     const down = () => Promise.resolve<Fetched<never>>({ ok: false, error: { kind: 'service', status: 503 } })
     const api: RecordsApi = {
       me: down, matters: down, matter: down, deadline: down, intake: down, intakeDocument: down, tickets: down, ticket: down,
+      myWork: down, searchMatters: down,
       perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '',
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })

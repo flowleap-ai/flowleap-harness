@@ -20,7 +20,7 @@ import { AgentActivity, chatRows } from '../src/client/widgets.tsx'
 import { AgentsPage, ChatsPage } from '../src/client/AppPages.tsx'
 import { InstallCard } from '../src/client/InstallCard.tsx'
 import {
-  AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction,
+  AgentsIcon, ChatsIcon, PinnedSection, SearchAction,
 } from '../src/client/sidebar.tsx'
 
 afterEach(() => {
@@ -219,7 +219,7 @@ describe('ui-flowleap-dashboard browser half', () => {
     expect(inject).toEqual(['slots', 'locale', 'layout', 'sessions', 'uiWorkspace'])
   })
 
-  it('provides the landing page, its slots, the search registry with the Chats group, the sidebar layers, and the Search command, and removes everything on dispose', async () => {
+  it('provides its slots, the search registry with the Chats group, the sidebar layers, and the Search command, and removes everything on dispose', async () => {
     const { ctx, workspace, layout, sessionList } = await pluginContext(sessions([
       { id: 'a', title: 'Claim chart EP 1', updatedAt: 2 },
       { id: 'b', title: 'Claim chart EP 2', running: true, updatedAt: 1 },
@@ -227,9 +227,9 @@ describe('ui-flowleap-dashboard browser half', () => {
     ]))
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(workspace.provideLanding).toHaveBeenCalledExactlyOnceWith('flowleap-dashboard')
+    expect(workspace.provideLanding).not.toHaveBeenCalled()
     expect(ctx.slots.entries('main')).toHaveLength(3)
-    expect(ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['flowleap-dashboard', 'flowleap-chats', 'flowleap-agents'])
+    expect(ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).toEqual(['flowleap-chats', 'flowleap-agents'])
     expect(ctx.slots.entries('sidebar.actions')).toHaveLength(1)
     expect(ctx.slots.entries('sidebar.sections')).toHaveLength(1)
     expect(ctx.slots.entries('dashboard.metric')).toHaveLength(0)
@@ -272,11 +272,10 @@ describe('ui-flowleap-dashboard browser half', () => {
     expect(workspace.provideSearch).toHaveBeenCalledOnce()
     workspace.provideSearch.mock.calls[0]![0]()
     expect(page.hooks.focusRequests.getSnapshot()).toBe(2)
-    expect(ctx.locale.bind(NS)('panel.dashboard')).toBe(en['panel.dashboard'])
+    expect(ctx.locale.bind(NS)('panel.chats')).toBe(en['panel.chats'])
 
     await fiber.dispose()
     expect(workspace.provideSearch.mock.results[0]!.value).toHaveBeenCalledOnce()
-    expect(workspace.provideLanding.mock.results[0]!.value).toHaveBeenCalledOnce()
     expect(page.hooks.searches.getSnapshot()).toEqual([])
     for (const seat of ['main', 'sidebar.panellist', 'sidebar.actions', 'sidebar.sections'] as const) {
       expect(ctx.slots.entries(seat)).toEqual([])
@@ -386,7 +385,7 @@ describe('dashboard surfaces', () => {
     cleanup()
     expect(render(<SearchAction {...{ ...classes, wide: false, onSearch, t }} />).container.textContent).toBe('')
     cleanup()
-    for (const Icon of [DashboardIcon, ChatsIcon, AgentsIcon]) expect(render(<Icon size={16} />).container.querySelector('svg')).toBeTruthy()
+    for (const Icon of [ChatsIcon, AgentsIcon]) expect(render(<Icon size={16} />).container.querySelector('svg')).toBeTruthy()
     cleanup()
     const onOpenSession = vi.fn()
     const pinned = (wideColumn: boolean, ids: string[]) => {
@@ -424,7 +423,7 @@ describe('ui-flowleap-dashboard registrations', () => {
     activity.onOpenSession(SessionId('c3'))
     expect(workspace.openSession).toHaveBeenCalledWith('c3')
     expect(ctx.slots.entries('sidebar.panellist').map(entry => (entry.options.label as () => string)()))
-      .toEqual([en['panel.dashboard'], en['panel.chats'], en['panel.agents']])
+      .toEqual([en['panel.chats'], en['panel.agents']])
     const widgets = (ctx.slots.entries('main').find(entry => entry.options.key === 'flowleap-dashboard')!.inject!() as {
       hooks: { widgets: { getSnapshot: () => readonly { label: string }[] } }
     }).hooks.widgets

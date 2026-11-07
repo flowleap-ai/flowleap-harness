@@ -1,6 +1,6 @@
 /**
- * The small Needs review surfaces: the Sidebar row badge, the panel launcher glyph with its count, the Session header
- * Mark as done button, and the Automation tasks filter tab. Each reads the one shared reviews source.
+ * The small Needs review surfaces: the Sidebar row badge, the Session header Mark as done button, and the Automation
+ * tasks filter tab. Each reads the one shared reviews source.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -38,25 +38,6 @@ export function NeedsReviewBadge({ sessionId, useReviews, t }: NeedsReviewBadgeP
     <span className={css.badge} data-needs-review-badge="">
       <IconChecklistOutlineRegular size={14} aria-hidden="true" />
       <span className={css.visuallyHidden}>{t('badge.label')}</span>
-    </span>
-  )
-}
-
-/** Props of the panel launcher glyph. */
-export type NeedsReviewPanelIconProps = Pick<PropsRuntime<'sidebar.panellist'>, 'size'> & InjectFace<ReviewsInjected>
-
-/**
- * Render the launcher glyph with a dot while a chat is marked; the Sidebar owns the launcher's accessible name.
- * @param props - the requested glyph edge and the shared source.
- * @returns the glyph, with the dot when the count is above zero.
- */
-export function NeedsReviewPanelIcon({ size, useReviews }: NeedsReviewPanelIconProps) {
-  const count = useReviews(snapshot => snapshot.marked.length)
-  if (count === 0) return <IconChecklistOutlineRegular size={size} />
-  return (
-    <span className={css.panelIcon}>
-      <IconChecklistOutlineRegular size={size} />
-      <span className={css.count} data-needs-review-count={count} />
     </span>
   )
 }
