@@ -92,8 +92,9 @@ a.law-chip > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-terti
 .tbl .chev > svg { color: var(--dsw-alias-label-tertiary); }
 
 /* ---------- ⌘K: the search scope chip ---------- */
-.cmdk-i .sub { color: var(--dsw-alias-label-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.cmdk-i .who-cell { margin-left: auto; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+.cmdk-i:has(.sub) { height: auto; min-height: 44px; padding-block: 8px; align-items: flex-start; }
+.cmdk-i .sub { display: flex; flex-direction: column; flex: 1; min-width: 0; color: var(--dsw-alias-label-primary); }
+.cmdk-i .sub .cl { color: var(--dsw-alias-label-secondary); }
 .cmdk-i mark { background: var(--dsw-alias-state-warn-tertiary); color: var(--dsw-alias-label-primary); border-radius: var(--dsw-radius-xs); }
 
 /* ---------- the notice mail: a reading pane with the mail body ---------- */

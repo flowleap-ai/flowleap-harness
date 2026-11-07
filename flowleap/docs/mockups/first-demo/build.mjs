@@ -21,7 +21,6 @@ const M = {
   demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en' },
   overdue: { key: 'SF-2022-0024', title: 'Control device and method for switching input/output units of a control device', client: WAGO, app: 'EP 22 213 933.9' },
   art94: { key: 'SF-2024-0007', title: 'Contact assembly for connecting an electrical conductor and conductor connection terminal having such a contact assembly', client: WAGO, app: 'EP 24 166 597.5' },
-  scale: { key: 'SF-2023-0042', title: 'Scale', client: 'Renishaw plc', app: 'EP 23 755 468.8' },
   labels: { key: 'SF-2020-0031', title: 'Labelling materials for marking electrical installations and method for producing a labelling strip', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 20 706 232.4' },
   terminal: { key: 'SF-2026-0019', title: 'Terminal for electrical wire', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 21 810 318.2' },
 };
@@ -551,15 +550,15 @@ ${activity([
   ${mi('', t('Sign out', 'Abmelden'), 'signout')}
   <div class="acct-foot">${t('After you sign out, Microsoft asks which account signs in next.', 'Nach dem Abmelden fragt Microsoft, welches Konto sich als Nächstes anmeldet.')}</div>
 </div>`;
-  const hit = (m, mark, sub, on) => `<div class="cmdk-i${on ? ' on' : ''}" data-i="matters"${on ? ' data-act="open"' : ''}><span class="num">${m.key}</span><span class="sub">${m.title}</span><span class="who-cell">${sub.replace(mark, `<mark>${mark}</mark>`)}</span>${on ? `<span class="kbds">${caps('open')}</span>` : ''}</div>`;
+  const hit = (m, mark, sub, on) => `<div class="cmdk-i${on ? ' on' : ''}" data-i="matters"${on ? ' data-act="open"' : ''}><span class="num">${m.key}</span><span class="sub"><span>${m.title}</span><span class="cl">${sub.replace(mark, `<mark>${mark}</mark>`)}</span></span>${on ? `<span class="kbds">${caps('open')}</span>` : ''}</div>`;
   const search = `<div class="scrim" data-state="search" data-modal>
   <div class="cmdk menu">
     <span class="cmdk-ctx" data-i="matters">${t('Matters', 'Akten')}</span>
-    <div class="cmdk-in">Renis<span class="caret"></span></div>
+    <div class="cmdk-in">Phoenix<span class="caret"></span></div>
     <div class="cmdk-g">
       <div class="gh">${t('Matters · client', 'Akten · Mandant')}</div>
-      ${hit(M.demo, 'Renis', M.demo.client, true)}
-      ${hit(M.scale, 'Renis', M.scale.client, false)}
+      ${hit(M.terminal, 'Phoenix', M.terminal.client, true)}
+      ${hit(M.labels, 'Phoenix', M.labels.client, false)}
       <div class="gh">${t('Searches file number, title, client, application number and person. Only matters inside your walls show.', 'Sucht Aktenzeichen, Titel, Mandant, Anmeldenummer und Person. Nur Akten innerhalb Ihrer Wände erscheinen.')}</div>
     </div>
   </div>
