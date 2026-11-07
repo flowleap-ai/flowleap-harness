@@ -528,9 +528,10 @@
   min-height: 0;
 }
 
+/* The agent link starts at the value column's edge, as the other property values do. */
 .agentLink {
   gap: 8px;
-  margin-left: -8px;
+  padding-inline: 0;
 }
 
 .accepted {
