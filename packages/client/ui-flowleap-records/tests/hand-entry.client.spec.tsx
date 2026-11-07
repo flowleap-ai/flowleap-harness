@@ -25,7 +25,7 @@ const scan: IntakeDocument = {
   status: { machine: 'intake', state: 'unreadable' },
   code: null, documentDate: null, applicationNumber: null, fields: {}, proposed: null, candidates: 0, filed: null, officeEvent: null,
   mayDecide: { allowed: true },
-  entry: { codes: [{ code: 'EPO:R71(3)', form: '2004C', title: { en: 'Rule 71(3) communication', de: 'Mitteilung nach Regel 71(3)' } }] },
+  entry: { codes: [{ code: 'EPO:R71(3)', form: '2004C', title: { en: 'Rule 71(3) communication', de: 'Mitteilung nach Regel 71(3)' } }], read: null },
 }
 
 /**

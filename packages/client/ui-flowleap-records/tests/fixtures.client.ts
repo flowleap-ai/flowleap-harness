@@ -103,6 +103,7 @@ export const intakeRowsWire = LETTERS.map(([state, code, office, matter, matterC
   office,
   matter: matter === null ? null : ref(matter),
   matterCount,
+  route: 'forward',
   forwarder: sent(who === 'markus' ? OUTSIDE_WALL : PEOPLE[who]),
   receivedAt,
   since: receivedAt,
@@ -174,7 +175,7 @@ export const intakeDocumentWire = {
   machine: 'intake',
   state: 'match_proposed',
   since: '2026-11-04T14:16:00Z',
-  mail: { forwarder: PEOPLE.jonas, receivedAt: '2026-11-04T14:16:00Z', subject: 'Fwd: EPO communication' },
+  mail: { route: 'forward', forwarder: PEOPLE.jonas, receivedAt: '2026-11-04T14:16:00Z', subject: 'Fwd: EPO communication' },
   code: 'EPO:R71(3)',
   office: 'EPO',
   documentDate: '2026-10-30',
@@ -186,7 +187,7 @@ export const intakeDocumentWire = {
   officeEvent: null,
   matters: (Object.keys(MATTERS) as MatterKey[]).map(ref),
   mayDecide: { allowed: true },
-  readers: { code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } }, model: { result: reading, model: 'Claude Haiku 5.5' }, agree: true, differences: [] },
+  readers: { code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } }, model: { result: reading, model: 'Claude Haiku 5.5' }, agree: true, differences: [], outcome: 'agree' },
   // A letter stored before the intake sent page images, so the page shows the drawing.
   pageImages: [],
   marks: marksWire,
@@ -199,7 +200,7 @@ export const intakeDocumentWire = {
 }
 
 /** `GET me`: Dr. Anna Becker. */
-export const meWire = { person: PEOPLE.anna, admin: false, roles: ['attorney'], role: 'attorney' }
+export const meWire = { person: PEOPLE.anna, admin: false, roles: ['attorney'], role: 'attorney', firm: { timeZone: 'Europe/Berlin' } }
 
 /** `GET matters`. */
 export const mattersWire = {
@@ -334,6 +335,7 @@ export const deadlineWire = {
     model: { result: reading, model: 'Claude Haiku 5.5' },
     agree: true,
     differences: [],
+    outcome: 'agree',
   },
   pageImages: [],
   marks: [],

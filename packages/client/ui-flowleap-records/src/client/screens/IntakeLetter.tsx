@@ -109,12 +109,36 @@ function readNothing(letter: Pick<IntakeDocument, 'activity'>): boolean {
 
 /**
  * Whether reader 1 read the date or the application number of a letter whose office event it could not tell: the
- * record stores such a letter as `unreadable` and keeps the reading, so the hand entry starts from the read values.
+ * record sends such a letter to the hand entry with what reader 1 read (`entry.read`), so the entry starts from it.
  * @param letter - the letter.
- * @returns true when the card quotes the date or the application number.
+ * @returns true when the hand entry has read values.
  */
-function readValues(letter: Pick<IntakeDocument, 'fields'>): boolean {
-  return letter.fields.documentDate !== undefined || letter.fields.applicationNumber !== undefined
+function readValues(letter: Pick<IntakeDocument, 'entry'>): boolean {
+  return letter.entry?.read != null
+}
+
+/** The lede's sentence on the readings of a scan, by their outcome; none when FlowLeap read nothing. */
+const OUTCOME_LEDES: Readonly<Record<IntakeDocument['readers']['outcome'], FlowleapRecordsKey | null>> = {
+  'agree': 'intake.lede.readAgree',
+  'differ': 'intake.lede.readDiffer',
+  'one-reading': 'intake.lede.readOnce',
+  'no-reading': null,
+}
+
+/**
+ * The first sentences of the lede: who forwarded the letter, or, for a scan from the firm's scan mailbox (which names
+ * no forwarder), when it came and how FlowLeap's readings came out.
+ * @param ctx - the screen context.
+ * @param letter - the letter.
+ * @returns the sentences, or null for a forward from nobody that the os names.
+ */
+function arrivalOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
+  const { t } = ctx
+  const { mail, readers } = letter
+  if (mail.route === 'forward') return mail.forwarder === null ? null : t('item.forwarded', { person: personName(t, mail.forwarder) })
+  const outcome = OUTCOME_LEDES[readers.outcome]
+  const scan = t('intake.lede.scan', { time: listTimeText(ctx, mail.receivedAt) })
+  return outcome === null ? scan : `${scan} ${t(outcome)}`
 }
 
 /** One reason that FlowLeap gives for its reading or its proposal. */
@@ -456,11 +480,14 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const [pickerOpen, setPickerOpen] = useState(step === 'other-matter' && canPick)
   const [picked, setPickedState] = useState<MatterRef | null>(null)
   const dates = differingDates(letter)
+  // The hand entry starts from what reader 1 read (`entry.read`), with the matter that its application number names
+  // when the person may see it.
+  const entryRead = letter.entry?.read ?? null
   const [hand, setHandState] = useState<HandValues>({
-    fileNumber: '',
-    applicationNumber: letter.applicationNumber ?? letter.fields.applicationNumber?.value ?? '',
+    fileNumber: letter.matters.find(matter => matter.fileNumber === entryRead?.fileNumber)?.fileNumber ?? '',
+    applicationNumber: letter.applicationNumber ?? entryRead?.applicationNumber ?? '',
     code: letter.entry?.codes[0]?.code ?? '',
-    documentDate: letter.documentDate ?? isoDateOf(letter.fields.documentDate?.value) ?? '',
+    documentDate: letter.documentDate ?? entryRead?.documentDate ?? '',
   })
   const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
   const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
@@ -699,7 +726,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       )
 
   const lede = ledeOf(ctx, letter)
-  const forwarder = letter.mail.forwarder
+  const arrival = arrivalOf(ctx, letter)
   const proposed = letter.proposed
   const unreadable = letter.status.machine === 'intake' && letter.status.state === 'unreadable'
   // A scan filed by hand has no reading: the values on the card are the entry, which Activity names.
@@ -718,8 +745,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           title={title}
           lede={(
             <>
-              {forwarder !== null && t('item.forwarded', { person: personName(t, forwarder) })}
-              {lede !== null && ` ${lede}`}
+              {[arrival, lede].filter(part => part !== null).join(' ')}
             </>
           )}
         />

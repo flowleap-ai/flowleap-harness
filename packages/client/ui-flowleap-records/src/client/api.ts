@@ -122,22 +122,43 @@ const span = obj({ page: num, start: num, end: num, quote: str, excerpt: nullabl
 /** An exact span of a document: the page, the offsets in that page's text, the quote, and the text around it. */
 export type Span = Parsed<typeof span>
 
-/** Who did something: a person, or FlowLeap, the AI mailbox or the attorney's agent (its person is the event's `for`). */
+/**
+ * Who did something: a person, or FlowLeap, the AI mailbox, the scan mailbox (the scan of a letter) or the attorney's
+ * agent (its person is the event's `for`).
+ */
 export type Actor =
   | { readonly kind: 'person'; readonly person: Person }
-  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'agent' }
+  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'scan-mailbox' | 'agent' }
 
 const actor: Parse<Actor> = (value, path) => {
   const source = objectAt(value, path)
   const kind = oneOf(['person', 'system'])(source['kind'], `${path}.kind`)
   return kind === 'person'
     ? { kind, person: person(source['person'], `${path}.person`) }
-    : { kind, name: oneOf(['flowleap', 'mailbox', 'agent'])(source['name'], `${path}.name`) }
+    : { kind, name: oneOf(['flowleap', 'mailbox', 'scan-mailbox', 'agent'])(source['name'], `${path}.name`) }
 }
 
-const activityEvent = obj({ seq: num, at: isoTime, type: str, actor, for: nullable(person), detail: anyObject })
-/** One event of a record. `seq` and `type` show only in Audit; the views word the event from `type` and `detail`. */
-export type ActivityEvent = Parsed<typeof activityEvent>
+const eventWords = obj({ en: str, de: str })
+const activityEvent: Parse<ActivityEvent> = (value, path) => {
+  const source = objectAt(value, path)
+  const parsed = obj({ seq: num, at: isoTime, type: str, actor, for: nullable(person), detail: anyObject })(value, path)
+  return source['words'] === undefined ? parsed : { ...parsed, words: nullable(eventWords)(source['words'], `${path}.words`) }
+}
+/** One event of a record. `seq` and `type` show only in Audit. */
+export interface ActivityEvent {
+  readonly seq: number
+  readonly at: IsoTime
+  readonly type: string
+  readonly actor: Actor
+  readonly for: Person | null
+  readonly detail: Readonly<Record<string, unknown>>
+  /**
+   * What the actor did, in the os's English and German words; `null` for an event that only Audit lists (task and
+   * outbox steps, the seed load). Absent from an os that sends no words: the views word the event from `type` and
+   * `detail`.
+   */
+  readonly words?: { readonly en: string; readonly de: string } | null
+}
 const activity = arrayOf(activityEvent)
 
 /** Why a person may not decide. */
@@ -198,7 +219,9 @@ export type FieldValue = Parsed<typeof fieldValue>
 export const FIRM_ROLES = ['attorney', 'partner', 'formalities', 'administrator'] as const
 /** One firm role. */
 export type FirmRole = (typeof FIRM_ROLES)[number]
-const me = obj({ person: member, admin: bool, roles: arrayOf(oneOf(FIRM_ROLES)), role: nullable(oneOf(FIRM_ROLES)) })
+const me = obj({
+  person: member, admin: bool, roles: arrayOf(oneOf(FIRM_ROLES)), role: nullable(oneOf(FIRM_ROLES)), firm: obj({ timeZone: str }),
+})
 /** The signed-in person, with the roles and the one role that the account menu shows (null for none). */
 export type Me = Parsed<typeof me>
 
@@ -308,6 +331,8 @@ const readerSource: Parse<ReaderSource> = (value, path) => {
   const kind = oneOf(['text-layer', 'ocr'])(objectAt(value, path)['kind'], `${path}.kind`)
   return kind === 'text-layer' ? { kind } : { kind, ...obj({ provider: str, model: str })(value, path) }
 }
+/** How the readings of a letter came out: both agree, they differ, one reading only, or none. */
+export const READING_OUTCOMES = ['agree', 'differ', 'one-reading', 'no-reading'] as const
 /** The ways in which the two readings of a letter differ. */
 export const READING_DIFFERENCES = ['code', 'documentDate', 'applicationNumber', 'no-code-result', 'no-model-result'] as const
 const readers = obj({
@@ -315,6 +340,7 @@ const readers = obj({
   model: nullable(obj({ result: nullable(reading), model: str })),
   agree: nullable(bool),
   differences: nullable(arrayOf(oneOf(READING_DIFFERENCES))),
+  outcome: oneOf(READING_OUTCOMES),
 })
 /**
  * The two readings of a letter: reader 1 from the text (with its spans and where it read the text), reader 2 from the
@@ -353,6 +379,11 @@ export type DeadlineDetail = Parsed<typeof deadlineDetail>
  */
 export type IntakeView = 'waiting' | 'filed-today' | 'not-relevant'
 
+/** How a letter came: from the firm's scan mailbox, or forwarded by a person, who gets the reply. */
+export const MAIL_ROUTES = ['scan-mailbox', 'forward'] as const
+/** One route of `MAIL_ROUTES`. */
+export type MailRoute = (typeof MAIL_ROUTES)[number]
+
 const intakeRow: Parse<IntakeRow> = (value, path) => {
   const source = objectAt(value, path)
   return {
@@ -362,6 +393,7 @@ const intakeRow: Parse<IntakeRow> = (value, path) => {
     office: nullable(str)(source['office'], `${path}.office`),
     matter: nullable(matterRef)(source['matter'], `${path}.matter`),
     matterCount: num(source['matterCount'], `${path}.matterCount`),
+    route: oneOf(MAIL_ROUTES)(source['route'], `${path}.route`),
     forwarder: nullable(person)(source['forwarder'], `${path}.forwarder`),
     receivedAt: isoTime(source['receivedAt'], `${path}.receivedAt`),
     since: isoTime(source['since'], `${path}.since`),
@@ -377,6 +409,8 @@ export interface IntakeRow {
   readonly matter: MatterRef | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
+  /** How the letter came: from the firm's scan mailbox (no forwarder), or forwarded by a person. */
+  readonly route: MailRoute
   readonly forwarder: Person | null
   readonly receivedAt: IsoTime
   /** When the letter entered its current state. */
@@ -392,15 +426,22 @@ export type IntakeList = Parsed<typeof intakeList>
 
 // GET intake/documents/<sha256>
 
-const entry = obj({ codes: arrayOf(obj({ code: str, form: str, title: obj({ en: str, de: str }) })) })
-/** The office events that a person may enter by hand for a scan with no reading, each with its title in English and German. */
+const entry = obj({
+  codes: arrayOf(obj({ code: str, form: str, title: obj({ en: str, de: str }) })),
+  read: nullable(obj({ documentDate: nullable(isoDate), applicationNumber: nullable(str), fileNumber: nullable(ids.fileNumber) })),
+})
+/**
+ * The hand entry of a letter with no office event code: the office events that a person may enter, each with its title
+ * in English and German, and what reader 1 read of the letter (`read`, with the matter that its application number
+ * names), or null when it read nothing.
+ */
 export type HandEntry = Parsed<typeof entry>
 
 const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
     document: ids.document, fileName: str, mediaType: str, pages: nullable(num), since: isoTime,
-    mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
+    mail: obj({ route: oneOf(MAIL_ROUTES), forwarder: nullable(person), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
     proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['application-number', 'reference']) })),
@@ -426,7 +467,7 @@ export interface IntakeDocument {
   readonly pages: number | null
   readonly status: QueueStatus
   readonly since: IsoTime
-  readonly mail: { readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
+  readonly mail: { readonly route: MailRoute; readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
   readonly code: string | null
   readonly office: string | null
   readonly documentDate: IsoDate | null

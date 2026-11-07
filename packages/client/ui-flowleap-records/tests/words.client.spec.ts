@@ -101,6 +101,19 @@ describe('words of codes and events', () => {
     expect(JSON.stringify(lines)).not.toContain(OUTSIDE_WALL.name)
   })
 
+  it('takes the os words in English and German, keeps its own words in the other languages, and hides an audit-only event', () => {
+    const base = { ...fixtures.ticket.activity[0]!, for: null }
+    const events = [
+      { ...base, seq: 1, type: 'document/filed', words: { en: 'filed the letter on SF-2023-0045', de: 'hat das Schreiben in SF-2023-0045 abgelegt' } },
+      { ...base, seq: 2, type: 'task/opened', words: null },
+      { ...base, seq: 3, type: 'document/stored', actor: { kind: 'system' as const, name: 'scan-mailbox' as const }, words: { en: 'delivered a scan of 4 pages', de: 'hat einen Scan mit 4 Seiten geliefert' } },
+    ]
+    const text = (line: ReturnType<typeof activityLines>[number]) => `${line.actor.kind === 'person' ? line.actor.person.name : line.actor.name} ${line.text}`
+    expect(activityLines(words, events).map(text)).toEqual(['FlowLeap filed the letter on SF-2023-0045', 'Scan mailbox delivered a scan of 4 pages'])
+    expect(activityLines({ ...words, t: makeTranslate(de), locale: 'de' }, events).map(line => line.text)).toEqual(['hat das Schreiben in SF-2023-0045 abgelegt', 'hat einen Scan mit 4 Seiten geliefert'])
+    expect(activityLines({ ...words, t: makeTranslate(zh), locale: 'zh' }, events)[0]!.text).toBe(zh['event.intakeFiled'])
+  })
+
   it('names each draft and mail of Activity by its kind, from the event or from the event of the same proposal or mail', () => {
     const base = fixtures.ticket.activity[0]!
     const event = (seq: number, type: string, detail: Record<string, unknown>) => ({ ...base, seq, type, for: null, detail })

@@ -708,6 +708,11 @@ export const en = {
   'item.sinceYou': 'Waits for you since {time}',
   'intake.lede.noCode': 'FlowLeap read the date and the application number, but not which office event this letter is. Read the page image and enter it.',
   'deadline.waitsYou': 'Waits for you',
+  'actor.scanMailbox': 'Scan mailbox',
+  'intake.lede.scan': 'The scan came from the scan mailbox at {time}.',
+  'intake.lede.readAgree': 'FlowLeap read it twice, and both readings agree.',
+  'intake.lede.readDiffer': 'FlowLeap read it twice, and the readings differ.',
+  'intake.lede.readOnce': 'FlowLeap read it once.',
 } as const
 
 /** Key domain of the namespace. */
@@ -1414,6 +1419,11 @@ export const de = {
   'item.sinceYou': 'Wartet seit {time} auf Sie',
   'intake.lede.noCode': 'FlowLeap hat das Datum und die Anmeldenummer gelesen, aber nicht, welches Amtsereignis dieses Schreiben ist. Lesen Sie das Seitenbild und geben Sie es ein.',
   'deadline.waitsYou': 'Wartet auf Sie',
+  'actor.scanMailbox': 'Scan-Postfach',
+  'intake.lede.scan': 'Der Scan kam um {time} aus dem Scan-Postfach.',
+  'intake.lede.readAgree': 'FlowLeap hat ihn zweimal ausgelesen, beide Auslesungen stimmen überein.',
+  'intake.lede.readDiffer': 'FlowLeap hat ihn zweimal ausgelesen, die Auslesungen weichen ab.',
+  'intake.lede.readOnce': 'FlowLeap hat ihn einmal ausgelesen.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2117,6 +2127,11 @@ export const es = {
   'item.sinceYou': 'Le espera desde {time}',
   'intake.lede.noCode': 'FlowLeap leyó la fecha y el número de solicitud, pero no qué evento de la oficina es esta carta. Lea la imagen de la página e introdúzcalo.',
   'deadline.waitsYou': 'Le espera',
+  'actor.scanMailbox': 'Buzón de escaneo',
+  'intake.lede.scan': 'El escaneo llegó del buzón de escaneo a las {time}.',
+  'intake.lede.readAgree': 'FlowLeap lo leyó dos veces y ambas lecturas coinciden.',
+  'intake.lede.readDiffer': 'FlowLeap lo leyó dos veces y las lecturas difieren.',
+  'intake.lede.readOnce': 'FlowLeap lo leyó una vez.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2820,6 +2835,11 @@ export const fr = {
   'item.sinceYou': 'Vous attend depuis {time}',
   'intake.lede.noCode': 'FlowLeap a lu la date et le numéro de demande, mais pas l’événement de l’office de cette lettre. Lisez l’image de la page et saisissez-le.',
   'deadline.waitsYou': 'Vous attend',
+  'actor.scanMailbox': 'Boîte de numérisation',
+  'intake.lede.scan': 'Le scan est arrivé de la boîte de numérisation à {time}.',
+  'intake.lede.readAgree': 'FlowLeap l’a lu deux fois, et les deux lectures concordent.',
+  'intake.lede.readDiffer': 'FlowLeap l’a lu deux fois, et les lectures diffèrent.',
+  'intake.lede.readOnce': 'FlowLeap l’a lu une fois.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3523,6 +3543,11 @@ export const ja = {
   'item.sinceYou': '{time} からあなたを待っています',
   'intake.lede.noCode': 'FlowLeap は日付と出願番号を読み取りましたが、この書簡がどの庁の手続かは読み取れませんでした。ページ画像を読んで入力してください。',
   'deadline.waitsYou': 'あなたを待っています',
+  'actor.scanMailbox': 'スキャン用メールボックス',
+  'intake.lede.scan': 'スキャンは {time} にスキャン用メールボックスから届きました。',
+  'intake.lede.readAgree': 'FlowLeap は2回読み取り、両方の読み取りが一致しています。',
+  'intake.lede.readDiffer': 'FlowLeap は2回読み取りましたが、読み取り結果が異なります。',
+  'intake.lede.readOnce': 'FlowLeap は1回読み取りました。',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4226,6 +4251,11 @@ export const pt = {
   'item.sinceYou': 'Aguarda você desde {time}',
   'intake.lede.noCode': 'O FlowLeap leu a data e o número do pedido, mas não qual evento do escritório é esta carta. Leia a imagem da página e insira-o.',
   'deadline.waitsYou': 'Aguarda você',
+  'actor.scanMailbox': 'Caixa de digitalização',
+  'intake.lede.scan': 'A digitalização chegou da caixa de digitalização às {time}.',
+  'intake.lede.readAgree': 'O FlowLeap leu duas vezes, e as duas leituras coincidem.',
+  'intake.lede.readDiffer': 'O FlowLeap leu duas vezes, e as leituras diferem.',
+  'intake.lede.readOnce': 'O FlowLeap leu uma vez.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -4929,6 +4959,11 @@ export const ru = {
   'item.sinceYou': 'Ждёт вас с {time}',
   'intake.lede.noCode': 'FlowLeap прочитал дату и номер заявки, но не определил, какое событие ведомства означает это письмо. Прочитайте изображение страницы и введите его.',
   'deadline.waitsYou': 'Ждёт вас',
+  'actor.scanMailbox': 'Почтовый ящик сканов',
+  'intake.lede.scan': 'Скан пришёл из почтового ящика сканов в {time}.',
+  'intake.lede.readAgree': 'FlowLeap прочитал его дважды, и оба прочтения совпадают.',
+  'intake.lede.readDiffer': 'FlowLeap прочитал его дважды, и прочтения расходятся.',
+  'intake.lede.readOnce': 'FlowLeap прочитал его один раз.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5632,4 +5667,9 @@ export const zh = {
   'item.sinceYou': '自 {time} 起等待您',
   'intake.lede.noCode': 'FlowLeap 读取了日期和申请号，但未能判断此信函属于哪一官方事件。请阅读页面图像并录入。',
   'deadline.waitsYou': '等待您',
+  'actor.scanMailbox': '扫描邮箱',
+  'intake.lede.scan': '扫描件于 {time} 来自扫描邮箱。',
+  'intake.lede.readAgree': 'FlowLeap 读取了两次，两次读取一致。',
+  'intake.lede.readDiffer': 'FlowLeap 读取了两次，两次读取不一致。',
+  'intake.lede.readOnce': 'FlowLeap 读取了一次。',
 } satisfies Record<FlowleapRecordsKey, string>

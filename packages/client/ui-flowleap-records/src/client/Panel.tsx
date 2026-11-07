@@ -139,7 +139,8 @@ function PanelView(props: PanelViewProps) {
   // The work page opens with its properties panel; Drafted by opens the agent panel (mockup 4-review-work).
   const [dock, setDock] = useState<DockView>('closed')
   const ctx: ScreenContext = {
-    t, locale, now: Date.now(), me,
+    // Times and days show in the firm's time zone, as the notices give them (T4).
+    t, locale, now: Date.now(), me, ...(me === null ? {} : { timeZone: me.firm.timeZone }),
     keycaps: keycapsFrom(catalog, fixedCatalog, { Space: t('keycap.space') }),
     navigate: props.navigate,
     retry: props.retry,

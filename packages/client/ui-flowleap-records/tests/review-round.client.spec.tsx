@@ -29,7 +29,7 @@ async function mountLetter(letter: IntakeDocument) {
   mounted = await mountPanel(api, { view: 'letter', document: letter.document }, 'en', 'my-work')
 }
 
-const oneReading = { ...fixtures.intakeDocument.readers, model: null, agree: null, differences: null }
+const oneReading = { ...fixtures.intakeDocument.readers, model: null, agree: null, differences: null, outcome: 'one-reading' as const }
 
 describe('the readings of a letter', () => {
   it('shows one reading as one column, and says so in the heading', async () => {
@@ -72,13 +72,17 @@ describe('a scan whose office event reader 1 could not tell, with its date and a
       fields: read,
       readers: { ...oneReading, code: { ...readers.code!, result: null, fields: read } },
       mayDecide: { allowed: true },
-      entry: { codes: [{ code: 'EPO:R71(3)', form: '2004C', title: { en: 'Rule 71(3) communication', de: 'Mitteilung nach Regel 71(3)' } }] },
+      entry: {
+        codes: [{ code: 'EPO:R71(3)', form: '2004C', title: { en: 'Rule 71(3) communication', de: 'Mitteilung nach Regel 71(3)' } }],
+        read: { documentDate: '2026-10-30' as never, applicationNumber: '24 123 456.7', fileNumber: 'FL-2026-0001' as never },
+      },
     })
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Letter of 30 Oct 2026')
     expect(document.body.textContent).toContain('FlowLeap read the date and the application number, but not which office event this letter is.')
     expect(screen.getByRole('table', { name: 'What FlowLeap read' }).textContent).toContain('Fri, 30 Oct 202630.10.2026p. 1')
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Application' }).value).toBe('24 123 456.7')
     expect(document.querySelector<HTMLInputElement>('input[name="documentDate"]')!.value).toBe('2026-10-30')
+    expect(document.querySelector<HTMLSelectElement>('select[name="fileNumber"]')!.value).toBe('FL-2026-0001')
   })
 })
 
@@ -164,5 +168,30 @@ describe('the accepted part of a work decision', () => {
     fireEvent.click(within(part).getByRole('button', { name: /Accept/u }))
     await flush()
     expect(screen.getByRole('region', { name: 'Your decision' }).textContent).toContain('Accepted')
+  })
+})
+
+describe('a scan from the firm\'s scan mailbox', () => {
+  it('says when the scan came and how the readings came out, and names no forwarder', async () => {
+    const mail = { ...fixtures.intakeDocument.mail, route: 'scan-mailbox' as const, forwarder: null }
+    await mountLetter({ ...fixtures.intakeDocument, mail })
+    const lede = /The scan came from the scan mailbox at \d\d:\d\d\. FlowLeap read it twice, and both readings agree\./u
+    expect(document.body.textContent).toMatch(lede)
+    expect(document.body.textContent).not.toContain('forwarded this letter')
+    cleanup()
+    mounted?.dispose()
+    await mountLetter({ ...fixtures.intakeDocument, mail, readers: oneReading })
+    expect(document.body.textContent).toMatch(/at \d\d:\d\d\. FlowLeap read it once\./u)
+  })
+})
+
+describe('the firm\'s time zone', () => {
+  it('shows the times of a letter in the firm\'s time zone, not the browser\'s', async () => {
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'me').mockResolvedValue({ ok: true, value: { ...fixtures.me, firm: { timeZone: 'America/New_York' } } })
+    const letter = { ...fixtures.intakeDocument, since: '2026-11-04T14:16:00Z' as never }
+    vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter })
+    mounted = await mountPanel(api, { view: 'letter', document: letter.document }, 'en', 'my-work')
+    expect(screen.getByText('Waits for you since 09:16')).toBeTruthy()
   })
 })

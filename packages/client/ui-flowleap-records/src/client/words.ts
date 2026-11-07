@@ -6,7 +6,7 @@
 
 import { createElement, type ReactNode } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular, type AvatarPerson,
+  IconAgentPresetOutlineRegular, IconDeliverDocRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular, type AvatarPerson,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ActivityEvent, Actor, IsoDate, IsoTime, Person, QueueStatus } from './api.ts'
 import { dueDay, listTime } from './format.ts'
@@ -190,12 +190,13 @@ export function avatarOf(t: Translate, person: Person, label?: string): AvatarPe
 }
 
 /** The name key of each system actor. */
-const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent' } as const
+const SYSTEM_NAMES = { 'flowleap': 'actor.flowleap', 'mailbox': 'actor.mailbox', 'scan-mailbox': 'actor.scanMailbox', 'agent': 'actor.agent' } as const
 
 const SYSTEM_ICONS = {
-  flowleap: IconEnhanceOutlineRegular,
-  mailbox: IconPaperPlaneOutlineRegular,
-  agent: IconAgentPresetOutlineRegular,
+  'flowleap': IconEnhanceOutlineRegular,
+  'mailbox': IconPaperPlaneOutlineRegular,
+  'scan-mailbox': IconDeliverDocRegular,
+  'agent': IconAgentPresetOutlineRegular,
 } as const
 
 /**
@@ -314,15 +315,20 @@ export function dueText(words: WordContext, due: IsoDate): string {
  */
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
   const objects = objectWords(words.t, events)
-  // An event that the views do not word ("changed the record") is noise in Activity; Audit lists it.
-  return events.filter(event => eventText(event) !== 'event.other').map((event) => {
+  // An event that the os marks as audit only (`words: null`: task and outbox steps, the seed load), or that the views
+  // do not word ("changed the record"), is noise in Activity; Audit lists it.
+  const shown = (event: ActivityEvent) => event.words === undefined ? eventText(event) !== 'event.other' : event.words !== null
+  return events.filter(shown).map((event) => {
     const params = { person: event.for === null ? '' : personInText(words.t, event.for), ...objects(event) }
     const text = eventText(event)
     const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
       ? { kind: 'person' as const, person: avatarOf(words.t, event.actor.person) }
       : { kind: 'system' as const, name: actorName(words.t, event.actor), icon: systemIcon(event.actor.name) }
-    return { key: String(event.seq), actor, text: words.t(key, params), time: listTimeText(words, event.at) }
+    // The os words the event in English and German with its facts ("filed the letter on SF-2023-0045"); the other
+    // languages take the views' words.
+    const os = event.words === undefined || event.words === null ? null : words.locale === 'de' ? event.words.de : words.locale === 'en' ? event.words.en : null
+    return { key: String(event.seq), actor, text: os ?? words.t(key, params), time: listTimeText(words, event.at) }
   })
 }
 
