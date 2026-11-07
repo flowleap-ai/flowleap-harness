@@ -192,7 +192,7 @@ const finishSchema = zod.object({
   outbox: zod.object({
     id: zod.string().min(1).transform(value => brandString<OutboxId>(value)),
     state: zod.enum(['queued', 'refused']),
-  }),
+  }).nullable(),
 })
 
 const refusalSchema = zod.object({ error: zod.string(), detail: zod.string().optional() })

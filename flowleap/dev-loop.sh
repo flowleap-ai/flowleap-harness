@@ -192,7 +192,7 @@ start_mailbox() {
     say "seed letters: reader 1 reads each of the 18 scans with Mistral OCR (about USD 0.30); log $LOGS/mailbox.log"
   fi
   # Each start appends to the log; only the lines of this start count.
-  local from; from=$(($(wc -l < "$LOGS/mailbox.log" 2> /dev/null || echo 0) + 1))
+  local from; from=$(($({ wc -l < "$LOGS/mailbox.log"; } 2> /dev/null || echo 0) + 1))
   this() { tail -n "+$from" "$LOGS/mailbox.log"; }
   (exec node "$OS/acceptance/seed-letters.mjs" "${args[@]}" >> "$LOGS/mailbox.log" 2>&1 & echo $! > "$RUN/mailbox.pid")
   for _ in $(seq 1 1200); do

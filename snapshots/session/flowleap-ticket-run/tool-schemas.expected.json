@@ -536,7 +536,7 @@
     },
     {
       "name": "record_finish_run",
-      "description": "End this Ticket run after you proposed its letters. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. The Firm Record then queues one reply to firm addresses only, the person who forwarded the office letter and the routed attorney, with the proposed letters attached as drafts. Nothing goes to the client, and you send nothing.",
+      "description": "End this Ticket run after you proposed its letters. Give the deadline summary: the id and state of the deadline of the office event as record_read shows it, and the recordSeq of that read; give none-yet for both id and state when the record has no deadline for the event. You do not compute or change a date: the attorney checks the deadline and decides each proposal in the Records app. When a person forwarded the office letter, the Firm Record then queues one reply to firm addresses only, that person and the routed attorney, with the proposed letters attached as drafts; a letter from the scan mailbox gets no reply. Nothing goes to the client, and you send nothing.",
       "parameters": {
         "type": "object",
         "properties": {

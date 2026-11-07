@@ -8943,7 +8943,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RunFinishReceipt',
-    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    };\n}',
+    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    } | null;\n}',
   },
   {
     name: 'RunnerFailureRule',

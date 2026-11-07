@@ -236,6 +236,12 @@ const REPORT: ReportProposal = {
 const FINISH = { session: SESSION, deadline: { id: brandString<DeadlineId>('d-1'), state: 'proposed' as const, seq: brandNumber<RecordSeq>(7) } }
 
 describe('flowleapRecord run commands over HTTP', () => {
+  it('takes a finish with no reply: a letter from the scan mailbox has no forwarder', async () => {
+    const double = await record(json(200, { recordSeq: 13, outbox: null }))
+    const service = await provider({ url: double.url, key: TOKEN })
+    expect(await service.finishRun(TICKET, FINISH, new AbortController().signal)).toEqual({ recordSeq: 13, outbox: null })
+  })
+
   it('posts run-started, the report, and finish with the token, a JSON body, and a stable idempotency key', async () => {
     const answers = [
       [200, { recordSeq: 8 }],

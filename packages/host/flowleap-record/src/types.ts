@@ -412,8 +412,11 @@ export interface ReportReceipt {
  */
 export interface RunFinishReceipt {
   readonly recordSeq: RecordSeq
-  /** The reply's outbox item: `queued` for the mailbox, or `refused` because a recipient is not a firm address. */
-  readonly outbox: { readonly id: OutboxId; readonly state: 'queued' | 'refused' }
+  /**
+   * The reply's outbox item: `queued` for the mailbox, or `refused` because a recipient is not a firm address; null when
+   * no person forwarded the office letter (it came from the scan mailbox), so there is no reply.
+   */
+  readonly outbox: { readonly id: OutboxId; readonly state: 'queued' | 'refused' } | null
 }
 
 /** Why the Firm Record did not take a run command. */

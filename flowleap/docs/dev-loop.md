@@ -80,10 +80,10 @@ In addition to the normal loop, `--demo` does these steps:
 
 The demo starts as `tobias` (the formalities person of SF-2023-0045). The path:
 
-1. As `tobias`, open My work: **File this letter** for the R71(3) letter of SF-2023-0045 (OCR proposes the matter). File it.
-2. The reader loop reads the filed letter. As `tobias`, **Check the office event** and record it, then **Confirm the deadline** (2027-01-29).
-3. The Ticket wakes Dr. Anna Becker's runtime. The run proposes the draft reply to the EPO, then the client report, and finishes (a few minutes).
-4. `as anna`: My work has **Review the work**, with both drafts.
+1. As `tobias`, open My work: **File this letter** for the R71(3) letter of SF-2023-0045 (OCR reads the application number, so the record proposes the matter). File it.
+2. Within seconds the reader loop reads the filed letter with reader 2. When the two readings agree, the engine proposes the deadline, and Tobias has **Confirm the deadline** (Fri, 29 Jan 2027). When they differ, Tobias first has **Check the office event**. Confirm it.
+3. The Ticket wakes Dr. Anna Becker's runtime. The starter starts it (about 35 s), and the run proposes the draft reply to the EPO on `epo-reply.docx`, then the client report on `client-report.docx`, and finishes (about 3 minutes).
+4. **Sign out** and choose Dr. Anna Becker (or `dev-loop.sh as anna`): My work has **Review the work**, with both drafts.
 
 A person with a Ticket runtime keeps that runtime's record token, because the record finds a token in one person's file only. So after `as anna` the Records screens work, but the chat agent of the app cannot read the record as Anna. `restart` and `down` stop the Ticket runtimes and remove `starter/runtimes/*.json`; the next wake starts them again from source.
 
@@ -110,6 +110,8 @@ On the founder's Mac (M1 Pro, 32 GB), 2026-11-06:
 | A Host edit: `restart` (2 samples) | 7.5 s, 8.4 s |
 | `as <seed handle>` | under 1 s |
 | `probe` | 4 s |
+| `up --demo` with a new run dir, after the build: the record, the setup, the 18 letters with OCR, the reader loop (2026-11-08) | 246 s for the letters and the reader loop |
+| The demo after Tobias confirms: the wake, the Ticket runtime, the run of Anna (OpenRouter `anthropic/claude-haiku-5.5`) | about 3 minutes |
 
 The watchers poll because native watching on macOS keeps one file descriptor open for each watched file: one loop held about 120,000, and the Mac's limit for all processes is 245,760. Polling costs about half of one CPU core while the loop waits.
 
