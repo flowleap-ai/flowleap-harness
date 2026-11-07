@@ -397,16 +397,18 @@
     - id: flowleap-record
       name: '@deepseek-ai/dsh-flowleap-record'
 
-    # The Matters row in the sidebar (German Akten) and the Matters page: the
-    # Records pages of the Firm Record (matter list, matter, confirm), served
-    # by the firm proxy at the same origin under recordsHref, embedded in a
-    # frame with the client's theme; a confirm goes from the page to the Firm
-    # Record, never through the runtime. Without the proxy, as in a local run,
-    # the page says that the firm has no matters yet.
+    # My work (the first screen and the landing page) and the Matters row in
+    # the sidebar (German Akten): the IPMS views over the Records API of the
+    # Firm Record, which the firm proxy serves at the same origin under
+    # recordsHref; a decision goes from the view to the Firm Record, never
+    # through the runtime. The account button at the sidebar foot signs out
+    # through the firm proxy's signOutHref. Without the proxy, as in a local
+    # run, the views say that FlowLeap could not load them.
     - id: ui-flowleap-records
       name: '@deepseek-ai/dsh-client-ui-flowleap-records'
       config:
         recordsHref: records/
+        signOutHref: /oauth2/sign_out
 
     # The Firm admin row in the sidebar (flowleap-harness#112), shown only to a
     # firm administrator: the starter of flowleap-os signs an X-Flowleap-Admin
@@ -426,11 +428,13 @@
     - id: ui-flowleap-routines
       name: '@deepseek-ai/dsh-client-ui-flowleap-routines'
 
-    # Work pages (flowleap-harness#81), look-first stage: the Office actions
-    # launcher and the office action board with one sample analysis. No
-    # Remote, model, or connector call; changes stay in the browser.
+    # Work pages (flowleap-harness#81): the Office actions launcher and the
+    # office action board. Off in the first demo, whose Sidebar has no Office
+    # actions row and no other path to the board; a deployment or test
+    # enables the row with `disabled: false`.
     - id: ui-flowleap-work-pages
       name: '@deepseek-ai/dsh-client-ui-flowleap-work-pages'
+      disabled: true
 
     # The agent builder (#55): one agent preset for each folder below
     # $DSH_HOME/agents, built on the patent preset with the agent's

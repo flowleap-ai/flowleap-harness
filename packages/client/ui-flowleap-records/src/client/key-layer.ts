@@ -139,14 +139,37 @@ export class KeyActRegistry extends Sources<KeyActsSource> {
   }
 }
 
-/** The open items of the mounted screens for ⌘K; the latest open item wins. */
+/**
+ * The open items of the mounted screens for ⌘K; the latest open item wins. An item offered for the next opening (Find
+ * a matter from `/`) comes first, once; with no open item, the fallback (Find a matter) shows.
+ */
 export class CommandItemRegistry extends Sources<Current<CommandMenuItem | null>> {
+  #offered: CommandMenuItem | null = null
+
   /**
-   * The open item that ⌘K shows: the latest one of the mounted screens.
-   * @returns the item, or null when no mounted screen has one.
+   * @param fallback - the item of a view with no open item.
+   */
+  constructor(private readonly fallback: () => CommandMenuItem | null = () => null) {
+    super()
+  }
+
+  /**
+   * Show an item at the next opening of the command menu instead of the open item.
+   * @param item - the item, or null.
+   */
+  offer(item: CommandMenuItem | null): void {
+    this.#offered = item
+  }
+
+  /**
+   * The item that the command menu shows: an offered item once, else the latest open item of the mounted screens,
+   * else the fallback.
+   * @returns the item, or null when there is none.
    */
   item(): CommandMenuItem | null {
-    return this.latest(source => source.current ?? undefined) ?? null
+    const offered = this.#offered
+    this.#offered = null
+    return offered ?? this.latest(source => source.current ?? undefined) ?? this.fallback()
   }
 }
 
@@ -212,6 +235,7 @@ const LAYER: Readonly<Record<Exclude<CommandName, 'search' | 'record' | 'open'>,
   next: { code: 'KeyJ', modifiers: [] },
   previous: { code: 'KeyK', modifiers: [] },
   select: { code: 'KeyX', modifiers: [] },
+  find: { code: 'Slash', modifiers: [] },
 }
 
 /**

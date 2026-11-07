@@ -17,7 +17,7 @@ import type { ActivityLine, AuditRow } from './parts/Activity.tsx'
 export type Translate = (key: FlowleapRecordsKey, params?: Record<string, unknown>) => string
 
 /** The title key of each office event code that the views word. */
-const CODE_TITLES: Readonly<Record<string, FlowleapRecordsKey>> = {
+export const CODE_TITLES: Readonly<Record<string, FlowleapRecordsKey>> = {
   'EPO:R71(3)': 'code.epoR71',
   'EPO:ART94(3)': 'code.epoArt94',
   'EPO:EESR': 'code.epoSearchReport',

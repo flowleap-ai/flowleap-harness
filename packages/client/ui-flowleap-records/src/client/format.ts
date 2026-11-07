@@ -94,3 +94,14 @@ export function formatDate(date: IsoDate, locale: string, style: 'short' | 'long
     weekday: style, day: 'numeric', month: style, year: 'numeric', timeZone: 'UTC',
   }).format(Date.parse(date))
 }
+
+/**
+ * Today as the first line of My work writes it: the weekday, the day and the month, such as "Saturday, 7 November".
+ * @param now - the time now, epoch milliseconds.
+ * @param locale - the UI language.
+ * @param timeZone - the time zone of "today"; the browser's when absent.
+ * @returns the text.
+ */
+export function formatToday(now: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'long', day: 'numeric', month: 'long', timeZone }).format(now)
+}

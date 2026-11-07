@@ -4,13 +4,14 @@
  */
 
 import type { ActRun } from '../act-runner.ts'
-import type { ActivityEvent, Command, FieldValue, IsoTime, Person, ReaderField } from '../api.ts'
+import { IconFolderOpenOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ActivityEvent, Command, FieldValue, IsoTime, Person, ReaderField, RecordsError } from '../api.ts'
 import { useKeyActs, useRetryHeld } from '../key-layer.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { ActivityTimeline, type AuditRow } from '../parts/Activity.tsx'
 import type { DecisionHeading } from '../parts/Decision.tsx'
 import type { QuoteLabels } from '../parts/Evidence.tsx'
-import { ErrorNotice, type NoticeSpec } from '../parts/States.tsx'
+import { EmptyState, ErrorNotice, type NoticeSpec } from '../parts/States.tsx'
 import { activityLines, auditRows, avatarOf, listTimeText, personName } from '../words.ts'
 import { actOf, type ScreenContext } from './context.ts'
 
@@ -18,11 +19,42 @@ import { actOf, type ScreenContext } from './context.ts'
  * The error notice of a failed load, with the time of the data that stays on screen, and Try again, which loads the
  * view again. While a failed act in a decision bar holds R, the notice's Try again has no key and shows no keycap: R
  * tries the person's pending decision again, which also loads the view again.
+ * A refusal of the record (a 403 or 404 answer, such as a matter outside the person's walls) is no fault and
+ * cannot change on a retry: it shows a not-found state with no Try again and no word on whether the object exists
+ * (#328).
+ * @param props.ctx - the screen context.
+ * @param props.at - the time of the last data, or null when there is none.
+ * @param props.error - the failure, or null when the caller does not know it.
+ * @returns the notice.
+ */
+export function LoadError({ ctx, at, error = null }: { ctx: ScreenContext; at: number | null; error?: RecordsError | null }) {
+  if (error?.kind === 'refused' && (error.status === 403 || error.status === 404)) return <NotFound ctx={ctx} />
+  return <LoadFailure ctx={ctx} at={at} />
+}
+
+/**
+ * Render the not-found state of a refused read, with My work as the next step.
+ * @param props.ctx - the screen context.
+ * @returns the state.
+ */
+function NotFound({ ctx }: { ctx: ScreenContext }) {
+  return (
+    <EmptyState
+      icon={<IconFolderOpenOutlineRegular size={16} />}
+      title={ctx.t('notFound.title')}
+      body={ctx.t('notFound.body')}
+      action={{ id: 'my-work', label: ctx.t('notFound.myWork'), keycaps: [], run: () => { ctx.openMyWork() } }}
+    />
+  )
+}
+
+/**
+ * Render the error notice of a load that failed for a reason that a retry can change.
  * @param props.ctx - the screen context.
  * @param props.at - the time of the last data, or null when there is none.
  * @returns the notice.
  */
-export function LoadError({ ctx, at }: { ctx: ScreenContext; at: number | null }) {
+function LoadFailure({ ctx, at }: { ctx: ScreenContext; at: number | null }) {
   useKeyActs(ctx, { retry: ctx.retry })
   const held = useRetryHeld(ctx)
   const body = at === null ? ctx.t('error.noData') : ctx.t('error.asOf', { time: listTimeText(ctx, new Date(at).toISOString() as IsoTime) })

@@ -81,6 +81,7 @@ describe('the design-language part markers (R8)', () => {
     expect(part(screen.getByRole('group', { name: 'Client report' }))).toBe('seg')
     expect(part(screen.getByRole('complementary', { name: 'Patent agent' }))).toBe('dock')
     expect(parts('file')).toHaveLength(1)
+    expect(parts('fact').length).toBeGreaterThan(0)
     expectAllowedNames()
   })
 
@@ -96,9 +97,10 @@ describe('the design-language part markers (R8)', () => {
     expectAllowedNames()
   })
 
-  it('marks the facts of a matter', async () => {
+  it('marks the system avatars of the activity of a matter, whose dossier has no fact chips', async () => {
     await mount({ view: 'matter', fileNumber: 'FL-2026-0001' as FileNumber })
-    expect(parts('fact').length).toBeGreaterThan(0)
+    expect(parts('fact')).toHaveLength(0)
+    expect(parts('av').length).toBeGreaterThan(0)
     expectAllowedNames()
   })
 

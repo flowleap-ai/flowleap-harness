@@ -1,0 +1,100 @@
+/* My work (mockups 1-my-work-*): the first line over the due-time groups. At 390px a row is two lines: the task and
+ * its due time, then the status and the matter key. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.head {
+  flex: none;
+  padding: 24px 16px 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--dsw-font-l-20-font-size);
+  line-height: var(--dsw-font-l-20-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.lede {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.headBone {
+  display: block;
+  width: 50%;
+  height: 20px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-bg-skeleton);
+}
+
+.columns {
+  --records-columns: minmax(0, 1fr) 148px 104px 112px 144px 104px;
+}
+
+.status,
+.client,
+.legal {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.client {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.legal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.legal svg {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+@media (max-width: 720px) {
+  .head {
+    padding: 16px 16px 8px;
+  }
+
+  .screen [data-list] > :first-child {
+    display: none;
+  }
+
+  .screen [data-row] {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "task due" "status key";
+    height: auto;
+    min-height: 44px;
+    padding-block: 8px;
+    row-gap: 2px;
+  }
+
+  .screen [data-row] > :nth-child(1) { grid-area: task; }
+  .screen [data-row] > :nth-child(2) { grid-area: status; }
+  .screen [data-row] > :nth-child(3) { grid-area: key; justify-self: end; }
+  .screen [data-row] > :nth-child(6) { grid-area: due; }
+
+  .screen [data-row] > :nth-child(4),
+  .screen [data-row] > :nth-child(5) {
+    display: none;
+  }
+
+  .screen [data-row] > :nth-child(2),
+  .screen [data-row] > :nth-child(3) {
+    font-size: var(--dsw-font-xxs-12-font-size);
+    line-height: var(--dsw-font-xxs-12-line-height);
+  }
+}

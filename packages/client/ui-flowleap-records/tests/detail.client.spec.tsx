@@ -7,6 +7,7 @@ import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type {
   Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, PersonId, RecordsApi, TicketDetail, TicketId,
 } from '../src/client/api.ts'
+import type { IsoTime } from '../src/client/wire.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
 import type { CommandName } from '../src/client/keys.ts'
 import { de, en, es, fr, ja, pt, ru, zh, type FlowleapRecordsKey } from '../src/client/locales.ts'
@@ -68,7 +69,7 @@ async function mount(
     t: makeTranslate(LANGUAGES[language]),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
-    useWaitingCount: bindSnapshotSelector(model.waitingCount),
+    useMyWork: bindSnapshotSelector(model.myWork), useWaitingCount: bindSnapshotSelector(model.waitingCount),
     useCatalog: bindSnapshotSelector(createSnapshotStore([])),
     useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])),
     useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>(language)),
@@ -78,9 +79,10 @@ async function mount(
     refresh: () => { model.refresh() },
     perform: (sent: readonly Act[]) => model.perform(sent),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
     keyActs,
     commandItems,
-  } as PanelProps
+  } as PanelProps<'records.agent.conversation'>
   render(<RecordsPanel {...props} />)
   await flush()
   const press = async (name: CommandName) => {
@@ -127,12 +129,14 @@ describe('the matters list', () => {
     const model = createRecordsModel({ ...api, matters: () => Promise.resolve({ ok: true, value: { rows } }) }, { view: 'matters' })
     const props = {
       t: makeTranslate(en), useScreen: bindSnapshotSelector(model.screen), useMe: bindSnapshotSelector(model.me),
-      useWaitingCount: bindSnapshotSelector(model.waitingCount), useCatalog: bindSnapshotSelector(createSnapshotStore([])),
+      useMyWork: bindSnapshotSelector(model.myWork), useWaitingCount: bindSnapshotSelector(model.waitingCount),
+      useCatalog: bindSnapshotSelector(createSnapshotStore([])),
       useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')), useAsk: bindSnapshotSelector(createSnapshotStore(null)),
       useContextMenu: contextMenuHook(), navigate: () => {}, retry: () => {}, refresh: () => {},
       perform: () => Promise.resolve({ failed: [] }),
       contentHref: () => '', keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
-    } as PanelProps
+      openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
+    } as PanelProps<'records.agent.conversation'>
     render(<RecordsPanel {...props} />)
     await flush()
     expect(screen.getByText('Kessler Sensorik GmbH · closed')).toBeTruthy()
@@ -163,12 +167,22 @@ describe('the matters list', () => {
 })
 
 describe('the matter page', () => {
-  it('shows the facts, the four tables with their status words, the properties and Activity, and opens each record', async () => {
+  it('shows What waits, the deadlines, the e-file, Activity and the properties of the matter and its people, and opens each record', async () => {
     const { model, commandItems } = await mount(MATTER)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pressure sensor housing')
-    expect(document.body.textContent).toContain('1deadline waits for a second person')
-    expect(document.body.textContent).toContain('1work item waits for Dr. Anna Becker')
-    for (const name of ['Deadlines', 'Work', 'Office events', 'Documents']) expect(screen.getByRole('table', { name })).toBeTruthy()
+    const lede = screen.getByRole('heading', { level: 1 }).parentElement!.textContent
+    expect(lede).toContain('FL-2026-0001')
+    expect(lede).toContain('Kessler Sensorik GmbH')
+    expect(screen.getByRole('link', { name: /EP 24 123 456\.7/ }).getAttribute('href')).toContain('register.epo.org')
+    expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['What waits', 'Deadlines', 'E-file', 'Activity'])
+    for (const name of ['Work', 'Office events', 'Documents']) expect(screen.queryByRole('table', { name })).toBeNull()
+    expect(document.body.textContent).not.toContain('waits for a second person')
+    const waits = screen.getByRole('table', { name: 'What waits' })
+    expect(within(waits).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['State', 'Task', 'Who', 'Due'])
+    expect(within(waits).getAllByRole('row')[1]!.querySelector('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.deadline_proposed')
+    expect(within(waits).getByRole('button').textContent).toBe('Next stepConfirm the deadline')
+    expect(waits.textContent).toContain('Lena Hoffmann')
+    expect(waits.textContent).toContain('Due today')
     const deadlines = screen.getByRole('table', { name: 'Deadlines' })
     expect(within(deadlines).getAllByRole('row')[1]!.querySelector('[data-atlas]')?.getAttribute('data-atlas')).toBe('deadline.deadline_proposed')
     expect(deadlines.textContent).toContain('Rule 71(3) EPC')
@@ -176,136 +190,132 @@ describe('the matter page', () => {
     // At 390px the due date moves to the right edge of its row, and its header with it.
     expect(within(deadlines).getByRole('columnheader', { name: 'Due' }).className).toContain('endNarrow')
     const panel = screen.getByRole('complementary', { name: 'Properties' })
-    expect(panel.textContent).toContain('3 people')
-    expect(panel.textContent).toContain('EP 24 123 456.7')
-    expect(panel.textContent).toContain('Next deadline')
-    expect(screen.getByRole('table', { name: 'Office events' }).textContent).toContain('Not recorded')
-    expect(screen.getByRole('table', { name: 'Documents' }).textContent).toContain('Rule 71(3) communication')
+    expect([...panel.querySelectorAll('h3')].map(heading => heading.textContent)).toEqual(['Matter', 'People'])
+    expect([...panel.querySelectorAll('dt')].map(label => label.textContent)).toEqual(['File number', 'Client', 'Application', 'Responsible', 'Formalities', 'Team'])
+    const values = [...panel.querySelectorAll('dd')].map(value => value.textContent)
+    expect(values.slice(0, 3)).toEqual(['FL-2026-0001', 'Kessler Sensorik GmbH', 'EP 24 123 456.7'])
+    expect(values[3]).toContain('Dr. Anna Becker')
+    expect(values[4]).toContain('Lena Hoffmann')
+    expect(values[5]).toContain('3 people')
+    expect(panel.textContent).not.toContain('Next deadline')
+    expect(screen.getByRole('table', { name: 'E-file' }).textContent).toContain('Rule 71(3) communication')
     expect(document.querySelector('[data-audit]')).not.toBeNull()
     expect(commandItems.item()?.label).toBe('FL-2026-0001 · Pressure sensor housing')
-    fireEvent.click(within(screen.getByRole('table', { name: 'Documents' })).getByRole('button'))
+    fireEvent.click(within(screen.getByRole('table', { name: 'E-file' })).getByRole('button'))
     expect(opened).toHaveBeenCalledWith(`records/api/documents/${R71_DOCUMENT}/content`)
-    fireEvent.click(within(screen.getByRole('table', { name: 'Office events' })).getByRole('button'))
+    fireEvent.click(within(waits).getByRole('button'))
+    await flush()
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'deadline', id: FIXTURE_IDS.deadline })
+    act(() => { model.navigate(MATTER) })
+    await flush()
+    fireEvent.click(within(screen.getByRole('table', { name: 'Deadlines' })).getByRole('button'))
     await flush()
     expect(model.screen.getSnapshot().view).toBe('deadline')
     act(() => { model.navigate(MATTER) })
     await flush()
-    fireEvent.click(within(screen.getByRole('table', { name: 'Work' })).getByRole('button'))
-    await flush()
-    expect(model.screen.getSnapshot().view).toBe('work')
-    act(() => { model.navigate(MATTER) })
-    await flush()
     const acts = commandItems.item()!.groups[0]!.acts
+    expect(acts.map(entry => entry.label)).toEqual(['Confirm the deadline', 'Deadline Mon, 1 Mar 2027'])
     act(() => { acts[1]!.run() })
     await flush()
-    expect(model.screen.getSnapshot().view).toBe('work')
+    expect(model.screen.getSnapshot().view).toBe('deadline')
     act(() => { model.navigate(MATTER) })
     await flush()
     act(() => { acts[0]!.run() })
     await flush()
-    expect(model.screen.getSnapshot().view).toBe('deadline')
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'deadline', id: FIXTURE_IDS.deadline })
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
-  it('words a sparse matter: no responsible, no deadline, an office event with only its letter, and an agent document', async () => {
+  it('words a sparse matter: no responsible, no formalities person, no deadline, a wait with no page, and an agent document', async () => {
     const matter: MatterDetail = {
       ...fixtures.matter,
       responsible: null,
+      formalitiesPerson: null,
       deadlines: [],
-      work: [{ ...fixtures.matter.work[0]!, routedTo: null }, { ...fixtures.matter.work[0]!, id: uuid(20) as TicketId, routedTo: PEOPLE.jonas as never, state: 'proposals_ready' }],
-      officeEvents: [
-        { ...fixtures.matter.officeEvents[0]!, receivedAt: '2026-11-02' as never },
-        { ...fixtures.matter.officeEvents[0]!, id: uuid(21) as never, document: null, documentDate: null },
-      ],
+      waits: [{ ...fixtures.matter.waits[0]!, act: 'board', owner: PEOPLE.jonas as never }],
       documents: [...fixtures.matter.documents, { sha256: 'b'.repeat(64) as DocumentId, fileName: 'other.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' as never }, { ...fixtures.matter.documents[0]!, sha256: 'c'.repeat(64) as DocumentId, source: 'agent' }],
     }
-    await mount(MATTER, { matter })
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('None')
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).not.toContain('Next deadline')
-    expect(document.body.textContent).toContain('1work item waits for Jonas Weber')
-    expect(document.body.textContent).not.toContain('deadline waits')
-    expect(screen.getByRole('table', { name: 'Office events' }).textContent).toContain('2 Nov 2026')
-    expect(screen.getByRole('table', { name: 'Documents' }).textContent).toContain('Client report')
-    expect(screen.getByRole('table', { name: 'Documents' }).textContent).toContain('Letter')
-    fireEvent.click(within(screen.getByRole('table', { name: 'Office events' })).getAllByRole('button')[0]!)
+    const { commandItems } = await mount(MATTER, { matter })
+    const properties = screen.getByRole('complementary', { name: 'Properties' })
+    expect([...properties.querySelectorAll('dd')].slice(3, 5).map(value => value.textContent)).toEqual(['None', 'None'])
+    expect(properties.textContent).not.toContain('Next deadline')
+    const waits = screen.getByRole('table', { name: 'What waits' })
+    expect(waits.textContent).toContain('Jonas Weber')
+    expect(within(waits).queryByRole('button')).toBeNull()
+    expect(waits.textContent).not.toContain('Next step')
+    expect(commandItems.item()!.groups[0]!.acts).toEqual([])
+    expect(screen.queryByRole('table', { name: 'Deadlines' })).toBeNull()
+    expect(screen.getByRole('table', { name: 'E-file' }).textContent).toContain('Client report')
+    expect(screen.getByRole('table', { name: 'E-file' }).textContent).toContain('Letter')
+    fireEvent.click(within(screen.getByRole('table', { name: 'E-file' })).getAllByRole('button')[0]!)
     expect(opened).toHaveBeenCalled()
   })
 
   it('says in one sentence what a section has none of, instead of a column header with no row', async () => {
     const section = (name: string) => screen.getByRole('heading', { name }).closest('section')!.textContent
-    await mount(MATTER, { matter: { ...fixtures.matter, work: [] } })
-    expect(screen.queryByRole('table', { name: 'Work' })).toBeNull()
-    expect(section('Work')).toBe('Work0No work on this matter yet.')
+    await mount(MATTER, { matter: { ...fixtures.matter, waits: [] } })
+    expect(screen.queryByRole('table', { name: 'What waits' })).toBeNull()
+    expect(section('What waits')).toBe('What waits0Nothing on this matter waits for a person.')
     expect(screen.getByRole('table', { name: 'Deadlines' })).toBeTruthy()
-    expect(screen.getByRole('table', { name: 'Office events' })).toBeTruthy()
-    expect(screen.getByRole('table', { name: 'Documents' })).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'E-file' })).toBeTruthy()
     cleanup()
-    const none: MatterDetail = { ...fixtures.matter, deadlines: [], work: [], officeEvents: [], documents: [] }
+    const none: MatterDetail = { ...fixtures.matter, waits: [], deadlines: [], officeEvents: [], documents: [] }
     await mount(MATTER, { matter: none })
-    for (const name of ['Deadlines', 'Work', 'Office events', 'Documents']) expect(screen.queryByRole('table', { name })).toBeNull()
-    expect(['Deadlines', 'Work', 'Office events', 'Documents'].map(section)).toEqual([
-      'Deadlines0No deadlines on this matter yet.', 'Work0No work on this matter yet.',
-      'Office events0No office events on this matter yet.', 'Documents0No documents on this matter yet.',
+    for (const name of ['What waits', 'Deadlines', 'E-file']) expect(screen.queryByRole('table', { name })).toBeNull()
+    expect(['What waits', 'Deadlines', 'E-file'].map(section)).toEqual([
+      'What waits0Nothing on this matter waits for a person.', 'Deadlines0No deadlines on this matter yet.', 'E-file0No documents on this matter yet.',
     ])
     cleanup()
     await mount(MATTER, { matter: none }, 'de')
-    expect(['Fristen', 'Arbeit', 'Amtsereignisse', 'Dokumente'].map(section)).toEqual([
-      'Fristen0Noch keine Fristen in dieser Akte.', 'Arbeit0Noch keine Arbeit in dieser Akte.',
-      'Amtsereignisse0Noch keine Amtsereignisse in dieser Akte.', 'Dokumente0Noch keine Dokumente in dieser Akte.',
+    expect(['Was wartet', 'Fristen', 'E-Akte'].map(section)).toEqual([
+      'Was wartet0In dieser Akte wartet nichts auf eine Person.', 'Fristen0Noch keine Fristen in dieser Akte.', 'E-Akte0Noch keine Dokumente in dieser Akte.',
     ])
   })
 
-  it('counts two work items that wait for one person', async () => {
-    const matter: MatterDetail = {
-      ...fixtures.matter,
-      deadlines: [fixtures.matter.deadlines[0]!, { ...fixtures.matter.deadlines[0]!, id: uuid(30) as DeadlineId }],
-      work: [fixtures.matter.work[0]!, { ...fixtures.matter.work[0]!, id: uuid(31) as TicketId }],
-    }
-    await mount(MATTER, { matter })
-    expect(document.body.textContent).toContain('2deadlines wait for a second person')
-    expect(document.body.textContent).toContain('2work items wait for Dr. Anna Becker')
-    cleanup()
-    const outsider = { ...fixtures.matter.work[0]!, routedTo: { id: null, name: null } } as const
-    await mount(MATTER, { matter: { ...matter, work: [...matter.work, outsider, { ...outsider, id: uuid(32) as TicketId }] } })
-    expect(document.body.textContent).toContain('2work items wait for a person outside the team')
-    expect(screen.getAllByRole('img', { name: 'For a person outside the team' }).every(avatar => avatar.textContent === '')).toBe(true)
-    cleanup()
-    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [{ ...fixtures.matter.deadlines[0]!, state: 'active' }], work: [] } })
-    expect(document.body.textContent).not.toContain('waits for')
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Next deadline')
+  it('lists each wait with its owner and tags only the first as the next step, also a wait for a person outside the team', async () => {
+    const first = fixtures.matter.waits[0]!
+    const letter = { ...first, id: `file-letter:${R71_DOCUMENT}`, kind: 'file-letter' as const, act: `intake/waiting/${R71_DOCUMENT}` }
+    const outsider = { ...first, id: 'confirm-deadline:outside', owner: { id: null, name: null } } as const
+    const matter: MatterDetail = { ...fixtures.matter, waits: [first, letter, outsider] }
+    const { model } = await mount(MATTER, { matter })
+    const waits = screen.getByRole('table', { name: 'What waits' })
+    expect(within(waits).getAllByRole('row')).toHaveLength(4)
+    expect(within(waits).getAllByText('Next step')).toHaveLength(1)
+    expect(within(within(waits).getAllByRole('row')[1]!).getByText('Next step')).toBeTruthy()
+    expect(waits.textContent).toContain('File this letter')
+    expect(waits.textContent).toContain('A person outside the team')
+    const anonymous = [...waits.querySelectorAll('[data-anonymous]')]
+    expect(anonymous).toHaveLength(1)
+    expect(anonymous.every(avatar => avatar.textContent === '')).toBe(true)
+    fireEvent.click(within(waits).getByRole('button', { name: /File this letter/ }))
+    await flush()
+    expect(model.screen.getSnapshot()).toMatchObject({ view: 'letter', document: R71_DOCUMENT })
   })
 
-  it('marks an overdue active deadline in its row, in a fact chip and in the next deadline, with the warning glyph', async () => {
+  it('marks an overdue deadline in its row with the warning glyph, and nowhere else on the page', async () => {
     const overdue = { ...fixtures.matter.deadlines[0]!, state: 'active' as const, due: '2026-03-02' as IsoDate }
-    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(32) as DeadlineId, state: 'rejected' }], work: [] } })
+    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(32) as DeadlineId, state: 'rejected' }], waits: [] } })
     const marks = [...document.querySelectorAll<HTMLElement>('[data-overdue]')]
-    const where = (element: HTMLElement) => element.closest('[role="table"], aside')?.getAttribute('aria-label') ?? 'facts'
+    const where = (element: HTMLElement) => element.closest('[role="table"], aside')?.getAttribute('aria-label') ?? 'page'
     expect(marks.map(mark => [where(mark), mark.textContent])).toEqual([
-      ['facts', '1'],
       ['Deadlines', 'Overdue by 247 days'],
       ['Deadlines', 'Overdue by 247 days'],
       ['Deadlines', 'Overdue by 247 days'],
       ['Deadlines', 'Overdue by 247 days'],
-      ['Properties', 'Overdue by 247 days'],
     ])
     for (const mark of marks) {
       expect(mark.firstElementChild!.tagName.toLowerCase()).toBe('svg')
       expect(mark.querySelector('[data-shape]')).toBeNull()
     }
-    expect(document.body.textContent).toContain('1deadline is overdue')
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mon, 2 Mar 2026Overdue by 247 days')
-    cleanup()
-    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [overdue, { ...overdue, id: uuid(33) as DeadlineId, state: 'deadline_proposed' }], work: [] } })
-    expect(document.body.textContent).toContain('2deadlines are overdue')
+    expect(document.body.textContent).not.toContain('is overdue')
+    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).not.toContain('Overdue')
   })
 
-  it('takes the next deadline as the earliest open one, an entered date included, as the overdue count does', async () => {
-    const first = { ...fixtures.matter.deadlines[0]!, due: '2027-03-01' as IsoDate }
-    const entered = { ...first, id: uuid(34) as DeadlineId, state: 'manual_proposed' as const, due: '2026-03-02' as IsoDate }
-    const done = { ...first, id: uuid(35) as DeadlineId, state: 'rejected' as const, due: '2026-01-05' as IsoDate }
-    await mount(MATTER, { matter: { ...fixtures.matter, deadlines: [done, first, entered], work: [] } })
-    expect(document.body.textContent).toContain('1deadline is overdue')
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Mon, 2 Mar 2026Overdue by 247 days')
+  it('marks a wait whose date has passed as overdue in the What waits row', async () => {
+    const late = { ...fixtures.matter.waits[0]!, dueAt: '2026-11-01T09:00:00Z' as IsoTime }
+    await mount(MATTER, { matter: { ...fixtures.matter, waits: [late], deadlines: [] } })
+    const marks = [...document.querySelectorAll<HTMLElement>('[data-overdue]')]
+    expect(marks.map(mark => [mark.closest('[role="table"]')?.getAttribute('aria-label'), mark.textContent])).toEqual([['What waits', 'Overdue by 3 days']])
   })
 })
 
@@ -331,10 +341,9 @@ describe('the deadline page', () => {
     expect(within(readings).getAllByText('EP 24 123 456.7')).toHaveLength(2)
     expect(within(readings).getAllByText('Agree')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Rule 134 EPC' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/epc/2020/r134.html')
-    const panel = screen.getByRole('complementary', { name: 'Properties' })
-    expect(panel.textContent).toContain('4 months')
-    expect(panel.textContent).toContain('FlowLeap')
-    expect(panel.textContent).toContain('EPO, 30 Oct 2026')
+    expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
+    expect(screen.getByRole('img', { name: 'Drawing of page 1 of the letter' })).toBeTruthy()
+    expect(within(bar()).getByText(/^When you confirm, the deadline is active, confirmed by /)).toBeTruthy()
     expect(within(bar()).getByText('You did not record or classify this letter, so you can confirm')).toBeTruthy()
     expect(within(bar()).getByText('4 steps · both readings agree · FlowLeap checks the date again when you confirm')).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-check-outline-regular')
@@ -359,7 +368,7 @@ describe('the deadline page', () => {
 
   it('confirms with the record position the person saw, from the button and from ⇧⌘↵', async () => {
     const { acts, press } = await mount(DEADLINE)
-    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     expect(acts.at(-1)?.command).toEqual({ kind: 'deadline.confirm', id: FIXTURE_IDS.deadline, seen: 141 })
     await press('record')
@@ -396,11 +405,12 @@ describe('the deadline page', () => {
     const { keyActs } = await mount(DEADLINE, { deadline })
     expect(screen.queryByText('Your decision')).toBeNull()
     expect(within(bar('Not your decision')).getByText('You proposed this date, so a second person confirms it.')).toBeTruthy()
-    expect(within(bar('Not your decision')).queryByRole('button', { name: /Confirm deadline/ })).toBeNull()
+    expect(within(bar('Not your decision')).queryByRole('button', { name: /^Confirm\b/ })).toBeNull()
     expect(within(bar('Not your decision')).queryByRole('button', { name: /Reject/ })).toBeNull()
     expect(keyActs.handler('record')).toBeUndefined()
     expect(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).toBeTruthy()
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Dr. Anna Becker')
+    expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
+    expect(within(bar('Not your decision')).queryByText(/^When you confirm/)).toBeNull()
   })
 
   it.each([
@@ -477,20 +487,16 @@ describe('the deadline page', () => {
     expect(screen.getByText(/The letter reached the firm late/)).toBeTruthy()
     expect(screen.getAllByText('An engine note.').every(cell => cell.closest('[data-audit]') !== null)).toBe(true)
     expect(screen.queryByText('Legal sources')).toBeNull()
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('EPO')
+    expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
     cleanup()
     const oneReading = { code: null, model: differ.readers.model, agree: null }
     await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null }, readers: oneReading } })
     expect(within(bar()).getByText(/one reading only/)).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-info-outline-regular')
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain('Not recorded')
     cleanup()
     const empty = { code: null, documentDate: null, applicationNumber: null }
     await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {} }, model: null, agree: null } } })
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
-    cleanup()
-    await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null, documentDate: '2026-10-30' as never } } })
-    expect(screen.getByRole('complementary', { name: 'Properties' }).textContent).toContain(', 30 Oct 2026')
     cleanup()
     await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null } } })
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
@@ -517,7 +523,7 @@ describe('the deadline page', () => {
     let fail = true
     const sent: Act[] = []
     const { press } = await mount(DEADLINE, { perform: (act) => { sent.push(act); return Promise.resolve(fail ? { ok: false, error: { kind: 'network' } } : { ok: true, value: null }) } })
-    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     const notice = within(bar()).getByRole('alert')
     expect(notice.textContent).toBe('No answer from FlowLeap. The decision may be recorded. A second try is safe: FlowLeap records it only once.Try again')
@@ -525,7 +531,7 @@ describe('the deadline page', () => {
     await flush()
     await press('retry')
     fail = false
-    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     expect(sent.map(act => act.key)).toEqual(Array(4).fill(sent[0]!.key))
     expect(within(bar()).queryByRole('alert')).toBeNull()
@@ -543,7 +549,7 @@ describe('the deadline page', () => {
         return Promise.resolve(sent.length === 1 ? { ok: false, error: { kind: 'refused', status: 409, code: 'seen-is-stale', detail: null } } : { ok: true, value: null })
       },
     }, 'en', { api, acts: [] })
-    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     expect(within(bar()).getByRole('alert').textContent).toContain('The record changed after you opened the page, so FlowLeap recorded nothing.')
     fireEvent.click(within(within(bar()).getByRole('alert')).getByRole('button', { name: /Try again/ }))
@@ -563,7 +569,7 @@ describe('the deadline page', () => {
       return new Promise((resolve) => { answer = resolve })
     }
     const { press, commandItems } = await mount(DEADLINE, { perform })
-    const confirm = () => within(bar()).getByRole('button', { name: /Confirm deadline/ })
+    const confirm = () => within(bar()).getByRole('button', { name: /^Confirm\b/ })
     fireEvent.click(confirm())
     await flush()
     expect(confirm().getAttribute('aria-busy')).toBe('true')
@@ -583,7 +589,7 @@ describe('the deadline page', () => {
   it('says when a reject failed, tries it again with its reason, and hides a confirm failure when the reject step opens', async () => {
     const sent: Act[] = []
     const { press } = await mount(DEADLINE, { perform: (act) => { sent.push(act); return Promise.resolve(sent.length < 3 ? { ok: false, error: { kind: 'refused', status: 409, code: 'not-proposed', detail: null } } : { ok: true, value: null }) } })
-    fireEvent.click(within(bar()).getByRole('button', { name: /Confirm deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /^Confirm\b/ }))
     await flush()
     expect(within(bar()).getByRole('alert').textContent).toContain('FlowLeap refused to confirm the deadline. It recorded nothing.')
     await press('reject')
@@ -618,9 +624,9 @@ describe('the deadline page', () => {
   it('shows the German copy of the mockups', async () => {
     await mount(DEADLINE, {}, 'de')
     expect(screen.getByText('Wie FlowLeap das Datum berechnet hat')).toBeTruthy()
-    expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByRole('button', { name: /Frist bestätigen/ })).toBeTruthy()
-    // "Vorgeschlagen von" is 115px at 13px and wraps in the 96px label column; "Vorschlag von" is 85px.
-    expect(within(screen.getByRole('complementary', { name: 'Eigenschaften' })).getByText('Vorschlag von')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByRole('button', { name: /^Bestätigen\b/ })).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Ihre Entscheidung' })).getByText(/^Wenn Sie bestätigen, ist die Frist aktiv, bestätigt von /)).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'Eigenschaften' })).toBeNull()
   })
 
   it('shows "No source letter" for an office event entered by hand, and names who entered it and who confirmed it', async () => {
@@ -639,9 +645,8 @@ describe('the deadline page', () => {
     expect(within(bar('Ihre Entscheidung')).getByText(/Kein Amtsschreiben/)).toBeTruthy()
     expect(document.body.textContent).not.toContain('Beleg fehlt')
     expect(document.body.textContent).not.toContain('FlowLeap hat dieses Schreiben nicht gelesen')
-    const panel = screen.getByRole('complementary', { name: 'Eigenschaften' })
-    expect(panel.textContent).toContain('Erfasst vonJJonas Weber')
-    expect(panel.textContent).toContain('AuslesungKein Amtsschreiben')
+    expect(screen.queryByRole('complementary', { name: 'Eigenschaften' })).toBeNull()
+    expect(screen.queryByRole('img', { name: 'Zeichnung von Seite 1 des Schreibens' })).toBeNull()
     cleanup()
     await mount(DEADLINE, { deadline: { ...byHand, proposer: null } })
     expect(screen.getByRole('region', { name: 'The office event' }).textContent).toBe('The office eventNo source letter')
@@ -703,10 +708,9 @@ describe('the deadline page', () => {
     ])
     expect(screen.getByRole('link', { name: 'ABl. EPA 2023, A29' }).getAttribute('href')).toBe('https://www.epo.org/en/legal/official-journal/2023/03/a29')
     expect(screen.getByRole('link', { name: 'Regel 134 EPÜ' })).toBeTruthy()
-    expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('EPA, 30.10.2026')
-    // A quote keeps the letter's own words, which the UI language does not translate.
+    // A quote and the drawing of the letter keep the letter's own words, which the UI language does not translate.
     const words = document.body.cloneNode(true) as HTMLElement
-    for (const quote of words.querySelectorAll('[class*="quote"]')) quote.remove()
+    for (const quote of words.querySelectorAll('[class*="quote"], [data-verbatim]')) quote.remove()
     expect(words.textContent).not.toMatch(/\bEPO\b|\bEPC\b|\bRule\b|\bOJ\b/)
     for (const [language, cite] of [['fr', 'Règle 126(2) CBE · Règle 127(2) CBE · JO OEB 2023, A29'], ['es', 'Regla 126(2) CPE · Regla 127(2) CPE · DO OEP 2023, A29']] as const) {
       cleanup()
@@ -736,14 +740,22 @@ describe('the work on a letter', () => {
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
   })
 
+  it('shows the related deadline and reply before the client report', async () => {
+    await mount(WORK)
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)
+    expect(headings.indexOf('Related')).toBeGreaterThanOrEqual(0)
+    expect(headings.indexOf('Related')).toBeLessThan(headings.indexOf('Client report'))
+  })
+
   it('labels each status of the page, so a sent report and a sent reply never read the same', async () => {
     const report = sourced.reports[0]!
     await mount(WORK, { ticket: { ...sourced, ticket: { ...sourced.ticket, state: 'decided' }, reports: [{ ...report, state: 'sent' }] } })
     const sent = [...document.querySelectorAll('[data-atlas="report.sent"], [data-atlas="outbox.sent"]')]
     // The agent panel's result card names the work product in its title row, before the file and the status.
-    // The report's section heading names it once ("Client report"), so its status carries no second "Report" label.
-    expect(sent.map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Client report', 'Reply ·', 'Client reportreport-FL-2026-0001-r71-3.docx'])
-    expect(sent[0]!.parentElement!.textContent).not.toContain('Report')
+    // The related records come before the report. The report's section heading names it once ("Client report"), so its
+    // status carries no second "Report" label.
+    expect(sent.map(status => status.previousElementSibling?.textContent ?? status.parentElement!.textContent)).toEqual(['Reply ·', 'Client report', 'Client reportreport-FL-2026-0001-r71-3.docx'])
+    expect(sent[1]!.parentElement!.textContent).not.toContain('Report')
     expect(document.querySelector('[data-atlas="deadline.active"]')!.parentElement!.textContent).toBe('Deadline ·Active')
   })
 

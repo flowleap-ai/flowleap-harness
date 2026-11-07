@@ -56,17 +56,17 @@ export function QueueItemSkeleton() {
  * Render a detail page: the content and the 376px properties panel at the right. At 390px the panel stacks under
  * the content, or hides on a decision page, whose decision bar carries the decision.
  * @param props.children - the content, usually a `WorkColumn` or a scrolling `DetailContent`.
- * @param props.properties - the properties panel.
+ * @param props.properties - the properties panel, or null for a page with none (the first-demo decision pages).
  * @param props.decision - the page is a decision page: the panel hides at 390px.
  * @returns the page.
  */
 export function DetailLayout({ children, properties, decision = false }: {
   children: ReactNode
-  properties: ReactNode
+  properties: ReactNode | null
   decision?: boolean
 }) {
   return (
-    <div className={css.detail} data-decision={decision || undefined}>
+    <div className={css.detail} data-decision={decision || undefined} data-solo={properties === null || undefined}>
       {children}
       {properties}
     </div>
@@ -206,5 +206,22 @@ export function KeyProperties({ rows }: { rows: readonly Property[] }) {
         </div>
       ))}
     </dl>
+  )
+}
+
+/**
+ * Render the content with its evidence beside it (mockups `2-file-letter`, `3-confirm-deadline`): the content at the
+ * left, the picture of the letter at the right, sticky while the content scrolls. At 390px the picture follows the
+ * content.
+ * @param props.children - the content.
+ * @param props.evidence - the picture of the letter, or null when the record has no source letter.
+ * @returns the split.
+ */
+export function EvidenceSplit({ children, evidence }: { children: ReactNode; evidence: ReactNode | null }) {
+  return (
+    <div className={css.evSplit} data-solo={evidence === null || undefined}>
+      <div>{children}</div>
+      {evidence !== null && <div className={css.stickyEv}>{evidence}</div>}
+    </div>
   )
 }

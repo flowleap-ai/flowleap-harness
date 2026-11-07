@@ -515,14 +515,13 @@
  * the days left are never cut, and every row keeps the same columns.
  */
 .deadlinesColumns,
-.workColumns,
-.officeEventsColumns {
+.waitsColumns {
   grid-template-columns: var(--detail-columns);
   column-gap: 16px;
 }
 
-:is(.deadlinesColumns, .workColumns, .officeEventsColumns) > [role='rowgroup'],
-:is(.deadlinesColumns, .workColumns, .officeEventsColumns) :is(.thead, .row) {
+:is(.deadlinesColumns, .waitsColumns) > [role='rowgroup'],
+:is(.deadlinesColumns, .waitsColumns) :is(.thead, .row) {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
@@ -579,8 +578,7 @@
   }
 
   .deadlinesColumns,
-  .workColumns,
-  .officeEventsColumns {
+  .waitsColumns {
     grid-template-columns: var(--detail-columns-narrow);
   }
 }
@@ -597,14 +595,36 @@
   --detail-columns-narrow: minmax(0, 1fr) auto;
 }
 
-.workColumns {
-  --detail-columns: max-content minmax(0, 1fr) 20px max-content;
-  --detail-columns-narrow: auto minmax(0, 1fr) 56px;
+.waitsColumns {
+  --detail-columns: max-content minmax(0, 1fr) max-content max-content;
+  --detail-columns-narrow: auto minmax(0, 1fr) auto;
 }
 
-.officeEventsColumns {
-  --detail-columns: max-content minmax(0, 1fr) max-content max-content;
-  --detail-columns-narrow: auto minmax(0, 1fr);
+/* The first row of What waits is the one next step (mockup 5-dossier). */
+.nextTag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.registerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dsw-alias-label-primary);
+  text-decoration: none;
+}
+
+.registerLink > svg {
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .documentsColumns {

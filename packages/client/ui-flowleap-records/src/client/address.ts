@@ -4,6 +4,7 @@
  * route as `records=<route>` beside it, in the query and not the fragment, because a sign-in redirect keeps the query.
  * The text of each route:
  *
+ * - `my-work`: My work. `letter/<sha256>`: one letter of intake as its own page.
  * - `intake`, `intake/filed-today`, `intake/not-relevant`: an intake list.
  * - `intake/<list>/<sha256>`: a letter open on its list, such as `intake/waiting/<sha256>`.
  * - `work/<ticket id>`: the work on a letter. `board`, `board/list`: the work board and its list layout.
@@ -29,6 +30,8 @@ const LISTS: readonly IntakeView[] = ['waiting', 'filed-today', 'not-relevant']
  */
 export function routePath(route: Route): string {
   switch (route.view) {
+    case 'my-work': return 'my-work'
+    case 'letter': return `letter/${route.document}`
     case 'matters': return 'matters'
     case 'matter': return `matter/${encodeURIComponent(route.fileNumber)}`
     case 'deadline': return `deadline/${route.id}`
@@ -51,6 +54,8 @@ export function parseRoutePath(text: string): Route | null {
   if (rest.length > 0) return null
   try {
     switch (view) {
+      case 'my-work': return first === undefined ? { view: 'my-work' } : null
+      case 'letter': return first !== undefined && second === undefined ? { view: 'letter', document: ids.document(first, ROUTE_PARAM) } : null
       case 'matters': return first === undefined ? { view: 'matters' } : null
       case 'board':
         if (first === undefined) return { view: 'board' }
@@ -76,15 +81,33 @@ export function parseRoutePath(text: string): Route | null {
 }
 
 /**
+ * The page of a task's object, from the task's record address (`act`): a letter of intake opens as its own page, a
+ * deadline and a work item open as they do from the Matters panel.
+ * @param act - `intake/<list>/<sha256>`, `deadline/<id>` or `work/<id>`.
+ * @returns the route, or null for an address that names no page.
+ */
+export function routeOfAct(act: string): Route | null {
+  const [view, list, document, ...rest] = act.split('/')
+  if (view === 'intake') {
+    if (rest.length > 0 || document === undefined || !LISTS.includes(list as IntakeView)) return null
+    return parseRoutePath(`letter/${document}`)
+  }
+  return view === 'deadline' || view === 'work' ? parseRoutePath(act) : null
+}
+
+/**
  * The route that an address names for this panel.
  * @param search - `location.search`.
  * @param panel - the panel id that `page` must name.
+ * @param landing - the panel is the landing page, whose address has no `page` (the client's landing removes it).
  * @returns the route, or null when the address names another page or no route.
  */
-export function readRouteAddress(search: string, panel: string): Route | null {
+export function readRouteAddress(search: string, panel: string, landing = false): Route | null {
   const params = new URLSearchParams(search)
   const text = params.get(ROUTE_PARAM)
-  return params.get(PAGE_PARAM) === panel && text !== null ? parseRoutePath(text) : null
+  const page = params.get(PAGE_PARAM)
+  const ours = page === panel || (landing && page === null && !params.has('chat'))
+  return ours && text !== null ? parseRoutePath(text) : null
 }
 
 /**
@@ -92,14 +115,16 @@ export function readRouteAddress(search: string, panel: string): Route | null {
  * @param href - the current address.
  * @param panel - the panel id.
  * @param route - the route, or null to remove it from the address.
+ * @param landing - the panel is the landing page: the address names no `page`, as the client's landing writes it.
  * @returns the new address.
  */
-export function writeRouteAddress(href: string, panel: string, route: Route | null): string {
+export function writeRouteAddress(href: string, panel: string, route: Route | null, landing = false): string {
   const url = new URL(href)
   if (route === null) {
     url.searchParams.delete(ROUTE_PARAM)
   } else {
-    url.searchParams.set(PAGE_PARAM, panel)
+    if (landing) url.searchParams.delete(PAGE_PARAM)
+    else url.searchParams.set(PAGE_PARAM, panel)
     url.searchParams.set(ROUTE_PARAM, routePath(route))
   }
   return url.href
@@ -117,7 +142,8 @@ export interface BrowserAddress {
 }
 
 /**
- * Keep the route in the address while the panel is open, and take it out while another panel or a chat is open.
+ * Keep the route in the address while the panel is open, and take it out while another panel or a chat is open after
+ * the panel was open once.
  * The client's landing owns the `page` parameter; this writes `records`, and `page` only together with it.
  * @param options.route - the panel's current route.
  * @param options.active - whether the panel is the open main panel.
@@ -130,11 +156,17 @@ export function syncRouteAddress(options: {
   active: ObservableSnapshot<boolean>
   address: BrowserAddress
   panel: string
+  /** The panel is the landing page, whose address names no `page`. */
+  landing?: boolean
 }): () => void {
-  const { route, active, address, panel } = options
+  const { route, active, address, panel, landing = false } = options
+  // Until the panel has been open once, the address may hold a start route that the panel has not read yet.
+  let opened = false
   const sync = () => {
+    if (active.getSnapshot()) opened = true
+    if (!opened) return
     const href = address.href()
-    const next = writeRouteAddress(href, panel, active.getSnapshot() ? route.getSnapshot() : null)
+    const next = writeRouteAddress(href, panel, active.getSnapshot() ? route.getSnapshot() : null, landing)
     if (next !== href) address.replace(next)
   }
   sync()
