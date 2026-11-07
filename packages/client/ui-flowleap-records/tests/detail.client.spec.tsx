@@ -479,7 +479,7 @@ describe('the deadline page', () => {
         sources: [],
       },
       officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:UNKNOWN', documentDate: null },
-      readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { formNumber: null, code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false, differences: ['documentDate'] as const },
+      readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false, differences: ['documentDate'] as const },
     }
     await mount(DEADLINE, { deadline: differ })
     expect(within(bar()).getByText(/the readings differ, so check the letter/)).toBeTruthy()
@@ -499,7 +499,7 @@ describe('the deadline page', () => {
     expect(within(bar()).getByText(/one reading only/)).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-info-outline-regular')
     cleanup()
-    const empty = { formNumber: null, code: null, documentDate: null, applicationNumber: null }
+    const empty = { code: null, documentDate: null, applicationNumber: null }
     await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {}, source: { kind: 'text-layer' } as const }, model: null, agree: null, differences: null } } })
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
     cleanup()

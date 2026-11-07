@@ -240,7 +240,7 @@ const workItem = obj({
   reason: obj({ en: str, de: str }),
   subject: obj({
     letterDate: nullable(isoDate), arrivedAt: nullable(isoTime), code: nullable(str),
-    deadline: nullable(obj({ due: isoDate, state: deadlineState, confirmedBy: nullable(person) })),
+    deadline: nullable(obj({ due: isoDate, state: deadlineState })),
   }),
 })
 /**
@@ -301,7 +301,7 @@ export type PageImage = Parsed<typeof pageImage>
 const mark = obj({ field: oneOf(['formNumber', 'documentDate', 'applicationNumber']), page: num, quote: str, excerpt: nullable(excerpt) })
 /** One read value of a letter with its page and its quote; the OCR gives no position on the page. */
 export type Mark = Parsed<typeof mark>
-const reading = obj({ formNumber: nullable(str), code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str) })
+const reading = obj({ code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str) })
 /** Where reader 1 read the text: the PDF's text layer, or the OCR text of a scan. */
 export type ReaderSource = { readonly kind: 'text-layer' } | { readonly kind: 'ocr'; readonly provider: string; readonly model: string }
 const readerSource: Parse<ReaderSource> = (value, path) => {

@@ -130,7 +130,7 @@ const MARK_LABELS = {
 } as const satisfies Partial<Record<Mark['field'], FlowleapRecordsKey>>
 
 /**
- * Render the letter's page images, each at its own size, with the read values beside them: each quote with its page.
+ * Render the letter's page images, each at its own size, under the read values: each quote with its page.
  * The OCR gives no position on the page, so nothing is drawn on the image. With no page image, render the fallback.
  * @param props.ctx - the screen context.
  * @param props.images - the page images, in page order.
@@ -151,6 +151,16 @@ export function LetterPages({ ctx, images, marks, fallback, onOpen }: {
   const quoted = marks.flatMap(mark => mark.field === 'formNumber' ? [] : [{ ...mark, label: MARK_LABELS[mark.field] }])
   return (
     <figure className={intakeCss.paper}>
+      {quoted.length > 0 && (
+        <dl className={intakeCss.marks} aria-label={t('intake.letter.marks')}>
+          {quoted.map(mark => (
+            <div key={mark.field} className={intakeCss.markRow}>
+              <dt>{t(mark.label)}</dt>
+              <dd><EvidenceQuote span={mark} labels={quoteLabels(ctx, mark.page)} /></dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <div className={intakeCss.pages} data-fdl-part="letter">
         {images.map(image => (
           <img
@@ -164,16 +174,6 @@ export function LetterPages({ ctx, images, marks, fallback, onOpen }: {
           />
         ))}
       </div>
-      {quoted.length > 0 && (
-        <dl className={intakeCss.marks} aria-label={t('intake.letter.marks')}>
-          {quoted.map(mark => (
-            <div key={mark.field} className={intakeCss.markRow}>
-              <dt>{t(mark.label)}</dt>
-              <dd><EvidenceQuote span={mark} labels={quoteLabels(ctx, mark.page)} /></dd>
-            </div>
-          ))}
-        </dl>
-      )}
       <figcaption className={intakeCss.paperCap}>
         <span>{t(images.length === 1 ? 'intake.letter.pages.one' : 'intake.letter.pages', { count: images.length })}</span>
         <ActButton act={actOf(ctx, 'openLetter', t('intake.act.openLetter'), onOpen, { icon: <IconRightUpOutlineRegular size={16} /> })} rank="tertiary" />

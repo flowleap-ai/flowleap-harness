@@ -262,12 +262,12 @@
   box-shadow: var(--dsw-elevation-prominent);
 }
 
-/* Each read value with its quote and page, beside the image: the OCR gives no position on the page. */
+/* Each read value with its quote and page, above the images: the OCR gives no position on the page. */
 .marks {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 4px 12px;
-  margin: 12px 0 0;
+  margin: 0 0 12px;
   font-size: var(--dsw-font-xs-13-font-size);
   line-height: var(--dsw-font-xs-13-line-height);
 }

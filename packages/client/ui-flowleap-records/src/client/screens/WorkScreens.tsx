@@ -32,7 +32,7 @@ import { DueText, dueSentence } from '../parts/Due.tsx'
 import { WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personInText, personName, toOffice } from '../words.ts'
+import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
@@ -127,34 +127,6 @@ const LEDES: Readonly<Record<string, FlowleapRecordsKey>> = { 'EPO:R71(3)': 'wor
  * @param props.data - the work.
  * @returns the decision page.
  */
-/**
- * The words of a draft by its kind: its heading ("Draft reply to the EPO", "Client report") and its file title.
- * @param ctx - the screen context.
- * @param data - the work.
- * @param kind - the draft's kind.
- * @returns the heading and the file title.
- */
-function draftWords(ctx: ScreenContext, data: TicketDetail, kind: WorkDraft['kind']): { readonly heading: string; readonly file: string } {
-  const { t } = ctx
-  const title = letterTitle(t, data.letter?.code ?? null)
-  switch (kind) {
-    case 'client-report': return { heading: t('work.clientReport'), file: t('work.reportOn', { title }) }
-    case 'office-reply': {
-      const office = officeOf(data)
-      return { heading: office === null ? t('work.draftReplyPlain') : t('work.draftReply', { to: toOffice(t, office) }), file: t('work.replyOn', { title }) }
-    }
-  }
-}
-
-/**
- * The office of the work's letter, from its code (`EPO:R71(3)`).
- * @param data - the work.
- * @returns the office abbreviation, or null for a letter with no code.
- */
-function officeOf(data: TicketDetail): string | null {
-  return data.letter?.code?.split(':')[0] ?? null
-}
-
 function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
   const [choices, setChoices] = useState<Readonly<Record<string, Choice>>>({})
@@ -165,7 +137,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { ticket, letter, deadline, mayDecide } = data
   const status = { machine: 'ticket', state: ticket.state } as const
   const title = workTitle(ctx, data)
-  const proposed = data.reports.filter(report => report.state === 'proposed')
+  const proposed = data.reports.filter(report => report.state === 'proposed').toSorted((a, b) => DRAFT_KINDS.indexOf(a.kind) - DRAFT_KINDS.indexOf(b.kind))
   const deciding = ticket.state === 'proposals_ready' && proposed.length > 0
   const missingOf = (report: TicketDetail['reports'][number]) => report.statements
     .map((statement, index) => ({ number: index + 1, missing: statement.evidence.every(evidence => evidence.span === null) }))
@@ -287,7 +259,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                 <DecisionPart
                   key={item.proposalId}
                   icon={<IconDeliverDocRegular size={16} />}
-                  title={draftWords(ctx, data, item.kind).heading}
+                  title={draftWords(t, data.letter?.code ?? null, item.kind).heading}
                   missing={firstOfReport !== undefined && choice?.decision !== 'reject' ? t('decision.statementMissing', { number: firstOfReport.number }) : null}
                   detail={choice?.decision === 'reject'
                     ? t('work.rejected', { reason: choice.reason })
@@ -299,7 +271,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                     )}
                   hint={choice === undefined && mayDecide.allowed ? t('work.choose') : undefined}
                   control={mayDecide.allowed && (
-                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={draftWords(ctx, data, item.kind).heading}>
+                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={draftWords(t, data.letter?.code ?? null, item.kind).heading}>
                       <ActButton
                         act={{ ...actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 }), ...keys }}
                         rank="tertiary"
@@ -358,7 +330,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           {drafts.map(item => (
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
-                <h2 className={detail.subHeading}>{draftWords(ctx, data, item.kind).heading}</h2>
+                <h2 className={detail.subHeading}>{draftWords(t, data.letter?.code ?? null, item.kind).heading}</h2>
                 {/* The heading names the draft, so its status needs no "Report" label (R11). */}
                 <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
                 <div className={detail.sectionActs}>
@@ -369,7 +341,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               <div className={detail.file} data-fdl-part="file">
                 <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
                 <div>
-                  <div className={detail.fileTitle}>{draftWords(ctx, data, item.kind).file}</div>
+                  <div className={detail.fileTitle}>{draftWords(t, data.letter?.code ?? null, item.kind).file}</div>
                   <div className={detail.fileMeta}>{fileFacts(ctx, item).join(' · ')}</div>
                 </div>
               </div>
@@ -489,7 +461,7 @@ function lede(ctx: ScreenContext, data: TicketDetail): string {
  */
 function drafted(ctx: ScreenContext, data: TicketDetail): string {
   const { t } = ctx
-  const office = officeOf(data)
+  const office = officeOfCode(data.letter?.code ?? null)
   const to = office === null ? '' : toOffice(t, office)
   if (data.draftReply !== null) return t(data.clientReport === null ? 'work.lede.draftedReply' : 'work.lede.draftedBoth', { to })
   return t(data.clientReport === null ? 'work.lede.noDraft' : 'work.lede.drafted')

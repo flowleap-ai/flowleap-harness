@@ -87,6 +87,39 @@ export function toOffice(t: Translate, office: string): string {
   return stem === undefined ? t('office.to.other', { office }) : t(`office.to.${stem}`)
 }
 
+/**
+ * The office of a letter, from its code (`EPO:R71(3)`).
+ * @param code - the letter's code, or null.
+ * @returns the office abbreviation, or null for a letter with no code.
+ */
+export function officeOfCode(code: string | null): string | null {
+  return code?.split(':')[0] ?? null
+}
+
+/** The kinds of a work draft, in the order that the work page shows them (mockup 4-review-work). */
+export const DRAFT_KINDS = ['office-reply', 'client-report'] as const
+
+/** One kind of a work draft. */
+export type DraftKind = (typeof DRAFT_KINDS)[number]
+
+/**
+ * The words of a work draft by its kind: its heading ("Draft reply to the EPO", "Client report") and its file title.
+ * @param t - the translate function.
+ * @param code - the code of the work's letter, or null.
+ * @param kind - the draft's kind.
+ * @returns the heading and the file title.
+ */
+export function draftWords(t: Translate, code: string | null, kind: DraftKind): { readonly heading: string; readonly file: string } {
+  const title = letterTitle(t, code)
+  switch (kind) {
+    case 'client-report': return { heading: t('work.clientReport'), file: t('work.reportOn', { title }) }
+    case 'office-reply': {
+      const office = officeOfCode(code)
+      return { heading: office === null ? t('work.draftReplyPlain') : t('work.draftReply', { to: toOffice(t, office) }), file: t('work.replyOn', { title }) }
+    }
+  }
+}
+
 /** The citation forms of the deadline engine that the views word, each with its words. */
 const CITES: readonly (readonly [RegExp, (t: Translate, match: RegExpExecArray) => string])[] = [
   [/^Rule (\S+) EPC$/u, (t, match) => t('cite.rule', { number: match[1] })],

@@ -148,7 +148,7 @@ const onPage = (quote: string) => {
 }
 
 /** `GET intake/documents/<R71_DOCUMENT>`. */
-const reading = { formNumber: '2004C', code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' }
+const reading = { code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' }
 
 /** What reader 1 read on the Rule 71(3) letter, each with its span. */
 const letterFields = {
@@ -232,7 +232,7 @@ export const myWorkWire = {
       group: 'overdue', matter: ref('FL-2026-0001'), due: '2027-03-01', dueAt: '2026-11-01T09:00:00Z',
       since: '2026-10-30T09:00:00Z', act: `work/${uuid(3)}`,
       reason: { en: 'Drafts wait for your decision', de: 'Entwürfe warten auf Ihre Entscheidung' },
-      subject: { letterDate: '2026-10-30', arrivedAt: '2026-10-30T08:50:00Z', code: 'EPO:R71(3)', deadline: { due: '2027-03-01', state: 'active', confirmedBy: PEOPLE.jonas } },
+      subject: { letterDate: '2026-10-30', arrivedAt: '2026-10-30T08:50:00Z', code: 'EPO:R71(3)', deadline: { due: '2027-03-01', state: 'active', confirmedBy: PEOPLE.jonas.name } },
     },
     {
       id: `file-letter:${sha(1)}`, task: uuid(22), kind: 'file-letter', title: 'File this letter', why: 'You are the formalities person.', state: 'assigned',
