@@ -27,8 +27,8 @@ export interface Config {
   /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
   recordsHref: string
   /**
-   * Where the account menu's Sign out goes: an absolute path on the same origin, with an optional query, such as the
-   * firm proxy's `/oauth2/sign_out`. Empty (the default) means no sign-in in front of the app, and no Sign out.
+   * Where the account menu's Sign out goes: a path relative to the document, with an optional query, such as the firm
+   * proxy's `oauth2/sign_out?rd=%2F`. Empty (the default) means no sign-in in front of the app, and no Sign out.
    */
   signOutHref: string
 }
@@ -42,20 +42,21 @@ export const Config: z<Config> = z.object({
 /** A path relative to the document: no scheme, no host, no leading slash, no query or fragment. */
 const DOCUMENT_RELATIVE_PATH = /^[A-Za-z0-9._~-][A-Za-z0-9._~/-]*$/u
 
-/** An absolute path on the same origin with an optional query: a leading slash, no second slash after it, no fragment. */
-const SAME_ORIGIN_PATH = /^\/(?!\/)[A-Za-z0-9._~/%-]*(?:\?[A-Za-z0-9._~/%=&+-]*)?$/u
+/** A path relative to the document with an optional query: no scheme, no host, no leading slash, no fragment. */
+const DOCUMENT_RELATIVE_LINK = /^[A-Za-z0-9._~-][A-Za-z0-9._~/%-]*(?:\?[A-Za-z0-9._~/%=&+-]*)?$/u
 
 /**
  * Check the row's config.
  * @param config - the row's config.
- * @throws when `recordsHref` is not a document-relative path, or `signOutHref` is neither empty nor a same-origin path.
+ * @throws when `recordsHref` is not a document-relative path, or `signOutHref` is neither empty nor a document-relative
+ * path with an optional query.
  */
 export function checkConfig(config: Config): void {
   if (!DOCUMENT_RELATIVE_PATH.test(config.recordsHref)) {
     throw new Error(`ui-flowleap-records: recordsHref must be a document-relative path such as records/, got ${JSON.stringify(config.recordsHref)}`)
   }
-  if (config.signOutHref !== '' && !SAME_ORIGIN_PATH.test(config.signOutHref)) {
-    throw new Error(`ui-flowleap-records: signOutHref must be empty or an absolute path on the same origin such as /oauth2/sign_out, got ${JSON.stringify(config.signOutHref)}`)
+  if (config.signOutHref !== '' && !DOCUMENT_RELATIVE_LINK.test(config.signOutHref)) {
+    throw new Error(`ui-flowleap-records: signOutHref must be empty or a document-relative path such as oauth2/sign_out?rd=%2F, got ${JSON.stringify(config.signOutHref)}`)
   }
 }
 

@@ -18,14 +18,14 @@ describe('checkConfig', () => {
 })
 
 describe('checkConfig signOutHref', () => {
-  it('accepts no sign-out path or an absolute path on the same origin', () => {
-    for (const signOutHref of ['', '/oauth2/sign_out', '/oauth2/sign_out?rd=%2F', '/sign-out']) {
+  it('accepts no sign-out path or a document-relative path with a query', () => {
+    for (const signOutHref of ['', 'oauth2/sign_out', 'oauth2/sign_out?rd=%2F', 'sign-out']) {
       expect(() => { checkConfig({ recordsHref: 'records/', signOutHref }) }).not.toThrow()
     }
   })
 
   it('refuses a sign-out target that leaves the origin', () => {
-    for (const signOutHref of ['oauth2/sign_out', '//evil.example/sign_out', 'https://evil.example/', 'javascript:alert(1)', '/sign_out#x', '/\\evil']) {
+    for (const signOutHref of ['/oauth2/sign_out', '//evil.example/sign_out', 'https://evil.example/', 'javascript:alert(1)', '/sign_out#x', '/\\evil']) {
       expect(() => { checkConfig({ recordsHref: 'records/', signOutHref }) }).toThrow(/signOutHref/u)
     }
   })
@@ -37,7 +37,7 @@ describe('answerRecordsLink', () => {
     expect(response.headers.get('content-type')).toBe('application/json')
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(await response.json()).toEqual({ href: 'records/', signOutHref: null })
-    expect(await answerRecordsLink({ recordsHref: 'records/', signOutHref: '/oauth2/sign_out' }).json()).toEqual({ href: 'records/', signOutHref: '/oauth2/sign_out' })
+    expect(await answerRecordsLink({ recordsHref: 'records/', signOutHref: 'oauth2/sign_out?rd=%2F' }).json()).toEqual({ href: 'records/', signOutHref: 'oauth2/sign_out?rd=%2F' })
   })
 })
 

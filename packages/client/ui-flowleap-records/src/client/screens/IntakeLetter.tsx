@@ -21,7 +21,6 @@ import type { IntakeStep } from '../model.ts'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
-import { CODE_TITLES } from '../words.ts'
 import { LetterDrawing, Readings } from './evidence.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate } from '../format.ts'
@@ -90,6 +89,15 @@ export function differingDates(letter: Pick<IntakeDocument, 'readers'>): readonl
   return text === null || image === null || text === image ? null : [{ source: 'text', date: text }, { source: 'image', date: image }]
 }
 
+/**
+ * Whether reader 1 could not read the letter (a scan with no text), so any code on the card is a person's entry.
+ * @param letter - the letter.
+ * @returns true when the record holds the letter's `document/unreadable` event.
+ */
+function readNothing(letter: Pick<IntakeDocument, 'activity'>): boolean {
+  return letter.activity.some(event => event.type === 'document/unreadable')
+}
+
 /** One reason that FlowLeap gives for its reading or its proposal. */
 interface Reason {
   readonly key: string
@@ -140,7 +148,8 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
       text: matters === 1 ? t('intake.reason.oneMatter') : matters === 0 ? t('intake.reason.noMatter') : t('intake.reason.matters', { count: matters }),
     })
   }
-  if (letter.code !== null) {
+  // A scan that reader 1 could not read got its code from a person's hand entry, which is no reading of FlowLeap.
+  if (letter.code !== null && !readNothing(letter)) {
     const office = letter.office ?? letter.code.replace(/:.*$/u, '')
     const words = { title: letterTitle(t, letter.code), from: fromOffice(t, office) }
     // The title line's span supports the kind; the date has its own. A reading without a title quotes nothing for the
@@ -242,33 +251,75 @@ function MatterPicker({ ctx, matters, picked, open, onOpenChange, onPick }: {
   )
 }
 
+/** What the person enters from the page of a scan with no reading. */
+export interface HandValues {
+  readonly fileNumber: string
+  readonly applicationNumber: string
+  readonly code: string
+  readonly documentDate: string
+}
+
 /**
- * Render the fields of the hand entry of a scan with no reading: the application number, the office event and the
- * date of the letter, read from the page by the person. The Records API has no command that files a scan with its
- * office event yet, so the decision bar blocks the act and says so.
+ * The filing act of a hand entry, or null while a value is missing.
+ * @param letter - the letter.
+ * @param values - what the person entered.
+ * @returns the command.
+ */
+export function handCommand(letter: Pick<IntakeDocument, 'document' | 'matters'>, values: HandValues): Command | null {
+  const matter = letter.matters.find(item => item.fileNumber === values.fileNumber)
+  const applicationNumber = values.applicationNumber.trim()
+  if (matter === undefined || applicationNumber === '' || values.code === '' || !/^\d{4}-\d{2}-\d{2}$/u.test(values.documentDate)) return null
+  return {
+    kind: 'intake.file', document: letter.document, fileNumber: matter.fileNumber, code: values.code,
+    documentDate: values.documentDate as IsoDate, applicationNumber,
+  }
+}
+
+/**
+ * Render the fields of the hand entry of a scan with no reading: the matter, the application number, the office
+ * event and the date of the letter, read from the page by the person. Filing the scan and recording its office event
+ * are one act of the decision bar.
  * @param props.ctx - the screen context.
  * @param props.letter - the letter.
+ * @param props.values - what the person entered.
+ * @param props.onChange - a field changed.
  * @returns the fields.
  */
-function HandEntry({ ctx, letter }: { ctx: ScreenContext; letter: IntakeDocument }) {
+function HandEntryFields({ ctx, letter, values, onChange }: {
+  ctx: ScreenContext
+  letter: IntakeDocument
+  values: HandValues
+  onChange: (values: HandValues) => void
+}) {
   const { t } = ctx
+  const codes = letter.entry?.codes ?? []
+  const set = (field: keyof HandValues) => (event: { currentTarget: { value: string } }) => {
+    onChange({ ...values, [field]: event.currentTarget.value })
+  }
   return (
     <section aria-label={t('letter.hand.heading')}>
       <h2 className={css.subHeading}>{t('letter.hand.heading')}</h2>
       <div className={css.fields}>
         <label className={css.field}>
+          <span className={css.fieldKey}>{t('prop.matter')}</span>
+          <select className={css.input} name="fileNumber" value={values.fileNumber} onChange={set('fileNumber')}>
+            <option value="">{t('letter.hand.chooseMatter')}</option>
+            {letter.matters.map(matter => <option key={matter.fileNumber} value={matter.fileNumber}>{`${matter.fileNumber} ${matter.title}`}</option>)}
+          </select>
+        </label>
+        <label className={css.field}>
           <span className={css.fieldKey}>{t('prop.application')}</span>
-          <input className={css.input} name="applicationNumber" autoComplete="off" defaultValue={letter.applicationNumber === null ? '' : formatApplicationNumber(letter.applicationNumber)} />
+          <input className={css.input} name="applicationNumber" autoComplete="off" value={values.applicationNumber} onChange={set('applicationNumber')} />
         </label>
         <label className={css.field}>
           <span className={css.fieldKey}>{t('letter.hand.event')}</span>
-          <select className={css.input} name="code" defaultValue={letter.code ?? 'EPO:R71(3)'}>
-            {Object.entries(CODE_TITLES).map(([code, key]) => <option key={code} value={code}>{t(key)}</option>)}
+          <select className={css.input} name="code" value={values.code} onChange={set('code')} disabled={codes.length === 0}>
+            {codes.map(item => <option key={item.code} value={item.code}>{ctx.locale === 'de' ? item.title.de : item.title.en}</option>)}
           </select>
         </label>
         <label className={css.field}>
           <span className={css.fieldKey}>{t('letter.hand.date')}</span>
-          <input className={css.input} name="documentDate" type="date" defaultValue={letter.documentDate ?? ''} />
+          <input className={css.input} name="documentDate" type="date" value={values.documentDate} onChange={set('documentDate')} />
           <span className={css.fieldHint}>{t('letter.hand.dateHint')}</span>
         </label>
       </div>
@@ -301,6 +352,10 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const [pickerOpen, setPickerOpen] = useState(step === 'other-matter' && canPick)
   const [picked, setPickedState] = useState<MatterRef | null>(null)
   const dates = differingDates(letter)
+  const [hand, setHandState] = useState<HandValues>({
+    fileNumber: '', applicationNumber: letter.applicationNumber ?? '', code: letter.entry?.codes[0]?.code ?? '', documentDate: '',
+  })
+  const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
   const [chosenDate, setChosenDate] = useState<IsoDate | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
@@ -333,6 +388,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const record = (() => {
     if (decision.kind === 'match' && !picking) return () => { match(decision.proposed.fileNumber) }
     if (canPick && picked !== null) return () => { match(picked.fileNumber) }
+    if (handAct !== null) return () => { decide(handAct) }
     if (decision.kind === 'code') {
       const event = letter.officeEvent
       const { code, applicationNumber } = letter
@@ -454,7 +510,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           icon={<IconEditOutlineRegular size={16} />}
           title={t('letter.hand.part')}
           detail={t('letter.hand.detail')}
-          missing={t('letter.hand.unavailable')}
+          missing={letter.entry === null ? t('letter.hand.unavailable') : handAct === null ? t('letter.hand.incomplete') : null}
         />
       )
       case 'none':
@@ -500,6 +556,8 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const forwarder = letter.mail.forwarder
   const proposed = letter.proposed
   const unreadable = letter.status.machine === 'intake' && letter.status.state === 'unreadable'
+  // A scan filed by hand has no reading: the values on the card are the entry, which Activity names.
+  const read = !readNothing(letter)
   const readers = letter.readers ?? {
     code: {
       result: { code: letter.code, documentDate: letter.documentDate, applicationNumber: letter.applicationNumber },
@@ -523,8 +581,18 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         />
         <EvidenceSplit evidence={<LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />}>
           {unreadable
-            ? <HandEntry ctx={ctx} letter={letter} />
-            : (
+            ? (
+              <HandEntryFields
+                ctx={ctx}
+                letter={letter}
+                values={hand}
+                onChange={(next) => {
+                  setHandState(next)
+                  runner.clear()
+                }}
+              />
+            )
+            : read && (
               <section aria-label={t('letter.read')}>
                 <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t('letter.readTwice')}`}</span></h2>
                 <Readings ctx={ctx} readers={readers} />

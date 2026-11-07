@@ -344,7 +344,7 @@ describe('the Matters panel', () => {
     const never = () => new Promise<Fetched<never>>(() => {})
     const api: RecordsApi = {
       me: never, matters: never, matter: never, deadline: never, intake: never, intakeDocument: never, tickets: never, ticket: never,
-      myWork: never, searchMatters: never,
+      myWork: never, search: never,
       perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '',
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })
@@ -364,7 +364,7 @@ describe('the Matters panel', () => {
     const down = () => Promise.resolve<Fetched<never>>({ ok: false, error: { kind: 'service', status: 503 } })
     const api: RecordsApi = {
       me: down, matters: down, matter: down, deadline: down, intake: down, intakeDocument: down, tickets: down, ticket: down,
-      myWork: down, searchMatters: down,
+      myWork: down, search: down,
       perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '',
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })

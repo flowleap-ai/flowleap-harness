@@ -86,6 +86,7 @@ export function decisionHeading(
 const REFUSED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
   'intake.match': 'failure.match',
   'intake.notRelevant': 'failure.notRelevant',
+  'intake.file': 'failure.file',
   'officeEvent.decide': 'failure.officeEvent',
   'deadline.confirm': 'failure.confirm',
   'deadline.reject': 'failure.reject',

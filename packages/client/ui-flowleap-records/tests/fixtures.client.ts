@@ -7,7 +7,7 @@
  * `createFixtureApi` serves these answers as a `RecordsApi`, for component tests and for a screen without the os.
  */
 
-import { findMatters, parsers, type Act, type DocumentId, type Fetched, type FileNumber, type IntakeView, type RecordsApi } from '../src/client/api.ts'
+import { parsers, type Act, type DocumentId, type Fetched, type FileNumber, type IntakeView, type RecordsApi } from '../src/client/api.ts'
 
 /** Today in the fixtures. */
 export const TODAY = '2026-11-04'
@@ -233,6 +233,26 @@ export const myWorkWire = {
   }],
 }
 
+/**
+ * `GET search?q=` over the fixture matters: each word must be in the file number, title or client, as the os matches
+ * them; a person match is not modelled.
+ * @param query - the query.
+ * @returns the answer.
+ */
+export function searchWire(query: string) {
+  const words = query.toLowerCase().split(/\s+/u).filter(Boolean)
+  const matters = (Object.keys(MATTERS) as MatterKey[]).flatMap((fileNumber) => {
+    const fields = { fileNumber, title: MATTERS[fileNumber].title, client: MATTERS[fileNumber].client }
+    const matched = words.map(word => Object.entries(fields).find(([, value]) => value.toLowerCase().includes(word)))
+    if (matched.some(match => match === undefined)) return []
+    return [{
+      ...fields, applicationNumber: fileNumber === 'FL-2026-0001' ? 'EP24123456' : null, state: 'open', responsible: PEOPLE.anna,
+      formalitiesPerson: null, matched: matched.flatMap(match => match === undefined ? [] : [{ field: match[0], value: match[1] }]),
+    }]
+  })
+  return { recordSeq: 150, q: query, matters, more: false }
+}
+
 /** `GET matters/FL-2026-0001`. */
 export const matterWire = {
   recordSeq: 140,
@@ -398,7 +418,7 @@ export function createFixtureApi(): { api: RecordsApi; acts: Act[] } {
       tickets: () => ok(fixtures.tickets),
       ticket: () => ok(fixtures.ticket),
       myWork: () => ok(fixtures.myWork),
-      searchMatters: query => ok(findMatters(fixtures.matters.rows, query)),
+      search: query => ok(parsers.searchAnswer(searchWire(query), 'search')),
       perform: (act) => {
         acts.push(act)
         return ok(null)

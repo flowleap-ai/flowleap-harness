@@ -29,7 +29,7 @@ import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRecordsKey } from './l
 import { createRecordsModel, ROOT_ROUTE, type Route } from './model.ts'
 import { MattersIcon, MyWorkIcon, MyWorkPanel, RecordsPanel, type PanelInjected } from './Panel.tsx'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from './key-layer.ts'
-import { createMatterFinder } from './find.ts'
+import { FindDialog, type FindInjected } from './FindDialog.tsx'
 import { AccountButton, type AccountInjected } from './Account.tsx'
 import { registerRowMenu, registerWorkRowMenu } from './row-menu.ts'
 import { runSessionProvider } from './agent-run.ts'
@@ -141,14 +141,9 @@ export function apply(ctx: ClientContext): void {
   const panelInfo = ctx.layout.panelInfo
   const recordsOpen = () => [PANEL_ID, MY_WORK_PANEL_ID].includes(panelInfo.getSnapshot().activePanelId as MainPanelId)
   const keyActs = new KeyActRegistry()
-  const finder = createMatterFinder(api, t, openInMatters, recordsOpen)
-  const commandItems = new CommandItemRegistry(() => finder.item())
-  const openFind = () => {
-    void finder.refresh(controller.signal).then(() => {
-      commandItems.offer(finder.item(true))
-      ctx.commandMenu.open()
-    })
-  }
+  const commandItems = new CommandItemRegistry()
+  const findOpening = createSnapshotStore<number | null>(null)
+  const openFind = () => { findOpening.set((findOpening.getSnapshot() ?? 0) + 1) }
   const panels = [
     {
       id: MY_WORK_PANEL_ID, root: 'my-work', model: myWork, order: -120, label: 'mywork.panel', icon: MyWorkIcon,
@@ -215,7 +210,23 @@ export function apply(ctx: ClientContext): void {
     registerRowMenu(ctx, matters, t, linkOf(PANEL_ID))
     registerWorkRowMenu(ctx, { navigate: (route) => { myWork.navigate(route) }, openInMatters, linkOf: linkOf(MY_WORK_PANEL_ID) }, t)
     registerKeyLayer(ctx, keyActs, commandItems, t)
-    void finder.refresh(controller.signal)
+    const find: FindInjected = {
+      hooks: { opening: findOpening },
+      search: (query, signal) => api.search(query, signal),
+      close: () => { findOpening.set(null) },
+      openMatter: (fileNumber) => { openInMatters({ view: 'matter', fileNumber }) },
+    }
+    ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'records-find', locale: NS, inject: () => find }, FindDialog))
+    // ⌘K on My work or the Matters panel opens the open item's acts, or Find a matter on a view with no open item; on
+    // any other view the app's search surface opens.
+    ctx.inject(['uiWorkspace'], (scope) => {
+      scope.effect(() => scope.uiWorkspace.provideItemMenu(() => {
+        if (!recordsOpen()) return false
+        if (commandItems.item() === null) openFind()
+        else ctx.commandMenu.open()
+        return true
+      }), 'ui-flowleap-records: ⌘K')
+    })
     registerPanel(panels[1])
     const account: AccountInjected = {
       hooks: { me: myWork.me },

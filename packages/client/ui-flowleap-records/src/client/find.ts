@@ -1,73 +1,62 @@
 /**
- * Find a matter (sheet 00 section 6, mockup `5-dossier` state `search`): the command menu with the matters inside the
- * person's walls as its rows, which the menu's input filters as the person types. `/`, the top bar's Find a matter and
- * ⌘K on a view with no open item open it; a row opens the matter's dossier in the Matters panel.
+ * The search of Find a matter (sheet 00 section 6, mockup `5-dossier` state `search`): `GET search` as the person
+ * types, after a short pause, with the read of an older query stopped. The Records API applies the walls, so only
+ * matters of the person's teams come back.
  */
 
-import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
-import type { MatterRow, RecordsApi } from './api.ts'
-import type { FileNumber } from './api.ts'
-import type { Route } from './model.ts'
-import type { Translate } from './words.ts'
+import { useEffect, useState } from 'react'
+import type { RecordsApi, RecordsError, SearchAnswer, SearchMatter } from './api.ts'
 
-/** The matters that Find a matter shows, and the command menu item that shows them. */
-export interface MatterFinder {
-  /**
-   * Read the matters again.
-   * @param signal - stops the read.
-   * @returns when the read settled.
-   */
-  refresh(signal: AbortSignal): Promise<void>
-  /**
-   * The command menu item of Find a matter.
-   * @param always - true when the person asked for it; false (⌘K) shows it only while an IPMS panel is open.
-   * @returns the item, or null before the first read or, for ⌘K, outside the IPMS panels.
-   */
-  item(always?: boolean): CommandMenuItem | null
+/** How long the search waits after the last key before it reads. */
+export const SEARCH_PAUSE_MS = 150
+
+/** The longest query that the Records API takes. */
+export const MAX_QUERY = 100
+
+/** Where one search is. */
+export type FindSearch =
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'searching'; readonly last: SearchAnswer | null }
+  | { readonly phase: 'ready'; readonly answer: SearchAnswer }
+  | { readonly phase: 'failed'; readonly error: RecordsError }
+
+/**
+ * Search the matters for a query while it is shown: nothing for an empty query, else one read after the pause. A new
+ * query stops the read of the old one, and the last answer stays on screen while the next one loads.
+ * @param search - the search read of the Records API.
+ * @param query - the text in the input.
+ * @returns where the search is.
+ */
+export function useMatterSearch(search: RecordsApi['search'], query: string): FindSearch {
+  const [state, setState] = useState<FindSearch>({ phase: 'idle' })
+  const text = query.trim()
+  useEffect(() => {
+    if (text === '') {
+      setState({ phase: 'idle' })
+      return undefined
+    }
+    setState(previous => ({ phase: 'searching', last: previous.phase === 'ready' ? previous.answer : previous.phase === 'searching' ? previous.last : null }))
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      void search(text, controller.signal).then((result) => {
+        if (controller.signal.aborted) return
+        setState(result.ok ? { phase: 'ready', answer: result.value } : { phase: 'failed', error: result.error })
+      })
+    }, SEARCH_PAUSE_MS)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [search, text])
+  return state
 }
 
 /**
- * The command menu item of the matters: one row for each matter with its file number, title and client, and the wall
- * note as the group's heading (product rule 8). A failed read is one disabled row that says so.
- * @param t - the translate function.
- * @param found - the matters, or null when the read failed.
- * @param open - open a matter's dossier.
- * @returns the item.
+ * What a found matter's second line adds to its client: the matched application number or person, which the title
+ * line does not show.
+ * @param matter - the found matter.
+ * @returns the matched values to show, in the answer's order.
  */
-export function findItem(t: Translate, found: readonly MatterRow[] | null, open: (fileNumber: FileNumber) => void): CommandMenuItem {
-  if (found === null) return { label: t('find.label'), groups: [{ id: 'matters', label: t('find.group'), acts: [{ id: 'failed', label: t('find.failed'), disabled: true, run: () => {} }] }] }
-  return {
-    label: t('find.label'),
-    groups: [{
-      id: 'matters',
-      label: t('find.group'),
-      acts: found.map(row => ({ id: row.fileNumber, label: t('find.row', { fileNumber: row.fileNumber, title: row.title, client: row.client }), run: () => { open(row.fileNumber) } })),
-    }],
-  }
-}
-
-/**
- * Create the finder over the matters list.
- * @param api - the Records API.
- * @param t - the translate function.
- * @param openInMatters - open a route in the Matters panel.
- * @param recordsOpen - whether an IPMS panel is the open main panel.
- * @returns the finder.
- */
-export function createMatterFinder(
-  api: Pick<RecordsApi, 'searchMatters'>, t: Translate, openInMatters: (route: Route) => void, recordsOpen: () => boolean,
-): MatterFinder {
-  let found: readonly MatterRow[] | null | undefined
-  const open = (fileNumber: FileNumber) => { openInMatters({ view: 'matter', fileNumber }) }
-  return {
-    async refresh(signal) {
-      const result = await api.searchMatters('', signal)
-      if (result.ok) found = result.value
-      else if (result.error.kind !== 'aborted') found = null
-    },
-    item(always = false) {
-      if (found === undefined || (!always && !recordsOpen())) return null
-      return findItem(t, found, open)
-    },
-  }
+export function extraMatches(matter: SearchMatter): readonly string[] {
+  return matter.matched.flatMap(match => match.field === 'applicationNumber' || match.field === 'person' ? [match.value] : [])
 }

@@ -337,6 +337,10 @@ export type IntakeList = Parsed<typeof intakeList>
 
 // GET intake/documents/<sha256>
 
+const entry = obj({ codes: arrayOf(obj({ code: str, form: str, title: obj({ en: str, de: str }) })) })
+/** The office events that a person may enter by hand for a scan with no reading, each with its title in English and German. */
+export type HandEntry = Parsed<typeof entry>
+
 const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
@@ -354,7 +358,8 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   })(value, path)
   // The os sends the two readings of a letter only once it holds reader 2's; before, the card has reader 1's fields.
   const both = source['readers'] === undefined ? null : readers(source['readers'], `${path}.readers`)
-  return { ...rest, status: queueStatus(source, path), readers: both }
+  const hand = source['entry'] === undefined ? null : nullable(entry)(source['entry'], `${path}.entry`)
+  return { ...rest, status: queueStatus(source, path), readers: both, entry: hand }
 }
 /** One letter of intake with its reading, the proposed matter, the matters the person may pick, and Activity. */
 export interface IntakeDocument {
@@ -389,6 +394,8 @@ export interface IntakeDocument {
   readonly activity: readonly ActivityEvent[]
   /** Both readings, where the os sends them; null where it sends reader 1's fields only. */
   readonly readers: Readers | null
+  /** The hand entry of a scan with no reading (`unreadable`); null for any other letter, or from an os without it. */
+  readonly entry: HandEntry | null
 }
 
 // GET tickets
@@ -455,9 +462,22 @@ const myWork = obj({
 /** The person's open tasks, the first line's counts, the tasks held in sight after an escalation, and the person's matters. */
 export type MyWork = Parsed<typeof myWork>
 
+// GET search?q=
+
+const searchMatter = obj({
+  fileNumber: ids.fileNumber, title: str, client: str, applicationNumber: nullable(str), state: oneOf(['open', 'closed']),
+  responsible: nullable(person), formalitiesPerson: nullable(person),
+  matched: arrayOf(obj({ field: oneOf(['fileNumber', 'title', 'client', 'applicationNumber', 'person']), value: str })),
+})
+/** One matter that a search found, with the fields that the words of the query matched. */
+export type SearchMatter = Parsed<typeof searchMatter>
+const searchAnswer = obj({ recordSeq: num, q: str, matters: arrayOf(searchMatter), more: bool })
+/** The matters inside the person's walls that match a query, the exact file number first; `more` when the limit cut them. */
+export type SearchAnswer = Parsed<typeof searchAnswer>
+
 /** The parsers of every read, for tests and fixtures. */
 export const parsers = {
-  me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail, myWork,
+  me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail, myWork, searchAnswer,
 } as const
 
 // Failures.
@@ -513,6 +533,14 @@ export type DeadlineCheck =
 export type Command =
   | { readonly kind: 'intake.match'; readonly document: DocumentId; readonly fileNumber: FileNumber }
   | { readonly kind: 'intake.notRelevant'; readonly document: DocumentId; readonly reason: string }
+  | {
+    readonly kind: 'intake.file'
+    readonly document: DocumentId
+    readonly fileNumber: FileNumber
+    readonly code: string
+    readonly documentDate: IsoDate
+    readonly applicationNumber: string
+  }
   | { readonly kind: 'officeEvent.decide'; readonly id: OfficeEventId; readonly code: string; readonly documentDate: IsoDate; readonly applicationNumber: string }
   | { readonly kind: 'deadline.confirm'; readonly id: DeadlineId; readonly seen: number }
   | { readonly kind: 'deadline.reject'; readonly id: DeadlineId; readonly reason: string }
@@ -542,6 +570,13 @@ export function commandRequest(command: Command): { readonly path: string; reado
   switch (command.kind) {
     case 'intake.match': return { path: `intake/documents/${command.document}/match`, body: { fileNumber: command.fileNumber } }
     case 'intake.notRelevant': return { path: `intake/documents/${command.document}/not-relevant`, body: { reason: command.reason } }
+    case 'intake.file': return {
+      path: `intake/documents/${command.document}/file`,
+      body: {
+        fileNumber: command.fileNumber, code: command.code, documentDate: command.documentDate,
+        applicationNumber: command.applicationNumber,
+      },
+    }
     case 'officeEvent.decide': return {
       path: `office-events/${command.id}/decide`,
       body: { code: command.code, documentDate: command.documentDate, applicationNumber: command.applicationNumber },
@@ -566,14 +601,13 @@ export interface RecordsApi {
   ticket(id: TicketId, signal: AbortSignal): Promise<Fetched<TicketDetail>>
   myWork(signal: AbortSignal): Promise<Fetched<MyWork>>
   /**
-   * Find the matters inside the person's walls whose file number, title or client holds the query, case-insensitively,
-   * in the order of the matters list (next due first). Until the Records API has a search read, it filters
-   * `GET matters`, which holds only the matters the person may see and no application number or person.
-   * @param query - the text the person typed; an empty query finds every matter.
+   * Find the matters inside the person's walls whose file number, title, client, application number or team person
+   * matches each word of the query (`GET search`).
+   * @param query - 1 to 100 characters; the os refuses an empty or longer query.
    * @param signal - stops the read.
-   * @returns the matters found.
+   * @returns the matters found, at most 20, and whether more match.
    */
-  searchMatters(query: string, signal: AbortSignal): Promise<Fetched<readonly MatterRow[]>>
+  search(query: string, signal: AbortSignal): Promise<Fetched<SearchAnswer>>
   /**
    * Send one act. A retry of the same act passes the same `Act`, so its key is the same.
    * @returns ok with no value, or the failure; a network failure leaves the outcome unknown, so retry with the act.
@@ -635,17 +669,8 @@ async function exchange<T>(
   }
 }
 
-/**
- * The matters whose file number, title or client holds the query, case-insensitively; an empty query keeps them all.
- * @param rows - the matters the person may see.
- * @param query - the text the person typed.
- * @returns the matching rows in their order.
- */
-export function findMatters(rows: readonly MatterRow[], query: string): readonly MatterRow[] {
-  const needle = query.trim().toLocaleLowerCase()
-  if (needle === '') return rows
-  return rows.filter(row => [row.fileNumber, row.title, row.client].some(text => text.toLocaleLowerCase().includes(needle)))
-}
+/** The matters that one search shows; the os answers `more` when others match. */
+const SEARCH_LIMIT = 20
 
 /**
  * Create the Records API client.
@@ -686,10 +711,7 @@ export function createRecordsApi(
     tickets: signal => get('tickets', ticketsList, signal),
     ticket: (id, signal) => get(`tickets/${id}`, ticketDetail, signal),
     myWork: signal => get('my-work', myWork, signal),
-    searchMatters: async (query, signal) => {
-      const list = await get('matters', mattersList, signal)
-      return list.ok ? { ok: true, value: findMatters(list.value.rows, query) } : list
-    },
+    search: (query, signal) => get(`search?q=${encodeURIComponent(query)}&limit=${SEARCH_LIMIT}`, searchAnswer, signal),
     perform: (act, signal) => {
       const { path, body } = commandRequest(act.command)
       return exchange(

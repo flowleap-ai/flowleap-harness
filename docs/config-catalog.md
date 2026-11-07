@@ -647,8 +647,8 @@ export interface Config {
   /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
   recordsHref: string
   /**
-   * Where the account menu's Sign out goes: an absolute path on the same origin, with an optional query, such as the
-   * firm proxy's `/oauth2/sign_out`. Empty (the default) means no sign-in in front of the app, and no Sign out.
+   * Where the account menu's Sign out goes: a path relative to the document, with an optional query, such as the firm
+   * proxy's `oauth2/sign_out?rd=%2F`. Empty (the default) means no sign-in in front of the app, and no Sign out.
    */
   signOutHref: string
 }
