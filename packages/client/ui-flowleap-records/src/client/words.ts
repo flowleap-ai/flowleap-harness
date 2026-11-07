@@ -351,8 +351,8 @@ function objectWords(t: Translate, events: readonly ActivityEvent[]): (event: Ac
     if (kind !== null && typeof id === 'string') known.set(id, kind)
   }
   const word = (kind: string | null | undefined, fallback: keyof typeof OBJECT_WORDS): string => {
-    const known = kind !== null && kind !== undefined && kind in OBJECT_WORDS ? kind as keyof typeof OBJECT_WORDS : fallback
-    return t(OBJECT_WORDS[known])
+    const shown = kind !== null && kind !== undefined && kind in OBJECT_WORDS ? kind as keyof typeof OBJECT_WORDS : fallback
+    return t(OBJECT_WORDS[shown])
   }
   return (event) => {
     const id = event.detail['proposalId'] ?? event.detail['outboxId']
