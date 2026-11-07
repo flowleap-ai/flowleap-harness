@@ -29,7 +29,7 @@ import { ActButton, type ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '../parts/Evidence.tsx'
 import { DueText, dueSentence } from '../parts/Due.tsx'
-import { WorkColumn } from '../parts/Layout.tsx'
+import { Section, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
@@ -327,6 +327,11 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
             <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
           </div>
           <Related ctx={ctx} data={data} />
+          {data.draftReply === null && (
+            <Section heading={draftWords(t, letter?.code ?? null, 'office-reply').heading} count={0} empty={noReply(ctx, data)}>
+              {null}
+            </Section>
+          )}
           {drafts.map(item => (
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
@@ -465,6 +470,17 @@ function drafted(ctx: ScreenContext, data: TicketDetail): string {
   const to = office === null ? '' : toOffice(t, office)
   if (data.draftReply !== null) return t(data.clientReport === null ? 'work.lede.draftedReply' : 'work.lede.draftedBoth', { to })
   return t(data.clientReport === null ? 'work.lede.noDraft' : 'work.lede.drafted')
+}
+
+/**
+ * The empty state of a work with no draft reply to the office: the agent has not proposed one.
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @returns the sentence.
+ */
+function noReply(ctx: ScreenContext, data: TicketDetail): string {
+  const office = officeOfCode(data.letter?.code ?? null)
+  return office === null ? ctx.t('work.noReplyPlain') : ctx.t('work.noReply', { to: toOffice(ctx.t, office) })
 }
 
 /**

@@ -130,6 +130,16 @@ describe('the draft reply', () => {
   })
 })
 
+describe('the missing draft reply', () => {
+  it('says that the agent has not drafted a reply to the office, in the reply\'s place before the client report', async () => {
+    const { api } = createFixtureApi()
+    mounted = await mountPanel(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId }, 'en', 'my-work')
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)
+    expect(headings.indexOf('Draft reply to the EPO')).toBeLessThan(headings.indexOf('Client report'))
+    expect(screen.getByText('The agent has not drafted a reply to the EPO.')).toBeTruthy()
+  })
+})
+
 describe('the dossier', () => {
   it('names who confirmed or rejected each deadline and words the client\'s AI rules', async () => {
     const { api } = createFixtureApi()

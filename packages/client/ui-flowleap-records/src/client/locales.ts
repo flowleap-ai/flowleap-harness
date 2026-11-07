@@ -673,6 +673,8 @@ export const en = {
   'dossier.wall.screened': '{count} people screened',
   'dossier.rejectedBy': 'Rejected by {person}',
   'letter.next.part': '{person} confirms the deadline',
+  'work.noReply': 'The agent has not drafted a reply {to}.',
+  'work.noReplyPlain': 'The agent has not drafted a reply.',
 } as const
 
 /** Key domain of the namespace. */
@@ -1344,6 +1346,8 @@ export const de = {
   'dossier.wall.screened': '{count} Personen ausgeschlossen',
   'dossier.rejectedBy': 'Abgelehnt von {person}',
   'letter.next.part': '{person} bestätigt die Frist',
+  'work.noReply': 'Der Agent hat keine Antwort {to} entworfen.',
+  'work.noReplyPlain': 'Der Agent hat keine Antwort entworfen.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2012,6 +2016,8 @@ export const es = {
   'dossier.wall.screened': '{count} personas excluidas',
   'dossier.rejectedBy': 'Rechazado por {person}',
   'letter.next.part': '{person} confirma el plazo',
+  'work.noReply': 'El agente no ha redactado una respuesta {to}.',
+  'work.noReplyPlain': 'El agente no ha redactado una respuesta.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2680,6 +2686,8 @@ export const fr = {
   'dossier.wall.screened': '{count} personnes exclues',
   'dossier.rejectedBy': 'Rejeté par {person}',
   'letter.next.part': '{person} confirme le délai',
+  'work.noReply': 'L’agent n’a pas rédigé de réponse {to}.',
+  'work.noReplyPlain': 'L’agent n’a pas rédigé de réponse.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3348,6 +3356,8 @@ export const ja = {
   'dossier.wall.screened': '{count} 人を除外',
   'dossier.rejectedBy': '{person} が却下',
   'letter.next.part': '{person} が期限を確認します',
+  'work.noReply': 'エージェントは{to}の回答を作成していません。',
+  'work.noReplyPlain': 'エージェントは回答を作成していません。',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4016,6 +4026,8 @@ export const pt = {
   'dossier.wall.screened': '{count} pessoas excluídas',
   'dossier.rejectedBy': 'Rejeitado por {person}',
   'letter.next.part': '{person} confirma o prazo',
+  'work.noReply': 'O agente não redigiu uma resposta {to}.',
+  'work.noReplyPlain': 'O agente não redigiu uma resposta.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -4684,6 +4696,8 @@ export const ru = {
   'dossier.wall.screened': 'исключено человек: {count}',
   'dossier.rejectedBy': 'Отклонено: {person}',
   'letter.next.part': '{person} подтверждает срок',
+  'work.noReply': 'Агент не подготовил ответ {to}.',
+  'work.noReplyPlain': 'Агент не подготовил ответ.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5352,4 +5366,6 @@ export const zh = {
   'dossier.wall.screened': '已隔离 {count} 人',
   'dossier.rejectedBy': '{person} 已驳回',
   'letter.next.part': '{person} 确认期限',
+  'work.noReply': '代理尚未起草{to}的答复。',
+  'work.noReplyPlain': '代理尚未起草答复。',
 } satisfies Record<FlowleapRecordsKey, string>
