@@ -11,7 +11,8 @@
 .sb-name { font-weight: var(--dsw-font-xs-strong-13-font-weight); white-space: nowrap; }
 .sb-role { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); white-space: nowrap; }
 @media (hover: hover) { .sb-account:hover { background: var(--dsw-alias-interactive-bg-hover); } }
-.acct-menu { left: 8px; bottom: 64px; width: 228px; }
+.acct-menu { left: 8px; bottom: 64px; width: 228px; z-index: 9; }
+.drawer-scrim { display: none; }
 .acct-h { display: flex; align-items: center; gap: 8px; padding: 8px; }
 .acct-h .av { background: var(--dsw-alias-bg-overlay); }
 .acct-h .sb-who .sb-role { white-space: normal; }
@@ -20,7 +21,7 @@
 /* ---------- My work: the first line, time groups and task rows ---------- */
 .mw-head { padding: 24px 16px 16px; }
 .mw-head .lede { margin-top: 4px; }
-.mw .row, .mw .thead { grid-template-columns: 240px minmax(0, 1fr) 104px 128px 136px 152px; }
+.mw .row, .mw .thead { grid-template-columns: minmax(0, 1fr) 176px 104px 128px 136px 152px; }
 .mw .row .t .task { color: var(--dsw-alias-label-primary); }
 .group .gi { display: inline-grid; color: var(--dsw-alias-label-secondary); }
 .group .gi.over > svg { color: var(--dsw-alias-state-error-primary); }
@@ -118,6 +119,11 @@ a.law-chip > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-terti
 .mail-foot { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); border-top: 0.5px solid var(--dsw-alias-border-l2); padding-top: 12px; }
 .mail-foot p { margin: 0 0 4px; color: var(--dsw-alias-label-secondary); }
 
+/* A compact part: its title and its evidence state on one line, so three parts fit in a bar of 40 % of 650 px. */
+.part.compact { padding: 4px 0; }
+.part.compact .cq { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.part.compact .check { justify-self: center; }
+
 /* The decision bar is at most 40 % of the view; its part rows scroll inside it (components.md, decision bar). */
 .decision { display: flex; flex-direction: column; max-height: max(40dvh, 200px); }
 .decision-b { overflow: auto; min-height: 0; }
@@ -128,14 +134,21 @@ a.law-chip > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-terti
 }
 @media (max-width: 720px) {
   .mw-head { padding: 16px 16px 8px; }
-  .mw .row, .mw .thead { grid-template-columns: auto minmax(0, 1fr); }
+  .mw .thead { display: none; }
+  .mw .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "task due" "st key"; height: auto; min-height: 44px; padding-block: 8px; row-gap: 2px; }
+  .mw .row .c-task { grid-area: task; }
+  .mw .row .status { grid-area: st; }
+  .mw .row .c-key { grid-area: key; justify-self: end; }
+  .mw .row .c-due { grid-area: due; }
+  .mw .row .status, .mw .row .c-key { font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); }
   .ev-split, .ev-split.narrow-scan { grid-template-columns: minmax(0, 1fr); }
   .sticky-ev { position: static; }
   .reads { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr); }
   .reads .agree-cell { display: none; }
   .waits .row { grid-template-columns: auto minmax(0, 1fr); }
   .dl .row, .efile .row { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .acct-menu { display: none; }
+  body.drawer-open .sidebar { display: flex !important; position: fixed; inset: 0 auto 0 0; width: 244px; height: auto; z-index: 8; }
+  .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 7; background: var(--dsw-alias-bg-mask-2); }
   .part .d { display: none; }
   .mail-pane { padding: 16px 16px 32px; }
   .mail-facts { grid-template-columns: 96px minmax(0, 1fr); }

@@ -117,9 +117,9 @@
   });
   document.querySelectorAll('[data-logo]').forEach(el => { el.innerHTML = logo; });
 
-  // Days left come from one fixed demo date, Monday 9 November 2026, never from typed text. A past date says "overdue".
-  // No short form ("117 d").
-  const TODAY = Date.parse('2026-11-09');
+  // Days left come from the demo date that build.mjs writes into <html data-today>, never from typed text. A past date
+  // says "overdue". No short form ("117 d").
+  const TODAY = Date.parse(document.documentElement.dataset.today);
   const D = {
     en: { left: n => `${n} days left`, one: 'Due tomorrow', today: 'Due today', over: n => `Overdue by ${n} day${n === 1 ? '' : 's'}` },
     de: { left: n => `noch ${n} Tage`, one: 'Fällig morgen', today: 'Heute fällig', over: n => `${n} ${n === 1 ? 'Tag' : 'Tage'} überfällig` }
@@ -138,8 +138,13 @@
     el.hidden = !show;
   });
   if (state === 'empty') document.querySelectorAll('.tab .count, .chip .num').forEach(el => { el.textContent = '0'; });
-  if (state === 'empty') document.querySelectorAll('.sb-count').forEach(el => el.remove());
-  if (state === 'account') document.querySelectorAll('.sb-account').forEach(el => el.classList.add('is-open'));
+  // A state in which nothing waits for the person (data-zero) shows no My work count.
+  if (state === 'empty' || (sb?.dataset.zero ?? '').split(' ').includes(state)) document.querySelectorAll('.sb-count').forEach(el => el.remove());
+  // The account menu opens from the sidebar; below 720 px the sidebar opens as a drawer for it.
+  if (state === 'account') {
+    document.querySelectorAll('.sb-account').forEach(el => el.classList.add('is-open'));
+    document.body.classList.add('drawer-open');
+  }
   if (state === 'evidence') document.querySelectorAll('[data-hover]').forEach(el => el.classList.add('is-hover'));
   if (state === 'missing') document.querySelectorAll('.is-missing').forEach(el => el.scrollIntoView({ block: 'center' }));
   // ?state=activity scrolls the work column to its end; ?state=scrolled scrolls a list so its headers stick.

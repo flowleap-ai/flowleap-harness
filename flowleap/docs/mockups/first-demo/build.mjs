@@ -16,17 +16,18 @@ const P = {
   attorney: { name: 'Dr. Anna Becker', role: ['Patent attorney', 'Patentanwältin'] },
   lena: { name: 'Lena Hoffmann', role: ['Patent attorney', 'Patentanwältin'] },
 };
-const WAGO = 'Wago Verwaltungsgesellschaft mbH';
 const M = {
   demo: { key: 'SF-2023-0045', title: 'Apparatus and method for position encoding', client: 'Renishaw plc', app: 'EP 23 771 920.8', register: 'https://register.epo.org/application?number=EP23771920&lng=en' },
-  overdue: { key: 'SF-2022-0024', title: 'Control device and method for switching input/output units of a control device', client: WAGO, app: 'EP 22 213 933.9' },
-  art94: { key: 'SF-2024-0007', title: 'Contact assembly for connecting an electrical conductor and conductor connection terminal having such a contact assembly', client: WAGO, app: 'EP 24 166 597.5' },
   labels: { key: 'SF-2020-0031', title: 'Labelling materials for marking electrical installations and method for producing a labelling strip', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 20 706 232.4' },
   terminal: { key: 'SF-2026-0019', title: 'Terminal for electrical wire', client: 'Phoenix Contact GmbH & Co. KG', app: 'EP 21 810 318.2' },
 };
 // The Rule 71(3) communication of seed case r71-3-en-open (row 18): dated 2026-09-29, footer date 2026-09-25.
 // Due date from flowleap-deadlines rule ep.r71-3.grant-communication v1 with the EPO 2027 closing days (OJ EPO 2026, A30).
-const LETTER = '2026-09-29', FOOTER = '2026-09-25', START = '2026-09-30', DUE = '2027-01-29', TODAY = '2026-11-09';
+const LETTER = '2026-09-29', FOOTER = '2026-09-25', START = '2026-09-30', DUE = '2027-01-29';
+// The demo day; frame.js reads it from <html data-today>, so every "days left" follows this one value.
+const TODAY = '2026-11-09';
+// The date by which the client report asks the client for instructions: a firm choice, two weeks before the due date.
+const INSTRUCT_BY = '2027-01-15';
 
 let lang = 'en';
 const t = (en, de) => (lang === 'de' ? de : en);
@@ -41,6 +42,7 @@ const MOL = { en: ['January', 'February', 'March', 'April', 'May', 'June', 'July
 const parts = iso => { const d = new Date(`${iso}T12:00:00Z`); return [d.getUTCDay(), d.getUTCDate(), d.getUTCMonth(), d.getUTCFullYear()]; };
 const day = iso => { const [w, d, m, y] = parts(iso); return lang === 'de' ? `${WD.de[w]}, ${d}. ${MO.de[m]} ${y}` : `${WD.en[w]}, ${d} ${MO.en[m]} ${y}`; };
 const long = iso => { const [w, d, m, y] = parts(iso); return lang === 'de' ? `${WDL.de[w]}, ${d}. ${MOL.de[m]} ${y}` : `${WDL.en[w]}, ${d} ${MOL.en[m]} ${y}`; };
+const dayMonth = iso => { const [w, d, m] = parts(iso); return lang === 'de' ? `${WDL.de[w]}, ${d}. ${MOL.de[m]}` : `${WDL.en[w]}, ${d} ${MOL.en[m]}`; };
 const short = iso => { const [, d, m] = parts(iso); return lang === 'de' ? `${d}. ${MO.de[m]}` : `${d} ${MO.en[m]}`; };
 
 // ---------- parts ----------
@@ -65,7 +67,7 @@ const b = s => `<b>${s}</b>`;
 const FL = '<b>FlowLeap</b>';
 
 const page = ({ name, title, body, after = '' }) => `<!doctype html>
-<html lang="${lang}">
+<html lang="${lang}" data-today="${TODAY}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -80,9 +82,9 @@ ${after}<script src="frame.js"></script>
 </body>
 </html>
 `;
-const href = name => (name ? `${name}${lang === 'de' ? '.de' : ''}.html` : '#');
-const app = ({ person, side, count = '', body, fixed = true }) => `<div class="app">
-  <nav data-sidebar="${side}" data-name="${P[person].name}" data-role="${role(person)}" data-count="${count}"></nav>
+const href = name => `${name}${lang === 'de' ? '.de' : ''}.html`;
+const app = ({ person, side, count = '', zero = '', body, fixed = true }) => `<div class="app">
+  <nav data-sidebar="${side}" data-name="${P[person].name}" data-role="${role(person)}" data-count="${count}"${zero ? ` data-zero="${zero}"` : ''}></nav>
   <main class="main">
     <section class="panel${fixed ? ' fixed' : ''}">
 ${body}
@@ -113,6 +115,9 @@ const decision = ({ person, q, why, parts, left = '', note = '', acts }) => `   
           </div>`;
 const part = (icon, q, d, ctl = '<span></span>') => `
                 <div class="part"><span class="pi${icon === 'warn' ? ' warn' : ''}" data-i="${icon}"></span><div><div class="q">${q}</div>${d ? `<div class="d">${d}</div>` : ''}</div>${ctl}</div>`;
+const cpart = (icon, q, d, ctl = '<span></span>') => `
+                <div class="part compact">${icon}<div class="cq"><span class="q">${q}</span><span class="d">${d}</span></div>${ctl}</div>`;
+const seg = on => `<div class="seg"><span${on ? ' class="on"' : ''} data-i="check" data-act="accept">${t('Accept', 'Annehmen')} ${caps('accept')}</span><span data-i="x" data-act="reject">${t('Reject…', 'Ablehnen…')} ${caps('reject')}</span></div>`;
 const scanImage = (marks, cap) => `<div class="sticky-ev">
                 <div class="letter scan"><img src="scan/r71-3-page-1.webp" alt="${t('Page 1 of the scanned Rule 71(3) communication', 'Seite 1 der gescannten Mitteilung nach Regel 71(3)')}" width="910" height="1287">${marks.map(m => `<span class="mark mk-${m}" aria-hidden="true"></span>`).join('')}</div>
                 <div class="scan-pages"><span>${t('Page 1 of 4', 'Seite 1 von 4')}</span><span class="spacer"></span><span>${cap}</span></div>
@@ -133,22 +138,38 @@ const dateRow = (agree = true) => agree
 const appRow = () => readRow(t('Application', 'Anmeldung'), `${M.demo.app}${quote('23 771 920.8 - 1001', 1)}`, M.demo.app);
 
 // ---------- 1. My work ----------
-/** rows: { group: 'over'|'today'|'later', atlas, task, why, m, legal, due } */
-function myWork({ person, time, first, sub, rows, states = false }) {
+/** The first line, counted from the rows: what arrived or was worked, and how many need the person. */
+function firstLine(rows) {
+  const arrived = rows.filter(r => r.kind === 'file-letter').length, worked = rows.filter(r => r.kind === 'decide-work').length;
+  const letters = n => (n === 1 ? t('1 letter', '1 Schreiben') : t(`${n} letters`, `${n} Schreiben`));
+  const need = rows.length === 1 ? t('1 needs you', '1 braucht Sie') : t(`${rows.length} need you`, `${rows.length} brauchen Sie`);
+  return [arrived && `${letters(arrived)} ${t('arrived', 'eingegangen')}`, worked && `${letters(worked)} ${t('worked', 'bearbeitet')}`].filter(Boolean).join(', ') + `, ${need}`;
+}
+/** The second line: the demo day and the count of each due group. */
+function subLine(rows) {
+  const n = g => rows.filter(r => r.group === g).length;
+  const counts = [n('over') && t(`${n('over')} overdue`, `${n('over')} überfällig`), n('today') && t(`${n('today')} due today`, `${n('today')} heute fällig`), n('later') && t(`${n('later')} later`, `${n('later')} später`)].filter(Boolean);
+  return `${dayMonth(TODAY)} · ${counts.join(', ')}`;
+}
+/** rows: { group: 'over'|'today'|'later', kind, page (a mockup page, or none), atlas, task, why, m, legal, due } */
+function myWork({ person, time, rows, states = false }) {
   const groups = [['over', 'warn', t('Overdue', 'Überfällig')], ['today', 'today', t('Today', 'Heute')], ['later', 'later', t('Later', 'Später')]];
-  const row = r => `<a class="row" href="${href(r.page)}">${status(r.atlas)}<span class="t"><span class="task">${r.task}</span><span class="muted">${r.why}</span></span><span class="m num hide-sm">${r.m.key}</span><span class="m hide-sm">${r.m.client}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r hide-sm" data-due="${r.due}"></span></a>`;
+  const row = r => {
+    const tag = r.page ? 'a' : 'div';
+    return `<${tag} class="row"${r.page ? ` href="${href(r.page)}"` : ''}><span class="t c-task"><span class="task">${r.task}</span><span class="muted hide-sm">${r.why}</span></span>${status(r.atlas)}<span class="m num c-key">${r.m.key}</span><span class="m hide-sm">${r.m.client}</span><span class="hide-sm">${r.legal ? `<span class="legal" data-i="scale">${day(r.legal)}</span>` : ''}</span><span class="r c-due" data-due="${r.due}"></span></${tag}>`;
+  };
   const list = groups.map(([g, icon, word]) => {
     const rs = rows.filter(r => r.group === g);
     return rs.length ? `<div class="group"><span class="gi${g === 'over' ? ' over' : ''}" data-i="${icon}"></span>${word}<span class="count">${rs.length}</span></div>\n${rs.map(row).join('\n')}` : '';
   }).filter(Boolean).join('\n');
-  const thead = `<div class="thead"><span>${t('Status', 'Status')}</span><span>${t('Task', 'Aufgabe')}</span><span class="hide-sm">${t('Matter', 'Akte')}</span><span class="hide-sm">${t('Client', 'Mandant')}</span><span class="hide-sm">${t('Legal date', 'Fristende')}</span><span class="end hide-sm">${t('Due', 'Fällig')}</span></div>`;
-  const skel = ['w70', 'w50', 'w80', 'w60'].map(w => `<div class="row"><span class="skel w80"></span><span class="skel ${w}"></span><span class="skel w80 hide-sm"></span><span class="skel w60 hide-sm"></span><span class="skel w70 hide-sm"></span><span class="skel w50 end hide-sm"></span></div>`).join('\n');
+  const thead = `<div class="thead"><span>${t('Task', 'Aufgabe')}</span><span>${t('Status', 'Status')}</span><span>${t('Matter', 'Akte')}</span><span>${t('Client', 'Mandant')}</span><span>${t('Legal date', 'Fristende')}</span><span class="end">${t('Due', 'Fällig')}</span></div>`;
+  const skel = ['w70', 'w50', 'w80', 'w60'].map(w => `<div class="row"><span class="skel ${w} c-task"></span><span class="skel w80"></span><span class="skel w80 c-key"></span><span class="skel w60 hide-sm"></span><span class="skel w70 hide-sm"></span><span class="skel w50 end c-due"></span></div>`).join('\n');
   const S = s => (states ? ` data-state="${s}"` : '');
   const body = app({ person, side: 'mywork', count: rows.length, body: `${topbar(`<span class="ico" data-i="mywork"></span><span class="here">${t('My work', 'Meine Arbeit')}</span>`, `${findBtn()}<span class="iconbtn boxed" data-i="filter" aria-label="${t('Filter', 'Filter')}"></span><span class="iconbtn boxed hide-sm" data-i="display" aria-label="${t('Display', 'Anzeige')}"></span>`)}
       <div class="list-pane">
         <div class="mw-head"${S('default error')}>
-          <h1 class="title">${first}</h1>
-          <p class="lede">${sub}</p>
+          <h1 class="title">${firstLine(rows)}</h1>
+          <p class="lede">${subLine(rows)}</p>
         </div>
 ${states ? `        <div class="error-bar"${S('error')}>
           <div class="notice bad" data-i="warn"><div><span class="lead">${t('FlowLeap could not load your work.', 'FlowLeap konnte Ihre Arbeit nicht laden.')}</span> ${t(`The list shows your work as of ${time}. Nothing in the record changed.`, `Die Liste zeigt Ihre Arbeit mit Stand ${time} Uhr. Im Record hat sich nichts geändert.`)}</div><span class="spacer"></span>${btn('retry', t('Try again', 'Erneut versuchen'), { icon: 'retry' })}</div>
@@ -175,16 +196,13 @@ ${skel}
 }
 
 const formalRows = () => [
-  { group: 'today', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t('Rule 71(3) communication; its application number names one matter', 'Mitteilung nach Regel 71(3); ihre Anmeldenummer nennt eine Akte'), m: M.demo, legal: null, due: TODAY },
+  { group: 'today', kind: 'file-letter', page: '2-file-letter', atlas: 'intake.match_proposed', task: t('File this letter', 'Dieses Schreiben ablegen'), why: t('Rule 71(3) communication; its application number names one matter', 'Mitteilung nach Regel 71(3); ihre Anmeldenummer nennt eine Akte'), m: M.demo, legal: null, due: TODAY },
 ];
-// Seed case S3b: the formalities person entered the further-processing deadline of SF-2020-0031 by hand (Rule 135(1)
-// EPC, two months from the loss-of-rights letter of 2026-01-21, moved from Saturday to Monday by Rule 134(1) EPC), so
-// the attorney confirms it. Seed case r79-1-opposition: four months from 2026-10-14 end on Sunday, so Monday 2027-02-15;
-// its work is a demo assumption, with ticket.decideBy one month before the legal date.
+// Seed case r79-1-opposition: four months from 2026-10-14 end on Sunday, so Monday 2027-02-15. Its worked state is a
+// demo assumption, with ticket.decideBy one month before the legal date; no mockup page opens it.
 const attorneyRows = () => [
-  { group: 'over', page: null, atlas: 'deadline.manual_proposed', task: t('Confirm the deadline', 'Frist bestätigen'), why: t(`Further processing; ${P.formal.name} entered the date by hand, so a second person confirms`, `Weiterbehandlung; ${P.formal.name} hat das Datum von Hand eingegeben, darum bestätigt eine zweite Person`), m: M.labels, legal: '2026-03-23', due: '2026-03-23' },
-  { group: 'today', page: '4-review-work', atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t(`Rule 71(3) communication worked; deadline confirmed by ${P.formal.name}`, `Mitteilung nach Regel 71(3) bearbeitet; Frist von ${P.formal.name} bestätigt`), m: M.demo, legal: DUE, due: TODAY },
-  { group: 'later', page: null, atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t('Notice of opposition worked; draft observations ready', 'Mitteilung über den Einspruch bearbeitet; Entwurf der Stellungnahme liegt vor'), m: M.terminal, legal: '2027-02-15', due: '2027-01-15' },
+  { group: 'today', kind: 'decide-work', page: '4-review-work', atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t(`Rule 71(3) communication worked; deadline confirmed by ${P.formal.name}`, `Mitteilung nach Regel 71(3) bearbeitet; Frist von ${P.formal.name} bestätigt`), m: M.demo, legal: DUE, due: TODAY },
+  { group: 'later', kind: 'decide-work', page: null, atlas: 'ticket.proposals_ready', task: t('Review the work', 'Arbeit prüfen'), why: t('Notice of opposition worked; draft observations ready', 'Mitteilung über den Einspruch bearbeitet; Entwurf der Stellungnahme liegt vor'), m: M.terminal, legal: '2027-02-15', due: '2027-01-15' },
 ];
 
 // ---------- 2. File this letter, with the states "readings differ" and "no reading" ----------
@@ -214,21 +232,21 @@ function fileLetter() {
         <div class="work">
           <div class="work-scroll">
             <div class="eyebrow"${S('default more')}>${status('intake.match_proposed', 'pill')}<span class="hide-sm">${t('Waits for you since 08:02', 'Wartet seit 08:02 Uhr auf Sie')}</span></div>
-            <div class="eyebrow"${S('disagree')}>${status('deadline.code_proposed', 'pill')}<span class="hide-sm">${t('Filed by you at 08:03 · waits for you', 'Von Ihnen um 08:03 Uhr abgelegt · wartet auf Sie')}</span></div>
+            <div class="eyebrow"${S('disagree disagree-ready')}>${status('deadline.code_proposed', 'pill')}<span class="hide-sm">${t('Filed by you at 08:03 · waits for you', 'Von Ihnen um 08:03 Uhr abgelegt · wartet auf Sie')}</span></div>
             <div class="eyebrow"${S('no-reading')}>${status('intake.unreadable', 'pill')}<span class="hide-sm">${t('Waits for you since 08:02', 'Wartet seit 08:02 Uhr auf Sie')}</span></div>
             <h1 class="title">${t('Rule 71(3) communication', 'Mitteilung nach Regel 71(3)')}</h1>
             <p class="lede"${S('default more')}>${t('The scan came from the scan mailbox at 08:00. FlowLeap read it twice, and both readings agree.', 'Der Scan kam um 08:00 Uhr aus dem Scan-Postfach. FlowLeap hat ihn zweimal gelesen, beide Lesungen stimmen überein.')}</p>
-            <p class="lede"${S('disagree')}>${t(`You filed this letter on ${M.demo.key}. The two readings differ on the date of the letter, so you decide it. Then ${P.lena.name} confirms the deadline.`, `Sie haben dieses Schreiben in ${M.demo.key} abgelegt. Die beiden Lesungen weichen beim Datum ab, darum entscheiden Sie es. Danach bestätigt ${P.lena.name} die Frist.`)}</p>
+            <p class="lede"${S('disagree disagree-ready')}>${t(`You filed this letter on ${M.demo.key}. The two readings differ on the date of the letter, so you decide it. Then ${P.lena.name} confirms the deadline.`, `Sie haben dieses Schreiben in ${M.demo.key} abgelegt. Die beiden Lesungen weichen beim Datum ab, darum entscheiden Sie es. Danach bestätigt ${P.lena.name} die Frist.`)}</p>
             <p class="lede"${S('no-reading')}>${t(`FlowLeap could not read this scan. Read the page image and enter what it says. Then ${P.lena.name} confirms the deadline, because you entered the event.`, `FlowLeap konnte diesen Scan nicht lesen. Lesen Sie das Seitenbild und geben Sie ein, was darauf steht. Danach bestätigt ${P.lena.name} die Frist, weil Sie das Ereignis eingegeben haben.`)}</p>
             <div class="ev-split">
               <div>
-                <div${S('default disagree more')}>
+                <div${S('default disagree disagree-ready more')}>
                   <div class="sub-h">${t('What FlowLeap read', 'Was FlowLeap gelesen hat')} <span class="muted">· ${t('two independent readings', 'zwei unabhängige Lesungen')}</span></div>
                   <div class="reads"${S('default more')}>${readsHead()}${codeRow()}${dateRow()}${appRow()}</div>
-                  <div class="reads"${S('disagree')}>${readsHead()}${codeRow()}${dateRow(false)}${appRow()}</div>
+                  <div class="reads"${S('disagree disagree-ready')}>${readsHead()}${codeRow()}${dateRow(false)}${appRow()}</div>
                 </div>
                 <div${S('default more')}>${matterCard}${next}</div>
-                <div class="section"${S('disagree')}>
+                <div class="section"${S('disagree disagree-ready')}>
                   <div class="sub-h">${t('Why the readings differ', 'Warum die Lesungen abweichen')}</div>
                   <div class="reasons"><div class="reason" data-i="info"><div>${t('Page 1 has two dates: the date of the letter in the box at the top, and the print date of the form in the footer. The letter bears the date in the box.', 'Seite 1 hat zwei Daten: das Datum des Schreibens im Kasten oben und das Druckdatum des Formulars in der Fußzeile. Maßgeblich ist das Datum im Kasten.')}</div></div></div>
                 </div>
@@ -242,7 +260,7 @@ function fileLetter() {
                 </div>
               </div>
               <div${S('default more')}>${scanImage(['app', 'date', 'code'], t('3 marked spans', '3 markierte Stellen'))}</div>
-              <div${S('disagree')}>${scanImage(['date', 'foot'], t('2 dates marked', '2 Daten markiert'))}</div>
+              <div${S('disagree disagree-ready')}>${scanImage(['date', 'foot'], t('2 dates marked', '2 Daten markiert'))}</div>
               <div${S('no-reading')}>${scanImage([], t('No reading', 'Keine Lesung'))}</div>
             </div>
             <div${S('default more')}>
@@ -252,7 +270,7 @@ ${activity([
     ev('sparkle', t(`${FL} proposed ${M.demo.key} from the application number`, `${FL} hat ${M.demo.key} über die Anmeldenummer vorgeschlagen`), '08:02'),
   ])}
             </div>
-            <div${S('disagree')}>
+            <div${S('disagree disagree-ready')}>
 ${activity([
     ev('scan', t(`${b('Scan mailbox')} delivered the scan, 4 pages`, `${b('Scan-Postfach')} hat den Scan geliefert, 4 Seiten`), '08:00'),
     ev('eye', t(`${FL} read the scan twice; the readings differ on the date`, `${FL} hat den Scan zweimal gelesen; die Lesungen weichen beim Datum ab`), '08:02'),
@@ -277,7 +295,16 @@ ${decision({
           <div${S('disagree')}>
 ${decision({
     person: 'formal', q: t('Which date does the letter bear?', 'Welches Datum trägt das Schreiben?'), why: t(`You are the formalities person of ${M.demo.key}`, `Sie betreuen die Formalitäten von ${M.demo.key}`),
-    parts: part('calendar', t('Date of the letter', 'Datum des Schreibens'), t('The two readings differ', 'Die beiden Lesungen weichen ab'), `<div class="seg"><span class="on" data-i="check">${short(LETTER)} · ${t('box', 'Kasten')}</span><span>${short(FOOTER)} · ${t('footer', 'Fußzeile')}</span></div>`)
+    parts: part('calendar', t('Date of the letter', 'Datum des Schreibens'), t('Not chosen: the two readings differ', 'Nicht gewählt: die beiden Lesungen weichen ab'), `<div class="seg"><span>${short(LETTER)} · ${t('box', 'Kasten')}</span><span>${short(FOOTER)} · ${t('footer', 'Fußzeile')}</span></div>`)
+      + part('info', t(`${P.lena.name} confirms the deadline`, `${P.lena.name} bestätigt die Frist`), t('You decide the date, so a second person confirms the deadline', 'Sie entscheiden das Datum, darum bestätigt eine zweite Person die Frist')),
+    note: t('Choose the date to record your decision.', 'Wählen Sie das Datum, um Ihre Entscheidung zu erfassen.'),
+    acts: btn('record', t('Record decision', 'Entscheidung erfassen'), { kind: 'primary', cls: 'btn-lg', attrs: ' aria-disabled="true"' }),
+  })}
+          </div>
+          <div${S('disagree-ready')}>
+${decision({
+    person: 'formal', q: t('Which date does the letter bear?', 'Welches Datum trägt das Schreiben?'), why: t(`You are the formalities person of ${M.demo.key}`, `Sie betreuen die Formalitäten von ${M.demo.key}`),
+    parts: part('calendar', t('Date of the letter', 'Datum des Schreibens'), t(`You chose ${day(LETTER)}, the date in the box`, `Sie haben ${day(LETTER)} gewählt, das Datum im Kasten`), `<div class="seg"><span class="on" data-i="check">${short(LETTER)} · ${t('box', 'Kasten')}</span><span>${short(FOOTER)} · ${t('footer', 'Fußzeile')}</span></div>`)
       + part('info', t(`${P.lena.name} confirms the deadline`, `${P.lena.name} bestätigt die Frist`), t('You decide the date, so a second person confirms the deadline', 'Sie entscheiden das Datum, darum bestätigt eine zweite Person die Frist')),
     note: t(`${P.lena.name} gets a notice when you record it.`, `${P.lena.name} erhält eine Nachricht, wenn Sie es erfassen.`),
     acts: btn('record', t('Record decision', 'Entscheidung erfassen'), { kind: 'primary', cls: 'btn-lg' }),
@@ -297,7 +324,7 @@ ${decision({
   return { body, after: `${overflow(`${mi('other-matter', t('Other matter…', 'Andere Akte…'), 'matters')}<div class="sep"></div>${mi('', t('Copy link', 'Link kopieren'), 'link')}`)}\n` };
 }
 
-// ---------- 3. Confirm the deadline (Sabine; state "waiting": she decided the date and Lena confirms) ----------
+// ---------- 3. Confirm the deadline (state "waiting": the formalities person decided the date, the second person confirms) ----------
 const TRACE = () => `<ol class="trace">
                   <li><span class="dot"></span><div><div class="what">${t('Delivered on the date the letter bears', 'Zugestellt am Datum des Schreibens')}</div><div class="law">Rule 126(2) EPC · OJ EPO 2023, A29</div></div><div class="to">${day(LETTER)}</div></li>
                   <li><span class="dot"></span><div><div class="what">${t('The period starts the next day', 'Die Frist beginnt am nächsten Tag')}</div><div class="law">Rule 131(2) EPC</div></div><div class="to">${day(START)}</div></li>
@@ -391,13 +418,12 @@ ${decision({
               <div class="decision-b">${part('info', t(`Not your decision: ${P.lena.name} confirms this deadline`, `Nicht Ihre Entscheidung: ${P.lena.name} bestätigt diese Frist`), t(`FlowLeap sent ${P.lena.name} a notice at 08:05. The deadline is in the docket only when it is confirmed.`, `FlowLeap hat ${P.lena.name} um 08:05 Uhr benachrichtigt. Die Frist ist erst nach der Bestätigung im Fristenkalender.`))}</div>
               <div class="decision-f">
                 <span class="note">${t('The person who decides the date never confirms it.', 'Wer das Datum entscheidet, bestätigt es nie.')}</span>
-                <div class="acts">${btn('', t('Hand to another person…', 'An eine andere Person geben…'), { icon: 'agents' })}</div>
               </div>
             </div>
           </div>
           </div>`;
   }
-  const body = app({ person, side: 'mywork', count: 1, body: `${topbar(crumbs, pg)}
+  const body = app({ person, side: 'mywork', count: 1, zero: lenaView ? '' : 'waiting', body: `${topbar(crumbs, pg)}
       <div class="detail fill solo">
         <div class="work">
 ${inner}
@@ -406,7 +432,24 @@ ${inner}
   return { body, after: `${overflow(`${mi('open-letter', t('Open the letter', 'Schreiben öffnen'), 'doc')}<div class="sep"></div>${mi('', t('Copy link', 'Link kopieren'), 'link')}`)}\n` };
 }
 
-// ---------- 4. Review the work (Jonas) ----------
+// ---------- 4. Review the work ----------
+/** The decision bar of Review the work: open (nothing chosen, Record decision disabled) or ready (state `ready`). */
+function reviewBar(ready) {
+  const box = ready ? '<span class="check on" data-i="check"></span>' : '<span class="check"></span>';
+  const doc = '<span class="pi" data-i="doc"></span>';
+  const parts = cpart(doc, t('Draft reply to the EPO', 'Antwortentwurf an das EPA'), t('3 of 3 statements sourced', '3 von 3 Aussagen belegt'), seg(ready))
+    + cpart(doc, t('Client report', 'Mandantenbericht'), t('5 of 5 statements sourced', '5 von 5 Aussagen belegt'), seg(ready))
+    + cpart(box, t(`I checked the deadline ${day(DUE)}`, `Frist ${day(DUE)} geprüft`), t(`confirmed by ${P.formal.name}`, `bestätigt von ${P.formal.name}`), btn('calculation', t('Calculation', 'Berechnung'), { kind: 'ghost', icon: 'calendar', cls: 'hide-sm' }));
+  return `          <div data-state="${ready ? 'ready' : 'default evidence more'}">
+${decision({
+    person: 'attorney', q: ready ? t('All 3 parts decided', 'Alle 3 Teile entschieden') : t('3 parts open', '3 Teile offen'), why: t(`You are the responsible attorney of ${M.demo.key}`, `Sie sind verantwortlich für ${M.demo.key}`),
+    parts,
+    note: t(`Accept keeps the reply as a draft until ${M.demo.client} instructs.`, `Annehmen hält die Antwort als Entwurf, bis ${M.demo.client} Weisung gibt.`),
+    acts: `${more()}${btn('record', t('Record decision', 'Entscheidung erfassen'), { kind: 'primary', cls: 'btn-lg', attrs: ready ? '' : ' aria-disabled="true"' })}`,
+  })}
+          </div>`;
+}
+
 function reviewWork() {
   const stmt = (n, text, srcs, extra = '') => `<div class="stmt"><span class="n">${n}</span><div>${text}</div><div class="srcs">${srcs}</div>${extra}</div>`;
   const excerpt = `<div class="excerpt" data-state="evidence"><div class="cap"><span>${t('Letter, page 2', 'Schreiben, Seite 2')}</span><span>${t('Exact span', 'Genaue Stelle')}</span></div><div class="page" data-verbatim><span class="fade">2 Invitation. You are invited, </span><span class="hl">within a non-extendable period of four months</span><span class="fade"> of notification of this communication, to either approve the text communicated above and verify the bibliographic data…</span></div></div>`;
@@ -415,6 +458,7 @@ function reviewWork() {
     stmt(2, t('To approve the text, you file the claims in German and French and pay the fee for grant of EUR 1,135.', 'Um den Text zu genehmigen, reichen Sie die Ansprüche auf Deutsch und Französisch ein und zahlen die Erteilungsgebühr von 1.135 EUR.'), quote('a translation of the claim(s) in the other two official languages', 2) + quote('1135.00', 2)),
     stmt(3, t('No claims fees are due.', 'Anspruchsgebühren fallen nicht an.'), quote('number of claims fees payable: 0', 2)),
     stmt(4, t(`The period cannot be extended. It ends on ${long(DUE)}.`, `Die Frist ist nicht verlängerbar. Sie endet am ${long(DUE)}.`), `<span class="span-ref" data-hover><span class="quote">within a non-extendable period of four months</span><span class="page-ref">${t('p.', 'S.')} 2</span></span><span class="src-chip" data-i="calendar">${t('Deadline, active', 'Frist, aktiv')}</span>`, excerpt),
+    stmt(5, t(`Please tell us by ${long(INSTRUCT_BY)} whether we approve the text for you (point 2.1) or request amendments (point 2.2).`, `Bitte teilen Sie uns bis ${long(INSTRUCT_BY)} mit, ob wir den Text für Sie genehmigen (Punkt 2.1) oder Änderungen beantragen (Punkt 2.2).`), quote('approve the text communicated above', 2) + quote('in the case of disapproval, to request reasoned amendments', 2)),
   ].join('\n');
   const reply = [
     stmt(1, t('We approve the text intended for grant and verify the bibliographic data.', 'Wir genehmigen die für die Erteilung vorgesehene Fassung und prüfen die bibliografischen Daten.'), quote('approve the text communicated above and verify the bibliographic data', 2)),
@@ -422,7 +466,7 @@ function reviewWork() {
     stmt(3, t('The fee for grant of EUR 1,135 is paid from the deposit account.', 'Die Erteilungsgebühr von 1.135 EUR wird vom laufenden Konto gezahlt.'), quote('1135.00', 2)),
   ].join('\n');
   const head = `<div class="stmt-h"><span>#</span><span>${t('What the draft says', 'Was der Entwurf sagt')}</span><span class="hide-sm">${t('Source in the letter', 'Quelle im Schreiben')}</span></div>`;
-  const body = app({ person: 'attorney', side: 'mywork', count: 3, body: `${topbar(myWorkCrumb(t(`Rule 71(3) communication of ${day(LETTER)}`, `Mitteilung nach Regel 71(3) vom ${day(LETTER)}`)), `${pager(2, 3)}<span class="iconbtn" data-i="dots"></span>`)}
+  const body = app({ person: 'attorney', side: 'mywork', count: 2, body: `${topbar(myWorkCrumb(t(`Rule 71(3) communication of ${day(LETTER)}`, `Mitteilung nach Regel 71(3) vom ${day(LETTER)}`)), `${pager(1, 2)}<span class="iconbtn" data-i="dots"></span>`)}
       <div class="detail fill">
         <div class="work">
           <div class="work-scroll">
@@ -464,15 +508,8 @@ ${activity([
     ev('mail', t(`${FL} sent a notice to ${b(P.attorney.name)}`, `${FL} hat ${b(P.attorney.name)} benachrichtigt`), '08:25'),
   ])}
           </div>
-${decision({
-    person: 'attorney', q: t('3 parts, all required', '3 Teile, alle erforderlich'), why: t(`You are the responsible attorney of ${M.demo.key}`, `Sie sind verantwortlich für ${M.demo.key}`),
-    parts: part('doc', t('Draft reply to the EPO', 'Antwortentwurf an das EPA'), `<span class="ico-ok" data-i="check"></span>${t('3 of 3 statements have a source in the letter', '3 von 3 Aussagen haben eine Quelle im Schreiben')}`, `<div class="seg"><span class="on" data-i="check" data-act="accept">${t('Accept', 'Annehmen')} ${caps('accept')}</span><span data-i="x" data-act="reject">${t('Reject…', 'Ablehnen…')} ${caps('reject')}</span></div>`)
-      + part('doc', t('Client report', 'Mandantenbericht'), `<span class="ico-ok" data-i="check"></span>${t('4 of 4 statements have a source in the letter', '4 von 4 Aussagen haben eine Quelle im Schreiben')}`, `<div class="seg"><span class="on" data-i="check" data-act="accept">${t('Accept', 'Annehmen')} ${caps('accept')}</span><span data-i="x" data-act="reject">${t('Reject…', 'Ablehnen…')} ${caps('reject')}</span></div>`)
-      + `
-                <div class="part"><span class="check on" data-i="check"></span><div><div class="q">${t(`I checked the deadline ${day(DUE)} against the letter`, `Ich habe die Frist ${day(DUE)} am Schreiben geprüft`)}</div><div class="d hide-sm">${t(`Active · confirmed by ${P.formal.name}`, `Aktiv · bestätigt von ${P.formal.name}`)}</div></div>${btn('calculation', t('Calculation', 'Berechnung'), { kind: 'ghost', icon: 'calendar', cls: 'hide-sm' })}</div>`,
-    note: t('After you record it, send the report from Outlook with the AI mailbox in Bcc.', 'Danach senden Sie den Bericht aus Outlook, mit dem KI-Postfach in Bcc.'),
-    acts: `${more()}${btn('record', t('Record decision', 'Entscheidung erfassen'), { kind: 'primary', cls: 'btn-lg' })}`,
-  })}
+${reviewBar(false)}
+${reviewBar(true)}
         </div>
         <aside class="props">
           <h3>${t('Matter', 'Akte')}</h3>
@@ -510,14 +547,14 @@ function dossier() {
           <div class="section">
             <div class="section-h"><h2>${t('Deadlines', 'Fristen')}</h2><span class="count">1</span></div>
             <div class="tbl dl">
-              <a class="row" href="${href('3-confirm-deadline')}">${status('deadline.active')}<span class="c"><span class="strong num">${day(DUE)}</span> <span class="muted">· ${t('Rule 71(3) EPC', 'Regel 71(3) EPÜ')}</span></span><span class="c muted hide-sm">${t(`Confirmed by ${P.formal.name}`, `Bestätigt von ${P.formal.name}`)}</span><span class="r" data-due="${DUE}"></span><span class="chev hide-sm" data-i="chev"></span></a>
+              <a class="row" href="${href('3-confirm-deadline')}">${status('deadline.active')}<span class="c"><span class="strong num">${day(DUE)}</span> <span class="muted hide-sm">· ${t('Rule 71(3) EPC', 'Regel 71(3) EPÜ')}</span></span><span class="c muted hide-sm">${t(`Confirmed by ${P.formal.name}`, `Bestätigt von ${P.formal.name}`)}</span><span class="r" data-due="${DUE}"></span><span class="chev hide-sm" data-i="chev"></span></a>
             </div>
           </div>
 
           <div class="section">
             <div class="section-h"><h2>${t('E-file', 'E-Akte')}</h2><span class="count">2</span></div>
             <div class="tbl efile">
-              <a class="row" href="${href('2-file-letter')}">${status('intake.filed')}<span class="c">${t('Rule 71(3) communication', 'Mitteilung nach Regel 71(3)')} <span class="muted hide-sm">· EPO</span></span><span class="c muted hide-sm">${t(`Filed by ${P.formal.name}`, `Abgelegt von ${P.formal.name}`)}</span><span class="r num hide-sm">${short(LETTER)}</span><span class="chev hide-sm" data-i="chev"></span></a>
+              <a class="row" href="${href('2-file-letter')}">${status('intake.filed')}<span class="c">${t('Rule 71(3) communication', 'Mitteilung nach Regel 71(3)')} <span class="muted hide-sm">· EPO</span></span><span class="c muted hide-sm">${t(`Letter of ${short(LETTER)} · filed today`, `Schreiben vom ${short(LETTER)} · heute abgelegt`)}</span><span class="r hide-sm">${who('formal')}</span><span class="chev hide-sm" data-i="chev"></span></a>
               <a class="row" href="${href('4-review-work')}">${status('report.proposed')}<span class="c">${t('Client report', 'Mandantenbericht')} <span class="muted hide-sm">· ${t('draft', 'Entwurf')}</span></span><span class="c muted hide-sm">${t('By the patent agent', 'Vom Patent-Agenten')}</span><span class="r num hide-sm">${t('Today', 'Heute')}</span><span class="chev hide-sm" data-i="chev"></span></a>
             </div>
           </div>
@@ -540,7 +577,7 @@ ${activity([
           <div class="prop"><span class="k">${t('Responsible', 'Verantwortlich')}</span><span class="v">${av('attorney')}${P.attorney.name} <span class="muted">${t('since 15 Oct', 'seit 15. Okt.')}</span></span></div>
           <div class="prop"><span class="k">${t('Formalities', 'Formalitäten')}</span><span class="v">${av('formal')}${P.formal.name}</span></div>
           <div class="prop"><span class="k">${t('Team', 'Team')}</span><span class="v"><span class="stack">${av('attorney')}${av('formal')}${av('lena')}</span></span></div>
-          <div class="prop"><span class="k">${t('Wall', 'Zugriff')}</span><span class="v">${t('Team and client group', 'Team und Mandantengruppe')}</span></div>
+          <div class="prop"><span class="k">${t('Wall', 'Sichtbar für')}</span><span class="v">${t('Team and client group', 'Team und Mandantengruppe')}</span></div>
         </aside>
       </div>` });
   const acct = `<div class="menu ctx-menu acct-menu" data-state="account" role="menu">
@@ -563,7 +600,7 @@ ${activity([
     </div>
   </div>
 </div>`;
-  return { body, after: `${acct}\n${search}\n` };
+  return { body, after: `<div class="drawer-scrim" data-state="account"></div>\n${acct}\n${search}\n` };
 }
 
 // ---------- 6. The notice mails: the link opens the decision page; the mail never decides (README decision F2) ----------
@@ -577,14 +614,14 @@ function mail({ to, subject, time, lead, facts, cta, link, why }) {
       <p>${lead}</p>
       <div class="mail-facts">${facts.map(([k, v]) => `<div class="k">${k}</div><div>${v}</div>`).join('')}</div>
       <div class="mail-cta"><a class="btn btn-primary btn-lg" href="${href(link)}" data-i="external">${cta}</a></div>
-      <div class="mail-foot"><p>${t('This mail does not decide anything. The button opens the step in FlowLeap, where you decide.', 'Diese Mail entscheidet nichts. Der Knopf öffnet den Schritt in FlowLeap, dort entscheiden Sie.')}</p><p>${why}</p></div>
+      <div class="mail-foot"><p>${t('This mail does not decide anything. The button opens the step in FlowLeap, where you decide.', 'Diese Mail entscheidet nichts. Die Schaltfläche öffnet den Schritt in FlowLeap, dort entscheiden Sie.')}</p><p>${why}</p></div>
     </div>
   </div>
 </div>`;
 }
 const mailFormal = () => mail({
   to: 'formal', time: '08:03', link: '3-confirm-deadline',
-  subject: t(`Confirm the R71(3) deadline on ${M.demo.key}, due ${day(DUE)}`, `R71(3)-Frist in ${M.demo.key} bestätigen, fällig ${day(DUE)}`),
+  subject: t(`Confirm the Rule 71(3) deadline on ${M.demo.key}, due ${day(DUE)}`, `Frist nach Regel 71(3) in ${M.demo.key} bestätigen, fällig ${day(DUE)}`),
   lead: t(`FlowLeap computed the deadline of the Rule 71(3) communication that you filed at 08:03. Please confirm it today.`, `FlowLeap hat die Frist der Mitteilung nach Regel 71(3) berechnet, die Sie um 08:03 Uhr abgelegt haben. Bitte bestätigen Sie sie heute.`),
   facts: [[t('Matter', 'Akte'), `${M.demo.key} · ${M.demo.title}`], [t('Client', 'Mandant'), M.demo.client], [t('Letter', 'Schreiben'), t(`Rule 71(3) communication of ${day(LETTER)}`, `Mitteilung nach Regel 71(3) vom ${day(LETTER)}`)], [t('Due date', 'Fristende'), `<span class="strong">${day(DUE)}</span>`], [t('Computed', 'Berechnet'), t('Four months, Rule 71(3) EPC; the EPO is open that day', 'Vier Monate, Regel 71(3) EPÜ; das EPA ist an diesem Tag geöffnet')]],
   cta: t('Open the deadline', 'Frist öffnen'),
@@ -592,17 +629,26 @@ const mailFormal = () => mail({
 });
 const mailAttorney = () => mail({
   to: 'attorney', time: '08:25', link: '4-review-work',
-  subject: t(`R71(3) worked on ${M.demo.key}, confirmed by ${P.formal.name}`, `R71(3) in ${M.demo.key} bearbeitet, bestätigt von ${P.formal.name}`),
-  lead: t(`R71(3) on ${M.demo.key} (${M.demo.client}), due ${day(DUE)}, confirmed by ${P.formal.name}. The draft reply and the client report wait for you.`, `R71(3) in ${M.demo.key} (${M.demo.client}), fällig ${day(DUE)}, bestätigt von ${P.formal.name}. Der Antwortentwurf und der Mandantenbericht warten auf Sie.`),
+  subject: t(`Review the work: Rule 71(3) on ${M.demo.key} (${M.demo.client})`, `Arbeit prüfen: Regel 71(3) in ${M.demo.key} (${M.demo.client})`),
+  lead: t(`The Rule 71(3) communication on ${M.demo.key} (${M.demo.client}) is worked. Its deadline, ${day(DUE)}, is confirmed by ${P.formal.name}. The draft reply and the client report wait for you.`, `Die Mitteilung nach Regel 71(3) in ${M.demo.key} (${M.demo.client}) ist bearbeitet. Ihre Frist, ${day(DUE)}, ist von ${P.formal.name} bestätigt. Der Antwortentwurf und der Mandantenbericht warten auf Sie.`),
   facts: [[t('Matter', 'Akte'), `${M.demo.key} · ${M.demo.title}`], [t('Deadline', 'Frist'), t(`${day(DUE)}, active, confirmed by ${P.formal.name}`, `${day(DUE)}, aktiv, bestätigt von ${P.formal.name}`)], [t('Drafts', 'Entwürfe'), t('Reply to the EPO, client report', 'Antwort an das EPA, Mandantenbericht')], [t('Evidence', 'Belege'), t('Each statement quotes the letter', 'Jede Aussage zitiert das Schreiben')]],
   cta: t('Review', 'Prüfen'),
   why: t('You get this mail because you are the responsible attorney of the matter. Nothing went to the EPO or to the client.', 'Sie erhalten diese Mail, weil Sie für die Akte verantwortlich sind. Nichts ging an das EPA oder an den Mandanten.'),
 });
 
+const mailSecond = () => mail({
+  to: 'lena', time: '08:05', link: '3-confirm-deadline-second',
+  subject: t(`Confirm the Rule 71(3) deadline on ${M.demo.key} as the second person, due ${day(DUE)}`, `Frist nach Regel 71(3) in ${M.demo.key} als zweite Person bestätigen, fällig ${day(DUE)}`),
+  lead: t(`${P.formal.name} decided the date of the letter, so a second person confirms the deadline. You are on the team of ${M.demo.key}. Please confirm it today.`, `${P.formal.name} hat das Datum des Schreibens entschieden, darum bestätigt eine zweite Person die Frist. Sie sind im Team von ${M.demo.key}. Bitte bestätigen Sie sie heute.`),
+  facts: [[t('Matter', 'Akte'), `${M.demo.key} · ${M.demo.title}`], [t('Client', 'Mandant'), M.demo.client], [t('Letter', 'Schreiben'), t(`Rule 71(3) communication of ${day(LETTER)}`, `Mitteilung nach Regel 71(3) vom ${day(LETTER)}`)], [t('Due date', 'Fristende'), `<span class="strong">${day(DUE)}</span>`], [t('Date decided', 'Datum entschieden'), t(`By ${P.formal.name}: the readings differed, page 1 has two dates`, `Von ${P.formal.name}: die Lesungen wichen ab, Seite 1 hat zwei Daten`)]],
+  cta: t('Open the deadline', 'Frist öffnen'),
+  why: t('You get this mail because the person who decides a date never confirms it, and you may confirm deadlines on this matter.', 'Sie erhalten diese Mail, weil die Person, die ein Datum entscheidet, es nie bestätigt, und Sie in dieser Akte Fristen bestätigen dürfen.'),
+});
+
 // ---------- write ----------
 const PAGES = [
-  ['1-my-work-formalities', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'formal', time: '08:01', states: true, rows: formalRows(), first: t('1 letter arrived, 1 needs you', '1 Schreiben eingegangen, 1 braucht Sie'), sub: t('Monday, 9 November · nothing else waits for you today.', 'Montag, 9. November · heute wartet sonst nichts auf Sie.') }) })],
-  ['1-my-work-attorney', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'attorney', time: '08:24', rows: attorneyRows(), first: t('1 letter worked, 1 needs you', '1 Schreiben bearbeitet, 1 braucht Sie'), sub: t('Monday, 9 November · 1 deadline is overdue and waits for your confirmation.', 'Montag, 9. November · 1 Frist ist überfällig und wartet auf Ihre Bestätigung.') }) })],
+  ['1-my-work-formalities', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'formal', time: '08:01', states: true, rows: formalRows() }) })],
+  ['1-my-work-attorney', () => t('My work', 'Meine Arbeit'), () => ({ body: myWork({ person: 'attorney', time: '08:24', rows: attorneyRows() }) })],
   ['2-file-letter', () => t('File this letter', 'Dieses Schreiben ablegen'), fileLetter],
   ['3-confirm-deadline', () => t('Confirm the deadline', 'Frist bestätigen'), () => confirmDeadline({ person: 'formal' })],
   ['3-confirm-deadline-second', () => t('Confirm the deadline', 'Frist bestätigen'), () => confirmDeadline({ person: 'lena' })],
@@ -610,6 +656,7 @@ const PAGES = [
   ['5-dossier', () => M.demo.key, dossier],
   ['6-mail-formalities', () => t(`Notice mail to ${P.formal.name}`, `Nachricht an ${P.formal.name}`), () => ({ body: mailFormal() })],
   ['6-mail-attorney', () => t(`Notice mail to ${P.attorney.name}`, `Nachricht an ${P.attorney.name}`), () => ({ body: mailAttorney() })],
+  ['6-mail-second', () => t(`Notice mail to ${P.lena.name}`, `Nachricht an ${P.lena.name}`), () => ({ body: mailSecond() })],
 ];
 for (const l of ['en', 'de']) {
   lang = l;
