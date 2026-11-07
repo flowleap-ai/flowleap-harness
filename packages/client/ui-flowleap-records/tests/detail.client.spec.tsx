@@ -337,7 +337,7 @@ describe('the deadline page', () => {
       'Period added; that month has no such day, so its last dayRule 71(3) EPC · Rule 131(4) EPC, last day of the month→ Sun, 28 Feb 2027',
       'Moved to the next day the office is openRule 134(1) EPC · EPO calendar 2027→ Mon, 1 Mar 2027',
     ])
-    const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
+    const readings = screen.getByRole('table', { name: 'What FlowLeap read' })
     expect(readings.textContent).toContain('30.10.2026')
     // Each read value from the text has its span: the office event the letter's title line, never its form code.
     expect(within(readings).getAllByRole('row').slice(1).map(row => row.querySelector('[role="cell"]')?.textContent)).toEqual([
@@ -366,7 +366,7 @@ describe('the deadline page', () => {
     const { title: _title, ...fields } = fixtures.deadline.readers.code!.fields
     const code = { ...fixtures.deadline.readers.code!, fields }
     await mount(DEADLINE, { deadline: { ...fixtures.deadline, readers: { ...fixtures.deadline.readers, code } } })
-    const readings = screen.getByRole('table', { name: 'What FlowLeap read, twice' })
+    const readings = screen.getByRole('table', { name: 'What FlowLeap read' })
     expect(readings.querySelector('[role="cell"]')!.textContent).toBe('Rule 71(3) EPC')
     expect(mainViewText()).not.toMatch(FORM_CODE)
   })
@@ -677,7 +677,7 @@ describe('the deadline page', () => {
     await mount(DEADLINE, { deadline: byHand })
     expect(within(bar()).getByText('Jonas Weber entered this office event, so you can confirm it')).toBeTruthy()
     expect(document.body.textContent).not.toContain('You did not record or classify this letter')
-    expect(screen.queryByRole('region', { name: 'What FlowLeap read, twice' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'What FlowLeap read' })).toBeNull()
     expect(screen.getByRole('region', { name: 'The office event' }).textContent).toBe('The office eventNo source letterJonas Weber entered the office event by hand. A second person confirms it.')
     const steps = within(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).getAllByRole('listitem')
     expect(steps[0]!.textContent).toContain('Delivered on the date of the office event')

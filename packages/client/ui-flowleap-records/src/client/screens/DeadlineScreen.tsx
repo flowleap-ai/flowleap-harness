@@ -24,7 +24,7 @@ import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { citeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, openDocument, ruleWords } from './detail.tsx'
-import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
+import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
 import { decisionHeading, failureNotice, formNumberAudit, LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -320,7 +320,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             )
             : (
               <section className={css.section} aria-label={t('deadline.read')}>
-                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t('deadline.readHint')}`}</span></h2>
+                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readTwice(readers) ? 'deadline.readHint' : 'deadline.readHintOnce')}`}</span></h2>
                 {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
               </section>
             )}

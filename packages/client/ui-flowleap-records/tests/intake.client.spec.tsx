@@ -239,7 +239,7 @@ describe('the German intake', () => {
     expect(row.textContent).toContain('EPA')
     expect(row.textContent).not.toContain('EPO')
     const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
-    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen Communication under Rule 71(3) EPCS. 1, datiert 30.10.2026S. 1')
+    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA mit Datum Fr., 30. Okt. 2026 gelesen.Communication under Rule 71(3) EPCS. 130.10.2026S. 1')
     expect(screen.queryByRole('complementary', { name: 'Eigenschaften' })).toBeNull()
   })
 })
@@ -329,13 +329,13 @@ describe('the open letter', () => {
     expect(reasons[0]).toContain('Your reference on page 1 reads FL-2026-0001')
     expect(reasons[1]).toBe('One matter that you may see has this file number.')
     // The kind is quoted by the letter's title line, never by its form code (R19); the date by its own span.
-    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1, dated 30.10.2026p. 1')
+    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Communication under Rule 71(3) EPCp. 130.10.2026p. 1')
     expect(within(decision()).getByText('3 reasons on page 1 agree')).toBeTruthy()
     expect(screen.getByText('Filing puts your name on the record')).toBeTruthy()
     expect(screen.getAllByText('Dr. Anna Becker').length).toBeGreaterThan(0)
     expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Letter' })).toBeNull()
-    const readings = within(screen.getByRole('table', { name: 'What FlowLeap read, twice' }))
+    const readings = within(screen.getByRole('table', { name: 'What FlowLeap read' }))
     expect(readings.getAllByRole('rowheader').map(label => label.textContent)).toEqual(['Office event', 'Document date', 'Application'])
     expect(within(screen.getByRole('region', { name: 'Proposed matter' })).getByText('Pressure sensor housing')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: 'When you file' })).getByText(/records the office event/)).toBeTruthy()
@@ -559,10 +559,10 @@ describe('the open letter', () => {
     const spy = vi.spyOn(api, 'intakeDocument')
     const cases: [Partial<IntakeDocument>, string][] = [
       [{ fields: {}, office: null }, 'The file number on page 1 names one matter.'],
-      [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.'],
-      [{ fields: { title: fixtures.intakeDocument.fields.title! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1Your firm asks'],
-      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.Your firm asks'],
-      [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated 30.10.2026p. 1'],
+      [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.'],
+      [{ fields: { title: fixtures.intakeDocument.fields.title! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Communication under Rule 71(3) EPCp. 1Your firm asks'],
+      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Your firm asks'],
+      [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.30.10.2026p. 1'],
       [{ status: { machine: 'intake', state: 'ambiguous' }, proposed: null, candidates: 2 }, 'Two or more matters have its file number.'],
       [{ status: { machine: 'intake', state: 'unreadable' }, proposed: null, fields: {}, code: null }, 'FlowLeap could not read its text.'],
       [{ status: { machine: 'intake', state: 'kind_proposed' }, proposed: null }, 'FlowLeap proposes the kind of this letter.'],
@@ -586,7 +586,7 @@ describe('the open letter', () => {
     act(() => { model.navigate(open(sha(60))) })
     await flush()
     expect(screen.getByText('3 matters that you may see have this file number.')).toBeTruthy()
-    expect(screen.getByText('FlowLeap read the letter as a Rule 71(3) communication from the EPO.')).toBeTruthy()
+    expect(screen.getByText('FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.')).toBeTruthy()
     expect(screen.getByText('Page 1')).toBeTruthy()
     expect(within(decision()).getByText('2 reasons on page 1 agree')).toBeTruthy()
     spy.mockResolvedValue({ ok: true, value: letter({

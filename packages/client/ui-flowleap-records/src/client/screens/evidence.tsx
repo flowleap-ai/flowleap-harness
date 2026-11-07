@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 import {
   IconCheckOutlineRegular, IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DeadlineDetail, FieldValue, IntakeDocument, Mark, PageImage, ReaderField } from '../api.ts'
+import type { DeadlineDetail, FieldValue, IntakeDocument, IsoDate, Mark, PageImage, ReaderField } from '../api.ts'
 import { formatApplicationNumber, formatDate } from '../format.ts'
 import { letterLines } from '../letter-text.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -34,14 +34,26 @@ const READ_ROWS = [
 ] as const satisfies readonly { value: string; field: ReaderField; label: FlowleapRecordsKey }[]
 
 /**
- * Render the two readings side by side: each value from the text with its span, from the page image, and whether
- * they agree.
+ * Whether the card holds the second reading, from the page image. With reader 2 off, the record holds one reading, and
+ * the views say so in their heading and show no empty column.
+ * @param readers - the readings.
+ * @returns true when both readings are there.
+ */
+export function readTwice(readers: DeadlineDetail['readers']): boolean {
+  return readers.code !== null && readers.model !== null
+}
+
+/**
+ * Render the readings side by side: each value from the text with its span, from the page image, and whether they
+ * agree. With one reading, only its column shows. A value that the text reading quotes but did not take into its
+ * result (a letter with no form code) shows as read, with its quote.
  * @param props.ctx - the screen context.
  * @param props.readers - the readings.
  * @returns the comparison table.
  */
 export function Readings({ ctx, readers }: { ctx: ScreenContext; readers: DeadlineDetail['readers'] }) {
   const { t } = ctx
+  const twice = readTwice(readers)
   const shown = (row: (typeof READ_ROWS)[number], result: Reading | null): string | null => {
     if (result === null) return null
     switch (row.value) {
@@ -51,38 +63,58 @@ export function Readings({ ctx, readers }: { ctx: ScreenContext; readers: Deadli
     }
   }
   return (
-    <div className={detailCss.compare} role="table" aria-label={t('deadline.read')}>
+    <div className={twice ? detailCss.compare : detailCss.compareOne} role="table" aria-label={t('deadline.read')}>
       <div role="row" className={detailCss.compareRow}>
         <span role="columnheader" className={detailCss.compareHead} />
         <span role="columnheader" className={detailCss.compareHead}>{t(readers.code?.source.kind === 'ocr' ? 'deadline.fromOcr' : 'deadline.fromText')}</span>
-        <span role="columnheader" className={detailCss.compareHead}>{t('deadline.fromImage')}</span>
-        <span role="columnheader" className={detailCss.compareHead} />
+        {twice && <span role="columnheader" className={detailCss.compareHead}>{t('deadline.fromImage')}</span>}
+        {twice && <span role="columnheader" className={detailCss.compareHead} />}
       </div>
       {READ_ROWS.map((row) => {
-        const text = shown(row, readers.code?.result ?? null)
-        const image = shown(row, readers.model?.result ?? null)
+        const result = shown(row, readers.code?.result ?? null)
         const field: FieldValue | undefined = readers.code?.fields[row.field]
+        // The title line names the letter, not its office event: with no code read, it is no value of this row.
+        const quoted = row.value === 'code' && result === null ? undefined : field
+        const text = result ?? (quoted === undefined ? null : quotedValue(ctx, row.value, quoted.value))
+        const image = shown(row, readers.model?.result ?? null)
         const agree = text !== null && image !== null && text === image
         return (
           <div key={row.value} role="row" className={detailCss.compareRow}>
             <span role="rowheader" className={detailCss.compareKey}>{t(row.label)}</span>
             <span role="cell" className={detailCss.compareValue}>
               {text ?? t('deadline.notRead')}
-              {field !== undefined && <EvidenceQuote span={field.span} labels={quoteLabels(ctx, field.span.page)} />}
+              {quoted !== undefined && <EvidenceQuote span={quoted.span} labels={quoteLabels(ctx, quoted.span.page)} />}
             </span>
-            <span role="cell" className={detailCss.compareValue}>{image ?? t('deadline.notRead')}</span>
-            <span role="cell" className={detailCss.agree}>
-              {text === null || image === null
-                ? null
-                : agree
-                  ? <><IconCheckOutlineRegular size={16} />{t('deadline.agree')}</>
-                  : <><IconWarningTriangleOutlineRegular size={16} />{t('deadline.differ')}</>}
-            </span>
+            {twice && <span role="cell" className={detailCss.compareValue}>{image ?? t('deadline.notRead')}</span>}
+            {twice && (
+              <span role="cell" className={detailCss.agree}>
+                {text === null || image === null
+                  ? null
+                  : agree
+                    ? <><IconCheckOutlineRegular size={16} />{t('deadline.agree')}</>
+                    : <><IconWarningTriangleOutlineRegular size={16} />{t('deadline.differ')}</>}
+              </span>
+            )}
           </div>
         )
       })}
     </div>
   )
+}
+
+/**
+ * The words of a value that reader 1 quoted: a date in the UI language, an application number as the office prints it.
+ * @param ctx - the screen context.
+ * @param row - the reading row.
+ * @param value - the quoted value.
+ * @returns the words.
+ */
+function quotedValue(ctx: ScreenContext, row: (typeof READ_ROWS)[number]['value'], value: string): string {
+  switch (row) {
+    case 'documentDate': return /^\d{4}-\d{2}-\d{2}$/u.test(value) ? formatDate(value as IsoDate, ctx.locale) : value
+    case 'applicationNumber': return formatApplicationNumber(value)
+    case 'code': return value
+  }
 }
 
 /**
@@ -161,10 +193,11 @@ export function LetterPages({ ctx, images, marks, fallback, onOpen }: {
           ))}
         </dl>
       )}
-      <div className={intakeCss.pages} data-fdl-part="letter">
+      <div className={intakeCss.pages}>
         {images.map(image => (
           <img
             key={image.page}
+            data-fdl-part="letter"
             className={intakeCss.pageImage}
             src={ctx.pageHref(image.href)}
             width={image.width}
