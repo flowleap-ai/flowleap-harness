@@ -3,7 +3,7 @@
 # flowleap-os checkout with the seed firm, and the flowleap-web app from this checkout's source with client watchers.
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
-#                           [--demo [--officecli <binary>] [--ocr-key-file <mistral.env>] [--ocr-image <image>]]
+#                           [--demo [--officecli <binary>] [--ocr-key-file <mistral.env>] [--image <runtime image>]]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number|my-work] one record_read (default SF-2021-0011), or record_my_work, through the tool executor; no model call
@@ -178,9 +178,44 @@ starter() {
 }
 app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$PORT/}"; }
 
+# The mailbox of the full demo: seed-letters.mjs of flowleap-os sends the 18 seed letters from the scan mailbox once per run
+# dir (reader 1 reads each scan with Mistral OCR), and its mailbox process then stays as the reader loop: reader 2 (OpenRouter,
+# through a local model gateway) reads each filed letter. It stays for READERS_MINUTES (its most); `up` starts it again with
+# --readers-only. Its OCR and reader containers run in the firm's runtime image IMAGE.
+READERS_MINUTES=240
+start_mailbox() {
+  local args=(--local "$RECORD" --port $((RECORD_PORT + 1)) --image "$IMAGE" --readers "$READERS_MINUTES") t0=$SECONDS
+  if [[ -f $RUN/seed/letters.done ]]; then
+    args+=(--readers-only --out "$RUN/seed/readers-$(date +%Y%m%dT%H%M%S)")
+  else
+    args+=(--ocr-key-file "$OCR_KEY" --out "$RUN/seed/letters")
+    say "seed letters: reader 1 reads each of the 18 scans with Mistral OCR (about USD 0.30); log $LOGS/mailbox.log"
+  fi
+  # Each start appends to the log; only the lines of this start count.
+  local from; from=$(($(wc -l < "$LOGS/mailbox.log" 2> /dev/null || echo 0) + 1))
+  this() { tail -n "+$from" "$LOGS/mailbox.log"; }
+  (exec node "$OS/acceptance/seed-letters.mjs" "${args[@]}" >> "$LOGS/mailbox.log" 2>&1 & echo $! > "$RUN/mailbox.pid")
+  for _ in $(seq 1 1200); do
+    this | grep -q 'reads the filed letters' && break
+    alive "$RUN/mailbox.pid" || { this | tail -8 >&2; die "seed-letters.mjs ended: $LOGS/mailbox.log"; }
+    sleep 0.5
+  done
+  this | grep -q 'reads the filed letters' || die "seed-letters.mjs did not reach its reader loop in 600 s: $LOGS/mailbox.log"
+  touch "$RUN/seed/letters.done"
+  say "mailbox: ready after $((SECONDS - t0)) s; $(this | grep -m1 'reads the filed letters' | sed 's/^seed-letters: //')"
+}
+# Ctrl-C ends the reader loop of seed-letters.mjs, which then stops its model gateway and writes its evidence.
+stop_mailbox() {
+  alive "$RUN/mailbox.pid" || { rm -f "$RUN/mailbox.pid"; return 0; }
+  kill -INT "$(< "$RUN/mailbox.pid")" 2> /dev/null || true
+  for _ in $(seq 1 120); do alive "$RUN/mailbox.pid" || break; sleep 0.5; done
+  stop_pid "$RUN/mailbox.pid"
+}
+
 up() {
-  local as='' letters=1 ocr_key=$HOME/.config/flowleap/mistral.env ocr_image=registry.flowleap.co/flowleap/runtime:current
+  local as='' letters=1
   OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; DEMO=0; OFFICECLI=${FLOWLEAP_OFFICECLI:-}
+  OCR_KEY=$HOME/.config/flowleap/mistral.env IMAGE=registry.flowleap.co/flowleap/runtime:current
   while (($#)); do
     case $1 in
       --os) OS=$2; shift 2 ;;
@@ -190,8 +225,8 @@ up() {
       --no-letters) letters=0; shift ;;
       --demo) DEMO=1; shift ;;
       --officecli) OFFICECLI=$2; shift 2 ;;
-      --ocr-key-file) ocr_key=$2; shift 2 ;;
-      --ocr-image) ocr_image=$2; shift 2 ;;
+      --ocr-key-file) OCR_KEY=$2; shift 2 ;;
+      --image) IMAGE=$2; shift 2 ;;
       *) die "unknown option $1" ;;
     esac
   done
@@ -204,8 +239,9 @@ up() {
     [[ -n $OFFICECLI && -x $OFFICECLI ]] || die "--demo needs the OfficeCLI 1.0.160 binary of this Mac: --officecli <binary> or FLOWLEAP_OFFICECLI"
     OFFICECLI=$(cd "$(dirname "$OFFICECLI")" && pwd)/$(basename "$OFFICECLI")
     OFFICECLI_SHA256=$(shasum -a 256 "$OFFICECLI" | cut -d' ' -f1)
-    [[ -r $ocr_key ]] || die "--demo reads the 18 seed letters with Mistral OCR: no key file $ocr_key (a line MISTRAL_API_KEY=...; --ocr-key-file <file>)"
-    docker image inspect "$ocr_image" > /dev/null 2>&1 || die "--demo runs OCR in the firm's runtime image: no image $ocr_image (--ocr-image <image>)"
+    [[ -r $OCR_KEY ]] || die "--demo reads the 18 seed letters with Mistral OCR: no key file $OCR_KEY (a line MISTRAL_API_KEY=...; --ocr-key-file <file>)"
+    OCR_KEY=$(cd "$(dirname "$OCR_KEY")" && pwd)/$(basename "$OCR_KEY")
+    docker image inspect "$IMAGE" > /dev/null 2>&1 || die "--demo runs the readers in the firm's runtime image: no image $IMAGE (--image <image>)"
   fi
   [[ -n $OS ]] || die "give --os <flowleap-os checkout> (or FLOWLEAP_OS)"
   OS=$(cd "$OS" && pwd)
@@ -213,7 +249,8 @@ up() {
   [[ -d $HARNESS/node_modules ]] || die "no node_modules: run 'pnpm install' in $HARNESS"
   local t0=$SECONDS
   mkdir -p "$LOGS" "$RUN/seed"
-  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nDEMO=%q\nOFFICECLI=%q\nOFFICECLI_SHA256=%q\n' "$OS" "$PORT" "$RECORD_PORT" "$DEMO" "$OFFICECLI" "$OFFICECLI_SHA256" > "$RUN/loop.env"
+  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nDEMO=%q\nOFFICECLI=%q\nOFFICECLI_SHA256=%q\nOCR_KEY=%q\nIMAGE=%q\n' \
+    "$OS" "$PORT" "$RECORD_PORT" "$DEMO" "$OFFICECLI" "$OFFICECLI_SHA256" "$OCR_KEY" "$IMAGE" > "$RUN/loop.env"
   say "harness $(git -C "$HARNESS" rev-parse --short HEAD), flowleap-os $(git -C "$OS" rev-parse --short HEAD) ($OS), run dir $RUN"
 
   if [[ ! -d $HARNESS/apps/web/dist ]]; then
@@ -227,14 +264,16 @@ up() {
   local intake
   intake=$(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'
 console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u) => u.objectId).join(' '))")
-  # The firm roles of the seed name the confirmers and the escalation chains of the tasks (atlas sheet 0); an os checkout
-  # before the task model has no --roles, and its record-local.sh ignores RECORD_ROLES. The seed's file numbers are SF-<year>-<number>.
   # The person picker of the records proxy (Sign out) lists the seed persons.
   (cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'
 console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name: u.name, role: u.firmRole }))))") > "$RUN/people.json"
-  local roles=''
+  # The firm roles of the seed name the confirmers and the escalation chains of the tasks (atlas sheet 0); an os checkout
+  # before the task model has no --roles, and its record-local.sh ignores RECORD_ROLES. The seed's file numbers are SF-<year>-<number>.
+  # The seed's domain is the firm domain of the notices and of the scan mailbox scan@<domain> that seed-letters sends from.
+  local roles='' domain
   if grep -q -- '--roles' "$OS/acceptance/seed-firm.mjs"; then roles=$(node "$OS/acceptance/seed-firm.mjs" --roles) || die "seed-firm.mjs --roles failed"; fi
-  RECORD_INTAKE_PERSONS=$intake RECORD_ROLES=$roles RECORD_FILE_NUMBER_PATTERN='^SF-\d{4}-\d{4}$' \
+  domain=$(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'; console.log(loadSeed().firm.domain)")
+  RECORD_INTAKE_PERSONS=$intake RECORD_ROLES=$roles RECORD_ALLOWED_DOMAINS=$domain RECORD_FILE_NUMBER_PATTERN='^SF-\d{4}-\d{4}$' \
     "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
     { cat "$LOGS/record-start.log" >&2; die "record-local.sh start failed"; }
   node -e '
@@ -246,17 +285,15 @@ console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name
   node "$OS/acceptance/seed-firm.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) --out "$RUN/seed/firm" > "$LOGS/seed-firm.log" 2>&1 ||
     { tail -5 "$LOGS/seed-firm.log" >&2; die "seed-firm.mjs failed: $LOGS/seed-firm.log"; }
   say "seed firm: $(grep -m1 'chain after' "$LOGS/seed-firm.log" || tail -1 "$LOGS/seed-firm.log")"
-  # A second run records each letter again as a duplicate, so the letters go in once per run dir.
   if ((DEMO)); then
+    # The demo setup goes first: reader 2 reads a letter only with the provider contract and the client's AI wishes.
     node "$HARNESS/flowleap/dev-loop-demo-setup.mjs" "$RECORD" $((RECORD_PORT + 1)) "$OS" > "$LOGS/demo-setup.log" 2>&1 ||
       { cat "$LOGS/demo-setup.log" >&2; die "the demo setup failed"; }
     say "demo setup: $(tail -1 "$LOGS/demo-setup.log")"
-  fi
-  local ocr=()
-  ((DEMO)) && ocr=(--ocr-key-file "$ocr_key" --ocr-image "$ocr_image")
-  if ((letters)) && [[ ! -f $RUN/seed/letters.done ]]; then
-    ((DEMO)) && say "seed letters: reader 1 reads each of the 18 scans with Mistral OCR (about USD 0.30); log $LOGS/seed-letters.log"
-    node "$OS/acceptance/seed-letters.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) --out "$RUN/seed/letters" ${ocr[@]+"${ocr[@]}"} > "$LOGS/seed-letters.log" 2>&1 ||
+    alive "$RUN/mailbox.pid" || start_mailbox
+  # A second run records each letter again as a duplicate, so the letters go in once per run dir.
+  elif ((letters)) && [[ ! -f $RUN/seed/letters.done ]]; then
+    node "$OS/acceptance/seed-letters.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) --out "$RUN/seed/letters" > "$LOGS/seed-letters.log" 2>&1 ||
       { tail -5 "$LOGS/seed-letters.log" >&2; die "seed-letters.mjs failed: $LOGS/seed-letters.log"; }
     touch "$RUN/seed/letters.done"
     say "seed letters: $(tail -1 "$LOGS/seed-letters.log")"
@@ -315,7 +352,7 @@ probe() {
 status() {
   load_options
   local f
-  for f in watch dsh proxy starter; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
+  for f in watch dsh proxy starter mailbox; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
   for f in "$RUN"/runtimes/*/dsh.pid; do
     [[ -f $f ]] || continue
     printf 'ticket  %s on port %s: %s\n' "$(basename "$(dirname "$f")")" "$(< "$(dirname "$f")/port")" "$(alive "$f" && echo running || echo stopped)"
@@ -327,6 +364,7 @@ status() {
 down() {
   load_options
   local f
+  stop_mailbox
   for f in starter proxy dsh watch; do stop_pid "$RUN/$f.pid"; done
   for f in "$RUN"/runtimes/*/dsh.pid; do [[ ! -f $f ]] || stop_pid "$f"; done
   # A stopped Ticket runtime is not there for the Work router: the next wake asks the starter again.
