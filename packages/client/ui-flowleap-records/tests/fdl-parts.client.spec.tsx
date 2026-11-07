@@ -91,7 +91,7 @@ describe('the design-language part markers (R8)', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed', notes: [late] },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null, differences: null },
+      readers: { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const },
     })
     expect(parts('notice')).toHaveLength(2)
     expectAllowedNames()

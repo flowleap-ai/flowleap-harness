@@ -494,16 +494,16 @@ describe('the deadline page', () => {
     expect(screen.queryByText('Legal sources')).toBeNull()
     expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
     cleanup()
-    const oneReading = { code: null, model: differ.readers.model, agree: null, differences: null }
+    const oneReading = { code: null, model: differ.readers.model, agree: null, differences: null, outcome: 'one-reading' as const }
     await mount(DEADLINE, { deadline: { ...differ, officeEvent: { ...differ.officeEvent, code: null }, readers: oneReading } })
     expect(within(bar()).getByText(/one reading only/)).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-info-outline-regular')
     cleanup()
     const empty = { code: null, documentDate: null, applicationNumber: null }
-    await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {}, source: { kind: 'text-layer' } as const }, model: null, agree: null, differences: null } } })
+    await mount(DEADLINE, { deadline: { ...differ, readers: { code: { result: empty, fields: {}, source: { kind: 'text-layer' } as const }, model: null, agree: null, differences: null, outcome: 'one-reading' as const } } })
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
     cleanup()
-    await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null, differences: null } } })
+    await mount(DEADLINE, { deadline: { ...differ, readers: { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const } } })
     expect(screen.getByText('FlowLeap has no reading of this letter.')).toBeTruthy()
     expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
   })
@@ -639,7 +639,7 @@ describe('the deadline page', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null, differences: null },
+      readers: { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const },
       proposer: { ...PEOPLE.jonas, id: PEOPLE.jonas.id as PersonId },
     }
     const { keyActs } = await mount(DEADLINE, { deadline: byHand }, 'de')
@@ -667,7 +667,7 @@ describe('the deadline page', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed' },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null, differences: null },
+      readers: { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const },
       proposer: jonas,
       activity: [
         { seq: 120, at: '2026-11-04T14:10:00Z' as never, type: 'office-event/recorded', actor: { kind: 'person', person: jonas }, for: null, detail: entered },
