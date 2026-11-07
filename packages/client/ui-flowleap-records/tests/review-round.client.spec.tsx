@@ -139,15 +139,16 @@ describe('the keys of the panel', () => {
 })
 
 describe('the deadline page with one reading', () => {
-  it('says that the calculation uses one reading', async () => {
+  it('says that the calculation uses one reading, and that the date waits for the person who may confirm it', async () => {
     const { api } = createFixtureApi()
     const readers = { ...fixtures.deadline.readers, model: null, agree: null, differences: null }
-    const deadline: DeadlineDetail = { ...fixtures.deadline, readers }
+    const deadline: DeadlineDetail = { ...fixtures.deadline, readers, mayConfirm: { allowed: true } }
     vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: deadline })
     mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
     const heading = screen.getByRole('heading', { name: /What FlowLeap read/u })
     expect(heading.textContent).toBe('What FlowLeap read· one reading · the calculation uses these values')
     expect(screen.getByText('Deadline')).toBeTruthy()
+    expect(screen.getByText('Waits for you')).toBeTruthy()
   })
 })
 

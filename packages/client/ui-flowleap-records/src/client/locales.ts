@@ -707,6 +707,7 @@ export const en = {
   'event.replyDead': 'could not send {mail}',
   'item.sinceYou': 'Waits for you since {time}',
   'intake.lede.noCode': 'FlowLeap read the date and the application number, but not which office event this letter is. Read the page image and enter it.',
+  'deadline.waitsYou': 'Waits for you',
 } as const
 
 /** Key domain of the namespace. */
@@ -1412,6 +1413,7 @@ export const de = {
   'event.replyDead': 'konnte {mail} nicht senden',
   'item.sinceYou': 'Wartet seit {time} auf Sie',
   'intake.lede.noCode': 'FlowLeap hat das Datum und die Anmeldenummer gelesen, aber nicht, welches Amtsereignis dieses Schreiben ist. Lesen Sie das Seitenbild und geben Sie es ein.',
+  'deadline.waitsYou': 'Wartet auf Sie',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2114,6 +2116,7 @@ export const es = {
   'event.replyDead': 'no pudo enviar {mail}',
   'item.sinceYou': 'Le espera desde {time}',
   'intake.lede.noCode': 'FlowLeap leyó la fecha y el número de solicitud, pero no qué evento de la oficina es esta carta. Lea la imagen de la página e introdúzcalo.',
+  'deadline.waitsYou': 'Le espera',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2816,6 +2819,7 @@ export const fr = {
   'event.replyDead': 'n’a pas pu envoyer {mail}',
   'item.sinceYou': 'Vous attend depuis {time}',
   'intake.lede.noCode': 'FlowLeap a lu la date et le numéro de demande, mais pas l’événement de l’office de cette lettre. Lisez l’image de la page et saisissez-le.',
+  'deadline.waitsYou': 'Vous attend',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3518,6 +3522,7 @@ export const ja = {
   'event.replyDead': '{mail}を送信できませんでした',
   'item.sinceYou': '{time} からあなたを待っています',
   'intake.lede.noCode': 'FlowLeap は日付と出願番号を読み取りましたが、この書簡がどの庁の手続かは読み取れませんでした。ページ画像を読んで入力してください。',
+  'deadline.waitsYou': 'あなたを待っています',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4220,6 +4225,7 @@ export const pt = {
   'event.replyDead': 'não conseguiu enviar {mail}',
   'item.sinceYou': 'Aguarda você desde {time}',
   'intake.lede.noCode': 'O FlowLeap leu a data e o número do pedido, mas não qual evento do escritório é esta carta. Leia a imagem da página e insira-o.',
+  'deadline.waitsYou': 'Aguarda você',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -4922,6 +4928,7 @@ export const ru = {
   'event.replyDead': 'не смог(ла) отправить {mail}',
   'item.sinceYou': 'Ждёт вас с {time}',
   'intake.lede.noCode': 'FlowLeap прочитал дату и номер заявки, но не определил, какое событие ведомства означает это письмо. Прочитайте изображение страницы и введите его.',
+  'deadline.waitsYou': 'Ждёт вас',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5624,4 +5631,5 @@ export const zh = {
   'event.replyDead': '无法发送{mail}',
   'item.sinceYou': '自 {time} 起等待您',
   'intake.lede.noCode': 'FlowLeap 读取了日期和申请号，但未能判断此信函属于哪一官方事件。请阅读页面图像并录入。',
+  'deadline.waitsYou': '等待您',
 } satisfies Record<FlowleapRecordsKey, string>

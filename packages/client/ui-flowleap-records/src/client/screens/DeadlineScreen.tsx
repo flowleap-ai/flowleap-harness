@@ -295,7 +295,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     )
 
   const eyebrowText = proposed
-    ? t('deadline.waitsSecond')
+    ? t(allowed ? 'deadline.waitsYou' : 'deadline.waitsSecond')
     : data.confirmer !== null
       ? t('deadline.confirmedBy', { person: personInText(t, data.confirmer) })
       : data.rejecter !== null
