@@ -101,6 +101,21 @@ describe('words of codes and events', () => {
     expect(JSON.stringify(lines)).not.toContain(OUTSIDE_WALL.name)
   })
 
+  it('names each draft and mail of Activity by its kind, from the event or from the event of the same proposal or mail', () => {
+    const base = fixtures.ticket.activity[0]!
+    const event = (seq: number, type: string, detail: Record<string, unknown>) => ({ ...base, seq, type, for: null, detail })
+    const lines = activityLines(words, [
+      event(1, 'report/proposed', { proposalId: 'p1', kind: 'office-reply' }),
+      event(2, 'report/approved', { proposalId: 'p1' }),
+      event(3, 'outbox/composed', { outboxId: 'o1', message: { kind: 'notice', notice: 'confirm-deadline' } }),
+      event(4, 'outbox/sent', { outboxId: 'o1' }),
+      event(5, 'outbox/composed', { outboxId: 'o2', kind: 'reply' }),
+    ]).map(line => line.text)
+    expect(lines).toEqual([
+      'proposed the draft reply', 'accepted the draft reply', 'wrote the notice', 'sent the notice', 'wrote the mail with the drafts to the forwarder',
+    ])
+  })
+
   it('words every event type of the Records service', () => {
     // EVENT_TYPES of flowleap-os lib/record/log.mjs.
     const types = [

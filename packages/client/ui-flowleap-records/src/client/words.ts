@@ -343,7 +343,12 @@ const OBJECT_WORDS = {
  * @returns the `draft` and `mail` words of an event.
  */
 function objectWords(t: Translate, events: readonly ActivityEvent[]): (event: ActivityEvent) => { draft: string; mail: string } {
-  const kindOf = (detail: ActivityEvent['detail']): string | null => typeof detail['kind'] === 'string' ? detail['kind'] : null
+  // An outbox event names its kind, or its composed message does (`outbox/composed` of a notice: `message.kind`).
+  const kindOf = (detail: ActivityEvent['detail']): string | null => {
+    if (typeof detail['kind'] === 'string') return detail['kind']
+    const message = detail['message']
+    return typeof message === 'object' && message !== null && 'kind' in message && typeof message.kind === 'string' ? message.kind : null
+  }
   const known = new Map<string, string>()
   for (const event of events) {
     const kind = kindOf(event.detail)
