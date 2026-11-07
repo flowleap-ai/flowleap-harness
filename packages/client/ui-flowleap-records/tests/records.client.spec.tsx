@@ -121,7 +121,7 @@ describe('ui-flowleap-records browser half', () => {
 
   it('asks the Host route once, then registers the launcher, the panel and the row menu, and removes them on dispose', async () => {
     window.history.replaceState(null, '', '/?page=flowleap-records&records=board&keep=1')
-    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected, started, landings } = await mounted(routes(json({ href: 'records/', signOutHref: '/oauth2/sign_out' })))
+    const { ctx, fiber, stub, menus, keys, contributions, opened, panelInfo, providers, selected, started, landings } = await mounted(routes(json({ href: 'records/', signOutHref: 'oauth2/sign_out?rd=%2F' })))
     expect(landings).toEqual([MY_WORK_PANEL_ID])
     expect(providers.map(provider => provider.protocol)).toEqual(['recordsrun'])
     expect(ctx.slots.entries('records.agent.conversation')).toHaveLength(1)
