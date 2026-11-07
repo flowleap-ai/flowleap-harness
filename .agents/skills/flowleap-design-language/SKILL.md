@@ -34,7 +34,7 @@ The scripts need Node 22 and three inputs outside the skill. `check-css.mjs` and
 
 These hold on every screen. Each has a numbered rule in [rules.md](rules.md).
 
-1. Lists are tables: 44 px rows with no hairlines, grouped by state in sticky tinted headers with a count. A row selects with a checkbox for bulk acts and opens a context menu with the same acts and keys; on a touch screen, the bulk bar's overflow menu of one checked row is that context menu. From 1366 px a queue shows the list and the open item side by side.
+1. Lists are tables: 44 px rows with no hairlines, grouped by state in sticky tinted headers with a count. A row selects with a checkbox for bulk acts and opens a context menu with the same acts and keys; on a touch screen, the bulk bar's overflow menu of one checked row is that context menu. From 1366 px a queue shows the list and the open item side by side. My work is the one exception (founder decision, 2026-11-07): it groups by due time (Overdue, Today, Later), its rows have no checkbox, no bulk act and no item beside the list, a row opens its decision page, and its context menu holds Open, Open matter and Copy link.
 2. One primary action per view, inside the decision bar when there is a decision, with its key from [keys.md](keys.md).
 3. Status is an icon shape plus the atlas word in sentence case ([status-map.md](status-map.md)), never the icon alone, and a page shows its subject's status once.
 4. No raw IDs, hashes, form codes, record positions, account handles or internal actor names outside Audit. The matter key and the application number are the firm's own references and may show; people show by their display name.
