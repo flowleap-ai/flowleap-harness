@@ -259,6 +259,15 @@
   background: var(--dsw-alias-state-warn-primary);
 }
 
+/* The last dot has the colour of the deadline's status: proposed waits, active is confirmed. */
+.steps[data-state='active'] .step:last-child .dot {
+  background: var(--dsw-alias-state-success-primary);
+}
+
+.what .nextTag {
+  margin: 0 0 0 8px;
+}
+
 .what {
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
   color: var(--dsw-alias-label-primary);

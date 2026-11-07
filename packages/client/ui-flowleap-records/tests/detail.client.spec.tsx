@@ -332,10 +332,10 @@ describe('the deadline page', () => {
     expect(document.body.textContent).toContain('Rule 71(3) EPC: intention to grant · four months from the communication of 30 Oct 2026')
     const steps = screen.getByRole('list', { name: 'How FlowLeap computed the date' })
     expect(within(steps).getAllByRole('listitem').map(step => step.textContent)).toEqual([
-      'Delivered on the date of the letterRule 126(2) EPC · Rule 127(2) EPC · OJ EPO 2023, A29→ 30 Oct 2026',
-      'Start of the periodRule 131(2) EPC→ 31 Oct 2026',
-      'Period added; that month has no such day, so its last dayRule 71(3) EPC · Rule 131(4) EPC, last day of the month→ Sun, 28 Feb 2027',
-      'Moved to the next day the office is openRule 134(1) EPC · EPO calendar 2027→ Mon, 1 Mar 2027',
+      'Delivered on the date the letter bearsRule 126(2) EPC · Rule 127(2) EPC · OJ EPO 2023, A29→ 30 Oct 2026',
+      'The period starts the next dayRule 131(2) EPC→ 31 Oct 2026',
+      '4 months later; that month has no day with the same number, so its last dayRule 71(3) EPC · Rule 131(4) EPC, last day of the month→ Sun, 28 Feb 2027',
+      'The EPO is closed on Sun, 28 Feb 2027, so the date moves to its next open dayDeadlineRule 134(1) EPC · EPO calendar 2027→ Mon, 1 Mar 2027',
     ])
     const readings = screen.getByRole('table', { name: 'What FlowLeap read' })
     expect(readings.textContent).toContain('30.10.2026')
@@ -486,9 +486,9 @@ describe('the deadline page', () => {
     expect(partIcon()).toBe('dsw-icon-warning-triangle-outline-regular')
     expect(screen.getByText('Differ')).toBeTruthy()
     expect(screen.getAllByText('Not read').length).toBeGreaterThan(0)
-    expect(screen.getByText('The office is open on this day')).toBeTruthy()
+    expect(screen.getByText('The EPO is open on that day, so the date stays')).toBeTruthy()
     expect(screen.getByText('Calculation step')).toBeTruthy()
-    expect(screen.getByText('Period added')).toBeTruthy()
+    expect(screen.getByText('120 days later')).toBeTruthy()
     expect(screen.getByText(/The letter reached the firm late/)).toBeTruthy()
     expect(screen.getAllByText('An engine note.').every(cell => cell.closest('[data-audit]') !== null)).toBe(true)
     expect(screen.queryByText('Legal sources')).toBeNull()
@@ -696,7 +696,7 @@ describe('the deadline page', () => {
     await mount(DEADLINE, { deadline: { ...fixtures.deadline, activity: [{ ...byHand.activity[0]!, detail: fromLetter }], mayConfirm: { allowed: false, reason: 'proposer', decider: null } } })
     expect(document.body.textContent).toContain('Jonas Weber confirmed the office event')
     expect(document.body.textContent).not.toContain('entered the office event by hand')
-    expect(within(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).getAllByRole('listitem')[0]!.textContent).toContain('Delivered on the date of the letter')
+    expect(within(screen.getByRole('list', { name: 'How FlowLeap computed the date' })).getAllByRole('listitem')[0]!.textContent).toContain('Delivered on the date the letter bears')
     expect(bar('Not your decision').textContent).toContain('You proposed this date, so a second person confirms it.')
   })
 

@@ -10,7 +10,7 @@ import {
   IconCheckOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { DeadlineDetail, MayDecideReason } from '../api.ts'
+import type { DeadlineDetail, IsoDate, MayDecideReason, Person } from '../api.ts'
 import { formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs, type KeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
@@ -21,7 +21,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, EvidenceSplit, KeyFact, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { citeText, personInText, personName } from '../words.ts'
+import { citeText, letterTitle, officeName, officeOfCode, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, openDocument, ruleWords } from './detail.tsx'
 import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
@@ -75,14 +75,6 @@ const READING_ICONS: Readonly<Record<Comparison, ReactNode>> = {
   noLetter: <IconInfoOutlineRegular size={16} />,
 }
 
-/** The words of each step of the engine's calculation. */
-const STEPS: Readonly<Record<string, FlowleapRecordsKey>> = {
-  'delivery': 'deadline.step.delivery',
-  'start': 'deadline.step.start',
-  'month-end': 'deadline.step.monthEnd',
-  'add-period': 'deadline.step.addPeriod',
-  'closure-roll': 'deadline.step.closureRoll',
-}
 
 /**
  * The words of each note code of the engine. A note with another code shows only in Audit, because its text is the
@@ -127,16 +119,66 @@ function deciderOf(reason: MayDecideReason, letter: DeadlineDetail['officeEvent'
 }
 
 /**
- * The words of one step of the calculation. An office event entered by hand has no letter, so its delivery step
+ * The whole months from one date to another, and whether the second date has the same day number.
+ * @param from - the earlier date.
+ * @param to - the later date.
+ * @returns the months, and true when the day numbers are equal.
+ */
+function monthsBetween(from: IsoDate, to: IsoDate): { readonly months: number; readonly sameDay: boolean } {
+  const [y1, m1, d1] = from.split('-').map(Number) as [number, number, number]
+  const [y2, m2, d2] = to.split('-').map(Number) as [number, number, number]
+  return { months: (y2 - y1) * 12 + (m2 - m1), sameDay: d1 === d2 }
+}
+
+/**
+ * The days from one date to another.
+ * @param from - the earlier date.
+ * @param to - the later date.
+ * @returns the days.
+ */
+function daysBetween(from: IsoDate, to: IsoDate): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+/**
+ * One step of the calculation as a plain sentence, as the mockups word it: the period in months or days from the
+ * step's two dates, and the office by its name. An office event entered by hand has no letter, so its delivery step
  * names the date of the office event.
+ * @param ctx - the screen context.
  * @param step - the step.
  * @param letter - the source letter, or null for an office event entered by hand.
- * @returns the text key.
+ * @param office - the office's name, or null when the code names none.
+ * @returns the sentence.
  */
-function stepWords(step: DeadlineDetail['deadline']['trace'][number], letter: DeadlineDetail['officeEvent']['document']): FlowleapRecordsKey {
-  if (step.op === 'closure-roll' && step.from === step.to) return 'deadline.step.openDay'
-  if (step.op === 'delivery' && letter === null) return 'deadline.step.deliveryEvent'
-  return STEPS[step.op] ?? 'deadline.step.other'
+function stepText(
+  { t, locale }: ScreenContext, step: DeadlineDetail['deadline']['trace'][number], letter: DeadlineDetail['officeEvent']['document'], office: string | null,
+): string {
+  const named = office ?? t('deadline.step.office')
+  switch (step.op) {
+    case 'delivery': return t(letter === null ? 'deadline.step.deliveryEvent' : 'deadline.step.delivery')
+    case 'start': return t('deadline.step.start')
+    case 'add-period':
+    case 'month-end': {
+      const { months, sameDay } = monthsBetween(step.from, step.to)
+      if (step.op === 'month-end') return t('deadline.step.monthEnd', { count: months })
+      if (sameDay && months > 0) return t(months === 1 ? 'deadline.step.month' : 'deadline.step.months', { count: months })
+      return t('deadline.step.days', { count: daysBetween(step.from, step.to) })
+    }
+    case 'closure-roll': return step.from === step.to
+      ? t('deadline.step.openDay', { office: named })
+      : t('deadline.step.closureRoll', { office: named, date: formatDate(step.from, locale) })
+    default: return t('deadline.step.other')
+  }
+}
+
+/**
+ * The person who recorded the office event that starts the period: the actor of its `office-event/recorded` event.
+ * @param activity - the deadline's events.
+ * @returns the person, or null when FlowLeap recorded it.
+ */
+function recorderOf(activity: DeadlineDetail['activity']): Person | null {
+  for (const event of activity) if (event.type === 'office-event/recorded' && event.actor.kind === 'person') return event.actor.person
+  return null
 }
 
 /**
@@ -159,6 +201,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const reading = readingOf(readers, officeEvent.document)
   const due = formatDate(deadline.due, ctx.locale)
   const letter = officeEvent.document
+  const officeCode = officeOfCode(officeEvent.code)
+  const office = officeCode === null ? null : officeName(t, officeCode)
+  const recorder = recorderOf(data.activity)
 
   // Opening the reason step changes the decision, so the failure of a confirm no longer applies.
   const setReasonOpen = (open: boolean) => {
@@ -281,16 +326,27 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             && <span>{` · ${t(rule.period, { date: formatDay(officeEvent.documentDate, ctx.locale) })}`}</span>}
         </div>
 
+        {letter !== null && (
+          <p className={css.lede}>
+            {t(recorder === null ? 'deadline.fromLetter' : 'deadline.fromLetterBy', {
+              title: letterTitle(t, officeEvent.code),
+              matter: data.matter.fileNumber,
+              ...(recorder === null ? {} : { person: personInText(t, recorder) }),
+            })}
+          </p>
+        )}
         <EvidenceSplit evidence={drawing}>
           <section className={css.section}>
             <h2 className={css.subHeading}>{t('deadline.computed')}</h2>
-            <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')}>
+            <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')} data-state={deadline.state}>
               {deadline.trace.map((step, index) => (
                 <li key={`${index}:${step.op}`} className={css.step}>
                   <span className={css.dot} aria-hidden="true" />
                   <div>
                     <div className={css.what}>
-                      {t(stepWords(step, letter))}
+                      {stepText(ctx, step, letter, office)}
+                      {/* The last step gives the deadline: the tag says so, and its dot has the deadline's colour. */}
+                      {index === deadline.trace.length - 1 && <span className={css.nextTag}>{t('deadline.step.result')}</span>}
                     </div>
                     <div className={css.law}>{citeText(t, step.cite)}</div>
                   </div>
