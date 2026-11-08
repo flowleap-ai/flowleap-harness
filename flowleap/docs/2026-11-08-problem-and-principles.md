@@ -14,12 +14,12 @@ Every office letter and every court document is one step of a known procedure (E
 
 | Firm type | Example | What we know |
 |---|---|---|
-| Small firm | Kreuels Henrichs Pannen, Düsseldorf: 4 patent attorneys, 2 lawyers | Wants to use AI heavily. Not interested in self-hosting. About 38 EP files at the firm, 2 clients hold two-thirds. Most work is probably DE national, trademark, design and disputes. |
-| Large firm | Eisenführ Speiser: Bremen, Hamburg, Munich | Wants to use AI heavily. Wants to own the whole stack. About 1,315 EP publications in 2025. Patent and UPC litigation are core work. |
+| Small firm | A German firm with 4 patent attorneys and 2 lawyers | Wants to use AI heavily. Not interested in self-hosting. Some tens of EP files at the firm, most of them for two clients. Most work is probably DE national, trademark, design and disputes. |
+| Large firm | A German firm with several offices | Wants to use AI heavily. Wants to own the whole stack. Over a thousand EP publications a year. Patent and UPC litigation are core work. |
 
 Open decision: which firm type is the main customer, and in which order.
 
-What the KHP attorney said: AI is "great" for search and for finding arguments; he is critical of AI drafting texts and applications, because people "forget to think themselves".
+What an attorney of the small firm said: AI is "great" for search and for finding arguments; the attorney is critical of AI drafting texts and applications, because people "forget to think themselves".
 
 No firm has described its day-to-day work in calls. We learn it by watching work, from the paralegal training rules, from the founder's own EPO and UPC system work, and from the PATORG feature cross-check.
 
