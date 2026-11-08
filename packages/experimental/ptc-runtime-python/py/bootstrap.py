@@ -2590,9 +2590,36 @@ def _done_with_value(
     return '{"type": "done", "value": ' + _encode_json_plain(value) + "}"
 
 
+def _linger_until_host_closes(fd: int) -> None:
+    """Keep fd 3 open after ``done`` until the host terminates the child or closes the pipe.
+
+    fd 3 is one duplex socket. An exit with an unread host reply still queued
+    fails the host's pending write with ``EPIPE``, and Node then destroys the
+    whole socket and discards the unread ``done`` frame, so a completed run
+    reported ``worker-exit``. The host sends SIGTERM once it has handled
+    ``done``; SIGTERM is reset to its default action here so a program that
+    trapped, ignored, or blocked it cannot hold the run until the SIGKILL
+    backstop.
+    """
+
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    if getattr(signal, "pthread_sigmask", None) is not None:
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, (signal.SIGTERM,))
+    try:
+        os.set_blocking(fd, True)
+    except OSError as _closed:  # the program closed fd 3, so no host reply can be pending
+        return
+    try:
+        while os.read(fd, _READ_CHUNK_BYTES):
+            pass
+    except OSError as _reset:  # the host closed or reset fd 3, so nothing remains to protect
+        pass
+
+
 def main() -> None:
     channel = ProtocolChannel(PROTOCOL_FD)
     asyncio.run(_run(channel))
+    _linger_until_host_closes(PROTOCOL_FD)
 
 
 if __name__ == "__main__":
