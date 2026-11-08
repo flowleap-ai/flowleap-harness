@@ -134,6 +134,22 @@ export function aiAllowed(t: Translate, rules: MatterDetail['clientRules']): str
 }
 
 /**
+ * The first rows of the Matter group of a properties panel, as the dossier and the work page show them: the file number,
+ * the client, and what the client allows the AI to do.
+ * @param t - the translate function.
+ * @param matter - the matter's file number and client.
+ * @param rules - the client's rules, or null where none are recorded.
+ * @returns the rows.
+ */
+export function matterRows(t: Translate, matter: { readonly fileNumber: string; readonly client: string }, rules: MatterDetail['clientRules']): Property[] {
+  return [
+    { label: t('dossier.prop.fileNumber'), value: matter.fileNumber },
+    { label: t('prop.client'), value: matter.client, title: matter.client },
+    { label: t('dossier.prop.ai'), value: aiAllowed(t, rules) },
+  ]
+}
+
+/**
  * The Responsible row of a properties panel, as the dossier and the work page show it.
  * @param t - the translate function.
  * @param person - the responsible person, or null for none.

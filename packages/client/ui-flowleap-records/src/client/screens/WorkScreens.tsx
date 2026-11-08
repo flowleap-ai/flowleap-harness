@@ -35,7 +35,7 @@ import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { aiAllowed, Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, responsibleRow, Who } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, OpenCell, formatDay, matterRows, openDocument, responsibleRow, Who } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
@@ -629,9 +629,7 @@ function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
       {
         heading: t('prop.matter'),
         rows: [
-          { label: t('dossier.prop.fileNumber'), value: data.matter.fileNumber },
-          { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
-          { label: t('dossier.prop.ai'), value: aiAllowed(t, data.clientRules) },
+          ...matterRows(t, data.matter, data.clientRules),
           ...(application === null ? [] : [{ label: t('prop.application'), value: formatApplicationNumber(application) }]),
         ],
       },

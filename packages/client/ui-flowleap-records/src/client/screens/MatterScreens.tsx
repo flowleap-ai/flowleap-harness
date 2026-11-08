@@ -21,7 +21,7 @@ import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, letterTitle, listTimeText, personInText, personName, type Translate } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { aiAllowed, Cell, DetailRow, DetailTable, formatDay, OpenCell, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, formatDay, OpenCell, matterRows, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -208,9 +208,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
           {
             heading: t('prop.matter'),
             rows: [
-              { label: t('dossier.prop.fileNumber'), value: data.matter.fileNumber },
-              { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
-              { label: t('dossier.prop.ai'), value: aiAllowed(t, data.clientRules) },
+              ...matterRows(t, data.matter, data.clientRules),
               { label: t('dossier.prop.language'), value: data.language === null ? t('matter.notRecorded') : languageName(ctx.locale, data.language) },
               { label: t('prop.application'), value: application === null ? t('matter.notRecorded') : formatApplicationNumber(application) },
             ],
