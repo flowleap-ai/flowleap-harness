@@ -40,11 +40,13 @@ describe('the delivery ledger', () => {
     expect(JSON.parse(await readFile(join(dir, 'state', file!), 'utf8'))).toEqual({ deliveryId: 'tk-1/1', session: 'webhook-a', at: 1 })
   })
 
-  it('rejects a claim when the state folder cannot be read, and a record when it cannot be written, and ends the claim', async () => {
+  it('rejects a claim when the state folder cannot be created or read, and a record when it cannot be written, and ends the claim', async () => {
     const dir = await tempDir()
     await writeFile(join(dir, 'file'), '')
-    await expect(new DeliveryLedger(join(dir, 'file')).claim(ID)).rejects.toThrow(/ENOTDIR/u)
+    await expect(new DeliveryLedger(join(dir, 'file')).claim(ID)).rejects.toThrow(/EEXIST/u)
     const ledger = new DeliveryLedger(dir)
+    vi.mocked(fs.stat).mockRejectedValueOnce(Object.assign(new Error('access denied'), { code: 'EACCES' }))
+    await expect(ledger.claim(ID)).rejects.toThrow(/access denied/u)
     expect(await ledger.claim(ID)).toBe('new')
     vi.mocked(fs.writeFile).mockRejectedValueOnce(Object.assign(new Error('disk full'), { code: 'ENOSPC' }))
     await expect(ledger.record(ID, SessionId('webhook-a'), 1)).rejects.toThrow(/disk full/u)
