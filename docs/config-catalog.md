@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:36`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:49`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -654,6 +654,34 @@ export interface Config {
   maxSearchHits: number
   /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
   storageLowFlagPath: string
+  /** The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. */
+  clientsRoot: string
+  /** The folders that Add client makes in each client folder and each matter folder. */
+  folderTemplate: FolderTemplate
+  /** The firm's names, addresses and representatives; matched on the Host against the register, never sent out. */
+  firmIdentity: FirmIdentity
+  /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
+  maxRegisterRows: number
+}
+
+/** The folders that Add client makes in each client folder and each matter folder. */
+export interface FolderTemplate {
+  /** The folders at the client folder root, such as `00 Client`. */
+  client: string[]
+  /** The folders of each matter folder. */
+  matter: string[]
+  /** The matter folder that takes the dated files of public data; one of `matter`. */
+  publicData: string
+}
+
+/** The firm's names, its current and earlier addresses, and the names of its representatives. */
+export interface FirmIdentity {
+  /** The firm's names, such as its current and earlier names. */
+  names: string[]
+  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
+  addresses: string[]
+  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
+  representatives: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
@@ -1824,7 +1852,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:85`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */

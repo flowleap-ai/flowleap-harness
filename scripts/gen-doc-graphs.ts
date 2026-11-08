@@ -415,6 +415,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads the page text of one document through Mistral OCR on the firm\'s key without a tool call; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapPatentData',
+    pkg: 'flowleap-connectors',
+    title: 'FlowLeap patent data reader',
+    mode: 'service',
+    consumers: ['client-ui-flowleap-folder'],
+    note: 'Reads EP Register searches and records, EP families and EP publication text on the firm\'s EPO key without a tool call, for Add client; only names and numbers leave the firm; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'flowleapAgentCatalog',
     pkg: 'flowleap-agent-builder',
     title: 'FlowLeap agent catalog',
