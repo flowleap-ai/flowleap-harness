@@ -128,7 +128,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
   }
   ctx.provide('remote', {
     workspaceFiles,
-    ...(options.office === true ? { officeToPdf } : {}),
+    officeToPdf,
     $stream: (stream: { readonly name: string; readonly open: (lifetime: string) => void; readonly ended: () => Error }) => {
       stream.open('lifetime')
       const feed = new Feed(stream.name, stream.ended)
@@ -137,6 +137,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
     },
   } as never)
   ctx.provide('remote.workspaceFiles', workspaceFiles as never)
+  if (options.office === true) ctx.provide('remote.officeToPdf', officeToPdf as never)
   const mountedSession = createSnapshotStore<string | null>(null)
   const resources: string[] = []
   if (options.sidebar !== false) {
@@ -183,10 +184,11 @@ describe('ui-flowleap-folder browser half', () => {
     expect(ctx.slots.entries('main').map(entry => (entry.options as { key: string }).key)).toEqual([PANEL_ID])
     expect(ctx.slots.entries('contextMenu.icon').map(entry => (entry.options as { key: string }).key)).toEqual([
       'flowleap.folder.open', 'flowleap.folder.ask', 'flowleap.folder.rename', 'flowleap.folder.move', 'flowleap.folder.copyPath',
+      'flowleap.folder.trash', 'flowleap.folder.restore',
     ])
     expect(menus.map(menu => [menu.id, menu.target])).toEqual([['flowleap.folder-row', 'flowleap.folder-row']])
     const folderKeys = () => shortcuts.catalog.getSnapshot().filter(row => row.id.startsWith('flowleap.folder.'))
-    expect(folderKeys()).toHaveLength(5)
+    expect(folderKeys()).toHaveLength(7)
     expect(ctx.locale.bind(NS)('panel')).toBe(en.panel)
     expect(face.hooks.catalog).toBe(shortcuts.catalog)
     await model.openClient(SYNTEGON)
@@ -264,14 +266,14 @@ describe('ui-flowleap-folder browser half', () => {
     await ctx.fiber.dispose()
   })
 
-  it('opens the row menu acts on the row: open, ask, rename, move and copy path', async () => {
+  it('opens the row menu acts on the row: open, ask, rename, move, copy path and Move to Trash', async () => {
     const writeText = vi.fn(async () => {})
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     onTestFinished(() => { Reflect.deleteProperty(navigator, 'clipboard') })
     const { ctx, menus, model, started } = await mounted()
-    const resolve = (path: string, kind: 'file' | 'directory') => menus[0]!.resolve({ path, kind }, new AbortController().signal)
-    const run = async (path: string, kind: 'file' | 'directory', id: string) => {
-      const action = (await resolve(path, kind)).find(item => item.id === id)!
+    const resolve = (path: string, kind: 'file' | 'directory', inTrash = false) => menus[0]!.resolve({ path, kind, inTrash }, new AbortController().signal)
+    const run = async (path: string, kind: 'file' | 'directory', id: string, inTrash = false) => {
+      const action = (await resolve(path, kind, inTrash)).find(item => item.id === id)!
       await action.run!()
       await settle()
     }
@@ -281,7 +283,10 @@ describe('ui-flowleap-folder browser half', () => {
       ['rename', en['act.rename'], 'flowleap.folder.rename', 'flowleap.folder.rename'],
       ['move', en['act.move'], 'flowleap.folder.move', 'flowleap.folder.move'],
       ['copy-path', en['act.copyPath'], undefined, 'flowleap.folder.copyPath'],
+      ['trash', en['act.trash'], 'flowleap.folder.trash', 'flowleap.folder.trash'],
     ])
+    expect((await resolve('Trash/Mandate.pdf', 'file', true)).map(action => [action.id, action.label, action.commandId, action.icon?.key]).at(-1))
+      .toEqual(['restore', en['act.restore'], undefined, 'flowleap.folder.restore'])
     await run('Mandate.pdf', 'file', 'ask')
     expect(started).toEqual([])
     await run('Mandate.pdf', 'file', 'copy-path')
@@ -299,6 +304,46 @@ describe('ui-flowleap-folder browser half', () => {
     expect(started).toEqual([[SYNTEGON, { prompt: '@"EP 23 171 862/" ', whenDraftExists: 'append' }]])
     await run('Mandate.pdf', 'file', 'copy-path')
     expect(writeText).toHaveBeenLastCalledWith(`${ROOT}/Mandate.pdf`)
+    const posted: [string, unknown][] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      posted.push([url, init?.body === undefined ? undefined : JSON.parse(init.body as string)])
+      return new Response(JSON.stringify(url.includes('/list') ? { path: '', entries: [], truncated: false } : { path: 'Trash/Mandate.pdf' }))
+    }))
+    await run('Mandate.pdf', 'file', 'trash')
+    expect(model.state.notice).toEqual({ kind: 'trashed', count: 1, paths: [expect.stringMatching(/^Trash\//u)] })
+    await run('Trash/Mandate.pdf', 'file', 'restore', true)
+    expect(model.state.notice).toEqual({ kind: 'restored', count: 1 })
+    expect(posted.filter(([url]) => !url.includes('/list'))).toEqual([
+      ['api/flowleap/folder/trash', { workspace: SYNTEGON, path: 'Mandate.pdf' }],
+      ['api/flowleap/folder/restore', { workspace: SYNTEGON, path: 'Trash/Mandate.pdf' }],
+    ])
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps the tree width that this browser stored, inside the limits, and stores each new width', async () => {
+    localStorage.setItem('flowleap-folder.tree-width', '1000')
+    onTestFinished(() => { localStorage.removeItem('flowleap-folder.tree-width') })
+    const first = await mounted()
+    expect(first.face.hooks.treeWidth.getSnapshot()).toBe(420)
+    first.face.setTreeWidth(300.4)
+    expect(first.face.hooks.treeWidth.getSnapshot()).toBe(300)
+    first.face.setTreeWidth(10)
+    expect(first.face.hooks.treeWidth.getSnapshot()).toBe(264)
+    await first.ctx.fiber.dispose()
+    expect(localStorage.getItem('flowleap-folder.tree-width')).toBe('264')
+    const second = await mounted()
+    expect(second.face.hooks.treeWidth.getSnapshot()).toBe(264)
+    await second.ctx.fiber.dispose()
+    localStorage.setItem('flowleap-folder.tree-width', '"wide"')
+    const third = await mounted()
+    expect(third.face.hooks.treeWidth.getSnapshot()).toBe(280)
+    await third.ctx.fiber.dispose()
+  })
+
+  it('starts the tree at the app sidebar width when this browser stored none', async () => {
+    localStorage.removeItem('flowleap-folder.tree-width')
+    const { ctx, face } = await mounted()
+    expect(face.hooks.treeWidth.getSnapshot()).toBe(280)
     await ctx.fiber.dispose()
   })
 

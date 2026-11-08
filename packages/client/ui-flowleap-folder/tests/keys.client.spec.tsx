@@ -14,8 +14,8 @@ afterEach(() => {
 })
 
 /** Register the page's keys on a real shortcut registry with the keyboard installed on the window. */
-function keys(handlers: { current: KeyHandlers }) {
-  const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
+function keys(handlers: { current: KeyHandlers }, os: 'macos' | 'windows' = 'macos') {
+  const registry = new ShortcutRegistry('web', os, undefined, 500)
   const ctx = { shortcuts: registry, effect: (setup: () => () => void) => { disposers.push(setup()) } } as never
   registerKeys(ctx, { current: () => handlers.current }, key => en[key])
   disposers.push(installKeyboard(window, registry, undefined, false))
@@ -35,7 +35,7 @@ const press = (target: Element, code: string, extra: KeyboardEventInit = {}) => 
 }
 
 describe('the keys of the client folder page', () => {
-  it('registers the five acts in the page scope with their default keys and labels', () => {
+  it('registers the seven acts in the page scope with their default keys and labels', () => {
     const { registry } = keys({ current: {} })
     const rows = registry.catalog.getSnapshot().filter(row => row.id.startsWith('flowleap.folder.'))
     expect(rows.map(row => [row.id, row.label, row.keycaps, row.scope?.label])).toEqual([
@@ -44,6 +44,8 @@ describe('the keys of the client folder page', () => {
       ['flowleap.folder.upload', en['keys.upload'], [['U']], en['keys.scope']],
       ['flowleap.folder.rename', en['keys.rename'], [['F2']], en['keys.scope']],
       ['flowleap.folder.move', en['keys.move'], [['⇧', 'M']], en['keys.scope']],
+      ['flowleap.folder.trash', en['keys.trash'], [['Backspace']], en['keys.scope']],
+      ['flowleap.folder.find', en['keys.find'], [['/']], en['keys.scope']],
     ])
     expect(commandOf('move')).toBe('flowleap.folder.move')
   })
@@ -62,6 +64,25 @@ describe('the keys of the client folder page', () => {
     expect(move).toHaveBeenCalledTimes(1)
     press(page, 'KeyA')
     expect(ask).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves the selection to Trash on Delete, not on Backspace, on Windows', () => {
+    const trash = vi.fn()
+    const { page } = keys({ current: { trash } }, 'windows')
+    page.focus()
+    expect(press(page, 'Backspace', { key: 'Backspace' })).toBe(false)
+    expect(press(page, 'Delete', { key: 'Delete' })).toBe(true)
+    expect(trash).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves the selection to Trash on Backspace and starts Find on Slash', () => {
+    const trash = vi.fn()
+    const find = vi.fn()
+    const { page } = keys({ current: { trash, find } })
+    page.focus()
+    expect(press(page, 'Backspace', { key: 'Backspace' })).toBe(true)
+    expect(press(page, 'Slash', { key: '/' })).toBe(true)
+    expect([trash.mock.calls.length, find.mock.calls.length]).toEqual([1, 1])
   })
 
   it('never runs while the focus is in a text field', () => {

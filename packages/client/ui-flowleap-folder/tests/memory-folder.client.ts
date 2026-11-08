@@ -1,12 +1,13 @@
 /**
- * A client folder in memory behind the `FolderApi` of the browser half: listings by folder path, the four writes with
- * the Host's refusals (`exists`, `into-itself`), one scripted failure for the next call of an act, and a gate that
- * holds the next call of an act until the test opens it.
+ * A client folder in memory behind the `FolderApi` of the browser half: listings by folder path, the writes with the
+ * Host's refusals (`exists`, `into-itself`, `in-trash`, `no-origin`), Move to Trash and Restore with the Trash origin
+ * of each entry, a search by name, one scripted failure for the next call of an act, and a gate that holds the next
+ * call of an act until the test opens it.
  */
 
-import type { FolderEntry, FolderListing, FolderWritten } from '../src/route.ts'
+import { TRASH, type FolderEntry, type FolderListing, type FolderWritten, type FolderSearchAnswer, type FolderSearchHit } from '../src/route.ts'
 import type { FolderApi, FolderResult } from '../src/client/api.ts'
-import { baseName, childPath, parentOf, type FailureCode } from '../src/client/model.ts'
+import { baseName, childPath, keepBothName, parentOf, type FailureCode } from '../src/client/model.ts'
 
 /** The modified time of every fixture entry. */
 export const MODIFIED = '2026-11-08T09:00:00.000Z'
@@ -29,6 +30,8 @@ export function memoryFolder(initial: Record<string, FolderEntry[]>) {
   const failures = new Map<Act, FailureCode>()
   const gates = new Map<Act, Promise<void>>()
   const calls: string[] = []
+  /** The cap on the hits of one search. */
+  const limits = { searchHits: Number.POSITIVE_INFINITY }
   const ok = <T>(value: T): FolderResult<T> => ({ ok: true, value })
   const fail = (error: FailureCode): FolderResult<never> => ({ ok: false, error })
   /** Wait at an open gate, then answer the scripted failure, if any. */
@@ -57,6 +60,16 @@ export function memoryFolder(initial: Record<string, FolderEntry[]>) {
       tree.set(to + key.slice(from.length), entries)
     }
   }
+  /** The first free name in a folder, as the Host gives it. */
+  const free = (folder: string, name: string) =>
+    has(folder, name) ? keepBothName(name, new Set((tree.get(folder) ?? []).map(entry => entry.name))) : name
+  /** Every entry below a folder, in path order. */
+  const walk = (folder: string): FolderSearchHit[] => [...tree.get(folder) ?? []]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((entry): FolderSearchHit[] => {
+      const path = childPath(folder, entry.name)
+      return [{ path, kind: entry.kind }, ...(entry.kind === 'directory' ? walk(path) : [])]
+    })
   const api: FolderApi = {
     list: async (path) => {
       const failure = await enter('list', `list ${path}`)
@@ -100,11 +113,51 @@ export function memoryFolder(initial: Record<string, FolderEntry[]>) {
       put(folder, file(name, blob.size, { source: { kind: 'upload', at: MODIFIED } }))
       return ok<FolderWritten>({ path: childPath(folder, name) })
     },
+    trash: async (path) => {
+      const failure = await enter('trash', `trash ${path}`)
+      if (failure !== undefined) return fail(failure)
+      if (path === TRASH || path.startsWith(`${TRASH}/`)) return fail('in-trash')
+      if (!has('', TRASH)) put('', dir(TRASH))
+      if (!tree.has(TRASH)) tree.set(TRASH, [])
+      const name = free(TRASH, baseName(path))
+      const trashed = childPath(TRASH, name)
+      put(TRASH, { ...take(path), name, trashedFrom: path })
+      carry(path, trashed)
+      return ok<FolderWritten>({ path: trashed })
+    },
+    restore: async (path) => {
+      const failure = await enter('restore', `restore ${path}`)
+      if (failure !== undefined) return fail(failure)
+      const entries = tree.get(parentOf(path)) ?? []
+      const origin = entries.find(item => item.name === baseName(path))?.trashedFrom
+      if (origin === undefined) return fail('no-origin')
+      const { trashedFrom: _from, ...entry } = take(path)
+      const parts = parentOf(origin) === '' ? [] : parentOf(origin).split('/')
+      parts.forEach((part, index) => {
+        const above = parts.slice(0, index).join('/')
+        if (!has(above, part)) put(above, dir(part))
+        if (!tree.has(childPath(above, part))) tree.set(childPath(above, part), [])
+      })
+      const name = free(parentOf(origin), baseName(origin))
+      const restored = childPath(parentOf(origin), name)
+      put(parentOf(origin), { ...entry, name })
+      carry(path, restored)
+      return ok<FolderWritten>({ path: restored })
+    },
+    search: async (query) => {
+      const failure = await enter('search', `search ${query}`)
+      if (failure !== undefined) return fail(failure)
+      const words = query.toLowerCase().split(/\s+/u).filter(word => word !== '')
+      const hits = walk('').filter(hit => !hit.path.startsWith(`${TRASH}/`) && hit.path !== TRASH
+        && words.every(word => baseName(hit.path).toLowerCase().includes(word)))
+      return ok<FolderSearchAnswer>({ hits: hits.slice(0, limits.searchHits), truncated: hits.length > limits.searchHits })
+    },
   }
   return {
     api,
     tree,
     calls,
+    limits,
     /** Answer the next call of an act with a failure. */
     failNext(act: Act, error: FailureCode) { failures.set(act, error) },
     /**

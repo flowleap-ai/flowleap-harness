@@ -1,8 +1,9 @@
 /**
  * FlowLeap client folder, Host half: the authenticated routes under `/api/flowleap/folder/` that list one folder of a
- * client folder with each entry's modified time and recorded source, make a folder, rename, move, and write an
- * uploaded file. A client folder is the folder of one workspace; every path is relative to it and is checked in
- * `ClientFolder` before any disk act. No route deletes or replaces an entry. The browser half
+ * client folder with each entry's modified time and recorded source, make a folder, rename, move, write an uploaded
+ * file, move an entry to Trash and back, and find entries by name. A client folder is the folder of one workspace;
+ * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
+ * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The browser half
  * (`exports["./client"]`) is the Clients page.
  *
  * See packages/client/ui-flowleap-folder/README.md.
@@ -17,12 +18,12 @@ import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { ClientFolder, FolderError } from './folder.ts'
 import {
-  FAILURE_STATUS, FOLDER_ROUTES, type FolderFailure, type FolderWritten, type MkdirRequest, type MoveRequest,
-  type RenameRequest,
+  FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type FolderFailure, type FolderSource, type FolderWritten,
+  type MkdirRequest, type MoveRequest, type RenameRequest, type TrashRequest,
 } from './route.ts'
-import { SourceStore } from './sources.ts'
+import { sourceStore, trashStore, type RecordStore, type TrashOrigin } from './sources.ts'
 
-export { FOLDER_API, FOLDER_ROUTES } from './route.ts'
+export { FOLDER_API, FOLDER_ROUTES, TRASH, isTrashPath } from './route.ts'
 export type * from './route.ts'
 
 /** Cordis plugin name. */
@@ -39,6 +40,8 @@ export interface Config {
   maxEntries: number
   /** Inclusive byte cap of one uploaded file. */
   maxUploadBytes: number
+  /** Cap on the hits of one search by name. */
+  maxSearchHits: number
   /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
   storageLowFlagPath: string
 }
@@ -48,6 +51,7 @@ export const Config: z<Config> = z.object({
   stateDir: z.string().required(),
   maxEntries: z.number().step(1).min(1).default(2000),
   maxUploadBytes: z.number().step(1).min(1).default(200 * 1024 * 1024),
+  maxSearchHits: z.number().step(1).min(1).default(200),
   storageLowFlagPath: z.string().default(''),
 })
 
@@ -87,12 +91,14 @@ export class FolderRoutes {
    * @param ctx - the Host context, carrying `workspaceRegistry` and the logger.
    * @param config - the checked row config.
    * @param sources - the source records.
-   * @param now - the clock of the recorded sources.
+   * @param trash - the Trash records.
+   * @param now - the clock of the records.
    */
   constructor(
     private readonly ctx: Context,
     private readonly config: Config,
-    private readonly sources: SourceStore,
+    private readonly sources: RecordStore<FolderSource>,
+    private readonly trash: RecordStore<TrashOrigin>,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -124,7 +130,9 @@ export class FolderRoutes {
     const query = new URL(request.url).searchParams
     const workspace = field(query.get('workspace'), 'workspace')
     const folder = await this.folderOf(workspace)
-    return json(await folder.list(query.get('path') ?? '', this.config.maxEntries, await this.sources.read(workspace)))
+    const listed = query.get('path') ?? ''
+    const trashed = listed === TRASH ? await this.trash.read(workspace) : new Map<string, TrashOrigin>()
+    return json(await folder.list(listed, this.config.maxEntries, await this.sources.read(workspace), trashed))
   }
 
   /** `POST mkdir` with a {@link MkdirRequest}. */
@@ -141,7 +149,7 @@ export class FolderRoutes {
     const body = await bodyOf(request)
     const input: RenameRequest = { workspace: field(body.workspace, 'workspace'), path: field(body.path, 'path'), name: field(body.name, 'name') }
     const renamed = await (await this.folderOf(input.workspace)).rename(input.path, input.name)
-    await this.sources.moved(input.workspace, input.path, renamed)
+    await this.carry(input.workspace, input.path, renamed)
     return json({ path: renamed } satisfies FolderWritten)
   }
 
@@ -150,8 +158,43 @@ export class FolderRoutes {
     const body = await bodyOf(request)
     const input: MoveRequest = { workspace: field(body.workspace, 'workspace'), path: field(body.path, 'path'), to: field(body.to, 'to') }
     const moved = await (await this.folderOf(input.workspace)).move(input.path, input.to)
-    await this.sources.moved(input.workspace, input.path, moved)
+    // An entry moved out of Trash is back in use: its origin no longer applies.
+    if (isTrashPath(input.path)) await this.trash.forget(input.workspace, input.path)
+    await this.carry(input.workspace, input.path, moved)
     return json({ path: moved } satisfies FolderWritten)
+  }
+
+  /** `POST trash` with a {@link TrashRequest}: the entry moves into Trash and its origin is recorded. */
+  async moveToTrash(request: Request): Promise<Response> {
+    const input = await trashInput(request)
+    const trashed = await (await this.folderOf(input.workspace)).trash(input.path)
+    await this.carry(input.workspace, input.path, trashed)
+    await this.trash.record(input.workspace, trashed, { from: input.path, at: this.now().toISOString() })
+    return json({ path: trashed } satisfies FolderWritten)
+  }
+
+  /** `POST restore` with a {@link TrashRequest}: the entry of Trash goes back to its recorded origin. */
+  async restore(request: Request): Promise<Response> {
+    const input = await trashInput(request)
+    const origin = (await this.trash.read(input.workspace)).get(input.path)
+    if (origin === undefined) throw new FolderError('no-origin', `${input.path} has no recorded origin`)
+    const restored = await (await this.folderOf(input.workspace)).restore(input.path, origin.from)
+    await this.trash.forget(input.workspace, input.path)
+    await this.sources.moved(input.workspace, input.path, restored)
+    return json({ path: restored } satisfies FolderWritten)
+  }
+
+  /** `GET search?workspace=&q=`: the files and folders whose name holds every word of the query. */
+  async search(request: Request): Promise<Response> {
+    const query = new URL(request.url).searchParams
+    const folder = await this.folderOf(field(query.get('workspace'), 'workspace'))
+    return json(await folder.search(field(query.get('q'), 'q'), this.config.maxSearchHits))
+  }
+
+  /** Carry the records of a renamed or moved entry, and of everything below it, to its new path. */
+  private async carry(workspace: string, from: string, to: string): Promise<void> {
+    await this.sources.moved(workspace, from, to)
+    await this.trash.moved(workspace, from, to)
   }
 
   /** `POST upload?workspace=&dir=&name=` with the file's bytes as the body. */
@@ -168,6 +211,12 @@ export class FolderRoutes {
     await this.sources.record(workspace, written, { kind: 'upload', at: this.now().toISOString() })
     return json({ path: written } satisfies FolderWritten)
   }
+}
+
+/** The body of a Trash or Restore request. */
+async function trashInput(request: Request): Promise<TrashRequest> {
+  const body = await bodyOf(request)
+  return { workspace: field(body.workspace, 'workspace'), path: field(body.path, 'path') }
 }
 
 /** Whether a path exists. */
@@ -190,7 +239,7 @@ async function* emptyBody(): AsyncIterable<Uint8Array> {}
  * @param config - the row config.
  */
 export function apply(ctx: Context, config: Config): void {
-  const routes = new FolderRoutes(ctx, config, new SourceStore(config.stateDir))
+  const routes = new FolderRoutes(ctx, config, sourceStore(config.stateDir), trashStore(config.stateDir))
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
     ctx.effect(() => ctx.connection.fetch.register({
       path, methods: [method], requestBody, fetch: request => routes.answer(() => act(request)),
@@ -201,4 +250,7 @@ export function apply(ctx: Context, config: Config): void {
   register(FOLDER_ROUTES.rename, 'POST', 'buffered', request => routes.rename(request))
   register(FOLDER_ROUTES.move, 'POST', 'buffered', request => routes.move(request))
   register(FOLDER_ROUTES.upload, 'POST', 'streaming', request => routes.upload(request))
+  register(FOLDER_ROUTES.trash, 'POST', 'buffered', request => routes.moveToTrash(request))
+  register(FOLDER_ROUTES.restore, 'POST', 'buffered', request => routes.restore(request))
+  register(FOLDER_ROUTES.search, 'GET', 'buffered', request => routes.search(request))
 }

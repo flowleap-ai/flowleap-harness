@@ -5,8 +5,9 @@
  * one `--- page N ---` marker per page. The name matches the IDE's tool so the
  * exported Patent Agent prompt's `read_pdf` references resolve in the harness.
  *
- * Born-digital PDFs go through OCR as well in this slice: text extraction
- * without OCR is a later slice.
+ * The tool does not read a text layer itself: its description sends the model
+ * to `pdftotext` in the shell first, and to this tool only for the pages
+ * without a text layer, for page images, or when `pdftotext` is not installed.
  * @module
  */
 
@@ -83,7 +84,8 @@ const PARAMETERS: Record<string, unknown> = {
 }
 
 const DESCRIPTION = 'Read a PDF or page image from the workspace as Markdown through Mistral OCR on the firm\'s Mistral key, one "--- page N ---" marker per page. '
-  + 'Use it for scanned or born-digital PDFs, office actions, file-wrapper documents and figure pages before analysing them; use `read` for text files and `read_image` to look at an image. '
+  + 'Read the text layer of a PDF first, with the shell: `pdftotext -layout "<file>" -` prints the pages in order, with a form feed between two pages. '
+  + 'Use this tool only for the PDF pages that print no text (a scanned page has no text layer), for a page image, or when pdftotext is not installed; use `read` for text files and `read_image` to look at an image. '
   + `Accepts ${READ_PDF_EXTENSIONS.join(', ')} under the working directory, up to 50 MB and ${String(READ_PDF_MAX_PAGES)} pages. `
   + 'Every call costs the firm Mistral OCR pages, so read a document once and keep the text; repeated reads of the same file within 24 hours come from the cache.'
 

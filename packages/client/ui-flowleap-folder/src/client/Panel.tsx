@@ -4,12 +4,12 @@
  * Upload files and the one primary action, Ask about this. Files dropped on the middle area go into the listed folder.
  */
 
-import { useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   Button, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
   IconNewChatOutlineRegular, IconPaperclipOutlineRegular, IconProjectAddOutlineRegular, IconRefreshOutlineRegular,
-  IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
+  IconRightUpOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
   type KeycapBox, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
@@ -20,7 +20,7 @@ import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-side
 import type { TreeEntry } from '@deepseek-ai/dsh-client-ui-sidebar-files/client'
 import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { FolderEntry } from '../route.ts'
+import { TRASH, isTrashPath, type FolderEntry, type FolderSearchHit } from '../route.ts'
 import { FOLDER_SCOPE, keycapsOf, type KeyAct, type KeyHandlers } from './keys.ts'
 import type { FlowleapFolderKey, NS } from './locales.ts'
 import {
@@ -28,7 +28,8 @@ import {
   type ConflictState, type FailureCode, type FolderModel, type FolderSnapshot, type Notice,
 } from './model.ts'
 import type { FolderRowTarget } from './row-menu.ts'
-import { FileViewer, viewerKind, type ViewerReads } from './viewer.tsx'
+import { FileViewer, SHEET_COLUMNS, SHEET_ROWS, viewerKind, type ViewerReads } from './viewer.tsx'
+import { TreeResize } from './TreeResize.tsx'
 import css from './Panel.module.css'
 
 /** One entry the page asks about. */
@@ -48,7 +49,11 @@ export interface PanelInjected {
     readonly catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
     /** The UI language, for dates and sizes. */
     readonly language: ObservableSnapshot<LocaleId>
+    /** The folder tree's width in px, kept in this browser. */
+    readonly treeWidth: ObservableSnapshot<number>
   }
+  /** Set the folder tree's width; it is kept inside the app sidebar's limits. */
+  readonly setTreeWidth: (px: number) => void
   readonly model: FolderModel
   /** The file readers of the open client folder's Session. */
   readonly reads: (session: string) => ViewerReads
@@ -102,9 +107,21 @@ function modifiedOf(t: Translate, iso: string, locale: LocaleId, now: Date): str
 }
 
 /** The source word of an entry. */
-function sourceOf(t: Translate, entry: FolderEntry): string {
+function sourceOf(t: Translate, entry: FolderEntry, client: string): string {
+  if (entry.trashedFrom !== undefined) return t('source.trashed', { folder: parentOf(entry.trashedFrom) === '' ? client : parentOf(entry.trashedFrom) })
   return entry.source === undefined ? t('source.none') : t(entry.source.kind === 'upload' ? 'source.upload' : 'source.folder')
 }
+
+/** Whether an entry lies directly in Trash, where Restore applies. */
+export function inTrash(path: string): boolean {
+  return parentOf(path) === TRASH
+}
+
+
+/** How long the search waits after the last key before it asks the Host. */
+const SEARCH_WAIT_MS = 150
+/** A second click this soon after a file opens is part of the double-click that opened it. */
+const OPEN_CLICK_MS = 500
 
 /** The failure sentence of a code. */
 function failureOf(t: Translate, code: FailureCode): string {
@@ -196,9 +213,18 @@ function ClientFolderView(props: PanelProps & {
   readonly keycaps: (act: KeyAct) => readonly KeycapBox[]
   readonly locale: LocaleId
 }) {
-  const { t, state, client, keycaps, model, renderFactorySlot } = props
+  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth } = props
   const fileInput = useRef<HTMLInputElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
   const [treeOpen, setTreeOpen] = useState(false)
+  const treeWidth = useTreeWidth(width => width)
+  const [query, setQuery] = useState(state.search.query)
+  useEffect(() => {
+    if (query === state.search.query) return undefined
+    const timer = setTimeout(() => { void model.search(query) }, SEARCH_WAIT_MS)
+    return () => { clearTimeout(timer) }
+  }, [query, state.search.query, model])
+  const searching = state.search.query.trim() !== '' || query.trim() !== ''
   const listing = state.listings[state.folder]
   const entries = listing?.entries ?? []
   const entryOf = (path: string): FolderEntry | undefined =>
@@ -209,18 +235,40 @@ function ClientFolderView(props: PanelProps & {
     props.ask(client.workspaceId, subject)
   }
   const chooseFiles = () => { fileInput.current?.click() }
+  // Trash holds only what Move to Trash put there, so the page makes and uploads nothing into it.
+  const writable = state.connect === 'ready' && !isTrashPath(state.folder)
   const selection = state.checked.length > 0 ? state.checked : state.open === null ? [] : [state.open]
   const [single] = selection
   const handlers: KeyHandlers = state.connect !== 'ready' || state.moving !== null || state.conflict !== null
     ? {}
     : {
       ask: askCurrent,
-      newFolder: () => { model.startNewFolder() },
-      upload: chooseFiles,
+      ...(writable ? { newFolder: () => { model.startNewFolder() }, upload: chooseFiles } : {}),
       ...(selection.length === 1 && single !== undefined ? { rename: () => { model.startRename(single) } } : {}),
       ...(selection.length > 0 ? { move: () => { model.startMove(selection) } } : {}),
+      ...(selection.length > 0 && !selection.some(isTrashPath) ? { trash: () => { void model.trash(selection) } } : {}),
+      find: () => { searchInput.current?.focus() },
     }
   useLayoutEffect(() => { props.setKeys(handlers) })
+  const clearSearch = () => {
+    setQuery('')
+    void model.search('')
+  }
+  const onSearchKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    const hit = state.search.hits[state.search.highlight]
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      clearSearch()
+      event.currentTarget.blur()
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      model.moveHighlight(event.key === 'ArrowDown' ? 1 : -1)
+    } else if (event.key === 'Enter' && hit !== undefined) {
+      event.preventDefault()
+      setQuery('')
+      void model.openHit(hit)
+    }
+  }
   const folderTitle = state.folder === '' ? client.title : baseName(state.folder)
   const parts = state.folder === '' ? [] : state.folder.split('/')
   const crumbs = (
@@ -270,17 +318,20 @@ function ClientFolderView(props: PanelProps & {
     <>
       <header className={css.topbar} data-frame-top-row="">
         {crumbs}
+        <input ref={searchInput} type="search" className={css.search} value={query} aria-label={t('search.label')}
+          placeholder={t('search.placeholder', { client: client.title })} disabled={state.connect !== 'ready'}
+          onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
-            disabled={state.connect !== 'ready'} onClick={() => { model.startNewFolder() }} className={css.wide} />
+            disabled={!writable} onClick={() => { model.startNewFolder() }} className={css.wide} />
           <ActButton label={t('act.upload')} icon={<IconPaperclipOutlineRegular size={16} />} keycaps={keycaps('upload')}
-            disabled={state.connect !== 'ready'} onClick={chooseFiles} className={css.wide} />
+            disabled={!writable} onClick={chooseFiles} className={css.wide} />
           <button type="button" className={clsx(css.iconButton, css.onlyNarrow)} aria-label={t('act.newFolder')}
-            disabled={state.connect !== 'ready'} onClick={() => { model.startNewFolder() }}>
+            disabled={!writable} onClick={() => { model.startNewFolder() }}>
             <IconProjectAddOutlineRegular size={16} />
           </button>
           <button type="button" className={clsx(css.iconButton, css.onlyNarrow)} aria-label={t('act.upload')}
-            disabled={state.connect !== 'ready'} onClick={chooseFiles}>
+            disabled={!writable} onClick={chooseFiles}>
             <IconPaperclipOutlineRegular size={16} />
           </button>
           {state.checked.length === 0 && state.open === null && (
@@ -303,7 +354,7 @@ function ClientFolderView(props: PanelProps & {
           </div>
         )
         : (
-          <div className={css.body}>
+          <div className={css.body} style={{ gridTemplateColumns: `${treeWidth}px minmax(0, 1fr)` }}>
             <nav className={clsx(css.tree, treeOpen && css.treeOpen)} aria-label={t('tree.label')}>
               {renderFactorySlot('sidebar.files.tree', {
                 root: '',
@@ -324,16 +375,19 @@ function ClientFolderView(props: PanelProps & {
                 },
               })}
             </nav>
+            <TreeResize width={treeWidth} onWidth={props.setTreeWidth} label={t('resize.label')} />
             <div className={css.middle}>
-              {state.open !== null && state.session !== null
-                ? (
-                  <FileView {...props} path={state.open} entry={entryOf(state.open)} session={state.session}
-                    askCurrent={askCurrent} keycaps={keycaps} />
-                )
-                : (
-                  <FolderView {...props} title={folderTitle} entries={entries} keycaps={keycaps}
-                    askCurrent={askCurrent} chooseFiles={chooseFiles} />
-                )}
+              {searching
+                ? <SearchView {...props} query={query} openHit={(hit) => { setQuery(''); void model.openHit(hit) }} clear={clearSearch} />
+                : state.open !== null && state.session !== null
+                  ? (
+                    <FileView {...props} path={state.open} entry={entryOf(state.open)} session={state.session}
+                      askCurrent={askCurrent} keycaps={keycaps} />
+                  )
+                  : (
+                    <FolderView {...props} title={folderTitle} entries={entries} keycaps={keycaps}
+                      askCurrent={askCurrent} chooseFiles={chooseFiles} />
+                  )}
             </div>
           </div>
         )}
@@ -358,15 +412,21 @@ function FileView({ t, state, locale: language, path, entry, session, askCurrent
   const readers = useMemo(() => reads(session), [reads, session])
   const labels = useViewerLabels(t)
   const name = baseName(path)
+  const opened = useRef(0)
+  useEffect(() => { opened.current = performance.now() }, [path])
+  // The second click of a double-click on a row lands on the file that the first click opened; it selects no text.
+  const onMouseDown = (event: MouseEvent) => {
+    if (event.detail > 1 && performance.now() - opened.current < OPEN_CLICK_MS) event.preventDefault()
+  }
   return (
-    <div className={css.file}>
+    <div className={css.file} onMouseDown={onMouseDown}>
       <div className={css.fileHead}>
         <div className={css.fileTitle}>
           <h1 className={css.title}>{name}</h1>
           <p className={css.meta}>
             <span>{kindOf(t, { name, kind: 'file' })}</span>
             {entry !== undefined && <span>{sizeOf(entry.size, language)}</span>}
-            {entry !== undefined && <span>{sourceOf(t, entry)}</span>}
+            {entry !== undefined && <span>{sourceOf(t, entry, client.title)}</span>}
             {entry !== undefined && <span>{modifiedOf(t, entry.modifiedAt, language, new Date())}</span>}
           </p>
         </div>
@@ -390,7 +450,8 @@ function useViewerLabels(t: Translate) {
     }
     return {
       loading: t('loading'), failed: t('viewer.failed'), none: t('viewer.none'), from: t('viewer.from'), to: t('viewer.to'),
-      date: t('viewer.date'), noSubject: t('viewer.noSubject'), markdown, document: (name: string) => t('viewer.document', { name }),
+      date: t('viewer.date'), noSubject: t('viewer.noSubject'), markdown,
+      sheetTabs: t('sheet.tabs'), sheetEmpty: t('sheet.empty'), sheetCut: t('sheet.rows', { rows: SHEET_ROWS, columns: SHEET_COLUMNS }), document: (name: string) => t('viewer.document', { name }),
     }
   }, [t])
 }
@@ -417,7 +478,7 @@ function FolderView(props: PanelProps & {
   const uploads = state.uploads.filter(upload => upload.dir === state.folder)
   const edit = state.edit
   const onDragOver = (event: DragEvent) => {
-    if (!event.dataTransfer.types.includes('Files')) return
+    if (!event.dataTransfer.types.includes('Files') || isTrashPath(state.folder)) return
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
     if (dragging === null) setDragging(event.dataTransfer.items.length)
@@ -430,7 +491,7 @@ function FolderView(props: PanelProps & {
   }
   const row = (entry: FolderEntry) => {
     const path = childPath(state.folder, entry.name)
-    const target: FolderRowTarget = { path, kind: entry.kind }
+    const target: FolderRowTarget = { path, kind: entry.kind, inTrash: inTrash(path) }
     const checked = state.checked.includes(path)
     if (edit?.kind === 'rename' && edit.path === path) return <NameRow key={path} {...props} initial={entry.name} kind={entry.kind} />
     return (
@@ -448,7 +509,7 @@ function FolderView(props: PanelProps & {
         <span role="gridcell" className={css.cell}>{kindOf(t, entry)}</span>
         <span role="gridcell" className={clsx(css.cell, css.num)}>{sizeOf(entry.size, locale)}</span>
         <span role="gridcell" className={clsx(css.cell, css.num)}>{modifiedOf(t, entry.modifiedAt, locale, now)}</span>
-        <span role="gridcell" className={css.cell}>{sourceOf(t, entry)}</span>
+        <span role="gridcell" className={css.cell}>{sourceOf(t, entry, client.title)}</span>
       </div>
     )
   }
@@ -472,11 +533,15 @@ function FolderView(props: PanelProps & {
           ? <div className={css.skeleton} aria-label={t('loading')} role="status">{[70, 50, 60, 40, 55].map(width => <span key={width} style={{ width: `${width}%` }} />)}</div>
           : entries.length === 0 && uploads.length === 0 && edit === null
             ? (
-              <div className={css.empty}>
-                <h2>{t('empty.title', { folder: title })}</h2>
-                <p>{t('empty.body')}</p>
-                <Button variant="outline" size="sm" icon={<IconPaperclipOutlineRegular size={16} />} onClick={props.chooseFiles}>{t('act.upload')}</Button>
-              </div>
+              state.folder === TRASH
+                ? <div className={css.empty}><h2>{t('trash.empty.title')}</h2><p>{t('trash.empty.body')}</p></div>
+                : (
+                  <div className={css.empty}>
+                    <h2>{t('empty.title', { folder: title })}</h2>
+                    <p>{t('empty.body')}</p>
+                    <Button variant="outline" size="sm" icon={<IconPaperclipOutlineRegular size={16} />} onClick={props.chooseFiles}>{t('act.upload')}</Button>
+                  </div>
+                )
             )
             : (
               <div className={css.table} role="grid" aria-label={t('list.label')}>
@@ -526,6 +591,11 @@ function FolderView(props: PanelProps & {
             <button type="button" className={css.iconButton} aria-label={t('act.clear')} onClick={() => { model.clearChecks() }}><IconCloseOutlineRegular size={16} /></button>
             <span className={css.bulkCount}>{t('selected', { count: state.checked.length })}</span>
             <span className={css.spacer} />
+            {state.checked.every(inTrash)
+              ? <ActButton label={t('act.restore')} icon={<IconRefreshOutlineRegular size={16} />} onClick={() => { void model.restore(state.checked) }} />
+              : !state.checked.some(isTrashPath) && (
+                <ActButton label={t('act.trash')} icon={<IconTrashOutlineRegular size={16} />} keycaps={keycaps('trash')} onClick={() => { void model.trash(state.checked) }} />
+              )}
             <ActButton label={t('act.move')} icon={<IconRightUpOutlineRegular size={16} />} keycaps={keycaps('move')} onClick={() => { model.startMove(state.checked) }} />
             <ActButton label={t('act.askCount', { count: state.checked.length })} icon={<IconNewChatOutlineRegular size={16} />} keycaps={keycaps('ask')} primary onClick={props.askCurrent} />
           </div>
@@ -629,16 +699,72 @@ function ConflictDialog({ t, state, model, conflict }: PanelProps & { readonly s
 
 /** The notice after uploads, or after a failed act. */
 function NoticeBar({ t, model, notice }: PanelProps & { readonly notice: Notice }) {
+  const folderName = (folder: string) => folder === '' ? '' : baseName(folder)
   const text = notice.kind === 'added'
     ? notice.count === 1
-      ? t('added.one', { folder: notice.folder === '' ? '' : baseName(notice.folder) })
-      : t('added.many', { count: notice.count, folder: notice.folder === '' ? '' : baseName(notice.folder) })
-    : failureOf(t, notice.error)
+      ? t('added.one', { folder: folderName(notice.folder) })
+      : t('added.many', { count: notice.count, folder: folderName(notice.folder) })
+    : notice.kind === 'trashed'
+      ? notice.count === 1 ? t('trashed.one') : t('trashed.many', { count: notice.count })
+      : notice.kind === 'restored'
+        ? notice.count === 1 ? t('restored.one') : t('restored.many', { count: notice.count })
+        : failureOf(t, notice.error)
   return (
     <div className={clsx(css.toast, notice.kind === 'failed' && css.toastFailed)} role={notice.kind === 'failed' ? 'alert' : 'status'}>
       {notice.kind === 'failed' && <IconWarningTriangleOutlineRegular size={16} />}
       <span>{text}</span>
+      {notice.kind === 'trashed' && (
+        <Button variant="outline" size="sm" icon={<IconRefreshOutlineRegular size={16} />} onClick={() => { void model.restore(notice.paths) }}>
+          {t('act.restore')}
+        </Button>
+      )}
       <button type="button" className={css.iconButton} aria-label={t('act.close')} onClick={() => { model.dismissNotice() }}><IconCloseOutlineRegular size={16} /></button>
+    </div>
+  )
+}
+
+/** The middle area while a search runs: the matching files and folders with their folder, the one that Enter opens marked. */
+function SearchView({ t, state, client, query, openHit, clear }: PanelProps & {
+  readonly state: FolderSnapshot
+  readonly client: WorkspaceView
+  readonly query: string
+  readonly openHit: (hit: FolderSearchHit) => void
+  readonly clear: () => void
+}) {
+  const { search } = state
+  const waiting = search.status === 'loading' || search.query !== query
+  return (
+    <div className={css.folder}>
+      <div className={css.scroll}>
+        <div className={css.head}>
+          <h1 className={css.title}>{t('search.title', { query: query.trim() })}</h1>
+          <p className={css.lede}>
+            <button type="button" className={css.crumb} onClick={clear}>{t('search.clear')}</button>
+          </p>
+        </div>
+        {search.status === 'failed' && !waiting && (
+          <div className={css.notice} role="alert"><IconWarningTriangleOutlineRegular size={16} /><span>{t('search.failed')}</span></div>
+        )}
+        {waiting
+          ? <div className={css.skeleton} aria-label={t('loading')} role="status">{[60, 45, 70].map(width => <span key={width} style={{ width: `${width}%` }} />)}</div>
+          : search.status === 'loaded' && search.hits.length === 0
+            ? <div className={css.empty}><p>{t('search.none')}</p></div>
+            : (
+              <div className={css.table} role="listbox" aria-label={t('search.label')}>
+                {search.hits.map((hit, index) => (
+                  <button key={hit.path} type="button" role="option" aria-selected={index === search.highlight} data-testid="search-hit"
+                    className={clsx(css.row, css.hit, index === search.highlight && css.checked)} onClick={() => { openHit(hit) }}>
+                    <span className={css.icon}>{hit.kind === 'directory' ? <IconFolderCloseRegular size={16} /> : <FileTypeIcon path={hit.path} size={16} />}</span>
+                    <span className={css.hitText}>
+                      <span className={css.nameText}>{baseName(hit.path)}</span>
+                      <span className={css.hitPath}>{parentOf(hit.path) === '' ? client.title : parentOf(hit.path)}</span>
+                    </span>
+                  </button>
+                ))}
+                {search.truncated && <p className={css.more}>{t('search.more', { count: search.hits.length })}</p>}
+              </div>
+            )}
+      </div>
     </div>
   )
 }

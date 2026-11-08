@@ -1,6 +1,6 @@
 /**
- * The context menu of a row of the client folder page: Open, Ask about this, Rename, Move to and Copy path, with the
- * keys of the page's commands.
+ * The context menu of a row of the client folder page: Open, Ask about this, Rename, Move to, Copy path, and Move to
+ * Trash (or Restore for a row in Trash), with the keys of the page's commands.
  * @module
  */
 
@@ -8,7 +8,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { MenuAction } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import {
-  IconCopyOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconRightUpOutlineRegular,
+  IconCopyOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconRefreshOutlineRegular, IconRightUpOutlineRegular,
+  IconTrashOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { commandOf } from './keys.ts'
 import type { FlowleapFolderKey } from './locales.ts'
@@ -18,6 +19,8 @@ export interface FolderRowTarget {
   /** The entry relative to the client folder. */
   readonly path: string
   readonly kind: 'file' | 'directory'
+  /** The row lies directly in Trash: it offers Restore, not Move to Trash. */
+  readonly inTrash: boolean
 }
 
 declare module '@deepseek-ai/dsh-client-ui-context-menu/client' {
@@ -33,6 +36,8 @@ export interface FolderRowActs {
   readonly ask: (row: FolderRowTarget) => void
   readonly rename: (row: FolderRowTarget) => void
   readonly move: (row: FolderRowTarget) => void
+  readonly trash: (row: FolderRowTarget) => void
+  readonly restore: (row: FolderRowTarget) => void
   /** The entry's path on the Host, for Copy path. */
   readonly hostPath: (row: FolderRowTarget) => string
 }
@@ -43,6 +48,8 @@ const ICONS = {
   'flowleap.folder.rename': IconEditOutlineRegular,
   'flowleap.folder.move': IconRightUpOutlineRegular,
   'flowleap.folder.copyPath': IconCopyOutlineRegular,
+  'flowleap.folder.trash': IconTrashOutlineRegular,
+  'flowleap.folder.restore': IconRefreshOutlineRegular,
 } as const
 
 /**
@@ -62,6 +69,12 @@ export function rowActions(acts: FolderRowActs, t: (key: FlowleapFolderKey) => s
       id: 'copy-path', label: t('act.copyPath'), icon: { key: 'flowleap.folder.copyPath' }, separatorBefore: true,
       run: async () => { await navigator.clipboard.writeText(acts.hostPath(row)) },
     },
+    row.inTrash
+      ? { id: 'restore', label: t('act.restore'), icon: { key: 'flowleap.folder.restore' }, separatorBefore: true, run: () => { acts.restore(row) } }
+      : {
+        id: 'trash', label: t('act.trash'), icon: { key: 'flowleap.folder.trash' }, commandId: commandOf('trash'), keyText: 'keycap',
+        separatorBefore: true, run: () => { acts.trash(row) },
+      },
   ]
 }
 

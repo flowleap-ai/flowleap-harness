@@ -96,6 +96,13 @@ describe('read_pdf', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it('tells the model to read a PDF text layer with pdftotext first, and to OCR only the pages without text', async () => {
+    const { ctx } = await bench()
+    const description = ctx.tools.schemas()[0]!.description
+    expect(description).toContain('Read the text layer of a PDF first, with the shell: `pdftotext -layout "<file>" -` prints the pages in order, with a form feed between two pages. ')
+    expect(description).toContain('Use this tool only for the PDF pages that print no text (a scanned page has no text layer), for a page image, or when pdftotext is not installed; ')
+  })
+
   it('answers without a Mistral key with the text that names the Mistral card, touching neither the file nor the network', async () => {
     const { fetchSpy, call } = await bench()
     const result = await call({ path: 'missing.pdf' })

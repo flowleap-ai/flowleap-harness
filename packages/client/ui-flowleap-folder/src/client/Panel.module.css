@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  min-width: 96px;
   flex: 1;
   color: var(--dsw-alias-label-secondary);
   white-space: nowrap;
@@ -70,6 +70,71 @@
   flex: none;
 }
 
+.search {
+  width: 240px;
+  min-width: 128px;
+  height: 28px;
+  flex: 0 1 auto;
+  border: 0;
+  padding: 0 12px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3);
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+}
+
+.search::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The tree's resize strip: 8 px on the tree's right border, as the app sidebar's handle. */
+.resize {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-left: calc(-1 * 4px);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resize:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+}
+
+/* Doubled class: the hit keeps its two columns under the list's width rules for `.row`. */
+.row.hit {
+  grid-template-columns: 16px minmax(0, 1fr);
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.hitText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hitPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.more {
+  margin: 8px 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .keycap {
   margin-inline-start: 4px;
 }
@@ -88,13 +153,14 @@
 }
 
 .body {
+  position: relative;
   flex: 1;
   display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
   min-height: 0;
 }
 
 .tree {
+  user-select: none;
   overflow: auto;
   min-height: 0;
   padding: 8px;
@@ -102,6 +168,7 @@
 }
 
 .middle {
+  container: folder-middle / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -165,13 +232,14 @@
 .thead,
 .row {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) 112px 80px 128px 112px;
+  grid-template-columns: 16px minmax(0, 1fr) 128px 80px 128px 112px;
   align-items: center;
   column-gap: 16px;
   padding: 0 16px;
 }
 
 .thead {
+  user-select: none;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -183,6 +251,7 @@
 }
 
 .group {
+  user-select: none;
   position: sticky;
   top: 32px;
   z-index: 1;
@@ -204,6 +273,7 @@
 }
 
 .row {
+  user-select: none;
   height: 44px;
   position: relative;
   color: var(--dsw-alias-label-primary);
@@ -287,6 +357,7 @@
   color: var(--dsw-alias-label-secondary);
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .num {
@@ -423,8 +494,10 @@
 
 .bulk {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
   padding: 12px 16px;
   border-radius: var(--dsw-radius-panel);
   background: var(--dsw-alias-bg-layer-2);
@@ -535,13 +608,28 @@
   display: none;
 }
 
+/* The list drops columns by its own width, which the app sidebar and the folder tree take from the window. */
+@container folder-middle (max-width: 640px) {
+  .bulk .keycap { display: none; }
+  .thead, .row { grid-template-columns: 16px minmax(0, 1fr) 80px 128px; }
+  .thead > :nth-child(3), .thead > :nth-child(6), .row > :nth-child(3), .row > :nth-child(6) { display: none; }
+}
+
+@container folder-middle (max-width: 480px) {
+  .thead, .row { grid-template-columns: 16px minmax(0, 1fr) 128px; }
+  .thead > :nth-child(4), .row > :nth-child(4) { display: none; }
+}
+
 @media (max-width: 720px) {
   .topbar { padding: 0 8px; }
   .wide { display: none !important; }
   .onlyNarrow { display: inline-grid; }
   .here.onlyNarrow { display: inline; }
-  .body { grid-template-columns: minmax(0, 1fr); }
+  /* Overrides the tree width that the page sets on the element. */
+  .body { grid-template-columns: minmax(0, 1fr) !important; }
   .tree { display: none; }
+  .resize { display: none; }
+  .search { width: auto; min-width: 0; flex: 1; }
   .treeOpen { display: block; position: absolute; z-index: 6; inset: 44px 0 0; border-right: 0; background: var(--dsw-alias-bg-base); }
   .thead { display: none; }
   .row { grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 12px; }

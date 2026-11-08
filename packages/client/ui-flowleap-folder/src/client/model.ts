@@ -9,7 +9,7 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { FolderEntry, FolderFailureCode } from '../route.ts'
+import { type FolderEntry, type FolderFailureCode, type FolderSearchHit } from '../route.ts'
 import type { FolderApi, FolderResult } from './api.ts'
 
 /** A failure the page words: a route failure, no answer, or a fault of the Host. */
@@ -52,7 +52,23 @@ export interface ConflictState {
 /** What the page shows when an act ends. */
 export type Notice =
   | { kind: 'added'; count: number; folder: string }
+  /** `paths` are the entries' paths in Trash, which the notice's Restore puts back. */
+  | { kind: 'trashed'; count: number; paths: string[] }
+  | { kind: 'restored'; count: number }
   | { kind: 'failed'; error: FailureCode }
+
+/** A search by name over the client folder. */
+export interface SearchState {
+  /** The typed words; empty when no search runs. */
+  query: string
+  status: 'idle' | 'loading' | 'loaded' | 'failed'
+  /** The hits of the last answer for `query`. */
+  hits: FolderSearchHit[]
+  /** The cap dropped hits. */
+  truncated: boolean
+  /** The index of the hit that Enter opens. */
+  highlight: number
+}
 
 /** The page's snapshot; the store's drafts change it, so its fields are not `readonly`. */
 export interface FolderSnapshot {
@@ -80,6 +96,7 @@ export interface FolderSnapshot {
   uploads: UploadState[]
   conflict: ConflictState | null
   notice: Notice | null
+  search: SearchState
 }
 
 /** A listing that is not known yet. */
@@ -150,6 +167,7 @@ export interface FolderModelDeps {
 const EMPTY: FolderSnapshot = {
   workspaceId: null, session: null, connect: 'idle', folder: '', open: null, listings: {}, expanded: [], checked: [],
   edit: null, moving: null, moveError: null, uploads: [], conflict: null, notice: null,
+  search: { query: '', status: 'idle', hits: [], truncated: false, highlight: 0 },
 }
 
 /** The client folder page's state and acts. */
@@ -157,6 +175,8 @@ export class FolderModel {
   readonly store: SnapshotStore<FolderSnapshot> = createSnapshotStore<FolderSnapshot>(EMPTY, { flush: 'sync' })
   private api: FolderApi | null = null
   private generation = 0
+  /** Counts the searches, so the answer of an older query is dropped. */
+  private searchGeneration = 0
   private nextId = 1
   private stopWatch: (() => void) | null = null
   /** The dropped files that wait for their upload or for a conflict decision, in upload order; `state.uploads` shows them. */
@@ -422,9 +442,115 @@ export class FolderModel {
     await this.drain()
   }
 
+  /**
+   * Move entries into Trash, one after another. The first failure stops the rest and shows its reason.
+   * @param paths - the entries.
+   * @returns once the moves are done and the folders are listed again.
+   */
+  async trash(paths: readonly string[]): Promise<void> {
+    await this.each(paths, api => path => api.trash(path), 'trashed')
+  }
+
+  /**
+   * Put entries of Trash back where they came from, one after another. The first failure stops the rest.
+   * @param paths - the entries in Trash.
+   * @returns once the entries are back and the folders are listed again.
+   */
+  async restore(paths: readonly string[]): Promise<void> {
+    await this.each(paths, api => path => api.restore(path), 'restored')
+  }
+
+  /**
+   * Find the files and folders whose name holds every word of a query. An empty query ends the search. An answer that
+   * comes after a newer query is dropped.
+   * @param query - the typed words.
+   * @returns once the answer is in.
+   */
+  async search(query: string): Promise<void> {
+    const api = this.api
+    const generation = this.generation
+    this.searchGeneration += 1
+    const asked = this.searchGeneration
+    this.store.update((draft) => {
+      draft.search = { query, status: query.trim() === '' || api === null ? 'idle' : 'loading', hits: query.trim() === '' ? [] : draft.search.hits, truncated: false, highlight: 0 }
+    })
+    if (api === null || query.trim() === '') return
+    const result = await api.search(query)
+    if (generation !== this.generation || asked !== this.searchGeneration) return
+    this.store.update((draft) => {
+      draft.search = result.ok
+        ? { query, status: 'loaded', hits: [...result.value.hits], truncated: result.value.truncated, highlight: 0 }
+        : { ...draft.search, status: 'failed' }
+    })
+  }
+
+  /**
+   * Move the hit that Enter opens.
+   * @param step - `1` for the next hit, `-1` for the one before; the move stops at the first and the last hit.
+   */
+  moveHighlight(step: 1 | -1): void {
+    this.store.update((draft) => {
+      draft.search.highlight = Math.min(Math.max(draft.search.highlight + step, 0), Math.max(draft.search.hits.length - 1, 0))
+    })
+  }
+
+  /**
+   * Open a hit: a folder is listed, a file is shown. The search ends.
+   * @param hit - the hit.
+   * @returns once the folder of the hit, and the folders above it, are listed.
+   */
+  async openHit(hit: FolderSearchHit): Promise<void> {
+    this.searchGeneration += 1
+    this.store.update((draft) => { draft.search = { ...EMPTY.search } })
+    if (hit.kind === 'directory') return this.go(hit.path)
+    // A hit can lie in a folder that the page has not listed: list it and the folders above it, as `go` does.
+    this.openFile(hit.path)
+    await Promise.all(['', ...ancestors(parentOf(hit.path))].map(path => this.refresh(path)))
+  }
+
   /** Close the notice. */
   dismissNotice(): void {
     this.store.update((draft) => { draft.notice = null })
+  }
+
+  /**
+   * Run one act on entries, one after another, then list again every folder that changed. The first failure stops the
+   * rest and shows its reason; otherwise a notice counts the entries.
+   */
+  private async each(
+    paths: readonly string[],
+    act: (api: FolderApi) => (path: string) => Promise<FolderResult<{ readonly path: string }>>,
+    kind: 'trashed' | 'restored',
+  ): Promise<void> {
+    const api = this.api
+    if (api === null || paths.length === 0) return
+    const run = act(api)
+    const touched = new Set<string>()
+    const done: string[] = []
+    let failed = false
+    this.store.update((draft) => { draft.notice = null })
+    for (const path of paths) {
+      const result = await run(path)
+      if (!result.ok) {
+        failed = true
+        this.store.update((draft) => { draft.notice = { kind: 'failed', error: result.error } })
+        break
+      }
+      done.push(result.value.path)
+      touched.add(parentOf(path))
+      // The act can make the target folder and the folders above it, such as Trash itself at the root.
+      for (const folder of ['', ...ancestors(parentOf(result.value.path))]) touched.add(folder)
+      this.store.update((draft) => {
+        if (draft.open === path) draft.open = null
+        draft.checked = draft.checked.filter(item => item !== path)
+      })
+    }
+    if (done.length > 0 && !failed) {
+      this.store.update((draft) => {
+        draft.notice = kind === 'trashed' ? { kind, count: done.length, paths: done } : { kind, count: done.length }
+      })
+    }
+    await Promise.all([...touched].filter(folder => folder === '' || this.state.listings[folder] !== undefined).map(folder => this.refresh(folder)))
   }
 
   /** Stop following changes; the page is gone. */

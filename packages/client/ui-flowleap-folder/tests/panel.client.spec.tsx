@@ -102,12 +102,15 @@ async function mount(options: {
   const keys: { current: KeyHandlers } = { current: {} }
   const trees: FileTreeInput[] = []
   const read = vi.fn(async () => new TextEncoder().encode('# Register'))
+  const treeWidth = createSnapshotStore(280)
   const props = {
     t: makeTranslate(en),
     useFolder: bindSnapshotSelector(model.store),
     useClients: bindSnapshotSelector(createSnapshotStore(options.clients ?? [client(SYNTEGON, 'Syntegon')])),
     useCatalog: bindSnapshotSelector(createSnapshotStore(CATALOG)),
     useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')),
+    useTreeWidth: bindSnapshotSelector(treeWidth),
+    setTreeWidth: (px: number) => { treeWidth.set(px) },
     useContextMenu: contextMenuHook(),
     model,
     reads: () => options.reads ?? { bytes: read, officePdf: read },
@@ -124,12 +127,19 @@ async function mount(options: {
     await act(async () => { await model.openClient(SYNTEGON, path) })
     await flush()
   }
-  return { model, folder, asked, keys, trees, view, open, read }
+  return { model, folder, asked, keys, trees, view, open, read, treeWidth }
 }
 
 const rowNames = () => screen.queryAllByTestId('folder-row').map(row => within(row).getAllByRole('gridcell')[1]!.textContent)
 const cells = (name: string) => within(screen.getAllByTestId('folder-row').find(row => row.textContent.includes(name))!).getAllByRole('gridcell').map(cell => cell.textContent)
 const button = (name: string | RegExp) => screen.getByRole('button', { name })
+/** The text of the notice, without its buttons. */
+const noticeText = () => screen.getByRole('status').querySelector('span')!.textContent
+/** A button of the bulk bar, or null when the bar or the button is not there. */
+const bulkButton = (name: string) => {
+  const bar = document.querySelector<HTMLElement>('[data-bulk]')
+  return bar === null ? null : within(bar).queryByRole('button', { name })
+}
 /** The wide button of a top bar act; a narrow screen shows the same act as an icon button. */
 const wideButton = (name: string) => screen.getAllByRole('button', { name })[0]!
 const click = async (target: Element) => {
@@ -168,9 +178,9 @@ describe('the client folder', () => {
     expect(rowNames()).toEqual(['Archive', 'EP 23 171 862', 'Fees.xlsx', 'Huge.bin', 'Mandate.pdf', 'notes.md'])
     expect(cells('EP 23 171 862').slice(2)).toEqual(['Folder', '', 'Nov 8, 2026', 'Made here'])
     expect(cells('Mandate.pdf').slice(2)).toEqual(['PDF document', '1.2 KB', expect.stringMatching(/^Today, /u), 'Uploaded'])
-    expect(cells('Fees.xlsx').slice(2)).toEqual(['File', '15 MB', 'Nov 8, 2026', 'Not recorded'])
+    expect(cells('Fees.xlsx').slice(2)).toEqual(['Spreadsheet', '15 MB', 'Nov 8, 2026', 'Not recorded'])
     expect(cells('notes.md').slice(2, 4)).toEqual(['Markdown', '11 B'])
-    expect(cells('Huge.bin')[3]).toBe('5,000 GB')
+    expect(cells('Huge.bin').slice(2, 4)).toEqual(['File', '5,000 GB'])
     expect(screen.queryByText(/·/u)).toBeNull()
   })
 
@@ -265,6 +275,20 @@ describe('the location and the tree', () => {
     act(() => { model.openFile('Inbox/scan.pdf') })
     await flush()
     expect(screen.getByRole('heading', { level: 1, name: 'scan.pdf' }).nextElementSibling?.textContent).toBe('PDF document')
+  })
+
+  it('selects no text with the second click of the double-click that opened a file, and selects text with a later one', async () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const { open, model } = await mount()
+    await open()
+    act(() => { model.openFile('Mandate.pdf') })
+    await flush()
+    const view = screen.getByRole('heading', { level: 1, name: 'Mandate.pdf' }).closest('[class*="file"]')!
+    expect(fireEvent.mouseDown(view, { detail: 2 })).toBe(false)
+    expect(fireEvent.mouseDown(view, { detail: 1 })).toBe(true)
+    now.mockReturnValue(1600)
+    expect(fireEvent.mouseDown(view, { detail: 2 })).toBe(true)
+    now.mockRestore()
   })
 
   it('shows the folder list while the Session of the client folder is not yet there', async () => {
@@ -370,17 +394,17 @@ describe('the acts of the page', () => {
     const { open, model, keys, asked } = await mount()
     expect(keys.current).toEqual({})
     await open()
-    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload'])
+    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload', 'find'])
     act(() => { keys.current.ask!() })
     expect(asked).toHaveLength(1)
     act(() => { keys.current.newFolder!() })
     expect(model.state.edit).toEqual({ kind: 'new-folder', parent: '' })
     act(() => { model.cancelEdit(); model.check('Mandate.pdf', true) })
-    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload', 'rename', 'move'])
+    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload', 'rename', 'move', 'trash', 'find'])
     act(() => { keys.current.rename!() })
     expect(model.state.edit).toEqual({ kind: 'rename', path: 'Mandate.pdf' })
     act(() => { model.cancelEdit(); model.check('Archive', true) })
-    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload', 'move'])
+    expect(Object.keys(keys.current)).toEqual(['ask', 'newFolder', 'upload', 'move', 'trash', 'find'])
     act(() => { keys.current.move!() })
     expect(model.state.moving).toEqual(['Mandate.pdf', 'Archive'])
     expect(keys.current).toEqual({})
@@ -602,5 +626,226 @@ describe('the name conflict of a dropped file', () => {
     expect(within(dialog).getByText(/^Mandate\.pdf is already in$/u)).toBeTruthy()
     await click(within(dialog).getByRole('button', { name: en['act.close'] }))
     expect(model.state.conflict).toBeNull()
+  })
+})
+
+describe('the folder tree width', () => {
+  it('sizes the tree column to the stored width and changes it from the handle on its edge', async () => {
+    const { open, treeWidth } = await mount()
+    await open()
+    const handle = screen.getByRole('separator', { name: en['resize.label'] })
+    const body = handle.parentElement!
+    expect([body.style.gridTemplateColumns, handle.getAttribute('aria-valuenow')]).toEqual(['280px minmax(0, 1fr)', '280'])
+    fireEvent.keyDown(handle, { key: 'ArrowRight' })
+    expect(treeWidth.getSnapshot()).toBe(296)
+    expect([body.style.gridTemplateColumns, handle.getAttribute('aria-valuenow')]).toEqual(['296px minmax(0, 1fr)', '296'])
+  })
+})
+
+describe('Move to Trash and Restore', () => {
+  it('moves the checked rows to Trash, says how many, and shows in Trash where each came from', async () => {
+    const { open, model } = await mount()
+    await open()
+    await act(async () => { await model.trash(['EP 23 171 862/Office/EP-Register.md']) })
+    expect(noticeText()).toBe(en['trashed.one'])
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Mandate.pdf' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select notes.md' }))
+    await flush()
+    expect(bulkButton(en['act.restore'])).toBeNull()
+    await click(button(en['act.trash']))
+    expect(noticeText()).toBe('2 items moved to Trash')
+    expect(rowNames()).toEqual(['Archive', 'EP 23 171 862', 'Trash', 'Fees.xlsx', 'Huge.bin'])
+    await click(screen.getAllByRole('gridcell').find(cell => cell.textContent === 'Trash')!)
+    expect(cells('Mandate.pdf').at(-1)).toBe('From Syntegon')
+    expect(cells('EP-Register.md').at(-1)).toBe('From EP 23 171 862/Office')
+  })
+
+  it('puts the entries that the notice counts back with the notice\'s Restore', async () => {
+    const { open, model } = await mount()
+    await open()
+    await act(async () => { await model.trash(['Mandate.pdf', 'notes.md']) })
+    await click(within(screen.getByRole('status')).getByRole('button', { name: en['act.restore'] }))
+    expect(screen.getByRole('status').textContent).toBe('2 items restored')
+    expect(model.state.listings['']?.entries.map(entry => entry.name)).toEqual(expect.arrayContaining(['Mandate.pdf', 'notes.md']))
+  })
+
+  it('offers Restore for the checked rows of Trash, and puts them back', async () => {
+    const { open, model } = await mount()
+    await open()
+    await act(async () => { await model.trash(['Mandate.pdf', 'notes.md', 'Fees.xlsx']) })
+    await open('Trash')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Mandate.pdf' }))
+    await flush()
+    expect(screen.queryByRole('button', { name: en['act.trash'] })).toBeNull()
+    await click(button(en['act.restore']))
+    expect(screen.getByRole('status').textContent).toBe(en['restored.one'])
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select notes.md' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Fees.xlsx' }))
+    await flush()
+    await click(button(en['act.restore']))
+    expect(screen.getByRole('status').textContent).toBe('2 items restored')
+    expect(model.state.listings['']?.entries.map(entry => entry.name)).toEqual(expect.arrayContaining(['Mandate.pdf', 'notes.md', 'Fees.xlsx']))
+  })
+
+  it('keeps Trash for Move to Trash: an empty Trash says so, and the page offers no New folder, upload or drop there', async () => {
+    const { open, model, keys } = await mount()
+    await open()
+    await act(async () => { await model.trash(['Mandate.pdf']) })
+    await act(async () => { await model.restore(['Trash/Mandate.pdf']) })
+    await open('Trash')
+    expect(screen.getByRole('heading', { level: 2, name: en['trash.empty.title'] })).toBeTruthy()
+    expect(screen.getByText(en['trash.empty.body'])).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: en['act.upload'] }).every(item => (item as HTMLButtonElement).disabled)).toBe(true)
+    expect(screen.getAllByRole('button', { name: en['act.newFolder'] }).every(item => (item as HTMLButtonElement).disabled)).toBe(true)
+    expect([keys.current.newFolder, keys.current.upload]).toEqual([undefined, undefined])
+    const area = screen.getByRole('heading', { level: 1 }).closest('[class*="folder"]')!
+    expect(fireEvent.dragOver(area, { dataTransfer: { types: ['Files'], items: { length: 1 }, files: [], dropEffect: 'none' } })).toBe(true)
+    expect(screen.queryByText(/Drop to add/u)).toBeNull()
+  })
+
+  it('offers neither act for Trash itself or for rows of Trash checked with others, and gives the keys no Move to Trash', async () => {
+    const { open, model, keys } = await mount()
+    await open()
+    await act(async () => { await model.trash(['Mandate.pdf']) })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Trash' }))
+    await flush()
+    expect(screen.getByText('1 selected')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en['act.trash'] })).toBeNull()
+    expect(bulkButton(en['act.restore'])).toBeNull()
+    expect(keys.current.trash).toBeUndefined()
+    act(() => { model.clearChecks(); model.check('notes.md', true); model.check('Trash/Mandate.pdf', true) })
+    await flush()
+    expect(screen.queryByRole('button', { name: en['act.trash'] })).toBeNull()
+    expect(bulkButton(en['act.restore'])).toBeNull()
+    expect(keys.current.trash).toBeUndefined()
+  })
+
+  it('moves the open file to Trash with the key, and Find puts the focus in the search field', async () => {
+    const { open, model, keys } = await mount()
+    await open()
+    act(() => { model.openFile('notes.md') })
+    await flush()
+    act(() => { keys.current.trash!() })
+    await flush()
+    expect(model.state.open).toBeNull()
+    expect(noticeText()).toBe(en['trashed.one'])
+    act(() => { keys.current.find!() })
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: en['search.label'] }))
+  })
+})
+
+describe('the search by name', () => {
+  /** The pause after the last key before the page asks the Host. */
+  const SEARCH_WAIT_MS = 150
+  const field = () => screen.getByRole<HTMLInputElement>('searchbox', { name: en['search.label'] })
+  const type = (value: string) => { fireEvent.change(field(), { target: { value } }) }
+  const wait = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+  const hits = () => screen.queryAllByTestId('search-hit').map(hit => [hit.textContent, hit.getAttribute('aria-selected')])
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(Date.parse('2026-11-09T15:00:00.000Z'))
+  })
+
+  it('waits for the typing to pause, then lists the names that match with their folder', async () => {
+    const { open, folder } = await mount()
+    await open()
+    expect(field().placeholder).toBe('Find in Syntegon')
+    type('off')
+    await wait(100)
+    type('office')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Names with “office”')
+    expect(screen.getByRole('status', { name: en.loading })).toBeTruthy()
+    await wait(SEARCH_WAIT_MS - 1)
+    expect(folder.calls.filter(call => call.startsWith('search'))).toEqual([])
+    await wait(1)
+    await flush()
+    expect(folder.calls.filter(call => call.startsWith('search'))).toEqual(['search office'])
+    expect(hits()).toEqual([['OfficeEP 23 171 862', 'true']])
+    type('mandate')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    expect(hits()).toEqual([['Mandate.pdfSyntegon', 'true']])
+  })
+
+  it('moves the highlight with the arrow keys and opens the highlighted hit on Enter', async () => {
+    const { open, model } = await mount()
+    await open()
+    type('e')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    expect(hits().map(([, selected]) => selected)).toEqual(['true', ...Array.from({ length: 8 }, () => 'false')])
+    fireEvent.keyDown(field(), { key: 'ArrowDown' })
+    fireEvent.keyDown(field(), { key: 'ArrowDown' })
+    fireEvent.keyDown(field(), { key: 'ArrowUp' })
+    fireEvent.keyDown(field(), { key: 'a' })
+    expect(hits()[1]).toEqual(['EP 23 171 862Syntegon', 'true'])
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    await flush()
+    expect(field().value).toBe('')
+    expect(model.state).toMatchObject({ folder: 'EP 23 171 862', open: null, search: { query: '', status: 'idle' } })
+    expect(rowNames()).toEqual(['Office', 'Search'])
+  })
+
+  it('opens a file hit in the middle area on a click', async () => {
+    const { open, model } = await mount()
+    await open()
+    type('register')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    await click(screen.getByTestId('search-hit'))
+    expect(model.state.open).toBe('EP 23 171 862/Office/EP-Register.md')
+    expect(screen.getByRole('heading', { level: 1, name: 'EP-Register.md' })).toBeTruthy()
+  })
+
+  it('says when no name matches, opens nothing on Enter, and ends the search on Escape or on Clear the search', async () => {
+    const { open, model } = await mount()
+    await open()
+    type('zzz')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    expect(screen.getByText(en['search.none'])).toBeTruthy()
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    await flush()
+    expect(model.state.search.query).toBe('zzz')
+    field().focus()
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    await flush()
+    expect([field().value, model.state.search.query, document.activeElement === field()]).toEqual(['', '', false])
+    expect(rowNames()).toHaveLength(6)
+    type('mandate')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    await click(button(en['search.clear']))
+    expect([field().value, model.state.search.query]).toEqual(['', ''])
+    expect(screen.queryByTestId('search-hit')).toBeNull()
+  })
+
+  it('says the search could not run and keeps the last hits, and says when the cap dropped hits', async () => {
+    const { open, folder } = await mount()
+    await open()
+    folder.limits.searchHits = 2
+    type('e')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    expect(hits()).toHaveLength(2)
+    expect(screen.getByText('FlowLeap shows the first 2 matches. Add a word to narrow the search.')).toBeTruthy()
+    folder.failNext('search', 'network')
+    type('ep')
+    await wait(SEARCH_WAIT_MS)
+    await flush()
+    expect(screen.getByRole('alert').textContent).toBe(en['search.failed'])
+    expect(hits()).toHaveLength(2)
+  })
+
+  it('keeps the search field off until the client folder is ready', async () => {
+    let connect: (session: SessionId) => void = () => {}
+    const { model } = await mount({ connect: () => new Promise<SessionId>((resolve) => { connect = resolve }) })
+    act(() => { void model.openClient(SYNTEGON) })
+    await flush()
+    expect(field().disabled).toBe(true)
+    connect(SESSION)
+    await flush()
+    expect(field().disabled).toBe(false)
   })
 })

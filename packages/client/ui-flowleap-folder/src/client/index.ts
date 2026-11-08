@@ -32,6 +32,7 @@ import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapFolderKey } from './lo
 import { FolderModel } from './model.ts'
 import { ClientsIcon, FolderPanel, type AskTarget, type PanelInjected } from './Panel.tsx'
 import { registerRowMenu } from './row-menu.ts'
+import { clampTreeWidth, TREE_DEFAULT } from './TreeResize.tsx'
 import type { ViewerReads } from './viewer.tsx'
 
 export type { FlowleapFolderKey } from './locales.ts'
@@ -81,6 +82,9 @@ export function apply(ctx: ClientContext): void {
   const pathOf = (workspaceId: WorkspaceId | null): string | undefined =>
     clients.getSnapshot().find(item => item.workspaceId === workspaceId)?.path
 
+  // The tree's width stays in this browser's storage, so the person finds the tree as wide as they left it.
+  const treeWidth = createSnapshotStore<number>(TREE_DEFAULT, { persist: { name: 'flowleap-folder.tree-width' } })
+  treeWidth.set(clampTreeWidth(treeWidth.getSnapshot()))
   const model = new FolderModel({
     connect: workspaceId => ctx.uiWorkspace.connectWorkspace(workspaceId),
     apiFor: workspaceId => createFolderApi(workspaceId),
@@ -107,6 +111,13 @@ export function apply(ctx: ClientContext): void {
   let keys: KeyHandlers = {}
   registerKeys(ctx, { current: () => keys }, t)
 
+  // The Office conversion is an optional Remote service: Word and PowerPoint files show while it is present.
+  let office: ClientContext['remote']['officeToPdf'] | undefined
+  ctx.inject(['remote.officeToPdf'], (scope) => {
+    office = scope.remote.officeToPdf
+    scope.effect(() => () => { office = undefined }, 'ui-flowleap-folder: Office conversion')
+  })
+
   const reads = (session: string): ViewerReads => ({
     bytes: async (path, signal) => {
       const result = await ctx.remote.workspaceFiles.readBytes(session as SessionId, path, {}, signal)
@@ -114,7 +125,6 @@ export function apply(ctx: ClientContext): void {
       return result.value.data
     },
     officePdf: async (path, signal) => {
-      const office = ctx.get('remote')?.officeToPdf
       if (office === undefined) throw new Error('this runtime converts no Office file')
       const result = await office.render(session as SessionId, path, 'foreground', signal)
       if (!result.ok) throw new Error(result.error.message)
@@ -154,11 +164,14 @@ export function apply(ctx: ClientContext): void {
     ask: (row) => { if (model.state.workspaceId !== null) ask(model.state.workspaceId, [row]) },
     rename: (row) => { model.startRename(row.path) },
     move: (row) => { model.startMove([row.path]) },
+    trash: (row) => { void model.trash([row.path]) },
+    restore: (row) => { void model.restore([row.path]) },
     hostPath: row => `${pathOf(model.state.workspaceId) ?? ''}/${row.path}`,
   }, t)
 
   const injected: PanelInjected = {
-    hooks: { folder: model.store, clients, catalog: ctx.shortcuts.catalog, language },
+    hooks: { folder: model.store, clients, catalog: ctx.shortcuts.catalog, language, treeWidth },
+    setTreeWidth: (px) => { treeWidth.set(clampTreeWidth(px)) },
     model,
     reads,
     ask,

@@ -1,6 +1,7 @@
 /**
  * The page's own file viewers: a PDF or an image through a `blob:` URL in the browser's viewer, Markdown through
- * `MarkdownText`, plain text, Word and PowerPoint through the Host's PDF conversion, and mail through `postal-mime`.
+ * `MarkdownText`, plain text, Word and PowerPoint through the Host's PDF conversion, mail through `postal-mime`, and
+ * sheets through SheetJS.
  * They exist because the preview bodies of `ui-sidebar-documentpreview` render only in its own Session sidebar; when
  * that package exports a body the page can render, this module goes away (see the design note's upstream slots).
  * @module
@@ -13,7 +14,7 @@ import { assertNever } from '@deepseek-ai/dsh-util-values'
 import css from './Viewer.module.css'
 
 /** How the page shows a file. */
-export type ViewerKind = 'pdf' | 'image' | 'markdown' | 'text' | 'office' | 'mail' | 'none'
+export type ViewerKind = 'pdf' | 'image' | 'markdown' | 'text' | 'office' | 'mail' | 'sheet' | 'none'
 
 /** The viewer of a file kind and the MIME type of its `blob:` URL, by lower-case extension. */
 const VIEWERS: Readonly<Record<string, { readonly kind: Exclude<ViewerKind, 'none'>; readonly type: string }>> = {
@@ -26,7 +27,6 @@ const VIEWERS: Readonly<Record<string, { readonly kind: Exclude<ViewerKind, 'non
   md: { kind: 'markdown', type: 'text/markdown' },
   markdown: { kind: 'markdown', type: 'text/markdown' },
   txt: { kind: 'text', type: 'text/plain' },
-  csv: { kind: 'text', type: 'text/csv' },
   log: { kind: 'text', type: 'text/plain' },
   doc: { kind: 'office', type: 'application/pdf' },
   docx: { kind: 'office', type: 'application/pdf' },
@@ -36,6 +36,36 @@ const VIEWERS: Readonly<Record<string, { readonly kind: Exclude<ViewerKind, 'non
   pptx: { kind: 'office', type: 'application/pdf' },
   odp: { kind: 'office', type: 'application/pdf' },
   eml: { kind: 'mail', type: 'message/rfc822' },
+  xlsx: { kind: 'sheet', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+  xls: { kind: 'sheet', type: 'application/vnd.ms-excel' },
+  csv: { kind: 'sheet', type: 'text/csv' },
+}
+
+/** The rows and the columns that the sheet viewer shows of one sheet; the rest is named, not shown. */
+export const SHEET_ROWS = 1000
+export const SHEET_COLUMNS = 50
+
+/** One sheet as the viewer shows it: its name and its first rows as text. */
+export interface SheetView {
+  readonly name: string
+  readonly rows: readonly (readonly string[])[]
+  /** Rows or columns past the shown ones were left out. */
+  readonly cut: boolean
+}
+
+/**
+ * Read a workbook: an `.xlsx`, `.xls` or `.csv` file. SheetJS loads only when a sheet opens.
+ * @param bytes - the file.
+ * @returns each sheet with its first rows as the cells' formatted text.
+ */
+export async function parseSheets(bytes: Uint8Array): Promise<SheetView[]> {
+  const { read, utils } = await import('xlsx')
+  const book = read(bytes, { type: 'array', dense: true })
+  return book.SheetNames.map((name) => {
+    const rows = utils.sheet_to_json<unknown[]>(book.Sheets[name] ?? {}, { header: 1, raw: false, defval: '', blankrows: false })
+    const cut = rows.length > SHEET_ROWS || rows.some(row => row.length > SHEET_COLUMNS)
+    return { name, cut, rows: rows.slice(0, SHEET_ROWS).map(row => row.slice(0, SHEET_COLUMNS).map(cell => String(cell))) }
+  })
 }
 
 /** The lower-case extension of a file name, without the dot. */
@@ -47,7 +77,7 @@ export function extensionOf(name: string): string {
 /**
  * The viewer of a file.
  * @param name - the file's name.
- * @returns the viewer kind; `none` for a kind with no viewer, such as a spreadsheet.
+ * @returns the viewer kind; `none` for a kind with no viewer.
  */
 export function viewerKind(name: string): ViewerKind {
   return VIEWERS[extensionOf(name)]?.kind ?? 'none'
@@ -70,6 +100,9 @@ export interface ViewerLabels {
   readonly to: string
   readonly date: string
   readonly noSubject: string
+  readonly sheetTabs: string
+  readonly sheetEmpty: string
+  readonly sheetCut: string
   readonly markdown: MarkdownLabels
   /** The accessible name of a PDF or an image. */
   readonly document: (name: string) => string
@@ -92,6 +125,34 @@ function addressText(value: { readonly name: string; readonly address?: string |
   return name !== '' && address !== '' ? `${name} <${address}>` : name || address
 }
 
+/** Month names of RFC 5322 dates, in calendar order. */
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+/** An RFC 5322 date with a numeric zone: `[Sat, ]8 Nov 2026 15:40[:00] +0100`, with an optional comment after it. */
+const RFC5322_DATE = new RegExp(String.raw`^\s*(?:[a-z]{3},\s*)?(\d{1,2})\s+(${MONTHS.join('|')})\s+(\d{4})\s+(\d{2}):(\d{2})`
+  + String.raw`(?::(\d{2}))?\s+([+-])(\d{2})(\d{2})\s*(?:\([^)]*\))?\s*$`, 'iu')
+
+/**
+ * The time of a mail as its sender wrote it: the date and time in the zone of its `Date` header, then that zone, such
+ * as "Friday, 6 November 2026, 09:14 +01:00". A header with no zone or one that is not a date shows as written.
+ * @param header - the raw `Date` header, or undefined.
+ * @returns the time to show; empty with no header.
+ */
+export function mailDate(header: string | undefined): string {
+  if (header === undefined) return ''
+  const match = RFC5322_DATE.exec(header)
+  if (match === null) return header
+  const [, day, month, year, hours, minutes, seconds, sign, zoneHours, zoneMinutes] = match
+  const monthIndex = MONTHS.indexOf(String(month).toLowerCase())
+  // The wall-clock time as written, held in UTC so that the viewer's own zone does not move it.
+  const written = new Date(Date.UTC(Number(year), monthIndex, Number(day), Number(hours), Number(minutes), Number(seconds ?? 0)))
+  const rolled = written.getUTCDate() !== Number(day) || written.getUTCHours() !== Number(hours)
+    || written.getUTCMinutes() !== Number(minutes)
+  if (rolled) return header
+  const text = written.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short', timeZone: 'UTC' })
+  return `${text} ${sign}${zoneHours}:${zoneMinutes}`
+}
+
 /**
  * Parse a mail.
  * @param bytes - the `.eml` file.
@@ -104,7 +165,7 @@ export async function parseMail(bytes: Uint8Array): Promise<MailView> {
     subject: mail.subject ?? '',
     from: addressText(mail.from),
     to: (mail.to ?? []).map(addressText).filter(text => text !== '').join(', '),
-    date: mail.date === undefined ? '' : new Date(mail.date).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }),
+    date: mailDate(mail.headers.find(header => header.key === 'date')?.value),
     text: (mail.text ?? htmlText).trim(),
   }
 }
@@ -114,6 +175,7 @@ type Loaded =
   | { readonly kind: 'url'; readonly url: string; readonly as: 'pdf' | 'image' }
   | { readonly kind: 'markdown' | 'text'; readonly text: string }
   | { readonly kind: 'mail'; readonly mail: MailView }
+  | { readonly kind: 'sheet'; readonly sheets: readonly SheetView[] }
 
 /** The bytes as a `Blob`; a copy, because a `SharedArrayBuffer` cannot back a `Blob`. */
 function blobOf(bytes: Uint8Array, type: string): Blob {
@@ -142,6 +204,8 @@ async function load(path: string, viewer: (typeof VIEWERS)[string], reads: Viewe
       return { kind, text: new TextDecoder().decode(await reads.bytes(path, signal)) }
     case 'mail':
       return { kind: 'mail', mail: await parseMail(await reads.bytes(path, signal)) }
+    case 'sheet':
+      return { kind: 'sheet', sheets: await parseSheets(await reads.bytes(path, signal)) }
     /* v8 ignore next 2 -- closed union: VIEWERS holds only the kinds above. */
     default:
       return assertNever(kind, 'viewer kind')
@@ -221,8 +285,48 @@ export function FileViewer({ path, reads, labels, fallback }: FileViewerProps): 
           </article>
         </div>
       )
+    case 'sheet':
+      return <Sheets sheets={loaded.sheets} labels={labels} />
     /* v8 ignore next 2 -- closed union: load returns only the shapes above. */
     default:
       return assertNever(loaded, 'loaded file')
   }
+}
+
+/**
+ * The sheets of a workbook: a tab for each sheet and the open sheet's first rows as a read-only table.
+ * @param props - the sheets and the copy.
+ * @returns the viewer.
+ */
+function Sheets({ sheets, labels }: { readonly sheets: readonly SheetView[]; readonly labels: ViewerLabels }) {
+  const [open, setOpen] = useState(0)
+  const sheet = sheets[open]
+  return (
+    <div className={css.scroll}>
+      {sheets.length > 1 && (
+        <div className={css.tabs} role="tablist" aria-label={labels.sheetTabs}>
+          {sheets.map((item, index) => (
+            <button key={item.name} type="button" role="tab" aria-selected={index === open} className={css.tab}
+              onClick={() => { setOpen(index) }}>
+              {item.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {sheet === undefined || sheet.rows.length === 0
+        ? <p className={css.note}>{labels.sheetEmpty}</p>
+        : (
+          <div className={css.sheet} role="tabpanel" data-testid="folder-sheet">
+            <table>
+              <tbody>
+                {sheet.rows.map((row, index) => (
+                  <tr key={index}>{row.map((cell, column) => <td key={column}>{cell}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+            {sheet.cut && <p className={css.note}>{labels.sheetCut}</p>}
+          </div>
+        )}
+    </div>
+  )
 }

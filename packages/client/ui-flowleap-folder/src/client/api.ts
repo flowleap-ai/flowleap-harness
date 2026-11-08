@@ -3,7 +3,7 @@
  * @module
  */
 
-import { FOLDER_ROUTES, type FolderFailureCode, type FolderListing, type FolderWritten } from '../route.ts'
+import { FOLDER_ROUTES, type FolderFailureCode, type FolderListing, type FolderWritten, type FolderSearchAnswer } from '../route.ts'
 
 /** The answer of one folder act: its value, or the failure code (`network` when no answer came). */
 export type FolderResult<T> =
@@ -59,6 +59,12 @@ export interface FolderApi {
   move(path: string, to: string): Promise<FolderResult<FolderWritten>>
   /** Upload one file into `dir` under `name`. */
   upload(dir: string, name: string, file: Blob, progress: UploadProgress): Promise<FolderResult<FolderWritten>>
+  /** Move an entry into Trash. */
+  trash(path: string): Promise<FolderResult<FolderWritten>>
+  /** Put an entry of Trash back where it came from. */
+  restore(path: string): Promise<FolderResult<FolderWritten>>
+  /** Find the files and folders whose name holds every word of `query`. */
+  search(query: string, signal?: AbortSignal): Promise<FolderResult<FolderSearchAnswer>>
 }
 
 /**
@@ -75,6 +81,9 @@ export function createFolderApi(workspace: string): FolderApi {
     mkdir: (parent, name) => post(FOLDER_ROUTES.mkdir, { parent, name }),
     rename: (path, name) => post(FOLDER_ROUTES.rename, { path, name }),
     move: (path, to) => post(FOLDER_ROUTES.move, { path, to }),
+    trash: path => post(FOLDER_ROUTES.trash, { path }),
+    restore: path => post(FOLDER_ROUTES.restore, { path }),
+    search: (query, signal) => call(`${relative(FOLDER_ROUTES.search)}?${new URLSearchParams({ workspace, q: query })}`, signal === undefined ? {} : { signal }),
     upload: (dir, name, file, progress) => new Promise((resolve) => {
       // XMLHttpRequest reports the progress of a request body; fetch does not.
       const request = new XMLHttpRequest()

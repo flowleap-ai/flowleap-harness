@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { checkName, ClientFolder, FolderError, partsOf, UPLOAD_PREFIX } from '../src/folder.ts'
+import { checkName, ClientFolder, FolderError, freeName, partsOf, UPLOAD_PREFIX } from '../src/folder.ts'
 import type { FolderEntry } from '../src/route.ts'
 
 let base: string
@@ -218,5 +218,169 @@ describe('ClientFolder', () => {
     } finally {
       await chmod(locked, 0o755)
     }
+  })
+
+  it('shows where each entry of Trash came from when the listing gets the Trash records', async () => {
+    await mkdir(path.join(root, 'Trash'))
+    await writeFile(path.join(root, 'Trash', 'D1.pdf'), '%PDF')
+    await writeFile(path.join(root, 'Trash', 'Note.md'), 'x')
+    const folder = await ClientFolder.at(root)
+    const listing = await folder.list('Trash', 100, new Map(), new Map([['Trash/D1.pdf', { from: 'EP 23 171 862/Search/D1.pdf' }]]))
+    expect(listing.entries.map(entry => [entry.name, entry.trashedFrom]).sort()).toEqual([['D1.pdf', 'EP 23 171 862/Search/D1.pdf'], ['Note.md', undefined]])
+  })
+})
+
+describe('freeName', () => {
+  it('gives the name itself when it is free, then "name 2.ext", "name 3.ext", … as the macOS file manager names a copy', async () => {
+    const office = path.join(root, 'EP 23 171 862', 'Office')
+    expect(await freeName(office, 'Letter.pdf')).toBe('Letter.pdf')
+    expect(await freeName(office, 'EP-Register.md')).toBe('EP-Register 2.md')
+    await writeFile(path.join(office, 'EP-Register 2.md'), 'x')
+    expect(await freeName(office, 'EP-Register.md')).toBe('EP-Register 3.md')
+    expect(await freeName(root, 'EP 23 171 862')).toBe('EP 23 171 862 2')
+    await writeFile(path.join(root, '.env'), 'x')
+    expect(await freeName(root, '.env')).toBe('.env 2')
+  })
+
+  it('passes on a disk fault that is not a free name', async () => {
+    const fault = await freeName(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'x.pdf').then(() => undefined, (error: unknown) => error)
+    expect((fault as NodeJS.ErrnoException).code).toBe('ENOTDIR')
+  })
+})
+
+describe('Move to Trash and Restore', () => {
+  it('moves an entry into Trash, which it makes when it is missing, and keeps both on a name that Trash has', async () => {
+    const folder = await ClientFolder.at(root)
+    expect(await folder.trash('EP 23 171 862/Office/EP-Register.md')).toBe('Trash/EP-Register.md')
+    expect(await readdir(path.join(root, 'EP 23 171 862', 'Office'))).toEqual([])
+    await writeFile(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'second\n')
+    expect(await folder.trash('EP 23 171 862/Office/EP-Register.md')).toBe('Trash/EP-Register 2.md')
+    expect(await folder.trash('EP 23 171 862/Search')).toBe('Trash/Search')
+    expect((await readdir(path.join(root, 'Trash'))).sort()).toEqual(['EP-Register 2.md', 'EP-Register.md', 'Search'])
+    expect(await readFile(path.join(root, 'Trash', 'EP-Register.md'), 'utf8')).toBe('# Register\n')
+    expect(await readFile(path.join(root, 'Trash', 'EP-Register 2.md'), 'utf8')).toBe('second\n')
+  })
+
+  it('refuses to move Trash or an entry in it to Trash, and refuses the client folder, a link and a missing entry', async () => {
+    await mkdir(path.join(root, 'Trash', 'Old'), { recursive: true })
+    await symlink(outside, path.join(root, 'link to other client'))
+    const folder = await ClientFolder.at(root)
+    expect(await refusal(folder.trash('Trash'))).toBe('in-trash')
+    expect(await refusal(folder.trash('Trash/Old'))).toBe('in-trash')
+    expect(await refusal(folder.trash(''))).toBe('bad-request')
+    expect(await refusal(folder.trash('link to other client'))).toBe('outside')
+    expect(await refusal(folder.trash('Missing.pdf'))).toBe('not-found')
+    expect(await readdir(outside)).toEqual(['secret.md'])
+  })
+
+  it('keeps Trash for Move to Trash: no folder, upload or plain move goes into it, and Trash keeps its name and place', async () => {
+    await mkdir(path.join(root, 'Trash', 'Old'), { recursive: true })
+    const folder = await ClientFolder.at(root)
+    expect(await refusal(folder.mkdir('Trash', 'New'))).toBe('in-trash')
+    expect(await refusal(folder.mkdir('Trash/Old', 'New'))).toBe('in-trash')
+    expect(await refusal(folder.upload('Trash', 'D1.pdf', chunks('x'), { maxBytes: 10 }))).toBe('in-trash')
+    expect(await refusal(folder.move('EP 23 171 862/Search', 'Trash'))).toBe('in-trash')
+    expect(await refusal(folder.move('EP 23 171 862/Search', 'Trash/Old'))).toBe('in-trash')
+    expect(await refusal(folder.rename('Trash', 'Bin'))).toBe('in-trash')
+    expect(await refusal(folder.move('Trash', 'EP 23 171 862'))).toBe('in-trash')
+    expect(await readdir(path.join(root, 'Trash'))).toEqual(['Old'])
+    expect(await folder.move('Trash/Old', '')).toBe('Old')
+  })
+
+  it('moves an entry of a folder named Trash below the client folder root into the real Trash', async () => {
+    await mkdir(path.join(root, 'EP 23 171 862', 'Trash'))
+    await writeFile(path.join(root, 'EP 23 171 862', 'Trash', 'old.md'), 'x')
+    const folder = await ClientFolder.at(root)
+    expect(await folder.trash('EP 23 171 862/Trash/old.md')).toBe('Trash/old.md')
+  })
+
+  it('puts an entry of Trash back where it came from, makes the folders on the way again, and keeps both on a taken name', async () => {
+    const folder = await ClientFolder.at(root)
+    const trashed = await folder.trash('EP 23 171 862/Office/EP-Register.md')
+    await rm(path.join(root, 'EP 23 171 862', 'Office'), { recursive: true })
+    expect(await folder.restore(trashed, 'EP 23 171 862/Office/EP-Register.md')).toBe('EP 23 171 862/Office/EP-Register.md')
+    expect(await readFile(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'utf8')).toBe('# Register\n')
+    const again = await folder.trash('EP 23 171 862/Office/EP-Register.md')
+    await writeFile(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'new\n')
+    expect(await folder.restore(again, 'EP 23 171 862/Office/EP-Register.md')).toBe('EP 23 171 862/Office/EP-Register 2.md')
+    expect(await readFile(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'utf8')).toBe('new\n')
+    expect(await readdir(path.join(root, 'Trash'))).toEqual([])
+    await writeFile(path.join(root, 'Trash', 'Mandate.pdf'), 'x')
+    expect(await folder.restore('Trash/Mandate.pdf', 'Mandate.pdf')).toBe('Mandate.pdf')
+  })
+
+  it('refuses to restore an entry that is not in Trash, an empty origin, and an origin outside the client folder', async () => {
+    await mkdir(path.join(root, 'Trash'))
+    await writeFile(path.join(root, 'Trash', 'D1.pdf'), 'x')
+    const folder = await ClientFolder.at(root)
+    expect(await refusal(folder.restore('EP 23 171 862/Office/EP-Register.md', 'EP-Register.md'))).toBe('bad-request')
+    expect(await refusal(folder.restore('Trash', 'Trash'))).toBe('bad-request')
+    expect(await refusal(folder.restore('Trash/D1.pdf', ''))).toBe('bad-request')
+    expect(await refusal(folder.restore('Trash/D1.pdf', '../Other client/D1.pdf'))).toBe('outside')
+    expect(await refusal(folder.restore('Trash/Missing.pdf', 'Missing.pdf'))).toBe('not-found')
+    expect(await readdir(path.join(root, 'Trash'))).toEqual(['D1.pdf'])
+  })
+
+  it('refuses to restore into a link that leads out of the client folder, or below a file', async () => {
+    await mkdir(path.join(root, 'Trash'))
+    await writeFile(path.join(root, 'Trash', 'D1.pdf'), 'x')
+    await symlink(outside, path.join(root, 'link to other client'))
+    const folder = await ClientFolder.at(root)
+    expect(await refusal(folder.restore('Trash/D1.pdf', 'link to other client/D1.pdf'))).toBe('outside')
+    expect(await refusal(folder.restore('Trash/D1.pdf', 'EP 23 171 862/Office/EP-Register.md/D1.pdf'))).toBe('not-directory')
+    expect(await readdir(outside)).toEqual(['secret.md'])
+  })
+
+  it('passes on a disk fault while it makes a folder on the way back', async () => {
+    await mkdir(path.join(root, 'Trash'))
+    await writeFile(path.join(root, 'Trash', 'D1.pdf'), 'x')
+    const folder = await ClientFolder.at(root)
+    const fault = await folder.restore('Trash/D1.pdf', `${'f'.repeat(300)}/D1.pdf`).then(() => undefined, (error: unknown) => error)
+    expect((fault as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
+    expect(await readdir(path.join(root, 'Trash'))).toEqual(['D1.pdf'])
+  })
+})
+
+describe('search', () => {
+  beforeEach(async () => {
+    await writeFile(path.join(root, 'EP 23 171 862', 'Search', 'Search report EP.pdf'), 'x')
+    await writeFile(path.join(root, 'EP 23 171 862', 'Office', 'Prüfungsbescheid.pdf'), 'x')
+    await writeFile(path.join(root, 'EP 23 171 862', 'Office', '.Prüfung hidden.pdf'), 'x')
+    await mkdir(path.join(root, 'Trash'))
+    await writeFile(path.join(root, 'Trash', 'Search report old.pdf'), 'x')
+    await mkdir(path.join(root, 'EP 23 171 862', 'Trash'))
+    await writeFile(path.join(root, 'EP 23 171 862', 'Trash', 'Search report kept.pdf'), 'x')
+    await symlink(path.join(outside, 'secret.md'), path.join(root, 'Search link.md'))
+  })
+
+  it('finds the files and folders whose name holds every word of the query, case and accents aside, in path order', async () => {
+    const folder = await ClientFolder.at(root)
+    expect(await folder.search('search', 100)).toEqual({
+      hits: [
+        { path: 'EP 23 171 862/Search', kind: 'directory' },
+        { path: 'EP 23 171 862/Search/Search report EP.pdf', kind: 'file' },
+        { path: 'EP 23 171 862/Trash/Search report kept.pdf', kind: 'file' },
+      ],
+      truncated: false,
+    })
+    expect((await folder.search('  REPORT   ep.PDF  ', 100)).hits.map(hit => hit.path)).toEqual(['EP 23 171 862/Search/Search report EP.pdf'])
+    expect((await folder.search('prufung', 100)).hits).toEqual([{ path: 'EP 23 171 862/Office/Prüfungsbescheid.pdf', kind: 'file' }])
+    expect((await folder.search('PRÜFUNG', 100)).hits).toHaveLength(1)
+    expect((await folder.search('report missing', 100)).hits).toEqual([])
+  })
+
+  it('finds nothing for a query with no word', async () => {
+    const folder = await ClientFolder.at(root)
+    expect(await folder.search('   ', 100)).toEqual({ hits: [], truncated: false })
+  })
+
+  it('cuts the hits at the cap and says so, and does not say so when the cap is just reached', async () => {
+    const folder = await ClientFolder.at(root)
+    expect(await folder.search('search', 2)).toEqual({
+      hits: [{ path: 'EP 23 171 862/Search', kind: 'directory' }, { path: 'EP 23 171 862/Search/Search report EP.pdf', kind: 'file' }],
+      truncated: true,
+    })
+    expect(await folder.search('search', 1)).toEqual({ hits: [{ path: 'EP 23 171 862/Search', kind: 'directory' }], truncated: true })
+    expect((await folder.search('search', 3)).truncated).toBe(false)
   })
 })

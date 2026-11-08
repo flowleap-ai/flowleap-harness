@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { apply, Config, FOLDER_ROUTES, inject, type FolderListing } from '../src/index.ts'
-import { SourceStore } from '../src/sources.ts'
+import { sourceStore, trashStore } from '../src/sources.ts'
 
 const WORKSPACE = '6f1c2a40-0000-4000-8000-000000000001'
 
@@ -53,7 +53,7 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the five folder routes and removes them on dispose', async () => {
+  it('registers the eight folder routes and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
       [FOLDER_ROUTES.list, ['GET'], 'buffered'],
@@ -61,14 +61,17 @@ describe('ui-flowleap-folder Host half', () => {
       [FOLDER_ROUTES.rename, ['POST'], 'buffered'],
       [FOLDER_ROUTES.move, ['POST'], 'buffered'],
       [FOLDER_ROUTES.upload, ['POST'], 'streaming'],
+      [FOLDER_ROUTES.trash, ['POST'], 'buffered'],
+      [FOLDER_ROUTES.restore, ['POST'], 'buffered'],
+      [FOLDER_ROUTES.search, ['GET'], 'buffered'],
     ])
     await fiber.dispose()
     expect(routes.size).toBe(0)
   })
 
-  it('needs a state folder and caps uploads at 200 MiB by default', () => {
+  it('needs a state folder, caps uploads at 200 MiB and a search at 200 hits by default', () => {
     expect(() => Config({} as Config)).toThrow()
-    expect(Config({ stateDir } as Config)).toMatchObject({ maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, storageLowFlagPath: '' })
+    expect(Config({ stateDir } as Config)).toMatchObject({ maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '' })
   })
 
   it('lists a folder as JSON that is never cached', async () => {
@@ -95,7 +98,7 @@ describe('ui-flowleap-folder Host half', () => {
     })
     expect(await uploaded.json()).toEqual({ path: 'EP 23 171 862/Search/D1 DE 20 2022 100 041 U1.pdf' })
     expect(await readFile(path.join(root, 'EP 23 171 862', 'Search', 'D1 DE 20 2022 100 041 U1.pdf'), 'utf8')).toBe('%PDF-1.7')
-    const sources = await new SourceStore(stateDir).read(WORKSPACE)
+    const sources = await sourceStore(stateDir).read(WORKSPACE)
     expect(sources.get('EP 23 171 862/Search/D1 DE 20 2022 100 041 U1.pdf')?.kind).toBe('upload')
   })
 
@@ -105,7 +108,7 @@ describe('ui-flowleap-folder Host half', () => {
     await call(FOLDER_ROUTES.upload, { method: 'POST', body: 'x', query: { workspace: WORKSPACE, dir: 'Inbox', name: 'note.md' } })
     expect(await (await post(FOLDER_ROUTES.rename, { workspace: WORKSPACE, path: 'Inbox', name: 'Incoming' })).json()).toEqual({ path: 'Incoming' })
     expect(await (await post(FOLDER_ROUTES.move, { workspace: WORKSPACE, path: 'Incoming/note.md', to: 'EP 23 171 862' })).json()).toEqual({ path: 'EP 23 171 862/note.md' })
-    const sources = await new SourceStore(stateDir).read(WORKSPACE)
+    const sources = await sourceStore(stateDir).read(WORKSPACE)
     expect([...sources.keys()].sort()).toEqual(['EP 23 171 862/note.md', 'Incoming'])
   })
 
@@ -120,6 +123,12 @@ describe('ui-flowleap-folder Host half', () => {
       [post(FOLDER_ROUTES.move, { workspace: WORKSPACE, path: 'EP 23 171 862', to: 'EP 23 171 862/Search' }), 409, 'into-itself'],
       [call(FOLDER_ROUTES.mkdir, { method: 'POST', body: 'not json' }), 400, 'bad-request'],
       [call(FOLDER_ROUTES.mkdir, { method: 'POST', body: '"text"' }), 400, 'bad-request'],
+      [post(FOLDER_ROUTES.trash, { workspace: WORKSPACE, path: 'Trash' }), 409, 'in-trash'],
+      [post(FOLDER_ROUTES.trash, { workspace: WORKSPACE }), 400, 'bad-request'],
+      [post(FOLDER_ROUTES.restore, { workspace: WORKSPACE, path: 'Trash/never.pdf' }), 409, 'no-origin'],
+      [post(FOLDER_ROUTES.restore, { path: 'Trash/never.pdf' }), 400, 'bad-request'],
+      [call(FOLDER_ROUTES.search, { query: { workspace: WORKSPACE } }), 400, 'bad-request'],
+      [call(FOLDER_ROUTES.search, { query: { workspace: 'missing', q: 'x' } }), 404, 'no-workspace'],
     ]
     for (const [answer, status, error] of cases) {
       const response = await answer
@@ -165,5 +174,49 @@ describe('ui-flowleap-folder Host half', () => {
     const response = await call(FOLDER_ROUTES.list, { query: { workspace: WORKSPACE, path: '' } })
     expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
     expect(warnings).toEqual(['ui-flowleap-folder: registry closed'])
+  })
+
+  it('moves an entry to Trash with its origin and source, shows the origin in Trash, and puts it back', async () => {
+    await load()
+    await call(FOLDER_ROUTES.upload, { method: 'POST', body: 'x', query: { workspace: WORKSPACE, dir: 'EP 23 171 862/Search', name: 'D1.pdf' } })
+    const trashed = await post(FOLDER_ROUTES.trash, { workspace: WORKSPACE, path: 'EP 23 171 862/Search/D1.pdf' })
+    expect([trashed.status, await trashed.json()]).toEqual([200, { path: 'Trash/D1.pdf' }])
+    const trash = await (await call(FOLDER_ROUTES.list, { query: { workspace: WORKSPACE, path: 'Trash' } })).json() as FolderListing
+    expect(trash.entries.map(entry => [entry.name, entry.trashedFrom, entry.source?.kind])).toEqual([['D1.pdf', 'EP 23 171 862/Search/D1.pdf', 'upload']])
+    const origin = (await trashStore(stateDir).read(WORKSPACE)).get('Trash/D1.pdf')
+    expect([origin?.from, Number.isNaN(Date.parse(origin?.at ?? ''))]).toEqual(['EP 23 171 862/Search/D1.pdf', false])
+    const search = await (await call(FOLDER_ROUTES.list, { query: { workspace: WORKSPACE, path: 'EP 23 171 862/Search' } })).json() as FolderListing
+    expect(search.entries.map(entry => [entry.name, entry.trashedFrom])).toEqual([['Search report.md', undefined]])
+    const restored = await post(FOLDER_ROUTES.restore, { workspace: WORKSPACE, path: 'Trash/D1.pdf' })
+    expect(await restored.json()).toEqual({ path: 'EP 23 171 862/Search/D1.pdf' })
+    expect(await trashStore(stateDir).read(WORKSPACE)).toEqual(new Map())
+    expect([...(await sourceStore(stateDir).read(WORKSPACE)).keys()]).toEqual(['EP 23 171 862/Search/D1.pdf'])
+    const again = await post(FOLDER_ROUTES.restore, { workspace: WORKSPACE, path: 'Trash/D1.pdf' })
+    expect([again.status, await again.json()]).toEqual([409, { error: 'no-origin' }])
+  })
+
+  it('forgets the Trash origin of an entry that a plain move takes out of Trash', async () => {
+    await load()
+    await post(FOLDER_ROUTES.trash, { workspace: WORKSPACE, path: 'EP 23 171 862/Search' })
+    const moved = await post(FOLDER_ROUTES.move, { workspace: WORKSPACE, path: 'Trash/Search', to: 'EP 23 171 862' })
+    expect(await moved.json()).toEqual({ path: 'EP 23 171 862/Search' })
+    expect(await trashStore(stateDir).read(WORKSPACE)).toEqual(new Map())
+  })
+
+  it('carries the Trash origin along a rename in Trash, and restores a folder under a free name', async () => {
+    await load()
+    expect(await (await post(FOLDER_ROUTES.trash, { workspace: WORKSPACE, path: 'EP 23 171 862/Search' })).json()).toEqual({ path: 'Trash/Search' })
+    expect(await (await post(FOLDER_ROUTES.rename, { workspace: WORKSPACE, path: 'Trash/Search', name: 'Old search' })).json()).toEqual({ path: 'Trash/Old search' })
+    await post(FOLDER_ROUTES.mkdir, { workspace: WORKSPACE, parent: 'EP 23 171 862', name: 'Search' })
+    const restored = await post(FOLDER_ROUTES.restore, { workspace: WORKSPACE, path: 'Trash/Old search' })
+    expect(await restored.json()).toEqual({ path: 'EP 23 171 862/Search 2' })
+    expect(await readFile(path.join(root, 'EP 23 171 862', 'Search 2', 'Search report.md'), 'utf8')).toBe('# Search report\n')
+  })
+
+  it('finds entries by name up to the configured cap', async () => {
+    await load({ maxSearchHits: 1 })
+    const response = await call(FOLDER_ROUTES.search, { query: { workspace: WORKSPACE, q: 'search' } })
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.json()).toEqual({ hits: [{ path: 'EP 23 171 862/Search', kind: 'directory' }], truncated: true })
   })
 })

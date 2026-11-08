@@ -78,12 +78,31 @@ describe('createFolderApi', () => {
     expect(await api.mkdir('EP 23 171 862', 'Examination')).toEqual({ ok: true, value: { path: 'EP 23 171 862/Examination' } })
     await api.rename('Inbox', 'Incoming')
     await api.move('Incoming/note.md', 'EP 23 171 862')
+    await api.trash('Incoming')
+    await api.restore('Trash/Incoming')
     const sent = requests.map(({ url, init }): unknown[] => [url, init.method, init.headers, typeof init.body === 'string' ? JSON.parse(init.body) : init.body])
     expect(sent).toEqual([
       ['api/flowleap/folder/mkdir', 'POST', { 'content-type': 'application/json' }, { workspace: WORKSPACE, parent: 'EP 23 171 862', name: 'Examination' }],
       ['api/flowleap/folder/rename', 'POST', { 'content-type': 'application/json' }, { workspace: WORKSPACE, path: 'Inbox', name: 'Incoming' }],
       ['api/flowleap/folder/move', 'POST', { 'content-type': 'application/json' }, { workspace: WORKSPACE, path: 'Incoming/note.md', to: 'EP 23 171 862' }],
+      ['api/flowleap/folder/trash', 'POST', { 'content-type': 'application/json' }, { workspace: WORKSPACE, path: 'Incoming' }],
+      ['api/flowleap/folder/restore', 'POST', { 'content-type': 'application/json' }, { workspace: WORKSPACE, path: 'Trash/Incoming' }],
     ])
+  })
+
+  it('finds entries by name with the session cookie and no cache', async () => {
+    const answer = { hits: [{ path: 'EP 23 171 862/Search', kind: 'directory' }], truncated: false }
+    const requests = serve(json(answer))
+    const controller = new AbortController()
+    const api = createFolderApi(WORKSPACE)
+    expect(await api.search('search report', controller.signal)).toEqual({ ok: true, value: answer })
+    await api.search('Prüfung & Co')
+    expect(requests.map(request => request.url)).toEqual([
+      `api/flowleap/folder/search?workspace=${WORKSPACE}&q=search+report`,
+      `api/flowleap/folder/search?workspace=${WORKSPACE}&q=Pr%C3%BCfung+%26+Co`,
+    ])
+    expect(requests[0]!.init).toEqual({ credentials: 'include', cache: 'no-store', signal: controller.signal })
+    expect(requests[1]!.init).toEqual({ credentials: 'include', cache: 'no-store' })
   })
 
   it('gives the failure code of a refusal, internal for a refusal with no code or no JSON, and network for no answer', async () => {

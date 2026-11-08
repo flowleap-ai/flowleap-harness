@@ -473,4 +473,206 @@ describe('FolderModel', () => {
     await model.resolveConflict(true)
     expect(folder.calls.filter(call => call.startsWith('upload'))).toEqual(['upload D1.pdf', 'upload D2.pdf'])
   })
+
+  it('moves entries to Trash one after another, closes a trashed open file, unchecks them, and lists Trash and their folders again', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON, 'EP 23 171 862/Office')
+    model.openFile('EP 23 171 862/Office/EP-Register.md')
+    model.check('EP 23 171 862/Office/EP-Register.md', true)
+    model.check('Mandate.pdf', true)
+    await model.trash(['EP 23 171 862/Office/EP-Register.md', 'Mandate.pdf'])
+    expect(folder.calls.filter(call => call.startsWith('trash'))).toEqual(['trash EP 23 171 862/Office/EP-Register.md', 'trash Mandate.pdf'])
+    expect(model.state).toMatchObject({ open: null, checked: [], notice: { kind: 'trashed', count: 2 } })
+    expect(names(model, 'EP 23 171 862/Office')).toEqual([])
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Trash'])
+    expect(names(model, 'Trash')).toBeUndefined()
+    await model.go('Trash')
+    expect(model.state.listings.Trash?.entries.map(entry => [entry.name, entry.trashedFrom])).toEqual([
+      ['EP-Register.md', 'EP 23 171 862/Office/EP-Register.md'], ['Mandate.pdf', 'Mandate.pdf'],
+    ])
+  })
+
+  it('shows the new Trash folder in the client folder after the first move to Trash from a folder below it', async () => {
+    const { model } = modelOf()
+    await model.openClient(SYNTEGON, 'EP 23 171 862/Office')
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Mandate.pdf'])
+    await model.trash(['EP 23 171 862/Office/EP-Register.md'])
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Mandate.pdf', 'Trash'])
+    expect(names(model, 'EP 23 171 862/Office')).toEqual([])
+  })
+
+  it('shows the folders that a restore makes again on the way back', async () => {
+    const { model } = modelOf()
+    await model.openClient(SYNTEGON, 'EP 23 171 862')
+    await model.trash(['EP 23 171 862/Office/EP-Register.md', 'EP 23 171 862/Office'])
+    expect(names(model, 'EP 23 171 862')).toEqual(['Search'])
+    await model.restore(['Trash/EP-Register.md'])
+    expect(names(model, 'EP 23 171 862')).toEqual(['Search', 'Office'])
+    expect(names(model, 'EP 23 171 862/Office')).toBeUndefined()
+  })
+
+  it('lists Trash again after a move to Trash once the page has listed it', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    await model.trash(['Mandate.pdf'])
+    await model.toggle('Trash', true)
+    const lists = folder.calls.filter(call => call === 'list Trash').length
+    await model.trash(['EP 23 171 862/Office/EP-Register.md'])
+    expect(folder.calls.filter(call => call === 'list Trash')).toHaveLength(lists + 1)
+    expect(folder.calls).not.toContain('list EP 23 171 862/Office')
+    expect(names(model, 'Trash')).toEqual(['Mandate.pdf', 'EP-Register.md'])
+  })
+
+  it('stops at the first entry that cannot go to Trash, shows its reason, and keeps the entries before it in Trash', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    model.check('Mandate.pdf', true)
+    model.check('EP 23 171 862', true)
+    await model.trash(['Mandate.pdf', 'Trash/Mandate.pdf', 'EP 23 171 862'])
+    expect(folder.calls.filter(call => call.startsWith('trash'))).toEqual(['trash Mandate.pdf', 'trash Trash/Mandate.pdf'])
+    expect(model.state).toMatchObject({ notice: { kind: 'failed', error: 'in-trash' }, checked: ['EP 23 171 862'] })
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Trash'])
+  })
+
+  it('says only the reason when the first entry cannot go to Trash', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    folder.failNext('trash', 'network')
+    await model.trash(['Mandate.pdf'])
+    expect(model.state.notice).toEqual({ kind: 'failed', error: 'network' })
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Mandate.pdf'])
+  })
+
+  it('replaces the notice of an earlier failed act with the count of the entries it moved to Trash', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    folder.failNext('upload', 'too-large')
+    await model.upload([new File(['x'], 'Big.pdf')], '')
+    expect(model.state.notice).toEqual({ kind: 'failed', error: 'too-large' })
+    await model.trash(['Mandate.pdf'])
+    expect(model.state.notice).toEqual({ kind: 'trashed', count: 1, paths: ['Trash/Mandate.pdf'] })
+  })
+
+  it('moves nothing to Trash for no entry or before a client folder is open', async () => {
+    const { model, folder } = modelOf()
+    await model.trash(['Mandate.pdf'])
+    await model.restore(['Trash/Mandate.pdf'])
+    await model.openClient(SYNTEGON)
+    await model.trash([])
+    await model.restore([])
+    expect(folder.calls.filter(call => !call.startsWith('list'))).toEqual([])
+    expect(model.state.notice).toBeNull()
+  })
+
+  it('puts entries of Trash back where they came from, says how many, and lists both folders again', async () => {
+    const { model } = modelOf()
+    await model.openClient(SYNTEGON)
+    await model.trash(['Mandate.pdf', 'EP 23 171 862/Office/EP-Register.md'])
+    await model.go('Trash')
+    model.openFile('Trash/Mandate.pdf')
+    model.check('Trash/Mandate.pdf', true)
+    await model.restore(['Trash/Mandate.pdf'])
+    expect(model.state).toMatchObject({ open: null, checked: [], notice: { kind: 'restored', count: 1 } })
+    expect(names(model, '')).toEqual(['EP 23 171 862', 'Trash', 'Mandate.pdf'])
+    expect(names(model, 'Trash')).toEqual(['EP-Register.md'])
+    await model.restore(['Trash/EP-Register.md', 'Trash/Gone.md'])
+    expect(model.state.notice).toEqual({ kind: 'failed', error: 'no-origin' })
+    expect(names(model, 'Trash')).toEqual([])
+  })
+
+  it('finds entries by name, keeps the last hits while a new query runs, and ends the search on an empty query', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    await model.search('office')
+    expect(model.state.search).toEqual({ query: 'office', status: 'loaded', hits: [{ path: 'EP 23 171 862/Office', kind: 'directory' }], truncated: false, highlight: 0 })
+    const open = folder.hold('search')
+    const pending = model.search('register')
+    expect(model.state.search).toMatchObject({ query: 'register', status: 'loading', hits: [{ path: 'EP 23 171 862/Office', kind: 'directory' }] })
+    open()
+    await pending
+    expect(model.state.search.hits).toEqual([{ path: 'EP 23 171 862/Office/EP-Register.md', kind: 'file' }])
+    await model.search('  ')
+    expect(model.state.search).toEqual({ query: '  ', status: 'idle', hits: [], truncated: false, highlight: 0 })
+    expect(folder.calls.filter(call => call.startsWith('search'))).toEqual(['search office', 'search register'])
+  })
+
+  it('says the search failed and keeps its last hits, and says so when the cap dropped hits', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    folder.limits.searchHits = 1
+    await model.search('e')
+    expect(model.state.search).toMatchObject({ status: 'loaded', truncated: true, hits: [{ path: 'EP 23 171 862', kind: 'directory' }] })
+    folder.failNext('search', 'network')
+    await model.search('ep')
+    expect(model.state.search).toMatchObject({ query: 'ep', status: 'failed', hits: [{ path: 'EP 23 171 862', kind: 'directory' }] })
+  })
+
+  it('drops the answer of an older query, and of a client folder the person left', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    const open = folder.hold('search')
+    const older = model.search('mandate')
+    await model.search('office')
+    open()
+    await older
+    expect(model.state.search).toMatchObject({ query: 'office', hits: [{ path: 'EP 23 171 862/Office', kind: 'directory' }] })
+    const left = folder.hold('search')
+    const pending = model.search('mandate')
+    await model.openClient(null)
+    left()
+    await pending
+    expect(model.state.search).toEqual({ query: '', status: 'idle', hits: [], truncated: false, highlight: 0 })
+  })
+
+  it('searches nothing before a client folder is open', async () => {
+    const { model, folder } = modelOf()
+    await model.search('mandate')
+    expect(model.state.search).toMatchObject({ query: 'mandate', status: 'idle', hits: [] })
+    expect(folder.calls).toEqual([])
+  })
+
+  it('moves the hit that Enter opens, and stops at the first and the last hit', async () => {
+    const { model } = modelOf()
+    model.moveHighlight(1)
+    expect(model.state.search.highlight).toBe(0)
+    await model.openClient(SYNTEGON)
+    await model.search('e')
+    expect(model.state.search.hits.length).toBeGreaterThan(2)
+    const last = model.state.search.hits.length - 1
+    model.moveHighlight(-1)
+    expect(model.state.search.highlight).toBe(0)
+    for (let step = 0; step <= last + 1; step += 1) model.moveHighlight(1)
+    expect(model.state.search.highlight).toBe(last)
+    model.moveHighlight(-1)
+    expect(model.state.search.highlight).toBe(last - 1)
+  })
+
+  it('opens a folder hit as the listed folder and a file hit in the middle area, and ends the search', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    await model.search('office')
+    await model.openHit({ path: 'EP 23 171 862/Office', kind: 'directory' })
+    expect(model.state).toMatchObject({ folder: 'EP 23 171 862/Office', open: null, search: { query: '', status: 'idle', hits: [] } })
+    expect(names(model, 'EP 23 171 862/Office')).toEqual(['EP-Register.md'])
+    const open = folder.hold('search')
+    const pending = model.search('register')
+    await model.openHit({ path: 'EP 23 171 862/Office/EP-Register.md', kind: 'file' })
+    open()
+    await pending
+    expect(model.state).toMatchObject({ open: 'EP 23 171 862/Office/EP-Register.md', search: { query: '', status: 'idle', hits: [] } })
+  })
+
+  it('lists the unlisted folder of a file hit and every folder above it', async () => {
+    const { model, folder } = modelOf()
+    await model.openClient(SYNTEGON)
+    expect(model.state.listings['EP 23 171 862/Office']).toBeUndefined()
+    await model.openHit({ path: 'EP 23 171 862/Office/EP-Register.md', kind: 'file' })
+    expect(model.state).toMatchObject({ folder: 'EP 23 171 862/Office', open: 'EP 23 171 862/Office/EP-Register.md' })
+    expect(model.state.expanded).toEqual(['EP 23 171 862', 'EP 23 171 862/Office'])
+    expect(names(model, 'EP 23 171 862')).toEqual(['Office', 'Search'])
+    expect(names(model, 'EP 23 171 862/Office')).toEqual(['EP-Register.md'])
+    const lists = folder.calls.filter(call => call.startsWith('list')).length
+    await model.openHit({ path: 'Mandate.pdf', kind: 'file' })
+    expect(folder.calls.filter(call => call.startsWith('list'))).toHaveLength(lists + 1)
+  })
 })
