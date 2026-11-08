@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, which are the runtime's workspaces. A client folder opens with no chat: the folder tree at the left, and in the middle the folder's entries or a file itself. The person makes folders, uploads or drops files, renames, moves, moves entries to Trash and back, finds entries by name, and starts **Ask about this**: a chat in the client's workspace with the entry already in the prompt. **Add client** finds a company's applicant names and its EP matters at your firm in the EP Register, records the person's decision in the Firm Record, and builds the client folder. The designs and the founder's decisions are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md) and [Add client](../../../flowleap/docs/2026-11-08-add-client.md).
+An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, which are the runtime's workspaces. **Add client** finds a company's EP matters at your firm in the EP Register, records the person's decision in the Firm Record, and builds the client folder. A client folder opens with no chat: the tree at the left, and the entries or a file in the middle. The person makes folders, uploads, renames, moves, uses Trash, finds by name, and starts **Ask about this**. The designs are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md) and [Add client](https://github.com/flowleap-ai/flowleap-harness/pull/361).
 
 ## Table of Contents
 

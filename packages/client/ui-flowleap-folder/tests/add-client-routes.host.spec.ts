@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type FindAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
@@ -90,7 +90,7 @@ describe('Add client routes', () => {
     const fake = data()
     ctx.set('flowleapPatentData', fake)
     await load()
-    const found = await (await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })).json()
+    const found = await (await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })).json() as FindAnswer
     expect(found).toMatchObject({ status: 'found', source: 'ep-register', names: [{ name: 'Syntegon', applications: 2 }], truncated: false })
     expect(found).not.toHaveProperty('edition')
     const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon Technology GmbH'], clients: [{ clientId: 'c-9', names: ['Rival'] }] })).json() as ReviewAnswer
@@ -110,7 +110,11 @@ describe('Add client routes', () => {
 
   it('refuses a request that is not well formed', async () => {
     await load()
-    const refused = async (response: Promise<Response>) => { const answer = await response; return [answer.status, await answer.json()] }
+    const refused = async (response: Promise<Response>): Promise<[number, unknown]> => {
+      const answer = await response
+      const body: unknown = await answer.json()
+      return [answer.status, body]
+    }
     expect(await refused(call(ADD_CLIENT_ROUTES.find))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.review, '{'))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.review, []))).toEqual([400, { error: 'bad-request' }])
