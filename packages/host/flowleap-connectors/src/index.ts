@@ -8,8 +8,9 @@
  * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`
  * are mounted, and the `flowleapConnectors` Remote serves the settings cards and the
  * first-run wizard. The `flowleapRegister` service reads the register events of one EP
- * publication or US application for Host plugins, without a tool call, and the `flowleapOcr`
- * service reads the page text of one document through the same OCR.
+ * publication or US application for Host plugins, without a tool call, the `flowleapPatentData`
+ * service reads the EP Register, families and publication text for Host plugins on the same
+ * EPO key, and the `flowleapOcr` service reads the page text of one document through the same OCR.
  *
  * See packages/host/flowleap-connectors/README.md.
  * @module @deepseek-ai/dsh-flowleap-connectors
@@ -30,6 +31,7 @@ import { createConnectorHost } from './host.ts'
 import { registerKeyStateSection } from './key-state.ts'
 import { registerReadPdfTool } from './read-pdf.ts'
 import { FlowleapOcr } from './ocr.ts'
+import { FlowleapPatentData } from './patent-data.ts'
 import { FlowleapRegister } from './register.ts'
 import { registerOfficeTools } from './tools.ts'
 
@@ -60,6 +62,13 @@ export {
 export type { KeyPresence } from './key-state.ts'
 export { FlowleapOcr } from './ocr.ts'
 export type { FlowleapOcrOptions, OcrPageText, OcrRead, OcrSource } from './ocr.ts'
+export {
+  FlowleapPatentData, PatentDataError, normalizeName, parseEpApplication, parseEpPublication,
+} from './patent-data.ts'
+export type {
+  ApplicantNames, EpApplicationNumber, EpPublicationNumber, FamilyRead, FlowleapPatentDataOptions, PatentData,
+  PatentDataConnectors, PatentDataFailure, PublicationText, RegisterOpponent, RegisterPage, RegisterParty, RegisterRow,
+} from './patent-data.ts'
 export { FlowleapRegister, entriesFromOdp, entriesFromOps, parseRegisterApplication } from './register.ts'
 export type { FlowleapRegisterOptions, RegisterApplication, RegisterEntry, RegisterSource } from './register.ts'
 export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
@@ -109,5 +118,6 @@ export function apply(ctx: Context, config: Config): void {
   })
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
   ctx.plugin(FlowleapRegister, { connectors, bound })
+  ctx.plugin(FlowleapPatentData, { connectors, bound })
   ctx.plugin(FlowleapOcr, { connectors, bound })
 }
