@@ -23,7 +23,7 @@ import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
 import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { formatApplicationNumber, formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate, listTime } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, fromOffice, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
@@ -137,7 +137,11 @@ function arrivalOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
   const { mail, readers } = letter
   if (mail.route === 'forward') return mail.forwarder === null ? null : t('item.forwarded', { person: personName(t, mail.forwarder) })
   const outcome = OUTCOME_LEDES[readers.outcome]
-  const scan = t('intake.lede.scan', { time: listTimeText(ctx, mail.receivedAt) })
+  // Today it came "at 08:00"; on an earlier day it came "on 5 Nov" or "yesterday".
+  const when = listTime(mail.receivedAt, ctx.now, ctx.locale, ctx.timeZone)
+  const scan = when.kind === 'today'
+    ? t('intake.lede.scan', { time: when.text })
+    : when.kind === 'yesterday' ? t('intake.lede.scanYesterday') : t('intake.lede.scanOn', { date: when.text })
   return outcome === null ? scan : `${scan} ${t(outcome)}`
 }
 

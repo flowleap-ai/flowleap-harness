@@ -723,6 +723,8 @@ export const en = {
   'deadline.task.queued': 'The deadline waits in the queue of {person}.',
   'dossier.doc.arrived': 'arrived {time}',
   'dossier.doc.letterArrived': 'Letter of {date} · arrived {time}',
+  'intake.lede.scanOn': 'The scan came from the scan mailbox on {date}.',
+  'intake.lede.scanYesterday': 'The scan came from the scan mailbox yesterday.',
 } as const
 
 /** Key domain of the namespace. */
@@ -1444,6 +1446,8 @@ export const de = {
   'deadline.task.queued': 'Die Frist wartet in der Warteschlange von {person}.',
   'dossier.doc.arrived': 'eingegangen {time}',
   'dossier.doc.letterArrived': 'Schreiben vom {date} · eingegangen {time}',
+  'intake.lede.scanOn': 'Der Scan kam am {date} aus dem Scan-Postfach.',
+  'intake.lede.scanYesterday': 'Der Scan kam gestern aus dem Scan-Postfach.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2162,6 +2166,8 @@ export const es = {
   'deadline.task.queued': 'El plazo espera en la cola de {person}.',
   'dossier.doc.arrived': 'recibido {time}',
   'dossier.doc.letterArrived': 'Carta del {date} · recibida {time}',
+  'intake.lede.scanOn': 'El escaneo llegó del buzón de escaneo el {date}.',
+  'intake.lede.scanYesterday': 'El escaneo llegó ayer del buzón de escaneo.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2880,6 +2886,8 @@ export const fr = {
   'deadline.task.queued': 'Le délai attend dans la file de {person}.',
   'dossier.doc.arrived': 'reçu {time}',
   'dossier.doc.letterArrived': 'Lettre du {date} · reçue {time}',
+  'intake.lede.scanOn': 'Le scan est arrivé de la boîte de numérisation le {date}.',
+  'intake.lede.scanYesterday': 'Le scan est arrivé hier de la boîte de numérisation.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3598,6 +3606,8 @@ export const ja = {
   'deadline.task.queued': '期限は {person} の待ち行列で待っています。',
   'dossier.doc.arrived': '{time} 受領',
   'dossier.doc.letterArrived': '{date} 付の書簡 · {time} 受領',
+  'intake.lede.scanOn': 'スキャンは {date} にスキャン用メールボックスから届きました。',
+  'intake.lede.scanYesterday': 'スキャンは昨日スキャン用メールボックスから届きました。',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4316,6 +4326,8 @@ export const pt = {
   'deadline.task.queued': 'O prazo aguarda na fila de {person}.',
   'dossier.doc.arrived': 'recebido {time}',
   'dossier.doc.letterArrived': 'Carta de {date} · recebida {time}',
+  'intake.lede.scanOn': 'A digitalização chegou da caixa de digitalização em {date}.',
+  'intake.lede.scanYesterday': 'A digitalização chegou ontem da caixa de digitalização.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -5034,6 +5046,8 @@ export const ru = {
   'deadline.task.queued': 'Срок ждёт в очереди: {person}.',
   'dossier.doc.arrived': 'получено {time}',
   'dossier.doc.letterArrived': 'Письмо от {date} · получено {time}',
+  'intake.lede.scanOn': 'Скан пришёл из почтового ящика сканов {date}.',
+  'intake.lede.scanYesterday': 'Скан пришёл вчера из почтового ящика сканов.',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5752,4 +5766,6 @@ export const zh = {
   'deadline.task.queued': '期限在 {person} 的队列中等待。',
   'dossier.doc.arrived': '{time} 收到',
   'dossier.doc.letterArrived': '{date} 的信函 · {time} 收到',
+  'intake.lede.scanOn': '扫描件于 {date} 来自扫描邮箱。',
+  'intake.lede.scanYesterday': '扫描件于昨天来自扫描邮箱。',
 } satisfies Record<FlowleapRecordsKey, string>

@@ -189,6 +189,10 @@ describe('a scan from the firm\'s scan mailbox', () => {
     mounted?.dispose()
     await mountLetter({ ...fixtures.intakeDocument, mail, readers: oneReading })
     expect(document.body.textContent).toMatch(/at \d\d:\d\d\. FlowLeap read it once\./u)
+    cleanup()
+    mounted?.dispose()
+    await mountLetter({ ...fixtures.intakeDocument, mail: { ...mail, receivedAt: '2026-11-01T08:00:00Z' as never } })
+    expect(document.body.textContent).toContain('The scan came from the scan mailbox on 1 Nov.')
   })
 })
 
