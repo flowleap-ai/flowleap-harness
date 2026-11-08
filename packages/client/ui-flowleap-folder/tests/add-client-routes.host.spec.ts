@@ -123,7 +123,7 @@ describe('Add client routes', () => {
     expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [null] }))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [{ clientId: '', names: [] }] }))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT.toUpperCase(), name: 'x', names: [], applications: [] }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'A/B', names: [], applications: [] }))).toEqual([422, { error: 'invalid-name' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'CON', names: [], applications: [] }))).toEqual([422, { error: 'invalid-name' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'x', names: [], applications: ['US 17/123,456'] }))).toEqual([400, { error: 'bad-request' }])
   })
 
@@ -145,6 +145,37 @@ describe('Add client routes', () => {
     expect(codeOf(new FolderError('invalid-name', 'x'))).toBe('invalid-name')
     expect(codeOf(new FolderError('exists', 'x'))).toBe('internal')
     expect(codeOf(new AddClientError('stopped', 'x'))).toBe('stopped')
+  })
+
+  it('builds the folder of a client name with a separator under its safe folder name', async () => {
+    await load()
+    const started = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Novo Nordisk A/S', names: [], applications: [] })
+    expect(started.status).toBe(202)
+    expect(await settled()).toMatchObject({ name: 'Novo Nordisk A/S', state: 'done', folder: 'Novo Nordisk A-S' })
+    expect(created).toEqual([path.join(base, 'Clients', 'Novo Nordisk A-S')])
+  })
+
+  it('builds the applications of a request that came while the build ran, after the first run', async () => {
+    const fake = data()
+    let release = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    const family = fake.family.bind(fake)
+    fake.family = async (application) => { await held; return family(application) }
+    ctx.set('flowleapPatentData', fake)
+    await load()
+    await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP23171862'] })
+    const again = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP19794879'] })
+    expect((await again.json() as BuildStatus).state).toBe('running')
+    release()
+    expect(await settled()).toMatchObject({ state: 'done', matters: 2 })
+  })
+
+  it('answers internal and runs no build when the first build status cannot be written', async () => {
+    await load({ stateDir: path.join(base, 'state-file') })
+    await import('node:fs/promises').then(fs => fs.writeFile(path.join(base, 'state-file'), 'a file where the folder should be'))
+    const response = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: [], applications: [] })
+    expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
+    expect(warnings).toHaveLength(1)
   })
 
   it('answers stopped after the plugin stopped', async () => {

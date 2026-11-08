@@ -7,16 +7,16 @@
  * @module
  */
 
-import { mkdir } from 'node:fs/promises'
+import { lstat, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import type { EpApplicationNumber, PatentData, PublicationText, RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ClientFolder, FolderError, checkName, freeName } from '../folder.ts'
-import { isTrashPath, type AddClientOrigin, type FolderSource } from '../route.ts'
+import { ClientFolder, FolderError, freeName } from '../folder.ts'
+import { cutToBytes, folderNameOf, isTrashPath, type AddClientOrigin, type FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { messageOf, type BuildJob } from './jobs.ts'
 import { townOf } from './identity.ts'
 import { readGroup } from './review.ts'
-import type { BuildRequest } from './wire.ts'
+import { clientFolderName, type BuildRequest } from './wire.ts'
 
 /** The folders that Add client makes in each client folder and each matter folder. */
 export interface FolderTemplate {
@@ -31,6 +31,20 @@ export interface FolderTemplate {
 /** A checked build request: its application numbers are EP application numbers. */
 export interface BuildInput extends Omit<BuildRequest, 'applications'> {
   readonly applications: readonly EpApplicationNumber[]
+}
+
+/**
+ * One build request that does the work of two: the request of a running build and a request that came while it ran.
+ * @param running - the request of the running build.
+ * @param next - the later request.
+ * @returns the later request with the names and the applications of both, each once.
+ */
+export function widenBuild(running: BuildInput, next: BuildInput): BuildInput {
+  return {
+    ...next,
+    names: [...new Set([...running.names, ...next.names])],
+    applications: [...new Set([...running.applications, ...next.applications])],
+  }
 }
 
 /** What one build needs. */
@@ -89,13 +103,6 @@ export function spacedPublication(publication: string): string {
   return `EP ${match[1]} ${match[2]} ${match[3]}${match[4] === undefined ? '' : ` ${match[4]}`}`
 }
 
-/** A text as a folder name: no separators or NUL, no space at the ends, at most 255 UTF-8 bytes. */
-function folderName(text: string): string {
-  let name = text.replace(/[/\\\0]/gu, '-').replace(/\s+/gu, ' ').trim()
-  while (Buffer.byteLength(name, 'utf8') > MAX_NAME_BYTES) name = name.slice(0, -1).trimEnd()
-  return name
-}
-
 /**
  * The name of a family folder: the title, and the earliest priority when there is one.
  * @param title - the title of the family's first matter.
@@ -107,11 +114,9 @@ export function familyName(
   title: string | undefined, priority: { readonly number: string; readonly date?: string } | undefined, fallback: string,
 ): string {
   const suffix = priority === undefined ? '' : ` (priority ${priority.number}${priority.date === undefined ? '' : `, ${priority.date}`})`
-  const head = folderName(title ?? fallback)
   const room = MAX_NAME_BYTES - Buffer.byteLength(suffix, 'utf8')
-  let cut = head
-  while (Buffer.byteLength(cut, 'utf8') > room) cut = cut.slice(0, -1).trimEnd()
-  return folderName(`${cut}${suffix}`)
+  // A suffix of 255 bytes or more leaves no room: the title goes, and folderNameOf cuts the suffix.
+  return folderNameOf(`${cutToBytes(folderNameOf(title ?? fallback), room).trimEnd()}${suffix}`)
 }
 
 /** A Markdown table cell. */
@@ -204,6 +209,17 @@ class FolderWriter {
     await this.plan.sources.record(this.workspace, entry, { kind: 'add-client', at: this.plan.now().toISOString(), ...source })
   }
 
+  /**
+   * Check a family or matter folder that an earlier build made and its source record names.
+   * @param relative - the folder relative to the client folder.
+   * @returns the folder.
+   * @throws FolderError `outside` when it is a link or leads out of the client folder, `not-directory` for a file.
+   */
+  async found(relative: string): Promise<string> {
+    if (!(await this.folder.entry(relative)).isDirectory) throw new FolderError('not-directory', `${relative} is not a folder`)
+    return relative
+  }
+
   /** Make or use a folder; record it when this build made it. */
   async ensureFolder(parent: string, name: string, source: Omit<Extract<FolderSource, { kind: 'add-client' }>, 'kind' | 'at'>): Promise<string> {
     const made = await this.folder.ensure(parent, name)
@@ -245,7 +261,8 @@ interface BuiltMatter {
 }
 
 /**
- * The family and matter folders that earlier builds made, by their key.
+ * The family and matter folders that earlier builds made, by their key. A family folder in Trash is left out, so a new
+ * matter of that family gets a new family folder. A matter folder in Trash stays: the person moved that matter away.
  * @param records - the source records of the client folder.
  * @param role - the folder role.
  * @returns the folder paths by key.
@@ -253,9 +270,27 @@ interface BuiltMatter {
 function recorded(records: ReadonlyMap<string, FolderSource>, role: 'family' | 'matter'): Map<string, string> {
   const out = new Map<string, string>()
   for (const [entry, source] of records) {
+    if (role === 'family' && isTrashPath(entry)) continue
     if (source.kind === 'add-client' && source.role === role && source.key !== undefined) out.set(source.key, entry)
   }
   return out
+}
+
+/**
+ * Make the client folder in `clientsRoot`, or use the folder that has its name.
+ * @param clientsRoot - the folder of the client folders.
+ * @param name - the client name.
+ * @returns the client folder's path.
+ * @throws FolderError `invalid-name` when no folder can have the name, `outside` when a link or a file has the name.
+ */
+async function clientFolderAt(clientsRoot: string, name: string): Promise<string> {
+  const folder = clientFolderName(name)
+  if (folder === undefined) throw new FolderError('invalid-name', `the client name ${JSON.stringify(name)} cannot be a folder name`)
+  const root = path.join(clientsRoot, folder)
+  await mkdir(root, { recursive: true })
+  // The folder name has no separator, so a real folder (not a link) at this path is inside clientsRoot.
+  if (!(await lstat(root)).isDirectory()) throw new FolderError('outside', `${root} is a link or a file, not a client folder`)
+  return root
 }
 
 /**
@@ -263,16 +298,15 @@ function recorded(records: ReadonlyMap<string, FolderSource>, role: 'family' | '
  * @param job - the job that reports each step.
  * @param plan - the build plan.
  * @returns once the build ended; a failed item shows in its step.
- * @throws FolderError when the client folder cannot be made; the job then says `failed`.
+ * @throws FolderError when the client folder cannot be made, or a link or a file has its name; the job then says
+ *   `failed`.
  */
 export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise<void> {
   const { request, data, template } = plan
   const stopped = () => { if (job.signal.aborted) throw new Error('the build was stopped') }
 
   await job.start('folder', 1)
-  await mkdir(plan.clientsRoot, { recursive: true })
-  const root = path.join(plan.clientsRoot, checkName(request.name))
-  await mkdir(root, { recursive: true })
+  const root = await clientFolderAt(plan.clientsRoot, request.name)
   const workspace = await plan.createWorkspace(root, request.name)
   const writer = new FolderWriter(await ClientFolder.at(root), workspace.id, plan)
   await writer.template('', template.client)
@@ -310,11 +344,15 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
           const read = await data.family(application, job.signal)
           // The family read can lack the family id; the earliest priority then groups the family's matters.
           const key = read.familyId ?? read.priorities[0]?.number ?? application
-          family = families.get(key) ?? await writer.ensureFolder('', familyName(row.title, read.priorities[0], spacedApplication(application)), { from: 'ep-register', role: 'family', key })
+          const earlier = families.get(key)
+          family = earlier === undefined
+            ? await writer.ensureFolder('', familyName(row.title, read.priorities[0], spacedApplication(application)), { from: 'ep-register', role: 'family', key })
+            : await writer.found(earlier)
           families.set(key, family)
           matter = await writer.ensureFolder(family, spacedApplication(application), { from: 'ep-register', role: 'matter', key: application })
           matters.set(application, matter)
         } else {
+          await writer.found(matter)
           family = path.posix.dirname(matter)
         }
         if (!isTrashPath(matter)) await writer.template(matter, template.matter)

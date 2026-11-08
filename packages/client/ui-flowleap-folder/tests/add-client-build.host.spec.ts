@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
   ABOUT_FILE, REFERENCE_FILE, buildClientFolder, familyName, publicationBody, referenceBody, registerBody, spacedPublication,
-  type BuildInput, type BuildPlan,
+  widenBuild, type BuildInput, type BuildPlan,
 } from '../src/add-client/build.ts'
 import type { BuildJob } from '../src/add-client/jobs.ts'
 import type { BuildStepId } from '../src/add-client/wire.ts'
@@ -238,8 +238,76 @@ describe('Add client folder build', () => {
     await expect(buildClientFolder(recordingJob(stopAgain.signal).job, plan(failing))).rejects.toThrow('stopped')
   })
 
-  it('refuses a client name that a folder cannot have', async () => {
-    await expect(buildClientFolder(recordingJob().job, plan(undefined, { request: input({ name: 'A/B' }) }))).rejects.toBeInstanceOf(FolderError)
+  it('names the client folder of a name with a separator safely and keeps the name itself in the About file', async () => {
+    const { job, notes } = recordingJob()
+    await buildClientFolder(job, plan(undefined, { request: input({ name: 'Novo Nordisk A/S', names: [], applications: [] }) }))
+    expect(await readdir(clientsRoot)).toEqual(['Novo Nordisk A-S'])
+    expect(await readFile(path.join(clientsRoot, 'Novo Nordisk A-S', ABOUT_FILE), 'utf8')).toMatch(/^# Novo Nordisk A\/S\n/u)
+    expect(notes).toMatchObject({ folder: 'Novo Nordisk A-S' })
+    expect([...workspaces.keys()]).toEqual([path.join(clientsRoot, 'Novo Nordisk A-S')])
+  })
+
+  it('refuses a client name that no folder can have', async () => {
+    const refused = await buildClientFolder(recordingJob().job, plan(undefined, { request: input({ name: 'CON' }) })).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(FolderError)
+    expect((refused as FolderError).code).toBe('invalid-name')
+  })
+
+  it('refuses a link or a file at the client folder and writes nothing through it', async () => {
+    const elsewhere = path.join(base, 'elsewhere')
+    await mkdir(elsewhere)
+    await mkdir(clientsRoot)
+    await symlink(elsewhere, ROOT())
+    const linked = await buildClientFolder(recordingJob().job, plan(undefined)).catch((error: unknown) => error)
+    expect((linked as FolderError).code).toBe('outside')
+    expect(await readdir(elsewhere)).toEqual([])
+    expect(workspaces.size).toBe(0)
+    await rm(ROOT())
+    await writeFile(ROOT(), 'a file')
+    await expect(buildClientFolder(recordingJob().job, plan(undefined))).rejects.toThrow()
+  })
+
+  it('refuses a link or a file where a folder of the template or an earlier build was', async () => {
+    const fake = data()
+    await buildClientFolder(recordingJob().job, plan(fake))
+    const outside = path.join(base, 'outside')
+    const matter = path.join(ROOT(), FAMILY_1, 'EP 23 171 862')
+    await rename(matter, outside)
+    await symlink(outside, matter)
+    await rm(path.join(ROOT(), FAMILY_2, 'EP 24 817 871'), { recursive: true })
+    await writeFile(path.join(ROOT(), FAMILY_2, 'EP 24 817 871'), 'a file')
+    const { job, steps } = recordingJob()
+    await buildClientFolder(job, plan(fake, { request: input({ applications: [app('EP23171862'), app('EP24817871')] }) }))
+    expect(steps.get('matters')).toMatchObject({ done: 0, failed: ['EP23171862', 'EP24817871'] })
+    expect(logs.join('\n')).toMatch(/EP23171862: .*is a link or a special file/u)
+    expect(logs.join('\n')).toMatch(/EP24817871: .*is not a folder/u)
+    await rm(path.join(ROOT(), '00 Client'), { recursive: true })
+    await symlink(path.join(ROOT(), ABOUT_FILE), path.join(ROOT(), '00 Client'))
+    const linked = await buildClientFolder(recordingJob().job, plan(fake)).catch((error: unknown) => error)
+    expect((linked as FolderError).code).toBe('outside')
+  })
+
+  it('makes a new family folder when the family folder of an earlier build is in Trash', async () => {
+    const fake = data()
+    const built = plan(fake, { request: input({ applications: [app('EP24817871')] }) })
+    await buildClientFolder(recordingJob().job, built)
+    await mkdir(path.join(ROOT(), 'Trash'))
+    await rename(path.join(ROOT(), FAMILY_2), path.join(ROOT(), 'Trash', FAMILY_2))
+    await built.sources.moved('ws-1', FAMILY_2, `Trash/${FAMILY_2}`)
+    const { job, steps } = recordingJob()
+    await buildClientFolder(job, plan(fake, { request: input({ applications: [app('EP24817871'), app('EP24817872')] }) }))
+    expect(steps.get('matters')).toEqual({ total: 2, done: 2, failed: [], state: 'done' })
+    const family = 'Air sampling device (priority DE 102023133973)'
+    expect(await readdir(path.join(ROOT(), family))).toEqual(['EP 24 817 872'])
+    expect((await built.sources.read('ws-1')).get(family)).toMatchObject({ role: 'family', key: 'DE 102023133973' })
+  })
+
+  it('widens a running build request by a later one', () => {
+    const later = input({ name: 'Syntegon AG', names: ['Syntegon AG'], applications: [app('EP24817871'), app('EP99999999')] })
+    expect(widenBuild(input(), later)).toEqual({
+      clientId: CLIENT, name: 'Syntegon AG', names: ['Syntegon Technology GmbH', 'Syntegon AG'],
+      applications: [app('EP23171862'), app('EP24817871'), app('EP24817872'), app('EP99999999')],
+    })
   })
 
   it('names folders and files as people read them', () => {
@@ -251,6 +319,9 @@ describe('Add client folder build', () => {
     expect(Buffer.byteLength(long, 'utf8')).toBeLessThanOrEqual(255)
     expect(long.endsWith('(priority DE 102022111528, 2022-05-09)')).toBe(true)
     expect(Buffer.byteLength(familyName('Ü'.repeat(200), undefined, 'x'), 'utf8')).toBeLessThanOrEqual(255)
+    const huge = familyName('Title', { number: `DE ${'1'.repeat(300)}` }, 'x')
+    expect(huge).toBe(`(priority DE ${'1'.repeat(300)}`.slice(0, 255))
+    expect(familyName('😀'.repeat(70), undefined, 'x')).toBe('😀'.repeat(63))
     expect(publicationBody({ publicationNumber: pub('EP4292805') })).toBe('# EP 4 292 805\n')
     expect(registerBody(row({ applicationNumber: 'EP23171862' }))).toBe('# EP 23 171 862\n\n| Field | Value |\n|---|---|\n| Application | EP 23 171 862 |\n')
     expect(referenceBody([row({ applicationNumber: 'EP19794880' })])).toContain('| EP 19 794 880 |  |  |  |')

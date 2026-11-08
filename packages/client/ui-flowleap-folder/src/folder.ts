@@ -10,7 +10,7 @@ import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, readFile, realpath, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
-  TRASH, isTrashPath, type FolderEntry, type FolderFailureCode, type FolderListing, type FolderSource, type FolderSearchAnswer,
+  TRASH, isEntryName, isTrashPath, type FolderEntry, type FolderFailureCode, type FolderListing, type FolderSource, type FolderSearchAnswer,
   type FolderSearchHit,
 } from './route.ts'
 
@@ -30,12 +30,6 @@ export class FolderError extends Error {
 /** Prefix of the hidden file that an upload writes before it takes its name. */
 export const UPLOAD_PREFIX = '.flowleap-upload-'
 
-/** Longest name in UTF-8 bytes that common file systems accept. */
-const MAX_NAME_BYTES = 255
-
-/** Device names that Windows reserves in any folder, with or without an extension. */
-const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu
-
 /**
  * Check one entry name.
  * @param name - the name a person typed or a dropped file carried.
@@ -44,9 +38,7 @@ const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu
  *   end, more than 255 UTF-8 bytes, or a reserved Windows device name.
  */
 export function checkName(name: string): string {
-  const bad = name === '' || name === '.' || name === '..' || /[/\\\0]/u.test(name) || name.trim() !== name
-    || Buffer.byteLength(name, 'utf8') > MAX_NAME_BYTES || WINDOWS_RESERVED.test(name)
-  if (bad) throw new FolderError('invalid-name', `invalid name ${JSON.stringify(name)}`)
+  if (!isEntryName(name)) throw new FolderError('invalid-name', `invalid name ${JSON.stringify(name)}`)
   return name
 }
 
@@ -248,7 +240,8 @@ export class ClientFolder {
    * @param parent - the parent folder relative to the client folder.
    * @param name - the folder's name.
    * @returns the folder relative to the client folder, and whether this call made it.
-   * @throws FolderError `exists` when a file has the name, `in-trash` for a parent that is Trash or in it.
+   * @throws FolderError `not-directory` when a file has the name, `outside` when a link or a special file has it,
+   *   `in-trash` for a parent that is Trash or in it.
    */
   async ensure(parent: string, name: string): Promise<{ readonly path: string; readonly made: boolean }> {
     checkName(name)
@@ -261,7 +254,8 @@ export class ClientFolder {
       if (codeOf(error) !== 'EEXIST') throw error
     }
     const relative = this.relativeOf(dir, name)
-    await this.folder(relative)
+    // A link with the name is refused: its target can be outside the client folder.
+    if (!(await this.entry(relative)).isDirectory) throw new FolderError('not-directory', `${relative} is not a folder`)
     return { path: relative, made: false }
   }
 

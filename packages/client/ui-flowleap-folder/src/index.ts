@@ -20,7 +20,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { FolderTemplate } from './add-client/build.ts'
+import { widenBuild, type FolderTemplate } from './add-client/build.ts'
 import type { FirmIdentity } from './add-client/identity.ts'
 import { BuildJobs } from './add-client/jobs.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
@@ -335,7 +335,7 @@ export function apply(ctx: Context, config: Config): void {
   const sources = sourceStore(config.stateDir)
   const routes = new FolderRoutes(ctx, config, sources, trashStore(config.stateDir))
   const warn = (message: string) => { ctx.logger.warn(message) }
-  const jobs = new BuildJobs(path.join(config.stateDir, 'builds'), () => new Date(), warn)
+  const jobs = new BuildJobs(path.join(config.stateDir, 'builds'), () => new Date(), warn, widenBuild)
   ctx.effect(() => () => jobs.dispose(), 'ui-flowleap-folder: Add client builds')
   // The patent data plugin is optional: without it, Add client adds a client by name with the template folders.
   let data: PatentData | undefined

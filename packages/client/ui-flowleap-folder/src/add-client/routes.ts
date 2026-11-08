@@ -7,15 +7,16 @@
  */
 
 import { PatentDataError, parseEpApplication, type EpApplicationNumber, type PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
-import { FolderError, checkName } from '../folder.ts'
+import { FolderError } from '../folder.ts'
 import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
-import { buildClientFolder, type FolderTemplate } from './build.ts'
+import { buildClientFolder, type BuildInput, type FolderTemplate } from './build.ts'
 import type { FirmIdentity } from './identity.ts'
-import { messageOf, type BuildJobs } from './jobs.ts'
+import { BuildJobsStopped, messageOf, type BuildJobs } from './jobs.ts'
 import { review } from './review.ts'
 import {
-  ADD_CLIENT_STATUS, type AddClientFailure, type AddClientFailureCode, type FindAnswer, type KnownClient, type StatusAnswer,
+  ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type FindAnswer, type KnownClient,
+  type StatusAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -43,7 +44,7 @@ export interface AddClientSettings {
 export interface AddClientServices {
   /** The patent data Service now, or undefined while the runtime has none. */
   readonly data: () => PatentData | undefined
-  readonly jobs: BuildJobs
+  readonly jobs: BuildJobs<BuildInput>
   readonly sources: RecordStore<FolderSource>
   readonly createWorkspace: (folder: string, title: string) => Promise<{ readonly id: string }>
   readonly now: () => Date
@@ -153,7 +154,8 @@ export class AddClientRoutes {
 
   /**
    * `POST build` with a a `BuildRequest`: start the client folder build and answer its status at once. The build
-   * goes on after the request ends; a build that runs for the client now is answered again.
+   * goes on after the request ends. A build that runs for the client now is answered again, and it runs once more
+   * when it ends, with the names and applications of both requests.
    * @param request - the authenticated request.
    * @returns the JSON answer, status 202.
    */
@@ -162,12 +164,8 @@ export class AddClientRoutes {
     const clientId = text(body.clientId, 'clientId')
     if (!CLIENT_ID.test(clientId)) throw new AddClientError('bad-request', 'clientId must be a lower-case UUID')
     const name = text(body.name, 'name')
-    try {
-      checkName(name)
-    } catch (_error: unknown) {
-      // A client name that a folder cannot have: the page words it and the person renames the client.
-      throw new AddClientError('invalid-name', `the client name ${JSON.stringify(name)} cannot be a folder name`)
-    }
+    // A client name that no folder can have, even with its separators as `-`: the page words it.
+    if (clientFolderName(name) === undefined) throw new AddClientError('invalid-name', `the client name ${JSON.stringify(name)} cannot be a folder name`)
     const applications = texts(body.applications, 'applications').map((item): EpApplicationNumber => {
       const parsed = parseEpApplication(item)
       if (parsed === undefined) throw new AddClientError('bad-request', `${item} is not an EP application number`)
@@ -177,14 +175,15 @@ export class AddClientRoutes {
     const { services, settings } = this
     let status
     try {
-      status = await services.jobs.start(clientId, name, job => buildClientFolder(job, {
-        request: input, data: services.data(), clientsRoot: settings.clientsRoot, template: settings.folderTemplate,
+      status = await services.jobs.start(clientId, name, input, (job, request) => buildClientFolder(job, {
+        request, data: services.data(), clientsRoot: settings.clientsRoot, template: settings.folderTemplate,
         maxRows: settings.maxRegisterRows, sources: services.sources, createWorkspace: services.createWorkspace,
         now: services.now, log: services.log,
       }))
-    } catch (_error: unknown) {
+    } catch (error: unknown) {
       // The jobs stop only when the plugin stops; the page asks again after the runtime is back.
-      throw new AddClientError('stopped', 'the build jobs are stopped')
+      if (error instanceof BuildJobsStopped) throw new AddClientError('stopped', 'the build jobs are stopped')
+      throw error
     }
     return json(status, 202)
   }

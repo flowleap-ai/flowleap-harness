@@ -3,8 +3,10 @@
  * does not fit; until a job that a person's act owns exists upstream, the plugin runs the build itself. The `build`
  * route starts a job and answers at once; the job goes on after the request ends, and the `status` route reports each
  * step from the job's status file, so the person can leave the page and come back. One job runs for each client at a
- * time. A status file that says `running` with no job in this process is a job that a Host stop ended: it reads as
- * `interrupted`, and a new build runs it again, which adds only what is missing.
+ * time; a request for a client whose job runs makes that job run once more when it ends, with both requests widened
+ * into one, so no request is lost and the page never sees `done` before the last run ends. A status file that says
+ * `running` with no job in this process is a job that a Host stop ended: it reads as `interrupted`, and a new build
+ * runs it again, which adds only what is missing.
  * @module
  */
 
@@ -54,8 +56,21 @@ export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** The work of one build. */
-export type BuildWork = (job: BuildJob) => Promise<void>
+/**
+ * The work of one build.
+ * @param job - reports each step.
+ * @param request - what to build.
+ */
+export type BuildWork<R> = (job: BuildJob, request: R) => Promise<void>
+
+/** `start` was called after the jobs stopped: the plugin is stopping. */
+export class BuildJobsStopped extends Error {
+  override readonly name = 'BuildJobsStopped'
+
+  constructor() {
+    super('the build jobs are stopped')
+  }
+}
 
 /** A step that has not started. */
 function waiting(): BuildStep {
@@ -79,15 +94,27 @@ export function isBuildStatus(value: unknown): value is BuildStatus {
     && BUILD_STEPS.every(step => step in steps)
 }
 
+/** One run of a build: the client's name, the request and the work. */
+interface Run<R> {
+  readonly name: string
+  readonly request: R
+  readonly work: BuildWork<R>
+}
+
 /** One job that runs in this process. */
-interface Running {
+interface Running<R> {
   status: BuildStatus
   done: Promise<void>
+  run: Run<R>
+  /** The widened request of each `start` while the job ran; the job runs once more with it. */
+  again: Run<R> | null
 }
 
 /** The build jobs of all clients, with one status file each in the folder `dir`. */
-export class BuildJobs {
-  private readonly running = new Map<string, Running>()
+export class BuildJobs<R> {
+  private readonly running = new Map<string, Running<R>>()
+  /** The last status of each job that ended in this process; it is newer than a status file read while the job ran. */
+  private readonly ended = new Map<string, BuildStatus>()
   private readonly writes = new Map<string, Promise<unknown>>()
   private readonly stop = new AbortController()
 
@@ -95,28 +122,43 @@ export class BuildJobs {
    * @param dir - the folder of the status files.
    * @param now - the clock of the statuses.
    * @param log - reports a job's unexpected fault; the status says `failed`.
+   * @param widen - one request that does the work of two: the request of the job and the request that came while it ran.
    */
-  constructor(private readonly dir: string, private readonly now: () => Date, private readonly log: (message: string) => void) {}
+  constructor(
+    private readonly dir: string,
+    private readonly now: () => Date,
+    private readonly log: (message: string) => void,
+    private readonly widen: (running: R, next: R) => R,
+  ) {}
 
   /**
-   * Start the build of a client, unless one runs now. The work runs after this returns and after the request ends.
+   * Start the build of a client. When a job runs for the client now, the job runs once more when it ends, with the
+   * request of the job widened by this request. The work runs after this returns and after the request ends.
    * @param clientId - the client.
    * @param name - the client's name, which the Clients list shows while the build runs.
+   * @param request - what to build.
    * @param work - the build.
    * @returns the status of the job that runs now.
-   * @throws Error when the jobs are stopped.
+   * @throws BuildJobsStopped when the jobs are stopped; the error of the first status write when it fails, and then no
+   *   job runs.
    */
-  async start(clientId: string, name: string, work: BuildWork): Promise<BuildStatus> {
+  async start(clientId: string, name: string, request: R, work: BuildWork<R>): Promise<BuildStatus> {
     const current = this.running.get(clientId)
-    if (current !== undefined) return current.status
-    if (this.stop.signal.aborted) throw new Error('the build jobs are stopped')
-    const entry: Running = {
-      status: { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, steps: eachStep(waiting) },
-      done: Promise.resolve(),
+    if (current !== undefined) {
+      current.again = { name, request: this.widen((current.again ?? current.run).request, request), work }
+      return current.status
     }
+    if (this.stop.signal.aborted) throw new BuildJobsStopped()
+    const entry: Running<R> = { status: this.fresh(clientId, name), done: Promise.resolve(), run: { name, request, work }, again: null }
     this.running.set(clientId, entry)
-    await this.save(entry.status)
-    entry.done = this.run(entry, work)
+    try {
+      await this.save(entry.status)
+    } catch (error: unknown) {
+      // No job runs without its status file, so the next request starts it again.
+      this.running.delete(clientId)
+      throw error
+    }
+    entry.done = this.run(entry)
     return entry.status
   }
 
@@ -157,29 +199,19 @@ export class BuildJobs {
     await Promise.all([...this.running.values()].map(entry => entry.done))
   }
 
-  /** Run one job and record how it ended. */
-  private async run(entry: Running, work: BuildWork): Promise<void> {
-    const update = async (change: (status: BuildStatus) => BuildStatus): Promise<void> => {
-      entry.status = change(entry.status)
-      await this.save(entry.status)
-    }
-    const step = (id: BuildStepId, change: (current: BuildStep) => BuildStep) =>
-      update(status => ({ ...status, steps: { ...status.steps, [id]: change(status.steps[id]) } }))
-    const job: BuildJob = {
-      signal: this.stop.signal,
-      start: (id, total) => step(id, () => ({ state: 'running', done: 0, total, failed: [] })),
-      advance: id => step(id, current => ({ ...current, done: current.done + 1 })),
-      fail: (id, item) => step(id, current => ({ ...current, failed: [...current.failed, item] })),
-      finish: id => step(id, current => ({ ...current, state: current.failed.length > 0 ? 'failed' : 'done' })),
-      note: facts => update(status => ({ ...status, ...facts })),
-    }
-    let ended: BuildStatus['state']
-    try {
-      await work(job)
-      ended = BUILD_STEPS.some(id => entry.status.steps[id].state === 'failed') ? 'failed' : 'done'
-    } catch (error: unknown) {
-      ended = this.stop.signal.aborted ? 'interrupted' : 'failed'
-      if (ended === 'failed') this.log(`ui-flowleap-folder: build of ${entry.status.clientId}: ${messageOf(error)}`)
+  /** Run one job, and once more for each request that came while it ran, then record how it ended. */
+  private async run(entry: Running<R>): Promise<void> {
+    let ended = await this.once(entry)
+    for (let again = entry.again; again !== null && !this.stop.signal.aborted; again = entry.again) {
+      entry.again = null
+      entry.run = again
+      entry.status = this.fresh(entry.status.clientId, again.name)
+      try {
+        await this.save(entry.status)
+      } catch (error: unknown) {
+        this.log(`ui-flowleap-folder: build status of ${entry.status.clientId}: ${messageOf(error)}`)
+      }
+      ended = await this.once(entry)
     }
     // A step that a fault or a stop cut keeps its counts and shows as failed, so Try again runs it again.
     const status = entry.status
@@ -196,13 +228,49 @@ export class BuildJobs {
       this.log(`ui-flowleap-folder: build status of ${final.clientId}: ${messageOf(error)}`)
     }
     entry.status = final
+    this.ended.set(final.clientId, final)
     this.running.delete(final.clientId)
   }
 
-  /** A stored status as it is now: `running` with no job in this process is `interrupted`. */
+  /** Run the work of a job once. */
+  private async once(entry: Running<R>): Promise<BuildStatus['state']> {
+    const update = async (change: (status: BuildStatus) => BuildStatus): Promise<void> => {
+      entry.status = change(entry.status)
+      await this.save(entry.status)
+    }
+    const step = (id: BuildStepId, change: (current: BuildStep) => BuildStep) =>
+      update(status => ({ ...status, steps: { ...status.steps, [id]: change(status.steps[id]) } }))
+    const job: BuildJob = {
+      signal: this.stop.signal,
+      start: (id, total) => step(id, () => ({ state: 'running', done: 0, total, failed: [] })),
+      advance: id => step(id, current => ({ ...current, done: current.done + 1 })),
+      fail: (id, item) => step(id, current => ({ ...current, failed: [...current.failed, item] })),
+      finish: id => step(id, current => ({ ...current, state: current.failed.length > 0 ? 'failed' : 'done' })),
+      note: facts => update(status => ({ ...status, ...facts })),
+    }
+    try {
+      await entry.run.work(job, entry.run.request)
+      return BUILD_STEPS.some(id => entry.status.steps[id].state === 'failed') ? 'failed' : 'done'
+    } catch (error: unknown) {
+      if (this.stop.signal.aborted) return 'interrupted'
+      this.log(`ui-flowleap-folder: build of ${entry.status.clientId}: ${messageOf(error)}`)
+      return 'failed'
+    }
+  }
+
+  /** The status of a job that starts now. */
+  private fresh(clientId: string, name: string): BuildStatus {
+    return { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, steps: eachStep(waiting) }
+  }
+
+  /**
+   * A stored status as it is now: the status of this process's job when there is one, else `running` with no job in
+   * this process is `interrupted`.
+   */
   private live(status: BuildStatus): BuildStatus {
-    if (status.state !== 'running' || this.running.has(status.clientId)) return status
-    return { ...status, state: 'interrupted' }
+    const own = this.running.get(status.clientId)?.status ?? this.ended.get(status.clientId)
+    if (own !== undefined) return own
+    return status.state === 'running' ? { ...status, state: 'interrupted' } : status
   }
 
   /** Read one status file. */

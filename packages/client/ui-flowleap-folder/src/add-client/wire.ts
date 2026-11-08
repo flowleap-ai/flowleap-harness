@@ -5,7 +5,19 @@
  * @module
  */
 
-import { FOLDER_API } from '../route.ts'
+import { FOLDER_API, folderNameOf, isEntryName } from '../route.ts'
+
+/**
+ * The name of a client's folder in `clientsRoot`: the client name with each separator as `-` ({@link folderNameOf}).
+ * The Firm Record and the About file keep the client name as it is. The browser checks it before it records anything,
+ * and the `build` route checks it again.
+ * @param name - the client name.
+ * @returns the folder name, or undefined when no folder can have the name, such as `CON` or `..`.
+ */
+export function clientFolderName(name: string): string | undefined {
+  const folder = folderNameOf(name)
+  return isEntryName(folder) ? folder : undefined
+}
 
 /** Absolute Host path of the Add client routes. */
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
@@ -124,6 +136,8 @@ export type ReviewAnswer =
     readonly atOtherFirms: readonly ReferenceRow[]
     /** The possible conflicts that the EP Register shows. */
     readonly conflicts: readonly ConflictHit[]
+    /** Whether the read of the oppositions stopped at the configured row cap, so that conflicts can be missing. */
+    readonly conflictsTruncated: boolean
   }
   | { readonly status: 'no-plugin' }
 
@@ -131,7 +145,7 @@ export type ReviewAnswer =
 export interface BuildRequest {
   /** The client id of the Firm Record (a UUID). */
   readonly clientId: string
-  /** The client's name, which is also the client folder's name. */
+  /** The client's name; the client folder's name is {@link clientFolderName} of it. */
   readonly name: string
   /** The ticked applicant names of the group, for the reference file. */
   readonly names: readonly string[]

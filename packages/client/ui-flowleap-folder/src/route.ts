@@ -30,6 +30,56 @@ export function isTrashPath(relative: string): boolean {
   return relative === TRASH || relative.startsWith(`${TRASH}/`)
 }
 
+/** The longest entry name in UTF-8 bytes that common file systems accept. */
+const MAX_NAME_BYTES = 255
+
+/** Device names that Windows reserves in any folder, with or without an extension. */
+const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu
+
+/** The length of a text in UTF-8 bytes. */
+function bytesOf(text: string): number {
+  return new TextEncoder().encode(text).length
+}
+
+/**
+ * Whether a text can be the name of one entry: not empty, not `.` or `..`, no separator or NUL, no space at the start
+ * or the end, at most 255 UTF-8 bytes, and not a reserved Windows device name.
+ * @param name - the name.
+ * @returns true when every file system that the plugin supports accepts the name.
+ */
+export function isEntryName(name: string): boolean {
+  return name !== '' && name !== '.' && name !== '..' && !/[/\\\0]/u.test(name) && name.trim() === name
+    && bytesOf(name) <= MAX_NAME_BYTES && !WINDOWS_RESERVED.test(name)
+}
+
+/**
+ * The longest start of a text that has at most `maxBytes` UTF-8 bytes, cut between two user-perceived characters, so a
+ * cut never splits an emoji or a letter with its accent.
+ * @param text - the text.
+ * @param maxBytes - the byte limit; at 0 or below, the answer is empty.
+ * @returns the start of the text.
+ */
+export function cutToBytes(text: string, maxBytes: number): string {
+  let cut = ''
+  for (const { segment } of new Intl.Segmenter().segment(text)) {
+    if (bytesOf(cut + segment) > maxBytes) break
+    cut += segment
+  }
+  return cut
+}
+
+/**
+ * A text as a folder name: each separator or NUL becomes `-`, white space becomes one space, the ends lose their
+ * spaces, and the name is cut to 255 UTF-8 bytes with {@link cutToBytes}. Add client names its client, family and
+ * matter folders this way, so a name such as `Novo Nordisk A/S` has the folder `Novo Nordisk A-S`.
+ * @param text - the text, such as a client name or a title.
+ * @returns the folder name; check it with {@link isEntryName}, because `.`, `..`, an empty text and a reserved Windows
+ *   device name stay invalid.
+ */
+export function folderNameOf(text: string): string {
+  return cutToBytes(text.replace(/[/\\\0]/gu, '-').replace(/\s+/gu, ' ').trim(), MAX_NAME_BYTES).trimEnd()
+}
+
 /** How a file or a folder came into the client folder, when this plugin wrote it. */
 export type FolderSourceKind = 'upload' | 'folder' | 'add-client'
 

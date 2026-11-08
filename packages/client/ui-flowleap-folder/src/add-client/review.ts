@@ -124,14 +124,15 @@ function rowFacts(row: RegisterRow): Pick<ConflictHit, 'applicationNumber' | 'pu
  * @param maxRows - the row cap of one query.
  * @param asOf - the instant of the read.
  * @param signal - stops the reads.
- * @returns the hits, each once.
+ * @returns the hits, each once, and whether the read of the oppositions stopped at the row cap, so that hits can be
+ *   missing.
  */
 export async function registerConflicts(
   data: PatentData, names: readonly string[], groupRows: readonly RegisterRow[], clients: readonly KnownClient[],
   maxRows: number, asOf: string, signal?: AbortSignal,
-): Promise<ConflictHit[]> {
+): Promise<{ readonly hits: ConflictHit[]; readonly truncated: boolean }> {
   const known = clientKeys(clients)
-  if (known.size === 0) return []
+  if (known.size === 0) return { hits: [], truncated: false }
   const group = keysOf(names)
   const hits = new Map<string, ConflictHit>()
   const add = (hit: ConflictHit) => { hits.set(`${hit.applicationNumber}|${hit.existingClientId}|${hit.otherPartyRole}|${companyKey(hit.otherParty)}`, hit) }
@@ -158,7 +159,7 @@ export async function registerConflicts(
       })
     }
   }
-  return [...hits.values()]
+  return { hits: [...hits.values()], truncated: opposed.truncated }
 }
 
 /** The fields that a matter row and a reference row share. */
@@ -233,6 +234,7 @@ export async function review(
   const set = identitySet(input.identity)
   const mine = group.rows.filter(row => set && atFirm(row, input.identity))
   const others = group.rows.filter(row => !mine.includes(row))
+  const conflicts = await registerConflicts(data, input.names, group.rows, input.clients, input.maxRows, asOf, signal)
   return {
     status: 'reviewed',
     asOf,
@@ -241,6 +243,7 @@ export async function review(
     identity: set ? 'set' : 'missing',
     atFirm: mine.map(matterRow),
     atOtherFirms: others.map(referenceRow),
-    conflicts: await registerConflicts(data, input.names, group.rows, input.clients, input.maxRows, asOf, signal),
+    conflicts: conflicts.hits,
+    conflictsTruncated: conflicts.truncated,
   }
 }

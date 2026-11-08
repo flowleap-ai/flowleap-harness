@@ -71,7 +71,7 @@ describe('Add client review', () => {
     const data = new FakePatentData(SYNTEGON)
     const answer = await review(data, { names: ['Syntegon Technology'], clients: [], identity: IDENTITY, maxRows: 1000 }, ASOF)
     expect(answer).toEqual({
-      status: 'reviewed', asOf: ASOF, total: 2, truncated: false, identity: 'set', conflicts: [],
+      status: 'reviewed', asOf: ASOF, total: 2, truncated: false, identity: 'set', conflicts: [], conflictsTruncated: false,
       atFirm: [{ applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: 'Packaging element', applicants: ['Syntegon Technology GmbH'], filed: '2023-05-05', representativeSince: '2024-07-24', status: 'Examination is in progress' }],
       atOtherFirms: [{ applicationNumber: 'EP19794879', title: 'Weighing', applicants: ['Syntegon Technology GmbH', 'Partner AG'], filed: '2019-09-18', town: 'Stuttgart' }],
     })
@@ -109,7 +109,7 @@ describe('Add client review', () => {
     ])
     const withDate = row({ applicationNumber: 'EP17000003', applicants: ['Syntegon Technology GmbH'], opponents: [{ name: 'Gerhard Schubert GmbH', address: [], filedOn: '2020-01-01' }] })
     const hits = await registerConflicts(new FakePatentData([withDate]), ['Gerhard Schubert'], [row({ applicationNumber: 'EP17000004', opponents: [{ name: 'Syntegon AG', address: [] }] })], clients, 1000, ASOF)
-    expect(hits).toEqual([expect.objectContaining({ applicationNumber: 'EP17000003', opposedOn: '2020-01-01' })])
+    expect(hits).toEqual({ hits: [expect.objectContaining({ applicationNumber: 'EP17000003', opposedOn: '2020-01-01' })], truncated: false })
   })
 
   it('keeps each application once over several queries, and leaves out what the register does not give', async () => {
@@ -119,12 +119,22 @@ describe('Add client review', () => {
     expect(group.rows).toHaveLength(1)
     expect(matterRow(shared)).toEqual({ applicationNumber: 'EP21000001', applicants: ['Firm a', 'Firm i'] })
     const hits = await registerConflicts(new FakePatentData([]), names, [shared], [{ clientId: 'c-2', names: ['Client Co'] }], 1000, ASOF)
-    expect(hits).toEqual([{ applicationNumber: 'EP21000001', otherParty: 'Firm a', otherPartyRole: 'patent-owner', existingClientId: 'c-2', existingClientParty: 'Client Co', source: 'ep-register', asOf: ASOF }])
+    expect(hits.hits).toEqual([{ applicationNumber: 'EP21000001', otherParty: 'Firm a', otherPartyRole: 'patent-owner', existingClientId: 'c-2', existingClientParty: 'Client Co', source: 'ep-register', asOf: ASOF }])
   })
 
   it('reads no opposition when your firm has no client', async () => {
     const data = new FakePatentData(SYNTEGON)
-    expect(await registerConflicts(data, ['Syntegon'], SYNTEGON, [{ clientId: 'c-1', names: ['GmbH'] }], 1000, ASOF)).toEqual([])
+    expect(await registerConflicts(data, ['Syntegon'], SYNTEGON, [{ clientId: 'c-1', names: ['GmbH'] }], 1000, ASOF)).toEqual({ hits: [], truncated: false })
     expect(data.queries).toEqual([])
+  })
+
+  it('says when the read of the oppositions stopped at the row cap, so that conflicts can be missing', async () => {
+    const opposed = Array.from({ length: 150 }, (_, index) => row({
+      applicationNumber: `EP${String(31000000 + index)}`, applicants: ['Client Co'], opponents: [{ name: 'Acme GmbH', address: [] }],
+    }))
+    const clients = [{ clientId: 'c-1', names: ['Client Co'] }]
+    const answer = await review(new FakePatentData(opposed), { names: ['Acme'], clients, identity: IDENTITY, maxRows: 100 }, ASOF)
+    expect(answer).toMatchObject({ conflictsTruncated: true })
+    expect(answer.status === 'reviewed' && answer.conflicts).toHaveLength(100)
   })
 })

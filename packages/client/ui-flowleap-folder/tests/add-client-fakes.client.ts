@@ -160,7 +160,7 @@ type Reviewed = Extract<ReviewAnswer, { status: 'reviewed' }>
 
 /** The answer of `review`. */
 export const reviewed = (extra: Changes<Reviewed> = {}): Reviewed => changed<Reviewed>({
-  status: 'reviewed', asOf: AS_OF, total: 272, truncated: false, identity: 'set', atFirm: [], atOtherFirms: [], conflicts: [],
+  status: 'reviewed', asOf: AS_OF, total: 272, truncated: false, identity: 'set', atFirm: [], atOtherFirms: [], conflicts: [], conflictsTruncated: false,
 }, extra)
 
 /** A build status. */
