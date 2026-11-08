@@ -12,7 +12,7 @@ import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { buildClientFolder, type FolderTemplate } from './build.ts'
 import type { FirmIdentity } from './identity.ts'
-import type { BuildJobs } from './jobs.ts'
+import { messageOf, type BuildJobs } from './jobs.ts'
 import { review } from './review.ts'
 import {
   ADD_CLIENT_STATUS, type AddClientFailure, type AddClientFailureCode, type FindAnswer, type KnownClient, type StatusAnswer,
@@ -111,7 +111,7 @@ export class AddClientRoutes {
       return await act()
     } catch (error: unknown) {
       const code = codeOf(error)
-      if (code === 'internal') this.services.log(`ui-flowleap-folder: Add client: ${error instanceof Error ? error.message : String(error)}`)
+      if (code === 'internal') this.services.log(`ui-flowleap-folder: Add client: ${messageOf(error)}`)
       const body: AddClientFailure = { error: code }
       return json(body, ADD_CLIENT_STATUS[code])
     }

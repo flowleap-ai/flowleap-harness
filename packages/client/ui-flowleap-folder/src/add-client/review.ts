@@ -51,7 +51,10 @@ async function readAll(data: PatentData, list: readonly string[], maxRows: numbe
   for (const query of list) {
     for (let begin = 1; begin <= maxRows; begin += PAGE_ROWS) {
       const page = await data.searchRegister(query, { begin, end: Math.min(begin + PAGE_ROWS - 1, maxRows) }, signal)
-      for (const row of page.rows) if (!rows.has(row.applicationNumber)) rows.set(row.applicationNumber, row)
+      // Several queries can give one application; the first row of it stays.
+      for (const row of page.rows) {
+        if (!rows.has(row.applicationNumber)) rows.set(row.applicationNumber, row)
+      }
       if (page.end >= page.total || page.rows.length === 0) break
       if (page.end >= maxRows) truncated = true
     }
@@ -158,6 +161,17 @@ export async function registerConflicts(
   return [...hits.values()]
 }
 
+/** The fields that a matter row and a reference row share. */
+function sharedFields(row: RegisterRow): MatterRow & ReferenceRow {
+  return {
+    applicationNumber: row.applicationNumber,
+    applicants: row.applicants,
+    ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
+    ...(row.title === undefined ? {} : { title: row.title }),
+    ...(row.filed === undefined ? {} : { filed: row.filed }),
+  }
+}
+
 /**
  * A row of the firm's matters.
  * @param row - the register row.
@@ -165,11 +179,7 @@ export async function registerConflicts(
  */
 export function matterRow(row: RegisterRow): MatterRow {
   return {
-    applicationNumber: row.applicationNumber,
-    applicants: row.applicants,
-    ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-    ...(row.title === undefined ? {} : { title: row.title }),
-    ...(row.filed === undefined ? {} : { filed: row.filed }),
+    ...sharedFields(row),
     ...(row.representativeSince === undefined ? {} : { representativeSince: row.representativeSince }),
     ...(row.status === undefined ? {} : { status: row.status }),
   }
@@ -183,14 +193,7 @@ export function matterRow(row: RegisterRow): MatterRow {
 export function referenceRow(row: RegisterRow): ReferenceRow {
   const [representative] = row.representatives
   const town = representative === undefined ? undefined : townOf(representative)
-  return {
-    applicationNumber: row.applicationNumber,
-    applicants: row.applicants,
-    ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-    ...(row.title === undefined ? {} : { title: row.title }),
-    ...(row.filed === undefined ? {} : { filed: row.filed }),
-    ...(town === undefined ? {} : { town }),
-  }
+  return { ...sharedFields(row), ...(town === undefined ? {} : { town }) }
 }
 
 /**

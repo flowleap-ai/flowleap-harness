@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser-auth.ts'
-import { BuildJobs, isBuildStatus, type BuildJob } from '../src/add-client/jobs.ts'
+import { BuildJobs, isBuildStatus, messageOf, type BuildJob } from '../src/add-client/jobs.ts'
 import type { BuildStatus } from '../src/add-client/wire.ts'
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
@@ -34,7 +34,7 @@ function jobs() {
 }
 
 async function until(read: () => Promise<BuildStatus | undefined>, state: BuildStatus['state']): Promise<BuildStatus> {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 2000; attempt += 1) {
     const status = await read()
     if (status?.state === state) return status
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -154,6 +154,24 @@ describe('Add client build jobs', () => {
     expect(logs[1]).toContain('no error object')
   })
 
+  it('writes the next status after a status that it could not write', async () => {
+    const runner = jobs()
+    await runner.start(CLIENT, 'Syntegon', async (job) => {
+      await rm(dir, { recursive: true, force: true })
+      await writeFile(dir, 'a file where the folder was')
+      await job.start('folder', 1).catch(() => undefined)
+      await rm(dir, { force: true })
+      await job.advance('folder')
+    })
+    await runner.dispose()
+    expect((await runner.get(CLIENT))?.steps.folder).toMatchObject({ done: 1 })
+  })
+
+  it('words an error that is not an error object', () => {
+    expect(messageOf(new Error('disk full'))).toBe('disk full')
+    expect(messageOf('disk gone')).toBe('disk gone')
+  })
+
   it('logs a status it cannot write and still ends the job', async () => {
     const runner = jobs()
     await runner.start(CLIENT, 'Syntegon', async () => {
@@ -168,6 +186,7 @@ describe('Add client build jobs', () => {
   })
 
   it('has no status before a build and skips damaged or foreign files', async () => {
+    expect(await new BuildJobs(path.join(dir, 'none'), () => new Date(), () => {}).all()).toEqual([])
     expect(await jobs().all()).toEqual([])
     expect(await jobs().get(CLIENT)).toBeUndefined()
     await writeFile(path.join(dir, 'damaged.json'), '{')

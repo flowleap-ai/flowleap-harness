@@ -13,7 +13,7 @@ import type { EpApplicationNumber, PatentData, PublicationText, RegisterRow } fr
 import { ClientFolder, FolderError, checkName, freeName } from '../folder.ts'
 import { isTrashPath, type AddClientOrigin, type FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
-import type { BuildJob } from './jobs.ts'
+import { messageOf, type BuildJob } from './jobs.ts'
 import { townOf } from './identity.ts'
 import { readGroup } from './review.ts'
 import type { BuildRequest } from './wire.ts'
@@ -277,7 +277,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
   const writer = new FolderWriter(await ClientFolder.at(root), workspace.id, plan)
   await writer.template('', template.client)
   if (!(await writer.folder.fileNames('')).includes(ABOUT_FILE)) {
-    const about = await writer.folder.writeNew('', ABOUT_FILE, aboutText(request, plan.now()))
+    const about = await writer.folder.writeNew('', ABOUT_FILE, aboutMarkdown(request, plan.now()))
     await writer.record(about, { from: 'template' })
   }
   await job.note({ workspace: workspace.id, folder: path.basename(root) })
@@ -294,7 +294,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
   const built: BuiltMatter[] = []
   const failed = async (step: 'matters' | 'public-data' | 'reference', item: string, error: unknown): Promise<void> => {
     stopped()
-    plan.log(`ui-flowleap-folder: Add client ${step} ${item}: ${error instanceof Error ? error.message : String(error)}`)
+    plan.log(`ui-flowleap-folder: Add client ${step} ${item}: ${messageOf(error)}`)
     await job.fail(step, item)
   }
   await job.start('matters', data === undefined ? 0 : request.applications.length)
@@ -325,9 +325,9 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
     }
   }
   await job.finish('matters')
-  await job.note({ matters: built.length, families: new Set(built.map(item => item.family)).size })
-
+  // A matter that a person moved to Trash stays there: it counts as no matter and gets no new data.
   const live = built.filter(item => !isTrashPath(item.path))
+  await job.note({ matters: live.length, families: new Set(live.map(item => item.family)).size })
   await job.start('public-data', live.reduce((count, item) => count + (item.row.publicationNumber === undefined ? 1 : 2), 0))
   // A matter is built only with the data plugin, so `live` is empty without it.
   if (data !== undefined) {
@@ -368,7 +368,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
   await job.finish('reference')
 }
 
-/** The text of the About file. */
-function aboutText(request: BuildInput, at: Date): string {
+/** The Markdown of the About file in the client folder; file content, written in English like the dated files. */
+function aboutMarkdown(request: BuildInput, at: Date): string {
   return `# ${request.name}\n\nAdd client made this client folder on ${at.toISOString().slice(0, 10)}. It has a family folder for each EP family and a matter folder for each EP application of the client at your firm, each with the firm's template folders.\n\nEach file of public data is a dated copy: its first line says when FlowLeap read it and from which source. A copy does not change when the source changes. Check for new matters reads the sources again and writes a new dated file only where the data changed.\n\nApplicant names of the client group: ${request.names.length === 0 ? 'none' : request.names.join('; ')}.\n`
 }

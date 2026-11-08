@@ -45,6 +45,15 @@ export interface BuildJob {
   note(facts: Partial<Pick<BuildStatus, 'workspace' | 'folder' | 'families' | 'matters'>>): Promise<void>
 }
 
+/**
+ * The message of a thrown value, for the Host log.
+ * @param error - the thrown value.
+ * @returns its message, or its text when it is not an `Error`.
+ */
+export function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** The work of one build. */
 export type BuildWork = (job: BuildJob) => Promise<void>
 
@@ -170,7 +179,7 @@ export class BuildJobs {
       ended = BUILD_STEPS.some(id => entry.status.steps[id].state === 'failed') ? 'failed' : 'done'
     } catch (error: unknown) {
       ended = this.stop.signal.aborted ? 'interrupted' : 'failed'
-      if (ended === 'failed') this.log(`ui-flowleap-folder: build of ${entry.status.clientId}: ${error instanceof Error ? error.message : String(error)}`)
+      if (ended === 'failed') this.log(`ui-flowleap-folder: build of ${entry.status.clientId}: ${messageOf(error)}`)
     }
     // A step that a fault or a stop cut keeps its counts and shows as failed, so Try again runs it again.
     const status = entry.status
@@ -184,7 +193,7 @@ export class BuildJobs {
     try {
       await this.save(final)
     } catch (error: unknown) {
-      this.log(`ui-flowleap-folder: build status of ${final.clientId}: ${error instanceof Error ? error.message : String(error)}`)
+      this.log(`ui-flowleap-folder: build status of ${final.clientId}: ${messageOf(error)}`)
     }
     entry.status = final
     this.running.delete(final.clientId)

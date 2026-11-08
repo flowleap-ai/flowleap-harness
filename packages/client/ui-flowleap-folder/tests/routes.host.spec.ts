@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import { apply, Config, FOLDER_ROUTES, inject, type FolderListing } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, Config, FOLDER_ROUTES, inject, type FolderListing } from '../src/index.ts'
 import { sourceStore, trashStore } from '../src/sources.ts'
 
 const WORKSPACE = '6f1c2a40-0000-4000-8000-000000000001'
@@ -38,7 +38,7 @@ afterEach(async () => {
 })
 
 async function load(config: Partial<Config> = {}) {
-  const fiber = ctx.plugin({ inject, Config, apply }, Config({ stateDir, ...config } as Config))
+  const fiber = ctx.plugin({ inject, Config, apply }, Config({ stateDir, clientsRoot: path.join(base, 'Clients'), ...config } as Config))
   await fiber.await()
   return fiber
 }
@@ -53,7 +53,7 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the eight folder routes and removes them on dispose', async () => {
+  it('registers the eight folder routes and the four Add client routes, and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
       [FOLDER_ROUTES.list, ['GET'], 'buffered'],
@@ -64,6 +64,10 @@ describe('ui-flowleap-folder Host half', () => {
       [FOLDER_ROUTES.trash, ['POST'], 'buffered'],
       [FOLDER_ROUTES.restore, ['POST'], 'buffered'],
       [FOLDER_ROUTES.search, ['GET'], 'buffered'],
+      [ADD_CLIENT_ROUTES.find, ['GET'], 'buffered'],
+      [ADD_CLIENT_ROUTES.review, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.build, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.status, ['GET'], 'buffered'],
     ])
     await fiber.dispose()
     expect(routes.size).toBe(0)
@@ -71,7 +75,12 @@ describe('ui-flowleap-folder Host half', () => {
 
   it('needs a state folder, caps uploads at 200 MiB and a search at 200 hits by default', () => {
     expect(() => Config({} as Config)).toThrow()
-    expect(Config({ stateDir } as Config)).toMatchObject({ maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '' })
+    expect(() => Config({ stateDir } as Config)).toThrow()
+    expect(Config({ stateDir, clientsRoot: '/srv/clients' } as Config)).toMatchObject({
+      maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', maxRegisterRows: 1000,
+      folderTemplate: { client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' },
+      firmIdentity: { names: [], addresses: [], representatives: [] },
+    })
   })
 
   it('lists a folder as JSON that is never cached', async () => {
