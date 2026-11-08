@@ -145,7 +145,10 @@ up() {
   local intake
   intake=$(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'
 console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u) => u.objectId).join(' '))")
-  RECORD_INTAKE_PERSONS=$intake "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
+  # The firm roles (firm.roles) of the seed users, so a partner or an attorney acts in that role; an older checkout has none.
+  local roles
+  roles=$(cd "$OS" && node acceptance/seed-firm.mjs --roles 2> /dev/null) || roles=
+  RECORD_INTAKE_PERSONS=$intake RECORD_ROLES=$roles "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
     { cat "$LOGS/record-start.log" >&2; die "record-local.sh start failed"; }
   node -e '
     const persons = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).intake.persons.join(" ")
