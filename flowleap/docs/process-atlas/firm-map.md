@@ -52,7 +52,7 @@ The UPC case view and the statement-of-claim form show the same objects from the
 |---|---|---|---|---|---|---|---|
 | Invention to filing decision | none (client and firm) | A client sends an invention or an IDF | Filed, kept secret, or dropped | attorney, client, inventor | medium | client mail, meetings | new |
 | Drafting and first filing | EPO, DPMA, WIPO | The client instructs to file | Filing receipt | attorney, trainee, PAFA | medium | the firm files; receipt by portal or mail | new |
-| EP grant procedure | EPO | EP filing or PCT regional entry | Grant, refusal, or withdrawal | attorney, PAFA | high | MyEPO Mailbox (API) | [00](00-connected-flow.md) to [05](05-firm-internal-message.md) cover one letter path; full sheet new |
+| EP grant procedure | EPO | EP filing or PCT regional entry | Grant, refusal, or withdrawal | attorney, PAFA | high | MyEPO Mailbox (API) | [10](10-ep-grant-procedure.md); [00](00-connected-flow.md) to [05](05-firm-internal-message.md) cover one letter path |
 | DE patent and utility model | DPMA | DE filing | Grant, registration, refusal, or lapse | attorney, PAFA | high in German firms | paper or PDF letters; no API found | new |
 | PCT international phase | WIPO, ISA | PCT filing | National and regional entry at 30 or 31 months | attorney, PAFA | medium | ePCT and mail | new |
 | Foreign filings through associates | foreign offices | The client instructs a country | Grant or lapse abroad | attorney, PAFA, associate | medium | associate mail | new |

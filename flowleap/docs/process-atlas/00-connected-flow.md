@@ -221,6 +221,20 @@ stateDiagram-v2
 | report | `send_unconfirmed` | **Send the client report** (`send-report`) | Yes | The person of `report.approver` | `report.sendReminder` | The approver, then the responsible attorney | The report is sent or withdrawn |
 | outbox | `refused` | **Fix the message** (`fix-message`) | Later | The administrator | `tasks.adminWithin` | The administrator, then the partner | The administrator records what was done |
 | outbox | `dead` | **Fix the message** (`fix-message`) | Later | The administrator | `tasks.adminWithin` | The administrator, then the partner | The administrator records what was done |
+| epGrant | `formalities` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `formal_deficiency` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `r161_reply_due` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `searching` | no task: The EPO acts next; a person acts here only to withdraw or to move the case | | | | | |
+| epGrant | `unity_fees_due` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `search_opinion_received` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `examination` | no task: The EPO acts next; a person acts here only to withdraw or to move the case | | | | | |
+| epGrant | `exam_reply_due` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `oral_proceedings` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `grant_approval_due` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `grant_approved` | no task: The EPO acts next; a person acts here only to withdraw or to move the case | | | | | |
+| epGrant | `refused` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `loss_of_rights_noted` | no task: The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task | | | | | |
+| epGrant | `reestablishment_requested` | no task: The EPO acts next; a person acts here only to withdraw or to move the case | | | | | |
 | schedule | | **Follow up the deadline** (`follow-up`) | Later | The responsible attorney | Each internal date (Vorfrist) of an active deadline | `deadline.escalation` | The act of the deadline is recorded, or the next internal date comes |
 | schedule | | **Check the deadlines due today** (`day-check`) | Later | The person of `tasks.dayCheck.person` | `tasks.dayCheck.at` on each working day | The partner | The person records the check of each deadline due that day |
 | mention | | **Answer** (`answer`) | Later | The person who is mentioned | `tasks.answerWithin`, or the time the asker sets | The asker, then the responsible attorney | The person answers in the thread, or does the act that was asked |
