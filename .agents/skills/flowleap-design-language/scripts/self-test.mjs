@@ -57,6 +57,8 @@ const CASES = [
   ['d16b', '16 px on a class that is not a field', css('a.css', '@media (pointer: coarse) { .title { font-size: var(--dsw-font-base-16-font-size); } }'), 'R1: the 16 px size is only for a text field'],
   ['d16c', '16 px under a query that also matches a fine pointer', css('a.css', '@media (pointer: coarse), (min-width: 1px) { input { font-size: var(--dsw-font-base-16-font-size); } }'), 'R1: the 16 px size is only for a text field'],
   ['d16d', '16 px under a fine pointer', css('a.css', '@media (pointer: fine) { textarea { font-size: var(--dsw-font-base-16-font-size); } }'), 'R1: the 16 px size is only for a text field'],
+  ['d16f', '16 px on an element that only has a field in it', css('a.css', '@media (pointer: coarse) { .title:has(> input) { font-size: var(--dsw-font-base-16-font-size); } }'), 'R1: the 16 px size is only for a text field'],
+  ['d16g', '16 px on an input that is a button', css('a.css', '@media (pointer: coarse) { input[type=submit] { font-size: var(--dsw-font-base-16-font-size); } }'), 'R1: the 16 px size is only for a text field'],
   ['d16e', 'a literal 16px on a coarse-pointer field', css('a.css', '@media (pointer: coarse) { input { font-size: 16px; } }'), 'R1: font-size is one of the client roles'],
   ['d03', 'theme token redefined', css('a.css', ':root { --dsw-alias-label-secondary: #8a8f98; --dsw-font-family: "Inter Variable"; }'), 'never defines a client theme token'],
   ['d04', 'tertiary text', css('a.css', '.time { color: var(--dsw-alias-label-tertiary); background: var(--dsw-alias-bg-base); }'), 'R3: --dsw-alias-label-tertiary is for icons only'],
