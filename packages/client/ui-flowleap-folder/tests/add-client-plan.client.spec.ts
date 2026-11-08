@@ -97,6 +97,22 @@ describe('the commands of a decision', () => {
     expect(plan.parties.get('syntegon technology gmbh')).toBe('party-1')
   })
 
+  it('sends one name command for spellings with one name key, so no key goes out with two bodies', async () => {
+    const decision: Decision = {
+      role: 'watch', clientId: NEW_ID, name: 'Syntegon',
+      names: [
+        { name: 'Syntegon Technology GmbH', source: 'ep-register', applications: 164 },
+        { name: 'SYNTEGON TECHNOLOGY GMBH', source: 'ep-register', applications: 38 },
+        { name: 'Syntegon Technology, GmbH', source: 'ep-register', applications: 2 },
+      ],
+    }
+    const plan = await planRecords(decision, null)
+    expect(plan.steps).toEqual([
+      { kind: 'command', command: { kind: 'client', clientId: NEW_ID, name: 'Syntegon', role: 'watch' } },
+      { kind: 'command', command: { kind: 'name', clientId: NEW_ID, name: { name: 'Syntegon Technology GmbH', source: 'ep-register', applications: 164 } } },
+    ])
+  })
+
   it('records the reason of a checked conflict, and runs no conflict check for Watch', async () => {
     const hit = registerHit(SYNTEGON_ID)
     const plan = await planRecords(clientDecision([hit]), null)

@@ -113,10 +113,15 @@ export type RecordCommand =
 /** What a recorded command answers: the party id of a `party` command, else nothing that Add client uses. */
 export type RecordAnswer = { readonly kind: 'party'; readonly partyId: PartyId } | { readonly kind: 'recorded' }
 
-/** The refusal codes of the contract; another code is `null`. */
+/**
+ * The refusal codes of the contract and of the Firm Record's command store; another code is `null`. `invalid-body`: a
+ * field of the body does not match the contract. `idempotency-key-reused`: the key names a command that the Firm Record
+ * recorded with another body.
+ */
 export const REFUSALS = [
   'reason-required', 'not-allowed-to-decide-conflict', 'conflict-check-missing', 'client-exists', 'client-id-taken',
   'client-unknown', 'party-unknown', 'application-other-client', 'application-not-recorded', 'agent-cannot-decide',
+  'invalid-body', 'idempotency-key-reused',
 ] as const
 
 /** A refusal code of the contract. */
@@ -186,7 +191,24 @@ export function newClientId(): ClientId {
 }
 
 /** A publication number with its kind code, which the contract asks for. */
-const PUBLICATION = /^EP\d+[A-Z]\d?$/
+const PUBLICATION = /^EP\d{1,9}[A-Z]\d?$/
+/** The longest title that the contract takes. */
+const TITLE_MAX = 1000
+
+/**
+ * The publication number and the title of an application as the contract takes them. The EP Register gives a
+ * publication number without its kind code, such as `EP4292805`; the contract wants `EP`, digits and kind, so a number
+ * without a kind stays out. A blank title or a title over 1000 characters also stays out.
+ * @param publicationNumber - the publication number of the source, if any.
+ * @param title - the title of the source, if any.
+ * @returns the fields to send.
+ */
+function sentFacts(publicationNumber: string | undefined, title: string | undefined): { publicationNumber?: string; title?: string } {
+  return {
+    ...(publicationNumber !== undefined && PUBLICATION.test(publicationNumber) ? { publicationNumber } : {}),
+    ...(title !== undefined && title.trim() !== '' && title.length <= TITLE_MAX ? { title } : {}),
+  }
+}
 
 /** The path, the body and the `Idempotency-Key` of one command. */
 export interface CommandRequest {
@@ -207,7 +229,7 @@ export async function commandRequest(command: RecordCommand): Promise<CommandReq
       const { clientId, hits, reason } = command
       // The body holds the contract's Hit fields only.
       const body = hits.map(hit => ({
-        applicationNumber: hit.applicationNumber, publicationNumber: hit.publicationNumber, title: hit.title, otherParty: hit.otherParty,
+        applicationNumber: hit.applicationNumber, ...sentFacts(hit.publicationNumber, hit.title), otherParty: hit.otherParty,
         otherPartyRole: hit.otherPartyRole, existingClientId: hit.existingClientId, existingClientParty: hit.existingClientParty,
         source: hit.source, asOf: hit.asOf,
       }))
@@ -219,10 +241,8 @@ export async function commandRequest(command: RecordCommand): Promise<CommandReq
     }
     case 'party': return { path: 'parties', body: { name: command.name }, key: `party:${await sha256Hex(normalizeName(command.name))}` }
     case 'application': {
-      const { publicationNumber, ...rest } = command.application
-      // The EP Register gives a publication number without its kind code, such as `EP4292805`; the contract wants
-      // `EP`, digits and kind, so a number without a kind stays out of the record.
-      const body = publicationNumber !== undefined && PUBLICATION.test(publicationNumber) ? { ...rest, publicationNumber } : rest
+      const { publicationNumber, title, ...rest } = command.application
+      const body = { ...rest, ...sentFacts(publicationNumber, title) }
       return { path: `clients/${command.clientId}/applications`, body, key: `add-client:${command.clientId}:application:${command.application.applicationNumber}` }
     }
     case 'role': return {

@@ -128,7 +128,8 @@ export function allHits(record: readonly Hit[], register: readonly ConflictHit[]
 }
 
 /**
- * The commands that record a decision, without the facts that the Firm Record has already.
+ * The commands that record a decision, without the facts that the Firm Record has already. A name whose key the
+ * decision has already is sent once.
  * @param decision - the decision.
  * @param existing - the client as the Firm Record has it now, or null when it has no such client.
  * @returns the plan.
@@ -159,8 +160,11 @@ export async function planRecords(decision: Decision, existing: ClientDetail | n
     steps.push({ kind: 'command', command: { kind: 'conflict-check', clientId, hits: decision.hits, ...(decision.reason === undefined ? {} : { reason: decision.reason }) } })
   }
   if (existing === null) steps.push({ kind: 'command', command: { kind: 'client', clientId, name: decision.name, role: decision.role } })
+  // The key of a name command is the name key: two spellings of one key would send one key with two bodies.
   for (const name of decision.names) {
-    if (!linked.has(normalizeName(name.name))) steps.push({ kind: 'command', command: { kind: 'name', clientId, name } })
+    const key = normalizeName(name.name)
+    if (!linked.has(key)) steps.push({ kind: 'command', command: { kind: 'name', clientId, name } })
+    linked.add(key)
   }
   if (decision.role === 'client') {
     for (const { fact, applicants } of decision.applications) {

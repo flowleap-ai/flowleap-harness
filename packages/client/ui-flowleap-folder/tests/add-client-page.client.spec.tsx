@@ -259,6 +259,8 @@ describe('pages 2 and 3: review and decide', () => {
     expect(screen.queryByText(en['fact.opposed'])).toBeNull()
     await s.set({ ...(s.model.state.view as ReviewView), review: { status: 'by-name' } })
     expect(screen.getByText('GERHARD SCHUBERT is the other side of your client Syntegon in EP 23 171 862.')).toBeTruthy()
+    expect(screen.getByText(en['conflict.byName.lead'])).toBeTruthy()
+    expect(screen.getByText(en['conflict.checkSelf'])).toBeTruthy()
     await s.set({ ...(s.model.state.view as ReviewView), firm: { status: 'ready', details: [], asOf: AS_OF }, review: { status: 'reviewed', claimed: [], answer: reviewed({ conflicts: [registerHit(SCHUBERT_ID)] }) } })
     expect(screen.getByText('Gerhard Schubert GmbH is the other side of your client Syntegon Packaging Systems AG in EP 16 188 900.')).toBeTruthy()
   })
@@ -288,7 +290,34 @@ describe('pages 2 and 3: review and decide', () => {
     await s.set({ ...(s.model.state.view as ReviewView), firm: { status: 'error', error: { kind: 'network' } } })
     await click(within(screen.getByRole('alert')).getByRole('button', { name: /Try again/ }))
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByText(/^The name is not the other side/)).toBeTruthy()
+    // By name only, FlowLeap read no EP opposition: the person checks conflicts and writes how.
+    expect(screen.queryByText(/^The name is not the other side/)).toBeNull()
+    expect(screen.getByText(en['conflict.byName.lead'])).toBeTruthy()
+    expect(screen.getByText(en['part.conflictByName'])).toBeTruthy()
+    expect(screen.getByRole('note').textContent).toBe(en['blocked.self-check'])
+    const primary = () => button(new RegExp(`^${en['primary.client']}`)) as HTMLButtonElement
+    expect(primary().disabled).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: new RegExp(en['conflict.checkSelf']) }))
+    fireEvent.change(screen.getByRole('textbox', { name: en['conflict.reason'] }), { target: { value: 'Asked the partners.' } })
+    expect(screen.getByText(en['part.conflict.checked'])).toBeTruthy()
+    s.firm.state.failNext.set('conflict-check', { kind: 'refused', status: 409, code: 'idempotency-key-reused' })
+    await click(primary())
+    expect(screen.getByRole('alert').textContent).toContain(en['refusal.idempotency-key-reused'])
+    await click(within(screen.getByRole('alert')).getByRole('button', { name: /Try again/ }))
+    expect(s.firm.sent[0]).toMatchObject({ kind: 'conflict-check', hits: [], reason: 'Asked the partners.' })
+  })
+
+  it('warns when the conflict check can be incomplete, and blocks a name that no folder can have', async () => {
+    const s = mount()
+    await review(s, 'Gerhard Schubert', reviewed({ conflictsTruncated: true }))
+    expect(screen.getByText(en['conflict.truncated'])).toBeTruthy()
+    expect(screen.getByText(en['conflict.none'])).toBeTruthy()
+    await s.set({ ...(s.model.state.view as ReviewView), review: { status: 'reviewed', claimed: [], answer: reviewed({ conflictsTruncated: true, conflicts: [registerHit(SYNTEGON_ID)] }) } })
+    expect(screen.getByText(en['conflict.truncated'])).toBeTruthy()
+    expect(screen.getByText(en['conflict.check'])).toBeTruthy()
+    const view = s.model.state.view as ReviewView
+    await s.set({ ...view, subject: { ...view.subject, name: 'CON' } })
+    expect(screen.getByRole('note').textContent).toBe(en['blocked.name'])
   })
 
   it('shows the zero-matter state, the empty firm identity, and the loading states', async () => {

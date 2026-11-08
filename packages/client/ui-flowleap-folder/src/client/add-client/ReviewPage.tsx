@@ -221,10 +221,14 @@ function ConflictSection({ t, view, model, locale, retryKeycaps, hits }: ReviewP
   if (firm.status === 'loading' || review.status === 'loading') {
     return <Section title={t('conflict.title')}><p className={css.hint} role="status">{t('conflict.loading')}</p></Section>
   }
-  if (hits.length === 0) {
+  const byName = review.status === 'by-name'
+  // The read of the EP oppositions stopped at its row limit: a hit can be missing.
+  const truncated = review.status === 'reviewed' && review.answer.conflictsTruncated && <Notice tone="warn" lead={t('conflict.truncated')} />
+  if (hits.length === 0 && !byName) {
     const count = subject.names.length
     return (
       <Section title={t('conflict.title')}>
+        {truncated}
         <div className={css.okLine}>
           <IconCheckOutlineRegular size={16} />
           <div><div>{t('conflict.none')}</div><div className={css.sub}>{count > 1 ? t('conflict.noneBody', { count }) : t('conflict.noneBodyOne')}</div></div>
@@ -232,6 +236,22 @@ function ConflictSection({ t, view, model, locale, retryKeycaps, hits }: ReviewP
       </Section>
     )
   }
+  const check = (
+    <>
+      <label className={clsx(css.checkRow, conflict.checked && css.on)}>
+        <input type="checkbox" checked={conflict.checked} onChange={(event) => { model.setConflict(event.currentTarget.checked, conflict.reason) }} />
+        <span>
+          <span className={css.strong}>{byName ? t('conflict.checkSelf') : t('conflict.check')}</span>
+          <span className={clsx(css.sub, css.block)}>{byName ? t('conflict.checkSelfBody', { name: subject.name }) : t('conflict.checkBody', { name: subject.name })}</span>
+        </span>
+      </label>
+      <textarea className={css.reason} value={conflict.reason} aria-label={t('conflict.reason')} placeholder={t('conflict.reason')}
+        onChange={(event) => { model.setConflict(conflict.checked, event.currentTarget.value) }} />
+    </>
+  )
+  // By name only, FlowLeap read no EP opposition: the person checks conflicts and writes how.
+  const notChecked = byName && <Notice tone="warn" lead={t('conflict.byName.lead')} rest={t('conflict.byName.rest')} />
+  if (hits.length === 0) return <Section title={t('conflict.title')}>{notChecked}{check}</Section>
   const clientName = (id: string) => firm.details.find(detail => detail.client.clientId === id)?.client.name
   const register = new Map((review.status === 'reviewed' ? review.answer.conflicts : []).map(item => [hitKey(item), item]))
   const [first] = hits
@@ -242,16 +262,13 @@ function ConflictSection({ t, view, model, locale, retryKeycaps, hits }: ReviewP
   return (
     <Section title={t('conflict.title')} count={counted(t, hits.length, 'conflict.count.one', 'conflict.count.many')}>
       <Notice tone="warn" lead={lead} rest={t('conflict.rest')} />
+      {notChecked}
+      {truncated}
       {hits.map(hit => (
         <HitFacts key={hitKey(hit)} t={t} hit={hit} detail={register.get(hitKey(hit))} client={clientName(hit.existingClientId)}
           locale={locale} />
       ))}
-      <label className={clsx(css.checkRow, conflict.checked && css.on)}>
-        <input type="checkbox" checked={conflict.checked} onChange={(event) => { model.setConflict(event.currentTarget.checked, conflict.reason) }} />
-        <span><span className={css.strong}>{t('conflict.check')}</span><span className={clsx(css.sub, css.block)}>{t('conflict.checkBody', { name: subject.name })}</span></span>
-      </label>
-      <textarea className={css.reason} value={conflict.reason} aria-label={t('conflict.reason')} placeholder={t('conflict.reason')}
-        onChange={(event) => { model.setConflict(conflict.checked, event.currentTarget.value) }} />
+      {check}
     </Section>
   )
 }
@@ -377,12 +394,16 @@ function DecisionBar({ t, view, model, locale, recordKey, retryKeycaps, hits, on
   const parts: ReactNode[] = [<Part key="role" state="ok" name={t('part.role')} body={t('part.roleBody')} value={roleControl} />]
   let note: string
   if (role === 'client') {
-    const conflictState = firm.status !== 'ready' || review.status === 'loading' ? 'wait' : hits.length === 0 || (conflict.checked && conflict.reason.trim() !== '') ? 'ok' : 'wait'
-    const conflictValue = firm.status !== 'ready' || review.status === 'loading'
+    const waiting = firm.status !== 'ready' || review.status === 'loading'
+    const byName = review.status === 'by-name'
+    // By name only, the person checks conflicts too, also with no hit.
+    const asked = byName || hits.length > 0
+    const answered = conflict.checked && conflict.reason.trim() !== ''
+    const conflictValue = waiting
       ? t('part.conflict.waiting')
-      : hits.length === 0 ? t('part.conflict.none') : conflictState === 'ok' ? t('part.conflict.checked') : t('part.conflict.open')
-    parts.push(<Part key="conflict" state={conflictState} name={t('part.conflict')} value={conflictValue}
-      body={hits.length === 0 ? t('part.conflictBody') : counted(t, hits.length, 'conflict.count.one', 'conflict.count.many')} />)
+      : !asked ? t('part.conflict.none') : answered ? t('part.conflict.checked') : t('part.conflict.open')
+    const conflictBody = byName ? t('part.conflictByName') : hits.length === 0 ? t('part.conflictBody') : counted(t, hits.length, 'conflict.count.one', 'conflict.count.many')
+    parts.push(<Part key="conflict" state={!waiting && (!asked || answered) ? 'ok' : 'wait'} name={t('part.conflict')} value={conflictValue} body={conflictBody} />)
     const count = review.status === 'reviewed' ? review.answer.atFirm.length + review.claimed.length : 0
     parts.push(review.status === 'reviewed'
       ? <Part key="matters" state={count === 0 ? 'none' : 'ok'} name={t('part.matters')} body={count === 0 ? t('part.mattersEmpty') : t('part.mattersBody', { asOf: asOfText(t, review.answer.asOf, locale) })}

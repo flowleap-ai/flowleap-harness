@@ -8,7 +8,7 @@
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { BuildRequest, BuildStatus, FindAnswer, NameSource, ReviewAnswer } from '../../add-client/wire.ts'
+import { clientFolderName, type BuildRequest, type BuildStatus, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
 import type { AddClientApi, HostFailure } from './api.ts'
 import { allHits, firmHits, knownClients, matchExisting, planRecords, runPlan, type Decision, type OtherPartyRole } from './plan.ts'
 import {
@@ -71,7 +71,7 @@ export type FirmStatus =
 
 /** The company that Add client runs for. */
 export interface Subject {
-  /** The client's name, which is also the client folder's name. */
+  /** The client's name; the client folder's name is `clientFolderName` of it. */
   readonly name: string
   /** The ticked applicant names; none when the client is added by name only. */
   readonly names: readonly LinkedName[]
@@ -181,8 +181,20 @@ export function clientIdOf(view: ReviewView): ClientId {
   return view.subject.existing?.role === view.role ? view.subject.existing.clientId : view.newId
 }
 
-/** Why the primary act of a review waits. */
-export type Blocker = 'busy' | 'review' | 'firm' | 'conflict' | 'matter'
+/**
+ * Why the primary act of a review waits. `name`: no folder can have the client's name. `self-check`: by name only,
+ * FlowLeap read no EP opposition, so the person checks conflicts and writes how.
+ */
+export type Blocker = 'busy' | 'review' | 'firm' | 'name' | 'conflict' | 'self-check' | 'matter'
+
+/**
+ * Whether the person ticked the conflict check and wrote a reason.
+ * @param view - the review.
+ * @returns true when both are there.
+ */
+function decided(view: ReviewView): boolean {
+  return view.conflict.checked && view.conflict.reason.trim() !== ''
+}
 
 /**
  * Why the person cannot record the decision now.
@@ -194,9 +206,12 @@ export function blockerOf(view: ReviewView): Blocker | null {
   if (view.role === 'watch') return null
   if (view.firm.status !== 'ready') return 'firm'
   if (view.role === 'other-party') return view.other.applicationNumber === null ? 'matter' : null
+  // Checked before any record is sent: the build would refuse the name after the client is recorded.
+  if (clientFolderName(view.subject.name) === undefined) return 'name'
   if (view.review.status === 'loading' || view.review.status === 'error' || view.review.status === 'no-key') return 'review'
-  const conflicted = hitsOf(view).length > 0
-  return conflicted && (!view.conflict.checked || view.conflict.reason.trim() === '') ? 'conflict' : null
+  if (decided(view)) return null
+  if (view.review.status === 'by-name') return 'self-check'
+  return hitsOf(view).length > 0 ? 'conflict' : null
 }
 
 /**
@@ -239,7 +254,8 @@ export function decisionOf(view: ReviewView): Decision {
   if (role === 'watch') return { role, ...base }
   if (role === 'other-party') return { role, ...base, matter: { applicationNumber: view.other.applicationNumber ?? '', role: view.other.role } }
   const hits = hitsOf(view)
-  const reason = hits.length === 0 ? {} : { reason: view.conflict.reason.trim() }
+  // By name only, the reason says how the person checked conflicts, also with no hit.
+  const reason = hits.length === 0 && view.review.status !== 'by-name' ? {} : { reason: view.conflict.reason.trim() }
   return { role, ...base, hits, ...reason, applications: applicationsOf(view.review) }
 }
 
@@ -389,9 +405,9 @@ export class AddClientModel {
   }
 
   /**
-   * Tick "I checked this conflict" or change its reason.
+   * Tick "I checked this conflict" (by name only: "I checked conflicts myself") or change its reason.
    * @param checked - whether the person checked the conflict.
-   * @param reason - why the company can be a client, as typed.
+   * @param reason - why the company can be a client, or by name only how the person checked, as typed.
    */
   setConflict(checked: boolean, reason: string): void {
     this.updateReview(view => ({ ...view, conflict: { checked, reason }, recording: idleUnlessRunning(view.recording) }))

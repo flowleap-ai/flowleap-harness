@@ -59,6 +59,18 @@ describe('names, keys and hashes of the contract', () => {
     for (const { key } of requests) expect(key).toMatch(/^[\w.:-]{8,128}$/)
     expect(JSON.stringify(requests[0]!.body)).not.toContain('opposedOn')
   })
+
+  it('sends a publication number only with its kind code and a title only of 1 to 1000 characters, as the contract takes them', async () => {
+    const register = hit({ publicationNumber: 'EP4292805', title: 'x'.repeat(1001) })
+    const published = hit({ applicationNumber: 'EP12345678', publicationNumber: 'EP4292805A1', title: 'Packaging' })
+    const check = await commandRequest({ kind: 'conflict-check', clientId: SCHUBERT_ID, hits: [register, published], reason: 'Closed.' })
+    expect(check.body['hits']).toEqual([
+      { applicationNumber: 'EP16188900', otherParty: 'Gerhard Schubert GmbH', otherPartyRole: 'patent-owner', existingClientId: SYNTEGON_ID, existingClientParty: 'Syntegon Packaging Systems AG', source: 'ep-register', asOf: AS_OF },
+      { ...published },
+    ])
+    const application = await commandRequest({ kind: 'application', clientId: SYNTEGON_ID, application: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: '  ', basis: 'register' } })
+    expect(application.body).toEqual({ applicationNumber: 'EP23171862', basis: 'register' })
+  })
 })
 
 /** The answers of a Records service, by path; a function answers from the request. */
@@ -197,6 +209,8 @@ describe('the Firm Record client', () => {
     }
     expect(await send(json({ error: 'client-exists', clientId: SCHUBERT_ID }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: 'client-exists', clientId: SCHUBERT_ID } })
     expect(await send(json({ error: 'not-allowed-to-decide-conflict', detail: 'x' }, 403))).toEqual({ ok: false, error: { kind: 'refused', status: 403, code: 'not-allowed-to-decide-conflict' } })
+    expect(await send(json({ error: 'idempotency-key-reused' }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: 'idempotency-key-reused' } })
+    expect(await send(json({ error: 'invalid-body', detail: 'hits[0].publicationNumber' }, 400))).toEqual({ ok: false, error: { kind: 'refused', status: 400, code: 'invalid-body' } })
     expect(await send(json({ error: 'brand-new-code', clientId: 'not-a-uuid' }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: null } })
     expect(await send(new Response('Forbidden', { status: 403 }))).toEqual({ ok: false, error: { kind: 'refused', status: 403, code: null } })
     expect(await send(new Response('', { status: 502 }))).toEqual({ ok: false, error: { kind: 'service', status: 502 } })
