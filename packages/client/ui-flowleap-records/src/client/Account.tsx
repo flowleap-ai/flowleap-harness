@@ -38,7 +38,7 @@ export type AccountProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<t
  * @returns the button.
  */
 export function AccountButton(props: AccountProps) {
-  const { t, wide, useMe } = props
+  const { t, wide, useMe, signOutHref } = props
   const me = useMe(load => shownData(load)?.data ?? null)
   const [open, setOpen] = useState(false)
   if (me === null) return null
@@ -49,7 +49,7 @@ export function AccountButton(props: AccountProps) {
     { type: 'label', id: 'who', text: name },
     ...(role === null ? [] : [{ type: 'label' as const, id: 'role', text: role }]),
     { type: 'separator', id: 'sep' },
-    ...(props.signOutHref === null ? [] : [{ id: 'sign-out', label: t('account.signOut'), icon: <IconRightUpOutlineRegular size={16} /> }]),
+    ...(signOutHref === null ? [] : [{ id: 'sign-out', label: t('account.signOut'), icon: <IconRightUpOutlineRegular size={16} /> }]),
   ]
   return (
     <Menu
@@ -58,11 +58,13 @@ export function AccountButton(props: AccountProps) {
       align="start"
       portal
       items={items}
-      footer={props.signOutHref === null ? [] : [{ type: 'label', id: 'after', text: t('account.after') }]}
+      footer={signOutHref === null ? [] : [{ type: 'label', id: 'after', text: t('account.after') }]}
       onClose={() => { setOpen(false) }}
-      onSelect={(id) => {
-        setOpen(false)
-        if (id === 'sign-out' && props.signOutHref !== null) props.leave(props.signOutHref)
+      {...signOutHref === null ? {} : {
+        onSelect: () => {
+          setOpen(false)
+          props.leave(signOutHref)
+        },
       }}
       anchor={(
         <button

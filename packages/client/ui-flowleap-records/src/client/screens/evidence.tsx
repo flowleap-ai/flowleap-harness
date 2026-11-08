@@ -34,13 +34,13 @@ const READ_ROWS = [
 ] as const satisfies readonly { value: string; field: ReaderField; label: FlowleapRecordsKey }[]
 
 /**
- * Whether the card holds the second reading, from the page image. With reader 2 off, the record holds one reading, and
- * the views say so in their heading and show no empty column.
+ * Whether both readers read the letter (`outcome` agree or differ). Otherwise the record holds one reading or none (reader
+ * 2 off, refused, or with no result), and the views say so in their heading and show no column of "Not read".
  * @param readers - the readings.
- * @returns true when both readings are there.
+ * @returns true when both readings have a result.
  */
 export function readTwice(readers: DeadlineDetail['readers']): boolean {
-  return readers.code !== null && readers.model !== null
+  return readers.outcome === 'agree' || readers.outcome === 'differ'
 }
 
 /**
@@ -75,7 +75,7 @@ export function Readings({ ctx, readers }: { ctx: ScreenContext; readers: Deadli
         const field: FieldValue | undefined = readers.code?.fields[row.field]
         // The title line names the letter, not its office event: with no code read, it is no value of this row.
         const quoted = row.value === 'code' && result === null ? undefined : field
-        const text = result ?? (quoted === undefined ? null : quotedValue(ctx, row.value, quoted.value))
+        const text = result ?? (row.value === 'code' || field === undefined ? null : quotedValue(ctx, row.value, field.value))
         const image = shown(row, readers.model?.result ?? null)
         const agree = text !== null && image !== null && text === image
         return (
@@ -109,11 +109,10 @@ export function Readings({ ctx, readers }: { ctx: ScreenContext; readers: Deadli
  * @param value - the quoted value.
  * @returns the words.
  */
-function quotedValue(ctx: ScreenContext, row: (typeof READ_ROWS)[number]['value'], value: string): string {
+function quotedValue(ctx: ScreenContext, row: 'documentDate' | 'applicationNumber', value: string): string {
   switch (row) {
     case 'documentDate': return /^\d{4}-\d{2}-\d{2}$/u.test(value) ? formatDate(value as IsoDate, ctx.locale) : value
     case 'applicationNumber': return formatApplicationNumber(value)
-    case 'code': return value
   }
 }
 

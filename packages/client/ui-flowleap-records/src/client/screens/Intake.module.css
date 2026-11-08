@@ -424,3 +424,7 @@
     font-size: var(--dsw-font-base-16-font-size);
   }
 }
+
+.readings {
+  margin: 0 0 24px;
+}

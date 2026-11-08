@@ -192,9 +192,10 @@ export function createRecordsModel(api: RecordsApi, initial: Route, root: PanelR
   let disposed = false
 
   const meLoader = createLoader(signal => api.me(signal))
+  const changed = () => { publish() }
   const held = (): Loader<unknown>[] => [
-    caches.intake.get('waiting', () => { publish() }),
-    ...(root === 'my-work' ? [caches.myWork.get('mine', () => { publish() })] : []),
+    caches.intake.get('waiting', changed),
+    ...(root === 'my-work' ? [caches.myWork.get('mine', changed)] : []),
   ]
   const waitingCount = createSnapshotStore<number | null>(null)
   const myWork = createSnapshotStore<Load<MyWork> | null>(null)
@@ -204,7 +205,6 @@ export function createRecordsModel(api: RecordsApi, initial: Route, root: PanelR
    * @returns the screen and its loaders.
    */
   const build = (): { screen: Screen; loaders: readonly Loader<unknown>[] } => {
-    const changed = () => { publish() }
     const keep: Record<keyof typeof caches, Set<string>> = {
       myWork: new Set(root === 'my-work' ? ['mine'] : []), matters: new Set(),
       matter: new Set(), intake: new Set(['waiting']), intakeDocument: new Set(), deadline: new Set(),
@@ -287,8 +287,8 @@ export function createRecordsModel(api: RecordsApi, initial: Route, root: PanelR
     const next = build()
     current = next.loaders
     screen.set(next.screen)
-    if (root === 'my-work') myWork.set(caches.myWork.get('mine', () => { publish() }).source.getSnapshot())
-    const shown = shownData(caches.intake.get('waiting', () => { publish() }).source.getSnapshot())
+    if (root === 'my-work') myWork.set(caches.myWork.get('mine', changed).source.getSnapshot())
+    const shown = shownData(caches.intake.get('waiting', changed).source.getSnapshot())
     waitingCount.set(shown === null ? null : shown.data.counts.waiting)
   }
 

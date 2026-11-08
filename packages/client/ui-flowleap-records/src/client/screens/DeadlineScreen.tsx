@@ -385,7 +385,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             )
             : (
               <section className={css.section} aria-label={t('deadline.read')}>
-                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readTwice(readers) ? 'deadline.readHint' : 'deadline.readHintOnce')}`}</span></h2>
+                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readTwice(readers) ? 'deadline.readHint' : readers.outcome === 'no-reading' ? 'deadline.readHintNone' : 'deadline.readHintOnce')}`}</span></h2>
                 {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
               </section>
             )}

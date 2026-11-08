@@ -21,7 +21,7 @@ import type { IntakeStep } from '../model.ts'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
-import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
+import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate, listTime } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -115,6 +115,14 @@ function readNothing(letter: Pick<IntakeDocument, 'activity'>): boolean {
  */
 function readValues(letter: Pick<IntakeDocument, 'entry'>): boolean {
   return letter.entry?.read != null
+}
+
+/** The words after "What FlowLeap read", by how the readings came out, so the heading is true in every state (B3). */
+const READING_HEADINGS: Readonly<Record<IntakeDocument['readers']['outcome'], FlowleapRecordsKey>> = {
+  'agree': 'letter.readTwice',
+  'differ': 'letter.readTwice',
+  'one-reading': 'letter.readOnce',
+  'no-reading': 'letter.readNone',
 }
 
 /** The lede's sentence on the readings of a scan, by their outcome; none when FlowLeap read nothing. */
@@ -319,16 +327,13 @@ function ledeOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
 }
 
 /**
- * Render a person or nobody as an avatar and the name: the display name, or the words for a person the os does not
- * name, such as a forwarder outside the team.
+ * Render a person as an avatar and the name: the display name, or the words for a person the os does not name.
  * @param props.ctx - the screen context.
  * @param props.person - the person.
  * @returns the person.
  */
-function Who({ ctx, person }: { ctx: ScreenContext; person: Person | null }) {
-  return person === null
-    ? <>{ctx.t('matter.none')}</>
-    : <span className={css.who}><Avatar person={avatarOf(ctx.t, person)} nameShown />{personName(ctx.t, person)}</span>
+function Who({ ctx, person }: { ctx: ScreenContext; person: Person }) {
+  return <span className={css.who}><Avatar person={avatarOf(ctx.t, person)} nameShown />{personName(ctx.t, person)}</span>
 }
 
 
@@ -778,6 +783,13 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             </>
           )}
         />
+        {/* The readings take the full width, so a long office event stays on one line beside its quote. */}
+        {read && (
+          <section className={css.readings} aria-label={t('letter.read')}>
+            <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t(READING_HEADINGS[readers.outcome])}`}</span></h2>
+            <Readings ctx={ctx} readers={readers} />
+          </section>
+        )}
         <EvidenceSplit evidence={(
           <LetterPages
             ctx={ctx}
@@ -787,12 +799,6 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             onOpen={openLetter}
           />
         )}>
-          {read && (
-            <section aria-label={t('letter.read')}>
-              <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t(readTwice(readers) ? 'letter.readTwice' : 'letter.readOnce')}`}</span></h2>
-              <Readings ctx={ctx} readers={readers} />
-            </section>
-          )}
           {(decision.kind === 'hand' || unreadable) && (
             <HandEntryFields
               ctx={ctx}

@@ -202,15 +202,6 @@ export function ruleWords(t: Translate, code: string | null): RuleWords {
 }
 
 /**
- * The office of an office event code, such as `EPO` of `EPO:R71(3)`.
- * @param code - the code.
- * @returns the office, or null.
- */
-export function officeOf(code: string | null): string | null {
-  return code?.split(':')[0] ?? null
-}
-
-/**
  * A calendar date without the weekday, in the UI language's medium style: "30 Oct 2026", "30.10.2026".
  * @param date - the date.
  * @param locale - the UI language.

@@ -725,6 +725,8 @@ export const en = {
   'dossier.doc.letterArrived': 'Letter of {date} · arrived {time}',
   'intake.lede.scanOn': 'The scan came from the scan mailbox on {date}.',
   'intake.lede.scanYesterday': 'The scan came from the scan mailbox yesterday.',
+  'letter.readNone': 'nothing read',
+  'deadline.readHintNone': 'nothing read · a person entered the values',
 } as const
 
 /** Key domain of the namespace. */
@@ -1448,6 +1450,8 @@ export const de = {
   'dossier.doc.letterArrived': 'Schreiben vom {date} · eingegangen {time}',
   'intake.lede.scanOn': 'Der Scan kam am {date} aus dem Scan-Postfach.',
   'intake.lede.scanYesterday': 'Der Scan kam gestern aus dem Scan-Postfach.',
+  'letter.readNone': 'nichts ausgelesen',
+  'deadline.readHintNone': 'nichts ausgelesen · eine Person hat die Werte eingegeben',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Spanish dictionary. */
@@ -2168,6 +2172,8 @@ export const es = {
   'dossier.doc.letterArrived': 'Carta del {date} · recibida {time}',
   'intake.lede.scanOn': 'El escaneo llegó del buzón de escaneo el {date}.',
   'intake.lede.scanYesterday': 'El escaneo llegó ayer del buzón de escaneo.',
+  'letter.readNone': 'nada leído',
+  'deadline.readHintNone': 'nada leído · una persona introdujo los valores',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** French dictionary. */
@@ -2888,6 +2894,8 @@ export const fr = {
   'dossier.doc.letterArrived': 'Lettre du {date} · reçue {time}',
   'intake.lede.scanOn': 'Le scan est arrivé de la boîte de numérisation le {date}.',
   'intake.lede.scanYesterday': 'Le scan est arrivé hier de la boîte de numérisation.',
+  'letter.readNone': 'rien lu',
+  'deadline.readHintNone': 'rien lu · une personne a saisi les valeurs',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Japanese dictionary. */
@@ -3608,6 +3616,8 @@ export const ja = {
   'dossier.doc.letterArrived': '{date} 付の書簡 · {time} 受領',
   'intake.lede.scanOn': 'スキャンは {date} にスキャン用メールボックスから届きました。',
   'intake.lede.scanYesterday': 'スキャンは昨日スキャン用メールボックスから届きました。',
+  'letter.readNone': '読み取りなし',
+  'deadline.readHintNone': '読み取りなし · 担当者が値を入力しました',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Portuguese dictionary. */
@@ -4328,6 +4338,8 @@ export const pt = {
   'dossier.doc.letterArrived': 'Carta de {date} · recebida {time}',
   'intake.lede.scanOn': 'A digitalização chegou da caixa de digitalização em {date}.',
   'intake.lede.scanYesterday': 'A digitalização chegou ontem da caixa de digitalização.',
+  'letter.readNone': 'nada lido',
+  'deadline.readHintNone': 'nada lido · uma pessoa inseriu os valores',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Russian dictionary. */
@@ -5048,6 +5060,8 @@ export const ru = {
   'dossier.doc.letterArrived': 'Письмо от {date} · получено {time}',
   'intake.lede.scanOn': 'Скан пришёл из почтового ящика сканов {date}.',
   'intake.lede.scanYesterday': 'Скан пришёл вчера из почтового ящика сканов.',
+  'letter.readNone': 'ничего не прочитано',
+  'deadline.readHintNone': 'ничего не прочитано · значения ввёл человек',
 } satisfies Record<FlowleapRecordsKey, string>
 
 /** Simplified Chinese dictionary. */
@@ -5768,4 +5782,6 @@ export const zh = {
   'dossier.doc.letterArrived': '{date} 的信函 · {time} 收到',
   'intake.lede.scanOn': '扫描件于 {date} 来自扫描邮箱。',
   'intake.lede.scanYesterday': '扫描件于昨天来自扫描邮箱。',
+  'letter.readNone': '未读取任何内容',
+  'deadline.readHintNone': '未读取任何内容 · 由人员录入数值',
 } satisfies Record<FlowleapRecordsKey, string>

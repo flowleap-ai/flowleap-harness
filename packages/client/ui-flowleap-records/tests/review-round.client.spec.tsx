@@ -40,6 +40,17 @@ describe('the readings of a letter', () => {
     expect(within(table).queryByText('Not read')).toBeNull()
   })
 
+  it('never calls the readings independent while the second has no result, and says when nothing was read (B3)', async () => {
+    const readers = fixtures.intakeDocument.readers
+    await mountLetter({ ...fixtures.intakeDocument, readers: { ...readers, model: { ...readers.model!, result: null }, agree: null, outcome: 'one-reading' } })
+    expect(screen.getByRole('heading', { name: /What FlowLeap read/u }).textContent).toBe('What FlowLeap read · one reading')
+    expect(within(screen.getByRole('table', { name: 'What FlowLeap read' })).queryByText('Not read')).toBeNull()
+    cleanup()
+    mounted?.dispose()
+    await mountLetter({ ...fixtures.intakeDocument, readers: { ...readers, model: null, agree: null, outcome: 'no-reading' } })
+    expect(screen.getByRole('heading', { name: /What FlowLeap read/u }).textContent).toBe('What FlowLeap read · nothing read')
+  })
+
   it('shows a value that reader 1 quoted as read, never "Not read" above its quote', async () => {
     const readers = fixtures.intakeDocument.readers
     const code = { ...readers.code!, result: { code: null, documentDate: null, applicationNumber: null } }
@@ -152,7 +163,7 @@ describe('the keys of the panel', () => {
 describe('the deadline page with one reading', () => {
   it('says that the calculation uses one reading, and that the date waits for the person who may confirm it', async () => {
     const { api } = createFixtureApi()
-    const readers = { ...fixtures.deadline.readers, model: null, agree: null, differences: null }
+    const readers = { ...fixtures.deadline.readers, model: null, agree: null, differences: null, outcome: 'one-reading' as const }
     const deadline: DeadlineDetail = { ...fixtures.deadline, readers, mayConfirm: { allowed: true } }
     vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: deadline })
     mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
@@ -160,6 +171,12 @@ describe('the deadline page with one reading', () => {
     expect(heading.textContent).toBe('What FlowLeap read· one reading · the calculation uses these values')
     expect(screen.getByText('Deadline')).toBeTruthy()
     expect(screen.getByText('Waits for you')).toBeTruthy()
+    cleanup()
+    mounted?.dispose()
+    const none = { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const }
+    vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: { ...deadline, readers: none } })
+    mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    expect(screen.getByRole('heading', { name: /What FlowLeap read/u }).textContent).toBe('What FlowLeap read· nothing read · a person entered the values')
   })
 })
 
