@@ -35,7 +35,7 @@ import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, responsibleRow } from './detail.tsx'
+import { aiAllowed, Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, responsibleRow, Who } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
@@ -496,8 +496,9 @@ function openWord(ctx: ScreenContext, draft: WorkDraft): void {
 }
 
 /**
- * The facts of a draft's file row, as the mockup words them: who the letter goes to, its language and its pages. The
- * file name shows on hover; the template's name is the firm's file and never shows.
+ * The facts of a draft's file row: who the reply goes to, or the client report's own name, and its language. The file
+ * name shows on hover; the template's name is the firm's file and never shows. The firm cannot count the pages of a
+ * .docx reliably, so no page count shows (a difference from the mockup).
  * @param ctx - the screen context.
  * @param data - the work.
  * @param report - the draft.
@@ -509,12 +510,8 @@ function fileFacts(ctx: ScreenContext, data: TicketDetail, report: WorkDraft): s
   const office = officeOfCode(data.letter?.code ?? null)
   const to = report.kind === 'office-reply'
     ? office === null ? t('work.file.toOfficePlain') : t('work.file.toOffice', { to: toOffice(t, office) })
-    : t('work.file.toClient')
-  return [
-    to,
-    ...(language === null ? [] : [language]),
-    ...(report.pages === null ? [] : [t(report.pages === 1 ? 'work.pages.one' : 'work.pages', { count: report.pages })]),
-  ]
+    : draftWords(t, data.letter?.code ?? null, 'client-report').heading
+  return [to, ...(language === null ? [] : [language])]
 }
 
 /**
@@ -623,12 +620,18 @@ function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
   const application = data.letter?.applicationNumber ?? null
   const pages = data.letter?.pages ?? null
   const finished = data.run?.finishedAt ?? null
+  const { formalitiesPerson } = data.matter
+  const letterWords = pages === null
+    ? null
+    : [t(pages === 1 ? 'work.pages.one' : 'work.pages', { count: pages }), ...(data.letter?.source === 'ocr' ? [t('work.prop.scan')] : [])].join(', ')
   return (
     <PropertiesPanel label={t('prop.label')} groups={[
       {
         heading: t('prop.matter'),
         rows: [
           { label: t('dossier.prop.fileNumber'), value: data.matter.fileNumber },
+          { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
+          { label: t('dossier.prop.ai'), value: aiAllowed(t, data.clientRules) },
           ...(application === null ? [] : [{ label: t('prop.application'), value: formatApplicationNumber(application) }]),
         ],
       },
@@ -636,6 +639,7 @@ function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
         heading: t('dossier.prop.people'),
         rows: [
           responsibleRow(t, data.responsible),
+          { label: t('dossier.prop.formalities'), value: formalitiesPerson === null ? t('matter.none') : <Who t={t} person={formalitiesPerson} /> },
           { label: t('prop.team'), value: <AvatarStack people={data.team.map(person => avatarOf(t, person))} /> },
         ],
       },
@@ -652,7 +656,7 @@ function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
             ),
           },
           ...(finished === null ? [] : [{ label: t('work.prop.finished'), value: listTimeText(ctx, finished) }]),
-          ...(pages === null ? [] : [{ label: t('work.prop.letter'), value: t(pages === 1 ? 'work.pages.one' : 'work.pages', { count: pages }) }]),
+          ...(letterWords === null ? [] : [{ label: t('work.prop.letter'), value: letterWords }]),
           ...(data.reply === null ? [] : [{
             label: t('work.prop.mail'),
             value: `${recipients(ctx, data.reply.to)} · ${atlasWord(t, { machine: 'outbox', state: data.reply.state })}`,

@@ -281,6 +281,11 @@ export const AI_USE = ['not-recorded', 'allowed', 'local-model-only', 'not-allow
 const reportEvents: Parse<'all-office-actions' | readonly string[]> = (value, path) =>
   value === 'all-office-actions' ? value : arrayOf(str)(value, path)
 
+/** The client's AI wishes: what AI may do, whether it may draft a letter to the client, and its report language. */
+const clientRules = obj({
+  aiUse: oneOf(AI_USE), aiLetters: oneOf(['allowed', 'not-allowed']), reportEvents, language: nullable(str), text: str,
+  recordSeq: num,
+})
 const matterDetail = obj({
   recordSeq: num,
   matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, state: oneOf(['open', 'closed']), applicationNumber: nullable(str) }),
@@ -292,11 +297,8 @@ const matterDetail = obj({
     id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: ids.officeEvent,
     confirmedBy: nullable(person), rejectedBy: nullable(person),
   })),
-  clientRules: nullable(obj({
-    aiUse: oneOf(AI_USE), aiLetters: oneOf(['allowed', 'not-allowed']), reportEvents, language: nullable(str), text: str,
-    recordSeq: num,
-  })),
-  language: nullable(oneOf(['en', 'de'])),
+  clientRules: nullable(clientRules),
+  language: nullable(str),
   wall: obj({ team: arrayOf(obj({ id: ids.person, name: str, role: oneOf(['responsible', 'formalities', 'team']) })), screened: num }),
   work: arrayOf(obj({
     id: ids.ticket, state: ticketState, code: nullable(str), routedTo: nullable(person), updatedAt: isoTime,
@@ -306,7 +308,10 @@ const matterDetail = obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), state: deadlineState,
     document: nullable(ids.document), receivedAt: nullable(isoDate),
   })),
-  documents: arrayOf(obj({ sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime })),
+  documents: arrayOf(obj({
+    sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime,
+    state: oneOf(['filed', 'proposed']), code: nullable(str), letterDate: nullable(isoDate), filedBy: nullable(person),
+  })),
   activity,
 })
 /**
@@ -331,13 +336,15 @@ const readerSource: Parse<ReaderSource> = (value, path) => {
   const kind = oneOf(['text-layer', 'ocr'])(objectAt(value, path)['kind'], `${path}.kind`)
   return kind === 'text-layer' ? { kind } : { kind, ...obj({ provider: str, model: str })(value, path) }
 }
+/** Why reader 2 read a letter: before the filing, for the matter that its application number names, or after it. */
+export const READER2_RULES = ['before-file-application-number', 'after-file'] as const
 /** How the readings of a letter came out: both agree, they differ, one reading only, or none. */
 export const READING_OUTCOMES = ['agree', 'differ', 'one-reading', 'no-reading'] as const
 /** The ways in which the two readings of a letter differ. */
 export const READING_DIFFERENCES = ['code', 'documentDate', 'applicationNumber', 'no-code-result', 'no-model-result'] as const
 const readers = obj({
   code: nullable(obj({ result: nullable(reading), fields: partialRecord(READER_FIELDS, fieldValue), source: readerSource })),
-  model: nullable(obj({ result: nullable(reading), model: str })),
+  model: nullable(obj({ result: nullable(reading), model: str, rule: oneOf(READER2_RULES) })),
   agree: nullable(bool),
   differences: nullable(arrayOf(oneOf(READING_DIFFERENCES))),
   outcome: oneOf(READING_OUTCOMES),
@@ -366,6 +373,7 @@ const deadlineDetail = obj({
   marks: arrayOf(mark),
   proposer: nullable(person), confirmer: nullable(person), rejecter: nullable(person), reason: nullable(str),
   mayConfirm: mayDecide,
+  confirmTask: nullable(obj({ owner: person, queued: bool, noticeAt: nullable(isoTime) })),
   activity,
 })
 /** One deadline with its calculation, the two readings, the page images and marks of the letter, the people and Activity. */
@@ -455,6 +463,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
     pageImages: arrayOf(pageImage),
     marks: arrayOf(mark),
     nextConfirmer: nullable(obj({ person, queued: bool })),
+    deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
   })(value, path)
   const hand = source['entry'] === undefined ? null : nullable(entry)(source['entry'], `${path}.entry`)
   return { ...rest, status: queueStatus(source, path), entry: hand }
@@ -501,6 +510,16 @@ export interface IntakeDocument {
    * matter is named.
    */
   readonly nextConfirmer: { readonly person: Person; readonly queued: boolean } | null
+  /**
+   * The deadline that the letter's office event made, with the owner of its open Confirm the deadline task
+   * (`confirmer`); null before the engine proposed one.
+   */
+  readonly deadline: {
+    readonly id: DeadlineId
+    readonly due: IsoDate
+    readonly state: DeadlineState
+    readonly confirmer: Person | null
+  } | null
   /** The hand entry of a scan with no reading (`unreadable`); null for any other letter, or from an os without it. */
   readonly entry: HandEntry | null
 }
@@ -525,7 +544,7 @@ const statement = obj({ text: str, evidence: arrayOf(obj({ document: ids.documen
 export type Statement = Parsed<typeof statement>
 const report = obj({
   proposalId: ids.proposal, kind: oneOf(['client-report', 'office-reply']), document: ids.document, fileName: str, state: reportState,
-  templateName: nullable(str), language: nullable(str), pages: nullable(num), statements: arrayOf(statement),
+  templateName: nullable(str), language: nullable(str), statements: arrayOf(statement),
 })
 /** One proposed draft of the work: the client report or the reply to the office, with its statements. */
 export type WorkDraft = Parsed<typeof report>
@@ -535,12 +554,13 @@ const ticketDetail = obj({
     id: ids.ticket, pass: num, state: ticketState, since: isoTime, routedTo: nullable(person), decidedBy: nullable(person),
     decidedAt: nullable(isoTime),
   }),
-  matter: matterRef,
+  matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, formalitiesPerson: nullable(person) }),
   responsible: nullable(person),
   team: arrayOf(member),
+  clientRules: nullable(clientRules),
   letter: nullable(obj({
     document: ids.document, fileName: str, pages: nullable(num), code: nullable(str), documentDate: nullable(isoDate),
-    applicationNumber: nullable(str),
+    applicationNumber: nullable(str), source: nullable(oneOf(['text-layer', 'ocr'])),
   })),
   reports: arrayOf(report),
   draftReply: nullable(report),

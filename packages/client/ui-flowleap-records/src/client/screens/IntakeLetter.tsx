@@ -7,7 +7,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  Avatar, Button, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular,
+  Avatar, Button, IconAlarmClockOutlineRegular, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular,
   IconEditOutlineRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -239,6 +239,22 @@ export function letterPageTitle(ctx: Pick<ScreenContext, 't' | 'locale'>, letter
  */
 function isoDateOf(value: string | undefined): IsoDate | null {
   return value !== undefined && /^\d{4}-\d{2}-\d{2}$/u.test(value) ? value as IsoDate : null
+}
+
+/**
+ * What comes after a recorded office event: who confirms its deadline (the owner of the open Confirm the deadline
+ * task), or that the deadline is confirmed or rejected.
+ * @param ctx - the screen context.
+ * @param deadline - the deadline of the letter's office event, or null before the engine proposed one.
+ * @returns the sentence.
+ */
+function doneDetail({ t }: ScreenContext, deadline: IntakeDocument['deadline']): string {
+  if (deadline === null) return t('letter.done.confirm')
+  switch (deadline.state) {
+    case 'active': return t('letter.done.active')
+    case 'rejected': return t('letter.done.rejected')
+    default: return deadline.confirmer === null ? t('letter.done.confirm') : t('letter.done.confirmBy', { person: personInText(t, deadline.confirmer) })
+  }
 }
 
 /**
@@ -670,7 +686,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         <DecisionPart
           icon={<IconCheckOutlineRegular size={16} />}
           title={letter.filed === null ? t('letter.done.recorded') : t('letter.done.filedRecorded', { matter: letter.filed.fileNumber })}
-          detail={t('letter.done.confirm')}
+          detail={doneDetail(ctx, letter.deadline)}
         />
       )
       case 'none': return undefined
@@ -678,7 +694,16 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   })()
   const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
   const finished = decision.kind === 'filed' || decision.kind === 'done'
-  const doneActs = matterOf === null ? [] : [actOf(ctx, 'goMatter', t('deadline.goMatter', { matter: matterOf }), () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) }, { icon: <IconFolderOpenOutlineRegular size={16} /> })]
+  const deadline = letter.deadline
+  const doneActs = [
+    ...(deadline === null
+      ? []
+      : [{
+        id: 'open-deadline', label: t('letter.done.openDeadline'), keycaps: [], icon: <IconAlarmClockOutlineRegular size={16} />,
+        run: () => { ctx.navigate({ view: 'deadline', id: deadline.id }) },
+      }]),
+    ...(matterOf === null ? [] : [actOf(ctx, 'goMatter', t('deadline.goMatter', { matter: matterOf }), () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) }, { icon: <IconFolderOpenOutlineRegular size={16} /> })]),
+  ]
   const bar = ctx.me === null
     ? null
     : finished

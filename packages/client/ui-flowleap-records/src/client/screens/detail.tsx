@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DocumentId, IsoDate, Person } from '../api.ts'
+import type { DocumentId, IsoDate, MatterDetail, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, letterTitle, personName, type Translate } from '../words.ts'
@@ -113,6 +113,24 @@ export interface Fact {
  */
 export function Who({ t, person }: { t: Translate; person: Person }) {
   return <span className={css.who}><Avatar person={avatarOf(t, person)} nameShown />{personName(t, person)}</span>
+}
+
+/**
+ * What the client allows the AI to do, in the mockup's words ("Drafts, client report"): the drafts of the work, with the
+ * local model only where the client asks for it, and the client report where the client allows an AI letter.
+ * @param t - the translate function.
+ * @param rules - the client's rules, or null where none are recorded.
+ * @returns the words.
+ */
+export function aiAllowed(t: Translate, rules: MatterDetail['clientRules']): string {
+  if (rules === null) return t('matter.notRecorded')
+  const report = rules.aiLetters === 'allowed'
+  switch (rules.aiUse) {
+    case 'not-recorded': return t('matter.notRecorded')
+    case 'not-allowed': return t('dossier.ai.nothing')
+    case 'allowed': return t(report ? 'dossier.ai.draftsReport' : 'dossier.ai.drafts')
+    case 'local-model-only': return t(report ? 'dossier.ai.localReport' : 'dossier.ai.local')
+  }
 }
 
 /**

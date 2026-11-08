@@ -187,11 +187,12 @@ export const intakeDocumentWire = {
   officeEvent: null,
   matters: (Object.keys(MATTERS) as MatterKey[]).map(ref),
   mayDecide: { allowed: true },
-  readers: { code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } }, model: { result: reading, model: 'Claude Haiku 5.5' }, agree: true, differences: [], outcome: 'agree' },
+  readers: { code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } }, model: { result: reading, model: 'Claude Haiku 5.5', rule: 'after-file' }, agree: true, differences: [], outcome: 'agree' },
   // A letter stored before the intake sent page images, so the page shows the drawing.
   pageImages: [],
   marks: marksWire,
   nextConfirmer: { person: PEOPLE.lena, queued: false },
+  deadline: null,
   activity: [
     { seq: 101, at: '2026-11-04T14:16:00Z', type: 'document/stored', actor: { kind: 'system', name: 'mailbox' }, for: PEOPLE.jonas, detail: {} },
     { seq: 102, at: '2026-11-04T14:16:10Z', type: 'document/read', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { code: 'EPO:R71(3)' } },
@@ -295,7 +296,10 @@ export const matterWire = {
   wall: { team: [{ ...PEOPLE.anna, role: 'responsible' }, { ...PEOPLE.lena, role: 'formalities' }, { ...PEOPLE.jonas, role: 'team' }], screened: 2 },
   work: [{ id: TICKET_ID, state: 'proposals_ready', code: 'EPO:R71(3)', routedTo: PEOPLE.anna, updatedAt: '2026-11-04T14:17:00Z', report: { state: 'proposed' }, reply: { state: 'sent' } }],
   officeEvents: [{ id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', state: 'deadline_proposed', document: R71_DOCUMENT, receivedAt: null }],
-  documents: [{ sha256: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' }],
+  documents: [{
+    sha256: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z',
+    state: 'filed', code: 'EPO:R71(3)', letterDate: '2026-10-30', filedBy: PEOPLE.jonas,
+  }],
   activity: [
     { seq: 120, at: '2026-11-04T14:16:00Z', type: 'document/filed', actor: { kind: 'person', person: PEOPLE.jonas }, for: null, detail: {} },
     { seq: 121, at: '2026-11-04T14:17:00Z', type: 'deadline/proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { due: '2027-03-01' } },
@@ -332,7 +336,7 @@ export const deadlineWire = {
   officeEvent: { id: OFFICE_EVENT_ID, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7', document: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', state: 'deadline_proposed' },
   readers: {
     code: { result: reading, fields: letterFields, source: { kind: 'text-layer' } },
-    model: { result: reading, model: 'Claude Haiku 5.5' },
+    model: { result: reading, model: 'Claude Haiku 5.5', rule: 'after-file' },
     agree: true,
     differences: [],
     outcome: 'agree',
@@ -341,6 +345,7 @@ export const deadlineWire = {
   marks: [],
   proposer: null, confirmer: null, rejecter: null, reason: null,
   mayConfirm: { allowed: true },
+  confirmTask: null,
   activity: [
     { seq: 130, at: '2026-11-04T14:17:00Z', type: 'office-event/code-proposed', actor: { kind: 'system', name: 'mailbox' }, for: null, detail: {} },
     { seq: 131, at: '2026-11-04T14:17:05Z', type: 'deadline/proposed', actor: { kind: 'system', name: 'flowleap' }, for: null, detail: { due: '2027-03-01' } },
@@ -368,7 +373,7 @@ export const ticketsWire = {
 const clientReportWire = {
   kind: 'client-report',
   proposalId: 'proposal-1', document: sha(100), fileName: 'report-FL-2026-0001-r71-3.docx', state: 'proposed',
-  templateName: 'Firm template', language: 'en', pages: 1,
+  templateName: 'Firm template', language: 'en',
   statements: [
     { text: 'The EPO issued a communication under Rule 71(3) EPC on EP 24 123 456.7, dated 30 October 2026.', evidence: [
       { document: R71_DOCUMENT, span: span('Communication under Rule 71(3) EPC', 120, 'Application No. 24 123 456.7 - 1203. ', '. You are informed that') },
@@ -392,10 +397,11 @@ const clientReportWire = {
 export const ticketWire = {
   recordSeq: 142,
   ticket: { id: TICKET_ID, pass: 1, state: 'proposals_ready', since: '2026-11-04T14:17:00Z', routedTo: PEOPLE.anna, decidedBy: null, decidedAt: null },
-  matter: ref('FL-2026-0001'),
+  matter: { ...ref('FL-2026-0001'), client: MATTERS['FL-2026-0001'].client, formalitiesPerson: PEOPLE.jonas },
   responsible: PEOPLE.anna,
   team: [PEOPLE.anna, PEOPLE.jonas, PEOPLE.lena],
-  letter: { document: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', pages: 1, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7' },
+  clientRules: { aiUse: 'allowed', aiLetters: 'allowed', reportEvents: 'all-office-actions', language: 'en', text: 'Drafts and the client report may use AI.', recordSeq: 90 },
+  letter: { document: R71_DOCUMENT, fileName: 'r71-3-FL-2026-0001.pdf', pages: 1, code: 'EPO:R71(3)', documentDate: '2026-10-30', applicationNumber: '24 123 456.7', source: 'text-layer' },
   reports: [clientReportWire],
   draftReply: null,
   clientReport: clientReportWire,

@@ -21,7 +21,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, EvidenceSplit, KeyFact, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { citeText, letterTitle, officeName, officeOfCode, personInText, personName } from '../words.ts'
+import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, openDocument, ruleWords } from './detail.tsx'
 import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
@@ -258,15 +258,20 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     ],
   })
 
+  // Who confirms: the owner of the open Confirm the deadline task, whom the bar's heading and the eyebrow name (B4).
+  const owner = mayConfirm.allowed || data.confirmTask === null ? null : data.confirmTask.owner
   const decision = !proposed || ctx.me === null
     ? null
     : (
       <DecisionBar
-        heading={decisionHeading(ctx, ctx.me.person, mayConfirm)}
+        heading={decisionHeading(ctx, ctx.me.person, owner === null ? mayConfirm : { allowed: false, decider: owner })}
         question={t('decision.dateRight')}
         why={allowed ? whyYou(ctx, data) : undefined}
         labels={{ more: t('decision.more') }}
-        decider={mayConfirm.allowed ? null : t(deciderOf(mayConfirm.reason, letter), { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
+        decider={mayConfirm.allowed ? null : [
+          ...(data.confirmTask === null ? [] : [confirmTaskWords(ctx, data.confirmTask)]),
+          t(deciderOf(mayConfirm.reason, letter), { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) }),
+        ].join(' ')}
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
@@ -295,7 +300,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     )
 
   const eyebrowText = proposed
-    ? t(allowed ? 'deadline.waitsYou' : 'deadline.waitsSecond')
+    ? allowed
+      ? t('deadline.waitsYou')
+      : owner === null ? t('deadline.waitsSecond') : t('deadline.waitsFor', { person: personInText(t, owner) })
     : data.confirmer !== null
       ? t('deadline.confirmedBy', { person: personInText(t, data.confirmer) })
       : data.rejecter !== null
@@ -424,6 +431,20 @@ function httpsHref(url: string): string | null {
     return null
   }
   return parsed.protocol === 'https:' ? parsed.href : null
+}
+
+/**
+ * The sentence on the open Confirm the deadline task: who confirms, and when FlowLeap sent the notice or that the task
+ * waits in that person's queue.
+ * @param ctx - the screen context.
+ * @param task - the task.
+ * @returns the sentence.
+ */
+function confirmTaskWords(ctx: ScreenContext, task: NonNullable<DeadlineDetail['confirmTask']>): string {
+  const { t } = ctx
+  const person = personInText(t, task.owner)
+  if (task.queued) return t('deadline.task.queued', { person })
+  return task.noticeAt === null ? t('deadline.task.owner', { person }) : t('deadline.task.notice', { person, time: listTimeText(ctx, task.noticeAt) })
 }
 
 /**

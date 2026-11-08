@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DeadlineDetail, DeadlineId, FileNumber, IntakeDocument, OfficeEventId, TicketId } from '../src/client/api.ts'
-import { createFixtureApi, fixtures, FIXTURE_IDS } from './fixtures.client.ts'
+import { parsers, type DeadlineDetail, type DeadlineId, type FileNumber, type IntakeDocument, type OfficeEventId, type PersonId, type TicketId } from '../src/client/api.ts'
+import { createFixtureApi, fixtures, FIXTURE_IDS, intakeDocumentWire, PEOPLE } from './fixtures.client.ts'
 import { flush, mountPanel, press } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
@@ -200,5 +200,60 @@ describe('the firm\'s time zone', () => {
     vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter })
     mounted = await mountPanel(api, { view: 'letter', document: letter.document }, 'en', 'my-work')
     expect(screen.getByText('Waits for you since 09:16')).toBeTruthy()
+  })
+})
+
+describe('the wire of the scan mailbox', () => {
+  it('parses an intake card whose letter came from the scan mailbox, with the scan mailbox as an actor, and opens it', async () => {
+    const stored = { ...intakeDocumentWire.activity[0]!, actor: { kind: 'system', name: 'scan-mailbox' }, words: { en: 'delivered the scan, 4 pages', de: 'hat den Scan geliefert, 4 Seiten' } }
+    const wire = { ...intakeDocumentWire, mail: { ...intakeDocumentWire.mail, route: 'scan-mailbox', forwarder: null }, activity: [stored, ...intakeDocumentWire.activity.slice(1)] }
+    await mountLetter(parsers.intakeDocument(wire, 'card'))
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Rule 71(3) communication')
+    expect(document.body.textContent).toContain('Scan mailbox delivered the scan, 4 pages')
+  })
+})
+
+describe('the deadline that the letter made', () => {
+  it('names who confirms it in the Done bar and opens it', async () => {
+    const lena = { ...PEOPLE.lena, id: PEOPLE.lena.id as PersonId }
+    const deadline = { id: FIXTURE_IDS.deadline as DeadlineId, due: '2027-03-01' as never, state: 'deadline_proposed' as const, confirmer: lena }
+    await mountLetter({
+      ...fixtures.intakeDocument,
+      status: { machine: 'deadline', state: 'deadline_proposed' },
+      officeEvent: { id: FIXTURE_IDS.officeEvent as OfficeEventId, state: 'deadline_proposed' },
+      proposed: null, filed: { fileNumber: 'FL-2026-0001' as FileNumber, title: 'Pressure sensor housing' },
+      mayDecide: { allowed: false, reason: 'decided', decider: null },
+      deadline,
+    })
+    const done = screen.getByRole('region', { name: 'Done' })
+    expect(done.textContent).toContain('Lena Hoffmann confirms the deadline.')
+    fireEvent.click(within(done).getByRole('button', { name: /Open the deadline/u }))
+    await flush()
+    expect(mounted!.model.screen.getSnapshot()).toMatchObject({ view: 'deadline', id: FIXTURE_IDS.deadline })
+  })
+})
+
+describe('the confirmer of a deadline', () => {
+  it('names the owner of the Confirm the deadline task in the eyebrow and the bar, with the time of the notice', async () => {
+    const { api } = createFixtureApi()
+    const lena = { ...PEOPLE.lena, id: PEOPLE.lena.id as PersonId }
+    vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: {
+      ...fixtures.deadline,
+      mayConfirm: { allowed: false, reason: 'code-decider', decider: null },
+      confirmTask: { owner: lena, queued: false, noticeAt: '2026-11-04T07:05:00Z' as never },
+    } })
+    mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    expect(screen.getByText('Waits for Lena Hoffmann')).toBeTruthy()
+    const bar = screen.getByRole('region', { name: 'Lena Hoffmann decides' })
+    expect(bar.textContent).toContain('Lena Hoffmann confirms this deadline. FlowLeap sent Lena Hoffmann a notice at 08:05.')
+  })
+})
+
+describe('the E-file of the dossier', () => {
+  it('shows each document with its state, the letter it is, its date and who filed it', async () => {
+    const { api } = createFixtureApi()
+    mounted = await mountPanel(api, { view: 'matter', fileNumber: 'FL-2026-0001' as FileNumber })
+    const row = within(screen.getByRole('table', { name: 'E-file' })).getAllByRole('row')[0]!
+    expect(row.textContent).toMatch(/^FiledRule 71\(3\) communicationLetter of 30 Oct 2026 · arrived \d\d:\d\dJJonas Weber$/u)
   })
 })

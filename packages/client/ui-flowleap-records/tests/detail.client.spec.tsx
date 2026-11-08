@@ -238,7 +238,7 @@ describe('the matter page', () => {
       formalitiesPerson: null,
       deadlines: [],
       waits: [{ ...fixtures.matter.waits[0]!, act: 'board', owner: PEOPLE.jonas as never }],
-      documents: [...fixtures.matter.documents, { sha256: 'b'.repeat(64) as DocumentId, fileName: 'other.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' as never }, { ...fixtures.matter.documents[0]!, sha256: 'c'.repeat(64) as DocumentId, source: 'agent' }],
+      documents: [...fixtures.matter.documents, { sha256: 'b'.repeat(64) as DocumentId, fileName: 'other.pdf', mediaType: 'application/pdf', source: 'mail', at: '2026-11-04T14:16:00Z' as never, state: 'proposed', code: null, letterDate: null, filedBy: null }, { ...fixtures.matter.documents[0]!, sha256: 'c'.repeat(64) as DocumentId, source: 'agent', code: null, letterDate: null }],
     }
     const { commandItems } = await mount(MATTER, { matter })
     const properties = screen.getByRole('complementary', { name: 'Properties' })
@@ -479,7 +479,7 @@ describe('the deadline page', () => {
         sources: [],
       },
       officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:UNKNOWN', documentDate: null },
-      readers: { ...fixtures.deadline.readers, model: { model: 'm', result: { code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false, differences: ['documentDate'] as const },
+      readers: { ...fixtures.deadline.readers, model: { model: 'm', rule: 'after-file', result: { code: 'EPO:R71(3)', documentDate: '2026-10-03' as never, applicationNumber: null } }, agree: false, differences: ['documentDate'] as const },
     }
     await mount(DEADLINE, { deadline: differ })
     expect(within(bar()).getByText(/the readings differ, so check the letter/)).toBeTruthy()
@@ -734,7 +734,9 @@ describe('the work on a letter', () => {
     const properties = screen.getByRole('complementary', { name: 'Properties' })
     expect(properties.textContent).toContain('Drafted byPatent agent')
     expect(properties.textContent).toContain('Mail toJonas Weber, Dr. Anna Becker, a person outside the team · Sent')
-    expect(document.body.textContent).toContain('Letter to the client · English · 1 page')
+    expect(document.body.textContent).toContain('Client report · English')
+    expect(properties.textContent).toContain('ClientKessler Sensorik GmbHAI allowed forDrafts, client report')
+    expect(properties.textContent).toContain('FormalitiesJJonas Weber')
     expect(document.body.textContent).not.toContain('Firm template')
     expect(screen.getAllByText('Communication under Rule 71(3) EPC').length).toBeGreaterThan(0)
     expect(screen.getByText('Missing evidence')).toBeTruthy()
@@ -1012,7 +1014,7 @@ describe('the work on a letter', () => {
     expect(screen.queryByRole('region', { name: 'Your decision' })).toBeNull()
     cleanup()
     const report = sourced.reports[0]!
-    await mount(WORK, { ticket: { ...sourced, letter: null, reports: [{ ...report, language: null, templateName: null, pages: null }, { ...report, proposalId: 'proposal-2' as never }] } })
+    await mount(WORK, { ticket: { ...sourced, letter: null, reports: [{ ...report, language: null, templateName: null }, { ...report, proposalId: 'proposal-2' as never }] } })
     expect(document.querySelector('[title="report-FL-2026-0001-r71-3.docx"]')).toBeTruthy()
     expect(within(bar()).getByText('3 parts, all required')).toBeTruthy()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Letter')

@@ -6,9 +6,10 @@
  */
 
 import {
-  Avatar, IconDeliverDocRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, IconRightUpOutlineRegular,
+  Avatar, IconFolderOpenOutlineRegular, IconRightUpOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { routeOfAct } from '../address.ts'
+import type { AtlasRef } from '../atlas.ts'
 import { taskDueDay, workStatus } from '../my-work.ts'
 import type { MatterDetail, MattersList } from '../api.ts'
 import { formatApplicationNumber, formatDate, languageName } from '../format.ts'
@@ -20,7 +21,7 @@ import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, letterTitle, listTimeText, personInText, personName, type Translate } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, DetailRow, DetailTable, OpenCell, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
+import { aiAllowed, Cell, DetailRow, DetailTable, formatDay, OpenCell, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -178,8 +179,8 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const { t } = ctx
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
   const titleOfDocument = (document: (typeof data.documents)[number]) => {
-    const event = data.officeEvents.find(item => item.document === document.sha256)
-    if (event !== undefined) return letterTitle(t, event.code)
+    const code = document.code ?? data.officeEvents.find(item => item.document === document.sha256)?.code ?? null
+    if (code !== null) return letterTitle(t, code)
     return document.source === 'agent' ? t('work.clientReport') : t('code.unknown')
   }
   const application = data.matter.applicationNumber
@@ -301,12 +302,16 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               <DetailTable label={t('dossier.efile')} grid={css.documentsColumns} header={null}>
                 {data.documents.map(document => (
                   <DetailRow key={document.sha256} opens>
-                    <Cell kind="icon">{document.source === 'mail' ? <IconPaperPlaneOutlineRegular size={14} /> : <IconDeliverDocRegular size={14} />}</Cell>
+                    <Cell kind="status"><AtlasStatus status={documentStatus(document)} word={atlasWord(t, documentStatus(document))} /></Cell>
                     <OpenCell onOpen={() => { openDocument(ctx, document.sha256) }}>
-                      {titleOfDocument(document)}
-                      <span className={css.source}>{document.fileName}</span>
+                      <span title={document.fileName}>{titleOfDocument(document)}</span>
                     </OpenCell>
-                    <Cell kind="end">{listTimeText(ctx, document.at)}</Cell>
+                    <Cell kind="meta" wide>
+                      {document.letterDate === null
+                        ? t('dossier.doc.arrived', { time: listTimeText(ctx, document.at) })
+                        : t('dossier.doc.letterArrived', { date: formatDay(document.letterDate, ctx.locale), time: listTimeText(ctx, document.at) })}
+                    </Cell>
+                    <Cell kind="meta" wide>{document.filedBy === null ? '' : <Who t={t} person={document.filedBy} />}</Cell>
                   </DetailRow>
                 ))}
               </DetailTable>
@@ -320,21 +325,13 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
 }
 
 /**
- * What the client allows the AI to do, in the mockup's words ("Drafts, client report"): the drafts of the work, with the
- * local model only where the client asks for it, and the client report where the client allows an AI letter.
- * @param t - the translate function.
- * @param rules - the client's rules, or null where none are recorded.
- * @returns the words.
+ * The status of an E-file row: a filed document, or a letter that the intake proposed for the matter and no person
+ * filed yet.
+ * @param document - the document.
+ * @returns the atlas state.
  */
-function aiAllowed(t: Translate, rules: MatterDetail['clientRules']): string {
-  if (rules === null) return t('matter.notRecorded')
-  const report = rules.aiLetters === 'allowed'
-  switch (rules.aiUse) {
-    case 'not-recorded': return t('matter.notRecorded')
-    case 'not-allowed': return t('dossier.ai.nothing')
-    case 'allowed': return t(report ? 'dossier.ai.draftsReport' : 'dossier.ai.drafts')
-    case 'local-model-only': return t(report ? 'dossier.ai.localReport' : 'dossier.ai.local')
-  }
+function documentStatus(document: MatterDetail['documents'][number]): AtlasRef {
+  return { machine: 'intake', state: document.state === 'filed' ? 'filed' : 'match_proposed' }
 }
 
 /**

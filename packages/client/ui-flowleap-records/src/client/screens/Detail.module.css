@@ -672,8 +672,8 @@
 }
 
 .documentsColumns {
-  --detail-columns: 14px minmax(0, 1fr) 64px;
-  --detail-columns-narrow: 14px minmax(0, 1fr) 56px;
+  --detail-columns: max-content minmax(0, 1fr) max-content max-content;
+  --detail-columns-narrow: max-content minmax(0, 1fr);
 }
 
 .relatedColumns {
