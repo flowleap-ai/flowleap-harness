@@ -31,6 +31,6 @@ The new demo bar: an attorney opens any matter, the agent knows its whole story 
 
 ## Open decisions for the founder
 
-1. The main customer type: the large firm (Eisenführ type, self-hosted) or the small firm (KHP type, hosted), and the order.
+1. The main customer type: the large firm (self-hosted) or the small firm (hosted), and the order.
 2. Hosting for small firms: keep "self-hosted only" for now, or plan a hosted option.
 3. M1 needs a matter's own documents. Which firm gives us a real folder export to test on, with its consent?
