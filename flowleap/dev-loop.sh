@@ -184,25 +184,34 @@ app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$
 # --readers-only. Its OCR and reader containers run in the firm's runtime image IMAGE.
 READERS_MINUTES=240
 start_mailbox() {
-  local args=(--local "$RECORD" --port $((RECORD_PORT + 1)) --image "$IMAGE" --readers "$READERS_MINUTES") t0=$SECONDS
+  local args=(--local "$RECORD" --port $((RECORD_PORT + 1)) --image "$IMAGE" --readers "$READERS_MINUTES") t0=$SECONDS out
   if [[ -f $RUN/seed/letters.done ]]; then
-    args+=(--readers-only --out "$RUN/seed/readers-$(date +%Y%m%dT%H%M%S)")
+    out=$RUN/seed/readers-$(date +%Y%m%dT%H%M%S)
+    args+=(--readers-only)
   else
-    args+=(--ocr-key-file "$OCR_KEY" --out "$RUN/seed/letters")
+    out=$RUN/seed/letters
+    args+=(--ocr-key-file "$OCR_KEY")
     say "seed letters: reader 1 reads each of the 18 scans with Mistral OCR (about USD 0.30); log $LOGS/mailbox.log"
   fi
-  # Each start appends to the log; only the lines of this start count.
-  local from; from=$(($({ wc -l < "$LOGS/mailbox.log"; } 2> /dev/null || echo 0) + 1))
-  this() { tail -n "+$from" "$LOGS/mailbox.log"; }
-  (exec node "$OS/acceptance/seed-letters.mjs" "${args[@]}" >> "$LOGS/mailbox.log" 2>&1 & echo $! > "$RUN/mailbox.pid")
+  # seed-letters.mjs writes <out>/ready.json when the letters are posted, before its reader loop starts.
+  rm -f "$out/ready.json"
+  (exec node "$OS/acceptance/seed-letters.mjs" "${args[@]}" --out "$out" >> "$LOGS/mailbox.log" 2>&1 & echo $! > "$RUN/mailbox.pid")
   for _ in $(seq 1 1200); do
-    this | grep -q 'reads the filed letters' && break
-    alive "$RUN/mailbox.pid" || { this | tail -8 >&2; die "seed-letters.mjs ended: $LOGS/mailbox.log"; }
+    [[ ! -f $out/ready.json ]] || break
+    alive "$RUN/mailbox.pid" || { tail -n 8 "$LOGS/mailbox.log" >&2; die "seed-letters.mjs ended before it was ready: $LOGS/mailbox.log"; }
     sleep 0.5
   done
-  this | grep -q 'reads the filed letters' || die "seed-letters.mjs did not reach its reader loop in 600 s: $LOGS/mailbox.log"
+  [[ -f $out/ready.json ]] || die "seed-letters.mjs wrote no $out/ready.json in 600 s: $LOGS/mailbox.log"
+  local ready
+  # shellcheck disable=SC2016 # a JavaScript template, not a shell expansion
+  ready=$(node -e '
+    const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
+    if (r.posted < r.expected) { console.log(`posted ${r.posted} of ${r.expected} letters`); process.exit(1) }
+    console.log(r.reader2 === "off" ? "no reader loop: reader 2 is off, so a person reads each filed letter"
+      : `reader 2 (${r.reader2.model}) reads each filed letter for ${r.reader2.minutes} minutes`)' "$out/ready.json") ||
+    die "seed-letters.mjs $ready: $LOGS/mailbox.log"
   touch "$RUN/seed/letters.done"
-  say "mailbox: ready after $((SECONDS - t0)) s; $(this | grep -m1 'reads the filed letters' | sed 's/^seed-letters: //')"
+  say "mailbox: ready after $((SECONDS - t0)) s; $ready"
 }
 # Ctrl-C ends the reader loop of seed-letters.mjs, which then stops its model gateway and writes its evidence.
 stop_mailbox() {
