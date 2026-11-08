@@ -1,6 +1,6 @@
 # Add client
 
-**Status:** draft for the founder's approval, 2026-11-08, with the [mockups](mockups/add-client/README.md). Nothing is built. Add client is the step before [the client folder page](https://github.com/flowleap-ai/flowleap-harness/pull/358), and the first moment where the product shows that it already knows the firm. It serves step M1 of [the re-ordered roadmap](2026-11-08-roadmap-reorder.md).
+**Status:** approved by the founder on 2026-11-08, with the [mockups](mockups/add-client/README.md) and the [decisions](#founder-decisions) below. Add client is the step before [the client folder page](https://github.com/flowleap-ai/flowleap-harness/pull/358), and the first moment where the product shows that it already knows the firm. It serves step M1 of [the re-ordered roadmap](2026-11-08-roadmap-reorder.md).
 
 ## The problem
 
@@ -18,7 +18,7 @@ A new firm has an empty app. Demo loops 2 to 4 showed that public data already k
 | 6. Build | Waits, or leaves the page | Writes the records, makes the client folder (client → family → matter, with the firm's template folders), writes the public data as dated files with their source, and makes the folder a workspace |
 | 7. Open | Selects **Open client folder** | Opens the client on the client folder page |
 
-**Watch** records the company and its names on a Watch list and builds no folder; the Watch feature itself (new filings, oppositions, citations) comes later. **Other party** links the company to a matter of the firm with a role in it (opponent, licensee, other) and builds no folder. The role is the firm's decision; FlowLeap never takes it from the register.
+**Watch** records the company and its names and builds no folder; the company shows in a short **Watching** list on the Clients page, below the clients. The Watch feature itself (new filings, oppositions, citations) comes later. **Other party** links the company to a matter of the firm with a role in it (opponent, licensee, other) and builds no folder. The role is the firm's decision; FlowLeap never takes it from the register.
 
 ## States
 
@@ -100,12 +100,15 @@ All new code is FlowLeap plugin code; no harness core package changes.
 - The reference list names the town of the representative, never another firm.
 - The PATSTAT attribution "This product contains data sourced from EPO databases, © European Patent Organisation" shows under every PATSTAT number.
 
-## Open questions for the founder
+## Founder decisions
 
-1. **Matters without a file number.** The record's `matter/opened` needs the firm's file number. Add client records each application (`client/application-recorded`) and leaves the matter to open when a person or the docket import gives the file number. Or should Add client make file numbers by a firm pattern?
-2. **Who records a conflict decision?** Any attorney with a reason, as drawn, or only a partner, or a second person?
-3. **Where is the Watch list** until the Watch feature exists: a **Watch** section in the **Clients** list?
-4. **Firm identity.** A plugin setting now, as proposed, or the firm settings of the Firm Record?
-5. **"This is ours."** Demo loop 3 let a person mark a row of the reference list as the firm's matter, for a transfer that the register does not show yet. Keep it for the build?
-6. **Refresh.** A **Check for new matters** act on the client folder page, which runs a second Add client, or only Add client from the Clients list?
-7. **Grouping and keys.** The matters list groups by **At your firm** and **At other firms** (an exception to product rule 1), and Add client has no key of its own ([mockups](mockups/add-client/README.md#founder-decisions-needed)).
+The founder decided on 2026-11-08:
+
+1. **Matters without a file number.** Add client records each application now (`client/application-recorded`). A matter opens only when a file number exists, from a person or the docket import. FlowLeap does not invent file numbers.
+2. **Who records a conflict decision.** An attorney only, never a paralegal or the agent. By default the responsible attorney or a partner may record it; who may is a typed setting.
+3. **Watched companies** show in a short **Watching** list on the Clients page, below the clients.
+4. **Firm identity** is a plugin setting now. It moves into the Firm Record later.
+5. **"This is ours"** stays: on a row of the reference list, a person claims a matter that the register still shows under another representative. The claim is recorded with the person's name.
+6. **Check for new matters** is an act on the client folder page. It runs Add client again for that client and adds only what is new.
+7. **Grouping and keys.** The matters list groups by **At your firm** and **At other firms** (an approved exception to product rule 1), and Add client has no key of its own.
+8. **Mockups.** Approved as the design for the build.

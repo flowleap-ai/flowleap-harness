@@ -1,6 +1,6 @@
 # Add client mockups
 
-HTML mockups of [Add client](../../2026-11-08-add-client.md): find a company, confirm its group of applicant names, choose the role in a decision, see the firm's matters or a conflict, build the client folder, and end on the client folder page. They follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md). They wait for the founder's approval.
+HTML mockups of [Add client](../../2026-11-08-add-client.md): find a company, confirm its group of applicant names, choose the role in a decision, see the firm's matters or a conflict, build the client folder, and end on the client folder page. They follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md). The founder approved them on 2026-11-08.
 
 ## Pages
 
@@ -16,10 +16,10 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 
 The decision bar holds the one primary action, **Add client** `⇧⌘↵` (the `record` act of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md)), and the role as a segmented control. A part that is not set, such as an unchecked conflict, disables the primary. Page 1 has **Continue** in the top bar and page 4 has **Open client folder**; neither has a key. **Try again** has `R`.
 
-## Founder decisions needed
+## Founder decisions
 
-- **Grouping.** The matters list groups by **At your firm** and **At other firms**, not by state, because these rows have no atlas state yet. This is an exception to product rule 1, as the folder page's **Folders** and **Files** are.
-- **Keys.** The pages show only `⇧⌘↵` and `R` from the key map. Add client from the Clients list has no key in this design; ⌘K finds it.
+- **Grouping.** The matters list groups by **At your firm** and **At other firms**, not by state, because these rows have no atlas state yet. The founder approved this exception to product rule 1, as for the folder page's **Folders** and **Files**.
+- **Keys.** The pages show only `⇧⌘↵` and `R` from the key map. Add client has no key of its own (approved); ⌘K finds it.
 
 ## Data
 
