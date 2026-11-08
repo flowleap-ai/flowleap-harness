@@ -813,7 +813,7 @@ describe('the search by name', () => {
     type('register')
     await wait(SEARCH_WAIT_MS)
     await flush()
-    await click(screen.getByTestId('search-hit'))
+    await click(within(screen.getByTestId('search-hit')).getByRole('gridcell'))
     expect(model.state.open).toBe('EP 23 171 862/Office/EP-Register.md')
     expect(screen.getByRole('heading', { level: 1, name: 'EP-Register.md' })).toBeTruthy()
   })

@@ -118,14 +118,22 @@ export class FolderRoutes {
     }
   }
 
-  /** The client folder of a workspace id. */
+  /**
+   * The client folder of a workspace id.
+   * @param workspace - the workspace id from the request.
+   * @returns the checked client folder.
+   */
   async folderOf(workspace: string): Promise<ClientFolder> {
     const entity = this.ctx.workspaceRegistry.get(workspace as WorkspaceId)
     if (entity === undefined) throw new FolderError('no-workspace', `no workspace ${workspace}`)
     return ClientFolder.at(entity.path)
   }
 
-  /** `GET list?workspace=&path=`. */
+  /**
+   * `GET list?workspace=&path=`.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async list(request: Request): Promise<Response> {
     const query = new URL(request.url).searchParams
     const workspace = field(query.get('workspace'), 'workspace')
@@ -135,7 +143,11 @@ export class FolderRoutes {
     return json(await folder.list(listed, this.config.maxEntries, await this.sources.read(workspace), trashed))
   }
 
-  /** `POST mkdir` with a {@link MkdirRequest}. */
+  /**
+   * `POST mkdir` with a {@link MkdirRequest}.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async mkdir(request: Request): Promise<Response> {
     const body = await bodyOf(request)
     const input: MkdirRequest = { workspace: field(body.workspace, 'workspace'), parent: field(body.parent, 'parent'), name: field(body.name, 'name') }
@@ -144,7 +156,11 @@ export class FolderRoutes {
     return json({ path: made } satisfies FolderWritten)
   }
 
-  /** `POST rename` with a {@link RenameRequest}. */
+  /**
+   * `POST rename` with a {@link RenameRequest}.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async rename(request: Request): Promise<Response> {
     const body = await bodyOf(request)
     const input: RenameRequest = { workspace: field(body.workspace, 'workspace'), path: field(body.path, 'path'), name: field(body.name, 'name') }
@@ -153,7 +169,11 @@ export class FolderRoutes {
     return json({ path: renamed } satisfies FolderWritten)
   }
 
-  /** `POST move` with a {@link MoveRequest}. */
+  /**
+   * `POST move` with a {@link MoveRequest}.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async move(request: Request): Promise<Response> {
     const body = await bodyOf(request)
     const input: MoveRequest = { workspace: field(body.workspace, 'workspace'), path: field(body.path, 'path'), to: field(body.to, 'to') }
@@ -164,7 +184,11 @@ export class FolderRoutes {
     return json({ path: moved } satisfies FolderWritten)
   }
 
-  /** `POST trash` with a {@link TrashRequest}: the entry moves into Trash and its origin is recorded. */
+  /**
+   * `POST trash` with a {@link TrashRequest}: the entry moves into Trash and its origin is recorded.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async moveToTrash(request: Request): Promise<Response> {
     const input = await trashInput(request)
     const trashed = await (await this.folderOf(input.workspace)).trash(input.path)
@@ -173,7 +197,11 @@ export class FolderRoutes {
     return json({ path: trashed } satisfies FolderWritten)
   }
 
-  /** `POST restore` with a {@link TrashRequest}: the entry of Trash goes back to its recorded origin. */
+  /**
+   * `POST restore` with a {@link TrashRequest}: the entry of Trash goes back to its recorded origin.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async restore(request: Request): Promise<Response> {
     const input = await trashInput(request)
     const origin = (await this.trash.read(input.workspace)).get(input.path)
@@ -184,7 +212,11 @@ export class FolderRoutes {
     return json({ path: restored } satisfies FolderWritten)
   }
 
-  /** `GET search?workspace=&q=`: the files and folders whose name holds every word of the query. */
+  /**
+   * `GET search?workspace=&q=`: the files and folders whose name holds every word of the query.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async search(request: Request): Promise<Response> {
     const query = new URL(request.url).searchParams
     const folder = await this.folderOf(field(query.get('workspace'), 'workspace'))
@@ -197,7 +229,11 @@ export class FolderRoutes {
     await this.trash.moved(workspace, from, to)
   }
 
-  /** `POST upload?workspace=&dir=&name=` with the file's bytes as the body. */
+  /**
+   * `POST upload?workspace=&dir=&name=` with the file's bytes as the body.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
   async upload(request: Request): Promise<Response> {
     const query = new URL(request.url).searchParams
     const workspace = field(query.get('workspace'), 'workspace')

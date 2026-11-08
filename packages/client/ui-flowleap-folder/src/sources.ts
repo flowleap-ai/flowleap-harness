@@ -17,14 +17,22 @@ export interface TrashOrigin {
   readonly at: string
 }
 
-/** Whether a stored value is a source. */
+/**
+ * Whether a stored value is a source.
+ * @param value - a value read from a record file.
+ * @returns true for a source with a known kind and a time.
+ */
 export function isSource(value: unknown): value is FolderSource {
   if (typeof value !== 'object' || value === null) return false
   const { kind, at } = value as Record<string, unknown>
   return (kind === 'upload' || kind === 'folder') && typeof at === 'string'
 }
 
-/** Whether a stored value is a Trash origin. */
+/**
+ * Whether a stored value is a Trash origin.
+ * @param value - a value read from a record file.
+ * @returns true for an origin with a path and a time.
+ */
 export function isTrashOrigin(value: unknown): value is TrashOrigin {
   if (typeof value !== 'object' || value === null) return false
   const { from, at } = value as Record<string, unknown>

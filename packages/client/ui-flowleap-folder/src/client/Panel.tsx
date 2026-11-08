@@ -758,19 +758,23 @@ function SearchView({ t, state, client, query, openHit, clear }: PanelProps & {
           : search.status === 'loaded' && search.hits.length === 0
             ? <div className={css.empty}><p>{t('search.none')}</p></div>
             : (
-              <div className={css.table} role="listbox" aria-label={t('search.label')}>
-                {search.hits.map((hit, index) => (
-                  <button key={hit.path} type="button" role="option" aria-selected={index === search.highlight} data-testid="search-hit"
-                    className={clsx(css.row, css.hit, index === search.highlight && css.checked)} onClick={() => { openHit(hit) }}>
-                    <span className={css.icon}>{hit.kind === 'directory' ? <IconFolderCloseRegular size={16} /> : <FileTypeIcon path={hit.path} size={16} />}</span>
-                    <span className={css.hitText}>
-                      <span className={css.nameText}>{baseName(hit.path)}</span>
-                      <span className={css.hitPath}>{parentOf(hit.path) === '' ? client.title : parentOf(hit.path)}</span>
-                    </span>
-                  </button>
-                ))}
+              <>
+                <div className={css.table} role="grid" aria-label={t('search.label')}>
+                  {search.hits.map((hit, index) => (
+                    <div key={hit.path} role="row" aria-selected={index === search.highlight} data-testid="search-hit"
+                      className={clsx(css.row, css.hit, index === search.highlight && css.checked)}>
+                      <button type="button" role="gridcell" className={css.hitButton} onClick={() => { openHit(hit) }}>
+                        <span className={css.icon}>{hit.kind === 'directory' ? <IconFolderCloseRegular size={16} /> : <FileTypeIcon path={hit.path} size={16} />}</span>
+                        <span className={css.hitText}>
+                          <span className={css.nameText}>{baseName(hit.path)}</span>
+                          <span className={css.hitPath}>{parentOf(hit.path) === '' ? client.title : parentOf(hit.path)}</span>
+                        </span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 {search.truncated && <p className={css.more}>{t('search.more', { count: search.hits.length })}</p>}
-              </div>
+              </>
             )}
       </div>
     </div>

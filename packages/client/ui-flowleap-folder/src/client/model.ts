@@ -114,18 +114,31 @@ export function namesIn(state: FolderSnapshot, folder: string): Set<string> {
   return new Set((state.listings[folder]?.entries ?? []).map(entry => entry.name))
 }
 
-/** The join of a folder path and a name. */
+/**
+ * The join of a folder path and a name.
+ * @param folder - the folder relative to the client folder; empty for the client folder.
+ * @param name - the entry's name.
+ * @returns the entry's path.
+ */
 export function childPath(folder: string, name: string): string {
   return folder === '' ? name : `${folder}/${name}`
 }
 
-/** The folder of an entry path. */
+/**
+ * The folder of an entry path.
+ * @param path - the entry relative to the client folder.
+ * @returns its folder; empty for an entry of the client folder itself.
+ */
 export function parentOf(path: string): string {
   const cut = path.lastIndexOf('/')
   return cut === -1 ? '' : path.slice(0, cut)
 }
 
-/** The last part of an entry path. */
+/**
+ * The last part of an entry path.
+ * @param path - the entry relative to the client folder.
+ * @returns its name.
+ */
 export function baseName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }
@@ -172,6 +185,7 @@ const EMPTY: FolderSnapshot = {
 
 /** The client folder page's state and acts. */
 export class FolderModel {
+  /** The page's state; the page reads it through its snapshot hooks. */
   readonly store: SnapshotStore<FolderSnapshot> = createSnapshotStore<FolderSnapshot>(EMPTY, { flush: 'sync' })
   private api: FolderApi | null = null
   private generation = 0
