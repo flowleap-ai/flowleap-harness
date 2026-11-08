@@ -1,9 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as fs from 'node:fs/promises'
 import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { checkName, ClientFolder, FolderError, freeName, partsOf, UPLOAD_PREFIX } from '../src/folder.ts'
 import type { FolderEntry } from '../src/route.ts'
+
+vi.mock('node:fs/promises', { spy: true })
+
+/** A disk fault with a Node error code. */
+function diskFault(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code })
+}
 
 let base: string
 let root: string
@@ -115,6 +123,7 @@ describe('ClientFolder', () => {
     expect(await folder.rename('EP 23 171 862/Office/Claims as published.md', 'claims as published.md')).toBe('EP 23 171 862/Office/claims as published.md')
     expect(await refusal(folder.rename('EP 23 171 862/Office/claims as published.md', 'EP-Register.md'))).toBe('exists')
     expect(await readFile(path.join(office, 'EP-Register.md'), 'utf8')).toBe('# Register\n')
+    expect(await folder.rename('EP 23 171 862/Office/claims as published.md', 'claims as published.md')).toBe('EP 23 171 862/Office/claims as published.md')
     expect(await refusal(folder.rename('', 'Renamed'))).toBe('bad-request')
     expect(await refusal(folder.rename('EP 23 171 862/Missing.md', 'x.md'))).toBe('not-found')
   })
@@ -189,24 +198,16 @@ describe('ClientFolder', () => {
     expect((await readdir(path.join(root, 'EP 23 171 862', 'Office'))).sort()).toEqual(['EP-Register.md', 'loop'])
   })
 
-  it('passes on the fault of an upload whose name the disk cannot hold, and leaves no hidden file', async () => {
-    const real = await realpath(root)
-    const limit = process.platform === 'darwin' ? 1024 : 4096
-    const parts: string[] = []
-    let length = real.length
-    while (length < limit - 100) {
-      const part = 'd'.repeat(Math.min(200, limit - 100 - length - 1))
-      parts.push(part)
-      length += part.length + 1
-    }
-    await mkdir(path.join(real, ...parts), { recursive: true })
+  it('passes on a disk fault of an upload or a new folder, and leaves no hidden file', async () => {
     const folder = await ClientFolder.at(root)
-    const name = `${'x'.repeat(200)}.pdf`
-    const fault = await folder.upload(parts.join('/'), name, chunks('%PDF'), { maxBytes: 100 }).then(() => undefined, (error: unknown) => error)
-    expect((fault as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
-    expect(await readdir(path.join(real, ...parts))).toEqual([])
-    const made = await folder.mkdir(parts.join('/'), name).then(() => undefined, (error: unknown) => error)
-    expect((made as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
+    const search = 'EP 23 171 862/Search'
+    vi.mocked(fs.link).mockRejectedValueOnce(diskFault('ENOSPC'))
+    const fault = await folder.upload(search, 'D1.pdf', chunks('%PDF'), { maxBytes: 100 }).then(() => undefined, (error: unknown) => error)
+    expect(fault).toMatchObject({ code: 'ENOSPC' })
+    expect(await readdir(path.join(root, 'EP 23 171 862', 'Search'))).toEqual([])
+    vi.mocked(fs.mkdir).mockRejectedValueOnce(diskFault('ENOSPC'))
+    expect(await folder.mkdir(search, 'Annex').then(() => undefined, (error: unknown) => error)).toMatchObject({ code: 'ENOSPC' })
+    expect(await readdir(path.join(root, 'EP 23 171 862', 'Search'))).toEqual([])
   })
 
   it.skipIf(process.getuid?.() === 0 || process.platform === 'win32')('leaves out an entry it cannot read the facts of', async () => {
@@ -243,8 +244,9 @@ describe('freeName', () => {
   })
 
   it('passes on a disk fault that is not a free name', async () => {
-    const fault = await freeName(path.join(root, 'EP 23 171 862', 'Office', 'EP-Register.md'), 'x.pdf').then(() => undefined, (error: unknown) => error)
-    expect((fault as NodeJS.ErrnoException).code).toBe('ENOTDIR')
+    vi.mocked(fs.lstat).mockRejectedValueOnce(diskFault('EACCES'))
+    const fault = await freeName(path.join(root, 'EP 23 171 862', 'Office'), 'x.pdf').then(() => undefined, (error: unknown) => error)
+    expect(fault).toMatchObject({ code: 'EACCES' })
   })
 })
 
@@ -335,8 +337,9 @@ describe('Move to Trash and Restore', () => {
     await mkdir(path.join(root, 'Trash'))
     await writeFile(path.join(root, 'Trash', 'D1.pdf'), 'x')
     const folder = await ClientFolder.at(root)
-    const fault = await folder.restore('Trash/D1.pdf', `${'f'.repeat(300)}/D1.pdf`).then(() => undefined, (error: unknown) => error)
-    expect((fault as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
+    vi.mocked(fs.mkdir).mockRejectedValueOnce(diskFault('ENOSPC'))
+    const fault = await folder.restore('Trash/D1.pdf', 'Annex/D1.pdf').then(() => undefined, (error: unknown) => error)
+    expect(fault).toMatchObject({ code: 'ENOSPC' })
     expect(await readdir(path.join(root, 'Trash'))).toEqual(['D1.pdf'])
   })
 })
