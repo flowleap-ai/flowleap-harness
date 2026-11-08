@@ -1,0 +1,95 @@
+/**
+ * The firm identity and the name matching of Add client. The firm's matters are the EP applications whose
+ * representative of record matches the firm identity; the match runs on the Host, so the identity never leaves the
+ * firm. Company keys compare applicant names across sources (the EP Register writes `Syntegon Technology GmbH`,
+ * PATSTAT writes `SYNTEGON TECHNOLOGY`).
+ * @module
+ */
+
+import { normalizeName, type RegisterParty } from '@deepseek-ai/dsh-flowleap-connectors'
+
+/** The firm's names, its current and earlier addresses, and the names of its representatives. */
+export interface FirmIdentity {
+  /** The firm's names, such as its current and earlier names. */
+  names: string[]
+  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
+  addresses: string[]
+  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
+  representatives: string[]
+}
+
+/** Legal-form words that a source adds or leaves out; a company key drops them. */
+const LEGAL_FORMS = new Set([
+  'ab', 'ag', 'aps', 'as', 'bv', 'co', 'corp', 'corporation', 'gmbh', 'inc', 'incorporated', 'kg', 'kgaa', 'kk',
+  'limited', 'llc', 'ltd', 'mbh', 'nv', 'oy', 'plc', 'sa', 'sas', 'se', 'spa', 'srl', 'ug',
+])
+
+/**
+ * The words of a name, as the normalized name writes them.
+ * @param name - a name or an address line.
+ * @returns the words.
+ */
+export function wordsOf(name: string): string[] {
+  const normalized = normalizeName(name)
+  return normalized === '' ? [] : normalized.split(' ')
+}
+
+/**
+ * The company key of a name: its words without legal forms and single letters, so `Syntegon Packaging Systems AG`
+ * and `SYNTEGON PACKAGING SYSTEMS` have one key.
+ * @param name - an applicant or party name.
+ * @returns the key; empty when no word is left.
+ */
+export function companyKey(name: string): string {
+  return wordsOf(name).filter(word => word.length > 1 && !LEGAL_FORMS.has(word)).join(' ')
+}
+
+/** Whether every word of `part` is in `whole`. */
+function within(part: readonly string[], whole: ReadonlySet<string>): boolean {
+  return part.length > 0 && part.every(word => whole.has(word))
+}
+
+/** Whether two word lists hold the same words in any order. */
+function sameWords(left: readonly string[], right: readonly string[]): boolean {
+  return left.length > 0 && left.length === right.length && within(left, new Set(right))
+}
+
+/**
+ * Whether the firm identity names anything to match.
+ * @param identity - the firm identity.
+ * @returns false when it has no name, address or representative.
+ */
+export function identitySet(identity: FirmIdentity): boolean {
+  return [...identity.names, ...identity.addresses, ...identity.representatives].some(entry => wordsOf(entry).length > 0)
+}
+
+/**
+ * Whether a representative of record is the firm: its name holds every word of a firm name, its name is a
+ * representative's name in any order (`Becker, Anna` is `Anna Becker`), or its address holds every word of a firm
+ * address.
+ * @param party - the representative as the EP Register names it.
+ * @param identity - the firm identity.
+ * @returns true for a match.
+ */
+export function isFirm(party: RegisterParty, identity: FirmIdentity): boolean {
+  const name = wordsOf(party.name)
+  const nameWords = new Set(name)
+  const addressWords = new Set(party.address.flatMap(wordsOf))
+  return identity.names.some(firm => within(wordsOf(firm), nameWords))
+    || identity.representatives.some(person => sameWords(wordsOf(person), name))
+    || identity.addresses.some(address => within(wordsOf(address), addressWords))
+}
+
+/**
+ * The town of a representative, from the address line with a postal code, else the last address line. The reference
+ * list names the town, never the firm.
+ * @param party - the representative.
+ * @returns the town, or undefined for no address.
+ */
+export function townOf(party: RegisterParty): string | undefined {
+  for (const line of party.address) {
+    const match = /^(?:[A-Z]{1,2}-)?\d{4,5}\s+(.+)$/u.exec(line.trim())
+    if (match?.[1] !== undefined) return match[1].trim()
+  }
+  return party.address.at(-1)?.trim() || undefined
+}

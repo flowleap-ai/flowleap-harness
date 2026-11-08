@@ -31,15 +31,33 @@ export function isTrashPath(relative: string): boolean {
 }
 
 /** How a file or a folder came into the client folder, when this plugin wrote it. */
-export type FolderSourceKind = 'upload' | 'folder'
+export type FolderSourceKind = 'upload' | 'folder' | 'add-client'
+
+/** Where Add client took an entry from: the folder template, the EP Register, or the EPO publication server. */
+export type AddClientOrigin = 'template' | 'ep-register' | 'epo-publication'
+
+/** The role of a folder that Add client built. */
+export type FolderRole = 'family' | 'matter'
 
 /** The recorded source of one entry: the act that wrote it and when. */
-export interface FolderSource {
-  /** `upload` for an uploaded file, `folder` for a folder made with New folder. */
-  readonly kind: FolderSourceKind
-  /** ISO-8601 instant of the act. */
-  readonly at: string
-}
+export type FolderSource =
+  | {
+    /** `upload` for an uploaded file, `folder` for a folder made with New folder. */
+    readonly kind: 'upload' | 'folder'
+    /** ISO-8601 instant of the act. */
+    readonly at: string
+  }
+  | {
+    /** An entry that Add client wrote. */
+    readonly kind: 'add-client'
+    /** ISO-8601 instant of the read or the write. */
+    readonly at: string
+    readonly from: AddClientOrigin
+    /** For a family or matter folder: its role. */
+    readonly role?: FolderRole
+    /** For a matter folder: its EP application number; for a family folder: the family id or its first application. */
+    readonly key?: string
+  }
 
 /** One direct child of a listed folder. */
 export interface FolderEntry {

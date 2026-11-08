@@ -5127,6 +5127,9 @@ importers:
       '@deepseek-ai/dsh-file-reference':
         specifier: workspace:*
         version: link:../../context/file-reference
+      '@deepseek-ai/dsh-flowleap-connectors':
+        specifier: workspace:*
+        version: link:../../host/flowleap-connectors
       '@deepseek-ai/dsh-office-to-pdf':
         specifier: workspace:*
         version: link:../../document/office-to-pdf

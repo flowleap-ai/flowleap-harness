@@ -177,8 +177,11 @@ export interface StatusAnswer {
   readonly builds: readonly BuildStatus[]
 }
 
-/** Why an Add client act failed; each code is one localized sentence in the client. */
-export type AddClientFailureCode = 'bad-request' | 'not-found' | 'invalid-name' | 'unreachable' | 'stopped' | 'internal'
+/**
+ * Why an Add client act failed; each code is one localized sentence in the client. `no-key`: the runtime has no EPO
+ * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused.
+ */
+export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'internal'
 
 /** The JSON body of a failed Add client act. */
 export interface AddClientFailure {
@@ -188,8 +191,8 @@ export interface AddClientFailure {
 /** HTTP status of each failure code. */
 export const ADD_CLIENT_STATUS: Readonly<Record<AddClientFailureCode, number>> = {
   'bad-request': 400,
-  'not-found': 404,
   'invalid-name': 422,
+  'no-key': 424,
   'unreachable': 502,
   'stopped': 503,
   'internal': 500,

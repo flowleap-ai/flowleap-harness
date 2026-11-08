@@ -3,20 +3,29 @@
  * client folder with each entry's modified time and recorded source, make a folder, rename, move, write an uploaded
  * file, move an entry to Trash and back, and find entries by name. A client folder is the folder of one workspace;
  * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
- * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The browser half
- * (`exports["./client"]`) is the Clients page.
+ * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The Add client routes under
+ * `add-client/` read the public patent data through the optional `flowleapPatentData` Service and build a client
+ * folder inside `clientsRoot` as a job that goes on after its request ends. The browser half (`exports["./client"]`)
+ * is the Clients page and the Add client page.
  *
  * See packages/client/ui-flowleap-folder/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-folder
  */
 
 import { access } from 'node:fs/promises'
+import path from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { ClientFolder, FolderError } from './folder.ts'
+import type { FolderTemplate } from './add-client/build.ts'
+import type { FirmIdentity } from './add-client/identity.ts'
+import { BuildJobs } from './add-client/jobs.ts'
+import { AddClientRoutes } from './add-client/routes.ts'
+import { ADD_CLIENT_ROUTES } from './add-client/wire.ts'
+import { ClientFolder, FolderError, checkName } from './folder.ts'
 import {
   FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type FolderFailure, type FolderSource, type FolderWritten,
   type MkdirRequest, type MoveRequest, type RenameRequest, type TrashRequest,
@@ -25,6 +34,10 @@ import { sourceStore, trashStore, type RecordStore, type TrashOrigin } from './s
 
 export { FOLDER_API, FOLDER_ROUTES, TRASH, isTrashPath } from './route.ts'
 export type * from './route.ts'
+export { ADD_CLIENT_API, ADD_CLIENT_ROUTES, BUILD_STEPS } from './add-client/wire.ts'
+export type * from './add-client/wire.ts'
+export type { FolderTemplate } from './add-client/build.ts'
+export type { FirmIdentity } from './add-client/identity.ts'
 
 /** Cordis plugin name. */
 export const name = 'ui-flowleap-folder'
@@ -44,6 +57,14 @@ export interface Config {
   maxSearchHits: number
   /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
   storageLowFlagPath: string
+  /** The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. */
+  clientsRoot: string
+  /** The folders that Add client makes in each client folder and each matter folder. */
+  folderTemplate: FolderTemplate
+  /** The firm's names, addresses and representatives; matched on the Host against the register, never sent out. */
+  firmIdentity: FirmIdentity
+  /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
+  maxRegisterRows: number
 }
 
 /** Runtime schema for the folder row. */
@@ -53,7 +74,42 @@ export const Config: z<Config> = z.object({
   maxUploadBytes: z.number().step(1).min(1).default(200 * 1024 * 1024),
   maxSearchHits: z.number().step(1).min(1).default(200),
   storageLowFlagPath: z.string().default(''),
+  clientsRoot: z.string().required(),
+  folderTemplate: z.object({
+    client: z.array(String).default(['00 Client']),
+    matter: z.array(String).default(['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search']),
+    publicData: z.string().default('Office'),
+  }).default({ client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' }),
+  firmIdentity: z.object({
+    names: z.array(String).default([]),
+    addresses: z.array(String).default([]),
+    representatives: z.array(String).default([]),
+  }).default({ names: [], addresses: [], representatives: [] }),
+  maxRegisterRows: z.number().step(1).min(1).max(10000).default(1000),
 })
+
+/**
+ * Check the row config.
+ * @param config - the row config.
+ * @throws Error when `clientsRoot` is not absolute, a template folder name is not a valid name or repeats, or
+ *   `publicData` is not a matter template folder.
+ */
+export function checkConfig(config: Config): void {
+  if (!path.isAbsolute(config.clientsRoot)) throw new Error(`ui-flowleap-folder: clientsRoot must be an absolute path, got ${JSON.stringify(config.clientsRoot)}`)
+  const { client, matter, publicData } = config.folderTemplate
+  for (const [label, names] of [['client', client], ['matter', matter]] as const) {
+    for (const name of names) {
+      try {
+        checkName(name)
+      } catch (_error: unknown) {
+        // The template is the firm's config: a bad name stops the row at load, with the name.
+        throw new Error(`ui-flowleap-folder: folderTemplate.${label} has the invalid folder name ${JSON.stringify(name)}`)
+      }
+    }
+    if (new Set(names).size !== names.length) throw new Error(`ui-flowleap-folder: folderTemplate.${label} repeats a folder name`)
+  }
+  if (!matter.includes(publicData)) throw new Error(`ui-flowleap-folder: folderTemplate.publicData ${JSON.stringify(publicData)} is not a matter folder`)
+}
 
 /** A JSON answer that is never cached. */
 function json(body: unknown, status = 200): Response {
@@ -275,7 +331,22 @@ async function* emptyBody(): AsyncIterable<Uint8Array> {}
  * @param config - the row config.
  */
 export function apply(ctx: Context, config: Config): void {
-  const routes = new FolderRoutes(ctx, config, sourceStore(config.stateDir), trashStore(config.stateDir))
+  checkConfig(config)
+  const sources = sourceStore(config.stateDir)
+  const routes = new FolderRoutes(ctx, config, sources, trashStore(config.stateDir))
+  const warn = (message: string) => { ctx.logger.warn(message) }
+  const jobs = new BuildJobs(path.join(config.stateDir, 'builds'), () => new Date(), warn)
+  ctx.effect(() => () => jobs.dispose(), 'ui-flowleap-folder: Add client builds')
+  // The patent data plugin is optional: without it, Add client adds a client by name with the template folders.
+  let data: PatentData | undefined
+  ctx.inject(['flowleapPatentData'], (scope) => {
+    data = scope.flowleapPatentData
+    scope.effect(() => () => { data = undefined }, 'ui-flowleap-folder: patent data')
+  })
+  const addClient = new AddClientRoutes(config, {
+    data: () => data, jobs, sources, now: () => new Date(), log: warn,
+    createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
+  })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
     ctx.effect(() => ctx.connection.fetch.register({
       path, methods: [method], requestBody, fetch: request => routes.answer(() => act(request)),
@@ -289,4 +360,13 @@ export function apply(ctx: Context, config: Config): void {
   register(FOLDER_ROUTES.trash, 'POST', 'buffered', request => routes.moveToTrash(request))
   register(FOLDER_ROUTES.restore, 'POST', 'buffered', request => routes.restore(request))
   register(FOLDER_ROUTES.search, 'GET', 'buffered', request => routes.search(request))
+  const registerAddClient = (path: string, method: 'GET' | 'POST', act: (request: Request) => Promise<Response>) => {
+    ctx.effect(() => ctx.connection.fetch.register({
+      path, methods: [method], requestBody: 'buffered', fetch: request => addClient.answer(() => act(request)),
+    }), `ui-flowleap-folder: ${path}`)
+  }
+  registerAddClient(ADD_CLIENT_ROUTES.find, 'GET', request => addClient.find(request))
+  registerAddClient(ADD_CLIENT_ROUTES.review, 'POST', request => addClient.review(request))
+  registerAddClient(ADD_CLIENT_ROUTES.build, 'POST', request => addClient.build(request))
+  registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
 }
