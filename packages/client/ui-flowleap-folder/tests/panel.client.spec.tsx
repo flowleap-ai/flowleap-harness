@@ -155,6 +155,26 @@ describe('the Clients list', () => {
     expect(screen.queryByRole('list', { name: en['clients.listLabel'] })).toBeNull()
   })
 
+  it('takes the focus back when the pressed client leaves the page, so that Find and the other keys run', async () => {
+    const { keys } = await mount()
+    const syntegon = within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: 'Syntegon' })
+    syntegon.focus()
+    await click(syntegon)
+    expect(syntegon.isConnected).toBe(false)
+    expect(document.activeElement).toBe(screen.getByTestId('flowleap-folder'))
+    act(() => { keys.current.find?.() })
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: en['search.label'] }))
+  })
+
+  it('leaves the focus where a person put it', async () => {
+    const { open } = await mount()
+    await open()
+    const field = screen.getByRole('searchbox', { name: en['search.label'] })
+    field.focus()
+    await click(screen.getAllByRole('gridcell').find(cell => cell.textContent === 'Archive')!)
+    expect(document.activeElement).toBe(field)
+  })
+
   it('lists each client folder and opens one with no chat', async () => {
     const { model } = await mount({ clients: [client(SYNTEGON, 'Syntegon'), client('ws-bosch' as WorkspaceId, 'Bosch')] })
     const list = screen.getByRole('list', { name: en['clients.listLabel'] })

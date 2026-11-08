@@ -159,8 +159,16 @@ export function FolderPanel(props: PanelProps) {
   const locale = useLanguage(value => value)
   const keycaps = useMemo(() => keycapsOf(catalog), [catalog])
   const client = clients.find(item => item.workspaceId === state.workspaceId) ?? null
+  const page = useRef<HTMLElement>(null)
+  // An act can remove the control that has the focus, such as a client of the list, and the focus then falls to the
+  // document body, where no page key runs. The browser fires no blur for a removed control, so after each render the
+  // page takes the focus when nothing has it.
+  useEffect(() => {
+    const active = document.activeElement
+    if (active === null || active === document.body) page.current?.focus({ preventScroll: true })
+  })
   return (
-    <section className={css.panel} data-testid="flowleap-folder" data-shortcut-scope={FOLDER_SCOPE} tabIndex={-1}>
+    <section ref={page} className={css.panel} data-testid="flowleap-folder" data-shortcut-scope={FOLDER_SCOPE} tabIndex={-1}>
       {client === null
         ? <ClientsList t={t} clients={clients} open={(id) => { void model.openClient(id) }} />
         : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} />}
@@ -436,7 +444,7 @@ function FileView({ t, state, locale: language, path, entry, session, askCurrent
           )}
         </div>
       </div>
-      <FileViewer path={path} reads={readers} labels={labels} key={`${client.workspaceId}:${path}`} />
+      <FileViewer path={path} reads={readers} labels={labels} locale={language} key={`${client.workspaceId}:${path}`} />
     </div>
   )
 }
