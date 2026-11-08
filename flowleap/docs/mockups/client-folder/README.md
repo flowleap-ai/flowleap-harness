@@ -1,6 +1,6 @@
 # Client folder mockups
 
-HTML mockups of [the client folder page](../../2026-11-08-client-folder-page.md): a client's folder with no chat, a file open in the middle, adding and organizing files, and **Ask about this**. They follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md) and wait for the founder's approval. No UI code is built from them before that approval.
+HTML mockups of [the client folder page](../../2026-11-08-client-folder-page.md): a client's folder with no chat, a file open in the middle, adding and organizing files, and **Ask about this**. They follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md). The founder approved them on 2026-11-08.
 
 ## Pages
 
@@ -17,10 +17,10 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 
 **Ask about this** is the one primary action on each folder and file view. In the `select` state the bulk bar holds it ("Ask about these 2"); in a dialog the dialog's act is the primary and the page under it is inert. The page has no delete act ([note](../../2026-11-08-client-folder-page.md#what-the-page-does)).
 
-## Choices for the founder
+## Founder decisions
 
-- **Grouping.** The list groups by **Folders** and **Files**, not by state, because a file has no state. This is an exception to product rule 1, as My work has one; it needs the founder's approval ([open question 1](../../2026-11-08-client-folder-page.md#open-questions-for-the-founder)).
-- **Keys.** The pages show only keys of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md): `↵` (Open) in the row menu and `R` (Try again). The proposed keys for the new acts are [open question 2](../../2026-11-08-client-folder-page.md#open-questions-for-the-founder).
+- **Grouping.** The list groups by **Folders** and **Files**, not by state, because a file has no state. This is an exception to product rule 1, as My work has one; the founder approved it ([decision 2](../../2026-11-08-client-folder-page.md#founder-decisions)).
+- **Keys.** The pages show only keys of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md): `↵` (Open) in the row menu and `R` (Try again). The founder approved the keys of the new acts ([decision 3](../../2026-11-08-client-folder-page.md#founder-decisions)); they go into the key map with the build.
 - **Long names.** The real folder names are long. The tree rows and the list rows end a long name in an ellipsis, as the title cell of a list row does (R17); the folder header shows the full name, and every row has it on hover.
 
 ## Data

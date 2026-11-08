@@ -1,6 +1,6 @@
 # The client folder page
 
-**Status:** design for the founder's approval, 2026-11-08. Nothing is built before the founder approves the [mockups](mockups/client-folder/README.md). It is the first plugin from the founder's demo loops, and it serves step M1 of [the re-ordered roadmap](2026-11-08-roadmap-reorder.md): a matter's own documents in one place, and the agent working over them.
+**Status:** approved by the founder on 2026-11-08, with the [mockups](mockups/client-folder/README.md) and the decisions below. It is the first plugin from the founder's demo loops, and it serves step M1 of [the re-ordered roadmap](2026-11-08-roadmap-reorder.md): a matter's own documents in one place, and the agent working over them.
 
 ## The problem
 
@@ -86,10 +86,13 @@ The page works with no core change. These small slots would remove workarounds; 
 - **The tree order.** Folders sort by name (Associates first). The template can number its folders, or the page can sort the template folders in their template order.
 - **Time limits.** The register data has status changes only; rule-based dates need their own plugin tool.
 
-## Open questions for the founder
+## Founder decisions
 
-1. **Product rule 1.** The file list groups by **Folders** and **Files**, not by state, because a file has no state. Is this exception approved, as My work has its own?
-2. **Keys.** Proposed: **Ask about this** `A`, **New folder** `⇧N`, **Upload files** `U`, **Rename** `F2`, **Move to…** `⇧M`. They go into the key map of the design language with the build, after the skill review.
-3. **Source.** Is the source of a file kept in the plugin, or as a document fact in the Firm Record?
-4. **Delete.** Is "no delete in the app" right for the first step?
-5. **Where the chat opens.** **Ask about this** opens the chat in the middle, with the file in the right sidebar. Or should the chat open as a panel beside the folder?
+The founder decided on 2026-11-08:
+
+1. **Mockups.** Approved as the design for the build.
+2. **Product rule 1.** The file list groups by **Folders** and **Files**. This is an approved exception to product rule 1, as My work has one.
+3. **Keys.** **Ask about this** `A`, **New folder** `⇧N`, **Upload files** `U`, **Rename** `F2`, **Move to…** `⇧M`.
+4. **Source.** The source of a file stays in the plugin for now. It moves into the Firm Record's document index in M1.
+5. **Delete.** The app has no delete act in the first step.
+6. **Where the chat opens.** In the middle, with the file in the right sidebar, as drawn.
