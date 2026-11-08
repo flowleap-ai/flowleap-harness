@@ -488,7 +488,8 @@ Reads EP patent data. Each method throws PatentDataError when the read fails.
 /**
  * Find the applicant names in the EP Register that match a company name.
  * The read searches `pa=<name>` in pages of 100 rows. A name matches when its
- * company key holds every word of the typed name's company key.
+ * company key holds every word of the typed name's company key. Names with the
+ * same company key are one name.
  * @param name - the company name as the attorney types it.
  * @param options - `maxRows`: the most register rows to read.
  * @param signal - caller cancellation.
@@ -520,6 +521,7 @@ registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<
  * @param application - the EP application number.
  * @param signal - caller cancellation.
  * @returns the family. It is empty when the application has no EP publication or the EPO has no family for it.
+ * @throws PatentDataError `malformed` when a member's office code is over 4 characters or its number over 32.
  */
 family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>
 

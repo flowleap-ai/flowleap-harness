@@ -1453,7 +1453,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>',
-        description: 'Find the applicant names in the EP Register that match a company name. The read searches `pa=<name>` in pages of 100 rows. A name matches when its company key holds every word of the typed name\'s company key.',
+        description: 'Find the applicant names in the EP Register that match a company name. The read searches `pa=<name>` in pages of 100 rows. A name matches when its company key holds every word of the typed name\'s company key. Names with the same company key are one name.',
         parameters: [{ name: 'name', description: 'the company name as the attorney types it.' }, { name: 'options', description: '`maxRows`: the most register rows to read.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the matching names with their count of EP applications.',
         throws: ['RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.'],
@@ -1476,6 +1476,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the family of one EP application through its earliest EP publication.',
         parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the family. It is empty when the application has no EP publication or the EPO has no family for it.',
+        throws: ['PatentDataError `malformed` when a member\'s office code is over 4 characters or its number over 32.'],
       },
       {
         signature: 'publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>',
