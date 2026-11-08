@@ -299,10 +299,12 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       />
     )
 
+  // The eyebrow names the owner of the Confirm the deadline task; another person who may confirm still sees the owner.
+  const taskOwner = data.confirmTask?.owner ?? null
   const eyebrowText = proposed
-    ? allowed
-      ? t('deadline.waitsYou')
-      : owner === null ? t('deadline.waitsSecond') : t('deadline.waitsFor', { person: personInText(t, owner) })
+    ? taskOwner !== null && taskOwner.id !== ctx.me?.person.id
+      ? t('deadline.waitsFor', { person: personInText(t, taskOwner) })
+      : allowed ? t('deadline.waitsYou') : t('deadline.waitsSecond')
     : data.confirmer !== null
       ? t('deadline.confirmedBy', { person: personInText(t, data.confirmer) })
       : data.rejecter !== null

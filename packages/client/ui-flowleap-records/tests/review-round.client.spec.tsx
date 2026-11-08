@@ -250,6 +250,15 @@ describe('the confirmer of a deadline', () => {
     expect(screen.getByText('Waits for Lena Hoffmann')).toBeTruthy()
     const bar = screen.getByRole('region', { name: 'Lena Hoffmann decides' })
     expect(bar.textContent).toContain('Lena Hoffmann confirms this deadline. FlowLeap sent Lena Hoffmann a notice at 08:05.')
+    cleanup()
+    mounted?.dispose()
+    // Another person who may confirm still sees whom the task waits for.
+    vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: {
+      ...fixtures.deadline, confirmTask: { owner: lena, queued: false, noticeAt: null },
+    } })
+    mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    expect(screen.getByText('Waits for Lena Hoffmann')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Your decision' })).toBeTruthy()
   })
 })
 
