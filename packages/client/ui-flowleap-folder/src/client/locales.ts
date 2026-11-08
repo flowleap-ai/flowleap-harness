@@ -134,6 +134,10 @@ export const en = {
   'keys.upload': 'Upload files',
   'keys.rename': 'Rename',
   'keys.move': 'Move to…',
+  'keys.retry': 'Try again',
+  'source.addClient': 'Add client',
+  'kind.family': 'Family',
+  'kind.matter': 'Matter',
 }
 
 /** Key domain of the namespace. */
@@ -267,6 +271,10 @@ export const de = {
   'keys.upload': 'Dateien hochladen',
   'keys.rename': 'Umbenennen',
   'keys.move': 'Verschieben nach …',
+  'keys.retry': 'Erneut versuchen',
+  'source.addClient': 'Mandant hinzufügen',
+  'kind.family': 'Familie',
+  'kind.matter': 'Akte',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** Spanish dictionary. */
@@ -397,6 +405,10 @@ export const es = {
   'keys.upload': 'Subir archivos',
   'keys.rename': 'Cambiar nombre',
   'keys.move': 'Mover a…',
+  'keys.retry': 'Reintentar',
+  'source.addClient': 'Añadir cliente',
+  'kind.family': 'Familia',
+  'kind.matter': 'Expediente',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** French dictionary. */
@@ -527,6 +539,10 @@ export const fr = {
   'keys.upload': 'Téléverser des fichiers',
   'keys.rename': 'Renommer',
   'keys.move': 'Déplacer vers…',
+  'keys.retry': 'Réessayer',
+  'source.addClient': 'Ajouter un client',
+  'kind.family': 'Famille',
+  'kind.matter': 'Dossier de brevet',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** Japanese dictionary. */
@@ -657,6 +673,10 @@ export const ja = {
   'keys.upload': 'ファイルをアップロード',
   'keys.rename': '名前を変更',
   'keys.move': '移動…',
+  'keys.retry': '再試行',
+  'source.addClient': 'クライアントを追加',
+  'kind.family': 'ファミリー',
+  'kind.matter': '案件',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** Portuguese dictionary. */
@@ -787,6 +807,10 @@ export const pt = {
   'keys.upload': 'Enviar arquivos',
   'keys.rename': 'Renomear',
   'keys.move': 'Mover para…',
+  'keys.retry': 'Tentar de novo',
+  'source.addClient': 'Adicionar cliente',
+  'kind.family': 'Família',
+  'kind.matter': 'Processo',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** Russian dictionary. */
@@ -917,6 +941,10 @@ export const ru = {
   'keys.upload': 'Загрузить файлы',
   'keys.rename': 'Переименовать',
   'keys.move': 'Переместить в…',
+  'keys.retry': 'Повторить',
+  'source.addClient': 'Добавить клиента',
+  'kind.family': 'Семейство',
+  'kind.matter': 'Дело',
 } satisfies Record<FlowleapFolderKey, string>
 
 /** Chinese dictionary. */
@@ -1047,4 +1075,8 @@ export const zh = {
   'keys.upload': '上传文件',
   'keys.rename': '重命名',
   'keys.move': '移动到…',
+  'keys.retry': '重试',
+  'source.addClient': '添加客户',
+  'kind.family': '同族',
+  'kind.matter': '案件',
 } satisfies Record<FlowleapFolderKey, string>

@@ -1,9 +1,15 @@
 /**
  * The keys of the client folder page: Ask about this `A`, New folder `⇧N`, Upload files `U`, Rename `F2`, Move to `⇧M`
  * (founder decision 3 of the design note), Move to Trash `Backspace` on macOS and `Delete` on Windows and Linux (where
- * Backspace goes back in the file manager), and Find `/`. Each is a rebindable command of the scope `flowleap.folder`,
- * so a key runs only while the page has the focus and never while the focus is in a text field; a button shows its
- * command's current keycaps from the shortcut catalog.
+ * Backspace goes back in the file manager), Find `/`, and Try again `R` on Add client. Each is a rebindable command of
+ * the scope `flowleap.folder`, so a key runs only while the page has the focus and never while the focus is in a text
+ * field; a button shows its command's current keycaps from the shortcut catalog.
+ *
+ * The primary act of Add client's decision bar uses the one Record the decision command of the key map
+ * (`records.decision.record`, `⇧⌘↵`), which `ui-flowleap-records` registers for the whole app. A second command with
+ * the same key would conflict with it and block both, so the page reads that command's current binding from the
+ * catalog and runs its own act on that key while the focus is inside Add client; the records command passes the key
+ * there.
  * @module
  */
 
@@ -18,7 +24,7 @@ import type { FlowleapFolderKey } from './locales.ts'
 export const FOLDER_SCOPE = 'flowleap.folder' as ShortcutScopeId
 
 /** The act of each command. */
-export type KeyAct = 'ask' | 'newFolder' | 'upload' | 'rename' | 'move' | 'trash' | 'find'
+export type KeyAct = 'ask' | 'newFolder' | 'upload' | 'rename' | 'move' | 'trash' | 'find' | 'retry'
 
 /**
  * The command id and the default binding of each act, the same on desktop and Web; `other` replaces `binding` on Windows
@@ -32,6 +38,43 @@ const KEYS: Readonly<Record<KeyAct, { readonly id: string; readonly binding: Sho
   move: { id: 'flowleap.folder.move', binding: { code: 'KeyM', modifiers: ['shift'] } },
   trash: { id: 'flowleap.folder.trash', binding: { code: 'Backspace', modifiers: [] }, other: { code: 'Delete', modifiers: [] } },
   find: { id: 'flowleap.folder.find', binding: { code: 'Slash', modifiers: [] } },
+  retry: { id: 'flowleap.folder.retry', binding: { code: 'KeyR', modifiers: [] } },
+}
+
+/** The app's Record the decision command (keys.md), which the decision bar of Add client shows and follows. */
+export const RECORD_COMMAND = 'records.decision.record' as ShortcutCommandId
+
+/** A binding as the shortcut catalog writes it, with physical modifiers. */
+export type CatalogBinding = NonNullable<ShortcutCatalogEntry['binding']>
+
+/** The key of Record the decision as the catalog has it now. */
+export interface RecordKey {
+  readonly keycaps: readonly KeycapBox[]
+  /** The binding that runs the act; null when the command is unbound, in conflict, or not registered. */
+  readonly binding: CatalogBinding | null
+}
+
+/**
+ * The key of Record the decision.
+ * @param rows - the catalog of rebindable commands.
+ * @returns its keycaps and its usable binding.
+ */
+export function recordKeyOf(rows: readonly ShortcutCatalogEntry[]): RecordKey {
+  const row = rows.find(item => item.id === RECORD_COMMAND)
+  const usable = row !== undefined && row.binding !== null && row.issue === null && row.conflicts.length === 0
+  return { keycaps: usable ? row.keycaps ?? [] : [], binding: usable ? row.binding : null }
+}
+
+/**
+ * Whether a key press is a binding.
+ * @param event - the key press.
+ * @param binding - the binding; null matches nothing.
+ * @returns true for the binding's key with exactly its modifiers.
+ */
+export function pressed(event: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey'>, binding: CatalogBinding | null): boolean {
+  if (binding === null || binding.secondCode !== undefined || binding.thenCode !== undefined || event.code !== binding.code) return false
+  const held = { control: event.ctrlKey, alt: event.altKey, shift: event.shiftKey, meta: event.metaKey }
+  return (['control', 'alt', 'shift', 'meta'] as const).every(modifier => held[modifier] === binding.modifiers.includes(modifier))
 }
 
 /**
@@ -70,7 +113,7 @@ function defaultsOf(mac: ShortcutBinding, other: ShortcutBinding): Readonly<Reco
 }
 
 /**
- * Register the scope and the seven commands, each as an effect of `ctx`.
+ * Register the scope and the eight commands, each as an effect of `ctx`.
  * @param ctx - the client context with `shortcuts`.
  * @param handlers - the page's current handlers.
  * @param t - the namespace's translate function.

@@ -301,6 +301,10 @@
   cursor: pointer;
 }
 
+.list .row.clientRow {
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+}
+
 .checked,
 .adding,
 .editing {

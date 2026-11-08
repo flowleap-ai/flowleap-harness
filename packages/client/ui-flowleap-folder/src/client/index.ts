@@ -3,7 +3,9 @@
  * `main` slot, the row menu and the page's keys. The page opens a client's workspace folder with no chat. It reads
  * files under the workspace's blank Session from `uiWorkspace.connectWorkspace`, through `remote.workspaceFiles`
  * and `remote.officeToPdf`, and it writes through the folder routes of the Host half. Ask about this opens that blank
- * Session's draft with an `@` mention of each entry, and shows a single file in the Session's right sidebar.
+ * Session's draft with an `@` mention of each entry, and shows a single file in the Session's right sidebar. Add
+ * client is a view of the same page: it reads public data through the Add client routes of the Host half and sends
+ * every Firm Record command with the person's cookie.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -26,6 +28,10 @@ import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import { addClientApi } from './add-client/api.ts'
+import * as addClientCopy from './add-client/locales/index.ts'
+import { AddClientModel } from './add-client/model.ts'
+import { createFirmRecord } from './add-client/records.ts'
 import { createFolderApi } from './api.ts'
 import { registerKeys, type KeyHandlers } from './keys.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapFolderKey } from './locales.ts'
@@ -36,12 +42,15 @@ import { clampTreeWidth, TREE_DEFAULT } from './TreeResize.tsx'
 import type { ViewerReads } from './viewer.tsx'
 
 export type { FlowleapFolderKey } from './locales.ts'
+export type { AddClientKey } from './add-client/locales/index.ts'
 export type { PanelInjected, PanelProps } from './Panel.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The Clients row and the client folder page. */
     'flowleapFolder': FlowleapFolderKey
+    /** Add client, the Watching list and Check for new matters. */
+    'flowleapAddClient': addClientCopy.AddClientKey
   }
 }
 
@@ -74,7 +83,10 @@ export function askPrompt(targets: readonly AskTarget[]): string {
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-flowleap-folder: dictionaries')
+  const { ADD_CLIENT_NS, ...addClientDictionaries } = addClientCopy
+  ctx.effect(() => ctx.locale.register(ADD_CLIENT_NS, addClientDictionaries), 'ui-flowleap-folder: Add client dictionaries')
   const t = ctx.locale.bind(NS)
+  const addClientT = ctx.locale.bind(ADD_CLIENT_NS)
   const language = createSnapshotStore<LocaleId>(ctx.locale.getLocale().active)
   ctx.on('locale/change', (snapshot) => { language.set(snapshot.active) })
   const clients = createSnapshotStore<readonly WorkspaceView[]>(ctx.workspaces.list.getSnapshot().items)
@@ -107,6 +119,12 @@ export function apply(ctx: ClientContext): void {
     },
   })
   ctx.effect(() => () => { model.dispose() }, 'ui-flowleap-folder: model')
+  const addClient = new AddClientModel({
+    api: addClientApi,
+    record: createFirmRecord(),
+    open: (workspaceId) => { void model.openClient(workspaceId) },
+  })
+  ctx.effect(() => () => { addClient.dispose() }, 'ui-flowleap-folder: Add client')
 
   let keys: KeyHandlers = {}
   registerKeys(ctx, { current: () => keys }, t)
@@ -170,7 +188,9 @@ export function apply(ctx: ClientContext): void {
   }, t)
 
   const injected: PanelInjected = {
-    hooks: { folder: model.store, clients, catalog: ctx.shortcuts.catalog, language, treeWidth },
+    hooks: { folder: model.store, clients, catalog: ctx.shortcuts.catalog, language, treeWidth, addClient: addClient.store },
+    addClient,
+    addClientT,
     setTreeWidth: (px) => { treeWidth.set(clampTreeWidth(px)) },
     model,
     reads,

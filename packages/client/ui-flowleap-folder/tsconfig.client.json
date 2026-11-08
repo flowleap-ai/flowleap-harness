@@ -8,6 +8,7 @@
   "include": [
     "src/client",
     "src/route.ts",
+    "src/add-client/wire.ts",
     "src/css-modules.d.ts"
   ],
   "references": [

@@ -16,6 +16,7 @@ import { FOLDER_SCOPE } from '../src/client/keys.ts'
 // The row menu declares its context-menu target in this module.
 import type {} from '../src/client/row-menu.ts'
 import { de, en, NS } from '../src/client/locales.ts'
+import { ADD_CLIENT_NS, en as addClientEn } from '../src/client/add-client/locales/index.ts'
 
 const SYNTEGON = 'ws-syntegon' as WorkspaceId
 const SESSION = 'session-syntegon'
@@ -74,10 +75,14 @@ class Feed implements AsyncIterable<{ readonly value: { readonly kind: string };
   }
 }
 
-/** The Host's folder routes: each listing answers the entries of its folder. */
+/** The builds that the Add client status route answers. */
+let builds: unknown[] = []
+
+/** The Host's folder routes: each listing answers the entries of its folder; the Add client status answers `builds`. */
 function folderRoutes(listings: Record<string, unknown[]>) {
   const urls: string[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('add-client/status')) return new Response(JSON.stringify({ builds }))
     urls.push(url)
     const path = new URL(url, 'http://firm.test/').searchParams.get('path') ?? ''
     return new Response(JSON.stringify({ path, entries: listings[path] ?? [], truncated: false }))
@@ -188,8 +193,10 @@ describe('ui-flowleap-folder browser half', () => {
     ])
     expect(menus.map(menu => [menu.id, menu.target])).toEqual([['flowleap.folder-row', 'flowleap.folder-row']])
     const folderKeys = () => shortcuts.catalog.getSnapshot().filter(row => row.id.startsWith('flowleap.folder.'))
-    expect(folderKeys()).toHaveLength(7)
+    expect(folderKeys()).toHaveLength(8)
     expect(ctx.locale.bind(NS)('panel')).toBe(en.panel)
+    expect(ctx.locale.bind(ADD_CLIENT_NS)('title')).toBe(addClientEn.title)
+    expect(face.addClientT('list.add')).toBe(addClientEn['list.add'])
     expect(face.hooks.catalog).toBe(shortcuts.catalog)
     await model.openClient(SYNTEGON)
     expect(feeds).toHaveLength(1)
@@ -200,7 +207,23 @@ describe('ui-flowleap-folder browser half', () => {
     expect(menus).toEqual([])
     expect(folderKeys()).toEqual([])
     expect(ctx.locale.bind(NS)('panel')).not.toBe(en.panel)
+    expect(ctx.locale.bind(ADD_CLIENT_NS)('title')).not.toBe(addClientEn.title)
     expect(feeds[0]!.disposed).toBe(true)
+    await ctx.fiber.dispose()
+  })
+
+  it('opens the client folder of a build from Add client on the page', async () => {
+    builds = [{ clientId: '6f1c2a40-1b2c-4d3e-8f90-a1b2c3d4e5f6', name: 'Syntegon', state: 'failed', startedAt: '', workspace: SYNTEGON, families: 0, matters: 0, steps: {} }]
+    const { ctx, face, model } = await mounted()
+    const stop = face.addClient.follow()
+    // The first read of the builds runs in a timer task.
+    await vi.waitFor(() => { expect(face.addClient.state.builds).toHaveLength(1) })
+    face.addClient.openBuild('6f1c2a40-1b2c-4d3e-8f90-a1b2c3d4e5f6')
+    expect(face.addClient.openFolder()).toBe(true)
+    await settle()
+    expect(model.state.workspaceId).toBe(SYNTEGON)
+    stop()
+    builds = []
     await ctx.fiber.dispose()
   })
 
