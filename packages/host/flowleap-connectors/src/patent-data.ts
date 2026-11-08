@@ -92,7 +92,11 @@ export interface ApplicantNames {
   readonly source: 'patstat' | 'ep-register'
   /** The PATSTAT edition. It is absent for the register. */
   readonly edition?: string
-  /** Each name with its count of EP applications, by count (high first), then by name. */
+  /**
+   * One name for each company key, with its count of EP applications, by count (high first), then by name. Names that
+   * differ only in case or punctuation are one name: the spelling that the register uses most, with the applications
+   * of all its spellings, each application once.
+   */
   readonly names: readonly { readonly name: string; readonly applications: number }[]
   /** True when the read stopped at `maxRows` and the register holds more rows. */
   readonly truncated: boolean
@@ -102,7 +106,7 @@ export interface ApplicantNames {
 export interface FamilyRead {
   /** The INPADOC family id, when the EPO gives one. */
   readonly familyId?: string
-  /** The priority filings, earliest first, each once. The number reads `US 10374408`. */
+  /** The priority filings, earliest first, each once. The number reads `US 10374408`; it has at most 37 characters. */
   readonly priorities: readonly { readonly number: string; readonly date?: string }[]
   /** The citable publication of each family member, for example `US7722129B2`. Any office. */
   readonly publications: readonly string[]
@@ -146,7 +150,8 @@ export interface PatentData {
   /**
    * Find the applicant names in the EP Register that match a company name.
    * The read searches `pa=<name>` in pages of 100 rows. A name matches when its
-   * company key holds every word of the typed name's company key.
+   * company key holds every word of the typed name's company key. Names with the
+   * same company key are one name.
    * @param name - the company name as the attorney types it.
    * @param options - `maxRows`: the most register rows to read.
    * @param signal - caller cancellation.
@@ -175,6 +180,7 @@ export interface PatentData {
    * @param application - the EP application number.
    * @param signal - caller cancellation.
    * @returns the family. It is empty when the application has no EP publication or the EPO has no family for it.
+   * @throws PatentDataError `malformed` when a member's office code is over 4 characters or its number over 32.
    */
   family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>
   /**
@@ -261,12 +267,17 @@ const registerPageSchema = z.object({
   })),
 })
 
+/** The longest office code of a family member; the EPO writes two letters, such as `DE`. */
+const MAX_COUNTRY_LENGTH = 4
+/** The longest number of a family member; the longest that the EPO writes have about 15 characters. */
+const MAX_NUMBER_LENGTH = 32
+
 const familySchema = z.object({
   familyId: maybe(z.string()),
   members: z.array(z.object({
     refType: z.enum(['publication', 'application', 'priority']),
-    country: z.string(),
-    number: z.string(),
+    country: z.string().max(MAX_COUNTRY_LENGTH),
+    number: z.string().max(MAX_NUMBER_LENGTH),
     date: maybe(dateText),
   })),
   representatives: z.object({ members: z.array(z.object({ representativePublication: maybe(z.string()) })) }),
@@ -304,6 +315,32 @@ function nonEmpty(text: string | undefined): string | undefined {
  */
 function order(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
+}
+
+/** The applications of one company key and the spellings of its name. */
+interface KeyCount {
+  /** The applications that name the key, each once. */
+  applications: number
+  /** The spelling that the register uses most; of two equally frequent spellings, the first in code unit order. */
+  name: string
+  /** How often the register uses `name`. */
+  nameUses: number
+  /** How often the register uses each spelling. */
+  readonly spellings: Map<string, number>
+}
+
+/**
+ * Count one use of a spelling and keep the most frequent spelling as the name of its key.
+ * @param entry - the count of the key.
+ * @param spelling - the name as one register row writes it.
+ */
+function countSpelling(entry: KeyCount, spelling: string): void {
+  const uses = (entry.spellings.get(spelling) ?? 0) + 1
+  entry.spellings.set(spelling, uses)
+  if (uses > entry.nameUses || (uses === entry.nameUses && order(spelling, entry.name) < 0)) {
+    entry.name = spelling
+    entry.nameUses = uses
+  }
 }
 
 /**
@@ -436,7 +473,8 @@ export class FlowleapPatentData extends Service implements PatentData {
     const words = normalizeName(name).split(' ')
     if (words[0] === '') throw new RangeError('The company name needs a letter or a digit')
     const query = `pa=${cqlValue(name)}`
-    const counts = new Map<string, number>()
+    // One entry for each company key, so case and punctuation variants of a name are one name.
+    const keys = new Map<string, KeyCount>()
     const seen = new Set<EpApplicationNumber>()
     let read = 0
     let total = Infinity
@@ -449,13 +487,20 @@ export class FlowleapPatentData extends Service implements PatentData {
       for (const row of page.rows) {
         if (seen.has(row.applicationNumber)) continue
         seen.add(row.applicationNumber)
-        for (const applicant of new Set(row.applicants)) {
-          const keyWords = new Set(normalizeName(applicant).split(' '))
-          if (words.every(word => keyWords.has(word))) counts.set(applicant, (counts.get(applicant) ?? 0) + 1)
+        const counted = new Set<string>()
+        for (const applicant of row.applicants) {
+          const key = normalizeName(applicant)
+          const keyWords = new Set(key.split(' '))
+          if (!words.every(word => keyWords.has(word))) continue
+          const entry = keys.get(key) ?? { applications: 0, name: applicant, nameUses: 0, spellings: new Map<string, number>() }
+          keys.set(key, entry)
+          countSpelling(entry, applicant)
+          if (!counted.has(key)) entry.applications += 1
+          counted.add(key)
         }
       }
     }
-    const names = [...counts].map(([applicantName, applications]) => ({ name: applicantName, applications }))
+    const names = [...keys.values()].map(entry => ({ name: entry.name, applications: entry.applications }))
       .sort((a, b) => b.applications - a.applications || order(a.name, b.name))
     return { source: 'ep-register', names, truncated: read < total }
   }

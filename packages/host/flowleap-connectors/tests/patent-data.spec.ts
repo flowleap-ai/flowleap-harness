@@ -392,6 +392,17 @@ describe('family', () => {
     expect((await failureOf(service.family(application('EP23171862')))).code).toBe('unreachable')
   })
 
+  it('throws malformed for a member number or office code over its length bound', async () => {
+    const { ops, service } = await bench()
+    ops.searchRegister.mockResolvedValue(page([doc()]))
+    ops.getFamily.mockResolvedValue(ok(familyResponse([member('priority', { country: 'DE', number: '1'.repeat(33) })], [])))
+    expect((await failureOf(service.family(application('EP23171862')))).code).toBe('malformed')
+    ops.getFamily.mockResolvedValue(ok(familyResponse([member('priority', { country: 'DEUTS', number: '1' })], [])))
+    expect((await failureOf(service.family(application('EP23171862')))).code).toBe('malformed')
+    ops.getFamily.mockResolvedValue(ok(familyResponse([member('priority', { country: 'DE', number: '1'.repeat(32) })], [])))
+    expect((await service.family(application('EP23171862'))).priorities).toEqual([{ number: `DE ${'1'.repeat(32)}` }])
+  })
+
   it('throws malformed for a family without members', async () => {
     const { ops, service } = await bench()
     ops.searchRegister.mockResolvedValue(page([doc()]))
@@ -486,6 +497,24 @@ describe('findApplicantNames', () => {
       truncated: false,
     })
     expect(Object.keys(result)).not.toContain('edition')
+  })
+
+  it('answers one name for spellings with the same company key, with the commonest spelling and every application once', async () => {
+    const { ops, service } = await bench()
+    ops.searchRegister.mockResolvedValue(page(rows(1, [
+      ['Syntegon Technology GmbH'],
+      ['SYNTEGON TECHNOLOGY GMBH'],
+      ['Syntegon Technology GmbH', 'SYNTEGON TECHNOLOGY GMBH'],
+      ['Syntegon Technology GmbH'],
+      ['Syntegon Pouch Systems AG'],
+      ['SYNTEGON POUCH SYSTEMS AG'],
+      ['Syntegon Pouch Systems, AG'],
+    ])))
+    const result = await service.findApplicantNames('Syntegon', { maxRows: 100 })
+    expect(result.names).toEqual([
+      { name: 'Syntegon Technology GmbH', applications: 4 },
+      { name: 'SYNTEGON POUCH SYSTEMS AG', applications: 3 },
+    ])
   })
 
   it('breaks a tie in the count by name', async () => {
