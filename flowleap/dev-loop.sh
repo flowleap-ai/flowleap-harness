@@ -3,6 +3,7 @@
 # flowleap-os checkout with the seed firm, and the flowleap-web app from this checkout's source with client watchers.
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
+#                         [--patch <overlay>]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number]        one record_read through the tool executor, no model call (default SF-2021-0011)
@@ -89,7 +90,8 @@ dsh() {
   export FLOWLEAP_SKILLS_DIR=$skills TSX_TSCONFIG_PATH=$HARNESS/tsconfig.json FLOWLEAP_DEV_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) \
     FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents
   cd "$dir/workspace" && exec node --import "$tsx" "$HARNESS/apps/cli/src/bin.ts" --profile flowleap-web \
-    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" "$@" --no-open --port "$port"
+    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" \
+    ${PATCH:+--patch "$PATCH"} "$@" --no-open --port "$port"
 }
 dsh_url() { grep -Eo "http://127\.0\.0\.1:$((PORT + 1))/\?token=[^ ]*" "$LOGS/dsh.log" 2> /dev/null | head -1 || true; }
 start_dsh() {
@@ -111,7 +113,7 @@ app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$
 
 up() {
   local as=jonas letters=1
-  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275
+  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; PATCH=
   while (($#)); do
     case $1 in
       --os) OS=$2; shift 2 ;;
@@ -119,6 +121,7 @@ up() {
       --port) PORT=$2; shift 2 ;;
       --record-port) RECORD_PORT=$2; shift 2 ;;
       --no-letters) letters=0; shift ;;
+      --patch) PATCH=$(cd "$(dirname "$2")" && pwd)/$(basename "$2"); shift 2 ;;
       *) die "unknown option $1" ;;
     esac
   done
@@ -128,7 +131,7 @@ up() {
   [[ -d $HARNESS/node_modules ]] || die "no node_modules: run 'pnpm install' in $HARNESS"
   local t0=$SECONDS
   mkdir -p "$LOGS" "$RUN/seed"
-  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\n' "$OS" "$PORT" "$RECORD_PORT" > "$RUN/loop.env"
+  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nPATCH=%q\n' "$OS" "$PORT" "$RECORD_PORT" "$PATCH" > "$RUN/loop.env"
   say "harness $(git -C "$HARNESS" rev-parse --short HEAD), flowleap-os $(git -C "$OS" rev-parse --short HEAD) ($OS), run dir $RUN"
 
   if [[ ! -d $HARNESS/apps/web/dist ]]; then

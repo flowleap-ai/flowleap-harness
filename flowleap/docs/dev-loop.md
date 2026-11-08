@@ -34,6 +34,8 @@ flowleap/dev-loop.sh up --os ~/flowleap/flowleap-os
 
 The first run in a checkout builds the artifacts once (`pnpm run build:artifacts`). `up` prints the app's link with its access token on port 3270. Open that link; do not put the token in a PR or a note.
 
+`--patch <overlay>` adds one overlay after `dev-loop.patch.yml`, for example the connector keys as a read-only credential file (as the [verify overlay](../../.claude/skills/verify/verify.patch.yml) does) or the `firmIdentity` of Add client. Keep that file outside the checkout. `restart` uses it again.
+
 You act as one seed user, default `jonas`. Change the person at any time, with no restart:
 
 ```bash
