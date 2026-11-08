@@ -77,7 +77,7 @@ describe('ui-flowleap-folder Host half', () => {
     expect(() => Config({} as Config)).toThrow()
     expect(() => Config({ stateDir } as Config)).toThrow()
     expect(Config({ stateDir, clientsRoot: '/srv/clients' } as Config)).toMatchObject({
-      maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', maxRegisterRows: 1000,
+      maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', maxRegisterRows: 500,
       folderTemplate: { client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' },
       firmIdentity: { names: [], addresses: [], representatives: [] },
     })

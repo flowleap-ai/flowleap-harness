@@ -9,8 +9,8 @@ import type { PatentData, RegisterRow } from '@deepseek-ai/dsh-flowleap-connecto
 import { companyKey, identitySet, isFirm, townOf, type FirmIdentity } from './identity.ts'
 import type { ConflictHit, KnownClient, MatterRow, ReferenceRow, ReviewAnswer } from './wire.ts'
 
-/** The most names in one register query, so a query stays short. */
-const NAMES_PER_QUERY = 8
+/** The most names in one register query: the EPO answered a query of 4 names and refused one of 8 (2026-11-08). */
+const NAMES_PER_QUERY = 4
 
 /** The most rows of one register page. */
 const PAGE_ROWS = 100

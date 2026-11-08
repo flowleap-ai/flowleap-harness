@@ -97,7 +97,7 @@ describe('Add client routes', () => {
     expect(reviewed).toMatchObject({ status: 'reviewed', total: 2, identity: 'set', atFirm: [{ applicationNumber: 'EP23171862' }], atOtherFirms: [{ applicationNumber: 'EP19794879' }] })
     await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP 23 171 862'] })
     expect(await settled()).toMatchObject({ state: 'done', matters: 1, families: 1 })
-    expect(fake.queries[0]).toBe('find:Syntegon:1000')
+    expect(fake.queries[0]).toBe('find:Syntegon:500')
   })
 
   it('answers the edition of a PATSTAT source', async () => {

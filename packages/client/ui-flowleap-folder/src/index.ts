@@ -85,7 +85,7 @@ export const Config: z<Config> = z.object({
     addresses: z.array(String).default([]),
     representatives: z.array(String).default([]),
   }).default({ names: [], addresses: [], representatives: [] }),
-  maxRegisterRows: z.number().step(1).min(1).max(10000).default(1000),
+  maxRegisterRows: z.number().step(1).min(1).max(10000).default(500),
 })
 
 /**

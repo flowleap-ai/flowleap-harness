@@ -308,7 +308,8 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
         let family: string
         if (matter === undefined) {
           const read = await data.family(application, job.signal)
-          const key = read.familyId ?? application
+          // The family read can lack the family id; the earliest priority then groups the family's matters.
+          const key = read.familyId ?? read.priorities[0]?.number ?? application
           family = families.get(key) ?? await writer.ensureFolder('', familyName(row.title, read.priorities[0], spacedApplication(application)), { from: 'ep-register', role: 'family', key })
           families.set(key, family)
           matter = await writer.ensureFolder(family, spacedApplication(application), { from: 'ep-register', role: 'matter', key: application })

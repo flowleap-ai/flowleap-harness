@@ -40,7 +40,7 @@ Mount the row with its Host half and its browser half; the `flowleap-web` bundle
 | `clientsRoot` | required | The absolute folder that holds the client folders that Add client builds; every Add client write stays in it |
 | `folderTemplate` | `client: [00 Client]`, `matter: [Associates, Client, Drafts, Internal, Office, Search]`, `publicData: Office` | The folders that Add client makes in each client folder and each matter folder, and the matter folder that takes the dated files; a name that is not a valid folder name, a repeated name, or a `publicData` that is not a matter folder stops the row at load |
 | `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`; the Host matches them against the representatives of record and never sends them out. While it is empty, no matter is at your firm |
-| `maxRegisterRows` | `1000` | The row cap of one EP Register query of Add client (at most 10,000, the EPO's cap); the page says when the cap cut a read |
+| `maxRegisterRows` | `500` | The row cap of one EP Register query of Add client (at most 10,000, the EPO's cap); the page says when the cap cut a read. The EPO answers a page of 100 rows in about 15 s, so 500 rows take more than a minute |
 | `maxEntries` | `2000` | Cap on the entries of one listing; the rest is dropped and the listing says it is cut |
 | `maxUploadBytes` | `209715200` (200 MiB) | Inclusive byte cap of one uploaded file |
 | `maxSearchHits` | `200` | Cap on the hits of one search by name; the page says when the cap dropped hits |

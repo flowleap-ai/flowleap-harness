@@ -76,8 +76,8 @@ function plan(data: FakePatentData | undefined, fields: Partial<BuildPlan> = {},
 function data() {
   const fake = new FakePatentData(rows())
   fake.families.set('EP23171862', { familyId: 'F1', priorities: [{ number: 'DE 102022111528', date: '2022-05-09' }], publications: [] })
-  fake.families.set('EP24817871', { familyId: 'F2', priorities: [{ number: 'DE 102023133973' }], publications: [] })
-  fake.families.set('EP24817872', { familyId: 'F2', priorities: [], publications: [] })
+  fake.families.set('EP24817871', { priorities: [{ number: 'DE 102023133973' }], publications: [] })
+  fake.families.set('EP24817872', { priorities: [{ number: 'DE 102023133973' }], publications: [] })
   fake.texts.set('EP4292805', { publicationNumber: pub('EP4292805'), title: 'Method', abstract: 'An element.', claims: '1. A method.' })
   return fake
 }
@@ -118,7 +118,8 @@ describe('Add client folder build', () => {
     })
     const sources = await built.sources.read('ws-1')
     expect(sources.get(`${FAMILY_1}/EP 23 171 862`)).toEqual({ kind: 'add-client', at: '2026-11-08T14:02:00.000Z', from: 'ep-register', role: 'matter', key: 'EP23171862' })
-    expect(sources.get(FAMILY_2)).toMatchObject({ role: 'family', key: 'F2' })
+    expect(sources.get(FAMILY_2)).toMatchObject({ role: 'family', key: 'DE 102023133973' })
+    expect(sources.get(FAMILY_1)).toMatchObject({ role: 'family', key: 'F1' })
     expect(sources.get('00 Client')).toMatchObject({ from: 'template' })
     expect(sources.get(`${FAMILY_1}/EP 23 171 862/Office/Publication EP 4 292 805 2026-11-08.md`)).toMatchObject({ from: 'epo-publication' })
     expect(fake.queries.join(' ')).not.toMatch(/Becker/u)
