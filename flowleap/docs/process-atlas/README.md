@@ -1,6 +1,6 @@
 # The firm process atlas
 
-**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for the first demo of phase R1.5: one task model, My work and the matter dossier, and a letter that arrives without a person.
+**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for the first demo of phase R1.5: one task model, My work and the matter dossier, and a letter that arrives without a person. [The firm map](firm-map.md) (2026-11-08, draft) lists all work of a patent firm, its actors and where its facts live, before the sheets of step M1.
 
 **Goal.** The founder's words of 2026-11-04: "Each step, even a small step, is a process, and a process has a state machine." Each firm works differently, but FlowLeap must know each process before it builds it, and the AI-native way must do the work that people did by hand in the PATORG way. The atlas holds one sheet per process. Each sheet gives the process today from primary sources, the actors, the state machine, the firm variation points, the AI-native redesign, the map to the code, and the open questions for the pilot attorney.
 
