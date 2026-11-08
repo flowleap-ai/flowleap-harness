@@ -140,7 +140,9 @@ describe('Add client routes', () => {
     expect((await call(ADD_CLIENT_ROUTES.find, { query: { name: 'x' } })).status).toBe(500)
     fake.findApplicantNames = async () => { throw 'not an error object' }
     expect((await call(ADD_CLIENT_ROUTES.find, { query: { name: 'x' } })).status).toBe(500)
-    expect(warnings).toEqual(['ui-flowleap-folder: Add client: a bug', 'ui-flowleap-folder: Add client: not an error object'])
+    expect(warnings.slice(2)).toEqual(['ui-flowleap-folder: Add client: a bug', 'ui-flowleap-folder: Add client: not an error object'])
+    expect(warnings.slice(0, 2).map(line => line.startsWith('ui-flowleap-folder: Add client: '))).toEqual([true, true])
+    expect(warnings[0]).toContain('no EPO OPS key')
     expect(codeOf(new PatentDataError('malformed', 'x'))).toBe('unreachable')
     expect(codeOf(new FolderError('invalid-name', 'x'))).toBe('invalid-name')
     expect(codeOf(new FolderError('exists', 'x'))).toBe('internal')

@@ -112,7 +112,8 @@ export class AddClientRoutes {
       return await act()
     } catch (error: unknown) {
       const code = codeOf(error)
-      if (code === 'internal') this.services.log(`ui-flowleap-folder: Add client: ${messageOf(error)}`)
+      // A failed patent data read logs its reason too: the person sees only `unreachable` or `no-key`.
+      if (code === 'internal' || error instanceof PatentDataError) this.services.log(`ui-flowleap-folder: Add client: ${messageOf(error)}`)
       const body: AddClientFailure = { error: code }
       return json(body, ADD_CLIENT_STATUS[code])
     }
