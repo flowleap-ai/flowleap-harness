@@ -298,6 +298,8 @@ describe('the run plugin', () => {
     expect(description('record_finish_run')).toContain('Nothing goes to the client')
     expect(ctx.tools.get('record_propose_report')?.presentCall?.(reportArgs))
       .toMatchObject({ card: 'generic', title: 'Propose the report letter', locations: [{ path: 'out/report.docx' }] })
+    expect(ctx.tools.get('record_propose_report')?.presentCall?.({ ...reportArgs, kind: 'office-reply', file: 'out/reply.docx' }))
+      .toMatchObject({ card: 'generic', title: 'Propose the draft reply', locations: [{ path: 'out/reply.docx' }] })
     expect(ctx.tools.get('record_read_document_text')?.presentCall?.({ document: LETTER_SHA256 }))
       .toMatchObject({ card: 'generic', title: 'Read the document text', kind: 'read' })
     expect(ctx.tools.get('record_finish_run')?.presentCall?.({ ticket_id: 'tk-1', deadline_id: 'd-1', deadline_state: 'active', record_seq: 7 })).toMatchObject({ card: 'generic', title: 'Finish the run' })
