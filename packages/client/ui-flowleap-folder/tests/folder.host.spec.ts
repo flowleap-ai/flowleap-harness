@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
-import { chmod, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { checkName, ClientFolder, FolderError, freeName, partsOf, UPLOAD_PREFIX } from '../src/folder.ts'
@@ -210,15 +210,11 @@ describe('ClientFolder', () => {
     expect(await readdir(path.join(root, 'EP 23 171 862', 'Search'))).toEqual([])
   })
 
-  it.skipIf(process.getuid?.() === 0 || process.platform === 'win32')('leaves out an entry it cannot read the facts of', async () => {
-    const locked = path.join(root, 'EP 23 171 862', 'Office')
-    await chmod(locked, 0o444)
-    try {
-      const folder = await ClientFolder.at(root)
-      expect((await folder.list('EP 23 171 862/Office', 100, new Map())).entries).toEqual([])
-    } finally {
-      await chmod(locked, 0o755)
-    }
+  it('leaves out an entry that goes away between the read of its folder and its stat', async () => {
+    const actual = await vi.importActual<typeof fs>('node:fs/promises')
+    const folder = await ClientFolder.at(root)
+    vi.mocked(fs.lstat).mockImplementationOnce(actual.lstat).mockRejectedValueOnce(diskFault('ENOENT'))
+    expect((await folder.list('EP 23 171 862/Office', 100, new Map())).entries).toEqual([])
   })
 
   it('shows where each entry of Trash came from when the listing gets the Trash records', async () => {
