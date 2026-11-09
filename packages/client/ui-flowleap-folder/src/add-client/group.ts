@@ -82,16 +82,8 @@ export function firmMatters(names: readonly string[], rows: readonly DocketRow[]
     const applicants = new Set(row.applicants.map(companyKey))
     const own = keyed.filter(({ key }) => key !== '' && applicants.has(key)).map(({ name }) => name)
     if (own.length === 0) continue
-    matters.push({
-      applicationNumber: row.applicationNumber,
-      ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-      ...(row.title === undefined ? {} : { title: row.title }),
-      applicants: row.applicants,
-      ...(row.status === undefined ? {} : { status: row.status }),
-      ...(row.representativeSince === undefined ? {} : { representativeSince: row.representativeSince }),
-      addressOnly: row.match === 'address',
-      names: own,
-    })
+    const { match, ...fields } = row
+    matters.push({ ...fields, addressOnly: match === 'address', names: own })
   }
   const counts = names.map(name => ({ name, atFirm: matters.filter(matter => !matter.addressOnly && matter.names.includes(name)).length }))
   return { counts, rows: matters }
