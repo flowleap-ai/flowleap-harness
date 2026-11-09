@@ -15,6 +15,11 @@ RUN useradd --create-home --shell /bin/bash runner \
   && echo 'runner ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/runner \
   && chmod 0440 /etc/sudoers.d/runner
 
+# The runner runs this check before any step of a job; see job-started.sh.
+COPY job-started.sh /usr/local/bin/dsh-ci-job-started
+RUN chown root:root /usr/local/bin/dsh-ci-job-started && chmod 0755 /usr/local/bin/dsh-ci-job-started
+ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/bin/dsh-ci-job-started
+
 USER runner
 WORKDIR /home/runner
 RUN curl --fail --silent --show-error --location --output runner.tar.gz \

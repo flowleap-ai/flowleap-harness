@@ -38,7 +38,7 @@ start_vm() {
 }
 
 image_tag() {
-  printf 'dsh-ci-runner:%s' "$(shasum -a 256 "$HERE/Dockerfile" | cut -c1-12)"
+  printf 'dsh-ci-runner:%s' "$(cat "$HERE/Dockerfile" "$HERE/job-started.sh" | shasum -a 256 | cut -c1-12)"
 }
 
 ensure_image() {
@@ -50,11 +50,23 @@ ensure_image() {
   fi
 }
 
-jit_config() {
+github_api() {
   # The token reaches curl on stdin, never in a process argument.
   printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TOKEN_FILE")" | curl --config - \
-    --fail --silent --show-error --request POST \
-    --header 'Accept: application/vnd.github+json' \
+    --fail --silent --show-error --header 'Accept: application/vnd.github+json' "$@"
+}
+
+# A fork pull request can name the desk label in its own workflow file, so
+# desk registers no runner unless every outside contributor needs approval.
+fork_approval_required() {
+  local policy
+  policy="$(github_api "https://api.github.com/repos/$REPOSITORY/actions/permissions/fork-pr-contributor-approval" \
+    | jq -er .approval_policy)" || return 1
+  [[ "$policy" == 'all_external_contributors' ]]
+}
+
+jit_config() {
+  github_api --request POST \
     --data "{\"name\":\"desk-$(date +%s)\",\"runner_group_id\":1,\"labels\":$LABELS,\"work_folder\":\"_work\"}" \
     "https://api.github.com/repos/$REPOSITORY/actions/runners/generate-jitconfig" \
     | jq -er .encoded_jit_config
@@ -73,6 +85,11 @@ while true; do
   start_vm
   ensure_image
   prune_weekly
+  if ! fork_approval_required; then
+    log 'refusing to register: the fork approval policy is not all_external_contributors; retrying in 300 s'
+    sleep 300
+    continue
+  fi
   if ! config="$(jit_config)"; then
     log 'runner registration failed; retrying in 60 s'
     sleep 60

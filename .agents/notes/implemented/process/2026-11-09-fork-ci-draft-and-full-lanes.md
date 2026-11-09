@@ -23,7 +23,7 @@ Branch protection on `flowleap` requires only the `signoff` status, so the verdi
 
 ## Desk runner
 
-The founder approved one self-hosted runner on the Mac Studio "desk" on 2026-11-09. It takes only `node 24 / coverage`, only for code from this repository, and only while the API reports it online and idle; otherwise coverage runs on `ubuntu-latest`. Each job runs in a new container inside a colima VM that shares no host files. The [desk runner guide](../../../../.github/ci-desk/README.md) records the setup, the limits, and the removal.
+The founder approved one self-hosted runner on the Mac Studio "desk" on 2026-11-09. It takes only `node 24 / coverage`, only for code from this repository, and only while the API reports it online and idle; otherwise coverage runs on `ubuntu-latest`. Each job runs in a new container inside a colima VM that shares no host files. A fork pull request runs its own workflow file and can name the desk label, so a job-started hook in the runner image fails any job that is not a push to `flowleap` or a pull request from this repository, and the launcher registers no runner unless the fork pull request approval policy is `all_external_contributors`. The [desk runner guide](../../../../.github/ci-desk/README.md) records the setup, the limits, and the removal.
 
 ## Consequences
 

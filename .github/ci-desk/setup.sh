@@ -34,6 +34,7 @@ fi
 install -d -o "$CI_USER" -g staff -m 0755 "$CI_HOME/ci-desk"
 install -o "$CI_USER" -g staff -m 0644 "$SOURCE/Dockerfile" "$CI_HOME/ci-desk/Dockerfile"
 install -o "$CI_USER" -g staff -m 0755 "$SOURCE/launcher.sh" "$CI_HOME/ci-desk/launcher.sh"
+install -o "$CI_USER" -g staff -m 0644 "$SOURCE/job-started.sh" "$CI_HOME/ci-desk/job-started.sh"
 install -d -o "$CI_USER" -g staff -m 0700 "$CI_HOME/.config" "$CI_HOME/.config/dsh-ci"
 install -d -o "$CI_USER" -g staff -m 0755 "$CI_HOME/Library/Logs"
 
