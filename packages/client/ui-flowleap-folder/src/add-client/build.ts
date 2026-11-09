@@ -103,8 +103,8 @@ export function spacedPublication(publication: string): string {
 /** The most characters of the title in a family folder name, so the family folders stay apart in a narrow tree. */
 const FAMILY_TITLE_CHARS = 40
 
-/** The words that do not end a cut title, each after a space. */
-const WEAK_ENDS = / (?:a|an|and|for|in|of|on|or|the|to|with)$/iu
+/** The words that do not end a cut title, each after a space, and the punctuation before a cut. */
+const WEAK_ENDS = / (?:a|an|and|for|in|of|on|or|the|to|with)$|[,;:.]+$/iu
 
 /**
  * A title in sentence case: the EP Register writes many titles in capitals.

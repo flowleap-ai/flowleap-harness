@@ -326,6 +326,7 @@ describe('Add client folder build', () => {
     expect(familyName('EP 24 817 872', 'Air sampling device using UV light')).toBe('EP 24 817 872 Air sampling device using UV light')
     expect(familyName('EP 1', 'A / b\\c')).toBe('EP 1 A - b-c')
     expect(familyName('EP 1', 'One two three four five six seven eight nine')).toBe('EP 1 One two three four five six seven eight…')
+    expect(familyName('EP 22 203 533', 'METHOD FOR COMPENSATING FOR TOLERANCES, AND HYDRAULIC SYSTEM')).toBe('EP 22 203 533 Method for compensating for tolerances…')
     expect(familyName('EP 1', 'Oneoneoneoneone twotwotwotwotwo in a and of b')).toBe('EP 1 Oneoneoneoneone twotwotwotwotwo…')
     expect(Buffer.byteLength(folderNameOf('Ü'.repeat(200)), 'utf8')).toBe(254)
     expect(familyName('EP 1', 'Ü'.repeat(60))).toBe(`EP 1 Ü${'ü'.repeat(39)}…`)

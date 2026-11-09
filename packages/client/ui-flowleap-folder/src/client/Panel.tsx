@@ -395,7 +395,7 @@ function ClientFolderView(props: PanelProps & {
           onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
           {built !== undefined && (
-            <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={clsx(css.act, css.wide)}
+            <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={css.act}
               onClick={() => { void addClient.checkForNew(built.clientId) }} />
           )}
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
