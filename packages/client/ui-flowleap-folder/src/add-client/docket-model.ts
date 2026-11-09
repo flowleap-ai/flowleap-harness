@@ -10,7 +10,7 @@
 
 import type { RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
 import { z } from 'zod'
-import { firmMatch, type FirmIdentity, type FirmMatch } from './identity.ts'
+import { firmMatch, sameFirmIdentity, type FirmIdentity, type FirmMatch } from './identity.ts'
 import type { DocketFailedSlice, DocketFailureCode, DocketState, DocketSumMismatch } from './wire.ts'
 
 /** The count at which the EPO stops counting the rows of one query. */
@@ -205,8 +205,7 @@ export function freshDocket(identity: FirmIdentity, startedAt: string): DocketFi
  * @returns true when every entry is the same, in the same order.
  */
 export function sameIdentity(docket: DocketFile, identity: FirmIdentity): boolean {
-  const key = (value: FirmIdentity) => JSON.stringify([value.names, value.addresses, value.representatives])
-  return key(docket.identity) === key(identity)
+  return sameFirmIdentity(docket.identity, identity)
 }
 
 /** Two digits. */

@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, the workspaces in `clientsRoot`. **Add client** finds a company's EP matters at your firm in the EP Register, records the person's decision in the Firm Record, and builds the client folder. A client folder opens with no chat: the tree at the left, and the entries or a file in the middle. The person makes folders, uploads, renames, moves, uses Trash, finds by name, and starts **Ask about this**. The designs are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md) and [Add client](https://github.com/flowleap-ai/flowleap-harness/pull/361).
+An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, the workspaces in `clientsRoot`. **Add client** finds a company's EP matters at your firm in the EP Register, records the person's decision in the Firm Record, and builds the client folder. A client folder opens with no chat, with folders, uploads, rename, move, Trash, find by name and **Ask about this**. **Settings > Firm identity** sets the firm's names, addresses and representatives. The designs are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md) and [Add client](https://github.com/flowleap-ai/flowleap-harness/pull/361).
 
 ## Table of Contents
 
@@ -36,10 +36,10 @@ Mount the row with its Host half and its browser half; the `flowleap-web` bundle
 
 | Field | Default | Meaning |
 |---|---|---|
-| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace; the Add client build statuses go into its `builds/` folder, one JSON file for each client; the firm docket goes into `docket.json` |
+| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace; the Add client build statuses go into its `builds/` folder, one JSON file for each client; the firm docket goes into `docket.json`, and the firm identity that a person saves goes into `identity.json` |
 | `clientsRoot` | required | The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. The Clients list shows only the workspaces whose folder is directly in it |
 | `folderTemplate` | `client: [00 Client]`, `matter: [Associates, Client, Drafts, Internal, Office, Search]`, `publicData: Office` | The folders that Add client makes in each client folder and each matter folder, and the matter folder that takes the dated files; a name that is not a valid folder name, a repeated name, or a `publicData` that is not a matter folder stops the row at load |
-| `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`; the Host matches them against the representatives of record. The [firm docket](#the-firm-docket) sends their words to the EP Register, never together with a client name. While it is empty, no matter is at your firm |
+| `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`, until a person saves them in [Settings > Firm identity](#the-firm-identity); the saved identity then wins. The Host matches them against the representatives of record. The [firm docket](#the-firm-docket) sends their words to the EP Register, never together with a client name. While it is empty, no matter is at your firm |
 | `maxRegisterRows` | `500` | The row cap of one EP Register query of Add client (at most 10,000, the EPO's cap); the page says when the cap cut a read. The EPO answers a page of 100 rows in about 15 s, so 500 rows take more than a minute |
 | `docketRefreshAge` | `604800000` (7 days) | The age in milliseconds after which the firm docket is `stale`; the scheduled refresh then reads it again |
 | `docketCheckAge` | `86400000` (1 day) | The age in milliseconds over which **Check for new matters** reads the firm docket again first; a later change uses it |
@@ -92,6 +92,14 @@ A query over `registerSliceRows` rows splits by its EP publication date (`pd`): 
 
 `GET add-client/docket` answers the state: `no_identity`, `reading` and `interrupted` with the slices done, the slices known and the rows read, `ready` and `stale` with the rows and the time of the oldest slice, `partial` with the failed slices and the wrong sums, and `failed` with the reason. A `failed` docket never means that the firm has no matters. `POST add-client/docket/read` with `{ "slices": "all" }` reads every slice again; `{ "slices": "failed" }` reads only the failed slices and the queries whose sum was wrong. A Host stop leaves the docket `interrupted`, and the next start reads only the unread slices. A scheduled refresh reads the whole docket again when its oldest slice is older than `docketRefreshAge`. Every EP Register read of this plugin waits for its turn in one limiter of `opsRequestsPerMinute`.
 
+### The firm identity
+
+**Settings > Firm identity** is where a person sets the firm's names, addresses and representatives (approved mockup `flowleap/docs/mockups/client-model/6-firm-identity.html`). The section shows, in this order, the line "FlowLeap sends your firm's names to the EP Register, through your firm's EPO account, to read your EP docket. It sends no client name.", the state of the firm docket with its read time, and one list of fields for each of the three kinds, with **Add** and **Remove** for each field. **Save** is disabled until the trimmed fields differ from the saved identity; with no identity, it waits for a first value, and the save starts the first read. While the docket is read, the section asks the Host for its state every second. **Read again** reads a `ready`, `stale` or `interrupted` docket again in full; **Try again** (`R`, the command `flowleap.identity.retry` of the scope `flowleap.identity`) reads only the failed slices of a `partial` or `failed` docket, and repeats a failed load, save or read. A failed save keeps the person's fields.
+
+The firm identity is the firm's names, addresses and representatives. The Host keeps the identity that a person saves in `identity.json` under `stateDir`; before the first save, and while that file is damaged (with a Host log line), the identity is the `firmIdentity` of the row config, so a firm patch that sets it keeps working until a person saves another one. A saved empty identity stays empty after a restart.
+
+`GET add-client/identity` answers the identity now and the [firm docket](#the-firm-docket) state (`{ "status": "no-plugin" }` without the patent data plugin). `POST add-client/identity/save` with `{ "identity": { "names": [], "addresses": [], "representatives": [] } }` saves the whole identity: the Host trims each entry and drops the entries with no word and the repeated entries; a body that is not three lists of strings is `bad-request`, and a failed write is `internal` and changes nothing. A new identity goes to the docket at once, with no restart: the docket stops its read, drops the rows of the old identity and reads for the new one; an empty identity removes the docket file and the state is `no_identity`. The same identity reads nothing again. The answer holds the saved identity and the docket state after the change. Every person whom the connection authenticates may save the identity, as for the other settings of the app; see [Known Limitations](#known-limitations-and-deferred-work).
+
 ### Ask about this
 
 The act drafts `@path` (a file) or `@"path/"` (a folder) for each entry, relative to the client folder, in the workspace's new-session draft through `uiWorkspace.startSession`, and opens that chat. A single file also opens in the chat's right sidebar once the chat is on screen. The mention is prompt text, so it is part of the logged user message; the agent reads the file only through its own logged tool calls.
@@ -109,27 +117,28 @@ The browser reads files under the workspace's blank Session, which `uiWorkspace.
 | File | Role |
 |---|---|
 | [`src/route.ts`](src/route.ts) | the route paths, the request bodies, the answers and the failure codes, shared by both halves |
-| [`src/index.ts`](src/index.ts) | Host half: the config, the nine folder routes (with `clients`, the workspaces whose folder is directly in `clientsRoot`) and the six Add client routes; the shared limiter and the firm docket |
+| [`src/index.ts`](src/index.ts) | Host half: the config, the nine folder routes (with `clients`, the workspaces whose folder is directly in `clientsRoot`) and the eight Add client routes; the shared limiter, the firm identity and the firm docket |
 | [`src/folder.ts`](src/folder.ts) | the path and name checks and the listing, writes, Trash, Restore and search of one client folder |
 | [`src/sources.ts`](src/sources.ts) | the source records and the Trash origins of each workspace |
 | [`src/add-client/wire.ts`](src/add-client/wire.ts) | the Add client route paths, request fields and answers, shared by both halves |
-| [`src/add-client/routes.ts`](src/add-client/routes.ts) | the `find`, `review`, `build`, `status`, `docket` and `docket/read` routes |
-| [`src/add-client/docket.ts`](src/add-client/docket.ts) | the firm docket read: the slices one after another, the docket file, the resume, the refresh timer and the stop |
+| [`src/add-client/routes.ts`](src/add-client/routes.ts) | the `find`, `review`, `build`, `status`, `docket`, `docket/read`, `identity` and `identity/save` routes |
+| [`src/add-client/docket.ts`](src/add-client/docket.ts) | the firm docket read: the slices one after another, the docket file, the resume, the refresh timer, the stop and the identity change |
+| [`src/add-client/identity-store.ts`](src/add-client/identity-store.ts) | the saved firm identity in `identity.json`, with the row config identity before the first save |
 | [`src/add-client/docket-model.ts`](src/add-client/docket-model.ts) | the firm docket as data: the queries, the date slices, the sum check, the state and the docket file schema |
 | [`src/add-client/limiter.ts`](src/add-client/limiter.ts) | the request limiter of all EP Register reads, and the clock |
 | [`src/add-client/review.ts`](src/add-client/review.ts) | the group read, the split by the firm identity, and the conflicts that the EP Register shows |
-| [`src/add-client/identity.ts`](src/add-client/identity.ts) | the firm identity match, the company keys and the town of a representative |
+| [`src/add-client/identity.ts`](src/add-client/identity.ts) | the firm identity match and normalization, the company keys and the town of a representative |
 | [`src/add-client/build.ts`](src/add-client/build.ts) | the client folder build and its dated files |
 | [`src/add-client/jobs.ts`](src/add-client/jobs.ts) | the build jobs and their status files |
-| [`src/client/add-client/`](src/client/add-client/) | the Add client view: its state (`model.ts`), the Firm Record commands (`records.ts`, `plan.ts`), the Host calls (`api.ts`), the pages and the `flowleapAddClient` dictionaries |
-| [`src/client/index.ts`](src/client/index.ts) | Browser half: the dictionaries, the keys, the row menu, the Clients row, the page, the file readers and Ask about this |
+| [`src/client/add-client/`](src/client/add-client/) | the Add client view: its state (`model.ts`), the Firm Record commands (`records.ts`, `plan.ts`), the Host calls (`api.ts`), the pages and the `flowleapAddClient` dictionaries; the Firm identity section of Settings (`FirmIdentity.tsx`) and its state (`identity-model.ts`) |
+| [`src/client/index.ts`](src/client/index.ts) | Browser half: the dictionaries, the keys, the row menu, the Clients row, the page, the file readers, Ask about this, and the Firm identity section in `settings.section` |
 | [`src/client/model.ts`](src/client/model.ts) | the page's state and acts |
 | [`src/client/api.ts`](src/client/api.ts) | the calls to the folder routes |
 | [`src/client/clients.ts`](src/client/clients.ts) | the client folders among the workspaces, asked again of the Host each time the set of workspaces changes |
 | [`src/client/Panel.tsx`](src/client/Panel.tsx) | the Clients list, the top bar, the search, the tree, the list, the file view, the dialogs and the notice |
 | [`src/client/TreeResize.tsx`](src/client/TreeResize.tsx) | the tree's resize handle, in the pattern of the app sidebar's handle |
 | [`src/client/viewer.tsx`](src/client/viewer.tsx) | the page's own viewers; it goes away when `ui-sidebar-documentpreview` exports a body that a page can render |
-| [`src/client/keys.ts`](src/client/keys.ts) | the page's seven commands in the scope `flowleap.folder` and their keycaps |
+| [`src/client/keys.ts`](src/client/keys.ts) | the page's commands in the scope `flowleap.folder`, Try again of the Firm identity section in the scope `flowleap.identity`, and their keycaps |
 | [`src/client/row-menu.ts`](src/client/row-menu.ts) | the row's context menu |
 
 </details>
@@ -168,8 +177,10 @@ None; this package neither assembles nor sends a provider request.
 - **Trash is never emptied** — FlowLeap moves entries into Trash and back, and deletes nothing; Trash grows until a person empties it outside FlowLeap.
 - **Applicant names from the EP Register only** — PATSTAT is a model-facing MCP tool with no Host-callable client, so Add client finds names and counts their EP applications in the register; names of applications that are not published, and other offices, are missing.
 - **EP publications without a kind code** — the register search of `@flowleap/connectors` drops the kind code, so the Firm Record gets no publication number and the files name the publication without its kind.
-- **A firm identity in the row config** — `firmIdentity` is an ordinary config field that the firm patch sets; no settings form edits it yet, and it moves into the Firm Record later.
-- **The firm docket has no reader yet** — Add client still reads the group's portfolio for the firm's matters; a later change makes the find step, the review and the Settings page read the docket, and gives `docketCheckAge` its use.
+- **Who may change the firm identity** — every person whom the connection authenticates may save it, as for the patent data connector keys; the app has no firm administrator check on a Host route yet. The identity moves into the Firm Record later.
+- **Two homes of the first identity** — after the first save, a change of `firmIdentity` in the firm patch has no effect; `identity.json` wins.
+- **No docket facts in the Firm identity section** — the approved mockup also lists the query count, the next read and the opposition index; the docket state has no such fields yet, so the section shows the state and its read time only.
+- **Add client does not read the firm docket yet** — Add client still reads the group's portfolio for the firm's matters; only the Firm identity section of Settings shows the docket state. A later change makes the find step and the review read the docket, and gives `docketCheckAge` its use.
 - **Rows with no EP publication** — the date slices use the EP publication date, so a register row with no EP publication is in no slice; the sum check then makes the docket `partial` with the missing count. A live read measures how many rows this is.
 - **The limiter counts calls, not OPS requests** — the limiter is outside `flowleap-connectors`, so it grants each call the most requests that the call can send, such as 5 for a name search of 500 rows or 6 for a publication read; a call can use its grant faster or slower than the window.
 - **The docket file is written whole** — a running read saves at most every 30 s, so a Host stop can lose the slices of the last 30 s; the next start reads them again.

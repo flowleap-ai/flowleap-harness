@@ -155,16 +155,17 @@ export function Notice({ tone, lead, rest, act }: {
 
 /**
  * The Try again button with its key.
- * @param props - copy, the keycaps and the act.
+ * @param props - copy, the keycaps, the act, and whether it waits for another act.
  * @returns the button.
  */
-export function RetryButton({ t, keycaps, onClick }: {
+export function RetryButton({ t, keycaps, onClick, disabled = false }: {
   readonly t: AddClientTranslate
   readonly keycaps: readonly KeycapBox[]
   readonly onClick: () => void
+  readonly disabled?: boolean
 }) {
   return (
-    <Button variant="outline" size="sm" icon={<IconRefreshOutlineRegular size={16} />} onClick={onClick}>
+    <Button variant="outline" size="sm" icon={<IconRefreshOutlineRegular size={16} />} onClick={onClick} disabled={disabled}>
       {t('act.retry')}
       {keycaps.length > 0 && <Keycap keycaps={keycaps} className={clsx(panel.keycap, css.keys)} />}
     </Button>

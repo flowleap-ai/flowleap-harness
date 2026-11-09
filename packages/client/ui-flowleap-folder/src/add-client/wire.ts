@@ -23,8 +23,8 @@ export function clientFolderName(name: string): string | undefined {
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
 /**
- * The six Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
- * firm docket, and a new read of the firm docket.
+ * The eight Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
+ * firm docket, a new read of the firm docket, the firm identity with the docket state, and a save of the firm identity.
  */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
@@ -33,7 +33,19 @@ export const ADD_CLIENT_ROUTES = {
   status: `${ADD_CLIENT_API}/status`,
   docket: `${ADD_CLIENT_API}/docket`,
   docketRead: `${ADD_CLIENT_API}/docket/read`,
+  identity: `${ADD_CLIENT_API}/identity`,
+  identitySave: `${ADD_CLIENT_API}/identity/save`,
 } as const
+
+/** The firm's names, its current and earlier addresses, and the names of its representatives. */
+export interface FirmIdentity {
+  /** The firm's names, such as its current and earlier names. */
+  names: string[]
+  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
+  addresses: string[]
+  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
+  representatives: string[]
+}
 
 /** Where an applicant name comes from: PATSTAT, or the applicant names of the EP Register search. */
 export type NameSource = 'patstat' | 'ep-register'
@@ -276,6 +288,21 @@ export type DocketAnswer =
   | { readonly status: 'docket'; readonly docket: DocketState }
   /** No patent data plugin in this runtime: the docket cannot be read. */
   | { readonly status: 'no-plugin' }
+
+/** The answer of `GET identity`, and of `POST identity/save`. */
+export interface FirmIdentityAnswer {
+  /** The firm identity now: the saved one, else the `firmIdentity` of the row config. */
+  readonly identity: FirmIdentity
+  readonly docket: DocketAnswer
+}
+
+/**
+ * Body of `POST identity/save`: the whole new firm identity. The Host trims each entry and drops the entries with no
+ * word and the repeated entries; lists with no entry left mean no identity.
+ */
+export interface FirmIdentitySaveRequest {
+  readonly identity: FirmIdentity
+}
 
 /** Body of `POST docket/read`: read every slice again, or only the failed slices and the queries whose sum was wrong. */
 export interface DocketReadRequest {

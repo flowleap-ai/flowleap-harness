@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
@@ -233,5 +233,62 @@ describe('the firm docket routes', () => {
     ctx.set('flowleapPatentData', data())
     await load({ firmIdentity: { names: [], addresses: [], representatives: [] } })
     expect(await docketOf()).toEqual({ status: 'docket', docket: { state: 'no_identity' } })
+  })
+})
+
+describe('the firm identity routes', () => {
+  async function identityOf(): Promise<FirmIdentityAnswer> {
+    return await (await call(ADD_CLIENT_ROUTES.identity)).json() as FirmIdentityAnswer
+  }
+
+  it('answer the row config identity with the docket state, and without the data plugin say so', async () => {
+    await load()
+    expect(await identityOf()).toEqual({ identity: { names: [], addresses: [], representatives: ['Anna Becker'] }, docket: { status: 'no-plugin' } })
+    const saved = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: [' Muster & Partner '], addresses: [], representatives: [] } })
+    expect(saved.headers.get('cache-control')).toBe('no-store')
+    expect(await saved.json()).toEqual({ identity: { names: ['Muster & Partner'], addresses: [], representatives: [] }, docket: { status: 'no-plugin' } })
+  })
+
+  it('save a new identity: the docket drops the old rows and reads again, and the review matches the new identity', async () => {
+    const fake = data()
+    ctx.set('flowleapPatentData', fake)
+    const fiber = await load()
+    await vi.waitFor(async () => { expect(await identityOf()).toMatchObject({ docket: { docket: { state: 'ready', rows: 1 } } }) })
+    const identity = { names: ['Beispiel IP'], addresses: [], representatives: [] }
+    const answer = await (await post(ADD_CLIENT_ROUTES.identitySave, { identity })).json() as FirmIdentityAnswer
+    expect(answer.identity).toEqual(identity)
+    expect(answer.docket).toMatchObject({ status: 'docket', docket: { state: 'reading', progress: { rows: 0 } } })
+    await vi.waitFor(async () => { expect(await identityOf()).toMatchObject({ identity, docket: { status: 'docket', docket: { state: 'ready', rows: 0 } } }) })
+    expect(fake.queries.at(-1)).toBe('re="Beispiel IP"|1-100')
+    const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon Technology GmbH'], clients: [] })).json() as ReviewAnswer
+    expect(reviewed).toMatchObject({ status: 'reviewed', identity: 'set', atFirm: [] })
+    await fiber.dispose()
+    await load()
+    expect((await identityOf()).identity).toEqual(identity)
+  })
+
+  it('save an empty identity as no identity', async () => {
+    ctx.set('flowleapPatentData', data())
+    await load()
+    const empty = { names: [''], addresses: ['  '], representatives: [] }
+    expect(await (await post(ADD_CLIENT_ROUTES.identitySave, { identity: empty })).json()).toEqual({
+      identity: { names: [], addresses: [], representatives: [] }, docket: { status: 'docket', docket: { state: 'no_identity' } },
+    })
+  })
+
+  it('refuse a save that is not well formed, and answer internal when the identity cannot be written', async () => {
+    await load()
+    const malformed = [
+      {}, { identity: [] }, { identity: { names: [], addresses: [] } }, { identity: { names: [1], addresses: [], representatives: [] } },
+    ]
+    for (const body of malformed) {
+      const refused = await post(ADD_CLIENT_ROUTES.identitySave, body)
+      expect([refused.status, await refused.json()]).toEqual([400, { error: 'bad-request' }])
+    }
+    await mkdir(path.join(base, 'state', 'identity.json', 'inside'), { recursive: true })
+    const failed = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: ['Muster & Partner'], addresses: [], representatives: [] } })
+    expect([failed.status, await failed.json()]).toEqual([500, { error: 'internal' }])
+    expect(warnings.some(line => line.startsWith('ui-flowleap-folder: Add client: '))).toBe(true)
+    expect((await identityOf()).identity).toEqual({ names: [], addresses: [], representatives: ['Anna Becker'] })
   })
 })

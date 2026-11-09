@@ -12,7 +12,7 @@ import type { MenuContribution } from '@deepseek-ai/dsh-client-ui-context-menu/c
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { apply, askPrompt, inject, PANEL_ID, type PanelInjected } from '../src/client/index.ts'
-import { FOLDER_SCOPE } from '../src/client/keys.ts'
+import { FOLDER_SCOPE, IDENTITY_SCOPE } from '../src/client/keys.ts'
 // The row menu declares its context-menu target in this module.
 import type {} from '../src/client/row-menu.ts'
 import { de, en, NS } from '../src/client/locales.ts'
@@ -158,7 +158,10 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   ctx.slots.register({
     name: 'root',
-    children: { 'sidebar.panellist': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' }, 'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true } },
+    children: {
+      'sidebar.panellist': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' }, 'contextMenu.icon': { kind: 'keyed', scope: 'root', inline: true },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, () => null)
   ctx.locale.setLocale('en')
   const fiber = ctx.plugin({ inject: [...inject], apply })
@@ -204,12 +207,19 @@ describe('ui-flowleap-folder browser half', () => {
     expect(ctx.locale.bind(ADD_CLIENT_NS)('title')).toBe(addClientEn.title)
     expect(face.addClientT('list.add')).toBe(addClientEn['list.add'])
     expect(face.hooks.catalog).toBe(shortcuts.catalog)
+    const sections = ctx.slots.entries('settings.section')
+    expect(sections.map(entry => entry.options)).toMatchObject([{ id: 'flowleap-firm-identity', order: 16 }])
+    expect((sections[0]!.options as { label: () => string }).label()).toBe(addClientEn['identity.nav'])
+    expect(sections[0]!.inject?.()).toMatchObject({ hooks: { catalog: shortcuts.catalog, language: face.hooks.language } })
+    expect(shortcuts.catalog.getSnapshot().filter(row => row.id === 'flowleap.identity.retry')).toHaveLength(1)
     await model.openClient(SYNTEGON)
     expect(feeds).toHaveLength(1)
     await fiber.dispose()
     expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
     expect(ctx.slots.entries('main')).toEqual([])
     expect(ctx.slots.entries('contextMenu.icon')).toEqual([])
+    expect(ctx.slots.entries('settings.section')).toEqual([])
+    expect(shortcuts.catalog.getSnapshot().filter(row => row.id === 'flowleap.identity.retry')).toEqual([])
     expect(menus).toEqual([])
     expect(folderKeys()).toEqual([])
     expect(ctx.locale.bind(NS)('panel')).not.toBe(en.panel)
@@ -439,6 +449,22 @@ describe('ui-flowleap-folder browser half', () => {
     expect(ask).toHaveBeenCalledTimes(1)
     stop()
     page.remove()
+    await ctx.fiber.dispose()
+  })
+
+  it('passes R on in the Firm identity section while nothing can be tried again', async () => {
+    const { ctx, shortcuts } = await mounted()
+    const stop = installKeyboard(window, shortcuts, undefined, false)
+    const section = document.createElement('section')
+    section.dataset.shortcutScope = IDENTITY_SCOPE
+    section.tabIndex = -1
+    document.body.append(section)
+    section.focus()
+    const press = new KeyboardEvent('keydown', { code: 'KeyR', key: 'r', bubbles: true, cancelable: true })
+    section.dispatchEvent(press)
+    expect(press.defaultPrevented).toBe(false)
+    stop()
+    section.remove()
     await ctx.fiber.dispose()
   })
 })

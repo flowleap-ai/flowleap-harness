@@ -42,7 +42,7 @@ type Settings = { readonly sliceRows?: number; readonly refreshAge?: number }
 
 function open(service: Service, identity: FirmIdentity, settings: Settings = {}): FirmDocket {
   const docket = new FirmDocket({
-    file, identity, sliceRows: settings.sliceRows ?? 2000, refreshAge: settings.refreshAge ?? WEEK,
+    file, identity: Promise.resolve(identity), sliceRows: settings.sliceRows ?? 2000, refreshAge: settings.refreshAge ?? WEEK,
     data: () => service.current, clock, log: (message) => { logs.push(message) },
   })
   opened.push(docket)
@@ -317,6 +317,62 @@ describe('the firm docket', () => {
     expect(await cleared.state()).toEqual({ state: 'no_identity' })
     expect(await cleared.readAgain('all')).toEqual({ state: 'no_identity' })
     await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('takes a new identity without a restart: it stops the read, drops the old rows and reads for the new identity', async () => {
+    const BEISPIEL: FirmIdentity = { names: ['Beispiel IP'], addresses: [], representatives: [] }
+    const fake = new FakePatentData([...matters(['2025-01-10']), matter(9, '2025-01-11', [{ name: 'Beispiel IP', address: [] }])])
+    const read = fake.searchRegister.bind(fake)
+    let release = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    fake.searchRegister = async (query, range, signal) => {
+      if (query.includes('Muster')) {
+        await new Promise<void>((resolve, reject) => {
+          void held.then(resolve)
+          signal?.addEventListener('abort', () => { reject(signal.reason as Error) })
+        })
+      }
+      return read(query, range)
+    }
+    const docket = open(new Service(fake), MUSTER)
+    await docket.wake()
+    expect(await docket.state()).toMatchObject({ state: 'reading' })
+    const changed = await docket.setIdentity(BEISPIEL)
+    expect(changed).toMatchObject({ state: 'reading', progress: { slicesDone: 0, rows: 0 } })
+    expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
+    expect((await stored()).identity).toEqual(BEISPIEL)
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000009'])
+    release()
+    // The fake records a query only after the hold, so the stopped read of the old identity is not in the list.
+    expect(fake.queries).toEqual(['re="Beispiel IP"|1-100'])
+  })
+
+  it('reads nothing again for the same identity, and with no identity removes the docket and arms no refresh', async () => {
+    const fake = new FakePatentData(matters(['2025-01-10']))
+    const docket = open(new Service(fake), MUSTER, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
+    expect(await docket.setIdentity({ names: ['Muster & Partner'], addresses: [], representatives: [] })).toMatchObject({ state: 'ready', rows: 1 })
+    expect(fake.queries).toHaveLength(1)
+    expect(clock.waiting).toBe(1)
+    expect(await docket.setIdentity({ names: [], addresses: [], representatives: [] })).toEqual({ state: 'no_identity' })
+    await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(clock.waiting).toBe(0)
+    await clock.advance(5000)
+    expect(fake.queries).toHaveLength(1)
+    expect(await docket.setIdentity(MUSTER)).toMatchObject({ state: 'reading' })
+    expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
+    expect(fake.queries).toHaveLength(2)
+  })
+
+  it('keeps a new identity without the Service, and reads it when the Service comes', async () => {
+    const service = new Service(undefined)
+    const docket = open(service, { names: [], addresses: [], representatives: [] })
+    expect(await docket.setIdentity(MUSTER)).toEqual({ state: 'interrupted', progress: { slicesDone: 0, slices: 1, rows: 0 } })
+    expect(await stored()).toMatchObject({ identity: MUSTER, rows: {} })
+    service.current = new FakePatentData(matters(['2025-01-10']))
+    await docket.wake()
+    expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
   })
 
   it('is stale after docketRefreshAge, and the scheduled refresh reads it again', async () => {

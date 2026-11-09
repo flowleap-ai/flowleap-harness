@@ -659,8 +659,9 @@ export interface Config {
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
   /**
-   * The firm's names, addresses and representatives. The firm docket sends their words to the EP Register to read the
-   * firm's EP applications; every row is matched against them again on the Host.
+   * The firm's names, addresses and representatives until a person saves them in Settings > Firm identity; the saved
+   * identity in `stateDir` then wins. The firm docket sends their words to the EP Register to read the firm's EP
+   * applications; every row is matched against them again on the Host.
    */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */

@@ -1,9 +1,10 @@
 /**
  * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
  * applications and possible conflicts, `build` starts the client folder build, `status` reports every build, `docket`
- * reports the state of the firm docket, and `docket/read` reads it again. The routes read public data through the
- * `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket routes say so and
- * `build` makes the folder with the template folders only.
+ * reports the state of the firm docket, `docket/read` reads it again, `identity` reports the firm identity with the
+ * docket state, and `identity/save` saves a new firm identity, which reads the docket again. The routes read public
+ * data through the `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket
+ * routes say so, `build` makes the folder with the template folders only, and a saved identity waits for the Service.
  * @module
  */
 
@@ -13,12 +14,12 @@ import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { buildClientFolder, type BuildInput, type FolderTemplate } from './build.ts'
 import type { FirmDocket } from './docket.ts'
-import type { FirmIdentity } from './identity.ts'
+import type { FirmIdentityStore } from './identity-store.ts'
 import { BuildJobsStopped, messageOf, type BuildJobs } from './jobs.ts'
 import { review } from './review.ts'
 import {
   ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type DocketAnswer, type FindAnswer,
-  type KnownClient, type StatusAnswer,
+  type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type StatusAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -38,7 +39,6 @@ export class AddClientError extends Error {
 export interface AddClientSettings {
   readonly clientsRoot: string
   readonly folderTemplate: FolderTemplate
-  readonly firmIdentity: FirmIdentity
   readonly maxRegisterRows: number
 }
 
@@ -48,6 +48,8 @@ export interface AddClientServices {
   readonly data: () => PatentData | undefined
   readonly jobs: BuildJobs<BuildInput>
   readonly docket: FirmDocket
+  /** The firm identity that the review matches and the docket reads for. */
+  readonly identity: FirmIdentityStore
   readonly sources: RecordStore<FolderSource>
   readonly createWorkspace: (folder: string, title: string) => Promise<{ readonly id: string }>
   readonly now: () => Date
@@ -85,6 +87,22 @@ function text(value: unknown, label: string): string {
 function texts(value: unknown, label: string): string[] {
   if (!Array.isArray(value)) throw new AddClientError('bad-request', `${label} must be a list`)
   return value.map((item, index) => text(item, `${label}[${index}]`))
+}
+
+/** A list of strings that may be empty or blank, or a `bad-request` refusal. */
+function entries(value: unknown, label: string): string[] {
+  if (!Array.isArray(value) || !value.every((item): item is string => typeof item === 'string')) throw new AddClientError('bad-request', `${label} must be a list of strings`)
+  return value
+}
+
+/** The firm identity of a save request. */
+function identityOf(value: unknown): FirmIdentity {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new AddClientError('bad-request', 'identity must be an object')
+  const { names, addresses, representatives } = value as Record<string, unknown>
+  return {
+    names: entries(names, 'identity.names'), addresses: entries(addresses, 'identity.addresses'),
+    representatives: entries(representatives, 'identity.representatives'),
+  }
 }
 
 /** The known clients of a review request. */
@@ -152,7 +170,7 @@ export class AddClientRoutes {
     const data = this.services.data()
     if (data === undefined) return json({ status: 'no-plugin' })
     const asOf = this.services.now().toISOString()
-    const input = { names, clients, identity: this.settings.firmIdentity, maxRows: this.settings.maxRegisterRows }
+    const input = { names, clients, identity: await this.services.identity.current(), maxRows: this.settings.maxRegisterRows }
     return json(await review(data, input, asOf, request.signal))
   }
 
@@ -205,8 +223,7 @@ export class AddClientRoutes {
    * @returns the JSON answer.
    */
   async docket(): Promise<Response> {
-    if (this.services.data() === undefined) return json({ status: 'no-plugin' } satisfies DocketAnswer)
-    return json({ status: 'docket', docket: await this.services.docket.state() } satisfies DocketAnswer)
+    return json(await this.docketAnswer())
   }
 
   /**
@@ -220,6 +237,35 @@ export class AddClientRoutes {
     if (slices !== 'all' && slices !== 'failed') throw new AddClientError('bad-request', 'slices must be "all" or "failed"')
     if (this.services.data() === undefined) return json({ status: 'no-plugin' } satisfies DocketAnswer)
     return json({ status: 'docket', docket: await this.services.docket.readAgain(slices) } satisfies DocketAnswer)
+  }
+
+  /**
+   * `GET identity`: the firm identity now and the state of the firm docket.
+   * @returns the JSON answer.
+   */
+  async identity(): Promise<Response> {
+    const identity = await this.services.identity.current()
+    return json({ identity, docket: await this.docketAnswer() } satisfies FirmIdentityAnswer)
+  }
+
+  /**
+   * `POST identity/save` with a `FirmIdentitySaveRequest`: save the firm identity, then give it to the firm docket,
+   * which drops the rows of the old identity and reads again. The same identity reads nothing again.
+   * @param request - the authenticated request.
+   * @returns the JSON answer with the saved identity and the docket state after the change.
+   */
+  async identitySave(request: Request): Promise<Response> {
+    const { identity: body } = await bodyOf(request)
+    const identity = await this.services.identity.save(identityOf(body))
+    const docket = await this.services.docket.setIdentity(identity)
+    const answer: DocketAnswer = this.services.data() === undefined ? { status: 'no-plugin' } : { status: 'docket', docket }
+    return json({ identity, docket: answer } satisfies FirmIdentityAnswer)
+  }
+
+  /** The docket answer now. */
+  private async docketAnswer(): Promise<DocketAnswer> {
+    if (this.services.data() === undefined) return { status: 'no-plugin' }
+    return { status: 'docket', docket: await this.services.docket.state() }
   }
 }
 

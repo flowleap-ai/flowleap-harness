@@ -8,8 +8,9 @@
  * `add-client/` read the public patent data through the optional `flowleapPatentData` Service, behind one limiter of
  * `opsRequestsPerMinute`, and build a client folder inside `clientsRoot` as a job that goes on after its request ends.
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
- * the `docket` routes report and restart that read. The browser half (`exports["./client"]`)
- * is the Clients page and the Add client page.
+ * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
+ * in `stateDir`, which reads the docket again. The browser half (`exports["./client"]`) is the Clients page, the Add
+ * client page and the Firm identity section of Settings.
  *
  * See packages/client/ui-flowleap-folder/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-folder
@@ -25,11 +26,11 @@ import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { widenBuild, type FolderTemplate } from './add-client/build.ts'
 import { FirmDocket } from './add-client/docket.ts'
-import type { FirmIdentity } from './add-client/identity.ts'
+import { FirmIdentityStore } from './add-client/identity-store.ts'
 import { BuildJobs } from './add-client/jobs.ts'
 import { RequestLimiter, limitedPatentData, systemClock } from './add-client/limiter.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
-import { ADD_CLIENT_ROUTES } from './add-client/wire.ts'
+import { ADD_CLIENT_ROUTES, type FirmIdentity } from './add-client/wire.ts'
 import { ClientFolder, FolderError, checkName } from './folder.ts'
 import {
   FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type ClientFoldersAnswer, type FolderFailure, type FolderSource, type FolderWritten,
@@ -42,7 +43,6 @@ export type * from './route.ts'
 export { ADD_CLIENT_API, ADD_CLIENT_ROUTES, BUILD_STEPS } from './add-client/wire.ts'
 export type * from './add-client/wire.ts'
 export type { FolderTemplate } from './add-client/build.ts'
-export type { FirmIdentity } from './add-client/identity.ts'
 
 /** Cordis plugin name. */
 export const name = 'ui-flowleap-folder'
@@ -67,8 +67,9 @@ export interface Config {
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
   /**
-   * The firm's names, addresses and representatives. The firm docket sends their words to the EP Register to read the
-   * firm's EP applications; every row is matched against them again on the Host.
+   * The firm's names, addresses and representatives until a person saves them in Settings > Firm identity; the saved
+   * identity in `stateDir` then wins. The firm docket sends their words to the EP Register to read the firm's EP
+   * applications; every row is matched against them again on the Host.
    */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
@@ -383,8 +384,9 @@ export function apply(ctx: Context, config: Config): void {
   let service: PatentData | undefined
   const limiter = new RequestLimiter(config.opsRequestsPerMinute, systemClock)
   const data = (): PatentData | undefined => service === undefined ? undefined : limitedPatentData(service, limiter)
+  const identity = new FirmIdentityStore({ file: path.join(config.stateDir, 'identity.json'), initial: config.firmIdentity, now: () => new Date(), log: warn })
   const docket = new FirmDocket({
-    file: path.join(config.stateDir, 'docket.json'), identity: config.firmIdentity, sliceRows: config.registerSliceRows,
+    file: path.join(config.stateDir, 'docket.json'), identity: identity.current(), sliceRows: config.registerSliceRows,
     refreshAge: config.docketRefreshAge, data, clock: systemClock, log: warn,
   })
   ctx.effect(() => () => docket.dispose(), 'ui-flowleap-folder: firm docket')
@@ -397,7 +399,7 @@ export function apply(ctx: Context, config: Config): void {
     }, 'ui-flowleap-folder: patent data')
   })
   const addClient = new AddClientRoutes(config, {
-    data, jobs, docket, sources, now: () => new Date(), log: warn,
+    data, jobs, docket, identity, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -425,4 +427,6 @@ export function apply(ctx: Context, config: Config): void {
   registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
   registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())
   registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
+  registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', () => addClient.identity())
+  registerAddClient(ADD_CLIENT_ROUTES.identitySave, 'POST', request => addClient.identitySave(request))
 }

@@ -5,6 +5,7 @@
  * firm's queries and a client's queries do not go out together. A read sends one request at a time and stores its
  * progress, so a Host stop loses at most the slices of the last {@link SAVE_INTERVAL_MS}, and the next start reads
  * only the slices that are not on disk. A docket of another identity is dropped; with no identity the file is removed.
+ * A new identity ({@link FirmDocket.setIdentity}) stops the read, drops the rows and reads again without a restart.
  * @module
  */
 
@@ -15,7 +16,7 @@ import {
   PAGE_ROWS, docketRow, docketState, freshDocket, nextUnread, oldestAsOf, retryFailed, sameIdentity, sliceQuery,
   parseDocketFile, splitRange, withSlice, type DocketFile, type DocketRow, type SliceResult, type UnreadSlice,
 } from './docket-model.ts'
-import { identitySet, type FirmIdentity } from './identity.ts'
+import { identitySet, sameFirmIdentity, type FirmIdentity } from './identity.ts'
 import { messageOf } from './jobs.ts'
 import type { Clock } from './limiter.ts'
 import type { DocketReadRequest, DocketState } from './wire.ts'
@@ -30,7 +31,8 @@ export const SAVE_INTERVAL_MS = 30_000
 export interface FirmDocketOptions {
   /** The docket file. */
   readonly file: string
-  readonly identity: FirmIdentity
+  /** The firm identity at load; {@link FirmDocket.setIdentity} changes it later. */
+  readonly identity: Promise<FirmIdentity>
   /** `registerSliceRows`: the most rows of one date slice. */
   readonly sliceRows: number
   /** `docketRefreshAge`, in milliseconds. */
@@ -52,7 +54,9 @@ interface Run {
 export class FirmDocket {
   /** The docket of the identity; undefined while it loads and when the identity names nothing. */
   private docket: DocketFile | undefined
-  private readonly loaded: Promise<void>
+  private identity: FirmIdentity = { names: [], addresses: [], representatives: [] }
+  /** The load, then each identity change after it; every act waits for the last one. */
+  private loaded: Promise<void>
   private run: Run | undefined
   private cancelTimer: (() => void) | undefined
   private stopped = false
@@ -63,7 +67,10 @@ export class FirmDocket {
    * @param options - the file, the identity, the settings and the Service.
    */
   constructor(private readonly options: FirmDocketOptions) {
-    this.loaded = this.load()
+    this.loaded = options.identity.then((identity) => {
+      this.identity = identity
+      return this.load()
+    })
   }
 
   /**
@@ -116,6 +123,19 @@ export class FirmDocket {
   }
 
   /**
+   * Take a new firm identity: stop the running read, drop the rows of the old identity, and read the docket of the new
+   * one when the patent data Service is there. With no identity, the docket file is removed and the state is
+   * `no_identity`. The same identity changes nothing. Changes run one after another, in the order of the calls.
+   * @param identity - the new identity, normalized.
+   * @returns the state after the change.
+   */
+  async setIdentity(identity: FirmIdentity): Promise<DocketState> {
+    this.loaded = this.loaded.then(() => this.change(identity))
+    await this.loaded
+    return this.state()
+  }
+
+  /**
    * Stop the read and the refresh timer for good.
    * @returns once the read ended and its progress is on disk.
    */
@@ -126,9 +146,23 @@ export class FirmDocket {
     await this.pause()
   }
 
+  /** Replace the identity and the docket; see {@link setIdentity}. */
+  private async change(identity: FirmIdentity): Promise<void> {
+    if (sameFirmIdentity(identity, this.identity)) return
+    this.identity = identity
+    await this.pause()
+    // The read that ended armed the refresh of the old docket.
+    this.cancelTimer?.()
+    this.cancelTimer = undefined
+    this.docket = undefined
+    await this.load()
+    this.begin()
+  }
+
   /** Read the stored docket of this identity, or start a new one; with no identity, remove the file. */
   private async load(): Promise<void> {
-    const { identity, file, log } = this.options
+    const { identity } = this
+    const { file, log } = this.options
     if (!identitySet(identity)) {
       try {
         await rm(file, { force: true })
@@ -167,7 +201,7 @@ export class FirmDocket {
 
   /** A new read of the whole docket. */
   private fresh(): DocketFile {
-    return freshDocket(this.options.identity, new Date(this.options.clock.now()).toISOString())
+    return freshDocket(this.identity, new Date(this.options.clock.now()).toISOString())
   }
 
   /** Start a read when the docket needs one and the Service is there; else arm the refresh. */
@@ -228,7 +262,8 @@ export class FirmDocket {
 
   /** Read one slice: split it when it has too many rows, else read its pages and keep the firm's rows. */
   private async readSlice(data: PatentData, { query, range }: UnreadSlice, signal: AbortSignal): Promise<SliceResult> {
-    const { clock, sliceRows, identity, log } = this.options
+    const { clock, sliceRows, log } = this.options
+    const { identity } = this
     const cql = sliceQuery(query, range)
     let result: SliceResult
     try {
