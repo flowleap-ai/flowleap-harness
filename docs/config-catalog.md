@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:49`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:50`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1861,6 +1861,8 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** The longest time of one EPO OPS read, its retries included, in ms. */
+  opsRequestDeadlineMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->

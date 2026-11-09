@@ -1480,7 +1480,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>',
-        description: 'Read the title, abstract and claims of one EP publication. The claims are in English when the EPO has them, else in the first language it holds. A Euro-PCT EP publication has no text at the EPO: its fields are absent.',
+        description: 'Read the title, abstract and claims of one EP publication. The claims are in English when the EPO has them, else in the first language it holds. The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are then those of the WO publication of the same international application, and `textFrom` names it. The library\'s text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP bibliography names finds it. They are absent when neither finds a WO publication with text.',
         parameters: [{ name: 'publication', description: 'the EP publication number.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the text.',
       },
@@ -8663,7 +8663,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PublicationText',
-    declaration: 'export interface PublicationText {\n    readonly publicationNumber: EpPublicationNumber;\n    readonly title?: string;\n    readonly abstract?: string;\n    readonly claims?: string;\n}',
+    declaration: 'export interface PublicationText {\n    readonly publicationNumber: EpPublicationNumber;\n    readonly textFrom?: WoPublicationNumber;\n    readonly title?: string;\n    readonly abstract?: string;\n    readonly claims?: string;\n}',
   },
   {
     name: 'QueueAction',
@@ -11152,6 +11152,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WeeklyScheduleRecord',
     declaration: 'export interface WeeklyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'weekly\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly weekdays: number[];\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'WoPublicationNumber',
+    declaration: 'export type WoPublicationNumber = Branded<\'WoPublicationNumber\'>;',
   },
   {
     name: 'WorkflowAgentEndInfo',

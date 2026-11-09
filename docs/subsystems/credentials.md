@@ -528,7 +528,10 @@ family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRe
 /**
  * Read the title, abstract and claims of one EP publication. The claims are in
  * English when the EPO has them, else in the first language it holds.
- * A Euro-PCT EP publication has no text at the EPO: its fields are absent.
+ * The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are
+ * then those of the WO publication of the same international application, and `textFrom` names it. The library's
+ * text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP
+ * bibliography names finds it. They are absent when neither finds a WO publication with text.
  * @param publication - the EP publication number.
  * @param signal - caller cancellation.
  * @returns the text.
