@@ -1,6 +1,6 @@
 # Add client for large clients
 
-**Status:** draft for the founder's approval, 2026-11-09. This sheet changes [the Add client design](2026-11-08-add-client.md) so that Add client gives complete and correct results for a client of any size. It changes the data reads, the counts, the conflict check and the recording. It keeps the flow, the roles, the record facts and the mockups, except where this sheet says so. [The client model](2026-11-09-client-model.md), approved on 2026-11-09, removes the build job, the dated files and the reference file, so this sheet covers only what Add client reads and records. An independent review checked a first draft against the code of PR 362 and with live EP Register queries; this version includes its findings.
+**Status:** approved by the founder on 2026-11-09, with the four [decisions](#decisions-for-the-founder) below. This sheet changes [the Add client design](2026-11-08-add-client.md) so that Add client gives complete and correct results for a client of any size. It changes the data reads, the counts, the conflict check and the recording. It keeps the flow, the roles, the record facts and the mockups, except where this sheet says so. [The client model](2026-11-09-client-model.md), approved on 2026-11-09, removes the build job, the dated files and the reference file, so this sheet covers only what Add client reads and records. An independent review checked a first draft against the code of PR 362 and with live EP Register queries; this version includes its findings.
 
 ## Contents
 
@@ -182,6 +182,8 @@ All changes are FlowLeap plugin code, except one new record command in flowleap-
 3. The most `re=` terms that one query accepts, so that the docket can combine identity entries in one query.
 
 ## Decisions for the founder
+
+The founder decided on 2026-11-09 to accept all four recommendations.
 
 1. **Read the firm docket with the firm's names**, and change the approved rule "FlowLeap never sends the firm identity". Recommended: yes. The EPO already knows the account holder, and the docket makes the firm's matters complete for every client.
 2. **The opponent index with the names of the firm's clients.** Recommended: yes. Without it, the conflict check of a large group must read the whole group portfolio, which is more than 100 page reads for Siemens.
