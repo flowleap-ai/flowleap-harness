@@ -8,21 +8,23 @@ There is one page with an English file and a German file: [myepo.html](myepo.htm
 
 | State | What the card shows |
 |---|---|
-| (none) | **Not linked.** What FlowLeap reads, that it only reads, the note on the read flag of the Mailbox, the setup guide for the MyEPO administrator with the rights table of the B2B account, the two empty fields, and **Save and test** disabled |
-| `entering` | Both fields filled, the setup guide closed, **Save and test** enabled |
+| (none) | **Not linked.** One line on the account, the four sources as chips, the two short notes (read only; a downloaded letter shows as read in MyEPO), the two collapsed rows **What FlowLeap reads** and **Set up the account at the EPO**, the two empty fields, and **Save and test** disabled |
+| `setup` | **Not linked**, with both rows open, as one click on each row shows them: the details of the four sources, and the 3 setup steps with the rights table of the B2B account |
+| `entering` | Both fields filled, **Save and test** enabled |
 | `testing` | The test steps: the token, then the portfolios, then the Mailbox access |
-| `passed` | **Linked.** "6 portfolios that the account may read" as the key fact, the portfolios with type and access, the three checks, and the note on the read flag |
-| `empty` | **Waits for portfolio permission.** The credentials work and the Mailbox answers, but the account may read no portfolio: the administrator must give portfolio permission. **Test again** `R` |
+| `passed` | **Linked.** "6 portfolios that the account may read" as the key fact, the portfolios with type and access, the three checks, and the read-flag note |
+| `empty` | **Waits for portfolio permission.** The credentials work and the Mailbox answers, but the account may read no portfolio: the notice names step 3 of the setup. **Test again** `R` |
 | `refused` | **Test failed.** The EPO refused the client ID or the client secret; the fields are empty for a new entry |
 | `offline` | **Test failed.** The EPO did not answer; the stored credentials did not change. **Try again** `R` |
-| `linked` | The card on a later visit: the summary line and the **Mailbox letters to Intake** row, which is off and says that a downloaded letter shows as read in MyEPO |
+| `linked` | The card on a later visit: the status with **Test** and the menu (Replace credentials, Unlink), one summary line (portfolios, Mailbox access, last test), and the collapsed setup row |
 
-Each state has at most one primary button. **Save and test** has no key; **Test again** and **Try again** have `R` (the `retry` act of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md)).
+The two rows are collapsed in every state. The firm sees the setup once, and its administrator usually does it before anybody opens this card; the `empty` notice names the one step that is missing. Each state has at most one primary button. **Save and test** has no key; **Test again** and **Try again** have `R` (the `retry` act of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md)).
 
 ## Proposals for the founder
 
 - **The section name.** The navigation cuts "Patent data connectors" with an ellipsis today. The mockup renames the section to **Connectors** (German **Anbindungen**), which is also the founder's name for the page. The section has two groups: **Your firm's EPO account** (MyEPO) and **Patent data** (EPO OPS, USPTO ODP, Semantic Scholar, Mistral, as the client draws them today).
 - **Save and test.** One act stores the two fields and runs the test, so that a firm sees at once whether the account works.
+- **A short card.** The founder asked on 2026-11-09 for a shorter card: the setup steps and the details of the sources open with one click, and the linked card is one header and one line.
 - **Linked or not.** The card says **Linked** only after a test passed. After a failed test, FlowLeap reads nothing with the credentials.
 
 ## Decisions in the mockup
