@@ -26,7 +26,7 @@ Calibration run 42638383736 ran the probe three times before and three times aft
 
 On the reference class and faster, the gate is as strict as before. On an EPYC 7763 runner, the 16,384-delta reasoning budget becomes 105 ms against recorded medians of 80.2 to 87.8 ms, which keeps the 1.18 to 1.27 relative headroom of the EPYC 9V74 class. The conversation-fold controls accept the recorded EPYC 7763 median at its own scale, reject that median at the unscaled budget, and reject the median one quarter slower at the scaled budget.
 
-Known exclusions: the probe measures the runner once, before the timed cases. Load that starts later is not part of the scale. The probe is single-threaded JavaScript, so it estimates browser and storage speed through their correlation with CPU speed. The 55 ms reference and the 1.5 cap need new calibration when the runner pool or Node version changes the probe distribution.
+Known exclusions: the hold removes the implicit limit that first reply text show within the paced replay, about 1.9 s after the stream starts. Text that shows only after the stream stops is now caught only by the scaled `first` budget, measured from Enter. That implicit limit was unscaled and failed EPYC 9V74 runners at their ordinary speed, so a check against the hold point would bring the flake back. The probe measures the runner once, before the timed cases. Load that starts later is not part of the scale. The probe is single-threaded JavaScript, so it estimates browser and storage speed through their correlation with CPU speed. The 55 ms reference and the 1.5 cap need new calibration when the runner pool or Node version changes the probe distribution.
 
 ## Alternatives considered
 

@@ -1,7 +1,7 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SESSION_FORMAT_VERSION, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
@@ -1279,12 +1279,13 @@ describe('loadReplayScript', () => {
       { doc: [{ kind: 'chunks', chunks: [], extra: true }], message: /invalid chunks-entry fields/ },
       { doc: [{ kind: 'chunks', chunks: [{ type: 'bogus' }] }], message: /known StreamChunk type/ },
       { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: null }], message: /hold must have exactly beforeChunk and releaseFile/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: 'r', extra: true } }], message: /hold must have exactly/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: '1', releaseFile: 'r' } }], message: /hold.beforeChunk must index a chunk/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 1.5, releaseFile: 'r' } }], message: /hold.beforeChunk must index a chunk/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: -1, releaseFile: 'r' } }], message: /hold.beforeChunk must index a chunk/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: TEXT_CHUNKS.length, releaseFile: 'r' } }], message: /hold.beforeChunk must index a chunk/ },
-      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: '' } }], message: /hold.releaseFile must be a non-empty string/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: '/r', extra: true } }], message: /hold must have exactly/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: '1', releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 1.5, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: -1, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: TEXT_CHUNKS.length, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: '' } }], message: /hold.releaseFile must be an absolute path/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: 'release' } }], message: /hold.releaseFile must be an absolute path/ },
       { doc: [{ kind: 'throw', chunks: [], message: 'nope', code: 'AUTH', extra: true }], message: /invalid throw-entry fields/ },
       { doc: [{ kind: 'throw', chunks: [], message: '', code: 'AUTH' }], message: /message must be a non-empty string/ },
       { doc: [{ kind: 'throw', chunks: [], message: 'nope', code: '' }], message: /code must be a non-empty string/ },
@@ -1698,22 +1699,17 @@ describe('installLlmReplay (through the real LlmRuntime)', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     installLlmReplay(ctx, { file, overrideFile })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => { vi.useRealTimers() })
     const iterator = ctx.llm.stream({ provider: 'm', model: 'm', messages: [] })[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toEqual(TEXT_CHUNKS[0])
     let released = false
     const held = iterator.next().then((result) => { released = true; return result })
-    await new Promise(resolve => setImmediate(resolve))
-    const observer = watch(dir)
-    const unrelatedSeen = new Promise(resolve => observer.on('change', (_event, name) => { if (name === 'unrelated') resolve(undefined) }))
-    try {
-      writeFileSync(join(dir, 'unrelated'), '')
-      await unrelatedSeen
-    } finally {
-      observer.close()
-    }
-    await new Promise(resolve => setImmediate(resolve))
+    await vi.advanceTimersByTimeAsync(1_000)
     expect(released).toBe(false)
     writeFileSync(releaseFile, '')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(released).toBe(true)
     expect((await held).value).toEqual(TEXT_CHUNKS[1])
     const rest: StreamChunk[] = []
     for (let next = await iterator.next(); next.done !== true; next = await iterator.next()) rest.push(next.value)
@@ -1729,7 +1725,7 @@ describe('installLlmReplay (through the real LlmRuntime)', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     installLlmReplay(ctx, { file, overrideFile })
-    expect(await drain(ctx.llm.stream({ provider: 'm', model: 'm', messages: [] }))).toEqual(TEXT_CHUNKS)
+    expect(await drain(ctx.llm.stream({ provider: 'm', model: 'm', messages: [], signal: new AbortController().signal }))).toEqual(TEXT_CHUNKS)
   })
 
   it('rejects a held chunks entry when the signal fires during the hold', async () => {

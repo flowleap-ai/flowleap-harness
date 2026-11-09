@@ -334,7 +334,8 @@ describe('Session corpus operations', () => {
 
   it(`completes within ${String(FILE_LIMIT_MS / 60_000)} minutes`, () => {
     const elapsedMs = performance.now() - started
-    console.log(JSON.stringify({ benchmark: 'session-corpus/total', elapsedMs: Math.round(elapsedMs), limitMs: FILE_LIMIT_MS }))
-    expectWithinBudget(elapsedMs, FILE_LIMIT_MS)
+    const limitMs = runnerTimeBudget(FILE_LIMIT_MS)
+    console.log(JSON.stringify({ benchmark: 'session-corpus/total', elapsedMs: Math.round(elapsedMs), limitMs }))
+    expectWithinBudget(elapsedMs, limitMs)
   })
 })

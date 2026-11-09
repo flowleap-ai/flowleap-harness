@@ -451,10 +451,11 @@ it('opens, pages, navigates and streams into a 240-turn browser history', async 
     if (failures.length > 0) throw new AggregateError(failures, 'browser benchmark failed')
   }
   const aggregate = Object.fromEntries(Object.keys(REFERENCE).map(key => [key, median(samples.map(sample => sample[key as keyof typeof REFERENCE]))]))
+  // Replay pacing is timer-driven, so the runner scale applies to the overhead budget but not to the paced duration.
   const budgets: Record<string, number> = Object.fromEntries(Object.entries({
-    ...Object.fromEntries(Object.entries(REFERENCE).map(([key, value]) => [key, ciTimeBudget(value) + (key === 'streamWall' ? REPLAY_DURATION_MS : 0)])),
+    ...Object.fromEntries(Object.entries(REFERENCE).map(([key, value]) => [key, ciTimeBudget(value)])),
     open: OPEN_BUDGET_MS, page: PAGE_BUDGET_MS, trajectory: TRAJECTORY_BUDGET_MS,
-  }).map(([key, budget]) => [key, runnerTimeBudget(budget)]))
+  }).map(([key, budget]) => [key, runnerTimeBudget(budget) + (key === 'streamWall' ? REPLAY_DURATION_MS : 0)]))
   console.log(JSON.stringify({ benchmark: 'long-session-browser/median', turns: HISTORY_TURNS, deltas: DELTAS, paceMs: PACE_MS, samples, aggregate, referenceMs: REFERENCE, expectedOpenCiMs: EXPECTED_OPEN_CI_MS, expectedPageCiMs: EXPECTED_PAGE_CI_MS, expectedTrajectoryCiMs: EXPECTED_TRAJECTORY_CI_MS, budgets }))
   recordTimings(CASE, Object.fromEntries(SCALED_ENDPOINTS.map(key => [key, { ms: aggregate[key]!, ioShare: IO_SHARE }])), budgets)
   for (const [key, value] of Object.entries(aggregate)) expectEndpointWithinBudget(value, budgets[key]!)

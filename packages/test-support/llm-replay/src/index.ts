@@ -7,8 +7,8 @@
  * @module @deepseek-ai/dsh-llm-replay
  */
 
-import { existsSync, readFileSync, watch, writeFileSync } from 'node:fs'
-import { delimiter as pathDelimiter, dirname } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { delimiter as pathDelimiter, isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-compaction'
 import type {} from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
@@ -698,8 +698,8 @@ function readReplayEntry(value: unknown, file: string, location: string): Replay
       if (typeof beforeChunk !== 'number' || !Number.isSafeInteger(beforeChunk) || beforeChunk < 0 || beforeChunk >= chunks.length) {
         invalidOverride(file, location, 'hold.beforeChunk must index a chunk')
       }
-      if (typeof releaseFile !== 'string' || releaseFile.length === 0) {
-        invalidOverride(file, location, 'hold.releaseFile must be a non-empty string')
+      if (typeof releaseFile !== 'string' || !isAbsolute(releaseFile)) {
+        invalidOverride(file, location, 'hold.releaseFile must be an absolute path')
       }
       return { kind: 'chunks', chunks, hold: { beforeChunk, releaseFile } }
     }
@@ -973,25 +973,27 @@ function paceDelay(paceMs: number, signal: AbortSignal | undefined): Promise<voi
   })
 }
 
-/**
- * Resolve once `path` exists, rejecting when the signal fires first. The
- * caller checks an already-aborted signal synchronously before the call. The
- * directory watcher exists before the existence check, so a file created
- * between the two still releases the wait.
- */
+/** Interval between release-file checks of a held replay entry. */
+const RELEASE_POLL_MS = 10
+
+/** Resolve once `path` exists, checking every {@link RELEASE_POLL_MS}; reject when the signal fires first. */
 function waitForFile(path: string, signal: AbortSignal | undefined): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const watcher = watch(dirname(path), () => { if (existsSync(path)) settle(resolve) })
-    const onAbort = (): void => { settle(() => { reject(new Error('aborted')) }) }
-    function settle(outcome: () => void): void {
-      watcher.close()
-      signal?.removeEventListener('abort', onAbort)
-      outcome()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onAbort = (): void => {
+      clearTimeout(timer)
+      reject(new Error('aborted'))
     }
-    /* v8 ignore next -- an FSWatcher error needs the watched directory to fail underneath it; the listener keeps it uncaught-safe. */
-    watcher.once('error', (error: Error) => { settle(() => { reject(error) }) })
+    const check = (): void => {
+      if (!existsSync(path)) {
+        timer = setTimeout(check, RELEASE_POLL_MS)
+        return
+      }
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }
     signal?.addEventListener('abort', onAbort, { once: true })
-    if (existsSync(path)) settle(resolve)
+    check()
   })
 }
 
