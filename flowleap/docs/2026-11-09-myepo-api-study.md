@@ -93,6 +93,18 @@ Yes: the firm links FlowLeap to the MyEPO API with its own B2B credentials, on i
 
 **Link.** Settings → Connectors gets a **MyEPO** card beside EPO OPS, USPTO ODP, Semantic Scholar and Mistral. The card takes the client ID and the client secret and stores them as a `flowleap-connectors/myepo` credential record (`ctx.credentials`), as the other connectors do. **Test** gets a token and reads `GET /portfolios`, then shows the portfolios that the B2B account may read and whether the Mailbox answers. When the list is empty, the card says that the company administrator must give the B2B account permission on the portfolios, and links the EPO guide.
 
+**The rights of the B2B account.** The card's setup guide tells the firm's MyEPO administrator to give the B2B account only what FlowLeap needs. In MyEPO, **Admin area → Group members**:
+
+| Right | Setting | Why |
+|---|---|---|
+| Mailbox access | Yes | The API reads the Mailbox only with this right |
+| Fee payment rights | No rights | FlowLeap does not pay fees |
+| Admin rights | No | The account must not change members or rights |
+| Signing rights | No | FlowLeap does not sign |
+| Sending rights | No | FlowLeap does not send to the EPO |
+
+Then, in **Applications and patents**, the administrator gives the B2B account permission on the portfolios that FlowLeap may read.
+
 **Service.** A Service Definition `flowleapMyEpo` in `flowleap-connectors`, for Host code only:
 
 - reads: `portfolios()`, `applications(filter)`, `bibliographicData(application)`, `communications(folder?)`, `unhandledCommunications()`, `downloadCommunication(id)`, `dueDates(application)`, `terms()`, `pendingFees(application)`;
@@ -137,7 +149,7 @@ DEPATISnet is the DPMA's free web search in more than 160 million patent documen
 
 ## Next steps
 
-1. **The founder asks support@epo.org for sandbox credentials** for FlowLeap as a software vendor that builds an IP management system on the MyEPO API, and asks about the vendor terms (open point 6).
+1. **Done on 2026-11-09:** the founder asked support@epo.org for sandbox credentials for FlowLeap as a software vendor that builds an IP management system on the MyEPO API, and asks about the vendor terms (open point 6).
 2. With the sandbox: answer the open points 1 to 5, record real responses as test fixtures, and set the rate limit.
 3. Then a mockup of the MyEPO card and of the Mailbox intake for approval (the Linear bar), and the build: the connector and the link card first, the docket source second, the Mailbox intake third.
 4. A pilot firm links its production credentials only after the sandbox proof and its own consent.
