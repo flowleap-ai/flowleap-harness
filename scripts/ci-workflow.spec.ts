@@ -15,7 +15,7 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('CI workflow', () => {
-  it('keeps at most fifteen worker jobs active across PR workflows while Python runtime targets follow the SDK suite', () => {
+  it('keeps matrices explicit and starts Python runtime targets after the SDK suite', () => {
     const ci = loadWorkflow('.github/workflows/ci.yml')
     const ciWindows = loadWorkflow('.github/workflows/ci-windows.yml')
     const ciPython = loadWorkflow('.github/workflows/ci-python.yml')
@@ -93,17 +93,7 @@ describe('CI workflow', () => {
     expect(build.uses).toBeUndefined()
     if (!isRecord(build.strategy)) throw new TypeError('Python runtime build must define its target matrix')
     expect(build.strategy.matrix).toEqual({ include: '${{ fromJSON(needs.plan.outputs.matrix) }}' })
-
-    // Python's runtime targets start only after the SDK suite; Windows starts
-    // immediately. Plan and wheel stages precede the two-target matrix.
-    const windowsActive = windowsJobs.length
-    // One push stays inside the organization's 20 concurrent hosted jobs;
-    // each web snapshot shard holds its own runner.
-    const linuxActive = ordinaryJobs.length + shards.length + compatibilityLimit
-    const beforeSdk = linuxActive + windowsActive + 1
-    const afterSdk = linuxActive + windowsActive + Math.max(1, targets.split(',').length)
-    expect(beforeSdk).toBeLessThanOrEqual(15)
-    expect(afterSdk).toBeLessThanOrEqual(15)
+    expect(targets.split(',')).toHaveLength(2)
   })
 
   it('keeps the union of required PR verdicts equal to the pre-split blocking set', () => {
@@ -121,7 +111,7 @@ describe('CI workflow', () => {
       }
       const jobs = workflow.jobs
       expect(verdict.needs.every(id => typeof id === 'string' && id in jobs)).toBe(true)
-      blocking.push(...(verdict.needs as string[]))
+      blocking.push(...(verdict.needs as string[]).filter(id => id !== 'lane'))
     }
     // Splitting the workflows only moves jobs between verdicts; the blocking
     // set itself must stay identical, or branch protection would accept a
@@ -132,6 +122,7 @@ describe('CI workflow', () => {
       'node-24-consumers',
       'node-24-coverage',
       'node-24-lint',
+      'node-24-unit',
       'node-24-web-snapshots',
       'node-compat',
       'python-runtime',
@@ -224,7 +215,7 @@ describe('CI workflow', () => {
     expect(steps[preparation]).not.toHaveProperty('continue-on-error', true)
   })
 
-  it.each(['ci.yml', 'ci-master.yml', 'e2e.yml', 'release.yml', 'release-vendor.yml'])(
+  it.each(['ci-master.yml', 'e2e.yml', 'release.yml', 'release-vendor.yml'])(
     '%s cancels superseded validation runs without crossing workflow or ref boundaries', (name) => {
       const workflow = loadWorkflow('.github/workflows/' + name)
       expect(workflow.concurrency).toEqual({
@@ -423,7 +414,10 @@ describe('CI workflow', () => {
       const cores = jobName === 'windows-native-tests' ? 2 : 16
       expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
         .toBe(`blacksmith-${cores}vcpu-windows-2025`)
-      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job.needs).toBe('lane')
+      expect(job.if).toBe(jobName === 'windows-coverage'
+        ? "needs.lane.outputs.full == 'true' && github.event_name != 'pull_request'"
+        : "needs.lane.outputs.full == 'true' && github.event_name != 'schedule'")
     }
 
     // windows-build runs the blocking build/site pair.
@@ -559,10 +553,9 @@ describe('CI workflow', () => {
     expect(aggregate.needs).not.toContain('windows')
     // windows-coverage is temporarily non-blocking while Windows ACP
     // half-close tests are stabilized; observational stays out too.
-    expect(windowsAggregate.needs).toEqual(['windows-build', 'windows-native-tests'])
-    expect(windowsAggregate.name).toBe('windows checks passed')
+    expect(windowsAggregate.needs).toEqual(['lane', 'windows-build', 'windows-native-tests'])
     expect(windowsAggregate['runs-on']).toBe(aggregate['runs-on'])
-    expect(windowsAggregate.if).toBe(aggregate.if)
+    expect(windowsAggregate.if).toBe("${{ !cancelled() && needs.lane.result != 'skipped' && github.event_name != 'schedule' }}")
     // The benchmark lane is a required verdict input and runs alone so its
     // wall-clock budgets never share a runner with a concurrent aggregate.
     expect(aggregate.needs).toContain('node-24-bench')
@@ -706,8 +699,8 @@ describe('CI workflow', () => {
       expect(evaluateRunsOn(benchmark['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: mode } })).toBe('ubuntu-24.04')
     }
     expect(JSON.stringify(benchmark.steps)).not.toContain('DSH_CI_FAILOVER_LINUX')
-    expect(benchmark.if).toBe("github.event_name == 'pull_request'")
-    expect(benchmark.needs).toBeUndefined()
+    expect(benchmark.if).toBe("needs.lane.outputs.full == 'true'")
+    expect(benchmark.needs).toBe('lane')
     expect(benchmark['continue-on-error']).toBeUndefined()
     expect(benchmark.env).toBeUndefined()
     expect(aggregate.needs).toContain('node-24-bench')
@@ -828,28 +821,28 @@ describe('CI workflow', () => {
       group: '${{ github.workflow }}-${{ github.ref }}',
       'cancel-in-progress': true,
     })
-    expect(prWorkflow.concurrency).toEqual(workflow.concurrency)
 
     // The exact event sets are what keep master-only jobs out of the PR check
     // panel: ci-master triggers only on push(master) + workflow_dispatch and
-    // never on pull_request; ci.yml is exactly pull_request-only. Assert the
-    // full sets so losing the wrong event, or gaining an extra one, fails.
+    // never on pull_request. The fork's lanes own the other workflows'
+    // triggers. Assert the full sets so losing the wrong event, or gaining an
+    // extra one, fails.
     if (!isRecord(workflow.on) || !isRecord(prWorkflow.on)) {
       throw new TypeError('both CI workflows must define on')
     }
     expect(Object.keys(workflow.on).sort()).toEqual(['push', 'workflow_dispatch'])
-    expect(Object.keys(prWorkflow.on)).toEqual(['pull_request'])
+    expect(Object.keys(prWorkflow.on)).toEqual(['pull_request', 'push'])
     const windowsWorkflow = loadWorkflow('.github/workflows/ci-windows.yml')
     if (!isRecord(windowsWorkflow.on)) throw new TypeError('CI Windows workflow must define on')
-    expect(Object.keys(windowsWorkflow.on)).toEqual(['pull_request'])
-    expect(windowsWorkflow.concurrency).toEqual(workflow.concurrency)
+    expect(Object.keys(windowsWorkflow.on)).toEqual(['pull_request', 'push', 'schedule'])
+    expect(windowsWorkflow.concurrency).toEqual(prWorkflow.concurrency)
     // Duplicated env must not drift: a Node bump on one lane only would run
     // Linux and Windows against different versions.
     expect(windowsWorkflow.env).toEqual(prWorkflow.env)
     const pythonWorkflow = loadWorkflow('.github/workflows/ci-python.yml')
     if (!isRecord(pythonWorkflow.on)) throw new TypeError('CI Python workflow must define on')
     expect(Object.keys(pythonWorkflow.on)).toEqual(['pull_request'])
-    expect(pythonWorkflow.concurrency).toEqual(workflow.concurrency)
+    expect(pythonWorkflow.concurrency).toEqual(prWorkflow.concurrency)
     expect(pythonWorkflow.env).toEqual(prWorkflow.env)
 
     // Drills share the parent run’s supersession policy.
@@ -936,8 +929,8 @@ describe('CI workflow', () => {
       throw new TypeError('CI Python aggregate must define required job dependencies')
     }
 
+    expect(pythonRuntime).not.toHaveProperty('if')
     expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
       name: 'python runtime / release-shaped matrix',
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: { targets: 'node24-linux-x64,node24-win-x64', ci: true },
@@ -945,7 +938,7 @@ describe('CI workflow', () => {
         DEEPSEEK_API_KEY_EXTERNAL: '${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}',
       },
     })
-    expect(aggregate.needs).toEqual(['python-sdk', 'python-runtime'])
+    expect(aggregate.needs).toEqual(['lane', 'python-sdk', 'python-runtime'])
     for (const file of ['ci.yml', 'ci-windows.yml']) {
       const other = loadWorkflow('.github/workflows/' + file)
       if (!isRecord(other.jobs)) throw new TypeError(`${file} must define jobs`)
@@ -1719,6 +1712,229 @@ describe('Documentation site publication', () => {
     expect(deploy.environment).toMatchObject({ name: 'github-pages' })
   })
 })
+
+describe('CI lanes', () => {
+  const draft: LaneEvent = { event_name: 'pull_request', action: 'synchronize', draft: true }
+  const ready: LaneEvent = { event_name: 'pull_request', action: 'ready_for_review', draft: false }
+  const readyPush: LaneEvent = { event_name: 'pull_request', action: 'synchronize', draft: false }
+  const labelledDraft: LaneEvent = { event_name: 'pull_request', action: 'labeled', label: 'full-ci', draft: true, labels: ['full-ci'] }
+  const otherLabel: LaneEvent = { event_name: 'pull_request', action: 'labeled', label: 'enhancement', draft: false, labels: ['enhancement'] }
+  const merge: LaneEvent = { event_name: 'push' }
+  const nightly: LaneEvent = { event_name: 'schedule' }
+  const fullLinux = [
+    'node-24', 'node-24-bench', 'node-24-consumers', 'node-24-coverage',
+    'node-24-lint', 'node-24-web-snapshots', 'node-compat',
+  ]
+  const requiredNames: Record<string, string> = {
+    'ci.yml': 'all checks passed',
+    'ci-windows.yml': 'windows checks passed',
+    'ci-python.yml': 'python checks passed',
+  }
+
+  it('shares one lane job, one trigger set, and one concurrency group across the lane workflows', () => {
+    const [ci, windows, python] = ['ci.yml', 'ci-windows.yml', 'ci-python.yml'].map(file => loadWorkflow('.github/workflows/' + file))
+    for (const workflow of [windows, python]) {
+      expect(workflowJob(workflow, 'lane')).toEqual(workflowJob(ci!, 'lane'))
+      expect(workflow.concurrency).toEqual(ci!.concurrency)
+      expect(isRecord(workflow.on) && workflow.on.pull_request).toEqual(isRecord(ci!.on) && ci!.on.pull_request)
+    }
+    expect(ci!.on).toMatchObject({
+      pull_request: { types: ['opened', 'synchronize', 'reopened', 'ready_for_review', 'labeled'] },
+      push: { branches: ['flowleap'] },
+    })
+    expect(windows!.on).toMatchObject({ push: { branches: ['flowleap'] }, schedule: [{ cron: '17 2 * * *' }] })
+  })
+
+  it('runs only static, lint, and unit tests on a draft, under verdict names that are not the required ones', () => {
+    expect(simulateRun('ci.yml', draft)).toEqual({
+      started: ['node-24', 'node-24-lint', 'node-24-unit'],
+      verdict: { name: 'fast lane passed (draft, not full CI)', result: 'success' },
+    })
+    expect(simulateRun('ci-windows.yml', draft)).toEqual({
+      started: [],
+      verdict: { name: 'windows checks not run (draft)', result: 'success' },
+    })
+    expect(simulateRun('ci-python.yml', draft)).toEqual({
+      started: [],
+      verdict: { name: 'python checks not run (draft)', result: 'success' },
+    })
+    expect(simulateRun('ci.yml', draft, { 'node-24-unit': 'failure' }).verdict?.result).toBe('failure')
+  })
+
+  it.each([
+    ['ready for review', ready],
+    ['a push to a ready pull request', readyPush],
+    ['a full-ci label on a draft', labelledDraft],
+  ])('runs the full suite for %s', (_, event) => {
+    expect(simulateRun('ci.yml', event)).toEqual({ started: fullLinux, verdict: { name: 'all checks passed', result: 'success' } })
+    expect(simulateRun('ci-windows.yml', event)).toEqual({
+      started: ['windows-build', 'windows-native-tests'],
+      verdict: { name: 'windows checks passed', result: 'success' },
+    })
+    expect(simulateRun('ci-python.yml', event)).toEqual({
+      started: ['python-runtime', 'python-sdk'],
+      verdict: { name: 'python checks passed', result: 'success' },
+    })
+  })
+
+  it('runs the full Linux suite and Windows coverage after a merge, and only Windows coverage nightly', () => {
+    expect(simulateRun('ci.yml', merge)).toEqual({ started: fullLinux, verdict: { name: 'all checks passed', result: 'success' } })
+    expect(simulateRun('ci-windows.yml', merge)).toEqual({
+      started: ['windows-build', 'windows-coverage', 'windows-native-tests'],
+      verdict: { name: 'windows checks passed', result: 'success' },
+    })
+    expect(simulateRun('ci-windows.yml', nightly)).toEqual({ started: ['windows-coverage'] })
+  })
+
+  it.each(Object.keys(requiredNames))('never passes the required %s verdict unless every full-lane job succeeded', (file) => {
+    const events = [draft, ready, readyPush, labelledDraft, otherLabel, merge]
+    const fullJobs = simulateRun(file, ready).started
+    for (const event of events) {
+      for (const job of fullJobs) {
+        for (const result of ['failure', 'cancelled', 'skipped'] as const) {
+          const verdict = simulateRun(file, event, { [job]: result }).verdict
+          expect(verdict?.name === requiredNames[file] && verdict.result === 'success', `${file} ${job} ${result}`).toBe(false)
+        }
+      }
+    }
+    expect(simulateRun(file, ready, { lane: 'failure' }).verdict).toMatchObject({ result: 'failure' })
+  })
+
+  it('ignores other labels in a concurrency group of their own', () => {
+    for (const file of Object.keys(requiredNames)) {
+      expect(simulateRun(file, otherLabel)).toEqual({ started: [] })
+    }
+    const group = loadWorkflow('.github/workflows/ci.yml').concurrency
+    if (!isRecord(group) || typeof group.group !== 'string') throw new TypeError('CI must define a concurrency group')
+    const groupFor = (event: LaneEvent): unknown => evaluateTemplate(String(group.group), {
+      github: { ...githubContext(event), workflow: 'CI', ref: 'refs/pull/7/merge', run_id: 99 },
+    })
+    expect(groupFor(otherLabel)).toBe('CI-refs/pull/7/merge-label-99')
+    expect(groupFor(labelledDraft)).toBe('CI-refs/pull/7/merge')
+    expect(groupFor(readyPush)).toBe('CI-refs/pull/7/merge')
+    expect(evaluateTemplate(String(group['cancel-in-progress']), { github: githubContext(merge) })).toBe('false')
+  })
+
+  it('starts 3 worker jobs per draft push and at most 14 per ready push, inside the 20 hosted jobs', () => {
+    const workers = (event: LaneEvent): { beforeSdk: number; afterSdk: number } => {
+      let linuxAndWindows = 0
+      for (const file of ['ci.yml', 'ci-windows.yml']) {
+        const workflow = loadWorkflow('.github/workflows/' + file)
+        for (const id of simulateRun(file, event).started) linuxAndWindows += activeLegs(workflowJob(workflow, id))
+      }
+      const python = simulateRun('ci-python.yml', event).started
+      return {
+        beforeSdk: linuxAndWindows + (python.includes('python-sdk') ? 1 : 0),
+        afterSdk: linuxAndWindows + (python.includes('python-runtime') ? 2 : 0),
+      }
+    }
+    expect(workers(draft)).toEqual({ beforeSdk: 3, afterSdk: 3 })
+    expect(workers(ready)).toEqual({ beforeSdk: 13, afterSdk: 14 })
+  })
+})
+
+interface LaneEvent {
+  event_name: string
+  action?: string
+  label?: string
+  draft?: boolean
+  labels?: string[]
+}
+
+type JobResult = 'success' | 'failure' | 'cancelled' | 'skipped'
+
+interface RunOutcome {
+  started: string[]
+  verdict?: { name: string; result: 'success' | 'failure' }
+}
+
+function githubContext(event: LaneEvent): Record<string, unknown> {
+  return {
+    event_name: event.event_name,
+    event: {
+      action: event.action,
+      ...event.label === undefined ? {} : { label: { name: event.label } },
+      ...event.event_name === 'pull_request'
+        ? { pull_request: { draft: event.draft ?? false, labels: (event.labels ?? []).map(name => ({ name })), user: { login: 'maintainer' } } }
+        : {},
+    },
+  }
+}
+
+// Evaluates the GitHub expression subset the lane workflows use.
+function evaluateExpression(expression: string, context: Record<string, unknown>): unknown {
+  const body = expression.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, '$1')
+    .replace(/\bneeds\.([A-Za-z0-9_-]+)/g, "needs['$1']")
+    .replace(/\.\*\.([A-Za-z_]+)/g, '.map(item => item.$1)')
+  return runInNewContext(body, {
+    ...context,
+    contains: (haystack: unknown, needle: unknown) => Array.isArray(haystack)
+      ? haystack.includes(needle)
+      : String(haystack).includes(String(needle)),
+    cancelled: () => false,
+    format: (template: string, ...args: unknown[]) => template.replace(/\{(\d+)\}/g, (_, index: string) => String(args[Number(index)])),
+  }, { timeout: 1000 })
+}
+
+function evaluateTemplate(template: string, context: Record<string, unknown>): string {
+  return template.replace(/\$\{\{([\s\S]*?)\}\}/g, (_, body: string) => String(evaluateExpression(body, context)))
+}
+
+function activeLegs(job: Record<string, unknown>): number {
+  if (!isRecord(job.strategy) || !isRecord(job.strategy.matrix)) return 1
+  const { matrix } = job.strategy
+  const legs = Array.isArray(matrix.include) ? matrix.include.length : Array.isArray(matrix.shard) ? matrix.shard.length : 1
+  return typeof job.strategy['max-parallel'] === 'number' ? Math.min(legs, job.strategy['max-parallel']) : legs
+}
+
+// Simulates one workflow run: jobs start in `needs` order, an `if` without a
+// status function also requires every needed job to succeed, and `results`
+// overrides the result of a started job.
+function simulateRun(file: string, event: LaneEvent, results: Record<string, JobResult> = {}): RunOutcome {
+  const workflow = loadWorkflow('.github/workflows/' + file)
+  if (!isRecord(workflow.jobs)) throw new TypeError(`${file} must define jobs`)
+  const github = githubContext(event)
+  const settled: Record<string, { result: JobResult; outputs: Record<string, string> }> = {}
+  const outcome: RunOutcome = { started: [] }
+  const pending = Object.entries(workflow.jobs)
+  while (pending.length > 0) {
+    const index = pending.findIndex(([, job]) => jobNeeds(job).every(id => id in settled))
+    if (index < 0) throw new TypeError(`${file} has a job whose needs never settle`)
+    const [id, job] = pending.splice(index, 1)[0]!
+    if (!isRecord(job)) throw new TypeError(`${file} ${id} must define a job`)
+    const needs = Object.fromEntries(jobNeeds(job).map(need => [need, settled[need]]))
+    const context = { github, needs }
+    const condition = typeof job.if === 'string' ? job.if : undefined
+    const statusFunction = condition !== undefined && /\b(cancelled|always|success|failure)\(\)/.test(condition)
+    const upstream = Object.values(needs).every(need => need?.result === 'success')
+    if (!(statusFunction || upstream) || (condition !== undefined && !evaluateExpression(condition, context))) {
+      settled[id] = { result: 'skipped', outputs: {} }
+      continue
+    }
+    if (id.endsWith('checks-passed')) {
+      const steps = Array.isArray(job.steps) ? job.steps.filter(isRecord) : []
+      const failed = Boolean(evaluateExpression(String(steps[0]?.if), context))
+      outcome.verdict = { name: evaluateTemplate(String(job.name), context), result: failed ? 'failure' : 'success' }
+      continue
+    }
+    if (id === 'lane') {
+      const step = Array.isArray(job.steps) ? job.steps.filter(isRecord).find(candidate => candidate.id === 'lane') : undefined
+      const full = isRecord(step?.env) ? evaluateTemplate(String(step.env.FULL), context) : ''
+      settled[id] = { result: results.lane ?? 'success', outputs: { full } }
+      continue
+    }
+    outcome.started.push(id)
+    settled[id] = { result: results[id] ?? 'success', outputs: {} }
+  }
+  outcome.started.sort()
+  return outcome
+}
+
+function jobNeeds(job: unknown): string[] {
+  if (!isRecord(job)) return []
+  if (typeof job.needs === 'string') return [job.needs]
+  return Array.isArray(job.needs) ? job.needs.filter((need): need is string => typeof need === 'string') : []
+}
 
 function loadWorkflow(path: string): Record<string, unknown> {
   const workflow: unknown = yaml.load(readFileSync(resolve(root, path), 'utf8'))

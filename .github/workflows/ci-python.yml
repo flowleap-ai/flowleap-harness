@@ -8,6 +8,7 @@ name: CI Python
 # checks passed".
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
 permissions:
   contents: read
 
@@ -19,12 +20,28 @@ env:
 
 # Cancel a superseded pull-request run on a new push, as in ci.yml.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'full-ci' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Decides the lane for this run. A `labeled` event for any label other than
+  # `full-ci` skips it, and with it every job of the run.
+  lane:
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
+    runs-on: ubuntu-latest
+    name: ci lane
+    outputs:
+      full: ${{ steps.lane.outputs.full }}
+    steps:
+      - name: Select the fast or the full lane
+        id: lane
+        env:
+          FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
+
   python-sdk:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
     runs-on: ubuntu-latest
     name: python 3.10 / keyless SDK
     steps:
@@ -53,7 +70,6 @@ jobs:
   # pull requests; Linux ARM64 and both macOS architectures run in
   # ci-master.yml.
   python-runtime:
-    if: github.event_name == 'pull_request'
     needs: python-sdk
     name: python runtime / release-shaped matrix
     uses: ./.github/workflows/build-exe-for-python-sdk.yml
@@ -67,21 +83,25 @@ jobs:
   # ci.yml's "all checks passed": every blocking job in THIS workflow is
   # listed in `needs`. The bookkeeping job follows the Linux failover switch
   # like the other verdicts.
+  # A draft run runs no Python job and reports under a name that says so.
   python-checks-passed:
-    name: python checks passed
+    name: ${{ needs.lane.outputs.full == 'true' && 'python checks passed' || 'python checks not run (draft)' }}
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    needs: [python-sdk, python-runtime]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    needs: [lane, python-sdk, python-runtime]
+    if: ${{ !cancelled() && needs.lane.result != 'skipped' }}
     steps:
-      - name: Fail if any needed job did not succeed
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+      - name: Fail if a job of this lane did not succeed
+        if: >-
+          needs.lane.result != 'success'
+          || needs.lane.outputs.full == 'true' && (needs.python-sdk.result != 'success'
+          || needs.python-runtime.result != 'success')
         run: |
           echo "::error::Needed job results: ${{ join(needs.*.result, ', ') }}"
           exit 1
-      - name: Python checks passed
-        run: echo "All needed jobs succeeded (${{ join(needs.*.result, ', ') }})"
+      - name: Report the lane result
+        run: echo "All jobs of the ${{ needs.lane.outputs.full == 'true' && 'full' || 'fast' }} lane succeeded (${{ join(needs.*.result, ', ') }})"
