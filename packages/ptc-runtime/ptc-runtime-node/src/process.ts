@@ -1,5 +1,6 @@
 /** Node child evaluation over typed RPC; the host owns process lifetime. */
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { writeSync } from 'node:fs'
 import type { Duplex } from 'node:stream'
 import type { PtcProgramFormat } from '@deepseek-ai/dsh-ptc-runtime'
 import { createProcessRpc } from './rpc.ts'
@@ -44,6 +45,17 @@ export async function runNodeMain(
 ): Promise<void> {
   if (!Number.isSafeInteger(maxMessageBytes) || maxMessageBytes <= 0) throw new Error('invalid control message limit')
   clearProgramEnvironment(processState)
+  {
+    const raw = stream as unknown as { write: (...args: unknown[]) => boolean; _writableState: { writing: boolean; corked: number; buffered?: unknown[]; bufferedIndex?: number }; _handle?: { writeQueueSize?: number } }
+    const original = raw.write.bind(stream)
+    raw.write = (...args: unknown[]) => {
+      const state = raw._writableState
+      const head = String(args[0]).slice(0, 30).replace(/\n/g, ' ')
+      try { writeSync(2, `[diag write] t=${Date.now()} writing=${String(state.writing)} buffered=${String((state.buffered?.length ?? 0) - (state.bufferedIndex ?? 0))} corked=${String(state.corked)} wl=${String(stream.writableLength)} wqs=${String(raw._handle?.writeQueueSize)} head=${head}\n`) } catch { /* diagnostic only */ }
+      return original(...args, () => { try { writeSync(2, `[diag done] t=${Date.now()} head=${head}\n`) } catch { /* diagnostic only */ } })
+    }
+    stream.on('data', (chunk: Buffer) => { try { writeSync(2, `[diag read] t=${Date.now()} head=${chunk.toString('utf8', 0, 30).replace(/\n/g, ' ')}\n`) } catch { /* diagnostic only */ } })
+  }
   const context = new AsyncLocalStorage<Evaluation>()
   const closed = Promise.withResolvers<void>()
   const errors = new Map<string, { name: string; memberNameProperty: string; constructor: BindingErrorConstructor }>()

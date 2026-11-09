@@ -1,0 +1,37 @@
+name: Diagnostic PTC Node Windows stall
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Install
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+      - name: Run diagnostic
+        shell: pwsh
+        env:
+          DIAG_N: '60'
+          DIAG_WORKERS: '6'
+          DIAG_BURNERS: '4'
+          DIAG_OUT: diag-report.txt
+        run: npx vitest run packages/ptc-runtime/ptc-runtime-node/tests/diag-stall.spec.ts
+      - name: Print report
+        if: always()
+        shell: pwsh
+        run: Get-Content diag-report.txt
