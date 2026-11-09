@@ -10,7 +10,9 @@
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
  * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
  * in `stateDir`, which reads the docket again; only a request that the optional `flowleapAdmin` Service names as of a
- * firm administrator may save. The browser half (`exports["./client"]`) is the Clients page, the Add
+ * firm administrator may save. The `client-names` route takes the names of the firm's clients from the browser, and the
+ * plugin reads and refreshes the opponent index for them: the EP applications that they opposed, for the conflict check
+ * of the review. The browser half (`exports["./client"]`) is the Clients page, the Add
  * client page and the Firm identity section of Settings.
  *
  * See packages/client/ui-flowleap-folder/README.md.
@@ -31,7 +33,9 @@ import { FirmDocket } from './add-client/docket.ts'
 import { FirmIdentityStore } from './add-client/identity-store.ts'
 import { BuildJobs } from './add-client/jobs.ts'
 import { RequestLimiter, limitedPatentData, systemClock } from './add-client/limiter.ts'
+import { OpponentIndex } from './add-client/opponent-index.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
+import { ReadTurns } from './add-client/sliced-read.ts'
 import { ADD_CLIENT_ROUTES, type FirmIdentity } from './add-client/wire.ts'
 import { ClientFolder, FolderError, checkName } from './folder.ts'
 import {
@@ -77,11 +81,17 @@ export interface Config {
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
   maxRegisterRows: number
-  /** The age in milliseconds after which the firm docket is `stale` and its scheduled refresh reads it again. */
+  /**
+   * The age in milliseconds after which the firm docket and the opponent index are `stale` and their scheduled refresh
+   * reads them again.
+   */
   docketRefreshAge: number
   /** The age in milliseconds over which Check for new matters reads the firm docket again first (a later change). */
   docketCheckAge: number
-  /** The most rows of one date slice of the firm docket; the EPO reads at most 2,000 rows of one query. */
+  /**
+   * The most rows of one date slice of the firm docket, the opponent index and the `op=` reads of the conflict check; the
+   * EPO reads at most 2,000 rows of one query.
+   */
   registerSliceRows: number
   /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
   opsRequestsPerMinute: number
@@ -388,17 +398,26 @@ export function apply(ctx: Context, config: Config): void {
   const limiter = new RequestLimiter(config.opsRequestsPerMinute, systemClock)
   const data = (): PatentData | undefined => service === undefined ? undefined : limitedPatentData(service, limiter)
   const identity = new FirmIdentityStore({ file: path.join(config.stateDir, 'identity.json'), initial: config.firmIdentity, now: () => new Date(), log: warn })
+  // The docket and the index read one after the other, so the firm's names and its clients' names never go out together.
+  const turns = new ReadTurns()
   const docket = new FirmDocket({
-    file: path.join(config.stateDir, 'docket.json'), identity: identity.current(), sliceRows: config.registerSliceRows,
-    refreshAge: config.docketRefreshAge, data, clock: systemClock, log: warn,
+    file: path.join(config.stateDir, 'docket.json'), refreshFile: path.join(config.stateDir, 'docket.refresh.json'),
+    identity: identity.current(), sliceRows: config.registerSliceRows, refreshAge: config.docketRefreshAge, data, clock: systemClock,
+    log: warn, turns,
   })
   ctx.effect(() => () => docket.dispose(), 'ui-flowleap-folder: firm docket')
+  const index = new OpponentIndex({
+    file: path.join(config.stateDir, 'opponents.json'), refreshFile: path.join(config.stateDir, 'opponents.refresh.json'),
+    sliceRows: config.registerSliceRows, refreshAge: config.docketRefreshAge, data, clock: systemClock, log: warn, turns,
+  })
+  ctx.effect(() => () => index.dispose(), 'ui-flowleap-folder: opponent index')
   ctx.inject(['flowleapPatentData'], (scope) => {
     service = scope.flowleapPatentData
     void docket.wake()
+    void index.wake()
     scope.effect(() => () => {
       service = undefined
-      return docket.pause()
+      return Promise.all([docket.pause(), index.pause()]).then(() => undefined)
     }, 'ui-flowleap-folder: patent data')
   })
   // The admin-link row provides `flowleapAdmin`; without it, no request is of a firm administrator.
@@ -407,7 +426,7 @@ export function apply(ctx: Context, config: Config): void {
     return admin === undefined ? false : admin.isAdmin(request)
   }
   const addClient = new AddClientRoutes(config, {
-    data, jobs, docket, identity, isAdmin, sources, now: () => new Date(), log: warn,
+    data, jobs, docket, index, identity, isAdmin, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -437,4 +456,5 @@ export function apply(ctx: Context, config: Config): void {
   registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
   registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', request => addClient.identity(request))
   registerAddClient(ADD_CLIENT_ROUTES.identitySave, 'POST', request => addClient.identitySave(request))
+  registerAddClient(ADD_CLIENT_ROUTES.clientNames, 'POST', request => addClient.clientNames(request))
 }

@@ -14,11 +14,11 @@ import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { DocketAnswer, DocketState } from '../../add-client/wire.ts'
+import type { DocketAnswer, DocketState, RefreshState } from '../../add-client/wire.ts'
 import { IDENTITY_SCOPE, identityRetryKeycaps } from '../keys.ts'
 import { Notice, RetryButton, hostText } from './AddClient.tsx'
 import { asOfText, counted, type AddClientTranslate } from './format.ts'
-import { IDENTITY_LISTS, changed, type FirmIdentityModel, type IdentityList, type IdentityState } from './identity-model.ts'
+import { IDENTITY_LISTS, changed, refreshOf, type FirmIdentityModel, type IdentityList, type IdentityState } from './identity-model.ts'
 import css from './FirmIdentity.module.css'
 
 /** Registration-side dependencies of {@link FirmIdentitySection}. */
@@ -117,7 +117,7 @@ function Body({ t, state, model, locale, retryKeycaps }: FirmIdentityViewProps):
   }
 }
 
-/** The docket states that a person can read again in full. */
+/** The docket states that a person can read again in full, unless a read again of the docket runs. */
 const READ_AGAIN: ReadonlySet<DocketState['state']> = new Set(['ready', 'stale', 'interrupted'])
 
 /** The firm docket: its state with its read time, and **Read again** or **Try again**. */
@@ -130,7 +130,7 @@ function Docket({ t, answer, busy, model, locale, retryKeycaps }: {
   readonly retryKeycaps: readonly KeycapBox[]
 }) {
   const docket = answer.status === 'docket' ? answer.docket : null
-  const readAgain = docket !== null && READ_AGAIN.has(docket.state)
+  const readAgain = docket !== null && READ_AGAIN.has(docket.state) && refreshOf(docket)?.state !== 'reading'
   return (
     <section className={css.group} aria-labelledby="flowleap-firm-docket-title">
       <div className={css.groupHead}>
@@ -170,9 +170,13 @@ function DocketLine({ t, docket, busy, model, locale, retryKeycaps }: {
       return <Line shape="wait" text={t('docket.interrupted', { done: slicesDone, total: slices })} rest={t('docket.interrupted.rest')} />
     }
     case 'ready':
-      return <Line shape="ok" text={t('docket.ready', { rows: rows(docket.rows) })} rest={t('docket.asOf', { asOf: asOfText(t, docket.asOf, locale) })} />
-    case 'stale':
-      return <Line shape="stale" text={t('docket.stale', { rows: rows(docket.rows), asOf: asOfText(t, docket.asOf, locale) })} />
+    case 'stale': {
+      const asOf = asOfText(t, docket.asOf, locale)
+      const served = docket.state === 'ready'
+        ? <Line shape="ok" text={t('docket.ready', { rows: rows(docket.rows) })} rest={t('docket.asOf', { asOf })} />
+        : <Line shape="stale" text={t(docket.refresh === undefined ? 'docket.stale' : 'docket.staleKept', { rows: rows(docket.rows), asOf })} />
+      return <>{served}{docket.refresh !== undefined && <RefreshLine t={t} refresh={docket.refresh} retry={retry} />}</>
+    }
     case 'partial':
       return (
         <Notice tone="warn" lead={t('docket.partial.lead')}
@@ -180,6 +184,22 @@ function DocketLine({ t, docket, busy, model, locale, retryKeycaps }: {
       )
     case 'failed':
       return <Notice tone="bad" lead={t('docket.failed.lead')} rest={`${t(`docket.reason.${docket.reason}`)} ${t('docket.failed.rest')}`} act={retry} />
+  }
+}
+
+/** The read again of a complete docket, under the line of the complete docket that stays in use. */
+function RefreshLine({ t, refresh, retry }: {
+  readonly t: AddClientTranslate
+  readonly refresh: RefreshState
+  readonly retry: ReactNode
+}) {
+  switch (refresh.state) {
+    case 'reading':
+      return <Line shape="run" text={t('docket.refresh.reading', { done: refresh.progress.slicesDone, total: refresh.progress.slices })} rest={t('docket.refresh.kept')} />
+    case 'interrupted':
+      return <Line shape="wait" text={t('docket.refresh.interrupted', { done: refresh.progress.slicesDone, total: refresh.progress.slices })} rest={t('docket.refresh.kept')} />
+    case 'failed':
+      return <Notice tone="warn" lead={t('docket.refresh.failed.lead')} rest={t('docket.refresh.failed.rest')} act={retry} />
   }
 }
 

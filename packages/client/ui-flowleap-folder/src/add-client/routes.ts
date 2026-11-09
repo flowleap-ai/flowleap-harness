@@ -2,11 +2,12 @@
  * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
  * applications and possible conflicts, `build` starts the client folder build, `status` reports every build, `docket`
  * reports the state of the firm docket, `docket/read` reads it again, `identity` reports the firm identity with the
- * docket state, and `identity/save` saves a new firm identity, which reads the docket again; only a firm administrator
- * may save, and `identity` answers whether this request may. The docket routes stay open to every person, because they
- * only read the public register again for the saved identity. The routes read public data through the
- * `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket routes say so,
- * `build` makes the folder with the template folders only, and a saved identity waits for the Service.
+ * docket state, `identity/save` saves a new firm identity, which reads the docket again, and `client-names` takes the
+ * names of the firm's clients for the opponent index. Only a firm administrator may save the identity, and `identity`
+ * answers whether this request may; the docket routes stay open to every person, because they only read the public
+ * register again for the saved identity. The routes read public data through the `flowleapPatentData` Service when the
+ * runtime has it; without it, `find`, `review`, the docket routes and `client-names` say so, `build` makes the folder
+ * with the template folders only, and a saved identity and the client names wait for the Service.
  * @module
  */
 
@@ -18,10 +19,11 @@ import { buildClientFolder, type BuildInput, type FolderTemplate } from './build
 import type { FirmDocket } from './docket.ts'
 import type { FirmIdentityStore } from './identity-store.ts'
 import { BuildJobsStopped, messageOf, type BuildJobs } from './jobs.ts'
+import type { OpponentIndex } from './opponent-index.ts'
 import { review } from './review.ts'
 import {
   ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type DocketAnswer, type FindAnswer,
-  type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type StatusAnswer,
+  type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type OpponentIndexAnswer, type StatusAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -42,6 +44,8 @@ export interface AddClientSettings {
   readonly clientsRoot: string
   readonly folderTemplate: FolderTemplate
   readonly maxRegisterRows: number
+  /** The most rows of one date slice of the `op=` reads of the conflict check. */
+  readonly registerSliceRows: number
 }
 
 /** What the routes use. */
@@ -50,6 +54,8 @@ export interface AddClientServices {
   readonly data: () => PatentData | undefined
   readonly jobs: BuildJobs<BuildInput>
   readonly docket: FirmDocket
+  /** The applications that the names of the firm's clients opposed, for the conflict check. */
+  readonly index: OpponentIndex
   /** The firm identity that the review matches and the docket reads for. */
   readonly identity: FirmIdentityStore
   /** Whether a request is of a firm administrator, who alone may save the firm identity. */
@@ -173,8 +179,12 @@ export class AddClientRoutes {
     const clients = knownClients(body.clients)
     const data = this.services.data()
     if (data === undefined) return json({ status: 'no-plugin' })
-    const asOf = this.services.now().toISOString()
-    const input = { names, clients, identity: await this.services.identity.current(), maxRows: this.settings.maxRegisterRows }
+    const { services, settings } = this
+    const asOf = services.now().toISOString()
+    const input = {
+      names, clients, identity: await services.identity.current(), index: await services.index.current(), maxRows: settings.maxRegisterRows,
+      slices: { sliceRows: settings.registerSliceRows, clock: { now: () => services.now().getTime() }, label: 'ui-flowleap-folder: conflict check', log: services.log },
+    }
     return json(await review(data, input, asOf, request.signal))
   }
 
@@ -268,6 +278,18 @@ export class AddClientRoutes {
     const docket = await this.services.docket.setIdentity(identity)
     const answer: DocketAnswer = this.services.data() === undefined ? { status: 'no-plugin' } : { status: 'docket', docket }
     return json({ identity, docket: answer, canSave: true } satisfies FirmIdentityAnswer)
+  }
+
+  /**
+   * `POST client-names` with a `ClientNamesRequest`: keep the names of the firm's clients and read the opponent index
+   * for them. Without the patent data Service, the names wait for it.
+   * @param request - the authenticated request.
+   * @returns the JSON answer with the index state after the change.
+   */
+  async clientNames(request: Request): Promise<Response> {
+    const { names } = await bodyOf(request)
+    const index = await this.services.index.setNames(texts(names, 'names'))
+    return json((this.services.data() === undefined ? { status: 'no-plugin' } : { status: 'index', index }) satisfies OpponentIndexAnswer)
   }
 
   /** The docket answer now. */

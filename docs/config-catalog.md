@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:56`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:60`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -667,11 +667,17 @@ export interface Config {
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
   maxRegisterRows: number
-  /** The age in milliseconds after which the firm docket is `stale` and its scheduled refresh reads it again. */
+  /**
+   * The age in milliseconds after which the firm docket and the opponent index are `stale` and their scheduled refresh
+   * reads them again.
+   */
   docketRefreshAge: number
   /** The age in milliseconds over which Check for new matters reads the firm docket again first (a later change). */
   docketCheckAge: number
-  /** The most rows of one date slice of the firm docket; the EPO reads at most 2,000 rows of one query. */
+  /**
+   * The most rows of one date slice of the firm docket, the opponent index and the `op=` reads of the conflict check; the
+   * EPO reads at most 2,000 rows of one query.
+   */
   registerSliceRows: number
   /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
   opsRequestsPerMinute: number

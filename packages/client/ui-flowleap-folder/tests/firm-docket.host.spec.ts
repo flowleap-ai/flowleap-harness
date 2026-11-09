@@ -3,12 +3,13 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PatentDataError, type PatentData, type RegisterParty, type RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
-import { SAVE_INTERVAL_MS, FirmDocket } from '../src/add-client/docket.ts'
+import { FirmDocket } from '../src/add-client/docket.ts'
+import { ReadTurns, SAVE_INTERVAL_MS } from '../src/add-client/sliced-read.ts'
 import { parseDocketFile, type DocketFile } from '../src/add-client/docket-model.ts'
 import type { FirmIdentity } from '../src/add-client/identity.ts'
 import type { DocketState } from '../src/add-client/wire.ts'
 import { FakeClock } from './clock.host.ts'
-import { FakePatentData, row } from './patent-data.host.ts'
+import { FakePatentData, hold, row } from './patent-data.host.ts'
 
 const WEEK = 7 * 86_400_000
 const FIRM: RegisterParty = { name: 'Muster & Partner mbB', address: ['Hauptstraße 1', '80331 München'] }
@@ -16,6 +17,7 @@ const MUSTER: FirmIdentity = { names: ['Muster & Partner'], addresses: [], repre
 
 let base: string
 let file: string
+let refreshFile: string
 let clock: FakeClock
 let logs: string[]
 let opened: FirmDocket[]
@@ -23,6 +25,7 @@ let opened: FirmDocket[]
 beforeEach(async () => {
   base = await mkdtemp(path.join(tmpdir(), 'flowleap-docket-'))
   file = path.join(base, 'state', 'docket.json')
+  refreshFile = path.join(base, 'state', 'docket.refresh.json')
   clock = new FakeClock()
   logs = []
   opened = []
@@ -38,12 +41,12 @@ class Service {
   constructor(public current: PatentData | undefined) {}
 }
 
-type Settings = { readonly sliceRows?: number; readonly refreshAge?: number }
+type Settings = { readonly sliceRows?: number; readonly refreshAge?: number; readonly turns?: ReadTurns }
 
 function open(service: Service, identity: FirmIdentity, settings: Settings = {}): FirmDocket {
   const docket = new FirmDocket({
-    file, identity: Promise.resolve(identity), sliceRows: settings.sliceRows ?? 2000, refreshAge: settings.refreshAge ?? WEEK,
-    data: () => service.current, clock, log: (message) => { logs.push(message) },
+    file, refreshFile, identity: Promise.resolve(identity), sliceRows: settings.sliceRows ?? 2000, refreshAge: settings.refreshAge ?? WEEK,
+    data: () => service.current, clock, log: (message) => { logs.push(message) }, turns: settings.turns ?? new ReadTurns(),
   })
   opened.push(docket)
   return docket
@@ -54,14 +57,17 @@ async function settled(docket: FirmDocket): Promise<DocketState> {
   let state: DocketState = { state: 'no_identity' }
   await vi.waitFor(async () => {
     state = await docket.state()
-    if (state.state === 'reading') throw new Error('the read runs')
+    if (state.state === 'reading' || ('refresh' in state && state.refresh?.state === 'reading')) throw new Error('the read runs')
   }, { timeout: 4000, interval: 2 })
   return state
 }
 
-async function stored(): Promise<DocketFile> {
-  return parseDocketFile(JSON.parse(await readFile(file, 'utf8')))
+async function stored(at = file): Promise<DocketFile> {
+  return parseDocketFile(JSON.parse(await readFile(at, 'utf8')))
 }
+
+const T0 = '2026-11-09T10:00:00.000Z'
+const T1 = '2026-11-09T10:00:01.000Z'
 
 /** An application of the firm with an EP publication on a day. */
 function matter(number: number, published: string | undefined, representatives: readonly RegisterParty[] = [FIRM]): RegisterRow {
@@ -397,6 +403,123 @@ describe('the firm docket', () => {
     expect(fake.queries).toHaveLength(4)
   })
 
+  it('serves the complete docket with its rows and as-of time during the scheduled refresh, and takes the new read at once when it ends complete', async () => {
+    const fake = new FakePatentData(matters(['2025-01-10']))
+    const docket = open(new Service(fake), MUSTER, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 1, asOf: T0 })
+    const release = hold(fake, 'Muster')
+    fake.rows.push(matter(2, '2025-02-10'))
+    await clock.advance(1000)
+    expect(await docket.state()).toEqual({
+      state: 'stale', rows: 1, asOf: T0, refresh: { state: 'reading', progress: { slicesDone: 0, slices: 1, rows: 0 } },
+    })
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000000'])
+    expect((await stored(refreshFile)).rows).toEqual({})
+    release()
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 2, asOf: T1 })
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000000', 'EP23000002'])
+    await expect(stat(refreshFile)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('keeps serving the complete docket when its read again fails or ends partial, and Try again reads only the failed slices of the read again', async () => {
+    const fake = new FakePatentData([...matters(['2025-01-10']), matter(7, '2025-02-10', [{ name: 'Becker, Anna', address: [] }])])
+    const docket = open(new Service(fake), { names: ['Muster & Partner'], addresses: [], representatives: ['Becker, Anna'] }, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 2, asOf: T0 })
+    fake.failing.add('re="Muster Partner"')
+    fake.failing.add('re="Becker, Anna"')
+    await clock.advance(1000)
+    const muster = { query: 're="Muster Partner"', reason: 'unreachable' } as const
+    const becker = { query: 're="Becker, Anna"', reason: 'unreachable' } as const
+    expect(await settled(docket)).toEqual({ state: 'stale', rows: 2, asOf: T0, refresh: { state: 'failed', failed: [muster, becker], mismatches: [] } })
+    fake.failing.delete('re="Muster Partner"')
+    expect(await docket.readAgain('failed')).toMatchObject({ state: 'stale', rows: 2, refresh: { state: 'reading' } })
+    expect(await settled(docket)).toEqual({ state: 'stale', rows: 2, asOf: T0, refresh: { state: 'failed', failed: [becker], mismatches: [] } })
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000000', 'EP23000007'])
+    fake.failing.clear()
+    fake.queries.length = 0
+    await docket.readAgain('failed')
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 2, asOf: T1 })
+    expect(fake.queries).toEqual(['re="Becker, Anna"|1-100'])
+    await expect(stat(refreshFile)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('keeps the complete docket on disk when the Host stops during a read again, and the next start reads only the rest of the read again', async () => {
+    const identity: FirmIdentity = { names: ['Muster & Partner', 'Muster Patentanwälte'], addresses: [], representatives: [] }
+    const fake = new FakePatentData(matters(['2025-01-10']))
+    const first = open(new Service(fake), identity, { refreshAge: 1000 })
+    await first.wake()
+    expect(await settled(first)).toEqual({ state: 'ready', rows: 1, asOf: T0 })
+    hold(fake, 'Muster Patentanwälte')
+    await clock.advance(1000)
+    await vi.waitFor(async () => { expect(await first.state()).toMatchObject({ refresh: { progress: { slicesDone: 1 } } }) })
+    await first.dispose()
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000000'])
+    const next = new FakePatentData(matters(['2025-01-10']))
+    const second = open(new Service(next), identity, { refreshAge: 1000 })
+    expect(await second.state()).toEqual({
+      state: 'stale', rows: 1, asOf: T0, refresh: { state: 'interrupted', progress: { slicesDone: 1, slices: 2, rows: 1 } },
+    })
+    await second.wake()
+    expect(await settled(second)).toEqual({ state: 'ready', rows: 1, asOf: T1 })
+    expect(next.queries).toEqual(['re="Muster Patentanwälte"|1-100'])
+  })
+
+  it('takes a complete read again that a Host stop left beside the docket file at the next load', async () => {
+    const first = open(new Service(new FakePatentData(matters(['2025-01-10']))), MUSTER)
+    await first.wake()
+    expect(await settled(first)).toMatchObject({ state: 'ready', rows: 1 })
+    await first.dispose()
+    await writeFile(refreshFile, JSON.stringify({ ...await stored(), rows: {} }))
+    const second = open(new Service(undefined), MUSTER)
+    expect(await second.state()).toEqual({ state: 'ready', rows: 0, asOf: T0 })
+    expect((await stored()).rows).toEqual({})
+    await expect(stat(refreshFile)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('drops the complete docket and its read again at once when the identity changes during the read again', async () => {
+    const fake = new FakePatentData([...matters(['2025-01-10']), matter(9, '2025-01-11', [{ name: 'Beispiel IP', address: [] }])])
+    const docket = open(new Service(fake), MUSTER, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
+    const release = hold(fake, 'Muster')
+    await clock.advance(1000)
+    expect(await docket.state()).toMatchObject({ state: 'stale', refresh: { state: 'reading' } })
+    expect(await docket.setIdentity({ names: ['Beispiel IP'], addresses: [], representatives: [] }))
+      .toEqual({ state: 'reading', progress: { slicesDone: 0, slices: 1, rows: 0 } })
+    await expect(stat(refreshFile)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 1, asOf: T1 })
+    expect(Object.keys((await stored()).rows)).toEqual(['EP23000009'])
+    release()
+  })
+
+  it('reads a docket that never ended complete again in its place, as a first read', async () => {
+    const fake = new FakePatentData(matters(['2025-01-10']))
+    fake.failing.add('re="Muster Partner"')
+    const docket = open(new Service(fake), MUSTER, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await settled(docket)).toMatchObject({ state: 'failed' })
+    fake.failing.clear()
+    const release = hold(fake, 'Muster')
+    await clock.advance(1000)
+    expect(await docket.state()).toEqual({ state: 'reading', progress: { slicesDone: 0, slices: 1, rows: 0 } })
+    release()
+    expect(await settled(docket)).toEqual({ state: 'ready', rows: 1, asOf: T1 })
+  })
+
+  it('reads nothing and arms no refresh for a stored docket of no query', async () => {
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, JSON.stringify({ version: 1, identity: MUSTER, startedAt: T0, queries: [], rows: {} }))
+    const fake = new FakePatentData(matters(['2025-01-10']))
+    const docket = open(new Service(fake), MUSTER, { refreshAge: 1000 })
+    await docket.wake()
+    expect(await docket.state()).toEqual({ state: 'ready', rows: 0, asOf: T0 })
+    await clock.advance(5000)
+    expect(clock.waiting).toBe(0)
+    expect(fake.queries).toEqual([])
+  })
+
   it('reads a damaged docket file again, and logs a docket file that it cannot read or write', async () => {
     await mkdir(path.dirname(file), { recursive: true })
     await writeFile(file, '{"version": 2}')
@@ -404,7 +527,7 @@ describe('the firm docket', () => {
     const docket = open(new Service(fake), MUSTER)
     await docket.wake()
     expect(await settled(docket)).toMatchObject({ state: 'ready', rows: 1 })
-    expect(logs[0]).toMatch(/^ui-flowleap-folder: firm docket: the stored docket is damaged, so it is read again: /u)
+    expect(logs[0]).toMatch(/^ui-flowleap-folder: firm docket: the stored file is damaged, so it is read again: /u)
     await docket.dispose()
     await rm(file)
     await mkdir(file)

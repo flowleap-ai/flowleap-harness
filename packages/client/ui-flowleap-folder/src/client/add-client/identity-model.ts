@@ -7,7 +7,7 @@
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { DocketAnswer, DocketReadRequest, FirmIdentity } from '../../add-client/wire.ts'
+import type { DocketAnswer, DocketReadRequest, DocketState, FirmIdentity, RefreshState } from '../../add-client/wire.ts'
 import type { FirmIdentityApi, HostFailure } from './api.ts'
 import { POLL_MS } from './model.ts'
 
@@ -62,9 +62,18 @@ export function changed(state: Extract<IdentityState, { status: 'ready' }>): boo
   return IDENTITY_LISTS.some(list => JSON.stringify(draft[list]) !== JSON.stringify(state.saved[list]))
 }
 
-/** Whether a docket answer is a read that runs. */
+/**
+ * The read again of a complete docket, when there is one.
+ * @param docket - the docket state.
+ * @returns the state of the read again, or undefined.
+ */
+export function refreshOf(docket: DocketState): RefreshState | undefined {
+  return docket.state === 'ready' || docket.state === 'stale' ? docket.refresh : undefined
+}
+
+/** Whether a docket answer is a read that runs: a first read, or a read again beside a complete docket. */
 function reading(docket: DocketAnswer): boolean {
-  return docket.status === 'docket' && docket.docket.state === 'reading'
+  return docket.status === 'docket' && (docket.docket.state === 'reading' || refreshOf(docket.docket)?.state === 'reading')
 }
 
 /** A copy of an identity that the draft can change. */
@@ -74,7 +83,7 @@ function copy(identity: FirmIdentity): FirmIdentity {
 
 /**
  * The act of Try again (`R`) now: load again after a failed load, repeat a failed act, or read the failed slices of a
- * docket that is `partial` or `failed`.
+ * docket that is `partial` or `failed`, or of a read again of the docket that failed.
  * @param model - the section model.
  * @returns the act, or undefined when nothing can be tried again, such as while an act runs.
  */
@@ -85,7 +94,8 @@ export function retryOf(model: FirmIdentityModel): (() => void) | undefined {
   const { failure, docket } = state
   if (failure?.act === 'save' && state.canSave) return () => { void model.save() }
   if (failure?.act === 'read') return () => { void model.readAgain(failure.slices) }
-  const failed = docket.status === 'docket' && (docket.docket.state === 'partial' || docket.docket.state === 'failed')
+  const failed = docket.status === 'docket'
+    && (docket.docket.state === 'partial' || docket.docket.state === 'failed' || refreshOf(docket.docket)?.state === 'failed')
   return failed ? () => { void model.readAgain('failed') } : undefined
 }
 

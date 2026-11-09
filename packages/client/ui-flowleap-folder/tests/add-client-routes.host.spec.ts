@@ -7,7 +7,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import * as adminLink from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
@@ -242,8 +242,13 @@ describe('the firm docket routes', () => {
     await vi.waitFor(async () => { expect(await docketOf()).toMatchObject({ status: 'docket', docket: { state: 'ready', rows: 1 } }) })
     expect(fake.queries).toEqual(['re="Becker, Anna"|1-100'])
     expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'failed' })).json()).toMatchObject({ status: 'docket', docket: { state: 'ready' } })
-    expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'all' })).json()).toMatchObject({ status: 'docket', docket: { state: 'reading' } })
-    await vi.waitFor(async () => { expect(await docketOf()).toMatchObject({ docket: { state: 'ready' } }) })
+    expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'all' })).json())
+      .toMatchObject({ status: 'docket', docket: { state: 'ready', rows: 1, refresh: { state: 'reading' } } })
+    await vi.waitFor(async () => {
+      const answer = await docketOf()
+      expect(answer).toMatchObject({ status: 'docket', docket: { state: 'ready', rows: 1 } })
+      expect(answer).not.toHaveProperty('docket.refresh')
+    })
     expect(fake.queries).toEqual(['re="Becker, Anna"|1-100', 're="Becker, Anna"|1-100'])
   })
 
@@ -337,5 +342,41 @@ describe('the firm identity routes', () => {
     expect([failed.status, await failed.json()]).toEqual([500, { error: 'internal' }])
     expect(warnings.some(line => line.startsWith('ui-flowleap-folder: Add client: '))).toBe(true)
     expect((await identityOf()).identity).toEqual({ names: [], addresses: [], representatives: ['Anna Becker'] })
+  })
+})
+
+describe('the client names route', () => {
+  /** An application of a group name that a client of the firm opposed. */
+  const OPPOSED = row({
+    applicationNumber: 'EP16188888', applicants: ['Gerhard Schubert GmbH'], opponents: [{ name: 'Syntegon Packaging Systems AG', address: [], filedOn: '2025-01-08' }],
+  })
+
+  it('keeps the names without the data plugin, and refuses a body that is not a list of names', async () => {
+    await load()
+    expect(await (await post(ADD_CLIENT_ROUTES.clientNames, { names: ['Syntegon Packaging Systems'] })).json()).toEqual({ status: 'no-plugin' })
+    for (const body of [{}, { names: 'Syntegon' }, { names: [''] }, { names: [3] }]) {
+      const refused = await post(ADD_CLIENT_ROUTES.clientNames, body)
+      expect([refused.status, await refused.json()]).toEqual([400, { error: 'bad-request' }])
+    }
+  })
+
+  it('reads the opponent index for the names, and the review finds a client that opposed the group in it', async () => {
+    const fake = new FakePatentData([OPPOSED])
+    ctx.set('flowleapPatentData', fake)
+    await load()
+    const answer = await (await post(ADD_CLIENT_ROUTES.clientNames, { names: ['Syntegon Packaging Systems'] })).json() as OpponentIndexAnswer
+    expect(answer).toMatchObject({ status: 'index', index: { state: 'reading' } })
+    await vi.waitFor(async () => {
+      const state = await (await post(ADD_CLIENT_ROUTES.clientNames, { names: ['SYNTEGON PACKAGING SYSTEMS AG'] })).json() as OpponentIndexAnswer
+      expect(state).toMatchObject({ status: 'index', index: { state: 'ready', rows: 1 } })
+    })
+    const clients = [{ clientId: 'c-1', names: ['Syntegon Packaging Systems'] }]
+    const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Gerhard Schubert'], clients })).json() as ReviewAnswer
+    expect(reviewed).toMatchObject({
+      status: 'reviewed', conflictsTruncated: false,
+      conflicts: [{ applicationNumber: 'EP16188888', otherPartyRole: 'patent-owner', existingClientId: 'c-1', opposedOn: '2025-01-08' }],
+      conflictCheck: { groupOpposedClients: { state: 'complete' }, clientsOpposedGroup: { state: 'complete' } },
+    })
+    expect(fake.queries.filter(query => query.startsWith('op='))).toEqual(['op="Syntegon Packaging Systems"|1-100', 'op="Gerhard Schubert"|1-100'])
   })
 })

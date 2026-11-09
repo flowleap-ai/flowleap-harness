@@ -143,7 +143,7 @@ export const reference = (applicationNumber: string, extra: Changes<ReferenceRow
 export const registerHit = (existingClientId: string, extra: Changes<ConflictHit> = {}): ConflictHit => changed<ConflictHit>({
   applicationNumber: 'EP16188900', publicationNumber: 'EP3296081B1', title: 'Method and device for producing tubular bags',
   otherParty: 'Gerhard Schubert GmbH', otherPartyRole: 'patent-owner', existingClientId, existingClientParty: 'Syntegon Packaging Systems AG',
-  source: 'ep-register', asOf: AS_OF, opposedOn: '2025-01-08', status: 'Patent revoked',
+  source: 'ep-register', asOf: AS_OF, opposedOn: '2025-01-08', status: 'Patent revoked', yourFirm: 'not-named',
 }, extra)
 
 /** The `found` answer of `find`. */
@@ -161,6 +161,7 @@ type Reviewed = Extract<ReviewAnswer, { status: 'reviewed' }>
 /** The answer of `review`. */
 export const reviewed = (extra: Changes<Reviewed> = {}): Reviewed => changed<Reviewed>({
   status: 'reviewed', asOf: AS_OF, total: 272, truncated: false, identity: 'set', atFirm: [], atOtherFirms: [], conflicts: [], conflictsTruncated: false,
+  conflictCheck: { groupOpposedClients: { state: 'complete', asOf: AS_OF }, clientsOpposedGroup: { state: 'complete', asOf: AS_OF } },
 }, extra)
 
 /** A build status. */
@@ -182,6 +183,7 @@ export function fakeHost() {
     review: vi.fn<AddClientApi['review']>(async () => okHost(reviewed())),
     build: vi.fn<AddClientApi['build']>(async request => okHost(buildStatus(request.clientId, request.name))),
     status: vi.fn<AddClientApi['status']>(async () => okHost({ builds: [] })),
+    clientNames: vi.fn<AddClientApi['clientNames']>(async () => okHost({ status: 'index', index: { state: 'no_clients' } })),
   } satisfies AddClientApi
   return api
 }

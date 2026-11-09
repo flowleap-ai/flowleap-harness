@@ -66,7 +66,7 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the nine folder routes and the eight Add client routes, and removes them on dispose', async () => {
+  it('registers the nine folder routes and the nine Add client routes, and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
       [FOLDER_ROUTES.clients, ['GET'], 'buffered'],
@@ -86,6 +86,7 @@ describe('ui-flowleap-folder Host half', () => {
       [ADD_CLIENT_ROUTES.docketRead, ['POST'], 'buffered'],
       [ADD_CLIENT_ROUTES.identity, ['GET'], 'buffered'],
       [ADD_CLIENT_ROUTES.identitySave, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.clientNames, ['POST'], 'buffered'],
     ])
     await fiber.dispose()
     expect(routes.size).toBe(0)
