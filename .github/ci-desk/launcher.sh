@@ -65,11 +65,17 @@ fork_approval_required() {
   [[ "$policy" == 'all_external_contributors' ]]
 }
 
+# Prints the runner id and the one-time config, one per line.
 jit_config() {
   github_api --request POST \
     --data "{\"name\":\"desk-$(date +%s)\",\"runner_group_id\":1,\"labels\":$LABELS,\"work_folder\":\"_work\"}" \
     "https://api.github.com/repos/$REPOSITORY/actions/runners/generate-jitconfig" \
-    | jq -er .encoded_jit_config
+    | jq -er '.runner.id, .encoded_jit_config'
+}
+
+delete_runner() {
+  github_api --request DELETE "https://api.github.com/repos/$REPOSITORY/actions/runners/$1" >/dev/null \
+    || log "could not delete runner registration $1"
 }
 
 prune_weekly() {
@@ -90,17 +96,31 @@ while true; do
     sleep 300
     continue
   fi
-  if ! config="$(jit_config)"; then
+  # A container left by an earlier launcher would block the fixed name below.
+  docker rm --force dsh-ci-job >/dev/null 2>&1 || true
+  if ! registration="$(jit_config)"; then
     log 'runner registration failed; retrying in 60 s'
     sleep 60
     continue
   fi
-  log 'waiting for one job'
+  runner_id="${registration%%$'\n'*}"
+  config="${registration#*$'\n'}"
+  unset registration
+  log "waiting for one job on runner $runner_id"
+  started="$(date +%s)"
   # seccomp and AppArmor stay unconfined so bubblewrap can create user
   # namespaces inside the container; the VM is the isolation boundary.
   DSH_JITCONFIG="$config" docker run --rm --name dsh-ci-job --cpus 8 --memory 20g --env DSH_JITCONFIG \
     --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined \
     "$(image_tag)" || log "job container exited with status $?"
   unset config
+  if (( $(date +%s) - started < 30 )); then
+    # A container that stops this fast never ran a job; its registration
+    # would stay listed as an offline runner.
+    delete_runner "$runner_id"
+    log 'job container stopped within 30 s; retrying in 60 s'
+    sleep 60
+    continue
+  fi
   sleep 5
 done
