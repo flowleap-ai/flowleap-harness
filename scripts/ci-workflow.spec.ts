@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -1858,6 +1859,57 @@ describe('CI lanes', () => {
         if (file === 'ci.yml' && id === 'node-24-coverage') continue
         expect(JSON.stringify(isRecord(job) ? job['runs-on'] ?? null : null), `${file} ${id}`).not.toContain('desk')
       }
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('routes to desk only the events that the desk job-started hook accepts', () => {
+    const workflow = loadWorkflow('.github/workflows/ci.yml')
+    // ci.yml has no schedule or workflow_dispatch trigger, and pushes come only from flowleap.
+    expect(workflow.on).toEqual({
+      pull_request: { types: ['opened', 'synchronize', 'reopened', 'ready_for_review', 'labeled'] },
+      push: { branches: ['flowleap'] },
+    })
+    const lane = workflowJob(workflow, 'lane')
+    const step = Array.isArray(lane.steps) ? lane.steps.filter(isRecord).find(candidate => candidate.id === 'desk') : undefined
+    if (!isRecord(step?.env)) throw new TypeError('the lane job must select the coverage runner')
+    const repository = 'flowleap-ai/flowleap-harness'
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-desk-routing-'))
+    try {
+      const cases = [
+        { event_name: 'push', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+        { event_name: 'pull_request', ref: 'refs/pull/7/merge', actor: 'maintainer', event: { pull_request: { head: { repo: { full_name: repository } }, user: { login: 'maintainer' } } } },
+        { event_name: 'pull_request', ref: 'refs/pull/8/merge', actor: 'outsider', event: { pull_request: { head: { repo: { full_name: 'outsider/flowleap-harness' } }, user: { login: 'outsider' } } } },
+        { event_name: 'pull_request', ref: 'refs/pull/9/merge', actor: 'dependabot[bot]', event: { pull_request: { head: { repo: { full_name: repository } }, user: { login: 'dependabot[bot]' } } } },
+        { event_name: 'schedule', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+        { event_name: 'workflow_dispatch', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+      ]
+      let routed = 0
+      for (const [index, item] of cases.entries()) {
+        const eligible = evaluateTemplate(String(step.env.ELIGIBLE), {
+          vars: { DSH_CI_DESK: 'on' },
+          github: { event_name: item.event_name, repository, event: item.event },
+        })
+        const eventPath = join(directory, `event-${String(index)}.json`)
+        writeFileSync(eventPath, JSON.stringify(item.event))
+        const hook = spawnSync('bash', [resolve(root, '.github/ci-desk/job-started.sh')], {
+          encoding: 'utf8',
+          env: {
+            PATH: process.env.PATH ?? '',
+            GITHUB_REPOSITORY: repository,
+            GITHUB_EVENT_NAME: item.event_name,
+            GITHUB_EVENT_PATH: eventPath,
+            GITHUB_REF: item.ref,
+            GITHUB_ACTOR: item.actor,
+          },
+        })
+        if (eligible === 'true') {
+          routed += 1
+          expect(hook.status, `${item.event_name} ${item.actor}: ${hook.stderr}`).toBe(0)
+        }
+      }
+      expect(routed).toBe(2)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
     }
   })
 
