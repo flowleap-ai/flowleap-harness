@@ -225,7 +225,7 @@ export const es = {
   'record.ledeDone': 'El Firm Record tiene el cliente y sus solicitudes. FlowLeap no copió ningún archivo.',
   'record.keep.lead': 'Mantenga esta página abierta hasta que se escriban los registros.',
   'record.keep.rest': 'Cada registro es un acto suyo, por eso esta página lo envía. Tarda unos segundos para cualquier tamaño de cliente.',
-  'record.client': '{name} registrado como cliente, con sus {names}',
+  'record.client': '{name} registrado como cliente ({names})',
   'record.clientOnly': '{name} registrado como cliente',
   'record.clientBody': 'Firm Record, con su nombre',
   'record.conflict': 'Comprobación de conflictos registrada',

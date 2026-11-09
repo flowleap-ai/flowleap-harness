@@ -7,8 +7,8 @@
 import { useLayoutEffect, type KeyboardEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconCheckOutlineRegular, IconCloseOutlineRegular, IconInfoOutlineRegular, IconRefreshOutlineRegular, IconSearchOutlineRegular,
-  IconWarningTriangleOutlineRegular, Keycap, type KeycapBox,
+  Button, IconCheckOutlineRegular, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconInfoOutlineRegular,
+  IconRefreshOutlineRegular, IconSearchOutlineRegular, IconWarningTriangleOutlineRegular, Keycap, type KeycapBox,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import { pressed, type KeyHandlers, type RecordKey } from '../keys.ts'
@@ -156,7 +156,9 @@ export function StepFoot({ t, onBack, onCancel, note, waiting, children }: {
   return (
     <footer className={css.foot}>
       {onBack !== undefined && (
-        <Button variant="ghost" size="sm" aria-label={t('act.back')} onClick={onBack}><span className={css.hideSm}>{t('act.back')}</span></Button>
+        <Button variant="ghost" size="sm" aria-label={t('act.back')} onClick={onBack}>
+          <span className={css.onlySm}><IconChevronLeftOutlineRegular size={16} /></span><span className={css.hideSm}>{t('act.back')}</span>
+        </Button>
       )}
       {onCancel !== undefined && <Button variant="ghost" size="sm" onClick={onCancel}>{t('act.cancel')}</Button>}
       <span className={clsx(css.note, waiting && css.waiting)} role={waiting ? 'note' : undefined}>{note}</span>

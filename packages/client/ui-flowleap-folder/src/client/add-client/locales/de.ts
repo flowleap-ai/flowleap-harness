@@ -225,7 +225,7 @@ export const de = {
   'record.ledeDone': 'Der Firm Record hat den Mandanten und seine Anmeldungen. FlowLeap hat keine Dateien kopiert.',
   'record.keep.lead': 'Lassen Sie diese Seite offen, bis die Einträge geschrieben sind.',
   'record.keep.rest': 'Jeder Eintrag ist Ihre Handlung, darum sendet ihn diese Seite. Das dauert für jede Mandantengröße nur Sekunden.',
-  'record.client': '{name} als Mandant erfasst, mit seinen {names}',
+  'record.client': '{name} als Mandant erfasst ({names})',
   'record.clientOnly': '{name} als Mandant erfasst',
   'record.clientBody': 'Firm Record, mit Ihrem Namen',
   'record.conflict': 'Kollisionsprüfung erfasst',

@@ -448,7 +448,8 @@ describe('the firm docket', () => {
       state: 'stale', rows: 1, asOf: T0, refresh: { state: 'reading', progress: { slicesDone: 0, slices: 1, rows: 0 } },
     })
     expect(Object.keys((await stored()).rows)).toEqual(['EP23000000'])
-    expect((await stored(refreshFile)).rows).toEqual({})
+    // The read again reports `reading` before its first save of the refresh file ends.
+    expect((await vi.waitFor(() => stored(refreshFile), { timeout: 4000, interval: 2 })).rows).toEqual({})
     release()
     expect(await settled(docket)).toEqual({ state: 'ready', rows: 2, asOf: T1 })
     expect(Object.keys((await stored()).rows)).toEqual(['EP23000000', 'EP23000002'])

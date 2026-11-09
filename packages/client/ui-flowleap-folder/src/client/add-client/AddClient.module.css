@@ -366,9 +366,15 @@
 }
 
 .checkRow input,
-.names input {
-  margin: 2px 0 0;
+.row > input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
   accent-color: var(--dsw-alias-brand-primary);
+}
+
+.checkRow input {
+  margin-top: 2px;
 }
 
 .strong {
@@ -739,6 +745,17 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.docketLine > span:not(.progress) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.docketLine > svg {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
 .docketLine .progress {
   flex-basis: 100%;
 }
@@ -931,6 +948,14 @@
   .matters .cell,
   .matters.thead {
     display: none;
+  }
+
+  .group {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 36px;
+    row-gap: 2px;
+    padding: 8px;
   }
 
   .groupWhy {
