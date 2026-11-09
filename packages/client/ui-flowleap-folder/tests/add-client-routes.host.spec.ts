@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type FindAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
@@ -97,7 +97,7 @@ describe('Add client routes', () => {
     expect(reviewed).toMatchObject({ status: 'reviewed', total: 2, identity: 'set', atFirm: [{ applicationNumber: 'EP23171862' }], atOtherFirms: [{ applicationNumber: 'EP19794879' }] })
     await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP 23 171 862'] })
     expect(await settled()).toMatchObject({ state: 'done', matters: 1, families: 1 })
-    expect(fake.queries[0]).toBe('find:Syntegon:500')
+    expect(fake.queries.filter(query => query.startsWith('find:'))).toEqual(['find:Syntegon:500'])
   })
 
   it('answers the edition of a PATSTAT source', async () => {
@@ -177,7 +177,7 @@ describe('Add client routes', () => {
     await import('node:fs/promises').then(fs => fs.writeFile(path.join(base, 'state-file'), 'a file where the folder should be'))
     const response = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: [], applications: [] })
     expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
-    expect(warnings).toHaveLength(1)
+    expect(warnings.filter(line => line.includes('Add client'))).toHaveLength(1)
   })
 
   it('answers stopped after the plugin stopped', async () => {
@@ -198,5 +198,40 @@ describe('Add client routes', () => {
     expect(() => { checkConfig(config({ folderTemplate: { client: [], matter: ['Office', 'Office'], publicData: 'Office' } })) }).toThrow('folderTemplate.matter repeats a folder name')
     expect(() => { checkConfig(config({ folderTemplate: { client: [], matter: ['Search'], publicData: 'Office' } })) }).toThrow('folderTemplate.publicData "Office" is not a matter folder')
     expect(() => config({ maxRegisterRows: 10001 })).toThrow()
+    expect(() => config({ registerSliceRows: 2001 })).toThrow()
+    expect(() => config({ opsRequestsPerMinute: 0 })).toThrow()
+    expect(() => config({ docketRefreshAge: 0 })).toThrow()
+  })
+})
+
+describe('the firm docket routes', () => {
+  async function docketOf(): Promise<DocketAnswer> {
+    return await (await call(ADD_CLIENT_ROUTES.docket)).json() as DocketAnswer
+  }
+
+  it('say that no data plugin is there, and refuse a read request that is not well formed', async () => {
+    await load()
+    expect(await docketOf()).toEqual({ status: 'no-plugin' })
+    expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'all' })).json()).toEqual({ status: 'no-plugin' })
+    const refused = await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'some' })
+    expect([refused.status, await refused.json()]).toEqual([400, { error: 'bad-request' }])
+  })
+
+  it('read the firm docket from load on with the firm identity alone, and read it again on request', async () => {
+    const fake = data()
+    ctx.set('flowleapPatentData', fake)
+    await load()
+    await vi.waitFor(async () => { expect(await docketOf()).toMatchObject({ status: 'docket', docket: { state: 'ready', rows: 1 } }) })
+    expect(fake.queries).toEqual(['re="Becker, Anna"|1-100'])
+    expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'failed' })).json()).toMatchObject({ status: 'docket', docket: { state: 'ready' } })
+    expect(await (await post(ADD_CLIENT_ROUTES.docketRead, { slices: 'all' })).json()).toMatchObject({ status: 'docket', docket: { state: 'reading' } })
+    await vi.waitFor(async () => { expect(await docketOf()).toMatchObject({ docket: { state: 'ready' } }) })
+    expect(fake.queries).toEqual(['re="Becker, Anna"|1-100', 're="Becker, Anna"|1-100'])
+  })
+
+  it('answer no_identity while the firm identity names nothing', async () => {
+    ctx.set('flowleapPatentData', data())
+    await load({ firmIdentity: { names: [], addresses: [], representatives: [] } })
+    expect(await docketOf()).toEqual({ status: 'docket', docket: { state: 'no_identity' } })
   })
 })

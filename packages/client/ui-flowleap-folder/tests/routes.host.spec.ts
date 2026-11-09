@@ -66,7 +66,7 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the nine folder routes and the four Add client routes, and removes them on dispose', async () => {
+  it('registers the nine folder routes and the six Add client routes, and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
       [FOLDER_ROUTES.clients, ['GET'], 'buffered'],
@@ -82,16 +82,19 @@ describe('ui-flowleap-folder Host half', () => {
       [ADD_CLIENT_ROUTES.review, ['POST'], 'buffered'],
       [ADD_CLIENT_ROUTES.build, ['POST'], 'buffered'],
       [ADD_CLIENT_ROUTES.status, ['GET'], 'buffered'],
+      [ADD_CLIENT_ROUTES.docket, ['GET'], 'buffered'],
+      [ADD_CLIENT_ROUTES.docketRead, ['POST'], 'buffered'],
     ])
     await fiber.dispose()
     expect(routes.size).toBe(0)
   })
 
-  it('needs a state folder, caps uploads at 200 MiB and a search at 200 hits by default', () => {
+  it('needs a state folder, caps uploads at 200 MiB and a search at 200 hits, and reads the firm docket in slices of 2,000 rows at 20 requests a minute, by default', () => {
     expect(() => Config({} as Config)).toThrow()
     expect(() => Config({ stateDir } as Config)).toThrow()
     expect(Config({ stateDir, clientsRoot: '/srv/clients' } as Config)).toMatchObject({
       maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', maxRegisterRows: 500,
+      docketRefreshAge: 7 * 86_400_000, docketCheckAge: 86_400_000, registerSliceRows: 2000, opsRequestsPerMinute: 20,
       folderTemplate: { client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' },
       firmIdentity: { names: [], addresses: [], representatives: [] },
     })
@@ -216,7 +219,7 @@ describe('ui-flowleap-folder Host half', () => {
     await writeFile(path.join(stateDir), 'a file where the state folder must be')
     const response = await post(FOLDER_ROUTES.mkdir, { workspace: WORKSPACE, parent: '', name: 'New' })
     expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
-    expect(warnings).toHaveLength(1)
+    expect(warnings.filter(line => !line.includes('firm docket'))).toHaveLength(1)
   })
 
   it('lists the client folder itself when the request names no folder', async () => {

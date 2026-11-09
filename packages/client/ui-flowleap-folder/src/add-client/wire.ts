@@ -22,12 +22,17 @@ export function clientFolderName(name: string): string | undefined {
 /** Absolute Host path of the Add client routes. */
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
-/** The four Add client routes: the applicant names, the review, the build, and the status of the builds. */
+/**
+ * The six Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
+ * firm docket, and a new read of the firm docket.
+ */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
   review: `${ADD_CLIENT_API}/review`,
   build: `${ADD_CLIENT_API}/build`,
   status: `${ADD_CLIENT_API}/status`,
+  docket: `${ADD_CLIENT_API}/docket`,
+  docketRead: `${ADD_CLIENT_API}/docket/read`,
 } as const
 
 /** Where an applicant name comes from: PATSTAT, or the applicant names of the EP Register search. */
@@ -204,6 +209,77 @@ export interface BuildStatus {
 /** The answer of `GET status`. */
 export interface StatusAnswer {
   readonly builds: readonly BuildStatus[]
+}
+
+/**
+ * Why a slice of the firm docket failed: a failed EP Register read (`no-key`, `unreachable`, `malformed`, as the
+ * patent data Service names them), more rows on one day than one query can read (`day-over-limit`), or a fault of the
+ * Host (`internal`).
+ */
+export type DocketFailureCode = 'no-key' | 'unreachable' | 'malformed' | 'day-over-limit' | 'internal'
+
+/** A date slice of the firm docket that failed. */
+export interface DocketFailedSlice {
+  /** The register CQL of the slice, with its dates. */
+  readonly query: string
+  readonly reason: DocketFailureCode
+}
+
+/** A query of the firm docket whose slices do not sum to its count. */
+export interface DocketSumMismatch {
+  /** The register CQL without dates. */
+  readonly query: string
+  /** The EPO count of the query; the EPO stops counting at 10,000. */
+  readonly total: number
+  /** The rows that its slices read. */
+  readonly counted: number
+  /** The rows that the read misses: the count less the rows read, at least 10,000 less the rows read at the cap. */
+  readonly missing: number
+}
+
+/** The progress of a firm docket read. */
+export interface DocketProgress {
+  /** The date slices that a read ended, read or failed. */
+  readonly slicesDone: number
+  /** Every date slice known now; a slice with too many rows splits, so this count can grow. */
+  readonly slices: number
+  /** The firm's EP applications read so far. */
+  readonly rows: number
+}
+
+/**
+ * The state of the firm docket: every EP application where the EP Register names the firm as the representative.
+ * `rows` counts these applications; `asOf` is the ISO-8601 time of the oldest slice that a read ended.
+ */
+export type DocketState =
+  /** The firm identity names nothing: the firm's matters cannot be found until it is set. */
+  | { readonly state: 'no_identity' }
+  | { readonly state: 'reading'; readonly progress: DocketProgress }
+  /** A Host stop ended the read; the next start reads only the unread slices. */
+  | { readonly state: 'interrupted'; readonly progress: DocketProgress }
+  | { readonly state: 'ready'; readonly rows: number; readonly asOf: string }
+  /** Older than `docketRefreshAge`. */
+  | { readonly state: 'stale'; readonly rows: number; readonly asOf: string }
+  /** Some slices failed, or the slices of a query do not sum to its count; the rows can be incomplete. */
+  | {
+    readonly state: 'partial'
+    readonly rows: number
+    readonly asOf: string
+    readonly failed: readonly DocketFailedSlice[]
+    readonly mismatches: readonly DocketSumMismatch[]
+  }
+  /** No slice could be read; the firm's matters are unknown, not absent. */
+  | { readonly state: 'failed'; readonly reason: DocketFailureCode; readonly failed: readonly DocketFailedSlice[] }
+
+/** The answer of `GET docket`, and of `POST docket/read`. */
+export type DocketAnswer =
+  | { readonly status: 'docket'; readonly docket: DocketState }
+  /** No patent data plugin in this runtime: the docket cannot be read. */
+  | { readonly status: 'no-plugin' }
+
+/** Body of `POST docket/read`: read every slice again, or only the failed slices and the queries whose sum was wrong. */
+export interface DocketReadRequest {
+  readonly slices: 'all' | 'failed'
 }
 
 /**
