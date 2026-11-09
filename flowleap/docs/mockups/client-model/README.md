@@ -26,6 +26,7 @@ The decision bar of the review holds the one primary action, **Add client** `⇧
 5. **The matter folder is an icon in the last column**, with "Matter folder since <date>" on hover, and the **With a matter folder** filter.
 6. **"Representative changed", not "Representative since".** The EP Register gives the date of the last change of the representative entry, not the date when the firm took the case (EP 25 210 820 was filed on 23 Oct 2025 and shows 3 Apr 2026). The column says what the date is; the firm's own start date can come later from the firm's files or MyEPO.
 7. **The applications at other firms are a view, not a list.** **At other firms** in the view bar shows the live count and the search field, so a large client reaches them without scrolling past its own rows.
+8. **A row matched by address only starts unticked.** [The large-client sheet](../../2026-11-09-add-client-large-clients.md#the-firm-docket) lets a person untick it; the mockup goes one step further, because another firm can have the same address and a wrong row would record another firm's matter. The counts and the decision bar count the row only when a person ticks it.
 
 ## Linear references
 

@@ -44,7 +44,9 @@
 .list.selecting .row .lead > .ld { display: none; }
 .list.selecting .row .lead > .sel { display: inline-grid; }
 .ctx-at { left: 640px; top: 540px; }
-.list-error { margin: 12px 16px 0; }
+.list-error { margin: 12px 16px 0; padding: 0; }
+.flow .docket .error-bar { padding: 0; }
+.flow .others { margin: 32px 0 0; }
 .cp .empty.inflow { padding: 24px 16px; }
 .cp > .bulk-dock { padding: 8px 16px 16px; }
 .skel.w40 { width: 40%; } .skel.w45 { width: 45%; } .skel.w50 { width: 50%; } .skel.w55 { width: 55%; } .skel.w60 { width: 60%; } .skel.w65 { width: 65%; } .skel.w70 { width: 70%; }
@@ -62,7 +64,7 @@
 .others .hint-line { padding: 0; }
 
 /* The label of a state that shows example rows or example text. */
-.ex-note { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-state-warn-tertiary); color: var(--dsw-alias-label-primary); }
+.ex-note { display: inline-block; height: 20px; line-height: var(--dsw-font-xs-13-line-height); padding: 0 8px; margin-right: 4px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-state-warn-tertiary); color: var(--dsw-alias-label-primary); }
 
 @container client-page (max-width: 1080px) {
   .apps .row, .apps .thead { grid-template-columns: 16px 104px minmax(0, 1fr) minmax(0, 240px) 16px; }
@@ -75,11 +77,20 @@
   .apps .row > .m, .apps .row > .none, .apps .row > .fn { display: none; }
 }
 
-/* The top bar of a client page at a narrow page: the tabs name the page, so the trail hides; the second act keeps its icon. */
+/* A narrow page: the tabs name the client page, so the trail hides; the acts that do not fit go into the overflow button. */
+.only-md { display: none; }
 @media (max-width: 1080px) {
   .topbar:has(.tabs) .crumbs { display: none; }
   .topbar .tabs { margin-left: 0; }
-  .btn .lbl-md { display: none; }
+  .hide-md { display: none !important; }
+  .only-md { display: inline-grid; }
+  .mats2 .row, .mats2 .thead { grid-template-columns: 16px 104px minmax(0, 1fr) 136px; }
+  .mats2 .row > .c:last-child, .mats2 .thead > span:last-child { display: none; }
+  /* As on the folder page of the product, a narrow page hides the tree and the size and source columns. */
+  .fp { grid-template-columns: minmax(0, 1fr); }
+  .tree { display: none; }
+  .files .row, .files .thead { grid-template-columns: 16px minmax(0, 1fr) 96px 112px; }
+  .files .row > .c:nth-child(4), .files .row > .c:nth-child(6), .files .thead > span:nth-child(4), .files .thead > span:nth-child(6) { display: none; }
   .cos2 .row, .cos2 .thead { grid-template-columns: 16px minmax(0, 1fr) 88px 120px; }
 }
 
@@ -92,11 +103,12 @@
 .docket-line.run > svg { color: var(--dsw-alias-state-business-primary); }
 .docket-line.ok > svg { color: var(--dsw-alias-state-success-primary); }
 .notice .d { color: var(--dsw-alias-label-secondary); margin-top: 2px; }
-.bar.p35 > span { width: 35%; }
+.bar.p50 > span { width: 50%; }
 .bar.p58 > span { width: 58%; }
 
 /* The review: the firm's matters with a checkbox, and the rows matched by address only. */
-.mats2 .row, .mats2 .thead { grid-template-columns: 16px 112px minmax(0, 1fr) 176px 128px; }
+.mats2 .row, .mats2 .thead { grid-template-columns: 16px 112px minmax(0, 1fr) 160px 176px; }
+.mats2 .thead > span { white-space: nowrap; }
 .mats2 .row.more-row { grid-template-columns: minmax(0, 1fr); color: var(--dsw-alias-label-secondary); }
 .mats2 .row.off .t, .mats2 .row.off .c, .mats2 .row.off .k { color: var(--dsw-alias-label-secondary); }
 
@@ -129,8 +141,8 @@
   .apps .row > .c, .apps .row > .m, .apps .row > .none, .apps .row > .fo { display: none; }
   .ctx-at { left: 16px; right: 16px; width: auto; top: 480px; }
   .others { margin: 16px 8px 24px; }
-  .found .row { grid-template-columns: minmax(0, 1fr) auto; }
-  .found .row > .c, .found .row > .k { display: none; }
+  .found .row { grid-template-columns: 96px minmax(0, 1fr) auto; }
+  .found .row > .c { display: none; }
   .cos2 .thead { display: none; }
   .cos2 .row { grid-template-columns: 16px minmax(0, 1fr) auto; }
   .cos2 .row .c.wide { display: none; }
