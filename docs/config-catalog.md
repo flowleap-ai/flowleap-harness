@@ -620,7 +620,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-admin-link`
 
 - `inject`: `connection`
-- `source`: [`packages/client/ui-flowleap-admin-link/src/index.ts:31`](../packages/client/ui-flowleap-admin-link/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-admin-link/src/index.ts:35`](../packages/client/ui-flowleap-admin-link/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the starter's public key is, and where the link goes. */
@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:54`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:56`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -659,9 +659,10 @@ export interface Config {
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
   /**
-   * The firm's names, addresses and representatives until a person saves them in Settings > Firm identity; the saved
-   * identity in `stateDir` then wins. The firm docket sends their words to the EP Register to read the firm's EP
-   * applications; every row is matched against them again on the Host.
+   * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
+   * the saved identity in `stateDir` then wins, and a later change of this value has no effect. The firm docket sends
+   * their words to the EP Register to read the firm's EP applications; every row is matched against them again on the
+   * Host.
    */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */

@@ -294,10 +294,16 @@ export interface FirmIdentityAnswer {
   /** The firm identity now: the saved one, else the `firmIdentity` of the row config. */
   readonly identity: FirmIdentity
   readonly docket: DocketAnswer
+  /**
+   * Whether this request may save the firm identity: true only for a firm administrator, whose request carries an
+   * `X-Flowleap-Admin` header that the starter signed (the `flowleapAdmin` Service says so).
+   */
+  readonly canSave: boolean
 }
 
 /**
- * Body of `POST identity/save`: the whole new firm identity. The Host trims each entry and drops the entries with no
+ * Body of `POST identity/save`: the whole new firm identity. Only a firm administrator may save; the Host refuses any
+ * other request with `not-admin` before it reads the body. The Host trims each entry and drops the entries with no
  * word and the repeated entries; lists with no entry left mean no identity.
  */
 export interface FirmIdentitySaveRequest {
@@ -311,9 +317,10 @@ export interface DocketReadRequest {
 
 /**
  * Why an Add client act failed; each code is one localized sentence in the client. `no-key`: the runtime has no EPO
- * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused.
+ * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused; `not-admin`: the
+ * request is not of a firm administrator, so a save of the firm identity changed nothing.
  */
-export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'internal'
+export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'not-admin' | 'internal'
 
 /** The JSON body of a failed Add client act. */
 export interface AddClientFailure {
@@ -327,5 +334,6 @@ export const ADD_CLIENT_STATUS: Readonly<Record<AddClientFailureCode, number>> =
   'no-key': 424,
   'unreachable': 502,
   'stopped': 503,
+  'not-admin': 403,
   'internal': 500,
 }

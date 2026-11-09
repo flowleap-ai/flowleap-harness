@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto'
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
+import * as adminLink from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
 import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
@@ -12,11 +14,22 @@ import { FakePatentData, pub, row } from './patent-data.host.ts'
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
 
+const starter = generateKeyPairSync('ed25519')
+const other = generateKeyPairSync('ed25519')
+
+/** An `X-Flowleap-Admin` header as the starter signs it, expiring `inSeconds` from now. */
+function adminHeader(inSeconds = 60, privateKey: KeyObject = starter.privateKey): Record<string, string> {
+  const expiry = String(Math.floor(Date.now() / 1000) + inSeconds)
+  const signature = sign(null, Buffer.from(`flowleap-admin-link.v1.${expiry}`, 'ascii'), privateKey).toString('base64url')
+  return { 'x-flowleap-admin': `v1.${expiry}.${signature}` }
+}
+
 let base: string
 let routes: Map<string, ConnectionFetchRoute>
 let ctx: Context
 let warnings: string[]
 let created: string[]
+let admin: Fiber
 
 beforeEach(async () => {
   base = await mkdtemp(path.join(tmpdir(), 'flowleap-add-client-routes-'))
@@ -31,6 +44,11 @@ beforeEach(async () => {
     create: async (folder: string) => { created.push(folder); return { id: 'ws-1', path: folder } },
   } as never)
   ctx.provide('flowleapPatentData')
+  // The admin-link row of the bundle, with a test key pair: it provides `flowleapAdmin`.
+  const publicKeyFile = path.join(base, 'admin-link.pub')
+  await writeFile(publicKeyFile, starter.publicKey.export({ type: 'spki', format: 'pem' }).toString())
+  admin = ctx.plugin({ inject: adminLink.inject, Config: adminLink.Config, apply: adminLink.apply }, { publicKeyFile, consoleHref: 'admin/' })
+  await admin.await()
 })
 
 afterEach(async () => {
@@ -52,8 +70,8 @@ function call(route: string, init: RequestInit & { query?: Record<string, string
   return routes.get(route)!.fetch(new Request(`http://runtime.test${route}${query}`, init))
 }
 
-function post(route: string, body: unknown) {
-  return call(route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) })
+function post(route: string, body: unknown, headers: Record<string, string> = {}) {
+  return call(route, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
 }
 
 function data() {
@@ -237,16 +255,45 @@ describe('the firm docket routes', () => {
 })
 
 describe('the firm identity routes', () => {
-  async function identityOf(): Promise<FirmIdentityAnswer> {
-    return await (await call(ADD_CLIENT_ROUTES.identity)).json() as FirmIdentityAnswer
+  async function identityOf(headers: Record<string, string> = {}): Promise<FirmIdentityAnswer> {
+    return await (await call(ADD_CLIENT_ROUTES.identity, { headers })).json() as FirmIdentityAnswer
   }
 
   it('answer the row config identity with the docket state, and without the data plugin say so', async () => {
     await load()
-    expect(await identityOf()).toEqual({ identity: { names: [], addresses: [], representatives: ['Anna Becker'] }, docket: { status: 'no-plugin' } })
-    const saved = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: [' Muster & Partner '], addresses: [], representatives: [] } })
+    expect(await identityOf()).toEqual({ identity: { names: [], addresses: [], representatives: ['Anna Becker'] }, docket: { status: 'no-plugin' }, canSave: false })
+    const saved = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: [' Muster & Partner '], addresses: [], representatives: [] } }, adminHeader())
     expect(saved.headers.get('cache-control')).toBe('no-store')
-    expect(await saved.json()).toEqual({ identity: { names: ['Muster & Partner'], addresses: [], representatives: [] }, docket: { status: 'no-plugin' } })
+    expect(await saved.json()).toEqual({ identity: { names: ['Muster & Partner'], addresses: [], representatives: [] }, docket: { status: 'no-plugin' }, canSave: true })
+  })
+
+  it('answer canSave true only for a request with a valid header of a firm administrator', async () => {
+    await load()
+    expect((await identityOf(adminHeader())).canSave).toBe(true)
+    for (const headers of [{}, adminHeader(60, other.privateKey), adminHeader(-1)]) {
+      expect((await identityOf(headers)).canSave).toBe(false)
+    }
+  })
+
+  it('refuse a save without a valid header with not-admin before it reads the body, and change nothing', async () => {
+    await load()
+    const identity = { identity: { names: ['Muster & Partner'], addresses: [], representatives: [] } }
+    for (const [body, headers] of [
+      [identity, {}], [identity, adminHeader(60, other.privateKey)], [identity, adminHeader(-1)], ['not json', {}],
+    ] as const) {
+      const refused = await post(ADD_CLIENT_ROUTES.identitySave, body, headers)
+      expect([refused.status, await refused.json()]).toEqual([403, { error: 'not-admin' }])
+    }
+    expect((await identityOf()).identity).toEqual({ names: [], addresses: [], representatives: ['Anna Becker'] })
+    await expect(access(path.join(base, 'state', 'identity.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('refuse every save when the runtime has no flowleapAdmin Service', async () => {
+    await admin.dispose()
+    await load()
+    expect((await identityOf(adminHeader())).canSave).toBe(false)
+    const refused = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: ['Muster & Partner'], addresses: [], representatives: [] } }, adminHeader())
+    expect([refused.status, await refused.json()]).toEqual([403, { error: 'not-admin' }])
   })
 
   it('save a new identity: the docket drops the old rows and reads again, and the review matches the new identity', async () => {
@@ -255,7 +302,7 @@ describe('the firm identity routes', () => {
     const fiber = await load()
     await vi.waitFor(async () => { expect(await identityOf()).toMatchObject({ docket: { docket: { state: 'ready', rows: 1 } } }) })
     const identity = { names: ['Beispiel IP'], addresses: [], representatives: [] }
-    const answer = await (await post(ADD_CLIENT_ROUTES.identitySave, { identity })).json() as FirmIdentityAnswer
+    const answer = await (await post(ADD_CLIENT_ROUTES.identitySave, { identity }, adminHeader())).json() as FirmIdentityAnswer
     expect(answer.identity).toEqual(identity)
     expect(answer.docket).toMatchObject({ status: 'docket', docket: { state: 'reading', progress: { rows: 0 } } })
     await vi.waitFor(async () => { expect(await identityOf()).toMatchObject({ identity, docket: { status: 'docket', docket: { state: 'ready', rows: 0 } } }) })
@@ -271,8 +318,8 @@ describe('the firm identity routes', () => {
     ctx.set('flowleapPatentData', data())
     await load()
     const empty = { names: [''], addresses: ['  '], representatives: [] }
-    expect(await (await post(ADD_CLIENT_ROUTES.identitySave, { identity: empty })).json()).toEqual({
-      identity: { names: [], addresses: [], representatives: [] }, docket: { status: 'docket', docket: { state: 'no_identity' } },
+    expect(await (await post(ADD_CLIENT_ROUTES.identitySave, { identity: empty }, adminHeader())).json()).toEqual({
+      identity: { names: [], addresses: [], representatives: [] }, docket: { status: 'docket', docket: { state: 'no_identity' } }, canSave: true,
     })
   })
 
@@ -282,11 +329,11 @@ describe('the firm identity routes', () => {
       {}, { identity: [] }, { identity: { names: [], addresses: [] } }, { identity: { names: [1], addresses: [], representatives: [] } },
     ]
     for (const body of malformed) {
-      const refused = await post(ADD_CLIENT_ROUTES.identitySave, body)
+      const refused = await post(ADD_CLIENT_ROUTES.identitySave, body, adminHeader())
       expect([refused.status, await refused.json()]).toEqual([400, { error: 'bad-request' }])
     }
     await mkdir(path.join(base, 'state', 'identity.json', 'inside'), { recursive: true })
-    const failed = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: ['Muster & Partner'], addresses: [], representatives: [] } })
+    const failed = await post(ADD_CLIENT_ROUTES.identitySave, { identity: { names: ['Muster & Partner'], addresses: [], representatives: [] } }, adminHeader())
     expect([failed.status, await failed.json()]).toEqual([500, { error: 'internal' }])
     expect(warnings.some(line => line.startsWith('ui-flowleap-folder: Add client: '))).toBe(true)
     expect((await identityOf()).identity).toEqual({ names: [], addresses: [], representatives: ['Anna Becker'] })

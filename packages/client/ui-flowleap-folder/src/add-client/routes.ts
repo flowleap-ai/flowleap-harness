@@ -2,9 +2,11 @@
  * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
  * applications and possible conflicts, `build` starts the client folder build, `status` reports every build, `docket`
  * reports the state of the firm docket, `docket/read` reads it again, `identity` reports the firm identity with the
- * docket state, and `identity/save` saves a new firm identity, which reads the docket again. The routes read public
- * data through the `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket
- * routes say so, `build` makes the folder with the template folders only, and a saved identity waits for the Service.
+ * docket state, and `identity/save` saves a new firm identity, which reads the docket again; only a firm administrator
+ * may save, and `identity` answers whether this request may. The docket routes stay open to every person, because they
+ * only read the public register again for the saved identity. The routes read public data through the
+ * `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket routes say so,
+ * `build` makes the folder with the template folders only, and a saved identity waits for the Service.
  * @module
  */
 
@@ -50,6 +52,8 @@ export interface AddClientServices {
   readonly docket: FirmDocket
   /** The firm identity that the review matches and the docket reads for. */
   readonly identity: FirmIdentityStore
+  /** Whether a request is of a firm administrator, who alone may save the firm identity. */
+  readonly isAdmin: (request: Request) => Promise<boolean>
   readonly sources: RecordStore<FolderSource>
   readonly createWorkspace: (folder: string, title: string) => Promise<{ readonly id: string }>
   readonly now: () => Date
@@ -240,12 +244,14 @@ export class AddClientRoutes {
   }
 
   /**
-   * `GET identity`: the firm identity now and the state of the firm docket.
+   * `GET identity`: the firm identity now, the state of the firm docket, and whether this request may save.
+   * @param request - the authenticated request.
    * @returns the JSON answer.
    */
-  async identity(): Promise<Response> {
+  async identity(request: Request): Promise<Response> {
     const identity = await this.services.identity.current()
-    return json({ identity, docket: await this.docketAnswer() } satisfies FirmIdentityAnswer)
+    const canSave = await this.services.isAdmin(request)
+    return json({ identity, docket: await this.docketAnswer(), canSave } satisfies FirmIdentityAnswer)
   }
 
   /**
@@ -253,13 +259,15 @@ export class AddClientRoutes {
    * which drops the rows of the old identity and reads again. The same identity reads nothing again.
    * @param request - the authenticated request.
    * @returns the JSON answer with the saved identity and the docket state after the change.
+   * @throws {AddClientError} `not-admin` when the request is not of a firm administrator; nothing changes.
    */
   async identitySave(request: Request): Promise<Response> {
+    if (!await this.services.isAdmin(request)) throw new AddClientError('not-admin', 'a firm identity save without a valid X-Flowleap-Admin header')
     const { identity: body } = await bodyOf(request)
     const identity = await this.services.identity.save(identityOf(body))
     const docket = await this.services.docket.setIdentity(identity)
     const answer: DocketAnswer = this.services.data() === undefined ? { status: 'no-plugin' } : { status: 'docket', docket }
-    return json({ identity, docket: answer } satisfies FirmIdentityAnswer)
+    return json({ identity, docket: answer, canSave: true } satisfies FirmIdentityAnswer)
   }
 
   /** The docket answer now. */

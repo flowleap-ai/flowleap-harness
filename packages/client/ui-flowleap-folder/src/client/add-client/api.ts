@@ -6,8 +6,9 @@
  */
 
 import {
-  ADD_CLIENT_ROUTES, type AddClientFailureCode, type BuildRequest, type BuildStatus, type DocketAnswer, type DocketReadRequest,
-  type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type ReviewAnswer, type ReviewRequest, type StatusAnswer,
+  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type BuildRequest, type BuildStatus, type DocketAnswer,
+  type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type ReviewAnswer, type ReviewRequest,
+  type StatusAnswer,
 } from '../../add-client/wire.ts'
 
 /** Why a Host call failed: a route failure, no answer (`network`), or an answer that is not JSON (`internal`). */
@@ -16,7 +17,7 @@ export type HostFailure = AddClientFailureCode | 'network'
 /** The answer of one Host call. */
 export type HostResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: HostFailure }
 
-const CODES: ReadonlySet<string> = new Set<AddClientFailureCode>(['bad-request', 'invalid-name', 'no-key', 'unreachable', 'stopped', 'internal'])
+const CODES: ReadonlySet<string> = new Set(Object.keys(ADD_CLIENT_STATUS))
 
 /** A route path relative to the document, like the other app routes. */
 const relative = (route: string): string => route.slice(1)
@@ -67,9 +68,9 @@ export const addClientApi: AddClientApi = {
 
 /** The firm identity and firm docket routes. */
 export interface FirmIdentityApi {
-  /** The firm identity now and the docket state. */
+  /** The firm identity now, the docket state, and whether this person may save. */
   identity(signal?: AbortSignal): Promise<HostResult<FirmIdentityAnswer>>
-  /** Save the whole firm identity; the docket then reads again. */
+  /** Save the whole firm identity; the docket then reads again. A person who is not a firm administrator gets `not-admin`. */
   save(identity: FirmIdentity): Promise<HostResult<FirmIdentityAnswer>>
   /** The docket state. */
   docket(signal?: AbortSignal): Promise<HostResult<DocketAnswer>>

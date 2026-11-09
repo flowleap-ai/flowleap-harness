@@ -9,7 +9,8 @@
  * `opsRequestsPerMinute`, and build a client folder inside `clientsRoot` as a job that goes on after its request ends.
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
  * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
- * in `stateDir`, which reads the docket again. The browser half (`exports["./client"]`) is the Clients page, the Add
+ * in `stateDir`, which reads the docket again; only a request that the optional `flowleapAdmin` Service names as of a
+ * firm administrator may save. The browser half (`exports["./client"]`) is the Clients page, the Add
  * client page and the Firm identity section of Settings.
  *
  * See packages/client/ui-flowleap-folder/README.md.
@@ -21,6 +22,7 @@ import path from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -67,9 +69,10 @@ export interface Config {
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
   /**
-   * The firm's names, addresses and representatives until a person saves them in Settings > Firm identity; the saved
-   * identity in `stateDir` then wins. The firm docket sends their words to the EP Register to read the firm's EP
-   * applications; every row is matched against them again on the Host.
+   * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
+   * the saved identity in `stateDir` then wins, and a later change of this value has no effect. The firm docket sends
+   * their words to the EP Register to read the firm's EP applications; every row is matched against them again on the
+   * Host.
    */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
@@ -398,8 +401,13 @@ export function apply(ctx: Context, config: Config): void {
       return docket.pause()
     }, 'ui-flowleap-folder: patent data')
   })
+  // The admin-link row provides `flowleapAdmin`; without it, no request is of a firm administrator.
+  const isAdmin = async (request: Request): Promise<boolean> => {
+    const admin = ctx.get('flowleapAdmin')
+    return admin === undefined ? false : admin.isAdmin(request)
+  }
   const addClient = new AddClientRoutes(config, {
-    data, jobs, docket, identity, sources, now: () => new Date(), log: warn,
+    data, jobs, docket, identity, isAdmin, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -427,6 +435,6 @@ export function apply(ctx: Context, config: Config): void {
   registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
   registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())
   registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
-  registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', () => addClient.identity())
+  registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', request => addClient.identity(request))
   registerAddClient(ADD_CLIENT_ROUTES.identitySave, 'POST', request => addClient.identitySave(request))
 }

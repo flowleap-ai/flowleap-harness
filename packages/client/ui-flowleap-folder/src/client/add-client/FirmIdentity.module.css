@@ -100,9 +100,14 @@
   width: 100%;
 }
 
-.hint {
+.hint,
+.none {
   margin: 0;
   color: var(--dsw-alias-label-secondary);
+}
+
+.none {
+  margin-top: 4px;
 }
 
 .entries {

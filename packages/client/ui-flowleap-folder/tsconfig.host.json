@@ -25,6 +25,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../connection/tsconfig.host.json" },
+    { "path": "../ui-flowleap-admin-link/tsconfig.host.json" },
     { "path": "../../workspace/workspace" },
     { "path": "../../util/atomic-write" },
     { "path": "../../host/flowleap-connectors" }

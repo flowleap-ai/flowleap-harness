@@ -1,7 +1,8 @@
 /**
  * FlowLeap admin link, Host half: the authenticated route `GET /api/flowleap/admin-link`. It answers the firm admin
  * console's path only when the request carries an `X-Flowleap-Admin` header that the starter signed; the browser half
- * (`exports["./client"]`) asks once and shows the Firm admin row. The Host holds only the public key.
+ * (`exports["./client"]`) asks once and shows the Firm admin row. The row also provides the `flowleapAdmin` Service,
+ * which answers the same check for other Host plugins. The Host holds only the public key.
  *
  * See packages/client/ui-flowleap-admin-link/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-admin-link
@@ -11,15 +12,18 @@ import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
-import { ADMIN_HEADER, readAdminKey, verifyAdminHeader, type AdminKeyRead } from './admin-header.ts'
+import { isAdminRequest, type AdminCheckLog } from './admin-header.ts'
 import { ADMIN_LINK_PATH, type AdminLinkAnswer } from './route.ts'
+import { FlowleapAdminService } from './service.ts'
 
 export {
-  ADMIN_HEADER, AdminLinkKeyError, MAX_HEADER_LIFETIME_SECONDS, readAdminKey, verifyAdminHeader,
+  ADMIN_HEADER, AdminLinkKeyError, MAX_HEADER_LIFETIME_SECONDS, isAdminRequest, readAdminKey, verifyAdminHeader,
 } from './admin-header.ts'
-export type { AdminHeaderCheck, AdminHeaderRefusal, AdminKeyProblem, AdminKeyRead } from './admin-header.ts'
+export type { AdminCheckLog, AdminHeaderCheck, AdminHeaderRefusal, AdminKeyProblem, AdminKeyRead } from './admin-header.ts'
 export { ADMIN_LINK_PATH } from './route.ts'
 export type { AdminLinkAnswer } from './route.ts'
+export { FlowleapAdminService } from './service.ts'
+export type { FlowleapAdmin, FlowleapAdminOptions } from './service.ts'
 
 /** Cordis plugin name. */
 export const name = 'ui-flowleap-admin-link'
@@ -58,9 +62,6 @@ export function checkConfig(config: Config): void {
   }
 }
 
-/** Where {@link answerAdminLink} reports a problem that an operator must see. */
-export type AdminLinkLog = (message: string) => void
-
 function answer(body: AdminLinkAnswer): Response {
   return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
 }
@@ -74,31 +75,20 @@ function answer(body: AdminLinkAnswer): Response {
  * @returns `{ href: consoleHref }` for a valid header, else `{ href: null }`; never cached.
  */
 export async function answerAdminLink(
-  request: Request, config: Config, log: { readonly error: AdminLinkLog; readonly warn: AdminLinkLog }, nowSeconds: number,
+  request: Request, config: Config, log: AdminCheckLog, nowSeconds: number,
 ): Promise<Response> {
-  if (config.publicKeyFile === '') return answer({ href: null })
-  let read: AdminKeyRead
-  try {
-    read = await readAdminKey(config.publicKeyFile)
-  } catch (error) {
-    log.error(`${String(error)}; no request shows the Firm admin link until the file holds the starter's public key`)
-    return answer({ href: null })
-  }
-  if (read.state === 'absent') return answer({ href: null })
-  const check = verifyAdminHeader(request.headers.get(ADMIN_HEADER) ?? undefined, read.key, nowSeconds)
-  if (check.admin) return answer({ href: config.consoleHref })
-  if (check.reason !== 'missing') log.warn(`ui-flowleap-admin-link: ${ADMIN_HEADER} refused (${check.reason}); the Firm admin link is not shown`)
-  return answer({ href: null })
+  return answer({ href: await isAdminRequest(request, config.publicKeyFile, log, nowSeconds) ? config.consoleHref : null })
 }
 
 /**
- * Register the admin-link route.
+ * Register the admin-link route and provide the `flowleapAdmin` Service.
  * @param ctx - the mounting context, carrying `connection`.
  * @param config - the key file and the link target.
  * @throws when the config is invalid; the row fails to load.
  */
 export function apply(ctx: Context, config: Config): void {
   checkConfig(config)
+  ctx.plugin(FlowleapAdminService, { publicKeyFile: config.publicKeyFile })
   ctx.effect(() => ctx.connection.fetch.register({
     path: ADMIN_LINK_PATH,
     methods: ['GET'],

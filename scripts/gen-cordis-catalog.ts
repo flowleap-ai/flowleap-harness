@@ -82,6 +82,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   deepseekAccount: 'credentials.md',
   credentials: 'credentials.md',
   credentialsController: 'credentials.md',
+  flowleapAdmin: 'credentials.md',
   flowleapAgentCatalog: 'core.md',
   flowleapAgents: 'core.md',
   flowleapWorkPages: 'deliverables.md',

@@ -1,6 +1,7 @@
 /**
  * The Firm identity section of Settings (approved mockup `6-firm-identity`): what FlowLeap sends to the EP Register,
  * the state of the firm docket with its read time, and the firm's names, addresses and representatives with **Save**.
+ * Only a firm administrator gets the fields to edit and **Save**; every other person sees them read-only.
  */
 
 import { useEffect, useState, type ReactNode } from 'react'
@@ -69,17 +70,22 @@ export interface FirmIdentityViewProps {
  * @returns the section.
  */
 export function FirmIdentityView({ t, state, model, locale, retryKeycaps }: FirmIdentityViewProps): ReactNode {
-  const canSave = state.status === 'ready' && state.busy === null && changed(state)
+  const saveEnabled = state.status === 'ready' && state.busy === null && changed(state)
   return (
     <section className={css.section} aria-labelledby="flowleap-firm-identity-title" data-shortcut-scope={IDENTITY_SCOPE} tabIndex={-1}>
       <div className={css.head}>
         <h2 id="flowleap-firm-identity-title" className={css.title}>{t('identity.title')}</h2>
-        {state.status === 'ready' && (
-          <Button variant="primary" size="sm" disabled={!canSave} onClick={() => { void model.save() }}>{t('identity.save')}</Button>
+        {state.status === 'ready' && state.canSave && (
+          <Button variant="primary" size="sm" disabled={!saveEnabled} onClick={() => { void model.save() }}>{t('identity.save')}</Button>
         )}
       </div>
       <p className={css.lede}>{t('identity.lede')}</p>
       <p className={css.privacy}><IconShieldOutlineRegular size={16} /><span>{t('identity.privacy')}</span></p>
+      {state.status === 'ready' && (
+        <p className={css.privacy}>
+          <IconInfoOutlineRegular size={16} /><span>{t(state.canSave ? 'identity.savedWins' : 'identity.adminOnly')}</span>
+        </p>
+      )}
       <Body t={t} state={state} model={model} locale={locale} retryKeycaps={retryKeycaps} />
     </section>
   )
@@ -103,7 +109,7 @@ function Body({ t, state, model, locale, retryKeycaps }: FirmIdentityViewProps):
           )}
           <Docket t={t} answer={state.docket} busy={state.busy !== null} model={model} locale={locale} retryKeycaps={retryKeycaps} />
           {IDENTITY_LISTS.map(list => (
-            <Entries key={list} t={t} list={list} entries={state.draft[list]} disabled={state.busy === 'save'} model={model} />
+            <Entries key={list} t={t} list={list} entries={state.draft[list]} readOnly={!state.canSave} disabled={state.busy === 'save'} model={model} />
           ))}
         </>
       )
@@ -198,11 +204,15 @@ function Line({ shape, text, rest }: {
   )
 }
 
-/** One list of the identity: its title, its hint, one field for each entry, and the act that adds an entry. */
-function Entries({ t, list, entries, disabled, model }: {
+/**
+ * One list of the identity: its title, its hint, one field for each entry, and the act that adds an entry. Read-only,
+ * for a person who may not save, it shows the saved entries without Add and Remove, and an empty list as one line.
+ */
+function Entries({ t, list, entries, readOnly, disabled, model }: {
   readonly t: AddClientTranslate
   readonly list: IdentityList
   readonly entries: readonly string[]
+  readonly readOnly: boolean
   readonly disabled: boolean
   readonly model: FirmIdentityModel
 }) {
@@ -214,19 +224,25 @@ function Entries({ t, list, entries, disabled, model }: {
     <fieldset className={css.group} disabled={disabled}>
       <legend className={css.legend}>{t(`identity.${list}.title`)}</legend>
       <p className={css.hint}>{t(`identity.${list}.hint`)}</p>
-      <ul className={css.entries}>
-        {rows.map((entry, index) => (
-          <li key={index} className={css.entry}>
-            <Input className={clsx(css.field)} value={entry} placeholder={field} aria-label={`${field} ${String(index + 1)}`}
-              autoFocus={index === added} onChange={(event) => { model.edit(list, index, event.target.value) }} />
-            <button type="button" className={css.remove} aria-label={t('identity.remove', { field, number: index + 1 })}
-              onClick={() => { model.remove(list, index) }}>
-              <IconCloseOutlineRegular size={16} />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <Button variant="ghost" size="sm" icon={<IconPlusOutlineRegular size={16} />} className={css.add}
+      {readOnly && entries.length === 0
+        ? <p className={css.none}>{t('identity.none')}</p>
+        : (
+          <ul className={css.entries}>
+            {rows.map((entry, index) => (
+              <li key={index} className={css.entry}>
+                <Input className={clsx(css.field)} value={entry} placeholder={field} aria-label={`${field} ${String(index + 1)}`}
+                  readOnly={readOnly} autoFocus={index === added} onChange={(event) => { model.edit(list, index, event.target.value) }} />
+                {!readOnly && (
+                  <button type="button" className={css.remove} aria-label={t('identity.remove', { field, number: index + 1 })}
+                    onClick={() => { model.remove(list, index) }}>
+                    <IconCloseOutlineRegular size={16} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      {!readOnly && <Button variant="ghost" size="sm" icon={<IconPlusOutlineRegular size={16} />} className={css.add}
         onClick={() => {
           setAdded(rows.length)
           // An empty list shows one empty field; Add then adds a second one after it.
@@ -234,7 +250,7 @@ function Entries({ t, list, entries, disabled, model }: {
           model.add(list)
         }}>
         {t(`identity.${list}.add`)}
-      </Button>
+      </Button>}
     </fieldset>
   )
 }

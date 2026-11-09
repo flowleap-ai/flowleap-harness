@@ -119,8 +119,10 @@ flowchart LR
   pkg_flowleap_routines["flowleap-routines"]
   svc_flowleapOcr["ctx.flowleapOcr<br/>FlowLeap OCR reader"]
   pkg_flowleap_agent_builder["flowleap-agent-builder"]
-  svc_flowleapPatentData["ctx.flowleapPatentData<br/>FlowLeap patent data reader"]
+  pkg_client_ui_flowleap_admin_link["client-ui-flowleap-admin-link"]
+  svc_flowleapAdmin["ctx.flowleapAdmin<br/>FlowLeap firm administrator check"]
   pkg_client_ui_flowleap_folder["client-ui-flowleap-folder"]
+  svc_flowleapPatentData["ctx.flowleapPatentData<br/>FlowLeap patent data reader"]
   svc_flowleapAgentCatalog["ctx.flowleapAgentCatalog<br/>FlowLeap agent catalog"]
   svc_flowleapAgents["ctx.flowleapAgents<br/>FlowLeap agents Remote"]
   pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
@@ -374,6 +376,7 @@ flowchart LR
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
+  pkg_client_ui_flowleap_admin_link --> svc_flowleapAdmin
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_settings_skills --> svc_skillInventory
   pkg_command_feedback --> svc_sessionFeedback
@@ -565,6 +568,7 @@ flowchart LR
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
+  svc_flowleapAdmin --> pkg_client_ui_flowleap_folder
   svc_flowleapAgents --> pkg_client_ui_flowleap_agent_builder
   svc_flowleapBudget --> pkg_client_ui_flowleap_budget
   svc_flowleapConnectors --> pkg_client_ui_settings_flowleap_connectors
@@ -746,6 +750,7 @@ flowchart LR
 | `ctx.flowleapConnectors` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-settings-flowleap-connectors`](../packages/client/ui-settings-flowleap-connectors) | - | Reports presence of the firm's patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only. |
 | `ctx.flowleapRegister` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-routines`](../packages/host/flowleap-routines) | - | Reads the register events of one EP publication or US application on the firm's office keys without a tool call; mounted by the flowleap-web profile only. |
 | `ctx.flowleapOcr` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | Reads the page text of one document through Mistral OCR on the firm's key without a tool call; mounted by the flowleap-web profile only. |
+| `ctx.flowleapAdmin` | `service` | [`client-ui-flowleap-admin-link`](../packages/client/ui-flowleap-admin-link) | - | [`client-ui-flowleap-folder`](../packages/client/ui-flowleap-folder) | - | Says whether a request carries an X-Flowleap-Admin header that the flowleap-os starter signed, by the admin-link row's public key; the Firm identity save of Add client accepts only such a request; mounted by the flowleap-web profile only. |
 | `ctx.flowleapPatentData` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-flowleap-folder`](../packages/client/ui-flowleap-folder) | - | Reads EP Register searches and records, EP families and EP publication text on the firm's EPO key without a tool call, for Add client; only names and numbers leave the firm; mounted by the flowleap-web profile only. |
 | `ctx.flowleapAgentCatalog` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | - | - | Owns the agent folders, their file indexes and one agent preset each; read by the per-agent preset row of the same package; mounted by the flowleap-web profile only. |
 | `ctx.flowleapAgents` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | - | Lists, reads, saves and deletes the agents of the agent builder and their files, and names the connector rows an agent can choose; mounted by the flowleap-web profile only. |

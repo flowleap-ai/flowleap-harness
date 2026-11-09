@@ -55,6 +55,10 @@ class FakeApi implements FirmIdentityApi {
 }
 
 const ok = <T,>(value: T): HostResult<T> => ({ ok: true, value })
+/** The identity answer for a firm administrator, who may save. */
+const adminAnswer = (identity: FirmIdentity, answer: DocketAnswer) => ok<FirmIdentityAnswer>({ identity, docket: answer, canSave: true })
+/** The identity answer for a person who may not save. */
+const readerAnswer = (identity: FirmIdentity, answer: DocketAnswer) => ok<FirmIdentityAnswer>({ identity, docket: answer, canSave: false })
 
 // Global standard kit stubs: the section consumes none of these hooks.
 const unusedHook = (() => { throw new Error('unused by the firm identity section') }) as never
@@ -96,7 +100,7 @@ const click = async (target: Element) => {
 
 describe('the Firm identity section', () => {
   it('shows the confidentiality line verbatim, the docket with its read time, and the three lists, with Save waiting for a change', async () => {
-    const api = new FakeApi({ identity: [ok({ identity: MUSTER, docket: READY })] })
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READY)] })
     mount(api)
     await flush()
     expect(screen.getByText('FlowLeap sends your firm’s names to the EP Register, through your firm’s EPO account, to read your EP docket. It sends no client name.')).toBeTruthy()
@@ -108,10 +112,60 @@ describe('the Firm identity section', () => {
     expect([field('Surname, first name 1').value, field('Surname, first name 2').value]).toEqual(['Becker, Anna', 'Weber, Jonas'])
     expect(button('Save')).toHaveProperty('disabled', true)
     expect(button('Read again')).toHaveProperty('disabled', false)
+    expect(screen.getByText('After the first save, FlowLeap uses only the saved identity. A change of firmIdentity in cordis.yml then has no effect.')).toBeTruthy()
+    expect(screen.queryByText(en['identity.adminOnly'])).toBeNull()
+  })
+
+  it('shows a person who is not a firm administrator the identity read-only, without Add, Remove or Save, and keeps Read again', async () => {
+    const api = new FakeApi({ identity: [readerAnswer({ ...MUSTER, addresses: [] }, READY)], read: [ok(READY)] })
+    const { model } = mount(api)
+    await flush()
+    expect(screen.getByText('Only a firm administrator can change the firm identity.')).toBeTruthy()
+    expect(screen.queryByText(en['identity.savedWins'])).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Add /u })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Remove /u })).toBeNull()
+    expect(field('Firm name 1')).toHaveProperty('readOnly', true)
+    expect(field('Surname, first name 2').value).toBe('Weber, Jonas')
+    expect(screen.queryByRole('textbox', { name: /^Street and number/u })).toBeNull()
+    expect(screen.getByText('None')).toBeTruthy()
+    model.edit('names', 0, 'Muster')
+    await model.save()
+    expect(api.calls).toEqual(['identity'])
+    await click(button('Read again'))
+    expect(api.calls).toEqual(['identity', 'read all'])
+  })
+
+  it('shows the German line for a person who is not a firm administrator', async () => {
+    mount(new FakeApi({ identity: [readerAnswer(MUSTER, READY)] }), 'de')
+    await flush()
+    expect(screen.getByText('Nur ein Kanzleiadministrator kann die Kanzleidaten ändern.')).toBeTruthy()
+  })
+
+  it('shows a refused save, such as after a role change, and then shows the saved identity read-only', async () => {
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READY)], save: [{ ok: false, error: 'not-admin' }] })
+    const { model } = mount(api)
+    await flush()
+    await type(field('Firm name 1'), 'Muster')
+    await click(button('Save'))
+    expect(screen.getByRole('alert').textContent).toContain('FlowLeap could not save your firm identity. Nothing changed. Only a firm administrator can change the firm identity.')
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(field('Firm name 1').value).toBe('Muster & Partner Patentanwälte mbB')
+    expect(field('Firm name 1')).toHaveProperty('readOnly', true)
+    expect(retryOf(model)).toBeUndefined()
+  })
+
+  it('puts the saved identity back in the draft when a new load says that this person may not save', async () => {
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READY), readerAnswer(MUSTER, READY)] })
+    const model = new FirmIdentityModel(api)
+    await model.load()
+    model.edit('names', 0, 'Muster')
+    await model.load()
+    expect(model.state).toMatchObject({ status: 'ready', canSave: false, draft: MUSTER })
   })
 
   it('shows the German confidentiality line of the approved mockup', async () => {
-    mount(new FakeApi({ identity: [ok({ identity: MUSTER, docket: READY })] }), 'de')
+    mount(new FakeApi({ identity: [adminAnswer(MUSTER, READY)] }), 'de')
     await flush()
     expect(screen.getByText('FlowLeap sendet die Namen Ihrer Kanzlei über das EPA-Konto Ihrer Kanzlei an das EP-Register, um Ihren EP-Bestand zu lesen. Es sendet keinen Mandantennamen.')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Kanzleidaten' })).toBeTruthy()
@@ -120,8 +174,8 @@ describe('the Firm identity section', () => {
   it('with no identity, Save waits for a value and then starts the first read, which the section follows', async () => {
     vi.useFakeTimers()
     const api = new FakeApi({
-      identity: [ok({ identity: NONE, docket: docket({ state: 'no_identity' }) })],
-      save: [ok({ identity: { ...NONE, names: ['Muster & Partner'] }, docket: READING })],
+      identity: [adminAnswer(NONE, docket({ state: 'no_identity' }))],
+      save: [adminAnswer({ ...NONE, names: ['Muster & Partner'] }, READING)],
       docket: [READING, READY].map(ok),
     })
     const { model } = mount(api)
@@ -148,8 +202,8 @@ describe('the Firm identity section', () => {
 
   it('adds, edits and removes entries; a failed save keeps the draft and Try again saves it again', async () => {
     const api = new FakeApi({
-      identity: [ok({ identity: { ...NONE, names: ['Muster & Partner'] }, docket: READY })],
-      save: [{ ok: false, error: 'internal' }, ok({ identity: { ...NONE, names: ['Muster & Partner'], representatives: ['Becker, Anna'] }, docket: READY })],
+      identity: [adminAnswer({ ...NONE, names: ['Muster & Partner'] }, READY)],
+      save: [{ ok: false, error: 'internal' }, adminAnswer({ ...NONE, names: ['Muster & Partner'], representatives: ['Becker, Anna'] }, READY)],
     })
     const { model } = mount(api)
     await flush()
@@ -180,7 +234,7 @@ describe('the Firm identity section', () => {
   it('reads again in full, and tries again only the failed slices of a partial or failed docket, also with R', async () => {
     const partial = docket({ state: 'partial', rows: 37, asOf: AS_OF, failed: [{ query: 're="Weber, Jonas"', reason: 'unreachable' }], mismatches: [] })
     const api = new FakeApi({
-      identity: [ok({ identity: MUSTER, docket: READY })],
+      identity: [adminAnswer(MUSTER, READY)],
       read: [READING, docket({ state: 'failed', reason: 'no-key', failed: [] })].map(ok),
       docket: [ok(partial)],
     })
@@ -205,7 +259,7 @@ describe('the Firm identity section', () => {
 
   it('reports a failed new read, and Try again repeats it', async () => {
     const api = new FakeApi({
-      identity: [ok({ identity: MUSTER, docket: READY })],
+      identity: [adminAnswer(MUSTER, READY)],
       read: [{ ok: false, error: 'network' }, ok(READY)],
     })
     const { model } = mount(api)
@@ -219,7 +273,7 @@ describe('the Firm identity section', () => {
   })
 
   it('shows a failed load with Try again, and loads again', async () => {
-    const api = new FakeApi({ identity: [{ ok: false, error: 'network' }, { ok: false, error: 'internal' }, ok({ identity: MUSTER, docket: { status: 'no-plugin' } })] })
+    const api = new FakeApi({ identity: [{ ok: false, error: 'network' }, { ok: false, error: 'internal' }, adminAnswer(MUSTER, { status: 'no-plugin' })] })
     const { model } = mount(api)
     expect(screen.getByRole('status', { name: 'Loading your firm identity' })).toBeTruthy()
     await flush()
@@ -236,7 +290,7 @@ describe('the Firm identity section', () => {
   it('keeps an unsaved draft when the section opens again, and stops following the read when it closes', async () => {
     vi.useFakeTimers()
     const api = new FakeApi({
-      identity: [ok({ identity: MUSTER, docket: READING }), ok({ identity: MUSTER, docket: READING }), { ok: false, error: 'network' }],
+      identity: [adminAnswer(MUSTER, READING), adminAnswer(MUSTER, READING), { ok: false, error: 'network' }],
       docket: [{ ok: false, error: 'network' }, ok(READING)],
     })
     const { model, view } = mount(api)
@@ -258,7 +312,7 @@ describe('the Firm identity section', () => {
   it('drops an answer that comes after the section closed or the plugin stopped', async () => {
     vi.useFakeTimers()
     let answer: (value: HostResult<DocketAnswer>) => void = () => {}
-    const api = new FakeApi({ identity: [ok({ identity: MUSTER, docket: READING })], read: [ok(READY)] })
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READING)], read: [ok(READY)] })
     api.docket = () => new Promise((resolve) => { answer = resolve })
     const model = new FirmIdentityModel(api)
     await model.load()
@@ -277,7 +331,7 @@ describe('the Firm identity section', () => {
 
   it('renders each docket state with its status words', () => {
     const model = new FirmIdentityModel(new FakeApi({}))
-    const state = (answer: DocketAnswer): IdentityState => ({ status: 'ready', saved: MUSTER, draft: MUSTER, docket: answer, busy: null, failure: null })
+    const state = (answer: DocketAnswer): IdentityState => ({ status: 'ready', saved: MUSTER, draft: MUSTER, docket: answer, canSave: true, busy: null, failure: null })
     const show = (answer: DocketAnswer) => render(<FirmIdentityView t={makeTranslate(en)} state={state(answer)} model={model} locale="en" retryKeycaps={[]} />)
     show(docket({ state: 'interrupted', progress: { slicesDone: 1, slices: 4, rows: 9 } }))
     expect(screen.getByText('The read of your firm’s EP docket stopped at 1 of 4 parts.')).toBeTruthy()
@@ -301,7 +355,7 @@ describe('the Firm identity section', () => {
     expect(model.state).toEqual({ status: 'loading' })
     expect(retryOf(model)).toBeUndefined()
     let release: (value: HostResult<FirmIdentityAnswer>) => void = () => {}
-    const api = new FakeApi({ identity: [ok({ identity: MUSTER, docket: READY })] })
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READY)] })
     api.save = () => new Promise((resolve) => { release = resolve })
     const busy = new FirmIdentityModel(api)
     await busy.load()
@@ -311,10 +365,10 @@ describe('the Firm identity section', () => {
     await busy.readAgain('all')
     expect(retryOf(busy)).toBeUndefined()
     busy.dispose()
-    release(ok({ identity: MUSTER, docket: READY }))
+    release(adminAnswer(MUSTER, READY))
     await saving
     expect((busy.state as Extract<IdentityState, { status: 'ready' }>).busy).toBe('save')
-    const late = new FirmIdentityModel(new FakeApi({ identity: [ok({ identity: MUSTER, docket: READY })], read: [ok(READY)] }))
+    const late = new FirmIdentityModel(new FakeApi({ identity: [adminAnswer(MUSTER, READY)], read: [ok(READY)] }))
     const loading = late.load()
     late.dispose()
     await loading

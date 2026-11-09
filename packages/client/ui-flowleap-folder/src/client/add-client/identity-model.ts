@@ -1,7 +1,8 @@
 /**
  * The state of the Firm identity section of Settings: the firm identity that the Host has, the person's draft of it,
  * and the state of the firm docket. The section loads when it opens; Save sends the whole draft, and the Host then reads
- * the docket again. While the docket is read, the section asks the Host for its state again each {@link POLL_MS}.
+ * the docket again. Only a firm administrator may save; for any other person the section is read-only. While the docket
+ * is read, the section asks the Host for its state again each {@link POLL_MS}.
  * @module
  */
 
@@ -30,9 +31,11 @@ export type IdentityState =
     readonly status: 'ready'
     /** The identity that the Host has. */
     readonly saved: FirmIdentity
-    /** The person's draft; its entries can be blank until a save. */
+    /** The person's draft; its entries can be blank until a save. It stays the saved identity while `canSave` is false. */
     readonly draft: FirmIdentity
     readonly docket: DocketAnswer
+    /** Whether this person may save: true only for a firm administrator, as the Host answers. */
+    readonly canSave: boolean
     /** The act that runs now. */
     readonly busy: 'save' | 'read' | null
     readonly failure: IdentityFailure | null
@@ -80,7 +83,7 @@ export function retryOf(model: FirmIdentityModel): (() => void) | undefined {
   if (state.status === 'failed') return () => { void model.load() }
   if (state.status !== 'ready' || state.busy !== null) return undefined
   const { failure, docket } = state
-  if (failure?.act === 'save') return () => { void model.save() }
+  if (failure?.act === 'save' && state.canSave) return () => { void model.save() }
   if (failure?.act === 'read') return () => { void model.readAgain(failure.slices) }
   const failed = docket.status === 'docket' && (docket.docket.state === 'partial' || docket.docket.state === 'failed')
   return failed ? () => { void model.readAgain('failed') } : undefined
@@ -117,12 +120,12 @@ export class FirmIdentityModel {
       if (this.state.status !== 'ready') this.store.set({ status: 'failed', error: answer.error })
       return
     }
-    const { identity, docket } = answer.value
+    const { identity, docket, canSave } = answer.value
     const before = this.state
-    const draft = before.status === 'ready' && changed(before) ? before.draft : copy(identity)
+    const draft = canSave && before.status === 'ready' && changed(before) ? before.draft : copy(identity)
     // An act that still runs keeps the section busy until its own answer comes.
     const busy = before.status === 'ready' ? before.busy : null
-    this.store.set({ status: 'ready', saved: identity, draft, docket, busy, failure: null })
+    this.store.set({ status: 'ready', saved: identity, draft, docket, canSave, busy, failure: null })
     this.follow()
   }
 
@@ -133,7 +136,7 @@ export class FirmIdentityModel {
   }
 
   /**
-   * Change one entry of the draft.
+   * Change one entry of the draft. The view offers the draft acts only while this person may save.
    * @param list - the list.
    * @param index - the entry; the entry after the last one adds an entry.
    * @param text - the new text.
@@ -160,21 +163,24 @@ export class FirmIdentityModel {
   }
 
   /**
-   * Save the draft. Nothing happens while an act runs or when the draft has no change.
+   * Save the draft. Nothing happens while an act runs, when the draft has no change, or when this person may not save.
+   * A `not-admin` refusal, such as after a role change while the section is open, makes the section read-only and
+   * puts the saved identity back in the draft.
    * @returns once the answer is in the state.
    */
   async save(): Promise<void> {
     const state = this.state
-    if (state.status !== 'ready' || state.busy !== null || !changed(state)) return
+    if (state.status !== 'ready' || state.busy !== null || !state.canSave || !changed(state)) return
     this.setReady({ busy: 'save', failure: null })
     const answer = await this.api.save(cleanIdentity(state.draft))
     if (this.disposed) return
     if (!answer.ok) {
-      this.setReady({ busy: null, failure: { act: 'save', error: answer.error } })
+      const failure: IdentityFailure = { act: 'save', error: answer.error }
+      this.setReady(answer.error === 'not-admin' ? { busy: null, failure, canSave: false, draft: copy(state.saved) } : { busy: null, failure })
       return
     }
-    const { identity, docket } = answer.value
-    this.setReady({ busy: null, saved: identity, draft: copy(identity), docket })
+    const { identity, docket, canSave } = answer.value
+    this.setReady({ busy: null, saved: identity, draft: copy(identity), docket, canSave })
     this.follow()
   }
 
