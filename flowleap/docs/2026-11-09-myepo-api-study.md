@@ -1,6 +1,6 @@
 # The MyEPO API and a MyEPO plugin
 
-**Status:** study and plugin proposal for the founder's approval, 2026-11-09. Sources: the EPO page [Exchange data with us using an API](https://www.epo.org/en/applying/myepo-services/understand/api), the [MyEPO feature guide on APIs](https://link.epo.org/web/understand-our-services/exchange-data-with-us-using-an-api/en-myepo-feature-guide-apis-for-exchanging-information-with-ip-management-systems.pdf) (March 2025), and the OpenAPI spec of the production API on the [MyEPO Developer Portal](https://api.apps.epo.org/dev-portal/) (`https://api.apps.epo.org/documentation/api-docs/latest`, "Machine to Machine Service API" 1.0.0), all read on 2026-11-09.
+**Status:** approved by the founder on 2026-11-09, with the five [decisions](#decisions-for-the-founder) below. Sources: the EPO page [Exchange data with us using an API](https://www.epo.org/en/applying/myepo-services/understand/api), the [MyEPO feature guide on APIs](https://link.epo.org/web/understand-our-services/exchange-data-with-us-using-an-api/en-myepo-feature-guide-apis-for-exchanging-information-with-ip-management-systems.pdf) (March 2025), and the OpenAPI spec of the production API on the [MyEPO Developer Portal](https://api.apps.epo.org/dev-portal/) (`https://api.apps.epo.org/documentation/api-docs/latest`, "Machine to Machine Service API" 1.0.0), all read on 2026-11-09.
 
 ## Contents
 
@@ -124,6 +124,8 @@ The token is fetched, kept in memory and renewed before it expires. The request 
 Until the sandbox answers, the build can start on the link card and the Service against fixtures made from the OpenAPI spec, but it must not claim behavior that only the sandbox can prove.
 
 ## Decisions for the founder
+
+The founder decided on 2026-11-09 to accept all five recommendations.
 
 1. **Build a MyEPO connector that the firm links with its own credentials**, as above. Recommended: yes.
 2. **The EPO due dates are a check, not a source.** The deadline engine stays the source of a deadline; a difference goes to a person. Recommended: yes.
