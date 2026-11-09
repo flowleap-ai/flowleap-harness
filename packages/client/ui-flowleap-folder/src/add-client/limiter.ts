@@ -1,5 +1,5 @@
 /**
- * The one request limiter of this plugin's EP Register reads. The firm docket, Add client and the client folder build
+ * The one request limiter of this plugin's EP Register reads. The firm docket, the opponent index and Add client
  * all read through the firm's one EPO OPS account, so they share one budget of `opsRequestsPerMinute`: at most that
  * many requests in any 60 s. Callers wait in the order they asked. The docket reads one request at a time, so a live
  * read of a page waits for at most one docket request before its own turn.

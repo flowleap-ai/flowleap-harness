@@ -5,7 +5,7 @@ import { addClientApi, firmIdentityApi } from '../src/client/add-client/api.ts'
 import { applicationLabel, asOfText, counted, dayText, publicationLabel, rich } from '../src/client/add-client/format.ts'
 import { en } from '../src/client/add-client/locales/index.ts'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { buildStatus, found, reviewed } from './add-client-fakes.client.ts'
+import { found, reviewed } from './add-client-fakes.client.ts'
 
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -28,17 +28,17 @@ describe('the Add client routes', () => {
     expect(await addClientApi.find('Syntegon & Co', signal)).toEqual({ ok: true, value: found([['SYNTEGON TECHNOLOGY', 600]]) })
     await addClientApi.find('Syntegon')
     await addClientApi.review({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }, signal)
-    await addClientApi.build({ clientId: 'c', name: 'Syntegon', names: [], applications: [] })
-    await addClientApi.status(signal)
-    await addClientApi.status()
+    await addClientApi.clientFolder({ clientId: 'c', name: 'Syntegon', names: [] })
+    await addClientApi.settings(signal)
+    await addClientApi.settings()
     await addClientApi.clientNames(['Syntegon', 'SYNTEGON TECHNOLOGY'])
     expect(calls.map(([url, init]) => [url, init?.method ?? 'GET', init?.body ?? null, init?.signal === signal, init?.credentials, init?.cache])).toEqual([
       ['api/flowleap/folder/add-client/find?name=Syntegon+%26+Co', 'GET', null, true, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/find?name=Syntegon', 'GET', null, false, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/review', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }), true, 'include', 'no-store'],
-      ['api/flowleap/folder/add-client/build', 'POST', JSON.stringify({ clientId: 'c', name: 'Syntegon', names: [], applications: [] }), false, 'include', 'no-store'],
-      ['api/flowleap/folder/add-client/status', 'GET', null, true, 'include', 'no-store'],
-      ['api/flowleap/folder/add-client/status', 'GET', null, false, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/client-folder', 'POST', JSON.stringify({ clientId: 'c', name: 'Syntegon', names: [] }), false, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/settings', 'GET', null, true, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/settings', 'GET', null, false, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/client-names', 'POST', JSON.stringify({ names: ['Syntegon', 'SYNTEGON TECHNOLOGY'] }), false, 'include', 'no-store'],
     ])
   })
@@ -47,17 +47,17 @@ describe('the Add client routes', () => {
     host(() => json({ error: 'no-key' }, 424))
     expect(await addClientApi.review({ names: [], clients: [] })).toEqual({ ok: false, error: 'no-key' })
     host(() => json({ error: 'brand-new' }, 500))
-    expect(await addClientApi.status()).toEqual({ ok: false, error: 'internal' })
+    expect(await addClientApi.settings()).toEqual({ ok: false, error: 'internal' })
     host(() => json(null, 500))
-    expect(await addClientApi.status()).toEqual({ ok: false, error: 'internal' })
+    expect(await addClientApi.settings()).toEqual({ ok: false, error: 'internal' })
     host(() => new Response('<html>', { status: 200 }))
-    expect(await addClientApi.status()).toEqual({ ok: false, error: 'internal' })
+    expect(await addClientApi.settings()).toEqual({ ok: false, error: 'internal' })
     host(() => Promise.reject(new TypeError('Failed to fetch')))
-    expect(await addClientApi.build({ clientId: 'c', name: 'S', names: [], applications: [] })).toEqual({ ok: false, error: 'network' })
+    expect(await addClientApi.clientFolder({ clientId: 'c', name: 'S', names: [] })).toEqual({ ok: false, error: 'network' })
     host(() => json(reviewed()))
     expect(await addClientApi.review({ names: [], clients: [] })).toEqual({ ok: true, value: reviewed() })
-    host(() => json(buildStatus('c', 'S'), 202))
-    expect((await addClientApi.build({ clientId: 'c', name: 'S', names: [], applications: [] })).ok).toBe(true)
+    host(() => json({ workspace: 'ws-1', folder: 'S', made: true }))
+    expect(await addClientApi.clientFolder({ clientId: 'c', name: 'S', names: [] })).toEqual({ ok: true, value: { workspace: 'ws-1', folder: 'S', made: true } })
   })
 })
 

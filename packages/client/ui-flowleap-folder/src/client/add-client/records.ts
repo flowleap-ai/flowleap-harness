@@ -4,7 +4,7 @@
  * `<records>api/<path>`, where `<records>` comes from the records-link route; only a person may write, so the Host
  * never sends these commands. Every answer is checked here: a field that Add client uses and that does not match the
  * contract is a `malformed` failure, never a value. The contract is the Add client contract between flowleap-os and
- * the harness of 2026-11-08, with its section "Changed 2026-11-08".
+ * the harness of 2026-11-08, with its section "Changed 2026-11-08", and the batch of applications of 2026-11-09.
  * @module
  */
 
@@ -101,14 +101,29 @@ export interface ApplicationFact {
   readonly basis: 'register' | 'claimed'
 }
 
-/** One record command of Add client. */
+/** One applicant role of an application in a batch, by the party id that the `parties` command answered. */
+export interface BatchRole {
+  readonly partyId: PartyId
+  readonly role: PartyRole
+  /** The client that the party is. */
+  readonly clientId: ClientId
+}
+
+/** One application of a batch, with its party roles. */
+export interface BatchApplication {
+  readonly application: ApplicationFact
+  /** Each party and role once. */
+  readonly roles: readonly BatchRole[]
+}
+
+/** One record command of Add client. `applications` records a batch of the client's applications with their roles. */
 export type RecordCommand =
   | { readonly kind: 'conflict-check'; readonly clientId: ClientId; readonly hits: readonly Hit[]; readonly reason?: string }
   | { readonly kind: 'client'; readonly clientId: ClientId; readonly name: string; readonly role: ClientRole }
   | { readonly kind: 'name'; readonly clientId: ClientId; readonly name: LinkedName }
   | { readonly kind: 'party'; readonly name: string }
-  | { readonly kind: 'application'; readonly clientId: ClientId; readonly application: ApplicationFact }
   | { readonly kind: 'role'; readonly applicationNumber: string; readonly partyId: PartyId; readonly role: PartyRole; readonly clientId: ClientId }
+  | { readonly kind: 'applications'; readonly clientId: ClientId; readonly applications: readonly BatchApplication[] }
 
 /** What a recorded command answers: the party id of a `party` command, else nothing that Add client uses. */
 export type RecordAnswer = { readonly kind: 'party'; readonly partyId: PartyId } | { readonly kind: 'recorded' }
@@ -116,12 +131,13 @@ export type RecordAnswer = { readonly kind: 'party'; readonly partyId: PartyId }
 /**
  * The refusal codes of the contract and of the Firm Record's command store; another code is `null`. `invalid-body`: a
  * field of the body does not match the contract. `idempotency-key-reused`: the key names a command that the Firm Record
- * recorded with another body.
+ * recorded with another body. `batch-too-large`: a batch has more applications than the Firm Record's
+ * `clients.recordBatchSize`, which the refusal names as `max`.
  */
 export const REFUSALS = [
   'reason-required', 'not-allowed-to-decide-conflict', 'conflict-check-missing', 'client-exists', 'client-id-taken',
   'client-unknown', 'party-unknown', 'application-other-client', 'application-not-recorded', 'agent-cannot-decide',
-  'invalid-body', 'idempotency-key-reused',
+  'invalid-body', 'idempotency-key-reused', 'batch-too-large',
 ] as const
 
 /** A refusal code of the contract. */
@@ -129,15 +145,22 @@ export type RefusalCode = (typeof REFUSALS)[number]
 
 /**
  * Why a read or a command failed: the records link is missing (`unavailable`), no answer (`network`), a failure of the
- * Firm Record or a proxy (`service`, a 5xx status), a refusal (`refused`, a 4xx status with the contract code, and the
- * client id that `client-exists` and `application-other-client` name), or an answer that does not match the contract
- * (`malformed`, with the path).
+ * Firm Record or a proxy (`service`, a 5xx status), a refusal (`refused`, a 4xx status with the contract code, the
+ * client id that `client-exists` and `application-other-client` name, the application that `application-other-client`
+ * names, and the `max` of `batch-too-large`), or an answer that does not match the contract (`malformed`, with the path).
  */
 export type RecordError =
   | { readonly kind: 'unavailable' }
   | { readonly kind: 'network' }
   | { readonly kind: 'service'; readonly status: number }
-  | { readonly kind: 'refused'; readonly status: number; readonly code: RefusalCode | null; readonly clientId?: ClientId }
+  | {
+    readonly kind: 'refused'
+    readonly status: number
+    readonly code: RefusalCode | null
+    readonly clientId?: ClientId
+    readonly applicationNumber?: string
+    readonly max?: number
+  }
   | { readonly kind: 'malformed'; readonly path: string }
 
 /** The answer of a read or a command. */
@@ -180,6 +203,16 @@ export function hitKey(hit: Hit): string {
  */
 export async function hitsHash(hits: readonly Hit[]): Promise<string> {
   return hits.length === 0 ? 'none' : sha256Hex(hits.map(hitKey).sort().join('\n'))
+}
+
+/**
+ * The `Idempotency-Key` of a batch of applications.
+ * @param clientId - the client.
+ * @param applicationNumbers - the application numbers of the batch.
+ * @returns `add-client:<clientId>:applications:` and the SHA-256 hex of the sorted numbers joined by a line feed.
+ */
+export async function batchKey(clientId: ClientId, applicationNumbers: readonly string[]): Promise<string> {
+  return `add-client:${clientId}:applications:${await sha256Hex([...applicationNumbers].sort().join('\n'))}`
 }
 
 /**
@@ -240,17 +273,27 @@ export async function commandRequest(command: RecordCommand): Promise<CommandReq
       path: `clients/${command.clientId}/names`, body: { ...command.name }, key: `add-client:${command.clientId}:name:${await sha256Hex(normalizeName(command.name.name))}`,
     }
     case 'party': return { path: 'parties', body: { name: command.name }, key: `party:${await sha256Hex(normalizeName(command.name))}` }
-    case 'application': {
-      const { publicationNumber, title, ...rest } = command.application
-      const body = { ...rest, ...sentFacts(publicationNumber, title) }
-      return { path: `clients/${command.clientId}/applications`, body, key: `add-client:${command.clientId}:application:${command.application.applicationNumber}` }
-    }
     case 'role': return {
       path: `applications/${command.applicationNumber}/roles`,
       body: { partyId: command.partyId, role: command.role, clientId: command.clientId },
       key: `role:${command.applicationNumber}:${command.partyId}:${command.role}`,
     }
+    case 'applications': return {
+      path: `clients/${command.clientId}/applications/batch`,
+      body: {
+        applications: command.applications.map(item => ({
+          ...applicationBody(item.application), roles: item.roles.map(role => ({ ...role })),
+        })),
+      },
+      key: await batchKey(command.clientId, command.applications.map(item => item.application.applicationNumber)),
+    }
   }
+}
+
+/** The body fields of one application of a batch: the publication number and the title only as the contract takes them. */
+function applicationBody(application: ApplicationFact): Readonly<Record<string, unknown>> {
+  const { publicationNumber, title, ...rest } = application
+  return { ...rest, ...sentFacts(publicationNumber, title) }
 }
 
 // Wire checks.
@@ -387,14 +430,18 @@ function detailRead(value: unknown): ClientDetail {
 }
 
 /**
- * Check the answer of a command: the record position of every command, the party id of `parties`, and for a
- * conflict check the hits hash, which must be the one that the key names.
+ * Check the answer of a command: the record position of every command, the party id of `parties`, for a conflict
+ * check the hits hash, which must be the one that the key names, and for a batch an answer for each sent application.
  */
 async function commandRead(command: RecordCommand, value: unknown): Promise<RecordAnswer> {
   const source = objectAt(value, 'body')
   countAt(source, 'recordSeq', 'body')
   if (command.kind === 'party') return { kind: 'party', partyId: partyIdAt(source, 'partyId', 'body') }
   if (command.kind === 'conflict-check' && textAt(source, 'hitsHash', 'body') !== await hitsHash(command.hits)) throw new Malformed('body.hitsHash')
+  if (command.kind === 'applications') {
+    const answered = new Set(listAt(source, 'applications', 'body', (item, at) => textAt(objectAt(item, at), 'applicationNumber', at)))
+    if (command.applications.some(item => !answered.has(item.application.applicationNumber))) throw new Malformed('body.applications')
+  }
   return { kind: 'recorded' }
 }
 
@@ -415,7 +462,12 @@ async function refusal(response: Response): Promise<RecordError> {
   }
   const code = typeof body['error'] === 'string' && (REFUSALS as readonly string[]).includes(body['error']) ? body['error'] as RefusalCode : null
   const clientId = typeof body['clientId'] === 'string' && UUID.test(body['clientId']) ? body['clientId'] as ClientId : undefined
-  return { kind: 'refused', status: response.status, code, ...(clientId === undefined ? {} : { clientId }) }
+  const applicationNumber = typeof body['applicationNumber'] === 'string' ? body['applicationNumber'] : undefined
+  const max = typeof body['max'] === 'number' && Number.isSafeInteger(body['max']) && body['max'] >= 1 ? body['max'] : undefined
+  return {
+    kind: 'refused', status: response.status, code, ...(clientId === undefined ? {} : { clientId }),
+    ...(applicationNumber === undefined ? {} : { applicationNumber }), ...(max === undefined ? {} : { max }),
+  }
 }
 
 /** The reads and the commands of the Firm Record that Add client uses. */

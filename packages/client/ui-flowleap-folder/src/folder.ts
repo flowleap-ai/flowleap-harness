@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { link, lstat, mkdir, open, readdir, readFile, realpath, rename, unlink, writeFile } from 'node:fs/promises'
+import { link, lstat, mkdir, open, readdir, realpath, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   TRASH, isEntryName, isTrashPath, type FolderEntry, type FolderFailureCode, type FolderListing, type FolderSource, type FolderSearchAnswer,
@@ -236,7 +236,7 @@ export class ClientFolder {
 
   /**
    * Make a folder, or use the folder that has the name already; an entry of another kind with the name is refused.
-   * Add client builds the client folder this way, so a second run keeps every folder and adds only what is missing.
+   * Add client makes the client folder this way, so a second run keeps every folder and adds only what is missing.
    * @param parent - the parent folder relative to the client folder.
    * @param name - the folder's name.
    * @returns the folder relative to the client folder, and whether this call made it.
@@ -278,27 +278,6 @@ export class ClientFolder {
       throw error
     }
     return this.relativeOf(dir, name)
-  }
-
-  /**
-   * The names of the files in a folder, without hidden files.
-   * @param relative - the folder relative to the client folder.
-   * @returns the file names.
-   */
-  async fileNames(relative: string): Promise<string[]> {
-    const dir = await this.folder(relative)
-    return (await readdir(dir, { withFileTypes: true })).filter(child => child.isFile() && !child.name.startsWith('.')).map(child => child.name)
-  }
-
-  /**
-   * Read a text file whose final part is not a link.
-   * @param relative - the file relative to the client folder.
-   * @returns its UTF-8 text.
-   * @throws FolderError `not-found` or `outside`.
-   */
-  async readText(relative: string): Promise<string> {
-    const { dir, name } = await this.entry(relative)
-    return readFile(path.join(dir, name), 'utf8')
   }
 
   /**

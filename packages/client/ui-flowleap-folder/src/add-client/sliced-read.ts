@@ -11,7 +11,7 @@
 import { readFile, rm } from 'node:fs/promises'
 import { PatentDataError, type PatentData, type RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import { messageOf } from './jobs.ts'
+import { messageOf } from './message.ts'
 import type { Clock } from './limiter.ts'
 import {
   PAGE_ROWS, isComplete, nextUnread, oldestAsOf, settled, sliceQuery, splitRange, type ReadName, type Reads, type SliceAt,

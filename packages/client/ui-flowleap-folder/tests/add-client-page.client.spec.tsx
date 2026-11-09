@@ -3,14 +3,15 @@ import { useSyncExternalStore } from 'react'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { BuildStatus } from '../src/add-client/wire.ts'
 import { AddClientPage } from '../src/client/add-client/AddClient.tsx'
 import { en } from '../src/client/add-client/locales/index.ts'
-import { AddClientModel, type AddClientView, type ReviewView } from '../src/client/add-client/model.ts'
+import { splitBatches, type RecordBatch } from '../src/client/add-client/batches.ts'
+import { AddClientModel, type AddClientView, type RecordView, type ReviewView } from '../src/client/add-client/model.ts'
+import type { ApplicationDecision } from '../src/client/add-client/plan.ts'
 import type { ClientDetail, PartyId } from '../src/client/add-client/records.ts'
 import type { KeyHandlers, RecordKey } from '../src/client/keys.ts'
 import {
-  AS_OF, SCHUBERT_ID, SYNTEGON_ID, buildStatus, fakeHost, fakeRecord, firmClient, found, matter, okHost, reference, registerHit, reviewed,
+  AS_OF, SCHUBERT_ID, SYNTEGON_ID, fakeHost, fakeRecord, firmClient, found, matter, okHost, reference, registerHit, reviewed,
 } from './add-client-fakes.client.ts'
 
 afterEach(() => {
@@ -137,7 +138,7 @@ describe('page 1: find the company', () => {
     fireEvent.keyDown(field(), { key: 'Enter' })
     await flush()
     expect(screen.getByRole('alert').textContent).toContain(en['find.error.lead'])
-    expect(screen.getByText('You can also add Neue GmbH by name only. The folder then starts with the template folders, and you load its matters later.')).toBeTruthy()
+    expect(screen.getByText('You can also add Neue GmbH by name only, and check for its matters later.')).toBeTruthy()
     expect(s.keys.current.retry).toBeTypeOf('function')
     s.host.find.mockResolvedValueOnce({ ok: false, error: 'no-key' })
     await click(button(/Try again/))
@@ -201,7 +202,7 @@ describe('pages 2 and 3: review and decide', () => {
     const bar = screen.getByRole('region', { name: en['decision.yours'] })
     expect(within(bar).getByText('Add Syntegon as a client of your firm?')).toBeTruthy()
     expect(within(bar).getByText('3 at your firm')).toBeTruthy()
-    expect(within(bar).getByText('FlowLeap then builds the folder with 3 matters.')).toBeTruthy()
+    expect(within(bar).getByText('FlowLeap then records 3 matters and makes the client folder.')).toBeTruthy()
     expect(within(bar).getByText('⇧⌘↵')).toBeTruthy()
     fireEvent.keyDown(screen.getByTestId('add-client'), { code: 'Enter', key: 'Enter', metaKey: true })
     await flush()
@@ -209,7 +210,7 @@ describe('pages 2 and 3: review and decide', () => {
     fireEvent.keyDown(screen.getByTestId('add-client'), { code: 'Enter', key: 'Enter', metaKey: true, shiftKey: true })
     await flush()
     expect(s.firm.sent[0]).toMatchObject({ kind: 'conflict-check', hits: [] })
-    expect(screen.getByRole('heading', { level: 1, name: 'Building the Syntegon folder' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Syntegon is recorded' })).toBeTruthy()
   })
 
   it('blocks Add client until the conflict is checked with a reason, and words the evidence', async () => {
@@ -242,7 +243,7 @@ describe('pages 2 and 3: review and decide', () => {
     await flush()
     expect(screen.getByRole('alert').textContent).toContain(en['error.network'])
     await click(within(screen.getByRole('alert')).getByRole('button', { name: /Try again/ }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Building the Gerhard Schubert folder' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Gerhard Schubert is recorded' })).toBeTruthy()
   })
 
   it('words several hits, a hit of a client it cannot name, and the hits of the Firm Record', async () => {
@@ -405,71 +406,106 @@ describe('pages 2 and 3: review and decide', () => {
   })
 })
 
-describe('page 4: the build', () => {
-  const view = (status: BuildStatus | null, extra: Partial<Extract<AddClientView, { page: 'build' }>> = {}): AddClientView => ({
-    page: 'build', clientId: SYNTEGON_ID, name: 'Syntegon', request: null, recorded: { names: 8, matters: 16, hits: 0 }, status, error: null, ...extra,
-  })
-  const step = (state: BuildStatus['steps']['folder']['state'], done = 0, total = 0, failed: string[] = []) => ({ state, done, total, failed })
+/** Applications `EP23000001`, `EP23000002`, … with one applicant each. */
+function applications(count: number): ApplicationDecision[] {
+  return Array.from({ length: count }, (_, index) => ({ fact: { applicationNumber: `EP23${String(index + 1).padStart(6, '0')}`, basis: 'register' as const }, applicants: ['Syntegon Technology GmbH'] }))
+}
 
-  it('reads the build, then shows the records and the step that runs', async () => {
+/** Batches of 100 with the states given, in order. */
+function batches(count: number, states: readonly RecordBatch['state'][]): RecordBatch[] {
+  return splitBatches(applications(count), 100).map((batch, index) => ({ ...batch, state: states[index] ?? 'waiting' }))
+}
+
+describe('page 4: Record', () => {
+  const view = (extra: Partial<RecordView> = {}): RecordView => ({
+    page: 'record', clientId: SYNTEGON_ID, name: 'Syntegon', names: ['SYNTEGON TECHNOLOGY', 'SYNTEGON POUCH SYSTEMS'], hits: 0,
+    applications: applications(1132), batches: null, parties: {}, folder: { state: 'waiting' }, error: null, ...extra,
+  })
+
+  it('asks to keep the page open while the batches run, and shows the batch that runs with its progress', async () => {
     const s = mount()
-    await s.set(view(null))
-    expect(screen.getByRole('status', { name: en['build.loading'] })).toBeTruthy()
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon')))
-    expect(screen.getByText('Recorded Syntegon as a client, with its 8 applicant names')).toBeTruthy()
+    await s.set(view())
+    expect(screen.getByRole('heading', { level: 1, name: 'Recording Syntegon' })).toBeTruthy()
+    expect(screen.getByText(en['record.keep.lead'])).toBeTruthy()
+    expect(screen.getByText('Recorded Syntegon as a client, with its 2 applicant names')).toBeTruthy()
     expect(screen.getByText(en['part.conflict.none'])).toBeTruthy()
-    expect(screen.getByText('Recorded 16 matters with their application numbers')).toBeTruthy()
-    expect(screen.getByText(en['build.folder.done'])).toBeTruthy()
-    expect(screen.getByText(en['build.matters.now'])).toBeTruthy()
-    expect(screen.getByText('9 / 16')).toBeTruthy()
-    expect(screen.getByText(en['build.data.next'])).toBeTruthy()
-    expect(screen.getByText(en['build.reference.next'])).toBeTruthy()
-    expect((button(en['act.openFolder']) as HTMLButtonElement).disabled).toBe(true)
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', {
-      families: 1, matters: 1, added: { client: true, families: 1, matters: 1, files: 0 },
-      steps: { 'folder': step('running'), 'matters': step('done', 1, 1), 'public-data': step('running', 3, 4), 'reference': step('done', 1, 1) },
-    }), { recorded: null }))
+    expect(screen.getByText('Recording the 1132 applications of the client')).toBeTruthy()
+    expect(screen.getByText('0 / 1132')).toBeTruthy()
+    expect(screen.getByText(en['record.folder.next'])).toBeTruthy()
+    expect(screen.getByText(en['record.foot.running'])).toBeTruthy()
+    expect((button(en['act.openClient']) as HTMLButtonElement).disabled).toBe(true)
+    expect(s.keys.current.retry).toBeUndefined()
+    await s.set(view({ batches: batches(1132, ['recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'recording']) }))
+    expect(screen.getByText('Batch 8 of 12, 100 applications each')).toBeTruthy()
+    expect(screen.getByText('700 / 1132')).toBeTruthy()
+    const bar = document.querySelector<HTMLElement>('[aria-current="step"] span span')
+    expect(bar?.style.width).toBe('62%')
+  })
+
+  it('says one batch for a small client, and the client with no applicant name and with hits', async () => {
+    const s = mount()
+    await s.set(view({ names: [], hits: 2, applications: applications(32), batches: batches(32, ['recording']) }))
     expect(screen.getByText('Recorded Syntegon as a client')).toBeTruthy()
-    expect(screen.getByText('Recorded 1 matter with their application numbers')).toBeTruthy()
-    expect(screen.getByText(en['build.folder.now'])).toBeTruthy()
-    expect(screen.getByText('Made 1 family folder and 1 matter folder')).toBeTruthy()
-    expect(screen.getByText(en['build.data.now'])).toBeTruthy()
-    expect(screen.getByText(en['build.reference.done'])).toBeTruthy()
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', { matters: 0, added: { client: false, families: 0, matters: 0, files: 0 }, steps: { 'folder': step('done'), 'matters': step('done'), 'public-data': step('done'), 'reference': step('running') } }), { recorded: { names: 0, matters: 0, hits: 2 } }))
     expect(screen.getByText('2 possible conflicts')).toBeTruthy()
-    expect(screen.getByText(en['build.matters.none'])).toBeTruthy()
-    expect(screen.queryByText(/with their application numbers/)).toBeNull()
-    expect(screen.getByText(en['build.data.done'])).toBeTruthy()
-    expect(screen.getByText(en['build.reference.now'])).toBeTruthy()
+    expect(screen.getByText('1 batch of 32 applications')).toBeTruthy()
+    await s.set(view({ applications: applications(1), batches: batches(1, ['recording']) }))
+    expect(screen.getByText('Recording the 1 application of the client')).toBeTruthy()
   })
 
-  it('says what failed and that the rest is done, opens the folder, and Try again builds again', async () => {
+  it('names a failed batch and what Try again records, and Try again records only the missing batches', async () => {
     const s = mount()
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', {
-      state: 'failed', workspace: 'ws-syntegon',
-      steps: { 'folder': step('done', 1, 1), 'matters': step('done', 16, 16), 'public-data': step('failed', 61, 64, ['EP4820737A1', 'EP4820738A1', 'EP4834776A1']), 'reference': step('failed') },
-    })))
-    expect(screen.getByRole('alert').textContent).toContain('3 publications could not be read.')
-    expect(screen.getByText('Wrote the public data as dated files, except 3')).toBeTruthy()
-    expect(screen.getByText('The EPO did not answer for EP 4 820 737 A1, EP 4 820 738 A1, EP 4 834 776 A1.')).toBeTruthy()
-    expect(screen.getByText(en['build.step.failed'])).toBeTruthy()
+    const failed = batches(1132, ['recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'recorded', 'failed'])
+    await s.set(view({ batches: failed, error: { kind: 'service', status: 503 } }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Recording Syntegon' })).toBeTruthy()
+    expect(screen.queryByText(en['record.keep.lead'])).toBeNull()
+    expect(screen.getByRole('alert').textContent).toBe(`432 applications are not recorded yet. ${en['record.safe']}Try againR`)
+    expect(screen.getByText('Recorded 700 of 1132 applications')).toBeTruthy()
+    expect(screen.getByText(`Batch 8 of 12 was not recorded. ${en['error.service']} Try again records only the 5 missing batches. A batch that was recorded is never recorded twice.`)).toBeTruthy()
+    expect(screen.getByText(en['record.foot.failed'])).toBeTruthy()
+    expect((button(en['act.openClient']) as HTMLButtonElement).disabled).toBe(false)
     expect(s.keys.current.retry).toBeTypeOf('function')
+    await s.set(view({ applications: applications(1), batches: batches(1, ['failed']), error: { kind: 'refused', status: 409, code: 'application-other-client', applicationNumber: 'EP23000001' } }))
+    expect(screen.getByRole('alert').textContent).toContain('1 application is not recorded yet.')
+    expect(screen.getByText(`Batch 1 of 1 was not recorded. ${en['refusal.application-other-client']} Try again records only the missing batch. A batch that was recorded is never recorded twice.`)).toBeTruthy()
     await click(button(/Try again/))
-    expect(s.host.build).toHaveBeenCalledTimes(1)
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'failed', workspace: 'ws-syntegon', steps: { 'folder': step('failed'), 'matters': step('waiting'), 'public-data': step('waiting'), 'reference': step('waiting') } })))
-    expect(screen.getByRole('alert').textContent).toContain(en['build.failed.step'])
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'interrupted', workspace: 'ws-syntegon' })))
-    expect(screen.getByRole('alert').textContent).toContain(en['build.failed.interrupted'])
-    await click(button(en['act.openFolder']))
-    expect(s.opened).toEqual(['ws-syntegon'])
+    expect(s.firm.sent.map(command => command.kind)).toEqual(['party', 'applications'])
+    expect(s.host.clientFolder).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'Syntegon is recorded' })).toBeTruthy()
   })
 
-  it('words a failed start of the build and a failed read of its client', async () => {
+  it('says why the batch size or the client folder failed', async () => {
     const s = mount()
-    await s.set(view(null, { error: 'unreachable', recorded: null }))
-    expect(screen.getByRole('alert').textContent).toBe(`${en['host.unreachable']} ${en['build.failed.start']}Try againR`)
-    await s.set(view(null, { error: { kind: 'service', status: 502 } }))
-    expect(screen.getByRole('alert').textContent).toContain(en['error.service'])
+    await s.set(view({ error: 'network' }))
+    expect(screen.getByRole('alert').textContent).toBe(`${en['host.network']} ${en['record.safe']}Try againR`)
+    expect(screen.getByText('Recorded 0 of 1132 applications')).toBeTruthy()
+    const recorded = batches(1132, Array.from({ length: 12 }, () => 'recorded' as const))
+    await s.set(view({ batches: recorded, error: 'invalid-name' }))
+    expect(screen.getByRole('alert').textContent).toContain(en['host.invalid-name'])
+    expect(screen.getByText('Recorded the 1132 applications of the client')).toBeTruthy()
+    expect(screen.getByText('Firm Record, 12 batches')).toBeTruthy()
+    expect(screen.getAllByText(en['host.invalid-name'])).toHaveLength(2)
+    await s.set(view({ applications: [], batches: [], error: { kind: 'malformed', path: 'body' } }))
+    expect(screen.getAllByText(en['error.malformed'])).toHaveLength(2)
+    expect(screen.queryByText(/applications of the client/)).toBeNull()
+  })
+
+  it('shows the folder that is made, then the done page, and opens the client page', async () => {
+    const s = mount()
+    const recorded = batches(32, ['recorded'])
+    await s.set(view({ applications: applications(32), batches: recorded, folder: { state: 'making' } }))
+    expect(screen.getByText(en['record.folder.now'])).toBeTruthy()
+    expect((button(en['act.openClient']) as HTMLButtonElement).disabled).toBe(true)
+    await s.set(view({ applications: applications(32), batches: recorded, folder: { state: 'made', workspace: 'ws-syntegon' as never } }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Syntegon is recorded' })).toBeTruthy()
+    expect(screen.getByText(en['record.ledeDone'])).toBeTruthy()
+    expect(screen.getByText('Recorded the 32 applications of the client')).toBeTruthy()
+    expect(screen.getByText('Firm Record, 1 batch')).toBeTruthy()
+    expect(screen.getByText(en['record.folder.done'])).toBeTruthy()
+    expect(screen.getByText(en['record.foot.done'])).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+    await click(button(en['act.openClient']))
+    expect(s.opened).toEqual(['ws-syntegon'])
+    expect(screen.getByText('closed')).toBeTruthy()
   })
 })
 
@@ -483,7 +519,7 @@ describe('the page parts', () => {
     expect(parts()).toEqual(['top bar', 'scroll'])
     await review(s, 'Syntegon')
     expect(parts()).toEqual(['top bar', 'scroll', 'dock'])
-    await s.set({ page: 'build', clientId: SYNTEGON_ID, name: 'Syntegon', request: null, recorded: null, status: null, error: null })
+    await s.set({ page: 'record', clientId: SYNTEGON_ID, name: 'Syntegon', names: [], hits: 0, applications: [], batches: null, parties: {}, folder: { state: 'waiting' }, error: null })
     expect(parts()).toEqual(['top bar', 'scroll'])
   })
 })

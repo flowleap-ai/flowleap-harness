@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FindAnswer } from '../src/add-client/wire.ts'
 import type { HostResult } from '../src/client/add-client/api.ts'
 import {
-  AddClientModel, FIND_WAIT_MS, POLL_MS, SKELETON_AFTER_MS, SKELETON_MIN_MS,
-  applicationsOf, blockerOf, buildFailed, clientIdOf, decisionOf, hitsOf,
-  type AddClientView, type BuildView, type FindView, type ReviewView,
+  AddClientModel, FIND_WAIT_MS, SKELETON_AFTER_MS, SKELETON_MIN_MS,
+  applicationsOf, blockerOf, clientIdOf, clientOfFolder, decisionOf, hitsOf, recordStatus,
+  type AddClientView, type FindView, type RecordView, type ReviewView,
 } from '../src/client/add-client/model.ts'
 import { hitsHash, type ClientDetail, type PartyId } from '../src/client/add-client/records.ts'
 import {
-  SCHUBERT_ID, SYNTEGON_ID, buildStatus, fakeHost, fakeRecord, firmClient, found, matter, okHost, reference, registerHit, reviewed,
+  SCHUBERT_ID, SYNTEGON_ID, fakeHost, fakeRecord, firmClient, found, matter, okHost, reference, registerHit, reviewed,
 } from './add-client-fakes.client.ts'
 
 beforeEach(() => { vi.useFakeTimers() })
@@ -30,8 +30,8 @@ function setup(start: Parameters<typeof fakeRecord>[0] = { details: [SYNTEGON] }
   const view = (): AddClientView | null => model.state.view
   const find = () => view() as FindView
   const review = () => view() as ReviewView
-  const build = () => view() as BuildView
-  return { model, host, firm, opened, view, find, review, build }
+  const record = () => view() as RecordView
+  return { model, host, firm, opened, view, find, review, record }
 }
 
 const settle = () => vi.advanceTimersByTimeAsync(0)
@@ -135,7 +135,7 @@ describe('finding the company', () => {
 })
 
 describe('reviewing and deciding', () => {
-  it('blocks Add client until the person checks the conflict and writes why, then records and builds the folder', async () => {
+  it('blocks Add client until the person checks the conflict and writes why, then records the client and makes its folder', async () => {
     const s = setup()
     s.host.review.mockResolvedValueOnce(okHost(reviewed({ total: 57, conflicts: [registerHit(SYNTEGON_ID)] })))
     await toReview(s, 'Gerhard Schubert')
@@ -146,23 +146,18 @@ describe('reviewing and deciding', () => {
     expect(blockerOf(s.review())).toBe('conflict')
     s.model.setConflict(true, ' The opposition is closed. ')
     expect(blockerOf(s.review())).toBeNull()
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(clientIdOf(s.review()), 'Gerhard Schubert', { matters: 0, families: 0 })] }))
-    const unfollow = s.model.follow()
+    const id = clientIdOf(s.review())
+    s.host.clientFolder.mockResolvedValueOnce(okHost({ workspace: 'ws-schubert', folder: 'Gerhard Schubert', made: true }))
     await s.model.record()
-    const id = s.build().clientId
     expect(s.firm.sent.map(command => command.kind)).toEqual(['conflict-check', 'client', 'name'])
     expect(s.firm.sent[0]).toMatchObject({ reason: 'The opposition is closed.', hits: [{ otherParty: 'Gerhard Schubert GmbH' }] })
-    expect(s.host.build).toHaveBeenCalledWith({ clientId: id, name: 'Gerhard Schubert', names: ['GERHARD SCHUBERT'], applications: [] })
-    expect(s.build()).toMatchObject({ recorded: { names: 1, matters: 0, hits: 1 }, status: { state: 'running' } })
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(id, 'Gerhard Schubert', { state: 'done', workspace: 'ws-schubert', matters: 0, families: 0 })] }))
-    await vi.advanceTimersByTimeAsync(POLL_MS)
+    expect(s.host.clientFolder).toHaveBeenCalledWith({ clientId: id, name: 'Gerhard Schubert', names: ['GERHARD SCHUBERT'] })
+    expect(s.record()).toMatchObject({ page: 'record', clientId: id, names: ['GERHARD SCHUBERT'], hits: 1, applications: [], batches: [], folder: { state: 'made', workspace: 'ws-schubert' }, error: null })
+    expect(recordStatus(s.record())).toBe('done')
+    expect(await s.model.openClientPage()).toBe(true)
     expect(s.view()).toBeNull()
     expect(s.opened).toEqual(['ws-schubert'])
-    expect(s.model.state.toast).toEqual({ kind: 'client', name: 'Gerhard Schubert', matters: 0, families: 0, added: { client: true, families: 15, matters: 16, files: 0 } })
-    s.model.dismissToast()
-    expect(s.model.state.toast).toBeNull()
-    unfollow()
-    unfollow()
+    expect(s.host.clientFolder).toHaveBeenCalledTimes(1)
   })
 
   it('records the matters at your firm and those claimed with This is ours, each with its applicants', async () => {
@@ -183,26 +178,31 @@ describe('reviewing and deciding', () => {
       { applicationNumber: 'EP23200762', basis: 'claimed' },
     ])
     await s.model.record()
-    expect(s.firm.sent.map(command => command.kind)).toEqual(['conflict-check', 'client', 'name', 'party', 'application', 'role', 'application', 'role', 'application', 'role', 'application', 'role'])
-    expect(s.host.build).toHaveBeenCalledWith(expect.objectContaining({ applications: ['EP23171862', 'EP25712875', 'EP23165015', 'EP23200762'] }))
+    expect(s.firm.sent.map(command => command.kind)).toEqual(['conflict-check', 'client', 'name', 'party', 'applications'])
+    const batch = s.firm.sent.at(-1)
+    expect(batch?.kind === 'applications' && batch.applications.map(item => [item.application.applicationNumber, item.roles.map(role => role.partyId)])).toEqual([
+      ['EP23171862', ['party-1']], ['EP25712875', ['party-1']], ['EP23165015', ['party-1']], ['EP23200762', ['party-1']],
+    ])
+    expect(s.record().batches).toEqual([{ applications: s.record().applications, state: 'recorded' }])
+    expect(recordStatus(s.record())).toBe('done')
   })
 
   it('keeps the keys of a failed recording, and Try again sends only what is missing', async () => {
     const s = setup({ clients: [] })
     s.host.review.mockResolvedValueOnce(okHost(reviewed({ atFirm: [matter('EP23171862')] })))
     await toReview(s, 'Syntegon')
-    s.firm.state.failNext.set('application', { kind: 'network' })
+    s.firm.state.failNext.set('name', { kind: 'network' })
     await s.model.record()
     expect(s.review().recording).toEqual({ status: 'failed', error: { kind: 'network' } })
     const first = s.firm.sent.length
     s.model.setRole('client')
     expect(s.review().recording).toEqual({ status: 'idle' })
-    s.firm.state.failNext.set('application', { kind: 'network' })
+    s.firm.state.failNext.set('name', { kind: 'network' })
     await s.model.record()
     await s.model.retry()
-    // The party has no role yet, so the plan reads its id again; the Firm Record answers the same party.
-    expect(s.firm.sent.slice(first).map(command => command.kind)).toEqual(['party', 'application', 'party', 'application', 'role'])
-    expect(s.view()?.page).toBe('build')
+    // The conflict check and the client are in the Firm Record; Try again sends only the name, then the applications.
+    expect(s.firm.sent.slice(first).map(command => command.kind)).toEqual(['name', 'name', 'party', 'applications'])
+    expect(s.view()?.page).toBe('record')
   })
 
   it('stops when the client cannot be read before the records, and runs again for a client of the same name and role', async () => {
@@ -219,7 +219,7 @@ describe('reviewing and deciding', () => {
     await s.model.record()
     expect(s.firm.sent.filter(command => command.kind === 'client').map(command => command.clientId)).toEqual([id])
     expect(s.firm.sent.at(-1)).toMatchObject({ kind: 'name', clientId: SYNTEGON_ID })
-    expect(s.build().clientId).toBe(SYNTEGON_ID)
+    expect(s.record().clientId).toBe(SYNTEGON_ID)
   })
 
   it('shows a refusal of a client that exists under an id it cannot read', async () => {
@@ -244,8 +244,9 @@ describe('reviewing and deciding', () => {
     await settle()
     expect(s.firm.sent.map(command => command.kind)).toEqual(['client', 'name'])
     expect(s.firm.sent[0]).toMatchObject({ role: 'watch' })
-    expect(s.model.state).toMatchObject({ view: null, toast: { kind: 'watch', name: 'Gerhard Schubert' }, watching: [{ name: 'Gerhard Schubert', role: 'watch' }] })
-    expect(s.host.build).not.toHaveBeenCalled()
+    expect(s.model.state).toMatchObject({ view: null, toast: { kind: 'watch', name: 'Gerhard Schubert' } })
+    expect(s.model.state.clients.filter(client => client.role === 'watch')).toMatchObject([{ name: 'Gerhard Schubert' }])
+    expect(s.host.clientFolder).not.toHaveBeenCalled()
   })
 
   it('links another party to a chosen matter of your firm with its role', async () => {
@@ -326,70 +327,147 @@ describe('reviewing and deciding', () => {
   })
 })
 
-describe('following a build', () => {
-  it('shows the builds that run while a view follows them, and stops reading when none runs', async () => {
-    const s = setup()
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon')] }))
-    const unfollow = s.model.follow()
-    await settle()
-    expect(s.model.state.builds).toHaveLength(1)
-    await vi.advanceTimersByTimeAsync(POLL_MS)
-    expect(s.host.status).toHaveBeenCalledTimes(2)
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'done', workspace: 'ws-1' })] }))
-    await vi.advanceTimersByTimeAsync(POLL_MS)
-    await vi.advanceTimersByTimeAsync(POLL_MS * 3)
-    expect(s.host.status).toHaveBeenCalledTimes(3)
-    unfollow()
-    s.host.status.mockResolvedValue({ ok: false, error: 'network' })
-    s.model.follow()
-    await settle()
-    expect(s.model.state.builds).toHaveLength(1)
-    s.model.dispose()
-    s.model.follow()
-    await settle()
-    expect(s.host.status).toHaveBeenCalledTimes(4)
+/** Review Syntegon with `count` matters at your firm, the batch size `size`, and the client recorded. */
+async function toRecord(s: ReturnType<typeof setup>, count: number, size: number) {
+  s.host.settings.mockResolvedValue(okHost({ recordBatchSize: size }))
+  s.host.review.mockResolvedValueOnce(okHost(reviewed({ atFirm: Array.from({ length: count }, (_, index) => matter(`EP23${String(index + 1).padStart(6, '0')}`)) })))
+  await toReview(s, 'Syntegon')
+}
+
+/** The application numbers of the batches that the Firm Record got. */
+const sentBatches = (s: ReturnType<typeof setup>) => s.firm.sent.flatMap(command => command.kind === 'applications' ? [command.applications.map(item => item.application.applicationNumber)] : [])
+
+describe('the Record page', () => {
+  it('records the applications in batches of the size that the Host names, then makes the client folder', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 5, 2)
+    const steps: string[] = []
+    const unsubscribe = s.model.store.subscribe(() => {
+      const view = s.model.state.view
+      if (view?.page === 'record') steps.push(`${(view.batches ?? []).map(batch => batch.state).join(',')}|${view.folder.state}`)
+    })
+    await s.model.record()
+    unsubscribe()
+    expect(sentBatches(s)).toEqual([['EP23000001', 'EP23000002'], ['EP23000003', 'EP23000004'], ['EP23000005']])
+    expect(steps).toContain('recorded,recording,waiting|waiting')
+    expect(steps).toContain('recorded,recorded,recorded|making')
+    expect(recordStatus(s.record())).toBe('done')
   })
 
-  it('opens a stopped build from the list, and Try again reads the request from the Firm Record', async () => {
-    const s = setup()
-    const failed = buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'failed', workspace: 'ws-syntegon' })
-    s.host.status.mockResolvedValue(okHost({ builds: [failed] }))
-    s.model.follow()
+  it('stops at a failed batch, and Try again records only the missing batches and then the folder', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 3, 1)
+    let batches = 0
+    const send = s.firm.mock.send.getMockImplementation()!
+    s.firm.mock.send.mockImplementation(async command => command.kind === 'applications' && (batches += 1) === 2 ? { ok: false, error: { kind: 'service', status: 503 } } : send(command))
+    s.firm.mock.send.mockClear()
+    await s.model.record()
+    expect(recordStatus(s.record())).toBe('failed')
+    expect(s.record().error).toEqual({ kind: 'service', status: 503 })
+    expect(s.record().batches?.map(batch => batch.state)).toEqual(['recorded', 'failed', 'waiting'])
+    expect(s.host.clientFolder).not.toHaveBeenCalled()
+    await s.model.retry()
+    expect(recordStatus(s.record())).toBe('done')
+    const sentNumbers = s.firm.mock.send.mock.calls.flatMap(([command]) => command.kind === 'applications' ? command.applications.map(item => item.application.applicationNumber) : [])
+    expect(sentNumbers).toEqual(['EP23000001', 'EP23000002', 'EP23000002', 'EP23000003'])
+    expect(s.host.clientFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it('splits again when the Firm Record takes fewer applications in a batch', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 5, 5)
+    s.firm.state.batchMax = 2
+    await s.model.record()
+    expect(sentBatches(s).map(numbers => numbers.length)).toEqual([5, 2, 2, 1])
+    expect(recordStatus(s.record())).toBe('done')
+  })
+
+  it('reads the batch size again after its read failed, and makes the folder again after it failed', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 1, 100)
+    s.host.settings.mockResolvedValueOnce({ ok: false, error: 'network' })
+    await s.model.record()
+    expect(s.record()).toMatchObject({ batches: null, error: 'network' })
+    expect(recordStatus(s.record())).toBe('failed')
+    s.host.clientFolder.mockResolvedValueOnce({ ok: false, error: 'invalid-name' })
+    await s.model.retry()
+    expect(s.record()).toMatchObject({ folder: { state: 'waiting' }, error: 'invalid-name' })
+    expect(s.record().batches?.map(batch => batch.state)).toEqual(['recorded'])
+    await s.model.retry()
+    expect(recordStatus(s.record())).toBe('done')
+    expect(sentBatches(s)).toHaveLength(1)
+  })
+
+  it('opens the client page after a failed batch by making the client folder first, and not while the run goes on', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 2, 1)
+    const held = deferred<Awaited<ReturnType<typeof s.firm.record.send>>>()
+    const send = s.firm.mock.send.getMockImplementation()!
+    s.firm.mock.send.mockImplementation(async command => command.kind === 'applications' ? held.promise : send(command))
+    const pending = s.model.record()
     await settle()
-    s.model.openBuild('unknown')
-    expect(s.view()).toBeNull()
-    s.model.openBuild(SYNTEGON_ID)
+    expect(recordStatus(s.record())).toBe('running')
+    expect(await s.model.openClientPage()).toBe(false)
+    held.resolve({ ok: false, error: { kind: 'network' } })
+    await pending
+    expect(recordStatus(s.record())).toBe('failed')
+    const folder = deferred<Awaited<ReturnType<typeof s.host.clientFolder>>>()
+    s.host.clientFolder.mockImplementationOnce(() => folder.promise)
+    const opening = s.model.openClientPage()
     await settle()
-    expect(buildFailed(s.build())).toBe(true)
-    s.firm.state.detailErrors.set(SYNTEGON_ID, { kind: 'network' })
-    await s.model.retry()
-    expect(s.build().error).toEqual({ kind: 'network' })
-    s.firm.state.detailErrors.clear()
-    s.host.build.mockResolvedValueOnce({ ok: false, error: 'stopped' })
-    await s.model.retry()
-    expect(s.host.build).toHaveBeenLastCalledWith({ clientId: SYNTEGON_ID, name: 'Syntegon', names: ['SYNTEGON TECHNOLOGY'], applications: ['EP23171862'] })
-    expect(s.build().error).toBe('stopped')
-    s.host.status.mockResolvedValue({ ok: false, error: 'network' })
-    s.host.build.mockResolvedValueOnce(okHost(failed))
-    await s.model.retry()
-    await vi.advanceTimersByTimeAsync(0)
-    expect(s.build().error).toBe('network')
-    expect(s.model.openFolder()).toBe(true)
+    expect(s.record().folder).toEqual({ state: 'making' })
+    expect(await s.model.openClientPage()).toBe(false)
+    folder.resolve(okHost({ workspace: 'ws-syntegon', folder: 'Syntegon', made: true }))
+    expect(await opening).toBe(true)
     expect(s.opened).toEqual(['ws-syntegon'])
-    expect(s.model.openFolder()).toBe(false)
+    expect(s.view()).toBeNull()
   })
 
-  it('shows the status of another client\'s build only on the list, and waits for a done build to name its folder', async () => {
+  it('says why the client folder failed when Open client page makes it', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 1, 1)
+    s.firm.state.failNext.set('applications', { kind: 'network' })
+    await s.model.record()
+    s.host.clientFolder.mockResolvedValueOnce({ ok: false, error: 'internal' })
+    expect(await s.model.openClientPage()).toBe(false)
+    expect(s.record()).toMatchObject({ folder: { state: 'waiting' }, error: 'internal' })
+    expect(s.opened).toEqual([])
+  })
+
+  it('records nothing that the Firm Record has with every applicant role', async () => {
     const s = setup()
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon'), buildStatus(SCHUBERT_ID, 'Gerhard Schubert')] }))
-    s.model.follow()
+    s.host.review.mockResolvedValueOnce(okHost(reviewed({ atFirm: [matter('EP23171862'), matter('EP23999999')] })))
+    await s.model.checkForNew(SYNTEGON_ID)
     await settle()
-    s.model.openBuild(SYNTEGON_ID)
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'done' })] }))
-    await vi.advanceTimersByTimeAsync(POLL_MS)
-    expect(s.build().status?.state).toBe('done')
-    await s.model.retry()
-    expect(s.host.build).not.toHaveBeenCalled()
+    await s.model.record()
+    expect(s.record().applications.map(item => item.fact.applicationNumber)).toEqual(['EP23999999'])
+    expect(s.firm.sent.map(command => command.kind)).toEqual(['applications'])
+  })
+
+  it('stops the run before its next batch when the page closes', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 2, 1)
+    const held = deferred<Awaited<ReturnType<typeof s.firm.record.send>>>()
+    const send = s.firm.mock.send.getMockImplementation()!
+    s.firm.mock.send.mockImplementation(async command => command.kind === 'applications' ? held.promise : send(command))
+    const pending = s.model.record()
+    await settle()
+    s.model.close()
+    held.resolve({ ok: true, value: { kind: 'recorded' } })
+    await pending
+    expect(sentBatches(s)).toEqual([])
+    expect(s.firm.mock.send.mock.calls.filter(([command]) => command.kind === 'applications')).toHaveLength(1)
+    expect(s.host.clientFolder).not.toHaveBeenCalled()
+  })
+})
+
+describe('the client of a client folder', () => {
+  it('is the one client with the role client whose folder name is the folder name', () => {
+    const clients = [firmClient(SYNTEGON_ID, 'Novo Nordisk A/S'), firmClient(SCHUBERT_ID, 'Gerhard Schubert', 'watch')]
+    expect(clientOfFolder(clients, '/home/firm/clients/Novo Nordisk A-S')?.clientId).toBe(SYNTEGON_ID)
+    expect(clientOfFolder(clients, 'C:\\Clients\\Novo Nordisk A-S')?.clientId).toBe(SYNTEGON_ID)
+    expect(clientOfFolder(clients, '/home/firm/clients/Gerhard Schubert')).toBeNull()
+    expect(clientOfFolder([...clients, firmClient(SCHUBERT_ID, 'Novo Nordisk A\\S')], '/clients/Novo Nordisk A-S')).toBeNull()
   })
 })
 
@@ -401,11 +479,10 @@ describe('checking a client folder for new matters', () => {
     expect(s.review()).toMatchObject({ role: 'client', subject: { name: 'Syntegon', existing: { clientId: SYNTEGON_ID } } })
     expect(s.host.review).toHaveBeenCalledWith({ names: ['SYNTEGON TECHNOLOGY'], clients: [] })
     expect(clientIdOf(s.review())).toBe(SYNTEGON_ID)
-    s.host.status.mockResolvedValue(okHost({ builds: [] }))
     await s.model.record()
-    // The client, its name, its application and the conflict check of no hit are in the Firm Record already.
+    // The client, its name and the conflict check of no hit are in the Firm Record already, and no matter is new.
     expect(s.firm.sent).toEqual([])
-    expect(s.view()?.page).toBe('build')
+    expect(s.view()?.page).toBe('record')
   })
 
   it('says when the client cannot be read, and goes by name for a client with no linked name', async () => {
@@ -435,7 +512,7 @@ it('ignores acts that do not belong to the open page', async () => {
   s.model.claim('x', true)
   await s.model.retry()
   await s.model.record()
-  expect(s.model.openFolder()).toBe(false)
+  expect(await s.model.openClientPage()).toBe(false)
   s.model.start()
   s.model.claim('x', true)
   await s.model.retry()
@@ -489,7 +566,7 @@ describe('a page that closed while it waited', () => {
     sent.resolve({ ok: true, value: { kind: 'recorded' } })
     await pending
     expect(s.view()).toBeNull()
-    expect(s.host.build).not.toHaveBeenCalled()
+    expect(s.host.settings).not.toHaveBeenCalled()
   })
 
   it('drops the adopted client of a page that closed', async () => {
@@ -506,49 +583,27 @@ describe('a page that closed while it waited', () => {
     expect(s.view()).toBeNull()
   })
 
-  it('drops the request read and the build answer of a build page that closed', async () => {
-    const s = setup()
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'interrupted' })] }))
-    s.model.follow()
+  it('drops the batch size and the client folder of a Record page that closed', async () => {
+    const s = setup({ clients: [] })
+    await toRecord(s, 1, 1)
+    const settings = deferred<Awaited<ReturnType<typeof s.host.settings>>>()
+    s.host.settings.mockImplementationOnce(() => settings.promise)
+    const first = s.model.record()
     await settle()
-    s.model.openBuild(SYNTEGON_ID)
-    await settle()
-    const detail = deferred<Awaited<ReturnType<typeof s.firm.record.client>>>()
-    s.firm.mock.client.mockImplementationOnce(() => detail.promise)
-    const first = s.model.retry()
     s.model.close()
-    detail.resolve({ ok: true, value: SYNTEGON })
+    settings.resolve(okHost({ recordBatchSize: 1 }))
     await first
-    expect(s.host.build).not.toHaveBeenCalled()
-    s.model.openBuild(SYNTEGON_ID)
-    await settle()
-    const started = deferred<Awaited<ReturnType<typeof s.host.build>>>()
-    s.host.build.mockImplementationOnce(() => started.promise)
-    const second = s.model.retry()
+    expect(s.firm.sent.some(command => command.kind === 'applications')).toBe(false)
+    await toRecord(s, 1, 1)
+    const folder = deferred<Awaited<ReturnType<typeof s.host.clientFolder>>>()
+    s.host.clientFolder.mockImplementationOnce(() => folder.promise)
+    const second = s.model.record()
     await settle()
     s.model.close()
-    started.resolve(okHost(buildStatus(SYNTEGON_ID, 'Syntegon')))
+    folder.resolve(okHost({ workspace: 'ws-1', folder: 'Syntegon', made: true }))
     await second
     expect(s.view()).toBeNull()
-  })
-
-  it('stops reading the builds when the page is gone', async () => {
-    const s = setup()
-    s.host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon')] }))
-    s.model.follow()
-    await settle()
-    s.model.dispose()
-    await vi.advanceTimersByTimeAsync(POLL_MS * 2)
-    expect(s.host.status).toHaveBeenCalledTimes(1)
-    const t = setup()
-    const answer = deferred<Awaited<ReturnType<typeof t.host.status>>>()
-    t.host.status.mockImplementationOnce(() => answer.promise)
-    t.model.follow()
-    await settle()
-    t.model.dispose()
-    answer.resolve(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon')] }))
-    await settle()
-    expect(t.model.state.builds).toEqual([])
+    expect(s.opened).toEqual([])
   })
 })
 
@@ -588,9 +643,8 @@ describe('the rules of a review', () => {
     s.model.claim('EP1', true)
     expect(s.review().review).toEqual({ status: 'by-name' })
     s.firm.state.clientsError = { kind: 'network' }
-    s.model.follow()
-    await settle()
-    expect(s.model.state.watching).toEqual([])
+    await s.model.refresh()
+    expect(s.model.state.clients).toEqual([])
   })
 })
 
@@ -598,8 +652,7 @@ describe('the names of the opponent index', () => {
   it('sends the names of the clients with the role client when the list opens, and before the review reads the index', async () => {
     const watched = firmClient(SCHUBERT_ID, 'Gerhard Schubert', 'watch', ['Gerhard Schubert GmbH'])
     const s = setup({ clients: [watched], details: [SYNTEGON] })
-    s.model.follow()
-    await settle()
+    await s.model.refresh()
     expect(s.host.clientNames).toHaveBeenCalledWith(['Syntegon', 'SYNTEGON TECHNOLOGY'])
     s.host.clientNames.mockClear()
     await toReview(s, 'Acme')
@@ -607,8 +660,7 @@ describe('the names of the opponent index', () => {
     expect(s.host.clientNames.mock.invocationCallOrder[0]).toBeLessThan(s.host.review.mock.invocationCallOrder.at(-1) ?? 0)
     s.firm.state.clientsError = { kind: 'network' }
     s.host.clientNames.mockClear()
-    s.model.follow()
-    await settle()
+    await s.model.refresh()
     expect(s.host.clientNames).not.toHaveBeenCalled()
   })
 })

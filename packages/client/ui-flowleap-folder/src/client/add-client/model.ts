@@ -1,18 +1,22 @@
 /**
- * The state of Add client: one view at a time (find the company, review its matters and decide, follow the build),
- * the builds that the Host runs, the companies on Watch, and the toast after an act. Each view is one phase of a
- * discriminated union, so a page renders exactly the parts of its phase. The model calls the Host routes for the public
- * data and the build, and the Firm Record with the person's cookie for every record.
+ * The state of Add client: one view at a time (find the company, review its matters and decide, record the client), the
+ * clients of the Firm Record, and the toast after an act. Each view is one phase of a discriminated union, so a page
+ * renders exactly the parts of its phase. The model calls the Host routes for the public data and the client folder,
+ * and the Firm Record with the person's cookie for every record.
  * @module
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { clientFolderName, type BuildAdded, type BuildRequest, type BuildStatus, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
+import { clientFolderName, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
 import type { AddClientApi, HostFailure } from './api.ts'
-import { allHits, firmHits, indexNames, knownClients, matchExisting, planRecords, runPlan, type Decision, type OtherPartyRole } from './plan.ts'
+import { knownParties, missingApplications, recordBatches, splitBatches, type RecordBatch } from './batches.ts'
 import {
-  newClientId, type ClientDetail, type ClientId, type ClientRole, type FirmClient, type FirmRecord, type Hit, type LinkedName,
+  allHits, firmHits, indexNames, knownClients, matchExisting, planRecords, runPlan,
+  type ApplicationDecision, type Decision, type OtherPartyRole,
+} from './plan.ts'
+import {
+  newClientId, type ClientDetail, type ClientId, type ClientRole, type FirmClient, type FirmRecord, type Hit, type LinkedName, type PartyId,
   type RecordError,
 } from './records.ts'
 
@@ -100,33 +104,40 @@ export interface ReviewView {
   readonly recording: RecordingStatus
 }
 
-/** What this session recorded before the build, for the done lines of page 4. */
-export interface Recorded {
-  readonly names: number
-  readonly matters: number
-  readonly hits: number
-}
+/** The client folder of a Record run: not made yet, being made, or made with its workspace. */
+export type FolderStep =
+  | { readonly state: 'waiting' | 'making' }
+  | { readonly state: 'made'; readonly workspace: WorkspaceId }
 
-/** Page 4: the build of a client folder. */
-export interface BuildView {
-  readonly page: 'build'
+/**
+ * Page 4: the Record run of a client. The review page recorded the conflict check, the client and its names; this page
+ * records the applications in batches, then makes the client folder. The run is `failed` while `error` is set, `done`
+ * once the folder is made, else `running` ({@link recordStatus}).
+ */
+export interface RecordView {
+  readonly page: 'record'
   readonly clientId: ClientId
   readonly name: string
-  /** The request of the build; null for a build that the person opened from the Clients list. */
-  readonly request: BuildRequest | null
-  readonly recorded: Recorded | null
-  /** The last status of this build; null before the Host answers. */
-  readonly status: BuildStatus | null
-  /** Why starting or following the build failed. */
-  readonly error: HostFailure | RecordError | null
+  /** The applicant names of the group, for the client line and the About file. */
+  readonly names: readonly string[]
+  /** The possible conflicts of the recorded conflict check. */
+  readonly hits: number
+  /** The applications that this run records; those that the Firm Record has with every applicant role are left out. */
+  readonly applications: readonly ApplicationDecision[]
+  /** The applications in batches; null until the Host says the batch size. */
+  readonly batches: readonly RecordBatch[] | null
+  /** The party id of each applicant name that the run knows, by normalized name. */
+  readonly parties: Readonly<Record<string, PartyId>>
+  readonly folder: FolderStep
+  /** What stopped the run: the batch size read, a batch, or the client folder. Try again goes on from there. */
+  readonly error: RecordError | HostFailure | null
 }
 
 /** The open Add client page. */
-export type AddClientView = FindView | ReviewView | BuildView
+export type AddClientView = FindView | ReviewView | RecordView
 
 /** What the page says when an act ends. */
 export type Toast =
-  | { readonly kind: 'client'; readonly name: string; readonly matters: number; readonly families: number; readonly added: BuildAdded }
   | { readonly kind: 'watch'; readonly name: string }
   | { readonly kind: 'party'; readonly name: string; readonly applicationNumber: string }
   | { readonly kind: 'failed'; readonly error: RecordError }
@@ -134,10 +145,8 @@ export type Toast =
 /** The snapshot of Add client; the store's drafts change it. */
 export interface AddClientSnapshot {
   view: AddClientView | null
-  /** The builds of the Host's last `status` answer. */
-  builds: readonly BuildStatus[]
-  /** The companies on Watch. */
-  watching: readonly FirmClient[]
+  /** The clients of the Firm Record's last `clients` read, in every role. */
+  clients: readonly FirmClient[]
   toast: Toast | null
 }
 
@@ -155,8 +164,6 @@ export const FIND_WAIT_MS = 500
 export const SKELETON_AFTER_MS = 150
 /** How long the skeleton of a search shows at least. */
 export const SKELETON_MIN_MS = 300
-/** How often a running build is read. */
-export const POLL_MS = 1000
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms) })
 
@@ -206,7 +213,7 @@ export function blockerOf(view: ReviewView): Blocker | null {
   if (view.role === 'watch') return null
   if (view.firm.status !== 'ready') return 'firm'
   if (view.role === 'other-party') return view.other.applicationNumber === null ? 'matter' : null
-  // Checked before any record is sent: the build would refuse the name after the client is recorded.
+  // Checked before any record is sent: the client folder route would refuse the name after the client is recorded.
   if (clientFolderName(view.subject.name) === undefined) return 'name'
   if (view.review.status === 'loading' || view.review.status === 'error' || view.review.status === 'no-key') return 'review'
   if (decided(view)) return null
@@ -259,10 +266,13 @@ export function decisionOf(view: ReviewView): Decision {
   return { role, ...base, hits, ...reason, applications: applicationsOf(view.review) }
 }
 
+/** The end of sending a plan: the client as the Firm Record had it before the plan, or the failure. */
+type SendOutcome = { readonly ok: true; readonly existing: ClientDetail | null } | { readonly ok: false; readonly error: RecordError }
+
 /** Whether a read failed because the Firm Record has no such client. */
 const unknownClient = (error: RecordError): boolean => error.kind === 'refused' && (error.status === 404 || error.code === 'client-unknown')
 
-const EMPTY: AddClientSnapshot = { view: null, builds: [], watching: [], toast: null }
+const EMPTY: AddClientSnapshot = { view: null, clients: [], toast: null }
 
 /** Add client's state and acts. */
 export class AddClientModel {
@@ -272,9 +282,6 @@ export class AddClientModel {
   private generation = 0
   private findTimer: ReturnType<typeof setTimeout> | null = null
   private findAbort: AbortController | null = null
-  private followers = 0
-  private pollTimer: ReturnType<typeof setTimeout> | null = null
-  private disposed = false
 
   /** @param deps - the Host routes, the Firm Record and the folder page. */
   constructor(private readonly deps: AddClientDeps) {}
@@ -293,7 +300,7 @@ export class AddClientModel {
     })
   }
 
-  /** Close Add client; a running build goes on. */
+  /** Close Add client; a Record run stops before its next command, and what it recorded stays. */
   close(): void {
     this.leave()
     this.store.update((draft) => { draft.view = null })
@@ -375,7 +382,7 @@ export class AddClientModel {
 
   /**
    * Run Add client again for a client of a client folder: read its names and go straight to the review.
-   * @param clientId - the client, as the `status` route names it.
+   * @param clientId - the client of the folder ({@link clientOfFolder}).
    * @returns once the review answered.
    */
   async checkForNew(clientId: string): Promise<void> {
@@ -436,9 +443,10 @@ export class AddClientModel {
   }
 
   /**
-   * Record the decision in the Firm Record, then start the build for the role client. The Firm Record is read first,
-   * so only missing facts are sent.
-   * @returns once the records are sent and, for a client, the build started.
+   * Record the decision in the Firm Record: the conflict check, the client and its names on the review page, then for the
+   * role client its applications and its client folder on the Record page. The Firm Record is read first, so only
+   * missing facts are sent.
+   * @returns once the records are sent and, for a client, the Record run ended.
    */
   async record(): Promise<void> {
     const view = this.state.view
@@ -448,10 +456,11 @@ export class AddClientModel {
     this.updateReview(current => ({ ...current, recording: { status: 'running', done: 0, total: 0 } }))
     const outcome = await this.send(decision, generation)
     if (generation !== this.generation) return
-    if (outcome !== null) {
+    if (!outcome.ok) {
+      const { error } = outcome
       // Another client id names a client of this name and role: Add client runs again for that client.
-      if (outcome.kind === 'refused' && outcome.code === 'client-exists' && outcome.clientId !== undefined && view.subject.existing === null) {
-        const adopted = await this.deps.record.client(outcome.clientId)
+      if (error.kind === 'refused' && error.code === 'client-exists' && error.clientId !== undefined && view.subject.existing === null) {
+        const adopted = await this.deps.record.client(error.clientId)
         if (generation !== this.generation) return
         if (adopted.ok) {
           this.updateReview(current => ({ ...current, subject: { ...current.subject, existing: adopted.value.client }, recording: { status: 'idle' } }))
@@ -459,10 +468,10 @@ export class AddClientModel {
           return
         }
       }
-      this.updateReview(current => ({ ...current, recording: { status: 'failed', error: outcome } }))
+      this.updateReview(current => ({ ...current, recording: { status: 'failed', error } }))
       return
     }
-    void this.refreshClients()
+    void this.refresh()
     if (decision.role === 'watch') {
       this.finish({ kind: 'watch', name: decision.name })
       return
@@ -471,36 +480,18 @@ export class AddClientModel {
       this.finish({ kind: 'party', name: decision.name, applicationNumber: decision.matter.applicationNumber })
       return
     }
-    const request: BuildRequest = {
-      clientId: decision.clientId, name: decision.name, names: decision.names.map(item => item.name),
-      applications: decision.applications.map(item => item.fact.applicationNumber),
+    const run: RecordView = {
+      page: 'record', clientId: decision.clientId, name: decision.name, names: decision.names.map(item => item.name), hits: decision.hits.length,
+      applications: missingApplications(decision.applications, outcome.existing), batches: null, parties: knownParties(outcome.existing),
+      folder: { state: 'waiting' }, error: null,
     }
-    const build: BuildView = {
-      page: 'build', clientId: decision.clientId, name: decision.name, request, status: null, error: null,
-      recorded: { names: decision.names.length, matters: decision.applications.length, hits: decision.hits.length },
-    }
-    this.store.update((draft) => { draft.view = build })
-    await this.build(build)
+    this.store.update((draft) => { draft.view = run })
+    await this.run(run)
   }
 
   /**
-   * Open the build of a client from the Clients list.
-   * @param clientId - the client of the build, as the `status` route names it.
-   */
-  openBuild(clientId: string): void {
-    const status = this.state.builds.find(item => item.clientId === clientId)
-    if (status === undefined) return
-    this.leave()
-    this.store.update((draft) => {
-      draft.view = { page: 'build', clientId: status.clientId as ClientId, name: status.name, request: null, recorded: null, status, error: null }
-      draft.toast = null
-    })
-    this.poll()
-  }
-
-  /**
-   * Try again after a failure: search again, review again, send the missing records, or build again. Every key and
-   * every build step is idempotent, so a retry adds only what is missing.
+   * Try again after a failure: search again, review again, send the missing records, or go on with the Record run.
+   * Every key is idempotent and a recorded batch is never sent again, so a retry adds only what is missing.
    * @returns once the act ran.
    */
   async retry(): Promise<void> {
@@ -508,19 +499,21 @@ export class AddClientModel {
     if (view?.page === 'find' && view.find.status === 'error') await this.search()
     else if (view?.page === 'review' && view.recording.status === 'failed') await this.record()
     else if (view?.page === 'review' && (view.review.status === 'error' || view.firm.status === 'error')) await this.review(view.subject, view.review.status === 'by-name')
-    else if (view?.page === 'build' && buildFailed(view)) await this.build(view)
+    else if (view?.page === 'record' && recordStatus(view) === 'failed') await this.run(view)
   }
 
   /**
-   * Open the client folder of the build view.
-   * @returns whether a folder opened.
+   * Open Client page: the client folder of the Record run. After a failed run, the client folder is made first, so the
+   * person can work with the client while some applications wait for Try again.
+   * @returns whether the folder opened.
    */
-  openFolder(): boolean {
+  async openClientPage(): Promise<boolean> {
     const view = this.state.view
-    const workspace = view?.page === 'build' ? view.status?.workspace : undefined
-    if (workspace === undefined) return false
+    if (view?.page !== 'record' || recordStatus(view) === 'running') return false
+    const workspace = await this.makeFolder(this.generation)
+    if (workspace === null) return false
     this.close()
-    this.deps.open(workspace as WorkspaceId)
+    this.deps.open(workspace)
     return true
   }
 
@@ -530,28 +523,20 @@ export class AddClientModel {
   }
 
   /**
-   * Follow the builds and the Watch list while a view shows them: read them now, then read the builds once a second
-   * while one runs. The read of the clients also sends their names to the opponent index.
-   * @returns the disposer.
+   * Read the clients of the Firm Record for the Watching list and Check for new matters, and send the names of the
+   * clients to the opponent index. A failed read changes nothing; the next read tries again.
+   * @returns once the names are sent.
    */
-  follow(): () => void {
-    this.followers += 1
-    void this.refreshClients()
-    this.poll()
-    let done = false
-    return () => {
-      if (done) return
-      done = true
-      this.followers -= 1
-    }
+  async refresh(): Promise<void> {
+    const clients = await this.deps.record.clients()
+    if (!clients.ok) return
+    this.store.update((draft) => { draft.clients = clients.value })
+    await this.deps.api.clientNames(indexNames(clients.value))
   }
 
-  /** Stop every timer; the page is gone. */
+  /** Stop the search timer; the page is gone. */
   dispose(): void {
-    this.disposed = true
     this.leave()
-    if (this.pollTimer !== null) clearTimeout(this.pollTimer)
-    this.pollTimer = null
   }
 
   // Phases.
@@ -598,95 +583,74 @@ export class AddClientModel {
     return { status: 'ready', details, asOf }
   }
 
-  /** Send the plan of a decision; null when every record is in the Firm Record. */
-  private async send(decision: Decision, generation: number): Promise<RecordError | null> {
-    const existing = await this.deps.record.client(decision.clientId)
-    if (!existing.ok && !unknownClient(existing.error)) return existing.error
-    const plan = await planRecords(decision, existing.ok ? existing.value : null)
+  /**
+   * Send the plan of a decision.
+   * @returns the client as the Firm Record had it before the plan, or the failure.
+   */
+  private async send(decision: Decision, generation: number): Promise<SendOutcome> {
+    const read = await this.deps.record.client(decision.clientId)
+    if (!read.ok && !unknownClient(read.error)) return { ok: false, error: read.error }
+    const existing = read.ok ? read.value : null
+    const plan = await planRecords(decision, existing)
     const total = plan.steps.length
     this.updateReview(view => ({ ...view, recording: { status: 'running', done: 0, total } }))
     const outcome = await runPlan(plan, this.deps.record, (done) => {
       if (generation === this.generation) this.updateReview(view => ({ ...view, recording: { status: 'running', done, total } }))
     })
-    return outcome.ok ? null : outcome.error
-  }
-
-  private async build(view: BuildView): Promise<void> {
-    const generation = this.generation
-    this.updateBuild(current => ({ ...current, error: null, status: current.status === null ? null : { ...current.status, state: 'running' } }))
-    let request = view.request
-    if (request === null) {
-      const detail = await this.deps.record.client(view.clientId)
-      if (generation !== this.generation) return
-      if (!detail.ok) {
-        this.updateBuild(current => ({ ...current, error: detail.error }))
-        return
-      }
-      request = {
-        clientId: view.clientId, name: detail.value.client.name, names: detail.value.names.map(item => item.name),
-        applications: detail.value.applications.map(item => item.applicationNumber),
-      }
-    }
-    const started = await this.deps.api.build(request)
-    if (generation !== this.generation) return
-    if (!started.ok) {
-      this.updateBuild(current => ({ ...current, error: started.error }))
-      return
-    }
-    this.track(started.value)
-    this.poll()
-  }
-
-  // Following the builds.
-
-  private poll(): void {
-    if (this.pollTimer !== null || this.disposed) return
-    this.pollTimer = setTimeout(() => {
-      this.pollTimer = null
-      void this.readStatus()
-    }, 0)
-  }
-
-  private async readStatus(): Promise<void> {
-    const answer = await this.deps.api.status()
-    if (this.disposed) return
-    const view = this.state.view
-    if (answer.ok) {
-      this.store.update((draft) => { draft.builds = answer.value.builds })
-      const own = view?.page === 'build' ? answer.value.builds.find(item => item.clientId === view.clientId) : undefined
-      if (own !== undefined) this.track(own)
-    } else if (view?.page === 'build') {
-      this.updateBuild(current => ({ ...current, error: answer.error }))
-    }
-    const current = this.state.view
-    const waiting = current?.page === 'build' && !buildFailed(current)
-    if (this.followers === 0 || !(waiting || this.state.builds.some(item => item.state === 'running'))) return
-    this.pollTimer = setTimeout(() => {
-      this.pollTimer = null
-      void this.readStatus()
-    }, POLL_MS)
-  }
-
-  /** Show the status of the open build; a done build opens its client folder with the toast. */
-  private track(status: BuildStatus): void {
-    if (status.state === 'done' && status.workspace !== undefined) {
-      this.close()
-      this.store.update((draft) => { draft.toast = { kind: 'client', name: status.name, matters: status.matters, families: status.families, added: status.added } })
-      this.deps.open(status.workspace as WorkspaceId)
-      return
-    }
-    this.updateBuild(current => ({ ...current, status }))
+    return outcome.ok ? { ok: true, existing } : { ok: false, error: outcome.error }
   }
 
   /**
-   * Read the clients: keep the Watch list, and send the names of the clients to the opponent index. A failed send
-   * changes nothing here; the next read sends the names again.
+   * Run the Record view on from where it is: read the batch size, record the missing batches, make the client folder.
+   * @param view - the Record view now.
    */
-  private async refreshClients(): Promise<void> {
-    const clients = await this.deps.record.clients()
-    if (!clients.ok) return
-    this.store.update((draft) => { draft.watching = clients.value.filter(client => client.role === 'watch') })
-    await this.deps.api.clientNames(indexNames(clients.value))
+  private async run(view: RecordView): Promise<void> {
+    const generation = this.generation
+    this.updateRecord(current => ({ ...current, error: null }))
+    let batches = view.batches
+    if (batches === null) {
+      const settings = await this.deps.api.settings()
+      if (generation !== this.generation) return
+      if (!settings.ok) {
+        this.updateRecord(current => ({ ...current, error: settings.error }))
+        return
+      }
+      const split = splitBatches(view.applications, settings.value.recordBatchSize)
+      this.updateRecord(current => ({ ...current, batches: split }))
+      batches = split
+    }
+    const ended = await recordBatches({ clientId: view.clientId, batches, parties: view.parties, error: null }, this.deps.record, (run) => {
+      if (generation !== this.generation) return false
+      this.updateRecord(current => ({ ...current, batches: run.batches, parties: run.parties }))
+      return true
+    })
+    if (generation !== this.generation) return
+    if (ended.error !== null) {
+      const { error } = ended
+      this.updateRecord(current => ({ ...current, error }))
+      return
+    }
+    await this.makeFolder(generation)
+  }
+
+  /**
+   * Make the client folder of the Record view, or give the workspace of the folder that it made.
+   * @returns the workspace, or null when the folder failed, is being made now, or the view is gone.
+   */
+  private async makeFolder(generation: number): Promise<WorkspaceId | null> {
+    const view = this.state.view
+    if (view?.page !== 'record' || view.folder.state === 'making') return null
+    if (view.folder.state === 'made') return view.folder.workspace
+    this.updateRecord(current => ({ ...current, folder: { state: 'making' } }))
+    const made = await this.deps.api.clientFolder({ clientId: view.clientId, name: view.name, names: view.names })
+    if (generation !== this.generation) return null
+    if (!made.ok) {
+      this.updateRecord(current => ({ ...current, folder: { state: 'waiting' }, error: made.error }))
+      return null
+    }
+    const workspace = made.value.workspace as WorkspaceId
+    this.updateRecord(current => ({ ...current, folder: { state: 'made', workspace } }))
+    return workspace
   }
 
   // Helpers.
@@ -726,8 +690,8 @@ export class AddClientModel {
     this.updateView('review', change)
   }
 
-  private updateBuild(change: (view: BuildView) => BuildView): void {
-    this.updateView('build', change)
+  private updateRecord(change: (view: RecordView) => RecordView): void {
+    this.updateView('record', change)
   }
 }
 
@@ -736,29 +700,30 @@ function idleUnlessRunning(recording: RecordingStatus): RecordingStatus {
   return recording.status === 'running' ? recording : { status: 'idle' }
 }
 
-/** What stopped a build: its start or a read failed, or a step of the build stopped. */
-export type BuildFailure =
-  | { readonly kind: 'start'; readonly error: HostFailure | RecordError }
-  | { readonly kind: 'build'; readonly status: BuildStatus }
+/** Where a Record run is: it runs, a failure stopped it, or the client folder is made. */
+export type RecordStatus = 'running' | 'failed' | 'done'
 
 /**
- * What stopped the build of a build view, which Try again repeats.
- * @param view - the build view.
- * @returns the failure, or null while the build runs or before it answers.
+ * Where the Record run of a Record view is.
+ * @param view - the Record view.
+ * @returns `failed` while a failure is set, `done` once the client folder is made, else `running`.
  */
-export function buildFailure(view: BuildView): BuildFailure | null {
-  if (view.error !== null) return { kind: 'start', error: view.error }
-  const { status } = view
-  return status !== null && (status.state === 'failed' || status.state === 'interrupted') ? { kind: 'build', status } : null
+export function recordStatus(view: RecordView): RecordStatus {
+  if (view.error !== null) return 'failed'
+  return view.folder.state === 'made' ? 'done' : 'running'
 }
 
 /**
- * Whether a build view shows a failure with Try again.
- * @param view - the build view.
- * @returns true for a failed or interrupted build, or a failed start or read.
+ * The client of a client folder: the one client with the role client whose folder name is the folder's name. The
+ * client folder route names each folder by {@link clientFolderName} of the client name.
+ * @param clients - the clients of the Firm Record.
+ * @param folderPath - the client folder's path on the Host.
+ * @returns the client, or null when no client or more than one client has the folder's name.
  */
-export function buildFailed(view: BuildView): boolean {
-  return buildFailure(view) !== null
+export function clientOfFolder(clients: readonly FirmClient[], folderPath: string): FirmClient | null {
+  const folder = folderPath.split(/[\\/]/u).pop()
+  const [match, ...others] = clients.filter(client => client.role === 'client' && clientFolderName(client.name) === folder)
+  return others.length === 0 && match !== undefined ? match : null
 }
 
 function findStatusOf(found: Awaited<ReturnType<AddClientApi['find']>>): FindStatus {

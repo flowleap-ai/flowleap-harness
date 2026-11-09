@@ -23,10 +23,9 @@ import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/cl
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { TRASH, isTrashPath, type FolderEntry, type FolderSearchHit } from '../route.ts'
 import { FOLDER_SCOPE, keycapsOf, recordKeyOf, type KeyAct, type KeyHandlers } from './keys.ts'
-import { AddClientPage, AddClientToast, BuildState, WatchingList } from './add-client/AddClient.tsx'
+import { AddClientPage, AddClientToast, WatchingList } from './add-client/AddClient.tsx'
 import type { AddClientTranslate } from './add-client/format.ts'
-import type { AddClientModel, AddClientSnapshot } from './add-client/model.ts'
-import type { BuildStatus } from '../add-client/wire.ts'
+import { clientOfFolder, type AddClientModel, type AddClientSnapshot } from './add-client/model.ts'
 import type { FlowleapFolderKey, NS } from './locales.ts'
 import {
   baseName, childPath, keepBothName, namesIn, parentOf,
@@ -184,8 +183,8 @@ export function FolderPanel(props: PanelProps) {
     const active = document.activeElement
     if (active === null || active === document.body) page.current?.focus({ preventScroll: true })
   })
-  // The builds and the Watch list stay current while the page is open.
-  useEffect(() => addClient.follow(), [addClient])
+  // The page reads the clients of the Firm Record when it opens, for the Watching list and Check for new matters.
+  useEffect(() => { void addClient.refresh() }, [addClient])
   return (
     <section ref={page} className={css.panel} data-testid="flowleap-folder" data-shortcut-scope={FOLDER_SCOPE} tabIndex={-1}>
       {adding.view !== null
@@ -195,11 +194,10 @@ export function FolderPanel(props: PanelProps) {
         )
         : client === null
           ? (
-            <ClientsList t={t} addT={addClientT} clients={clients} builds={adding.builds} watching={adding.watching}
-              open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }}
-              openBuild={(id) => { addClient.openBuild(id) }} />
+            <ClientsList t={t} addT={addClientT} clients={clients} watching={adding.clients.filter(item => item.role === 'watch')}
+              open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }} />
           )
-          : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} builds={adding.builds} />}
+          : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} recorded={adding.clients} />}
       {adding.view === null && adding.toast !== null && (
         <AddClientToast t={addClientT} toast={adding.toast} onClose={() => { addClient.dismissToast() }} />
       )}
@@ -207,20 +205,15 @@ export function FolderPanel(props: PanelProps) {
   )
 }
 
-/** The Clients list: one row for each client folder, a row for each build without its folder yet, and Watching. */
-function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild }: {
+/** The Clients list: one row for each client folder, and Watching. */
+function ClientsList({ t, addT, clients, watching, open, add }: {
   readonly t: Translate
   readonly addT: AddClientTranslate
   readonly clients: readonly WorkspaceView[]
-  readonly builds: readonly BuildStatus[]
-  readonly watching: AddClientSnapshot['watching']
+  readonly watching: AddClientSnapshot['clients']
   readonly open: (id: WorkspaceId) => void
   readonly add: () => void
-  readonly openBuild: (clientId: BuildStatus['clientId']) => void
 }) {
-  const buildOf = (id: WorkspaceId) => builds.find(build => build.workspace === id)
-  // A build shows on its client's row; a build whose folder is not a listed client folder yet has its own row.
-  const pending = builds.filter(build => build.state !== 'done' && !clients.some(item => item.workspaceId === build.workspace))
   return (
     <>
       <header className={css.topbar} data-frame-top-row="">
@@ -234,7 +227,7 @@ function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild 
           <h1 className={css.title}>{t('clients.title')}</h1>
           <p className={css.lede}>{t('clients.lede')}</p>
         </div>
-        {clients.length === 0 && pending.length === 0
+        {clients.length === 0
           ? (
             <div className={css.empty}>
               <h2>{t('clients.empty.title')}</h2>
@@ -244,29 +237,14 @@ function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild 
           )
           : (
             <ul className={css.list} aria-label={t('clients.listLabel')}>
-              {pending.map(build => (
-                <li key={build.clientId}>
-                  <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { openBuild(build.clientId) }}>
+              {clients.map(item => (
+                <li key={item.workspaceId}>
+                  <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { open(item.workspaceId) }}>
                     <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                    <span className={css.name}>{build.name}</span>
-                    <BuildState t={addT} build={build} />
+                    <span className={css.name}>{item.title}</span>
                   </button>
                 </li>
               ))}
-              {clients.map((item) => {
-                const build = buildOf(item.workspaceId)
-                // While its build runs or after it stopped, the row opens the build, where Try again is.
-                const building = build !== undefined && build.state !== 'done'
-                return (
-                  <li key={item.workspaceId}>
-                    <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { if (building) openBuild(build.clientId); else open(item.workspaceId) }}>
-                      <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                      <span className={css.name}>{item.title}</span>
-                      {build !== undefined && <BuildState t={addT} build={build} />}
-                    </button>
-                  </li>
-                )
-              })}
             </ul>
           )}
         <WatchingList t={addT} watching={watching} />
@@ -281,11 +259,12 @@ function ClientFolderView(props: PanelProps & {
   readonly client: WorkspaceView
   readonly keycaps: (act: KeyAct) => readonly KeycapBox[]
   readonly locale: LocaleId
-  readonly builds: readonly BuildStatus[]
+  /** The clients of the Firm Record. */
+  readonly recorded: AddClientSnapshot['clients']
 }) {
-  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth, builds, addClient, addClientT } = props
-  // Add client built this folder: Check for new matters runs it again for the same client.
-  const built = builds.find(build => build.workspace === client.workspaceId)
+  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth, recorded, addClient, addClientT } = props
+  // The client of this folder: Check for new matters runs Add client again for it.
+  const firmClient = clientOfFolder(recorded, client.path)
   const fileInput = useRef<HTMLInputElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
   const [treeOpen, setTreeOpen] = useState(false)
@@ -394,9 +373,9 @@ function ClientFolderView(props: PanelProps & {
           placeholder={t('search.placeholder', { client: client.title })} disabled={state.connect !== 'ready'}
           onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
-          {built !== undefined && (
+          {firmClient !== null && (
             <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={css.act}
-              onClick={() => { void addClient.checkForNew(built.clientId) }} />
+              onClick={() => { void addClient.checkForNew(firmClient.clientId) }} />
           )}
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
             disabled={!writable} onClick={() => { model.startNewFolder() }} className={clsx(css.act, css.wide)} />

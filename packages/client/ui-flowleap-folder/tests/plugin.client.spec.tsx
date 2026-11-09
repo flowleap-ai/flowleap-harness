@@ -77,17 +77,10 @@ class Feed implements AsyncIterable<{ readonly value: { readonly kind: string };
   }
 }
 
-/** The builds that the Add client status route answers. */
-let builds: unknown[] = []
-
-/**
- * The Host's folder routes: the client folders are Syntegon's, each listing answers the entries of its folder, and the
- * Add client status answers `builds`.
- */
+/** The Host's folder routes: the client folders are Syntegon's, and each listing answers the entries of its folder. */
 function folderRoutes(listings: Record<string, unknown[]>) {
   const urls: string[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (url.includes('add-client/status')) return new Response(JSON.stringify({ builds }))
     if (url.endsWith('folder/clients')) return new Response(JSON.stringify({ workspaces: [SYNTEGON] }))
     urls.push(url)
     const path = new URL(url, 'http://firm.test/').searchParams.get('path') ?? ''
@@ -228,18 +221,17 @@ describe('ui-flowleap-folder browser half', () => {
     await ctx.fiber.dispose()
   })
 
-  it('opens the client folder of a build from Add client on the page', async () => {
-    builds = [{ clientId: '6f1c2a40-1b2c-4d3e-8f90-a1b2c3d4e5f6', name: 'Syntegon', state: 'failed', startedAt: '', workspace: SYNTEGON, families: 0, matters: 0, steps: {} }]
+  it('opens the client folder of a recorded client from Add client on the page', async () => {
     const { ctx, face, model } = await mounted()
-    const stop = face.addClient.follow()
-    // The first read of the builds runs in a timer task.
-    await vi.waitFor(() => { expect(face.addClient.state.builds).toHaveLength(1) })
-    face.addClient.openBuild('6f1c2a40-1b2c-4d3e-8f90-a1b2c3d4e5f6')
-    expect(face.addClient.openFolder()).toBe(true)
+    face.addClient.store.update((draft) => {
+      draft.view = {
+        page: 'record', clientId: '6f1c2a40-1b2c-4d3e-8f90-a1b2c3d4e5f6' as never, name: 'Syntegon', names: [], hits: 0, applications: [], batches: [],
+        parties: {}, folder: { state: 'made', workspace: SYNTEGON }, error: null,
+      }
+    })
+    expect(await face.addClient.openClientPage()).toBe(true)
     await settle()
     expect(model.state.workspaceId).toBe(SYNTEGON)
-    stop()
-    builds = []
     await ctx.fiber.dispose()
   })
 

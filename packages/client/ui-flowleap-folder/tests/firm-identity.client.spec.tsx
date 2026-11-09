@@ -12,11 +12,10 @@ import type {} from '../src/client/index.ts'
 import type { DocketAnswer, DocketState, FirmIdentity, FirmIdentityAnswer } from '../src/add-client/wire.ts'
 import type { FirmIdentityApi, HostResult } from '../src/client/add-client/api.ts'
 import { FirmIdentitySection, FirmIdentityView, type FirmIdentitySectionProps } from '../src/client/add-client/FirmIdentity.tsx'
-import { FirmIdentityModel, cleanIdentity, retryOf, type IdentityState } from '../src/client/add-client/identity-model.ts'
+import { FirmIdentityModel, POLL_MS, cleanIdentity, retryOf, type IdentityState } from '../src/client/add-client/identity-model.ts'
 import { en } from '../src/client/add-client/locales/index.ts'
 import { registerIdentityKeys } from '../src/client/keys.ts'
 import { de } from '../src/client/add-client/locales/de.ts'
-import { POLL_MS } from '../src/client/add-client/model.ts'
 
 afterEach(() => {
   cleanup()

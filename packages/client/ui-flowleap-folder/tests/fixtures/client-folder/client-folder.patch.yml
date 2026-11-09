@@ -1,0 +1,25 @@
+# Test-only patch over the shipped headless profile: the workspace registry and
+# the ui-flowleap-folder row as the flowleap-web bundle mounts it, with its
+# state and its client folders in the test's own folder and a batch size of 7.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- insert:
+    - id: workspace
+      name: '@deepseek-ai/dsh-workspace'
+
+    - id: ui-flowleap-folder
+      name: '@deepseek-ai/dsh-client-ui-flowleap-folder'
+      config:
+        stateDir: !!js process.cwd() + '/state'
+        clientsRoot: !!js process.cwd() + '/Clients'
+        recordBatchSize: 7

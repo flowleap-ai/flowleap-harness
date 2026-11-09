@@ -17,7 +17,7 @@ import type { ViewerReads } from '../src/client/viewer.tsx'
 import { dir, file, memoryFolder } from './memory-folder.client.ts'
 import { en as addClientEn } from '../src/client/add-client/locales/index.ts'
 import { AddClientModel } from '../src/client/add-client/model.ts'
-import { SYNTEGON_ID, buildStatus, fakeHost, fakeRecord, firmClient, okHost } from './add-client-fakes.client.ts'
+import { SYNTEGON_ID, fakeHost, fakeRecord, firmClient } from './add-client-fakes.client.ts'
 
 const SYNTEGON = 'ws-syntegon' as WorkspaceId
 const SESSION = 'session-syntegon' as SessionId
@@ -883,7 +883,6 @@ describe('the search by name', () => {
 
 describe('Add client on the client folder page', () => {
   const tick = () => act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0) }) })
-  const SCHUBERT_BUILD = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
 
   it('opens Add client from the Clients list, and goes back to the list', async () => {
     await mount({ clients: [] })
@@ -895,43 +894,20 @@ describe('Add client on the client folder page', () => {
     expect(screen.getByRole('heading', { level: 1, name: addClientEn.title })).toBeTruthy()
   })
 
-  it('shows each build on its client row, a row for a build with no folder yet, and the Watching list', async () => {
-    const host = fakeHost()
-    host.status.mockResolvedValue(okHost({ builds: [
-      buildStatus(SYNTEGON_ID, 'Syntegon', { workspace: SYNTEGON }),
-      buildStatus(SCHUBERT_BUILD, 'Gerhard Schubert', { steps: { ...buildStatus('x', 'x').steps, matters: { state: 'waiting', done: 0, total: 0, failed: [] } } }),
-      buildStatus('11111111-2222-4333-8444-555555555555', 'Neue GmbH', { state: 'failed' }),
-      buildStatus('22222222-2222-4333-8444-555555555555', 'Done AG', { state: 'done', workspace: 'ws-done' }),
-    ] }))
-    const firm = fakeRecord({ clients: [firmClient('33333333-2222-4333-8444-555555555555' as never, 'Watched AG', 'watch')] })
-    const { addClient, model } = await mount({ host, firm, clients: [client(SYNTEGON, 'Syntegon'), client('ws-done' as WorkspaceId, 'Done AG')] })
+  it('shows one row for each client folder, and the Watching list', async () => {
+    const firm = fakeRecord({ clients: [firmClient('33333333-2222-4333-8444-555555555555' as never, 'Watched AG', 'watch'), firmClient(SYNTEGON_ID, 'Syntegon')] })
+    const { model } = await mount({ firm, clients: [client(SYNTEGON, 'Syntegon'), client('ws-done' as WorkspaceId, 'Done AG')] })
     await tick()
     const list = screen.getByRole('list', { name: en['clients.listLabel'] })
-    expect(within(list).getAllByRole('button').map(row => row.textContent)).toEqual([
-      `Gerhard Schubert${addClientEn['list.buildStarting']}`,
-      `Neue GmbH${addClientEn['list.buildFailed']}`,
-      'SyntegonBuilding the folder · 9 / 16',
-      'Done AG',
-    ])
-    expect(within(screen.getByRole('list', { name: addClientEn['list.watchingLabel'] })).getByText('Watched AG')).toBeTruthy()
-    await click(within(list).getByRole('button', { name: /^Gerhard Schubert/ }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Building the Gerhard Schubert folder' })).toBeTruthy()
-    act(() => { addClient.close() })
-    await click(within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: /^Syntegon/ }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Building the Syntegon folder' })).toBeTruthy()
-    act(() => { addClient.close() })
-    await click(within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: 'Done AG' }))
+    expect(within(list).getAllByRole('button').map(row => row.textContent)).toEqual(['Syntegon', 'Done AG'])
+    expect(within(screen.getByRole('list', { name: addClientEn['list.watchingLabel'] })).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Watched AG'])
+    await click(within(list).getByRole('button', { name: 'Done AG' }))
     expect(model.state.workspaceId).toBe('ws-done')
   })
 
   it('says what an act did in a toast, and closes it', async () => {
     const { addClient } = await mount()
     const toasts = [
-      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: true, families: 15, matters: 16, files: 30 } }, 'Syntegon added: 16 matters in 15 families'],
-      [{ kind: 'client', name: 'Neue GmbH', matters: 1, families: 1, added: { client: true, families: 1, matters: 1, files: 1 } }, 'Neue GmbH added: 1 matter in 1 family'],
-      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: false, families: 0, matters: 0, files: 0 } }, 'Nothing changed for Syntegon: no new matter and no new data'],
-      [{ kind: 'client', name: 'Syntegon', matters: 17, families: 15, added: { client: false, families: 0, matters: 1, files: 3 } }, 'Syntegon updated: 1 new matter, 3 new dated files'],
-      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: false, families: 0, matters: 0, files: 1 } }, 'Syntegon updated: 0 new matters, 1 new dated file'],
       [{ kind: 'watch', name: 'Gerhard Schubert' }, 'Gerhard Schubert added to Watch'],
       [{ kind: 'party', name: 'Gerhard Schubert', applicationNumber: 'EP4292805A1' }, 'Gerhard Schubert added as a party to EP 4 292 805 A1'],
       [{ kind: 'failed', error: { kind: 'network' } }, addClientEn['error.network']],
@@ -945,9 +921,8 @@ describe('Add client on the client folder page', () => {
     expect(screen.queryByText(addClientEn['error.network'])).toBeNull()
   })
 
-  it('checks a client folder that Add client built for new matters, and names the folders and files that it wrote', async () => {
+  it('checks the client folder of a client for new matters, and names the folders and files that Add client wrote', async () => {
     const host = fakeHost()
-    host.status.mockResolvedValue(okHost({ builds: [buildStatus(SYNTEGON_ID, 'Syntegon', { state: 'done', workspace: SYNTEGON })] }))
     const at = '2026-11-08T14:02:00.000Z'
     const folder = memoryFolder({
       '': [
@@ -968,5 +943,13 @@ describe('Add client on the client folder page', () => {
     await click(button(addClientEn['folder.check']))
     expect(screen.getByRole('heading', { level: 1, name: 'Syntegon' })).toBeTruthy()
     expect(host.review).toHaveBeenCalledWith({ names: ['SYNTEGON TECHNOLOGY'], clients: [] })
+  })
+
+  it('offers no check for a folder whose client the Firm Record does not have', async () => {
+    const firm = fakeRecord({ clients: [firmClient(SYNTEGON_ID, 'Another Client')] })
+    const { open } = await mount({ firm })
+    await tick()
+    await open()
+    expect(screen.queryByRole('button', { name: addClientEn['folder.check'] })).toBeNull()
   })
 })

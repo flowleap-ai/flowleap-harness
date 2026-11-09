@@ -1,29 +1,30 @@
 /**
  * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
- * applications and possible conflicts, `build` starts the client folder build, `status` reports every build, `docket`
- * reports the state of the firm docket, `docket/read` reads it again, `identity` reports the firm identity with the
+ * applications and possible conflicts, `client-folder` makes the client folder of a recorded client, `settings` reports
+ * the batch size of the Firm Record commands, `docket` reports the state of the firm docket, `docket/read` reads it
+ * again, `identity` reports the firm identity with the
  * docket state, `identity/save` saves a new firm identity, which reads the docket again, and `client-names` takes the
  * names of the firm's clients for the opponent index. Only a firm administrator may save the identity, and `identity`
  * answers whether this request may; the docket routes stay open to every person, because they only read the public
  * register again for the saved identity. The routes read public data through the `flowleapPatentData` Service when the
- * runtime has it; without it, `find`, `review`, the docket routes and `client-names` say so, `build` makes the folder
- * with the template folders only, and a saved identity and the client names wait for the Service.
+ * runtime has it; without it, `find`, `review`, the docket routes and `client-names` say so, and a saved identity and
+ * the client names wait for the Service. `client-folder` reads no public data.
  * @module
  */
 
-import { PatentDataError, parseEpApplication, type EpApplicationNumber, type PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
+import { PatentDataError, type PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import { FolderError } from '../folder.ts'
 import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
-import { buildClientFolder, type BuildInput, type FolderTemplate } from './build.ts'
+import { makeClientFolder, type FolderTemplate } from './client-folder.ts'
 import type { FirmDocket } from './docket.ts'
 import type { FirmIdentityStore } from './identity-store.ts'
-import { BuildJobsStopped, messageOf, type BuildJobs } from './jobs.ts'
+import { messageOf } from './message.ts'
 import type { OpponentIndex } from './opponent-index.ts'
 import { review } from './review.ts'
 import {
-  ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type DocketAnswer, type FindAnswer,
-  type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type OpponentIndexAnswer, type StatusAnswer,
+  ADD_CLIENT_STATUS, type AddClientFailure, type AddClientFailureCode, type AddClientSettingsAnswer, type ClientFolderAnswer,
+  type DocketAnswer, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type OpponentIndexAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -46,13 +47,14 @@ export interface AddClientSettings {
   readonly maxRegisterRows: number
   /** The most rows of one date slice of the `op=` reads of the conflict check. */
   readonly registerSliceRows: number
+  /** The most applications in one batch command of the Firm Record, which the browser sends. */
+  readonly recordBatchSize: number
 }
 
 /** What the routes use. */
 export interface AddClientServices {
   /** The patent data Service now, or undefined while the runtime has none. */
   readonly data: () => PatentData | undefined
-  readonly jobs: BuildJobs<BuildInput>
   readonly docket: FirmDocket
   /** The applications that the names of the firm's clients opposed, for the conflict check. */
   readonly index: OpponentIndex
@@ -189,47 +191,29 @@ export class AddClientRoutes {
   }
 
   /**
-   * `POST build` with a a `BuildRequest`: start the client folder build and answer its status at once. The build
-   * goes on after the request ends. A build that runs for the client now is answered again, and it runs once more
-   * when it ends, with the names and applications of both requests.
+   * `POST client-folder` with a `ClientFolderRequest`: make the client folder of a client that the Firm Record has now,
+   * with the client template folders, the About file and its workspace, or find them.
    * @param request - the authenticated request.
-   * @returns the JSON answer, status 202.
+   * @returns the JSON answer.
    */
-  async build(request: Request): Promise<Response> {
+  async clientFolder(request: Request): Promise<Response> {
     const body = await bodyOf(request)
     const clientId = text(body.clientId, 'clientId')
     if (!CLIENT_ID.test(clientId)) throw new AddClientError('bad-request', 'clientId must be a lower-case UUID')
-    const name = text(body.name, 'name')
-    // A client name that no folder can have, even with its separators as `-`: the page words it.
-    if (clientFolderName(name) === undefined) throw new AddClientError('invalid-name', `the client name ${JSON.stringify(name)} cannot be a folder name`)
-    const applications = texts(body.applications, 'applications').map((item): EpApplicationNumber => {
-      const parsed = parseEpApplication(item)
-      if (parsed === undefined) throw new AddClientError('bad-request', `${item} is not an EP application number`)
-      return parsed
-    })
-    const input = { clientId, name, names: texts(body.names, 'names'), applications }
     const { services, settings } = this
-    let status
-    try {
-      status = await services.jobs.start(clientId, name, input, (job, request) => buildClientFolder(job, {
-        request, data: services.data(), clientsRoot: settings.clientsRoot, template: settings.folderTemplate,
-        maxRows: settings.maxRegisterRows, sources: services.sources, createWorkspace: services.createWorkspace,
-        now: services.now, log: services.log,
-      }))
-    } catch (error: unknown) {
-      // The jobs stop only when the plugin stops; the page asks again after the runtime is back.
-      if (error instanceof BuildJobsStopped) throw new AddClientError('stopped', 'the build jobs are stopped')
-      throw error
-    }
-    return json(status, 202)
+    const answer = await makeClientFolder({
+      request: { clientId, name: text(body.name, 'name'), names: texts(body.names, 'names') }, clientsRoot: settings.clientsRoot,
+      template: settings.folderTemplate.client, sources: services.sources, createWorkspace: services.createWorkspace, now: services.now,
+    })
+    return json(answer satisfies ClientFolderAnswer)
   }
 
   /**
-   * `GET status`: every build that this plugin ran.
+   * `GET settings`: the Add client settings that the browser uses.
    * @returns the JSON answer.
    */
-  async status(): Promise<Response> {
-    return json({ builds: await this.services.jobs.all() } satisfies StatusAnswer)
+  settingsAnswer(): Response {
+    return json({ recordBatchSize: this.settings.recordBatchSize } satisfies AddClientSettingsAnswer)
   }
 
   /**

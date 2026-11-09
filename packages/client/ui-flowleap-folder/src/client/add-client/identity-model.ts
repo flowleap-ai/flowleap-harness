@@ -9,7 +9,9 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { DocketAnswer, DocketReadRequest, DocketState, FirmIdentity, RefreshState } from '../../add-client/wire.ts'
 import type { FirmIdentityApi, HostFailure } from './api.ts'
-import { POLL_MS } from './model.ts'
+
+/** How often the section reads the docket state while a read runs. */
+export const POLL_MS = 1000
 
 /** The three lists of the firm identity, in the order of the section. */
 export const IDENTITY_LISTS = ['names', 'addresses', 'representatives'] as const

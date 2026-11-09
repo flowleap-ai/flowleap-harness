@@ -6,7 +6,7 @@
  * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
  * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The Add client routes under
  * `add-client/` read the public patent data through the optional `flowleapPatentData` Service, behind one limiter of
- * `opsRequestsPerMinute`, and build a client folder inside `clientsRoot` as a job that goes on after its request ends.
+ * `opsRequestsPerMinute`, and make a client folder inside `clientsRoot` with the client template folders only.
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
  * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
  * in `stateDir`, which reads the docket again; only a request that the optional `flowleapAdmin` Service names as of a
@@ -28,10 +28,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { widenBuild, type FolderTemplate } from './add-client/build.ts'
+import type { FolderTemplate } from './add-client/client-folder.ts'
 import { FirmDocket } from './add-client/docket.ts'
 import { FirmIdentityStore } from './add-client/identity-store.ts'
-import { BuildJobs } from './add-client/jobs.ts'
 import { RequestLimiter, limitedPatentData, systemClock } from './add-client/limiter.ts'
 import { OpponentIndex } from './add-client/opponent-index.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
@@ -46,9 +45,9 @@ import { sourceStore, trashStore, type RecordStore, type TrashOrigin } from './s
 
 export { FOLDER_API, FOLDER_ROUTES, TRASH, isTrashPath } from './route.ts'
 export type * from './route.ts'
-export { ADD_CLIENT_API, ADD_CLIENT_ROUTES, BUILD_STEPS } from './add-client/wire.ts'
+export { ADD_CLIENT_API, ADD_CLIENT_ROUTES } from './add-client/wire.ts'
 export type * from './add-client/wire.ts'
-export type { FolderTemplate } from './add-client/build.ts'
+export type { FolderTemplate } from './add-client/client-folder.ts'
 
 /** Cordis plugin name. */
 export const name = 'ui-flowleap-folder'
@@ -68,9 +67,12 @@ export interface Config {
   maxSearchHits: number
   /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
   storageLowFlagPath: string
-  /** The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. */
+  /** The absolute folder that holds the client folders that Add client makes; every Add client write stays in it. */
   clientsRoot: string
-  /** The folders that Add client makes in each client folder and each matter folder. */
+  /**
+   * The folders of the firm's template: Add client makes `client` in each client folder. `matter` and `publicData` are
+   * for the matter folder that a later change makes when work on a matter starts; the row checks them now.
+   */
   folderTemplate: FolderTemplate
   /**
    * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
@@ -95,6 +97,11 @@ export interface Config {
   registerSliceRows: number
   /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
   opsRequestsPerMinute: number
+  /**
+   * The most applications in one batch command that the browser sends to the Firm Record. The Firm Record refuses a
+   * larger batch than its own `clients.recordBatchSize` with that maximum, and the browser then splits by it.
+   */
+  recordBatchSize: number
 }
 
 /** One day in milliseconds. */
@@ -123,6 +130,7 @@ export const Config: z<Config> = z.object({
   docketCheckAge: z.natural().role('ms').min(1).default(DAY_MS),
   registerSliceRows: z.natural().min(1).max(2000).default(2000),
   opsRequestsPerMinute: z.natural().min(1).default(20),
+  recordBatchSize: z.natural().min(1).max(500).default(100),
 })
 
 /**
@@ -391,9 +399,7 @@ export function apply(ctx: Context, config: Config): void {
   const sources = sourceStore(config.stateDir)
   const routes = new FolderRoutes(ctx, config, sources, trashStore(config.stateDir))
   const warn = (message: string) => { ctx.logger.warn(message) }
-  const jobs = new BuildJobs(path.join(config.stateDir, 'builds'), () => new Date(), warn, widenBuild)
-  ctx.effect(() => () => jobs.dispose(), 'ui-flowleap-folder: Add client builds')
-  // The patent data plugin is optional: without it, Add client adds a client by name with the template folders.
+  // The patent data plugin is optional: without it, Add client adds a client by name only.
   let service: PatentData | undefined
   const limiter = new RequestLimiter(config.opsRequestsPerMinute, systemClock)
   const data = (): PatentData | undefined => service === undefined ? undefined : limitedPatentData(service, limiter)
@@ -426,7 +432,7 @@ export function apply(ctx: Context, config: Config): void {
     return admin === undefined ? false : admin.isAdmin(request)
   }
   const addClient = new AddClientRoutes(config, {
-    data, jobs, docket, index, identity, isAdmin, sources, now: () => new Date(), log: warn,
+    data, docket, index, identity, isAdmin, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -450,8 +456,8 @@ export function apply(ctx: Context, config: Config): void {
   }
   registerAddClient(ADD_CLIENT_ROUTES.find, 'GET', request => addClient.find(request))
   registerAddClient(ADD_CLIENT_ROUTES.review, 'POST', request => addClient.review(request))
-  registerAddClient(ADD_CLIENT_ROUTES.build, 'POST', request => addClient.build(request))
-  registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
+  registerAddClient(ADD_CLIENT_ROUTES.clientFolder, 'POST', request => addClient.clientFolder(request))
+  registerAddClient(ADD_CLIENT_ROUTES.settings, 'GET', () => Promise.resolve(addClient.settingsAnswer()))
   registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())
   registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
   registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', request => addClient.identity(request))
