@@ -10,8 +10,9 @@
  * @module
  */
 
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { BUILD_STEPS, type BuildAdded, type BuildStatus, type BuildStep, type BuildStepId } from './wire.ts'
 
 /** What a running build reports. */
@@ -300,16 +301,14 @@ export class BuildJobs<R> {
     }
   }
 
-  /** Write one status after the earlier writes of the same client, through a renamed file. */
+  /**
+   * Write one status after the earlier writes of the same client, through a renamed file. On Windows the rename can
+   * meet a `status` read that holds the file open; `writeFileAtomic` tries it again.
+   */
   private save(status: BuildStatus): Promise<void> {
     const before = this.writes.get(status.clientId) ?? Promise.resolve()
-    const next = before.catch(() => undefined).then(async () => {
-      const file = this.fileOf(status.clientId)
-      await mkdir(this.dir, { recursive: true })
-      const temporary = `${file}.${process.pid}.tmp`
-      await writeFile(temporary, `${JSON.stringify(status, null, 2)}\n`, 'utf8')
-      await rename(temporary, file)
-    })
+    const next = before.catch(() => undefined).then(() =>
+      writeFileAtomic(this.fileOf(status.clientId), `${JSON.stringify(status, null, 2)}\n`, { mode: 0o600 }))
     this.writes.set(status.clientId, next)
     return next
   }

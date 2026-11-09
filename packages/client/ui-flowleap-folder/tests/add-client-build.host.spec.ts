@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
@@ -12,6 +12,22 @@ import { ClientFolder, FolderError } from '../src/folder.ts'
 import { folderNameOf } from '../src/route.ts'
 import { isSource, sourceStore } from '../src/sources.ts'
 import { FakePatentData, app, pub, row, wo } from './patent-data.host.ts'
+
+// A folder whose writes fail with EACCES: `chmod` locks no folder on Windows, so the disk fault is made here.
+const locked = vi.hoisted(() => ({ folder: undefined as string | undefined }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  const paths = await import('node:path')
+  const denied = (target: unknown) => locked.folder !== undefined && paths.dirname(String(target)) === locked.folder
+    ? Promise.reject(Object.assign(new Error(`EACCES: permission denied, ${String(target)}`), { code: 'EACCES' }))
+    : undefined
+  return {
+    ...actual,
+    mkdir: (...args: Parameters<typeof actual.mkdir>) => denied(args[0]) ?? actual.mkdir(...args),
+    writeFile: (...args: Parameters<typeof actual.writeFile>) => denied(args[0]) ?? actual.writeFile(...args),
+  }
+})
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
 const TEMPLATE = { client: ['00 Client'], matter: ['Client', 'Office'], publicData: 'Office' }
@@ -378,10 +394,12 @@ describe('ClientFolder writes of Add client', () => {
     await expect(folder.ensure('', 'Office')).rejects.toMatchObject({ code: 'not-found' })
     await mkdir(root)
     await mkdir(path.join(root, 'Office'))
-    const locked = path.join(root, 'Office')
-    await import('node:fs/promises').then(fs => fs.chmod(locked, 0o500))
-    await expect(folder.ensure('Office', 'Sub')).rejects.toMatchObject({ code: 'EACCES' })
-    await expect(folder.writeNew('Office', 'a.md', 'x')).rejects.toMatchObject({ code: 'EACCES' })
-    await import('node:fs/promises').then(fs => fs.chmod(locked, 0o700))
+    locked.folder = await realpath(path.join(root, 'Office'))
+    try {
+      await expect(folder.ensure('Office', 'Sub')).rejects.toMatchObject({ code: 'EACCES' })
+      await expect(folder.writeNew('Office', 'a.md', 'x')).rejects.toMatchObject({ code: 'EACCES' })
+    } finally {
+      locked.folder = undefined
+    }
   })
 })

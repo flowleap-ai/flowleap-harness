@@ -58,6 +58,8 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   // Builds a dispatcher from the resolved proxy policy; the caller owns and closes it.
   '@deepseek-ai/dsh-http-proxy': ['createRouteDispatcher'],
   // The Liveshare wire codec and identity helpers are stateless functions over caller-owned values.
+  // Stateless string normalizers of EP application numbers and applicant names.
+  '@deepseek-ai/dsh-flowleap-connectors': ['normalizeName', 'parseEpApplication'],
   '@deepseek-ai/dsh-experimental-liveshare-protocol': [
     'LIVESHARE_CAPABILITIES', 'LIVESHARE_PROTOCOL_VERSION', 'parseRelayFrame', 'parseShareAccessState',
     'parseTunnelWorkerCommand', 'parseTunnelWorkerEvent', 'rawText', 'sendFrame', 'unsupportedFrameRefusal',
@@ -82,6 +84,8 @@ const PEER_REQUIRED_HOST_EXPORTS = {
   '@deepseek-ai/dsh-user-questions': ['UserQuestionError'],
   // `instanceof` checks need the translator's own class instance.
   '@deepseek-ai/dsh-experimental-translator': ['TranslationError'],
+  // Add client matches failures of the flowleapPatentData service with `instanceof PatentDataError`.
+  '@deepseek-ai/dsh-flowleap-connectors': ['PatentDataError'],
   // Stateless; a safe classification would turn the forge panel's forge and worktree peers into dependencies.
   '@deepseek-ai/dsh-experimental-forge': ['changeRequestKey'],
   '@deepseek-ai/dsh-experimental-worktree': ['generatedWorktreeName'],

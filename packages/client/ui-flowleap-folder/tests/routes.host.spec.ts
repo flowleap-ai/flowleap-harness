@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -6,6 +6,19 @@ import { Context } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import { ADD_CLIENT_ROUTES, apply, Config, FOLDER_ROUTES, inject, type FolderListing } from '../src/index.ts'
 import { sourceStore, trashStore } from '../src/sources.ts'
+
+// A path whose real path cannot be read: Windows reports a path below a file as missing, so the fault is made here.
+const unreadable = vi.hoisted(() => ({ path: undefined as string | undefined }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    realpath: (...args: Parameters<typeof actual.realpath>) => String(args[0]) === unreadable.path
+      ? Promise.reject(Object.assign(new Error(`EACCES: permission denied, ${String(args[0])}`), { code: 'EACCES' }))
+      : actual.realpath(...args),
+  }
+})
 
 const WORKSPACE = '6f1c2a40-0000-4000-8000-000000000001'
 
@@ -108,10 +121,14 @@ describe('ui-flowleap-folder Host half', () => {
   })
 
   it('answers 500 when clientsRoot cannot be read', async () => {
-    await writeFile(path.join(base, 'a file'), '')
-    await load({ clientsRoot: path.join(base, 'a file', 'Clients') })
-    const response = await call(FOLDER_ROUTES.clients)
-    expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
+    unreadable.path = path.join(base, 'Locked clients')
+    try {
+      await load({ clientsRoot: unreadable.path })
+      const response = await call(FOLDER_ROUTES.clients)
+      expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
+    } finally {
+      unreadable.path = undefined
+    }
   })
 
   it('lists a folder as JSON that is never cached', async () => {

@@ -9,7 +9,7 @@ import clsx from 'clsx'
 import {
   Button, IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconCloseOutlineRegular,
   IconDeliverDocRegular, IconFolderCloseRegular, IconInfoOutlineRegular, IconLinkOutlineRegular, IconSearchOutlineRegular,
-  IconSettingsOutlineRegular, IconUserOutlineRegular, IconWarningTriangleOutlineRegular, Keycap, SegmentedControl,
+  IconSettingsOutlineRegular, IconUserOutlineRegular, IconWarningTriangleOutlineRegular, Keycap, MenuSurface, SegmentedControl,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConflictHit, ReferenceRow } from '../../add-client/wire.ts'
 import panel from '../Panel.module.css'
@@ -335,20 +335,22 @@ function OtherSection({ t, view, model, retryKeycaps }: ReviewProps) {
         <input className={clsx(css.field, css.pickField)} type="search" value={query} aria-label={t('other.find')} placeholder={t('other.find')}
           onChange={(event) => { setQuery(event.currentTarget.value) }} />
       </div>
-      <ul className={css.pickList} role="listbox" aria-label={t('other.find')}>
-        {matters.length === 0 && <li className={css.pickFoot}>{t('other.empty')}</li>}
-        {matters.length > 0 && shown.length === 0 && <li className={css.pickFoot}>{t('other.none')}</li>}
-        {shown.map(matter => (
-          <li key={matter.applicationNumber}>
-            <button type="button" className={css.pickItem} role="option" aria-selected={other.applicationNumber === matter.applicationNumber}
-              onClick={() => { model.setOther(matter.applicationNumber, other.role) }}>
-              <span className={css.key}>{applicationLabel(matter.applicationNumber)}</span>
-              <span className={clsx(css.cell, css.text)}>{matter.title ?? matter.client}</span>
-            </button>
-          </li>
-        ))}
-        {matters.length > 0 && <li className={css.pickFoot}>{t('other.foot')}</li>}
-      </ul>
+      <MenuSurface compact className={css.pickMenu}>
+        <ul className={css.pickList} role="listbox" aria-label={t('other.find')}>
+          {matters.length === 0 && <li className={css.pickFoot}>{t('other.empty')}</li>}
+          {matters.length > 0 && shown.length === 0 && <li className={css.pickFoot}>{t('other.none')}</li>}
+          {shown.map(matter => (
+            <li key={matter.applicationNumber}>
+              <button type="button" className={css.pickItem} role="option" aria-selected={other.applicationNumber === matter.applicationNumber}
+                onClick={() => { model.setOther(matter.applicationNumber, other.role) }}>
+                <span className={css.key}>{applicationLabel(matter.applicationNumber)}</span>
+                <span className={clsx(css.cell, css.text)}>{matter.title ?? matter.client}</span>
+              </button>
+            </li>
+          ))}
+          {matters.length > 0 && <li className={css.pickFoot}>{t('other.foot')}</li>}
+        </ul>
+      </MenuSurface>
       <div className={css.fieldLabel}>{t('other.role')}</div>
       <SegmentedControl id="add-client-matter-role" className={css.inlineSeg} label={t('other.role')} value={other.role}
         options={OTHER_ROLES.map(role => ({ value: role, label: t(`other.role.${role}`) }))}
