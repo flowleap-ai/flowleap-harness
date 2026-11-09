@@ -33,6 +33,9 @@
       for (const r of rows) r.hidden = !page.includes(r);
       for (const r of page) table.tBodies[0].append(r);
       if (none) none.hidden = shown.length > 0;
+      // An example table has fewer rows than its total: say so where the rows end.
+      const more = wrap.querySelector('.dt-more');
+      if (more) more.hidden = page.length >= Math.min(view.size, total - first);
       foot.querySelector('[data-range]').textContent = total ? `${fmt(first + 1)}–${fmt(Math.min(first + view.size, total))} ${de ? 'von' : 'of'} ${fmt(total)}` : (de ? '0 von 0' : '0 of 0');
       foot.querySelector('.dt-prev').setAttribute('aria-disabled', String(view.page === 0));
       foot.querySelector('.dt-next').setAttribute('aria-disabled', String(view.page >= pages - 1));

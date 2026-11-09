@@ -22,15 +22,15 @@ Then open `http://localhost:8000/flowleap/docs/mockups/client-model/0-clients.ht
 4. The review: 16 matters, the conflict check, the role → **Add client**.
 5. Record: the progress; the page goes on by itself.
 6. Record done → **Open client page**.
-7. The client page, Applications tab → the row EP 23 171 862.
-8. The page of that application: its story, its matter folder and the chat placeholder → **Next**.
-9. An application with no work yet: its story and the empty matter folder → **Syntegon** in the top bar.
-10. The client page → **Files**.
+7. The client page, Applications tab, with no matter folder yet → the row EP 23 171 862.
+8. That application with no work yet: its story and no matter folder → **Upload files** (the client's instruction letter).
+9. The first file made the matter folder; the chat is a placeholder → **Syntegon** in the top bar.
+10. The client page, where EP 23 171 862 now has a matter folder → **Files**.
 11. The Files tab → **Clients** in the sidebar.
-12. The Clients list with Syntegon → the row **Syntegon** (the way in to an existing client).
+12. The Clients list with Syntegon (16 applications, 1 matter folder) → the row **Syntegon** (the way in to an existing client).
 13. The client page again: the end.
 
-The walkthrough is in English. The German pages follow when the founder agrees with the English flow. Without `?walk` the pages are plain mockups; the tables sort, filter and page, and a row opens its page.
+The walkthrough is in English. The German pages follow when the founder agrees with the English flow. During the walkthrough, a link other than the marked control does not leave it; the panel gets an outline instead. Without `?walk` the pages are plain mockups; the tables sort, filter and page, and each row opens its own application.
 
 ## Pages
 
@@ -39,13 +39,13 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 | Page | What it shows | States |
 |---|---|---|
 | [0-clients.html](0-clients.html) | The Clients list as a data table: client, role, applicant names, EP applications at your firm, matter folders, added; **Add client** | `after` (Syntegon added, with the toast) |
-| [1-client-applications.html](1-client-applications.html) | The Syntegon client page, Applications tab: the client, its role and its applicant names; the client's instructions and wishes (empty: what goes there and how it fills); **At your firm** and **At other firms**; the 16 applications in a data table with application, publication, title, status, next deadline, last register event with its date, representative changed and matter folder; sortable headers, a filter bar (text, status, matter folder) and pagination; the sources with their times | `instructions` (3 instructions with their sources), `search` (**At other firms**: the live count and a search, with **This is ours**), `myepo` (later: the firm's file numbers and the MyEPO source line), `loading` (skeleton rows), `error` (the EP Register did not answer; the times of the last read and **Try again**), `empty` (Gerhard Schubert: no EP application at your firm), `large` (Siemens: "1–25 of 1,132") |
+| [1-client-applications.html](1-client-applications.html) | The Syntegon client page, Applications tab: the client, its role and its applicant names; the client's instructions and wishes (empty: what goes there and how it fills); **At your firm** and **At other firms**; the 16 applications in a data table with application, publication, title, status, next deadline, last register event with its date, representative changed and matter folder; sortable headers, a filter bar (text, status, matter folder) and pagination; the sources with their times | `work` (after the first file: EP 23 171 862 has a matter folder), `instructions` (3 instructions with their sources), `search` (**At other firms**: the live count and a search, with **This is ours**), `myepo` (later: the firm's file numbers and the MyEPO source line), `loading` (skeleton rows), `error` (the EP Register did not answer; the times of the last read and **Try again**), `empty` (Gerhard Schubert: no EP application at your firm), `large` (Siemens: "1–25 of 1,132" over 12 example rows, and a line that says where the example rows end) |
 | [2-client-files.html](2-client-files.html) | The Files tab: the client folder page with only `00 Client` and `About this folder.md`, and the line that says when a matter folder appears | `work` (the folder of EP 23 171 862 after a person dropped the first file on it) |
 | [3-find.html](3-find.html) | Step 1: the group of 5 Syntegon names, each with **At your firm** and **Matching EP applications**, and the docket line | `empty` (no name typed yet), `reading` (progress; skeleton counts; **Continue** waits and says why), `partial` (one query failed; "at least" and **Try again**), `failed` (no count at your firm, **Try again**, and why **Continue** waits), `none` (no firm identity; a link to the setting), `large` (Siemens with "10,000+") |
 | [4-review.html](4-review.html) | Step 2: "16 EP matters at your firm" from the docket, the matters with a checkbox, the conflict check, the count at other firms with the search field, and the decision bar | `address` (one row matched by address only, in its own group), `search` (a search among the applications at other firms), `large` (Siemens) |
 | [5-record.html](5-record.html) | Step 3, **Record**: the client record, the conflict check, the 16 applications in 1 batch, and "Keep this page open until the records are written" | `large` (batch 8 of 12), `failed` (batch 8 failed; **Try again** records only the missing batches), `done` (**Open client page**) |
 | [6-firm-identity.html](6-firm-identity.html) | Settings, Firm identity: the line on what FlowLeap sends, the docket state with its read time, and the firm's names, addresses and representatives | `reading`, `partial`, `failed`, `empty` (no firm identity; **Save** waits for a value and then starts the first read) |
-| [7-matter.html](7-matter.html) | One application of the client, EP 23 171 862: its status, publication, applicant and representative change; its story from the EP Register and the Firm Record; its matter folder with one dropped file; and the chat, marked **Placeholder** | `empty` (EP 23 215 725: the story, no matter folder yet, and how the first file makes it) |
+| [7-matter.html](7-matter.html) | One application of the client, EP 23 171 862, after the first file: its status, publication, applicant and representative change; its story from the EP Register and the Firm Record; its matter folder with the instruction letter; and the chat, marked **Placeholder** | One state for each application of the table, named by its number (such as `EP23215725`): its story and no matter folder yet; the 12 Siemens rows are marked **Example** |
 
 The decision bar of the review holds the one primary action, **Add client** `⇧⌘↵`. The client page, the Files tab and the application page have **Ask about this**, the Clients list has **Add client**, step 1 has **Continue**, the Record step has **Open client page**, and the setting has **Save**; none of these has a key. **Try again** has `R`. From 1080 px down, the top bar acts that do not fit go into the overflow button.
 

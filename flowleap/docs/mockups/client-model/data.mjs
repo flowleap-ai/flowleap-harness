@@ -62,7 +62,7 @@ export const LARGE = {
   ],
 };
 /** A client with no EP application at your firm: Gerhard Schubert (pa="Gerhard Schubert": 57, none at your firm). */
-export const EMPTY = { client: 'Gerhard Schubert', names: ['Gerhard Schubert GmbH'], others: 57 };
+export const EMPTY = { client: 'Gerhard Schubert', names: ['Gerhard Schubert GmbH'], others: 57, added: '2026-11-08' };
 /** The EP Register events of the two applications that the walkthrough opens (get_register_events, 2026-11-09). */
 export const EVENTS = {
   EP23171862: [['2024-12-13', 'Examination is in progress'], ['2024-03-01', 'Request for examination was made'], ['2023-11-17', 'The application has been published']],
