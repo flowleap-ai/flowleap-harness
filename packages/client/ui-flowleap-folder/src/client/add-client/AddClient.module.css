@@ -4,7 +4,8 @@
 .work {
   flex: 1;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* The top bar, the scroll area, and the decision bar of the review page. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   min-width: 0;

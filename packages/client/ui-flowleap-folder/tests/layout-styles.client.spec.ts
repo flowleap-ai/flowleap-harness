@@ -32,3 +32,12 @@ describe('client folder page layout', () => {
     expect(block('@container folder-page (max-width: 1080px)')).toMatch(/\.act \.actLabel \{ max-width: 0; \}/)
   })
 })
+
+describe('Add client page layout', () => {
+  const addClient = readFileSync(fileURLToPath(new URL('../src/client/add-client/AddClient.module.css', import.meta.url)), 'utf8')
+
+  it('gives the top bar and the decision bar their own height and the scroll area the rest', () => {
+    // The page parts are the top bar, the scroll area and, on the review page, the decision bar (`add-client-page.client.spec.tsx`).
+    expect(/\n\.work \{[^}]*grid-template-rows:\s*([^;]+);/u.exec(addClient)?.[1]).toBe('auto minmax(0, 1fr) auto')
+  })
+})

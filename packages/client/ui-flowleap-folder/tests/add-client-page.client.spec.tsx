@@ -472,3 +472,18 @@ describe('page 4: the build', () => {
     expect(screen.getByRole('alert').textContent).toContain(en['error.service'])
   })
 })
+
+describe('the page parts', () => {
+  /** The parts of the page in order, which the rows of the `.work` grid follow (`layout-styles.client.spec.ts`). */
+  const parts = () => [...screen.getByTestId('add-client').children].map(child => child.tagName === 'HEADER' ? 'top bar' : /scroll|dock/u.exec(child.className)?.[0])
+
+  it('puts the top bar first, then the scroll area, then the decision bar on the review page', async () => {
+    const s = mount({ clients: [] })
+    act(() => { s.model.start() })
+    expect(parts()).toEqual(['top bar', 'scroll'])
+    await review(s, 'Syntegon')
+    expect(parts()).toEqual(['top bar', 'scroll', 'dock'])
+    await s.set({ page: 'build', clientId: SYNTEGON_ID, name: 'Syntegon', request: null, recorded: null, status: null, error: null })
+    expect(parts()).toEqual(['top bar', 'scroll'])
+  })
+})
