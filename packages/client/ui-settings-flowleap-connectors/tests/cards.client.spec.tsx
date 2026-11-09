@@ -36,7 +36,7 @@ function state(overrides: Partial<Record<ConnectorId, Partial<ConnectorCardState
   return { status, cards, anyConfigured: CONNECTOR_IDS.some(id => cards[id].configured) }
 }
 
-function renderSection(initial: ConnectorsState) {
+function renderSection(initial: ConnectorsState, myEpo: Partial<MyEpoState> = {}) {
   const store = createSnapshotStore(initial)
   const controller = {
     load: vi.fn(() => Promise.resolve()), edit: vi.fn(), save: vi.fn(() => Promise.resolve(true)),
@@ -44,6 +44,7 @@ function renderSection(initial: ConnectorsState) {
   } satisfies ConnectorsSectionController
   const myEpoStore = createSnapshotStore<MyEpoState>({
     status: 'ready', link: { state: 'not-linked', writable: true }, draft: { clientId: '', clientSecret: '' }, busy: 'idle', replacing: false,
+    ...myEpo,
   })
   const myEpoController = {
     load: vi.fn(() => Promise.resolve()), edit: vi.fn(), link: vi.fn(() => Promise.resolve(undefined)),
@@ -58,6 +59,27 @@ function renderSection(initial: ConnectorsState) {
 }
 
 describe('ConnectorsSection', () => {
+  it('passes each act of the MyEPO card to its controller', async () => {
+    const draft = { clientId: 'id', clientSecret: 'secret' }
+    const notLinked = renderSection(state(), { draft })
+    fireEvent.change(screen.getByLabelText(en.myEpoClientId), { target: { value: 'id2' } })
+    expect(notLinked.myEpoController.edit).toHaveBeenCalledWith('clientId', 'id2')
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoSaveTest }))
+    expect(notLinked.myEpoController.link).toHaveBeenCalledTimes(1)
+    cleanup()
+    const linked = renderSection(state(), {
+      link: { state: 'linked', writable: true, testedAt: '2026-11-09T12:00:00.000Z', portfolios: 6, mailbox: true },
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoTest }))
+    expect(linked.myEpoController.test).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoMore }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: en.myEpoReplace }))
+    expect(linked.myEpoController.replace).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoMore }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: en.myEpoUnlink }))
+    expect(linked.myEpoController.unlink).toHaveBeenCalledTimes(1)
+  })
+
   it('renders one write-only card per connector and loads presence on mount', () => {
     const { controller, myEpoController } = renderSection(state())
     expect(controller.load).toHaveBeenCalledTimes(1)
