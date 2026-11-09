@@ -152,6 +152,7 @@
 /* The application table lays out by these widths, so the title takes the rest and no column shrinks below its words. */
 .dt:has(th.c-app) { table-layout: fixed; }
 .dt th, .dt td { box-sizing: border-box; }
+.dt th { overflow: hidden; }
 .dt th.c-app { width: 112px; }
 .dt th.c-file { width: 88px; }
 .dt th.c-pub { width: 120px; }
@@ -200,6 +201,7 @@
 .walk-f { display: flex; gap: 8px; justify-content: flex-end; }
 .walk-f a { text-decoration: none; }
 .walk-target, .walk.nudge { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+tr.walk-target { outline-offset: -2px; }
 
 @media (max-width: 1080px) {
   .dt .w-md { display: none; }

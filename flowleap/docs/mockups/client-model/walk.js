@@ -43,6 +43,7 @@
   const el = target && target !== 'auto' && [...document.querySelectorAll(target)].find(e => e.offsetParent !== null);
   if (el) {
     el.classList.add('walk-target');
+    el.scrollIntoView({ block: 'nearest' });
     el.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); go(n + 1); }, true);
   }
   // During the walkthrough, a link other than the marked control does not leave it: the panel says what to click.
