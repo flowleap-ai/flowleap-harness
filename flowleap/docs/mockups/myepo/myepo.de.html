@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyEPO-Anbindung</title>
+<!-- Generated from build.mjs: edit that file and run node build.mjs, never this file -->
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<link rel="stylesheet" href="myepo.css">
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="settings"></nav>
+  <main class="main"><section class="panel"><div class="behind"></div></section></main>
+</div>
+<div class="overlay" role="presentation">
+  <div class="mask" aria-hidden="true"></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dlg-title" id="dlg-title" data-dlg-title></div>
+    <div class="dlg-header"><span class="btn btn-secondary" role="button">Konfigurationsdatei öffnen</span><span class="iconbtn" data-i="x" role="button" aria-label="Schließen"></span></div>
+    <nav class="dlg-nav" data-nav="connectors"></nav>
+    <div class="dlg-options">
+      <h2 class="sec-title">Anbindungen</h2>
+      <p class="sec-intro">FlowLeap liest das EPA-Konto Ihrer Kanzlei und die Patentdatendienste mit den eigenen Schlüsseln der Kanzlei. Die Schlüssel bleiben im Zugangsdatenspeicher, nie in der Einstellungsdatei, und FlowLeap zeigt sie nach dem Speichern nie wieder an.</p>
+      <div class="grp-h">EPA-Konto Ihrer Kanzlei</div>
+      <div class="ccard myepo" data-state="default">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="idle"></span>Nicht verbunden</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="label-12">Was FlowLeap liest</div><ul class="reads">
+  <li data-i="matters"><div><div class="w">EP-Anmeldungen</div><div class="d">Mit Ihren Aktenzeichen, aus den Portfolios, die das Konto lesen darf.</div></div></li>
+  <li data-i="mail"><div><div class="w">Mailbox-Briefe</div><div class="d">Mit der Anmeldenummer, Ihrem Zeichen und der Art des Schriftstücks.</div></div></li>
+  <li data-i="cal"><div><div class="w">Fristen des EPA</div><div class="d">Eine Prüfung Ihrer Fristen. Ihre Frist bleibt die Quelle.</div></div></li>
+  <li data-i="fee"><div><div class="w">Offene Gebühren</div><div class="d">Für jede Anmeldung, mit Betrag und Fälligkeit.</div></div></li>
+</ul>
+<div class="line" data-i="shield"><div><span class="lead">FlowLeap liest nur.</span> Es zahlt keine Gebühren, unterschreibt nicht, sendet nichts an das EPA und markiert keinen Brief als erledigt. Das Client-Secret bleibt auf dieser Installation und geht nie an den Agenten oder in ein Protokoll.</div></div>
+<div class="line" data-i="info"><div><span class="lead">Mailbox-Briefe in den Eingang kommen später.</span> Wenn Sie ihn einschalten, ist jeder Brief, den FlowLeap herunterlädt, in MyEPO als gelesen markiert. Er bleibt dort unerledigt.</div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chevd">Konto beim EPA einrichten<span class="right">Ihre MyEPO-Administration macht das einmal</span></div>
+<ol class="guide">
+  <li><div><div class="w">API-Zugang beim EPA anfragen</div><div class="d">Die Unternehmensadministration Ihrer Kanzlei in MyEPO schreibt an <span data-address>support@epo.org</span> und fragt nach Produktions-Zugangsdaten für die MyEPO-API. Das EPA sendet eine Client-ID und ein Client-Secret an die Administration.</div></div></li>
+  <li><div><div class="w">Dem Konto nur diese Rechte geben</div><div class="d">Öffnen Sie in MyEPO <span class="path"><span data-verbatim>Admin area › Group members</span></span> und wählen Sie das API-Konto.</div><div class="mtbl rights" role="table">
+  <div class="tr th" role="row"><span role="columnheader">Recht in MyEPO</span><span role="columnheader">Einstellung</span><span role="columnheader">Warum</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Mailbox access</span></span><span role="cell" class="set" data-i="check">Ja</span><span role="cell" class="c2">Die API liest die Mailbox nur mit diesem Recht.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Fee payment rights</span></span><span role="cell" class="set" data-i="minus">Keine Rechte</span><span role="cell" class="c2">FlowLeap zahlt keine Gebühren.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Admin rights</span></span><span role="cell" class="set" data-i="minus">Nein</span><span role="cell" class="c2">Das Konto darf keine Mitglieder oder Rechte ändern.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Signing rights</span></span><span role="cell" class="set" data-i="minus">Nein</span><span role="cell" class="c2">FlowLeap unterschreibt nicht.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Sending rights</span></span><span role="cell" class="set" data-i="minus">Nein</span><span role="cell" class="c2">FlowLeap sendet nichts an das EPA.</span></div>
+</div></div></li>
+  <li><div><div class="w">Freigabe für Ihre Portfolios geben</div><div class="d">Geben Sie dem API-Konto unter <span class="path"><span data-verbatim>Applications and patents</span></span> die Freigabe für jedes Portfolio, das FlowLeap lesen darf. Ohne Freigabe liest FlowLeap keine Anmeldung.</div></div></li>
+</ol>
+<div class="line"><span class="ext" data-i="external">EPA-Leitfaden: APIs für IP-Management-Systeme</span></div></div>
+<div class="ccard-part"><div class="label-12">Zugangsdaten vom EPA</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-ID</span><span class="tag">Nicht gesetzt</span></span><span class="inp"></span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-Secret</span><span class="tag">Nicht gesetzt</span></span><span class="inp"></span></label>
+</div>
+<div class="fhint">Nur schreibbar. FlowLeap zeigt einen gespeicherten Wert nie an. Füllen Sie beide Felder aus, um die gespeicherten Zugangsdaten zu ersetzen.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">Die Zugangsdaten bleiben auf dieser Installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Speichern und testen</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="entering">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="idle"></span>Nicht verbunden</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="label-12">Was FlowLeap liest</div><ul class="reads">
+  <li data-i="matters"><div><div class="w">EP-Anmeldungen</div><div class="d">Mit Ihren Aktenzeichen, aus den Portfolios, die das Konto lesen darf.</div></div></li>
+  <li data-i="mail"><div><div class="w">Mailbox-Briefe</div><div class="d">Mit der Anmeldenummer, Ihrem Zeichen und der Art des Schriftstücks.</div></div></li>
+  <li data-i="cal"><div><div class="w">Fristen des EPA</div><div class="d">Eine Prüfung Ihrer Fristen. Ihre Frist bleibt die Quelle.</div></div></li>
+  <li data-i="fee"><div><div class="w">Offene Gebühren</div><div class="d">Für jede Anmeldung, mit Betrag und Fälligkeit.</div></div></li>
+</ul>
+<div class="line" data-i="shield"><div><span class="lead">FlowLeap liest nur.</span> Es zahlt keine Gebühren, unterschreibt nicht, sendet nichts an das EPA und markiert keinen Brief als erledigt. Das Client-Secret bleibt auf dieser Installation und geht nie an den Agenten oder in ein Protokoll.</div></div>
+<div class="line" data-i="info"><div><span class="lead">Mailbox-Briefe in den Eingang kommen später.</span> Wenn Sie ihn einschalten, ist jeder Brief, den FlowLeap herunterlädt, in MyEPO als gelesen markiert. Er bleibt dort unerledigt.</div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Konto beim EPA einrichten<span class="right">3 Schritte</span></div></div>
+<div class="ccard-part"><div class="label-12">Zugangsdaten vom EPA</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-ID</span><span class="tag">Nicht gesetzt</span></span><span class="inp filled">••••••••••••••••••••••••</span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-Secret</span><span class="tag">Nicht gesetzt</span></span><span class="inp filled focus">••••••••••••••••••••••••</span></label>
+</div>
+<div class="fhint">Nur schreibbar. FlowLeap zeigt einen gespeicherten Wert nie an. Füllen Sie beide Felder aus, um die gespeicherten Zugangsdaten zu ersetzen.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">Die Zugangsdaten bleiben auf dieser Installation.</span><div class="acts"><span class="btn btn-primary" role="button">Speichern und testen</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="testing">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="run"></span>Wird getestet</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Konto beim EPA einrichten<span class="right">3 Schritte</span></div></div>
+<div class="ccard-part"><div class="label-12">Zugangsdaten vom EPA</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-ID</span><span class="tag">Nicht gesetzt</span></span><span class="inp filled" aria-disabled="true">••••••••••••••••••••••••</span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-Secret</span><span class="tag">Nicht gesetzt</span></span><span class="inp filled" aria-disabled="true">••••••••••••••••••••••••</span></label>
+</div>
+<div class="fhint">Nur schreibbar. FlowLeap zeigt einen gespeicherten Wert nie an. Füllen Sie beide Felder aus, um die gespeicherten Zugangsdaten zu ersetzen.</div></div>
+<div class="ccard-part"><div class="label-12">Test</div><ul class="run"><li><span class="cst" data-s="ok"></span>Token vom EPA erhalten</li><li><span class="cst" data-s="run"></span>Portfolios lesen, die das Konto lesen darf</li><li class="todo"><span class="cst" data-s="idle"></span>Mailbox-Zugriff prüfen</li></ul></div>
+<div class="ccard-f"><span class="note" data-i="lock">Die Zugangsdaten bleiben auf dieser Installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Wird getestet…</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="passed">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Verbunden</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="label-12">Test bestanden</div><div class="res-h"><span class="big">6 Portfolios</span><span>darf das Konto lesen</span><span class="when">Getestet 9. Nov. 2026, 14:02</span></div>
+<div class="mtbl ports" role="table">
+  <div class="tr th" role="row"><span role="columnheader">Portfolio</span><span role="columnheader">Typ</span><span role="columnheader">Zugriff</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Applicant Portfolio 1</span></span><span role="cell" class="c2">Anmelder</span><span role="cell" class="c2">Voll</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Representative Portfolio 1</span></span><span role="cell" class="c2">Vertreter</span><span role="cell" class="c2">Voll</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Association Portfolio 1</span></span><span role="cell" class="c2">Zusammenschluss</span><span role="cell" class="c2">Voll</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Applicant Portfolio 2</span></span><span role="cell" class="c2">Anmelder</span><span role="cell" class="c2">Eingeschränkt</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Representative Portfolio 2</span></span><span role="cell" class="c2">Vertreter</span><span role="cell" class="c2">Eingeschränkt</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Association Portfolio 2</span></span><span role="cell" class="c2">Zusammenschluss</span><span role="cell" class="c2">Eingeschränkt</span></div>
+</div>
+<div class="checks"><span class="cstatus"><span class="cst" data-s="ok"></span>Token</span><span class="cstatus"><span class="cst" data-s="ok"></span>Portfolios</span><span class="cstatus"><span class="cst" data-s="ok"></span>Mailbox-Zugriff</span></div></div>
+<div class="ccard-part"><div class="line first" data-i="info"><div><span class="lead">Mailbox-Briefe in den Eingang kommen später.</span> Wenn Sie ihn einschalten, ist jeder Brief, den FlowLeap herunterlädt, in MyEPO als gelesen markiert. Er bleibt dort unerledigt.</div></div></div>
+<div class="ccard-f"><span class="note" data-i="check">FlowLeap liest diese Portfolios.</span><div class="acts"><span class="btn btn-ghost" role="button">Verbindung trennen</span><span class="btn btn-secondary" data-i="key" role="button">Zugangsdaten ersetzen</span><span class="btn btn-secondary" data-i="retry" role="button">Testen</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="empty">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="wait"></span>Wartet auf Portfolio-Freigabe</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="label-12">Getestet 9. Nov. 2026, 14:02</div><div class="notice wait" data-i="warn" role="status"><div><span class="lead">Das Konto darf kein Portfolio lesen.</span> <span>Die Zugangsdaten funktionieren und die Mailbox antwortet, aber FlowLeap kann keine Anmeldung, Frist oder Gebühr lesen. Bitten Sie die Unternehmensadministration in MyEPO, dem API-Konto unter <span data-verbatim>Applications and patents</span> die Freigabe für Ihre Portfolios zu geben. Testen Sie dann erneut.</span></div></div>
+<div class="checks"><span class="cstatus"><span class="cst" data-s="ok"></span>Token</span><span class="cstatus"><span class="cst" data-s="wait"></span>Kein Portfolio</span><span class="cstatus"><span class="cst" data-s="ok"></span>Mailbox-Zugriff</span></div>
+<div class="line"><span class="ext" data-i="external">EPA-Leitfaden: APIs für IP-Management-Systeme</span></div></div>
+<div class="ccard-f"><span class="note"></span><div class="acts"><span class="btn btn-ghost" role="button">Verbindung trennen</span><span class="btn btn-secondary" data-i="key" role="button">Zugangsdaten ersetzen</span><span class="btn btn-primary" data-i="retry" data-act="retry" role="button">Erneut testen <span class="kbd">R</span></span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="refused">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="bad"></span>Test fehlgeschlagen</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="notice bad" data-i="warn" role="alert"><div><span class="lead">Das EPA hat die Client-ID oder das Client-Secret abgelehnt.</span> <span>Prüfen Sie beide Werte in der E-Mail des EPA an Ihre MyEPO-Administration, geben Sie sie erneut ein und speichern und testen Sie. FlowLeap liest mit diesen Zugangsdaten nichts.</span></div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Konto beim EPA einrichten<span class="right">3 Schritte</span></div></div>
+<div class="ccard-part"><div class="label-12">Zugangsdaten vom EPA</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-ID</span><span class="tag">Nicht gesetzt</span></span><span class="inp focus"></span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client-Secret</span><span class="tag">Nicht gesetzt</span></span><span class="inp"></span></label>
+</div>
+<div class="fhint">Nur schreibbar. FlowLeap zeigt einen gespeicherten Wert nie an. Füllen Sie beide Felder aus, um die gespeicherten Zugangsdaten zu ersetzen.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">Die Zugangsdaten bleiben auf dieser Installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Speichern und testen</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="offline">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="bad"></span>Test fehlgeschlagen</span></div>
+<div class="ccard-b"><p>Die EP-Anmeldungen Ihrer Kanzlei, die Briefe der EPA-Mailbox, die Fristen des EPA und die offenen Gebühren, gelesen mit dem eigenen MyEPO-API-Konto Ihrer Kanzlei.</p></div>
+<div class="ccard-part"><div class="notice bad" data-i="warn" role="alert"><div><span class="lead">Das EPA hat nicht geantwortet.</span> <span>FlowLeap hat kein Token erhalten. Die gespeicherten Zugangsdaten haben sich nicht geändert. Prüfen Sie, ob diese Installation das EPA erreicht, und versuchen Sie es dann erneut.</span></div></div></div>
+<div class="ccard-f"><span class="note" data-i="clock">Letzter bestandener Test 9. Nov. 2026, 14:02</span><div class="acts"><span class="btn btn-secondary" data-i="key" role="button">Zugangsdaten ersetzen</span><span class="btn btn-primary" data-i="retry" data-act="retry" role="button">Erneut versuchen <span class="kbd">R</span></span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="linked">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Verbunden</span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 Portfolios</b></span><span>Mailbox-Zugriff</span><span>Letzter Test 9. Nov. 2026, 14:02</span></div></div>
+<div class="ccard-part"><div class="intake" data-i="mail"><div><div class="w">Mailbox-Briefe in den Eingang</div><div class="d">Kommt später. Wenn er eingeschaltet ist, ist jeder Brief, den FlowLeap herunterlädt, in MyEPO als gelesen markiert. FlowLeap markiert ihn nicht als erledigt.</div></div><span class="cstatus"><span class="cst" data-s="idle"></span>Aus</span></div></div>
+<div class="ccard-f"><span class="note"></span><div class="acts"><span class="btn btn-ghost" role="button">Verbindung trennen</span><span class="btn btn-secondary" data-i="key" role="button">Zugangsdaten ersetzen</span><span class="btn btn-secondary" data-i="retry" role="button">Testen</span></div></div>
+      </div>
+      <div class="grp-h">Patentdaten</div>
+      <div class="cards">
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">EPO OPS</span><span class="tag info">Konfiguriert</span></div>
+  <div class="ccard-b"><p>Consumer Key und Secret für Open Patent Services. Für Patentsuche, bibliografische Daten, Familien, Rechtsstand und das EP-Register.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">Consumer Key</span><span class="tag">Gespeichert</span></span><span class="inp"></span></label><label class="fld"><span class="fld-h"><span class="lbl">Consumer Secret</span><span class="tag">Gespeichert</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Speichern</span> <span class="btn btn-secondary" role="button">Verbindung testen</span> <span class="btn btn-secondary" role="button">Entfernen</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">USPTO ODP</span><span class="tag info">Konfiguriert</span></div>
+  <div class="ccard-b"><p>API-Schlüssel des Open Data Portal. Für US-Anmeldedaten, Akteninhalte, Fortsetzungen und Zitate.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API-Schlüssel</span><span class="tag">Gespeichert</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Speichern</span> <span class="btn btn-secondary" role="button">Verbindung testen</span> <span class="btn btn-secondary" role="button">Entfernen</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">Semantic Scholar</span><span class="tag">Nicht konfiguriert</span></div>
+  <div class="ccard-b"><p>Optionaler API-Schlüssel. Erhöht das Abfragelimit der Literatursuche; arXiv braucht keinen Schlüssel.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API-Schlüssel</span><span class="tag">Nicht gesetzt</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Speichern</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">Mistral</span><span class="tag info">Konfiguriert</span></div>
+  <div class="ccard-b"><p>API-Schlüssel für die Texterkennung gescannter Dokumente und PDFs. Mistral rechnet pro Seite ab.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API-Schlüssel</span><span class="tag">Gespeichert</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Speichern</span> <span class="btn btn-secondary" role="button">Verbindung testen</span> <span class="btn btn-secondary" role="button">Entfernen</span></div></div>
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+/* MyEPO card mockups: the Settings dialog and the MyEPO card, from client tokens only. records.css (the skill's
+   reference mockups) loads first and brings the client theme. The dialog repeats ui-settings-general's SettingsRoot
+   (800 px panel, 188 px navigation, the options column), with its paddings rounded to the spacing scale of R5. */
+
+/* ---------- the app behind the dialog ---------- */
+.sb-item > span { min-width: 0; overflow: hidden; }
+.behind { display: grid; place-items: center; height: 100vh; color: var(--dsw-alias-label-secondary); }
+
+/* ---------- the Settings dialog ---------- */
+.overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+.mask { position: absolute; inset: 0; background: var(--dsw-alias-bg-mask-1); backdrop-filter: var(--dsw-mask-blur); }
+.dlg { position: relative; display: grid; grid-template-columns: 188px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: 'title header' 'nav options'; width: 800px; height: min(800px, calc(100vh - 48px)); max-width: calc(100vw - 48px); border-radius: var(--dsw-radius-panel); overflow: hidden; background: var(--dsw-alias-bg-layer-2); box-shadow: var(--dsw-elevation-prominent); }
+.dlg-title { grid-area: title; padding: 24px 12px 8px 24px; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.dlg-header { grid-area: header; display: flex; justify-content: flex-end; padding: 16px 12px 8px 8px; }
+.dlg-nav { grid-area: nav; display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 0; min-height: 0; overflow-y: auto; }
+.nav-cell { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px 8px 12px; border-radius: var(--dsw-radius-md); font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); color: var(--dsw-alias-label-primary); white-space: nowrap; }
+.nav-cell > svg { width: 16px; height: 16px; flex: none; color: var(--dsw-alias-label-secondary); }
+.nav-cell > span { min-width: 0; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
+.nav-cell.on { background: var(--dsw-specific-sidebar-nav-item-active); }
+.dlg-options { grid-area: options; min-width: 0; min-height: 0; padding: 0 24px 24px; overflow-y: auto; }
+
+/* ---------- the connectors section ---------- */
+.sec-title { margin: 0; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.sec-intro { margin: 4px 0 0; color: var(--dsw-alias-label-secondary); text-wrap: pretty; }
+.grp-h { margin: 24px 0 8px; font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); color: var(--dsw-alias-label-secondary); }
+.cards { display: flex; flex-direction: column; gap: 8px; }
+
+/* A connector card: the client's settings card (ConnectorCard.module.css). */
+.ccard { border: 0.5px solid var(--dsw-alias-settings-card-stroke); background: var(--dsw-alias-settings-card-fill); border-radius: var(--dsw-radius-xl); }
+.ccard-h { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 12px 16px; }
+.ccard-h .name { font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.ccard-h .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ccard-b { padding: 0 16px 16px; }
+.ccard-b > p { margin: 0; color: var(--dsw-alias-label-secondary); text-wrap: pretty; }
+.ccard-part { border-top: 0.5px solid var(--dsw-alias-border-l2); padding: 16px; }
+.ccard-part > .label-12 { margin-bottom: 8px; }
+.ccard-f { display: flex; align-items: center; gap: 8px; border-top: 0.5px solid var(--dsw-alias-border-l2); padding: 12px 16px; }
+.ccard-f .note { display: flex; gap: 8px; align-items: center; min-width: 0; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); }
+.ccard-f .note > svg { flex: none; }
+.ccard-f .acts { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; corner-shape: round; font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); background: var(--dsw-alias-bg-module-platform); color: var(--dsw-alias-label-primary); }
+.tag.info { background: var(--dsw-alias-state-business-tertiary); }
+.line.first { margin-top: 0; }
+.dlg-header { gap: 8px; align-items: center; }
+.ccard-mark { width: 24px; height: 24px; display: inline-grid; place-items: center; flex: none; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); }
+.ccard-mark > svg { width: 16px; height: 16px; }
+
+/* What FlowLeap reads: four facts in two columns. */
+.reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; padding: 0; list-style: none; }
+.reads li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; }
+.reads li > svg { margin-top: 2px; color: var(--dsw-alias-label-secondary); }
+.reads .w { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.reads .d { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); text-wrap: pretty; }
+.line { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; color: var(--dsw-alias-label-secondary); text-wrap: pretty; }
+.line > svg { flex: none; margin-top: 2px; color: var(--dsw-alias-label-secondary); }
+.line .lead { color: var(--dsw-alias-label-primary); }
+
+/* The setup guide: numbered steps, the rights table inside step 2. */
+.disclose { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.disclose > svg { color: var(--dsw-alias-label-secondary); }
+.disclose .right { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+.guide { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 16px; }
+.guide > li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; counter-increment: step; }
+.guide > li::before { content: counter(step); width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; corner-shape: round; background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: 1; font-variant-numeric: tabular-nums; }
+.guide .w { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.guide .d { margin-top: 2px; color: var(--dsw-alias-label-secondary); text-wrap: pretty; }
+.guide .path { color: var(--dsw-alias-label-primary); }
+.ext { display: inline-flex; align-items: center; gap: 4px; color: var(--dsw-alias-label-primary); text-decoration: underline; text-decoration-color: var(--dsw-alias-border-l3); text-underline-offset: 2px; }
+.ext > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-secondary); }
+
+/* A small table inside the card: 32 px rows, the hairlines of a detail table (R8). */
+.mtbl { margin-top: 8px; border-radius: var(--dsw-radius-md); border: 0.5px solid var(--dsw-alias-border-l2); overflow: hidden; }
+.mtbl .tr { display: grid; align-items: center; column-gap: 12px; min-height: 32px; padding: 4px 12px; }
+.mtbl .tr + .tr { border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.mtbl .th { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); background: var(--dsw-alias-bg-multi-select); }
+.mtbl .c2 { color: var(--dsw-alias-label-secondary); }
+.rights .tr { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.6fr); }
+.rights .set { display: inline-flex; align-items: center; gap: 4px; }
+.rights .set > svg { width: 14px; height: 14px; color: var(--dsw-alias-label-secondary); }
+.ports .tr { grid-template-columns: minmax(0, 1fr) 128px 96px; }
+.ports .tr > :nth-child(n + 2) { white-space: nowrap; }
+
+/* The two credential fields: the client's SettingsSecretField (label, write-only field, hint). */
+.fields { display: flex; flex-direction: column; gap: 12px; }
+.fld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fld-h { display: flex; align-items: center; gap: 8px; }
+.fld .lbl { flex: 1; font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.inp { box-sizing: border-box; height: 32px; display: flex; align-items: center; padding: 0 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3); color: var(--dsw-alias-label-secondary); overflow: hidden; white-space: nowrap; }
+.inp.focus { box-shadow: inset 0 0 0 1px var(--dsw-alias-state-business-primary); }
+.inp.filled { color: var(--dsw-alias-label-primary); }
+.inp[aria-disabled='true'] { opacity: 0.4; }
+.fhint { margin-top: 8px; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); }
+
+/* A link state: the status shapes and colours of .st and .status in records.css, for a state that is not an atlas
+   state, so check-mockups.mjs does not look for its word in the status map. */
+.cst { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; }
+.cst > svg { width: 14px; height: 14px; display: block; }
+.cstatus { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--dsw-alias-label-primary); }
+
+/* The test: the steps that run, then the result. */
+.run { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.run li { display: flex; align-items: center; gap: 8px; }
+.run li.todo { color: var(--dsw-alias-label-secondary); }
+.res-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.res-h .big { font-size: var(--dsw-font-l-20-font-size); line-height: var(--dsw-font-l-20-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); font-variant-numeric: tabular-nums; }
+.res-h .when { margin-left: auto; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; }
+.ccard .notice { align-items: flex-start; }
+.ccard .notice > svg { margin-top: 2px; }
+.notice.wait { border: 1px solid var(--dsw-alias-state-warn-secondary); }
+.notice.wait > svg { color: var(--dsw-alias-state-warn-primary); }
+
+/* The linked card: one summary line and the Mailbox intake row. */
+.summary { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
+.summary b { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-13-font-weight); }
+.intake { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.intake > svg { margin-top: 2px; color: var(--dsw-alias-label-secondary); }
+.intake .w { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.intake .d { margin-top: 2px; color: var(--dsw-alias-label-secondary); text-wrap: pretty; }
+
+/* The other connectors, as the client draws them today. */
+.old .ccard-b { display: flex; flex-direction: column; gap: 8px; }
+.old .fields { margin-top: 4px; }
+
+/* ---------- below 768 px: the full-viewport dialog with the navigation as a strip ---------- */
+@media (max-width: 767px) {
+  .mask { display: none; }
+  .overlay { background: var(--dsw-alias-bg-layer-2); }
+  .dlg { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: 'title header' 'nav nav' 'options options'; width: 100%; max-width: none; height: 100%; border-radius: 0; box-shadow: none; }
+  .dlg-title { padding: 24px 0 0 16px; }
+  .dlg-header { padding: 16px 16px 0 8px; }
+  .dlg-nav { flex-direction: row; padding: 12px 16px; overflow-x: auto; scrollbar-width: none; }
+  .nav-cell { flex: none; padding: 0 12px; }
+  .nav-cell > span { white-space: nowrap; }
+  .dlg-options { padding: 0 16px 24px; }
+  .reads { grid-template-columns: minmax(0, 1fr); }
+  .rights .tr { grid-template-columns: minmax(0, 1fr) auto; }
+  .rights .tr > :nth-child(3) { grid-column: 1 / -1; }
+  .ports .tr { grid-template-columns: minmax(0, 1fr) auto; }
+  .ports .tr > :nth-child(2) { display: none; }
+  .ccard-f { flex-wrap: wrap; }
+  .ccard-f .note { flex-basis: 100%; }
+}

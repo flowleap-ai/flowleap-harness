@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyEPO connector</title>
+<!-- Generated from build.mjs: edit that file and run node build.mjs, never this file -->
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<link rel="stylesheet" href="myepo.css">
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="settings"></nav>
+  <main class="main"><section class="panel"><div class="behind"></div></section></main>
+</div>
+<div class="overlay" role="presentation">
+  <div class="mask" aria-hidden="true"></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dlg-title" id="dlg-title" data-dlg-title></div>
+    <div class="dlg-header"><span class="btn btn-secondary" role="button">Open configuration file</span><span class="iconbtn" data-i="x" role="button" aria-label="Close"></span></div>
+    <nav class="dlg-nav" data-nav="connectors"></nav>
+    <div class="dlg-options">
+      <h2 class="sec-title">Connectors</h2>
+      <p class="sec-intro">FlowLeap reads your firm's EPO account and the patent data services with the firm's own keys. Keys stay in the credential store, never in the settings file, and FlowLeap never shows them again after you save them.</p>
+      <div class="grp-h">Your firm's EPO account</div>
+      <div class="ccard myepo" data-state="default">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="idle"></span>Not linked</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="label-12">What FlowLeap reads</div><ul class="reads">
+  <li data-i="matters"><div><div class="w">EP applications</div><div class="d">With your file references, from the portfolios that the account may read.</div></div></li>
+  <li data-i="mail"><div><div class="w">Mailbox letters</div><div class="d">With the application number, your reference and the document type.</div></div></li>
+  <li data-i="cal"><div><div class="w">EPO due dates</div><div class="d">A check of your deadlines. Your deadline stays the source.</div></div></li>
+  <li data-i="fee"><div><div class="w">Pending fees</div><div class="d">For each application, with the amount and the due date.</div></div></li>
+</ul>
+<div class="line" data-i="shield"><div><span class="lead">FlowLeap only reads.</span> It does not pay fees, sign, send to the EPO or mark a letter as handled. The client secret stays on this installation and never goes to the agent or a log.</div></div>
+<div class="line" data-i="info"><div><span class="lead">Mailbox letters to Intake come later.</span> When you turn it on, each letter that FlowLeap downloads shows as read in MyEPO. It stays unhandled there.</div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chevd">Set up the account at the EPO<span class="right">Your MyEPO administrator does this once</span></div>
+<ol class="guide">
+  <li><div><div class="w">Ask the EPO for API access</div><div class="d">Your MyEPO company administrator writes to <span data-address>support@epo.org</span> and asks for production client credentials for the MyEPO API. The EPO sends a client ID and a client secret to the administrator.</div></div></li>
+  <li><div><div class="w">Give the account only these rights</div><div class="d">In MyEPO, open <span class="path"><span data-verbatim>Admin area › Group members</span></span> and select the API account.</div><div class="mtbl rights" role="table">
+  <div class="tr th" role="row"><span role="columnheader">Right in MyEPO</span><span role="columnheader">Setting</span><span role="columnheader">Why</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Mailbox access</span></span><span role="cell" class="set" data-i="check">Yes</span><span role="cell" class="c2">The API reads the Mailbox only with this right.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Fee payment rights</span></span><span role="cell" class="set" data-i="minus">No rights</span><span role="cell" class="c2">FlowLeap does not pay fees.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Admin rights</span></span><span role="cell" class="set" data-i="minus">No</span><span role="cell" class="c2">The account must not change members or rights.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Signing rights</span></span><span role="cell" class="set" data-i="minus">No</span><span role="cell" class="c2">FlowLeap does not sign.</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Sending rights</span></span><span role="cell" class="set" data-i="minus">No</span><span role="cell" class="c2">FlowLeap does not send to the EPO.</span></div>
+</div></div></li>
+  <li><div><div class="w">Give it permission on your portfolios</div><div class="d">In <span class="path"><span data-verbatim>Applications and patents</span></span>, give the API account permission on each portfolio that FlowLeap may read. Without it, FlowLeap reads no application.</div></div></li>
+</ol>
+<div class="line"><span class="ext" data-i="external">EPO guide: APIs for IP management systems</span></div></div>
+<div class="ccard-part"><div class="label-12">Credentials from the EPO</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client ID</span><span class="tag">Not set</span></span><span class="inp"></span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client secret</span><span class="tag">Not set</span></span><span class="inp"></span></label>
+</div>
+<div class="fhint">Write-only. FlowLeap never shows a stored value. Enter both fields to replace the stored credentials.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">The credentials stay on this installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Save and test</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="entering">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="idle"></span>Not linked</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="label-12">What FlowLeap reads</div><ul class="reads">
+  <li data-i="matters"><div><div class="w">EP applications</div><div class="d">With your file references, from the portfolios that the account may read.</div></div></li>
+  <li data-i="mail"><div><div class="w">Mailbox letters</div><div class="d">With the application number, your reference and the document type.</div></div></li>
+  <li data-i="cal"><div><div class="w">EPO due dates</div><div class="d">A check of your deadlines. Your deadline stays the source.</div></div></li>
+  <li data-i="fee"><div><div class="w">Pending fees</div><div class="d">For each application, with the amount and the due date.</div></div></li>
+</ul>
+<div class="line" data-i="shield"><div><span class="lead">FlowLeap only reads.</span> It does not pay fees, sign, send to the EPO or mark a letter as handled. The client secret stays on this installation and never goes to the agent or a log.</div></div>
+<div class="line" data-i="info"><div><span class="lead">Mailbox letters to Intake come later.</span> When you turn it on, each letter that FlowLeap downloads shows as read in MyEPO. It stays unhandled there.</div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Set up the account at the EPO<span class="right">3 steps</span></div></div>
+<div class="ccard-part"><div class="label-12">Credentials from the EPO</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client ID</span><span class="tag">Not set</span></span><span class="inp filled">••••••••••••••••••••••••</span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client secret</span><span class="tag">Not set</span></span><span class="inp filled focus">••••••••••••••••••••••••</span></label>
+</div>
+<div class="fhint">Write-only. FlowLeap never shows a stored value. Enter both fields to replace the stored credentials.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">The credentials stay on this installation.</span><div class="acts"><span class="btn btn-primary" role="button">Save and test</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="testing">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="run"></span>Testing</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Set up the account at the EPO<span class="right">3 steps</span></div></div>
+<div class="ccard-part"><div class="label-12">Credentials from the EPO</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client ID</span><span class="tag">Not set</span></span><span class="inp filled" aria-disabled="true">••••••••••••••••••••••••</span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client secret</span><span class="tag">Not set</span></span><span class="inp filled" aria-disabled="true">••••••••••••••••••••••••</span></label>
+</div>
+<div class="fhint">Write-only. FlowLeap never shows a stored value. Enter both fields to replace the stored credentials.</div></div>
+<div class="ccard-part"><div class="label-12">Test</div><ul class="run"><li><span class="cst" data-s="ok"></span>Got a token from the EPO</li><li><span class="cst" data-s="run"></span>Reading the portfolios that the account may read</li><li class="todo"><span class="cst" data-s="idle"></span>Checking Mailbox access</li></ul></div>
+<div class="ccard-f"><span class="note" data-i="lock">The credentials stay on this installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Testing…</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="passed">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="label-12">Test passed</div><div class="res-h"><span class="big">6 portfolios</span><span>that the account may read</span><span class="when">Tested 9 Nov 2026, 14:02</span></div>
+<div class="mtbl ports" role="table">
+  <div class="tr th" role="row"><span role="columnheader">Portfolio</span><span role="columnheader">Type</span><span role="columnheader">Access</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Applicant Portfolio 1</span></span><span role="cell" class="c2">Applicant</span><span role="cell" class="c2">Full</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Representative Portfolio 1</span></span><span role="cell" class="c2">Representative</span><span role="cell" class="c2">Full</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Association Portfolio 1</span></span><span role="cell" class="c2">Association</span><span role="cell" class="c2">Full</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Applicant Portfolio 2</span></span><span role="cell" class="c2">Applicant</span><span role="cell" class="c2">Limited</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Representative Portfolio 2</span></span><span role="cell" class="c2">Representative</span><span role="cell" class="c2">Limited</span></div>
+  <div class="tr" role="row"><span role="cell"><span data-verbatim>Association Portfolio 2</span></span><span role="cell" class="c2">Association</span><span role="cell" class="c2">Limited</span></div>
+</div>
+<div class="checks"><span class="cstatus"><span class="cst" data-s="ok"></span>Token</span><span class="cstatus"><span class="cst" data-s="ok"></span>Portfolios</span><span class="cstatus"><span class="cst" data-s="ok"></span>Mailbox access</span></div></div>
+<div class="ccard-part"><div class="line first" data-i="info"><div><span class="lead">Mailbox letters to Intake come later.</span> When you turn it on, each letter that FlowLeap downloads shows as read in MyEPO. It stays unhandled there.</div></div></div>
+<div class="ccard-f"><span class="note" data-i="check">FlowLeap reads these portfolios.</span><div class="acts"><span class="btn btn-ghost" role="button">Unlink</span><span class="btn btn-secondary" data-i="key" role="button">Replace credentials</span><span class="btn btn-secondary" data-i="retry" role="button">Test</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="empty">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="wait"></span>Waits for portfolio permission</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="label-12">Tested 9 Nov 2026, 14:02</div><div class="notice wait" data-i="warn" role="status"><div><span class="lead">The account may read no portfolio.</span> <span>The credentials work and the Mailbox answers, but FlowLeap can read no application, due date or fee. Ask your MyEPO company administrator to give the API account permission on your portfolios in <span data-verbatim>Applications and patents</span>. Then test again.</span></div></div>
+<div class="checks"><span class="cstatus"><span class="cst" data-s="ok"></span>Token</span><span class="cstatus"><span class="cst" data-s="wait"></span>No portfolio</span><span class="cstatus"><span class="cst" data-s="ok"></span>Mailbox access</span></div>
+<div class="line"><span class="ext" data-i="external">EPO guide: APIs for IP management systems</span></div></div>
+<div class="ccard-f"><span class="note"></span><div class="acts"><span class="btn btn-ghost" role="button">Unlink</span><span class="btn btn-secondary" data-i="key" role="button">Replace credentials</span><span class="btn btn-primary" data-i="retry" data-act="retry" role="button">Test again <span class="kbd">R</span></span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="refused">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="bad"></span>Test failed</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="notice bad" data-i="warn" role="alert"><div><span class="lead">The EPO refused the client ID or the client secret.</span> <span>Check both values against the EPO's e-mail to your MyEPO administrator, enter them again, then save and test. FlowLeap reads nothing with these credentials.</span></div></div></div>
+<div class="ccard-part"><div class="disclose" data-i="chev">Set up the account at the EPO<span class="right">3 steps</span></div></div>
+<div class="ccard-part"><div class="label-12">Credentials from the EPO</div><div class="fields">
+  <label class="fld"><span class="fld-h"><span class="lbl">Client ID</span><span class="tag">Not set</span></span><span class="inp focus"></span></label>
+  <label class="fld"><span class="fld-h"><span class="lbl">Client secret</span><span class="tag">Not set</span></span><span class="inp"></span></label>
+</div>
+<div class="fhint">Write-only. FlowLeap never shows a stored value. Enter both fields to replace the stored credentials.</div></div>
+<div class="ccard-f"><span class="note" data-i="lock">The credentials stay on this installation.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Save and test</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="offline">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="bad"></span>Test failed</span></div>
+<div class="ccard-b"><p>Your firm's EP applications, EPO Mailbox letters, EPO due dates and pending fees, read with your firm's own MyEPO API account.</p></div>
+<div class="ccard-part"><div class="notice bad" data-i="warn" role="alert"><div><span class="lead">The EPO did not answer.</span> <span>FlowLeap could not get a token. The stored credentials did not change. Check that this installation can reach the EPO, then try again.</span></div></div></div>
+<div class="ccard-f"><span class="note" data-i="clock">Last test passed 9 Nov 2026, 14:02</span><div class="acts"><span class="btn btn-secondary" data-i="key" role="button">Replace credentials</span><span class="btn btn-primary" data-i="retry" data-act="retry" role="button">Try again <span class="kbd">R</span></span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="linked">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part"><div class="intake" data-i="mail"><div><div class="w">Mailbox letters to Intake</div><div class="d">Comes later. When it is on, each letter that FlowLeap downloads shows as read in MyEPO. FlowLeap does not mark it as handled.</div></div><span class="cstatus"><span class="cst" data-s="idle"></span>Off</span></div></div>
+<div class="ccard-f"><span class="note"></span><div class="acts"><span class="btn btn-ghost" role="button">Unlink</span><span class="btn btn-secondary" data-i="key" role="button">Replace credentials</span><span class="btn btn-secondary" data-i="retry" role="button">Test</span></div></div>
+      </div>
+      <div class="grp-h">Patent data</div>
+      <div class="cards">
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">EPO OPS</span><span class="tag info">Configured</span></div>
+  <div class="ccard-b"><p>Open Patent Services consumer key and secret. Powers patent search, bibliographic data, families, legal status and the EP Register.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">Consumer key</span><span class="tag">Stored</span></span><span class="inp"></span></label><label class="fld"><span class="fld-h"><span class="lbl">Consumer secret</span><span class="tag">Stored</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Save</span> <span class="btn btn-secondary" role="button">Test connection</span> <span class="btn btn-secondary" role="button">Remove</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">USPTO ODP</span><span class="tag info">Configured</span></div>
+  <div class="ccard-b"><p>Open Data Portal API key. Powers US application data, file wrappers, continuity and citations.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API key</span><span class="tag">Stored</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Save</span> <span class="btn btn-secondary" role="button">Test connection</span> <span class="btn btn-secondary" role="button">Remove</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">Semantic Scholar</span><span class="tag">Not configured</span></div>
+  <div class="ccard-b"><p>Optional API key. Raises the rate limit of academic search; arXiv needs no key.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API key</span><span class="tag">Not set</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Save</span></div></div>
+</div>
+<div class="ccard old">
+  <div class="ccard-h"><span class="name">Mistral</span><span class="tag info">Configured</span></div>
+  <div class="ccard-b"><p>API key for OCR of scanned documents and PDFs. Billed by Mistral for each page.</p><div class="fields"><label class="fld"><span class="fld-h"><span class="lbl">API key</span><span class="tag">Stored</span></span><span class="inp"></span></label></div>
+  <div><span class="btn btn-secondary" role="button" aria-disabled="true">Save</span> <span class="btn btn-secondary" role="button">Test connection</span> <span class="btn btn-secondary" role="button">Remove</span></div></div>
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="frame.js"></script>
+</body>
+</html>
