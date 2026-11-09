@@ -157,18 +157,24 @@ const click = async (target: Element) => {
   fireEvent.click(target)
   await flush()
 }
+const clientsTable = () => screen.getByRole('table', { name: en['clients.listLabel'] })
+/** The row of the Clients list whose name matches. */
+const clientRow = (name: RegExp) => within(clientsTable()).getByRole('row', { name })
+/** The text of each cell of each row of the Clients list, in order. */
+const clientCells = () => within(clientsTable()).getAllByRole('row').slice(1)
+  .map(row => within(row).getAllByRole('cell').map(cell => cell.textContent))
 
 describe('the Clients list', () => {
   it('says how a client folder comes when there is none', async () => {
     await mount({ clients: [] })
     expect(screen.getByRole('heading', { level: 1, name: en['clients.title'] })).toBeTruthy()
     expect(screen.getByRole('heading', { level: 2, name: en['clients.empty.title'] })).toBeTruthy()
-    expect(screen.queryByRole('list', { name: en['clients.listLabel'] })).toBeNull()
+    expect(screen.queryByRole('table', { name: en['clients.listLabel'] })).toBeNull()
   })
 
   it('takes the focus back when the pressed client leaves the page, so that Find and the other keys run', async () => {
     const { keys } = await mount()
-    const syntegon = within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: 'Syntegon' })
+    const syntegon = clientRow(/^Syntegon/)
     syntegon.focus()
     await click(syntegon)
     expect(syntegon.isConnected).toBe(false)
@@ -186,13 +192,34 @@ describe('the Clients list', () => {
     expect(document.activeElement).toBe(field)
   })
 
-  it('lists each client folder and opens one with no chat', async () => {
+  it('lists each client folder by name with the date it was added, and opens one with no chat', async () => {
     const { model } = await mount({ clients: [client(SYNTEGON, 'Syntegon'), client('ws-bosch' as WorkspaceId, 'Bosch')] })
-    const list = screen.getByRole('list', { name: en['clients.listLabel'] })
-    expect(within(list).getAllByRole('button').map(item => item.textContent)).toEqual(['Syntegon', 'Bosch'])
-    await click(within(list).getByRole('button', { name: 'Syntegon' }))
+    expect(clientCells()).toEqual([['Bosch', 'Nov 8, 2026'], ['Syntegon', 'Nov 8, 2026']])
+    expect(screen.getByRole('columnheader', { name: en['clients.col.client'] }).getAttribute('aria-sort')).toBe('ascending')
+    await click(clientRow(/^Syntegon/))
     expect(model.state.workspaceId).toBe(SYNTEGON)
     expect(screen.getByRole('heading', { level: 1, name: 'Syntegon' })).toBeTruthy()
+  })
+
+  it('opens a client with Enter, sorts by the date added, finds a client by name, and pages 25 rows', async () => {
+    const older = { ...client('ws-beispiel' as WorkspaceId, 'Beispiel GmbH'), createdAt: '2026-10-01T09:00:00.000Z' }
+    const many = Array.from({ length: 26 }, (_, i) => client(`ws-${String(i)}` as WorkspaceId, `Mandant ${String(i + 10)}`))
+    const { model } = await mount({ clients: [client(SYNTEGON, 'Syntegon'), older, ...many] })
+    expect(screen.getByText('1–25 of 28')).toBeTruthy()
+    await click(screen.getByRole('button', { name: en['clients.col.added'] }))
+    expect(clientCells()[0]).toEqual(['Beispiel GmbH', 'Oct 1, 2026'])
+    fireEvent.change(screen.getByRole('searchbox', { name: en['clients.find'] }), { target: { value: 'synt' } })
+    expect(clientCells()).toEqual([['Syntegon', 'Nov 8, 2026']])
+    expect(screen.getByText('1–1 of 1')).toBeTruthy()
+    fireEvent.change(screen.getByRole('searchbox', { name: en['clients.find'] }), { target: { value: 'nobody' } })
+    expect(screen.getByText(en['table.empty'])).toBeTruthy()
+    expect(screen.getByText(en['table.rangeNone'])).toBeTruthy()
+    fireEvent.change(screen.getByRole('searchbox', { name: en['clients.find'] }), { target: { value: 'beispiel' } })
+    const row = clientRow(/^Beispiel GmbH/)
+    row.focus()
+    fireEvent.keyDown(row, { key: 'Enter' })
+    await flush()
+    expect(model.state.workspaceId).toBe('ws-beispiel')
   })
 
   it('draws the Clients row icon at the sidebar size', () => {
@@ -279,7 +306,7 @@ describe('the location and the tree', () => {
     expect(model.state.folder).toBe('')
     await click(within(crumbs).getByRole('button', { name: en['clients.title'] }))
     expect(model.state.workspaceId).toBeNull()
-    expect(screen.getByRole('list', { name: en['clients.listLabel'] })).toBeTruthy()
+    expect(clientsTable()).toBeTruthy()
   })
 
   it('opens a file in the middle area with its facts and its viewer, and goes back to its folder', async () => {
@@ -906,21 +933,20 @@ describe('Add client on the client folder page', () => {
     const firm = fakeRecord({ clients: [firmClient('33333333-2222-4333-8444-555555555555' as never, 'Watched AG', 'watch')] })
     const { addClient, model } = await mount({ host, firm, clients: [client(SYNTEGON, 'Syntegon'), client('ws-done' as WorkspaceId, 'Done AG')] })
     await tick()
-    const list = screen.getByRole('list', { name: en['clients.listLabel'] })
-    expect(within(list).getAllByRole('button').map(row => row.textContent)).toEqual([
+    expect(clientCells().map(([name]) => name)).toEqual([
+      'Done AG',
       `Gerhard Schubert${addClientEn['list.buildStarting']}`,
       `Neue GmbH${addClientEn['list.buildFailed']}`,
       'SyntegonBuilding the folder · 9 / 16',
-      'Done AG',
     ])
     expect(within(screen.getByRole('list', { name: addClientEn['list.watchingLabel'] })).getByText('Watched AG')).toBeTruthy()
-    await click(within(list).getByRole('button', { name: /^Gerhard Schubert/ }))
+    await click(clientRow(/^Gerhard Schubert/))
     expect(screen.getByRole('heading', { level: 1, name: 'Building the Gerhard Schubert folder' })).toBeTruthy()
     act(() => { addClient.close() })
-    await click(within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: /^Syntegon/ }))
+    await click(clientRow(/^Syntegon/))
     expect(screen.getByRole('heading', { level: 1, name: 'Building the Syntegon folder' })).toBeTruthy()
     act(() => { addClient.close() })
-    await click(within(screen.getByRole('list', { name: en['clients.listLabel'] })).getByRole('button', { name: 'Done AG' }))
+    await click(clientRow(/^Done AG/))
     expect(model.state.workspaceId).toBe('ws-done')
   })
 

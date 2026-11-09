@@ -8,10 +8,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
+  Button, DataTable, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
   IconNewChatOutlineRegular, IconPaperclipOutlineRegular, IconProjectAddOutlineRegular, IconRefreshOutlineRegular,
   IconRightUpOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
-  Tooltip, type KeycapBox, type MarkdownLabels,
+  Tooltip, type DataTableColumn, type DataTableLabels, type DataTableMode, type KeycapBox, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -23,6 +23,7 @@ import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/cl
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { TRASH, isTrashPath, type FolderEntry, type FolderSearchHit } from '../route.ts'
 import { FOLDER_SCOPE, keycapsOf, recordKeyOf, type KeyAct, type KeyHandlers } from './keys.ts'
+import { clientRows, type ClientRow } from './clients.ts'
 import { AddClientPage, AddClientToast, BuildState, WatchingList } from './add-client/AddClient.tsx'
 import type { AddClientTranslate } from './add-client/format.ts'
 import type { AddClientModel, AddClientSnapshot } from './add-client/model.ts'
@@ -195,7 +196,7 @@ export function FolderPanel(props: PanelProps) {
         )
         : client === null
           ? (
-            <ClientsList t={t} addT={addClientT} clients={clients} builds={adding.builds} watching={adding.watching}
+            <ClientsList t={t} addT={addClientT} locale={locale} clients={clients} builds={adding.builds} watching={adding.watching}
               open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }}
               openBuild={(id) => { addClient.openBuild(id) }} />
           )
@@ -207,10 +208,17 @@ export function FolderPanel(props: PanelProps) {
   )
 }
 
-/** The Clients list: one row for each client folder, a row for each build without its folder yet, and Watching. */
-function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild }: {
+/** The Clients list starts sorted by client name, 25 rows a page. */
+const CLIENTS_MODE: DataTableMode = { kind: 'client', sort: { column: 'client', direction: 'ascending' }, pageSize: 25 }
+
+/**
+ * The Clients list: a table of the client folders and of the builds without their folder yet, with the client and the
+ * date it was added, then Watching.
+ */
+function ClientsList({ t, addT, locale, clients, builds, watching, open, add, openBuild }: {
   readonly t: Translate
   readonly addT: AddClientTranslate
+  readonly locale: LocaleId
   readonly clients: readonly WorkspaceView[]
   readonly builds: readonly BuildStatus[]
   readonly watching: AddClientSnapshot['watching']
@@ -218,9 +226,38 @@ function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild 
   readonly add: () => void
   readonly openBuild: (clientId: BuildStatus['clientId']) => void
 }) {
-  const buildOf = (id: WorkspaceId) => builds.find(build => build.workspace === id)
-  // A build shows on its client's row; a build whose folder is not a listed client folder yet has its own row.
-  const pending = builds.filter(build => build.state !== 'done' && !clients.some(item => item.workspaceId === build.workspace))
+  const rows = useMemo(() => clientRows(clients, builds), [clients, builds])
+  const table = useMemo(() => {
+    const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+    const number = new Intl.NumberFormat(locale)
+    const columns: readonly DataTableColumn<ClientRow>[] = [
+      {
+        id: 'client', header: t('clients.col.client'), sortValue: row => row.name,
+        cell: row => (
+          <span className={css.clientCell}>
+            <span className={css.clientName}>{row.name}</span>
+            {row.build !== undefined && <BuildState t={addT} build={row.build} />}
+          </span>
+        ),
+      },
+      { id: 'added', header: t('clients.col.added'), sortValue: row => row.added, cell: row => date.format(new Date(row.added)), width: 128, hideBelow: 720 },
+    ]
+    const labels: DataTableLabels = {
+      table: t('clients.listLabel'),
+      empty: t('table.empty'),
+      pageSize: t('table.pageSize'),
+      previous: t('table.previous'),
+      next: t('table.next'),
+      range: ({ first, last, total }) => total === 0
+        ? t('table.rangeNone')
+        : t('table.range', { first: number.format(first), last: number.format(last), total: number.format(total) }),
+    }
+    return { columns, labels, textFilter: { label: t('clients.find'), text: (row: ClientRow) => row.name } }
+  }, [t, addT, locale])
+  const openRow = (row: ClientRow) => {
+    if (row.opens.kind === 'build') openBuild(row.opens.clientId)
+    else open(row.opens.workspaceId)
+  }
   return (
     <>
       <header className={css.topbar} data-frame-top-row="">
@@ -234,7 +271,7 @@ function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild 
           <h1 className={css.title}>{t('clients.title')}</h1>
           <p className={css.lede}>{t('clients.lede')}</p>
         </div>
-        {clients.length === 0 && pending.length === 0
+        {rows.length === 0
           ? (
             <div className={css.empty}>
               <h2>{t('clients.empty.title')}</h2>
@@ -243,31 +280,8 @@ function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild 
             </div>
           )
           : (
-            <ul className={css.list} aria-label={t('clients.listLabel')}>
-              {pending.map(build => (
-                <li key={build.clientId}>
-                  <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { openBuild(build.clientId) }}>
-                    <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                    <span className={css.name}>{build.name}</span>
-                    <BuildState t={addT} build={build} />
-                  </button>
-                </li>
-              ))}
-              {clients.map((item) => {
-                const build = buildOf(item.workspaceId)
-                // While its build runs or after it stopped, the row opens the build, where Try again is.
-                const building = build !== undefined && build.state !== 'done'
-                return (
-                  <li key={item.workspaceId}>
-                    <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { if (building) openBuild(build.clientId); else open(item.workspaceId) }}>
-                      <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                      <span className={css.name}>{item.title}</span>
-                      {build !== undefined && <BuildState t={addT} build={build} />}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+            <DataTable className={css.clients} columns={table.columns} rows={rows} rowKey={row => row.key} labels={table.labels}
+              mode={CLIENTS_MODE} textFilter={table.textFilter} onOpen={openRow} />
           )}
         <WatchingList t={addT} watching={watching} />
       </div>
