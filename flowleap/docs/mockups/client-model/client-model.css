@@ -203,7 +203,31 @@
 .walk-target, .walk.nudge { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 tr.walk-target { outline-offset: -2px; }
 
-/* The review is a page form: the role options, and a plain footer docked under the scrolling form, not a floating card. */
+/* Add client is a stepper wizard: the stepper, the role options, the Review summary, and a plain footer docked under the
+ * scrolling step, not a floating card. */
+.stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
+.stepper li { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); }
+.stepper li + li::before { content: ''; width: 24px; height: 0.5px; background: var(--dsw-alias-border-l3); }
+.stepper a { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; border-radius: var(--dsw-radius-sm); }
+.stepper .sn { box-sizing: border-box; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; corner-shape: round; box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); }
+.stepper .sn > svg { width: 12px; height: 12px; }
+.stepper .stp-done { color: var(--dsw-alias-label-primary); }
+.stepper .stp-done .sn { color: var(--dsw-alias-state-success-primary); }
+.stepper .stp-current { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.stepper .stp-current .sn { background: var(--dsw-alias-interactive-bg-active); box-shadow: inset 0 0 0 1.5px var(--dsw-alias-brand-primary); color: var(--dsw-alias-label-primary); }
+.stepper .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.stepper .stp-blocked { color: var(--dsw-alias-label-primary); }
+.stepper .stp-blocked .sn { color: var(--dsw-alias-state-warn-primary); box-shadow: inset 0 0 0 1px var(--dsw-alias-state-warn-primary); }
+@media (hover: hover) { .stepper a:hover .sl { text-decoration: underline; } }
+.sum { margin: 16px 0 24px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.sum-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 12px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.sum-k { color: var(--dsw-alias-label-secondary); }
+.sum-v .d { margin-top: 4px; color: var(--dsw-alias-label-secondary); }
+.sum-warn { display: flex; gap: 8px; align-items: flex-start; }
+.sum-warn > svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--dsw-alias-state-warn-primary); }
+.sum-edit { color: var(--dsw-alias-label-primary); font-weight: var(--dsw-font-xs-strong-13-font-weight); text-decoration: none; }
+@media (hover: hover) { .sum-edit:hover { text-decoration: underline; } }
+.src-line.quiet { margin-top: 16px; }
 .role-opts .radio { box-sizing: border-box; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; corner-shape: round; box-shadow: inset 0 0 0 1px var(--dsw-alias-label-tertiary); }
 .role-opts .radio.on { box-shadow: inset 0 0 0 5px var(--dsw-alias-brand-primary); }
 .decision.wiz-foot { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; max-height: none; padding: 12px 32px; border-radius: 0; background: var(--dsw-alias-bg-base); box-shadow: none; border-top: 0.5px solid var(--dsw-alias-border-l2); overflow: visible; }
@@ -218,6 +242,10 @@ tr.walk-target { outline-offset: -2px; }
   .mp { grid-template-columns: minmax(0, 1fr); }
   .wiz-foot .note { order: -1; flex-basis: 100%; text-align: left; }
   .wiz-foot .btn-primary { margin-left: auto; }
+  .stepper { gap: 4px; }
+  .stepper li + li::before { width: 8px; }
+  .stepper li:not(.stp-current):not(.stp-blocked) .sl { display: none; }
+  .stepper a { justify-content: center; min-width: 32px; min-height: 32px; border-radius: var(--dsw-radius-md); }
 }
 @media (max-width: 720px) {
   .dt .w-sm { display: none; }
@@ -228,6 +256,9 @@ tr.walk-target { outline-offset: -2px; }
   .walk { left: 8px; right: 8px; bottom: 8px; width: auto; }
   .walk.top { top: 8px; bottom: auto; }
   .wiz-foot .btn-primary .kbd { display: none; }
+  .stepper li:not(.stp-current) .sl { display: none; }
+  .sum-row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; }
+  .sum-k { grid-column: 1 / -1; }
   .decision.wiz-foot { padding: 8px 16px; }
   .work .reason-field { width: 100%; }
 }
