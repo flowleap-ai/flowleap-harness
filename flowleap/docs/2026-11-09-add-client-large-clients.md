@@ -1,6 +1,6 @@
 # Add client for large clients
 
-**Status:** draft for the founder's approval, 2026-11-09. This sheet changes [the Add client design](2026-11-08-add-client.md) so that Add client gives complete and correct results for a client of any size. It changes the data reads, the counts, the conflict check, the reference list, the recording and the build. It keeps the flow, the roles, the record facts and the mockups, except where this sheet says so. An independent review checked a first draft against the code of PR 362 and with live EP Register queries; this version includes its findings.
+**Status:** draft for the founder's approval, 2026-11-09. This sheet changes [the Add client design](2026-11-08-add-client.md) so that Add client gives complete and correct results for a client of any size. It changes the data reads, the counts, the conflict check and the recording. It keeps the flow, the roles, the record facts and the mockups, except where this sheet says so. [The client model](2026-11-09-client-model.md), approved on 2026-11-09, removes the build job, the dated files and the reference file, so this sheet covers only what Add client reads and records. An independent review checked a first draft against the code of PR 362 and with live EP Register queries; this version includes its findings.
 
 ## Contents
 
@@ -10,7 +10,7 @@
 - [The firm docket](#the-firm-docket)
 - [The flow after the change](#the-flow-after-the-change)
 - [The conflict check](#the-conflict-check)
-- [Recording and building](#recording-and-building)
+- [Recording](#recording)
 - [Cost](#cost)
 - [Confidentiality](#confidentiality)
 - [Settings](#settings)
@@ -52,7 +52,7 @@ The firm's matters for a client are a part of the firm's own EP docket. The dock
 
 1. **The firm's matters for a client** are the docket rows whose applicant matches a ticked name. They are complete for every client size, and they need no client query.
 2. **Step 1 shows two counts for each name:** **At your firm** (exact, from the docket) and **Matching EP applications** (the `total` of a `pa=` count query, "10,000+" at the cap). A count query counts every applicant that contains the words of the name, and an application with two ticked names counts for each, so the page never adds these counts into a group total.
-3. **The rest of the client's portfolio is a summary for a large group.** Over the reference limit, the reference file has the count, the counts for each year and for each IPC section (A to H), and the newest applications up to the limit. A search field on the review finds any other application of the group by number or title, so **This is ours** (founder decision 5) works on every application, not only on the listed rows. Under the limit, the full reference list stays, as now.
+3. **The rest of the client's portfolio is not a list.** The review and the client page show the count of the group's applications at other firms: one `or` count query for each 4 ticked names, minus the firm's count. With more than 4 names the page says "at least", because two queries can count one application twice. A search field finds any of them by number or title, so **This is ours** (founder decision 5) works on every application. There is no reference file.
 4. **The docket also shows the firm view.** It knows every applicant of the firm's EP matters, so a later step can list "applicants in your docket that are not clients yet". This sheet does not build that list.
 
 ## The firm docket
@@ -106,11 +106,11 @@ stateDiagram-v2
 |---|---|---|
 | 1. Find | Types a company name | Shows the matching applicant names from the docket, each with **At your firm** and **Matching EP applications**. It also shows names from a register sample of `findSampleRows` rows and says that this part can be incomplete |
 | 2. Confirm the group | Unticks a name that is not part of the client | No change |
-| 3. See the matters | Reads "1,132 EP matters at your firm" | Takes the firm's matters from the docket. Shows the reference list, or the summary and the search field for a large group |
+| 3. See the matters | Reads "1,132 EP matters at your firm" | Takes the firm's matters from the docket. Shows the count at other firms and the search field |
 | 4. Conflict check | No change for the person | Reads as in [The conflict check](#the-conflict-check). **Add client** as **Client** waits until the check is complete; **Watch** does not wait |
 | 5. Decide | No change | No change |
-| 6. Record and build | Keeps the page open until the records are written, then can leave | Writes the records in batches, then builds as in [Recording and building](#recording-and-building) |
-| 7. Open | Opens the client folder | The folder page shows the build progress until it ends |
+| 6. Record | Keeps the page open until the records are written | Writes the client record and the application index in batches, as in [Recording](#recording). There is no build job |
+| 7. Open | Opens the client page | The client page shows the application list ([the client model](2026-11-09-client-model.md)) |
 
 A company with no matters at the firm still goes through step 1. The page then says "No EP matters at your firm yet", but only when the docket is `ready` or `stale`.
 
@@ -123,16 +123,11 @@ The approved check has two halves. Both must be complete for every group size.
 
 The opponent index sends the names of the firm's clients to the EP Register. Each of these names already went to the EP Register under the firm's own EPO account when the firm added that client, so the EPO learns nothing new. See [Confidentiality](#confidentiality).
 
-## Recording and building
+## Recording
 
-**Recording.** Today the browser sends two record commands for each matter, one after the other ("Recording 4 of 32"). For 1,132 matters that is more than 2,264 commands. A record command is a person's act, so it stays in the browser. A new batch command `client/applications-recorded` records up to 100 applications and their roles in one command, with one idempotency key for each batch and one fact for each application inside it. 1,132 matters then need 12 commands. The page asks the person to keep it open until the records are written.
+Today the browser sends two record commands for each matter, one after the other ("Recording 4 of 32"). For 1,132 matters that is more than 2,264 commands. A record command is a person's act, so it stays in the browser. A new batch command `client/applications-recorded` records up to 100 applications and their roles in one command, with one idempotency key for each batch and one fact for each application inside it. 1,132 matters then need 12 commands. The page asks the person to keep it open until the records are written.
 
-**Building.** The build is already a Host job for every client: the route answers 202, the job continues after the request ends, and its status survives a reload. The build already reads the family of a matter before it makes the matter folder, so no folder moves later. This sheet changes four things:
-
-- The build takes the firm's matters and the reference rows from the docket and the summary. It no longer reads the group again (`readGroup` in the build).
-- A job that the Host stopped (`interrupted`) continues when the Host starts again, with only the missing work.
-- A new step state `throttled` means "the EPO asked FlowLeap to slow down". The existing `waiting` keeps its meaning, "the step has not started".
-- One request limiter serves all build jobs, the docket read and the opponent index, because they all use the firm's one EPO account. Jobs of different clients run in parallel today, so a limit for each job would not limit the total.
+One request limiter serves the docket read, the opponent index and the live reads of the pages, because they all use the firm's one EPO account.
 
 ## Cost
 
@@ -142,10 +137,9 @@ The opponent index sends the names of the firm's clients to the EP Register. Eac
 | Docket of a large firm (3,000 or more rows a year) | for each identity entry and year: about 12 monthly counts and 35 pages | at the first read and at each refresh |
 | Opponent index | for each client name: 1 count and usually 1 page | with the docket |
 | Find, step 1 | 1 count for each name, at most `findNameLimit` | each Add client |
-| Summary of a large group | about 1 count, 10 year counts, 8 IPC counts and 1 page | each Add client of a large group |
-| Build, for each matter | 2 reads for the family and 3 to 6 for the publication | once for each new matter |
+| Count at other firms | 1 count for each 4 ticked names | each Add client |
 
-A query for each identity entry reads some rows again; the docket keeps one row for each application. A client with 1,132 matters at the firm needs about 5,700 to 10,000 reads for its build. The docket row gives the publication number, so the family read can skip the register record and save one read for each matter. The build PR replaces these estimates with measured values and sets `opsRequestsPerMinute` from them.
+A query for each identity entry reads some rows again; the docket keeps one row for each application. Add client itself needs no read for each matter, because the client model makes no files at Add client. The build PR replaces these estimates with measured values and sets `opsRequestsPerMinute` from them.
 
 ## Confidentiality
 
@@ -169,7 +163,6 @@ Validated `Config` fields of `ui-flowleap-folder`, so a firm can change them in 
 | `registerSliceRows` | The most rows of one date slice | 2,000 (the EPO limit; a lower value is allowed) |
 | `findNameLimit` | The most names that step 1 counts | 20 |
 | `findSampleRows` | The rows of the register sample in step 1 (replaces `maxRegisterRows`) | 500, at most 2,000 |
-| `referenceListLimit` | The most rows of a full reference list; over it, the summary | 500 |
 | `recordBatchSize` | The most applications in one `client/applications-recorded` command | 100 |
 | `opsRequestsPerMinute` | The highest request rate of all register reads together | measured in the build |
 
@@ -178,20 +171,19 @@ Validated `Config` fields of `ui-flowleap-folder`, so a firm can change them in 
 All changes are FlowLeap plugin code, except one new record command in flowleap-os.
 
 - **`flowleap-connectors`:** `countRegister(query)` reads the `total` of a 1-row page. `readAllRegister(query)` splits a query into date slices of at most `registerSliceRows` rows, reads them all and checks the sum. `family()` accepts the publication number from a docket row. The shared request limiter.
-- **`ui-flowleap-folder`:** the docket store, the opponent index and their states and route; query terms from the firm identity; `isFirm` also on address lines; `find`, `review` and the build read the docket, the counts and the summary; the summary file and the search field; the batched recording; `throttled`; the resume of an `interrupted` job; the corrected limit of `maxRegisterRows`/`findSampleRows`.
+- **`ui-flowleap-folder`:** the docket store, the opponent index and their states and route; query terms from the firm identity; `isFirm` also on address lines; `find` and `review` read the docket and the counts; the search field; the batched recording; the corrected limit of `maxRegisterRows`/`findSampleRows`.
 - **flowleap-os:** the batch command `client/applications-recorded`.
 - **Tests:** recorded or fake register pages for a total of 10,000, a query over 2,000 rows, a slice over 2,000 rows on one day, a failed slice, a sum mismatch, a docket refresh, an identity change, a row matched by address only, and a conflict through the opponent index. A live proof with Siemens on the dev loop shows the counts, the time of each step and the firm's matters.
 
 ## Open points that the build measures
 
 1. Whether the `pd` slices include register rows that have no EP publication. If not, the docket also slices by another date field, or reads those rows with a separate query.
-2. The real request count and time of the docket read, the opponent index and a large build, and the OPS quota use.
+2. The real request count and time of the docket read and the opponent index, and the OPS quota use.
 3. The most `re=` terms that one query accepts, so that the docket can combine identity entries in one query.
 
 ## Decisions for the founder
 
 1. **Read the firm docket with the firm's names**, and change the approved rule "FlowLeap never sends the firm identity". Recommended: yes. The EPO already knows the account holder, and the docket makes the firm's matters complete for every client.
 2. **The opponent index with the names of the firm's clients.** Recommended: yes. Without it, the conflict check of a large group must read the whole group portfolio, which is more than 100 page reads for Siemens.
-3. **The reference list of a large group is a summary with a search field.** Recommended: yes, over 500 rows.
-4. **A batch record command in flowleap-os.** Recommended: yes. 2,264 single commands from an open browser page are too slow and too fragile.
-5. **The docket refresh.** Recommended: a scheduled refresh every 7 days, and at each **Check for new matters** when the docket is older than 1 day.
+3. **A batch record command in flowleap-os.** Recommended: yes. 2,264 single commands from an open browser page are too slow and too fragile.
+4. **The docket refresh.** Recommended: a scheduled refresh every 7 days, and at each **Check for new matters** when the docket is older than 1 day.

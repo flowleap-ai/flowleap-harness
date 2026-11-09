@@ -1,6 +1,6 @@
 # The client model: a record and a memory, not a drive
 
-**Status:** draft for the founder's approval, 2026-11-09. This page refines what Add client makes. It changes the build step of [the Add client design](2026-11-08-add-client.md) and the build part of [Add client for large clients](2026-11-09-add-client-large-clients.md). It does not change the find step, the group, the conflict check or the roles.
+**Status:** approved by the founder on 2026-11-09, with the four [decisions](#decisions-for-the-founder) below. This page refines what Add client makes. It changes the build step of [the Add client design](2026-11-08-add-client.md) and the build part of [Add client for large clients](2026-11-09-add-client-large-clients.md). It does not change the find step, the group, the conflict check or the roles.
 
 ## The question
 
