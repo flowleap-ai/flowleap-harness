@@ -1,6 +1,6 @@
 # MyEPO card mockups
 
-HTML mockups of the **MyEPO** card on Settings → Connectors, from the approved [MyEPO API study](https://github.com/flowleap-ai/flowleap-harness/pull/363) (`flowleap/docs/2026-11-09-myepo-api-study.md`). The firm links its own MyEPO API account (B2B client credentials); FlowLeap then reads the firm's EP applications, Mailbox letters, EPO due dates and pending fees. The pages follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md). They wait for the founder's approval.
+HTML mockups of the **MyEPO** card on Settings → Connectors, from the approved [MyEPO API study](https://github.com/flowleap-ai/flowleap-harness/pull/363) (`flowleap/docs/2026-11-09-myepo-api-study.md`). The firm links its own MyEPO API account (B2B client credentials); FlowLeap then reads the firm's EP applications, Mailbox letters, EPO due dates and pending fees. The pages follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md). The founder approved them on 2026-11-09 at commit bad4a1b5a7 ("I approve myepo html mockup"), with the three proposals below.
 
 ## Pages
 
