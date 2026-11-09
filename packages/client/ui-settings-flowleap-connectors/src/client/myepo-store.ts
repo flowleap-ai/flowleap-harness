@@ -98,7 +98,10 @@ export class MyEpoStore extends RemotePageStore<MyEpoState> {
     })
   }
 
-  /** Show the fields over a stored link, or hide them again. */
+  /**
+   * Show the fields over a stored link, or hide them again; the draft and the last outcome are dropped either way.
+   * @param replacing - true to show the fields, false to go back to the linked card.
+   */
   replace(replacing: boolean): void {
     this.store.update((state) => {
       state.replacing = replacing
