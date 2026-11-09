@@ -15,6 +15,8 @@ The `flowleap` fork runs CI on free GitHub-hosted runners with 4 CPUs, because t
 - **After a merge.** A push to `flowleap` runs the full Linux suite and the Windows build, native tests, and coverage. Pushes queue instead of cancelling each other, so every run that starts also finishes.
 - **Nightly.** `ci-windows.yml` runs only Windows coverage at 02:17 UTC.
 
+The `full-ci` label must exist in the repository; it was created once on 2026-11-09 with `gh label create full-ci -R flowleap-ai/flowleap-harness --color 0E8A16 --description "Run the full CI suite on this PR"`. Adding it to a draft starts a `labeled` run in the full lane.
+
 Each verdict job names itself from the lane. Only a full-lane run reports `all checks passed`, `windows checks passed`, or `python checks passed`, and only when every job of the full lane succeeded. A draft run reports `fast lane passed (draft, not full CI)`, `windows checks not run (draft)`, or `python checks not run (draft)`. A re-run of a draft run keeps its draft event and its draft names.
 
 A `labeled` event for any label other than `full-ci` skips the `lane` job, and with it every job of the run. Its concurrency group carries the run id, so it cannot cancel the run of the current head.
