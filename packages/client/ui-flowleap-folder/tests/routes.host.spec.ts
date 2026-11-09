@@ -66,7 +66,7 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the nine folder routes and the nine Add client routes, and removes them on dispose', async () => {
+  it('registers the nine folder routes and the eleven Add client routes, and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
       [FOLDER_ROUTES.clients, ['GET'], 'buffered'],
@@ -79,7 +79,9 @@ describe('ui-flowleap-folder Host half', () => {
       [FOLDER_ROUTES.restore, ['POST'], 'buffered'],
       [FOLDER_ROUTES.search, ['GET'], 'buffered'],
       [ADD_CLIENT_ROUTES.find, ['GET'], 'buffered'],
-      [ADD_CLIENT_ROUTES.review, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.matters, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.others, ['POST'], 'buffered'],
+      [ADD_CLIENT_ROUTES.conflictCheck, ['POST'], 'buffered'],
       [ADD_CLIENT_ROUTES.clientFolder, ['POST'], 'buffered'],
       [ADD_CLIENT_ROUTES.settings, ['GET'], 'buffered'],
       [ADD_CLIENT_ROUTES.docket, ['GET'], 'buffered'],
@@ -96,7 +98,7 @@ describe('ui-flowleap-folder Host half', () => {
     expect(() => Config({} as Config)).toThrow()
     expect(() => Config({ stateDir } as Config)).toThrow()
     expect(Config({ stateDir, clientsRoot: '/srv/clients' } as Config)).toMatchObject({
-      maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', maxRegisterRows: 500,
+      maxEntries: 2000, maxUploadBytes: 200 * 1024 * 1024, maxSearchHits: 200, storageLowFlagPath: '', findSampleRows: 500, findNameLimit: 20,
       docketRefreshAge: 7 * 86_400_000, docketCheckAge: 86_400_000, registerSliceRows: 2000, opsRequestsPerMinute: 20,
       folderTemplate: { client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' },
       firmIdentity: { names: [], addresses: [], representatives: [] },

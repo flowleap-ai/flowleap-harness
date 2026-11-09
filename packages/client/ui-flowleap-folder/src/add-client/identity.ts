@@ -110,17 +110,3 @@ export function firmMatch(party: RegisterParty, identity: FirmIdentity): FirmMat
 export function isFirm(party: RegisterParty, identity: FirmIdentity): boolean {
   return firmMatch(party, identity) !== undefined
 }
-
-/**
- * The town of a representative, from the address line with a postal code, else the last address line. The reference
- * list names the town, never the firm.
- * @param party - the representative.
- * @returns the town, or undefined for no address.
- */
-export function townOf(party: RegisterParty): string | undefined {
-  for (const line of party.address) {
-    const match = /^(?:[A-Z]{1,2}-)?\d{4,5}\s+(.+)$/u.exec(line.trim())
-    if (match?.[1] !== undefined) return match[1].trim()
-  }
-  return party.address.at(-1)?.trim() || undefined
-}

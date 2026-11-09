@@ -226,6 +226,39 @@ describe('the firm docket', () => {
     expect(fake.queries).toEqual(['re="Becker, Anna"|1-100'])
   })
 
+  it('serves its rows only when it is ready, stale or partial', async () => {
+    const fake = new FakePatentData([...matters(['2025-01-10']), matter(7, '2025-02-10', [{ name: 'Becker, Anna', address: [] }])])
+    fake.failing.add('re="Becker, Anna"')
+    const service = new Service(fake)
+    const docket = open(service, { names: ['Muster & Partner'], addresses: [], representatives: ['Becker, Anna'] })
+    const release = hold(fake, 're="Muster Partner"')
+    await docket.wake()
+    /** The state name and the application numbers of the served rows. */
+    const served = async (): Promise<[string, string[] | undefined]> => {
+      const { state, rows } = await docket.served()
+      return [state.state, rows?.map(item => item.applicationNumber)]
+    }
+    expect(await served()).toEqual(['reading', undefined])
+    release()
+    await settled(docket)
+    expect((await docket.served()).rows).toEqual([{ applicationNumber: 'EP23000000', applicants: ['Syntegon Technology GmbH'], match: 'name' }])
+    expect(await served()).toEqual(['partial', ['EP23000000']])
+    fake.failing.clear()
+    await docket.readAgain('failed')
+    await settled(docket)
+    expect(await served()).toEqual(['ready', ['EP23000000', 'EP23000007']])
+    service.current = undefined
+    await clock.advance(WEEK)
+    expect(await served()).toEqual(['stale', ['EP23000000', 'EP23000007']])
+    service.current = fake
+    fake.failing.add('re="Nobody"')
+    await docket.setIdentity({ names: ['Nobody'], addresses: [], representatives: [] })
+    await settled(docket)
+    expect(await served()).toEqual(['failed', undefined])
+    await docket.setIdentity({ names: [], addresses: [], representatives: [] })
+    expect(await docket.served()).toEqual({ state: { state: 'no_identity' }, rows: undefined })
+  })
+
   it('reads a query whose sum was wrong again from its count on Try again', async () => {
     const rows = matters(['2025-01-10', '2025-01-11', undefined])
     const fake = new FakePatentData(rows)

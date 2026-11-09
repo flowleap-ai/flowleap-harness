@@ -1,14 +1,15 @@
 /**
  * The browser's calls to the Add client routes of the Host half, at document-relative paths on the same origin: the
- * five routes of Add client, and the firm identity and docket routes of the Firm identity section of Settings. The Host
+ * routes of the Add client steps, and the firm identity and docket routes of the Firm identity section of Settings. The Host
  * and this page ship together and share the answer types of `wire.ts`.
  * @module
  */
 
 import {
   ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type AddClientSettingsAnswer, type ClientFolderAnswer,
-  type ClientFolderRequest, type ClientNamesRequest, type DocketAnswer, type DocketReadRequest, type FindAnswer, type FirmIdentity,
-  type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer, type ReviewRequest,
+  type ClientFolderRequest, type ClientNamesRequest, type ConflictCheckAnswer, type ConflictCheckRequest, type DocketAnswer,
+  type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type MattersAnswer, type NamesRequest,
+  type OpponentIndexAnswer, type OthersAnswer,
 } from '../../add-client/wire.ts'
 
 /** Why a Host call failed: a route failure, no answer (`network`), or an answer that is not JSON (`internal`). */
@@ -50,8 +51,14 @@ const post = <T>(route: string, body: object, signal?: AbortSignal): Promise<Hos
 export interface AddClientApi {
   /** The applicant names that match a company name. */
   find(name: string, signal?: AbortSignal): Promise<HostResult<FindAnswer>>
-  /** The group's EP applications at your firm and at other firms, and the conflicts that the EP Register shows. */
-  review(request: ReviewRequest, signal?: AbortSignal): Promise<HostResult<ReviewAnswer>>
+  /** The firm's EP applications of applicant names, from the firm docket, with the docket state. */
+  matters(names: readonly string[], signal?: AbortSignal): Promise<HostResult<MattersAnswer>>
+  /** The count of a group's EP applications at other firms. */
+  others(names: readonly string[], signal?: AbortSignal): Promise<HostResult<OthersAnswer>>
+  /** The two halves of the conflict check, and the conflicts that the EP Register shows. */
+  conflictCheck(request: ConflictCheckRequest, signal?: AbortSignal): Promise<HostResult<ConflictCheckAnswer>>
+  /** Read the failed slices of the firm docket again, or go on with an interrupted read. */
+  readDocket(): Promise<HostResult<DocketAnswer>>
   /** Make the client folder of a recorded client, or find it. */
   clientFolder(request: ClientFolderRequest): Promise<HostResult<ClientFolderAnswer>>
   /** The settings of the row config that the browser uses, such as the batch size of the Firm Record commands. */
@@ -63,7 +70,10 @@ export interface AddClientApi {
 /** The Add client routes on the same origin. */
 export const addClientApi: AddClientApi = {
   find: (name, signal) => call(`${relative(ADD_CLIENT_ROUTES.find)}?${new URLSearchParams({ name })}`, signal === undefined ? {} : { signal }),
-  review: (request, signal) => post(ADD_CLIENT_ROUTES.review, request, signal),
+  matters: (names, signal) => post(ADD_CLIENT_ROUTES.matters, { names } satisfies NamesRequest, signal),
+  others: (names, signal) => post(ADD_CLIENT_ROUTES.others, { names } satisfies NamesRequest, signal),
+  conflictCheck: (request, signal) => post(ADD_CLIENT_ROUTES.conflictCheck, request, signal),
+  readDocket: () => post(ADD_CLIENT_ROUTES.docketRead, { slices: 'failed' } satisfies DocketReadRequest),
   clientFolder: request => post(ADD_CLIENT_ROUTES.clientFolder, request),
   settings: signal => call(relative(ADD_CLIENT_ROUTES.settings), signal === undefined ? {} : { signal }),
   clientNames: names => post(ADD_CLIENT_ROUTES.clientNames, { names } satisfies ClientNamesRequest),

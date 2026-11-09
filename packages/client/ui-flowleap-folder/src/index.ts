@@ -5,14 +5,16 @@
  * entries by name. A client folder is the folder of one workspace;
  * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
  * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The Add client routes under
- * `add-client/` read the public patent data through the optional `flowleapPatentData` Service, behind one limiter of
- * `opsRequestsPerMinute`, and make a client folder inside `clientsRoot` with the client template folders only.
+ * `add-client/` find the applicant names of a company with their register counts, give the firm's matters of the names
+ * from the firm docket, count the group's EP applications at other firms, run the conflict check, and make a client
+ * folder inside `clientsRoot` with the client template folders only. They read the public patent data through the
+ * optional `flowleapPatentData` Service, behind one limiter of `opsRequestsPerMinute`.
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
  * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
  * in `stateDir`, which reads the docket again; only a request that the optional `flowleapAdmin` Service names as of a
  * firm administrator may save. The `client-names` route takes the names of the firm's clients from the browser, and the
- * plugin reads and refreshes the opponent index for them: the EP applications that they opposed, for the conflict check
- * of the review. The browser half (`exports["./client"]`) is the Clients page, the Add
+ * plugin reads and refreshes the opponent index for them: the EP applications that they opposed, for the conflict check.
+ * The browser half (`exports["./client"]`) is the Clients page, the Add
  * client page and the Firm identity section of Settings.
  *
  * See packages/client/ui-flowleap-folder/README.md.
@@ -81,8 +83,13 @@ export interface Config {
    * Host.
    */
   firmIdentity: FirmIdentity
-  /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
-  maxRegisterRows: number
+  /**
+   * The rows of the register sample of the find step of Add client, whose applicant names the step adds to the names of
+   * the firm docket; one EPO query reads at most 2,000 rows.
+   */
+  findSampleRows: number
+  /** The most applicant names that the find step of Add client counts, with one register count query each. */
+  findNameLimit: number
   /**
    * The age in milliseconds after which the firm docket and the opponent index are `stale` and their scheduled refresh
    * reads them again.
@@ -125,7 +132,8 @@ export const Config: z<Config> = z.object({
     addresses: z.array(String).default([]),
     representatives: z.array(String).default([]),
   }).default({ names: [], addresses: [], representatives: [] }),
-  maxRegisterRows: z.number().step(1).min(1).max(10000).default(500),
+  findSampleRows: z.natural().min(1).max(2000).default(500),
+  findNameLimit: z.natural().min(1).max(100).default(20),
   docketRefreshAge: z.natural().role('ms').min(1).default(7 * DAY_MS),
   docketCheckAge: z.natural().role('ms').min(1).default(DAY_MS),
   registerSliceRows: z.natural().min(1).max(2000).default(2000),
@@ -455,7 +463,9 @@ export function apply(ctx: Context, config: Config): void {
     }), `ui-flowleap-folder: ${path}`)
   }
   registerAddClient(ADD_CLIENT_ROUTES.find, 'GET', request => addClient.find(request))
-  registerAddClient(ADD_CLIENT_ROUTES.review, 'POST', request => addClient.review(request))
+  registerAddClient(ADD_CLIENT_ROUTES.matters, 'POST', request => addClient.matters(request))
+  registerAddClient(ADD_CLIENT_ROUTES.others, 'POST', request => addClient.others(request))
+  registerAddClient(ADD_CLIENT_ROUTES.conflictCheck, 'POST', request => addClient.conflictCheck(request))
   registerAddClient(ADD_CLIENT_ROUTES.clientFolder, 'POST', request => addClient.clientFolder(request))
   registerAddClient(ADD_CLIENT_ROUTES.settings, 'GET', () => Promise.resolve(addClient.settingsAnswer()))
   registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())

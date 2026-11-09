@@ -8983,8 +8983,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
   },
   {
+    name: 'ReviewRequest',
+    declaration: 'export interface ReviewRequest {\n    readonly file: Uint8Array;\n    readonly action: \'accept\' | \'reject\';\n    readonly selection: ReviewSelection;\n}',
+  },
+  {
     name: 'ReviewResult',
     declaration: 'export interface ReviewResult {\n    readonly file: Uint8Array;\n    readonly changed: number;\n}',
+  },
+  {
+    name: 'ReviewSelection',
+    declaration: 'export type ReviewSelection = {\n    readonly kind: \'all\';\n} | {\n    readonly kind: \'author\';\n    readonly author: string;\n} | {\n    readonly kind: \'ids\';\n    readonly ids: readonly number[];\n};',
   },
   {
     name: 'ReviewState',

@@ -23,13 +23,16 @@ export function clientFolderName(name: string): string | undefined {
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
 /**
- * The nine Add client routes: the applicant names, the review, the client folder, the settings that the browser uses,
- * the state of the firm docket, a new read of the firm docket, the firm identity with the docket state, a save of the
- * firm identity, and the names of the firm's clients for the opponent index.
+ * The eleven Add client routes: the applicant names with their register counts, the firm's matters of names from the
+ * firm docket, the count of a group's EP applications at other firms, the conflict check, the client folder, the
+ * settings that the browser uses, the state of the firm docket, a new read of the firm docket, the firm identity with
+ * the docket state, a save of the firm identity, and the names of the firm's clients for the opponent index.
  */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
-  review: `${ADD_CLIENT_API}/review`,
+  matters: `${ADD_CLIENT_API}/matters`,
+  others: `${ADD_CLIENT_API}/others`,
+  conflictCheck: `${ADD_CLIENT_API}/conflict-check`,
   clientFolder: `${ADD_CLIENT_API}/client-folder`,
   settings: `${ADD_CLIENT_API}/settings`,
   docket: `${ADD_CLIENT_API}/docket`,
@@ -38,6 +41,9 @@ export const ADD_CLIENT_ROUTES = {
   identitySave: `${ADD_CLIENT_API}/identity/save`,
   clientNames: `${ADD_CLIENT_API}/client-names`,
 } as const
+
+/** The EPO stops counting the rows of one register query at this value; a count at it shows as "10,000+". */
+export const REGISTER_COUNT_CAP = 10_000
 
 /** The firm's names, its current and earlier addresses, and the names of its representatives. */
 export interface FirmIdentity {
@@ -52,11 +58,15 @@ export interface FirmIdentity {
 /** Where an applicant name comes from: PATSTAT, or the applicant names of the EP Register search. */
 export type NameSource = 'patstat' | 'ep-register'
 
-/** One applicant name of the group, as its source writes it, with its count of applications. */
+/** One applicant name that matches a company name, as its source writes it, with its count of matching EP applications. */
 export interface ApplicantName {
   readonly name: string
-  /** Applications with this name in the source: at all offices for PATSTAT, EP applications for the EP Register. */
-  readonly applications: number
+  /**
+   * The `total` of the count query `pa="<name>"` in the EP Register: every EP application with an applicant that holds
+   * the words of the name. An application with two names counts for each, so these counts never add up to a group
+   * total. At {@link REGISTER_COUNT_CAP} the EPO stopped counting.
+   */
+  readonly matching: number
 }
 
 /** The answer of `GET find?name=`. */
@@ -66,13 +76,87 @@ export type FindAnswer =
     readonly source: NameSource
     /** The PATSTAT edition, such as `2026 Spring`; absent for the EP Register. */
     readonly edition?: string
+    /**
+     * The names of the register sample and the applicant names of the firm docket that hold the words of the company
+     * name, at most `findNameLimit`, most matching applications first.
+     */
     readonly names: readonly ApplicantName[]
+    /** The matching names over `findNameLimit`, which the answer leaves out and does not count. */
+    readonly omitted: number
+    /** The most rows of the register sample that the names come from: `findSampleRows`. */
+    readonly sampleRows: number
+    /** Whether the register holds more rows than the sample, so that the sample can miss a name. */
+    readonly truncated: boolean
     /** ISO-8601 instant of the read. */
     readonly asOf: string
-    /** Whether the read stopped at the configured row cap. */
-    readonly truncated: boolean
   }
   /** No patent data plugin in this runtime: the page adds the client by name only. */
+  | { readonly status: 'no-plugin' }
+
+/** Body of `POST matters` and `POST others`. */
+export interface NamesRequest {
+  /** Applicant names, as the find answer writes them. */
+  readonly names: readonly string[]
+}
+
+/** One EP application of the firm docket with an applicant of the requested names. */
+export interface DocketMatter {
+  /** `EP` and 8 digits, such as `EP23171862`. */
+  readonly applicationNumber: string
+  /** `EP`, digits and kind, such as `EP4292805A1`; absent while the EP Register names no EP publication. */
+  readonly publicationNumber?: string
+  readonly title?: string
+  readonly applicants: readonly string[]
+  /** The EP Register status, as the register writes it. */
+  readonly status?: string
+  /** The day the register recorded the current representative entry, `YYYY-MM-DD`. */
+  readonly representativeSince?: string
+  /**
+   * True when only an address line of the representative matches the firm identity. Another firm can have the same
+   * address, so Add client records the row only when a person ticks it.
+   */
+  readonly addressOnly: boolean
+  /** The requested names that are an applicant of the row, by company key. */
+  readonly names: readonly string[]
+}
+
+/** The firm's count of EP applications of one requested name. */
+export interface NameCount {
+  readonly name: string
+  /** The docket rows with the name as an applicant, without the rows matched by address only. */
+  readonly atFirm: number
+}
+
+/** The answer of `POST matters`: the firm's EP applications of the names, from the firm docket. */
+export type MattersAnswer =
+  | {
+    readonly status: 'matters'
+    /** The state of the firm docket; `rows` and `counts` are known only when it is `ready`, `stale` or `partial`. */
+    readonly docket: DocketState
+    /** One count for each requested name, in the order of the request; 0 while the docket is not known. */
+    readonly counts: readonly NameCount[]
+    /** The docket rows of the names, each once; none while the docket is not known. */
+    readonly rows: readonly DocketMatter[]
+  }
+  /** No patent data plugin in this runtime: the docket cannot be read. */
+  | { readonly status: 'no-plugin' }
+
+/** The answer of `POST others`: the group's EP applications whose representative is not the firm. */
+export type OthersAnswer =
+  | {
+    readonly status: 'counted'
+    /**
+     * The sum of the count queries of the names, four names in each `or` query, less the firm's docket rows of the
+     * names; never below 0.
+     */
+    readonly count: number
+    /** Whether a count query stopped at {@link REGISTER_COUNT_CAP}. */
+    readonly capped: boolean
+    /** True with more than four names, where the page says "at least". */
+    readonly atLeast: boolean
+    /** ISO-8601 instant of the read. */
+    readonly asOf: string
+  }
   | { readonly status: 'no-plugin' }
 
 /** A client that the Firm Record has, as the conflict check compares it. */
@@ -82,39 +166,12 @@ export interface KnownClient {
   readonly names: readonly string[]
 }
 
-/** Body of `POST review`. */
-export interface ReviewRequest {
+/** Body of `POST conflict-check`. */
+export interface ConflictCheckRequest {
   /** The ticked applicant names of the group. */
   readonly names: readonly string[]
   /** The clients that the Firm Record has with the role client; matched on the Host, never sent out. */
   readonly clients: readonly KnownClient[]
-}
-
-/** One EP application of the group where the EP Register names your firm as the representative. */
-export interface MatterRow {
-  /** `EP` and 8 digits, such as `EP23171862`. */
-  readonly applicationNumber: string
-  /** `EP`, digits and kind, such as `EP4292805A1`; absent while the EP Register names no EP publication. */
-  readonly publicationNumber?: string
-  readonly title?: string
-  readonly applicants: readonly string[]
-  /** `YYYY-MM-DD`. */
-  readonly filed?: string
-  /** The date the current representative block was recorded, `YYYY-MM-DD`. */
-  readonly representativeSince?: string
-  /** The EP Register status, as the register writes it. */
-  readonly status?: string
-}
-
-/** One EP application of the group at another firm: for reference only, named by the town of its representative. */
-export interface ReferenceRow {
-  readonly applicationNumber: string
-  readonly publicationNumber?: string
-  readonly title?: string
-  readonly applicants: readonly string[]
-  readonly filed?: string
-  /** The town of the representative of record, never its name; absent when the register names none. */
-  readonly town?: string
 }
 
 /** One possible conflict: an applicant name of the group on the other side of a client of your firm. */
@@ -162,24 +219,14 @@ export interface ConflictCheck {
   readonly clientsOpposedGroup: ConflictHalf
 }
 
-/** The answer of `POST review`. */
-export type ReviewAnswer =
+/** The answer of `POST conflict-check`. */
+export type ConflictCheckAnswer =
   | {
-    readonly status: 'reviewed'
+    readonly status: 'checked'
     /** ISO-8601 instant of the read. */
     readonly asOf: string
-    /** Every EP application of the group that the register search gave. */
-    readonly total: number
-    /** Whether the read stopped at the configured row cap. */
-    readonly truncated: boolean
-    /** Whether the firm identity names anything to match; with none, no matter is at your firm. */
-    readonly identity: 'set' | 'missing'
-    readonly atFirm: readonly MatterRow[]
-    readonly atOtherFirms: readonly ReferenceRow[]
-    /** The possible conflicts that the EP Register shows. */
+    /** The possible conflicts that the EP Register shows, each once. */
     readonly conflicts: readonly ConflictHit[]
-    /** Whether a half of the conflict check is not complete, so that conflicts can be missing. */
-    readonly conflictsTruncated: boolean
     readonly conflictCheck: ConflictCheck
   }
   | { readonly status: 'no-plugin' }

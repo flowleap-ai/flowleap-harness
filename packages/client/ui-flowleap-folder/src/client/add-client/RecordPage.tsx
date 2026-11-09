@@ -1,19 +1,22 @@
 /**
- * Page 4 of Add client: the Record run of a client. One line each for the client, its conflict check, its applications
- * in batches with the batch that runs, and the client folder. While the run goes on, the page asks the person to keep it
- * open; a failure names what stopped and offers Try again, which records only the missing batches.
+ * Record, after the Review step of Add client: the Record run of a client, below a stepper with every step done. One
+ * line each for the client, its conflict check, its applications in batches with the batch that runs, and the client
+ * folder. While the run goes on, the page asks the person to keep it open; a failure names what stopped and offers Try
+ * again, which records only the missing batches. The docked footer has Open client page.
  */
 
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCheckOutlineRegular, IconClockOutlineRegular, IconInfoOutlineRegular, IconLoadingOutlineRegular, IconWarningTriangleOutlineRegular,
+  Button, IconCheckOutlineRegular, IconClockOutlineRegular, IconFolderOpenRegular, IconLoadingOutlineRegular,
+  IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import panel from '../Panel.module.css'
-import { Notice, RetryButton, Steps, hostText, recordText, type PageProps } from './AddClient.tsx'
+import { Notice, RetryButton, StepFoot, Stepper, hostText, recordText, type PageProps } from './AddClient.tsx'
 import { recordedCount, type RecordBatch } from './batches.ts'
 import { counted, type AddClientTranslate } from './format.ts'
 import { recordStatus, type RecordView } from './model.ts'
+import { stepsOf } from './wizard.ts'
 import css from './AddClient.module.css'
 
 /** The state of one line. */
@@ -53,24 +56,30 @@ export function RecordPage({ t, view, model, retryKeycaps }: PageProps & { reado
     : failedStep(view) === 'batch'
       ? <Notice tone="bad" lead={counted(t, missing, 'record.notYet.one', 'record.notYet.many')} rest={t('record.safe')} act={retry} />
       : <Notice tone="bad" lead={errorText(t, error)} rest={t('record.safe')} act={retry} />
+  const steps = stepsOf('client').map(step => ({ step, mark: 'done' as const }))
   return (
-    <div className={css.scroll}>
-      <div className={css.flow}>
-        <Steps t={t} current={3} />
-        <h1 className={panel.title}>{t(status === 'done' ? 'record.titleDone' : 'record.title', { name })}</h1>
-        <p className={css.lede}>{t(status === 'done' ? 'record.ledeDone' : 'record.lede')}</p>
-        {status === 'running' && <Notice tone="info" lead={t('record.keep.lead')} rest={t('record.keep.rest')} />}
-        {failure}
-        <ol className={css.recordSteps}>
-          <Line state="done" title={view.names.length === 0 ? t('record.clientOnly', { name }) : t('record.client', { name, names: counted(t, view.names.length, 'names.one', 'names.many') })}
-            body={t('record.clientBody')} />
-          <Line state="done" title={t('record.conflict')} body={view.hits === 0 ? t('part.conflict.none') : counted(t, view.hits, 'conflict.count.one', 'conflict.count.many')} />
-          {total > 0 && <ApplicationsLine t={t} view={view} />}
-          <FolderLine t={t} view={view} />
-        </ol>
-        <p className={css.recordFoot}><IconInfoOutlineRegular size={16} /><span>{t(`record.foot.${status}`)}</span></p>
+    <>
+      <div className={css.scroll}>
+        <div className={css.flow}>
+          <Stepper t={t} items={steps} />
+          <h1 className={panel.title}>{t(status === 'done' ? 'record.titleDone' : 'record.title', { name })}</h1>
+          <p className={css.lede}>{t(status === 'done' ? 'record.ledeDone' : 'record.lede')}</p>
+          {status === 'running' && <Notice tone="info" lead={t('record.keep.lead')} rest={t('record.keep.rest')} />}
+          {failure}
+          <ol className={css.recordSteps}>
+            <Line state="done" title={view.names.length === 0 ? t('record.clientOnly', { name }) : t('record.client', { name, names: counted(t, view.names.length, 'names.one', 'names.many') })}
+              body={t('record.clientBody')} />
+            <Line state="done" title={t('record.conflict')} body={view.hits === 0 ? t('sum.conflict.none') : counted(t, view.hits, 'conflict.count.one', 'conflict.count.many')} />
+            {total > 0 && <ApplicationsLine t={t} view={view} />}
+            <FolderLine t={t} view={view} />
+          </ol>
+        </div>
       </div>
-    </div>
+      <StepFoot t={t} note={t(`record.foot.${status}`)} waiting={false}>
+        <Button variant="primary" size="md" icon={<IconFolderOpenRegular size={16} />} disabled={status === 'running' || view.folder.state === 'making'}
+          onClick={() => { void model.openClientPage() }}>{t('act.openClient')}</Button>
+      </StepFoot>
+    </>
   )
 }
 

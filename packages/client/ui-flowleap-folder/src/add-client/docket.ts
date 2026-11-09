@@ -11,7 +11,9 @@
  * @module
  */
 
-import { docketState, freshDocket, parseDocketFile, retryLatest, sameIdentity, withSlice, type DocketFile } from './docket-model.ts'
+import {
+  docketState, freshDocket, parseDocketFile, retryLatest, sameIdentity, withSlice, type DocketFile, type DocketRow,
+} from './docket-model.ts'
 import { identitySet, sameFirmIdentity, type FirmIdentity } from './identity.ts'
 import { SlicedFileReader, type SlicedFileSettings } from './sliced-read.ts'
 import type { DocketReadRequest, DocketState } from './wire.ts'
@@ -20,6 +22,13 @@ import type { DocketReadRequest, DocketState } from './wire.ts'
 export interface FirmDocketOptions extends SlicedFileSettings {
   /** The firm identity at load; {@link FirmDocket.setIdentity} changes it later. */
   readonly identity: Promise<FirmIdentity>
+}
+
+/** The state of the firm docket with its served rows. */
+export interface ServedDocket {
+  readonly state: DocketState
+  /** The rows of the served docket; undefined unless the state is `ready`, `stale` or `partial`. */
+  readonly rows: readonly DocketRow[] | undefined
 }
 
 /** The firm docket of this plugin; one instance owns the docket file. */
@@ -72,6 +81,18 @@ export class FirmDocket {
     if (reads === undefined) return { state: 'no_identity' }
     const { clock, refreshAge } = this.options
     return docketState(reads, { reading: this.reader.reading, now: clock.now(), refreshAge })
+  }
+
+  /**
+   * The state of the docket now, with the rows of the served docket when they can be used: when the state is `ready`,
+   * `stale` or `partial`. A `partial` docket can miss rows.
+   * @returns the state, and the rows or undefined.
+   */
+  async served(): Promise<ServedDocket> {
+    const state = await this.state()
+    const reads = this.reader.reads
+    const usable = state.state === 'ready' || state.state === 'stale' || state.state === 'partial'
+    return { state, rows: usable && reads !== undefined ? Object.values(reads.served.rows) : undefined }
   }
 
   /**
