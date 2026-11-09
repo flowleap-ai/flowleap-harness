@@ -64,6 +64,8 @@ After an edit:
 
 The loop reads `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY` and `DEEPSEEK_API_KEY` from your shell's environment and writes no key to the run dir or the repository. With no key, the app starts, the Matters panel and `probe` work, and a chat fails at its model call.
 
+New chats use the default model of the `flowleap-web` profile (its `agent-default-model` row, `anthropic/claude-sonnet-5-5`). `--model <provider>/<model id>` sets another default for this loop through an overlay in the run dir, for example `--model openrouter/anthropic/claude-sonnet-5.5` with only an OpenRouter key. `up` and `restart` stop with a message when the default model's provider has no key in your shell while the shell has another model key, so a new chat does not fail with "No model is set up". `status` shows the default model.
+
 ## Measured
 
 On the founder's Mac (M1 Pro, 32 GB), 2026-11-06:
