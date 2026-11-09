@@ -203,10 +203,21 @@
 .walk-target, .walk.nudge { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 tr.walk-target { outline-offset: -2px; }
 
+/* The review is a page form: the role options, and a plain footer docked under the scrolling form, not a floating card. */
+.role-opts .radio { box-sizing: border-box; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; corner-shape: round; box-shadow: inset 0 0 0 1px var(--dsw-alias-label-tertiary); }
+.role-opts .radio.on { box-shadow: inset 0 0 0 5px var(--dsw-alias-brand-primary); }
+.decision.wiz-foot { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; max-height: none; padding: 12px 32px; border-radius: 0; background: var(--dsw-alias-bg-base); box-shadow: none; border-top: 0.5px solid var(--dsw-alias-border-l2); overflow: visible; }
+.wiz-foot .note { flex: 1 1 240px; min-width: 0; text-align: right; color: var(--dsw-alias-label-secondary); }
+.work .reason-field { width: calc(100% - 16px); }
+.opt.check-opt { grid-template-columns: 16px minmax(0, 1fr); }
+.opt > .check.on > svg { color: var(--dsw-alias-label-primary-foreground); }
+
 @media (max-width: 1080px) {
   .dt .w-md { display: none; }
   .dt .c-title { min-width: 200px; }
   .mp { grid-template-columns: minmax(0, 1fr); }
+  .wiz-foot .note { order: -1; flex-basis: 100%; text-align: left; }
+  .wiz-foot .btn-primary { margin-left: auto; }
 }
 @media (max-width: 720px) {
   .dt .w-sm { display: none; }
@@ -215,4 +226,8 @@ tr.walk-target { outline-offset: -2px; }
   .dt-filters .fwrap.find { width: 100%; }
   .dt-wrap, .dt-filters, .dt-foot { margin-left: 8px; margin-right: 8px; }
   .walk { left: 8px; right: 8px; bottom: 8px; width: auto; }
+  .walk.top { top: 8px; bottom: auto; }
+  .wiz-foot .btn-primary .kbd { display: none; }
+  .decision.wiz-foot { padding: 8px 16px; }
+  .work .reason-field { width: 100%; }
 }

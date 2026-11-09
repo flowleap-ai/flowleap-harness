@@ -68,17 +68,13 @@ const topbar = (trail, right = '', { root = t('Clients', 'Mandanten'), icon = 'c
 const section = (h, count, inner, right = '') => `<div class="section"><div class="section-h"><h2>${h}</h2>${count === '' ? '' : `<span class="count">${count}</span>`}${right ? `<span class="right">${right}</span>` : ''}</div>${inner}</div>`;
 const notice = (cls, icon, lead, rest = '', act = '') => `<div class="notice${cls ? ` ${cls}` : ''}" data-i="${icon}"><div><span class="lead">${lead}</span>${rest ? ` <span>${rest}</span>` : ''}</div>${act ? `<span class="spacer"></span>${act}` : ''}</div>`;
 const retry = () => btn(t('Try again', 'Erneut versuchen'), { icon: 'retry', act: 'retry', key: 'R' });
-const decision = ({ q, why, parts, note, primary, disabled = false, ghost = t('Cancel', 'Abbrechen') }) => `          <div class="decision-dock">
-            <div class="decision">
-              <div class="decision-h"><span class="av a av-lg">A</span><span class="lbl">${t('Your decision', 'Ihre Entscheidung')}</span><span class="q">${q}</span><span class="why hide-sm" data-i="info">${why}</span></div>
-              <div class="decision-b">${parts.map(p => `
-                <div class="part"><span class="pi ${p.s}" data-i="${{ ok: 'check', wait: 'warn', none: 'minus' }[p.s]}"></span><div><div class="q">${p.q}</div><div class="d">${p.d}</div></div><span class="v">${p.v}</span></div>`).join('')}
-              </div>
-              <div class="decision-f">
-                ${btn(ghost, { kind: 'ghost', icon: 'x' })}<span class="note">${note}</span>
-                <div class="acts">${btn(primary, { kind: 'primary', icon: 'check', cls: 'btn-lg', act: 'record', key: '⇧⌘↵', attrs: disabled ? off : ' data-walk="record" data-href="5-record.html"' })}</div>
-              </div>
-            </div>
+// The footer of a wizard step: Back, Cancel, what happens next, and the one primary act. It is a plain bar docked
+// under the scrolling form, not a floating card; it keeps the class `decision` so check-mockups proves that the
+// primary act stays in view (R13).
+const formFoot = ({ note, primary, disabled = false, back = '3-find.html' }) => `          <div class="decision wiz-foot">
+            ${btn(`<span class="hide-sm">${t('Back', 'Zurück')}</span>`, { kind: 'ghost', icon: 'back', attrs: ` aria-label="${t('Back', 'Zurück')}" data-href="${back}"` })}${btn(t('Cancel', 'Abbrechen'), { kind: 'ghost', attrs: ' data-href="0-clients.html"' })}
+            <span class="note">${note}</span>
+            ${btn(primary, { kind: 'primary', icon: 'check', cls: 'btn-lg', act: 'record', key: '⇧⌘↵', attrs: disabled ? off : ' data-walk="record" data-href="5-record.html"' })}
           </div>`;
 const work = (scroll, dock = '') => `      <div class="work">
         <div class="work-scroll"><div class="flow">
@@ -179,7 +175,7 @@ const clientHead = ({ name, names, added, conflictLine }) => `<div class="client
 // ---------- 1. The client page: the Applications tab ----------
 function applications() {
   const noConflict = t('No conflict found', 'Keine Kollision gefunden');
-  const head = clientHead({ name: CLIENT, names: NAMES.map(n => n[0]), added: ASOF, conflictLine: noConflict });
+  const head = clientHead({ name: CLIENT, names: NAMES.map(n => n[0]), added: ASOF, conflictLine: t(`1 possible conflict, checked by ${PERSON}`, `1 mögliche Kollision, geprüft von ${PERSON}`) });
   const src = (hm = ASOF_HM) => `<p class="src-line t12">${t(`Rows: your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}. Status and last event: EP Register, read at ${hm}. Representative changed: the register’s last change of the representative entry. The next deadline shows when your firm’s deadline docket has it.`, `Zeilen: EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Status und letztes Ereignis: EP-Register, gelesen um ${hm}. Vertreter geändert: die letzte Änderung des Vertretereintrags im Register. Die nächste Frist erscheint, sobald der Fristenkalender Ihrer Kanzlei sie hat.`)}</p>`;
   const view = (inner, { instr = false, on = 'firm', state = '' } = {}) => `<div class="cp">${head}${instructions(instr)}${views(MATTERS.length, OTHERS, on, state)}${inner}</div>`;
   const error = `<div class="error-bar list-error">${notice('bad', 'warn', t('The EP Register did not answer.', 'Das EP-Register hat nicht geantwortet.'), t(`Status and last event are from the last read, ${at(ASOF, DOCKET.hm)}.`, `Status und letztes Ereignis sind vom letzten Lesen, ${at(ASOF, DOCKET.hm)}.`), retry())}</div>${src(DOCKET.hm)}${appTable(MATTERS)}`;
@@ -188,7 +184,7 @@ function applications() {
   const fileNos = Object.fromEntries(MATTERS.map((r, i) => [r[0], `SY-${String(101 + i)}`]));
   const myepo = `<p class="src-line t12">${exNote()} ${t(`Later, with MyEPO linked: rows and file numbers from your firm’s MyEPO portfolio, as of ${at(ASOF, DOCKET.hm)}. Status and last event: EP Register, read at ${ASOF_HM}.`, `Später, mit verbundenem MyEPO: Zeilen und Aktenzeichen aus dem MyEPO-Portfolio Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Status und letztes Ereignis: EP-Register, gelesen um ${ASOF_HM}.`)}</p>${appTable(MATTERS, { fileNos })}`;
   const E = EMPTY;
-  const emptyHead = clientHead({ name: E.client, names: E.names, added: E.added, conflictLine: t(`1 conflict found, cleared by ${PERSON}`, `1 Kollision gefunden, freigegeben von ${PERSON}`) });
+  const emptyHead = clientHead({ name: E.client, names: E.names, added: E.added, conflictLine: t(`1 possible conflict, checked by ${PERSON}`, `1 mögliche Kollision, geprüft von ${PERSON}`) });
   const empty = `<div class="cp">${emptyHead}${instructions(false, E.client)}${views(0, E.others)}<div class="empty inflow"><div class="empty-in"><div class="empty-art" data-i="folder"></div><h2>${t('No EP applications at your firm', 'Keine EP-Anmeldungen in Ihrer Kanzlei')}</h2><p>${t(`A row appears here when the EP Register names your firm on one of the ${E.others} EP applications of ${E.client}, or when you mark one as yours under At other firms.`, `Eine Zeile erscheint hier, sobald das EP-Register Ihre Kanzlei bei einer der ${E.others} EP-Anmeldungen von ${E.client} nennt oder Sie eine unter „Bei anderen Kanzleien“ als Ihre markieren.`)}</p>${btn(t('Find at other firms', 'Bei anderen Kanzleien suchen'), { icon: 'search' })}</div></div></div>`;
   const L = LARGE;
   const largeHead = clientHead({ name: L.client, names: L.names.map(n => n[0]), added: ASOF, conflictLine: noConflict });
@@ -335,8 +331,14 @@ ${view('large', 'large', LARGE.query, LARGE.names, true)}`)}`;
   return page({ title: t('Add client: find the company', 'Mandant hinzufügen: Unternehmen finden'), body: frame({ body }) });
 }
 
-// ---------- 4. Add client review: the firm's matters from the docket, the other firms, the decision ----------
-const roleSeg = on => `<div class="seg" role="radiogroup" aria-label="${t('Role', 'Rolle')}">${[['client', t('Client', 'Mandant')], ['watch', t('Watch', 'Beobachten')], ['other', t('Other party', 'Andere Partei')]].map(([k, l]) => `<span${k === on ? ' class="on"' : ''} role="radio" aria-checked="${k === on}">${l}</span>`).join('')}</div>`;
+// ---------- 4. Add client review: the role, the firm's matters from the docket, the conflict check, the other firms ----------
+const ROLES = name => [
+  ['client', 'building', t('Client', 'Mandant'), t(`Your firm represents ${name}, also with no EP matter yet. FlowLeap records the client and its EP applications at your firm.`, `Ihre Kanzlei vertritt ${name}, auch noch ohne EP-Akte. FlowLeap erfasst den Mandanten und seine EP-Anmeldungen in Ihrer Kanzlei.`)],
+  ['watch', 'eye', t('Watch', 'Beobachten'), t(`A competitor to follow. FlowLeap puts ${name} on the Watch list; it adds no client and runs no conflict check.`, `Ein Wettbewerber, den Sie verfolgen. FlowLeap setzt ${name} auf die Beobachtungsliste; es fügt keinen Mandanten hinzu und prüft keine Kollision.`)],
+  ['other', 'party', t('Other party', 'Andere Partei'), t('A party in one of your matters, such as an opponent or a licensee. You choose the matter next.', 'Eine Partei in einer Ihrer Akten, zum Beispiel ein Einsprechender oder ein Lizenznehmer. Die Akte wählen Sie danach.')],
+];
+const roleSection = name => section(t('Role', 'Rolle'), '', `<div class="opts role-opts" role="radiogroup" aria-label="${t('Role', 'Rolle')}">${ROLES(name).map(([k, icon, h, d]) => `<div class="opt${k === 'client' ? ' on' : ''}" role="radio" aria-checked="${k === 'client'}"><span class="radio${k === 'client' ? ' on' : ''}"></span><span data-i="${icon}"></span><div><div class="h">${h}</div><div class="d">${d}</div></div></div>`).join('')}</div>
+<p class="src-line t12">${t(`The role is your firm’s decision. FlowLeap records it with your name, ${PERSON}.`, `Die Rolle ist die Entscheidung Ihrer Kanzlei. FlowLeap erfasst sie mit Ihrem Namen, ${PERSON}.`)}</p>`);
 function review() {
   const mthead = `<div class="thead"><span></span><span>${t('Application', 'Anmeldung')}</span><span>${t('Title', 'Titel')}</span><span>${t('Publication', 'Veröffentlichung')}</span><span>${t('Representative changed', 'Vertreter geändert')}</span></div>`;
   const mrow = ([a, p, ti, , since], off = false) => `<div class="row${off ? ' off' : ''}"><span class="check${off ? '' : ' on'}" data-i="${off ? '' : 'check'}"></span><span class="k">${app(a)}</span><span class="t" title="${ti}">${ti}</span><span class="c">${p ? pub(p) : t('Not yet as EP', 'Noch nicht als EP')}</span><span class="c">${date(since)}</span></div>`;
@@ -346,29 +348,38 @@ function review() {
     const groups = `<div class="group">${t('At your firm', 'In Ihrer Kanzlei')} <span class="count num">${int(total - (address ? 1 : 0))}</span></div>${firm.map(r => mrow(r)).join('')}${more ? `<div class="row more-row"><span>${t(`Show 100 more of ${int(more)}`, `100 weitere von ${int(more)} zeigen`)}</span></div>` : ''}${address ? `<div class="group">${t('Matched by address only', 'Nur über die Adresse gefunden')} <span class="count num">1</span><span class="why-addr">${t('Another firm can have the same address, so the row is not ticked. Tick it if it is yours.', 'Eine andere Kanzlei kann dieselbe Adresse haben, darum ist die Zeile nicht angehakt. Haken Sie sie an, wenn sie Ihre ist.')}</span></div>${mrow(ADDR, true)}` : ''}`;
     return section(t('These are your matters', 'Das sind Ihre Akten'), int(total - (address ? 1 : 0)), `<p class="src-line t12">${example ? `${exNote()} ` : ''}${t(`From your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}: the applications where the EP Register names your firm as the representative.`, `Aus dem EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}: die Anmeldungen, bei denen das EP-Register Ihre Kanzlei als Vertreter nennt.`)}${address ? ` ${exNote()}` : ''}</p><div class="list mats2">${mthead}${groups}</div>`);
   };
-  const conflict = n => section(t('Conflict check', 'Kollisionsprüfung'), '', `<div class="ok-line" data-i="check"><div><div>${t('No conflict found.', 'Keine Kollision gefunden.')}</div><div class="d">${t(`None of the ${n} names is the other side in a matter of your clients: not in your Firm Record, and not as an opponent or patent owner in an EP opposition. Opposition index as of ${at(ASOF, DOCKET.hm)}.`, `Keiner der ${n} Namen ist Gegenseite in einer Akte Ihrer Mandanten: nicht in Ihrem Firm Record und nicht als Einsprechender oder Patentinhaber in einem EP-Einspruch. Einspruchsindex Stand ${at(ASOF, DOCKET.hm)}.`)}</div></div></div>`);
-  const roleHint = name => `<div class="hint-line role-hint" data-i="info"><span>${t(`Choose the role in your decision: <b>Client</b> when your firm acts for ${name}, also with no EP matter; <b>Watch</b> for a competitor to follow; <b>Other party</b> for a party in one of your matters.`, `Wählen Sie die Rolle in Ihrer Entscheidung: <b>Mandant</b>, wenn Ihre Kanzlei für ${name} handelt, auch ohne EP-Akte; <b>Beobachten</b> für einen Wettbewerber; <b>Andere Partei</b> für eine Partei in einer Ihrer Akten.`)}</span></div>`;
-  const intro = (name, n, total, names, matching) => `${steps(2)}<h1 class="title">${name}</h1><div class="keyfact"><span class="big">${t(`${int(n)} EP applications at your firm`, `${int(n)} EP-Anmeldungen in Ihrer Kanzlei`)}</span></div><p class="lede">${t(`${names} applicant names · ${matching} matching EP applications in the EP Register, ${at(ASOF, ASOF_HM)}`, `${names} Anmeldernamen · ${matching} passende EP-Anmeldungen im EP-Register, ${at(ASOF, ASOF_HM)}`)}</p>${roleHint(name)}`;
-  const dock = (name, n, address = false) => decision({
-    q: t(`Add ${name} as a client of your firm?`, `${name} als Mandant Ihrer Kanzlei hinzufügen?`),
-    why: t('Recorded with your name', 'Wird mit Ihrem Namen erfasst'),
-    parts: [
-      { s: 'ok', q: t('Role', 'Rolle'), d: t('Your firm’s decision', 'Entscheidung Ihrer Kanzlei'), v: roleSeg('client') },
-      { s: 'ok', q: t('Conflict check', 'Kollisionsprüfung'), d: t('Firm Record and EP oppositions', 'Firm Record und EP-Einsprüche'), v: t('No conflict found', 'Keine Kollision') },
-      { s: 'ok', q: t('Matters', 'Akten'), d: address ? t('1 more matched by address only, not ticked', '1 weitere nur über die Adresse gefunden, nicht angehakt') : t(`Your firm’s EP docket, ${at(ASOF, DOCKET.hm)}`, `EP-Bestand Ihrer Kanzlei, ${at(ASOF, DOCKET.hm)}`), v: t(`${int(n)} at your firm`, `${int(n)} in Ihrer Kanzlei`) },
-    ],
-    note: t(`FlowLeap then records the client and its ${int(n)} applications. It copies no files.`, `Danach erfasst FlowLeap den Mandanten und seine ${int(n)} Anmeldungen. Es kopiert keine Dateien.`),
-    primary: addClient(),
-  });
+  const searched = n => t(`FlowLeap searched the ${n} names in your Firm Record and as opponent or patent owner in EP oppositions. Opposition index as of ${at(ASOF, DOCKET.hm)}.`, `FlowLeap hat die ${n} Namen in Ihrem Firm Record und als Einsprechenden oder Patentinhaber in EP-Einsprüchen gesucht. Einspruchsindex Stand ${at(ASOF, DOCKET.hm)}.`);
+  const noConflict = n => section(t('Conflict check', 'Kollisionsprüfung'), t('No conflict', 'Keine Kollision'), `<div class="ok-line" data-i="check"><div><div>${t('No conflict found.', 'Keine Kollision gefunden.')}</div><div class="d">${t(`None of the ${n} names is the other side in a matter of your clients.`, `Keiner der ${n} Namen ist Gegenseite in einer Akte Ihrer Mandanten.`)} ${searched(n)}</div></div></div>`);
+  // The one possible conflict of Syntegon, from the EP Register (get_register_biblio EP3296081B1, 2026-11-09).
+  const facts = `<div class="facts-tbl">
+<div class="k">${t('Patent', 'Patent')}</div><div><span class="num">EP 3 296 081 B1</span> · ${t('Method and device for producing tubular bags', 'Verfahren und Vorrichtung zum Herstellen von Schlauchbeuteln')}</div>
+<div class="k">${t('Patent owner', 'Patentinhaber')}</div><div>Gerhard Schubert GmbH, ${t('your client Gerhard Schubert', 'Ihr Mandant Gerhard Schubert')}</div>
+<div class="k">${t('Opponent', 'Einsprechender')}</div><div>Syntegon Packaging Systems AG, ${t('one of the 5 names', 'einer der 5 Namen')}</div>
+<div class="k">${t('Opposition filed', 'Einspruch eingelegt')}</div><div class="num">${date('2025-01-08')}</div>
+<div class="k">${t('Register status', 'Registerstatus')}</div><div>${t('Patent revoked', 'Patent widerrufen')}</div>
+<div class="k">${t('Your firm', 'Ihre Kanzlei')}</div><div>${t('Not named in this opposition', 'In diesem Einspruch nicht genannt')}</div>
+<div class="k">${t('Source', 'Quelle')}</div><div>${t(`EP Register, ${at(ASOF, ASOF_HM)}`, `EP-Register, ${at(ASOF, ASOF_HM)}`)}</div>
+</div>`;
+  const checkBox = done => `<div class="opts top"><div class="opt check-opt${done ? ' on' : ''}" role="checkbox" aria-checked="${done}"${done ? '' : ' data-walk="conflict" data-href="4-review.html?state=checked"'}><span class="check${done ? ' on' : ''}" data-i="${done ? 'check' : ''}"></span><div><div class="h">${t('I checked this conflict', 'Ich habe diese Kollision geprüft')}</div><div class="d">${t('Write why Syntegon can be a client of your firm. FlowLeap records the reason with your name.', 'Schreiben Sie, warum Syntegon Mandant Ihrer Kanzlei sein kann. FlowLeap erfasst die Begründung mit Ihrem Namen.')}</div></div></div></div>
+<textarea class="reason-field${done ? ' on' : ''}" aria-label="${t('Reason', 'Begründung')}" placeholder="${t('Reason', 'Begründung')}">${done ? t('The opposition is closed and the patent is revoked. Our firm did not act for Gerhard Schubert in it.', 'Der Einspruch ist abgeschlossen und das Patent widerrufen. Unsere Kanzlei hat Gerhard Schubert darin nicht vertreten.') : ''}</textarea>`;
+  const hit = done => section(t('Conflict check', 'Kollisionsprüfung'), done ? t('1 possible conflict · checked', '1 mögliche Kollision · geprüft') : t('1 possible conflict', '1 mögliche Kollision'), `${notice('warn', 'warn', t('Syntegon Packaging Systems AG is the other side of your client Gerhard Schubert in one EP opposition.', 'Die Syntegon Packaging Systems AG ist in einem EP-Einspruch die Gegenseite Ihres Mandanten Gerhard Schubert.'), done ? t('You checked the conflict.', 'Sie haben die Kollision geprüft.') : t('Check the conflict before you add the client.', 'Prüfen Sie die Kollision, bevor Sie den Mandanten hinzufügen.'))}${facts}<p class="src-line t12">${searched(NAMES.length)}</p>${checkBox(done)}`);
+  const intro = (name, n, names, matching) => `${steps(2)}<h1 class="title">${name}</h1><div class="keyfact"><span class="big">${t(`${int(n)} EP applications at your firm`, `${int(n)} EP-Anmeldungen in Ihrer Kanzlei`)}</span></div><p class="lede">${t(`${names} applicant names · ${matching} matching EP applications in the EP Register, ${at(ASOF, ASOF_HM)}`, `${names} Anmeldernamen · ${matching} passende EP-Anmeldungen im EP-Register, ${at(ASOF, ASOF_HM)}`)}</p>`;
+  const next = (name, n) => t(`FlowLeap then records ${name} as a client with ${int(n)} applications. It copies no files.`, `FlowLeap erfasst ${name} als Mandanten mit ${int(n)} Anmeldungen, ohne Dateien zu kopieren.`);
   const total = MATTERS.length;
   const L = LARGE;
-  const syn = (address, found) => work(`${intro(CLIENT, total - (address ? 1 : 0), total, NAMES.length, int(OTHERS + total))}${mine(MATTERS, total, { address })}${conflict(NAMES.length)}${others({ count: OTHERS, found })}`, dock(CLIENT, total - (address ? 1 : 0), address));
-  const large = work(`${intro(L.client, L.atFirm, L.atFirm, L.names.length, capped(L.matching))}${mine(L.rows, L.atFirm, { more: L.atFirm - L.rows.length, example: L.example })}${conflict(L.names.length)}${others({ count: L.others, atLeast: L.names.length > 4 })}`, dock(L.client, L.atFirm));
-  const body = `      <div class="cset" data-state="default address search">${topbar([addClient(), CLIENT])}</div>
+  const syn = ({ done = true, address = false, found = false }) => {
+    const n = total - (address ? 1 : 0);
+    return work(`${intro(CLIENT, n, NAMES.length, int(OTHERS + total))}${roleSection(CLIENT)}${hit(done)}${mine(MATTERS, total, { address })}${others({ count: OTHERS, found })}`,
+      formFoot({ note: done ? next(CLIENT, n) : t('Add client waits until you check the conflict and write the reason.', '„Mandant hinzufügen“ wartet, bis Sie die Kollision geprüft und die Begründung geschrieben haben.'), primary: addClient(), disabled: !done }));
+  };
+  const large = work(`${intro(L.client, L.atFirm, L.names.length, capped(L.matching))}${roleSection(L.client)}${noConflict(L.names.length)}${mine(L.rows, L.atFirm, { more: L.atFirm - L.rows.length, example: L.example })}${others({ count: L.others, atLeast: L.names.length > 4 })}`,
+    formFoot({ note: next(L.client, L.atFirm), primary: addClient() }));
+  const body = `      <div class="cset" data-state="default checked address search">${topbar([addClient(), CLIENT])}</div>
       <div class="cset" data-state="large">${topbar([addClient(), L.client])}</div>
-      <div class="cset" data-state="default">${syn(false, false)}</div>
-      <div class="cset" data-state="address">${syn(true, false)}</div>
-      <div class="cset" data-state="search">${syn(false, true)}</div>
+      <div class="cset" data-state="default">${syn({ done: false })}</div>
+      <div class="cset" data-state="checked">${syn({})}</div>
+      <div class="cset" data-state="address">${syn({ address: true })}</div>
+      <div class="cset" data-state="search">${syn({ found: true })}</div>
       <div class="cset" data-state="large">${large}</div>`;
   return page({ title: t(`Add client: ${CLIENT}`, `Mandant hinzufügen: ${CLIENT}`), body: frame({ body }) });
 }
@@ -377,7 +388,7 @@ function review() {
 function record() {
   const li = (cls, icon, h, d, n = '') => `<li class="${cls}"><span data-i="${icon}"></span><div><div class="h">${h}</div>${d ? `<div class="d">${d}</div>` : ''}</div><span class="n">${n}</span></li>`;
   const batches = n => Math.ceil(n / 100);
-  const list = (name, names, n, mode) => {
+  const list = (name, names, n, mode, conflict = t('No conflict found', 'Keine Kollision gefunden')) => {
     const b = batches(n), done = mode === 'done' ? b : mode === 'failed' ? 7 : b > 1 ? 7 : 0;
     const step = b === 1 ? t(`1 batch of ${int(n)} applications`, `1 Paket mit ${int(n)} Anmeldungen`) : t(`Batch ${done + 1} of ${b}, 100 applications each`, `Paket ${done + 1} von ${b}, je 100 Anmeldungen`);
     const apps = mode === 'done'
@@ -387,7 +398,7 @@ function record() {
         : li('now', 'spin', t(`Recording the ${int(n)} applications of the client`, `Die ${int(n)} Anmeldungen des Mandanten erfassen`), `${step}${b > 1 ? '<div class="bar p62"><span></span></div>' : ''}`, `${int(done * 100)} / ${int(n)}`);
     return `<ol class="bsteps">
 ${li('done', 'check', t(`Recorded ${name} as a client, with its ${names} applicant names`, `${name} als Mandant erfasst, mit seinen ${names} Anmeldernamen`), t(`Firm Record, by ${PERSON}`, `Firm Record, durch ${PERSON}`))}
-${li('done', 'check', t('Recorded the conflict check', 'Kollisionsprüfung erfasst'), t('No conflict found', 'Keine Kollision gefunden'))}
+${li('done', 'check', t('Recorded the conflict check', 'Kollisionsprüfung erfasst'), conflict)}
 ${apps}
 ${li(mode === 'done' ? 'done' : 'next', mode === 'done' ? 'check' : 'ring', mode === 'done' ? t('Made the client folder', 'Mandantenordner angelegt') : t('Make the client folder', 'Mandantenordner anlegen'), t('Only 00 Client and “About this folder”. A matter folder appears when work on the matter starts.', 'Nur 00 Client und „About this folder“. Ein Aktenordner entsteht, sobald die Arbeit an der Akte beginnt.'))}
 </ol>`;
@@ -397,10 +408,10 @@ ${li(mode === 'done' ? 'done' : 'next', mode === 'done' ? 'check' : 'ring', mode
   const openBtn = dis => btn(t('Open client page', 'Mandantenseite öffnen'), { kind: 'primary', icon: 'clients', attrs: dis ? off : ' data-walk="open" data-href="1-client-applications.html"' });
   const L = LARGE;
   const body = `${topbar([addClient(), `<span class="cset" data-state="default done">${CLIENT}</span><span class="cset" data-state="large failed">${L.client}</span>`], `<span class="cset" data-state="default large">${openBtn(true)}</span><span class="cset" data-state="done failed">${openBtn(false)}</span>`)}
-${work(`<div data-state="default">${intro(CLIENT, 'now')}${keep}${list(CLIENT, NAMES.length, MATTERS.length, 'now')}</div>
+${work(`<div data-state="default">${intro(CLIENT, 'now')}${keep}${list(CLIENT, NAMES.length, MATTERS.length, 'now', t(`1 possible conflict, checked by ${PERSON}, with the reason`, `1 mögliche Kollision, geprüft von ${PERSON}, mit der Begründung`))}</div>
 <div data-state="large">${intro(L.client, 'now')}${keep}${list(L.client, L.names.length, L.atFirm, 'now')}</div>
 <div data-state="failed">${intro(L.client, 'failed')}<div class="section"><div class="error-bar">${notice('bad', 'warn', t(`${int(L.atFirm - 700)} applications are not recorded yet.`, `${int(L.atFirm - 700)} Anmeldungen sind noch nicht erfasst.`), t(`The client and ${int(700)} applications are recorded; the client page shows them now.`, `Der Mandant und ${int(700)} Anmeldungen sind erfasst; die Mandantenseite zeigt sie schon.`), retry())}</div></div>${list(L.client, L.names.length, L.atFirm, 'failed')}</div>
-<div data-state="done">${intro(CLIENT, 'done')}${list(CLIENT, NAMES.length, MATTERS.length, 'done')}</div>`)}`;
+<div data-state="done">${intro(CLIENT, 'done')}${list(CLIENT, NAMES.length, MATTERS.length, 'done', t(`1 possible conflict, checked by ${PERSON}, with the reason`, `1 mögliche Kollision, geprüft von ${PERSON}, mit der Begründung`))}</div>`)}`;
   return page({ title: t('Add client: record', 'Mandant hinzufügen: erfassen'), body: frame({ body }) });
 }
 
@@ -429,6 +440,8 @@ ${work(['default', 'reading', 'partial', 'failed', 'empty'].map(view).join('\n')
 const PAGES = [['0-clients', clients], ['1-client-applications', applications], ['2-client-files', files], ['3-find', find], ['4-review', review], ['5-record', record], ['6-firm-identity', identity], ['7-matter', matter]];
 for (const l of ['en', 'de']) {
   lang = l;
-  for (const [name, fn] of PAGES) writeFileSync(path.join(OUT, `${name}${l === 'de' ? '.de' : ''}.html`), fn());
+  // A German page links to the German page of each mockup.
+  const local = html => l === 'de' ? html.replace(/(href="\d-[a-z-]+)\.html/g, '$1.de.html') : html;
+  for (const [name, fn] of PAGES) writeFileSync(path.join(OUT, `${name}${l === 'de' ? '.de' : ''}.html`), local(fn()));
 }
 console.log(`wrote ${PAGES.length * 2} pages`);
