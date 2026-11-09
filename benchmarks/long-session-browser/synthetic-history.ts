@@ -18,6 +18,8 @@ export const DONE = 'SYNTHETIC_REPLY_DONE'
 export const DELTAS = 120
 /** Replay delay per stream chunk, in milliseconds. */
 export const PACE_MS = 16
+/** Index of the DONE delta in {@link syntheticReply}, after the block start and the earlier deltas. */
+export const DONE_CHUNK = DELTAS
 
 /** Create mixed prose, code, reasoning and tool history without reading user data.
  * @returns Current Session JSONL accepted by the shared Web seeder.

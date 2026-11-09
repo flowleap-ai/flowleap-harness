@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordPeakMemory, recordTimings, type BenchmarkCase, type Timing } from '../support/scaling-report.ts'
 import { anchorShape, ANCHOR_COUNT, sessionShape } from './corpus-shape.ts'
 import { subagentRank } from './synthetic-corpus.ts'
@@ -243,9 +243,9 @@ describe('Session corpus operations', () => {
 
   it(`lists ${String(CORPUS.list)} Sessions after a cold Host boot`, async () => {
     const budgets = {
-      bootMs: budget(EXPECTED_CI_MS.listBoot),
-      firstMs: budget(EXPECTED_CI_MS.listFirst),
-      repeatMs: budget(EXPECTED_CI_MS.listRepeat),
+      bootMs: runnerTimeBudget(budget(EXPECTED_CI_MS.listBoot)),
+      firstMs: runnerTimeBudget(budget(EXPECTED_CI_MS.listFirst)),
+      repeatMs: runnerTimeBudget(budget(EXPECTED_CI_MS.listRepeat)),
       peakRssMb: budget(EXPECTED_CI_PEAK_RSS_MB.list),
     }
     const reports: ListReport[] = []
@@ -272,8 +272,8 @@ describe('Session corpus operations', () => {
 
   it(`searches ${String(CORPUS.search)} Sessions with a cold and then a built content index`, async () => {
     const budgets = {
-      firstMs: budget(EXPECTED_CI_MS.searchFirst),
-      repeatMs: budget(EXPECTED_CI_MS.searchRepeat),
+      firstMs: runnerTimeBudget(budget(EXPECTED_CI_MS.searchFirst)),
+      repeatMs: runnerTimeBudget(budget(EXPECTED_CI_MS.searchRepeat)),
       peakRssMb: budget(EXPECTED_CI_PEAK_RSS_MB.search),
     }
     // One sample: the cold index build dominates this file's time.
@@ -291,9 +291,9 @@ describe('Session corpus operations', () => {
 
   it(`forks Sessions across the length distribution of ${String(CORPUS.fork)} Sessions`, async () => {
     const budgets = {
-      stratumMedianMs: budget(EXPECTED_CI_MS.forkStratumMedian),
-      p99Ms: budget(EXPECTED_CI_MS.forkP99),
-      longestMs: budget(EXPECTED_CI_MS.forkLongest),
+      stratumMedianMs: runnerTimeBudget(budget(EXPECTED_CI_MS.forkStratumMedian)),
+      p99Ms: runnerTimeBudget(budget(EXPECTED_CI_MS.forkP99)),
+      longestMs: runnerTimeBudget(budget(EXPECTED_CI_MS.forkLongest)),
       peakRssMb: budget(EXPECTED_CI_PEAK_RSS_MB.fork),
     }
     const reports: ForkReport[] = []

@@ -7,8 +7,8 @@
  * @module @deepseek-ai/dsh-llm-replay
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { delimiter as pathDelimiter } from 'node:path'
+import { existsSync, readFileSync, watch, writeFileSync } from 'node:fs'
+import { delimiter as pathDelimiter, dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-compaction'
 import type {} from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
@@ -65,7 +65,15 @@ interface ParsedSessionFixture {
  * an override sidecar can supply any variant.
  */
 export type ReplayEntry =
-  | { kind: 'chunks'; chunks: StreamChunk[] }
+  | {
+    kind: 'chunks'
+    chunks: StreamChunk[]
+    /**
+     * Optional barrier: the stream waits before chunk `beforeChunk` until
+     * `releaseFile` exists, so an external driver can act while the reply stays open.
+     */
+    hold?: { beforeChunk: number; releaseFile: string }
+  }
   | { kind: 'throw'; chunks: StreamChunk[]; message: string; code: string; accepted?: boolean }
   | {
     kind: 'hang'
@@ -678,8 +686,22 @@ function readReplayEntry(value: unknown, file: string, location: string): Replay
   if (!isRecord(value)) invalidOverride(file, location, 'must be an object')
   switch (value['kind']) {
     case 'chunks': {
-      if (!hasExactKeys(value, ['kind', 'chunks'])) invalidOverride(file, location, 'has invalid chunks-entry fields')
-      return { kind: 'chunks', chunks: readChunks(value['chunks'], file, location) }
+      const hold = value['hold']
+      const keys = hold === undefined ? ['kind', 'chunks'] : ['kind', 'chunks', 'hold']
+      if (!hasExactKeys(value, keys)) invalidOverride(file, location, 'has invalid chunks-entry fields')
+      const chunks = readChunks(value['chunks'], file, location)
+      if (hold === undefined) return { kind: 'chunks', chunks }
+      if (!isRecord(hold) || !hasExactKeys(hold, ['beforeChunk', 'releaseFile'])) {
+        invalidOverride(file, location, 'hold must have exactly beforeChunk and releaseFile')
+      }
+      const { beforeChunk, releaseFile } = hold
+      if (typeof beforeChunk !== 'number' || !Number.isSafeInteger(beforeChunk) || beforeChunk < 0 || beforeChunk >= chunks.length) {
+        invalidOverride(file, location, 'hold.beforeChunk must index a chunk')
+      }
+      if (typeof releaseFile !== 'string' || releaseFile.length === 0) {
+        invalidOverride(file, location, 'hold.releaseFile must be a non-empty string')
+      }
+      return { kind: 'chunks', chunks, hold: { beforeChunk, releaseFile } }
     }
     case 'throw': {
       const accepted = value['accepted']
@@ -951,12 +973,35 @@ function paceDelay(paceMs: number, signal: AbortSignal | undefined): Promise<voi
   })
 }
 
+/**
+ * Resolve once `path` exists, rejecting when the signal fires first. The
+ * caller checks an already-aborted signal synchronously before the call. The
+ * directory watcher exists before the existence check, so a file created
+ * between the two still releases the wait.
+ */
+function waitForFile(path: string, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const watcher = watch(dirname(path), () => { if (existsSync(path)) settle(resolve) })
+    const onAbort = (): void => { settle(() => { reject(new Error('aborted')) }) }
+    function settle(outcome: () => void): void {
+      watcher.close()
+      signal?.removeEventListener('abort', onAbort)
+      outcome()
+    }
+    /* v8 ignore next -- an FSWatcher error needs the watched directory to fail underneath it; the listener keeps it uncaught-safe. */
+    watcher.once('error', (error: Error) => { settle(() => { reject(error) }) })
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (existsSync(path)) settle(resolve)
+  })
+}
+
 /** Yield a recorded stream back, honoring abort like a real adapter. */
 async function* replayEntry(entry: ReplayEntry, signal: AbortSignal | undefined, paceMs: number): AsyncIterable<StreamChunk> {
   switch (entry.kind) {
     case 'chunks':
-      for (const chunk of entry.chunks) {
+      for (const [index, chunk] of entry.chunks.entries()) {
         if (signal?.aborted) throw new Error('aborted')
+        if (entry.hold?.beforeChunk === index) await waitForFile(entry.hold.releaseFile, signal)
         if (paceMs > 0) await paceDelay(paceMs, signal)
         yield chunk
       }
