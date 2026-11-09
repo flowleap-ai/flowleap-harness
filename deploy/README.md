@@ -6,7 +6,7 @@ FlowLeap installs and configures the first instances with you, gives 15 days of 
 
 ## What you get
 
-- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data), the FlowLeap skill pack (the patent research methods the agent follows) and OfficeCLI (the engine of the office tools that write Word letters, claim amendments as tracked changes and Excel claim charts).
+- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data), the FlowLeap skill pack (the patent research methods the agent follows) OfficeCLI (the engine of the office tools that write Word letters, claim amendments as tracked changes and Excel claim charts) and Debian's poppler-utils (`pdftotext`, with which the agent reads a PDF's text layer before it spends Mistral OCR pages on it).
 - One container per attorney. Each has its own `/data` volume: sessions, settings, keys. Attorneys do not share a process and cannot see each other's data.
 - One Tailscale sidecar per attorney. It gives the instance a name such as `https://harness-alice.tail1234.ts.net/` with a valid HTTPS certificate. Nothing listens on the server's public network interface.
 - Two support tools: a doctor report and a log bundle. Both are scrubbed; they contain no keys, tokens or cookies.
