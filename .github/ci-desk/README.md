@@ -29,6 +29,10 @@ The desk CI runner runs the `node 24 / coverage` job of the full CI lane on the 
 
 The log is `/Users/ghci/Library/Logs/dsh-ci-desk.log`. The runners appear under Settings, Actions, Runners with the label `desk`.
 
+## Update
+
+After a change to a file in this directory, set `DSH_CI_DESK` to `off`, then on desk run `cd ~/dsh-ci-desk-setup && git pull && cd .github/ci-desk && sudo bash setup.sh`. The script keeps the user, the token, and the saved sleep value, installs the new files, and restarts the launcher, which builds the new image. Then set `DSH_CI_DESK` back to `on`.
+
 ## Removal
 
 1. `gh variable set DSH_CI_DESK -R flowleap-ai/flowleap-harness --body off`. Coverage returns to GitHub's runners at once.

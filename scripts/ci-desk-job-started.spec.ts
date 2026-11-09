@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -27,6 +27,16 @@ function runHook(env: Record<string, string>, event?: unknown): { status: number
 function pullRequest(head: string, login = 'maintainer'): unknown {
   return { pull_request: { head: { repo: { full_name: head } }, user: { login } } }
 }
+
+describe('desk runner image', () => {
+  it('installs the job-started hook at a path the runner accepts', () => {
+    const dockerfile = readFileSync(resolve(import.meta.dirname, '../.github/ci-desk/Dockerfile'), 'utf8')
+    const hookPath = /^ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=(\S+)$/m.exec(dockerfile)?.[1]
+    // The runner rejects a hook whose path does not end in .sh, .ps1, or .js.
+    expect(hookPath).toMatch(/\.(sh|ps1|js)$/)
+    expect(dockerfile).toContain(`COPY job-started.sh ${String(hookPath)}`)
+  })
+})
 
 describe.skipIf(process.platform === 'win32')('desk job-started hook', () => {
   it('accepts a push to flowleap and a pull request from this repository', () => {

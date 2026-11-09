@@ -53,7 +53,11 @@ if [[ ! -s "$token_file" ]]; then
 fi
 
 # Keep the Mac awake on power so queued jobs do not wait for it to wake.
-pmset -g custom | awk '/AC Power/{ac=1} ac && $1=="sleep"{print $2; exit}' > "$CI_HOME/.config/dsh-ci/previous-ac-sleep"
+# A second run must keep the value from before the first run.
+previous_sleep="$CI_HOME/.config/dsh-ci/previous-ac-sleep"
+if [[ ! -s "$previous_sleep" ]]; then
+  pmset -g custom | awk '/AC Power/{ac=1} ac && $1=="sleep"{print $2; exit}' > "$previous_sleep"
+fi
 pmset -c sleep 0
 
 cat > "$PLIST" <<PLIST

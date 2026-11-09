@@ -16,9 +16,10 @@ RUN useradd --create-home --shell /bin/bash runner \
   && chmod 0440 /etc/sudoers.d/runner
 
 # The runner runs this check before any step of a job; see job-started.sh.
-COPY job-started.sh /usr/local/bin/dsh-ci-job-started
-RUN chown root:root /usr/local/bin/dsh-ci-job-started && chmod 0755 /usr/local/bin/dsh-ci-job-started
-ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/bin/dsh-ci-job-started
+# The runner accepts a hook only when its path ends in .sh, .ps1, or .js.
+COPY job-started.sh /usr/local/bin/dsh-ci-job-started.sh
+RUN chown root:root /usr/local/bin/dsh-ci-job-started.sh && chmod 0755 /usr/local/bin/dsh-ci-job-started.sh
+ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/usr/local/bin/dsh-ci-job-started.sh
 
 USER runner
 WORKDIR /home/runner
