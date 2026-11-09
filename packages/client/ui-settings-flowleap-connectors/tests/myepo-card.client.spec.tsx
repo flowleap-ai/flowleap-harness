@@ -31,7 +31,7 @@ function renderCard(overrides: Partial<MyEpoState> = {}) {
   return acts
 }
 
-const button = (name: string) => screen.getByRole('button', { name })
+const button = (name: string) => screen.getByRole<HTMLButtonElement>('button', { name })
 
 describe('the MyEPO card', () => {
   it('shows the short intro, the two collapsed rows and the empty fields while not linked', () => {
@@ -87,7 +87,7 @@ describe('the MyEPO card', () => {
     expect(screen.getByText(en.myEpoTesting)).toBeTruthy()
     for (const step of [en.myEpoStepToken, en.myEpoStepPortfolios, en.myEpoStepMailbox]) expect(screen.getByText(step)).toBeTruthy()
     expect(button(en.myEpoTestingButton).disabled).toBe(true)
-    expect((screen.getByLabelText(en.myEpoClientSecret)).disabled).toBe(true)
+    expect(screen.getByLabelText<HTMLInputElement>(en.myEpoClientSecret).disabled).toBe(true)
   })
 
   it('shows a passed test: the portfolio count as the key fact, each portfolio with type and access, and the checks', () => {
@@ -184,7 +184,7 @@ describe('the MyEPO card', () => {
   it('shows a refused call and disables the fields of a read-only store', () => {
     renderCard({ error: 'flowleap-connectors/rejected', link: { state: 'not-linked', writable: false }, draft: { clientId: 'a', clientSecret: 'b' } })
     expect(screen.getByRole('alert').textContent).toBe('flowleap-connectors/rejected')
-    expect((screen.getByLabelText(en.myEpoClientId)).disabled).toBe(true)
+    expect(screen.getByLabelText<HTMLInputElement>(en.myEpoClientId).disabled).toBe(true)
     expect(button(en.myEpoSaveTest).disabled).toBe(true)
   })
 

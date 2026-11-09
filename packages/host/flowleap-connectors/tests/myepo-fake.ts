@@ -37,8 +37,8 @@ export function json(status: number, body: unknown): Response {
  * @param files - the files of the ZIP; one small PDF when absent.
  * @returns the ZIP bytes.
  */
-export function zipOf(files: Record<string, string> = { 'P79105WO1-2023.05.30-SE2023123456-I1015.pdf': '%PDF-1.4 dummy' }): Uint8Array {
-  return zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)])))
+export function zipOf(files: Record<string, string> = { 'P79105WO1-2023.05.30-SE2023123456-I1015.pdf': '%PDF-1.4 dummy' }): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))))
 }
 
 /** The recorded answer of each API path, without the base. */

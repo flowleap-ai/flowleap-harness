@@ -2,7 +2,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createMyEpoClient, createRequestGate, describeFailure, MyEpoError, parseBibliographicData, parsePortfolios,
-  type MyEpoApplicationNumber, type MyEpoCommunication, type MyEpoCredentials, type MyEpoFailure, type MyEpoFolderId,
+  type MyEpoApplicationNumber, type MyEpoCommunication, type MyEpoPortfolioId, type MyEpoCredentials, type MyEpoFailure, type MyEpoFolderId,
   type MyEpoReads, type RequestGate,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { CREDENTIALS, ENDPOINT, fakeEpo, json, zipOf, type FakeEpo } from './myepo-fake.ts'
@@ -92,7 +92,7 @@ describe('the MyEPO reads on the recorded sandbox answers', () => {
     const reads = client(epo)
     expect(await reads.communications({ folderId: brandString<MyEpoFolderId>('kih7dx82luu148t'), page: 0 })).toEqual({ items: [], page: 0, size: 10, total: 0 })
     expect((await reads.unhandledCommunications({ size: 5 })).size).toBe(5)
-    await expect(reads.applications({ procedure: 'UPP', applicantFileReference: undefined })).rejects.toBeInstanceOf(MyEpoError)
+    await expect(reads.applications({ procedure: 'UPP' })).rejects.toBeInstanceOf(MyEpoError)
     expect(epo.calls.at(-1)?.url).toBe(`${ENDPOINT.baseUrl}/applications?procedure=UPP`)
   })
 
@@ -191,8 +191,9 @@ describe('the MyEPO failures', () => {
   it('maps the recorded refusals: ERR_20 to no permission, ERR_30 to rejected, ERR_15 to not ready', async () => {
     const epo = fakeEpo()
     const reads = client(epo)
-    expect(await failureOf(reads.applications({ portfolioId: brandString('999') }))).toEqual({ kind: 'no-permission', code: 'ERR_20' })
-    expect(await failureOf(reads.bibliographicData({ ...EP1, number: brandString('EP99999999') }))).toEqual({
+    const unknownPortfolio = brandString<MyEpoPortfolioId>('999')
+    expect(await failureOf(reads.applications({ portfolioId: unknownPortfolio }))).toEqual({ kind: 'no-permission', code: 'ERR_20' })
+    expect(await failureOf(reads.bibliographicData({ ...EP1, number: brandString<MyEpoApplicationNumber>('EP99999999') }))).toEqual({
       kind: 'rejected', status: 400, code: 'ERR_30', message: 'Invalid procedure',
     })
     epo.answer('/portfolios', () => json(400, { code: 'ERR_15', message: 'Error retrieving from S3' }))

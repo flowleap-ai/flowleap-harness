@@ -103,7 +103,7 @@ describe('the MyEPO link', () => {
 
   it('reads a record of another kind or with a missing fact as not linked', async () => {
     const { link, credentials } = bench()
-    credentials.records.set(KEY, { kind: 'api-key', value: 'x' })
+    credentials.records.set(KEY, { kind: 'api-key', key: 'x' })
     expect(await link.describe()).toMatchObject({ state: 'not-linked' })
     credentials.records.set(KEY, { kind: 'grant', payload: { ...CREDENTIALS } })
     expect(await link.describe()).toMatchObject({ state: 'not-linked' })
@@ -180,14 +180,15 @@ describe('the MyEPO Remote methods', () => {
 
 describe('the MyEPO Config', () => {
   it('defaults to the EPO production services and validates each field', () => {
-    expect(Config({}).myepo).toEqual({
+    const parse = (input: { myepo?: Partial<Config['myepo']> }) => Config(input as Config)
+    expect(parse({}).myepo).toEqual({
       baseUrl: 'https://api.apps.epo.org/latest',
       tokenUrl: 'https://login.epo.org/oauth2/aus6hh2ns9ORf2PD3417/v1/token',
       requestsPerSecond: 4,
       timeoutSeconds: 30,
     })
-    expect(() => Config({ myepo: { requestsPerSecond: 0 } })).toThrow()
-    expect(() => Config({ myepo: { timeoutSeconds: 0 } })).toThrow()
+    expect(() => parse({ myepo: { requestsPerSecond: 0 } })).toThrow()
+    expect(() => parse({ myepo: { timeoutSeconds: 0 } })).toThrow()
   })
 
   it('accepts HTTPS, or HTTP to a loopback double, and removes a trailing slash', () => {

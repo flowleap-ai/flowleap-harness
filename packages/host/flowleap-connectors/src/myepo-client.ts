@@ -355,12 +355,10 @@ export function createMyEpoClient(options: MyEpoClientOptions): MyEpoReads {
   }
 }
 
-/** The query string of a page request and its filters; absent fields stay out. */
+/** The query string of a page request and its filters, in field order. */
 function search(query: object): string {
   const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) params.set(key, String(value))
-  }
+  for (const [key, value] of Object.entries(query)) params.set(key, String(value))
   const text = params.toString()
   return text.length === 0 ? '' : `?${text}`
 }
