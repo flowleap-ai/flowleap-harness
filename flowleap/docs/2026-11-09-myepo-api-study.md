@@ -12,6 +12,7 @@
 - [Add client with MyEPO](#add-client-with-myepo)
 - [The MyEPO plugin](#the-myepo-plugin)
 - [Safety rules](#safety-rules)
+- [The DPMA counterpart: DPMAconnectPlus](#the-dpma-counterpart-dpmaconnectplus)
 - [Next steps](#next-steps)
 - [Decisions for the founder](#decisions-for-the-founder)
 
@@ -113,6 +114,26 @@ The token is fetched, kept in memory and renewed before it expires. The request 
 - **The OAuth scope `mailboxapi` covers reads and writes.** The spec shows no read-only scope, so the plugin itself must enforce that only a person's act can write.
 - **The credentials never reach a model, a log or a session event.** They stay in the credential record.
 - **A letter from the Mailbox is still a document of intake.** It is stored with its source (MyEPO, communication id, dispatch date) and goes through the same filing states as a forwarded letter.
+
+## The DPMA counterpart: DPMAconnectPlus
+
+**Status:** founder assumption of 2026-11-09: each German firm has its own DPMAconnectPlus contract and links it. Sources: the DPMA pages [DEPATISnet](https://www.dpma.de/english/search/depatisnet/) and [DPMAconnectPlus](https://www.dpma.de/recherche/datenabgabe/dpmaconnect/index.html), read on 2026-11-09.
+
+DEPATISnet is the DPMA's free web search in more than 160 million patent documents. It has no API of its own. DPMAconnectPlus is the DPMA's REST interface to DPMAregister and to the DEPATIS document archive:
+
+- the complete register data of patents, utility models, trademarks and designs (bibliographic data, legal status, updates, corrections), updated daily;
+- DE, DD, EP and WO documents as PDF or TIFF, with optional bibliographic data, and German full text as XML;
+- access with a user name and password after a standard contract with the DPMA: a signed paper contract, a purpose of use in its § 3 that the DPMA checks for data protection, and a one-time connection fee of 200 euros; the register and document reads are free.
+
+**Why one contract for each firm.** The contract allows the data only for the stated purpose. The current contract text is not online, and a third-party analysis reads § 3.2 as a ban on passing data records on. FlowLeap therefore does not serve DPMA data to firms. Each firm signs its own contract, and its own installation reads the data with its own credentials. That is the same model as MyEPO. FlowLeap signs one contract for its own development and tests.
+
+**What it gives FlowLeap.** The firm's German matters: patents and utility models, and later trademarks and designs. These are the DE half of the firm docket, because MyEPO covers only EP. DPMAregister names the representative, so the DE docket works like the EP Register docket. It also gives the German legal status and events for the application index and the matter story, and German publications as live reads.
+
+**What it does not give.** DPMA office letters. DPMAconnectPlus has no Mailbox, so German letters stay on the forwarded-mail and OCR path of intake.
+
+**The link.** Settings → Connectors gets a **DPMA** card with the user name and password of the firm's contract, stored as a `flowleap-connectors/dpma` credential record. **Test** reads one register record. A firm without the contract sees that German matters need it, with a short guide and the DPMA contact (datenabgabe@dpma.de). Until it links, German matters come only from a docket import or a person's entry.
+
+**Open points for the FlowLeap test contract.** The search limit for each query, the fixed IP address that the third-party analysis names, the register fields for the representative, and the exact text of § 3.
 
 ## Next steps
 
