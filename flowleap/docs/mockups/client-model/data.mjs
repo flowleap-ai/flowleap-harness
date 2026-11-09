@@ -63,3 +63,16 @@ export const LARGE = {
 };
 /** A client with no EP application at your firm: Gerhard Schubert (pa="Gerhard Schubert": 57, none at your firm). */
 export const EMPTY = { client: 'Gerhard Schubert', names: ['Gerhard Schubert GmbH'], others: 57 };
+/** The EP Register events of the two applications that the walkthrough opens (get_register_events, 2026-11-09). */
+export const EVENTS = {
+  EP23171862: [['2024-12-13', 'Examination is in progress'], ['2024-03-01', 'Request for examination was made'], ['2023-11-17', 'The application has been published']],
+  EP23215725: [['2024-09-20', 'Request for examination was made'], ['2024-05-17', 'The application has been published']],
+};
+/**
+ * The clients of the seed firm before Syntegon: name, applicant names, EP applications at your firm (EP Register,
+ * 2026-11-09), matter folders, added, by. The dates and the person are examples.
+ */
+export const CLIENTS = [
+  ['Bucher Hydraulics', ['Bucher Hydraulics AG', 'Bucher Hydraulics GmbH'], 9, 0, '2026-11-08', 'Dr. Anna Becker'],
+  ['Gerhard Schubert', ['Gerhard Schubert GmbH'], 0, 0, '2026-11-08', 'Dr. Anna Becker'],
+];

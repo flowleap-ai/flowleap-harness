@@ -3,7 +3,7 @@
 // 2026-11-09), except where README.md names an example. "Your firm" stands for the firm's name.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { CLIENT, ASOF, ASOF_HM, DOCKET, NAMES, MATTERS, OTHERS, FOUND, LARGE, EMPTY } from './data.mjs';
+import { CLIENT, ASOF, ASOF_HM, DOCKET, NAMES, MATTERS, OTHERS, FOUND, LARGE, EMPTY, EVENTS, CLIENTS } from './data.mjs';
 
 const OUT = import.meta.dirname;
 const RECORDS_CSS = '../../../../.agents/skills/flowleap-design-language/references/mockups/records.css';
@@ -44,6 +44,8 @@ const page = ({ title, body, after = '' }) => `<!doctype html>
 <body>
 ${body}
 ${after}<script src="../add-client/frame.js"></script>
+<script src="table.js"></script>
+<script src="walk.js"></script>
 </body>
 </html>
 `;
@@ -60,7 +62,7 @@ const btn = (label, { kind = 'secondary', icon = '', cls = '', attrs = '', key =
 const iconbtn = (icon, label, cls = '') => `<span class="iconbtn${cls ? ` ${cls}` : ''}" data-i="${icon}" role="button" aria-label="${label}"></span>`;
 const off = ' aria-disabled="true"';
 const topbar = (trail, right = '', { root = t('Clients', 'Mandanten'), icon = 'clients', tabs = '' } = {}) => `      <header class="topbar">
-        <div class="crumbs"><span class="ico hide-sm" data-i="${icon}"></span><span class="hide-sm">${root}</span>${trail.map((c, i) => `<span class="sep hide-sm">›</span><span class="${i === trail.length - 1 ? `here${tabs ? ' hide-sm' : ''}` : 'lvl hide-sm'}">${c}</span>`).join('')}</div>${tabs}
+        <div class="crumbs"><span class="ico hide-sm" data-i="${icon}"></span>${trail.length ? `<span class="hide-sm">${root}</span>` : `<span class="here">${root}</span>`}${trail.map((c, i) => `<span class="sep hide-sm">›</span><span class="${i === trail.length - 1 ? `here${tabs ? ' hide-sm' : ''}` : 'lvl hide-sm'}">${c}</span>`).join('')}</div>${tabs}
         <div class="bar-right">${right}</div>
       </header>`;
 const section = (h, count, inner, right = '') => `<div class="section"><div class="section-h"><h2>${h}</h2>${count === '' ? '' : `<span class="count">${count}</span>`}${right ? `<span class="right">${right}</span>` : ''}</div>${inner}</div>`;
@@ -74,7 +76,7 @@ const decision = ({ q, why, parts, note, primary, disabled = false, ghost = t('C
               </div>
               <div class="decision-f">
                 ${btn(ghost, { kind: 'ghost', icon: 'x' })}<span class="note">${note}</span>
-                <div class="acts">${btn(primary, { kind: 'primary', icon: 'check', cls: 'btn-lg', act: 'record', key: '⇧⌘↵', attrs: disabled ? off : '' })}</div>
+                <div class="acts">${btn(primary, { kind: 'primary', icon: 'check', cls: 'btn-lg', act: 'record', key: '⇧⌘↵', attrs: disabled ? off : ' data-walk="record" data-href="5-record.html"' })}</div>
               </div>
             </div>
           </div>`;
@@ -93,33 +95,64 @@ const docketFailed = () => notice('bad', 'warn', t('FlowLeap could not read your
 const docketNone = () => notice('', 'info', t('FlowLeap cannot find your firm’s matters yet.', 'FlowLeap kann die Akten Ihrer Kanzlei noch nicht finden.'), t('Set your firm’s names and addresses in Settings, Firm identity. FlowLeap then reads your EP docket.', 'Tragen Sie die Namen und Adressen Ihrer Kanzlei in Einstellungen, Kanzleidaten ein. FlowLeap liest dann Ihren EP-Bestand.'), btn(t('Open firm identity', 'Kanzleidaten öffnen'), { icon: 'gear' }));
 const privacyDocket = () => `<div class="privacy t12" data-i="lock"><span>${t('FlowLeap sends your firm’s names to the EP Register, through your firm’s EPO account, to read your EP docket. It sends no client name.', 'FlowLeap sendet die Namen Ihrer Kanzlei über das EPA-Konto Ihrer Kanzlei an das EP-Register, um Ihren EP-Bestand zu lesen. Es sendet keinen Mandantennamen.')}</span></div>`;
 
-// ---------- the client page header, its tabs and its application list ----------
-const tabs = (on, count) => `<div class="tabs"><span class="tab${on === 'apps' ? ' is-on' : ''}" data-i="review">${t('Applications', 'Anmeldungen')} <span class="count">${int(count)}</span></span><span class="tab${on === 'files' ? ' is-on' : ''}" data-i="folder">${t('Files', 'Dateien')}</span></div>`;
-/** At 390 px the overflow button holds the top bar acts that hide. */
+// ---------- the client page header, its tabs and its application table ----------
+const tabs = (on, count) => `<div class="tabs"><a class="tab${on === 'apps' ? ' is-on' : ''}" data-walk="apps" href="1-client-applications.html" data-i="review">${t('Applications', 'Anmeldungen')} <span class="count">${int(count)}</span></a><a class="tab${on === 'files' ? ' is-on' : ''}" data-walk="files" href="2-client-files.html?state=work" data-i="folder">${t('Files', 'Dateien')}</a></div>`;
+/** Below 1080 px the overflow button holds the top bar acts that hide. */
 const moreActs = () => iconbtn('dots', t('More acts', 'Weitere Aktionen'), 'only-md');
-const clientActs = (primary = true) => `${btn(t('Check for new matters', 'Nach neuen Akten suchen'), { icon: 'retry', cls: 'hide-md' })}${moreActs()}${primary ? btn(t('Ask about this', 'Hierzu fragen'), { kind: 'primary', icon: 'ask' }) : ''}`;
-// The register statuses in the order of the EP procedure; the list groups its rows by them.
-const STATUS_ORDER = ['The international publication has been made', 'The application has been published', 'Request for examination was made', 'Examination is in progress', 'Grant of patent is intended', 'The patent has been granted', 'No opposition filed within time limit', 'Opposition filed', 'The application is deemed to be withdrawn', 'The application has been withdrawn', 'The application has been refused'];
-const folderMark = folder => `<span class="fo">${folder ? `<span data-i="folder" aria-label="${t(`Matter folder since ${date(folder)}`, `Aktenordner seit ${date(folder)}`)}" title="${t(`Matter folder since ${date(folder)}`, `Aktenordner seit ${date(folder)}`)}"></span>` : ''}</span>`;
-/** The last register event; when it is the change to the group's status, the row says so instead of repeating it. */
-const eventCell = (status, ev, evDate) => !ev ? `<span class="none">${t('No EP event read', 'Kein EP-Ereignis gelesen')}</span>`
-  : `<span class="m" title="${ev}"><span class="d">${date(evDate)}</span>${ev === status ? t('Status changed', 'Status geändert') : nm(ev)}</span>`;
-const appRow = ([a, p, ti, , since, status, , ev, evDate, folder], { fileNo = '', checked = false, context = false } = {}) => `<div class="row${checked ? ' is-checked' : ''}${context ? ' is-context' : ''}"><span class="lead"><span class="ld" data-i="doc" aria-hidden="true"></span><span class="check sel${checked ? ' on' : ''}" data-i="${checked ? 'check' : ''}"></span></span><span class="k">${app(a)}</span>${fileNo === '' ? '' : `<span class="c fn">${fileNo}</span>`}<span class="t" title="${ti}">${ti}</span><span class="c pub">${p ? pub(p) : t('Not yet as EP', 'Noch nicht als EP')}</span><span class="none wide">–</span>${eventCell(status, ev, evDate)}${fileNo === '' ? `<span class="c wide">${date(since)}</span>` : ''}${folderMark(folder)}</div>`;
-const appHead = fileNos => `<div class="thead"><span></span><span>${t('Application', 'Anmeldung')}</span>${fileNos ? `<span>${t('File number', 'Aktenzeichen')}</span>` : ''}<span>${t('Title', 'Titel')}</span><span class="pub">${t('Publication', 'Veröffentlichung')}</span><span class="wide">${t('Next deadline', 'Nächste Frist')}</span><span>${t('Last register event', 'Letztes Registerereignis')}</span>${fileNos ? '' : `<span class="wide">${t('Representative changed', 'Vertreter geändert')}</span>`}<span></span></div>`;
-/** The application list grouped by register status; `more` spreads rows that the page does not draw over the groups. */
-const appList = (rows, { fileNos = null, more = 0, checked = [], context = '', selecting = false } = {}) => {
-  const present = STATUS_ORDER.filter(st => rows.some(r => r[5] === st));
-  let left = more;
-  const groups = present.map((st, i) => {
-    const g = rows.filter(r => r[5] === st);
-    const extra = i === present.length - 1 ? left : Math.round(more * g.length / rows.length);
-    left -= extra;
-    return `<div class="grp"><div class="group">${nm(st)} <span class="count">${int(g.length + extra)}</span></div>${g.map(r => appRow(r, { fileNo: fileNos ? fileNos[r[0]] : '', checked: checked.includes(r[0]), context: context === r[0] })).join('')}${extra ? `<div class="row more-row"><span>${t('Show 100 more', '100 weitere zeigen')}</span></div>` : ''}</div>`;
-  }).join('');
-  return `<div class="list apps${fileNos ? ' fileno' : ''}${selecting ? ' selecting' : ''}${context ? ' ctx-open' : ''}">${appHead(fileNos)}${groups}</div>`;
+const clientActs = () => `${btn(t('Check for new matters', 'Nach neuen Akten suchen'), { icon: 'retry', cls: 'hide-md' })}${moreActs()}${btn(t('Ask about this', 'Hierzu fragen'), { kind: 'primary', icon: 'ask' })}`;
+
+/**
+ * A data table: sortable headers, a filter bar and pagination, driven by table.js in the browser. Each column is
+ * { key, label, cls, sort }; each row is { cells, values, href, attrs }, where `values` holds the sort and filter values.
+ */
+const table = ({ cols, rows, sortKey, sortDir = 'descending', filters = '', total = rows.length, pageSize = 25, empty = '' }) => {
+  const head = cols.map(c => `<th class="${c.cls || ''}"${c.sort === false ? '' : ` data-sort="${c.key}"`}${c.key === sortKey ? ` aria-sort="${sortDir}"` : ''} scope="col"><span>${c.label}</span>${c.sort === false ? '' : '<span class="sort" data-i="chevd" aria-hidden="true"></span>'}</th>`).join('');
+  const body = rows.map(r => `<tr${r.href ? ` data-href="${r.href}"` : ''}${Object.entries(r.values || {}).map(([k, v]) => ` data-${k}="${v}"`).join('')}${r.attrs || ''}>${r.cells.map((c, i) => `<td class="${cols[i].cls || ''}">${c}</td>`).join('')}</tr>`).join('');
+  const sizes = [10, 25, 50, 100].map(n => `<option${n === pageSize ? ' selected' : ''}>${n}</option>`).join('');
+  return `${filters}<div class="dt-wrap"><table class="dt" data-table data-total="${total}" data-page-size="${pageSize}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>${empty}</div>
+<div class="dt-foot"><label class="dt-size">${t('Rows per page', 'Zeilen pro Seite')} <select class="field small" data-size aria-label="${t('Rows per page', 'Zeilen pro Seite')}">${sizes}</select></label><span class="dt-range" data-range>${t(`1–${int(Math.min(pageSize, total))} of ${int(total)}`, `1–${int(Math.min(pageSize, total))} von ${int(total)}`)}</span>${iconbtn('back', t('Previous page', 'Vorherige Seite'), 'boxed dt-prev')}${iconbtn('chev', t('Next page', 'Nächste Seite'), 'boxed dt-next')}</div>`;
 };
-const skeleton = () => `<div class="list apps">${appHead(null)}${['w60', 'w45', 'w70', 'w50', 'w65', 'w55'].map(w => `<div class="row"><span class="skel dot"></span><span class="skel w70"></span><span class="skel ${w}"></span><span class="skel w70 pub"></span><span class="skel w40 wide"></span><span class="skel w60 m"></span><span class="skel w60 wide"></span><span></span></div>`).join('')}</div>`;
-const chips = (atFirm, folders, others, on = 'firm') => `<div class="viewbar"><span class="chip${on === 'firm' ? ' solid' : ''}">${t('At your firm', 'In Ihrer Kanzlei')} <span class="num">${int(atFirm)}</span></span><span class="chip hide-md">${t('With a matter folder', 'Mit Aktenordner')} <span class="num">${int(folders)}</span></span><span class="chip${on === 'others' ? ' solid' : ''}">${t('At other firms', 'Bei anderen Kanzleien')} <span class="num">${capped(others)}</span></span>${on === 'firm' ? `<div class="fwrap find hide-md" data-i="search"><input class="field small" aria-label="${t('Find in this list', 'In dieser Liste suchen')}" placeholder="${t('Find by number or title', 'Nach Nummer oder Titel suchen')}"></div>${iconbtn('filter', t('Filter', 'Filtern'), 'boxed')}${iconbtn('display', t('Display', 'Anzeige'), 'boxed hide-md')}` : ''}</div>`;
+const filterBar = (statuses, { folder = true } = {}) => `<div class="dt-filters"><div class="fwrap find" data-i="search"><input class="field small" data-filter="text" aria-label="${t('Find in this table', 'In dieser Tabelle suchen')}" placeholder="${t('Find by number or title', 'Nach Nummer oder Titel suchen')}"></div><select class="field small" data-filter="status" aria-label="${t('Status', 'Status')}"><option value="">${t('All statuses', 'Alle Status')}</option>${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select>${folder ? `<select class="field small" data-filter="folder" aria-label="${t('Matter folder', 'Aktenordner')}"><option value="">${t('Matter folder: all', 'Aktenordner: alle')}</option><option value="yes">${t('With a matter folder', 'Mit Aktenordner')}</option><option value="no">${t('No matter folder', 'Ohne Aktenordner')}</option></select>` : ''}</div>`;
+
+/** Where a row of the application table opens: the matter page with its folder, or its empty state. */
+const matterHref = (a, folder) => `7-matter.html?state=${folder ? 'work' : 'empty'}&app=${a}`;
+const APP_COLS = (fileNos = false) => [
+  { key: 'app', label: t('Application', 'Anmeldung'), cls: 'c-app' },
+  ...(fileNos ? [{ key: 'file', label: t('File number', 'Aktenzeichen'), cls: 'c-file' }] : []),
+  { key: 'pub', label: t('Publication', 'Veröffentlichung'), cls: 'c-pub w-md' },
+  { key: 'title', label: t('Title', 'Titel'), cls: 'c-title' },
+  { key: 'status', label: t('Status', 'Status'), cls: 'c-status' },
+  { key: 'next', label: t('Next deadline', 'Nächste Frist'), cls: 'c-next w-md' },
+  { key: 'event', label: t('Last register event', 'Letztes Registerereignis'), cls: 'c-event w-sm' },
+  { key: 'rep', label: t('Representative changed', 'Vertreter geändert'), cls: 'c-rep w-md' },
+  { key: 'folder', label: t('Matter folder', 'Aktenordner'), cls: 'c-folder w-sm' },
+];
+const appRow = ([a, p, ti, , since, status, , ev, evDate, folder], { fileNo = '' } = {}) => ({
+  href: matterHref(a, folder),
+  values: { app: a, pub: p || '', title: ti.toLowerCase(), status, next: '', event: evDate || '', rep: since, folder: folder ? 'yes' : 'no', file: fileNo, text: `${a} ${app(a)} ${p} ${ti}`.toLowerCase() },
+  attrs: a === WORKED[0] ? ' data-walk="row"' : '',
+  cells: [
+    `<span class="num">${app(a)}</span>`,
+    ...(fileNo ? [`<span class="num">${fileNo}</span>`] : []),
+    p ? `<span class="num">${pub(p)}</span>` : `<span class="muted">${t('Not yet as EP', 'Noch nicht als EP')}</span>`,
+    ti,
+    nm(status),
+    '<span class="muted">–</span>',
+    ev ? `<span class="num">${date(evDate)}</span> <span class="muted">${ev === status ? t('Status changed', 'Status geändert') : nm(ev)}</span>` : `<span class="muted">${t('No EP event read', 'Kein EP-Ereignis gelesen')}</span>`,
+    `<span class="num">${date(since)}</span>`,
+    folder ? `<span class="yes" data-i="folder">${t('Yes', 'Ja')}</span>` : '<span class="muted">–</span>',
+  ],
+});
+const statusesOf = rows => STATUS_ORDER.filter(st => rows.some(r => r[5] === st));
+// The register statuses in the order of the EP procedure: the order of the status filter.
+const STATUS_ORDER = ['The international publication has been made', 'The application has been published', 'Request for examination was made', 'Examination is in progress', 'Grant of patent is intended', 'The patent has been granted', 'No opposition filed within time limit', 'Opposition filed', 'The application is deemed to be withdrawn', 'The application has been withdrawn', 'The application has been refused'];
+const appTable = (rows, { fileNos = null, total = rows.length, pageSize = 25 } = {}) => table({
+  cols: APP_COLS(Boolean(fileNos)), rows: rows.map(r => appRow(r, { fileNo: fileNos ? fileNos[r[0]] : '' })), sortKey: 'event', total, pageSize,
+  filters: filterBar(statusesOf(rows)),
+  empty: `<div class="dt-none" hidden>${t('No application matches these filters.', 'Keine Anmeldung passt zu diesen Filtern.')}</div>`,
+});
+const skeleton = () => `<div class="dt-wrap"><table class="dt"><thead><tr>${APP_COLS().map(c => `<th class="${c.cls}">${c.label}</th>`).join('')}</tr></thead><tbody>${['w60', 'w45', 'w70', 'w50', 'w65', 'w55'].map(w => `<tr>${APP_COLS().map((c, i) => `<td class="${c.cls}"><span class="skel ${i === 2 ? w : 'w70'}"></span></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const views = (atFirm, others, on = 'firm') => `<div class="viewbar"><a class="chip${on === 'firm' ? ' solid' : ''}" href="1-client-applications.html">${t('At your firm', 'In Ihrer Kanzlei')} <span class="num">${int(atFirm)}</span></a><a class="chip${on === 'others' ? ' solid' : ''}" href="1-client-applications.html?state=search">${t('At other firms', 'Bei anderen Kanzleien')} <span class="num">${capped(others)}</span></a></div>`;
 /** The applications of the group at other firms: a live count and a search, never a list. */
 const othersSearch = ({ count, atLeast = false, found = false }) => `<div class="hint-line" data-i="info"><span>${t(`${atLeast && count < 10000 ? `At least ${int(count)}` : capped(count)} EP applications of the group name another representative: a live count in the EP Register, ${ASOF_HM}. FlowLeap keeps no list of them. Find one by its number or title, for example to mark it as your firm’s.`, `${atLeast && count < 10000 ? `Mindestens ${int(count)}` : capped(count)} EP-Anmeldungen der Gruppe nennen einen anderen Vertreter: eine aktuelle Zählung im EP-Register, ${ASOF_HM}. FlowLeap führt keine Liste davon. Suchen Sie eine nach Nummer oder Titel, zum Beispiel um sie als Akte Ihrer Kanzlei zu markieren.`)}${atLeast && count < 10000 ? t(' With more than 4 names, two count queries can count one application twice.', ' Bei mehr als 4 Namen können zwei Zählabfragen eine Anmeldung doppelt zählen.') : ''}</span></div>
 <div class="fwrap" data-i="search"><input class="field" aria-label="${t('Find an application of the group', 'Anmeldung der Gruppe suchen')}" placeholder="${t('Application number, publication number or title', 'Anmeldenummer, Veröffentlichungsnummer oder Titel')}"${found ? ` value="${FOUND.query}"` : ''}></div>
@@ -145,41 +178,91 @@ function applications() {
   const noConflict = t('No conflict found', 'Keine Kollision gefunden');
   const head = clientHead({ name: CLIENT, names: NAMES.map(n => n[0]), added: ASOF, conflictLine: noConflict });
   const src = (hm = ASOF_HM) => `<p class="src-line t12">${t(`Rows: your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}. Status and last event: EP Register, read at ${hm}. Representative changed: the register’s last change of the representative entry. The next deadline shows when your firm’s deadline docket has it.`, `Zeilen: EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Status und letztes Ereignis: EP-Register, gelesen um ${hm}. Vertreter geändert: die letzte Änderung des Vertretereintrags im Register. Die nächste Frist erscheint, sobald der Fristenkalender Ihrer Kanzlei sie hat.`)}</p>`;
-  const folders = MATTERS.filter(r => r[9]).length;
-  const CHECKED = [MATTERS[13][0], MATTERS[14][0], MATTERS[5][0]];
-  const view = (inner, { instr = false, on = 'firm' } = {}) => `<div class="cp">${head}${instructions(instr)}${chips(MATTERS.length, folders, OTHERS, on)}${inner}</div>`;
-  const listOf = opts => `${src()}${appList(MATTERS, opts)}`;
-  const error = `<div class="error-bar list-error">${notice('bad', 'warn', t('The EP Register did not answer.', 'Das EP-Register hat nicht geantwortet.'), t(`Status and last event are from the last read, ${at(ASOF, DOCKET.hm)}.`, `Status und letztes Ereignis sind vom letzten Lesen, ${at(ASOF, DOCKET.hm)}.`), retry())}</div>${src(DOCKET.hm)}${appList(MATTERS)}`;
+  const view = (inner, { instr = false, on = 'firm' } = {}) => `<div class="cp">${head}${instructions(instr)}${views(MATTERS.length, OTHERS, on)}${inner}</div>`;
+  const error = `<div class="error-bar list-error">${notice('bad', 'warn', t('The EP Register did not answer.', 'Das EP-Register hat nicht geantwortet.'), t(`Status and last event are from the last read, ${at(ASOF, DOCKET.hm)}.`, `Status und letztes Ereignis sind vom letzten Lesen, ${at(ASOF, DOCKET.hm)}.`), retry())}</div>${src(DOCKET.hm)}${appTable(MATTERS)}`;
   const loading = `<p class="src-line t12">${t('Reading the status and the last event of each application in the EP Register.', 'Status und letztes Ereignis jeder Anmeldung werden im EP-Register gelesen.')}</p>${skeleton()}`;
-  const select = `${listOf({ checked: CHECKED, selecting: true })}<div class="bulk-dock"><div class="decision bulk" data-bulk><div class="decision-f">${iconbtn('x', t('Clear the selection', 'Auswahl aufheben'))}<span class="lbl strong">${t(`${CHECKED.length} selected`, `${CHECKED.length} ausgewählt`)}</span><div class="acts">${btn(t('Copy numbers', 'Nummern kopieren'), { icon: 'copy', cls: 'hide-sm' })}${iconbtn('dots', t('More acts', 'Weitere Aktionen'), 'only-sm')}${btn(t(`Ask about ${CHECKED.length}`, `Zu ${CHECKED.length} fragen`), { kind: 'primary', icon: 'ask', cls: 'btn-lg' })}</div></div></div></div>`;
-  const ctxRow = MATTERS[14][0];
-  const context = `${listOf({ context: ctxRow })}<div class="menu ctx-menu ctx-at" role="menu"><div class="mi on" data-i="chev" data-act="open">${t('Open', 'Öffnen')}<span class="kbds"><span class="kbd">↵</span></span></div><div class="mi" data-i="ask">${t('Ask about this application', 'Zu dieser Anmeldung fragen')}</div><div class="mi" data-i="external">${t('Open in the EP Register', 'Im EP-Register öffnen')}</div><div class="sep"></div><div class="mi" data-i="link">${t('Copy link', 'Link kopieren')}</div></div>`;
   const search = `<div class="others">${othersSearch({ count: OTHERS, found: true })}</div>`;
   const fileNos = Object.fromEntries(MATTERS.map((r, i) => [r[0], `SY-${String(101 + i)}`]));
-  const myepo = `<p class="src-line t12">${exNote()} ${t(`Later, with MyEPO linked: rows and file numbers from your firm’s MyEPO portfolio, as of ${at(ASOF, DOCKET.hm)}. Status and last event: EP Register, read at ${ASOF_HM}.`, `Später, mit verbundenem MyEPO: Zeilen und Aktenzeichen aus dem MyEPO-Portfolio Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Status und letztes Ereignis: EP-Register, gelesen um ${ASOF_HM}.`)}</p>${appList(MATTERS, { fileNos })}`;
+  const myepo = `<p class="src-line t12">${exNote()} ${t(`Later, with MyEPO linked: rows and file numbers from your firm’s MyEPO portfolio, as of ${at(ASOF, DOCKET.hm)}. Status and last event: EP Register, read at ${ASOF_HM}.`, `Später, mit verbundenem MyEPO: Zeilen und Aktenzeichen aus dem MyEPO-Portfolio Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Status und letztes Ereignis: EP-Register, gelesen um ${ASOF_HM}.`)}</p>${appTable(MATTERS, { fileNos })}`;
   const E = EMPTY;
   const emptyHead = clientHead({ name: E.client, names: E.names, added: ASOF, conflictLine: t(`1 conflict found, cleared by ${PERSON}`, `1 Kollision gefunden, freigegeben von ${PERSON}`) });
-  const empty = `<div class="cp">${emptyHead}${instructions(false, E.client)}${chips(0, 0, E.others)}<div class="empty inflow"><div class="empty-in"><div class="empty-art" data-i="folder"></div><h2>${t('No EP applications at your firm', 'Keine EP-Anmeldungen in Ihrer Kanzlei')}</h2><p>${t(`A row appears here when the EP Register names your firm on one of the ${E.others} EP applications of ${E.client}, or when you mark one as yours under At other firms.`, `Eine Zeile erscheint hier, sobald das EP-Register Ihre Kanzlei bei einer der ${E.others} EP-Anmeldungen von ${E.client} nennt oder Sie eine unter „Bei anderen Kanzleien“ als Ihre markieren.`)}</p>${btn(t('Find at other firms', 'Bei anderen Kanzleien suchen'), { icon: 'search' })}</div></div></div>`;
+  const empty = `<div class="cp">${emptyHead}${instructions(false, E.client)}${views(0, E.others)}<div class="empty inflow"><div class="empty-in"><div class="empty-art" data-i="folder"></div><h2>${t('No EP applications at your firm', 'Keine EP-Anmeldungen in Ihrer Kanzlei')}</h2><p>${t(`A row appears here when the EP Register names your firm on one of the ${E.others} EP applications of ${E.client}, or when you mark one as yours under At other firms.`, `Eine Zeile erscheint hier, sobald das EP-Register Ihre Kanzlei bei einer der ${E.others} EP-Anmeldungen von ${E.client} nennt oder Sie eine unter „Bei anderen Kanzleien“ als Ihre markieren.`)}</p>${btn(t('Find at other firms', 'Bei anderen Kanzleien suchen'), { icon: 'search' })}</div></div></div>`;
   const L = LARGE;
   const largeHead = clientHead({ name: L.client, names: L.names.map(n => n[0]), added: ASOF, conflictLine: noConflict });
-  const largeSrc = `<p class="src-line t12">${exNote()} ${t(`Rows: your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}. ${int(L.atFirm)} rows; each group loads 100 rows at a time.`, `Zeilen: EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. ${int(L.atFirm)} Zeilen; jede Gruppe lädt 100 Zeilen auf einmal.`)}</p>`;
-  const large = `<div class="cp">${largeHead}${instructions(false, L.client)}${chips(L.atFirm, 0, L.others)}${largeSrc}${appList(L.rows, { more: L.atFirm - L.rows.length })}</div>`;
-  const bar = (states, name, count, primary = true) => `      <div class="cset" data-state="${states}">${topbar([name], clientActs(primary), { tabs: tabs('apps', count) })}</div>`;
-  const body = `${bar('default instructions search myepo loading error context', CLIENT, MATTERS.length)}
-${bar('select', CLIENT, MATTERS.length, false)}
+  const largeSrc = `<p class="src-line t12">${exNote()} ${t(`Rows: your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}. The table shows the first 12 of ${int(L.atFirm)} example rows.`, `Zeilen: EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}. Die Tabelle zeigt die ersten 12 von ${int(L.atFirm)} Beispielzeilen.`)}</p>`;
+  const large = `<div class="cp">${largeHead}${instructions(false, L.client)}${views(L.atFirm, L.others)}${largeSrc}${appTable(L.rows, { total: L.atFirm })}</div>`;
+  const bar = (states, name, count) => `      <div class="cset" data-state="${states}">${topbar([name], clientActs(), { tabs: tabs('apps', count) })}</div>`;
+  const body = `${bar('default instructions search myepo loading error', CLIENT, MATTERS.length)}
 ${bar('empty', E.client, 0)}
 ${bar('large', L.client, L.atFirm)}
-      <div class="cset" data-state="default">${view(listOf())}</div>
-      <div class="cset" data-state="instructions">${view(listOf(), { instr: true })}</div>
+      <div class="cset" data-state="default">${view(`${src()}${appTable(MATTERS)}`)}</div>
+      <div class="cset" data-state="instructions">${view(`${src()}${appTable(MATTERS)}`, { instr: true })}</div>
       <div class="cset" data-state="search">${view(search, { on: 'others' })}</div>
       <div class="cset" data-state="myepo">${view(myepo)}</div>
       <div class="cset" data-state="loading">${view(loading)}</div>
       <div class="cset" data-state="error">${view(error)}</div>
-      <div class="cset" data-state="select">${view(select)}</div>
-      <div class="cset" data-state="context">${view(context)}</div>
       <div class="cset" data-state="empty">${empty}</div>
       <div class="cset" data-state="large">${large}</div>`;
   return page({ title: t(`Client: ${CLIENT}`, `Mandant: ${CLIENT}`), body: frame({ ws: CLIENT, body }) });
+}
+
+// ---------- 0. The Clients list ----------
+function clients() {
+  const COLS = [
+    { key: 'name', label: t('Client', 'Mandant'), cls: 'c-name' },
+    { key: 'role', label: t('Role', 'Rolle'), cls: 'c-role w-sm' },
+    { key: 'names', label: t('Applicant names', 'Anmeldernamen'), cls: 'c-names w-md' },
+    { key: 'apps', label: t('EP applications at your firm', 'EP-Anmeldungen in Ihrer Kanzlei'), cls: 'c-num' },
+    { key: 'folders', label: t('Matter folders', 'Aktenordner'), cls: 'c-num w-sm' },
+    { key: 'added', label: t('Added', 'Hinzugefügt'), cls: 'c-added w-md' },
+  ];
+  const row = ([name, names, apps, folders, added, by], walk = '') => ({
+    href: name === CLIENT ? '1-client-applications.html' : name === EMPTY.client ? '1-client-applications.html?state=empty' : '',
+    values: { name: name.toLowerCase(), role: 'client', names: names.length, apps, folders, added, text: `${name} ${names.join(' ')}`.toLowerCase() },
+    attrs: walk ? ` data-walk="${walk}"` : '',
+    cells: [`<span class="strong">${name}</span>`, t('Client', 'Mandant'), `<span class="muted">${names.map(nm).join(', ')}</span>`, `<span class="num">${int(apps)}</span>`, `<span class="num">${int(folders)}</span>`, `<span class="num">${date(added)}</span> <span class="muted">${by}</span>`],
+  });
+  const before = CLIENTS.map(c => row(c));
+  const after = [row([CLIENT, NAMES.map(n => n[0]), MATTERS.length, 0, ASOF, PERSON], 'syntegon'), ...before];
+  const list = rows => `<div class="cp"><div class="client-head"><h1 class="title">${t('Clients', 'Mandanten')}</h1><p class="lede">${t('The clients of your firm, each with its applicant names and its EP applications from your firm’s EP docket.', 'Die Mandanten Ihrer Kanzlei, jeweils mit ihren Anmeldernamen und ihren EP-Anmeldungen aus dem EP-Bestand Ihrer Kanzlei.')}</p></div>
+<div class="cl-table">${table({ cols: COLS, rows, sortKey: 'name', sortDir: 'ascending', filters: `<div class="dt-filters"><div class="fwrap find" data-i="search"><input class="field small" data-filter="text" aria-label="${t('Find a client', 'Mandant suchen')}" placeholder="${t('Find a client', 'Mandant suchen')}"></div></div>` })}</div>
+<p class="src-line t12">${t(`EP applications at your firm: your firm’s EP docket, as of ${at(ASOF, DOCKET.hm)}.`, `EP-Anmeldungen in Ihrer Kanzlei: EP-Bestand Ihrer Kanzlei, Stand ${at(ASOF, DOCKET.hm)}.`)}</p></div>`;
+  const toast = `<div class="toast" data-state="after" role="status" data-i="check"><span>${t(`Syntegon added: ${MATTERS.length} applications recorded`, `Syntegon hinzugefügt: ${MATTERS.length} Anmeldungen erfasst`)}</span></div>\n`;
+  const acts = btn(addClient(), { kind: 'primary', icon: 'plus', attrs: ' data-walk="add" data-href="3-find.html?state=empty"' });
+  const body = `${topbar([], acts)}
+      <div class="cset" data-state="default">${list(before)}</div>
+      <div class="cset" data-state="after">${list(after)}</div>`;
+  return page({ title: t('Clients', 'Mandanten'), body: frame({ body }), after: toast });
+}
+
+// ---------- 7. An application of the client: the matter page, or its empty state ----------
+function matter() {
+  const story = (rows) => `<ol class="story">${rows.map(([d, text, src, firm]) => `<li class="${firm ? 'firm' : ''}"><span class="dot" aria-hidden="true"></span><div><div>${text}</div><div class="d"><span class="num">${date(d)}</span> · ${src}</div></div></li>`).join('')}</ol>`;
+  const REG = t('EP Register', 'EP-Register');
+  const FR = 'Firm Record';
+  const view = (m, worked) => {
+    const [a, p, ti, filed, since, status, , , , folder] = m;
+    const events = (EVENTS[a] || []).map(([d, e]) => [d, nm(e), REG, false]);
+    const rows = [
+      ...(worked ? [['2026-11-09', t(`${PERSON} dropped the first file; FlowLeap made the matter folder`, `${PERSON} hat die erste Datei abgelegt; FlowLeap hat den Aktenordner angelegt`), FR, true]] : []),
+      [ASOF, t(`${PERSON} added Syntegon as a client with this application`, `${PERSON} hat Syntegon mit dieser Anmeldung als Mandanten hinzugefügt`), FR, true],
+      ...events,
+      [since, t('Representative entry changed: your firm', 'Vertretereintrag geändert: Ihre Kanzlei'), REG, false],
+      [filed, t('Application filed', 'Anmeldung eingereicht'), REG, false],
+    ].sort((x, y) => y[0].localeCompare(x[0]));
+    const files = worked
+      ? `<div class="list files mfiles">${[['Client', true], ['Drafts', false], ['Internal', false], ['Office', false], ['Search', false], ['Associates', false]].map(([f, open]) => `<div class="row"><span class="lead"><span class="fi" data-i="${open ? 'folderopen' : 'folder'}"></span></span><span class="t">${nm(f)}</span><span class="c">${open ? t('1 file', '1 Datei') : t('Empty', 'Leer')}</span></div>${open ? `<div class="row sub"><span class="lead"><span class="fi" data-i="pdf"></span></span><span class="t">${nm('Instruction letter 2026-11-09.pdf')}</span><span class="c">${exNote()}</span></div>` : ''}`).join('')}</div>`
+      : `<div class="empty inflow"><div class="empty-in"><div class="empty-art" data-i="upload"></div><h2>${t('No matter folder yet', 'Noch kein Aktenordner')}</h2><p>${t('Drop a file here, or forward a mail or a letter on this application: FlowLeap makes the matter folder at the first file.', 'Legen Sie hier eine Datei ab oder leiten Sie eine Mail oder ein Schreiben zu dieser Anmeldung weiter: FlowLeap legt den Aktenordner bei der ersten Datei an.')}</p>${btn(t('Upload files', 'Dateien hochladen'), { icon: 'upload' })}</div></div>`;
+    const chat = `<div class="chat-ph"><div class="section-h"><h2>${t('Chat about this matter', 'Chat zu dieser Akte')}</h2><span class="right"><span class="ex-note">${t('Placeholder', 'Platzhalter')}</span></span></div><p class="d">${t('The agent answers from the matter’s files and the live EP Register, with sources. The matter page with its chat is a later build step; this box only shows where the chat goes.', 'Der Agent antwortet aus den Dateien der Akte und dem aktuellen EP-Register, mit Quellen. Die Aktenseite mit ihrem Chat kommt in einem späteren Schritt; dieses Feld zeigt nur, wo der Chat sitzt.')}</p><div class="fwrap" data-i="ask"><input class="field" aria-label="${t('Ask about this matter', 'Zu dieser Akte fragen')}" placeholder="${t('Ask about this matter', 'Zu dieser Akte fragen')}"></div></div>`;
+    return `${topbar([`<a class="lvl hide-sm" data-walk="client" href="1-client-applications.html">${CLIENT}</a>`, app(a)], `${moreActs()}${btn(t('Ask about this', 'Hierzu fragen'), { kind: 'primary', icon: 'ask' })}`)}
+      <div class="cp"><div class="client-head"><h1 class="title"><span class="num">${app(a)}</span> ${ti}</h1>
+<div class="client-meta"><span class="role">${nm(status)}</span><span>${p ? pub(p) : t('No EP publication yet', 'Noch keine EP-Veröffentlichung')}</span><span>${nm('Syntegon Technology GmbH')}</span><span>${t(`Representative changed ${date(since)}`, `Vertreter geändert ${date(since)}`)}</span></div>
+<p class="src-line t12">${t(`Status and events: EP Register, read at ${ASOF_HM}. Firm events: Firm Record.`, `Status und Ereignisse: EP-Register, gelesen um ${ASOF_HM}. Ereignisse der Kanzlei: Firm Record.`)}</p></div>
+<div class="mp"><div class="mp-story">${section(t('Story', 'Verlauf'), '', story(rows))}</div><div class="mp-side">${section(t('Files', 'Dateien'), worked ? t('1 matter folder', '1 Aktenordner') : '', files)}${chat}</div></div></div>`;
+  };
+  const body = `      <div class="cset" data-state="default work">${view(WORKED, true)}</div>
+      <div class="cset" data-state="empty">${view(MATTERS[1], false)}</div>`;
+  return page({ title: t(`Matter: ${app(WORKED[0])}`, `Akte: ${app(WORKED[0])}`), body: frame({ ws: CLIENT, body }) });
 }
 
 // ---------- 2. The client page: the Files tab ----------
@@ -217,7 +300,7 @@ function files() {
 // ---------- 3. Add client step 1: the two counts of each name and the docket state ----------
 function find() {
   const intro = `${steps(1)}<h1 class="title">${addClient()}</h1><p class="lede">${t('Type the company. FlowLeap finds its applicant names in the EP Register, and your firm’s EP matters for them in your firm’s EP docket.', 'Geben Sie das Unternehmen ein. FlowLeap findet seine Anmeldernamen im EP-Register und die EP-Akten Ihrer Kanzlei dazu im EP-Bestand Ihrer Kanzlei.')}</p>`;
-  const field = name => `<div class="fwrap" data-i="search"><input class="field" aria-label="${t('Company name', 'Firmenname')}" value="${name}"></div>
+  const field = name => `<div class="fwrap" data-i="search"><input class="field" data-walk="field" aria-label="${t('Company name', 'Firmenname')}" placeholder="${t('Company name, for example Syntegon', 'Firmenname, zum Beispiel Syntegon')}" value="${name}"></div>
 <div class="privacy t12" data-i="lock"><span>${t('FlowLeap sends only this name to the patent data plugin. Nothing from your firm’s files leaves the firm.', 'FlowLeap sendet nur diesen Namen an das Patentdaten-Plugin. Nichts aus den Akten Ihrer Kanzlei verlässt die Kanzlei.')}</span></div>`;
   const thead = `<div class="thead"><span></span><span>${t('Applicant name in the EP Register', 'Anmeldername im EP-Register')}</span><span class="end">${t('At your firm', 'In Ihrer Kanzlei')}</span><span class="end wide">${t('Matching EP applications', 'Passende EP-Anmeldungen')}</span></div>`;
   const firmCell = (n, mode) => ({ ready: int(n), large: int(n), partial: n ? t(`at least ${int(n)}`, `mind. ${int(n)}`) : t('none found', 'keine gefunden'), failed: t('Not known', 'Unbekannt'), none: t('Not known', 'Unbekannt') })[mode];
@@ -228,9 +311,10 @@ function find() {
   const docket = { large: `${docketReady(LARGE.docket)}<p class="src-line t12">${exNote()} ${t('Your firm has no Siemens matter. The count At your firm and the docket size show a large firm; the names and the matching counts are real.', 'Ihre Kanzlei hat keine Siemens-Akte. Die Zahl „In Ihrer Kanzlei“ und die Bestandsgröße zeigen eine große Kanzlei; die Namen und die passenden Zahlen sind echt.')}</p>`, ready: docketReady(), reading: docketReading(), partial: docketPartial(), failed: `<div class="error-bar">${docketFailed()}</div>`, none: docketNone() };
   const waits = `<div class="hint-line" data-i="info"><span>${t('Continue waits until FlowLeap has read your firm’s EP docket, because the next step shows your firm’s matters.', '„Weiter“ wartet, bis FlowLeap den EP-Bestand Ihrer Kanzlei gelesen hat, weil der nächste Schritt die Akten Ihrer Kanzlei zeigt.')}</span></div>`;
   const view = (state, mode, name, names, cap) => `<div data-state="${state}">${field(name)}<div class="docket">${docket[mode]}${['reading', 'failed'].includes(mode) ? waits : ''}</div>${group(names, mode, cap)}</div>`;
-  const cont = dis => btn(t('Continue', 'Weiter'), { kind: 'primary', attrs: dis ? off : '' });
-  const body = `${topbar([addClient()], `<span class="cset" data-state="default partial none large">${cont(false)}</span><span class="cset" data-state="reading failed">${cont(true)}</span>`)}
+  const cont = dis => btn(t('Continue', 'Weiter'), { kind: 'primary', attrs: dis ? off : ' data-walk="continue" data-href="4-review.html"' });
+  const body = `${topbar([addClient()], `<span class="cset" data-state="default partial none large">${cont(false)}</span><span class="cset" data-state="reading failed empty">${cont(true)}</span>`)}
 ${work(`${intro}
+<div data-state="empty">${field('')}<div class="docket">${docket.ready}</div><div class="empty inflow"><div class="empty-in"><div class="empty-art" data-i="building"></div><h2>${t('Start with the company’s name', 'Beginnen Sie mit dem Namen des Unternehmens')}</h2><p>${t('FlowLeap shows its applicant names with your firm’s matters; you confirm the group, choose the role and check the conflicts before anything is recorded.', 'FlowLeap zeigt seine Anmeldernamen mit den Akten Ihrer Kanzlei; Sie bestätigen die Gruppe, wählen die Rolle und prüfen die Kollisionen, bevor etwas erfasst wird.')}</p></div></div></div>
 ${view('default', 'ready', CLIENT, NAMES)}
 ${view('reading', 'reading', CLIENT, NAMES)}
 ${view('partial', 'partial', CLIENT, NAMES)}
@@ -299,7 +383,7 @@ ${li(mode === 'done' ? 'done' : 'next', mode === 'done' ? 'check' : 'ring', mode
   };
   const keep = `<div class="flow-notice">${notice('', 'info', t('Keep this page open until the records are written.', 'Lassen Sie diese Seite offen, bis die Einträge geschrieben sind.'), t('Each record is your act, so this page sends it. It takes a few seconds for any client size.', 'Jeder Eintrag ist Ihre Handlung, darum sendet ihn diese Seite. Das dauert für jede Mandantengröße nur Sekunden.'))}</div>`;
   const intro = (name, mode) => `${steps(3)}<h1 class="title">${mode === 'done' ? t(`${name} is recorded`, `${name} ist erfasst`) : t(`Recording ${name}`, `${name} wird erfasst`)}</h1><p class="lede">${mode === 'done' ? t('The client page shows its applications with their status. FlowLeap copied no files.', 'Die Mandantenseite zeigt seine Anmeldungen mit ihrem Status. FlowLeap hat keine Dateien kopiert.') : t('FlowLeap writes the client record and the application index in batches. It copies no public data: the client page reads it live.', 'FlowLeap schreibt den Mandanteneintrag und den Anmeldungsindex in Paketen. Es kopiert keine öffentlichen Daten: Die Mandantenseite liest sie live.')}</p>`;
-  const openBtn = dis => btn(t('Open client page', 'Mandantenseite öffnen'), { kind: 'primary', icon: 'clients', attrs: dis ? off : '' });
+  const openBtn = dis => btn(t('Open client page', 'Mandantenseite öffnen'), { kind: 'primary', icon: 'clients', attrs: dis ? off : ' data-walk="open" data-href="1-client-applications.html"' });
   const L = LARGE;
   const body = `${topbar([addClient(), `<span class="cset" data-state="default done">${CLIENT}</span><span class="cset" data-state="large failed">${L.client}</span>`], `<span class="cset" data-state="default large">${openBtn(true)}</span><span class="cset" data-state="done failed">${openBtn(false)}</span>`)}
 ${work(`<div data-state="default">${intro(CLIENT, 'now')}${keep}${list(CLIENT, NAMES.length, MATTERS.length, 'now')}</div>
@@ -331,7 +415,7 @@ ${work(['default', 'reading', 'partial', 'failed', 'empty'].map(view).join('\n')
   return page({ title: t('Settings: firm identity', 'Einstellungen: Kanzleidaten'), body: frame({ side: 'settings', body }) });
 }
 
-const PAGES = [['1-client-applications', applications], ['2-client-files', files], ['3-find', find], ['4-review', review], ['5-record', record], ['6-firm-identity', identity]];
+const PAGES = [['0-clients', clients], ['1-client-applications', applications], ['2-client-files', files], ['3-find', find], ['4-review', review], ['5-record', record], ['6-firm-identity', identity], ['7-matter', matter]];
 for (const l of ['en', 'de']) {
   lang = l;
   for (const [name, fn] of PAGES) writeFileSync(path.join(OUT, `${name}${l === 'de' ? '.de' : ''}.html`), fn());

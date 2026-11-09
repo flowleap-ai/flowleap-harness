@@ -76,7 +76,7 @@
   const sb = document.querySelector('[data-sidebar]');
   if (sb) {
     const { sidebar, session = '', ws = '' } = sb.dataset;
-    const item = (k, icon) => `<div class="sb-item${sidebar === k ? ' is-active' : ''}">${svg(icon)}<span>${L[k]}</span></div>`;
+    const item = (k, icon) => `<div class="sb-item${sidebar === k ? ' is-active' : ''}" data-walk="sb-${k}">${svg(icon)}<span>${L[k]}</span></div>`;
     sb.className = 'sidebar';
     sb.innerHTML = `
       <div class="sb-brand">${logo}<span>${L.brand}</span><span class="collapse">${svg('sidebar')}</span></div>
