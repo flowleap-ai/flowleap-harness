@@ -1732,17 +1732,19 @@ describe('CI lanes', () => {
   }
 
   it('shares one lane job, one trigger set, and one concurrency group across the lane workflows', () => {
-    const [ci, windows, python] = ['ci.yml', 'ci-windows.yml', 'ci-python.yml'].map(file => loadWorkflow('.github/workflows/' + file))
+    const ci = loadWorkflow('.github/workflows/ci.yml')
+    const windows = loadWorkflow('.github/workflows/ci-windows.yml')
+    const python = loadWorkflow('.github/workflows/ci-python.yml')
     for (const workflow of [windows, python]) {
-      expect(workflowJob(workflow, 'lane')).toEqual(workflowJob(ci!, 'lane'))
-      expect(workflow.concurrency).toEqual(ci!.concurrency)
-      expect(isRecord(workflow.on) && workflow.on.pull_request).toEqual(isRecord(ci!.on) && ci!.on.pull_request)
+      expect(workflowJob(workflow, 'lane')).toEqual(workflowJob(ci, 'lane'))
+      expect(workflow.concurrency).toEqual(ci.concurrency)
+      expect(isRecord(workflow.on) && workflow.on.pull_request).toEqual(isRecord(ci.on) && ci.on.pull_request)
     }
-    expect(ci!.on).toMatchObject({
+    expect(ci.on).toMatchObject({
       pull_request: { types: ['opened', 'synchronize', 'reopened', 'ready_for_review', 'labeled'] },
       push: { branches: ['flowleap'] },
     })
-    expect(windows!.on).toMatchObject({ push: { branches: ['flowleap'] }, schedule: [{ cron: '17 2 * * *' }] })
+    expect(windows.on).toMatchObject({ push: { branches: ['flowleap'] }, schedule: [{ cron: '17 2 * * *' }] })
   })
 
   it('runs only static, lint, and unit tests on a draft, under verdict names that are not the required ones', () => {
@@ -1793,7 +1795,8 @@ describe('CI lanes', () => {
       for (const job of fullJobs) {
         for (const result of ['failure', 'cancelled', 'skipped'] as const) {
           const verdict = simulateRun(file, event, { [job]: result }).verdict
-          expect(verdict?.name === requiredNames[file] && verdict.result === 'success', `${file} ${job} ${result}`).toBe(false)
+          const passed = verdict !== undefined && verdict.name === requiredNames[file] && verdict.result === 'success'
+          expect(passed, `${file} ${job} ${result}`).toBe(false)
         }
       }
     }
