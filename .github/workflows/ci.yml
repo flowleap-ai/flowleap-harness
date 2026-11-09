@@ -57,12 +57,31 @@ jobs:
     name: ci lane
     outputs:
       full: ${{ steps.lane.outputs.full }}
+      coverage_runner: ${{ steps.desk.outputs.runner }}
     steps:
       - name: Select the fast or the full lane
         id: lane
         env:
           FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
         run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
+
+      # The desk host takes the coverage job only for repository-owned code
+      # and only while one of its runners is online and idle; any other case,
+      # an API error included, stays on GitHub's runners. A fork PR never
+      # receives the status secret.
+      - name: Select the coverage runner
+        id: desk
+        env:
+          ELIGIBLE: ${{ vars.DSH_CI_DESK == 'on' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') }}
+          GH_TOKEN: ${{ secrets.DSH_CI_DESK_STATUS_TOKEN }}
+        run: |
+          runner=hosted
+          if [[ "$ELIGIBLE" == 'true' && -n "$GH_TOKEN" ]]; then
+            idle="$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.busy | not) and any(.labels[]; .name == "desk"))] | length' || echo 0)"
+            if [[ "$idle" =~ ^[1-9] ]]; then runner=desk; fi
+          fi
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
 
   node-24:
     needs: lane
@@ -136,7 +155,8 @@ jobs:
     needs: lane
     if: needs.lane.outputs.full == 'true'
     runs-on: >-
-      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-16vcpu-ubuntu-2404'
+      ${{ needs.lane.outputs.coverage_runner == 'desk' && fromJSON('["self-hosted", "linux", "arm64", "desk"]')
+          || vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-16vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')

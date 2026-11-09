@@ -13,6 +13,15 @@ readonly BUBBLEWRAP_URL="https://launchpad.net/ubuntu/+source/bubblewrap/${BUBBL
 : "${RUNNER_TEMP:?prepare-ci-bubblewrap requires RUNNER_TEMP}"
 : "${GITHUB_PATH:?prepare-ci-bubblewrap requires GITHUB_PATH}"
 
+# The desk runner image (.github/ci-desk/Dockerfile) ships Ubuntu's arm64
+# bubblewrap; probe it instead of downloading the x86_64 package.
+if [[ "${DSH_CI_BUBBLEWRAP_PREINSTALLED:-}" == '1' ]]; then
+  bwrap --version
+  bwrap --ro-bind / / --dev /dev --unshare-pid --proc /proc --die-with-parent -- true
+  echo 'bubblewrap functional probe passed'
+  exit 0
+fi
+
 if [[ "$(uname -s)" != 'Linux' || "$(uname -m)" != 'x86_64' ]]; then
   echo 'prepare-ci-bubblewrap supports only Linux x86_64 hosted runners' >&2
   exit 1

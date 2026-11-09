@@ -21,6 +21,10 @@ A `labeled` event for any label other than `full-ci` skips the `lane` job, and w
 
 Branch protection on `flowleap` requires only the `signoff` status, so the verdict names do not change what can merge. They tell the reader which lane passed.
 
+## Desk runner
+
+The founder approved one self-hosted runner on the Mac Studio "desk" on 2026-11-09. It takes only `node 24 / coverage`, only for code from this repository, and only while the API reports it online and idle; otherwise coverage runs on `ubuntu-latest`. Each job runs in a new container inside a colima VM that shares no host files. The [desk runner guide](../../../../.github/ci-desk/README.md) records the setup, the limits, and the removal.
+
 ## Consequences
 
 A ready push starts at most 14 worker jobs at the same time, of the 20 that the organization's free plan allows. A draft push starts 3. Two ready pushes at the same time wait in the queue for runners; two such pushes already went over 20 before this change.
