@@ -717,6 +717,25 @@ describe('gate graph validation', () => {
     }
   })
 
+  it('runs only the tests related to files changed since the given base in ci-unit-changed', () => {
+    const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    expect(scripts['check:ci:unit:changed']).toBe('tsx scripts/run-gates.ts ci-unit-changed')
+    const gates = withEnv('DSH_UNIT_CHANGED_BASE', 'abc123', () =>
+      withPnpmEntrypoint(() => gatesForMode('ci-unit-changed')))
+    expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit'])
+    expect(gates[1]).toMatchObject({
+      needs: ['native-system'],
+      args: ['/private/pnpm.cjs', 'exec', 'vitest', 'run', '--changed', 'abc123'],
+    })
+    expect(ciWorkerEnvironment('ci-unit-changed', {}, 16)).toEqual({})
+    for (const base of [undefined, '']) {
+      expect(() => withEnv('DSH_UNIT_CHANGED_BASE', base, () => gatesForMode('ci-unit-changed')))
+        .toThrow('ci-unit-changed requires DSH_UNIT_CHANGED_BASE')
+    }
+  })
+
   it('selects partitioned coverage only when explicitly configured', () => {
     const coverage = withEnv('DSH_COVERAGE_PARTITIONS', '3', () =>
       withPnpmEntrypoint(() => gatesForMode('ci-windows-complete').find(subject => subject.id === 'coverage')))

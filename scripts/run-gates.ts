@@ -24,6 +24,7 @@ export type Mode =
   | 'ci-lint-contracts-ready'
   | 'ci-coverage'
   | 'ci-unit'
+  | 'ci-unit-changed'
   | 'ci-bench'
   | 'ci-snapshot'
   | 'ci-artifacts'
@@ -166,6 +167,7 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-lint-contracts-ready':
     case 'ci-coverage':
     case 'ci-unit':
+    case 'ci-unit-changed':
     case 'ci-bench':
     case 'ci-snapshot':
     case 'ci-artifacts':
@@ -184,7 +186,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-web-snapshot | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-unit-changed | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-web-snapshot | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -237,7 +239,7 @@ export function ciWorkerEnvironment(
   // DSH_COVERAGE_PARTITIONS; the oxlint contract spawns run-oxlint, which
   // reads DSH_OXLINT_THREADS), so the aggregate leaves the environment as
   // `pnpm run test` finds it.
-  if (!mode.startsWith('ci-') || mode === 'ci-unit') return {}
+  if (!mode.startsWith('ci-') || mode === 'ci-unit' || mode === 'ci-unit-changed') return {}
   const budget = defaultParallelism(env, cpus)
   const testBudget = defaultParallelism(env, cpus, LOCAL_TEST_PARALLELISM_CAP)
   const additions: Record<string, string> = {}
@@ -332,6 +334,8 @@ export function gatesForMode(selected: Mode): Gate[] {
       return coverageGates()
     case 'ci-unit':
       return ciUnitGates()
+    case 'ci-unit-changed':
+      return ciUnitGates(unitChangedBase())
     case 'ci-bench':
       return [pnpmExec('bench', ['tsx', 'scripts/run-ci-bench.ts'], { label: 'performance benchmarks' })]
     case 'ci-snapshot':
@@ -751,15 +755,28 @@ function coverageGates(platform: NodeJS.Platform = process.platform): Gate[] {
 // inherited environment, because a shared hosted runner delays cases that
 // inherit Vitest's defaults past them. Output streams so the job log keeps
 // per-file timestamps for a 15–30 minute run.
-function ciUnitGates(): Gate[] {
+function ciUnitGates(changedSince?: string): Gate[] {
+  const changed = changedSince === undefined ? [] : ['--changed', changedSince]
   return [
     pnpmScript('native-system', 'build:native-system'),
-    pnpmExec('unit', ['vitest', 'run'], {
+    pnpmExec('unit', ['vitest', 'run', ...changed], {
       label: 'test',
       needs: ['native-system'],
       streamOutput: true,
     }),
   ]
+}
+
+/**
+ * Read the commit that `ci-unit-changed` compares against. Vitest then runs only
+ * the tests whose module graph reaches a file changed since that commit.
+ */
+function unitChangedBase(): string {
+  const base = process.env.DSH_UNIT_CHANGED_BASE
+  if (base === undefined || base === '') {
+    throw new Error('run-gates: ci-unit-changed requires DSH_UNIT_CHANGED_BASE, the commit to compare against.')
+  }
+  return base
 }
 
 // Recorded-session adapters boot process scenarios in `lib` mode. Callers wait

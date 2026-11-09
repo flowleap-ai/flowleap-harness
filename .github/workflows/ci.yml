@@ -305,8 +305,10 @@ jobs:
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    name: node 24 / unit (draft fast lane)
+    name: node 24 / unit, changed files (draft fast lane)
     env:
+      # The coverage lane's per-test budget; vitest.config.ts reads it.
+      DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
       DSH_GATE_FAIL_FAST: '1'
     steps:
       # Runner cleanup owns tool caches and fixtures, including cancelled runs.
@@ -314,8 +316,10 @@ jobs:
         run: |
           echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
 
+      # Vitest compares against the PR base, so the checkout needs its history.
       - uses: actions/checkout@v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Redirect Node compile cache to runner temp
@@ -358,9 +362,12 @@ jobs:
           if (( install_status != 0 )); then exit "$install_status"; fi
           exit "$sandbox_status"
 
-      # The full lane measures the same tests under coverage instead.
-      - name: Run unit tests without coverage
-        run: pnpm run check:ci:unit
+      # Only the tests related to the changed files run; the full lane runs
+      # every test under coverage.
+      - name: Run unit tests for the changed files, without coverage
+        env:
+          DSH_UNIT_CHANGED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: pnpm run check:ci:unit:changed
 
   node-24-bench:
     needs: lane
