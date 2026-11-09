@@ -104,7 +104,13 @@ export async function runNodeMain(
         },
       }
       current = evaluation
-      context.run(evaluation, () => {
+      // Windows completes every pipe write on a later event-loop turn, and Node
+      // holds a new frame behind a write whose completion it has not processed.
+      // A program that blocks the loop would then keep its first call or log
+      // frame in this process, so code starts only after earlier frames left.
+      while (stream.writableLength > 0 && !stream.destroyed) await new Promise<void>((resolve) => { setImmediate(resolve) })
+      // The channel can close during that wait; its handler deactivated this evaluation.
+      if (evaluation.active) context.run(evaluation, () => {
         try {
           processState.chdir(cwd)
           if (evaluator === undefined) {
