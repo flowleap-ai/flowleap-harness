@@ -149,6 +149,17 @@
 .client-head .src-line { margin: 8px 0 0; }
 .dt-more { padding: 12px 8px; color: var(--dsw-alias-label-secondary); }
 .dt .c-status { width: 200px; }
+/* The application table lays out by these widths, so the title takes the rest and no column shrinks below its words. */
+.dt:has(th.c-app) { table-layout: fixed; }
+.dt th, .dt td { box-sizing: border-box; }
+.dt th.c-app { width: 112px; }
+.dt th.c-file { width: 88px; }
+.dt th.c-pub { width: 120px; }
+.dt th.c-status { width: 168px; }
+.dt th.c-next { width: 96px; }
+.dt th.c-event { width: 160px; }
+.dt th.c-rep { width: 160px; }
+.dt th.c-folder { width: 88px; }
 .dt .c-next { width: 104px; }
 .dt .c-event { width: 208px; }
 .dt .c-folder { width: 104px; }
