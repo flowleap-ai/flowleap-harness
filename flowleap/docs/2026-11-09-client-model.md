@@ -21,6 +21,8 @@ The founder asked on 2026-11-09: "Are we creating some kind of Google Drive for 
 
 ## What the person sees
 
+The [client model mockups](mockups/client-model/README.md) show these pages and the changed Add client steps.
+
 - **The client page leads with the application list.** Each row shows the status, the next deadline when known, the last register event and whether a matter folder exists. The client's instructions and wishes show above the list. Files are a second tab.
 - **A matter page shows the story, the files and the chat.** The story (step M1) comes from the live register events and the matter memory. The files are the folder page that we have.
 - **The client folder on disk** starts with `00 Client` and "About this folder". A family folder and a matter folder appear when the first work on that matter starts. A Siemens client with 1,132 applications at the firm has 1,132 rows at once, and folders only for the matters that the firm works on.

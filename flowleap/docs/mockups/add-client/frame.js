@@ -58,7 +58,9 @@
     building: '<path d="M3 13.5V3.5h6v10M9 6.5h4v7M2 13.5h12M5 6h2M5 8.5h2M5 11h2M11 9h.01M11 11h.01"/>',
     ring: '<circle cx="8" cy="8" r="5.75" stroke-dasharray="2 2"/>',
     spin: '<circle cx="8" cy="8" r="5.75"/><path d="M8 2.25A5.75 5.75 0 0 1 13.75 8"/>',
-    party: '<circle cx="5.5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 13a3.5 3.5 0 0 1 7 0M8 13a3.5 3.5 0 0 1 6.5-1"/>'
+    party: '<circle cx="5.5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 13a3.5 3.5 0 0 1 7 0M8 13a3.5 3.5 0 0 1 6.5-1"/>',
+    filter: '<path d="M2.5 4h11M4.5 8h7M6.5 12h3"/>',
+    display: '<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M6 6.5V13"/>'
   };
   const svg = (name, extra = '') => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[name] || ''}</svg>`;
 
