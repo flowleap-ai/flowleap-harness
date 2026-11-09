@@ -82,18 +82,25 @@ function eachStep(of: (id: BuildStepId) => BuildStep): Record<BuildStepId, Build
   return Object.fromEntries(BUILD_STEPS.map(id => [id, of(id)])) as Record<BuildStepId, BuildStep>
 }
 
+/** What a build made when it made nothing. */
+const NOTHING_ADDED: BuildAdded = { client: false, families: 0, matters: 0, files: 0 }
+
 /**
- * Whether a stored value is a build status.
+ * Read a stored build status.
  * @param value - a value read from a status file.
- * @returns true for a status with a client id, a state, the counts of what the build made and every step.
+ * @returns the status when it has a client id, a state and every step; a status file from before the counts of what a
+ *   build made counts nothing, and one with damaged counts is no status.
  */
-export function isBuildStatus(value: unknown): value is BuildStatus {
-  if (typeof value !== 'object' || value === null) return false
+export function parseBuildStatus(value: unknown): BuildStatus | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
   const { clientId, state, steps, added } = value as Record<string, unknown>
-  return typeof clientId === 'string' && typeof state === 'string' && typeof steps === 'object' && steps !== null
-    && BUILD_STEPS.every(step => step in steps) && typeof added === 'object' && added !== null
-    && typeof (added as Record<string, unknown>)['client'] === 'boolean'
-    && (['families', 'matters', 'files'] as const).every(count => typeof (added as Record<string, unknown>)[count] === 'number')
+  if (typeof clientId !== 'string' || typeof state !== 'string' || typeof steps !== 'object' || steps === null
+    || !BUILD_STEPS.every(step => step in steps)) return undefined
+  if (added === undefined) return { ...value as BuildStatus, added: NOTHING_ADDED }
+  const counts = added as Record<string, unknown> | null
+  const valid = typeof counts === 'object' && counts !== null && typeof counts['client'] === 'boolean'
+    && (['families', 'matters', 'files'] as const).every(count => typeof counts[count] === 'number')
+  return valid ? value as BuildStatus : undefined
 }
 
 /** The counts of two runs of one build together. */
@@ -269,7 +276,7 @@ export class BuildJobs<R> {
 
   /** The status of a job that starts now. */
   private fresh(clientId: string, name: string): BuildStatus {
-    return { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, added: { client: false, families: 0, matters: 0, files: 0 }, steps: eachStep(waiting) }
+    return { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, added: NOTHING_ADDED, steps: eachStep(waiting) }
   }
 
   /**
@@ -286,7 +293,7 @@ export class BuildJobs<R> {
   private async read(file: string): Promise<BuildStatus | undefined> {
     try {
       const value: unknown = JSON.parse(await readFile(file, 'utf8'))
-      return isBuildStatus(value) ? value : undefined
+      return parseBuildStatus(value)
     } catch (_error: unknown) {
       // No file, or a damaged one: no status to show; the next build writes a new one.
       return undefined

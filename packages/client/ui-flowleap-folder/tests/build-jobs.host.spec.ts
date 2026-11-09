@@ -5,7 +5,7 @@ import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import type { BrowserAuth } from '@deepseek-ai/dsh-client-connection/src/browser-auth.ts'
-import { BuildJobs, BuildJobsStopped, isBuildStatus, messageOf, type BuildJob } from '../src/add-client/jobs.ts'
+import { BuildJobs, BuildJobsStopped, messageOf, parseBuildStatus, type BuildJob } from '../src/add-client/jobs.ts'
 import type { BuildStatus } from '../src/add-client/wire.ts'
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
@@ -278,13 +278,14 @@ describe('Add client build jobs', () => {
     await writeFile(path.join(dir, 'other.json'), JSON.stringify({ clientId: CLIENT }))
     await writeFile(path.join(dir, 'notes.txt'), 'x')
     expect(await jobs().all()).toEqual([])
-    expect(isBuildStatus(null)).toBe(false)
-    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps: null })).toBe(false)
+    expect(parseBuildStatus(null)).toBeUndefined()
+    expect(parseBuildStatus({ clientId: CLIENT, state: 'done', steps: null })).toBeUndefined()
     const steps = { 'folder': {}, 'matters': {}, 'public-data': {}, 'reference': {} }
-    // A status file of a build before the counts of what it made.
-    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps })).toBe(false)
-    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: 'yes', families: 0, matters: 0, files: 0 } })).toBe(false)
-    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: '1', files: 0 } })).toBe(false)
-    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: 1, files: 0 } })).toBe(true)
+    expect(parseBuildStatus({ clientId: CLIENT, state: 'done', steps })).toEqual({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: 0, files: 0 } })
+    expect(parseBuildStatus({ clientId: CLIENT, state: 'done', steps, added: null })).toBeUndefined()
+    expect(parseBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: 'yes', families: 0, matters: 0, files: 0 } })).toBeUndefined()
+    expect(parseBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: '1', files: 0 } })).toBeUndefined()
+    const counted = { clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: 1, files: 0 } }
+    expect(parseBuildStatus(counted)).toEqual(counted)
   })
 })
