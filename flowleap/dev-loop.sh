@@ -4,7 +4,6 @@
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
 #                           [--patch <overlay>] [--model <provider>/<model id>]
-#                         [--patch <overlay>]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number]        one record_read through the tool executor, no model call (default SF-2021-0011)
@@ -274,5 +273,5 @@ case $cmd in
   probe) probe "$@" ;;
   status) status ;;
   down) down ;;
-  *) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
