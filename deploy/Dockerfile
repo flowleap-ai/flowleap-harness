@@ -112,9 +112,11 @@ ARG OFFICECLI_SHA256_ARM64
 ARG TARGETARCH
 # libicu76 and libssl3t64 (trixie's libssl3): OfficeCLI is a self-contained .NET
 # binary that does not start without ICU and OpenSSL. No browser is installed,
-# so OfficeCLI has no headless-Chrome path.
+# so OfficeCLI has no headless-Chrome path. poppler-utils gives the agent
+# `pdftotext`, which reads a PDF's text layer before `read_pdf` spends Mistral
+# OCR pages on it.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl git tini libicu76 libssl3t64 \
+  && apt-get install -y --no-install-recommends ca-certificates curl git tini libicu76 libssl3t64 poppler-utils \
   && rm -rf /var/lib/apt/lists/*
 # The FlowLeap CLI: the MCP server for the paid tools, verified against the release checksums.
 RUN set -eu; \

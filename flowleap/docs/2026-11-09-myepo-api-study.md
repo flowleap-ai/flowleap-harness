@@ -8,6 +8,7 @@
 - [The operations](#the-operations)
 - [How a firm gets access](#how-a-firm-gets-access)
 - [What the sources do not say](#what-the-sources-do-not-say)
+- [Sandbox results](#sandbox-results)
 - [What it changes for FlowLeap](#what-it-changes-for-flowleap)
 - [Add client with MyEPO](#add-client-with-myepo)
 - [The MyEPO plugin](#the-myepo-plugin)
@@ -61,6 +62,30 @@ The sandbox must answer these before the build:
 4. What `GET /communications/download/{id}` returns. The spec gives `application/json`, and the guide says "documents and data". We must see whether it has the PDF, structured data, or both.
 5. Whether a download marks a communication as read, and how long the Mailbox keeps a communication.
 6. The terms of use for a software vendor that builds a product on the API for its customers.
+
+## Sandbox results
+
+The EPO sent sandbox credentials on 2026-11-09. A read-only probe on the same day (`https://api-sandbox.apps-staging.epo.org`, token from `https://login-t.epo.org/oauth2/aus1v8we8qXXwPJd60x7/v1/token`) found:
+
+| Point | Result |
+|---|---|
+| Token | `client_credentials` with scope `mailboxapi` works; the sandbox token lives 3,600 s |
+| A new sandbox account | Every Mailbox and application read answers `400 ERR_15 "Error retrieving from S3"` until `POST /latest/sandbox/reset` ("ONLY SANDBOX FUNCTION: Reset all sample data") runs once |
+| Portfolios | 6 portfolios of the types `applicant`, `representative` and `association`, each with `hasFullAccess` |
+| Applications | 8 rows. Each row has the procedure (`EPC` or `UPP`), the application number, `applicationNumberMyEpo` with the check digit, the filing date, `applicantFileReference` and the portfolio. A row has no title, applicant or status: these need `GET /biblio-data` for each application (title in three languages, applicants, inventors, representative, priorities, IPC and CPC) |
+| Mailbox | 9 letters with document code, application number (EP and PCT), the firm's reference, dispatch date, title, `read` and `handled`. Examples: `1081` reminder for the examination fee, `2006A` decision to grant, a European search report, and one letter with no application (a change in the list of professional representatives) |
+| Download | A ZIP file (`application/octet-stream`, here 610 KB), not JSON as the spec says. It held one PDF named `<reference>-<dispatch date>-<application>-<document code>.pdf`, and no structured data |
+| Read flag | **A download marks the letter as read in MyEPO** (`read` changed from `false` to `true`). It stays unhandled |
+| Due dates and fees | `dueDates` gives `termKey`, `dueDate` and `actor`; `/terms` gives 82 terms in English, French and German; `fees` gives the fee code, amount and due date |
+| Limits | No rate-limit headers. Each read took 150 to 550 ms |
+| Unpublished applications | Not answerable: the dummy rows have no publication data at all |
+
+**Consequences for the build.**
+
+- The docket import needs one bibliographic read for each application, so a firm with 1,000 applications needs about 1,000 reads at the first import.
+- The Mailbox intake changes the firm's MyEPO: each letter that FlowLeap reads shows as read there. The firm must know this before it turns the intake on, and the MyEPO card says it. This is a decision for the founder before the Mailbox intake (step 3 of the build).
+- The connector stores the ZIP's PDF with the communication's fields as its source; it does not parse the file name.
+- The test fixtures are recorded from the sandbox after a reset, so they are stable.
 
 ## What it changes for FlowLeap
 
