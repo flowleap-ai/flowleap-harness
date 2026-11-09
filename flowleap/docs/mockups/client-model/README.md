@@ -15,7 +15,7 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 | [5-record.html](5-record.html) | Step 3, **Record**: the client record, the conflict check, the 16 applications in 1 batch, and "Keep this page open until the records are written" | `large` (batch 8 of 12), `failed` (batch 8 failed; **Try again** records only the missing batches), `done` (**Open client page**) |
 | [6-firm-identity.html](6-firm-identity.html) | Settings, Firm identity: the line on what FlowLeap sends, the docket state with its read time, and the firm's names, addresses and representatives | `reading`, `partial`, `failed`, `empty` (no firm identity; **Save** waits for a value and then starts the first read) |
 
-The decision bar of the review holds the one primary action, **Add client** `⇧⌘↵`. The client page and the Files tab have **Ask about this**, the bulk bar has **Ask about 3**, step 1 has **Continue**, the Record step has **Open client page**, and the setting has **Save**; none of these has a key. **Try again** has `R`, and **Open** in the row context menu has `↵`. At 390 px the top bar acts that do not fit go into the overflow button.
+The decision bar of the review holds the one primary action, **Add client** `⇧⌘↵`. The client page and the Files tab have **Ask about this**, the bulk bar has **Ask about 3**, step 1 has **Continue**, the Record step has **Open client page**, and the setting has **Save**; none of these has a key. **Try again** has `R`, and **Open** in the row context menu has `↵`. From 1080 px down, the top bar and view bar acts that do not fit go into the overflow button.
 
 ## Decisions for the founder
 

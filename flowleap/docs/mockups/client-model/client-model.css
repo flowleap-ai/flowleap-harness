@@ -109,6 +109,8 @@
 /* The review: the firm's matters with a checkbox, and the rows matched by address only. */
 .mats2 .row, .mats2 .thead { grid-template-columns: 16px 112px minmax(0, 1fr) 160px 176px; }
 .mats2 .thead > span { white-space: nowrap; }
+/* The reason of the address-only group; unlike .hint, it shows on a touch screen too. */
+.group .why-addr { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
 .mats2 .row.more-row { grid-template-columns: minmax(0, 1fr); color: var(--dsw-alias-label-secondary); }
 .mats2 .row.off .t, .mats2 .row.off .c, .mats2 .row.off .k { color: var(--dsw-alias-label-secondary); }
 
