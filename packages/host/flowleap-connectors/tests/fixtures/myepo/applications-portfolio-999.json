@@ -1,0 +1,8 @@
+{
+  "status": 403,
+  "contentType": "application/json",
+  "body": {
+    "code": "ERR_20",
+    "message": "User is not authorised to perform this action."
+  }
+}

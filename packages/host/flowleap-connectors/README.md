@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 39 office tools on `ctx.tools` under their backend names (`search_patents`, `get_us_grant`, no prefix), adds the native `compare_claims` (a claim chart against patents whose claims it fetches on the firm's EPO OPS key) and `read_pdf` (OCR of a workspace file on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Patent data connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card.
+`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 39 office tools on `ctx.tools` under their backend names (`search_patents`, no prefix), adds the native `compare_claims` (a claim chart on the firm's EPO OPS key) and `read_pdf` (OCR on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Patent data connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card. `flowleapMyEpo` reads the firm's MyEPO account with the credentials its card links.
 
 ## Table of Contents
 
@@ -37,6 +37,10 @@ Mount the row beside `dsh-tools` and a credential provider; the [`dsh-flowleap-w
 |---|---|---|
 | `cacheEntries` | `500` | Entries the in-memory result cache holds before evicting the least recently used one; each entry expires at the TTL the library sets |
 | `excludeTools` | `[]` | Office tools from the library this host does not register, by backend name; the FlowLeap profile lists `get_fulltext`, whose US arm needs the `usFulltext` host capability and so stays on the paid MCP row |
+| `myepo.baseUrl` | `https://api.apps.epo.org/latest` | The MyEPO API base; the EPO sandbox is `https://api-sandbox.apps-staging.epo.org/latest`. HTTPS, or HTTP to a loopback host for a local double; another value fails the row at load |
+| `myepo.tokenUrl` | `https://login.epo.org/oauth2/aus6hh2ns9ORf2PD3417/v1/token` | The OAuth 2.0 token endpoint that issues tokens for `baseUrl`; the sandbox's is `https://login-t.epo.org/oauth2/aus1v8we8qXXwPJd60x7/v1/token` |
+| `myepo.requestsPerSecond` | `4` | The most MyEPO requests the row starts in one second, token requests included; the EPO publishes no limit |
+| `myepo.timeoutSeconds` | `30` | The deadline of one MyEPO request |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-connectors) is the exhaustive source for every accepted field.
 
@@ -51,6 +55,12 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 Each connector is one `grant` record, `flowleap-connectors/<id>`, whose payload is the field map; the payload is validated on every read, and a record missing a field reads as not configured. The Mistral record can also carry `baseUrl`, which the card does not ask for: a deployment writes it in its read-only document so OCR and the connection test call a model gateway (for example `http://flowleap-gateway:4000`) instead of `https://api.mistral.ai`. The library validates it on each call (`https`, or `http` to a host name without dots); an invalid value fails the OCR tools and the connection test with a message that names it, and nothing falls back to Mistral's own API. The library asks for a provider's credentials per call, so a key saved in Settings reaches the next call without a restart. Nothing reads keys from the environment: the records are the one source. A host can provide the firm's records read-only through the credential provider's [`readOnlyPath`](../../credentials/credentials-local/README.md#keys-a-host-provides-read-only): such a record wins over a stored one, its card reports it as not writable, and a save or removal from the card is refused with `flowleap-connectors/rejected`, so a key typed in the browser cannot replace a firm key.
 
+### The MyEPO link
+
+The MyEPO card links the firm's own MyEPO account with the OAuth 2.0 client ID and client secret that the EPO sends to the firm's MyEPO company administrator. **Save and test** gets a token (`client_credentials`, scope `mailboxapi`), reads `GET /portfolios` and `GET /communications/folders`, and only then stores one `grant` record, `flowleap-connectors/myepo`, with `clientId`, `clientSecret` and the facts of the passed test (`testedAt`, the portfolio count, whether the Mailbox answered). A refused or unanswered test stores nothing; a test of the stored link updates the facts only when it passed. An account without portfolio permission passes with no portfolio, and the card says so. The record is not one of the four library connectors: the first-run wizard and the key-state prompt section do not list it.
+
+`ctx.flowleapMyEpo` (Host only) reads with the stored link: `portfolios`, `applications` (filters and pages), `bibliographicData`, `communications`, `unhandledCommunications`, `folders`, `downloadCommunication`, `dueDates`, `terms` and `pendingFees`. The token stays in memory and is renewed 60 s before the EPO says it expires, or at once when the stored credentials change; a `401` from the API gets one retry with a new token. Every answer is parsed with zod at the network boundary. A read fails with `MyEpoError`, whose `failure.kind` is `not-linked`, `refused` (the login service refused the credentials), `no-permission` (`403`, `ERR_20`), `not-ready` (the sandbox before its first reset, `ERR_15`), `rejected` (another refusal, with the EPO code), `unreachable` (no answer, a network failure, or a `5xx`) or `invalid-response`. `downloadCommunication` returns the one PDF of the EPO's ZIP with the communication it belongs to; the EPO marks the letter as read in MyEPO at each download, and it stays unhandled there. Nothing in this package marks a letter as handled, moves a letter or sets a file reference.
+
 ### The key-state prompt section
 
 When the composition has a system prompt, the row registers `flowleap:patent-data-keys` at order 1, right after the persona slot. The text says, per connector, only whether a key is stored (`EPO OPS: key is set`), under the heading `Patent-data keys (this host)` that the IDE's prompt export points the model at (agent-v2 `keyStateOwner: 'host'`). It names no office as reachable: the call is the authority. The presence map re-reads on every `credentials/record-updated` event of the `flowleap-connectors` scope, so a key saved in Settings reaches the next turn's prompt. Values never enter the text.
@@ -64,6 +74,10 @@ When the composition has a system prompt, the row registers `flowleap:patent-dat
 | `describe()` | `Record<ConnectorId, ConnectorPresence>` | `configured`, `source: 'stored'` when configured, `writable`, and the `fields` to collect; never a value |
 | `set(id, values)` | `void` | stores every field of the connector; an unknown connector or field is `gateway/bad-request`, a store refusal `flowleap-connectors/rejected` |
 | `unset(id)` | `void` | removes the record; absent is a no-op |
+| `myEpoDescribe()` | `MyEpoLinkView` | `not-linked`, or `linked` with the facts of the last passed test; never a value |
+| `myEpoLink(values, signal?)` | `MyEpoTestOutcome` | tests `clientId` and `clientSecret` and stores them only when the test passed: `passed` with the portfolios, `refused`, `unreachable` or `failed` with the EPO's message; a missing or unknown field is `gateway/bad-request`, a store refusal `flowleap-connectors/rejected` |
+| `myEpoTest(signal?)` | `MyEpoTestOutcome` | tests the stored link; `not-linked` without one |
+| `myEpoUnlink()` | `void` | removes the link; absent is a no-op |
 | `test(id, signal?)` | `{ ok, message }` | without a stored key, `{ ok: false, message: '<Connector> key not configured' }` and no network call; with one, an OPS access-token mint, an ODP lookup of application 15043224 (US 10,000,000), a one-paper Semantic Scholar search, or the library's Mistral key verification (`connectors.ocr.verifyKey()`: one authenticated `GET /v1/models` on Mistral's API, or one OCR page of a 1x1 PNG at a record's `baseUrl`) |
 
 ### The tools
@@ -174,9 +188,12 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/read-pdf.ts`](src/read-pdf.ts) | the native `read_pdf` tool: working-directory fence, size and page caps, the OCR call, page markers and the cost line |
 | [`src/key-state.ts`](src/key-state.ts) | the `flowleap:patent-data-keys` prompt section: key presence per connector, refreshed on record changes; the persona export points at its heading |
 | [`src/controller.ts`](src/controller.ts) | the `flowleapConnectors` Remote |
+| [`src/myepo.ts`](src/myepo.ts) | the MyEPO link record, the link and test of the card, and the `flowleapMyEpo` service |
+| [`src/myepo-client.ts`](src/myepo-client.ts) | the MyEPO API client: token cache, request gate, typed failures, the reads, the ZIP download |
+| [`src/myepo-wire.ts`](src/myepo-wire.ts) | the zod schemas of the MyEPO answers and their mapping into FlowLeap records |
 | [`src/ocr.ts`](src/ocr.ts) | the `flowleapOcr` service: page text of one document through Mistral OCR |
 | [`src/register.ts`](src/register.ts) | the `flowleapRegister` service: application normalization and the EP Register and USPTO transaction reads |
-| [`tests/`](tests/) | record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
+| [`tests/`](tests/) | the MyEPO reads on recorded sandbox answers ([`tests/fixtures/myepo/`](tests/fixtures/myepo/README.md)) and the link in the headless profile against a loopback double of the EPO, record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
 
 </details>
 
@@ -211,6 +228,20 @@ Fixed per request for the 39 office declarations, `compare_claims` and `read_pdf
 
 Prefix-stable: the schemas do not change between requests of one process. Mounting or unmounting the row changes the tool list and invalidates reuse from the first changed token.
 
+### The MyEPO link
+
+#### What the model sees
+
+Nothing of the link: it adds no tool, no prompt section and no Session event, and its credentials never reach a request.
+
+#### Token effect
+
+No tokens: linking, testing or unlinking MyEPO adds nothing to a request.
+
+#### KV Cache effect
+
+Prefix-stable: a link, a test or an unlink changes no request prefix.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
@@ -223,6 +254,8 @@ These limits define what the row does not do yet; they are current package const
 - **`read_pdf` needs `fs` and `workingDirectory`** — a composition without them registers the office tools and `compare_claims` alone.
 - **`compare_claims` is gated on the EPO OPS key for every call** — like `get_claims`; a US-only comparison without an EPO key answers with the EPO OPS card, not the paid route.
 - **Records only** — keys are not read from environment variables or the backend's key store; the settings cards and the wizard are the one way in.
+- **MyEPO reads only** — `flowleapMyEpo` has no write operation (mark handled, move, set a file reference) and no consumer yet: the docket import and the Mailbox intake are later steps with their own decisions, and no tool gives the agent MyEPO data. Whether `GET /applications` lists unpublished applications is not known: the sandbox rows carry no publication data.
+- **The MyEPO link facts live in the credential record** — the record holds the time, the portfolio count and the Mailbox answer of the last passed test beside the secret, so the card can say "Linked" without a call; a read-only firm document without these facts reads as not linked.
 - **No PTC-friendly output schema** — the canonical value is unconstrained JSON, so PTC programs get `unknown`-typed results until the library's definitions carry output schemas.
 
 <a id="dev-note"></a>

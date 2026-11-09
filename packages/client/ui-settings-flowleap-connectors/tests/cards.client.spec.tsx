@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 /** The Patent data connectors section as the settings shell renders it: four cards, write-only fields, and their controls. */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { allowAllAccess, bindSnapshotSelector, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 // Type-only: the LocaleNamespaceMap merge that gives the section its `t` seat.
 import type {} from '../src/client/index.ts'
-import { ConnectorsSection, type ConnectorsSectionController, type ConnectorsSectionProps } from '../src/client/ConnectorsSection.tsx'
+import {
+  ConnectorsSection, type ConnectorsSectionController, type ConnectorsSectionProps, type MyEpoSectionController,
+} from '../src/client/ConnectorsSection.tsx'
+import type { MyEpoState } from '../src/client/myepo-store.ts'
 import {
   CONNECTOR_FIELDS, CONNECTOR_IDS, type ConnectorCardState, type ConnectorId, type ConnectorsState,
 } from '../src/client/connectors-store.ts'
@@ -39,20 +42,34 @@ function renderSection(initial: ConnectorsState) {
     load: vi.fn(() => Promise.resolve()), edit: vi.fn(), save: vi.fn(() => Promise.resolve(true)),
     remove: vi.fn(() => Promise.resolve(true)), test: vi.fn(() => Promise.resolve(undefined)),
   } satisfies ConnectorsSectionController
-  const props: ConnectorsSectionProps = { ...kit, close: vi.fn(), t, controller, useConnectors: bindSnapshotSelector(store) }
+  const myEpoStore = createSnapshotStore<MyEpoState>({
+    status: 'ready', link: { state: 'not-linked', writable: true }, draft: { clientId: '', clientSecret: '' }, busy: 'idle', replacing: false,
+  })
+  const myEpoController = {
+    load: vi.fn(() => Promise.resolve()), edit: vi.fn(), link: vi.fn(() => Promise.resolve(undefined)),
+    test: vi.fn(() => Promise.resolve(undefined)), unlink: vi.fn(() => Promise.resolve(true)), replace: vi.fn(),
+  } satisfies MyEpoSectionController
+  const props: ConnectorsSectionProps = {
+    ...kit, close: vi.fn(), t, controller, myEpoController,
+    useConnectors: bindSnapshotSelector(store), useMyEpo: bindSnapshotSelector(myEpoStore),
+  }
   render(<ConnectorsSection {...props} />)
-  return { controller, store }
+  return { controller, store, myEpoController }
 }
 
 describe('ConnectorsSection', () => {
   it('renders one write-only card per connector and loads presence on mount', () => {
-    const { controller } = renderSection(state())
+    const { controller, myEpoController } = renderSection(state())
     expect(controller.load).toHaveBeenCalledTimes(1)
+    expect(myEpoController.load).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: en.groupFirmAccount })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.groupPatentData })).toBeTruthy()
+    expect(screen.getByText(en.myEpoName)).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
     for (const name of [en.epoOpsName, en.usptoOdpName, en.semanticScholarName, en.mistralName]) {
       expect(screen.getByText(name)).toBeTruthy()
     }
-    const inputs = screen.getAllByLabelText(/key|secret/i)
+    const inputs = within(screen.getByRole('list')).getAllByLabelText(/key|secret/i)
     expect(inputs).toHaveLength(5)
     for (const input of inputs) {
       expect(input).toHaveProperty('type', 'password')
