@@ -113,15 +113,73 @@ export interface MyEpoDocument {
 
 /** The read operations of the MyEPO API. Each call may reject with {@link MyEpoError}. */
 export interface MyEpoReads {
+  /**
+   * Read the portfolios that the account may read (`GET /portfolios`).
+   * @param signal - cancels the read.
+   * @returns the portfolios; empty when the administrator gave no portfolio permission.
+   */
   portfolios(signal?: AbortSignal): Promise<readonly MyEpoPortfolio[]>
+  /**
+   * Read one page of the applications of the readable portfolios (`GET /applications`).
+   * @param query - the filters and the page; the EPO's first page by default.
+   * @param signal - cancels the read.
+   * @returns the page.
+   */
   applications(query?: MyEpoApplicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoApplication>>
+  /**
+   * Read the bibliographic data of one application (`GET /biblio-data/{procedure}/applications/{application}`).
+   * @param application - the procedure and the number.
+   * @param signal - cancels the read.
+   * @returns the flattened record.
+   */
   bibliographicData(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<MyEpoBibliographicData>
+  /**
+   * Read one page of the Mailbox letters (`GET /communications`).
+   * @param query - the folder and the page; every folder and the first page by default.
+   * @param signal - cancels the read.
+   * @returns the page.
+   */
   communications(query?: MyEpoCommunicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>
+  /**
+   * Read one page of the Mailbox letters not marked as handled (`GET /communications/unhandled`).
+   * @param query - the page; the first page by default.
+   * @param signal - cancels the read.
+   * @returns the page.
+   */
   unhandledCommunications(query?: MyEpoPageQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>
+  /**
+   * Read the Mailbox folders (`GET /communications/folders`).
+   * @param signal - cancels the read.
+   * @returns the folders.
+   */
   folders(signal?: AbortSignal): Promise<readonly MyEpoFolder[]>
+  /**
+   * Download one letter (`GET /communications/download/{id}`). The EPO marks the letter as read in MyEPO at each
+   * download; it stays unhandled there.
+   * @param communication - the letter, as a list read returned it.
+   * @param signal - cancels the read.
+   * @returns the one PDF of the EPO's ZIP, its file name, and the letter.
+   */
   downloadCommunication(communication: MyEpoCommunication, signal?: AbortSignal): Promise<MyEpoDocument>
+  /**
+   * Read the EPO due dates of one application (`GET /{procedure}/applications/{application}/dueDates`).
+   * @param application - the procedure and the number.
+   * @param signal - cancels the read.
+   * @returns the due dates; {@link MyEpoReads.terms} describes their term keys.
+   */
   dueDates(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoDueDate[]>
+  /**
+   * Read the descriptions of every term key (`GET /terms`).
+   * @param signal - cancels the read.
+   * @returns the terms in English, French and German.
+   */
   terms(signal?: AbortSignal): Promise<readonly MyEpoTerm[]>
+  /**
+   * Read the pending fees of one application (`GET /{procedure}/applications/{application}/fees`).
+   * @param application - the procedure and the number.
+   * @param signal - cancels the read.
+   * @returns the pending fees.
+   */
   pendingFees(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoFee[]>
 }
 

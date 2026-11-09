@@ -1799,7 +1799,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:94`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1808,6 +1808,20 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
+  myepo: MyEpoConfig
+}
+
+/** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
+export interface MyEpoConfig {
+  /** The MyEPO API base, without a trailing slash. */
+  baseUrl: string
+  /** The OAuth 2.0 token endpoint of the EPO login service that issues tokens for `baseUrl`. */
+  tokenUrl: string
+  /** The most MyEPO requests the plugin starts in one second. The EPO publishes no limit. */
+  requestsPerSecond: number
+  /** The deadline of one MyEPO request, in seconds. */
+  timeoutSeconds: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->

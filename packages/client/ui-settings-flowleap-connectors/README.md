@@ -54,6 +54,7 @@ The Host half declares one live Config field, `wizardDismissed`, and calls `sett
 | [`src/index.ts`](src/index.ts) | Host half: the `wizardDismissed` Config and the settings presentation |
 | [`src/wizard-settings.ts`](src/wizard-settings.ts) | the namespace and field name both halves share |
 | [`src/client/index.ts`](src/client/index.ts) | dictionaries, the stores, the section and wizard registrations, the record invalidation |
+| [`src/client/remote-page-store.ts`](src/client/remote-page-store.ts) | the shared load of both page stores: one read at a time, a refresh only after the first load |
 | [`src/client/connectors-store.ts`](src/client/connectors-store.ts) | page state and the Remote calls |
 | [`src/client/wizard-store.ts`](src/client/wizard-store.ts) | the durable dismissal |
 | [`src/client/ConnectorCard.tsx`](src/client/ConnectorCard.tsx) | one card, full or compact |

@@ -7,7 +7,7 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { MyEpoLinkView, MyEpoTestOutcome } from '@deepseek-ai/dsh-api-remotes/client'
-import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { RemotePageStore } from './remote-page-store.ts'
 
 /** The two fields the card asks for. */
 export type MyEpoField = 'clientId' | 'clientSecret'
@@ -80,28 +80,10 @@ function initialState(): MyEpoState {
 }
 
 /** Coordinates the MyEPO card with the Host. */
-export class MyEpoStore {
-  /** uSES-safe state source of the card. */
-  readonly store: SnapshotStore<MyEpoState> = createSnapshotStore<MyEpoState>(initialState())
-
-  private loading: Promise<void> | undefined
-
+export class MyEpoStore extends RemotePageStore<MyEpoState> {
   /** @param ctx - the page plugin's context, whose `remote.flowleapConnectors` namespace this store calls. */
-  constructor(private readonly ctx: ClientContext) {}
-
-  /**
-   * Read the stored link and publish it. Concurrent callers share one read.
-   * @returns settlement after the snapshot is published.
-   */
-  load(): Promise<void> {
-    this.loading ??= this.read().finally(() => { this.loading = undefined })
-    return this.loading
-  }
-
-  /** Re-read the link, but only once the page has loaded. */
-  refresh(): void {
-    if (this.store.getSnapshot().status === 'idle') return
-    void this.load()
+  constructor(ctx: ClientContext) {
+    super(ctx, initialState())
   }
 
   /**
@@ -203,7 +185,7 @@ export class MyEpoStore {
     return result.ok ? result.value : undefined
   }
 
-  private async read(): Promise<void> {
+  protected async read(): Promise<void> {
     this.store.update((state) => { state.status = 'loading'; delete state.error })
     const result = await this.ctx.remote.flowleapConnectors.myEpoDescribe()
     this.store.update((state) => {
