@@ -167,7 +167,7 @@ export const reviewed = (extra: Changes<Reviewed> = {}): Reviewed => changed<Rev
 export function buildStatus(clientId: string, name: string, extra: Partial<BuildStatus> = {}): BuildStatus {
   const step = (state: BuildStatus['steps']['folder']['state'], done = 0, total = 0, failed: string[] = []) => ({ state, done, total, failed })
   return {
-    clientId, name, state: 'running', startedAt: AS_OF, families: 15, matters: 16,
+    clientId, name, state: 'running', startedAt: AS_OF, families: 15, matters: 16, added: { client: true, families: 15, matters: 16, files: 0 },
     steps: { 'folder': step('done', 1, 1), 'matters': step('running', 9, 16), 'public-data': step('waiting'), 'reference': step('waiting') },
     ...extra,
   }

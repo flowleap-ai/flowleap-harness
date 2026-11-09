@@ -32,7 +32,8 @@ import { addClientApi } from './add-client/api.ts'
 import * as addClientCopy from './add-client/locales/index.ts'
 import { AddClientModel } from './add-client/model.ts'
 import { createFirmRecord } from './add-client/records.ts'
-import { createFolderApi } from './api.ts'
+import { createFolderApi, readClientFolders } from './api.ts'
+import { followClientFolders } from './clients.ts'
 import { registerKeys, type KeyHandlers } from './keys.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapFolderKey } from './locales.ts'
 import { FolderModel } from './model.ts'
@@ -89,8 +90,8 @@ export function apply(ctx: ClientContext): void {
   const addClientT = ctx.locale.bind(ADD_CLIENT_NS)
   const language = createSnapshotStore<LocaleId>(ctx.locale.getLocale().active)
   ctx.on('locale/change', (snapshot) => { language.set(snapshot.active) })
-  const clients = createSnapshotStore<readonly WorkspaceView[]>(ctx.workspaces.list.getSnapshot().items)
-  ctx.effect(() => ctx.workspaces.list.subscribe(() => { clients.set(ctx.workspaces.list.getSnapshot().items) }), 'ui-flowleap-folder: clients')
+  const clients = createSnapshotStore<readonly WorkspaceView[]>([])
+  ctx.effect(() => followClientFolders(ctx.workspaces.list, readClientFolders, clients), 'ui-flowleap-folder: clients')
   const pathOf = (workspaceId: WorkspaceId | null): string | undefined =>
     clients.getSnapshot().find(item => item.workspaceId === workspaceId)?.path
 

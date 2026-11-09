@@ -315,6 +315,16 @@ export function Empty({ icon, title, body }: { readonly icon: ReactNode; readonl
   )
 }
 
+/** What a build of a client folder changed: a new client folder, the new matters and dated files, or nothing. */
+function clientToastText(t: AddClientTranslate, toast: Extract<Toast, { kind: 'client' }>): string {
+  const { added } = toast
+  if (added.client) {
+    return t('toast.client', { name: toast.name, matters: counted(t, toast.matters, 'matters.one', 'matters.many'), families: counted(t, toast.families, 'families.one', 'families.many') })
+  }
+  if (added.matters === 0 && added.files === 0) return t('toast.unchanged', { name: toast.name })
+  return t('toast.updated', { name: toast.name, matters: counted(t, added.matters, 'toast.new.matters.one', 'toast.new.matters.many'), files: counted(t, added.files, 'toast.new.files.one', 'toast.new.files.many') })
+}
+
 /**
  * The toast after an act of Add client.
  * @param props - copy, the toast and its close act.
@@ -326,7 +336,7 @@ export function AddClientToast({ t, toast, onClose }: {
   readonly onClose: () => void
 }) {
   const text = toast.kind === 'client'
-    ? t('toast.client', { name: toast.name, matters: counted(t, toast.matters, 'matters.one', 'matters.many'), families: counted(t, toast.families, 'families.one', 'families.many') })
+    ? clientToastText(t, toast)
     : toast.kind === 'watch'
       ? t('toast.watch', { name: toast.name })
       : toast.kind === 'party'

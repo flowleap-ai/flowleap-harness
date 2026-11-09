@@ -3,14 +3,15 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } fro
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
-  ABOUT_FILE, REFERENCE_FILE, buildClientFolder, familyName, publicationBody, referenceBody, registerBody, spacedPublication,
+  ABOUT_FILE, REFERENCE_FILE, buildClientFolder, familyName, publicationBody, referenceBody, registerBody, spacedPublication, spacedWo,
   widenBuild, type BuildInput, type BuildPlan,
 } from '../src/add-client/build.ts'
 import type { BuildJob } from '../src/add-client/jobs.ts'
 import type { BuildStepId } from '../src/add-client/wire.ts'
 import { ClientFolder, FolderError } from '../src/folder.ts'
+import { folderNameOf } from '../src/route.ts'
 import { isSource, sourceStore } from '../src/sources.ts'
-import { FakePatentData, app, pub, row } from './patent-data.host.ts'
+import { FakePatentData, app, pub, row, wo } from './patent-data.host.ts'
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
 const TEMPLATE = { client: ['00 Client'], matter: ['Client', 'Office'], publicData: 'Office' }
@@ -88,8 +89,8 @@ async function tree(dir: string): Promise<string[]> {
 }
 
 const ROOT = () => path.join(clientsRoot, 'Syntegon')
-const FAMILY_1 = 'Method and apparatus for producing a packaging element (priority DE 102022111528, 2022-05-09)'
-const FAMILY_2 = 'Apparatus for dishes (priority DE 102023133973)'
+const FAMILY_1 = 'EP 23 171 862 Method and apparatus for producing…'
+const FAMILY_2 = 'EP 24 817 871 Apparatus for dishes'
 
 describe('Add client folder build', () => {
   it('builds the client folder, its families and matters, the dated files and the reference list', async () => {
@@ -98,18 +99,19 @@ describe('Add client folder build', () => {
     const built = plan(fake)
     await buildClientFolder(job, built)
     expect(await tree(ROOT())).toEqual([
-      '00 Client', ABOUT_FILE, FAMILY_2, `${FAMILY_2}/EP 24 817 871`, `${FAMILY_2}/EP 24 817 871/Client`, `${FAMILY_2}/EP 24 817 871/Office`,
-      `${FAMILY_2}/EP 24 817 871/Office/EP Register 2026-11-08.md`, `${FAMILY_2}/EP 24 817 872`, `${FAMILY_2}/EP 24 817 872/Client`,
-      `${FAMILY_2}/EP 24 817 872/Office`, `${FAMILY_2}/EP 24 817 872/Office/EP Register 2026-11-08.md`,
+      '00 Client', ABOUT_FILE,
       FAMILY_1, `${FAMILY_1}/EP 23 171 862`, `${FAMILY_1}/EP 23 171 862/Client`, `${FAMILY_1}/EP 23 171 862/Office`,
       `${FAMILY_1}/EP 23 171 862/Office/EP Register 2026-11-08.md`, `${FAMILY_1}/EP 23 171 862/Office/Publication EP 4 292 805 2026-11-08.md`,
+      FAMILY_2, `${FAMILY_2}/EP 24 817 871`, `${FAMILY_2}/EP 24 817 871/Client`, `${FAMILY_2}/EP 24 817 871/Office`,
+      `${FAMILY_2}/EP 24 817 871/Office/EP Register 2026-11-08.md`, `${FAMILY_2}/EP 24 817 872`, `${FAMILY_2}/EP 24 817 872/Client`,
+      `${FAMILY_2}/EP 24 817 872/Office`, `${FAMILY_2}/EP 24 817 872/Office/EP Register 2026-11-08.md`,
       `${REFERENCE_FILE} 2026-11-08.md`,
     ])
     const register = await readFile(path.join(ROOT(), FAMILY_1, 'EP 23 171 862', 'Office', 'EP Register 2026-11-08.md'), 'utf8')
     expect(register.split('\n')[0]).toBe('As of 2026-11-08 14:02 UTC, from the EP Register. A dated copy: it does not change when the source changes.')
     expect(register).toContain('| Representative since | 2024-07-24 |')
     expect(await readFile(path.join(ROOT(), `${REFERENCE_FILE} 2026-11-08.md`), 'utf8')).toContain('| EP 19 794 879 | Weighing \\| containers | Stuttgart | 2019-09-18 |')
-    expect(notes).toEqual({ workspace: 'ws-1', folder: 'Syntegon', matters: 3, families: 2 })
+    expect(notes).toEqual({ workspace: 'ws-1', folder: 'Syntegon', matters: 3, families: 2, added: { client: true, families: 2, matters: 3, files: 5 } })
     expect(Object.fromEntries(steps)).toEqual({
       'folder': { total: 1, done: 1, failed: [], state: 'done' },
       'matters': { total: 3, done: 3, failed: [], state: 'done' },
@@ -129,11 +131,15 @@ describe('Add client folder build', () => {
     const fake = data()
     await buildClientFolder(recordingJob().job, plan(fake))
     const before = await tree(ROOT())
-    await buildClientFolder(recordingJob().job, plan(fake, {}, '2026-11-09T09:00:00.000Z'))
+    const again = recordingJob()
+    await buildClientFolder(again.job, plan(fake, {}, '2026-11-09T09:00:00.000Z'))
     expect(await tree(ROOT())).toEqual(before)
+    expect(again.notes).toMatchObject({ matters: 3, families: 2, added: { client: false, families: 0, matters: 0, files: 0 } })
 
     fake.rows = fake.rows.map(item => item.applicationNumber === 'EP23171862' ? { ...item, status: 'Grant of patent is intended' } : item)
-    await buildClientFolder(recordingJob().job, plan(fake, {}, '2026-11-09T09:00:00.000Z'))
+    const changed = recordingJob()
+    await buildClientFolder(changed.job, plan(fake, {}, '2026-11-09T09:00:00.000Z'))
+    expect(changed.notes).toMatchObject({ added: { client: false, families: 0, matters: 0, files: 1 } })
     await buildClientFolder(recordingJob().job, plan(fake, {}, '2026-11-09T10:00:00.000Z'))
     fake.rows = fake.rows.map(item => item.applicationNumber === 'EP23171862' ? { ...item, status: 'The patent has been granted' } : item)
     await buildClientFolder(recordingJob().job, plan(fake, {}, '2026-11-09T11:00:00.000Z'))
@@ -297,7 +303,7 @@ describe('Add client folder build', () => {
     const { job, steps } = recordingJob()
     await buildClientFolder(job, plan(fake, { request: input({ applications: [app('EP24817871'), app('EP24817872')] }) }))
     expect(steps.get('matters')).toEqual({ total: 2, done: 2, failed: [], state: 'done' })
-    const family = 'Air sampling device (priority DE 102023133973)'
+    const family = 'EP 24 817 872 Air sampling device'
     expect(await readdir(path.join(ROOT(), family))).toEqual(['EP 24 817 872'])
     expect((await built.sources.read('ws-1')).get(family)).toMatchObject({ role: 'family', key: 'DE 102023133973' })
   })
@@ -313,16 +319,22 @@ describe('Add client folder build', () => {
   it('names folders and files as people read them', () => {
     expect(spacedPublication('EP4292805A1')).toBe('EP 4 292 805 A1')
     expect(spacedPublication('WO2024001')).toBe('WO2024001')
-    expect(familyName(undefined, undefined, 'EP 23 171 862')).toBe('EP 23 171 862')
-    expect(familyName('A / B\\C', { number: 'DE 1' }, 'x')).toBe('A - B-C (priority DE 1)')
-    const long = familyName('Ü'.repeat(200), { number: 'DE 102022111528', date: '2022-05-09' }, 'x')
-    expect(Buffer.byteLength(long, 'utf8')).toBeLessThanOrEqual(255)
-    expect(long.endsWith('(priority DE 102022111528, 2022-05-09)')).toBe(true)
-    expect(Buffer.byteLength(familyName('Ü'.repeat(200), undefined, 'x'), 'utf8')).toBeLessThanOrEqual(255)
-    const huge = familyName('Title', { number: `DE ${'1'.repeat(300)}` }, 'x')
-    expect(huge).toBe(`(priority DE ${'1'.repeat(300)}`.slice(0, 255))
-    expect(familyName('😀'.repeat(70), undefined, 'x')).toBe('😀'.repeat(63))
+    expect(familyName('EP 23 171 862', undefined)).toBe('EP 23 171 862')
+    expect(familyName('EP 23 171 862', '  ')).toBe('EP 23 171 862')
+    expect(familyName('EP 23 215 725', 'METHOD FOR SEALING A STACK OF LAYERS OF A FIBRE-BASED PACKAGING MATERIAL')).toBe('EP 23 215 725 Method for sealing a stack of layers…')
+    expect(familyName('EP 24 199 601', 'Method and device for joining or forming a fibre-based packing material')).toBe('EP 24 199 601 Method and device for joining or forming…')
+    expect(familyName('EP 24 817 872', 'Air sampling device using UV light')).toBe('EP 24 817 872 Air sampling device using UV light')
+    expect(familyName('EP 1', 'A / b\\c')).toBe('EP 1 A - b-c')
+    expect(familyName('EP 1', 'One two three four five six seven eight nine')).toBe('EP 1 One two three four five six seven eight…')
+    expect(familyName('EP 1', 'Oneoneoneoneone twotwotwotwotwo in a and of b')).toBe('EP 1 Oneoneoneoneone twotwotwotwotwo…')
+    expect(Buffer.byteLength(folderNameOf('Ü'.repeat(200)), 'utf8')).toBe(254)
+    expect(familyName('EP 1', 'Ü'.repeat(60))).toBe(`EP 1 Ü${'ü'.repeat(39)}…`)
+    expect(familyName('EP 1', `${'x'.repeat(60)} and more`)).toBe(`EP 1 ${'x'.repeat(40)}…`)
     expect(publicationBody({ publicationNumber: pub('EP4292805') })).toBe('# EP 4 292 805\n')
+    expect(publicationBody({ publicationNumber: pub('EP4820738A1'), textFrom: wo('WO2025119775A1'), title: 'Air sampling device', abstract: 'A device.', claims: '1. A device.' }))
+      .toBe('# EP 4 820 738 A1\n\n**Air sampling device**\n\nThe EPO holds no abstract and no claims of this Euro-PCT publication. The abstract and the claims are those of WO 2025/119775 A1, the international publication of the same application.\n\n## Abstract\n\nA device.\n\n## Claims\n\n1. A device.\n')
+    expect(spacedWo('WO2025119775A1')).toBe('WO 2025/119775 A1')
+    expect(spacedWo('WO2025')).toBe('WO2025')
     expect(registerBody(row({ applicationNumber: 'EP23171862' }))).toBe('# EP 23 171 862\n\n| Field | Value |\n|---|---|\n| Application | EP 23 171 862 |\n')
     expect(referenceBody([row({ applicationNumber: 'EP19794880' })])).toContain('| EP 19 794 880 |  |  |  |')
   })

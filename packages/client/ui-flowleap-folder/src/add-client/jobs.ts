@@ -12,7 +12,7 @@
 
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { BUILD_STEPS, type BuildStatus, type BuildStep, type BuildStepId } from './wire.ts'
+import { BUILD_STEPS, type BuildAdded, type BuildStatus, type BuildStep, type BuildStepId } from './wire.ts'
 
 /** What a running build reports. */
 export interface BuildJob {
@@ -44,7 +44,7 @@ export interface BuildJob {
    * Record facts that the page shows, such as the workspace of the client folder.
    * @param facts - the facts.
    */
-  note(facts: Partial<Pick<BuildStatus, 'workspace' | 'folder' | 'families' | 'matters'>>): Promise<void>
+  note(facts: Partial<Pick<BuildStatus, 'workspace' | 'folder' | 'families' | 'matters' | 'added'>>): Promise<void>
 }
 
 /**
@@ -85,13 +85,20 @@ function eachStep(of: (id: BuildStepId) => BuildStep): Record<BuildStepId, Build
 /**
  * Whether a stored value is a build status.
  * @param value - a value read from a status file.
- * @returns true for a status with a client id, a state and every step.
+ * @returns true for a status with a client id, a state, the counts of what the build made and every step.
  */
 export function isBuildStatus(value: unknown): value is BuildStatus {
   if (typeof value !== 'object' || value === null) return false
-  const { clientId, state, steps } = value as Record<string, unknown>
+  const { clientId, state, steps, added } = value as Record<string, unknown>
   return typeof clientId === 'string' && typeof state === 'string' && typeof steps === 'object' && steps !== null
-    && BUILD_STEPS.every(step => step in steps)
+    && BUILD_STEPS.every(step => step in steps) && typeof added === 'object' && added !== null
+    && typeof (added as Record<string, unknown>)['client'] === 'boolean'
+    && (['families', 'matters', 'files'] as const).every(count => typeof (added as Record<string, unknown>)[count] === 'number')
+}
+
+/** The counts of two runs of one build together. */
+function plus(a: BuildAdded, b: BuildAdded): BuildAdded {
+  return { client: a.client || b.client, families: a.families + b.families, matters: a.matters + b.matters, files: a.files + b.files }
 }
 
 /** One run of a build: the client's name, the request and the work. */
@@ -205,7 +212,7 @@ export class BuildJobs<R> {
     for (let again = entry.again; again !== null && !this.stop.signal.aborted; again = entry.again) {
       entry.again = null
       entry.run = again
-      entry.status = this.fresh(entry.status.clientId, again.name)
+      entry.status = { ...this.fresh(entry.status.clientId, again.name), added: entry.status.added }
       try {
         await this.save(entry.status)
       } catch (error: unknown) {
@@ -234,6 +241,8 @@ export class BuildJobs<R> {
 
   /** Run the work of a job once. */
   private async once(entry: Running<R>): Promise<BuildStatus['state']> {
+    // A run again counts on from what the earlier run made, so the end reports both runs.
+    const before = entry.status.added
     const update = async (change: (status: BuildStatus) => BuildStatus): Promise<void> => {
       entry.status = change(entry.status)
       await this.save(entry.status)
@@ -246,7 +255,7 @@ export class BuildJobs<R> {
       advance: id => step(id, current => ({ ...current, done: current.done + 1 })),
       fail: (id, item) => step(id, current => ({ ...current, failed: [...current.failed, item] })),
       finish: id => step(id, current => ({ ...current, state: current.failed.length > 0 ? 'failed' : 'done' })),
-      note: facts => update(status => ({ ...status, ...facts })),
+      note: facts => update(status => ({ ...status, ...facts, ...facts.added === undefined ? {} : { added: plus(before, facts.added) } })),
     }
     try {
       await entry.run.work(job, entry.run.request)
@@ -260,7 +269,7 @@ export class BuildJobs<R> {
 
   /** The status of a job that starts now. */
   private fresh(clientId: string, name: string): BuildStatus {
-    return { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, steps: eachStep(waiting) }
+    return { clientId, name, state: 'running', startedAt: this.now().toISOString(), families: 0, matters: 0, added: { client: false, families: 0, matters: 0, files: 0 }, steps: eachStep(waiting) }
   }
 
   /**

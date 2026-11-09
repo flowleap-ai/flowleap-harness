@@ -8,7 +8,7 @@
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { clientFolderName, type BuildRequest, type BuildStatus, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
+import { clientFolderName, type BuildAdded, type BuildRequest, type BuildStatus, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
 import type { AddClientApi, HostFailure } from './api.ts'
 import { allHits, firmHits, knownClients, matchExisting, planRecords, runPlan, type Decision, type OtherPartyRole } from './plan.ts'
 import {
@@ -126,7 +126,7 @@ export type AddClientView = FindView | ReviewView | BuildView
 
 /** What the page says when an act ends. */
 export type Toast =
-  | { readonly kind: 'client'; readonly name: string; readonly matters: number; readonly families: number }
+  | { readonly kind: 'client'; readonly name: string; readonly matters: number; readonly families: number; readonly added: BuildAdded }
   | { readonly kind: 'watch'; readonly name: string }
   | { readonly kind: 'party'; readonly name: string; readonly applicationNumber: string }
   | { readonly kind: 'failed'; readonly error: RecordError }
@@ -665,7 +665,7 @@ export class AddClientModel {
   private track(status: BuildStatus): void {
     if (status.state === 'done' && status.workspace !== undefined) {
       this.close()
-      this.store.update((draft) => { draft.toast = { kind: 'client', name: status.name, matters: status.matters, families: status.families } })
+      this.store.update((draft) => { draft.toast = { kind: 'client', name: status.name, matters: status.matters, families: status.families, added: status.added } })
       this.deps.open(status.workspace as WorkspaceId)
       return
     }

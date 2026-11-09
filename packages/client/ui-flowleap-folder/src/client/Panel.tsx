@@ -11,7 +11,7 @@ import {
   Button, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
   IconNewChatOutlineRegular, IconPaperclipOutlineRegular, IconProjectAddOutlineRegular, IconRefreshOutlineRegular,
   IconRightUpOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
-  type KeycapBox, type MarkdownLabels,
+  Tooltip, type KeycapBox, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -48,7 +48,7 @@ export interface PanelInjected {
   readonly hooks: {
     /** The page's state. */
     readonly folder: ObservableSnapshot<FolderSnapshot>
-    /** The client folders: the workspaces of this runtime. */
+    /** The client folders: the workspaces of this runtime that the Host names as client folders in `clientsRoot`. */
     readonly clients: ObservableSnapshot<readonly WorkspaceView[]>
     /** The shortcut catalog, for the keycaps of the acts. */
     readonly catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
@@ -142,7 +142,7 @@ function failureOf(t: Translate, code: FailureCode): string {
   return t(`failure.${code}`)
 }
 
-/** A button with its keycaps from the shortcut catalog. */
+/** A button with its keycaps from the shortcut catalog; a label that the button cuts shows whole in a tooltip. */
 function ActButton({ label, icon, keycaps, primary = false, disabled = false, onClick, className }: {
   readonly label: string
   readonly icon: ReactNode
@@ -153,10 +153,12 @@ function ActButton({ label, icon, keycaps, primary = false, disabled = false, on
   readonly className?: string | undefined
 }) {
   return (
-    <Button variant={primary ? 'primary' : 'outline'} size="sm" icon={icon} disabled={disabled} onClick={onClick} className={className}>
-      {label}
-      {keycaps !== undefined && keycaps.length > 0 && <Keycap keycaps={keycaps} tone={primary ? 'primary' : 'default'} className={css.keycap} />}
-    </Button>
+    <Tooltip label={label} onlyWhenClipped side="bottom" delayMs={500} portal>
+      <Button variant={primary ? 'primary' : 'outline'} size="sm" icon={icon} disabled={disabled} onClick={onClick} className={className}>
+        <span className={css.actLabel}>{label}</span>
+        {keycaps !== undefined && keycaps.length > 0 && <Keycap keycaps={keycaps} tone={primary ? 'primary' : 'default'} className={css.keycap} />}
+      </Button>
+    </Tooltip>
   )
 }
 
@@ -393,13 +395,13 @@ function ClientFolderView(props: PanelProps & {
           onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
           {built !== undefined && (
-            <Button variant="outline" size="sm" icon={<IconRefreshOutlineRegular size={16} />} className={css.wide}
-              onClick={() => { void addClient.checkForNew(built.clientId) }}>{addClientT('folder.check')}</Button>
+            <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={clsx(css.act, css.wide)}
+              onClick={() => { void addClient.checkForNew(built.clientId) }} />
           )}
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
-            disabled={!writable} onClick={() => { model.startNewFolder() }} className={css.wide} />
+            disabled={!writable} onClick={() => { model.startNewFolder() }} className={clsx(css.act, css.wide)} />
           <ActButton label={t('act.upload')} icon={<IconPaperclipOutlineRegular size={16} />} keycaps={keycaps('upload')}
-            disabled={!writable} onClick={chooseFiles} className={css.wide} />
+            disabled={!writable} onClick={chooseFiles} className={clsx(css.act, css.wide)} />
           <button type="button" className={clsx(css.iconButton, css.onlyNarrow)} aria-label={t('act.newFolder')}
             disabled={!writable} onClick={() => { model.startNewFolder() }}>
             <IconProjectAddOutlineRegular size={16} />

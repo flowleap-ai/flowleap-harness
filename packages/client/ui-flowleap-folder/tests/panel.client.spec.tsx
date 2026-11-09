@@ -927,8 +927,11 @@ describe('Add client on the client folder page', () => {
   it('says what an act did in a toast, and closes it', async () => {
     const { addClient } = await mount()
     const toasts = [
-      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15 }, 'Syntegon added: 16 matters in 15 families'],
-      [{ kind: 'client', name: 'Neue GmbH', matters: 1, families: 1 }, 'Neue GmbH added: 1 matter in 1 family'],
+      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: true, families: 15, matters: 16, files: 30 } }, 'Syntegon added: 16 matters in 15 families'],
+      [{ kind: 'client', name: 'Neue GmbH', matters: 1, families: 1, added: { client: true, families: 1, matters: 1, files: 1 } }, 'Neue GmbH added: 1 matter in 1 family'],
+      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: false, families: 0, matters: 0, files: 0 } }, 'Nothing changed for Syntegon: no new matter and no new data'],
+      [{ kind: 'client', name: 'Syntegon', matters: 17, families: 15, added: { client: false, families: 0, matters: 1, files: 3 } }, 'Syntegon updated: 1 new matter, 3 new dated files'],
+      [{ kind: 'client', name: 'Syntegon', matters: 16, families: 15, added: { client: false, families: 0, matters: 0, files: 1 } }, 'Syntegon updated: 0 new matters, 1 new dated file'],
       [{ kind: 'watch', name: 'Gerhard Schubert' }, 'Gerhard Schubert added to Watch'],
       [{ kind: 'party', name: 'Gerhard Schubert', applicationNumber: 'EP4292805A1' }, 'Gerhard Schubert added as a party to EP 4 292 805 A1'],
       [{ kind: 'failed', error: { kind: 'network' } }, addClientEn['error.network']],

@@ -420,13 +420,13 @@ describe('page 4: the build', () => {
     expect(screen.getByText(en['part.conflict.none'])).toBeTruthy()
     expect(screen.getByText('Recorded 16 matters with their application numbers')).toBeTruthy()
     expect(screen.getByText(en['build.folder.done'])).toBeTruthy()
-    expect(screen.getByText('Making 15 family folders and 16 matter folders')).toBeTruthy()
+    expect(screen.getByText(en['build.matters.now'])).toBeTruthy()
     expect(screen.getByText('9 / 16')).toBeTruthy()
     expect(screen.getByText(en['build.data.next'])).toBeTruthy()
     expect(screen.getByText(en['build.reference.next'])).toBeTruthy()
     expect((button(en['act.openFolder']) as HTMLButtonElement).disabled).toBe(true)
     await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', {
-      families: 1, matters: 1,
+      families: 1, matters: 1, added: { client: true, families: 1, matters: 1, files: 0 },
       steps: { 'folder': step('running'), 'matters': step('done', 1, 1), 'public-data': step('running', 3, 4), 'reference': step('done', 1, 1) },
     }), { recorded: null }))
     expect(screen.getByText('Recorded Syntegon as a client')).toBeTruthy()
@@ -435,8 +435,9 @@ describe('page 4: the build', () => {
     expect(screen.getByText('Made 1 family folder and 1 matter folder')).toBeTruthy()
     expect(screen.getByText(en['build.data.now'])).toBeTruthy()
     expect(screen.getByText(en['build.reference.done'])).toBeTruthy()
-    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', { matters: 0, steps: { 'folder': step('done'), 'matters': step('done'), 'public-data': step('done'), 'reference': step('running') } }), { recorded: { names: 0, matters: 0, hits: 2 } }))
+    await s.set(view(buildStatus(SYNTEGON_ID, 'Syntegon', { matters: 0, added: { client: false, families: 0, matters: 0, files: 0 }, steps: { 'folder': step('done'), 'matters': step('done'), 'public-data': step('done'), 'reference': step('running') } }), { recorded: { names: 0, matters: 0, hits: 2 } }))
     expect(screen.getByText('2 possible conflicts')).toBeTruthy()
+    expect(screen.getByText(en['build.matters.none'])).toBeTruthy()
     expect(screen.queryByText(/with their application numbers/)).toBeNull()
     expect(screen.getByText(en['build.data.done'])).toBeTruthy()
     expect(screen.getByText(en['build.reference.now'])).toBeTruthy()

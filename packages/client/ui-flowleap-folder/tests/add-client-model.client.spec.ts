@@ -158,7 +158,7 @@ describe('reviewing and deciding', () => {
     await vi.advanceTimersByTimeAsync(POLL_MS)
     expect(s.view()).toBeNull()
     expect(s.opened).toEqual(['ws-schubert'])
-    expect(s.model.state.toast).toEqual({ kind: 'client', name: 'Gerhard Schubert', matters: 0, families: 0 })
+    expect(s.model.state.toast).toEqual({ kind: 'client', name: 'Gerhard Schubert', matters: 0, families: 0, added: { client: true, families: 15, matters: 16, files: 0 } })
     s.model.dismissToast()
     expect(s.model.state.toast).toBeNull()
     unfollow()

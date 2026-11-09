@@ -1,7 +1,10 @@
 /* The client folder page: a 44 px top bar, the 244 px folder tree and the middle area, from client tokens only
    (.agents/skills/flowleap-design-language). */
 
+/* The page's width is the window less the app sidebar (0 to 420 px), so its layout steps follow the page, not the
+   window. */
 .panel {
+  container: folder-page / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -63,11 +66,31 @@
   min-width: 0;
 }
 
+/* The acts give way before the page overflows: an act with `.act` cuts its label, and the primary act keeps it. In a
+   language whose labels are longer than the steps below expect, the cut labels keep the top bar inside the page. */
 .actions {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.actions > * {
   flex: none;
+}
+
+.actions > .act {
+  flex: 0 1 auto;
+  min-width: 36px;
+  overflow: hidden;
+}
+
+.actLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search {
@@ -148,6 +171,7 @@
 }
 
 .keycap {
+  flex: none;
   margin-inline-start: 4px;
 }
 
@@ -631,6 +655,14 @@
   display: none;
 }
 
+/* Below 1080 px, the English top bar with every act no longer fits beside a readable location: the keycaps go, and
+   each act with `.act` shows only its icon, whose tooltip names it because the hidden label counts as cut. */
+@container folder-page (max-width: 1080px) {
+  .topbar .keycap { display: none; }
+  .actions > .act { gap: 0; }
+  .act .actLabel { max-width: 0; }
+}
+
 /* The list drops columns by its own width, which the app sidebar and the folder tree take from the window. */
 @container folder-middle (max-width: 640px) {
   .bulk .keycap { display: none; }
@@ -643,7 +675,8 @@
   .thead > :nth-child(4), .row > :nth-child(4) { display: none; }
 }
 
-@media (max-width: 720px) {
+/* A narrow page: on a phone, or in a window that the open app sidebar shares. The tree opens from the top bar. */
+@container folder-page (max-width: 720px) {
   .topbar { padding: 0 8px; }
   .wide { display: none !important; }
   .onlyNarrow { display: inline-grid; }

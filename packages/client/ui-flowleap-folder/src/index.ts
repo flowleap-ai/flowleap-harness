@@ -1,7 +1,8 @@
 /**
- * FlowLeap client folder, Host half: the authenticated routes under `/api/flowleap/folder/` that list one folder of a
- * client folder with each entry's modified time and recorded source, make a folder, rename, move, write an uploaded
- * file, move an entry to Trash and back, and find entries by name. A client folder is the folder of one workspace;
+ * FlowLeap client folder, Host half: the authenticated routes under `/api/flowleap/folder/` that name the workspaces
+ * whose folder is a client folder in `clientsRoot`, list one folder of a client folder with each entry's modified time
+ * and recorded source, make a folder, rename, move, write an uploaded file, move an entry to Trash and back, and find
+ * entries by name. A client folder is the folder of one workspace;
  * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
  * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The Add client routes under
  * `add-client/` read the public patent data through the optional `flowleapPatentData` Service and build a client
@@ -12,7 +13,7 @@
  * @module @deepseek-ai/dsh-client-ui-flowleap-folder
  */
 
-import { access } from 'node:fs/promises'
+import { access, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -27,7 +28,7 @@ import { AddClientRoutes } from './add-client/routes.ts'
 import { ADD_CLIENT_ROUTES } from './add-client/wire.ts'
 import { ClientFolder, FolderError, checkName } from './folder.ts'
 import {
-  FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type FolderFailure, type FolderSource, type FolderWritten,
+  FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type ClientFoldersAnswer, type FolderFailure, type FolderSource, type FolderWritten,
   type MkdirRequest, type MoveRequest, type RenameRequest, type TrashRequest,
 } from './route.ts'
 import { sourceStore, trashStore, type RecordStore, type TrashOrigin } from './sources.ts'
@@ -183,6 +184,25 @@ export class FolderRoutes {
     const entity = this.ctx.workspaceRegistry.get(workspace as WorkspaceId)
     if (entity === undefined) throw new FolderError('no-workspace', `no workspace ${workspace}`)
     return ClientFolder.at(entity.path)
+  }
+
+  /**
+   * `GET clients`: the workspaces whose folder is a direct child of `clientsRoot`, so the Clients list leaves out every
+   * other workspace of the runtime, such as its default workspace.
+   * @returns the JSON answer.
+   */
+  async clients(): Promise<Response> {
+    let root: string
+    try {
+      // The registry keeps each workspace path through `fs.realpath`, so the root is compared in the same form.
+      root = await realpath(this.config.clientsRoot)
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      // Add client makes `clientsRoot` with the first client folder: before that, no workspace is a client folder.
+      return json({ workspaces: [] } satisfies ClientFoldersAnswer)
+    }
+    const workspaces = this.ctx.workspaceRegistry.list().filter(entity => path.dirname(entity.path) === root).map(entity => entity.id)
+    return json({ workspaces } satisfies ClientFoldersAnswer)
   }
 
   /**
@@ -352,6 +372,7 @@ export function apply(ctx: Context, config: Config): void {
       path, methods: [method], requestBody, fetch: request => routes.answer(() => act(request)),
     }), `ui-flowleap-folder: ${path}`)
   }
+  register(FOLDER_ROUTES.clients, 'GET', 'buffered', () => routes.clients())
   register(FOLDER_ROUTES.list, 'GET', 'buffered', request => routes.list(request))
   register(FOLDER_ROUTES.mkdir, 'POST', 'buffered', request => routes.mkdir(request))
   register(FOLDER_ROUTES.rename, 'POST', 'buffered', request => routes.rename(request))

@@ -117,6 +117,7 @@ describe('Add client build jobs', () => {
       await job.start('matters', apps.length)
       if (runs.length === 1) await hold.opened
       await job.finish('matters')
+      await job.note({ added: { client: runs.length === 1, families: 0, matters: runs.length === 1 ? 2 : 1, files: 0 } })
     }
     await runner.start(CLIENT, 'Syntegon', ['EP1', 'EP2'], work)
     await runner.start(CLIENT, 'Syntegon', ['EP3'], work)
@@ -132,7 +133,7 @@ describe('Add client build jobs', () => {
     } while (status?.state === 'running')
     expect(states.filter(state => state !== 'running')).toEqual(['done'])
     expect(runs).toEqual([['EP1', 'EP2'], ['EP1', 'EP2', 'EP3', 'EP4']])
-    expect(status).toMatchObject({ name: 'Syntegon AG', steps: { matters: { state: 'done', total: 4 } } })
+    expect(status).toMatchObject({ name: 'Syntegon AG', steps: { matters: { state: 'done', total: 4 } }, added: { client: true, matters: 3 } })
   })
 
   it('logs a status it cannot write between two runs and still runs the second one', async () => {
@@ -279,5 +280,11 @@ describe('Add client build jobs', () => {
     expect(await jobs().all()).toEqual([])
     expect(isBuildStatus(null)).toBe(false)
     expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps: null })).toBe(false)
+    const steps = { 'folder': {}, 'matters': {}, 'public-data': {}, 'reference': {} }
+    // A status file of a build before the counts of what it made.
+    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps })).toBe(false)
+    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: 'yes', families: 0, matters: 0, files: 0 } })).toBe(false)
+    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: '1', files: 0 } })).toBe(false)
+    expect(isBuildStatus({ clientId: CLIENT, state: 'done', steps, added: { client: false, families: 0, matters: 1, files: 0 } })).toBe(true)
   })
 })

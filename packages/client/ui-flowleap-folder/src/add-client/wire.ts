@@ -168,6 +168,18 @@ export interface BuildStep {
   readonly failed: readonly string[]
 }
 
+/** What one build made. */
+export interface BuildAdded {
+  /** True when this build made the client folder. */
+  readonly client: boolean
+  /** The new family folders. */
+  readonly families: number
+  /** The new matter folders. */
+  readonly matters: number
+  /** The new dated files of public data and reference lists. */
+  readonly files: number
+}
+
 /** The status of one client's build; the `status` route answers every build. */
 export interface BuildStatus {
   readonly clientId: string
@@ -181,8 +193,11 @@ export interface BuildStatus {
   readonly workspace?: string
   /** The client folder relative to `clientsRoot`. */
   readonly folder?: string
+  /** The family and matter folders of the client folder that this build found or made, without those in Trash. */
   readonly families: number
   readonly matters: number
+  /** What this build made; each count is 0 when the client folder had everything and no data changed. */
+  readonly added: BuildAdded
   readonly steps: Readonly<Record<BuildStepId, BuildStep>>
 }
 

@@ -11,7 +11,7 @@ import { lstat, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import type { EpApplicationNumber, PatentData, PublicationText, RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
 import { ClientFolder, FolderError, freeName } from '../folder.ts'
-import { cutToBytes, folderNameOf, isTrashPath, type AddClientOrigin, type FolderSource } from '../route.ts'
+import { folderNameOf, isTrashPath, type AddClientOrigin, type FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { messageOf, type BuildJob } from './jobs.ts'
 import { townOf } from './identity.ts'
@@ -74,9 +74,6 @@ export const REGISTER_FILE = 'EP Register'
 /** The base name of the dated reference list. */
 export const REFERENCE_FILE = 'Reference - at other firms'
 
-/** The longest folder name in UTF-8 bytes. */
-const MAX_NAME_BYTES = 255
-
 /** The name of each source in a dated file. */
 const SOURCE_NAME: Readonly<Record<Exclude<AddClientOrigin, 'template'>, string>> = {
   'ep-register': 'the EP Register',
@@ -103,20 +100,50 @@ export function spacedPublication(publication: string): string {
   return `EP ${match[1]} ${match[2]} ${match[3]}${match[4] === undefined ? '' : ` ${match[4]}`}`
 }
 
+/** The most characters of the title in a family folder name, so the family folders stay apart in a narrow tree. */
+const FAMILY_TITLE_CHARS = 40
+
+/** The words that do not end a cut title, each after a space. */
+const WEAK_ENDS = / (?:a|an|and|for|in|of|on|or|the|to|with)$/iu
+
 /**
- * The name of a family folder: the title, and the earliest priority when there is one.
+ * A title in sentence case: the EP Register writes many titles in capitals.
+ * @param title - the title as the register writes it.
+ * @returns the title; a title in capitals has a capital first letter only.
+ */
+function sentenceCase(title: string): string {
+  if (title !== title.toUpperCase()) return title
+  const lower = title.toLowerCase()
+  return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
+/**
+ * A WO publication number as people read it.
+ * @param publication - `WO`, the year, six digits and a kind code.
+ * @returns such as `WO 2025/119775 A1`.
+ */
+export function spacedWo(publication: string): string {
+  const match = /^WO(\d{4})(\d{6})([A-Z]\d?)$/u.exec(publication)
+  return match === null ? publication : `WO ${match[1]}/${match[2]} ${match[3]}`
+}
+
+/**
+ * The name of a family folder: the application number of its first matter and a short title in sentence case, such
+ * as `EP 23 171 862 Method and apparatus for producing…`.
+ * @param application - the first matter's application number as people read it.
  * @param title - the title of the family's first matter.
- * @param priority - the earliest priority.
- * @param fallback - the name when there is no title.
  * @returns the folder name.
  */
-export function familyName(
-  title: string | undefined, priority: { readonly number: string; readonly date?: string } | undefined, fallback: string,
-): string {
-  const suffix = priority === undefined ? '' : ` (priority ${priority.number}${priority.date === undefined ? '' : `, ${priority.date}`})`
-  const room = MAX_NAME_BYTES - Buffer.byteLength(suffix, 'utf8')
-  // A suffix of 255 bytes or more leaves no room: the title goes, and folderNameOf cuts the suffix.
-  return folderNameOf(`${cutToBytes(folderNameOf(title ?? fallback), room).trimEnd()}${suffix}`)
+export function familyName(application: string, title: string | undefined): string {
+  const full = sentenceCase((title ?? '').trim().replace(/\s+/gu, ' '))
+  const chars = Array.from(new Intl.Segmenter().segment(full), item => item.segment)
+  if (chars.length <= FAMILY_TITLE_CHARS) return folderNameOf(full === '' ? application : `${application} ${full}`)
+  const head = chars.slice(0, FAMILY_TITLE_CHARS + 1).join('')
+  const space = head.lastIndexOf(' ')
+  // A first word longer than the limit is cut inside the word.
+  let short = space > 0 ? head.slice(0, space) : chars.slice(0, FAMILY_TITLE_CHARS).join('')
+  while (WEAK_ENDS.test(short)) short = short.replace(WEAK_ENDS, '')
+  return folderNameOf(`${application} ${short}…`)
 }
 
 /** A Markdown table cell. */
@@ -157,6 +184,9 @@ export function registerBody(row: RegisterRow): string {
 export function publicationBody(text: PublicationText): string {
   const parts = [`# ${spacedPublication(text.publicationNumber)}`]
   if (text.title !== undefined) parts.push(`**${text.title}**`)
+  if (text.textFrom !== undefined) {
+    parts.push(`The EPO holds no abstract and no claims of this Euro-PCT publication. The abstract and the claims are those of ${spacedWo(text.textFrom)}, the international publication of the same application.`)
+  }
   if (text.abstract !== undefined) parts.push(`## Abstract\n\n${text.abstract}`)
   if (text.claims !== undefined) parts.push(`## Claims\n\n${text.claims}`)
   return `${parts.join('\n\n')}\n`
@@ -204,6 +234,9 @@ class FolderWriter {
    */
   constructor(readonly folder: ClientFolder, private readonly workspace: string, private readonly plan: BuildPlan) {}
 
+  /** The family and matter folders and the dated files that this build made. */
+  readonly added = { client: false, families: 0, matters: 0, files: 0 }
+
   /** Record the source of an entry that this build wrote. */
   async record(entry: string, source: Omit<Extract<FolderSource, { kind: 'add-client' }>, 'kind' | 'at'>): Promise<void> {
     await this.plan.sources.record(this.workspace, entry, { kind: 'add-client', at: this.plan.now().toISOString(), ...source })
@@ -223,7 +256,11 @@ class FolderWriter {
   /** Make or use a folder; record it when this build made it. */
   async ensureFolder(parent: string, name: string, source: Omit<Extract<FolderSource, { kind: 'add-client' }>, 'kind' | 'at'>): Promise<string> {
     const made = await this.folder.ensure(parent, name)
-    if (made.made) await this.record(made.path, source)
+    if (made.made) {
+      await this.record(made.path, source)
+      if (source.role === 'family') this.added.families += 1
+      if (source.role === 'matter') this.added.matters += 1
+    }
     return made.path
   }
 
@@ -248,6 +285,7 @@ class FolderWriter {
     const name = await freeName(await this.folder.folder(parent), `${base} ${now.toISOString().slice(0, 10)}.md`)
     const written = await this.folder.writeNew(parent, name, `${asOfLine(now, from)}\n\n${body}`)
     await this.record(written, { from })
+    this.added.files += 1
     return written
   }
 }
@@ -280,17 +318,17 @@ function recorded(records: ReadonlyMap<string, FolderSource>, role: 'family' | '
  * Make the client folder in `clientsRoot`, or use the folder that has its name.
  * @param clientsRoot - the folder of the client folders.
  * @param name - the client name.
- * @returns the client folder's path.
+ * @returns the client folder's path, and true when this call made it.
  * @throws FolderError `invalid-name` when no folder can have the name, `outside` when a link or a file has the name.
  */
-async function clientFolderAt(clientsRoot: string, name: string): Promise<string> {
+async function clientFolderAt(clientsRoot: string, name: string): Promise<{ readonly root: string; readonly made: boolean }> {
   const folder = clientFolderName(name)
   if (folder === undefined) throw new FolderError('invalid-name', `the client name ${JSON.stringify(name)} cannot be a folder name`)
   const root = path.join(clientsRoot, folder)
-  await mkdir(root, { recursive: true })
+  const made = await mkdir(root, { recursive: true }) !== undefined
   // The folder name has no separator, so a real folder (not a link) at this path is inside clientsRoot.
   if (!(await lstat(root)).isDirectory()) throw new FolderError('outside', `${root} is a link or a file, not a client folder`)
-  return root
+  return { root, made }
 }
 
 /**
@@ -306,9 +344,10 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
   const stopped = () => { if (job.signal.aborted) throw new Error('the build was stopped') }
 
   await job.start('folder', 1)
-  const root = await clientFolderAt(plan.clientsRoot, request.name)
+  const { root, made } = await clientFolderAt(plan.clientsRoot, request.name)
   const workspace = await plan.createWorkspace(root, request.name)
   const writer = new FolderWriter(await ClientFolder.at(root), workspace.id, plan)
+  writer.added.client = made
   await writer.template('', template.client)
   if (!(await writer.folder.fileNames('')).includes(ABOUT_FILE)) {
     const about = await writer.folder.writeNew('', ABOUT_FILE, aboutMarkdown(request, plan.now()))
@@ -346,7 +385,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
           const key = read.familyId ?? read.priorities[0]?.number ?? application
           const earlier = families.get(key)
           family = earlier === undefined
-            ? await writer.ensureFolder('', familyName(row.title, read.priorities[0], spacedApplication(application)), { from: 'ep-register', role: 'family', key })
+            ? await writer.ensureFolder('', familyName(spacedApplication(application), row.title), { from: 'ep-register', role: 'family', key })
             : await writer.found(earlier)
           families.set(key, family)
           matter = await writer.ensureFolder(family, spacedApplication(application), { from: 'ep-register', role: 'matter', key: application })
@@ -366,7 +405,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
   await job.finish('matters')
   // A matter that a person moved to Trash stays there: it counts as no matter and gets no new data.
   const live = built.filter(item => !isTrashPath(item.path))
-  await job.note({ matters: live.length, families: new Set(live.map(item => item.family)).size })
+  await job.note({ matters: live.length, families: new Set(live.map(item => item.family)).size, added: { ...writer.added } })
   await job.start('public-data', live.reduce((count, item) => count + (item.row.publicationNumber === undefined ? 1 : 2), 0))
   // A matter is built only with the data plugin, so `live` is empty without it.
   if (data !== undefined) {
@@ -405,6 +444,7 @@ export async function buildClientFolder(job: BuildJob, plan: BuildPlan): Promise
     }
   }
   await job.finish('reference')
+  await job.note({ added: { ...writer.added } })
 }
 
 /** The Markdown of the About file in the client folder; file content, written in English like the dated files. */

@@ -3,7 +3,7 @@
  * @module
  */
 
-import { FOLDER_ROUTES, type FolderFailureCode, type FolderListing, type FolderWritten, type FolderSearchAnswer } from '../route.ts'
+import { FOLDER_ROUTES, type ClientFoldersAnswer, type FolderFailureCode, type FolderListing, type FolderWritten, type FolderSearchAnswer } from '../route.ts'
 
 /** The answer of one folder act: its value, or the failure code (`network` when no answer came). */
 export type FolderResult<T> =
@@ -42,6 +42,22 @@ async function call<T>(url: string, init: RequestInit): Promise<FolderResult<T>>
     return { ok: false, error: 'network' }
   }
   return answer<T>(response)
+}
+
+/** Whether an answer body is a {@link ClientFoldersAnswer}. */
+function isClientFolders(body: unknown): body is ClientFoldersAnswer {
+  return typeof body === 'object' && body !== null && 'workspaces' in body && Array.isArray(body.workspaces)
+    && body.workspaces.every(id => typeof id === 'string')
+}
+
+/**
+ * The workspaces whose folder is a client folder in the Host's `clientsRoot`.
+ * @returns the answer; a body that is not a {@link ClientFoldersAnswer} is `internal`.
+ */
+export async function readClientFolders(): Promise<FolderResult<ClientFoldersAnswer>> {
+  const result = await call<unknown>(relative(FOLDER_ROUTES.clients), {})
+  if (!result.ok) return result
+  return isClientFolders(result.value) ? { ok: true, value: result.value } : { ok: false, error: 'internal' }
 }
 
 /** One upload's progress, from 0 to 1. */

@@ -1,7 +1,8 @@
 import {
   PatentDataError, parseEpApplication, parseEpPublication, type EpApplicationNumber, type EpPublicationNumber, type FamilyRead,
-  type PatentData, type PublicationText, type RegisterRow,
+  type PatentData, type PublicationText, type RegisterRow, type WoPublicationNumber,
 } from '@deepseek-ai/dsh-flowleap-connectors'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import { companyKey } from '../src/add-client/identity.ts'
 
 /** An EP application number for a test. */
@@ -9,6 +10,11 @@ export function app(number: string): EpApplicationNumber {
   const parsed = parseEpApplication(number)
   if (parsed === undefined) throw new Error(`not an application: ${number}`)
   return parsed
+}
+
+/** A WO publication number for a test. */
+export function wo(number: string): WoPublicationNumber {
+  return brandString<WoPublicationNumber>(number)
 }
 
 /** An EP publication number for a test. */

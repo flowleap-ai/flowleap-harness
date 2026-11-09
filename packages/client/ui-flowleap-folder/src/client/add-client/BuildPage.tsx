@@ -96,11 +96,13 @@ function stepTitle(t: AddClientTranslate, id: BuildStepId, step: BuildStep, stat
   switch (id) {
     case 'folder': return t(done ? 'build.folder.done' : 'build.folder.now')
     case 'matters': {
-      const values = {
-        families: counted(t, status.families, 'build.folders.families.one', 'build.folders.families.many'),
-        matters: counted(t, status.matters, 'build.folders.matters.one', 'build.folders.matters.many'),
-      }
-      return t(done ? 'build.matters.done' : 'build.matters.now', values)
+      // The counts are known only when the step ends; the step count shows the progress before that.
+      if (!done) return t('build.matters.now')
+      if (status.added.families === 0 && status.added.matters === 0) return t('build.matters.none')
+      return t('build.matters.done', {
+        families: counted(t, status.added.families, 'build.folders.families.one', 'build.folders.families.many'),
+        matters: counted(t, status.added.matters, 'build.folders.matters.one', 'build.folders.matters.many'),
+      })
     }
     case 'public-data':
       if (step.state === 'failed' && step.failed.length > 0) return t('build.data.failed', { count: step.failed.length })

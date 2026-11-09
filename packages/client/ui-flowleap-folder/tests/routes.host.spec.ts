@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -15,7 +15,7 @@ let stateDir: string
 let routes: Map<string, ConnectionFetchRoute>
 let ctx: Context
 let warnings: string[]
-let registry: { get: (id: string) => { id: string; path: string } | undefined }
+let registry: { get: (id: string) => { id: string; path: string } | undefined; list: () => { id: string; path: string }[] }
 
 beforeEach(async () => {
   base = await mkdtemp(path.join(tmpdir(), 'flowleap-folder-routes-'))
@@ -28,7 +28,7 @@ beforeEach(async () => {
   ctx = new Context()
   ctx.provide('connection', { fetch: { register: (route: ConnectionFetchRoute) => { routes.set(route.path, route); return async () => { routes.delete(route.path) } } } } as never)
   ctx.logger.exporter({ export: (message) => { if (message.type === 'warn') warnings.push(message.args.map((arg: unknown) => String(arg)).join(' ')) } })
-  registry = { get: (id: string) => id === WORKSPACE ? { id, path: root } : undefined }
+  registry = { get: (id: string) => id === WORKSPACE ? { id, path: root } : undefined, list: () => [{ id: WORKSPACE, path: root }] }
   ctx.provide('workspaceRegistry', registry as never)
 })
 
@@ -53,9 +53,10 @@ function post(route: string, body: unknown) {
 }
 
 describe('ui-flowleap-folder Host half', () => {
-  it('registers the eight folder routes and the four Add client routes, and removes them on dispose', async () => {
+  it('registers the nine folder routes and the four Add client routes, and removes them on dispose', async () => {
     const fiber = await load()
     expect([...routes.values()].map(route => [route.path, route.methods, route.requestBody])).toEqual([
+      [FOLDER_ROUTES.clients, ['GET'], 'buffered'],
       [FOLDER_ROUTES.list, ['GET'], 'buffered'],
       [FOLDER_ROUTES.mkdir, ['POST'], 'buffered'],
       [FOLDER_ROUTES.rename, ['POST'], 'buffered'],
@@ -81,6 +82,36 @@ describe('ui-flowleap-folder Host half', () => {
       folderTemplate: { client: ['00 Client'], matter: ['Associates', 'Client', 'Drafts', 'Internal', 'Office', 'Search'], publicData: 'Office' },
       firmIdentity: { names: [], addresses: [], representatives: [] },
     })
+  })
+
+  it('names as client folders only the workspaces whose folder is a direct child of clientsRoot', async () => {
+    const clientsRoot = path.join(base, 'Clients')
+    await mkdir(path.join(clientsRoot, 'Syntegon', 'EP 23 171 862'), { recursive: true })
+    await mkdir(path.join(base, 'default-workspace'))
+    // The registry keeps the real path; the temporary folder can be under a link, such as /var on macOS.
+    registry.list = () => [
+      { id: 'default', path: path.join(base, 'default-workspace') },
+      { id: 'syntegon', path: path.join(clientsRoot, 'Syntegon') },
+      { id: 'matter', path: path.join(clientsRoot, 'Syntegon', 'EP 23 171 862') },
+      { id: 'root', path: clientsRoot },
+    ]
+    const real = await Promise.all(registry.list().map(async entity => ({ id: entity.id, path: await realpath(entity.path) })))
+    registry.list = () => real
+    await load({ clientsRoot })
+    const response = await call(FOLDER_ROUTES.clients)
+    expect([response.status, response.headers.get('cache-control'), await response.json()]).toEqual([200, 'no-store', { workspaces: ['syntegon'] }])
+  })
+
+  it('names no client folder while clientsRoot does not exist', async () => {
+    await load({ clientsRoot: path.join(base, 'No clients yet') })
+    expect(await (await call(FOLDER_ROUTES.clients)).json()).toEqual({ workspaces: [] })
+  })
+
+  it('answers 500 when clientsRoot cannot be read', async () => {
+    await writeFile(path.join(base, 'a file'), '')
+    await load({ clientsRoot: path.join(base, 'a file', 'Clients') })
+    const response = await call(FOLDER_ROUTES.clients)
+    expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
   })
 
   it('lists a folder as JSON that is never cached', async () => {

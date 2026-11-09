@@ -3,11 +3,17 @@
  * @module
  */
 
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+
 /** Absolute Host path of the folder routes on the shared `/api` channel. */
 export const FOLDER_API = '/api/flowleap/folder'
 
-/** One route for each act: the listing, the JSON writes, the streamed upload, Trash and Restore, and the search. */
+/**
+ * One route for each act: the client folders, the listing, the JSON writes, the streamed upload, Trash and Restore,
+ * and the search.
+ */
 export const FOLDER_ROUTES = {
+  clients: `${FOLDER_API}/clients`,
   list: `${FOLDER_API}/list`,
   mkdir: `${FOLDER_API}/mkdir`,
   rename: `${FOLDER_API}/rename`,
@@ -123,6 +129,12 @@ export interface FolderEntry {
   readonly source?: FolderSource
   /** For an entry in Trash: its path before Move to Trash, relative to the client folder. */
   readonly trashedFrom?: string
+}
+
+/** The answer of `GET clients`: the workspaces whose folder is a client folder, a direct child of `clientsRoot`. */
+export interface ClientFoldersAnswer {
+  /** The workspace ids, in the order of the workspace registry; empty while `clientsRoot` does not exist. */
+  readonly workspaces: readonly WorkspaceId[]
 }
 
 /** The direct children of one folder inside the client folder. */

@@ -21,6 +21,8 @@ import { ADD_CLIENT_NS, en as addClientEn } from '../src/client/add-client/local
 const SYNTEGON = 'ws-syntegon' as WorkspaceId
 const SESSION = 'session-syntegon'
 const ROOT = '/firm/Clients/Syntegon'
+/** The runtime's default workspace, which is not a client folder. */
+const DEFAULT = { workspaceId: 'default-workspace' as WorkspaceId, path: '/firm/.dsh/workspace', title: 'Default workspace', sessionIds: [], createdAt: '', updatedAt: '' }
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -78,11 +80,15 @@ class Feed implements AsyncIterable<{ readonly value: { readonly kind: string };
 /** The builds that the Add client status route answers. */
 let builds: unknown[] = []
 
-/** The Host's folder routes: each listing answers the entries of its folder; the Add client status answers `builds`. */
+/**
+ * The Host's folder routes: the client folders are Syntegon's, each listing answers the entries of its folder, and the
+ * Add client status answers `builds`.
+ */
 function folderRoutes(listings: Record<string, unknown[]>) {
   const urls: string[] = []
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('add-client/status')) return new Response(JSON.stringify({ builds }))
+    if (url.endsWith('folder/clients')) return new Response(JSON.stringify({ workspaces: [SYNTEGON] }))
     urls.push(url)
     const path = new URL(url, 'http://firm.test/').searchParams.get('path') ?? ''
     return new Response(JSON.stringify({ path, entries: listings[path] ?? [], truncated: false }))
@@ -107,7 +113,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
     },
   } as never)
   ctx.provide('layout', {} as never)
-  const workspaces = createSnapshotStore({ items: [{ workspaceId: SYNTEGON, path: ROOT, title: 'Syntegon', sessionIds: [], createdAt: '', updatedAt: '' }] })
+  const workspaces = createSnapshotStore({ items: [DEFAULT, { workspaceId: SYNTEGON, path: ROOT, title: 'Syntegon', sessionIds: [], createdAt: '', updatedAt: '' }] })
   ctx.provide('workspaces', { list: workspaces } as never)
   const started: unknown[][] = []
   ctx.provide('uiWorkspace', {
@@ -227,7 +233,7 @@ describe('ui-flowleap-folder browser half', () => {
     await ctx.fiber.dispose()
   })
 
-  it('follows the UI language and the client folders of the runtime', async () => {
+  it('follows the UI language and the client folders of the runtime, without the runtime\'s default workspace', async () => {
     const { ctx, face, workspaces } = await mounted()
     expect(face.hooks.language.getSnapshot()).toBe('en')
     ctx.locale.setLocale('de')
