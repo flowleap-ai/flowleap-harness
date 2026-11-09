@@ -149,6 +149,7 @@ The EP Register reads use the firm's own EPO OPS account (the `epo-ops` connecto
 - **The opponent index** sends the names of the firm's clients, which Add client already sent under the same account.
 - **No query has a client name and the firm's names together.** A query `pa=<client> and re=<firm>` would be fast. Under the firm's own account it would tell the EPO nothing new either, but it needs reads for each client and gives no firm view, so this sheet does not use it. The row with 1,132 matters in [The EPO limits](#the-epo-limits) came from one such query, run once as a test.
 - **The docket read starts when the firm identity is saved**, not at the first Add client, so the firm's queries and a client's queries do not go out in the same minutes.
+- **Only a firm administrator may save the firm identity** (founder decision, 2026-11-09). The identity decides which applications count as the firm's matters and which names go to the EP Register, so other people see it read-only. **Read again** stays open to everyone, because it only reads the public register again for the saved identity.
 
 The page text "FlowLeap sends only this name to the patent data plugin" stays true for Add client. The docket read gets its own line in the firm identity setting and on its progress: "FlowLeap sends your firm's names to the EP Register, through your firm's EPO account, to read your EP docket. It sends no client name."
 
