@@ -20,7 +20,7 @@ The desk CI runner runs the `node 24 / coverage` job of the full CI lane on the 
 
 ## Setup
 
-1. Required before the first runner can register: in the repository settings (Actions, General, "Approval for running fork pull request workflows from contributors"), select "Require approval for all external contributors".
+1. Required before the first runner can register: in the repository settings (Actions, General, "Approval for running fork pull request workflows from contributors"), select "Require approval for all external contributors". This setting has been active since 2026-11-09.
 2. As `neoak` on desk: `brew install colima docker docker-buildx`.
 3. In GitHub, as the founder: create the fine-grained token "desk runner registration" (resource owner `flowleap-ai`, repository `flowleap-harness` only, permission Administration: Read and write, 90 days) and the token "desk status read" (same repository, Administration: Read-only, 90 days).
 4. On desk, from a copy of this directory: `sudo bash setup.sh`. Paste the "desk runner registration" token at the hidden prompt.
@@ -36,3 +36,5 @@ The log is `/Users/ghci/Library/Logs/dsh-ci-desk.log`. The runners appear under 
 3. `gh variable delete DSH_CI_DESK -R flowleap-ai/flowleap-harness` and `gh secret delete DSH_CI_DESK_STATUS_TOKEN -R flowleap-ai/flowleap-harness`.
 4. Delete any runner with the label `desk` that is still listed under Settings, Actions, Runners.
 5. Revoke both tokens in the founder's GitHub settings.
+
+The fork pull request approval setting can stay at "Require approval for all external contributors" after removal; it protects the hosted runners too.
