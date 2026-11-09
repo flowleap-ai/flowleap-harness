@@ -15,7 +15,7 @@ const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
 
 describe('CI workflow', () => {
-  it('keeps at most eleven worker jobs active across PR workflows while Python runtime targets follow the SDK suite', () => {
+  it('keeps at most fifteen worker jobs active across PR workflows while Python runtime targets follow the SDK suite', () => {
     const ci = loadWorkflow('.github/workflows/ci.yml')
     const ciWindows = loadWorkflow('.github/workflows/ci-windows.yml')
     const ciPython = loadWorkflow('.github/workflows/ci-python.yml')
@@ -40,8 +40,18 @@ describe('CI workflow', () => {
       matrix: { include: [{ node: '24.9' }, { node: 26 }] },
     })
     expect(workflowJob(ci, 'all-checks-passed').needs).toContain('node-compat')
+    const webSnapshots = workflowJob(ci, 'node-24-web-snapshots')
+    if (!isRecord(webSnapshots.strategy) || !isRecord(webSnapshots.strategy.matrix)
+      || !Array.isArray(webSnapshots.strategy.matrix.shard)) {
+      throw new TypeError('CI must define the web snapshot shard matrix')
+    }
+    const shards = webSnapshots.strategy.matrix.shard
+    expect(webSnapshots.strategy['fail-fast']).toBe(false)
+    expect(shards).toEqual(Array.from({ length: shards.length }, (_, index) => index + 1))
+    expect(webSnapshots.env).toMatchObject({ DSH_WEB_SNAPSHOT_SHARD: `\${{ matrix.shard }}/${String(shards.length)}` })
+    expect(webSnapshots.name).toBe(`node 24 / web snapshots \${{ matrix.shard }}/${String(shards.length)}`)
     const ordinaryJobs = Object.entries(ci.jobs)
-      .filter(([name]) => !['node-compat', 'all-checks-passed'].includes(name))
+      .filter(([name]) => !['node-compat', 'node-24-web-snapshots', 'all-checks-passed'].includes(name))
     for (const [name, job] of ordinaryJobs) {
       if (!isRecord(job)) throw new TypeError(`${name} must define a job`)
       expect(job).not.toHaveProperty('strategy')
@@ -87,12 +97,13 @@ describe('CI workflow', () => {
     // Python's runtime targets start only after the SDK suite; Windows starts
     // immediately. Plan and wheel stages precede the two-target matrix.
     const windowsActive = windowsJobs.length
-    // The lint lane owns its own runner, so it raises the ceiling by one; the
-    // self-hosted failover pool is still admitted only up to its own limit.
-    const beforeSdk = ordinaryJobs.length + compatibilityLimit + windowsActive + 1
-    const afterSdk = ordinaryJobs.length + compatibilityLimit + windowsActive + Math.max(1, targets.split(',').length)
-    expect(beforeSdk).toBeLessThanOrEqual(11)
-    expect(afterSdk).toBeLessThanOrEqual(11)
+    // One push stays inside the organization's 20 concurrent hosted jobs;
+    // each web snapshot shard holds its own runner.
+    const linuxActive = ordinaryJobs.length + shards.length + compatibilityLimit
+    const beforeSdk = linuxActive + windowsActive + 1
+    const afterSdk = linuxActive + windowsActive + Math.max(1, targets.split(',').length)
+    expect(beforeSdk).toBeLessThanOrEqual(15)
+    expect(afterSdk).toBeLessThanOrEqual(15)
   })
 
   it('keeps the union of required PR verdicts equal to the pre-split blocking set', () => {
@@ -121,6 +132,7 @@ describe('CI workflow', () => {
       'node-24-consumers',
       'node-24-coverage',
       'node-24-lint',
+      'node-24-web-snapshots',
       'node-compat',
       'python-runtime',
       'python-sdk',
