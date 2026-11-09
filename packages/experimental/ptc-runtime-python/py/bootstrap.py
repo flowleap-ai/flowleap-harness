@@ -979,6 +979,10 @@ async def _run(channel: ProtocolChannel) -> None:
     signal.signal(signal.SIGXCPU, signal.SIG_DFL)
     if getattr(signal, "pthread_sigmask", None) is not None:
         signal.pthread_sigmask(signal.SIG_UNBLOCK, (signal.SIGXCPU,))
+    # The SIGTERM reset before `done` uses primitives bound here, so a program
+    # that rebinds `signal.signal` cannot keep its own SIGTERM trap in force.
+    _set_signal, _sigterm, _sig_dfl = signal.signal, signal.SIGTERM, signal.SIG_DFL
+    _sigmask, _sig_unblock = getattr(signal, "pthread_sigmask", None), signal.SIG_UNBLOCK
     # `RuntimeError` and the `_BindingRejection` marker class are likewise bound
     # into locals: `dispatch`'s `call_failure` and its `except` clause resolve
     # them at call time, and the program (running as `__main__`) can rebind the
@@ -1437,6 +1441,14 @@ async def _run(channel: ProtocolChannel) -> None:
         except _BaseException:  # noqa: BLE001 -- swallow ONLY the log tail; `done` must reach the host; `_BaseException` is a pre-program local
             pass
     reply_task.cancel()
+    # The host sends SIGTERM as soon as it handles `done`, and the child then
+    # waits for it (see `_linger_until_host_closes`). The default action must be
+    # in force BEFORE `done` is posted: a reset after it races that SIGTERM, and
+    # a program that trapped, ignored, or blocked SIGTERM would hold the run
+    # until the SIGKILL backstop.
+    _set_signal(_sigterm, _sig_dfl)
+    if _sigmask is not None:
+        _sigmask(_sig_unblock, (_sigterm,))
     send_done(done)
 
 
@@ -2597,14 +2609,10 @@ def _linger_until_host_closes(fd: int) -> None:
     fails the host's pending write with ``EPIPE``, and Node then destroys the
     whole socket and discards the unread ``done`` frame, so a completed run
     reported ``worker-exit``. The host sends SIGTERM once it has handled
-    ``done``; SIGTERM is reset to its default action here so a program that
-    trapped, ignored, or blocked it cannot hold the run until the SIGKILL
-    backstop.
+    ``done``; ``_run`` restores SIGTERM's default action before it posts
+    ``done``.
     """
 
-    signal.signal(signal.SIGTERM, signal.SIG_DFL)
-    if getattr(signal, "pthread_sigmask", None) is not None:
-        signal.pthread_sigmask(signal.SIG_UNBLOCK, (signal.SIGTERM,))
     try:
         os.set_blocking(fd, True)
     except OSError as _closed:  # the program closed fd 3, so no host reply can be pending
