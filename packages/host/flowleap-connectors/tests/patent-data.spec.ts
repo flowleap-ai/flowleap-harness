@@ -2,7 +2,8 @@
 import { Context } from '@deepseek-ai/cordis'
 import {
   DataKeysRequiredError, ErrorCodes, REPRESENTATIVE_PUBLICATION_RULE, createConnectors,
-  type AbstractResponse, type BiblioData, type ClaimsResponse, type FamilyMember, type FamilyResponse, type ProviderReadFailure,
+  type AbstractResponse, type BiblioData, type ClaimsResponse, type RoutedClaims, type FamilyMember, type FamilyResponse,
+  type ProviderReadFailure,
   type ProviderReadResult, type RegisterSearchItem, type RegisterSearchResponse,
 } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
@@ -94,9 +95,9 @@ async function bench() {
     getFamily: vi.fn<PatentDataConnectors['ops']['getFamily']>(),
     getBiblio: vi.fn<PatentDataConnectors['ops']['getBiblio']>(),
     getAbstract: vi.fn<PatentDataConnectors['ops']['getAbstract']>(),
-    getClaims: vi.fn<PatentDataConnectors['ops']['getClaims']>(),
+    getClaimsRouted: vi.fn<PatentDataConnectors['fulltext']['getClaimsRouted']>(),
   }
-  const service = new FlowleapPatentData(ctx, { connectors: { ops, host: bound.host }, bound })
+  const service = new FlowleapPatentData(ctx, { connectors: { ops, fulltext: ops, host: bound.host }, bound })
   return { ops, store, service }
 }
 
@@ -423,33 +424,99 @@ describe('publication', () => {
     const { ops, service } = await bench()
     ops.getBiblio.mockResolvedValue(biblio('A device'))
     ops.getAbstract.mockResolvedValue(abstract('The device flattens a strip.'))
-    ops.getClaims.mockResolvedValue(claims(['1. A device.', '2. The device of claim 1.']))
+    ops.getClaimsRouted.mockResolvedValue(claims(['1. A device.', '2. The device of claim 1.']))
     expect(await service.publication(publication('EP4292805A1'))).toEqual({
       publicationNumber: 'EP4292805A1',
       title: 'A device',
       abstract: 'The device flattens a strip.',
       claims: '1. A device.\n\n2. The device of claim 1.',
     })
-    expect(ops.getClaims).toHaveBeenCalledWith('EP4292805A1', 'en')
+    expect(ops.getClaimsRouted).toHaveBeenCalledWith('EP4292805A1', 'en')
   })
 
   it('leaves a field out when the EPO has no text for it (Euro-PCT) or the text is blank', async () => {
     const { ops, service } = await bench()
     ops.getBiblio.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
     ops.getAbstract.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
-    ops.getClaims.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
+    ops.getClaimsRouted.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
     expect(await service.publication(publication('EP4292805'))).toEqual({ publicationNumber: 'EP4292805' })
     ops.getBiblio.mockResolvedValue(biblio('  '))
     ops.getAbstract.mockResolvedValue(abstract(null))
-    ops.getClaims.mockResolvedValue(claims([]))
+    ops.getClaimsRouted.mockResolvedValue(claims([]))
     expect(await service.publication(publication('EP4292805'))).toEqual({ publicationNumber: 'EP4292805' })
+  })
+
+  describe('a Euro-PCT publication without text of its own', () => {
+    const routed = (served: string): ProviderReadResult<RoutedClaims> => ok({
+      docId: served, lang: 'de', claims: ['1. Vorrichtung.', '2. Vorrichtung nach Anspruch 1.'],
+      fallback: { reason: 'euro_pct_fulltext_in_wo', requestedDocId: 'EP4820738A1', servedDocId: served, note: '' },
+    })
+
+    it('has the claims and the abstract of the WO publication that the text router served', async () => {
+      const { ops, service } = await bench()
+      ops.getBiblio.mockResolvedValue(biblio('AIR SAMPLING DEVICE'))
+      ops.getAbstract.mockImplementation(async number => number === 'WO2025119775A1' ? abstract('The device takes air samples.') : failed(404, ErrorCodes.NOT_FOUND))
+      ops.getClaimsRouted.mockResolvedValue(routed('WO2025119775A1'))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual({
+        publicationNumber: 'EP4820738A1',
+        textFrom: 'WO2025119775A1',
+        title: 'AIR SAMPLING DEVICE',
+        abstract: 'The device takes air samples.',
+        claims: '1. Vorrichtung.\n\n2. Vorrichtung nach Anspruch 1.',
+      })
+      expect(ops.getClaimsRouted).toHaveBeenCalledWith('EP4820738A1', 'en')
+    })
+
+    it('finds the WO publication of a sister application through the PCT application that the bibliography names', async () => {
+      const { ops, service } = await bench()
+      const pct: ProviderReadResult<BiblioData> = ok({
+        docId: 'EP4820738A1', title: 'AIR SAMPLING DEVICE', abstract: null, applicants: [], inventors: [], ipc: [], cpc: [],
+        dates: { filing: null, publication: null, priority: [
+          { date: '20231205', country: 'DE', epodocApplication: 'DE202310133973', docdbApplication: 'DE102023133973 (A)', originalApplication: '102023133973', kind: 'A' },
+          { date: '20241128', country: 'EP', epodocApplication: 'WO2024EP83985', docdbApplication: 'EP2024083985 (W)', originalApplication: 'EP2024083985', kind: 'W' },
+        ] },
+      })
+      const family = (members: readonly (readonly [string, string])[]): ProviderReadResult<FamilyResponse> => {
+        const answer = familyResponse([], [])
+        const rows = members.map(([application, representativePublication]) => (
+          { application, representativePublication, isGrant: false, publications: [] }
+        ))
+        return ok({ ...answer, representatives: { ...answer.representatives, members: rows } })
+      }
+      ops.getBiblio.mockResolvedValue(pct)
+      ops.getAbstract.mockImplementation(async number => number === 'WO2025119775A1' ? abstract('The device takes air samples.') : failed(404, ErrorCodes.NOT_FOUND))
+      ops.getClaimsRouted.mockImplementation(async number => number === 'WO2025119775A1' ? claims(['1. A device.']) : failed(404, ErrorCodes.NOT_FOUND))
+      ops.getFamily.mockResolvedValue(family([['EP2024083984 (W)', 'WO2025119774A1'], ['EP2024083985 (W)', 'WO2025119775A1']]))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual({
+        publicationNumber: 'EP4820738A1', textFrom: 'WO2025119775A1', title: 'AIR SAMPLING DEVICE', abstract: 'The device takes air samples.', claims: '1. A device.',
+      })
+      expect(ops.getFamily).toHaveBeenCalledWith('EP4820738A1')
+
+      const titleOnly = { publicationNumber: 'EP4820738A1', title: 'AIR SAMPLING DEVICE' }
+      ops.getFamily.mockResolvedValue(family([['EP2024083984 (W)', 'WO2025119774A1']]))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual(titleOnly)
+      ops.getFamily.mockResolvedValue(family([['EP2024083985 (W)', 'US2025000001A1']]))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual(titleOnly)
+      ops.getFamily.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual(titleOnly)
+      ops.getFamily.mockResolvedValue(family([['EP2024083985 (W)', 'WO2025119776A1']]))
+      expect(await service.publication(publication('EP4820738A1'))).toEqual(titleOnly)
+    })
+
+    it('throws malformed when the router names a publication that is not a WO number', async () => {
+      const { ops, service } = await bench()
+      ops.getBiblio.mockResolvedValue(biblio('AIR SAMPLING DEVICE'))
+      ops.getAbstract.mockResolvedValue(failed(404, ErrorCodes.NOT_FOUND))
+      ops.getClaimsRouted.mockResolvedValue(routed('US2025000001A1'))
+      expect((await failureOf(service.publication(publication('EP4820738A1')))).code).toBe('malformed')
+    })
   })
 
   it('fails when the EPO fails for another reason than a missing text', async () => {
     const { ops, service } = await bench()
     ops.getBiblio.mockResolvedValue(biblio('A device'))
     ops.getAbstract.mockResolvedValue(abstract('Text.'))
-    ops.getClaims.mockResolvedValue(failed(400, ErrorCodes.data_keys_required))
+    ops.getClaimsRouted.mockResolvedValue(failed(400, ErrorCodes.data_keys_required))
     expect((await failureOf(service.publication(publication('EP4292805A1')))).code).toBe('no-key')
   })
 
@@ -457,14 +524,14 @@ describe('publication', () => {
     const { ops, service } = await bench()
     ops.getBiblio.mockResolvedValue(biblio('A device'))
     ops.getAbstract.mockResolvedValue(abstract('Text.'))
-    ops.getClaims.mockResolvedValue(claims(['1. A device.']))
+    ops.getClaimsRouted.mockResolvedValue(claims(['1. A device.']))
     ops.getBiblio.mockResolvedValue(wrong<BiblioData>({ title: 5 }))
     expect((await failureOf(service.publication(publication('EP4292805A1')))).message).toContain('bibliography')
     ops.getBiblio.mockResolvedValue(biblio('A device'))
     ops.getAbstract.mockResolvedValue(wrong<AbstractResponse>({ abstract: 5 }))
     expect((await failureOf(service.publication(publication('EP4292805A1')))).message).toContain('abstract')
     ops.getAbstract.mockResolvedValue(abstract('Text.'))
-    ops.getClaims.mockResolvedValue(wrong<ClaimsResponse>({ claims: 'one' }))
+    ops.getClaimsRouted.mockResolvedValue(wrong<ClaimsResponse>({ claims: 'one' }))
     expect((await failureOf(service.publication(publication('EP4292805A1')))).message).toContain('claims')
   })
 })

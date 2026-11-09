@@ -32,6 +32,9 @@ export type EpApplicationNumber = Branded<'EpApplicationNumber'>
 /** An EP publication number: `EP`, seven digits and an optional kind code, for example `EP4292805A1` or `EP4292805`. */
 export type EpPublicationNumber = Branded<'EpPublicationNumber'>
 
+/** A WO publication number: `WO`, the year, six digits and a kind code, for example `WO2025119775A1`. */
+export type WoPublicationNumber = Branded<'WoPublicationNumber'>
+
 /** A party that the EP Register names: a representative or an opponent. */
 export interface RegisterParty {
   /** The name as the register writes it. */
@@ -112,10 +115,15 @@ export interface FamilyRead {
   readonly publications: readonly string[]
 }
 
-/** The text of one EP publication. Each field is absent when the EPO holds no text for it. */
+/**
+ * The text of one EP publication. Each field is absent when the EPO holds no text for it. The EPO holds no text of
+ * the EP publication of a Euro-PCT application; the abstract and the claims are then those of its WO publication.
+ */
 export interface PublicationText {
   /** The publication that was read. */
   readonly publicationNumber: EpPublicationNumber
+  /** The WO publication of the same international application, when the abstract and the claims are from it. */
+  readonly textFrom?: WoPublicationNumber
   /** The title. */
   readonly title?: string
   /** The abstract. */
@@ -186,7 +194,10 @@ export interface PatentData {
   /**
    * Read the title, abstract and claims of one EP publication. The claims are in
    * English when the EPO has them, else in the first language it holds.
-   * A Euro-PCT EP publication has no text at the EPO: its fields are absent.
+   * The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are
+   * then those of the WO publication of the same international application, and `textFrom` names it. The library's
+   * text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP
+   * bibliography names finds it. They are absent when neither finds a WO publication with text.
    * @param publication - the EP publication number.
    * @param signal - caller cancellation.
    * @returns the text.
@@ -280,12 +291,21 @@ const familySchema = z.object({
     number: z.string().max(MAX_NUMBER_LENGTH),
     date: maybe(dateText),
   })),
-  representatives: z.object({ members: z.array(z.object({ representativePublication: maybe(z.string()) })) }),
+  representatives: z.object({
+    members: z.array(z.object({ application: maybe(z.string()), representativePublication: maybe(z.string()) })),
+  }),
 })
 
-const biblioSchema = z.object({ title: maybe(z.string()) })
+/** The title and the priority claims of a bibliography; the international (PCT) application has the kind `W`. */
+const biblioSchema = z.object({
+  title: maybe(z.string()),
+  dates: maybe(z.object({ priority: maybe(z.array(z.object({ docdbApplication: maybe(z.string()), kind: maybe(z.string()) }))) })),
+})
+/** A WO publication number with its kind code. */
+const WO_PUBLICATION = /^WO\d{10}[A-Z]\d?$/u
 const abstractSchema = z.object({ abstract: maybe(z.string()) })
-const claimsSchema = z.object({ claims: z.array(z.string()) })
+/** The routed claims; `fallback` names the WO publication whose claims a Euro-PCT EP publication has. */
+const claimsSchema = z.object({ claims: z.array(z.string()), fallback: maybe(z.object({ servedDocId: z.string() })) })
 
 /**
  * A one-key object when the value is present, else an empty one.
@@ -441,7 +461,9 @@ export interface PatentDataConnectors {
   /** The host, for the check that the firm stored an EPO OPS key. */
   readonly host: Pick<ConnectorHost, 'credentials'>
   /** The EPO OPS client. */
-  readonly ops: Pick<Connectors['ops'], 'searchRegister' | 'getFamily' | 'getBiblio' | 'getAbstract' | 'getClaims'>
+  readonly ops: Pick<Connectors['ops'], 'searchRegister' | 'getFamily' | 'getBiblio' | 'getAbstract'>
+  /** The text router: the claims of a pre-grant Euro-PCT EP publication come from its WO publication. */
+  readonly fulltext: Pick<Connectors['fulltext'], 'getClaimsRouted'>
 }
 
 /** Options of the provider. */
@@ -542,23 +564,77 @@ export class FlowleapPatentData extends Service implements PatentData {
   }
 
   async publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText> {
-    const [biblio, abstract, claims] = await Promise.all([
+    const [biblio, abstract, routed] = await Promise.all([
       this.read(signal, () => this.connectors.ops.getBiblio(publication)),
-      this.read(signal, () => this.connectors.ops.getAbstract(publication)),
-      this.read(signal, () => this.connectors.ops.getClaims(publication, 'en')),
+      this.abstract(publication, signal),
+      this.claims(publication, signal),
     ])
     const biblioAnswer = unwrap('bibliography', biblio, true)
-    const abstractAnswer = unwrap('abstract', abstract, true)
-    const claimsAnswer = unwrap('claims', claims, true)
-    const title = biblioAnswer === undefined ? undefined : parseAnswer(biblioSchema, biblioAnswer, 'bibliography').title
-    const abstractText = abstractAnswer === undefined ? undefined : parseAnswer(abstractSchema, abstractAnswer, 'abstract').abstract
-    const claimsText = claimsAnswer === undefined ? undefined : parseAnswer(claimsSchema, claimsAnswer, 'claims').claims.join('\n\n')
+    const parsed = biblioAnswer === undefined ? undefined : parseAnswer(biblioSchema, biblioAnswer, 'bibliography')
+    let { wo, claims } = routed
+    if (abstract === undefined && claims === undefined) {
+      // The router finds no WO publication when two PCT applications of the family have one filing date; the EP
+      // bibliography names the PCT application of this publication.
+      const international = parsed?.dates?.priority?.find(priority => priority.kind === 'W')?.docdbApplication
+      wo = international === undefined ? undefined : await this.internationalPublication(publication, international, signal)
+      claims = wo === undefined ? undefined : (await this.claims(wo, signal)).claims
+    }
+    const abstractText = abstract ?? (wo === undefined ? undefined : await this.abstract(wo, signal))
     return {
       publicationNumber: publication,
-      ...present('title', nonEmpty(title)),
-      ...present('abstract', nonEmpty(abstractText)),
-      ...present('claims', nonEmpty(claimsText)),
+      ...present('textFrom', abstractText === undefined && claims === undefined ? undefined : wo),
+      ...present('title', nonEmpty(parsed?.title)),
+      ...present('abstract', abstractText),
+      ...present('claims', claims),
     }
+  }
+
+  /**
+   * Read the claims of one publication through the library's text router.
+   * @param publication - an EP or a WO publication number.
+   * @param signal - caller cancellation.
+   * @returns the claims, absent when the EPO holds none, and the WO publication that the router served them from.
+   * @throws PatentDataError `malformed` when the router names a publication that is not a WO number.
+   */
+  private async claims(
+    publication: string, signal: AbortSignal | undefined,
+  ): Promise<{ readonly claims?: string; readonly wo?: WoPublicationNumber }> {
+    const answer = unwrap('claims', await this.read(signal, () => this.connectors.fulltext.getClaimsRouted(publication, 'en')), true)
+    if (answer === undefined) return {}
+    const routed = parseAnswer(claimsSchema, answer, 'claims')
+    const served = routed.fallback?.servedDocId
+    if (served !== undefined && !WO_PUBLICATION.test(served)) {
+      throw new PatentDataError('malformed', `EPO OPS claims: "${served}" is not a WO publication number`)
+    }
+    return { ...present('claims', nonEmpty(routed.claims.join('\n\n'))), ...present('wo', served === undefined ? undefined : brandString<WoPublicationNumber>(served)) }
+  }
+
+  /**
+   * Find the WO publication of an international application in the family of an EP publication.
+   * @param publication - the EP publication.
+   * @param international - the international application as the bibliography writes it, such as `EP2024083985 (W)`.
+   * @param signal - caller cancellation.
+   * @returns the WO publication, or undefined when the family has none for that application.
+   */
+  private async internationalPublication(
+    publication: EpPublicationNumber, international: string, signal: AbortSignal | undefined,
+  ): Promise<WoPublicationNumber | undefined> {
+    const answer = unwrap('family', await this.read(signal, () => this.connectors.ops.getFamily(publication)), true)
+    if (answer === undefined) return undefined
+    const member = parseAnswer(familySchema, answer, 'family').representatives.members.find(item => item.application === international)
+    const wo = member?.representativePublication
+    return wo !== undefined && WO_PUBLICATION.test(wo) ? brandString<WoPublicationNumber>(wo) : undefined
+  }
+
+  /**
+   * Read the abstract of one publication.
+   * @param publication - an EP or a WO publication number.
+   * @param signal - caller cancellation.
+   * @returns the abstract, or undefined when the EPO holds none.
+   */
+  private async abstract(publication: string, signal: AbortSignal | undefined): Promise<string | undefined> {
+    const answer = unwrap('abstract', await this.read(signal, () => this.connectors.ops.getAbstract(publication)), true)
+    return answer === undefined ? undefined : nonEmpty(parseAnswer(abstractSchema, answer, 'abstract').abstract)
   }
 
   /**

@@ -67,7 +67,7 @@ export {
 } from './patent-data.ts'
 export type {
   ApplicantNames, EpApplicationNumber, EpPublicationNumber, FamilyRead, FlowleapPatentDataOptions, PatentData,
-  PatentDataConnectors, PatentDataFailure, PublicationText, RegisterOpponent, RegisterPage, RegisterParty, RegisterRow,
+  PatentDataConnectors, PatentDataFailure, PublicationText, RegisterOpponent, RegisterPage, RegisterParty, RegisterRow, WoPublicationNumber,
 } from './patent-data.ts'
 export { FlowleapRegister, entriesFromOdp, entriesFromOps, parseRegisterApplication } from './register.ts'
 export type { FlowleapRegisterOptions, RegisterApplication, RegisterEntry, RegisterSource } from './register.ts'
@@ -87,12 +87,15 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** The longest time of one EPO OPS read, its retries included, in ms. */
+  opsRequestDeadlineMs: number
 }
 
 /** Runtime schema for the row. */
 export const Config: z<Config> = z.object({
   cacheEntries: z.number().step(1).min(1).default(500),
   excludeTools: z.array(String).default([]),
+  opsRequestDeadlineMs: z.number().step(1).min(5_000).max(600_000).default(60_000),
 })
 
 /**
@@ -102,7 +105,9 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config: Config): void {
   const store = createCredentialStore(ctx.credentials)
-  const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
+  const bound = createConnectorHost({
+    store, logger: ctx.logger, cacheEntries: config.cacheEntries, opsRequestDeadlineMs: config.opsRequestDeadlineMs,
+  })
   const connectors = createConnectors(bound.host)
   ctx.effect(() => registerOfficeTools(ctx, connectors, bound, officeTools().filter(definition => !config.excludeTools.includes(definition.name))), 'flowleap-connectors: office tools')
   // compare_claims is native, not an office tool: excludeTools does not reach it, and it needs no filesystem.

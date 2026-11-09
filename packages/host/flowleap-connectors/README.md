@@ -36,6 +36,7 @@ Mount the row beside `dsh-tools` and a credential provider; the [`dsh-flowleap-w
 | Field | Default | Meaning |
 |---|---|---|
 | `cacheEntries` | `500` | Entries the in-memory result cache holds before evicting the least recently used one; each entry expires at the TTL the library sets |
+| `opsRequestDeadlineMs` | `60000` | The longest time of one EPO OPS read, its retries included (5000 to 600000 ms). The library retries an EPO 429 or 503 within it and gives each attempt at most 30 s; a register page of 100 rows can take 22 s, so the library's own 20 s, made for a proxy read window, fails a slow page |
 | `excludeTools` | `[]` | Office tools from the library this host does not register, by backend name; the FlowLeap profile lists `get_fulltext`, whose US arm needs the `usFulltext` host capability and so stays on the paid MCP row |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-flowleap-connectors) is the exhaustive source for every accepted field.
@@ -156,7 +157,7 @@ The library caches an OCR result for 24 hours by content hash, so a later call w
 | `searchRegister(query, { begin, end }, signal?)` | one page (`total`, `begin`, `end`, `rows`) of an EP Register search in register CQL; one OPS call for at most 100 rows |
 | `registerRecord(application, signal?)` | the `RegisterRow` of one EP application (`ap=<number>`), or `undefined` when the register lists none |
 | `family(application, signal?)` | the family through the earliest EP publication: priority filings (earliest first, each once, as `US 10374408`; a member with an office code over 4 characters or a number over 32 is `malformed`) and the citable publication of each family member, any office; empty when the application has no EP publication or the EPO has no family for it |
-| `publication(publication, signal?)` | title, abstract and claims of an EP publication, each absent when the EPO holds no text (a Euro-PCT EP publication has none) |
+| `publication(publication, signal?)` | title, abstract and claims of an EP publication, each absent when the EPO holds no text; for a pre-grant Euro-PCT EP publication, which has no text of its own, the abstract and the claims of its WO publication through the library's text router (`connectors.fulltext.getClaimsRouted`), and `textFrom` names that WO publication |
 
 A `RegisterRow` holds the application number, the earliest EP publication (without a kind code: the library reads the kind from the register but drops it), the English title, the applicants, the professional representatives with address lines, the day the representatives were recorded, the opponents, the status and the filing and publication days (`YYYY-MM-DD`). `parseEpApplication` (`EP` and eight digits; a check digit after a dot is dropped) and `parseEpPublication` (`EP`, seven digits, optional kind code) brand the numbers, and `normalizeName` is the company key: Unicode NFKC, lower case, punctuation removed, spaces collapsed.
 
