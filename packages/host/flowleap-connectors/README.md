@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 39 office tools on `ctx.tools` under their backend names (`search_patents`, `get_us_grant`, no prefix), adds the native `compare_claims` (a claim chart against patents whose claims it fetches on the firm's EPO OPS key) and `read_pdf` (OCR of a workspace file on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Patent data connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card.
+`dsh-flowleap-connectors` runs the FlowLeap connector library in the attorney's own process with the firm's own keys (ADR 0019). One row registers the library's 39 office tools on `ctx.tools` under their backend names (`search_patents`, `get_us_grant`, no prefix), adds the native `compare_claims` (a claim chart against patents whose claims it fetches on the firm's EPO OPS key) and `read_pdf` (OCR of a workspace file on the firm's Mistral key), and exposes the `flowleapConnectors` Remote behind the [Connectors settings section](../../client/ui-settings-flowleap-connectors/README.md). Keys live as `ctx.credentials` records under `flowleap-connectors/<id>`; a tool called without its key answers with text naming the settings card.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the row beside `dsh-tools` and a credential provider; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this. Add the firm's keys in Settings > Patent data connectors (or through the first-run wizard); the next tool call uses them.
+Mount the row beside `dsh-tools` and a credential provider; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this. Add the firm's keys in Settings > Connectors (or through the first-run wizard); the next tool call uses them.
 
 ### Minimal configuration
 

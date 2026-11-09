@@ -97,7 +97,7 @@ Two checks worth doing once per tailnet, with the first instance: open the insta
 
    The attorney opens the URL once; the browser receives a session cookie valid for 30 days and the token is no longer needed. For a new login later (new browser, expired cookie), restart the container (`docker compose restart harness-alice`) and read the new URL from the log.
 
-2. The connector wizard opens on the first visit. The attorney (or you, over their shoulder) enters the firm's EPO OPS consumer key and secret, the USPTO ODP key, the Semantic Scholar key (optional) and the Mistral key for OCR, and presses **Test connection** on each card. These keys are stored in the credential store on the instance's `/data` volume. They can be changed later under **Settings → Patent data connectors**.
+2. The connector wizard opens on the first visit. The attorney (or you, over their shoulder) enters the firm's EPO OPS consumer key and secret, the USPTO ODP key, the Semantic Scholar key (optional) and the Mistral key for OCR, and presses **Test connection** on each card. These keys are stored in the credential store on the instance's `/data` volume. They can be changed later under **Settings → Connectors**.
 
 3. The model key goes in under **Settings → Models**: pick the provider (Anthropic, OpenRouter or Mistral) and paste the firm's key. Alternatively put `ANTHROPIC_API_KEY=…` (or `OPENROUTER_API_KEY`, `MISTRAL_API_KEY`) into the file `/data/.env` of the instance; a key saved in the GUI takes precedence over the file.
 

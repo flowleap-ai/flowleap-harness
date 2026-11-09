@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Patent data connectors",
+    "title": "Connectors",
     "description": "Searches and reads patent office, register and literature data with the firm's own keys, and reads PDF files with OCR."
   }
 }

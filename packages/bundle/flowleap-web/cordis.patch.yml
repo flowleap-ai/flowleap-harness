@@ -349,7 +349,7 @@
         maxEventsPerRun: 50
         maxEventTextLength: 300
 
-    # Settings > Patent data connectors (one card per connector) and the
+    # Settings > Connectors (one card per connector) and the
     # first-run key wizard; the row id is also the wizard's settings namespace.
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'

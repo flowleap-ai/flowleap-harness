@@ -1,5 +1,5 @@
 /**
- * Copy of the Patent data connectors section and wizard in the eight shipped
+ * Copy of the Connectors section and wizard in the eight shipped
  * UI languages. Product and service names, hosts, and the `read_pdf` tool name
  * stay untranslated.
  */
@@ -16,8 +16,8 @@ export type ConnectorsLocaleKey =
 
 /** English copy. */
 export const en: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Patent data connectors',
-  title: 'Patent data connectors',
+  nav: 'Connectors',
+  title: 'Connectors',
   intro: 'The patent agent reads EPO, USPTO and academic data in this process with the firm\'s own keys. Keys are stored in the credential store, never in the settings file, and are never shown again after you save them.',
   loadFailed: 'The connector status could not be read. Check the connection and open this page again.',
   epoOpsName: 'EPO OPS',
@@ -46,7 +46,7 @@ export const en: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Connection test passed',
   testFailed: 'Connection test failed',
   wizardTitle: 'Connect your patent data sources',
-  wizardIntro: 'Add the firm\'s keys so the patent agent can read EPO, USPTO and academic data. You can add or change them later under Settings > Patent data connectors.',
+  wizardIntro: 'Add the firm\'s keys so the patent agent can read EPO, USPTO and academic data. You can add or change them later under Settings > Connectors.',
   wizardSkip: 'Skip for now',
   wizardSave: 'Save',
   wizardTest: 'Test',
@@ -56,8 +56,8 @@ export const en: Record<ConnectorsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<ConnectorsLocaleKey, string> = {
-  nav: '专利数据连接器',
-  title: '专利数据连接器',
+  nav: '连接器',
+  title: '连接器',
   intro: '专利智能体在此进程中使用律所自己的密钥读取 EPO、USPTO 和学术数据。密钥存储在凭据存储中，绝不写入设置文件，保存后不会再次显示。',
   loadFailed: '无法读取连接器状态。请检查连接后重新打开此页面。',
   epoOpsName: 'EPO OPS',
@@ -86,7 +86,7 @@ export const zh: Record<ConnectorsLocaleKey, string> = {
   testPassed: '连接测试通过',
   testFailed: '连接测试失败',
   wizardTitle: '连接您的专利数据源',
-  wizardIntro: '添加律所的密钥，使专利智能体能够读取 EPO、USPTO 和学术数据。您以后可以在“设置 > 专利数据连接器”中添加或更改密钥。',
+  wizardIntro: '添加律所的密钥，使专利智能体能够读取 EPO、USPTO 和学术数据。您以后可以在“设置 > 连接器”中添加或更改密钥。',
   wizardSkip: '暂时跳过',
   wizardSave: '保存',
   wizardTest: '测试',
@@ -96,8 +96,8 @@ export const zh: Record<ConnectorsLocaleKey, string> = {
 
 /** Japanese copy. */
 export const ja: Record<ConnectorsLocaleKey, string> = {
-  nav: '特許データコネクタ',
-  title: '特許データコネクタ',
+  nav: 'コネクタ',
+  title: 'コネクタ',
   intro: '特許エージェントは、事務所独自のキーを使用して、このプロセス内で EPO、USPTO、学術データを読み取ります。キーは設定ファイルではなく認証情報ストアに保存され、保存後に再表示されることはありません。',
   loadFailed: 'コネクタの状態を読み取れませんでした。接続を確認して、このページを開き直してください。',
   epoOpsName: 'EPO OPS',
@@ -126,7 +126,7 @@ export const ja: Record<ConnectorsLocaleKey, string> = {
   testPassed: '接続テストに成功しました',
   testFailed: '接続テストに失敗しました',
   wizardTitle: '特許データソースを接続',
-  wizardIntro: '事務所のキーを追加すると、特許エージェントが EPO、USPTO、学術データを読み取れるようになります。キーは後から［設定 > 特許データコネクタ］で追加または変更できます。',
+  wizardIntro: '事務所のキーを追加すると、特許エージェントが EPO、USPTO、学術データを読み取れるようになります。キーは後から［設定 > コネクタ］で追加または変更できます。',
   wizardSkip: '今はスキップ',
   wizardSave: '保存',
   wizardTest: 'テスト',
@@ -136,8 +136,8 @@ export const ja: Record<ConnectorsLocaleKey, string> = {
 
 /** Spanish copy. */
 export const es: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Conectores de datos de patentes',
-  title: 'Conectores de datos de patentes',
+  nav: 'Conectores',
+  title: 'Conectores',
   intro: 'El agente de patentes lee datos de la EPO, la USPTO y fuentes académicas en este proceso con las claves propias del despacho. Las claves se guardan en el almacén de credenciales, nunca en el archivo de configuración, y no se vuelven a mostrar después de guardarlas.',
   loadFailed: 'No se pudo leer el estado de los conectores. Compruebe la conexión y vuelva a abrir esta página.',
   epoOpsName: 'EPO OPS',
@@ -166,7 +166,7 @@ export const es: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Prueba de conexión superada',
   testFailed: 'Prueba de conexión fallida',
   wizardTitle: 'Conecte sus fuentes de datos de patentes',
-  wizardIntro: 'Añada las claves del despacho para que el agente de patentes pueda leer datos de la EPO, la USPTO y fuentes académicas. Puede añadirlas o cambiarlas más tarde en Configuración > Conectores de datos de patentes.',
+  wizardIntro: 'Añada las claves del despacho para que el agente de patentes pueda leer datos de la EPO, la USPTO y fuentes académicas. Puede añadirlas o cambiarlas más tarde en Configuración > Conectores.',
   wizardSkip: 'Omitir por ahora',
   wizardSave: 'Guardar',
   wizardTest: 'Probar',
@@ -176,8 +176,8 @@ export const es: Record<ConnectorsLocaleKey, string> = {
 
 /** French copy. */
 export const fr: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Connecteurs de données brevets',
-  title: 'Connecteurs de données brevets',
+  nav: 'Connecteurs',
+  title: 'Connecteurs',
   intro: 'L\'agent brevets lit les données de l\'OEB, de l\'USPTO et les données académiques dans ce processus avec les clés propres du cabinet. Les clés sont conservées dans le magasin d\'identifiants, jamais dans le fichier de paramètres, et ne sont plus jamais affichées après leur enregistrement.',
   loadFailed: 'L\'état des connecteurs n\'a pas pu être lu. Vérifiez la connexion et rouvrez cette page.',
   epoOpsName: 'EPO OPS',
@@ -206,7 +206,7 @@ export const fr: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Test de connexion réussi',
   testFailed: 'Échec du test de connexion',
   wizardTitle: 'Connectez vos sources de données brevets',
-  wizardIntro: 'Ajoutez les clés du cabinet pour que l\'agent brevets puisse lire les données de l\'OEB, de l\'USPTO et les données académiques. Vous pourrez les ajouter ou les modifier plus tard dans Paramètres > Connecteurs de données brevets.',
+  wizardIntro: 'Ajoutez les clés du cabinet pour que l\'agent brevets puisse lire les données de l\'OEB, de l\'USPTO et les données académiques. Vous pourrez les ajouter ou les modifier plus tard dans Paramètres > Connecteurs.',
   wizardSkip: 'Ignorer pour l\'instant',
   wizardSave: 'Enregistrer',
   wizardTest: 'Tester',
@@ -216,8 +216,8 @@ export const fr: Record<ConnectorsLocaleKey, string> = {
 
 /** German copy. */
 export const de: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Patentdaten-Connectors',
-  title: 'Patentdaten-Connectors',
+  nav: 'Anbindungen',
+  title: 'Anbindungen',
   intro: 'Der Patentagent liest in diesem Prozess EPA-, USPTO- und wissenschaftliche Daten mit den eigenen Schlüsseln der Kanzlei. Die Schlüssel werden im Anmeldedatenspeicher abgelegt, nie in der Einstellungsdatei, und nach dem Speichern nie wieder angezeigt.',
   loadFailed: 'Der Status der Connectors konnte nicht gelesen werden. Prüfen Sie die Verbindung und öffnen Sie diese Seite erneut.',
   epoOpsName: 'EPO OPS',
@@ -246,7 +246,7 @@ export const de: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Verbindungstest erfolgreich',
   testFailed: 'Verbindungstest fehlgeschlagen',
   wizardTitle: 'Patentdatenquellen verbinden',
-  wizardIntro: 'Fügen Sie die Schlüssel der Kanzlei hinzu, damit der Patentagent EPA-, USPTO- und wissenschaftliche Daten lesen kann. Sie können sie später unter Einstellungen > Patentdaten-Connectors hinzufügen oder ändern.',
+  wizardIntro: 'Fügen Sie die Schlüssel der Kanzlei hinzu, damit der Patentagent EPA-, USPTO- und wissenschaftliche Daten lesen kann. Sie können sie später unter Einstellungen > Anbindungen hinzufügen oder ändern.',
   wizardSkip: 'Vorerst überspringen',
   wizardSave: 'Speichern',
   wizardTest: 'Testen',
@@ -256,8 +256,8 @@ export const de: Record<ConnectorsLocaleKey, string> = {
 
 /** Russian copy. */
 export const ru: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Коннекторы патентных данных',
-  title: 'Коннекторы патентных данных',
+  nav: 'Коннекторы',
+  title: 'Коннекторы',
   intro: 'Патентный агент читает данные ЕПВ, USPTO и научные данные в этом процессе с собственными ключами фирмы. Ключи хранятся в хранилище учётных данных, никогда не записываются в файл настроек и больше не отображаются после сохранения.',
   loadFailed: 'Не удалось прочитать состояние коннекторов. Проверьте подключение и снова откройте эту страницу.',
   epoOpsName: 'EPO OPS',
@@ -286,7 +286,7 @@ export const ru: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Проверка подключения пройдена',
   testFailed: 'Проверка подключения не пройдена',
   wizardTitle: 'Подключите источники патентных данных',
-  wizardIntro: 'Добавьте ключи фирмы, чтобы патентный агент мог читать данные ЕПВ, USPTO и научные данные. Вы можете добавить или изменить их позже в разделе Настройки > Коннекторы патентных данных.',
+  wizardIntro: 'Добавьте ключи фирмы, чтобы патентный агент мог читать данные ЕПВ, USPTO и научные данные. Вы можете добавить или изменить их позже в разделе Настройки > Коннекторы.',
   wizardSkip: 'Пропустить',
   wizardSave: 'Сохранить',
   wizardTest: 'Проверить',
@@ -296,8 +296,8 @@ export const ru: Record<ConnectorsLocaleKey, string> = {
 
 /** Portuguese (Brazil) copy. */
 export const pt: Record<ConnectorsLocaleKey, string> = {
-  nav: 'Conectores de dados de patentes',
-  title: 'Conectores de dados de patentes',
+  nav: 'Conectores',
+  title: 'Conectores',
   intro: 'O agente de patentes lê dados do EPO, do USPTO e acadêmicos neste processo com as chaves próprias do escritório. As chaves ficam no armazenamento de credenciais, nunca no arquivo de configurações, e não são exibidas novamente depois de salvas.',
   loadFailed: 'Não foi possível ler o status dos conectores. Verifique a conexão e abra esta página novamente.',
   epoOpsName: 'EPO OPS',
@@ -326,7 +326,7 @@ export const pt: Record<ConnectorsLocaleKey, string> = {
   testPassed: 'Teste de conexão aprovado',
   testFailed: 'Falha no teste de conexão',
   wizardTitle: 'Conecte suas fontes de dados de patentes',
-  wizardIntro: 'Adicione as chaves do escritório para que o agente de patentes possa ler dados do EPO, do USPTO e acadêmicos. Você pode adicioná-las ou alterá-las depois em Configurações > Conectores de dados de patentes.',
+  wizardIntro: 'Adicione as chaves do escritório para que o agente de patentes possa ler dados do EPO, do USPTO e acadêmicos. Você pode adicioná-las ou alterá-las depois em Configurações > Conectores.',
   wizardSkip: 'Pular por enquanto',
   wizardSave: 'Salvar',
   wizardTest: 'Testar',

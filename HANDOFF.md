@@ -337,7 +337,7 @@ fail. A fresh clone does not have them.
 - **C2 wiring DONE (2026-10-22, the "register the 33 office tools" commit on this branch).** The host plugin registers the 33 office tools from
   `officeTools()` (vendored copy synced to flowleap-backend `43fe5c9`, the #608 branch); static gates
   61 of 62 (only `uv.lock`). Checked in the browser on a fresh home: the first-run wizard shows the
-  four connectors with write-only fields, Test, Save and Skip; Settings has a "Patent data connectors"
+  four connectors with write-only fields, Test, Save and Skip; Settings has a "Connectors"
   section with one card each. Not yet exercised with real keys: the founder's EPO OPS, USPTO ODP and
   Semantic Scholar keys are entered through the wizard, then one `search_patents` and one
   `get_us_grant` prove the in-process path.

@@ -1,4 +1,4 @@
-/** The Patent data connectors settings section: one card per connector over the shared store. */
+/** The Connectors settings section: one card per connector over the shared store. */
 
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
