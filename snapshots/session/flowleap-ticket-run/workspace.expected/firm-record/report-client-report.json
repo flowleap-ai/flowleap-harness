@@ -1,10 +1,11 @@
 {
   "ticket": "tk-1",
+  "kind": "client-report",
   "fileName": "report-tk-1.docx",
   "templateName": "client-report.docx",
   "templateVersion": "sha256:141f358f5c65be092b7640ade27d3561551b10d0f89ecc34467b9f80e7cc50ae",
   "rulesSeq": 3,
-  "toolCall": "call_00_ticketrun000000000004",
+  "toolCall": "call_00_ticketrun000000000006",
   "statements": [
     {
       "text": "The EPO intends to grant a European patent on EP23812345.6.",

@@ -192,7 +192,7 @@ const finishSchema = zod.object({
   outbox: zod.object({
     id: zod.string().min(1).transform(value => brandString<OutboxId>(value)),
     state: zod.enum(['queued', 'refused']),
-  }),
+  }).nullable(),
 })
 
 const refusalSchema = zod.object({ error: zod.string(), detail: zod.string().optional() })
@@ -380,6 +380,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
    */
   proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>> {
     const body = {
+      kind: command.kind,
       fileName: command.fileName,
       contentBase64: Buffer.from(command.content).toString('base64'),
       templateName: command.templateName,

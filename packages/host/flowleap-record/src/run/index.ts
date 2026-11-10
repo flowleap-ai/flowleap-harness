@@ -1,8 +1,8 @@
 /**
  * The run tools of a Ticket run, the second Consumer of the `flowleapRecord` seam: `record_read_document_text` reads the
- * page text of a document, `record_propose_report` proposes the client report letter with its statements and their
- * exact quotes, and `record_finish_run` ends the run with the deadline summary. No tool decides, files, sends, or pays;
- * the Firm Record refuses a decision from a runtime.
+ * page text of a document, `record_propose_report` proposes a letter (the client report or the draft reply to the
+ * office) with its statements and their exact quotes, and `record_finish_run` ends the run with the deadline summary.
+ * No tool decides, files, sends, or pays; the Firm Record refuses a decision from a runtime.
  * @module @deepseek-ai/dsh-flowleap-record/run
  */
 

@@ -9071,8 +9071,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}',
   },
   {
+    name: 'ReportKind',
+    declaration: 'export type ReportKind = \'client-report\' | \'office-reply\';',
+  },
+  {
     name: 'ReportProposal',
-    declaration: 'export interface ReportProposal {\n    readonly fileName: string;\n    readonly content: Uint8Array;\n    readonly templateName: string;\n    readonly templateVersion: string;\n    readonly rulesSeq: RecordSeq;\n    readonly statements: readonly [\n        ReportStatement,\n        ...ReportStatement[]\n    ];\n    readonly session: SessionId;\n    readonly toolCall: ToolCallId;\n}',
+    declaration: 'export interface ReportProposal {\n    readonly kind: ReportKind;\n    readonly fileName: string;\n    readonly content: Uint8Array;\n    readonly templateName: string;\n    readonly templateVersion: string;\n    readonly rulesSeq: RecordSeq;\n    readonly statements: readonly [\n        ReportStatement,\n        ...ReportStatement[]\n    ];\n    readonly session: SessionId;\n    readonly toolCall: ToolCallId;\n}',
   },
   {
     name: 'ReportStatement',
@@ -9212,7 +9216,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RunFinishReceipt',
-    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    };\n}',
+    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    } | null;\n}',
   },
   {
     name: 'RunnerFailureRule',

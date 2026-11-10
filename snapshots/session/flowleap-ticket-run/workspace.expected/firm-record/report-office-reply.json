@@ -1,0 +1,58 @@
+{
+  "ticket": "tk-1",
+  "kind": "office-reply",
+  "fileName": "office-reply-tk-1.docx",
+  "templateName": "epo-reply.docx",
+  "templateVersion": "sha256:c842701ea02d1c4ede8e10b0c00120b4201c7cd4cbfb03845466c82bd4f57715",
+  "rulesSeq": 3,
+  "toolCall": "call_00_ticketrun000000000004",
+  "statements": [
+    {
+      "text": "The applicant approves the text in which the examining division intends to grant the European patent.",
+      "evidence": [
+        {
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 1,
+            "start": 136,
+            "end": 211,
+            "quote": "intends to grant a European patent on the basis of the text indicated above"
+          }
+        }
+      ]
+    },
+    {
+      "text": "The translations of the claims in the two other official languages are enclosed.",
+      "evidence": [
+        {
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 2,
+            "start": 92,
+            "end": 124,
+            "quote": "file a translation of the claims"
+          }
+        }
+      ]
+    },
+    {
+      "text": "The fees for grant and publishing are paid.",
+      "evidence": [
+        {
+          "document": "5f2c8a1e9b7d4c3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a",
+          "span": {
+            "page": 2,
+            "start": 50,
+            "end": 87,
+            "quote": "pay the fees for grant and publishing"
+          }
+        }
+      ]
+    }
+  ],
+  "session": "the run Session",
+  "content": {
+    "sha256": "3e5c202035db02a24282cb87ad7bd262b78b6a8b671eebc1e3105d1599f3885c",
+    "bytes": 523
+  }
+}
