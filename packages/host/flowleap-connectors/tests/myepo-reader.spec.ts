@@ -41,13 +41,13 @@ describe('readMyEpoLetters', () => {
     const { double, reads } = setup()
     const { intake, letters } = memoryIntake()
     const unread = double.state().letters.filter(letter => !letter.handled).map(letter => letter.id)
-    const first = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW })
+    const first = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect(first.listed).toBe(unread.length)
     expect(first.delivered.map(d => d.id).sort()).toEqual([...unread].sort())
     const readAfterFirst = read(double)
 
     const arrived = double.arrive()!
-    const second = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW })
+    const second = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect([second.known, second.delivered.map(d => d.id)]).toEqual([unread.length, [arrived.id]])
     expect(new Set(read(double))).toEqual(new Set([...readAfterFirst, arrived.id]))
 
@@ -56,36 +56,63 @@ describe('readMyEpoLetters', () => {
       id: arrived.id, applicationNumber: 'EP23771920.8', userReference: 'SF-2023-0045', documentCode: '2004C',
       title: arrived.title, dispatchDate: '2026-09-29', listedAt: '2026-11-10T08:00:00.000Z',
     })
-    const pdf = Buffer.from(letter.document.contentBase64, 'base64')
+    const document = letter.document!
+    const pdf = Buffer.from(document.contentBase64, 'base64')
     expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
-    expect(letter.document.sha256).toBe(createHash('sha256').update(pdf).digest('hex'))
+    expect(document.sha256).toBe(createHash('sha256').update(pdf).digest('hex'))
     expect(letter.download).toEqual({ at: '2026-11-10T08:00:00.000Z', cause: 'on-arrival' })
 
-    const third = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW })
+    const third = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect([third.known, third.delivered.length]).toEqual([unread.length + 1, 0])
   })
 
-  it('reports a letter that the Firm Record refuses and goes on; stops the pass when the record does not answer', async () => {
-    const { reads } = setup()
-    let calls = 0
+  it('sends the list data only when the record refuses the PDF, settles a letter that the record has from the mail, reports a list-data refusal, and stops when the record does not answer', async () => {
+    const { double, reads } = setup()
+    const [first, second, third] = double.state().letters.filter(letter => !letter.handled).map(letter => letter.id as MyEpoCommunicationId)
+    const sent: MyEpoLetterDelivery[] = []
     const refusing: MyEpoLetterIntake = {
       known: () => Promise.resolve(false),
-      deliver: () => (++calls === 1 ? Promise.reject(new MyEpoIntakeError('refused', 409, 'already-stored')) : Promise.resolve({ state: 'filed', matter: null, reason: null })),
+      deliver: (letter) => {
+        sent.push(letter)
+        const id = letter.communication.id
+        if (id === first && letter.document !== null) return Promise.reject(new MyEpoIntakeError('refused', 413, 'document-too-large'))
+        if (id === second) return Promise.reject(new MyEpoIntakeError('refused', 409, 'already-stored'))
+        if (id === third) return Promise.reject(new MyEpoIntakeError('refused', 400, 'invalid-body'))
+        return Promise.resolve({ state: 'unmatched', matter: null, reason: 'document-too-large' })
+      },
     }
-    const pass = await readMyEpoLetters({ reads, intake: refusing, mode: 'on-arrival', now: () => NOW })
-    expect(pass.failed).toHaveLength(1)
-    expect(pass.failed[0]!.reason).toMatch(/409 already-stored/)
-    expect(pass.delivered.length).toBe(pass.listed - 1)
+    const settled = new Set<MyEpoCommunicationId>()
+    const pass = await readMyEpoLetters({ reads, intake: refusing, mode: 'on-arrival', now: () => NOW, settled })
+    expect(pass.delivered).toEqual([{ id: first, answer: { state: 'unmatched', matter: null, reason: 'document-too-large' }, listOnly: true }])
+    const firstSends = sent.filter(letter => letter.communication.id === first)
+    expect(firstSends.map(letter => [letter.document === null, letter.download.refused])).toEqual([
+      [false, undefined], [true, { status: 413, code: 'document-too-large' }],
+    ])
+    expect(pass.alreadyStored).toEqual([second])
+    expect(pass.failed).toEqual([{ id: third, reason: 'the Firm Record refused the letter: 400 invalid-body' }])
+    expect([...settled].sort()).toEqual([first, second].sort())
 
     const down: MyEpoLetterIntake = { known: () => Promise.reject(new MyEpoIntakeError('unavailable', 0, null)), deliver: () => Promise.reject(new Error('not called')) }
-    await expect(readMyEpoLetters({ reads, intake: down, mode: 'on-arrival', now: () => NOW })).rejects.toThrow(MyEpoIntakeError)
+    await expect(readMyEpoLetters({ reads, intake: down, mode: 'on-arrival', now: () => NOW, settled: new Set() })).rejects.toThrow(MyEpoIntakeError)
+  })
+
+  it('asks the record about a settled letter only once while the caller keeps the settled ids', async () => {
+    const { reads } = setup()
+    const { intake } = memoryIntake()
+    let asked = 0
+    const counting: MyEpoLetterIntake = { known: (id) => { asked++; return intake.known(id) }, deliver: letter => intake.deliver(letter) }
+    const settled = new Set<MyEpoCommunicationId>()
+    const first = await readMyEpoLetters({ reads, intake: counting, mode: 'on-arrival', now: () => NOW, settled })
+    const askedFirst = asked
+    const second = await readMyEpoLetters({ reads, intake: counting, mode: 'on-arrival', now: () => NOW, settled })
+    expect([askedFirst, asked, second.known, second.delivered.length]).toEqual([first.listed, first.listed, first.listed, 0])
   })
 
   it('stops at a refused client secret and downloads nothing', async () => {
     const { double, reads } = setup('wrong-secret')
     const { intake, letters } = memoryIntake()
     const before = read(double)
-    const failure = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW }).catch((error: unknown) => error)
+    const failure = await readMyEpoLetters({ reads, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() }).catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(MyEpoError)
     expect((failure as MyEpoError).failure.kind).toBe('refused')
     expect([read(double), letters.size]).toEqual([before, 0])
@@ -155,20 +182,24 @@ describe('readMyEpoLetters over a hand-made Mailbox', () => {
 
   it('reads every page, and sends a letter with no application number or reference with null fields and the file name of the ZIP entry', async () => {
     const { intake, letters } = memoryIntake()
-    const pass = await readMyEpoLetters({ reads: mailbox(2, pdf), intake, mode: 'on-arrival', now: () => NOW })
+    const pass = await readMyEpoLetters({ reads: mailbox(2, pdf), intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect(pass.listed).toBe(2)
     const letter = letters.get('letter-0' as MyEpoCommunicationId)!
-    expect([letter.communication.applicationNumber, letter.communication.userReference, letter.document.fileName]).toEqual([null, null, 'letter-0.pdf'])
+    expect([letter.communication.applicationNumber, letter.communication.userReference, letter.document?.fileName]).toEqual([null, null, 'letter-0.pdf'])
   })
 
   it('reports a letter that MyEPO cannot give and goes on; stops at a refused or missing link and at any other error', async () => {
     const unreachable = mailbox(2, c => (c.id === 'letter-0' ? Promise.reject(new MyEpoError({ kind: 'unreachable', status: 503 })) : pdf(c)))
-    const pass = await readMyEpoLetters({ reads: unreachable, intake: memoryIntake().intake, mode: 'on-arrival', now: () => NOW })
+    const pass = await readMyEpoLetters({ reads: unreachable, intake: memoryIntake().intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect([pass.failed, pass.delivered.map(d => d.id)]).toEqual([[{ id: 'letter-0', reason: 'the EPO did not answer (503)' }], ['letter-1']])
+    const unreadable = mailbox(1, () => Promise.reject(new MyEpoError({ kind: 'invalid-response', message: 'download holds 2 PDF files' })))
+    const { intake, letters } = memoryIntake()
+    const listed = await readMyEpoLetters({ reads: unreadable, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
+    expect([listed.delivered[0]?.listOnly, letters.get('letter-0' as MyEpoCommunicationId)?.download.refused]).toEqual([true, { status: 0, code: 'download-not-readable' }])
     for (const error of [new MyEpoError({ kind: 'not-linked' }), new MyEpoError({ kind: 'refused' }), new TypeError('broken')]) {
-      await expect(readMyEpoLetters({ reads: mailbox(1, () => Promise.reject(error)), intake: memoryIntake().intake, mode: 'on-arrival', now: () => NOW })).rejects.toBe(error)
+      await expect(readMyEpoLetters({ reads: mailbox(1, () => Promise.reject(error)), intake: memoryIntake().intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })).rejects.toBe(error)
     }
     const failing: MyEpoLetterIntake = { known: () => Promise.resolve(false), deliver: () => Promise.reject(new TypeError('broken intake')) }
-    await expect(readMyEpoLetters({ reads: mailbox(1, pdf), intake: failing, mode: 'on-arrival', now: () => NOW })).rejects.toThrow('broken intake')
+    await expect(readMyEpoLetters({ reads: mailbox(1, pdf), intake: failing, mode: 'on-arrival', now: () => NOW, settled: new Set() })).rejects.toThrow('broken intake')
   })
 })

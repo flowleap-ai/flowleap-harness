@@ -19,6 +19,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import { createMyEpoClient, createRequestGate, describeFailure, MyEpoError } from '../../src/myepo-client.ts'
 import { createMyEpoLetterIntake, readMyEpoLetters } from '../../src/myepo-reader.ts'
+import type { MyEpoCommunicationId } from '../../src/myepo-wire.ts'
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const address = z.string().refine((value) => {
@@ -66,14 +67,19 @@ const reads = createMyEpoClient({
 const log = (line: string): void => {
   console.log(`myepo-reader: ${line}`)
 }
+/** The letters that need no new send while this process runs: the Firm Record has them. */
+const settled = new Set<MyEpoCommunicationId>()
 let timer: NodeJS.Timeout | undefined
 let stopped = false
 const pass = async (): Promise<void> => {
   try {
-    const result = await readMyEpoLetters({ reads, intake, mode: config.download, now: Date.now })
-    for (const { id, answer } of result.delivered) log(`letter ${id}: ${answer.state}${answer.matter === null ? '' : ` on ${answer.matter}`}${answer.reason === null ? '' : ` (${answer.reason})`}`)
+    const result = await readMyEpoLetters({ reads, intake, mode: config.download, now: Date.now, settled })
+    for (const { id, answer, listOnly } of result.delivered) {
+      log(`letter ${id}: ${answer.state}${answer.matter === null ? '' : ` on ${answer.matter}`}${answer.reason === null ? '' : ` (${answer.reason})`}${listOnly ? ', list data only' : ''}`)
+    }
+    for (const id of result.alreadyStored) log(`letter ${id}: the Firm Record has its PDF from the mail; not sent again`)
     for (const { id, reason } of result.failed) log(`letter ${id} not taken, the next read tries again: ${reason}`)
-    if (result.delivered.length > 0 || result.failed.length > 0) log(`read ${result.listed} unhandled letters, ${result.known} already in the Firm Record`)
+    if (result.delivered.length > 0 || result.alreadyStored.length > 0 || result.failed.length > 0) log(`read ${result.listed} unhandled letters, ${result.known} already in the Firm Record`)
   } catch (error) {
     if (error instanceof MyEpoError && (error.failure.kind === 'refused' || error.failure.kind === 'not-linked')) {
       // myepo.stops-when-not-readable: no new login after a refusal; the administrator fixes the link and starts the reader again.

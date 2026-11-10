@@ -19,6 +19,12 @@ import type { MyEpoCommunication, MyEpoCommunicationId } from './myepo-wire.ts'
  */
 export type MyEpoDownloadMode = 'on-arrival'
 
+/** Why a PDF is not sent: the HTTP status of the record's refusal (0 for a download failure) and its code. */
+export interface MyEpoRefusal {
+  readonly status: number
+  readonly code: string | null
+}
+
 /** The body of `POST intake/myepo-letters`: the list data of one letter, its PDF and its download. */
 export interface MyEpoLetterDelivery {
   readonly communication: {
@@ -31,8 +37,10 @@ export interface MyEpoLetterDelivery {
     /** When the reader read the list that showed the letter, ISO time. */
     readonly listedAt: string
   }
-  readonly document: { readonly fileName: string; readonly mediaType: 'application/pdf'; readonly sha256: string; readonly contentBase64: string }
-  readonly download: { readonly at: string; readonly cause: MyEpoDownloadMode }
+  /** The PDF; null when the record refused it or the download gave no PDF: the record then keeps the list data only. */
+  readonly document: { readonly fileName: string; readonly mediaType: 'application/pdf'; readonly sha256: string; readonly contentBase64: string } | null
+  /** `refused`: why the PDF is not sent, the record's earlier answer to it or the download's failure. */
+  readonly download: { readonly at: string; readonly cause: MyEpoDownloadMode; readonly refused?: MyEpoRefusal }
 }
 
 /** What the Firm Record answered for one delivered letter: its intake state, the matter it is filed on, or why a person files it. */
@@ -124,9 +132,11 @@ export interface MyEpoReadPass {
   readonly listed: number
   /** The letters that the Firm Record already had: not downloaded again. */
   readonly known: number
-  /** The letters sent, each with the record's answer. */
-  readonly delivered: readonly { readonly id: MyEpoCommunicationId; readonly answer: MyEpoDeliveryAnswer }[]
-  /** The letters that the record refused or MyEPO did not give, each with why; the next pass tries them again. */
+  /** The letters sent, each with the record's answer; `listOnly` when the record keeps the list data without the PDF. */
+  readonly delivered: readonly { readonly id: MyEpoCommunicationId; readonly answer: MyEpoDeliveryAnswer; readonly listOnly: boolean }[]
+  /** The letters whose PDF the record already has from the mail (`already-stored`): settled, never sent again. */
+  readonly alreadyStored: readonly MyEpoCommunicationId[]
+  /** The letters that MyEPO did not give now or the record refused even as list data, each with why; the next pass tries them again. */
   readonly failed: readonly { readonly id: MyEpoCommunicationId; readonly reason: string }[]
 }
 
@@ -134,12 +144,16 @@ export interface MyEpoReadPass {
 const PAGE_SIZE = 50
 
 /**
- * One read of the firm's unhandled MyEPO letters. Each letter that the Firm Record does not have is downloaded (MyEPO marks
- * it as read; the reader never marks it handled) and sent to the intake. A letter that MyEPO or the record refuses is
- * reported and the pass goes on; a refused link (`refused`, `not-linked`) or an intake whose outcome is not known stops the
- * pass with its error, so nothing is lost and the next pass reads the list again.
+ * One read of the firm's unhandled MyEPO letters. Each letter that the Firm Record does not have is downloaded (MyEPO marks it
+ * as read; the reader never marks it handled) and sent to the intake. No letter is dropped: when the record refuses the PDF
+ * (too large, not readable) or the ZIP has no readable PDF, the letter is sent again as list data only, and the record keeps it
+ * in its Intake with the reason. A letter whose PDF the record already has from the mail is settled. A MyEPO failure that can
+ * pass (`unreachable`, `rejected`, `no-permission`, `not-ready`) and a list-data send that the record refuses are reported, and
+ * the next pass tries again. A refused link (`refused`, `not-linked`) or an intake whose outcome is not known stops the pass with
+ * its error, so nothing is lost and the next pass reads the list again.
  * @param options - `reads`, the MyEPO client with its request gate; `intake`, the Firm Record; `mode`, the download mode;
- *   `now`, the clock (epoch ms).
+ *   `now`, the clock (epoch ms); `settled`, the ids that need no new send, which the caller keeps across passes and the pass
+ *   fills, so a settled letter costs no request.
  * @returns what the pass did.
  */
 export async function readMyEpoLetters(options: {
@@ -147,9 +161,10 @@ export async function readMyEpoLetters(options: {
   readonly intake: MyEpoLetterIntake
   readonly mode: MyEpoDownloadMode
   readonly now: () => number
+  readonly settled: Set<MyEpoCommunicationId>
   readonly signal?: AbortSignal
 }): Promise<MyEpoReadPass> {
-  const { reads, intake, mode, now, signal } = options
+  const { reads, intake, mode, now, settled, signal } = options
   const listedAt = new Date(now()).toISOString()
   const letters: MyEpoCommunication[] = []
   for (let page = 0; ; page++) {
@@ -158,10 +173,12 @@ export async function readMyEpoLetters(options: {
     if (result.items.length === 0 || letters.length >= result.total) break
   }
   let known = 0
-  const delivered: { id: MyEpoCommunicationId; answer: MyEpoDeliveryAnswer }[] = []
+  const delivered: { id: MyEpoCommunicationId; answer: MyEpoDeliveryAnswer; listOnly: boolean }[] = []
+  const alreadyStored: MyEpoCommunicationId[] = []
   const failed: { id: MyEpoCommunicationId; reason: string }[] = []
   for (const communication of letters) {
-    if (await intake.known(communication.id)) {
+    if (settled.has(communication.id) || await intake.known(communication.id)) {
+      settled.add(communication.id)
       known++
       continue
     }
@@ -170,17 +187,54 @@ export async function readMyEpoLetters(options: {
       letter = await download(reads, communication, mode, listedAt, now, signal)
     } catch (error) {
       if (!(error instanceof MyEpoError) || error.failure.kind === 'refused' || error.failure.kind === 'not-linked') throw error
-      failed.push({ id: communication.id, reason: error.message })
-      continue
+      if (error.failure.kind !== 'invalid-response') {
+        failed.push({ id: communication.id, reason: error.message })
+        continue
+      }
+      // The EPO gave a download that holds no one readable PDF: the next read gets the same, so the list data goes now.
+      letter = listOnly(communication, listedAt, now, mode, { status: 0, code: 'download-not-readable' })
     }
     try {
-      delivered.push({ id: communication.id, answer: await intake.deliver(letter) })
+      delivered.push({ id: communication.id, ...await deliverOrListOnly(intake, letter) })
+      settled.add(communication.id)
     } catch (error) {
       if (!(error instanceof MyEpoIntakeError) || error.kind === 'unavailable') throw error
-      failed.push({ id: communication.id, reason: error.message })
+      if (error.code === 'already-stored') {
+        alreadyStored.push(communication.id)
+        settled.add(communication.id)
+      } else {
+        failed.push({ id: communication.id, reason: error.message })
+      }
     }
   }
-  return { listed: letters.length, known, delivered, failed }
+  return { listed: letters.length, known, delivered, alreadyStored, failed }
+}
+
+/** Sends a letter; when the record refuses its PDF (any refusal but `already-stored`), sends its list data with that refusal. */
+async function deliverOrListOnly(
+  intake: MyEpoLetterIntake, letter: MyEpoLetterDelivery,
+): Promise<{ answer: MyEpoDeliveryAnswer; listOnly: boolean }> {
+  try {
+    return { answer: await intake.deliver(letter), listOnly: letter.document === null }
+  } catch (error) {
+    if (!(error instanceof MyEpoIntakeError) || error.kind !== 'refused' || error.code === 'already-stored' || letter.document === null) throw error
+    const refused = { status: error.status, code: error.code }
+    return { answer: await intake.deliver({ ...letter, document: null, download: { ...letter.download, refused } }), listOnly: true }
+  }
+}
+
+function listOnly(
+  communication: MyEpoCommunication, listedAt: string, now: () => number, mode: MyEpoDownloadMode, refused: MyEpoRefusal,
+): MyEpoLetterDelivery {
+  const download = { at: new Date(now()).toISOString(), cause: mode, refused }
+  return { communication: listData(communication, listedAt), document: null, download }
+}
+
+function listData(communication: MyEpoCommunication, listedAt: string): MyEpoLetterDelivery['communication'] {
+  return {
+    id: communication.id, applicationNumber: communication.applicationNumber ?? null, userReference: communication.userReference ?? null,
+    documentCode: communication.documentCode, title: communication.title, dispatchDate: communication.dispatchDate, listedAt,
+  }
 }
 
 async function download(
@@ -190,10 +244,7 @@ async function download(
   const { filename, pdf } = await reads.downloadCommunication(communication, signal)
   const bytes = Buffer.from(pdf)
   return {
-    communication: {
-      id: communication.id, applicationNumber: communication.applicationNumber ?? null, userReference: communication.userReference ?? null,
-      documentCode: communication.documentCode, title: communication.title, dispatchDate: communication.dispatchDate, listedAt,
-    },
+    communication: listData(communication, listedAt),
     document: {
       fileName: filename.replace(/^.*[/\\]/, ''), mediaType: 'application/pdf',
       sha256: createHash('sha256').update(bytes).digest('hex'), contentBase64: bytes.toString('base64'),
