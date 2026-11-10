@@ -30,7 +30,7 @@ async function mounted(fetch: () => Promise<Response>) {
   new RemoteStub(ctx)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
-  ctx.slots.register({ name: 'root', children: { 'sidebar.actions': { kind: 'list', scope: 'root' } } } as never, () => null)
+  ctx.slots.register({ name: 'root', children: { 'sidebar.footer.action': { kind: 'list', scope: 'root' } } } as never, () => null)
   ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
@@ -56,13 +56,13 @@ describe('ui-flowleap-admin-link browser half', () => {
     expect(stub).toHaveBeenCalledOnce()
     expect(stub.mock.calls[0]![0]).toBe(ADMIN_LINK_ROUTE)
     expect(ADMIN_LINK_ROUTE).toBe('api/flowleap/admin-link')
-    const entries = ctx.slots.entries('sidebar.actions')
+    const entries = ctx.slots.entries('sidebar.footer.action')
     expect(entries).toHaveLength(1)
     expect(entries[0]!.options).toMatchObject({ id: 'flowleap-admin-link' })
     expect(entries[0]!.inject!()).toEqual({ href: 'admin/' })
     expect(ctx.locale.bind(NS)('link')).toBe(zh.link)
     await fiber.dispose()
-    expect(ctx.slots.entries('sidebar.actions')).toEqual([])
+    expect(ctx.slots.entries('sidebar.footer.action')).toEqual([])
     await ctx.fiber.dispose()
   })
 
@@ -76,7 +76,7 @@ describe('ui-flowleap-admin-link browser half', () => {
       json([]),
     ]) {
       const { ctx } = await mounted(fetch)
-      expect(ctx.slots.entries('sidebar.actions')).toEqual([])
+      expect(ctx.slots.entries('sidebar.footer.action')).toEqual([])
       await ctx.fiber.dispose()
     }
   })
@@ -89,7 +89,7 @@ describe('ui-flowleap-admin-link browser half', () => {
     expect(signal.aborted).toBe(true)
     answer(new Response(JSON.stringify({ href: 'admin/' })))
     await settle()
-    expect(ctx.slots.entries('sidebar.actions')).toEqual([])
+    expect(ctx.slots.entries('sidebar.footer.action')).toEqual([])
     await ctx.fiber.dispose()
   })
 })

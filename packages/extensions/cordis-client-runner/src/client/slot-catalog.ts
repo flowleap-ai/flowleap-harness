@@ -4504,7 +4504,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
     occupants: [
-      'client-ui-flowleap-admin-link AdminLinkAction id \'flowleap-admin-link\'',
       'client-ui-flowleap-dashboard SearchAction id \'flowleap-search\'',
     ],
     replaceRisk: 'none',
@@ -4629,7 +4628,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     kind: 'list',
     scope: 'root',
     summary: 'Optional actions beside Settings at the sidebar foot.',
-    doc: 'Optional actions beside Settings at the sidebar foot. Declared by this\npackage\'s \'sidebar\' entry; each action receives only the column state.',
+    doc: 'Optional actions beside Settings at the sidebar foot. Declared by this\npackage\'s \'sidebar\' entry; each action receives the column state and the panel rows\' classes.',
     registerOptions: [
       {
         name: 'id',
@@ -4651,7 +4650,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Owner share of an action rendered beside Settings at the sidebar foot. */\nexport interface SidebarFooterActionOwnerProps {\n  /** Whether the sidebar renders wide content (false = 56px rail). */\n  wide: boolean\n}',
+      '/**\n * Owner share of an action rendered beside Settings at the sidebar foot. FlowLeap fork modification: it carries the panel\n * rows\' classes, so a foot action such as Firm admin can draw a panel row; upstream passes only `wide`.\n */\nexport type SidebarFooterActionOwnerProps = SidebarRowOwnerProps',
+      '/** Owner share of a global action or a section: the column state and the panel rows\' classes. */\nexport interface SidebarRowOwnerProps {\n  /** Whether the sidebar renders wide content (false = 56px rail). */\n  readonly wide: boolean\n  /** Class of one row button, the same as a panel row. */\n  readonly rowClassName: string | undefined\n  /** Class added to the row of the selected item. */\n  readonly activeRowClassName: string | undefined\n  /** Class of the row\'s leading glyph. */\n  readonly glyphClassName: string | undefined\n  /** Class of the row\'s title; it shows only while `wide`. */\n  readonly titleClassName: string | undefined\n}',
     ],
     ownerPropsReferences: [],
     standardProps: [
@@ -4671,6 +4671,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
     occupants: [
+      'client-ui-flowleap-admin-link AdminLinkAction id \'flowleap-admin-link\'',
       'client-ui-flowleap-records AccountButton id \'flowleap-account\'',
       'client-ui-cordis CordisPanel id \'cordis-panel\'',
     ],

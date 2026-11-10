@@ -39,6 +39,16 @@ The expanded brand row renders `sidebar.brand.mark` and `sidebar.brand.name` as 
 
 Plugins add an icon component to the root-scoped `sidebar.panellist` list with an `id`, optional `order`, and a string or locale-aware `label`. The same id addresses the component registered in the layout's root-scoped `main` keyed slot; selecting a missing main entry throws without changing the current selection. The label supplies plain visible text, the accessible name, and the collapsed tooltip. Expanded navigation rows are 32px high with a 2px gap; collapsed rail controls remain 36px high with a 12px gap. Each row reads its own selected state through `usePanelInfo`; moving DOM focus to search or a directory picker does not change the displayed panel or its selected row. With no panel registrations, neither the list nor spacing for it is rendered. The shipped composition registers no example panel.
 
+FlowLeap fork modification: the row's `groups` config puts panel rows into labelled groups, and `footPanels` moves panel rows to the foot above the footer actions. Each group has an `id`, a `label` (text per lowercase locale key; `en` is required and is the fallback for a language with no entry), and `panels`, the panel ids in display order. A group with no registered panel renders nothing. Registered panels that no group and no foot entry names follow the groups without a label, then More. Expanded, each group shows its label in the secondary label colour at 12px above its rows, with 12px between groups; the collapsed rail shows a 20px hairline between groups instead, and the row tooltips stay. Each group is a list whose accessible name is its label. The Host validates the config at load: a repeated group id, a panel named twice, or a label without `en` fails the row. With no groups the panel list keeps the upstream form. The Host half embeds the config in browser pages as a page global. Each `sidebar.footer.action` occupant also receives the panel rows' classes (`SidebarRowOwnerProps`), and footer actions stack in a column, so an action such as Firm admin draws as a panel row.
+
+```yaml
+- id: ui-sidebar
+  config:
+    groups:
+      - { id: work, label: { en: Work, de: Arbeit }, panels: [flowleap-my-work] }
+    footPanels: [plugins]
+```
+
 Two root-scoped list slots add rows outside the panel list. `sidebar.actions` renders below **New Session**, for global actions such as Search; `sidebar.sections` renders between the panel list and the workspace region, for sections such as Pinned. Each occupant receives `wide` and the panel rows' classes (`rowClassName`, `activeRowClassName`, `glyphClassName`, `titleClassName`) and draws its own rows; [`ui-flowleap-dashboard`](../ui-flowleap-dashboard/README.md) fills both. Without registrations the two seats render nothing.
 
 A plugin may add a non-interactive count to an expanded panel row through the root-scoped `sidebar.panellist.count` list: the registration's `id` names the panel, and its component draws the value, such as the number of the panel's open items, or nothing. The row places it at its end in the secondary label colour at 12px and reads it as the button's accessible description; an empty occupant takes no space, and the collapsed rail shows no count.

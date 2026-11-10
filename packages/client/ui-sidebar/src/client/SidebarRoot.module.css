@@ -712,6 +712,57 @@
   margin-bottom: 8px;
 }
 
+/* FlowLeap fork modification: a configured panel group is a quiet label over its rows, with space between groups;
+   the rail replaces the label with a short hairline. */
+.panelGroup,
+.panelGroupRows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panelGroup + .panelGroup {
+  margin-top: 12px;
+}
+
+.panelGroupLabel {
+  padding: 0 var(--dsh-sidebar-row-padding);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  font-weight: var(--dsw-font-xxs-12-font-weight);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsed .panelGroup,
+.collapsed .panelGroupRows {
+  align-items: center;
+  gap: 12px;
+}
+
+.collapsed .panelGroup + .panelGroup {
+  margin-top: 0;
+}
+
+.panelGroupDivider {
+  width: 20px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* Configured foot panels: panel rows above the footer actions. */
+.footPanels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.collapsed .footPanels {
+  margin: 0 0 12px;
+}
+
 /* Panel entries use a 3px paint inset, the New Session bar's 12px radius,
    the session rows' hover/selected fill, and the primary ink. */
 .panelRow {
@@ -842,8 +893,10 @@
   width: 100%;
 }
 
+/* FlowLeap fork modification: several footer actions (Firm admin, the person) stack in a column; upstream sets a row. */
 .footerActions {
   display: flex;
+  flex-direction: column;
 }
 
 .collapsed .footArea {
@@ -855,6 +908,11 @@
   display: flex;
   justify-content: center;
   width: auto;
+}
+
+.collapsed .footerActions {
+  align-items: center;
+  gap: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
