@@ -10,7 +10,7 @@
 
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import { MyEpoError, type MyEpoReads } from './myepo-client.ts'
+import { MyEpoError, type MyEpoFailure, type MyEpoReads } from './myepo-client.ts'
 import type { MyEpoCommunication, MyEpoCommunicationId } from './myepo-wire.ts'
 
 /**
@@ -186,13 +186,14 @@ export async function readMyEpoLetters(options: {
     try {
       letter = await download(reads, communication, mode, listedAt, now, signal)
     } catch (error) {
-      if (!(error instanceof MyEpoError) || error.failure.kind === 'refused' || error.failure.kind === 'not-linked') throw error
-      if (error.failure.kind !== 'invalid-response') {
+      if (!(error instanceof MyEpoError)) throw error
+      const outcome = downloadOutcome(error.failure)
+      if (outcome === 'stop') throw error
+      if (outcome === 'retry') {
         failed.push({ id: communication.id, reason: error.message })
         continue
       }
-      // The EPO gave a download that holds no one readable PDF: the next read gets the same, so the list data goes now.
-      letter = listOnly(communication, listedAt, now, mode, { status: 0, code: 'download-not-readable' })
+      letter = listOnly(communication, listedAt, now, mode, outcome)
     }
     try {
       delivered.push({ id: communication.id, ...await deliverOrListOnly(intake, letter) })
@@ -220,6 +221,21 @@ async function deliverOrListOnly(
     if (!(error instanceof MyEpoIntakeError) || error.kind !== 'refused' || error.code === 'already-stored' || letter.document === null) throw error
     const refused = { status: error.status, code: error.code }
     return { answer: await intake.deliver({ ...letter, document: null, download: { ...letter.download, refused } }), listOnly: true }
+  }
+}
+
+/**
+ * What a failed download means for its letter: `stop` the pass at a refused or missing link; `retry` at the next pass after a
+ * failure that can pass (`unreachable`, `not-ready`, `invalid-response` such as an unreadable token answer, a `rejected` wait);
+ * else the download cannot give the PDF for good, and the refusal goes with the list data.
+ */
+function downloadOutcome(failure: MyEpoFailure): 'stop' | 'retry' | MyEpoRefusal {
+  switch (failure.kind) {
+    case 'refused': case 'not-linked': return 'stop'
+    case 'unreachable': case 'not-ready': case 'invalid-response': return 'retry'
+    case 'unreadable-download': return { status: 0, code: 'download-not-readable' }
+    case 'no-permission': return { status: 403, code: failure.code ?? 'no-permission' }
+    case 'rejected': return WAIT_STATUSES.has(failure.status) ? 'retry' : { status: failure.status, code: failure.code ?? 'rejected' }
   }
 }
 

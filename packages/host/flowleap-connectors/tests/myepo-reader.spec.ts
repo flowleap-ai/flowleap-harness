@@ -188,11 +188,38 @@ describe('readMyEpoLetters over a hand-made Mailbox', () => {
     expect([letter.communication.applicationNumber, letter.communication.userReference, letter.document?.fileName]).toEqual([null, null, 'letter-0.pdf'])
   })
 
+  it('sends the list data only when the download cannot give the PDF for good, and tries again after a failure that can pass', async () => {
+    const lasting: [MyEpoError, { status: number; code: string | null }][] = [
+      [new MyEpoError({ kind: 'unreadable-download', message: 'download is not a ZIP' }), { status: 0, code: 'download-not-readable' }],
+      [new MyEpoError({ kind: 'no-permission', code: 'ERR_20' }), { status: 403, code: 'ERR_20' }],
+      [new MyEpoError({ kind: 'no-permission' }), { status: 403, code: 'no-permission' }],
+      [new MyEpoError({ kind: 'rejected', status: 404, code: 'ERR_30', message: 'not found' }), { status: 404, code: 'ERR_30' }],
+      [new MyEpoError({ kind: 'rejected', status: 400, message: 'bad' }), { status: 400, code: 'rejected' }],
+    ]
+    for (const [error, refused] of lasting) {
+      const { intake, letters } = memoryIntake()
+      const settled = new Set<MyEpoCommunicationId>()
+      const pass = await readMyEpoLetters({ reads: mailbox(1, () => Promise.reject(error)), intake, mode: 'on-arrival', now: () => NOW, settled })
+      expect([pass.delivered[0]?.listOnly, letters.get('letter-0' as MyEpoCommunicationId)?.download.refused, settled.has('letter-0' as MyEpoCommunicationId)])
+        .toEqual([true, refused, true])
+    }
+    const passing = [
+      new MyEpoError({ kind: 'invalid-response', message: 'token answer' }), new MyEpoError({ kind: 'not-ready', code: 'ERR_15' }),
+      new MyEpoError({ kind: 'rejected', status: 429, message: 'slow down' }),
+    ]
+    for (const error of passing) {
+      const { intake, letters } = memoryIntake()
+      const settled = new Set<MyEpoCommunicationId>()
+      const pass = await readMyEpoLetters({ reads: mailbox(1, () => Promise.reject(error)), intake, mode: 'on-arrival', now: () => NOW, settled })
+      expect([pass.failed.length, letters.size, settled.size]).toEqual([1, 0, 0])
+    }
+  })
+
   it('reports a letter that MyEPO cannot give and goes on; stops at a refused or missing link and at any other error', async () => {
     const unreachable = mailbox(2, c => (c.id === 'letter-0' ? Promise.reject(new MyEpoError({ kind: 'unreachable', status: 503 })) : pdf(c)))
     const pass = await readMyEpoLetters({ reads: unreachable, intake: memoryIntake().intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect([pass.failed, pass.delivered.map(d => d.id)]).toEqual([[{ id: 'letter-0', reason: 'the EPO did not answer (503)' }], ['letter-1']])
-    const unreadable = mailbox(1, () => Promise.reject(new MyEpoError({ kind: 'invalid-response', message: 'download holds 2 PDF files' })))
+    const unreadable = mailbox(1, () => Promise.reject(new MyEpoError({ kind: 'unreadable-download', message: 'download holds 2 PDF files' })))
     const { intake, letters } = memoryIntake()
     const listed = await readMyEpoLetters({ reads: unreadable, intake, mode: 'on-arrival', now: () => NOW, settled: new Set() })
     expect([listed.delivered[0]?.listOnly, letters.get('letter-0' as MyEpoCommunicationId)?.download.refused]).toEqual([true, { status: 0, code: 'download-not-readable' }])
