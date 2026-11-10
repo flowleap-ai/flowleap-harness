@@ -8,6 +8,7 @@ The firm links its own MyEPO account on the MyEPO card of Settings → Connector
 - `myepo-test` runs Test on the linked card against the EPO sandbox and shows the portfolio list.
 - `myepo-unlink` removes the link from the menu, and the card shows the not-linked intro, the two collapsed rows and the empty fields.
 - `myepo-refused` saves a client ID and a secret that the sandbox refuses; the card says so and stores nothing.
+- `myepo-double` links the card to the [MyEPO double](../../../../packages/host/flowleap-connectors/tests/myepo-double/README.md) (the seed firm's public sample data): the card shows `Linked` with the three seed portfolios, and Test lists them.
 
 ## How to get to it (user POV)
 
@@ -25,6 +26,21 @@ Preconditions:
 - **Unlink.** Choose button `More acts`, then `Unlink`. The card shows `Not linked`, the four sources, the rows `What FlowLeap reads` and `Set up the account at the EPO`, and the empty `Client ID` and `Client secret` fields. Open both rows once.
 - **Refused.** Type `verify-client` in `Client ID` and `verify-wrong-secret` in `Client secret`, then choose `Save and test`. The card shows `Test failed` and `The EPO refused the client ID or the client secret.` The run's `home/.credentials.yaml` has no `flowleap-connectors/myepo` record.
 - **Proof.** Save a screenshot of each state in `$RUN/evidence/`, and check that `server.log` holds no part of the client secret.
+
+## The MyEPO double
+
+The double needs no EPO account and no founder credentials. Its client ID and secret are public test values, so type them into the card.
+
+Preconditions:
+
+- Start the double from the checkout, and keep it running for the run: `node --import tsx/esm packages/host/flowleap-connectors/tests/myepo-double/bin.ts --port 8290 > "$RUN/myepo-double.log" 2>&1 &`. Its first line must say `public sample data, not a live MyEPO account`.
+- Start the baseline in [README.md](./README.md) with `DSH_VERIFY_PATCH=flowleap/myepo-double.patch.yml`, in a new run directory, and do not run `myepo-link.mjs`. The founder's credential file must have no `flowleap-connectors/myepo` record, because `web.sh` copies the connector records read-only.
+
+- **Link.** Choose `Settings`, then `Connectors`. On the MyEPO card, type `flowleap-myepo-double` in `Client ID` and `public-sample-data` in `Client secret`, then choose `Save and test`. The card shows `Test passed`, `3 portfolios`, and a table with `Wago Verwaltungsgesellschaft mbH (public sample data, not a live MyEPO account)`, `PHOENIX CONTACT GmbH & Co. KG (…)` and `Renishaw plc (…)`, each `Full`.
+- **Linked.** Close and open Settings → Connectors again. The card shows `Linked`, `3 portfolios`, `Mailbox access` and `Last test`.
+- **Test.** Choose `Test`. The card shows `Test passed` and the same three portfolios.
+- **Refused.** Unlink, then save `flowleap-myepo-double` with the secret `wrong`. The card shows `Test failed` and `The EPO refused the client ID or the client secret.`
+- **Proof.** Save a screenshot of each state in `$RUN/evidence/`, and `curl -s http://127.0.0.1:8290/_double/state` into `$RUN/evidence/double-state.json`. Stop the double after the run.
 
 ## Gotchas
 

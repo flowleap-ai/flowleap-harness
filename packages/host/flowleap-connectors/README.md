@@ -213,7 +213,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/myepo-wire.ts`](src/myepo-wire.ts) | the zod schemas of the MyEPO answers and their mapping into FlowLeap records |
 | [`src/ocr.ts`](src/ocr.ts) | the `flowleapOcr` service: page text of one document through Mistral OCR |
 | [`src/register.ts`](src/register.ts) | the `flowleapRegister` service: application normalization and the EP Register and USPTO transaction reads |
-| [`tests/`](tests/) | the MyEPO reads on recorded sandbox answers ([`tests/fixtures/myepo/`](tests/fixtures/myepo/README.md)) and the link in the headless profile against a loopback double of the EPO, record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
+| [`tests/`](tests/) | the MyEPO reads on recorded sandbox answers ([`tests/fixtures/myepo/`](tests/fixtures/myepo/README.md)) and the link in the headless profile against the [MyEPO double](tests/myepo-double/README.md) (the recorded sandbox data, and the seed firm's public sample data), record round trip, host and cache, tool registration and the missing-key answer, `compare_claims` over a recorded text router (the IDE's compare cases, the US paid-route answer), `read_pdf` over the real local filesystem with a recorded OCR answer, the Remote |
 
 </details>
 

@@ -1,35 +1,22 @@
 #!/usr/bin/env node
-/** Test driver: starts a loopback double of the EPO, boots the headless profile with the connectors, and links MyEPO. */
+/**
+ * Test driver: starts the MyEPO double on the recorded sandbox answers, boots the headless profile with the
+ * connectors, and links MyEPO.
+ */
 
-import { createServer } from 'node:http'
 import { readFile, writeFile } from 'node:fs/promises'
-import type { AddressInfo } from 'node:net'
 import { resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-flowleap-connectors'
 import { bootProductionProfile } from '../../../../../test-support/loader-smoke/tests/fixtures/production-profile.ts'
-import { CREDENTIALS, ENDPOINT, fakeEpo } from '../../myepo-fake.ts'
+import { CREDENTIALS } from '../../myepo-fake.ts'
+import { sandboxData } from '../../myepo-double/sandbox-data.ts'
+import { startMyEpoDoubleServer } from '../../myepo-double/server.ts'
 
 const configPath = process.argv[2]
 if (configPath === undefined) throw new Error('MyEPO link driver requires a config path')
 
-const epo = fakeEpo()
-const server = createServer((request, response) => {
-  const path = request.url ?? '/'
-  const target = path === '/token' ? ENDPOINT.tokenUrl : `${ENDPOINT.baseUrl}${path.replace(/^\/latest/, '')}`
-  const chunks: Buffer[] = []
-  request.on('data', (chunk: Buffer) => chunks.push(chunk))
-  request.on('end', () => {
-    const headers: Record<string, string> = {}
-    for (const [name, value] of Object.entries(request.headers)) if (typeof value === 'string') headers[name] = value
-    void epo.fetch(target, { method: request.method ?? 'GET', headers, ...chunks.length === 0 ? {} : { body: Buffer.concat(chunks).toString() } })
-      .then(async (answer) => {
-        response.writeHead(answer.status, { 'content-type': answer.headers.get('content-type') ?? 'application/octet-stream' })
-        response.end(Buffer.from(await answer.arrayBuffer()))
-      })
-  })
-})
-await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-process.env['MYEPO_DOUBLE_URL'] = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+const server = await startMyEpoDoubleServer({ port: 0, data: sandboxData, client: CREDENTIALS })
+process.env['MYEPO_DOUBLE_URL'] = server.origin
 
 const ctx = await bootProductionProfile({
   binName: 'myepo-link-e2e',
@@ -54,5 +41,5 @@ try {
   await writeFile('stored.txt', await readFile('runtime/credentials.yaml', 'utf8'))
 } finally {
   await ctx.fiber.dispose()
-  server.close()
+  await server.close()
 }

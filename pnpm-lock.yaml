@@ -13693,6 +13693,12 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+      flowleap-deadlines:
+        specifier: github:flowleap-ai/flowleap-deadlines#c44b99f506f8b32c57b9b39af636830951c80e05
+        version: https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05
+      flowleap-seed-firm:
+        specifier: github:flowleap-ai/flowleap-seed-firm#75c89f6dcd10c415fed37a01c126faa5403e6e6e
+        version: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e
 
   packages/host/flowleap-deliverables:
     dependencies:
@@ -24900,6 +24906,16 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
+  flowleap-deadlines@https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05:
+    resolution: {gitHosted: true, integrity: sha512-b4dtEW4TPo4HMOXmOIRECGpgRNsf/CF9R+13nHmK5/969/QW3Nr2kDa3Nstd5aGv3qfIvwxVkcGCIOkpTjMT1A==, tarball: https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05}
+    version: 0.1.0
+    engines: {node: '>=22'}
+
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e:
+    resolution: {gitHosted: true, integrity: sha512-NGFkA4pXJjowL8EI99vy59GF1BbJZo+Fd+RhvkQjuscXWOJefFAkd1wRAFJkIYYUUFlz15BCSYcgTlPDVSN36g==, tarball: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e}
+    version: 0.1.0
+    engines: {node: '>=22'}
+
   focus-trap@7.8.0:
     resolution: {integrity: sha512-/yNdlIkpWbM0ptxno3ONTuf+2g318kh2ez3KSeZN5dZ8YC6AAmgeWz+GasYYiBJPFaYcSAPeu4GfhUaChzIJXA==}
 
@@ -32768,6 +32784,10 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.4.2: {}
+
+  flowleap-deadlines@https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05: {}
+
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e: {}
 
   focus-trap@7.8.0:
     dependencies:
