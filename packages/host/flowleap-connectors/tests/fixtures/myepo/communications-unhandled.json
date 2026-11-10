@@ -1,0 +1,290 @@
+{
+  "status": 200,
+  "contentType": "application/json;charset=utf-8",
+  "body": {
+    "content": [
+      {
+        "id": "l9s8o3a1luusand",
+        "applicantName": "Dummy applicant 1",
+        "title": "Important information concerning EPO Form 1010",
+        "dispatchDate": "2023-05-30",
+        "applicationNumber": "PCT/SE2023/123456",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "P79105WO1",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/l9s8o3a1luusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/PCTSE2023123456",
+        "documentCode": "I1015",
+        "read": true,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/l9s8o3a1luusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/l9s8o3a1luusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kylfolhdluusand",
+        "applicantName": "Dummy applicant 2",
+        "title": "Reminder period for payment of examination fee/designation fee and correction of deficiencies in Written Opinion/amendment",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP12345678.2",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "EP102844",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfolhdluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP12345678",
+        "documentCode": "1081",
+        "read": false,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfolhdluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kylfolhdluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kylfkdqfluusand",
+        "applicantName": "Dummy applicant 3",
+        "title": "Invitation to confirm maintenance of the application and to correct deficiencies in the Written Opinion/amend application",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP12345678.2",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "EP102441",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfkdqfluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP12345678",
+        "documentCode": "1082",
+        "read": false,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfkdqfluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kylfkdqfluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kqstpwzhluusand",
+        "applicantName": "Dummy applicant 5",
+        "title": "Communication regarding possible amendment of the application/payment of claims fee",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP23456789.9",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "EP102754",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kqstpwzhluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP23456789",
+        "documentCode": "1226CC",
+        "read": false,
+        "handled": false,
+        "folderId": "kih7dx82luu148t",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kqstpwzhluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kqstpwzhluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kqrzwbsaluusand",
+        "applicantName": "Dummy applicant 6",
+        "title": "Application deemed to be withdrawn (no declaration of maintenance of the application/non-reply to the Written Opinion)",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP20678449.8",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "REF00006",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kqrzwbsaluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP20678449",
+        "documentCode": "1099",
+        "read": false,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kqrzwbsaluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kqrzwbsaluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kylfn0yrluusand",
+        "applicantName": "Dummy applicant 8",
+        "title": "Communication regarding the expiry of opposition period",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP18123456.8",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "REF00008",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfn0yrluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP18123456",
+        "documentCode": "2057",
+        "read": false,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kylfn0yrluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kylfn0yrluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "kw0l0eylluusand",
+        "applicantName": "Dummy applicant 9",
+        "title": "Decision to grant a European patent",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": "EP18123456.8",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "REF00009",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kw0l0eylluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP18123456",
+        "documentCode": "2006A",
+        "read": false,
+        "handled": false,
+        "folderId": "kih7dx82luu148t",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/kw0l0eylluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/kw0l0eylluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "ljzogle7luusand",
+        "applicantName": null,
+        "title": "Mitteilung über die Änderung des Eintrags in der Liste der zugelassenen Vertreter (Bestätigung)",
+        "dispatchDate": "2023-02-26",
+        "applicationNumber": null,
+        "recipientName": "Dummy recipient 000026",
+        "userReference": null,
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/ljzogle7luusand",
+        "digitalFile": null,
+        "documentCode": "52301_CONF",
+        "read": false,
+        "handled": false,
+        "folderId": "l3ldt00aluu2917",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/ljzogle7luusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/ljzogle7luusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      },
+      {
+        "id": "k6abkigvluusand",
+        "applicantName": "Dummy applicant 11",
+        "title": "European search report",
+        "dispatchDate": "2020-02-11",
+        "applicationNumber": "EP12346578.3",
+        "recipientName": "Dummy recipient 000026",
+        "userReference": "REF000261",
+        "document": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/k6abkigvluusand",
+        "digitalFile": "https://my-i.epo.org/user-area/mailbox-intg/applications/EP12346578",
+        "documentCode": "Search Report",
+        "read": false,
+        "handled": false,
+        "folderId": "kih7dx82luu148t",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/download/k6abkigvluusand",
+            "title": "Download communication",
+            "media": "application/zip",
+            "type": "GET",
+            "rel": "download"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/communications/handle/k6abkigvluusand",
+            "title": "Handle communication",
+            "media": "application/json",
+            "type": "POST",
+            "rel": "handle"
+          }
+        ]
+      }
+    ],
+    "size": 10,
+    "number": 0,
+    "totalElements": 9
+  }
+}

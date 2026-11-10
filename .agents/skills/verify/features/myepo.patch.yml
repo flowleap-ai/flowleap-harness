@@ -1,0 +1,11 @@
+# Overlay for myepo.md (DSH_VERIFY_PATCH): the MyEPO link of flowleap-connectors on the EPO sandbox. An override
+# replaces the row's whole config, so the row restates every field of packages/bundle/flowleap-web/cordis.patch.yml.
+- id: flowleap-connectors
+  config:
+    cacheEntries: 500
+    excludeTools: [get_fulltext]
+    myepo:
+      baseUrl: https://api-sandbox.apps-staging.epo.org/latest
+      tokenUrl: https://login-t.epo.org/oauth2/aus1v8we8qXXwPJd60x7/v1/token
+      requestsPerSecond: 4
+      timeoutSeconds: 30

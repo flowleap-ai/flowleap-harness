@@ -1,0 +1,153 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+    "application": {
+      "bibliographicData": {
+        "applicationIdentification": {
+          "procedure": "EPC",
+          "ipOfficeCode": "EP",
+          "applicationNumber": "00000001",
+          "applicationNumberMyEPO": "EP00000001.8",
+          "filingDate": "2014-01-01"
+        },
+        "publicationBag": {
+          "patentPublicationIdentification": [
+            {
+              "ipOfficeCode": "EP",
+              "publicationNumber": "123456",
+              "patentDocumentKindCode": "A1",
+              "publicationDate": "2014-02-01"
+            }
+          ]
+        },
+        "priorityClaimBag": {
+          "priorityClaim": [
+            {
+              "sequenceNumber": "01",
+              "ipOfficeCode": "FR",
+              "applicationNumber": "FRA     123456",
+              "filingDate": "2014-02-01"
+            }
+          ]
+        }
+      },
+      "patentClassificationBag": {
+        "ipcClassificationBag": {
+          "ipcrClassification": [
+            {
+              "sequenceNumber": "001",
+              "patentClassificationSymbolText": "dummySymbol"
+            }
+          ]
+        },
+        "cpcClassificationsBag": {
+          "cpcClassification": [
+            {
+              "sequenceNumber": "001",
+              "patentClassificationSymbolText": "dummySymbol1",
+              "generatingOfficeCode": "EP",
+              "symbolPositionCode": "L",
+              "cpcClassificationValueCode": "A"
+            },
+            {
+              "sequenceNumber": "002",
+              "patentClassificationSymbolText": "dummySymbol2",
+              "generatingOfficeCode": "EP",
+              "symbolPositionCode": "L",
+              "cpcClassificationValueCode": "A"
+            },
+            {
+              "sequenceNumber": "003",
+              "patentClassificationSymbolText": "dummySymbol3",
+              "generatingOfficeCode": "EP",
+              "symbolPositionCode": "L",
+              "cpcClassificationValueCode": "A"
+            }
+          ]
+        }
+      },
+      "inventionTitleBag": {
+        "inventionTitle": [
+          {
+            "languageCode": "EN",
+            "phraseType": {
+              "$": "Dummy title EN"
+            }
+          },
+          {
+            "languageCode": "DE",
+            "phraseType": {
+              "$": "Dummy title DE"
+            }
+          },
+          {
+            "languageCode": "FR",
+            "phraseType": {
+              "$": "Dummy title FR"
+            }
+          }
+        ]
+      },
+      "partyBag": {
+        "applicantBag": [
+          {
+            "applicant": {
+              "sequenceNumber": "001",
+              "contact": {
+                "contactText": {
+                  "phraseType": {
+                    "$": "Dummy applicant 1, Paris, FR"
+                  }
+                }
+              },
+              "stateDesignation": {
+                "nationalDesignation": []
+              }
+            }
+          }
+        ],
+        "inventorBag": [
+          {
+            "inventor": {
+              "sequenceNumber": "001",
+              "contact": {
+                "contactText": {
+                  "phraseType": {
+                    "$": "Dummy, Inventor1, Paris, FR"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "inventor": {
+              "sequenceNumber": "002",
+              "contact": {
+                "contactText": {
+                  "phraseType": {
+                    "$": "Other, Inventor2, Paris, FR"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "representativeBag": [
+          {
+            "sequenceNumber": "001",
+            "registeredPractitionerId": "1",
+            "contact": {
+              "contactText": {
+                "phraseType": {
+                  "$": "Dummy Representative, Address Line 1, Address Line 2, Address Line 3, Address Line 4, DE"
+                }
+              }
+            },
+            "registeredPractitionerCountry": "DE"
+          }
+        ]
+      }
+    }
+  }
+}

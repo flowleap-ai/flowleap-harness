@@ -3,8 +3,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { createConnectors, type RegisterEventsResponse } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  FlowleapConnectorsController, FlowleapRegister, createConnectorHost, createCredentialStore, entriesFromOdp, entriesFromOps,
-  parseRegisterApplication, type RegisterApplication,
+  FlowleapConnectorsController, FlowleapRegister, createConnectorHost, createCredentialStore, createMyEpoLink, entriesFromOdp,
+  entriesFromOps, parseRegisterApplication, type RegisterApplication,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { MemoryCredentials } from './memory-credentials.ts'
 
@@ -71,7 +71,11 @@ describe('the flowleapRegister service', () => {
     const fetchSpy = vi.fn<typeof fetch>(async () => new Response(body, { headers: { 'content-type': 'application/json' } }))
     const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
     const connectors = createConnectors(bound.host)
-    await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
+    const myEpo = createMyEpoLink({
+      credentials, fetch: fetchSpy, now: Date.now, gate: { wait: () => Promise.resolve() },
+      endpoint: { baseUrl: 'https://myepo.test', tokenUrl: 'https://login.test/token', requestsPerSecond: 1, timeoutSeconds: 1 },
+    })
+    await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound, myEpo })
     await ctx.flowleapConnectors.set('uspto-odp', { apiKey: 'key' })
     await ctx.plugin(FlowleapRegister, { connectors, bound })
     const entries = await ctx.flowleapRegister.read(application('US 17/123,456'))
