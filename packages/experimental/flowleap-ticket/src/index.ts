@@ -47,8 +47,10 @@ export interface Config {
   readonly agentPreset: string
   /** Permission preset of the run Session. */
   readonly permissionPreset: string
-  /** File name of the firm template of the report letter, in the Office tools' template folder. */
-  readonly template: string
+  /** File name of the firm template of the draft reply to the office, in the Office tools' template folder. */
+  readonly replyTemplate: string
+  /** File name of the firm template of the report to the client, in the same folder; not the reply's template. */
+  readonly reportTemplate: string
   /** Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status. */
   readonly runStartedAttempts: number
   /** Wait in milliseconds before the second send of `run-started`; the wait doubles before each later send. */
@@ -65,7 +67,8 @@ export const Config: z<Config> = z.object({
   workspacePath: z.string().required(),
   agentPreset: z.string().required(),
   permissionPreset: z.string().required(),
-  template: z.string().required(),
+  replyTemplate: z.string().required(),
+  reportTemplate: z.string().required(),
   runStartedAttempts: z.number().step(1).min(1).max(10).default(4),
   runStartedBackoffMs: z.number().step(1).min(1).max(60_000).default(2000),
 })
@@ -86,8 +89,11 @@ function assertConfig(config: Config): void {
   for (const [key, value] of [['stateDir', config.stateDir], ['workspacePath', config.workspacePath]] as const) {
     if (!isAbsolute(value)) throw new Error(`flowleap-ticket: ${key} must be an absolute path, got ${JSON.stringify(value)}`)
   }
-  if (!/^[^/\\]+\.docx$/iu.test(config.template)) {
-    throw new Error(`flowleap-ticket: template must be a .docx file name, got ${JSON.stringify(config.template)}`)
+  for (const [key, value] of [['replyTemplate', config.replyTemplate], ['reportTemplate', config.reportTemplate]] as const) {
+    if (!/^[^/\\]+\.docx$/iu.test(value)) throw new Error(`flowleap-ticket: ${key} must be a .docx file name, got ${JSON.stringify(value)}`)
+  }
+  if (config.replyTemplate === config.reportTemplate) {
+    throw new Error('flowleap-ticket: replyTemplate and reportTemplate must differ: the reply is a letter to the office, the report a letter to the client')
   }
 }
 
@@ -109,6 +115,15 @@ export function apply(ctx: Context, config: Config): void {
       maxBodyBytes: config.maxBodyBytes,
     }, ledger),
   }
-  ctx.effect(() => ctx.webhookRuntime.register(ticketRule(ctx, config, ledger)), 'flowleap-ticket: rule')
+  const rule = ticketRule(ctx, {
+    source: config.source,
+    workspacePath: config.workspacePath,
+    agentPreset: config.agentPreset,
+    permissionPreset: config.permissionPreset,
+    templates: { reply: config.replyTemplate, report: config.reportTemplate },
+    runStartedAttempts: config.runStartedAttempts,
+    runStartedBackoffMs: config.runStartedBackoffMs,
+  }, ledger)
+  ctx.effect(() => ctx.webhookRuntime.register(rule), 'flowleap-ticket: rule')
   ctx.effect(() => ctx.webServer.register(route), `flowleap-ticket: ${config.path}`)
 }

@@ -223,6 +223,7 @@ describe('flowleapRecord.matterView over HTTP', () => {
 const TICKET = brandString<TicketId>('tk-1')
 const SESSION = SessionId('webhook-1')
 const REPORT: ReportProposal = {
+  kind: 'office-reply',
   fileName: 'report.docx',
   content: new TextEncoder().encode('docx bytes'),
   templateName: 'client-report.docx',
@@ -235,6 +236,12 @@ const REPORT: ReportProposal = {
 const FINISH = { session: SESSION, deadline: { id: brandString<DeadlineId>('d-1'), state: 'proposed' as const, seq: brandNumber<RecordSeq>(7) } }
 
 describe('flowleapRecord run commands over HTTP', () => {
+  it('takes a finish with no reply: a letter from the scan mailbox has no forwarder', async () => {
+    const double = await record(json(200, { recordSeq: 13, outbox: null }))
+    const service = await provider({ url: double.url, key: TOKEN })
+    expect(await service.finishRun(TICKET, FINISH, new AbortController().signal)).toEqual({ recordSeq: 13, outbox: null })
+  })
+
   it('posts run-started, the report, and finish with the token, a JSON body, and a stable idempotency key', async () => {
     const answers = [
       [200, { recordSeq: 8 }],
@@ -262,6 +269,7 @@ describe('flowleapRecord run commands over HTTP', () => {
     for (const { key } of double.requests) expect(key).toMatch(/^[A-Za-z0-9._:-]{8,128}$/u)
     expect(JSON.parse(double.requests[0]!.body)).toEqual({ session: 'webhook-1' })
     expect(JSON.parse(double.requests[1]!.body)).toEqual({
+      kind: 'office-reply',
       fileName: 'report.docx',
       contentBase64: Buffer.from('docx bytes').toString('base64'),
       templateName: 'client-report.docx',
@@ -391,6 +399,21 @@ describe('flowleapRecord.myWork over HTTP', () => {
       .toEqual({ ...MY_WORK, matters: [{ ...first, applicationNumber: null }, second] })
   })
 
+  it('reads the work of a Firm Record of schema 9, which has no tasks: no first line, no task fields and no tasks in sight', async () => {
+    const { summary: _summary, inSight: _inSight, ...rest } = MY_WORK
+    const older = { ...rest, work: MY_WORK.work.map(({ task: _task, state: _state, group: _group, dueAt: _dueAt, ...item }) => item) }
+    const double = await record(json(200, older))
+    expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(older)
+  })
+
+  it('refuses an answer whose task state or group is not one of the task model', async () => {
+    const [item] = MY_WORK.work
+    for (const change of [{ state: 'done' }, { group: 'tomorrow' }]) {
+      const double = await record(json(200, { ...MY_WORK, work: [{ ...item, ...change }] }))
+      expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual({ error: 'invalid_answer' })
+    }
+  })
+
   it('reads the work on the origin of the base URL', async () => {
     const double = await record(json(200, MY_WORK))
     await work(await provider({ url: `${double.url}/records/`, key: TOKEN }))
@@ -415,7 +438,7 @@ describe('flowleapRecord.myWork over HTTP', () => {
     const [item] = MY_WORK.work
     const answer = {
       ...MY_WORK,
-      work: [{ ...item, id: 'send-report:tk-9', kind: 'send-report', title: 'Send the report', act: 'report/tk-9' }, ...MY_WORK.work],
+      work: [{ ...item, id: 'day-check:2026-11-09', kind: 'day-check', title: 'Check the deadlines due today', act: 'deadlines/today' }, ...MY_WORK.work],
     }
     const double = await record(json(200, answer))
     expect(await work(await provider({ url: double.url, key: TOKEN }))).toEqual(answer)

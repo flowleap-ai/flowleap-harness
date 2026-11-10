@@ -12,6 +12,7 @@ import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconAgentPresetOutlineRegular, IconArchiveOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
+  IconGoalOutlineRegular,
   IconLinkOutlineRegular, IconSearchOutlineRegular, SegmentedControl, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
@@ -19,26 +20,32 @@ import type { ShortcutCatalogEntry, ShortcutFixedCatalogEntry } from '@deepseek-
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import type { Act, DocumentId, Me } from './api.ts'
-import { RECORDS_SCOPE, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
+import { routeOfAct, routePath } from './address.ts'
+import type { Act, DocumentId, Me, MyWork, PageHref, RecordsApi } from './api.ts'
+import { RECORDS_SCOPE, useKeyActs, type CommandItemRegistry, type KeyActRegistry } from './key-layer.ts'
 import { keycapsFrom } from './keys.ts'
 import { shownData, type Load } from './load.ts'
 import type { NS } from './locales.ts'
-import { TAB_OF, TAB_ROUTE, type ActsResult, type Route, type Screen, type Tab } from './model.ts'
+import { TAB_OF, TAB_ROUTE, type ActsResult, type PanelRoot, type Route, type Screen, type Tab } from './model.ts'
 import type { DockView } from './parts/AgentDock.tsx'
-import type { IntakeRowTarget } from './row-menu.ts'
+import type { ConversationSlot } from './RunConversation.tsx'
+import type { IntakeRowTarget, WorkRowTarget } from './row-menu.ts'
 import type { NewChat, ScreenContext } from './screens/context.ts'
 import { IntakeScreen } from './screens/IntakeScreen.tsx'
 import { DeadlineScreen } from './screens/DeadlineScreen.tsx'
 import { MatterScreen, MattersScreen } from './screens/MatterScreens.tsx'
 import { ActButton, OverflowActs } from './parts/Act.tsx'
 import { BoardScreen } from './screens/BoardScreen.tsx'
+import { LetterScreen } from './screens/LetterScreen.tsx'
+import { letterPageTitle } from './screens/IntakeLetter.tsx'
+import { MyWorkScreen } from './screens/MyWorkScreen.tsx'
 import { shownOrder } from './screens/IntakeScreen.tsx'
 import { actOf } from './screens/context.ts'
 import { formatDay } from './screens/detail.tsx'
 import { copyLink } from './screens/links.ts'
 import { BarPeople, WorkScreen, workQueue, workTitle } from './screens/WorkScreens.tsx'
 import { letterTitle, type Translate } from './words.ts'
+import { groupWork } from './my-work.ts'
 import css from './Panel.module.css'
 
 /** Injected share of the panel. */
@@ -48,6 +55,8 @@ export interface PanelInjected {
     readonly screen: ObservableSnapshot<Screen>
     /** The signed-in person. */
     readonly me: ObservableSnapshot<Load<Me>>
+    /** The person's tasks, for the pager of My work; null in the Matters panel. */
+    readonly myWork: ObservableSnapshot<Load<MyWork> | null>
     /** The letters that wait for a person. */
     readonly waitingCount: ObservableSnapshot<number | null>
     /** The shortcut catalog, for the keycaps of the acts. */
@@ -64,6 +73,8 @@ export interface PanelInjected {
   readonly refresh: () => void
   readonly perform: (acts: readonly Act[]) => Promise<ActsResult>
   readonly contentHref: (document: DocumentId) => string
+  readonly pageHref: (href: PageHref) => string
+  readonly nextConfirmer: RecordsApi['nextConfirmer']
   /** The key handlers of the mounted screens. */
   readonly keyActs: KeyActRegistry
   /** The ⌘K items of the mounted screens. */
@@ -72,22 +83,53 @@ export interface PanelInjected {
   readonly linkOf: (route: Route) => string
   /** Open the command menu for the open item, as ⌘K does. */
   readonly openSearch: () => void
+  /** Open Find a matter, as `/` does. */
+  readonly openFind: () => void
+  /** The panel: My work, or the Matters panel. */
+  readonly root: PanelRoot
+  /** Open a route in the Matters panel. */
+  readonly openInMatters: (route: Route) => void
+  /** Open My work. */
+  readonly openMyWork: () => void
 }
 
-/** Props of the panel; the agent panel of the work page renders the run Session's conversation slot. */
-export type PanelProps = PropsRuntime<'main'> & PropsLocale<typeof NS> & InjectFace<PanelInjected>
-  & PropsRenderSlots<'records.agent.conversation'>
+/** Props of a panel; the agent panel of the work page renders the panel's own run conversation slot. */
+export type PanelProps<S extends ConversationSlot = ConversationSlot> = PropsRuntime<'main'> & PropsLocale<typeof NS>
+  & InjectFace<PanelInjected> & PropsRenderSlots<S>
+
+/** Props of the panel view: a panel's props with its conversation slot rendered by the wrapper. */
+type PanelViewProps = PropsRuntime<'main'> & PropsLocale<typeof NS> & InjectFace<PanelInjected>
+  & Pick<PropsRenderSlots<ConversationSlot>, 'SessionProvider'> & { readonly renderConversation: () => ReactNode }
+
+/**
+ * Render the Matters panel.
+ * @param props - the hooks, the callbacks, copy and the conversation slot.
+ * @returns the panel.
+ */
+export function RecordsPanel(props: PanelProps<'records.agent.conversation'>) {
+  return <PanelView {...props} renderConversation={() => props.renderSlot('records.agent.conversation', {})} />
+}
+
+/**
+ * Render the My work panel.
+ * @param props - the hooks, the callbacks, copy and the conversation slot.
+ * @returns the panel.
+ */
+export function MyWorkPanel(props: PanelProps<'records.mywork.agent.conversation'>) {
+  return <PanelView {...props} renderConversation={() => props.renderSlot('records.mywork.agent.conversation', {})} />
+}
 
 const TAB_ORDER: readonly Tab[] = ['matters', 'intake', 'work']
 
 /**
- * Render the Matters panel.
- * @param props - the hooks, the callbacks and copy.
+ * Render a panel: My work or the Matters panel.
+ * @param props - the hooks, the callbacks, copy and the conversation of the work page.
  * @returns the panel.
  */
-export function RecordsPanel(props: PanelProps) {
-  const { t, useScreen, useMe, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useAsk, useContextMenu } = props
+function PanelView(props: PanelViewProps) {
+  const { t, useScreen, useMe, useMyWork, useWaitingCount, useCatalog, useFixedCatalog, useLanguage, useAsk, useContextMenu } = props
   const screen = useScreen(value => value)
+  const myWork = useMyWork(load => load === null ? null : shownData(load)?.data ?? null)
   const me = useMe(load => shownData(load)?.data ?? null)
   const waitingCount = useWaitingCount(count => count)
   const catalog = useCatalog(rows => rows)
@@ -95,28 +137,37 @@ export function RecordsPanel(props: PanelProps) {
   const locale = useLanguage(language => language)
   const ask = useAsk(start => start)
   const { getTriggerProps } = useContextMenu()
-  const [dock, setDock] = useState<DockView>('docked')
+  // The work page opens with its properties panel; Drafted by opens the agent panel (mockup 4-review-work).
+  const [dock, setDock] = useState<DockView>('closed')
   const ctx: ScreenContext = {
-    t, locale, now: Date.now(), me,
+    // Times and days show in the firm's time zone, as the notices give them (T4).
+    t, locale, now: Date.now(), me, ...(me === null ? {} : { timeZone: me.firm.timeZone }),
     keycaps: keycapsFrom(catalog, fixedCatalog, { Space: t('keycap.space') }),
     navigate: props.navigate,
     retry: props.retry,
     refresh: props.refresh,
     perform: props.perform,
     contentHref: props.contentHref,
+    pageHref: props.pageHref,
+    nextConfirmer: props.nextConfirmer,
     keyActs: props.keyActs,
     commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),
+    workRowMenu: (target: WorkRowTarget) => getTriggerProps({ kind: 'records.work-row', value: target }),
+    openInMatters: props.openInMatters,
+    openMyWork: props.openMyWork,
     linkOf: props.linkOf,
     agent: {
       view: dock,
       show: setDock,
       useResource: props.useResource,
       SessionProvider: props.SessionProvider,
-      renderConversation: () => props.renderSlot('records.agent.conversation', {}),
+      renderConversation: props.renderConversation,
       ask,
     },
   }
+  // `/` opens Find a matter from every view of the panel; a view's own acts come later and win for their keys.
+  useKeyActs(ctx, { find: props.openFind }, { arrows: false })
   const tab = TAB_OF[screen.view]
   const tabs = (
     <nav className={css.tabs} aria-label={t('tabs.label')}>
@@ -134,12 +185,16 @@ export function RecordsPanel(props: PanelProps) {
       ))}
     </nav>
   )
-  const detail = detailBar(screen, ctx)
-  const search = actOf(ctx, 'search', t('intake.act.search'), props.openSearch, { icon: <IconSearchOutlineRegular size={16} /> })
+  const detail = props.root === 'my-work' ? myWorkBar(screen, ctx, myWork) : detailBar(screen, ctx)
+  // The `/` key types "-" on a German keyboard, so a German page shows the app's Search key, which also opens Find a
+  // matter while a view has no open item.
+  const find = ctx.locale === 'de'
+    ? { ...actOf(ctx, 'search', t('find.act'), props.openFind, { icon: <IconSearchOutlineRegular size={16} /> }), id: 'find' }
+    : actOf(ctx, 'find', t('find.act'), props.openFind, { icon: <IconSearchOutlineRegular size={16} /> })
   return (
     <section ref={takeStartFocus} className={css.panel} data-testid="flowleap-records" data-shortcut-scope={RECORDS_SCOPE} tabIndex={-1}>
       <header className={css.topbar} data-frame-top-row="">
-        {detail === null ? tabs : null}
+        {detail === null && props.root === 'matters' ? tabs : null}
         {detail !== null && screen.view === 'intake' && <div className={css.wideOnly}>{tabs}</div>}
         {detail !== null && <div className={clsx(css.detailBar, screen.view === 'intake' && css.narrowOnly)}>{detail}</div>}
         <div className={css.barRight}>
@@ -187,8 +242,8 @@ export function RecordsPanel(props: PanelProps) {
               </Tooltip>
             </>
           )}
-          <ActButton act={search} rank="tertiary" className={css.searchWide} />
-          <Button variant="ghost" size="sm" className={css.searchNarrow} aria-label={t('intake.act.search')} data-act="search" onClick={props.openSearch}>
+          <ActButton act={find} rank="tertiary" className={css.searchWide} />
+          <Button variant="ghost" size="sm" className={css.searchNarrow} aria-label={t('find.act')} data-act="find" onClick={props.openFind}>
             <IconSearchOutlineRegular size={16} />
           </Button>
         </div>
@@ -206,6 +261,8 @@ export function RecordsPanel(props: PanelProps) {
  */
 function renderScreen(screen: Screen, ctx: ScreenContext): ReactNode {
   switch (screen.view) {
+    case 'my-work': return <MyWorkScreen screen={screen} ctx={ctx} />
+    case 'letter': return <LetterScreen screen={screen} ctx={ctx} />
     case 'matters': return <MattersScreen screen={screen} ctx={ctx} />
     case 'intake': return <IntakeScreen screen={screen} ctx={ctx} />
     case 'matter': return <MatterScreen screen={screen} ctx={ctx} />
@@ -235,7 +292,12 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
   switch (screen.view) {
     case 'matters':
     case 'board':
+    case 'my-work':
       return null
+    case 'letter': {
+      const data = shownData(screen.item)?.data
+      return <Crumbs t={t} crumbs={[{ label: t('tab.intake'), route: TAB_ROUTE.intake }, { label: data === undefined ? '' : letterPageTitle(ctx, data) }]} navigate={ctx.navigate} />
+    }
     case 'intake': {
       if (screen.open === null) return null
       const rows = shownOrder(shownData(screen.intake)?.data.rows ?? [])
@@ -315,26 +377,88 @@ function detailBar(screen: Screen, ctx: ScreenContext): ReactNode {
 }
 
 /**
+ * The top bar of My work: "My work" on the list; on a page that a task opened, the breadcrumb from My work and "1 / N"
+ * over the person's tasks in the order of the list.
+ * @param screen - the route with its loads.
+ * @param ctx - the screen context.
+ * @param myWork - the person's tasks, or null before the first answer.
+ * @returns the bar.
+ */
+function myWorkBar(screen: Screen, ctx: ScreenContext, myWork: MyWork | null): ReactNode {
+  const { t } = ctx
+  const root: Crumb = { label: t('mywork.panel'), route: { view: 'my-work' } }
+  if (screen.view === 'matter') {
+    const data = shownData(screen.matter)?.data
+    return <Crumbs t={t} crumbs={[root, { label: data?.matter.title ?? '', key: screen.fileNumber }]} navigate={ctx.navigate} />
+  }
+  const title = (() => {
+    switch (screen.view) {
+      case 'my-work': return null
+      case 'letter': {
+        const data = shownData(screen.item)?.data
+        return data === undefined ? '' : letterPageTitle(ctx, data)
+      }
+      case 'deadline': {
+        const data = shownData(screen.deadline)?.data
+        return data === undefined ? '' : t('crumb.deadline', { date: formatDay(data.deadline.due, ctx.locale) })
+      }
+      case 'work': {
+        const data = shownData(screen.ticket)?.data
+        return data === undefined ? '' : workTitle(ctx, data)
+      }
+      default: return ''
+    }
+  })()
+  if (title === null) return <Crumbs t={t} crumbs={[{ label: root.label }]} navigate={ctx.navigate} />
+  const rows = groupWork(myWork?.work ?? []).flatMap(group => group.items)
+  const here = routePath(screen)
+  const index = rows.findIndex((item) => { const route = routeOfAct(item.act); return route !== null && routePath(route) === here })
+  return (
+    <>
+      <Crumbs t={t} crumbs={[root, { label: title }]} navigate={ctx.navigate} />
+      {index !== -1 && (
+        <Pager
+          t={t}
+          label="mywork.pager"
+          index={index}
+          count={rows.length}
+          go={(place) => {
+            const route = rows[place] === undefined ? null : routeOfAct(rows[place].act)
+            return route === null ? undefined : () => { ctx.navigate(route) }
+          }}
+        >
+          <Button variant="ghost" size="sm" aria-label={t('intake.act.copyLink')} onClick={() => { void copyLink(ctx.linkOf(screen)) }}>
+            <IconLinkOutlineRegular size={16} />
+          </Button>
+        </Pager>
+      )}
+    </>
+  )
+}
+
+/**
  * Render the "1 / N" of a detail page with the up and down buttons.
  * @param props.t - the translate function.
  * @param props.index - the open item's place, from 0.
  * @param props.count - the items.
  * @param props.go - the act that opens the item at a place, or undefined when there is none.
  * @param props.children - more buttons after the pager, such as Copy link.
+ * @param props.label - the accessible name of the place, such as "Letter 1 of 3"; the default names a letter.
  * @returns the pager.
  */
-function Pager({ t, index, count, go, children }: {
+function Pager({ t, index, count, go, children, label = 'pager.label' }: {
   t: Translate
   index: number
   count: number
   go: (index: number) => (() => void) | undefined
   children?: ReactNode
+  label?: 'pager.label' | 'mywork.pager'
 }) {
   const previous = go(index - 1)
   const next = go(index + 1)
   return (
     <div className={css.pager}>
-      <span className={css.pagerText} aria-label={t('pager.label', { index: index + 1, count })}>{`${index + 1} / ${count}`}</span>
+      <span className={css.pagerText} aria-label={t(label, { index: index + 1, count })}>{`${index + 1} / ${count}`}</span>
       <Button variant="outline" size="sm" aria-label={t('pager.previous')} disabled={previous === undefined} onClick={previous}>
         <IconChevronUpOutlineRegular size={16} />
       </Button>
@@ -380,6 +504,34 @@ function Crumbs({ t, crumbs, navigate }: { t: Translate; crumbs: readonly Crumb[
  */
 export function MattersIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) {
   return <IconArchiveOutlineRegular size={size} />
+}
+
+/**
+ * Render the My work launcher glyph.
+ * @param props - the requested size.
+ * @returns the glyph.
+ */
+export function MyWorkIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) {
+  return <IconGoalOutlineRegular size={size} />
+}
+
+/** Injected share of the My work count beside its sidebar row. */
+export interface MyWorkCountInjected {
+  readonly hooks: {
+    /** The person's tasks, as the My work panel loads them. */
+    readonly myWork: ObservableSnapshot<Load<MyWork> | null>
+  }
+}
+
+/**
+ * Render the number of the person's tasks beside My work in the sidebar (mockup 1-my-work): nothing before My work
+ * has loaded once and nothing when no task waits; after a failed load, the last count.
+ * @param props.useMyWork - the person's tasks.
+ * @returns the count, or nothing.
+ */
+export function MyWorkCount({ useMyWork }: InjectFace<MyWorkCountInjected>) {
+  const count = useMyWork(load => (load === null ? null : shownData(load))?.data.work.length ?? 0)
+  return count === 0 ? null : <>{count}</>
 }
 
 /**

@@ -26,6 +26,6 @@ The IPMS screens use the harness client theme as it is ([`packages/client/ui-the
 | Avatar | `--dsw-alias-bg-overlay` with `--dsw-alias-label-primary` | Initial of the given name |
 | Letter drawing | `--dsw-alias-bg-document-preview`, `--dsw-alias-label-document-preview` | A picture of the source document |
 | Elevation | `--dsw-elevation-panel`, `--dsw-elevation-prominent` | Buttons and cards; the decision bar, menus and popovers |
-| Type | `--dsw-font-family`, `--ds-font-family-code`, `--dsw-font-{xxs-12, xs-13, s-14, l-20, xl-24}-font-size` and `-line-height`, `--dsw-font-xs-13-font-weight` (400), `--dsw-font-xs-strong-13-font-weight` (500); never a composite token such as `--dsw-font-xl-24` | R1, R2 |
+| Type | `--dsw-font-family`, `--ds-font-family-code`, `--dsw-font-{xxs-12, xs-13, s-14, l-20, xl-24}-font-size` and `-line-height`, `--dsw-font-xs-13-font-weight` (400), `--dsw-font-xs-strong-13-font-weight` (500); never a composite token such as `--dsw-font-xl-24`; `--dsw-font-base-16-font-size` only for a text field on a coarse pointer (R1 exception) | R1, R2 |
 | Radius | `--dsw-radius-xs` 4, `-sm` 8, `-md` 12, `-lg` 16, `-xl` 20, `-panel` 28 by role; 999px capsule and 50% circle with `corner-shape: round` | R7 |
 | Motion | `--ds-transition-duration-fast` 100 ms, `--ds-transition-duration` 200 ms, `--ds-transition-duration-slow` 300 ms, `--ds-ease-in-out` | R15 |

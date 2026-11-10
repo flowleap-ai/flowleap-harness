@@ -79,6 +79,7 @@ describe('the design-language part markers (R8)', () => {
     await mount({ view: 'work', id: FIXTURE_IDS.ticket as TicketId })
     expect(part(screen.getByRole('region', { name: 'Your decision' }))).toBe('decision')
     expect(part(screen.getByRole('group', { name: 'Client report' }))).toBe('seg')
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Properties' })).getByRole('button', { name: 'Patent agent' }))
     expect(part(screen.getByRole('complementary', { name: 'Patent agent' }))).toBe('dock')
     expect(parts('file')).toHaveLength(1)
     expectAllowedNames()
@@ -90,15 +91,16 @@ describe('the design-language part markers (R8)', () => {
       ...fixtures.deadline,
       deadline: { ...fixtures.deadline.deadline, state: 'manual_proposed', notes: [late] },
       officeEvent: { ...fixtures.deadline.officeEvent, document: null, fileName: null },
-      readers: { code: null, model: null, agree: null },
+      readers: { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const },
     })
     expect(parts('notice')).toHaveLength(2)
     expectAllowedNames()
   })
 
-  it('marks the facts of a matter', async () => {
+  it('marks the system avatars of the activity of a matter, whose dossier has no fact chips', async () => {
     await mount({ view: 'matter', fileNumber: 'FL-2026-0001' as FileNumber })
-    expect(parts('fact').length).toBeGreaterThan(0)
+    expect(parts('fact')).toHaveLength(0)
+    expect(parts('av').length).toBeGreaterThan(0)
     expectAllowedNames()
   })
 

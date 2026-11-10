@@ -66,7 +66,7 @@ export function apply(ctx: ClientContext): void {
       subscribeReset: listener => ctx.on('connection/reset', listener),
     })
     yield ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-      name: 'sidebar.panellist', id: PANEL_ID, order: 16, locale: NS, label: () => t('panel'), inject: () => ({ hooks: board.hooks }),
+      name: 'sidebar.panellist', id: PANEL_ID, order: -100, locale: NS, label: () => t('panel'), inject: () => ({ hooks: board.hooks }),
     }, WorkPagesPanelIcon))
     yield ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main', key: PANEL_ID, locale: NS, inject: () => ({ ...board, now: () => Date.now() }),

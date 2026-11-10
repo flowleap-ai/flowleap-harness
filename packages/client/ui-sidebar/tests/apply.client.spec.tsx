@@ -11,6 +11,7 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { TrackProductEvent } from '@deepseek-ai/dsh-client-product-analytics/client'
 import { HeaderLeadingControls } from '../src/client/HeaderLeadingControls.tsx'
 import { apply as hostApply } from '../src/index.ts'
+import { SIDEBAR_PAGE_GLOBAL } from '../src/config.ts'
 
 const owners = new Set<Fiber>()
 afterEach(async () => {
@@ -54,8 +55,12 @@ async function bench(declare = true) {
 }
 
 describe('ui-sidebar apply', () => {
-  it('keeps the host Loader entry inert', () => {
-    expect(hostApply).not.toThrow()
+  it('embeds the validated sidebar layout in browser pages', () => {
+    const table: unknown[] = []
+    const ctx = { on: (_event: string, listener: (rows: unknown[]) => void) => { listener(table) } }
+    const config = { groups: [], footPanels: ['plugins'] }
+    hostApply(ctx as never, config)
+    expect(table).toEqual([{ kind: 'global', name: SIDEBAR_PAGE_GLOBAL, value: config }])
   })
 
   it('declares only the services it uses', () => {
@@ -85,8 +90,10 @@ describe('ui-sidebar apply', () => {
     expect(leading[0]!.locale).toBe('sidebar')
     expect(leading[0]!.inject).toBe(b.slots.entries('sidebar')[0]!.inject)
     const injected = (b.slots.entries('sidebar')[0]!.inject as () => SidebarRootInjected)()
-    expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'setPinned', 'trackEntryClick', 'hooks'])
+    expect(Object.keys(injected)).toEqual(['startSession', 'toggleSidebar', 'selectPanel', 'setPinned', 'trackEntryClick', 'footPanels', 'hooks'])
     expect(injected.hooks.panels.getSnapshot()).toEqual([])
+    expect(injected.hooks.groups.getSnapshot()).toEqual([])
+    expect(injected.footPanels).toEqual([])
     expect(injected.hooks.entryPins.getSnapshot()).toEqual([])
     expect(injected.hooks.entryActions.getSnapshot()).toBe(false)
     expect(b.slots.entries('main')).toEqual([])

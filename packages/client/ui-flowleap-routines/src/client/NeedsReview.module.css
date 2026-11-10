@@ -149,26 +149,6 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/*
- * The panel launcher's mark: a dot in the 6px gap beside the top corner of the glyph, so it covers neither the glyph
- * nor the label of the wide row. The Needs review page and the dashboard card show the count.
- */
-.panelIcon {
-  position: relative;
-  display: inline-flex;
-}
-
-.count {
-  position: absolute;
-  top: -1px;
-  inset-inline-start: calc(100% + 0.5px);
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  corner-shape: round;
-  background: var(--dsw-alias-state-business-primary);
-}
-
 .visuallyHidden {
   position: absolute;
   width: 1px;

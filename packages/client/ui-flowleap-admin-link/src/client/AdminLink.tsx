@@ -1,5 +1,5 @@
 /**
- * The Firm admin row of the sidebar actions: a plain link to the firm admin console.
+ * The Firm admin row at the sidebar foot: a plain link to the firm admin console.
  */
 
 import { IconShieldOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'

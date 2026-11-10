@@ -18,7 +18,7 @@
  * scrollbar indirection away while it is elsewhere, so a list the user is not
  * pointing at carries no bar.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   FishLogo, IconAppsAddOutlineRegular, IconNewChatOutlineMedium, IconNewChatOutlineRegular,
@@ -26,6 +26,7 @@ import {
   Tooltip, useModalLayer, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderFactories, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {
   SidebarPanelActionsOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarRowOwnerProps,
   SidebarSectionHookContext,
@@ -61,8 +62,8 @@ type PanelRowProps =
   & Pick<SidebarSectionOwnerProps, 'wide'>
   & Pick<PropsRuntime<'sidebar'>, 'usePanelInfo'>
   & Pick<InjectFace<SidebarRootInjected>, 'selectPanel' | 'trackEntryClick' | 'setPinned'>
-  & { readonly unpinLabel: string; readonly unpinTooltip: string; readonly canUnpin: boolean }
-  & PropsRenderFactories
+  & { readonly unpinLabel: string; readonly unpinTooltip: string; readonly canUnpin: boolean; readonly listItem?: boolean }
+  & PropsRenderFactories & PropsRenderSlots<'sidebar.panellist.count'>
 
 /** Analytics category of an official panel; other panels are never reported. */
 function officialEntry(id: string): 'plugin' | 'cron' | undefined {
@@ -72,17 +73,20 @@ function officialEntry(id: string): 'plugin' | 'cron' | undefined {
 
 /** Each panel row subscribes only to its own selection state. */
 function PanelRow({
-  id, label, wide, unpinLabel, unpinTooltip, canUnpin, usePanelInfo, selectPanel, setPinned, trackEntryClick, renderFactorySlot,
+  id, label, wide, unpinLabel, unpinTooltip, canUnpin, listItem, usePanelInfo, selectPanel, setPinned, trackEntryClick, renderFactorySlot,
+  renderSlot,
 }: PanelRowProps) {
   const active = usePanelInfo(info => info.activePanelId === id)
+  const countId = useId()
   return (
-    <div className={clsx(css.panelEntry, wide && css.panelEntryWide, active && css.panelEntryActive)}>
+    <div className={clsx(css.panelEntry, wide && css.panelEntryWide, active && css.panelEntryActive)} role={listItem ? 'listitem' : undefined}>
       <Tooltip label={label} delayMs={500} disabled={wide}>
         <button
           type="button"
           className={css.panelRow}
           aria-label={label}
           aria-current={active ? 'page' : undefined}
+          aria-describedby={wide ? countId : undefined}
           onClick={() => {
             const entry = officialEntry(id)
             if (entry !== undefined) trackEntryClick({ menu_name: entry, position: 'sidebar' })
@@ -97,12 +101,13 @@ function PanelRow({
               {label}
             </span>
           )}
+          {wide && <span id={countId} className={css.panelCount}>{renderSlot('sidebar.panellist.count', {}, { only: id })}</span>}
         </button>
       </Tooltip>
       {wide && canUnpin && <Tooltip label={unpinTooltip} side="bottom" align="end" delayMs={500} portal>
         <button type="button" className={css.panelUnpin} aria-label={unpinLabel} onClick={(event) => {
           // Unpin is rendered only while this navigation also renders More.
-          const navigation = event.currentTarget.closest('nav') as HTMLElement
+          const navigation = event.currentTarget.closest('nav[data-sidebar-panels]') as HTMLElement
           const more = navigation.querySelector('button[aria-haspopup="menu"]') as HTMLButtonElement
           focusWithoutRing(more)
           setPinned(id, false)
@@ -158,8 +163,10 @@ export function SidebarRoot({
   selectPanel,
   setPinned,
   trackEntryClick,
+  footPanels,
   useRemoteAccess,
   usePanels,
+  useGroups,
   useEntryPins,
   useEntryActions,
   useShortcuts,
@@ -169,6 +176,8 @@ export function SidebarRoot({
   renderFactorySlot,
 }: SidebarRootComponentProps) {
   const panels = usePanels(snapshot => snapshot)
+  const groups = useGroups(snapshot => snapshot)
+  const groupIdBase = useId()
   const unpinned = useEntryPins(ids => ids)
   const activePanelId = usePanelInfo(info => info.activePanelId)
   const hasEntryActions = useEntryActions(registered => registered)
@@ -311,6 +320,25 @@ export function SidebarRoot({
     </Tooltip>
   )
 
+  // One panel row; foot rows pass canUnpin false because the unpin action needs the More launcher beside it.
+  const panelRow = (id: MainPanelId, label: string, canUnpin: boolean, listItem = false) => (
+    <PanelRow
+      key={id}
+      id={id}
+      label={label}
+      wide={wide}
+      unpinLabel={t('panels.unpin', { name: label })}
+      unpinTooltip={t('panels.unpinTooltip')}
+      canUnpin={canUnpin && hasEntryActions && id !== FIXED_PANEL_ID}
+      listItem={listItem}
+      setPinned={setPinned}
+      usePanelInfo={usePanelInfo}
+      selectPanel={selectPanel}
+      trackEntryClick={trackEntryClick}
+      renderFactorySlot={renderFactorySlot}
+      renderSlot={renderSlot}
+    />
+  )
   return (
     <div
       ref={column}
@@ -417,43 +445,64 @@ export function SidebarRoot({
           <div className={css.actionList}>
             {renderSlot('sidebar.actions', rowShare)}
           </div>
-          {panels.length > 0 && (
-            <nav className={css.panelList} aria-label={t('panels.label')}>
-              {panels.filter(({ id }) => id === FIXED_PANEL_ID || !hasEntryActions || !unpinned.includes(id)).map(({ id, label }) => (
-                <PanelRow
-                  key={id}
-                  id={id}
-                  label={label}
-                  wide={wide}
-                  unpinLabel={t('panels.unpin', { name: label })}
-                  unpinTooltip={t('panels.unpinTooltip')}
-                  canUnpin={hasEntryActions && id !== FIXED_PANEL_ID}
-                  setPinned={setPinned}
-                  usePanelInfo={usePanelInfo}
-                  selectPanel={selectPanel}
-                  trackEntryClick={trackEntryClick}
-                  renderFactorySlot={renderFactorySlot}
-                />
-              ))}
-              {hasEntryActions && (
-                <PanelMoreMenu
-                  wide={wide}
-                  label={t('panels.more')}
-                  entries={panels.filter(({ id }) => id !== FIXED_PANEL_ID)
-                    .map(({ id, label }) => ({ id, label, pinned: !unpinned.includes(id), active: id === activePanelId }))}
-                  onOpen={(id) => {
-                    const entry = officialEntry(id)
-                    if (entry !== undefined) trackEntryClick({ menu_name: entry, position: 'sidebar_more' })
-                    const panel = panels.find(candidate => candidate.id === id)
-                    if (panel !== undefined) selectPanel(panel.id)
-                  }}
-                  onPinnedChange={setPinned}
-                  trackEntryClick={trackEntryClick}
-                  renderSlot={renderSlot}
-                />
-              )}
-            </nav>
-          )}
+          {panels.length > 0 && (() => {
+            const shown = panels.filter(({ id }) => id === FIXED_PANEL_ID || !hasEntryActions || !unpinned.includes(id))
+            // FlowLeap fork modification: configured groups and foot panels take their rows out of the flat list.
+            const byId = new Map(shown.map(panel => [panel.id as string, panel]))
+            const placed = new Set([...groups.flatMap(group => group.panels), ...footPanels])
+            const groupRows = groups
+              .map(group => ({ ...group, rows: group.panels.flatMap(id => byId.get(id) ?? []) }))
+              .filter(group => group.rows.length > 0)
+            const more = hasEntryActions && (
+              <PanelMoreMenu
+                wide={wide}
+                label={t('panels.more')}
+                entries={panels.filter(({ id }) => id !== FIXED_PANEL_ID)
+                  .map(({ id, label }) => ({ id, label, pinned: !unpinned.includes(id), active: id === activePanelId }))}
+                onOpen={(id) => {
+                  const entry = officialEntry(id)
+                  if (entry !== undefined) trackEntryClick({ menu_name: entry, position: 'sidebar_more' })
+                  const panel = panels.find(candidate => candidate.id === id)
+                  if (panel !== undefined) selectPanel(panel.id)
+                }}
+                onPinnedChange={setPinned}
+                trackEntryClick={trackEntryClick}
+                renderSlot={renderSlot}
+              />
+            )
+            return (
+              <nav className={css.panelList} aria-label={t('panels.label')} data-sidebar-panels>
+                {groupRows.map((group, index) => {
+                  const headingId = `${groupIdBase}-${group.id}`
+                  return (
+                    <div key={group.id} className={css.panelGroup}>
+                      {wide
+                        ? <div id={headingId} className={css.panelGroupLabel}>{group.label}</div>
+                        : index > 0 && <span className={css.panelGroupDivider} aria-hidden="true" />}
+                      <div
+                        role="list"
+                        className={css.panelGroupRows}
+                        aria-labelledby={wide ? headingId : undefined}
+                        aria-label={wide ? undefined : group.label}
+                      >
+                        {group.rows.map(({ id, label }) => panelRow(id, label, true, true))}
+                      </div>
+                    </div>
+                  )
+                })}
+                {(() => {
+                  const rest = shown.filter(({ id }) => !placed.has(id)).map(({ id, label }) => panelRow(id, label, true))
+                  if (groupRows.length === 0) return <>{rest}{more}</>
+                  return (rest.length > 0 || more !== false) && (
+                    <div className={clsx(css.panelGroup, css.panelGroupRows)}>
+                      {!wide && <span className={css.panelGroupDivider} aria-hidden="true" />}
+                      {rest}{more}
+                    </div>
+                  )
+                })()}
+              </nav>
+            )
+          })()}
           <div className={css.sectionList}>
             {renderSlot('sidebar.sections', rowShare)}
           </div>
@@ -473,8 +522,17 @@ export function SidebarRoot({
 
       {/* Footer actions stack above Settings in both sidebar widths. */}
       <div className={css.footArea}>
+        {/* FlowLeap fork modification: configured foot panels draw as panel rows above the footer actions. */}
+        {(() => {
+          const footRows = footPanels.flatMap(id => panels.find(panel => panel.id === id) ?? [])
+          return footRows.length > 0 && (
+            <div className={css.footPanels}>
+              {footRows.map(({ id, label }) => panelRow(id, label, false))}
+            </div>
+          )
+        })()}
         <div className={css.footerActions}>
-          {renderSlot('sidebar.footer.action', { wide })}
+          {renderSlot('sidebar.footer.action', rowShare)}
         </div>
         <div className={css.settingsArea}>
           {renderSlot('sidebar.settings', { wide })}

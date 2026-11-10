@@ -1,0 +1,8 @@
+# Overlay of flowleap/dev-loop.sh when the bundle's records row has signOutHref (flowleap/docs/dev-loop.md): Sign out
+# goes to the person picker of the records proxy (/_dev/people), which acts as the chosen seed person with
+# `dev-loop.sh as` and goes back to the app. On a firm the firm patch sets the sign-in proxy's sign-out instead.
+# An override replaces the row's whole config, so recordsHref restates the bundle value.
+- id: ui-flowleap-records
+  config:
+    recordsHref: records/
+    signOutHref: _dev/people

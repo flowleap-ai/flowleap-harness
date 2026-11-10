@@ -116,7 +116,8 @@ async function host(stateDir: string, options: HostOptions = {}) {
     workspacePath: '/firm/runs',
     agentPreset: 'patent',
     permissionPreset: 'workspace-write',
-    template: 'client-report.docx',
+    replyTemplate: 'epo-reply.docx',
+    reportTemplate: 'client-report.docx',
   })
   await fiber.await()
   const url = `http://127.0.0.1:${String(ctx.webServer.port)}/api/flowleap/ticket`
@@ -150,10 +151,11 @@ describe('the Ticket ingress', () => {
     expect(created).toHaveLength(1)
     const [run] = created as [Created]
     expect(run).toMatchObject({
-      title: 'Report to the client, FL-2026-0001', workspace: '/firm/runs', agentPreset: 'patent', permission: 'workspace-write',
+      title: 'Reply and report, FL-2026-0001', workspace: '/firm/runs', agentPreset: 'patent', permission: 'workspace-write',
     })
     expect(run.prompt.startsWith('Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay.')).toBe(true)
-    expect(run.prompt).toContain('"client-report.docx"')
+    expect(run.prompt).toContain('"epo-reply.docx", the firm\'s letter to the EPO')
+    expect(run.prompt).toContain('"client-report.docx", in the language of clientRules.language')
     expect(run.prompt).toContain(`ticket_delivery_json: ${BODY}`)
     expect(runStarts).toHaveLength(1)
     expect(runStarts[0]?.ticket).toBe('tk-1')
@@ -284,11 +286,13 @@ describe('the Ticket ingress', () => {
 
   it('fails loud at load for an unusable config, and removes the route when it unloads', async () => {
     const { ctx, fiber, url } = await host(await tempDir())
-    const base = { ...DEFAULTS, runStartedAttempts: 3, runStartedBackoffMs: 1, stateDir: '/state', workspacePath: '/firm/runs', agentPreset: 'patent', permissionPreset: 'workspace-write', template: 'client-report.docx' }
+    const base = { ...DEFAULTS, runStartedAttempts: 3, runStartedBackoffMs: 1, stateDir: '/state', workspacePath: '/firm/runs', agentPreset: 'patent', permissionPreset: 'workspace-write', replyTemplate: 'epo-reply.docx', reportTemplate: 'client-report.docx' }
     for (const [patch, message] of [
       [{ stateDir: 'state' }, /stateDir must be an absolute path/u],
       [{ workspacePath: 'runs' }, /workspacePath must be an absolute path/u],
-      [{ template: 'templates/client-report.docx' }, /template must be a .docx file name/u],
+      [{ reportTemplate: 'templates/client-report.docx' }, /reportTemplate must be a .docx file name/u],
+      [{ replyTemplate: 'epo-reply.pdf' }, /replyTemplate must be a .docx file name/u],
+      [{ replyTemplate: 'client-report.docx' }, /replyTemplate and reportTemplate must differ/u],
       [{ path: '/api/flowleap/ticket/' }, /path must be/u],
       [{ source: ' firm' }, /source must be/u],
     ] as const) {

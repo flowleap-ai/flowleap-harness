@@ -35,7 +35,7 @@ Mount the row with both fields; the [`dsh-flowleap-web`](../../bundle/flowleap-w
 
 `publicKeyFile` is the absolute path of the starter's Ed25519 public key as an SPKI PEM file (`openssl pkey -pubout` output), or `''`, which means that no request shows the link. `consoleHref` is the console as a path relative to the document, such as `admin/`; a value with a scheme, a host, a leading slash, a query or a fragment fails the row at load, so the link cannot leave the origin of the Web app. A relative `publicKeyFile` also fails the row at load.
 
-The browser asks `GET api/flowleap/admin-link` once at start. When the answer is `{ "href": "admin/" }`, the **Firm admin** row (`sidebar.actions`, order 90, a shield glyph, a tooltip on the rail) is a plain link to that path. For `{ "href": null }`, an error status, a failed request, or an answer that it cannot read, the sidebar shows no row and no error. The copy is in the `flowleapAdminLink` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt).
+The browser asks `GET api/flowleap/admin-link` once at start. When the answer is `{ "href": "admin/" }`, the **Firm admin** row (`sidebar.footer.action` at the sidebar foot above the person and Settings, order -10, a shield glyph, a tooltip on the rail) is a plain link to that path. For `{ "href": null }`, an error status, a failed request, or an answer that it cannot read, the sidebar shows no row and no error. The copy is in the `flowleapAdminLink` locale namespace in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt).
 
 ### The header
 

@@ -1,0 +1,7 @@
+# Overlay of the Ticket runtimes of `flowleap/dev-loop.sh up --demo` (flowleap/docs/dev-loop.md), after the Ticket
+# overlay and the Office rows: the run model is OpenRouter, as the Firm Record's run model contract of the local record
+# (record-local.sh, ticket.runModel). The key is OPENROUTER_API_KEY of the shell that ran `up`.
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: anthropic/claude-haiku-5.5

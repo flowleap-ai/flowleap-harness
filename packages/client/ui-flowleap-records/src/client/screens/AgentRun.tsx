@@ -15,7 +15,7 @@ import type { FlowleapRecordsKey } from '../locales.ts'
 import { AgentDock, AgentEmpty, AgentResult, AskComposer } from '../parts/AgentDock.tsx'
 import { Notice, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { listTimeText, personInText } from '../words.ts'
+import { DRAFT_KINDS, draftWords, listTimeText, personInText } from '../words.ts'
 import type { ScreenContext } from './context.ts'
 
 /** The words of the cloud model providers that the Records service names. */
@@ -175,11 +175,11 @@ function RunSummary({ ctx, data, title, why, notice = null }: {
         facts={facts.join(' · ')}
         results={data.reports.length === 0 ? null : {
           label: t('agent.run.proposals'),
-          items: data.reports.map(report => (
+          items: data.reports.toSorted((a, b) => DRAFT_KINDS.indexOf(a.kind) - DRAFT_KINDS.indexOf(b.kind)).map(report => (
             <AgentResult
               key={report.proposalId}
               icon={<IconDeliverDocRegular size={16} />}
-              title={t('work.clientReport')}
+              title={draftWords(t, data.letter?.code ?? null, report.kind).heading}
               file={report.fileName}
               status={<AtlasStatus status={{ machine: 'report', state: report.state }} word={atlasWord(t, { machine: 'report', state: report.state })} />}
             />

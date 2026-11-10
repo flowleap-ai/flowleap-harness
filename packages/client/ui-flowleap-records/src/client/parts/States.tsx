@@ -6,6 +6,7 @@
 
 import type { ReactNode } from 'react'
 import { IconWarningTriangleOutlineRegular, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { RecordsError } from '../api.ts'
 import type { Load } from '../load.ts'
 import { ActButton, type ActSpec } from './Act.tsx'
 import css from './States.module.css'
@@ -83,8 +84,8 @@ export interface LoadRenderers<T> {
   readonly loading: () => ReactNode
   /** The view with its data. */
   readonly ready: (data: T, at: number) => ReactNode
-  /** The error notice; `at` is the time of the last data, or null when there is none. */
-  readonly failed: (at: number | null) => ReactNode
+  /** The error notice; `at` is the time of the last data, or null when there is none; `error` is the failure. */
+  readonly failed: (at: number | null, error: RecordsError) => ReactNode
 }
 
 /**
@@ -101,7 +102,7 @@ export function LoadView<T>({ load, render }: { load: Load<T>; render: LoadRende
     case 'ready': return <>{render.ready(load.data, load.at)}</>
     case 'failed': return (
       <>
-        {render.failed(load.last?.at ?? null)}
+        {render.failed(load.last?.at ?? null, load.error)}
         {load.last !== null && render.ready(load.last.data, load.last.at)}
       </>
     )

@@ -19,7 +19,7 @@ The checklist applies to the IPMS screens only. The reviewer checks the built sc
 15. Each draft statement has an exact span (quote and page), and missing evidence blocks Accept with the reason in the decision bar. An office event entered by hand shows "No source letter" and who entered it, and the person who entered it cannot confirm it (R14).
 16. Motion uses only `transform`, `opacity` and colours, the token durations and the ease-out curve, none on keyboard acts, and stops under reduced motion (R15).
 17. Every act works from the keyboard, with a visible focus ring, and `⌘K` offers the open item's acts with their keys. A single key typed into a reason box or a menu runs no act. Rebinding an act in the shortcut reference changes its keycap everywhere, the `G` sequences included (R16).
-18. Lists are 44 px rows with no hairlines, grouped by state in tinted 36 px headers with counts, with the hover and selected states of R17. The column and group headers stick while the list scrolls; a person in a row is an avatar with the name on hover; `X` and ⇧ click select rows for one bulk act; a right-click on a row opens its acts with the same keys; on a touch screen, a long press selects a row, the bulk bar has a Clear button, and its overflow menu holds the acts of one checked row.
+18. Lists are 44 px rows with no hairlines, grouped by state in tinted 36 px headers with counts, with the hover and selected states of R17. The column and group headers stick while the list scrolls; a person in a row is an avatar with the name on hover; `X` and ⇧ click select rows for one bulk act; a right-click on a row opens its acts with the same keys; on a touch screen, a long press selects a row, the bulk bar has a Clear button, and its overflow menu holds the acts of one checked row. My work is the one exception: it groups by due time (Overdue, Today, Later), has no row selection and no bulk act, and its row context menu holds Open, Open matter and Copy link (R17).
 19. Forced empty: icon, heading, one sentence, one secondary button. Forced loading: skeleton rows on the real column grid after 150 ms, shown for at least 300 ms. Forced error: a notice with the data time and Try again; the rows below it pass contrast.mjs with no opacity (R18).
 20. `node scripts/check-copy.mjs <locale files>` and `check-mockups.mjs` find no match in the rendered text or the locale entries: form codes (`EPO Form \d+`), hashes (`[0-9a-f]{7,}`), snake_case ids, `seq`, internal actors (router, engine, reader, intake, runtime) and account handles (`\w+\.\w`). The reviewer reads the rest (R19, product rule 4).
 21. `node scripts/check-copy.mjs <feature locales.ts>` exits 0, so every dictionary has all 8 client languages (en, de, es, fr, ja, pt, ru, zh) with every English key. The reviewer reads the English and German copy: sentence case, the person's words.
@@ -27,7 +27,7 @@ The checklist applies to the IPMS screens only. The reviewer checks the built sc
 23. A board card moves only on an allowed transition; a disallowed column says why, and a decision move opens the decision bar (product rule 7).
 24. A fixture has one person outside the matter's wall. That person is in no row, card, picker or Activity line. The PR links the test (product rule 8).
 25. At 390 px on a touch screen there is no overlap, clipping or page-wide horizontal scroll; no key shows; the primary action stays in view; and every act of the 1440 px screen is reachable, shown or in an overflow menu ([dsh-responsive-ui](../dsh-responsive-ui/SKILL.md)).
-26. From 1366 px a queue shows its list and the open item side by side, with the decision bar in view (R20).
+26. From 1366 px a queue shows its list and the open item side by side, with the decision bar in view (R20). My work is not a queue: a row opens its decision page (R20).
 
 ## Blocking FAIL or ticket
 
@@ -38,7 +38,7 @@ A FAIL is blocking when it has one of these effects:
 - copy that is not true, or that shows an internal id, code or account handle (items 20 to 22);
 - a person or a fact outside the matter's wall shows (item 24);
 - an act that a person cannot reach, by pointer, keyboard or touch, or a primary button that is not in view (items 14, 17, 25, 26);
-- a part of product rule 1 that is missing: grouping by state with a count, row selection for a bulk act, the row context menu, or the list and the open item side by side from 1366 px (items 18, 26);
+- a part of product rule 1 that is missing: grouping by state with a count, row selection for a bulk act, the row context menu, or the list and the open item side by side from 1366 px; for My work, its due-time groups with a count and its row context menu (items 18, 26);
 - more than one enabled primary button in a view state, or a keycap that does not run its act (item 13);
 - text or a status icon below the contrast minimum (items 5, 10);
 - evidence that is wrong or missing, or Accept that is not blocked when evidence is missing (item 15);

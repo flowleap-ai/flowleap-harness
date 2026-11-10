@@ -1,6 +1,6 @@
 /**
  * Browser half of the FlowLeap admin link: asks the Host route once at start and, when the answer names the firm
- * admin console, registers the Firm admin row in `sidebar.actions`. A failed request, an aborted request, or any
+ * admin console, registers the Firm admin row in `sidebar.footer.action`. A failed request, an aborted request, or any
  * other answer registers nothing and shows no error.
  */
 
@@ -63,8 +63,8 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => () => { controller.abort() }, 'ui-flowleap-admin-link: request')
   void readAdminLink(controller.signal).then((href) => {
     if (href === null || controller.signal.aborted) return
-    ctx.slots.inject('sidebar.actions', () => ctx.slots.register({
-      name: 'sidebar.actions', id: 'flowleap-admin-link', order: 90, locale: NS, inject: () => ({ href }),
+    ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+      name: 'sidebar.footer.action', id: 'flowleap-admin-link', order: -10, locale: NS, inject: () => ({ href }),
     }, AdminLinkAction))
   })
 }

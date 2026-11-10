@@ -1,18 +1,23 @@
 /**
  * The navigation and data model of the Matters panel. A route names one view; the screen is that route with the
  * load of each read the view needs. Navigating keeps a read that the next view also needs (the intake list while
- * another letter opens), so its data stays on screen, and stops every other read. The intake waiting list is always
- * held, because the Intake tab shows its count. Acts go through the model, so each one refreshes the screen and the
+ * another letter opens), so its data stays on screen, and stops every other read. Each panel holds one list on every
+ * view: My work its tasks (the pager and the sidebar count), the Matters panel the intake waiting list (the Intake tab's
+ * count). Acts go through the model, so each one refreshes the screen and the
  * count after the Records service accepts it.
  */
 
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type {
   Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IntakeDocument, IntakeList, IntakeView,
-  MatterDetail, MattersList, Me, RecordsApi, RecordsError, TicketDetail, TicketId, TicketsList,
+  MatterDetail, MattersList, Me, MyWork, RecordsApi, RecordsError, TicketDetail, TicketId, TicketsList,
 } from './api.ts'
 import { createLoader, shownData, type Load, type Loader } from './load.ts'
 
+/** My work: the person's open tasks by due time. */
+export interface MyWorkRoute { readonly view: 'my-work' }
+/** One letter of intake as its own page, as My work opens it ("File this letter"). */
+export interface LetterRoute { readonly view: 'letter'; readonly document: DocumentId }
 /** The matters list. */
 export interface MattersRoute { readonly view: 'matters' }
 /** A step of the open letter's decision that a route can open: the matter picker or the reason step. */
@@ -38,13 +43,19 @@ export interface WorkRoute { readonly view: 'work'; readonly id: TicketId }
 export interface BoardRoute { readonly view: 'board'; readonly layout?: 'board' | 'list' | undefined }
 
 /** Where the panel is. */
-export type Route = MattersRoute | IntakeRoute | MatterRoute | DeadlineRoute | WorkRoute | BoardRoute
+export type Route = MyWorkRoute | LetterRoute | MattersRoute | IntakeRoute | MatterRoute | DeadlineRoute | WorkRoute | BoardRoute
 
 /** A view of the panel. */
 export type View = Route['view']
 
 /** The route of each view with the loads that the view shows. */
 export type Screen =
+  | MyWorkRoute & {
+    readonly myWork: Load<MyWork>
+    /** The intake waiting list, for the status of each letter that waits to be filed. */
+    readonly letters: Load<IntakeList>
+  }
+  | LetterRoute & { readonly item: Load<IntakeDocument> }
   | MattersRoute & { readonly matters: Load<MattersList> }
   | IntakeRoute & { readonly intake: Load<IntakeList>; readonly item: Load<IntakeDocument> | null }
   | MatterRoute & { readonly matter: Load<MatterDetail> }
@@ -64,6 +75,7 @@ export type Tab = 'matters' | 'intake' | 'work'
 
 /** The tab of each view: intake views under Intake, the board under Work, the rest under Matters. */
 export const TAB_OF: Readonly<Record<View, Tab>> = {
+  'my-work': 'matters', 'letter': 'intake',
   'matters': 'matters', 'matter': 'matters', 'deadline': 'matters', 'work': 'matters',
   'intake': 'intake', 'board': 'work',
 }
@@ -80,10 +92,24 @@ export interface ActsResult {
   readonly failed: readonly { readonly act: Act; readonly error: RecordsError }[]
 }
 
+/**
+ * The panel a model serves. Both hold the intake waiting list on every view (the Intake tab's count, and the status of
+ * a letter in My work); My work also holds the person's tasks, for its pager.
+ */
+export type PanelRoot = 'my-work' | 'matters'
+
+/** The first route of each panel. */
+export const ROOT_ROUTE: Readonly<Record<PanelRoot, Route>> = {
+  'my-work': { view: 'my-work' },
+  'matters': { view: 'intake', list: 'waiting', open: null },
+}
+
 /** The model of the Matters panel. */
 export interface RecordsModel {
   /** The current route with its loads. */
   readonly screen: ObservableSnapshot<Screen>
+  /** The person's tasks; null in the Matters panel, which does not hold them. */
+  readonly myWork: ObservableSnapshot<Load<MyWork> | null>
   /** The signed-in person. */
   readonly me: ObservableSnapshot<Load<Me>>
   /** Letters that wait for a person, for the Intake tab; null until the first answer. */
@@ -144,13 +170,15 @@ class LoaderCache<T> {
 }
 
 /**
- * Create the model of the Matters panel and start the reads of the first route, the person and the waiting count.
+ * Create the model of a panel and start the reads of the first route, the person, and the list that the panel holds.
  * @param api - the Records API.
  * @param initial - the first route.
+ * @param root - the panel: My work holds the person's tasks, the Matters panel the waiting list.
  * @returns the model.
  */
-export function createRecordsModel(api: RecordsApi, initial: Route): RecordsModel {
+export function createRecordsModel(api: RecordsApi, initial: Route, root: PanelRoot = 'matters'): RecordsModel {
   const caches = {
+    myWork: new LoaderCache<MyWork>((_key, signal) => api.myWork(signal)),
     matters: new LoaderCache<MattersList>((_key, signal) => api.matters(signal)),
     matter: new LoaderCache<MatterDetail>((key, signal) => api.matter(key as FileNumber, signal)),
     intake: new LoaderCache<IntakeList>((key, signal) => api.intake(key as IntakeView, signal)),
@@ -164,22 +192,42 @@ export function createRecordsModel(api: RecordsApi, initial: Route): RecordsMode
   let disposed = false
 
   const meLoader = createLoader(signal => api.me(signal))
-  const waiting = () => caches.intake.get('waiting', () => { publish() })
+  const changed = () => { publish() }
+  const held = (): Loader<unknown>[] => [
+    caches.intake.get('waiting', changed),
+    ...(root === 'my-work' ? [caches.myWork.get('mine', changed)] : []),
+  ]
   const waitingCount = createSnapshotStore<number | null>(null)
+  const myWork = createSnapshotStore<Load<MyWork> | null>(null)
 
   /**
    * Build the screen of the route: get each loader it needs, then dispose the loaders it no longer needs.
    * @returns the screen and its loaders.
    */
   const build = (): { screen: Screen; loaders: readonly Loader<unknown>[] } => {
-    const changed = () => { publish() }
     const keep: Record<keyof typeof caches, Set<string>> = {
-      matters: new Set(), matter: new Set(), intake: new Set(['waiting']), intakeDocument: new Set(), deadline: new Set(),
+      myWork: new Set(root === 'my-work' ? ['mine'] : []), matters: new Set(),
+      matter: new Set(), intake: new Set(['waiting']), intakeDocument: new Set(), deadline: new Set(),
       tickets: new Set(), ticket: new Set(),
     }
     let screen: Screen
     let loaders: Loader<unknown>[]
     switch (route.view) {
+      case 'my-work': {
+        const mine = caches.myWork.get('mine', changed)
+        const letters = caches.intake.get('waiting', changed)
+        keep.myWork.add('mine')
+        screen = { ...route, myWork: mine.source.getSnapshot(), letters: letters.source.getSnapshot() }
+        loaders = [mine, letters]
+        break
+      }
+      case 'letter': {
+        const item = caches.intakeDocument.get(route.document, changed)
+        keep.intakeDocument.add(route.document)
+        screen = { ...route, item: item.source.getSnapshot() }
+        loaders = [item]
+        break
+      }
       case 'matters': {
         const matters = caches.matters.get('all', changed)
         keep.matters.add('all')
@@ -239,7 +287,8 @@ export function createRecordsModel(api: RecordsApi, initial: Route): RecordsMode
     const next = build()
     current = next.loaders
     screen.set(next.screen)
-    const shown = shownData(waiting().source.getSnapshot())
+    if (root === 'my-work') myWork.set(caches.myWork.get('mine', changed).source.getSnapshot())
+    const shown = shownData(caches.intake.get('waiting', changed).source.getSnapshot())
     waitingCount.set(shown === null ? null : shown.data.counts.waiting)
   }
 
@@ -248,6 +297,7 @@ export function createRecordsModel(api: RecordsApi, initial: Route): RecordsMode
 
   return {
     screen,
+    myWork,
     me: meLoader.source,
     waitingCount,
     navigate(next) {
@@ -258,7 +308,7 @@ export function createRecordsModel(api: RecordsApi, initial: Route): RecordsMode
       for (const loader of current) if (loader.source.getSnapshot().phase === 'failed') loader.load()
     },
     refresh() {
-      const loaders = new Set([...current, waiting() as Loader<unknown>])
+      const loaders = new Set([...current, ...held()])
       for (const loader of loaders) loader.load()
     },
     async perform(acts) {

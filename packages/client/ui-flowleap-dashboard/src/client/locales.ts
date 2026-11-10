@@ -9,7 +9,6 @@ export const NS = 'flowleapDashboard'
 /** English dictionary (the key-set source of truth). */
 export const en = {
   'time.locale': 'en-US',
-  'panel.dashboard': 'Dashboard',
   'panel.chats': 'Chats',
   'panel.agents': 'Agents',
   'title': 'Dashboard',
@@ -72,7 +71,6 @@ export type FlowleapDashboardKey = keyof typeof en
 /** Simplified Chinese dictionary, checked against the English keys. */
 export const zh = {
   'time.locale': 'zh-CN',
-  'panel.dashboard': '仪表盘',
   'panel.chats': '聊天',
   'panel.agents': '智能体',
   'title': '仪表盘',
@@ -132,7 +130,6 @@ export const zh = {
 /** Japanese dictionary, checked against the English keys. */
 export const ja = {
   'time.locale': 'ja-JP',
-  'panel.dashboard': 'ダッシュボード',
   'panel.chats': 'チャット',
   'panel.agents': 'エージェント',
   'title': 'ダッシュボード',
@@ -192,7 +189,6 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   'time.locale': 'es-ES',
-  'panel.dashboard': 'Panel',
   'panel.chats': 'Chats',
   'panel.agents': 'Agentes',
   'title': 'Panel',
@@ -252,7 +248,6 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   'time.locale': 'fr-FR',
-  'panel.dashboard': 'Tableau de bord',
   'panel.chats': 'Conversations',
   'panel.agents': 'Agents',
   'title': 'Tableau de bord',
@@ -312,7 +307,6 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   'time.locale': 'de-DE',
-  'panel.dashboard': 'Dashboard',
   'panel.chats': 'Chats',
   'panel.agents': 'Agenten',
   'title': 'Dashboard',
@@ -372,7 +366,6 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   'time.locale': 'ru-RU',
-  'panel.dashboard': 'Панель',
   'panel.chats': 'Чаты',
   'panel.agents': 'Агенты',
   'title': 'Панель',
@@ -432,7 +425,6 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   'time.locale': 'pt-BR',
-  'panel.dashboard': 'Painel',
   'panel.chats': 'Conversas',
   'panel.agents': 'Agentes',
   'title': 'Painel',

@@ -727,10 +727,15 @@ export interface FirmIdentity {
 - `source`: [`packages/client/ui-flowleap-records/src/index.ts:26`](../packages/client/ui-flowleap-records/src/index.ts)
 
 ```ts config-catalog
-/** Plugin config: where the Records pages are. */
+/** Plugin config: where the Records pages are, and where Sign out goes. */
 export interface Config {
   /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
   recordsHref: string
+  /**
+   * Where the account menu's Sign out goes: a path relative to the document, with an optional query, such as the firm
+   * proxy's `oauth2/sign_out?rd=%2F`. Empty (the default) means no sign-in in front of the app, and no Sign out.
+   */
+  signOutHref: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
@@ -874,6 +879,41 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-skills -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar -->
+<a id="deepseek-aidsh-client-ui-sidebar"></a>
+
+## `@deepseek-ai/dsh-client-ui-sidebar`
+
+- `source`: [`packages/client/ui-sidebar/src/config.ts:28`](../packages/client/ui-sidebar/src/config.ts)
+
+```ts config-catalog
+/** Sidebar layout a deployment selects. */
+export interface Config {
+  /** Groups in display order. Registered panels in no group and not in `footPanels` follow the groups unlabelled. */
+  groups: SidebarGroupConfig[]
+  /** Panel ids drawn at the sidebar foot above Settings instead of in the panel list. */
+  footPanels: string[]
+}
+
+/** One labelled group of panel rows. */
+export interface SidebarGroupConfig {
+  /** Stable group id; unique in `groups`. */
+  id: string
+  /** Visible group label and the accessible name of its list. */
+  label: SidebarGroupLabel
+  /** Panel ids (`sidebar.panellist` registration ids) in display order. */
+  panels: string[]
+}
+
+/** Group label text per lowercase locale key; English is required and is the fallback. */
+export interface SidebarGroupLabel {
+  /** English label; required, and shown in each language that has no entry. */
+  readonly en: string
+  readonly [locale: string]: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar-documentpreview -->
 <a id="deepseek-aidsh-client-ui-sidebar-documentpreview"></a>
@@ -2074,8 +2114,10 @@ export interface Config {
   readonly agentPreset: string
   /** Permission preset of the run Session. */
   readonly permissionPreset: string
-  /** File name of the firm template of the report letter, in the Office tools' template folder. */
-  readonly template: string
+  /** File name of the firm template of the draft reply to the office, in the Office tools' template folder. */
+  readonly replyTemplate: string
+  /** File name of the firm template of the report to the client, in the same folder; not the reply's template. */
+  readonly reportTemplate: string
   /** Most sends of `run-started` for one Session while the Firm Record does not answer or answers with a 5xx status. */
   readonly runStartedAttempts: number
   /** Wait in milliseconds before the second send of `run-started`; the wait doubles before each later send. */
@@ -5570,7 +5612,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-settings-subagent` | — | [`packages/client/ui-settings-subagent/src/index.ts`](../packages/client/ui-settings-subagent/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-web-search` | — | [`packages/client/ui-settings-web-search/src/index.ts`](../packages/client/ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-shortcuts` | — | [`packages/client/ui-shortcuts/src/index.ts`](../packages/client/ui-shortcuts/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-sidebar` | — | [`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-browser` | — | [`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-files` | — | [`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-right` | — | [`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts) |

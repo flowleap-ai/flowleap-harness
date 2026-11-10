@@ -169,7 +169,7 @@ export function BoardScreen({ screen, ctx }: ScreenProps<'board'>) {
                 </div>
               </>
             ),
-          failed: at => <LoadError ctx={ctx} at={at} />,
+          failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
           ready: (data) => {
             const rows = mine ? data.rows.filter(row => row.routedTo?.id === ctx.me?.person.id) : data.rows
             if (rows.length === 0) {

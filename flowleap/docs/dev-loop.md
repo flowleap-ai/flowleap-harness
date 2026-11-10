@@ -11,7 +11,7 @@ The local firm is the only path to the test firm: `release/gate.sh` refuses a ca
 
 ## What the development loop runs
 
-One command starts six processes on this Mac. They do not collide with the local firm (Lima VM `flowleap-local-firm`, port 14180) or with the default ports of the verify skills (3180, 8095).
+One command starts six processes on this Mac (`--demo` adds the starter, the mailbox and one Ticket runtime for each woken person). They do not collide with the local firm (Lima VM `flowleap-local-firm`, port 14180) or with the default ports of the verify skills (3180, 8095).
 
 | Process | Port | Source |
 |---|---|---|
@@ -60,6 +60,39 @@ After an edit:
 
 `flowleap/dev-loop.sh status` shows what runs and as whom. `flowleap/dev-loop.sh down` stops everything. Nothing stays up after `down`; the record's data, the seed and the Sessions stay in the run dir (`~/.local/share/flowleap-harness/dev-loop`, or `FLOWLEAP_DEV_RUN`). Remove the run dir to start with an empty record.
 
+## The full first demo
+
+`up --demo` runs the first demo of atlas sheet 00 with no manual step, from the letter in the AI mailbox to Review the work of the attorney. Use a new run dir, because the seed letters go in once per run dir. `--demo` and `--myepo-double` load the seed letters in two ways, so `up` refuses the two together:
+
+```bash
+FLOWLEAP_DEV_RUN=~/.local/share/flowleap-harness/demo flowleap/dev-loop.sh up --os ~/flowleap/flowleap-os --demo --officecli <OfficeCLI 1.0.160 binary>
+```
+
+It needs:
+
+- `OPENROUTER_API_KEY` in the shell: the Ticket run uses OpenRouter (`anthropic/claude-haiku-5.5`), the run model of the local record.
+- The OfficeCLI 1.0.160 binary of this Mac (`--officecli` or `FLOWLEAP_OFFICECLI`). The loop pins its SHA-256 at `up`.
+- A Mistral key file with the line `MISTRAL_API_KEY=...` (default `~/.config/flowleap/mistral.env`, or `--ocr-key-file`) and the firm's runtime image (default `registry.flowleap.co/flowleap/runtime:current`, or `--image`). `seed-letters.mjs` of flowleap-os reads each of the 18 scans with OCR in a one-shot container of that image through a local model gateway. That is 18 OCR calls, about USD 0.30. Reader 2 uses `OPENROUTER_API_KEY` through the same gateway. The keys go only to the gateway.
+
+In addition to the normal loop, `--demo` does these steps:
+
+1. **Setup.** [`dev-loop-demo-setup.mjs`](../dev-loop-demo-setup.mjs) records what the seed firm does not record yet: the OpenRouter provider contract, the AI wishes of the client of SF-2023-0045 (AI drafts and the client report allowed), and one sign-in of each seed person, so that the notices have mail addresses. A second `up` appends nothing.
+2. **Letters and the reader loop.** `seed-letters.mjs --readers 240` of flowleap-os sends the 18 letters from the scan mailbox `scan@<seed domain>` (the record's `intake.scanMailboxes`; the loop sets the firm domain to the seed's), and reader 1 reads each scan with OCR. Its mailbox then stays as the reader loop for 240 minutes: reader 2 (`google/gemini-3.1-flash-lite` on OpenRouter) reads each filed letter of a client that allows AI, with no manual pass. When the letters are posted, seed-letters writes `ready.json` in its evidence folder, and the loop goes on only then: it stops when fewer letters were posted than sent. The letters go in once per run dir; a later `up` starts the reader loop again with `--readers-only`, and `down` ends it with Ctrl-C (SIGINT), so it stops its gateway. The log is `logs/mailbox.log`, and the evidence of seed-letters is in `seed/`.
+3. **The starter.** The loop acts as the host of a firm. When a confirmed deadline opens a Ticket, the Work router of the record writes `starter/requests/<person id>`. The starter then starts that person's Ticket runtime on port `<port>`+10 (the next person on +11), with the Ticket overlay of `flowleap-ticket`, the Office rows, the firm templates of `examples/local-run/templates/` (the letter to the EPO and the client report) and [`dev-loop-ticket.patch.yml`](../dev-loop-ticket.patch.yml). It writes the runtime's own record token to `runtime-tokens/<person id>` and the person's Ticket key to `ticket-keys/<person id>`, and then `starter/runtimes/<person id>.json`. The Work router posts the Ticket, and the run starts. The log is `logs/starter.log`, and each runtime's log is `runtimes/<person id>/dsh.log`.
+
+The demo starts as `tobias` (the formalities person of SF-2023-0045). The path:
+
+1. As `tobias`, open My work: **File this letter** for the R71(3) letter of SF-2023-0045 (OCR reads the application number, so the record proposes the matter). File it.
+2. Within seconds the reader loop reads the filed letter with reader 2. When the two readings agree, the engine proposes the deadline, and Tobias has **Confirm the deadline** (Fri, 29 Jan 2027). When they differ, Tobias first has **Check the office event**. Confirm it.
+3. The Ticket wakes Dr. Anna Becker's runtime. The starter starts it (about 35 s), and the run proposes the draft reply to the EPO on `epo-reply.docx`, then the client report on `client-report.docx`, and finishes (about 3 minutes).
+4. **Sign out** and choose Dr. Anna Becker (or `dev-loop.sh as anna`): My work has **Review the work**, with both drafts.
+
+A person with a Ticket runtime keeps that runtime's record token, because the record finds a token in one person's file only. So after `as anna` the Records screens work, but the chat agent of the app cannot read the record as Anna. `restart` and `down` stop the Ticket runtimes and remove `starter/runtimes/*.json`; the next wake starts them again from source.
+
+## Sign out
+
+When the records row of the bundle has `signOutHref` (harness PR 346), the loop adds [`dev-loop-signout.patch.yml`](../dev-loop-signout.patch.yml): **Sign out** in the account menu goes to `/_dev/people`, a person picker of the records proxy. A choice runs `dev-loop.sh as <handle>` and opens the app as that person. Without that row, the account menu has no Sign out, and `dev-loop.sh as` changes the person.
+
 ## The MyEPO double
 
 `up --myepo-double` also starts the [MyEPO double](../../packages/host/flowleap-connectors/tests/myepo-double/README.md) on `<port>+3` (default 3273) and adds [`myepo-double.patch.yml`](../myepo-double.patch.yml), so the MyEPO link calls the double. The double serves the seed firm's real public EP files as public sample data; it is not a live MyEPO account. `up` prints its client ID and secret. Type them on Settings → Connectors → MyEPO and choose `Save and test`. To make the waiting Rule 71(3) letter of SF-2023-0045 arrive, and to restore the Mailbox:
@@ -97,6 +130,8 @@ On the founder's Mac (M1 Pro, 32 GB), 2026-11-06:
 | A Host edit: `restart` (2 samples) | 7.5 s, 8.4 s |
 | `as <seed handle>` | under 1 s |
 | `probe` | 4 s |
+| `up --demo` with a new run dir, after the build: the record, the setup, the 18 letters with OCR, the reader loop (2026-11-08) | 246 s for the letters and the reader loop |
+| The demo after Tobias confirms: the wake, the Ticket runtime, the run of Anna (OpenRouter `anthropic/claude-haiku-5.5`) | about 3 minutes |
 
 The watchers poll because native watching on macOS keeps one file descriptor open for each watched file: one loop held about 120,000, and the Mac's limit for all processes is 245,760. Polling costs about half of one CPU core while the loop waits.
 
