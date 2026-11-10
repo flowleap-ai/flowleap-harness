@@ -145,6 +145,7 @@ flowchart TD
     pkg_base["base"]
     pkg_flowleap_desktop["flowleap-desktop"]
     pkg_flowleap_firm["flowleap-firm"]
+    pkg_flowleap_firm_worker["flowleap-firm-worker"]
     pkg_flowleap_web["flowleap-web"]
     pkg_headless["headless"]
     pkg_sdk_app["sdk-app"]
@@ -1056,6 +1057,7 @@ flowchart TD
   pkg_tool_call_timeout_policy --> pkg_tools
   pkg_flowleap_connectors --> pkg_attachment
   pkg_flowleap_connectors --> pkg_brand
+  pkg_flowleap_connectors --> pkg_cmdline
   pkg_flowleap_connectors --> pkg_credentials
   pkg_flowleap_connectors --> pkg_fs
   pkg_flowleap_connectors --> pkg_llm
@@ -1654,6 +1656,7 @@ flowchart TD
 | [`base`](../packages/bundle/base) | `bundle` | — |
 | [`flowleap-desktop`](../packages/bundle/flowleap-desktop) | `bundle` | — |
 | [`flowleap-firm`](../packages/bundle/flowleap-firm) | `bundle` | — |
+| [`flowleap-firm-worker`](../packages/bundle/flowleap-firm-worker) | `bundle` | — |
 | [`flowleap-web`](../packages/bundle/flowleap-web) | `bundle` | — |
 | [`sdk-app`](../packages/bundle/sdk-app) | `bundle` | — |
 | [`sdk-minimal`](../packages/bundle/sdk-minimal) | `bundle` | — |
@@ -1934,7 +1937,7 @@ flowchart TD
 | [`message-feedback`](../packages/feedback/message-feedback) | `feedback` | [`brand`](../packages/util/brand), [`command-feedback`](../packages/feedback/command-feedback), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`typert-protocol`](../packages/typert/protocol) |
 | [`repeat-tool-reminder`](../packages/guard/repeat-tool-reminder) | `guard` | [`agent`](../packages/core/agent), [`tools`](../packages/core/tools) |
 | [`tool-call-timeout-policy`](../packages/guard/timeout-policy) | `guard` | [`llm`](../packages/llm/llm), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
-| [`flowleap-connectors`](../packages/host/flowleap-connectors) | `host` | [`attachment`](../packages/attachment/attachment), [`brand`](../packages/util/brand), [`credentials`](../packages/credentials/credentials), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values), [`working-directory`](../packages/session/working-directory) |
+| [`flowleap-connectors`](../packages/host/flowleap-connectors) | `host` | [`attachment`](../packages/attachment/attachment), [`brand`](../packages/util/brand), [`cmdline`](../packages/boot/cmdline), [`credentials`](../packages/credentials/credentials), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`util-values`](../packages/util/values), [`working-directory`](../packages/session/working-directory) |
 | [`tool-ask-user`](../packages/interaction/tool-ask-user) | `interaction` | [`agent`](../packages/core/agent), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
 | [`tool-jobs`](../packages/jobs/tool-jobs) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-lsp`](../packages/lsp/tool-lsp) | `lsp` | [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |

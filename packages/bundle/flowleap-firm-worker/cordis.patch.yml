@@ -1,0 +1,12 @@
+# The FlowLeap firm worker (ADR 0003; flowleap/docs/2026-11-10-firm-organisation-design.md): the complete Cordis tree of
+# the flowleap-firm-worker profile. It does not layer over dsh-base: no model, no tool, no chat store, no Web server and
+# no listening port. The one row reads the firm's MyEPO Mailbox and sends letters to the Firm Record. The firm OS sets
+# dir, testsDir, recordUrl and the MyEPO endpoint with its own --patch file.
+
+- insert:
+    - id: flowleap-myepo-worker
+      name: '@deepseek-ai/dsh-flowleap-connectors/myepo-worker'
+      config:
+        dir: /run/flowleap/myepo
+        testsDir: /run/flowleap/myepo-tests
+        recordUrl: http://flowleap-record:8091/records/api/

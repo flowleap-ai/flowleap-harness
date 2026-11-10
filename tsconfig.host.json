@@ -547,6 +547,7 @@
     { "path": "./packages/bundle/base" },
     { "path": "./packages/bundle/flowleap-desktop" },
     { "path": "./packages/bundle/flowleap-firm" },
+    { "path": "./packages/bundle/flowleap-firm-worker" },
     { "path": "./packages/bundle/flowleap-web" },
     { "path": "./packages/bundle/headless" },
     { "path": "./packages/bundle/sdk-app" },

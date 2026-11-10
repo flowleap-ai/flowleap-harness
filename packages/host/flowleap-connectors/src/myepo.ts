@@ -11,11 +11,11 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { credentialKey, type CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { z } from 'zod'
 import {
-  createMyEpoClient, describeFailure, MyEpoError,
+  createMyEpoClient, testMyEpoLink,
   type MyEpoCredentials, type MyEpoEndpoint, type MyEpoReads, type RequestGate,
 } from './myepo-client.ts'
 import { CREDENTIAL_SCOPE } from './credentials.ts'
-import type { MyEpoLinkView, MyEpoPortfolioView, MyEpoTestOutcome } from './types.ts'
+import type { MyEpoLinkView, MyEpoTestOutcome } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -142,24 +142,6 @@ export function createMyEpoLink(options: MyEpoLinkOptions): MyEpoLink {
 
   const reads = createMyEpoClient({ ...clientOptions, credentials: read })
 
-  /** Run the test on one client: a token, the portfolios, then the Mailbox folders. */
-  const probe = async (client: MyEpoReads, signal: AbortSignal | undefined): Promise<MyEpoTestOutcome> => {
-    try {
-      const portfolios = await readPortfolios(client, signal)
-      const mailbox = await answers(() => client.folders(signal))
-      return { kind: 'passed', testedAt: new Date(now()).toISOString(), portfolios, mailbox }
-    } catch (error) {
-      if (!(error instanceof MyEpoError)) throw error
-      switch (error.failure.kind) {
-        case 'refused':
-        case 'unreachable':
-          return { kind: error.failure.kind }
-        default:
-          return { kind: 'failed', message: describeFailure(error.failure) }
-      }
-    }
-  }
-
   return {
     reads,
     async describe() {
@@ -170,39 +152,18 @@ export function createMyEpoLink(options: MyEpoLinkOptions): MyEpoLink {
     async link(values, signal) {
       const credentials = validateMyEpoFields(values)
       const client = createMyEpoClient({ ...clientOptions, credentials: () => Promise.resolve(credentials) })
-      const outcome = await probe(client, signal)
+      const outcome = await testMyEpoLink(client, now, signal)
       if (outcome.kind === 'passed') await write(credentials, outcome)
       return outcome
     },
     async test(signal) {
       const stored = await read()
       if (stored === undefined) return { kind: 'not-linked' }
-      const outcome = await probe(reads, signal)
+      const outcome = await testMyEpoLink(reads, now, signal)
       if (outcome.kind === 'passed') await write(stored, outcome)
       return outcome
     },
     unlink: () => options.credentials.deleteRecord(key),
-  }
-}
-
-/** The portfolios for the card; an account with no portfolio permission reads as an empty list. */
-async function readPortfolios(client: MyEpoReads, signal: AbortSignal | undefined): Promise<MyEpoPortfolioView[]> {
-  try {
-    return (await client.portfolios(signal)).map(({ name, type, fullAccess }) => ({ name, type, fullAccess }))
-  } catch (error) {
-    if (error instanceof MyEpoError && error.failure.kind === 'no-permission') return []
-    throw error
-  }
-}
-
-/** Whether a read answers; a missing right reads as `false`, every other failure rejects. */
-async function answers(read: () => Promise<unknown>): Promise<boolean> {
-  try {
-    await read()
-    return true
-  } catch (error) {
-    if (error instanceof MyEpoError && error.failure.kind === 'no-permission') return false
-    throw error
   }
 }
 

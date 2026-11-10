@@ -13,6 +13,7 @@ Run `pnpm run gen-cli-help` to regenerate; run `pnpm run verify-cli-help` to che
 - [`dsh plugin`](#dsh-plugin)
 - [`dsh acp`](#dsh-acp)
 - [`dsh flowleap-desktop`](#dsh-flowleap-desktop)
+- [`dsh flowleap-firm-worker`](#dsh-flowleap-firm-worker)
 - [`dsh headless`](#dsh-headless)
 - [`dsh sdk`](#dsh-sdk)
 - [`dsh sdk-minimal`](#dsh-sdk-minimal)
@@ -134,6 +135,27 @@ Examples:
                                              advertise a prefix-stripping HTTPS proxy entry and admit its authority
   dsh --profile web --tls-cert ./server-chain.pem --tls-key ./server-key.pem
                                              serve HTTPS with an existing certificate and key
+
+```
+
+<a id="dsh-flowleap-firm-worker"></a>
+## `dsh flowleap-firm-worker`
+
+Invocations: `dsh flowleap-firm-worker --help`, `dsh --profile flowleap-firm-worker --help`
+
+```text
+Usage: dsh --profile flowleap-firm-worker [options]
+
+Read the firm's MyEPO Mailbox and send each new letter to the Firm Record, until
+SIGTERM.
+
+Options:
+  -h, --help  show this help
+
+The firm OS sets the folders, the Firm Record and the MyEPO endpoint with a --patch file.
+
+Example:
+  dsh --profile flowleap-firm-worker --patch worker.patch.yml
 
 ```
 

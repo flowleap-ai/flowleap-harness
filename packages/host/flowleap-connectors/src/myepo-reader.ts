@@ -3,8 +3,8 @@
  * firm's MyEPO Mailbox, downloads each letter that the Firm Record does not have, and sends it with its list data to the
  * intake of the Firm Record (`POST intake/myepo-letters`), which files it by its application number or gives it to a person.
  * The reader only reads MyEPO, names no matter, team or person, and sends each letter as one insert-only observation. It runs in
- * a firm process, never in a person's runtime (ADR 0003): in this version the development-only launcher
- * `tests/myepo-reader/bin.ts`, and after migration step 6 the firm worker profile.
+ * a firm process, never in a person's runtime (ADR 0003): the `flowleap-myepo-worker` row of the firm worker profile
+ * (`myepo-worker.ts`).
  * @module
  */
 

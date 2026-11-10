@@ -20,6 +20,10 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   'flowleap-desktop': {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-flowleap-web', '@deepseek-ai/dsh-flowleap-desktop'],
   },
+  // The firm worker of a FlowLeap firm installation: a complete tree with no model, no tool and no port.
+  'flowleap-firm-worker': {
+    bundles: ['@deepseek-ai/dsh-flowleap-firm-worker'],
+  },
   headless: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
   },
