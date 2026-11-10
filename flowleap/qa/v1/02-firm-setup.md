@@ -174,9 +174,9 @@ Edge cases of this area: an attorney tries an administrator's act; the administr
 - **Mark:** Today (by the record command; no screen, walls from Entra groups are #227).
 - **Risk:** Wrong person.
 - **Lines:** V3, V1.
-- **Story:** As Felix, I want to screen Jonas from SF-2022-0024, so that he cannot see a matter where he has a conflict, from that minute.
-- **Start:** D or L. Seed firm. To test the change, remove the seed screen first, then record it.
-- **Steps:** 1. Felix records the screen of Jonas on EP22213933. 2. Jonas reloads the Matters list, opens the matter's address and asks the agent about it.
+- **Story:** As Dr. Krüger (partner), I want to screen Jonas from SF-2022-0024, so that he cannot see a matter where he has a conflict, from that minute.
+- **Start:** D or L. Seed firm. To test the change, remove the seed screen first, then record it. Felix (administrator) sees no matter, so he cannot record a screen (os `lib/record/commands.mjs:91`); NEV-27 tests who may change a screen.
+- **Steps:** 1. Dr. Krüger records the screen of Jonas on EP22213933 with a reason. 2. Jonas reloads the Matters list, opens the matter's address and asks the agent about it.
 - **Expected:** Jonas has no row, the address shows "not found", and the agent has no data on it. Lena still sees the matter. The record has `matter/screen-recorded`.
 - **Proof:** the existing os test `test/record-unfiled-letters.test.mjs` (`matter.screen-recorded`); by hand on L.
 
@@ -201,3 +201,47 @@ Edge cases of this area: an attorney tries an administrator's act; the administr
 - **Steps:** 1. Restart the Firm Record. 2. Felix opens the console System page.
 - **Expected:** The Firm Record does not start, and the console names the empty setting and how to fix it. No letter is taken in silently.
 - **Proof:** os `lib/record/settings.mjs:84` refuses an empty list; by hand on L for the console message.
+
+### ADM-19. A firm key stops working after the link
+
+- **Mark:** New (S16 sheet 06 states `refused` and "replace the pair"; a double control for a revoked pair; no console OPS card).
+- **Risk:** Deadline.
+- **Lines:** V5, V6, V9.
+- **Story:** As Felix, I want a task and a clear "since when" when the EPO revokes the MyEPO secret or refuses the OPS key, and no gap after I replace it, so that no letter is lost in the days between.
+- **Start:** L + X, MyEPO and OPS linked. A double control answers `401 invalid_client` to the saved pair for two days. The OPS key is refused or over its quota.
+- **Steps:** 1. The hourly test runs. 2. Felix and Sabine open the console and Letters. 3. Felix replaces the pair.
+- **Expected:** The link state is "refused"; Felix has "Fix the MyEPO link"; every Letters surface says since when no letter was read. After step 3, FlowLeap reads every letter of the gap and files each once. While OPS is refused, the matter pages and the lost-letter check say since when the register was not read, and the check never says "nothing missing" for that time.
+- **Proof:** new test with a new double control.
+
+### ADM-20. A new attorney gets client groups and matter teams
+
+- **Mark:** New (no screen sets a client group or a matter team; walls from Entra groups are #227; decision 19 of the scope).
+- **Risk:** Wrong person.
+- **Lines:** V1, V3, V4.
+- **Story:** As Felix, I want to add a new attorney, and a partner to give that person client groups and matter teams, so that the person sees the right matters on the first day and no other.
+- **Start:** L. A new account `newpa`, signed in once.
+- **Steps:** 1. Felix gives `newpa` the role attorney. 2. Dr. Krüger adds `newpa` to the Renishaw client group and to the team of SF-2024-0007. 3. `newpa` reloads the Matters list.
+- **Expected:** `newpa` sees the two Renishaw matters and SF-2024-0007, and no other, within one minute. Felix does step 1 without seeing a matter title. The record has each change with its actor.
+- **Proof:** new test.
+
+### ADM-21. The firm's Microsoft links and the expiry of their secret
+
+- **Mark:** New (no console check of the Entra secret's end date was found; not verified how os stores it).
+- **Risk:** Deadline.
+- **Lines:** V19, V20.
+- **Story:** As Felix, I want the firm's notice mailbox to be linked only after a test mail arrives, and a task 30 days before the Entra client secret ends, so that sign-in and notices do not stop on one morning.
+- **Start:** B. An Entra app registration whose client secret ends in 20 days (or a test clock).
+- **Steps:** 1. Felix opens the console. 2. Let the end date pass. 3. A person opens the sign-in page.
+- **Expected:** Step 1 shows the mailbox as linked with the date of its test mail, and the task "Renew the Microsoft secret before <date>". In step 3 the sign-in page says what is wrong and whom to call, not only a Microsoft error code.
+- **Proof:** new test.
+
+### ADM-22. A partner asks who did what
+
+- **Mark:** New (no history view or export of a matter, and no read log of letters, was found).
+- **Risk:** Wrong person.
+- **Lines:** V1, V3, V4.
+- **Story:** As Dr. Krüger, I want to answer "who opened, changed or confirmed what on SF-2022-0024 in October?" and "who changed which firm setting?", so that I can answer a client, an insurer or the EPO.
+- **Start:** L after a few days of use. Dr. Krüger, Felix and Jonas.
+- **Steps:** 1. Dr. Krüger opens the history of SF-2022-0024 and exports it. 2. Felix opens the history of settings, roles and links. 3. Jonas asks for the history of SF-2022-0024.
+- **Expected:** Step 1 lists each act and each read of a letter, with names and times. Step 2 shows no matter title, client name or file number. Step 3 gives "not found". The gateway log, the System log and the outbox that Felix can open show no letter text and no matter fact.
+- **Proof:** new test.

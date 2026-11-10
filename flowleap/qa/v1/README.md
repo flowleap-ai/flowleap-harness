@@ -8,18 +8,18 @@ Write a result for a story only by [the QA round procedure](how-to-run-a-qa-roun
 
 | File | Area | Stories | Today | WIP | New |
 |---|---|---|---|---|---|
-| [01-install-and-sign-in.md](01-install-and-sign-in.md) | Install and first sign-in | 10 | 6 | 4 | 0 |
-| [02-firm-setup.md](02-firm-setup.md) | The administrator sets up the firm | 18 | 3 | 5 | 10 |
-| [03-docket-and-clients.md](03-docket-and-clients.md) | Import your EP docket and Add client | 15 | 7 | 0 | 8 |
-| [04-letter-arrives.md](04-letter-arrives.md) | A letter arrives | 19 | 4 | 1 | 14 |
-| [05-deadline.md](05-deadline.md) | The deadline | 20 | 10 | 5 | 5 |
-| [06-my-work.md](06-my-work.md) | My work | 10 | 0 | 8 | 2 |
+| [01-install-and-sign-in.md](01-install-and-sign-in.md) | Install and first sign-in | 11 | 6 | 4 | 1 |
+| [02-firm-setup.md](02-firm-setup.md) | The administrator sets up the firm | 22 | 3 | 5 | 14 |
+| [03-docket-and-clients.md](03-docket-and-clients.md) | Import your EP docket and Add client | 16 | 7 | 0 | 9 |
+| [04-letter-arrives.md](04-letter-arrives.md) | A letter arrives | 22 | 4 | 2 | 16 |
+| [05-deadline.md](05-deadline.md) | The deadline | 31 | 12 | 5 | 14 |
+| [06-my-work.md](06-my-work.md) | My work | 11 | 1 | 8 | 2 |
 | [07-matter-and-memory.md](07-matter-and-memory.md) | The matter page and matter memory | 12 | 3 | 2 | 7 |
 | [08-prepared-work.md](08-prepared-work.md) | Prepared work on a letter | 11 | 7 | 2 | 2 |
 | [09-notices.md](09-notices.md) | Notices | 8 | 6 | 1 | 1 |
-| [10-month-of-use.md](10-month-of-use.md) | A month of use | 12 | 5 | 0 | 7 |
-| [11-must-never-happen.md](11-must-never-happen.md) | What must never happen | 24 | 13 | 3 | 8 |
-| | **All** | **159** | **64** | **31** | **64** |
+| [10-month-of-use.md](10-month-of-use.md) | A month of use | 15 | 6 | 0 | 9 |
+| [11-must-never-happen.md](11-must-never-happen.md) | What must never happen | 34 | 17 | 3 | 14 |
+| | **All** | **193** | **72** | **32** | **89** |
 
 Count again after each change to a story file, with the command in [how to run a QA round](how-to-run-a-qa-round.md#count-the-stories).
 

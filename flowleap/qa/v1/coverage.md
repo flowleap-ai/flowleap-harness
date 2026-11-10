@@ -8,30 +8,30 @@ The story lists come from the **Lines** field of each story. The counts are by t
 
 | Line | Capability | Stories | Today | WIP | New |
 |---|---|---|---|---|---|
-| V1 | Administrator sets the firm in one place | ADM-01, ADM-03, ADM-04, ADM-11, ADM-12, ADM-13, ADM-14, ADM-15, ADM-16, ADM-18, MON-10, NEV-13, NEV-20 | 3 | 2 | 8 |
-| V2 | Each act needs its role | INS-08, ADM-02, ADM-03, ADM-04, ADM-09, ADM-17, IMP-02, IMP-08, DL-02, DL-14, PREP-03, PREP-08, NEV-05, NEV-06, NEV-08 | 6 | 1 | 8 |
-| V3 | Walls | INS-06, ADM-16, IMP-12, LET-05, LET-08, LET-09, LET-16, MW-04, MW-05, MAT-07, NOT-05, NOT-06, MON-12, NEV-01, NEV-02, NEV-03, NEV-04, NEV-06, NEV-12, NEV-13, NEV-22, NEV-23, NEV-24 | 12 | 4 | 7 |
-| V4 | Firm state in one place | ADM-01, ADM-03, ADM-04, ADM-05, ADM-10, ADM-13, ADM-14, IMP-01, IMP-07, IMP-09, LET-17, DL-04, DL-20, MW-02, MAT-02, MAT-06, MON-06, NEV-05, NEV-07, NEV-15 | 5 | 2 | 13 |
-| V5 | MyEPO linked by the administrator | ADM-05, ADM-06, ADM-07, ADM-08, ADM-09, IMP-01, IMP-05, LET-01, LET-11, LET-12, LET-13, DL-08, MW-05, NEV-07 | 0 | 3 | 11 |
-| V6 | EPO OPS linked by the administrator | ADM-10, LET-14, MAT-10, NEV-07 | 0 | 0 | 4 |
-| V7 | Import your EP docket | ADM-08, IMP-01, IMP-02, IMP-03, IMP-04, IMP-05, IMP-06, IMP-15 | 1 | 0 | 7 |
-| V8 | Add client | IMP-06, IMP-07, IMP-08, IMP-09, IMP-10, IMP-11, IMP-12, IMP-13, IMP-14, IMP-15 | 7 | 0 | 3 |
-| V9 | Mailbox letters filed automatically | LET-01, LET-02, LET-03, LET-04, LET-05, LET-06, LET-07, LET-08, LET-09, LET-10, LET-11, LET-12, LET-13, LET-14, LET-15, LET-16, LET-17, LET-18, LET-19, DL-13, DL-18, DL-19, MON-01, MON-09, NEV-12, NEV-16, NEV-21, NEV-22 | 10 | 1 | 17 |
+| V1 | Administrator sets the firm in one place | INS-11, ADM-01, ADM-03, ADM-04, ADM-11, ADM-12, ADM-13, ADM-14, ADM-15, ADM-16, ADM-18, ADM-20, ADM-22, MON-10, MON-13, NEV-13, NEV-20, NEV-28 | 3 | 2 | 13 |
+| V2 | Each act needs its role | INS-08, INS-11, ADM-02, ADM-03, ADM-04, ADM-09, ADM-17, IMP-02, IMP-08, DL-02, DL-14, DL-23, PREP-03, PREP-08, NEV-05, NEV-06, NEV-08, NEV-27, NEV-28, NEV-30 | 8 | 1 | 11 |
+| V3 | Walls | INS-06, ADM-16, ADM-20, ADM-22, IMP-12, LET-05, LET-08, LET-09, LET-16, LET-22, MW-04, MW-05, MAT-07, NOT-05, NOT-06, MON-12, MON-13, NEV-01, NEV-02, NEV-03, NEV-04, NEV-06, NEV-12, NEV-13, NEV-22, NEV-23, NEV-24, NEV-25, NEV-27, NEV-28, NEV-31, NEV-33, NEV-34 | 13 | 4 | 16 |
+| V4 | Firm state in one place | ADM-01, ADM-03, ADM-04, ADM-05, ADM-10, ADM-13, ADM-14, ADM-20, ADM-22, IMP-01, IMP-07, IMP-09, LET-17, DL-04, DL-20, MW-02, MAT-02, MAT-06, MON-06, NEV-05, NEV-07, NEV-15 | 5 | 2 | 15 |
+| V5 | MyEPO linked by the administrator | ADM-05, ADM-06, ADM-07, ADM-08, ADM-09, ADM-19, IMP-01, IMP-05, LET-01, LET-11, LET-12, LET-13, DL-08, MW-05, NEV-07 | 0 | 3 | 12 |
+| V6 | EPO OPS linked by the administrator | ADM-10, ADM-19, LET-14, MAT-10, NEV-07 | 0 | 0 | 5 |
+| V7 | Import your EP docket | ADM-08, IMP-01, IMP-02, IMP-03, IMP-04, IMP-05, IMP-06, IMP-15, IMP-16, LET-20 | 1 | 0 | 9 |
+| V8 | Add client | IMP-06, IMP-07, IMP-08, IMP-09, IMP-10, IMP-11, IMP-12, IMP-13, IMP-14, IMP-15, NEV-33 | 8 | 0 | 3 |
+| V9 | Mailbox letters filed automatically | ADM-19, IMP-16, LET-01, LET-02, LET-03, LET-04, LET-05, LET-06, LET-07, LET-08, LET-09, LET-10, LET-11, LET-12, LET-13, LET-14, LET-15, LET-16, LET-17, LET-18, LET-19, LET-20, LET-21, LET-22, DL-13, DL-18, DL-19, DL-23, DL-28, DL-30, MON-01, MON-09, NEV-12, NEV-16, NEV-21, NEV-22, NEV-29, NEV-33, NEV-34 | 12 | 2 | 25 |
 | V10 | The read flag | ADM-11, LET-02 | 0 | 1 | 1 |
-| V11 | Deadlines for the frequent EP terms | LET-04, LET-18, LET-19, DL-01, DL-05, DL-06, DL-07, DL-12, DL-18, DL-19, MON-02, MON-04, MON-05, MON-11 | 7 | 2 | 5 |
-| V12 | Deadline confirmation | ADM-12, ADM-17, LET-16, DL-01, DL-02, DL-03, DL-04, DL-08, DL-09, DL-10, DL-11, DL-13, DL-14, DL-15, DL-17, DL-20, MW-03, PREP-11, NOT-08, MON-02, MON-03, MON-04, MON-05, MON-09, NEV-09, NEV-10, NEV-15, NEV-16, NEV-19 | 11 | 5 | 13 |
-| V13 | My work | INS-04, INS-09, INS-10, DL-03, DL-15, DL-16, DL-17, MW-01, MW-02, MW-03, MW-04, MW-05, MW-06, MW-07, MW-08, MW-09, MW-10, MAT-08, PREP-05, NOT-01, MON-01, MON-03, MON-10, MON-12, NEV-19, NEV-23 | 5 | 15 | 6 |
-| V14 | Letters | INS-10, LET-01, LET-03, LET-11, LET-15, DL-17, MW-07, NEV-19, NEV-23 | 1 | 3 | 5 |
-| V15 | Deadlines | INS-10, DL-01, DL-16, DL-17, MON-02, NEV-19, NEV-23 | 1 | 3 | 3 |
-| V16 | Matter page with its files | INS-09, INS-10, LET-01, DL-01, DL-16, DL-17, MW-10, MAT-01, MAT-02, MAT-07, MAT-08, MAT-09, MAT-12, NEV-19 | 1 | 6 | 7 |
-| V17 | Matter memory | DL-17, MW-06, MAT-01, MAT-02, MAT-03, MAT-04, MAT-05, MAT-06, MAT-10, MAT-11, PREP-01, PREP-07, NEV-03, NEV-19 | 5 | 2 | 7 |
-| V18 | Prepared work for two letter types | ADM-15, MAT-11, PREP-01, PREP-02, PREP-03, PREP-04, PREP-05, PREP-06, PREP-07, PREP-08, PREP-09, PREP-10, PREP-11, MON-11, NEV-04, NEV-10, NEV-11, NEV-17 | 11 | 3 | 4 |
-| V19 | Notices to Outlook | LET-08, DL-03, NOT-01, NOT-02, NOT-03, NOT-04, NOT-05, NOT-06, NOT-07, NOT-08, MON-01, MON-03, MON-12, NEV-11, NEV-19, NEV-24 | 10 | 2 | 4 |
-| V20 | Sign-in with Entra | INS-01, INS-02, INS-03, INS-05, INS-07, INS-08, MON-10, NEV-18, NEV-20 | 4 | 3 | 2 |
-| V21 | One runtime for each attorney | INS-01, INS-06, NEV-14 | 3 | 0 | 0 |
-| V22 | Model gateway | INS-01, ADM-15, MAT-11, PREP-05, MON-11, NEV-17 | 2 | 2 | 2 |
-| V23 | Backups with restore | MON-08, MON-09 | 0 | 0 | 2 |
-| V24 | Updates | INS-07, MON-06, MON-07 | 3 | 0 | 0 |
+| V11 | Deadlines for the frequent EP terms | IMP-16, LET-04, LET-18, LET-19, DL-01, DL-05, DL-06, DL-07, DL-12, DL-18, DL-19, DL-22, DL-25, DL-26, DL-27, DL-30, DL-31, MON-02, MON-04, MON-05, MON-11, MON-14 | 7 | 2 | 13 |
+| V12 | Deadline confirmation | ADM-12, ADM-17, LET-16, DL-01, DL-02, DL-03, DL-04, DL-08, DL-09, DL-10, DL-11, DL-13, DL-14, DL-15, DL-17, DL-20, DL-21, DL-22, DL-23, DL-24, DL-28, DL-29, DL-31, MW-03, PREP-11, NOT-08, MON-02, MON-03, MON-04, MON-05, MON-09, MON-14, NEV-09, NEV-10, NEV-15, NEV-16, NEV-19, NEV-30 | 14 | 5 | 19 |
+| V13 | My work | INS-04, INS-09, INS-10, LET-20, LET-21, DL-03, DL-15, DL-16, DL-17, DL-24, MW-01, MW-02, MW-03, MW-04, MW-05, MW-06, MW-07, MW-08, MW-09, MW-10, MW-11, MAT-08, PREP-05, NOT-01, MON-01, MON-03, MON-10, MON-12, NEV-19, NEV-23, NEV-32 | 7 | 16 | 8 |
+| V14 | Letters | INS-10, LET-01, LET-03, LET-11, LET-15, DL-17, MW-07, MW-11, NEV-19, NEV-23, NEV-32 | 3 | 3 | 5 |
+| V15 | Deadlines | INS-10, DL-01, DL-16, DL-17, DL-21, DL-31, MW-11, MON-02, NEV-19, NEV-23 | 2 | 3 | 5 |
+| V16 | Matter page with its files | INS-09, INS-10, LET-01, DL-01, DL-16, DL-17, DL-21, MW-10, MAT-01, MAT-02, MAT-07, MAT-08, MAT-09, MAT-12, NEV-19, NEV-25, NEV-32 | 2 | 6 | 9 |
+| V17 | Matter memory | DL-17, MW-06, MAT-01, MAT-02, MAT-03, MAT-04, MAT-05, MAT-06, MAT-10, MAT-11, PREP-01, PREP-07, NEV-03, NEV-19, NEV-25, NEV-26 | 6 | 2 | 8 |
+| V18 | Prepared work for two letter types | ADM-15, MAT-11, PREP-01, PREP-02, PREP-03, PREP-04, PREP-05, PREP-06, PREP-07, PREP-08, PREP-09, PREP-10, PREP-11, MON-11, MON-15, NEV-04, NEV-10, NEV-11, NEV-17, NEV-26 | 13 | 3 | 4 |
+| V19 | Notices to Outlook | ADM-21, LET-08, LET-21, DL-03, DL-24, NOT-01, NOT-02, NOT-03, NOT-04, NOT-05, NOT-06, NOT-07, NOT-08, MON-01, MON-03, MON-12, NEV-11, NEV-19, NEV-24, NEV-32 | 11 | 3 | 6 |
+| V20 | Sign-in with Entra | INS-01, INS-02, INS-03, INS-05, INS-07, INS-08, INS-11, ADM-21, MON-10, NEV-18, NEV-20 | 4 | 3 | 4 |
+| V21 | One runtime for each attorney | INS-01, INS-06, NEV-14, NEV-30, NEV-31 | 4 | 0 | 1 |
+| V22 | Model gateway | INS-01, ADM-15, MAT-11, PREP-05, MON-11, NEV-17, NEV-29 | 2 | 2 | 3 |
+| V23 | Backups with restore | MON-08, MON-09, MON-13 | 0 | 0 | 3 |
+| V24 | Updates | INS-07, MON-06, MON-07, MON-15 | 4 | 0 | 0 |
 | V25 | Release gate | INS-01 | 1 | 0 | 0 |
 
 Lines that cannot be tested today:

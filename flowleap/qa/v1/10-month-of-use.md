@@ -17,11 +17,11 @@ Edge cases of this area: letters that arrive in the night; a person on holiday; 
 
 ### MON-02. Every FlowLeap deadline is compared with the old docket
 
-- **Mark:** New (a list that a person can put beside the old docket; decision 8; #229 for the shadow report).
+- **Mark:** New (a list that a person can put beside the old docket, decision 8; the hand-computed old docket of the seed letters; #229 for the shadow report).
 - **Risk:** Deadline.
 - **Lines:** V15, V12, V11.
 - **Story:** As Sabine, I want each day to compare FlowLeap's deadlines with the old docket in one list, so that a difference is found the same day.
-- **Start:** L. The firm's old docket (for the seed firm: the dates of `cases.json`). The deadlines of the seed letters.
+- **Start:** L. The firm's old docket: for the QA round, a list of the seed letters' deadlines that an attorney computed by hand, with the source of each date (new: the list does not exist). Do not use dates that the FlowLeap engine or the double made; a match with them proves nothing. Compare only EP prosecution terms; a renewal date in the old docket is not a miss.
 - **Steps:** 1. Sabine opens the Deadlines surface and prints or exports it. 2. She compares each line with the old docket. 3. She records the reason of each difference.
 - **Expected:** Each FlowLeap deadline has the same date as the old docket, or a recorded reason. A deadline in the old docket that FlowLeap does not have is recorded as a miss with its letter.
 - **Proof:** by hand each day of the month; the result is the main evidence of the v1 pass.
@@ -135,3 +135,36 @@ Edge cases of this area: letters that arrive in the night; a person on holiday; 
 - **Steps:** 1. Record the handover with the note "Check the text intended for grant of the Rule 71(3) communication of 29 September 2026". 2. Anna opens My work and the matter. 3. Lena opens the matter.
 - **Expected:** Anna is responsible, sees the note and the open tasks. Lena sees the matter as a team member, with no task. Notices go to Anna.
 - **Proof:** by hand; new test.
+
+### MON-13. A backup that did not run, and what a restore keeps
+
+- **Mark:** New (no alarm for a failed backup was found; the restore of roles, screens and settings is not tested).
+- **Risk:** Wrong person.
+- **Lines:** V23, V1, V3.
+- **Story:** As Felix, I want an alarm when last night's backup failed, and a restore that keeps roles, screens, settings and links, so that I do not find out on the day I need it.
+- **Start:** L. The backup target is not reachable for one night. Later, a restore of a backup that is older than a screen and a role change.
+- **Steps:** 1. Felix opens the console the next morning. 2. Restore. 3. Felix and Dr. Krüger open the console and the matters.
+- **Expected:** Step 1 shows the age of the last good backup and a task. After step 2, roles, teams, screens, the confirmation level and the read flag equal the backup, and the console lists the changes of the lost hours that must be done again. A screen of the lost hours is named, never lost in silence. No attorney's runtime can read a backup file.
+- **Proof:** new test.
+
+### MON-14. The EPO calendar changes
+
+- **Mark:** New (calendar versions; MON-04 and MON-05 cover rule versions).
+- **Risk:** Deadline.
+- **Lines:** V11, V12.
+- **Story:** As Sabine, I want a deadline to be computed again when the EPO adds a closed day or announces an interruption under Rule 134 EPC, so that the date follows the calendar that is in force.
+- **Start:** L. An active deadline and a proposed one, each on a day that a new calendar version marks as closed.
+- **Steps:** 1. Install the new calendar version. 2. Open both deadlines.
+- **Expected:** The proposed one is "stale" and proposed again. The active one shows "the calendar changed: new date <date>" for a person. A later date never replaces a confirmed date without a person. The page names the calendar version and its source notice.
+- **Proof:** new test.
+
+### MON-15. An update while people work
+
+- **Mark:** Today (by hand; the result is not known).
+- **Risk:** Distrust.
+- **Lines:** V24, V18.
+- **Story:** As Felix, I want an update in working hours to lose no act, so that no confirm is half recorded and no run is lost in silence.
+- **Start:** L. Anna has a deadline page open and a Ticket run in progress. Felix starts the update.
+- **Steps:** 1. The update runs. 2. Anna confirms on the open page. 3. Anna opens the run.
+- **Expected:** The confirm is recorded once, or refused with "FlowLeap was updated: load the page again". The run shows "run failed" with "Start again", never "in progress" for ever. The console says when the update ran and who started it.
+- **Proof:** by hand on L.

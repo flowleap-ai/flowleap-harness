@@ -88,7 +88,7 @@ Edge cases of this area: a letter with no application; an unknown document code;
 - **Risk:** Wrong person.
 - **Lines:** V3, V9, V19.
 - **Story:** As Felix, I want a letter of SF-2022-0024 to reach no screened person, also before it is filed, so that the screen holds from the first minute.
-- **Start:** L. Make Jonas an intake person for this story. Post row 5 (Rule 71(3) of EP22213933).
+- **Start:** L, with the account `jonas` (never `admin`). Make Jonas an intake person for this story. Forward row 5 (Rule 71(3) of EP22213933) with the reference SF-2022-0024, so that the intake proposes the matter (`seed-letters.mjs --rows 5 --from forward`). An unreadable scan with no proposed matter is LET-22.
 - **Steps:** 1. Jonas opens the Intake and My work. 2. Jonas opens the letter's address. 3. Jonas checks the outbox page for notices.
 - **Expected:** Jonas has no row, no count and no notice for this letter; its address shows "not found". Sabine sees it.
 - **Proof:** the existing os test `test/record-unfiled-letters.test.mjs` (unfiled-letter readers); by hand on L.
@@ -213,3 +213,37 @@ Edge cases of this area: a letter with no application; an unknown document code;
 - **Steps:** 1. File row 11. 2. Read the office event's date and its source.
 - **Expected:** The date is 2026-01-21, with its source shown. If the two readers differ, the event waits for a person and shows both dates.
 - **Proof:** the existing os test `test/mailbox-readers.test.mjs`; seed case `two-dates`.
+
+### LET-20. A letter for an imported application with no team
+
+- **Mark:** New (the MyEPO intake; the task "Assign a person" of sheet 00 is not built).
+- **Risk:** Deadline.
+- **Lines:** V7, V9, V13.
+- **Story:** As Dr. Krüger, I want a letter for an imported application with no matter team to give a person the task "Assign a person", so that its deadline is never invisible.
+- **Start:** L + X after IMP-01. One imported application has no matter, no responsible attorney and no formalities person. A Rule 71(3) letter arrives for it.
+- **Steps:** 1. The letter arrives. 2. Dr. Krüger opens My work and Deadlines.
+- **Expected:** The letter is on the application. Dr. Krüger has "Assign a person". Its deadline is proposed and shows on his Deadlines surface. No count on any surface leaves it out without a reason.
+- **Proof:** new test.
+
+### LET-21. Nobody decides a letter that needs a person
+
+- **Mark:** WIP. Parts: Today (os escalates intake tasks by `intake.escalation`, `lib/record/tasks.mjs:91`); WIP for the screens (PR 346).
+- **Risk:** Deadline.
+- **Lines:** V9, V13, V19.
+- **Story:** As Dr. Krüger, I want a letter that waits for a person longer than `intake.decideWithin` to go to the next person and then raise an alarm, so that a letter does not wait while its period runs.
+- **Start:** L with a short `intake.decideWithinMinutes`. One letter waits as "no matter found". No intake person acts.
+- **Steps:** 1. Let the time pass, then the next step of the chain.
+- **Expected:** The task goes to the next person of the chain, then to the partner, then a daily alarm to the chain and the administrator, each with a notice. A person screened from a proposed matter is skipped. The timer counts working time: a letter of Friday evening does not alarm on Saturday.
+- **Proof:** the existing os test `test/record-tasks.test.mjs` (escalation); new test for working time and screens.
+
+### LET-22. An unreadable scan of a screened matter
+
+- **Mark:** New (decision 18 of the scope).
+- **Fails today:** a screened intake person reads an unreadable scan, because no matter is proposed for it (os `test/record-unfiled-letters.test.mjs`, the `unreadable` case).
+- **Risk:** Wrong person.
+- **Lines:** V3, V9.
+- **Story:** As Felix, I want a paper scan of SF-2022-0024 with no text to reach no person whom that matter screens, or the firm to record that it accepts this limit, so that the screen has no silent gap.
+- **Start:** L, account `jonas`, Jonas an intake person. Row 5 posted as a scan from the scan mailbox, OCR off.
+- **Steps:** 1. Jonas opens the Intake.
+- **Expected:** By decision 18: Jonas does not see the scan; or the firm's settings record the accepted limit, and the partner gets a wall incident when Jonas opens it.
+- **Proof:** new test.

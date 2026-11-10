@@ -113,3 +113,14 @@ Edge cases of this area: two persons sign in at the same time; a shared PC; a pe
 - **Steps:** 1. Sign in as Sabine. 2. Open every v1 surface: My work, Letters, Deadlines, a matter, a deadline.
 - **Expected:** Every label, state, refusal and empty state is German. Dates show in German format. Names and EPO document names keep their published form.
 - **Proof:** by hand; the existing client test `ui-flowleap-records/tests/words.client.spec.ts`.
+
+### INS-11. The first administrator and the last one
+
+- **Mark:** New (no rule for the first administrator in the Firm Record; roles have two sources, the Entra app role for the console and `firm.roles` for the record).
+- **Risk:** Wrong person.
+- **Lines:** V1, V2, V20.
+- **Story:** As Dr. Krüger, I want the first administrator to be only the person whom the firm named in Entra, and the last administrator to be impossible to remove, so that no stranger takes the firm and the firm is never locked out.
+- **Start:** B or a fresh L. No person signed in yet. Then a firm with one administrator, and a person whose Entra app role and `firm.roles` differ.
+- **Steps:** 1. A person without the Entra app role signs in first. 2. Felix tries to remove himself as the last administrator. 3. Open the console as the person whose two roles differ.
+- **Expected:** Step 1 gives no administrator right. Step 2 is refused. In step 3 the lower right applies, and the console shows the difference between the two sources.
+- **Proof:** new test.

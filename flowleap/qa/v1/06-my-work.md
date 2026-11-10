@@ -109,3 +109,14 @@ Edge cases of this area: two persons see the same task change; a task that escal
 - **Steps:** 1. Tobias opens each row by click, and by the keyboard.
 - **Expected:** Each opens the letter, the deadline or the event page with its one main act. The row's context menu has Open, Open matter and Copy link.
 - **Proof:** by hand.
+
+### MW-11. The Firm Record does not answer
+
+- **Mark:** Today (by hand: stop the Firm Record; the result is not known).
+- **Risk:** Deadline.
+- **Lines:** V13, V14, V15.
+- **Story:** As Tobias, I want My work, Letters and Deadlines to say that FlowLeap could not read the firm's data, so that I never read "nothing waits" when FlowLeap could not look.
+- **Start:** L. Tobias has open tasks. Stop the Firm Record container.
+- **Steps:** 1. Tobias opens My work, Letters and Deadlines. 2. He asks the agent what waits. 3. Start the Firm Record and repeat.
+- **Expected:** Each surface says "FlowLeap could not read the firm's data at <time>" with Try again; no count shows 0. The agent says the same. Felix has an alarm on the console. After the start, no act is lost or recorded twice.
+- **Proof:** by hand on L; new test.

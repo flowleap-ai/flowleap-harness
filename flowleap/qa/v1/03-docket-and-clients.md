@@ -170,3 +170,14 @@ Edge cases of this area: two persons add the same client at the same time; the i
 - **Steps:** 1. Add client "Phoenix Contact". 2. Confirm the group.
 - **Expected:** The group shows both spellings as one client with 2 applications. A name that is only similar is offered, not merged.
 - **Proof:** by hand; the existing client tests of the group step.
+
+### IMP-16. Day one: the deadlines that already run
+
+- **Mark:** New (the MyEPO intake; the link test reads only unhandled letters in S16 sheet 06).
+- **Risk:** Deadline.
+- **Lines:** V7, V9, V11.
+- **Story:** As Dr. Krüger, I want FlowLeap to show on the first day every deadline that already runs, so that the comparison with the old docket starts complete.
+- **Start:** L + X after IMP-01. The double has rows 6, 15 and 16 unread, and row 5 (Rule 71(3) of SF-2022-0024) read and handled.
+- **Steps:** 1. The first read of the Mailbox ends. 2. Dr. Krüger opens Letters and Deadlines.
+- **Expected:** FlowLeap reads the Mailbox history, not only the unhandled letters, and says how far back it read. Each letter whose period can still be open has a proposed deadline or the task "Enter the due date". A letter that MyEPO shows as handled is not skipped in silence. The first read sends no notice for old letters.
+- **Proof:** new test.

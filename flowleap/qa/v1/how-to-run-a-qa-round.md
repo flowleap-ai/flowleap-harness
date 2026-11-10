@@ -14,14 +14,15 @@ A QA round runs every story of [the v1 user stories](README.md) on one released 
    Add the accounts of the persons that the round needs:
 
    ```bash
-   LOCAL_FIRM_ACCOUNTS="tobias anna lena sabine miriam felix partner" scripts/local-firm.sh up <version>
+   LOCAL_FIRM_ACCOUNTS="jonas tobias anna lena sabine miriam felix partner" scripts/local-firm.sh up <version>
    ```
 
    Open `http://localhost:14180/`. Use one Chrome profile for each person who acts at the same time. Known limits of L: no Entra (local accounts only), no shell or Office tool under Rosetta (QA finding L5), and no FlowLeap token unless the founder sets it (L6). A story that needs one of these runs on B.
 3. **The MyEPO double (X).** Until PR 387 merges, the double runs from its branch: `flowleap/dev-loop.sh up --os <flowleap-os path> --myepo-double`. `POST /_double/arrive` delivers the Rule 71(3) letter of SF-2023-0045; `POST /_double/reset` starts again. The double cannot make a timeout, a rate limit, a removed permission, zero portfolios, an unknown code, a duplicate or a letter with no application. A story that needs one of these is "blocked" until the double has the control.
 4. **The box (B).** Only for the stories that need Entra (INS-02, INS-03, INS-05, INS-06, INS-08, NOT-01, NEV-18, NEV-20). The candidate reaches the box only through the gate, after a passing local-firm record (`release/gate.sh current <version>`). A write on the box needs the founder's permission. The box has two persons: attorney.a plays Jonas, attorney.b plays Lena.
 5. **The clock.** Run on the real date. Write the date in the result file. A story that names the seed clock `fetch` (2026-11-05) reads its expected dates against that clock; a story that names the real date uses today.
-6. **The old docket.** For MON-02, use the dates of the seed firm's `cases.json` as the firm's old docket.
+6. **The old docket.** For MON-02, use a list of the seed letters' deadlines that an attorney computed by hand, with the source of each date. Never use dates that the FlowLeap engine or the double made.
+7. **Accounts on L.** Act as each person with that person's own account. Add `jonas` to `LOCAL_FIRM_ACCOUNTS`. Never use `admin` as a person in a story: it reads every notice on the outbox page (os `lib/record/outbox-page.mjs:28`) and holds the console.
 
 ## The order
 
