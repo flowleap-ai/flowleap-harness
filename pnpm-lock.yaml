@@ -13694,8 +13694,8 @@ importers:
         specifier: workspace:*
         version: link:../../session/working-directory
       flowleap-seed-firm:
-        specifier: github:flowleap-ai/flowleap-seed-firm#34db8e2eab45bd504b982fe1c785c9c57492414b
-        version: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b
+        specifier: github:flowleap-ai/flowleap-seed-firm#75c89f6dcd10c415fed37a01c126faa5403e6e6e
+        version: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e
 
   packages/host/flowleap-deliverables:
     dependencies:
@@ -24903,8 +24903,8 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
-  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b:
-    resolution: {gitHosted: true, integrity: sha512-UhXAYIChhWiq6ryfItxCFVBlZKeuRK12sAhc8+lki5IYkG51oraTkZI7LTcotGIlZare0DoWsrzTEJpG7Mf/QQ==, tarball: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b}
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e:
+    resolution: {gitHosted: true, integrity: sha512-NGFkA4pXJjowL8EI99vy59GF1BbJZo+Fd+RhvkQjuscXWOJefFAkd1wRAFJkIYYUUFlz15BCSYcgTlPDVSN36g==, tarball: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e}
     version: 0.1.0
     engines: {node: '>=22'}
 
@@ -32777,7 +32777,7 @@ snapshots:
 
   flatted@3.4.2: {}
 
-  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b: {}
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e: {}
 
   focus-trap@7.8.0:
     dependencies:
