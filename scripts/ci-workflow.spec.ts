@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import * as yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -581,7 +582,7 @@ describe('CI workflow', () => {
       expect(job['runs-on'], `${jobName} runs-on must use the Linux failover switch`).toContain('DSH_CI_FAILOVER_LINUX')
       expect(job['runs-on'], `${jobName} runs-on must not use the Windows failover switch`).not.toContain('DSH_CI_FAILOVER_WINDOWS')
       expect(job['runs-on']).toContain('vm-backup')
-      expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: 'blacksmith' } }))
+      expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: 'blacksmith' }, needs: { lane: { outputs: {} } } }))
         .toBe(`blacksmith-${jobName === 'node-24' ? 8 : 16}vcpu-ubuntu-2404`)
     }
     expect(aggregate['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
@@ -1735,8 +1736,12 @@ describe('CI lanes', () => {
     const ci = loadWorkflow('.github/workflows/ci.yml')
     const windows = loadWorkflow('.github/workflows/ci-windows.yml')
     const python = loadWorkflow('.github/workflows/ci-python.yml')
+    const decision = (workflow: Record<string, unknown>): unknown => {
+      const lane = workflowJob(workflow, 'lane')
+      return { if: lane.if, step: Array.isArray(lane.steps) ? lane.steps.filter(isRecord)[0] : undefined }
+    }
     for (const workflow of [windows, python]) {
-      expect(workflowJob(workflow, 'lane')).toEqual(workflowJob(ci, 'lane'))
+      expect(decision(workflow)).toEqual(decision(ci))
       expect(workflow.concurrency).toEqual(ci.concurrency)
       expect(isRecord(workflow.on) && workflow.on.pull_request).toEqual(isRecord(ci.on) && ci.on.pull_request)
     }
@@ -1818,6 +1823,96 @@ describe('CI lanes', () => {
     expect(evaluateTemplate(String(group['cancel-in-progress']), { github: githubContext(merge) })).toBe('false')
   })
 
+  it('sends coverage to desk only for repository-owned code while desk is switched on', () => {
+    const lane = workflowJob(loadWorkflow('.github/workflows/ci.yml'), 'lane')
+    const step = Array.isArray(lane.steps) ? lane.steps.filter(isRecord).find(candidate => candidate.id === 'desk') : undefined
+    if (!isRecord(step?.env)) throw new TypeError('the lane job must select the coverage runner')
+    const eligible = String(step.env.ELIGIBLE)
+    const repository = 'flowleap-ai/flowleap-harness'
+    const prContext = (head: string, login: string, desk: string): Record<string, unknown> => ({
+      vars: { DSH_CI_DESK: desk },
+      github: { event_name: 'pull_request', repository, event: { pull_request: { head: { repo: { full_name: head } }, user: { login } } } },
+    })
+    expect(evaluateTemplate(eligible, prContext(repository, 'maintainer', 'on'))).toBe('true')
+    expect(evaluateTemplate(eligible, prContext('outsider/flowleap-harness', 'outsider', 'on'))).toBe('false')
+    expect(evaluateTemplate(eligible, prContext(repository, 'dependabot[bot]', 'on'))).toBe('false')
+    expect(evaluateTemplate(eligible, prContext(repository, 'maintainer', ''))).toBe('false')
+    expect(evaluateTemplate(eligible, { vars: { DSH_CI_DESK: 'on' }, github: { event_name: 'push', repository, event: {} } })).toBe('true')
+    expect(evaluateTemplate(eligible, { vars: { DSH_CI_DESK: 'on' }, github: { event_name: 'schedule', repository, event: {} } })).toBe('false')
+    expect(step.env.GH_TOKEN).toBe('${{ secrets.DSH_CI_DESK_STATUS_TOKEN }}')
+    expect(String(step.run)).toContain('runner=hosted')
+    expect(lane.outputs).toMatchObject({ coverage_runner: '${{ steps.desk.outputs.runner }}' })
+
+    const coverage = workflowJob(loadWorkflow('.github/workflows/ci.yml'), 'node-24-coverage')
+    const route = (runner: string): unknown => evaluateRunsOn(coverage['runs-on'], {
+      vars: {}, fromJSON: JSON.parse, needs: { lane: { outputs: { coverage_runner: runner } } },
+      github: { event: { pull_request: { user: { login: 'maintainer' } } } },
+    })
+    expect(route('desk')).toEqual(['self-hosted', 'linux', 'arm64', 'desk'])
+    expect(route('hosted')).toBe('ubuntu-latest')
+    expect(route('')).toBe('ubuntu-latest')
+    // No other job can reach desk.
+    for (const file of ['ci.yml', 'ci-windows.yml', 'ci-python.yml']) {
+      const workflow = loadWorkflow('.github/workflows/' + file)
+      if (!isRecord(workflow.jobs)) throw new TypeError(`${file} must define jobs`)
+      for (const [id, job] of Object.entries(workflow.jobs)) {
+        if (file === 'ci.yml' && id === 'node-24-coverage') continue
+        expect(JSON.stringify(isRecord(job) ? job['runs-on'] ?? null : null), `${file} ${id}`).not.toContain('desk')
+      }
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('routes to desk only the events that the desk job-started hook accepts', () => {
+    const workflow = loadWorkflow('.github/workflows/ci.yml')
+    // ci.yml has no schedule or workflow_dispatch trigger, and pushes come only from flowleap.
+    expect(workflow.on).toEqual({
+      pull_request: { types: ['opened', 'synchronize', 'reopened', 'ready_for_review', 'labeled'] },
+      push: { branches: ['flowleap'] },
+    })
+    const lane = workflowJob(workflow, 'lane')
+    const step = Array.isArray(lane.steps) ? lane.steps.filter(isRecord).find(candidate => candidate.id === 'desk') : undefined
+    if (!isRecord(step?.env)) throw new TypeError('the lane job must select the coverage runner')
+    const repository = 'flowleap-ai/flowleap-harness'
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-desk-routing-'))
+    try {
+      const cases = [
+        { event_name: 'push', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+        { event_name: 'pull_request', ref: 'refs/pull/7/merge', actor: 'maintainer', event: { pull_request: { head: { repo: { full_name: repository } }, user: { login: 'maintainer' } } } },
+        { event_name: 'pull_request', ref: 'refs/pull/8/merge', actor: 'outsider', event: { pull_request: { head: { repo: { full_name: 'outsider/flowleap-harness' } }, user: { login: 'outsider' } } } },
+        { event_name: 'pull_request', ref: 'refs/pull/9/merge', actor: 'dependabot[bot]', event: { pull_request: { head: { repo: { full_name: repository } }, user: { login: 'dependabot[bot]' } } } },
+        { event_name: 'schedule', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+        { event_name: 'workflow_dispatch', ref: 'refs/heads/flowleap', actor: 'maintainer', event: {} },
+      ]
+      let routed = 0
+      for (const [index, item] of cases.entries()) {
+        const eligible = evaluateTemplate(String(step.env.ELIGIBLE), {
+          vars: { DSH_CI_DESK: 'on' },
+          github: { event_name: item.event_name, repository, event: item.event },
+        })
+        const eventPath = join(directory, `event-${String(index)}.json`)
+        writeFileSync(eventPath, JSON.stringify(item.event))
+        const hook = spawnSync('bash', [resolve(root, '.github/ci-desk/job-started.sh')], {
+          encoding: 'utf8',
+          env: {
+            PATH: process.env.PATH ?? '',
+            GITHUB_REPOSITORY: repository,
+            GITHUB_EVENT_NAME: item.event_name,
+            GITHUB_EVENT_PATH: eventPath,
+            GITHUB_REF: item.ref,
+            GITHUB_ACTOR: item.actor,
+          },
+        })
+        if (eligible === 'true') {
+          routed += 1
+          expect(hook.status, `${item.event_name} ${item.actor}: ${hook.stderr}`).toBe(0)
+        }
+      }
+      expect(routed).toBe(2)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('starts 3 worker jobs per draft push and at most 14 per ready push, inside the 20 hosted jobs', () => {
     const workers = (event: LaneEvent): { beforeSdk: number; afterSdk: number } => {
       let linuxAndWindows = 0
@@ -1869,6 +1964,8 @@ function evaluateExpression(expression: string, context: Record<string, unknown>
   const body = expression.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, '$1')
     .replace(/\bneeds\.([A-Za-z0-9_-]+)/g, "needs['$1']")
     .replace(/\.\*\.([A-Za-z_]+)/g, '.map(item => item.$1)')
+    // A missing property reads as null in GitHub expressions.
+    .replace(/\b(github|vars)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)/g, (_, rootName: string, path: string) => rootName + path.replaceAll('.', '?.'))
   return runInNewContext(body, {
     ...context,
     contains: (haystack: unknown, needle: unknown) => Array.isArray(haystack)
