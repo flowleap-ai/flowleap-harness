@@ -46,6 +46,19 @@ export const ARRIVAL = { application: 'EP23771920', row: 18 }
 /** Letters dispatched before this date are read and handled at the start: the firm has worked on them. */
 export const HANDLED_BEFORE = '2026-06-01'
 
+/**
+ * The seed rows of the letters that the MyEPO reader takes from the double: each letter unhandled at the start, and the
+ * arrival. The development loop does not load these rows as forwarded letters too, so the Firm Record has each letter once.
+ * @param seed - the seed firm.
+ * @returns the row numbers.
+ */
+export function unhandledRows(seed: Seed = loadSeed()): number[] {
+  return seed.matters.flatMap(matter => matter.documents
+    .filter(document => !ANNEX_KINDS.has(document.kind)
+      && (document.registerListDate >= HANDLED_BEFORE || (matter.application === ARRIVAL.application && document.row === ARRIVAL.row)))
+    .map(document => document.row))
+}
+
 /** A real public EP application outside the seed firm's portfolios (the parent of `EP22213933`): its reads answer `403 ERR_20`. */
 export const RESTRICTED_APPLICATION = 'EP14724725'
 
