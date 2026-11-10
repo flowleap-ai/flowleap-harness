@@ -113,6 +113,7 @@ const linkSchema = zod.object({
   linkedAt: zod.iso.datetime(),
 })
 type SavedLink = zod.infer<typeof linkSchema>
+const earlierStatusSchema = zod.object({ link: zod.string(), clientId: zod.string().nullable(), linkedAt: zod.string().nullable() })
 const testRequestSchema = zod.object({ clientId: zod.string().trim().min(1), clientSecret: zod.string().trim().min(1) })
 const TEST_REQUEST = /^([0-9a-f]{32})\.json$/
 
@@ -164,7 +165,22 @@ export interface MyEpoWorkerOptions {
 export interface MyEpoWorker {
   /** Answer the waiting test requests, notice a new or removed pair, then test and read as the schedule says. */
   tick(): Promise<void>
+  /**
+   * Answer the waiting test requests only. A second call while one runs joins it, so a caller can answer tests on its
+   * own timer while a long read runs in `tick`.
+   */
+  answerTests(): Promise<void>
   close(): void
+}
+
+/** The JSON of a file, or `undefined` when it is not JSON; the error text of a parse can hold part of a secret. */
+function parseJson(body: string): unknown {
+  try {
+    return JSON.parse(body)
+  } catch {
+    // A damaged file is reported by its caller with a fixed text.
+    return undefined
+  }
 }
 
 /**
@@ -203,7 +219,7 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
     written = content
   }
 
-  const answerTests = async (): Promise<void> => {
+  const answerWaitingTests = async (): Promise<void> => {
     let names: string[]
     try {
       names = await readdir(config.testsDir)
@@ -222,7 +238,7 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
       // The pair leaves the disk before the test starts.
       await rm(path, { force: true })
       if (body === undefined) continue
-      const pair = testRequestSchema.safeParse(JSON.parse(body))
+      const pair = testRequestSchema.safeParse(parseJson(body))
       const outcome: MyEpoTestOutcome = pair.success
         ? await testMyEpoLink(clientOf(pair.data), now, abort.signal)
         : { kind: 'failed', message: 'the test request has no client ID or no client secret' }
@@ -240,12 +256,29 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
       return 'unreadable'
     }
     if (body === undefined) return 'absent'
-    const parsed = linkSchema.safeParse(JSON.parse(body))
+    const parsed = linkSchema.safeParse(parseJson(body))
     if (!parsed.success) {
       log('the saved pair has no client ID or no client secret')
       return 'unreadable'
     }
     return { link: parsed.data, fingerprint: createHash('sha256').update(body).digest('hex') }
+  }
+
+  let answering: Promise<void> | undefined
+  const answerTests = (): Promise<void> => {
+    answering ??= answerWaitingTests().finally(() => { answering = undefined })
+    return answering
+  }
+
+  /**
+   * The status of the run before this one, read once: a pair that the EPO refused before a restart stays refused, so a
+   * restart makes no new login with it (myepo.stops-when-not-readable).
+   */
+  let earlier: Promise<unknown> | undefined
+  const refusedBefore = async (link: SavedLink): Promise<boolean> => {
+    earlier ??= readFile(join(config.dir, 'status.json'), 'utf8').then(parseJson, () => undefined)
+    const before = earlierStatusSchema.safeParse(await earlier)
+    return before.success && before.data.link === 'refused' && before.data.clientId === link.clientId && before.data.linkedAt === link.linkedAt
   }
 
   /** Apply one test of the saved pair to the link state. */
@@ -320,15 +353,17 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
       }
       const { link, fingerprint } = saved
       if (schedule?.fingerprint !== fingerprint) {
-        log(`a pair is saved for client ${link.clientId}; testing it`)
+        const refused = schedule === undefined && await refusedBefore(link)
+        log(refused ? `the EPO refused the saved pair of client ${link.clientId} before; no MyEPO call until a new pair is saved` : `a pair is saved for client ${link.clientId}; testing it`)
         schedule = { fingerprint, nextTest: 0, nextRead: 0, failedReads: 0 }
-        update({ link: 'checking', clientId: link.clientId, linkedBy: link.linkedBy, linkedAt: link.linkedAt, portfolios: null, mailbox: null, testedAt: null, failure: null })
+        update({ link: refused ? 'refused' : 'checking', clientId: link.clientId, linkedBy: link.linkedBy, linkedAt: link.linkedAt, portfolios: null, mailbox: null, testedAt: null, failure: null })
       }
       const due = schedule
       if (status.link !== 'refused' && now() >= due.nextTest) await testSaved(link, due)
       if ((status.link === 'linked' || status.link === 'permission-missing') && status.mailbox === true && now() >= due.nextRead) await read(link, due)
       await flush()
     },
+    answerTests,
     close() {
       abort.abort(new Error('the worker stops'))
     },
@@ -361,7 +396,8 @@ function assertAddress(field: string, value: string): void {
 }
 
 /**
- * Run the worker: one tick every `pollSeconds`, never two at the same time, until the row is disposed.
+ * Run the worker until the row is disposed: one tick every `pollSeconds`, never two at the same time, and on its own
+ * timer the answer to the console's tests.
  * @param ctx - the row's context, with the launcher's command line.
  * @param config - the row config.
  */
@@ -384,21 +420,27 @@ function start(ctx: Context, config: Config): void {
   }
   ctx.effect(() => {
     const worker = createMyEpoWorker({ config, fetch: globalThis.fetch.bind(globalThis), now: Date.now, log })
-    let timer: NodeJS.Timeout | undefined
+    const timers: { tick?: NodeJS.Timeout; tests?: NodeJS.Timeout } = {}
     let stopped = false
-    const run = async (): Promise<void> => {
-      try {
-        await worker.tick()
-      } catch (error) {
-        if (!stopped) log(`the step failed, the next step tries again: ${error instanceof Error ? error.message : String(error)}`)
+    // Two loops: a read of a long backlog in `tick` must not delay the console's test of a new pair.
+    const loop = (name: 'tick' | 'tests', step: () => Promise<void>): void => {
+      const run = async (): Promise<void> => {
+        try {
+          await step()
+        } catch (error) {
+          if (!stopped) log(`the step failed, the next step tries again: ${error instanceof Error ? error.message : String(error)}`)
+        }
+        if (!stopped) timers[name] = setTimeout(() => void run(), config.pollSeconds * 1000)
       }
-      if (!stopped) timer = setTimeout(() => void run(), config.pollSeconds * 1000)
+      void run()
     }
     log(`reads ${config.myepo.baseUrl}, downloads ${config.download}, sends to ${config.recordUrl}`)
-    void run()
+    loop('tick', () => worker.tick())
+    loop('tests', () => worker.answerTests())
     return () => {
       stopped = true
-      clearTimeout(timer)
+      clearTimeout(timers.tick)
+      clearTimeout(timers.tests)
       worker.close()
     }
   }, 'flowleap-myepo-worker: the MyEPO job')

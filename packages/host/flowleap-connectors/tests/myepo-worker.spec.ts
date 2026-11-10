@@ -82,13 +82,16 @@ function setup(options: { log?: (line: string) => void } = {}) {
     dir, testsDir, recordUrl: RECORD, myepo: MYEPO, download: 'on-arrival', everySeconds: 60, testEverySeconds: 3600, pollSeconds: 2,
   }
   const lines: string[] = []
-  const worker = createMyEpoWorker({ config, fetch, now: () => clock, log: options.log ?? ((line) => { lines.push(line) }) })
+  const make = () => createMyEpoWorker({ config, fetch, now: () => clock, log: options.log ?? ((line) => { lines.push(line) }) })
+  const worker = make()
   const status = (): MyEpoWorkerStatus => JSON.parse(readFileSync(join(dir, 'status.json'), 'utf8')) as MyEpoWorkerStatus
   const link = (clientSecret: string): void => {
     writeFileSync(join(dir, 'link.json'), JSON.stringify({ clientId: DOUBLE_CLIENT.clientId, clientSecret, linkedBy: 'admin', linkedAt: '2026-11-10T07:59:00.000Z' }), { mode: 0o600 })
   }
   return {
     dir, testsDir, double, filed, worker, status, link, lines,
+    /** A new worker process over the same folders, network and clock. */
+    restart: make,
     epoCalls: () => epoCalls,
     setEpoDown: (down: boolean) => { epoDown = down },
     onEpo: (answer: Answer | undefined) => { epoAnswer = answer },
@@ -506,5 +509,51 @@ describe('apply', () => {
     await stopped
     await new Promise(resolve => setImmediate(resolve))
     expect(lines.filter(line => line.includes('the step failed'))).toEqual([])
+  })
+})
+
+describe('createMyEpoWorker after a restart and with damaged files', () => {
+  it('keeps a pair that the EPO refused before a restart refused, makes no call with it, and tests a new pair', async () => {
+    const w = setup()
+    w.link('not-the-secret')
+    await w.worker.tick()
+    expect(w.status().link).toBe('refused')
+    const calls = w.epoCalls()
+    const again = w.restart()
+    await again.tick()
+    expect(w.status().link).toBe('refused')
+    expect(w.epoCalls()).toBe(calls)
+    expect(w.lines.at(-1)).toMatch(/refused the saved pair of client flowleap-myepo-double before/)
+    writeFileSync(join(w.dir, 'link.json'), JSON.stringify({ ...DOUBLE_CLIENT, linkedBy: 'admin', linkedAt: '2026-11-10T09:00:00.000Z' }), { mode: 0o600 })
+    await again.tick()
+    expect(w.status().link).toBe('linked')
+  })
+
+  it('tests a saved pair after a restart when the status before was not a refusal of that pair', async () => {
+    const w = setup()
+    w.link(DOUBLE_CLIENT.clientSecret)
+    await w.worker.tick()
+    writeFileSync(join(w.dir, 'status.json'), 'not json')
+    const again = w.restart()
+    await again.tick()
+    expect(w.status().link).toBe('linked')
+  })
+
+  it('reports a damaged pair with a fixed text and never logs its content', async () => {
+    const w = setup()
+    writeFileSync(join(w.dir, 'link.json'), '{"clientId":"x","clientSecret":"public-sample-data"', { mode: 0o600 })
+    writeFileSync(join(w.testsDir, `${'c'.repeat(32)}.json`), 'public-sample-data}', { mode: 0o600 })
+    await w.worker.tick()
+    expect(w.status().link).toBe('not-linked')
+    expect(JSON.parse(readFileSync(join(w.testsDir, `${'c'.repeat(32)}.result.json`), 'utf8'))).toMatchObject({ kind: 'failed' })
+    expect(w.lines.join('\n')).not.toContain('public-sample-data')
+  })
+
+  it('answers each test once when the test loop and a tick ask at the same time', async () => {
+    const w = setup()
+    writeFileSync(join(w.testsDir, `${'d'.repeat(32)}.json`), JSON.stringify(DOUBLE_CLIENT), { mode: 0o600 })
+    await Promise.all([w.worker.answerTests(), w.worker.answerTests(), w.worker.tick()])
+    expect(readdirSync(w.testsDir)).toEqual([`${'d'.repeat(32)}.result.json`])
+    expect(w.lines.filter(line => line.startsWith('test '))).toHaveLength(1)
   })
 })
