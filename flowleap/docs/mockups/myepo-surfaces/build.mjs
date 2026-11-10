@@ -5,6 +5,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { REVIEW } from './review.mjs';
 import { consolePage } from './console.mjs';
+import { rulePages } from './rules.mjs';
 import { LINKED, LINKED_HM, TODAY, P, M, CLIENTS, LETTERS, EXCEPTION, TRACES, DEADLINES, LARGE } from './data.mjs';
 
 const OUT = import.meta.dirname;
@@ -422,7 +423,7 @@ const DCOLS = () => [
   { key: 'resp', label: t('Responsible', 'Zuständig'), cls: 'c-av', sort: false },
 ];
 const outlookLine = () => `<p class="outlook-line t12" data-i="outlook">${t('FlowLeap puts each confirmed deadline in the Outlook calendar of its responsible attorney.', 'FlowLeap trägt jede bestätigte Frist in den Outlook-Kalender der zuständigen Person ein.')}</p>`;
-const viewTabs = on => `<div class="tabs"><a class="tab${on === 'table' ? ' is-on' : ''}" data-i="table" href="3-deadlines.html" data-walk="tab-table">${t('Table', 'Tabelle')}</a><a class="tab${on === 'month' ? ' is-on' : ''}" data-i="grid" href="3-deadlines.html?state=month" data-walk="tab-month">${t('Month', 'Monat')}</a></div>`;
+const viewTabs = on => `<div class="tabs"><a class="tab${on === 'table' ? ' is-on' : ''}" data-i="table" href="3-deadlines.html" data-walk="tab-table">${t('Table', 'Tabelle')}</a><a class="tab${on === 'month' ? ' is-on' : ''}" data-i="grid" href="3-deadlines.html?state=month" data-walk="tab-month">${t('Month', 'Monat')}</a><a class="tab" data-i="scale" href="7-rules.html" data-walk="tab-rules">${t('Rules', 'Regeln')}</a></div>`;
 
 function monthView() {
   // January 2027: Friday 1 January; the weeks start on Monday.
@@ -661,7 +662,8 @@ ${Object.entries(firmStates).map(([s, html]) => `      <div class="cset" data-st
 // ======================================================================================================
 // 0. The review page: every screen and state, the walkthrough, and the decisions for the founder
 // ======================================================================================================
-const PAGES = [['1a-docket', docket], ['1b-clients', clientsStep], ['1c-conflict', conflictStep], ['1d-review', reviewStep], ['1e-record', recordStep], ['2-letters', letters], ['2-letter', letterPage], ['3-deadlines', deadlines], ['3-deadline', deadlineDetail], ['4-my-work', myWork], ['5-myepo-card', card], ['6-console-keys', () => consolePage({ lang, t, page, btn, nm, at, P, LINKED, LINKED_HM, TODAY })], ['index', () => REVIEW({ lang, t, page, nm })]];
+const R = () => rulePages({ t, page, btn, nm, at, date, long, P, app_, topbar, crumb, work, section, notice, table, select, find, exNote, draft, iconbtn, off, LINKED, LINKED_HM, TODAY });
+const PAGES = [['1a-docket', docket], ['1b-clients', clientsStep], ['1c-conflict', conflictStep], ['1d-review', reviewStep], ['1e-record', recordStep], ['2-letters', letters], ['2-letter', letterPage], ['3-deadlines', deadlines], ['3-deadline', deadlineDetail], ['4-my-work', myWork], ['5-myepo-card', card], ['7-rules', () => R().rulesTable()], ['7-rule', () => R().ruleReview()], ['8-control-list', () => R().controlList()], ['9-audit', () => R().audit()], ['6-console-keys', () => consolePage({ lang, t, page, btn, nm, at, P, LINKED, LINKED_HM, TODAY })], ['index', () => REVIEW({ lang, t, page, nm })]];
 for (const l of ['en', 'de']) {
   lang = l;
   // A German page links to the German page of each mockup.
