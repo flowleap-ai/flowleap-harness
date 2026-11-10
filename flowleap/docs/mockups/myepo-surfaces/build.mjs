@@ -4,6 +4,7 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { REVIEW } from './review.mjs';
+import { consolePage } from './console.mjs';
 import { LINKED, LINKED_HM, TODAY, P, M, CLIENTS, LETTERS, EXCEPTION, TRACES, DEADLINES, LARGE } from './data.mjs';
 
 const OUT = import.meta.dirname;
@@ -93,7 +94,10 @@ ${after}<script src="${frameJs}"></script>
 </html>
 `;
 /** My work counts of the viewers: what the sidebar shows beside My work. */
-const COUNT = { lena: 2, anna: 3, martin: '', felix: '' };
+const COUNT = { lena: 2, anna: 3, jonas: 1, martin: '', felix: '' };
+/** Jonas Weber's teams: the Wago client group and two matter teams, minus his screen on SF-2022-0024 (seed groups.json). */
+const JONAS = ['SF-2021-0011', 'SF-2024-0007'];
+const wallLine = what => `<p class="wall-line t12" data-i="lock">${what === 'letters' ? t('You see the letters of the matters of your teams. FlowLeap shows no row, no search hit and no count of a matter outside them.', 'Sie sehen die Schreiben der Akten Ihrer Teams. Von einer Akte außerhalb zeigt FlowLeap keine Zeile, keinen Suchtreffer und keine Zahl.') : t('You see the deadlines of the matters of your teams. FlowLeap shows no row, no search hit and no count of a matter outside them.', 'Sie sehen die Fristen der Akten Ihrer Teams. Von einer Akte außerhalb zeigt FlowLeap keine Zeile, keinen Suchtreffer und keine Zahl.')}</p>`;
 const app_ = ({ person, side, body, as = null, fixed = true }) => `<div class="app">
   <nav data-sidebar="${side}" data-name="${P[person].name}" data-role="${t(...P[person].role)}" data-count="${COUNT[person]}"${as ? ` data-as='${JSON.stringify(Object.fromEntries(Object.entries(as).map(([s, p]) => [s, { name: P[p].name, role: t(...P[p].role), count: String(COUNT[p]) }])))}'` : ''}></nav>
   <main class="main">
@@ -285,9 +289,9 @@ const dlCell = l => l.state === 'done' ? `<span class="muted">${t('Closed', 'Ges
 const opened = (l, view) => l.id === 'r18' && view !== 'unopened';
 
 function letterRows(view) {
-  return LENA_LETTERS().map(l => {
+  return LENA_LETTERS().filter(l => view !== 'jonas' || JONAS.includes(l.key)).map(l => {
     const m = M[l.key];
-    const sel = (view === 'default' || view === 'unopened') ? l.id === 'r18' : view === l.id;
+    const sel = (view === 'default' || view === 'unopened') ? l.id === 'r18' : view === 'jonas' ? l.id === 'r6' : view === l.id;
     return {
       href: `2-letters.html?state=${l.id === 'r18' ? (view === 'unopened' ? 'unopened' : 'default') : l.id}`,
       narrow: `2-letter.html?state=${l.id === 'r18' ? 'default' : l.id}`,
@@ -349,11 +353,11 @@ function letterBody(l, { isOpen, viewer }) {
 }
 
 function letters() {
-  const views = ['default', 'unopened', ...LETTERS.filter(l => l.id !== 'r18').map(l => l.id)];
-  const listHead = `<div class="lt-head"><h1 class="title">${t('Letters', 'Schreiben')}</h1><p class="lede">${t(`Your EPO letters from MyEPO, in the matters inside your walls. FlowLeap lists each letter, files it on its matter and computes its deadline. Last read ${at(TODAY, '09:00')}.`, `Ihre EPA-Schreiben aus MyEPO, in den Akten innerhalb Ihrer Bereiche. FlowLeap listet jedes Schreiben, legt es in seiner Akte ab und berechnet seine Frist. Zuletzt gelesen ${at(TODAY, '09:00')}.`)}</p></div>`;
+  const views = ['default', 'unopened', ...LETTERS.filter(l => l.id !== 'r18').map(l => l.id), 'jonas'];
+  const listHead = `<div class="lt-head"><h1 class="title">${t('Letters', 'Schreiben')}</h1><p class="lede">${t(`Your EPO letters from MyEPO, in the matters inside your walls. FlowLeap lists each letter, files it on its matter and computes its deadline. Last read ${at(TODAY, '09:00')}.`, `Ihre EPA-Schreiben aus MyEPO, in den Akten innerhalb Ihrer Bereiche. FlowLeap listet jedes Schreiben, legt es in seiner Akte ab und berechnet seine Frist. Zuletzt gelesen ${at(TODAY, '09:00')}.`)}</p>${wallLine('letters')}</div>`;
   const pane = v => {
-    const l = v === 'default' || v === 'unopened' ? LETTERS[0] : LETTERS.find(x => x.id === v);
-    return `<div class="detail-pane" data-state="${v}" data-narrow-page="2-letter.html?state=${v}">${work(letterBody(l, { isOpen: opened(l, v), viewer: 'lena' }))}</div>`;
+    const l = v === 'default' || v === 'unopened' ? LETTERS[0] : v === 'jonas' ? LETTERS.find(x => x.id === 'r6') : LETTERS.find(x => x.id === v);
+    return `<div class="detail-pane" data-state="${v}" data-narrow-page="2-letter.html?state=${v === 'jonas' ? 'r6' : v}">${work(letterBody(l, { isOpen: opened(l, v), viewer: v === 'jonas' ? 'jonas' : 'lena' }))}</div>`;
   };
   const list = v => `<div class="list-pane lt-list" data-state="${v}">${listHead}${table({ cols: LCOLS(), rows: letterRows(v), sortKey: 'date', sortDir: 'descending', filters: letterFilters(), cls: 'lt-tbl' })}</div>`;
   const loading = `<div class="list-pane lt-list" data-state="loading">${listHead}<div class="dt-wrap"><table class="dt lt-tbl"><thead><tr>${LCOLS().map(c => `<th class="${c.cls}">${c.label}</th>`).join('')}</tr></thead><tbody>${['w60', 'w70', 'w50', 'w65', 'w55'].map(w => `<tr>${LCOLS().map(c => `<td class="${c.cls}"><span class="skel ${w}"></span></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
@@ -365,7 +369,7 @@ ${views.map(v => list(v) + pane(v)).join('\n')}
 ${loading}${error}
       </div>
 ${empty}`;
-  return page({ title: t('Letters', 'Schreiben'), body: app_({ person: 'lena', side: 'letters', body }) });
+  return page({ title: t('Letters', 'Schreiben'), body: app_({ person: 'lena', side: 'letters', body, as: { jonas: 'jonas' } }) });
 }
 
 /** The letter page: below 1366 px a row opens it, and My work opens the letters of Dr. Anna Becker. */
@@ -388,8 +392,8 @@ const HOW = {
 };
 const DSTATE = { 'SF-2022-0024': 'person', 'SF-2023-0045': '', 'SF-2023-0042': 'r16', 'SF-2024-0007': 'r6', 'SF-2021-0011': 'r1' };
 const dlHref = d => `3-deadline.html${DSTATE[d.key] ? `?state=${DSTATE[d.key]}` : ''}`;
-function deadlineRows() {
-  return DEADLINES.map(d => {
+function deadlineRows(view = 'default') {
+  return DEADLINES.filter(d => view !== 'jonas' || JONAS.includes(d.key)).map(d => {
     const l = LETTERS.find(x => x.id === d.letter);
     const m = M[d.key];
     return {
@@ -441,19 +445,21 @@ function monthView() {
 }
 
 function deadlines() {
-  const head = `<div class="lt-head"><h1 class="title">${t('Deadlines', 'Fristen')}</h1><p class="lede">${t('Every deadline in the matters inside your walls, by due date. A person decides in My work; this page is for looking, search and audit.', 'Jede Frist in den Akten innerhalb Ihrer Bereiche, nach Fristende. Entschieden wird in „Meine Arbeit“; diese Seite ist zum Ansehen, Suchen und Prüfen.')}</p>${outlookLine()}</div>`;
+  const head = `<div class="lt-head"><h1 class="title">${t('Deadlines', 'Fristen')}</h1><p class="lede">${t('Every deadline in the matters inside your walls, by due date. A person decides in My work; this page is for looking, search and audit.', 'Jede Frist in den Akten innerhalb Ihrer Bereiche, nach Fristende. Entschieden wird in „Meine Arbeit“; diese Seite ist zum Ansehen, Suchen und Prüfen.')}</p>${outlookLine()}${wallLine('deadlines')}</div>`;
   const filters = `<div class="dt-filters">${find(t('Find a deadline', 'Frist suchen'))}${select('status', t('Status', 'Status'), [['deadline_proposed', t('Deadline proposed', 'Frist vorgeschlagen')], ['engine_refused', t('Not computed', 'Nicht berechnet')], ['active', t('Active', 'Aktiv')], ['stale', t('Stale', 'Veraltet')]])}${select('client', t('Client', 'Mandant'), [['wago', 'Wago'], ['renishaw', 'Renishaw']])}${select('how', t('Confirmation', 'Bestätigung'), [['auto', HOW.auto()], ['differ', HOW.differ()], ['rule', HOW.rule()]])}<select class="field small" data-filter="open" aria-label="${t('Show', 'Zeigen')}"><option value="open" selected>${t('Open deadlines', 'Offene Fristen')}</option><option value="">${t('All deadlines', 'Alle Fristen')}</option></select></div>`;
-  const tbl = `${table({ cols: DCOLS(), rows: deadlineRows(), sortKey: 'dueat', filters, total: DEADLINES.filter(d => !d.closed).length, cls: 'dl-tbl' })}<p class="src-line t12 dl-note">${draft()} ${t('The Confirmation column follows founder decision 6.', 'Die Spalte „Bestätigung“ folgt der Gründerentscheidung 6.')}</p>`;
+  const tblOf = v => `${table({ cols: DCOLS(), rows: deadlineRows(v), sortKey: 'dueat', filters, total: deadlineRows(v).filter(r => r.values.open === 'open').length, cls: 'dl-tbl' })}<p class="src-line t12 dl-note">${draft()} ${t('The Confirmation column follows founder decision 6.', 'Die Spalte „Bestätigung“ folgt der Gründerentscheidung 6.')}</p>`;
+  const tbl = tblOf('default');
   const skel = `<div class="dt-wrap"><table class="dt dl-tbl"><thead><tr>${DCOLS().map(c => `<th class="${c.cls}">${c.label}</th>`).join('')}</tr></thead><tbody>${['w60', 'w70', 'w50', 'w65'].map(w => `<tr>${DCOLS().map(c => `<td class="${c.cls}"><span class="skel ${w}"></span></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  const body = `${topbar(crumb('calendar', t('Deadlines', 'Fristen')), btn(t('Search', 'Suchen'), { kind: 'ghost', icon: 'search', act: 'search' }), `<span class="cset" data-state="default loading error">${viewTabs('table')}</span><span class="cset" data-state="month">${viewTabs('month')}</span>`)}
+  const body = `${topbar(crumb('calendar', t('Deadlines', 'Fristen')), btn(t('Search', 'Suchen'), { kind: 'ghost', icon: 'search', act: 'search' }), `<span class="cset" data-state="default loading error jonas">${viewTabs('table')}</span><span class="cset" data-state="month">${viewTabs('month')}</span>`)}
       <div class="list-pane dl-page">
         ${head}
         <div data-state="default">${tbl}</div>
+        <div data-state="jonas">${tblOf('jonas')}</div>
         <div data-state="error"><div class="error-bar">${notice('bad', 'warn', t('FlowLeap could not load the deadlines.', 'FlowLeap konnte die Fristen nicht laden.'), t(`The table shows them as of ${at(TODAY, '09:00')}. No deadline changed.`, `Die Tabelle zeigt sie mit Stand ${at(TODAY, '09:00')}. Keine Frist hat sich geändert.`), retry())}</div>${tbl}</div>
         <div data-state="loading">${skel}</div>
         <div class="mv" data-state="month">${monthView()}</div>
       </div>`;
-  return page({ title: t('Deadlines', 'Fristen'), body: app_({ person: 'lena', side: 'deadlines', body }) });
+  return page({ title: t('Deadlines', 'Fristen'), body: app_({ person: 'lena', side: 'deadlines', body, as: { jonas: 'jonas' } }) });
 }
 
 /** The engine's steps in the person's words. */
@@ -617,7 +623,16 @@ function card() {
     linked: [head(headActs), summary, part(false, false), importRow, foot(false, t('Nothing changed.', 'Nichts geändert.'))],
     arrival: [head(headActs), summary, part(true, false), foot(true, t('Save applies the setting to the next letter.', '„Speichern“ gilt ab dem nächsten Schreiben.'))],
     saved: [head(headActs), summary, part(true, true), foot(false, t('Saved. It applies from the next letter.', 'Gespeichert. Es gilt ab dem nächsten Schreiben.'))],
-    readonly: [head(btn(t('Test', 'Testen'), { icon: 'retry', attrs: off })), summary, part(false, false, true)],
+  };
+  // A firm installation: the firm administrator links MyEPO in the Firm admin console, so the app card has no field.
+  const firmNote = `<div class="ccard-b"><div class="line" data-i="lock"><div>${t('Your firm administrator links MyEPO in the Firm admin console. The credentials stay on the firm’s host; FlowLeap reads the docket and the Mailbox once for the whole firm, and you see the matters of your teams.', 'Ihr Kanzleiadministrator verbindet MyEPO in der Kanzleiverwaltung. Die Zugangsdaten bleiben auf dem Host der Kanzlei; FlowLeap liest den Bestand und die Mailbox einmal für die ganze Kanzlei, und Sie sehen die Akten Ihrer Teams.')}</div></div></div>`;
+  const firmFacts = linked => `<div class="ccard-part"><dl class="ro-facts"><dt>${t('MyEPO', 'MyEPO')}</dt><dd>${linked ? t(`Linked since ${at(LINKED, LINKED_HM)}`, `Verbunden seit ${at(LINKED, LINKED_HM)}`) : t('Not linked yet', 'Noch nicht verbunden')}</dd>${linked ? `<dt>${t('Last read', 'Letzter Abruf')}</dt><dd class="num">${at(TODAY, '09:00')}</dd><dt>${t('Letters', 'Schreiben')}</dt><dd>${t('Downloaded when a person or a task opens them', 'Heruntergeladen, wenn eine Person oder eine Aufgabe sie öffnet')}</dd>` : ''}</dl></div>`;
+  const firmHead = linked => `<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="${linked ? 'ok' : 'idle'}"></span>${linked ? t('Linked', 'Verbunden') : t('Not linked', 'Nicht verbunden')}</span></div>`;
+  const compare = `<div class="grp-h">${t('For comparison: a single-user installation (the dev loop, the desktop app)', 'Zum Vergleich: eine Einzelplatz-Installation (Dev-Loop, Desktop-App)')} ${exNote(t('Compare', 'Vergleich'))}</div>
+      <div class="ccard myepo">\n${[head(headActs), summary, part(false, false)].join('\n')}\n      </div>`;
+  const firmStates = {
+    firm: `<div class="ccard myepo">${firmHead(true)}${firmNote}${firmFacts(true)}${importRow}</div>${compare}`,
+    'firm-unlinked': `<div class="ccard myepo">${firmHead(false)}${firmNote}${firmFacts(false)}</div>${compare}`,
   };
   const defaultState = `<div class="ccard myepo" data-state="default">${states.linked.join('\n')}</div>`;
   const body = `<div class="app">
@@ -636,6 +651,7 @@ function card() {
       <div class="grp-h">${t('Your firm\'s EPO account', 'EPA-Konto Ihrer Kanzlei')}</div>
 ${defaultState}
 ${Object.entries(states).map(([s, parts]) => `      <div class="ccard myepo" data-state="${s}">\n${parts.join('\n')}\n      </div>`).join('\n')}
+${Object.entries(firmStates).map(([s, html]) => `      <div class="cset" data-state="${s}">${html}</div>`).join('\n')}
     </div>
   </div>
 </div>`;
@@ -645,7 +661,7 @@ ${Object.entries(states).map(([s, parts]) => `      <div class="ccard myepo" dat
 // ======================================================================================================
 // 0. The review page: every screen and state, the walkthrough, and the decisions for the founder
 // ======================================================================================================
-const PAGES = [['1a-docket', docket], ['1b-clients', clientsStep], ['1c-conflict', conflictStep], ['1d-review', reviewStep], ['1e-record', recordStep], ['2-letters', letters], ['2-letter', letterPage], ['3-deadlines', deadlines], ['3-deadline', deadlineDetail], ['4-my-work', myWork], ['5-myepo-card', card], ['index', () => REVIEW({ lang, t, page, nm })]];
+const PAGES = [['1a-docket', docket], ['1b-clients', clientsStep], ['1c-conflict', conflictStep], ['1d-review', reviewStep], ['1e-record', recordStep], ['2-letters', letters], ['2-letter', letterPage], ['3-deadlines', deadlines], ['3-deadline', deadlineDetail], ['4-my-work', myWork], ['5-myepo-card', card], ['6-console-keys', () => consolePage({ lang, t, page, btn, nm, at, P, LINKED, LINKED_HM, TODAY })], ['index', () => REVIEW({ lang, t, page, nm })]];
 for (const l of ['en', 'de']) {
   lang = l;
   // A German page links to the German page of each mockup.

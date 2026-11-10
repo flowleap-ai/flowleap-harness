@@ -232,3 +232,59 @@ body:has(.review) { background: var(--dsw-alias-bg-base); }
   .unopened { grid-template-columns: minmax(0, 1fr); }
   .unopened-i { display: none; }
 }
+
+/* ---------- the Firm admin console (flowleap-os lib/console): its parts, drawn with client tokens ---------- */
+.cn { min-height: 100vh; background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-primary); }
+.cn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 12px 32px; background: var(--dsw-alias-bg-base); border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.cn-brand { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-primary); text-decoration: none; font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.cn-mark { display: inline-grid; width: 20px; height: 20px; }
+.cn-mark > svg { width: 20px; height: 20px; }
+.cn-area { padding-left: 8px; border-left: 0.5px solid var(--dsw-alias-border-l3); color: var(--dsw-alias-label-secondary); font-weight: var(--dsw-font-xs-13-font-weight); }
+.cn-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.cn-nav a { color: var(--dsw-alias-label-primary); }
+.cn-nav a[aria-current='page'] { font-weight: var(--dsw-font-xs-strong-13-font-weight); text-decoration: none; }
+.cn-langs { display: flex; flex-wrap: wrap; gap: 8px; color: var(--dsw-alias-label-secondary); }
+.cn-langs a { color: var(--dsw-alias-label-secondary); text-decoration: none; }
+.cn-langs b { font-weight: var(--dsw-font-xs-strong-13-font-weight); color: var(--dsw-alias-label-primary); }
+.cn-main { max-width: 1120px; margin: 0 auto; padding: 24px 32px 48px; }
+.cn-h1 { margin: 8px 0 16px; font-size: var(--dsw-font-l-20-font-size); line-height: var(--dsw-font-l-20-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.cn-h2 { margin: 24px 0 8px; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.cn-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.cn-card { background: var(--dsw-alias-bg-base); border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-lg); padding: 16px; min-width: 0; }
+.cn-card h3 { margin: 0 0 8px; font-size: var(--dsw-font-xs-13-font-size); line-height: var(--dsw-font-xs-13-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); color: var(--dsw-alias-label-secondary); }
+.cn-card h4 { margin: 0 0 8px; font-size: var(--dsw-font-xs-13-font-size); line-height: var(--dsw-font-xs-13-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+.cn-figure { margin: 0 0 12px; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); }
+.cn-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; }
+.cn-dl dt { color: var(--dsw-alias-label-secondary); }
+.cn-dl dd { margin: 0; overflow-wrap: anywhere; }
+.cn-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 12px; }
+.cn-form label { display: flex; flex-direction: column; gap: 4px; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); line-height: var(--dsw-font-xxs-12-line-height); }
+.cn-input { box-sizing: border-box; width: 240px; max-width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-2); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3); color: var(--dsw-alias-label-primary); font: inherit; }
+.cn-force { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.cn-note { margin: 12px 0 0; color: var(--dsw-alias-label-secondary); max-width: 80ch; }
+.cn-text { margin: 0 0 8px; max-width: 80ch; }
+.cn-acts { display: flex; gap: 8px; margin-top: 12px; }
+.cn-part { margin-top: 16px; padding-top: 16px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.cn-part .opts { display: grid; gap: 2px; }
+.cn-replace { margin-top: 12px; }
+.cn-replace summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; color: var(--dsw-alias-label-primary); }
+.cn-replace summary > svg { width: 12px; height: 12px; color: var(--dsw-alias-label-tertiary); }
+.cn-banner { margin: 0 0 12px; padding: 8px 12px; border-radius: var(--dsw-radius-md); color: var(--dsw-alias-label-primary); }
+.cn-banner.error { background: var(--dsw-alias-interactive-bg-hover-danger); }
+.cn-banner.done { background: var(--dsw-alias-state-success-tertiary); }
+
+/* ---------- the app's MyEPO card on a firm installation: read-only facts ---------- */
+.ro-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; }
+.ro-facts dt { color: var(--dsw-alias-label-secondary); }
+.ro-facts dd { margin: 0; }
+
+/* ---------- the wall line on Letters and Deadlines ---------- */
+.wall-line { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 0; color: var(--dsw-alias-label-secondary); max-width: 72ch; }
+.wall-line > svg { width: 14px; height: 14px; margin-top: 2px; flex: none; color: var(--dsw-alias-label-tertiary); }
+
+@media (max-width: 720px) {
+  .cn-head, .cn-main { padding-left: 16px; padding-right: 16px; }
+  .cn-cards { grid-template-columns: minmax(0, 1fr); }
+  .cn-input { width: 100%; }
+  .cn-form label { width: 100%; }
+}

@@ -14,12 +14,13 @@ Then open `http://localhost:8000/flowleap/docs/mockups/myepo-surfaces/index.html
 
 ## Walkthrough
 
-[5-myepo-card.html?state=linked&walk=1](5-myepo-card.html?state=linked&walk=1) starts a clickable walkthrough of 18 steps; [the German one](5-myepo-card.de.html?state=linked&walk=1) has the same steps. A panel at the bottom left shows the step, what the person sees, and **Back** and **Next**; the one control that goes on has a blue outline.
+[6-console-keys.html?state=linked&walk=1](6-console-keys.html?state=linked&walk=1) starts a clickable walkthrough of 20 steps; [the German one](6-console-keys.de.html?state=linked&walk=1) has the same steps. A panel at the bottom left shows the step, what the person sees, and **Back** and **Next**; the one control that goes on has a blue outline.
 
-1. Felix Neumann (administrator): the linked MyEPO card with the new part **Letters from the Mailbox**. He opens the other mode, reads what it changes in MyEPO, keeps the default, and selects **Import your EP docket**.
-2. Dr. Martin Krüger (partner): **Import your EP docket**, the Add client stepper with Docket, Clients, Conflict check and Review, then Record.
+1. Felix Neumann (administrator): the MyEPO card on the Keys page of the Firm admin console, linked, with **Letters from the Mailbox**. He opens the other mode, reads what it changes in MyEPO, keeps the default, and goes back to FlowLeap.
+2. Dr. Martin Krüger (partner): the app's MyEPO card of a firm installation (facts only, beside the single-user card), then **Import your EP docket**, the Add client stepper with Docket, Clients, Conflict check and Review, then Record.
 3. Lena Hoffmann (patent attorney): **Letters**, with the Rule 71(3) communication of SF-2023-0045 listed and not opened, then opened; its deadline with the evidence; **Deadlines** as a table and as a month; the overdue deadline of SF-2022-0024 that needs a person.
-4. Dr. Anna Becker (patent attorney): **My work** with the three kinds of MyEPO item, and the letter that FlowLeap cannot file.
+4. Jonas Weber (patent attorney): his **Letters**, without SF-2022-0024, from which he is screened. The page shows no count of other matters.
+5. Dr. Anna Becker (patent attorney): **My work** with the three kinds of MyEPO item, and the letter that FlowLeap cannot file.
 
 The persons change because the seed walls decide what each person sees: only Lena Hoffmann's walls hold both the overdue Wago deadline and the demo matter, and only Dr. Anna Becker is responsible for SF-2023-0045 and SF-2026-0019.
 
@@ -30,14 +31,19 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 | Page | What it shows |
 |---|---|
 | [1a-docket.html](1a-docket.html) to [1e-record.html](1e-record.html) | Import your EP docket: the counts of the docket, the proposed clients in one list with the role, the conflict check, the Review with **Import 3 clients** `⇧⌘↵`, and Record. Each step has the state `large` (a firm with 1,132 applications) |
-| [2-letters.html](2-letters.html) | Letters: a data table of the letters with filters by text, state, client, matter, document type and PDF, and the reading pane from 1366 px. One state for each letter (`r1` to `r16`), `unopened`, `loading`, `error` and `empty` |
+| [2-letters.html](2-letters.html) | Letters: a data table of the letters with filters by text, state, client, matter, document type and PDF, and the reading pane from 1366 px. One state for each letter (`r1` to `r16`), `unopened`, `jonas` (the wall), `loading`, `error` and `empty` |
 | [2-letter.html](2-letter.html) | One letter on its own page: below 1366 px a row opens it, and My work opens the letters of Dr. Anna Becker (`r15`, `x1`) |
-| [3-deadlines.html](3-deadlines.html) | Deadlines: a data table by due date, the Outlook line, and the `month` view; `loading` and `error` |
+| [3-deadlines.html](3-deadlines.html) | Deadlines: a data table by due date, the Outlook line, the wall line, and the `month` view; `jonas` (the wall), `loading` and `error` |
 | [3-deadline.html](3-deadline.html) | One deadline with its evidence: confirmed automatically (default), `person` (overdue, needs a person), `r16` and `r15` (no rule: enter the date), `r6` (no rule, another person enters it), `r1` (closed, replaced) |
 | [4-my-work.html](4-my-work.html) | My work of PR 343 with the three MyEPO items; `context` (row menu) |
-| [5-myepo-card.html](5-myepo-card.html) | The approved MyEPO card, linked, with the letter setting: `linked`, `arrival` (changed, not saved), `saved`, `readonly` |
+| [5-myepo-card.html](5-myepo-card.html) | The MyEPO card in the app. `firm` and `firm-unlinked`: a firm installation, with no field, the note that the firm administrator links MyEPO and the facts, beside the single-user card. `linked`, `arrival`, `saved`: the single-user card of PR 365 with the letter setting |
+| [6-console-keys.html](6-console-keys.html) | The Keys page of the Firm admin console with the MyEPO card: not linked (default), `refused`, `untested` (Save anyway), `done`, `linked`, `arrival`, `saved` |
 
 ## Decisions in the mockups
+
+- **Firm installation and single-user installation** (founder, 2026-11-10). On a firm installation only the firm administrator links MyEPO, on the Keys page of the Firm admin console (flowleap-os `lib/console`). The secret stays on the host (invariant `keys.none-in-runtime`); one firm process reads the docket and the Mailbox into the Firm Record; attorneys read only the Firm Record inside their walls, and no attorney runtime calls MyEPO. The app card then shows facts only. A single-user installation keeps the app card of PR 365.
+- **The console page repeats the console, with client tokens.** `6-console-keys.html` has the console's header, navigation, key cards, change banners and the "Save anyway" form, drawn with client tokens so that the gate checks it. The review page lists where the console's own stylesheet does not meet the design language; the console is not redesigned here.
+- **The wall.** Letters and Deadlines show only the matters of the person's teams and no count of other matters (`record.wall-filters-reads`, `record.search-inside-wall`). The `jonas` states show Jonas Weber, who is screened from SF-2022-0024.
 
 - **The letter states are not atlas states.** They use the status shapes with their own words and the classes `.cstatus` and `.cst`, as the MyEPO card does, so `check-mockups.mjs` does not look for them in the status map. The deadline states are atlas states (Active, Deadline proposed, Not computed, Stale).
 - **My work is not redesigned.** It is the My work of PR 343 (founder decision B9: groups Overdue, Today and Later, no checkboxes, a row context menu), with **Open the letter** `O` added to the row menu.
