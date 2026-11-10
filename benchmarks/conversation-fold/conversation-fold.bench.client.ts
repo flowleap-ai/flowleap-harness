@@ -8,7 +8,10 @@ import {
 } from '../support/built-worker.ts'
 import {
   ciTimeBudget,
+  MAX_RUNNER_TIME_SCALE,
   PERFORMANCE_BUDGET_HEADROOM,
+  runnerTimeBudget,
+  runnerTimeScale,
 } from '../support/calibration.ts'
 import { recordPeakMemory, recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
 import type { ConversationFoldWorkerReport, PreparingToolWorkerReport, StreamingAssistantWorkerReport } from './conversation-fold.worker.client.ts'
@@ -94,15 +97,16 @@ describe('cold Chat fold of a large v2 history window', () => {
       args: [String(TURNS), String(SMALL_DELTAS), String(LARGE_DELTAS), String(ATTEMPTS)],
       timeoutMs: WORKER_TIMEOUT_MS,
     }))
+    const budgetMs = runnerTimeBudget(LARGE_FOLD_BUDGET_MS)
     console.log(JSON.stringify({
       benchmark: 'conversation-fold/large-window',
       ...report,
-      budgetMs: LARGE_FOLD_BUDGET_MS,
+      budgetMs,
       maxScaling: MAX_DELTA_SCALING,
     }))
-    recordTimings(LARGE_WINDOW_CASE, { largeFoldMs: { ms: report.largeFoldMs, ioShare: IO_SHARE } }, { largeFoldMs: LARGE_FOLD_BUDGET_MS })
+    recordTimings(LARGE_WINDOW_CASE, { largeFoldMs: { ms: report.largeFoldMs, ioShare: IO_SHARE } }, { largeFoldMs: budgetMs })
     expect(report.chatNodes).toBeGreaterThan(0)
-    expect(report.largeFoldMs).toBeLessThanOrEqual(LARGE_FOLD_BUDGET_MS)
+    expect(report.largeFoldMs).toBeLessThanOrEqual(budgetMs)
     expect(report.scaling).toBeLessThanOrEqual(MAX_DELTA_SCALING)
   })
 })
@@ -129,7 +133,7 @@ describe('preparing tool arguments', () => {
     }
     const medianMs = samples.map(sample => sample.elapsedMs).toSorted((a, b) => a - b)[1]!
     const retainedMb = samples.map(sample => sample.retainedMb).toSorted((a, b) => a - b)[1]!
-    const budgetMs = ciTimeBudget(workload.expectedMs)
+    const budgetMs = runnerTimeBudget(ciTimeBudget(workload.expectedMs))
     const budgetMb = workload.expectedMb * PERFORMANCE_BUDGET_HEADROOM
     console.log(JSON.stringify({ benchmark: `conversation-fold/preparing-${workload.tool}`, samples, medianMs, retainedMb, budgetMs, budgetMb }))
     recordTimings({
@@ -139,6 +143,37 @@ describe('preparing tool arguments', () => {
     }, { medianMs: { ms: medianMs, ioShare: IO_SHARE } }, { medianMs: budgetMs })
     expect(medianMs).toBeLessThanOrEqual(budgetMs)
     expect(retainedMb).toBeLessThanOrEqual(budgetMb)
+  })
+})
+
+describe('runner time scale', () => {
+  // Same-job probe and 16,384-delta reasoning medians from calibration run 42638383736.
+  const RECORDED = {
+    epyc9v45: { probeMs: 40.892, medianMs: 52.844561 },
+    epyc9v74: { probeMs: 54.81, medianMs: 68.27359 },
+    epyc7763: { probeMs: 71.983, medianMs: 87.7511 },
+  }
+  const budgetMs = ciTimeBudget(STREAMING_WORKLOADS[1].expectedMs)
+
+  it('keeps the reviewed budget on runners as fast as the reference class', () => {
+    for (const runner of [RECORDED.epyc9v45, RECORDED.epyc9v74]) {
+      expect(runnerTimeBudget(budgetMs, runnerTimeScale(runner.probeMs))).toBe(budgetMs)
+      expect(runner.medianMs).toBeLessThanOrEqual(budgetMs)
+    }
+    expect(RECORDED.epyc9v45.medianMs * 1.6).toBeGreaterThan(runnerTimeBudget(budgetMs, runnerTimeScale(RECORDED.epyc9v45.probeMs)))
+  })
+
+  it('accepts a recorded slower-runner median at its own scale and rejects a quarter slower there', () => {
+    const { probeMs, medianMs } = RECORDED.epyc7763
+    const fitted = runnerTimeBudget(budgetMs, runnerTimeScale(probeMs))
+    expect(medianMs).toBeGreaterThan(budgetMs)
+    expect(medianMs).toBeLessThanOrEqual(fitted)
+    expect(medianMs * 1.25).toBeGreaterThan(fitted)
+  })
+
+  it('caps the scale so a stalled runner still fails its budgets', () => {
+    expect(runnerTimeScale(10_000)).toBe(MAX_RUNNER_TIME_SCALE)
+    expect(runnerTimeBudget(budgetMs, runnerTimeScale(10_000))).toBe(Math.ceil(budgetMs * MAX_RUNNER_TIME_SCALE))
   })
 })
 
@@ -161,7 +196,7 @@ describe('live Assistant text publication', () => {
     }
     const median = samples.toSorted((a, b) => a.elapsedMs - b.elapsedMs)[Math.floor(STREAMING_SAMPLES / 2)]!
     const retainedMb = samples.map(sample => sample.retainedMb).toSorted((a, b) => a - b)[Math.floor(STREAMING_SAMPLES / 2)]!
-    const budgetMs = ciTimeBudget(workload.expectedMs)
+    const budgetMs = runnerTimeBudget(ciTimeBudget(workload.expectedMs))
     const budgetMb = EXPECTED_STREAMING_RETAINED_MB * PERFORMANCE_BUDGET_HEADROOM
     const benchmarkCase: BenchmarkCase = {
       id: `conversation-fold/streaming-${workload.blockType}-${workload.pattern}-${String(workload.fragments)}`,

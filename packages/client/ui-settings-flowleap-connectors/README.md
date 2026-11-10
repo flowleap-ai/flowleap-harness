@@ -29,6 +29,10 @@ Mount the row beside `dsh-flowleap-connectors` in a web composition; the [`dsh-f
 
 A card's fields are password inputs with `autocomplete="new-password"`; a stored value is never read into them, and **Save** is enabled only when every field of the connector is filled, because the Host replaces the whole record. **Remove** and **Test connection** appear on a configured card. The test runs the Host's one cheap authenticated call and its result renders under the fields as a status line, passed or failed with the Host's message; a connector without a stored key reports `<Connector> key not configured`. A refused save shows the Host's reason verbatim under the card. When the credential store is read-only the fields are disabled and the card says so. A record written from another browser, or by the wizard, reaches the page through the forwarded `credentials/record-updated` event.
 
+### The MyEPO card
+
+The section opens with **Your firm's EPO account** and the MyEPO card, built to the founder-approved [mockup](https://github.com/flowleap-ai/flowleap-harness/pull/365); the four patent data cards follow under **Patent data**. While not linked, the card shows one line on the account, the four sources it reads, two short notes (FlowLeap only reads; a downloaded letter shows as read in MyEPO), two rows that open with one click (**What FlowLeap reads**, and **Set up the account at the EPO** with the rights table of the B2B account and the EPO guide), the client ID and secret as password inputs, and **Save and test**. The Host stores the link only after its test passed, so the card shows **Linked** only then: the portfolio count as the key fact, each portfolio with its type and access, and the checks. An empty portfolio list shows **Waits for portfolio permission** with **Test again**; a refusal, an unanswered EPO, or another EPO error shows its notice with what did not change. On a later visit the linked card is one header (**Test**, and a menu with **Replace credentials** and **Unlink**) and one summary line. A typed secret is never read back: the draft is dropped after a passed or refused test and kept after an unanswered one, so **Try again** can send it again. The MyEPO menu and right names stay in English in every language.
+
 ### The wizard
 
 The wizard registers as a `settings.onboarding` step after the welcome notice. It renders nothing while presence and the dismissal are still loading, completes at once when any connector is configured or the dismissal is recorded, and otherwise blocks the page until **Save** or **Skip for now**, also after **Test** has saved a key with the four connectors in compact form. **Save** writes every connector whose fields are complete, records the dismissal, and completes; **Test** writes those connectors too and then runs the connection test on each configured one, leaving the results in place; **Skip for now** records the dismissal alone. A failed save keeps the wizard open with the connector's reason under its fields. When the Host cannot report presence at all the step completes without showing, and the settings section remains the diagnostic surface.
@@ -41,7 +45,7 @@ The wizard registers as a `settings.onboarding` step after the welcome notice. I
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half declares one live Config field, `wizardDismissed`, and calls `settings.configure({ auto: false })` so the row has a namespace but no generated page. The browser half keeps one `ConnectorsStore` over `ctx.remote.flowleapConnectors` (`describe`, `set`, `unset`, `test`) whose snapshot carries a card per connector: presence from the Host, the draft, the operation in flight, the last test outcome, and the last refusal. `WizardStore` follows the row's `ConfigForm` the way the Models welcome notice does and writes the dismissal through `scope.set`. The section registers into `settings.section` with `locale: NS`, so its copy arrives through the framework `t` seat in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt); the wizard step injects the same bound translate. The connector ids and fields are spelled in the browser half because a client bundle imports no Host value; the Host's `describe()` confirms the fields per connector.
+The Host half declares one live Config field, `wizardDismissed`, and calls `settings.configure({ auto: false })` so the row has a namespace but no generated page. The browser half keeps a `MyEpoStore` over the `myEpo*` methods for the MyEPO card, and one `ConnectorsStore` over `ctx.remote.flowleapConnectors` (`describe`, `set`, `unset`, `test`) whose snapshot carries a card per connector: presence from the Host, the draft, the operation in flight, the last test outcome, and the last refusal. `WizardStore` follows the row's `ConfigForm` the way the Models welcome notice does and writes the dismissal through `scope.set`. The section registers into `settings.section` with `locale: NS`, so its copy arrives through the framework `t` seat in the eight shipped UI languages (en, zh, ja, es, fr, de, ru, pt); the wizard step injects the same bound translate. The connector ids and fields are spelled in the browser half because a client bundle imports no Host value; the Host's `describe()` confirms the fields per connector.
 
 ### Source map
 
@@ -50,12 +54,15 @@ The Host half declares one live Config field, `wizardDismissed`, and calls `sett
 | [`src/index.ts`](src/index.ts) | Host half: the `wizardDismissed` Config and the settings presentation |
 | [`src/wizard-settings.ts`](src/wizard-settings.ts) | the namespace and field name both halves share |
 | [`src/client/index.ts`](src/client/index.ts) | dictionaries, the stores, the section and wizard registrations, the record invalidation |
+| [`src/client/remote-page-store.ts`](src/client/remote-page-store.ts) | the shared load of both page stores: one read at a time, a refresh only after the first load |
 | [`src/client/connectors-store.ts`](src/client/connectors-store.ts) | page state and the Remote calls |
 | [`src/client/wizard-store.ts`](src/client/wizard-store.ts) | the durable dismissal |
 | [`src/client/ConnectorCard.tsx`](src/client/ConnectorCard.tsx) | one card, full or compact |
 | [`src/client/ConnectorsSection.tsx`](src/client/ConnectorsSection.tsx) | the settings section |
+| [`src/client/myepo-store.ts`](src/client/myepo-store.ts) | the MyEPO card state, its mode, and the `myEpo*` Remote calls |
+| [`src/client/MyEpoCard.tsx`](src/client/MyEpoCard.tsx) | the MyEPO card |
 | [`src/client/ConnectorsWizard.tsx`](src/client/ConnectorsWizard.tsx), [`src/client/OnboardingModal.tsx`](src/client/OnboardingModal.tsx) | the first-run step and its blocking chrome |
-| [`tests/`](tests/) | the cards as rendered, the wizard dismissal, the Host Config |
+| [`tests/`](tests/) | the MyEPO card in each mode and its store, the cards as rendered, the wizard dismissal, the Host Config |
 
 </details>
 

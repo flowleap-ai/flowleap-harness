@@ -67,7 +67,8 @@ it.each([
   expect(formatted).toContain('answer: 42')
   await page.getByRole('tab', { name: 'Memory', exact: true }).click()
   await page.getByRole('button', { name: 'Take snapshot', exact: true }).click()
-  await page.getByRole('columnheader', { name: /Constructor/u }).waitFor()
+  // The panel parses a heap snapshot of the whole host process: up to 29 s on 4-CPU CI runners.
+  await page.getByRole('columnheader', { name: /Constructor/u }).waitFor({ timeout: 90_000 })
   await page.getByRole('table').first().getByRole('row').nth(1).waitFor()
   expect(remote).toEqual([])
   expect(failed).toEqual([])

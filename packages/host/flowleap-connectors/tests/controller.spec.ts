@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { createConnectors } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  FlowleapConnectorsController, createConnectorHost, createCredentialStore,
+  FlowleapConnectorsController, createConnectorHost, createCredentialStore, createMyEpoLink,
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import { MemoryCredentials } from './memory-credentials.ts'
@@ -14,7 +14,11 @@ async function bench() {
   const fetchSpy = vi.fn<typeof fetch>(() => Promise.reject(new Error('no network in this spec')))
   const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
   const connectors = createConnectors(bound.host)
-  await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
+  const myEpo = createMyEpoLink({
+    credentials, fetch: fetchSpy, now: Date.now, gate: { wait: () => Promise.resolve() },
+    endpoint: { baseUrl: 'https://myepo.test', tokenUrl: 'https://login.test/token', requestsPerSecond: 1, timeoutSeconds: 1 },
+  })
+  await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound, myEpo })
   return { ctx, credentials, controller: ctx.flowleapConnectors, fetchSpy }
 }
 
