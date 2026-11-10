@@ -60,6 +60,20 @@ After an edit:
 
 `flowleap/dev-loop.sh status` shows what runs and as whom. `flowleap/dev-loop.sh down` stops everything. Nothing stays up after `down`; the record's data, the seed and the Sessions stay in the run dir (`~/.local/share/flowleap-harness/dev-loop`, or `FLOWLEAP_DEV_RUN`). Remove the run dir to start with an empty record.
 
+## The MyEPO double
+
+`up --myepo-double` also starts the [MyEPO double](../../packages/host/flowleap-connectors/tests/myepo-double/README.md) on `<port>+3` (default 3273) and adds [`myepo-double.patch.yml`](../myepo-double.patch.yml), so the MyEPO link calls the double. The double serves the seed firm's real public EP files as public sample data; it is not a live MyEPO account. `up` prints its client ID and secret. Type them on Settings → Connectors → MyEPO and choose `Save and test`. To make the waiting Rule 71(3) letter of SF-2023-0045 arrive, and to restore the Mailbox:
+
+```bash
+curl -X POST http://127.0.0.1:3273/_double/arrive
+```
+
+```bash
+curl -X POST http://127.0.0.1:3273/_double/reset
+```
+
+`status` shows the double's process, and `down` stops it. The Mailbox state is lost when the double stops. A later `up` converges to its own options: with another `--port` it moves the double, the host and the proxy to the new ports; without `--myepo-double` it stops the double and starts the host without its overlay.
+
 ## Model keys
 
 The loop reads `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY` and `DEEPSEEK_API_KEY` from your shell's environment and writes no key to the run dir or the repository. With no key, the app starts, the Matters panel and `probe` work, and a chat fails at its model call.

@@ -1,0 +1,12 @@
+# Overlay for the MyEPO double (packages/host/flowleap-connectors/tests/myepo-double/README.md): the MyEPO link of
+# flowleap-connectors calls the double at FLOWLEAP_MYEPO_DOUBLE_URL, default http://127.0.0.1:8290, which serves public
+# sample data and is not a live MyEPO account. An override replaces the row's whole config, so the row restates every
+# field of packages/bundle/flowleap-web/cordis.patch.yml.
+- id: flowleap-connectors
+  config:
+    cacheEntries: 500
+    excludeTools: [get_fulltext]
+    myepo:
+      baseUrl: !!js (process.env.FLOWLEAP_MYEPO_DOUBLE_URL ?? 'http://127.0.0.1:8290') + '/latest'
+      tokenUrl: !!js (process.env.FLOWLEAP_MYEPO_DOUBLE_URL ?? 'http://127.0.0.1:8290') + '/token'
+      requestsPerSecond: 50
