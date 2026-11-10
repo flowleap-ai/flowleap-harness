@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createFolderApi } from '../src/client/api.ts'
+import { createFolderApi, readClientFolders } from '../src/client/api.ts'
 
 const WORKSPACE = '6f1c2a40-0000-4000-8000-000000000001'
 
@@ -146,5 +146,22 @@ describe('createFolderApi', () => {
     const lost = api.upload('', 'Mandate.pdf', new Blob(['x']), () => {})
     FakeRequest.last!.onerror!()
     expect(await lost).toEqual({ ok: false, error: 'network' })
+  })
+})
+
+describe('readClientFolders', () => {
+  it('reads the client folders with the session cookie and no cache, at a path relative to the document', async () => {
+    const requests = serve(json({ workspaces: [WORKSPACE] }))
+    expect(await readClientFolders()).toEqual({ ok: true, value: { workspaces: [WORKSPACE] } })
+    expect(requests).toEqual([{ url: 'api/flowleap/folder/clients', init: { credentials: 'include', cache: 'no-store' } }])
+  })
+
+  it('gives internal for an answer that does not name the workspaces as strings, and the failure of a refusal', async () => {
+    for (const body of [null, 'text', {}, { workspaces: 'all' }, { workspaces: [7] }]) {
+      serve(json(body))
+      expect(await readClientFolders()).toEqual({ ok: false, error: 'internal' })
+    }
+    serve(async () => { throw new TypeError('Failed to fetch') })
+    expect(await readClientFolders()).toEqual({ ok: false, error: 'network' })
   })
 })

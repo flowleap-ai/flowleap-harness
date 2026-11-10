@@ -2,6 +2,7 @@
  * The client folder page: the Clients list, and a client's folder with the folder tree at the left and, in the middle,
  * the selected folder's folders and files or the selected file. The 44px top bar holds the location, New folder,
  * Upload files and the one primary action, Ask about this. Files dropped on the middle area go into the listed folder.
+ * Add client is a view of this page: the Clients list opens it, and it ends on the new client's folder.
  */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
@@ -10,7 +11,7 @@ import {
   Button, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
   IconNewChatOutlineRegular, IconPaperclipOutlineRegular, IconProjectAddOutlineRegular, IconRefreshOutlineRegular,
   IconRightUpOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
-  type KeycapBox, type MarkdownLabels,
+  Tooltip, type KeycapBox, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -21,7 +22,11 @@ import type { TreeEntry } from '@deepseek-ai/dsh-client-ui-sidebar-files/client'
 import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { TRASH, isTrashPath, type FolderEntry, type FolderSearchHit } from '../route.ts'
-import { FOLDER_SCOPE, keycapsOf, type KeyAct, type KeyHandlers } from './keys.ts'
+import { FOLDER_SCOPE, keycapsOf, recordKeyOf, type KeyAct, type KeyHandlers } from './keys.ts'
+import { AddClientPage, AddClientToast, BuildState, WatchingList } from './add-client/AddClient.tsx'
+import type { AddClientTranslate } from './add-client/format.ts'
+import type { AddClientModel, AddClientSnapshot } from './add-client/model.ts'
+import type { BuildStatus } from '../add-client/wire.ts'
 import type { FlowleapFolderKey, NS } from './locales.ts'
 import {
   baseName, childPath, keepBothName, namesIn, parentOf,
@@ -43,7 +48,7 @@ export interface PanelInjected {
   readonly hooks: {
     /** The page's state. */
     readonly folder: ObservableSnapshot<FolderSnapshot>
-    /** The client folders: the workspaces of this runtime. */
+    /** The client folders: the workspaces of this runtime that the Host names as client folders in `clientsRoot`. */
     readonly clients: ObservableSnapshot<readonly WorkspaceView[]>
     /** The shortcut catalog, for the keycaps of the acts. */
     readonly catalog: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
@@ -51,7 +56,13 @@ export interface PanelInjected {
     readonly language: ObservableSnapshot<LocaleId>
     /** The folder tree's width in px, kept in this browser. */
     readonly treeWidth: ObservableSnapshot<number>
+    /** The state of Add client. */
+    readonly addClient: ObservableSnapshot<AddClientSnapshot>
   }
+  /** Add client's acts. */
+  readonly addClient: AddClientModel
+  /** The translate function of the Add client namespace. */
+  readonly addClientT: AddClientTranslate
   /** Set the folder tree's width; it is kept inside the app sidebar's limits. */
   readonly setTreeWidth: (px: number) => void
   readonly model: FolderModel
@@ -78,7 +89,9 @@ export function ClientsIcon({ size }: Pick<SidebarPanelIconOwnerProps, 'size'>) 
 }
 
 /** The kind word of an entry. */
-function kindOf(t: Translate, entry: Pick<FolderEntry, 'name' | 'kind'>): string {
+function kindOf(t: Translate, entry: Pick<FolderEntry, 'name' | 'kind' | 'source'>): string {
+  const role = entry.source?.kind === 'add-client' ? entry.source.role : undefined
+  if (role !== undefined) return t(role === 'family' ? 'kind.family' : 'kind.matter')
   if (entry.kind === 'directory') return t('kind.folder')
   const kind = viewerKind(entry.name)
   return t(kind === 'none' ? 'kind.file' : `kind.${kind}`)
@@ -109,7 +122,8 @@ function modifiedOf(t: Translate, iso: string, locale: LocaleId, now: Date): str
 /** The source word of an entry. */
 function sourceOf(t: Translate, entry: FolderEntry, client: string): string {
   if (entry.trashedFrom !== undefined) return t('source.trashed', { folder: parentOf(entry.trashedFrom) === '' ? client : parentOf(entry.trashedFrom) })
-  return entry.source === undefined ? t('source.none') : t(entry.source.kind === 'upload' ? 'source.upload' : 'source.folder')
+  if (entry.source === undefined) return t('source.none')
+  return t(entry.source.kind === 'upload' ? 'source.upload' : entry.source.kind === 'folder' ? 'source.folder' : 'source.addClient')
 }
 
 /** Whether an entry lies directly in Trash, where Restore applies. */
@@ -128,7 +142,7 @@ function failureOf(t: Translate, code: FailureCode): string {
   return t(`failure.${code}`)
 }
 
-/** A button with its keycaps from the shortcut catalog. */
+/** A button with its keycaps from the shortcut catalog; a label that the button cuts shows whole in a tooltip. */
 function ActButton({ label, icon, keycaps, primary = false, disabled = false, onClick, className }: {
   readonly label: string
   readonly icon: ReactNode
@@ -139,10 +153,12 @@ function ActButton({ label, icon, keycaps, primary = false, disabled = false, on
   readonly className?: string | undefined
 }) {
   return (
-    <Button variant={primary ? 'primary' : 'outline'} size="sm" icon={icon} disabled={disabled} onClick={onClick} className={className}>
-      {label}
-      {keycaps !== undefined && keycaps.length > 0 && <Keycap keycaps={keycaps} tone={primary ? 'primary' : 'default'} className={css.keycap} />}
-    </Button>
+    <Tooltip label={label} onlyWhenClipped side="bottom" delayMs={500} portal>
+      <Button variant={primary ? 'primary' : 'outline'} size="sm" icon={icon} disabled={disabled} onClick={onClick} className={className}>
+        <span className={css.actLabel}>{label}</span>
+        {keycaps !== undefined && keycaps.length > 0 && <Keycap keycaps={keycaps} tone={primary ? 'primary' : 'default'} className={css.keycap} />}
+      </Button>
+    </Tooltip>
   )
 }
 
@@ -152,8 +168,9 @@ function ActButton({ label, icon, keycaps, primary = false, disabled = false, on
  * @returns the page.
  */
 export function FolderPanel(props: PanelProps) {
-  const { t, useFolder, useClients, useCatalog, useLanguage, model } = props
+  const { t, useFolder, useClients, useCatalog, useLanguage, useAddClient, model, addClient, addClientT } = props
   const state = useFolder(value => value)
+  const adding = useAddClient(value => value)
   const clients = useClients(value => value)
   const catalog = useCatalog(rows => rows)
   const locale = useLanguage(value => value)
@@ -167,48 +184,92 @@ export function FolderPanel(props: PanelProps) {
     const active = document.activeElement
     if (active === null || active === document.body) page.current?.focus({ preventScroll: true })
   })
+  // The builds and the Watch list stay current while the page is open.
+  useEffect(() => addClient.follow(), [addClient])
   return (
     <section ref={page} className={css.panel} data-testid="flowleap-folder" data-shortcut-scope={FOLDER_SCOPE} tabIndex={-1}>
-      {client === null
-        ? <ClientsList t={t} clients={clients} open={(id) => { void model.openClient(id) }} />
-        : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} />}
+      {adding.view !== null
+        ? (
+          <AddClientPage t={addClientT} view={adding.view} model={addClient} locale={locale} setKeys={props.setKeys}
+            recordKey={recordKeyOf(catalog)} retryKeycaps={keycaps('retry')} />
+        )
+        : client === null
+          ? (
+            <ClientsList t={t} addT={addClientT} clients={clients} builds={adding.builds} watching={adding.watching}
+              open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }}
+              openBuild={(id) => { addClient.openBuild(id) }} />
+          )
+          : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} builds={adding.builds} />}
+      {adding.view === null && adding.toast !== null && (
+        <AddClientToast t={addClientT} toast={adding.toast} onClose={() => { addClient.dismissToast() }} />
+      )}
     </section>
   )
 }
 
-/** The Clients list: one row for each client folder. */
-function ClientsList({ t, clients, open }: {
+/** The Clients list: one row for each client folder, a row for each build without its folder yet, and Watching. */
+function ClientsList({ t, addT, clients, builds, watching, open, add, openBuild }: {
   readonly t: Translate
+  readonly addT: AddClientTranslate
   readonly clients: readonly WorkspaceView[]
+  readonly builds: readonly BuildStatus[]
+  readonly watching: AddClientSnapshot['watching']
   readonly open: (id: WorkspaceId) => void
+  readonly add: () => void
+  readonly openBuild: (clientId: BuildStatus['clientId']) => void
 }) {
+  const buildOf = (id: WorkspaceId) => builds.find(build => build.workspace === id)
+  // A build shows on its client's row; a build whose folder is not a listed client folder yet has its own row.
+  const pending = builds.filter(build => build.state !== 'done' && !clients.some(item => item.workspaceId === build.workspace))
   return (
     <>
-      <header className={css.topbar} data-frame-top-row=""><div className={css.crumbs}><span className={css.here}>{t('clients.title')}</span></div></header>
+      <header className={css.topbar} data-frame-top-row="">
+        <div className={css.crumbs}><span className={css.here}>{t('clients.title')}</span></div>
+        <div className={css.actions}>
+          <Button variant="primary" size="sm" icon={<IconProjectAddOutlineRegular size={16} />} onClick={add}>{addT('list.add')}</Button>
+        </div>
+      </header>
       <div className={css.scroll}>
         <div className={css.head}>
           <h1 className={css.title}>{t('clients.title')}</h1>
           <p className={css.lede}>{t('clients.lede')}</p>
         </div>
-        {clients.length === 0
+        {clients.length === 0 && pending.length === 0
           ? (
             <div className={css.empty}>
               <h2>{t('clients.empty.title')}</h2>
               <p>{t('clients.empty.body')}</p>
+              <Button variant="outline" size="sm" icon={<IconProjectAddOutlineRegular size={16} />} onClick={add}>{addT('list.add')}</Button>
             </div>
           )
           : (
             <ul className={css.list} aria-label={t('clients.listLabel')}>
-              {clients.map(item => (
-                <li key={item.workspaceId}>
-                  <button type="button" className={css.row} onClick={() => { open(item.workspaceId) }}>
+              {pending.map(build => (
+                <li key={build.clientId}>
+                  <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { openBuild(build.clientId) }}>
                     <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                    <span className={css.name}>{item.title}</span>
+                    <span className={css.name}>{build.name}</span>
+                    <BuildState t={addT} build={build} />
                   </button>
                 </li>
               ))}
+              {clients.map((item) => {
+                const build = buildOf(item.workspaceId)
+                // While its build runs or after it stopped, the row opens the build, where Try again is.
+                const building = build !== undefined && build.state !== 'done'
+                return (
+                  <li key={item.workspaceId}>
+                    <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { if (building) openBuild(build.clientId); else open(item.workspaceId) }}>
+                      <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
+                      <span className={css.name}>{item.title}</span>
+                      {build !== undefined && <BuildState t={addT} build={build} />}
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
+        <WatchingList t={addT} watching={watching} />
       </div>
     </>
   )
@@ -220,8 +281,11 @@ function ClientFolderView(props: PanelProps & {
   readonly client: WorkspaceView
   readonly keycaps: (act: KeyAct) => readonly KeycapBox[]
   readonly locale: LocaleId
+  readonly builds: readonly BuildStatus[]
 }) {
-  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth } = props
+  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth, builds, addClient, addClientT } = props
+  // Add client built this folder: Check for new matters runs it again for the same client.
+  const built = builds.find(build => build.workspace === client.workspaceId)
   const fileInput = useRef<HTMLInputElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
   const [treeOpen, setTreeOpen] = useState(false)
@@ -330,10 +394,14 @@ function ClientFolderView(props: PanelProps & {
           placeholder={t('search.placeholder', { client: client.title })} disabled={state.connect !== 'ready'}
           onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
+          {built !== undefined && (
+            <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={css.act}
+              onClick={() => { void addClient.checkForNew(built.clientId) }} />
+          )}
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
-            disabled={!writable} onClick={() => { model.startNewFolder() }} className={css.wide} />
+            disabled={!writable} onClick={() => { model.startNewFolder() }} className={clsx(css.act, css.wide)} />
           <ActButton label={t('act.upload')} icon={<IconPaperclipOutlineRegular size={16} />} keycaps={keycaps('upload')}
-            disabled={!writable} onClick={chooseFiles} className={css.wide} />
+            disabled={!writable} onClick={chooseFiles} className={clsx(css.act, css.wide)} />
           <button type="button" className={clsx(css.iconButton, css.onlyNarrow)} aria-label={t('act.newFolder')}
             disabled={!writable} onClick={() => { model.startNewFolder() }}>
             <IconProjectAddOutlineRegular size={16} />

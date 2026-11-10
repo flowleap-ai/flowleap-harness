@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installKeyboard } from '@deepseek-ai/dsh-client-shortcuts/src/client/dom.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { commandOf, FOLDER_SCOPE, keycapsOf, registerKeys, type KeyHandlers } from '../src/client/keys.ts'
+import { commandOf, FOLDER_SCOPE, keycapsOf, pressed, recordKeyOf, registerKeys, RECORD_COMMAND, type KeyHandlers } from '../src/client/keys.ts'
 import { en } from '../src/client/locales.ts'
 
 let disposers: (() => void)[] = []
@@ -35,7 +35,7 @@ const press = (target: Element, code: string, extra: KeyboardEventInit = {}) => 
 }
 
 describe('the keys of the client folder page', () => {
-  it('registers the seven acts in the page scope with their default keys and labels', () => {
+  it('registers the eight acts in the page scope with their default keys and labels', () => {
     const { registry } = keys({ current: {} })
     const rows = registry.catalog.getSnapshot().filter(row => row.id.startsWith('flowleap.folder.'))
     expect(rows.map(row => [row.id, row.label, row.keycaps, row.scope?.label])).toEqual([
@@ -46,6 +46,7 @@ describe('the keys of the client folder page', () => {
       ['flowleap.folder.move', en['keys.move'], [['⇧', 'M']], en['keys.scope']],
       ['flowleap.folder.trash', en['keys.trash'], [['Backspace']], en['keys.scope']],
       ['flowleap.folder.find', en['keys.find'], [['/']], en['keys.scope']],
+      ['flowleap.folder.retry', en['keys.retry'], [['R']], en['keys.scope']],
     ])
     expect(commandOf('move')).toBe('flowleap.folder.move')
   })
@@ -111,5 +112,35 @@ describe('keycapsOf', () => {
     expect(of('ask')).toEqual([['A']])
     expect(of('upload')).toEqual([])
     expect(of('move')).toEqual([])
+  })
+})
+
+describe('the key of Record the decision', () => {
+  const row = (extra: Partial<ShortcutCatalogEntry>): ShortcutCatalogEntry => ({
+    id: RECORD_COMMAND, label: 'Record the decision', aliases: [], keys: [], keycaps: [['⇧', '⌘', 'Enter']], aria: undefined,
+    binding: { code: 'Enter', modifiers: ['shift', 'meta'] }, modified: false, conflicts: [], issue: null, ...extra,
+  })
+
+  it('follows the app command\'s current binding, and has none while it is unbound, in conflict or not registered', () => {
+    expect(recordKeyOf([row({})])).toEqual({ keycaps: [['⇧', '⌘', 'Enter']], binding: { code: 'Enter', modifiers: ['shift', 'meta'] } })
+    const { keycaps: _keycaps, ...bare } = row({})
+    expect(recordKeyOf([bare]).keycaps).toEqual([])
+    for (const broken of [row({ binding: null }), row({ issue: 'reserved' }), row({ conflicts: [commandOf('ask')] })]) {
+      expect(recordKeyOf([broken])).toEqual({ keycaps: [], binding: null })
+    }
+    expect(recordKeyOf([])).toEqual({ keycaps: [], binding: null })
+  })
+
+  it('matches a key press with exactly the binding\'s modifiers', () => {
+    const key = (code: string, mods: Partial<Record<'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey', boolean>> = {}) =>
+      ({ code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods })
+    const binding = { code: 'Enter', modifiers: ['shift', 'meta'] as const }
+    expect(pressed(key('Enter', { shiftKey: true, metaKey: true }), binding)).toBe(true)
+    expect(pressed(key('Enter', { metaKey: true }), binding)).toBe(false)
+    expect(pressed(key('Enter', { shiftKey: true, metaKey: true, altKey: true }), binding)).toBe(false)
+    expect(pressed(key('KeyA', { shiftKey: true, metaKey: true }), binding)).toBe(false)
+    expect(pressed(key('KeyG'), { code: 'KeyG', thenCode: 'KeyM', modifiers: [] })).toBe(false)
+    expect(pressed(key('KeyG'), { code: 'KeyG', secondCode: 'KeyM', modifiers: [] })).toBe(false)
+    expect(pressed(key('Enter'), null)).toBe(false)
   })
 })

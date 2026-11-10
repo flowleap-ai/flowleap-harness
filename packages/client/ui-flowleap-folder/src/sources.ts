@@ -20,12 +20,16 @@ export interface TrashOrigin {
 /**
  * Whether a stored value is a source.
  * @param value - a value read from a record file.
- * @returns true for a source with a known kind and a time.
+ * @returns true for a source with a known kind and a time; an Add client source also needs a known origin, and its role
+ *   and key when present.
  */
 export function isSource(value: unknown): value is FolderSource {
   if (typeof value !== 'object' || value === null) return false
-  const { kind, at } = value as Record<string, unknown>
-  return (kind === 'upload' || kind === 'folder') && typeof at === 'string'
+  const { kind, at, from, role, key } = value as Record<string, unknown>
+  if (typeof at !== 'string') return false
+  if (kind === 'upload' || kind === 'folder') return true
+  return kind === 'add-client' && (from === 'template' || from === 'ep-register' || from === 'epo-publication')
+    && (role === undefined || role === 'family' || role === 'matter') && (key === undefined || typeof key === 'string')
 }
 
 /**

@@ -40,6 +40,7 @@ type Agent = NonNullable<Parameters<typeof executeModelToolFixture>[1]['agent']>
 
 let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
+const MYEPO = { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 }
 
 describe('registerOfficeTools', () => {
   it('registers the library\'s 39 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
@@ -136,7 +137,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [], myepo: { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 } })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
     expect(ctx.tools.schemas()).toHaveLength(40)
     expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
@@ -156,7 +157,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(NativeToolExecutor)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
     provideWorkingDirectoryFixture(ctx, process.cwd())
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], myepo: { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 } })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
     const names = ctx.tools.schemas().map(schema => schema.name)
     expect(names).toHaveLength(40)
     expect(names).toContain('read_pdf')

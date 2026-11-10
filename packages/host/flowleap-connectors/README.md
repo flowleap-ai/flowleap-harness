@@ -36,6 +36,7 @@ Mount the row beside `dsh-tools` and a credential provider; the [`dsh-flowleap-w
 | Field | Default | Meaning |
 |---|---|---|
 | `cacheEntries` | `500` | Entries the in-memory result cache holds before evicting the least recently used one; each entry expires at the TTL the library sets |
+| `opsRequestDeadlineMs` | `60000` | The longest time of one EPO OPS read, its retries included (5000 to 600000 ms). The library retries an EPO 429 or 503 within it and gives each attempt at most 30 s; a register page of 100 rows can take 22 s, so the library's own 20 s, made for a proxy read window, fails a slow page |
 | `excludeTools` | `[]` | Office tools from the library this host does not register, by backend name; the FlowLeap profile lists `get_fulltext`, whose US arm needs the `usFulltext` host capability and so stays on the paid MCP row |
 | `myepo.baseUrl` | `https://api.apps.epo.org/latest` | The MyEPO API base; the EPO sandbox is `https://api-sandbox.apps-staging.epo.org/latest`. HTTPS, or HTTP to a loopback host for a local double; another value fails the row at load |
 | `myepo.tokenUrl` | `https://login.epo.org/oauth2/aus6hh2ns9ORf2PD3417/v1/token` | The OAuth 2.0 token endpoint that issues tokens for `baseUrl`; the sandbox's is `https://login-t.epo.org/oauth2/aus1v8we8qXXwPJd60x7/v1/token` |
@@ -160,6 +161,24 @@ The library caches an OCR result for 24 hours by content hash, so a later call w
 
 `ctx.flowleapRegister.read(application, signal?)` returns the current register events of one application as office-neutral entries (`date` as `YYYY-MM-DD`, `code`, `description`), for Host plugins that read the registers without a model call, such as the [register watch](../flowleap-routines/README.md). `parseRegisterApplication` normalizes the application: `EP` and seven digits is an EP publication (a kind code is dropped), read as EP Register events on the EPO OPS key; `US` and eight digits is a US application number, read as USPTO ODP transactions on the USPTO ODP key. A US patent number has the same form, so the reader reads it as an application number. The read throws when the key is missing or the office refuses it; repeated identical events stay in the list.
 
+### The patent data reader
+
+`ctx.flowleapPatentData` reads EP patent data on the firm's `epo-ops` credential record, for Host plugins that need it without a Session or a tool call, such as the "Add client" flow of the client folder plugin. Every method throws `PatentDataError` with a `code` and the original error as `cause`: `no-key` when the firm stored no EPO OPS key (checked before any call) or the EPO refused the key, `unreachable` for a network fault, a 5xx, a rate limit or any other library failure, and `malformed` when an answer misses a field this service uses. A range or count that no caller should send (a register range under 1 or over 100 rows, a `maxRows` that is not a positive integer, a name without a letter or digit) throws `RangeError`.
+
+| Method | Returns |
+|---|---|
+| `findApplicantNames(name, { maxRows }, signal?)` | the applicant names of the EP Register that match a typed company name, each with its count of EP applications (high first, then by name), and `truncated` when the read stopped at `maxRows`; the search is `pa=<name>` in pages of 100 rows, a name matches when its `normalizeName` key holds every word of the typed name's key, and spellings with one key are one name: the spelling the register uses most, with each application of the key once |
+| `searchRegister(query, { begin, end }, signal?)` | one page (`total`, `begin`, `end`, `rows`) of an EP Register search in register CQL; one OPS call for at most 100 rows |
+| `registerRecord(application, signal?)` | the `RegisterRow` of one EP application (`ap=<number>`), or `undefined` when the register lists none |
+| `family(application, signal?)` | the family through the earliest EP publication: priority filings (earliest first, each once, as `US 10374408`; a member with an office code over 4 characters or a number over 32 is `malformed`) and the citable publication of each family member, any office; empty when the application has no EP publication or the EPO has no family for it |
+| `publication(publication, signal?)` | title, abstract and claims of an EP publication, each absent when the EPO holds no text; for a pre-grant Euro-PCT EP publication, which has no text of its own, the abstract and the claims of its WO publication through the library's text router (`connectors.fulltext.getClaimsRouted`), and `textFrom` names that WO publication |
+
+A `RegisterRow` holds the application number, the earliest EP publication (without a kind code: the library reads the kind from the register but drops it), the English title, the applicants, the professional representatives with address lines, the day the representatives were recorded, the opponents, the status and the filing and publication days (`YYYY-MM-DD`). `parseEpApplication` (`EP` and eight digits; a check digit after a dot is dropped) and `parseEpPublication` (`EP`, seven digits, optional kind code) brand the numbers, and `normalizeName` is the company key: Unicode NFKC, lower case, punctuation removed, spaces collapsed.
+
+Only company names and EP application or publication numbers go to the EPO. Everything else stays in the firm.
+
+**PATSTAT.** The applicant search answers from the EP Register (`source: 'ep-register'`, no edition) because PATSTAT is the model-facing MCP row `mcp-flowleap` of the profile, not a Host service. A Host plugin can call a registered MCP tool outside a Session through `ctx.tools.execute({ calls, signal })` without `agent` (the documented standalone call), but the call runs the full tool pipeline and its MCP result is text for a model, so this service does not use it. `ApplicantNames.source` already allows `'patstat'` for a later provider.
+
 `ctx.flowleapOcr.pages(bytes, filename, signal?)` returns the Markdown text of each page of one document (PDF or image) through Mistral OCR on the firm's key, for Host plugins that index files without a tool call, such as the [agent builder](../flowleap-agent-builder/README.md) for PDF pages without a text layer. Without a stored key, or when Mistral refuses the key, it answers `{ kind: 'not-configured' }` and makes no further call; another upstream failure throws.
 
 -----
@@ -188,6 +207,7 @@ Each registered tool validates the model's arguments with the definition's Zod s
 | [`src/read-pdf.ts`](src/read-pdf.ts) | the native `read_pdf` tool: working-directory fence, size and page caps, the OCR call, page markers and the cost line |
 | [`src/key-state.ts`](src/key-state.ts) | the `flowleap:patent-data-keys` prompt section: key presence per connector, refreshed on record changes; the persona export points at its heading |
 | [`src/controller.ts`](src/controller.ts) | the `flowleapConnectors` Remote |
+| [`src/patent-data.ts`](src/patent-data.ts) | the `flowleapPatentData` service: EP number parsing, the EP Register, family and text reads, and the zod checks of every library answer |
 | [`src/myepo.ts`](src/myepo.ts) | the MyEPO link record, the link and test of the card, and the `flowleapMyEpo` service |
 | [`src/myepo-client.ts`](src/myepo-client.ts) | the MyEPO API client: token cache, request gate, typed failures, the reads, the ZIP download |
 | [`src/myepo-wire.ts`](src/myepo-wire.ts) | the zod schemas of the MyEPO answers and their mapping into FlowLeap records |

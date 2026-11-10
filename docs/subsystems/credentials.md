@@ -594,6 +594,69 @@ pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRea
 
 Source: [`packages/host/flowleap-connectors/src/ocr.ts`](../../packages/host/flowleap-connectors/src/ocr.ts)
 
+<a id="ctxflowleappatentdata--patentdata"></a>
+
+### `ctx.flowleapPatentData` — `PatentData`
+
+Reads EP patent data. Each method throws PatentDataError when the read fails.
+
+```ts cordis-catalog
+/**
+ * Find the applicant names in the EP Register that match a company name.
+ * The read searches `pa=<name>` in pages of 100 rows. A name matches when its
+ * company key holds every word of the typed name's company key. Names with the
+ * same company key are one name.
+ * @param name - the company name as the attorney types it.
+ * @param options - `maxRows`: the most register rows to read.
+ * @param signal - caller cancellation.
+ * @returns the matching names with their count of EP applications.
+ * @throws RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.
+ */
+findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>
+
+/**
+ * Run one EP Register search.
+ * @param query - the register CQL, for example `re=Muster` or `pa="Gerhard Schubert"`.
+ * @param range - the rows to read, counted from 1. The EPO allows at most 100 rows.
+ * @param signal - caller cancellation.
+ * @returns the page.
+ * @throws RangeError when `begin` is below 1, `end` is below `begin`, or the range is over 100 rows.
+ */
+searchRegister(query: string, range: { readonly begin: number; readonly end: number }, signal?: AbortSignal): Promise<RegisterPage>
+
+/**
+ * Read the register record of one EP application.
+ * @param application - the EP application number.
+ * @param signal - caller cancellation.
+ * @returns the record, or undefined when the register does not list the application.
+ */
+registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<RegisterRow | undefined>
+
+/**
+ * Read the family of one EP application through its earliest EP publication.
+ * @param application - the EP application number.
+ * @param signal - caller cancellation.
+ * @returns the family. It is empty when the application has no EP publication or the EPO has no family for it.
+ * @throws PatentDataError `malformed` when a member's office code is over 4 characters or its number over 32.
+ */
+family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>
+
+/**
+ * Read the title, abstract and claims of one EP publication. The claims are in
+ * English when the EPO has them, else in the first language it holds.
+ * The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are
+ * then those of the WO publication of the same international application, and `textFrom` names it. The library's
+ * text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP
+ * bibliography names finds it. They are absent when neither finds a WO publication with text.
+ * @param publication - the EP publication number.
+ * @param signal - caller cancellation.
+ * @returns the text.
+ */
+publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>
+```
+
+Source: [`packages/host/flowleap-connectors/src/patent-data.ts`](../../packages/host/flowleap-connectors/src/patent-data.ts)
+
 <a id="ctxflowleaprecord--flowleaprecord"></a>
 
 ### `ctx.flowleapRecord` — `FlowleapRecord`

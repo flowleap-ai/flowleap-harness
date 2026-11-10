@@ -23,6 +23,8 @@ export interface ConnectorHostOptions {
   logger: ConnectorLogger
   /** Maximum cached entries before the least recently used one is evicted. */
   cacheEntries: number
+  /** The longest time of one EPO OPS read, its retries included, in ms; absent keeps the library's 20000. */
+  opsRequestDeadlineMs?: number
   /** The clock, epoch ms; defaults to `Date.now`. */
   now?: () => number
   /** The network; defaults to the global `fetch`. Specs pass a recorder. */
@@ -128,6 +130,7 @@ export function createConnectorHost(options: ConnectorHostOptions): BoundConnect
     logger: options.logger,
     now,
     signal: () => callerSignal.getStore(),
+    ...options.opsRequestDeadlineMs === undefined ? {} : { settings: { opsRequestDeadlineMs: options.opsRequestDeadlineMs } },
   }
   return {
     host,

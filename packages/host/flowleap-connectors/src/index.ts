@@ -8,10 +8,12 @@
  * `read_pdf` tool reads a workspace file through that OCR when `fs` and `workingDirectory`
  * are mounted, and the `flowleapConnectors` Remote serves the settings cards and the
  * first-run wizard. The `flowleapRegister` service reads the register events of one EP
- * publication or US application for Host plugins, without a tool call, and the `flowleapOcr`
- * service reads the page text of one document through the same OCR. The `flowleapMyEpo` service reads the firm's
- * own MyEPO account (EP applications, Mailbox letters, EPO due dates, pending fees) with the B2B credentials the
- * MyEPO card links; it holds no write operation.
+ * publication or US application for Host plugins, without a tool call, the `flowleapPatentData`
+ * service reads the EP Register, families and publication text for Host plugins on the same
+ * EPO key, and the `flowleapOcr` service reads the page text of one document through the same OCR.
+ * The `flowleapMyEpo` service reads the firm's own MyEPO account (EP applications, Mailbox letters,
+ * EPO due dates, pending fees) with the B2B credentials the MyEPO card links; it holds no write
+ * operation.
  *
  * See packages/host/flowleap-connectors/README.md.
  * @module @deepseek-ai/dsh-flowleap-connectors
@@ -34,6 +36,7 @@ import { registerReadPdfTool } from './read-pdf.ts'
 import { createRequestGate } from './myepo-client.ts'
 import { createMyEpoLink, FlowleapMyEpo } from './myepo.ts'
 import { FlowleapOcr } from './ocr.ts'
+import { FlowleapPatentData } from './patent-data.ts'
 import { FlowleapRegister } from './register.ts'
 import { registerOfficeTools } from './tools.ts'
 
@@ -78,6 +81,13 @@ export type {
 } from './myepo-wire.ts'
 export { FlowleapOcr } from './ocr.ts'
 export type { FlowleapOcrOptions, OcrPageText, OcrRead, OcrSource } from './ocr.ts'
+export {
+  FlowleapPatentData, PatentDataError, normalizeName, parseEpApplication, parseEpPublication,
+} from './patent-data.ts'
+export type {
+  ApplicantNames, EpApplicationNumber, EpPublicationNumber, FamilyRead, FlowleapPatentDataOptions, PatentData,
+  PatentDataConnectors, PatentDataFailure, PublicationText, RegisterOpponent, RegisterPage, RegisterParty, RegisterRow, WoPublicationNumber,
+} from './patent-data.ts'
 export { FlowleapRegister, entriesFromOdp, entriesFromOps, parseRegisterApplication } from './register.ts'
 export type { FlowleapRegisterOptions, RegisterApplication, RegisterEntry, RegisterSource } from './register.ts'
 export { missingCredential, modelInputSchema, registerOfficeTools, renderText, toDshTool } from './tools.ts'
@@ -96,6 +106,8 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** The longest time of one EPO OPS read, its retries included, in ms. */
+  opsRequestDeadlineMs: number
   /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
   myepo: MyEpoConfig
 }
@@ -137,6 +149,7 @@ export function validateMyEpoUrl(field: string, value: string): string {
 export const Config: z<Config> = z.object({
   cacheEntries: z.number().step(1).min(1).default(500),
   excludeTools: z.array(String).default([]),
+  opsRequestDeadlineMs: z.number().step(1).min(5_000).max(600_000).default(60_000),
   myepo: z.object({
     baseUrl: z.string().default('https://api.apps.epo.org/latest'),
     tokenUrl: z.string().default('https://login.epo.org/oauth2/aus6hh2ns9ORf2PD3417/v1/token'),
@@ -153,7 +166,9 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config: Config): void {
   const store = createCredentialStore(ctx.credentials)
-  const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: config.cacheEntries })
+  const bound = createConnectorHost({
+    store, logger: ctx.logger, cacheEntries: config.cacheEntries, opsRequestDeadlineMs: config.opsRequestDeadlineMs,
+  })
   const connectors = createConnectors(bound.host)
   const myEpo = createMyEpoLink({
     credentials: ctx.credentials,
@@ -182,5 +197,6 @@ export function apply(ctx: Context, config: Config): void {
   ctx.plugin(FlowleapConnectorsController, { store, connectors, bound, myEpo })
   ctx.plugin(FlowleapMyEpo, { reads: myEpo.reads })
   ctx.plugin(FlowleapRegister, { connectors, bound })
+  ctx.plugin(FlowleapPatentData, { connectors, bound })
   ctx.plugin(FlowleapOcr, { connectors, bound })
 }

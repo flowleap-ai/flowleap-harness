@@ -7,10 +7,10 @@
 
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { link, lstat, mkdir, open, readdir, realpath, rename, unlink } from 'node:fs/promises'
+import { link, lstat, mkdir, open, readdir, readFile, realpath, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
-  TRASH, isTrashPath, type FolderEntry, type FolderFailureCode, type FolderListing, type FolderSource, type FolderSearchAnswer,
+  TRASH, isEntryName, isTrashPath, type FolderEntry, type FolderFailureCode, type FolderListing, type FolderSource, type FolderSearchAnswer,
   type FolderSearchHit,
 } from './route.ts'
 
@@ -30,12 +30,6 @@ export class FolderError extends Error {
 /** Prefix of the hidden file that an upload writes before it takes its name. */
 export const UPLOAD_PREFIX = '.flowleap-upload-'
 
-/** Longest name in UTF-8 bytes that common file systems accept. */
-const MAX_NAME_BYTES = 255
-
-/** Device names that Windows reserves in any folder, with or without an extension. */
-const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu
-
 /**
  * Check one entry name.
  * @param name - the name a person typed or a dropped file carried.
@@ -44,9 +38,7 @@ const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu
  *   end, more than 255 UTF-8 bytes, or a reserved Windows device name.
  */
 export function checkName(name: string): string {
-  const bad = name === '' || name === '.' || name === '..' || /[/\\\0]/u.test(name) || name.trim() !== name
-    || Buffer.byteLength(name, 'utf8') > MAX_NAME_BYTES || WINDOWS_RESERVED.test(name)
-  if (bad) throw new FolderError('invalid-name', `invalid name ${JSON.stringify(name)}`)
+  if (!isEntryName(name)) throw new FolderError('invalid-name', `invalid name ${JSON.stringify(name)}`)
   return name
 }
 
@@ -240,6 +232,73 @@ export class ClientFolder {
       throw error
     }
     return this.relativeOf(dir, name)
+  }
+
+  /**
+   * Make a folder, or use the folder that has the name already; an entry of another kind with the name is refused.
+   * Add client builds the client folder this way, so a second run keeps every folder and adds only what is missing.
+   * @param parent - the parent folder relative to the client folder.
+   * @param name - the folder's name.
+   * @returns the folder relative to the client folder, and whether this call made it.
+   * @throws FolderError `not-directory` when a file has the name, `outside` when a link or a special file has it,
+   *   `in-trash` for a parent that is Trash or in it.
+   */
+  async ensure(parent: string, name: string): Promise<{ readonly path: string; readonly made: boolean }> {
+    checkName(name)
+    keepOutOfTrash(parent)
+    const dir = await this.folder(parent)
+    try {
+      await mkdir(path.join(dir, name))
+      return { path: this.relativeOf(dir, name), made: true }
+    } catch (error: unknown) {
+      if (codeOf(error) !== 'EEXIST') throw error
+    }
+    const relative = this.relativeOf(dir, name)
+    // A link with the name is refused: its target can be outside the client folder.
+    if (!(await this.entry(relative)).isDirectory) throw new FolderError('not-directory', `${relative} is not a folder`)
+    return { path: relative, made: false }
+  }
+
+  /**
+   * Write a new text file. The file is created only when the name is free, so an existing file is never replaced.
+   * @param parent - the folder relative to the client folder.
+   * @param name - the file's name.
+   * @param text - the file's UTF-8 text.
+   * @returns the new file relative to the client folder.
+   * @throws FolderError `exists` when the name is taken, `in-trash` for a folder that is Trash or in it.
+   */
+  async writeNew(parent: string, name: string, text: string): Promise<string> {
+    checkName(name)
+    keepOutOfTrash(parent)
+    const dir = await this.folder(parent)
+    try {
+      await writeFile(path.join(dir, name), text, { encoding: 'utf8', flag: 'wx' })
+    } catch (error: unknown) {
+      if (codeOf(error) === 'EEXIST') throw new FolderError('exists', `${name} exists in ${parent}`)
+      throw error
+    }
+    return this.relativeOf(dir, name)
+  }
+
+  /**
+   * The names of the files in a folder, without hidden files.
+   * @param relative - the folder relative to the client folder.
+   * @returns the file names.
+   */
+  async fileNames(relative: string): Promise<string[]> {
+    const dir = await this.folder(relative)
+    return (await readdir(dir, { withFileTypes: true })).filter(child => child.isFile() && !child.name.startsWith('.')).map(child => child.name)
+  }
+
+  /**
+   * Read a text file whose final part is not a link.
+   * @param relative - the file relative to the client folder.
+   * @returns its UTF-8 text.
+   * @throws FolderError `not-found` or `outside`.
+   */
+  async readText(relative: string): Promise<string> {
+    const { dir, name } = await this.entry(relative)
+    return readFile(path.join(dir, name), 'utf8')
   }
 
   /**

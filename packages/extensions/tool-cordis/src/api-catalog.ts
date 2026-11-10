@@ -1539,6 +1539,46 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapPatentData',
+    summary: 'Reads EP patent data.',
+    description: 'Reads EP patent data. Each method throws PatentDataError when the read fails.',
+    methods: [
+      {
+        signature: 'findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>',
+        description: 'Find the applicant names in the EP Register that match a company name. The read searches `pa=<name>` in pages of 100 rows. A name matches when its company key holds every word of the typed name\'s company key. Names with the same company key are one name.',
+        parameters: [{ name: 'name', description: 'the company name as the attorney types it.' }, { name: 'options', description: '`maxRows`: the most register rows to read.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the matching names with their count of EP applications.',
+        throws: ['RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.'],
+      },
+      {
+        signature: 'searchRegister(query: string, range: { readonly begin: number; readonly end: number }, signal?: AbortSignal): Promise<RegisterPage>',
+        description: 'Run one EP Register search.',
+        parameters: [{ name: 'query', description: 'the register CQL, for example `re=Muster` or `pa="Gerhard Schubert"`.' }, { name: 'range', description: 'the rows to read, counted from 1. The EPO allows at most 100 rows.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the page.',
+        throws: ['RangeError when `begin` is below 1, `end` is below `begin`, or the range is over 100 rows.'],
+      },
+      {
+        signature: 'registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<RegisterRow | undefined>',
+        description: 'Read the register record of one EP application.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the record, or undefined when the register does not list the application.',
+      },
+      {
+        signature: 'family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>',
+        description: 'Read the family of one EP application through its earliest EP publication.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the family. It is empty when the application has no EP publication or the EPO has no family for it.',
+        throws: ['PatentDataError `malformed` when a member\'s office code is over 4 characters or its number over 32.'],
+      },
+      {
+        signature: 'publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>',
+        description: 'Read the title, abstract and claims of one EP publication. The claims are in English when the EPO has them, else in the first language it holds. The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are then those of the WO publication of the same international application, and `textFrom` names it. The library\'s text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP bibliography names finds it. They are absent when neither finds a WO publication with text.',
+        parameters: [{ name: 'publication', description: 'the EP publication number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the text.',
+      },
+    ],
+  },
+  {
     key: 'flowleapRecord',
     summary: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
     description: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
@@ -6222,6 +6262,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
   },
   {
+    name: 'ApplicantNames',
+    declaration: 'export interface ApplicantNames {\n    readonly source: \'patstat\' | \'ep-register\';\n    readonly edition?: string;\n    readonly names: readonly {\n        readonly name: string;\n        readonly applications: number;\n    }[];\n    readonly truncated: boolean;\n}',
+  },
+  {
     name: 'ApprovalOutcome',
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
@@ -7062,8 +7106,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}',
   },
   {
+    name: 'EpApplicationNumber',
+    declaration: 'export type EpApplicationNumber = Branded<\'EpApplicationNumber\'>;',
+  },
+  {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n    system?: never;\n}',
+  },
+  {
+    name: 'EpPublicationNumber',
+    declaration: 'export type EpPublicationNumber = Branded<\'EpPublicationNumber\'>;',
   },
   {
     name: 'EventLogOptions',
@@ -7076,6 +7128,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EveryScheduleRecord',
     declaration: 'export interface EveryScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'every\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly everySeconds: number;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'FamilyRead',
+    declaration: 'export interface FamilyRead {\n    readonly familyId?: string;\n    readonly priorities: readonly {\n        readonly number: string;\n        readonly date?: string;\n    }[];\n    readonly publications: readonly string[];\n}',
   },
   {
     name: 'FeedbackCategory',
@@ -8790,6 +8846,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PtcRunSpec extends PtcRunRequest {\n    cwd: string;\n    timeoutMs: number | null;\n}',
   },
   {
+    name: 'PublicationText',
+    declaration: 'export interface PublicationText {\n    readonly publicationNumber: EpPublicationNumber;\n    readonly textFrom?: WoPublicationNumber;\n    readonly title?: string;\n    readonly abstract?: string;\n    readonly claims?: string;\n}',
+  },
+  {
     name: 'QueueAction',
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
   },
@@ -8864,6 +8924,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RegisterEventView',
     declaration: 'export interface RegisterEventView {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
+    name: 'RegisterOpponent',
+    declaration: 'export interface RegisterOpponent extends RegisterParty {\n    readonly filedOn?: string;\n    readonly status?: string;\n}',
+  },
+  {
+    name: 'RegisterPage',
+    declaration: 'export interface RegisterPage {\n    readonly total: number;\n    readonly begin: number;\n    readonly end: number;\n    readonly rows: readonly RegisterRow[];\n}',
+  },
+  {
+    name: 'RegisterParty',
+    declaration: 'export interface RegisterParty {\n    readonly name: string;\n    readonly country?: string;\n    readonly address: readonly string[];\n}',
+  },
+  {
+    name: 'RegisterRow',
+    declaration: 'export interface RegisterRow {\n    readonly applicationNumber: EpApplicationNumber;\n    readonly publicationNumber?: EpPublicationNumber;\n    readonly title?: string;\n    readonly applicants: readonly string[];\n    readonly representatives: readonly RegisterParty[];\n    readonly representativeSince?: string;\n    readonly opponents: readonly RegisterOpponent[];\n    readonly status?: string;\n    readonly filed?: string;\n    readonly published?: string;\n}',
   },
   {
     name: 'Registry',
@@ -9078,16 +9154,8 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
   },
   {
-    name: 'ReviewRequest',
-    declaration: 'export interface ReviewRequest {\n    readonly file: Uint8Array;\n    readonly action: \'accept\' | \'reject\';\n    readonly selection: ReviewSelection;\n}',
-  },
-  {
     name: 'ReviewResult',
     declaration: 'export interface ReviewResult {\n    readonly file: Uint8Array;\n    readonly changed: number;\n}',
-  },
-  {
-    name: 'ReviewSelection',
-    declaration: 'export type ReviewSelection = {\n    readonly kind: \'all\';\n} | {\n    readonly kind: \'author\';\n    readonly author: string;\n} | {\n    readonly kind: \'ids\';\n    readonly ids: readonly number[];\n};',
   },
   {
     name: 'ReviewState',
@@ -11268,6 +11336,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WeeklyScheduleRecord',
     declaration: 'export interface WeeklyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'weekly\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly weekdays: number[];\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'WoPublicationNumber',
+    declaration: 'export type WoPublicationNumber = Branded<\'WoPublicationNumber\'>;',
   },
   {
     name: 'WorkflowAgentEndInfo',

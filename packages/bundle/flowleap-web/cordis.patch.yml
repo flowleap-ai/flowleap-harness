@@ -413,11 +413,15 @@
     # middle, New folder, Upload files, Rename, Move to, and Ask about this.
     # Writes stay inside the client folder and never replace an entry; uploads
     # stop while the disk-low flag of the Host exists, as attachments do.
+    # Add client builds new client folders in clientsRoot. The firm patch sets
+    # firmIdentity (the firm's names, addresses and representatives); while it
+    # is empty, Add client finds no matter at your firm.
     - id: ui-flowleap-folder
       name: '@deepseek-ai/dsh-client-ui-flowleap-folder'
       config:
         stateDir: !!js dshHomePath('flowleap-folder')
         storageLowFlagPath: /run/flowleap/host/disk-low
+        clientsRoot: !!js dshHomePath('clients')
 
     # The Firm admin row in the sidebar (flowleap-harness#112), shown only to a
     # firm administrator: the starter of flowleap-os signs an X-Flowleap-Admin

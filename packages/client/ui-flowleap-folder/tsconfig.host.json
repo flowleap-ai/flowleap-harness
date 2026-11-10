@@ -9,12 +9,20 @@
     "src/index.ts",
     "src/folder.ts",
     "src/sources.ts",
-    "src/route.ts"
+    "src/route.ts",
+    "src/add-client/build.ts",
+    "src/add-client/identity.ts",
+    "src/add-client/jobs.ts",
+    "src/add-client/review.ts",
+    "src/add-client/routes.ts",
+    "src/add-client/wire.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../connection/tsconfig.host.json" },
-    { "path": "../../workspace/workspace" }
+    { "path": "../../workspace/workspace" },
+    { "path": "../../util/atomic-write" },
+    { "path": "../../host/flowleap-connectors" }
   ]
 }

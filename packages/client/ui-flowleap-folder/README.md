@@ -1,5 +1,5 @@
 ---
-description: "The Clients row in the FlowLeap sidebar (German Mandanten) and the client folder page: a client's workspace folder with no chat, its files in the middle, new folders, uploads, rename, move, Move to Trash and Restore, a search by name, and Ask about this; writes stay inside the client folder and never replace or delete an entry."
+description: "The Clients row in the FlowLeap sidebar (German Mandanten), Add client, and the client folder page: a client's workspace folder with no chat, its files in the middle, new folders, uploads, rename, move, Move to Trash and Restore, a search by name, and Ask about this; writes stay inside the client folder and never replace or delete an entry."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, which are the runtime's workspaces. A client folder opens with no chat: the folder tree at the left, and in the middle the folder's entries or a file itself. The person makes folders, uploads or drops files, renames, moves, moves entries to Trash and back, finds entries by name, and starts **Ask about this**: a chat in the client's workspace with the entry already in the prompt. The design and the founder's decisions are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md).
+An attorney sees a **Clients** row in the `flowleap-web` sidebar (German **Mandanten**) that lists the client folders, the workspaces in `clientsRoot`. **Add client** finds a company's EP matters at your firm in the EP Register, records the person's decision in the Firm Record, and builds the client folder. A client folder opens with no chat: the tree at the left, and the entries or a file in the middle. The person makes folders, uploads, renames, moves, uses Trash, finds by name, and starts **Ask about this**. The designs are in [the client folder page](../../../flowleap/docs/2026-11-08-client-folder-page.md) and [Add client](https://github.com/flowleap-ai/flowleap-harness/pull/361).
 
 ## Table of Contents
 
@@ -31,11 +31,16 @@ Mount the row with its Host half and its browser half; the `flowleap-web` bundle
   config:
     stateDir: !!js dshHomePath('flowleap-folder')
     storageLowFlagPath: /run/flowleap/host/disk-low
+    clientsRoot: !!js dshHomePath('clients')
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
-| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace |
+| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace; the Add client build statuses go into its `builds/` folder, one JSON file for each client |
+| `clientsRoot` | required | The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. The Clients list shows only the workspaces whose folder is directly in it |
+| `folderTemplate` | `client: [00 Client]`, `matter: [Associates, Client, Drafts, Internal, Office, Search]`, `publicData: Office` | The folders that Add client makes in each client folder and each matter folder, and the matter folder that takes the dated files; a name that is not a valid folder name, a repeated name, or a `publicData` that is not a matter folder stops the row at load |
+| `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`; the Host matches them against the representatives of record and never sends them out. While it is empty, no matter is at your firm |
+| `maxRegisterRows` | `500` | The row cap of one EP Register query of Add client (at most 10,000, the EPO's cap); the page says when the cap cut a read. The EPO answers a page of 100 rows in about 15 s, so 500 rows take more than a minute |
 | `maxEntries` | `2000` | Cap on the entries of one listing; the rest is dropped and the listing says it is cut |
 | `maxUploadBytes` | `209715200` (200 MiB) | Inclusive byte cap of one uploaded file |
 | `maxSearchHits` | `200` | Cap on the hits of one search by name; the page says when the cap dropped hits |
@@ -43,7 +48,7 @@ Mount the row with its Host half and its browser half; the `flowleap-web` bundle
 
 ### The page
 
-When an act removes the control that has the focus, such as a client of the Clients list, the page takes the focus, so its keys keep working. The top bar shows the location (Clients, the client, `…` for the folders between, the folder, the file), the search field `/`, **New folder** `⇧N`, **Upload files** `U` and the one primary action, **Ask about this** `A`. The tree has a resize handle on its right edge with the limits of the app sidebar (264 to 420 px); the browser keeps the width for each person. The list groups by **Folders** and **Files** (the founder's approved exception to product rule 1) and sorts by name. A row has a checkbox; with rows checked, a bulk bar at the bottom offers **Move to Trash** `Backspace` (or **Restore** in Trash), **Move to…** `⇧M` and **Ask about these N**. A right-click on a row opens Open, Ask about this, Rename `F2`, Move to…, Copy path and Move to Trash or Restore. Rows do not select page text. Files dropped on the middle area go into the listed folder. At 390 px the tree opens from the top bar.
+When an act removes the control that has the focus, such as a client of the Clients list, the page takes the focus, so its keys keep working. The top bar shows the location (Clients, the client, `…` for the folders between, the folder, the file), the search field `/`, **New folder** `⇧N`, **Upload files** `U` and the one primary action, **Ask about this** `A`. The tree has a resize handle on its right edge with the limits of the app sidebar (264 to 420 px); the browser keeps the width for each person. The list groups by **Folders** and **Files** (the founder's approved exception to product rule 1) and sorts by name. A row has a checkbox; with rows checked, a bulk bar at the bottom offers **Move to Trash** `Backspace` (or **Restore** in Trash), **Move to…** `⇧M` and **Ask about these N**. A right-click on a row opens Open, Ask about this, Rename `F2`, Move to…, Copy path and Move to Trash or Restore. Rows do not select page text. Files dropped on the middle area go into the listed folder. The page lays out by its own width, which is the window less the app sidebar, so the top bar never goes past the page and the tree never goes under the app sidebar. At 1080 px or less, the keycaps of the top bar go and New folder, Upload files and Check for new matters show only their icons, with the name in a tooltip; in a language with longer labels, a label that still does not fit is cut, and the tooltip shows it whole. At 720 px or less, such as on a phone or beside an open app sidebar in an 800 px window, the tree opens from the top bar.
 
 ### Files in the middle
 
@@ -65,6 +70,16 @@ The search field finds files and folders by name over the whole client folder: e
 
 For each folder made and each file uploaded on the page, the Host records the act and its time; a rename or a move carries the record of the entry and of everything below it. The list shows **Made here**, **Uploaded**, or **Not recorded** for an entry this plugin did not write.
 
+### Add client
+
+**Add client** on the Clients list opens the Add client view of the page. The person types a company name; the Host sends only that name to the EP Register through the `flowleapPatentData` Service of [`dsh-flowleap-connectors`](../../host/flowleap-connectors/README.md) and shows the applicant names that hold every word of it, with their count of EP applications; spellings that differ only in case or punctuation are one row. The source line names the EP Register: PATSTAT is a model-facing MCP tool and has no Host-callable client yet. The person unticks a name that is not part of the client and selects **Continue**. The review reads the group's EP applications and groups them by **At your firm** (the representative of record matches `firmIdentity`) and **At other firms** (for reference, with the town of the representative, never its name; **This is ours** claims a row). The conflict check shows where a name of the group is on the other side of a client of your firm: in the Firm Record parties, and as patent owner or opponent in an EP opposition. When the read of the oppositions stops at `maxRegisterRows`, the page says that the check can be incomplete. With a possible conflict, **Add client** stays disabled until the person ticks that they checked it and writes why; the Firm Record lets only an attorney record that decision. By name only, FlowLeap reads no EP opposition: the page says so, and **Add client** stays disabled until the person ticks **I checked conflicts myself** and writes how; the reason goes with the conflict check. **Add client** also stays disabled for a client name that no folder can have, such as `CON`, before anything is recorded. The decision bar holds the role (**Client**, **Watch**, **Other party**) and the one primary act, which runs on the keycaps of the Matters panel's Record the decision (`⇧⌘↵`); **Try again** is `R`. Add client has no key of its own.
+
+The browser sends the decision to the Firm Record with the person's cookie, under the records link of `api/flowleap/records-link`, in the contract order: the conflict check, the client, its names, then for each application its parties, the application and the applicant roles. Each command has a deterministic `Idempotency-Key`, so a retry or a second run sends only what is missing; two names with one name key go as one command. A publication number without its kind code and a title that is blank or over 1,000 characters stay out of a command, as the contract asks. A refusal of the Firm Record shows its own sentence, also `invalid-body` and `idempotency-key-reused` (the key names a step that the Firm Record has with other details). **Client** then starts the build; **Watch** records the company and its names on the **Watching** list below the clients; **Other party** links the company to a matter of your firm with its role. The page copy is in the `flowleapAddClient` namespace.
+
+The build is a job of this plugin, not of a Session: `POST build` starts it and answers at once, the job goes on after the request ends, and `GET status` reports each step, so the person can leave the page and come back; the Clients list shows a running build on its client. The build makes `clientsRoot/<client folder>` and its workspace (`workspaceRegistry.create`); the client folder name is the client name with each `/`, `\` or NUL as `-` (`Novo Nordisk A/S` has the folder `Novo Nordisk A-S`), and the Firm Record and `About this folder.md` keep the name itself. A link or a file at the client folder, or where a family or matter folder of an earlier build was, is refused, so no write goes through a link. The build then makes the `folderTemplate.client` folders and `About this folder.md`, then for each application a family folder (one for each EP family, named by the application number of its first matter and at most 40 characters of the title in sentence case, cut at a word, such as `EP 23 171 862 Method and apparatus for producing…`) with a matter folder (`EP 23 171 862`) and the `folderTemplate.matter` folders. In the `publicData` folder of each matter it writes `EP Register YYYY-MM-DD.md` and, for a publication with text, `Publication EP 4 292 805 YYYY-MM-DD.md` with the title, the abstract and the claims (for a Euro-PCT publication, which has no text of its own at the EPO, those of the WO publication of the same international application, which the file names); at the client folder root it writes `Reference - at other firms YYYY-MM-DD.md`. Each dated file starts with "As of …, from …" and is a copy that never changes. No write replaces a file or a folder. A second run (**Check for new matters** on the client folder page, or Add client for an existing client) finds the family and matter folders by their source records, also after a person moved them, leaves a matter in Trash there, makes a new family folder for a new matter of a family whose folder is in Trash, and writes a new dated file only where the data differs from the last one. A failed item shows in its step, and **Try again** runs the build again, which adds only what is missing. A `build` request for a client whose build runs makes that build run once more when it ends, with the names and applications of both requests; the status says `running` until the last run ends. A Host stop ends a running build; its status then says `interrupted`. The status counts what the build made (`added`: the client folder, new family and matter folders, new dated files), so the page says "Syntegon added: 16 matters in 14 families" after a first build, "Syntegon updated: 1 new matter, 3 new dated files" after a second run that found something, and "Nothing changed for Syntegon" after one that found nothing. A status file without these counts, from an earlier version, reads as a build that made nothing, so its client keeps **Check for new matters**.
+
+The list shows the source **Add client** for each entry that Add client wrote, and the kind **Family** or **Matter** for its family and matter folders.
+
 ### Ask about this
 
 The act drafts `@path` (a file) or `@"path/"` (a folder) for each entry, relative to the client folder, in the workspace's new-session draft through `uiWorkspace.startSession`, and opens that chat. A single file also opens in the chat's right sidebar once the chat is on screen. The mention is prompt text, so it is part of the logged user message; the agent reads the file only through its own logged tool calls.
@@ -82,12 +97,20 @@ The browser reads files under the workspace's blank Session, which `uiWorkspace.
 | File | Role |
 |---|---|
 | [`src/route.ts`](src/route.ts) | the route paths, the request bodies, the answers and the failure codes, shared by both halves |
-| [`src/index.ts`](src/index.ts) | Host half: the config, the eight routes and their answers |
+| [`src/index.ts`](src/index.ts) | Host half: the config, the nine folder routes (with `clients`, the workspaces whose folder is directly in `clientsRoot`) and the four Add client routes |
 | [`src/folder.ts`](src/folder.ts) | the path and name checks and the listing, writes, Trash, Restore and search of one client folder |
 | [`src/sources.ts`](src/sources.ts) | the source records and the Trash origins of each workspace |
+| [`src/add-client/wire.ts`](src/add-client/wire.ts) | the Add client route paths, request fields and answers, shared by both halves |
+| [`src/add-client/routes.ts`](src/add-client/routes.ts) | the `find`, `review`, `build` and `status` routes |
+| [`src/add-client/review.ts`](src/add-client/review.ts) | the group read, the split by the firm identity, and the conflicts that the EP Register shows |
+| [`src/add-client/identity.ts`](src/add-client/identity.ts) | the firm identity match, the company keys and the town of a representative |
+| [`src/add-client/build.ts`](src/add-client/build.ts) | the client folder build and its dated files |
+| [`src/add-client/jobs.ts`](src/add-client/jobs.ts) | the build jobs and their status files |
+| [`src/client/add-client/`](src/client/add-client/) | the Add client view: its state (`model.ts`), the Firm Record commands (`records.ts`, `plan.ts`), the Host calls (`api.ts`), the pages and the `flowleapAddClient` dictionaries |
 | [`src/client/index.ts`](src/client/index.ts) | Browser half: the dictionaries, the keys, the row menu, the Clients row, the page, the file readers and Ask about this |
 | [`src/client/model.ts`](src/client/model.ts) | the page's state and acts |
 | [`src/client/api.ts`](src/client/api.ts) | the calls to the folder routes |
+| [`src/client/clients.ts`](src/client/clients.ts) | the client folders among the workspaces, asked again of the Host each time the set of workspaces changes |
 | [`src/client/Panel.tsx`](src/client/Panel.tsx) | the Clients list, the top bar, the search, the tree, the list, the file view, the dialogs and the notice |
 | [`src/client/TreeResize.tsx`](src/client/TreeResize.tsx) | the tree's resize handle, in the pattern of the app sidebar's handle |
 | [`src/client/viewer.tsx`](src/client/viewer.tsx) | the page's own viewers; it goes away when `ui-sidebar-documentpreview` exports a body that a page can render |
@@ -128,7 +151,11 @@ None; this package neither assembles nor sends a provider request.
 - **Own viewers** — `ui-sidebar-documentpreview` renders its bodies only in its Session sidebar; `.msg` mail and other kinds have no viewer on the page.
 - **Search by name only** — the search reads names, not the files' text; it walks the client folder on each query, which is slow for a very large folder.
 - **Trash is never emptied** — FlowLeap moves entries into Trash and back, and deletes nothing; Trash grows until a person empties it outside FlowLeap.
-- **Folder kinds and the sources of Add client** — every folder shows the kind Folder; Family and Matter come with Add client, which records the role of each folder it builds, as it records the sources of the files it writes.
+- **Applicant names from the EP Register only** — PATSTAT is a model-facing MCP tool with no Host-callable client, so Add client finds names and counts their EP applications in the register; names of applications that are not published, and other offices, are missing.
+- **EP publications without a kind code** — the register search of `@flowleap/connectors` drops the kind code, so the Firm Record gets no publication number and the files name the publication without its kind.
+- **A firm identity in the row config** — `firmIdentity` is an ordinary config field that the firm patch sets; no settings form edits it yet, and it moves into the Firm Record later.
+- **A build job of the plugin** — `ctx.jobs` belongs to a Session; until a job that a person's act owns exists upstream, the plugin runs the build and keeps its status. A Host stop ends the build; Try again resumes it.
+- **Dated files in English** — the Host writes the public data files in English, whatever the page's language.
 - **A rename onto a free name races with another writer** — the Host checks the name and then renames; a writer that takes the name in between is replaced on a file system that renames over a file.
 - **The tree marks the open file, not the open folder** — the tree factory has a current file and no current folder.
 

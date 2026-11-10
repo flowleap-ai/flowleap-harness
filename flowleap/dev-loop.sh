@@ -3,6 +3,7 @@
 # flowleap-os checkout with the seed firm, and the flowleap-web app from this checkout's source with client watchers.
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
+#                           [--patch <overlay>] [--model <provider>/<model id>]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number]        one record_read through the tool executor, no model call (default SF-2021-0011)
@@ -13,6 +14,7 @@
 # so the other commands take none. Ports: the app on <port> (default 3270) through the records proxy, dsh on <port>+1,
 # the probe on <port>+2; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
 # The model keys come from this shell's environment only; with none, the app starts and chats fail at the model call.
+# --model sets the default model of new chats; up refuses a default whose provider has no key while another key is set.
 set -euo pipefail
 
 HARNESS=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -38,6 +40,7 @@ stop_pid() {
 }
 load_options() {
   [[ -s $RUN/loop.env ]] || die "no loop in $RUN: run 'flowleap/dev-loop.sh up --os <flowleap-os checkout>' first"
+  MODEL=
   # shellcheck source=/dev/null
   source "$RUN/loop.env"
 }
@@ -89,8 +92,47 @@ dsh() {
   export FLOWLEAP_SKILLS_DIR=$skills TSX_TSCONFIG_PATH=$HARNESS/tsconfig.json FLOWLEAP_DEV_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) \
     FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents
   cd "$dir/workspace" && exec node --import "$tsx" "$HARNESS/apps/cli/src/bin.ts" --profile flowleap-web \
-    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" "$@" --no-open --port "$port"
+    --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" \
+    ${PATCH:+--patch "$PATCH"} ${MODEL:+--patch "$RUN/model.patch.yml"} "$@" --no-open --port "$port"
 }
+# The model keys that the loop reads from the shell, and the key of one provider route (none for another route).
+MODEL_KEYS='OPENROUTER_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY'
+key_of() { case $1 in anthropic) echo ANTHROPIC_API_KEY ;; openrouter) echo OPENROUTER_API_KEY ;; deepseek) echo DEEPSEEK_API_KEY ;; esac; }
+
+# Prints the default model of new chats, <provider>/<model id>: --model, else the agent-default-model row of the profile.
+default_model() {
+  if [[ -n $MODEL ]]; then printf '%s\n' "$MODEL"; return; fi
+  (cd "$HARNESS" && node --input-type=module -e "
+    import { readFileSync } from 'node:fs'
+    import { parse } from 'yaml'
+    const row = parse(readFileSync('packages/bundle/flowleap-web/cordis.patch.yml', 'utf8'), { logLevel: 'error' }).find((item) => item?.id === 'agent-default-model')
+    if (row === undefined) { console.error('the flowleap-web profile has no agent-default-model row'); process.exit(1) }
+    console.log(row.config.provider + '/' + row.config.model)")
+}
+
+# Writes the overlay that makes --model the default model of new chats; agent-default-model validates it at load.
+model_overlay() {
+  local provider=${MODEL%%/*} model=${MODEL#*/}
+  [[ $MODEL == */* && -n $provider && -n $model ]] || die "--model needs <provider>/<model id>, for example openrouter/anthropic/claude-sonnet-5.5"
+  # shellcheck disable=SC2016 # a JavaScript template literal
+  node -e 'console.log(`# Written by dev-loop.sh up --model.\n- id: agent-default-model\n  config:\n    provider: ${JSON.stringify(process.argv[1])}\n    model: ${JSON.stringify(process.argv[2])}`)' \
+    "$provider" "$model" > "$RUN/model.patch.yml"
+}
+
+# Refuses a default model whose provider has no key in this shell while the shell has the key of another provider.
+check_model_keys() {
+  local keys=() k model provider
+  for k in $MODEL_KEYS; do [[ -z ${!k:-} ]] || keys+=("$k"); done
+  if ((${#keys[@]} == 0)); then say "no model key in this shell: the app starts, chats fail at the model call, the record tools work"; return; fi
+  say "model keys from this shell: ${keys[*]}"
+  model=$(default_model) || die "cannot read the default model"
+  provider=${model%%/*}
+  k=$(key_of "$provider")
+  [[ -z $k || -n ${!k:-} ]] ||
+    die "new chats use $model, and this shell has no $k: export it, or give --model <provider>/<model id> for a provider with a key (${keys[*]})"
+  say "new chats use $model"
+}
+
 dsh_url() { grep -Eo "http://127\.0\.0\.1:$((PORT + 1))/\?token=[^ ]*" "$LOGS/dsh.log" 2> /dev/null | head -1 || true; }
 start_dsh() {
   local t0=$SECONDS
@@ -111,7 +153,7 @@ app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$
 
 up() {
   local as=jonas letters=1
-  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275
+  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; PATCH=; MODEL=
   while (($#)); do
     case $1 in
       --os) OS=$2; shift 2 ;;
@@ -119,6 +161,8 @@ up() {
       --port) PORT=$2; shift 2 ;;
       --record-port) RECORD_PORT=$2; shift 2 ;;
       --no-letters) letters=0; shift ;;
+      --patch) PATCH=$(cd "$(dirname "$2")" && pwd)/$(basename "$2"); shift 2 ;;
+      --model) MODEL=$2; shift 2 ;;
       *) die "unknown option $1" ;;
     esac
   done
@@ -128,7 +172,9 @@ up() {
   [[ -d $HARNESS/node_modules ]] || die "no node_modules: run 'pnpm install' in $HARNESS"
   local t0=$SECONDS
   mkdir -p "$LOGS" "$RUN/seed"
-  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\n' "$OS" "$PORT" "$RECORD_PORT" > "$RUN/loop.env"
+  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nPATCH=%q\nMODEL=%q\n' "$OS" "$PORT" "$RECORD_PORT" "$PATCH" "$MODEL" > "$RUN/loop.env"
+  [[ -z $MODEL ]] || model_overlay
+  check_model_keys
   say "harness $(git -C "$HARNESS" rev-parse --short HEAD), flowleap-os $(git -C "$OS" rev-parse --short HEAD) ($OS), run dir $RUN"
 
   if [[ ! -d $HARNESS/apps/web/dist ]]; then
@@ -142,7 +188,10 @@ up() {
   local intake
   intake=$(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'
 console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u) => u.objectId).join(' '))")
-  RECORD_INTAKE_PERSONS=$intake "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
+  # The firm roles (firm.roles) of the seed users, so a partner or an attorney acts in that role; an older checkout has none.
+  local roles
+  roles=$(cd "$OS" && node acceptance/seed-firm.mjs --roles 2> /dev/null) || roles=
+  RECORD_INTAKE_PERSONS=$intake RECORD_ROLES=$roles "$OS/.claude/skills/verify/scripts/record-local.sh" start "$RECORD" "$RECORD_PORT" > "$LOGS/record-start.log" 2>&1 ||
     { cat "$LOGS/record-start.log" >&2; die "record-local.sh start failed"; }
   node -e '
     const persons = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).intake.persons.join(" ")
@@ -164,10 +213,6 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
   [[ -s $RUN/record-token ]] || (umask 077; head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n' > "$RUN/record-token")
   act_as "$as"
 
-  local keys=() k
-  for k in OPENROUTER_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY; do [[ -z ${!k:-} ]] || keys+=("$k"); done
-  ((${#keys[@]})) && say "model keys from this shell: ${keys[*]}" || say "no model key in this shell: the app starts, chats fail at the model call, the record tools work"
-
   if ! alive "$RUN/watch.pid"; then
     (cd "$HARNESS" && exec node --import tsx/esm scripts/dev-web.ts --poll --skip-build --no-serve > "$LOGS/watch.log" 2>&1 & echo $! > "$RUN/watch.pid")
   fi
@@ -184,6 +229,7 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
 restart() {
   load_options
   local t0=$SECONDS
+  check_model_keys
   stop_pid "$RUN/dsh.pid"
   start_dsh
   say "host restarted in $((SECONDS - t0)) s; the open page reconnects, or reload it"
@@ -208,7 +254,7 @@ status() {
   local f
   for f in watch dsh proxy; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
   "$OS/.claude/skills/verify/scripts/record-local.sh" doctor "$RECORD" "$RECORD_PORT" | sed 's/^/record /'
-  printf 'person  %s\napp     http://127.0.0.1:%s/ (dsh %s)\n' "$(cat "$RUN/person" 2> /dev/null || echo none)" "$PORT" $((PORT + 1))
+  printf 'person  %s\napp     http://127.0.0.1:%s/ (dsh %s)\nmodel   %s\n' "$(cat "$RUN/person" 2> /dev/null || echo none)" "$PORT" $((PORT + 1)) "$(default_model)"
 }
 
 down() {
@@ -227,5 +273,5 @@ case $cmd in
   probe) probe "$@" ;;
   status) status ;;
   down) down ;;
-  *) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
