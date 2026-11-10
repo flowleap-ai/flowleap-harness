@@ -1,5 +1,5 @@
 import type { PtcProgramFormat } from '@deepseek-ai/dsh-ptc-runtime'
-import { Duplex, PassThrough } from 'node:stream'
+import { Duplex, PassThrough, Writable } from 'node:stream'
 import { setImmediate as nextTurn } from 'node:timers/promises'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { createProcessRpc } from '../src/rpc.ts'
@@ -182,4 +182,58 @@ it('records malformed host traffic after completion', async () => {
   h.host.write(Buffer.from([0xff, 10]))
   await h.main
   expect(h.state.exitCode).toBe(1)
+})
+
+/** A program endpoint whose writes reach the host at once but complete only when released, as Windows pipe writes do. */
+async function deferredWriteSetup() {
+  const toHost = new PassThrough()
+  const held: (() => void)[] = []
+  const writes: { line: string; at: number }[] = []
+  const child = new Duplex({
+    read() {},
+    write(chunk: Buffer, _encoding, callback) {
+      writes.push({ line: chunk.toString('utf8'), at: Date.now() })
+      toHost.write(chunk)
+      held.push(() => { callback() })
+    },
+  })
+  const toChild = new Writable({ write(chunk: Buffer, _encoding, callback) { child.push(chunk); callback() } })
+  const host = Duplex.from({ readable: toHost, writable: toChild })
+  child.on('error', () => {})
+  host.on('error', () => {})
+  const ready = Promise.withResolvers<undefined>()
+  const peer = createProcessRpc<ProgramMethods, HostMethods>(host, 4096, {
+    ready: () => { ready.resolve(undefined) },
+    invoke: async () => encodePtcJsonWire(null),
+    log: () => {},
+    outputLimit: () => {},
+  }, [], () => {})
+  const state = processState()
+  const chdir = vi.fn()
+  state.chdir = chdir
+  const main = runNodeMain(child, 4096, state)
+  onTestFinished(async () => { peer.$close(); child.destroy(); host.destroy(); await main })
+  await ready.promise
+  const run = (code: string) => peer.run('/', { code, namespaces: [{ global: 'tools', names: ['echo'] }], maxOutputBytes: 1024, retainsState: false })
+  const releaseWrites = (): void => { for (const complete of held.splice(0)) complete() }
+  return { child, writes, chdir, run, releaseWrites }
+}
+
+it('sends the first frame of an evaluation before a synchronous loop when an earlier write is still completing', async () => {
+  const h = await deferredWriteSetup()
+  const pending = h.run('void tools.echo({}); const end = Date.now() + 100; while (Date.now() < end) {} return end')
+  const pump = setInterval(h.releaseWrites, 1)
+  onTestFinished(() => { clearInterval(pump) })
+  const loopEnd = decodePtcJsonWire((await pending).value) as number
+  const call = h.writes.find(write => write.line.includes('"m":"invoke"'))
+  expect(call?.at).toBeLessThan(loopEnd)
+})
+
+it('does not start the program when the channel closes while an earlier write is still completing', async () => {
+  const h = await deferredWriteSetup()
+  void h.run('return 1').catch(() => {})
+  await nextTurn()
+  h.child.destroy()
+  await nextTurn()
+  expect(h.chdir).not.toHaveBeenCalled()
 })
