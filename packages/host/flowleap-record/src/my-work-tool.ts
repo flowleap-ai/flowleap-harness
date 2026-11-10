@@ -25,6 +25,33 @@ const MESSAGES: Record<MyWorkRefusal, string> = {
   invalid_answer: 'The Firm Record answered with data that is not a list of work.',
 }
 
+const WORK_ITEM = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    id: { type: 'string', required: true, description: '<kind>:<object id>.' },
+    task: { type: 'string', description: 'The task id.' },
+    kind: { type: 'string', required: true, description: 'The task kind, such as confirm-deadline. A kind that you do not know is still work: read it through the other fields.' },
+    title: { type: 'string', required: true, description: 'What you do, in plain words.' },
+    why: { type: 'string', required: true, description: 'Why this task is yours.' },
+    state: { type: 'string', enum: ['assigned', 'queued', 'escalated', 'alarm'], description: 'assigned: yours. queued: nobody may do it now, and you keep the queue. escalated: its due time passed, and it came to you. alarm: every person of its chain passed the due time.' },
+    group: { type: 'string', enum: ['overdue', 'today', 'later'], description: 'The group of My work, in the firm\'s time zone.' },
+    matter: {
+      required: true,
+      description: 'The matter of the task; null when it has none that you may see.',
+      oneOf: [{
+        type: 'object',
+        additionalProperties: false,
+        properties: { fileNumber: { type: 'string', required: true }, title: { type: 'string', required: true } },
+      }, { type: 'null' }],
+    },
+    due: { oneOf: [LOCAL_DATE, { type: 'null' }], required: true, description: 'The legal date when there is one; otherwise null.' },
+    dueAt: { type: 'string', description: 'ISO timestamp: the task\'s own due time.' },
+    since: { type: 'string', required: true, description: 'ISO timestamp at which the task opened.' },
+    act: { type: 'string', required: true, description: 'The address in the Records app where you act, such as deadline/<id>.' },
+  },
+} as const
+
 const OUTPUT_SCHEMA = {
   oneOf: [
     {
@@ -41,32 +68,28 @@ const OUTPUT_SCHEMA = {
             name: { ...STRING_OR_NULL, required: true, description: 'Display name; null when the person has none yet.' },
           },
         },
+        summary: {
+          type: 'object',
+          additionalProperties: false,
+          description: 'The first line of My work: "N letters arrived, M need you". lettersArrived: the letters stored today that you may see; needYou: your open tasks; overdue, today, later: your open tasks in each group.',
+          properties: {
+            lettersArrived: { type: 'integer', required: true },
+            needYou: { type: 'integer', required: true },
+            overdue: { type: 'integer', required: true },
+            today: { type: 'integer', required: true },
+            later: { type: 'integer', required: true },
+          },
+        },
         work: {
           type: 'array',
           required: true,
-          description: 'Every kind of work that waits for you, by due date (no date last), then by the time it began to wait.',
-          items: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              id: { type: 'string', required: true, description: '<kind>:<object id>.' },
-              kind: { type: 'string', required: true, description: 'The kind of work, such as confirm-deadline. A kind that you do not know is still work: read it through the other fields.' },
-              title: { type: 'string', required: true, description: 'What you do, in plain words.' },
-              why: { type: 'string', required: true, description: 'Why this work is yours.' },
-              matter: {
-                required: true,
-                description: 'The matter of the work; null when it has none that you may see.',
-                oneOf: [{
-                  type: 'object',
-                  additionalProperties: false,
-                  properties: { fileNumber: { type: 'string', required: true }, title: { type: 'string', required: true } },
-                }, { type: 'null' }],
-              },
-              due: { oneOf: [LOCAL_DATE, { type: 'null' }], required: true, description: 'The legal date when there is one; otherwise null.' },
-              since: { type: 'string', required: true, description: 'ISO timestamp at which the work began to wait.' },
-              act: { type: 'string', required: true, description: 'The address in the Records app where you act, such as deadline/<id>.' },
-            },
-          },
+          description: 'Your open tasks, the next step first: by the earlier of the task\'s due time and the end of its legal date, then by the time the task opened.',
+          items: WORK_ITEM,
+        },
+        inSight: {
+          type: 'array',
+          description: 'The open tasks that you held before their due time passed and they went to the next person of their chain.',
+          items: WORK_ITEM,
         },
         matters: {
           type: 'array',
@@ -105,9 +128,13 @@ const OUTPUT_SCHEMA = {
 } as const
 
 const DESCRIPTION =
-  'List who you are in the firm\'s record and what waits for you. The list work holds every kind of work that waits for '
-  + 'this person. Today the Firm Record derives it from the states of the record. Read each item through title, why, '
-  + 'matter, due, since, and act, also for a kind that you do not know: a new kind is work too, and you do not skip it. '
+  'List who you are in the firm\'s record and what waits for you. The list work holds your open tasks: the Firm Record '
+  + 'opens one task for one named person at each step that waits for a person, and closes it when the act on its object '
+  + 'is recorded, so the list is the same as the person\'s My work screen. summary is its first line: '
+  + 'lettersArrived letters arrived today, needYou need the person, with the count of each group (overdue, today, later). '
+  + 'Read each item through title, why, matter, due, since, and act, also for a kind that you do not know: a new kind is '
+  + 'work too, and you do not skip it. due is the legal date; dueAt is the task\'s own due time. inSight holds the tasks '
+  + 'that the person held before they went to the next person of their chain. '
   + 'The list matters is the context beside it: the matters inside the person\'s walls, each with the role of the person '
   + '(responsible or team), its state, and its next open deadline (null when it has none). Each matter has '
   + 'applicationNumber, the application number of the matter, for example EP24166597. The register and patent tools take it. '
@@ -115,8 +142,9 @@ const DESCRIPTION =
   + 'applicationNumber is null when the record holds none. Use the tool when the person '
   + 'asks which matters are theirs or what waits for them. Give no argument: the record token names the person. The '
   + 'lists hold only what this person may see. A null name means that the person has no display name yet: do not say that '
-  + 'the person has no name or does not exist. A letter in the Intake that waits to be filed is a file-letter item when '
-  + 'this person forwarded it or is an intake person; you cannot read such a letter before it is filed. The result names '
+  + 'the person has no name or does not exist. A letter in the Intake that waits to be filed is a file-letter task of one '
+  + 'intake person; you cannot read such a letter before it is filed. You cannot close a task: the person acts on its object '
+  + 'in the Records app (act). The result names '
   + 'recordSeq, the position of the record log the lists were read at. The '
   + 'read is read-only: you cannot change the record. To read one matter in full, call record_read with its fileNumber.'
 

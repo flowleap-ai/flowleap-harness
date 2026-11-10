@@ -1,6 +1,7 @@
 /**
- * The work of the local admin at record position 45: two matters, the first with a proposed deadline, and the three
- * kinds of work that wait for the person. The admin has no display name yet.
+ * The work of the local admin at record position 45 (a Firm Record of schema 10, with the task model of atlas sheet 0):
+ * two matters, the first with a proposed deadline, the first line, and three open tasks of the person, one of them past
+ * its legal date. The admin has no display name yet.
  */
 
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
@@ -16,12 +17,17 @@ const DEADLINE = brandString<DeadlineId>('0b2d5a8e-4c1f-4e7a-9f31-6d2b8c9e1a57')
 export const MY_WORK: MyWork = {
   recordSeq: brandNumber<RecordSeq>(45),
   person: { id: brandString<PersonId>('admin'), name: null },
+  summary: { lettersArrived: 1, needYou: 3, overdue: 1, today: 1, later: 1 },
   work: [
     {
       id: `confirm-deadline:${DEADLINE}`,
+      task: '5f0c3d2e-1b4a-4c8d-9e7f-2a3b4c5d6e7f',
       kind: 'confirm-deadline',
       title: 'Confirm the deadline',
-      why: 'The deadline is proposed and needs a second person; you did not record its office event or decide its code, so you may confirm it.',
+      why: 'You are the formalities person of the matter.',
+      state: 'assigned',
+      group: 'overdue',
+      dueAt: '2026-11-07T10:00:00.000Z',
       matter: { fileNumber: brandString<MatterFileNumber>('FL-2026-0001'), title: 'Heat pump control' },
       due: date('2026-03-02'),
       since: '2026-11-06T10:00:00.000Z',
@@ -29,9 +35,13 @@ export const MY_WORK: MyWork = {
     },
     {
       id: 'decide-office-event:oe-2',
+      task: '6a1d4e3f-2c5b-4d9e-8f0a-3b4c5d6e7f80',
       kind: 'decide-office-event',
-      title: 'Decide the office event',
-      why: 'A letter of the office is filed in your matter and waits for a decision on its event.',
+      title: 'Check the office event',
+      why: 'You are the formalities person of the matter.',
+      state: 'escalated',
+      group: 'today',
+      dueAt: '2026-11-07T11:30:00.000Z',
       matter: { fileNumber: brandString<MatterFileNumber>('FL-2026-0002'), title: 'Pump seal' },
       due: null,
       since: '2026-11-06T11:30:00.000Z',
@@ -39,15 +49,20 @@ export const MY_WORK: MyWork = {
     },
     {
       id: 'decide-work:tk-1',
+      task: '7b2e5f40-3d6c-4e0f-9a1b-4c5d6e7f8091',
       kind: 'decide-work',
-      title: 'Decide the work of the Ticket',
-      why: 'A run proposed its work in your matter and waits for your decision.',
+      title: 'Review the work',
+      why: 'The Ticket is routed to you.',
+      state: 'assigned',
+      group: 'later',
+      dueAt: '2026-11-08T12:00:00.000Z',
       matter: { fileNumber: brandString<MatterFileNumber>('FL-2026-0001'), title: 'Heat pump control' },
       due: null,
       since: '2026-11-06T12:00:00.000Z',
       act: 'work/tk-1',
     },
   ],
+  inSight: [],
   matters: [
     {
       fileNumber: brandString<MatterFileNumber>('FL-2026-0001'),
