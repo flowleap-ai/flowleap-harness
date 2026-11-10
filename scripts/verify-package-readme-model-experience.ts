@@ -223,6 +223,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/bundle/base': { kind: 'indirect', reason: 'The bundle is a patch-list carrier; each inserted row\'s package owns its model-facing behavior.' },
   'packages/bundle/flowleap-desktop': { kind: 'indirect', reason: 'The bundle is a patch-list carrier; dsh-llm-pi-ai owns the openai route it adds, and the model step rows add no prompt text, tool, or request field.' },
   'packages/bundle/flowleap-firm': { kind: 'none', reason: 'The bundle fixes the model routes and keys of rows that dsh-flowleap-web composes; it adds no prompt text, tool, or request field.' },
+  'packages/bundle/flowleap-firm-worker': { kind: 'none', reason: 'The profile has no model provider and no agent; its one row reads MyEPO and sends letters to the Firm Record.' },
   'packages/bundle/flowleap-web': { kind: 'indirect', reason: 'The bundle is a patch-list carrier; the mcp-client and flowleap-prompt rows own the tools and the persona section.' },
   'packages/bundle/headless': { kind: 'none', reason: 'The one-shot runner submits the task as an ordinary user message; prompts and tools belong to the composed base and headless bundles.' },
   'packages/llm/llm': { kind: 'none', reason: 'The adapter registry forwards already-assembled requests unchanged.' },

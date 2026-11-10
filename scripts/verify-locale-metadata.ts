@@ -12,6 +12,7 @@ import { collectConfigCatalog } from './gen-config-catalog.ts'
  */
 const FLOWLEAP_ENGLISH_ONLY_PACKAGES = [
   'packages/bundle/flowleap-firm/',
+  'packages/bundle/flowleap-firm-worker/',
   'packages/bundle/flowleap-web/',
   'packages/host/flowleap-prompt/',
   'packages/host/flowleap-connectors/',
