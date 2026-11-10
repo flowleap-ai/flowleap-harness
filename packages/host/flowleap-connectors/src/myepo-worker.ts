@@ -18,9 +18,12 @@
  */
 
 import { createHash } from 'node:crypto'
+import { statSync } from 'node:fs'
 import { readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import { parseCmdline } from '@deepseek-ai/dsh-cmdline'
+import { Command } from 'commander'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import {
@@ -33,6 +36,9 @@ import type { MyEpoPortfolioView, MyEpoTestOutcome } from './types.ts'
 
 /** Cordis plugin name. */
 export const name = 'flowleap-myepo-worker'
+
+/** The launcher's command line: the worker answers `--help` and starts only on a parsed invocation. */
+export const inject = ['cmdlineArgs']
 
 /** Plugin config. */
 export interface Config {
@@ -331,12 +337,50 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
   }
 }
 
+/** The worker's command line: no option but `--help`. */
+function workerCommand(): Command {
+  return new Command()
+    .name('dsh --profile flowleap-firm-worker')
+    .description('Read the firm\'s MyEPO Mailbox and send each new letter to the Firm Record, until SIGTERM.')
+    .helpOption('-h, --help', 'show this help')
+    .addHelpText('after', `
+The firm OS sets the folders, the Firm Record and the MyEPO endpoint with a --patch file.
+
+Example:
+  dsh --profile flowleap-firm-worker --patch worker.patch.yml
+`)
+}
+
+/** Check one folder of the row at load: a missing folder is a misconfiguration, not a state to wait in. */
+function assertFolder(field: string, path: string): void {
+  if (!statSync(path, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`flowleap-myepo-worker: ${field} ${path} is not a folder`)
+}
+
+/** Check one address of the row at load. */
+function assertAddress(field: string, value: string): void {
+  const url = URL.parse(value)
+  if (url === null || (url.protocol !== 'https:' && url.protocol !== 'http:')) throw new Error(`flowleap-myepo-worker: ${field} ${value} is not an http or https address`)
+}
+
 /**
  * Run the worker: one tick every `pollSeconds`, never two at the same time, until the row is disposed.
- * @param ctx - the row's context.
+ * @param ctx - the row's context, with the launcher's command line.
  * @param config - the row config.
  */
 export function apply(ctx: Context, config: Config): void {
+  const program = workerCommand()
+  program.action(() => {
+    assertFolder('dir', config.dir)
+    assertFolder('testsDir', config.testsDir)
+    assertAddress('recordUrl', config.recordUrl)
+    assertAddress('myepo.baseUrl', config.myepo.baseUrl)
+    assertAddress('myepo.tokenUrl', config.myepo.tokenUrl)
+    start(ctx, config)
+  })
+  parseCmdline(ctx, program)
+}
+
+function start(ctx: Context, config: Config): void {
   const log = (line: string): void => {
     console.log(`flowleap-myepo-worker: ${line}`)
   }

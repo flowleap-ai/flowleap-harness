@@ -11,6 +11,7 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../../vendor/flowleap-connectors" },
     { "path": "../../attachment/attachment" },
+    { "path": "../../boot/cmdline" },
     { "path": "../../core/tools" },
     { "path": "../../credentials/credentials" },
     { "path": "../../fs/fs" },

@@ -5702,6 +5702,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-experimental-webworker-runtime` | — | [`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts) |
 | `@deepseek-ai/dsh-flowleap-desktop` | — | [`packages/bundle/flowleap-desktop/src/index.ts`](../packages/bundle/flowleap-desktop/src/index.ts) |
 | `@deepseek-ai/dsh-flowleap-firm` | — | [`packages/bundle/flowleap-firm/src/index.ts`](../packages/bundle/flowleap-firm/src/index.ts) |
+| `@deepseek-ai/dsh-flowleap-firm-worker` | — | [`packages/bundle/flowleap-firm-worker/src/index.ts`](../packages/bundle/flowleap-firm-worker/src/index.ts) |
 | `@deepseek-ai/dsh-flowleap-web` | — | [`packages/bundle/flowleap-web/src/index.ts`](../packages/bundle/flowleap-web/src/index.ts) |
 | `@deepseek-ai/dsh-fs-patch` | — | [`packages/fs/fs-patch/src/index.ts`](../packages/fs/fs-patch/src/index.ts) |
 | `@deepseek-ai/dsh-home-paths` | — | [`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts) |
