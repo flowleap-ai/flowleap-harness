@@ -1,7 +1,7 @@
 /**
  * The Add client view of the client folder page: the top bar with the location and the page's act, then one page of
- * the flow (find the company, review and decide, follow the build). Also the parts that the Clients list shows: the
- * Watching list, the state of a running build, and the toast after an act.
+ * the flow (find the company, review and decide, record the client). Also the parts that the Clients list shows: the
+ * Watching list and the toast after an act.
  */
 
 import { useLayoutEffect, type KeyboardEvent, type ReactNode } from 'react'
@@ -12,14 +12,13 @@ import {
   IconWarningTriangleOutlineRegular, Keycap, type KeycapBox,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
-import type { BuildStatus } from '../../add-client/wire.ts'
 import { pressed, type KeyHandlers, type RecordKey } from '../keys.ts'
 import panel from '../Panel.module.css'
-import { BuildPage } from './BuildPage.tsx'
-import { PATSTAT, asOfText, counted, dayText, publicationLabel, type AddClientTranslate } from './format.ts'
+import { PATSTAT, asOfText, dayText, publicationLabel, type AddClientTranslate } from './format.ts'
 import type { HostFailure } from './api.ts'
-import { blockerOf, buildFailed, type AddClientModel, type AddClientView, type FindView, type Toast } from './model.ts'
+import { blockerOf, recordStatus, type AddClientModel, type AddClientView, type FindView, type Toast } from './model.ts'
 import type { FirmClient, RecordError } from './records.ts'
+import { RecordPage } from './RecordPage.tsx'
 import { ReviewPage } from './ReviewPage.tsx'
 import css from './AddClient.module.css'
 
@@ -66,15 +65,15 @@ export function AddClientPage(props: PageProps & {
           {view.page === 'find' && (
             <Button variant="primary" size="sm" disabled={!canContinue(view)} onClick={() => { void model.continue() }}>{t('act.continue')}</Button>
           )}
-          {view.page === 'build' && (
-            <Button variant="primary" size="sm" icon={<IconFolderOpenRegular size={16} />} disabled={view.status?.workspace === undefined || !buildFailed(view)}
-              onClick={() => { model.openFolder() }}>{t('act.openFolder')}</Button>
+          {view.page === 'record' && (
+            <Button variant="primary" size="sm" icon={<IconFolderOpenRegular size={16} />} disabled={recordStatus(view) === 'running' || view.folder.state === 'making'}
+              onClick={() => { void model.openClientPage() }}>{t('act.openClient')}</Button>
           )}
         </div>
       </header>
       {view.page === 'find' && <FindPage {...props} view={view} />}
       {view.page === 'review' && <ReviewPage {...props} view={view} />}
-      {view.page === 'build' && <BuildPage {...props} view={view} />}
+      {view.page === 'record' && <RecordPage {...props} view={view} />}
     </div>
   )
 }
@@ -89,7 +88,7 @@ function canContinue(view: FindView): boolean {
 function retryOf(view: AddClientView): boolean {
   if (view.page === 'find') return view.find.status === 'error'
   if (view.page === 'review') return view.recording.status === 'failed' || view.review.status === 'error' || view.firm.status === 'error'
-  return buildFailed(view)
+  return recordStatus(view) === 'failed'
 }
 
 /**
@@ -98,7 +97,7 @@ function retryOf(view: AddClientView): boolean {
  * @returns the steps.
  */
 export function Steps({ t, current }: { readonly t: AddClientTranslate; readonly current: 1 | 2 | 3 }) {
-  const steps = [t('steps.company'), t('steps.role'), t('steps.folder')]
+  const steps = [t('steps.company'), t('steps.role'), t('steps.record')]
   return (
     <ol className={css.steps} aria-label={t('steps.label')}>
       {steps.map((step, index) => (
@@ -316,16 +315,6 @@ export function Empty({ icon, title, body }: { readonly icon: ReactNode; readonl
   )
 }
 
-/** What a build of a client folder changed: a new client folder, the new matters and dated files, or nothing. */
-function clientToastText(t: AddClientTranslate, toast: Extract<Toast, { kind: 'client' }>): string {
-  const { added } = toast
-  if (added.client) {
-    return t('toast.client', { name: toast.name, matters: counted(t, toast.matters, 'matters.one', 'matters.many'), families: counted(t, toast.families, 'families.one', 'families.many') })
-  }
-  if (added.matters === 0 && added.files === 0) return t('toast.unchanged', { name: toast.name })
-  return t('toast.updated', { name: toast.name, matters: counted(t, added.matters, 'toast.new.matters.one', 'toast.new.matters.many'), files: counted(t, added.files, 'toast.new.files.one', 'toast.new.files.many') })
-}
-
 /**
  * The toast after an act of Add client.
  * @param props - copy, the toast and its close act.
@@ -336,13 +325,11 @@ export function AddClientToast({ t, toast, onClose }: {
   readonly toast: Toast
   readonly onClose: () => void
 }) {
-  const text = toast.kind === 'client'
-    ? clientToastText(t, toast)
-    : toast.kind === 'watch'
-      ? t('toast.watch', { name: toast.name })
-      : toast.kind === 'party'
-        ? t('toast.party', { name: toast.name, application: publicationLabel(toast.applicationNumber) })
-        : recordText(t, toast.error)
+  const text = toast.kind === 'watch'
+    ? t('toast.watch', { name: toast.name })
+    : toast.kind === 'party'
+      ? t('toast.party', { name: toast.name, application: publicationLabel(toast.applicationNumber) })
+      : recordText(t, toast.error)
   return (
     <div className={clsx(panel.toast, toast.kind === 'failed' && panel.toastFailed)} role={toast.kind === 'failed' ? 'alert' : 'status'}>
       {toast.kind === 'failed' ? <IconWarningTriangleOutlineRegular size={16} /> : <IconCheckOutlineRegular size={16} />}
@@ -369,16 +356,4 @@ export function WatchingList({ t, watching }: { readonly t: AddClientTranslate; 
       </ul>
     </section>
   )
-}
-
-/**
- * The state of a client's build on its row of the Clients list.
- * @param props - copy and the build.
- * @returns the state, or nothing for a done build.
- */
-export function BuildState({ t, build }: { readonly t: AddClientTranslate; readonly build: BuildStatus }) {
-  if (build.state === 'done') return null
-  if (build.state !== 'running') return <span className={clsx(css.buildState, css.failed)}>{t('list.buildFailed')}</span>
-  const { done, total } = build.steps.matters
-  return <span className={css.buildState}>{total === 0 ? t('list.buildStarting') : t('list.building', { done, total })}</span>
 }

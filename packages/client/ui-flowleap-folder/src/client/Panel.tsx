@@ -23,11 +23,9 @@ import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/cl
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { TRASH, isTrashPath, type FolderEntry, type FolderSearchHit } from '../route.ts'
 import { FOLDER_SCOPE, keycapsOf, recordKeyOf, type KeyAct, type KeyHandlers } from './keys.ts'
-import { clientRows, type ClientRow } from './clients.ts'
-import { AddClientPage, AddClientToast, BuildState, WatchingList } from './add-client/AddClient.tsx'
+import { AddClientPage, AddClientToast, WatchingList } from './add-client/AddClient.tsx'
 import type { AddClientTranslate } from './add-client/format.ts'
-import type { AddClientModel, AddClientSnapshot } from './add-client/model.ts'
-import type { BuildStatus } from '../add-client/wire.ts'
+import { clientOfFolder, type AddClientModel, type AddClientSnapshot } from './add-client/model.ts'
 import type { FlowleapFolderKey, NS } from './locales.ts'
 import {
   baseName, childPath, keepBothName, namesIn, parentOf,
@@ -185,8 +183,8 @@ export function FolderPanel(props: PanelProps) {
     const active = document.activeElement
     if (active === null || active === document.body) page.current?.focus({ preventScroll: true })
   })
-  // The builds and the Watch list stay current while the page is open.
-  useEffect(() => addClient.follow(), [addClient])
+  // The page reads the clients of the Firm Record when it opens, for the Watching list and Check for new matters.
+  useEffect(() => { void addClient.refresh() }, [addClient])
   return (
     <section ref={page} className={css.panel} data-testid="flowleap-folder" data-shortcut-scope={FOLDER_SCOPE} tabIndex={-1}>
       {adding.view !== null
@@ -196,11 +194,10 @@ export function FolderPanel(props: PanelProps) {
         )
         : client === null
           ? (
-            <ClientsList t={t} addT={addClientT} locale={locale} clients={clients} builds={adding.builds} watching={adding.watching}
-              open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }}
-              openBuild={(id) => { addClient.openBuild(id) }} />
+            <ClientsList t={t} addT={addClientT} locale={locale} clients={clients} watching={adding.clients.filter(item => item.role === 'watch')}
+              open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }} />
           )
-          : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} builds={adding.builds} />}
+          : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} recorded={adding.clients} />}
       {adding.view === null && adding.toast !== null && (
         <AddClientToast t={addClientT} toast={adding.toast} onClose={() => { addClient.dismissToast() }} />
       )}
@@ -211,36 +208,25 @@ export function FolderPanel(props: PanelProps) {
 /** The Clients list starts sorted by client name, 25 rows a page. */
 const CLIENTS_MODE: DataTableMode = { kind: 'client', sort: { column: 'client', direction: 'ascending' }, pageSize: 25 }
 
-/**
- * The Clients list: a table of the client folders and of the builds without their folder yet, with the client and the
- * date it was added, then Watching.
- */
-function ClientsList({ t, addT, locale, clients, builds, watching, open, add, openBuild }: {
+/** The Clients list: a table of the client folders, with the client and the date it was added, then Watching. */
+function ClientsList({ t, addT, locale, clients, watching, open, add }: {
   readonly t: Translate
   readonly addT: AddClientTranslate
   readonly locale: LocaleId
   readonly clients: readonly WorkspaceView[]
-  readonly builds: readonly BuildStatus[]
-  readonly watching: AddClientSnapshot['watching']
+  readonly watching: AddClientSnapshot['clients']
   readonly open: (id: WorkspaceId) => void
   readonly add: () => void
-  readonly openBuild: (clientId: BuildStatus['clientId']) => void
 }) {
-  const rows = useMemo(() => clientRows(clients, builds), [clients, builds])
   const table = useMemo(() => {
     const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
     const number = new Intl.NumberFormat(locale)
-    const columns: readonly DataTableColumn<ClientRow>[] = [
+    const columns: readonly DataTableColumn<WorkspaceView>[] = [
+      { id: 'client', header: t('clients.col.client'), sortValue: row => row.title, cell: row => <span className={css.clientName}>{row.title}</span> },
       {
-        id: 'client', header: t('clients.col.client'), sortValue: row => row.name,
-        cell: row => (
-          <span className={css.clientCell}>
-            <span className={css.clientName}>{row.name}</span>
-            {row.build !== undefined && <BuildState t={addT} build={row.build} />}
-          </span>
-        ),
+        id: 'added', header: t('clients.col.added'), sortValue: row => row.createdAt, cell: row => date.format(new Date(row.createdAt)), width: 128,
+        hideBelow: 720,
       },
-      { id: 'added', header: t('clients.col.added'), sortValue: row => row.added, cell: row => date.format(new Date(row.added)), width: 128, hideBelow: 720 },
     ]
     const labels: DataTableLabels = {
       table: t('clients.listLabel'),
@@ -252,12 +238,8 @@ function ClientsList({ t, addT, locale, clients, builds, watching, open, add, op
         ? t('table.rangeNone')
         : t('table.range', { first: number.format(first), last: number.format(last), total: number.format(total) }),
     }
-    return { columns, labels, textFilter: { label: t('clients.find'), text: (row: ClientRow) => row.name } }
-  }, [t, addT, locale])
-  const openRow = (row: ClientRow) => {
-    if (row.opens.kind === 'build') openBuild(row.opens.clientId)
-    else open(row.opens.workspaceId)
-  }
+    return { columns, labels, textFilter: { label: t('clients.find'), text: (row: WorkspaceView) => row.title } }
+  }, [t, locale])
   return (
     <>
       <header className={css.topbar} data-frame-top-row="">
@@ -271,7 +253,7 @@ function ClientsList({ t, addT, locale, clients, builds, watching, open, add, op
           <h1 className={css.title}>{t('clients.title')}</h1>
           <p className={css.lede}>{t('clients.lede')}</p>
         </div>
-        {rows.length === 0
+        {clients.length === 0
           ? (
             <div className={css.empty}>
               <h2>{t('clients.empty.title')}</h2>
@@ -280,8 +262,8 @@ function ClientsList({ t, addT, locale, clients, builds, watching, open, add, op
             </div>
           )
           : (
-            <DataTable className={css.clients} columns={table.columns} rows={rows} rowKey={row => row.key} labels={table.labels}
-              mode={CLIENTS_MODE} textFilter={table.textFilter} onOpen={openRow} />
+            <DataTable className={css.clients} columns={table.columns} rows={clients} rowKey={row => row.workspaceId} labels={table.labels}
+              mode={CLIENTS_MODE} textFilter={table.textFilter} onOpen={(row) => { open(row.workspaceId) }} />
           )}
         <WatchingList t={addT} watching={watching} />
       </div>
@@ -295,11 +277,12 @@ function ClientFolderView(props: PanelProps & {
   readonly client: WorkspaceView
   readonly keycaps: (act: KeyAct) => readonly KeycapBox[]
   readonly locale: LocaleId
-  readonly builds: readonly BuildStatus[]
+  /** The clients of the Firm Record. */
+  readonly recorded: AddClientSnapshot['clients']
 }) {
-  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth, builds, addClient, addClientT } = props
-  // Add client built this folder: Check for new matters runs it again for the same client.
-  const built = builds.find(build => build.workspace === client.workspaceId)
+  const { t, state, client, keycaps, model, renderFactorySlot, useTreeWidth, recorded, addClient, addClientT } = props
+  // The client of this folder: Check for new matters runs Add client again for it.
+  const firmClient = clientOfFolder(recorded, client.path)
   const fileInput = useRef<HTMLInputElement>(null)
   const searchInput = useRef<HTMLInputElement>(null)
   const [treeOpen, setTreeOpen] = useState(false)
@@ -408,9 +391,9 @@ function ClientFolderView(props: PanelProps & {
           placeholder={t('search.placeholder', { client: client.title })} disabled={state.connect !== 'ready'}
           onChange={(event) => { setQuery(event.currentTarget.value) }} onKeyDown={onSearchKey} />
         <div className={css.actions}>
-          {built !== undefined && (
+          {firmClient !== null && (
             <ActButton label={addClientT('folder.check')} icon={<IconRefreshOutlineRegular size={16} />} className={css.act}
-              onClick={() => { void addClient.checkForNew(built.clientId) }} />
+              onClick={() => { void addClient.checkForNew(firmClient.clientId) }} />
           )}
           <ActButton label={t('act.newFolder')} icon={<IconProjectAddOutlineRegular size={16} />} keycaps={keycaps('newFolder')}
             disabled={!writable} onClick={() => { model.startNewFolder() }} className={clsx(css.act, css.wide)} />

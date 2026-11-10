@@ -1,6 +1,6 @@
 /**
  * The Add client routes that both halves share: their paths, their request fields and their JSON answers. The Host
- * reads the public patent data and builds the client folder; the browser sends every Firm Record command with the
+ * reads the public patent data and makes the client folder; the browser sends every Firm Record command with the
  * person's cookie.
  * @module
  */
@@ -10,7 +10,7 @@ import { FOLDER_API, folderNameOf, isEntryName } from '../route.ts'
 /**
  * The name of a client's folder in `clientsRoot`: the client name with each separator as `-` ({@link folderNameOf}).
  * The Firm Record and the About file keep the client name as it is. The browser checks it before it records anything,
- * and the `build` route checks it again.
+ * and the `client-folder` route checks it again.
  * @param name - the client name.
  * @returns the folder name, or undefined when no folder can have the name, such as `CON` or `..`.
  */
@@ -23,15 +23,15 @@ export function clientFolderName(name: string): string | undefined {
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
 /**
- * The nine Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
- * firm docket, a new read of the firm docket, the firm identity with the docket state, a save of the firm identity, and
- * the names of the firm's clients for the opponent index.
+ * The nine Add client routes: the applicant names, the review, the client folder, the settings that the browser uses,
+ * the state of the firm docket, a new read of the firm docket, the firm identity with the docket state, a save of the
+ * firm identity, and the names of the firm's clients for the opponent index.
  */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
   review: `${ADD_CLIENT_API}/review`,
-  build: `${ADD_CLIENT_API}/build`,
-  status: `${ADD_CLIENT_API}/status`,
+  clientFolder: `${ADD_CLIENT_API}/client-folder`,
+  settings: `${ADD_CLIENT_API}/settings`,
   docket: `${ADD_CLIENT_API}/docket`,
   docketRead: `${ADD_CLIENT_API}/docket/read`,
   identity: `${ADD_CLIENT_API}/identity`,
@@ -184,69 +184,33 @@ export type ReviewAnswer =
   }
   | { readonly status: 'no-plugin' }
 
-/** Body of `POST build`: the client folder of a client that the Firm Record has now. */
-export interface BuildRequest {
-  /** The client id of the Firm Record (a UUID). */
+/**
+ * Body of `POST client-folder`: the client folder of a client that the Firm Record has now. The folder has only the
+ * client template folders and the About file; a second request for the same client changes nothing.
+ */
+export interface ClientFolderRequest {
+  /** The client id of the Firm Record (a UUID in lower case). */
   readonly clientId: string
   /** The client's name; the client folder's name is {@link clientFolderName} of it. */
   readonly name: string
-  /** The ticked applicant names of the group, for the reference file. */
+  /** The ticked applicant names of the group, which the About file lists. */
   readonly names: readonly string[]
-  /** The EP applications to build a matter folder for: those at your firm, and those a person claimed. */
-  readonly applications: readonly string[]
 }
 
-/** The steps of a build, in order. */
-export const BUILD_STEPS = ['folder', 'matters', 'public-data', 'reference'] as const
-
-/** One step of a build. */
-export type BuildStepId = (typeof BUILD_STEPS)[number]
-
-/** The progress of one build step. */
-export interface BuildStep {
-  readonly state: 'waiting' | 'running' | 'done' | 'failed'
-  readonly done: number
-  readonly total: number
-  /** The items that failed, such as publication numbers. */
-  readonly failed: readonly string[]
-}
-
-/** What one build made. */
-export interface BuildAdded {
-  /** True when this build made the client folder. */
-  readonly client: boolean
-  /** The new family folders. */
-  readonly families: number
-  /** The new matter folders. */
-  readonly matters: number
-  /** The new dated files of public data and reference lists. */
-  readonly files: number
-}
-
-/** The status of one client's build; the `status` route answers every build. */
-export interface BuildStatus {
-  readonly clientId: string
-  readonly name: string
-  /** `interrupted` when a Host stop ended the build; a new build adds only what is missing. */
-  readonly state: 'running' | 'done' | 'failed' | 'interrupted'
-  /** ISO-8601 instants. */
-  readonly startedAt: string
-  readonly finishedAt?: string
-  /** The workspace of the client folder, once it exists. */
-  readonly workspace?: string
+/** The answer of `POST client-folder`. */
+export interface ClientFolderAnswer {
+  /** The workspace of the client folder. */
+  readonly workspace: string
   /** The client folder relative to `clientsRoot`. */
-  readonly folder?: string
-  /** The family and matter folders of the client folder that this build found or made, without those in Trash. */
-  readonly families: number
-  readonly matters: number
-  /** What this build made; each count is 0 when the client folder had everything and no data changed. */
-  readonly added: BuildAdded
-  readonly steps: Readonly<Record<BuildStepId, BuildStep>>
+  readonly folder: string
+  /** True when this request made the client folder. */
+  readonly made: boolean
 }
 
-/** The answer of `GET status`. */
-export interface StatusAnswer {
-  readonly builds: readonly BuildStatus[]
+/** The answer of `GET settings`: the Add client settings of the row config that the browser uses. */
+export interface AddClientSettingsAnswer {
+  /** The most applications in one batch command of the Firm Record. */
+  readonly recordBatchSize: number
 }
 
 /**
@@ -391,7 +355,7 @@ export interface DocketReadRequest {
  * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused; `not-admin`: the
  * request is not of a firm administrator, so a save of the firm identity changed nothing.
  */
-export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'not-admin' | 'internal'
+export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'not-admin' | 'internal'
 
 /** The JSON body of a failed Add client act. */
 export interface AddClientFailure {
@@ -404,7 +368,6 @@ export const ADD_CLIENT_STATUS: Readonly<Record<AddClientFailureCode, number>> =
   'invalid-name': 422,
   'no-key': 424,
   'unreachable': 502,
-  'stopped': 503,
   'not-admin': 403,
   'internal': 500,
 }

@@ -5,7 +5,7 @@
  */
 
 import { vi } from 'vitest'
-import type { BuildStatus, ConflictHit, FindAnswer, MatterRow, ReferenceRow, ReviewAnswer } from '../src/add-client/wire.ts'
+import type { ConflictHit, FindAnswer, MatterRow, ReferenceRow, ReviewAnswer } from '../src/add-client/wire.ts'
 import type { AddClientApi, HostResult } from '../src/client/add-client/api.ts'
 import {
   hitsHash, normalizeName,
@@ -34,7 +34,11 @@ export function firmClient(clientId: ClientId, name: string, role: FirmClient['r
   }
 }
 
-/** The Firm Record in memory: what it has, every command it got, and the failures a test sets. */
+/**
+ * The Firm Record in memory: what it has, every command it got, and the failures a test sets. A batch is atomic as in
+ * flowleap-os: an application of another client refuses the whole batch, and a batch over `batchMax` is refused with
+ * that maximum.
+ */
 export function fakeRecord(start: { readonly clients?: readonly FirmClient[]; readonly details?: readonly ClientDetail[] } = {}) {
   const details = new Map<string, Kept>()
   for (const detail of start.details ?? []) {
@@ -58,6 +62,8 @@ export function fakeRecord(start: { readonly clients?: readonly FirmClient[]; re
     clientsError: null as RecordError | null,
     /** The failure of every `clients/<id>` read of these ids while set. */
     detailErrors: new Map<string, RecordError>(),
+    /** The most applications of one batch that the double takes. */
+    batchMax: Number.POSITIVE_INFINITY,
   }
   const ok = <T>(value: T): RecordResult<T> => ({ ok: true, value })
   const recorded = ok({ kind: 'recorded' as const })
@@ -70,6 +76,10 @@ export function fakeRecord(start: { readonly clients?: readonly FirmClient[]; re
     const detail = details.get(clientId)
     return detail === undefined ? { ok: false, error: { kind: 'refused', status: 404, code: null } } : ok<ClientDetail>(structuredClone(detail))
   })
+  const addRole = (application: Kept['applications'][number], partyId: PartyId, role: RecordedRole['role']): void => {
+    if (application.roles.some(item => item.partyId === partyId && item.role === role)) return
+    application.roles.push({ partyId, party: [...parties].find(([, id]) => id === partyId)?.[0] ?? '', role })
+  }
   const apply = async (command: RecordCommand): Promise<RecordResult<RecordAnswer>> => {
     switch (command.kind) {
       case 'conflict-check': {
@@ -95,14 +105,30 @@ export function fakeRecord(start: { readonly clients?: readonly FirmClient[]; re
         parties.set(key, partyId)
         return ok({ kind: 'party', partyId })
       }
-      case 'application':
-        details.get(command.clientId)?.applications.push({ applicationNumber: command.application.applicationNumber, roles: [] })
+      case 'applications': {
+        if (command.applications.length > state.batchMax) return { ok: false, error: { kind: 'refused', status: 413, code: 'batch-too-large', max: state.batchMax } }
+        for (const { application } of command.applications) {
+          const owner = [...details.values()].find(detail => detail.client.clientId !== command.clientId
+            && detail.applications.some(item => item.applicationNumber === application.applicationNumber))
+          if (owner !== undefined) {
+            return { ok: false, error: { kind: 'refused', status: 409, code: 'application-other-client', clientId: owner.client.clientId, applicationNumber: application.applicationNumber } }
+          }
+        }
+        const detail = details.get(command.clientId)
+        for (const { application, roles } of command.applications) {
+          let kept = detail?.applications.find(item => item.applicationNumber === application.applicationNumber)
+          if (kept === undefined) {
+            kept = { applicationNumber: application.applicationNumber, roles: [] }
+            detail?.applications.push(kept)
+          }
+          for (const role of roles) addRole(kept, role.partyId, role.role)
+        }
         return recorded
+      }
       case 'role': {
-        const party = [...parties].find(([, id]) => id === command.partyId)?.[0] ?? ''
         const applications = [...details.values()].flatMap(detail => detail.applications)
         for (const application of applications.filter(item => item.applicationNumber === command.applicationNumber)) {
-          application.roles.push({ partyId: command.partyId, party, role: command.role })
+          addRole(application, command.partyId, command.role)
         }
         return recorded
       }
@@ -164,16 +190,6 @@ export const reviewed = (extra: Changes<Reviewed> = {}): Reviewed => changed<Rev
   conflictCheck: { groupOpposedClients: { state: 'complete', asOf: AS_OF }, clientsOpposedGroup: { state: 'complete', asOf: AS_OF } },
 }, extra)
 
-/** A build status. */
-export function buildStatus(clientId: string, name: string, extra: Partial<BuildStatus> = {}): BuildStatus {
-  const step = (state: BuildStatus['steps']['folder']['state'], done = 0, total = 0, failed: string[] = []) => ({ state, done, total, failed })
-  return {
-    clientId, name, state: 'running', startedAt: AS_OF, families: 15, matters: 16, added: { client: true, families: 15, matters: 16, files: 0 },
-    steps: { 'folder': step('done', 1, 1), 'matters': step('running', 9, 16), 'public-data': step('waiting'), 'reference': step('waiting') },
-    ...extra,
-  }
-}
-
 const okHost = <T>(value: T): HostResult<T> => ({ ok: true, value })
 
 /** The Host routes with answers a test sets; each is a mock. */
@@ -181,8 +197,8 @@ export function fakeHost() {
   const api = {
     find: vi.fn<AddClientApi['find']>(async () => okHost(found([]))),
     review: vi.fn<AddClientApi['review']>(async () => okHost(reviewed())),
-    build: vi.fn<AddClientApi['build']>(async request => okHost(buildStatus(request.clientId, request.name))),
-    status: vi.fn<AddClientApi['status']>(async () => okHost({ builds: [] })),
+    clientFolder: vi.fn<AddClientApi['clientFolder']>(async request => okHost({ workspace: `ws-${request.clientId.slice(0, 8)}`, folder: request.name, made: true })),
+    settings: vi.fn<AddClientApi['settings']>(async () => okHost({ recordBatchSize: 100 })),
     clientNames: vi.fn<AddClientApi['clientNames']>(async () => okHost({ status: 'index', index: { state: 'no_clients' } })),
   } satisfies AddClientApi
   return api

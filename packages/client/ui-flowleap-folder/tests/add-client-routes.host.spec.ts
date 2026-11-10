@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto'
-import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import * as adminLink from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type BuildStatus, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer, type StatusAnswer } from '../src/index.ts'
+import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type ClientFolderAnswer, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer } from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
@@ -81,30 +81,64 @@ function data() {
   ])
 }
 
-async function settled(): Promise<BuildStatus> {
-  for (let attempt = 0; attempt < 2000; attempt += 1) {
-    const answer = await (await call(ADD_CLIENT_ROUTES.status)).json() as StatusAnswer
-    const [build] = answer.builds
-    if (build !== undefined && build.state !== 'running') return build
-    await new Promise(resolve => setTimeout(resolve, 5))
-  }
-  throw new Error('the build did not end')
+/** The source records of the client folder workspace. */
+async function sourcesOf(workspace: string): Promise<Record<string, string>> {
+  const records = JSON.parse(await readFile(path.join(base, 'state', 'sources', `${workspace}.json`), 'utf8')) as Record<string, { kind: string; from: string }>
+  return Object.fromEntries(Object.entries(records).map(([entry, source]) => [entry, `${source.kind} ${source.from}`]))
 }
 
 describe('Add client routes', () => {
-  it('says that no data plugin is there, and builds the folder with the template only', async () => {
+  it('says that no data plugin is there, and makes the client folder with 00 Client and the About file only', async () => {
     await load()
     expect(await (await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })).json()).toEqual({ status: 'no-plugin' })
     expect(await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon'], clients: [] })).json()).toEqual({ status: 'no-plugin' })
-    const started = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: [], applications: [] })
-    expect(started.status).toBe(202)
-    expect(started.headers.get('cache-control')).toBe('no-store')
-    expect(await settled()).toMatchObject({ clientId: CLIENT, state: 'done', workspace: 'ws-1', folder: 'Syntegon' })
+    const made = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH', 'Syntegon Packaging Systems AG'] })
+    expect(made.status).toBe(200)
+    expect(made.headers.get('cache-control')).toBe('no-store')
+    expect(await made.json()).toEqual({ workspace: 'ws-1', folder: 'Syntegon', made: true } satisfies ClientFolderAnswer)
     expect(created).toEqual([path.join(base, 'Clients', 'Syntegon')])
+    const folder = path.join(base, 'Clients', 'Syntegon')
+    expect((await readdir(folder)).sort()).toEqual(['00 Client', 'About this folder.md'])
+    expect(await readdir(path.join(folder, '00 Client'))).toEqual([])
+    const about = await readFile(path.join(folder, 'About this folder.md'), 'utf8')
+    expect(about).toContain('# Syntegon\n')
+    expect(about).toContain('FlowLeap copied no public data into this folder.')
+    expect(about).toContain('Applicant names of the client group: Syntegon Technology GmbH; Syntegon Packaging Systems AG.')
+    expect(await sourcesOf('ws-1')).toEqual({ '00 Client': 'add-client template', 'About this folder.md': 'add-client template' })
+  })
+
+  it('makes the client folder once: a second request finds it and changes nothing', async () => {
+    await load()
+    const body = { clientId: CLIENT, name: 'Syntegon', names: [] }
+    await post(ADD_CLIENT_ROUTES.clientFolder, body)
+    const folder = path.join(base, 'Clients', 'Syntegon')
+    const about = await readFile(path.join(folder, 'About this folder.md'), 'utf8')
+    expect(about).toContain('Applicant names of the client group: none.')
+    const records = await sourcesOf('ws-1')
+    const again = await post(ADD_CLIENT_ROUTES.clientFolder, { ...body, names: ['Syntegon Technology GmbH'] })
+    expect(await again.json()).toEqual({ workspace: 'ws-1', folder: 'Syntegon', made: false })
+    expect((await readdir(folder)).sort()).toEqual(['00 Client', 'About this folder.md'])
+    expect(await readFile(path.join(folder, 'About this folder.md'), 'utf8')).toBe(about)
+    expect(await sourcesOf('ws-1')).toEqual(records)
+  })
+
+  it('makes the client folder of two requests at the same time once', async () => {
+    await load()
+    const body = { clientId: CLIENT, name: 'Syntegon', names: [] }
+    const answers = await Promise.all([post(ADD_CLIENT_ROUTES.clientFolder, body), post(ADD_CLIENT_ROUTES.clientFolder, body)])
+    expect(answers.map(answer => answer.status)).toEqual([200, 200])
     expect((await readdir(path.join(base, 'Clients', 'Syntegon'))).sort()).toEqual(['00 Client', 'About this folder.md'])
   })
 
-  it('finds the names, reviews the group and builds its matters with the data plugin', async () => {
+  it('answers the batch size of the Firm Record commands', async () => {
+    const fiber = await load()
+    expect(await (await call(ADD_CLIENT_ROUTES.settings)).json()).toEqual({ recordBatchSize: 100 })
+    await fiber.dispose()
+    await load({ recordBatchSize: 25 })
+    expect(await (await call(ADD_CLIENT_ROUTES.settings)).json()).toEqual({ recordBatchSize: 25 })
+  })
+
+  it('finds the names and reviews the group with the data plugin', async () => {
     const fake = data()
     ctx.set('flowleapPatentData', fake)
     await load()
@@ -113,8 +147,6 @@ describe('Add client routes', () => {
     expect(found).not.toHaveProperty('edition')
     const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon Technology GmbH'], clients: [{ clientId: 'c-9', names: ['Rival'] }] })).json() as ReviewAnswer
     expect(reviewed).toMatchObject({ status: 'reviewed', total: 2, identity: 'set', atFirm: [{ applicationNumber: 'EP23171862' }], atOtherFirms: [{ applicationNumber: 'EP19794879' }] })
-    await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP 23 171 862'] })
-    expect(await settled()).toMatchObject({ state: 'done', matters: 1, families: 1 })
     expect(fake.queries.filter(query => query.startsWith('find:'))).toEqual(['find:Syntegon:500'])
   })
 
@@ -140,9 +172,9 @@ describe('Add client routes', () => {
     expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: 'x' }))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [null] }))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [{ clientId: '', names: [] }] }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT.toUpperCase(), name: 'x', names: [], applications: [] }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'CON', names: [], applications: [] }))).toEqual([422, { error: 'invalid-name' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'x', names: [], applications: ['US 17/123,456'] }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT.toUpperCase(), name: 'x', names: [] }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'CON', names: [] }))).toEqual([422, { error: 'invalid-name' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'x', names: 'x' }))).toEqual([400, { error: 'bad-request' }])
   })
 
   it('words a missing key, a register that does not answer, and a fault of its own', async () => {
@@ -164,48 +196,28 @@ describe('Add client routes', () => {
     expect(codeOf(new PatentDataError('malformed', 'x'))).toBe('unreachable')
     expect(codeOf(new FolderError('invalid-name', 'x'))).toBe('invalid-name')
     expect(codeOf(new FolderError('exists', 'x'))).toBe('internal')
-    expect(codeOf(new AddClientError('stopped', 'x'))).toBe('stopped')
+    expect(codeOf(new AddClientError('not-admin', 'x'))).toBe('not-admin')
   })
 
-  it('builds the folder of a client name with a separator under its safe folder name', async () => {
+  it('makes the folder of a client name with a separator under its safe folder name', async () => {
     await load()
-    const started = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Novo Nordisk A/S', names: [], applications: [] })
-    expect(started.status).toBe(202)
-    expect(await settled()).toMatchObject({ name: 'Novo Nordisk A/S', state: 'done', folder: 'Novo Nordisk A-S' })
+    const made = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Novo Nordisk A/S', names: [] })
+    expect(await made.json()).toMatchObject({ folder: 'Novo Nordisk A-S', made: true })
     expect(created).toEqual([path.join(base, 'Clients', 'Novo Nordisk A-S')])
+    const long = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Ü'.repeat(200), names: [] })
+    expect(Buffer.byteLength((await long.json() as ClientFolderAnswer).folder, 'utf8')).toBe(254)
   })
 
-  it('builds the applications of a request that came while the build ran, after the first run', async () => {
-    const fake = data()
-    let release = () => {}
-    const held = new Promise<void>((resolve) => { release = resolve })
-    const family = fake.family.bind(fake)
-    fake.family = async (application) => { await held; return family(application) }
-    ctx.set('flowleapPatentData', fake)
+  it('refuses a client folder where a file has its name, or a file has the name of a template folder', async () => {
     await load()
-    await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP23171862'] })
-    const again = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH'], applications: ['EP19794879'] })
-    expect((await again.json() as BuildStatus).state).toBe('running')
-    release()
-    expect(await settled()).toMatchObject({ state: 'done', matters: 2 })
-  })
-
-  it('answers internal and runs no build when the first build status cannot be written', async () => {
-    await load({ stateDir: path.join(base, 'state-file') })
-    await import('node:fs/promises').then(fs => fs.writeFile(path.join(base, 'state-file'), 'a file where the folder should be'))
-    const response = await post(ADD_CLIENT_ROUTES.build, { clientId: CLIENT, name: 'Syntegon', names: [], applications: [] })
-    expect([response.status, await response.json()]).toEqual([500, { error: 'internal' }])
-    expect(warnings.filter(line => line.includes('Add client'))).toHaveLength(1)
-  })
-
-  it('answers stopped after the plugin stopped', async () => {
-    const fiber = await load()
-    const build = routes.get(ADD_CLIENT_ROUTES.build)!
-    await fiber.dispose()
-    const response = await build.fetch(new Request(`http://runtime.test${ADD_CLIENT_ROUTES.build}`, {
-      method: 'POST', body: JSON.stringify({ clientId: CLIENT, name: 'x', names: [], applications: [] }),
-    }))
-    expect([response.status, await response.json()]).toEqual([503, { error: 'stopped' }])
+    await mkdir(path.join(base, 'Clients'), { recursive: true })
+    await writeFile(path.join(base, 'Clients', 'Syntegon'), 'a file where the client folder should be')
+    const blocked = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Syntegon', names: [] })
+    expect([blocked.status, await blocked.json()]).toEqual([500, { error: 'internal' }])
+    await mkdir(path.join(base, 'Clients', 'Schubert'))
+    await writeFile(path.join(base, 'Clients', 'Schubert', '00 Client'), 'a file where the template folder should be')
+    const file = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Schubert', names: [] })
+    expect([file.status, await file.json()]).toEqual([500, { error: 'internal' }])
   })
 
   it('refuses a config that would write outside its folder or lose the public data', () => {
@@ -219,6 +231,9 @@ describe('Add client routes', () => {
     expect(() => config({ registerSliceRows: 2001 })).toThrow()
     expect(() => config({ opsRequestsPerMinute: 0 })).toThrow()
     expect(() => config({ docketRefreshAge: 0 })).toThrow()
+    expect(config({}).recordBatchSize).toBe(100)
+    expect(() => config({ recordBatchSize: 0 })).toThrow()
+    expect(() => config({ recordBatchSize: 501 })).toThrow()
   })
 })
 

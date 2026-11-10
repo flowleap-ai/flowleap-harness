@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  commandRequest, createFirmRecord, hitKey, hitsHash, newClientId, normalizeName, sha256Hex, RECORDS_LINK,
+  batchKey, commandRequest, createFirmRecord, hitKey, hitsHash, newClientId, normalizeName, sha256Hex, RECORDS_LINK,
   type Hit, type PartyId, type RecordCommand,
 } from '../src/client/add-client/records.ts'
 import { AS_OF, SCHUBERT_ID, SYNTEGON_ID } from './add-client-fakes.client.ts'
@@ -41,8 +41,15 @@ describe('names, keys and hashes of the contract', () => {
       { kind: 'client', clientId: SYNTEGON_ID, name: 'Syntegon', role: 'client' },
       { kind: 'name', clientId: SYNTEGON_ID, name: { name: 'SYNTEGON TECHNOLOGY', source: 'patstat', edition: '2026 Spring', applications: 600 } },
       { kind: 'party', name: 'Syntegon Technology GmbH' },
-      { kind: 'application', clientId: SYNTEGON_ID, application: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805A1', title: 'T', representativeSince: '2024-07-24', basis: 'register' } },
-      { kind: 'application', clientId: SYNTEGON_ID, application: { applicationNumber: 'EP23171863', publicationNumber: 'EP4292805', basis: 'claimed' } },
+      {
+        kind: 'applications', clientId: SYNTEGON_ID, applications: [
+          { application: { applicationNumber: 'EP23171863', publicationNumber: 'EP4292805', basis: 'claimed' }, roles: [] },
+          {
+            application: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805A1', title: 'T', representativeSince: '2024-07-24', basis: 'register' },
+            roles: [{ partyId: 'party-1' as PartyId, role: 'applicant', clientId: SYNTEGON_ID }],
+          },
+        ],
+      },
       { kind: 'role', applicationNumber: 'EP23171862', partyId: 'party-1' as PartyId, role: 'applicant', clientId: SYNTEGON_ID },
     ] satisfies RecordCommand[]).map(commandRequest))
     expect(requests).toEqual([
@@ -51,8 +58,16 @@ describe('names, keys and hashes of the contract', () => {
       { path: 'clients', body: { clientId: SYNTEGON_ID, name: 'Syntegon', role: 'client' }, key: `add-client:${SYNTEGON_ID}` },
       { path: `clients/${SYNTEGON_ID}/names`, body: { name: 'SYNTEGON TECHNOLOGY', source: 'patstat', edition: '2026 Spring', applications: 600 }, key: `add-client:${SYNTEGON_ID}:name:${nameKey}` },
       { path: 'parties', body: { name: 'Syntegon Technology GmbH' }, key: `party:${await sha256Hex('syntegon technology gmbh')}` },
-      { path: `clients/${SYNTEGON_ID}/applications`, body: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805A1', title: 'T', representativeSince: '2024-07-24', basis: 'register' }, key: `add-client:${SYNTEGON_ID}:application:EP23171862` },
-      { path: `clients/${SYNTEGON_ID}/applications`, body: { applicationNumber: 'EP23171863', basis: 'claimed' }, key: `add-client:${SYNTEGON_ID}:application:EP23171863` },
+      {
+        path: `clients/${SYNTEGON_ID}/applications/batch`,
+        body: {
+          applications: [
+            { applicationNumber: 'EP23171863', basis: 'claimed', roles: [] },
+            { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805A1', title: 'T', representativeSince: '2024-07-24', basis: 'register', roles: [{ partyId: 'party-1', role: 'applicant', clientId: SYNTEGON_ID }] },
+          ],
+        },
+        key: `add-client:${SYNTEGON_ID}:applications:${await sha256Hex('EP23171862\nEP23171863')}`,
+      },
       { path: 'applications/EP23171862/roles', body: { partyId: 'party-1', role: 'applicant', clientId: SYNTEGON_ID }, key: 'role:EP23171862:party-1:applicant' },
     ])
     // The key charset of the Firm Record.
@@ -68,8 +83,14 @@ describe('names, keys and hashes of the contract', () => {
       { applicationNumber: 'EP16188900', otherParty: 'Gerhard Schubert GmbH', otherPartyRole: 'patent-owner', existingClientId: SYNTEGON_ID, existingClientParty: 'Syntegon Packaging Systems AG', source: 'ep-register', asOf: AS_OF },
       { ...published },
     ])
-    const application = await commandRequest({ kind: 'application', clientId: SYNTEGON_ID, application: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: '  ', basis: 'register' } })
-    expect(application.body).toEqual({ applicationNumber: 'EP23171862', basis: 'register' })
+    const batch = await commandRequest({ kind: 'applications', clientId: SYNTEGON_ID, applications: [{ application: { applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: '  ', basis: 'register' }, roles: [] }] })
+    expect(batch.body).toEqual({ applications: [{ applicationNumber: 'EP23171862', basis: 'register', roles: [] }] })
+  })
+
+  it('keys a batch by its application numbers in any order, and another batch by another key', async () => {
+    expect(await batchKey(SYNTEGON_ID, ['EP2', 'EP1'])).toBe(await batchKey(SYNTEGON_ID, ['EP1', 'EP2']))
+    expect(await batchKey(SYNTEGON_ID, ['EP1'])).not.toBe(await batchKey(SYNTEGON_ID, ['EP1', 'EP2']))
+    expect(await batchKey(SYNTEGON_ID, ['EP1'])).not.toBe(await batchKey(SCHUBERT_ID, ['EP1']))
   })
 })
 
@@ -191,6 +212,26 @@ describe('the Firm Record client', () => {
     expect([init.method, (init.headers as Record<string, string>)['idempotency-key'], init.body]).toEqual(['POST', `add-client:${SYNTEGON_ID}`, JSON.stringify({ clientId: SYNTEGON_ID, name: 'Syntegon', role: 'client' })])
   })
 
+  it('takes the answer of a batch that names each sent application, and refuses one that leaves an application out', async () => {
+    const batch: RecordCommand = {
+      kind: 'applications', clientId: SYNTEGON_ID,
+      applications: [{ application: { applicationNumber: 'EP23171862', basis: 'register' }, roles: [] }, { application: { applicationNumber: 'EP23171863', basis: 'register' }, roles: [] }],
+    }
+    const answer = (numbers: string[], status: number) =>
+      json({ recordSeq: 9, applications: numbers.map(applicationNumber => ({ applicationNumber, recordSeq: 9, roles: [] })) }, status)
+    const routes: Record<string, Response> = { [RECORDS_LINK]: LINK, [`records/api/clients/${SYNTEGON_ID}/applications/batch`]: answer(['EP23171862', 'EP23171863'], 201) }
+    const { fetchImpl, calls } = service(routes)
+    const record = createFirmRecord(fetchImpl)
+    expect(await record.send(batch)).toEqual({ ok: true, value: { kind: 'recorded' } })
+    expect((calls[1]![1].headers as Record<string, string>)['idempotency-key']).toBe(await batchKey(SYNTEGON_ID, ['EP23171862', 'EP23171863']))
+    routes[`records/api/clients/${SYNTEGON_ID}/applications/batch`] = answer(['EP23171862', 'EP23171863'], 200)
+    expect(await record.send(batch)).toEqual({ ok: true, value: { kind: 'recorded' } })
+    routes[`records/api/clients/${SYNTEGON_ID}/applications/batch`] = answer(['EP23171862'], 201)
+    expect(await record.send(batch)).toEqual({ ok: false, error: { kind: 'malformed', path: 'body.applications' } })
+    routes[`records/api/clients/${SYNTEGON_ID}/applications/batch`] = json({ recordSeq: 9 }, 201)
+    expect(await record.send(batch)).toEqual({ ok: false, error: { kind: 'malformed', path: 'body.applications' } })
+  })
+
   it('refuses an answer whose hits hash is not the one its key names, or that has no record position', async () => {
     const { fetchImpl } = service({
       [RECORDS_LINK]: LINK,
@@ -212,6 +253,11 @@ describe('the Firm Record client', () => {
     expect(await send(json({ error: 'idempotency-key-reused' }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: 'idempotency-key-reused' } })
     expect(await send(json({ error: 'invalid-body', detail: 'hits[0].publicationNumber' }, 400))).toEqual({ ok: false, error: { kind: 'refused', status: 400, code: 'invalid-body' } })
     expect(await send(json({ error: 'brand-new-code', clientId: 'not-a-uuid' }, 409))).toEqual({ ok: false, error: { kind: 'refused', status: 409, code: null } })
+    expect(await send(json({ error: 'application-other-client', clientId: SCHUBERT_ID, applicationNumber: 'EP23171862' }, 409)))
+      .toEqual({ ok: false, error: { kind: 'refused', status: 409, code: 'application-other-client', clientId: SCHUBERT_ID, applicationNumber: 'EP23171862' } })
+    expect(await send(json({ error: 'batch-too-large', max: 40 }, 413))).toEqual({ ok: false, error: { kind: 'refused', status: 413, code: 'batch-too-large', max: 40 } })
+    expect(await send(json({ error: 'batch-too-large', max: 0 }, 413))).toEqual({ ok: false, error: { kind: 'refused', status: 413, code: 'batch-too-large' } })
+    expect(await send(json({ error: 'batch-too-large', max: '40' }, 413))).toEqual({ ok: false, error: { kind: 'refused', status: 413, code: 'batch-too-large' } })
     expect(await send(new Response('Forbidden', { status: 403 }))).toEqual({ ok: false, error: { kind: 'refused', status: 403, code: null } })
     expect(await send(new Response('', { status: 502 }))).toEqual({ ok: false, error: { kind: 'service', status: 502 } })
     expect(await send(undefined)).toEqual({ ok: false, error: { kind: 'network' } })

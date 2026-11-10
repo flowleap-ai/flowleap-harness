@@ -58,6 +58,8 @@ describe('the facts of a decision', () => {
   })
 })
 
+const other: Decision = { role: 'other-party', clientId: NEW_ID, name: 'Gerhard Schubert', names: [], matter: { applicationNumber: 'EP23171862', role: 'licensee' } }
+
 const clientDecision = (hits: readonly Hit[] = []): Decision => ({
   role: 'client', clientId: NEW_ID, name: 'Syntegon',
   names: [{ name: 'SYNTEGON TECHNOLOGY', source: 'patstat', edition: '2026 Spring', applications: 600 }, { name: 'SYNTEGON POUCH SYSTEMS', source: 'patstat' }],
@@ -69,13 +71,9 @@ const clientDecision = (hits: readonly Hit[] = []): Decision => ({
 })
 
 describe('the commands of a decision', () => {
-  it('records a new client in the contract order, each party once', async () => {
+  it('records a new client in the contract order, and leaves its applications to the batches', async () => {
     const plan = await planRecords(clientDecision(), null)
-    expect(plan.steps.map(step => step.kind === 'command' ? step.command.kind : step.kind === 'party' ? `party ${step.name}` : `role ${step.applicationNumber} ${step.party}`)).toEqual([
-      'conflict-check', 'client', 'name', 'name',
-      'party Syntegon Technology GmbH', 'application', 'role EP23171862 Syntegon Technology GmbH',
-      'party Syntegon Pouch Systems AG', 'application', 'role EP23215725 Syntegon Technology GmbH', 'role EP23215725 Syntegon Pouch Systems AG',
-    ])
+    expect(plan.steps.map(step => step.kind === 'command' ? step.command.kind : step.kind)).toEqual(['conflict-check', 'client', 'name', 'name'])
   })
 
   it('leaves out every fact that the Firm Record has already', async () => {
@@ -89,10 +87,6 @@ describe('the commands of a decision', () => {
     const plan = await planRecords(decision, existing)
     expect(plan.steps).toEqual([
       { kind: 'command', command: { kind: 'name', clientId: NEW_ID, name: { name: 'SYNTEGON POUCH SYSTEMS', source: 'patstat' } } },
-      { kind: 'party', name: 'Syntegon Pouch Systems AG' },
-      { kind: 'command', command: { kind: 'application', clientId: NEW_ID, application: { applicationNumber: 'EP23215725', basis: 'claimed' } } },
-      { kind: 'role', applicationNumber: 'EP23215725', party: 'Syntegon Technology GmbH', role: 'applicant', clientId: NEW_ID },
-      { kind: 'role', applicationNumber: 'EP23215725', party: 'Syntegon Pouch Systems AG', role: 'applicant', clientId: NEW_ID },
     ])
     expect(plan.parties.get('syntegon technology gmbh')).toBe('party-1')
   })
@@ -121,13 +115,18 @@ describe('the commands of a decision', () => {
     expect(watch.steps).toEqual([{ kind: 'command', command: { kind: 'client', clientId: NEW_ID, name: 'Gerhard Schubert', role: 'watch' } }])
   })
 
-  it('links another party to a matter of your firm with its role', async () => {
-    const plan = await planRecords({ role: 'other-party', clientId: NEW_ID, name: 'Gerhard Schubert', names: [], matter: { applicationNumber: 'EP23171862', role: 'licensee' } }, null)
+  it('links another party to a matter of your firm with its role, once', async () => {
+    const plan = await planRecords(other, null)
     expect(plan.steps).toEqual([
       { kind: 'command', command: { kind: 'client', clientId: NEW_ID, name: 'Gerhard Schubert', role: 'other-party' } },
       { kind: 'party', name: 'Gerhard Schubert' },
       { kind: 'role', applicationNumber: 'EP23171862', party: 'Gerhard Schubert', role: 'licensee', clientId: NEW_ID },
     ])
+    const existing: ClientDetail = {
+      client: firmClient(NEW_ID, 'Gerhard Schubert', 'other-party'), names: [], conflictChecks: [],
+      applications: [{ applicationNumber: 'EP23171862', roles: [{ partyId: 'party-9' as PartyId, party: 'GERHARD SCHUBERT', role: 'licensee' }] }],
+    }
+    expect((await planRecords(other, existing)).steps).toEqual([])
   })
 })
 
@@ -135,18 +134,18 @@ describe('running a plan', () => {
   it('sends each step with the party id that its party step answered, and counts the done steps', async () => {
     const { record, sent } = fakeRecord()
     const done: number[] = []
-    const outcome = await runPlan(await planRecords(clientDecision(), null), record, (count) => { done.push(count) })
+    const outcome = await runPlan(await planRecords(other, null), record, (count) => { done.push(count) })
     expect(outcome).toEqual({ ok: true })
-    expect(done).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
-    expect(sent.filter(command => command.kind === 'role').map(command => command.kind === 'role' && command.partyId)).toEqual(['party-1', 'party-1', 'party-2'])
+    expect(done).toEqual([1, 2, 3])
+    expect(sent.at(-1)).toEqual({ kind: 'role', applicationNumber: 'EP23171862', partyId: 'party-1', role: 'licensee', clientId: NEW_ID })
   })
 
   it('stops at the first failure and names its step', async () => {
     const { record, sent, state } = fakeRecord()
-    state.failNext.set('application', { kind: 'network' })
+    state.failNext.set('name', { kind: 'network' })
     const plan = await planRecords(clientDecision(), null)
     const outcome = await runPlan(plan, record, () => {})
-    expect(outcome).toEqual({ ok: false, error: { kind: 'network' }, step: plan.steps[5] })
-    expect(sent).toHaveLength(6)
+    expect(outcome).toEqual({ ok: false, error: { kind: 'network' }, step: plan.steps[2] })
+    expect(sent).toHaveLength(3)
   })
 })

@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:60`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:59`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -654,9 +654,12 @@ export interface Config {
   maxSearchHits: number
   /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
   storageLowFlagPath: string
-  /** The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. */
+  /** The absolute folder that holds the client folders that Add client makes; every Add client write stays in it. */
   clientsRoot: string
-  /** The folders that Add client makes in each client folder and each matter folder. */
+  /**
+   * The folders of the firm's template: Add client makes `client` in each client folder. `matter` and `publicData` are
+   * for the matter folder that a later change makes when work on a matter starts; the row checks them now.
+   */
   folderTemplate: FolderTemplate
   /**
    * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
@@ -681,15 +684,20 @@ export interface Config {
   registerSliceRows: number
   /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
   opsRequestsPerMinute: number
+  /**
+   * The most applications in one batch command that the browser sends to the Firm Record. The Firm Record refuses a
+   * larger batch than its own `clients.recordBatchSize` with that maximum, and the browser then splits by it.
+   */
+  recordBatchSize: number
 }
 
-/** The folders that Add client makes in each client folder and each matter folder. */
+/** The folders of the firm's template. */
 export interface FolderTemplate {
   /** The folders at the client folder root, such as `00 Client`. */
   client: string[]
-  /** The folders of each matter folder. */
+  /** The folders of each matter folder, for the matter folder that a later change makes when work on a matter starts. */
   matter: string[]
-  /** The matter folder that takes the dated files of public data; one of `matter`. */
+  /** The matter folder that takes the dated copies of public data; one of `matter`. */
   publicData: string
 }
 

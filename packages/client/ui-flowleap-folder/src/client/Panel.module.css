@@ -258,13 +258,6 @@
   padding: 8px 16px 24px;
 }
 
-.clientCell {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-}
-
 .clientName {
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
 }

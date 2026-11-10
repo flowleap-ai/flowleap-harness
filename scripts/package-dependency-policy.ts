@@ -58,8 +58,8 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   // Builds a dispatcher from the resolved proxy policy; the caller owns and closes it.
   '@deepseek-ai/dsh-http-proxy': ['createRouteDispatcher'],
   // The Liveshare wire codec and identity helpers are stateless functions over caller-owned values.
-  // Stateless string normalizers of EP application numbers and applicant names.
-  '@deepseek-ai/dsh-flowleap-connectors': ['normalizeName', 'parseEpApplication'],
+  // A stateless string normalizer of applicant names.
+  '@deepseek-ai/dsh-flowleap-connectors': ['normalizeName'],
   '@deepseek-ai/dsh-experimental-liveshare-protocol': [
     'LIVESHARE_CAPABILITIES', 'LIVESHARE_PROTOCOL_VERSION', 'parseRelayFrame', 'parseShareAccessState',
     'parseTunnelWorkerCommand', 'parseTunnelWorkerEvent', 'rawText', 'sendFrame', 'unsupportedFrameRefusal',

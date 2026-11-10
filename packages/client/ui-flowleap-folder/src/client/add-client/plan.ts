@@ -1,9 +1,9 @@
 /**
- * The facts of an Add client decision and the Firm Record commands that record them. A decision is what the person
+ * The facts of an Add client decision and the Firm Record commands that record the client. A decision is what the person
  * chose on the review page; `planRecords` turns it into the commands in the contract order (conflict check, client,
- * names, then for each application its parties, the application and the applicant roles) and leaves out each fact that
- * the Firm Record has already, so a second run and a Try again send only what is missing. `runPlan` sends the steps one
- * after another and stops at the first failure.
+ * names, and for the role Other party its party and its role) and leaves out each fact that the Firm Record has already,
+ * so a second run and a Try again send only what is missing. `runPlan` sends the steps one after another and stops at
+ * the first failure. The applications of a client go to the Firm Record in batches after these steps (`batches.ts`).
  * @module
  */
 
@@ -47,7 +47,7 @@ export type Decision =
 
 /** One step of a plan: a command, a party whose id later steps use, or a role of a party by its name. */
 export type PlanStep =
-  | { readonly kind: 'command'; readonly command: Exclude<RecordCommand, { kind: 'party' | 'role' }> }
+  | { readonly kind: 'command'; readonly command: Exclude<RecordCommand, { kind: 'party' | 'role' | 'applications' }> }
   | { readonly kind: 'party'; readonly name: string }
   | { readonly kind: 'role'; readonly applicationNumber: string; readonly party: string; readonly role: PartyRole; readonly clientId: ClientId }
 
@@ -138,8 +138,8 @@ export function allHits(record: readonly Hit[], register: readonly ConflictHit[]
 }
 
 /**
- * The commands that record a decision, without the facts that the Firm Record has already. A name whose key the
- * decision has already is sent once.
+ * The commands that record a decision, without its applications and without the facts that the Firm Record has
+ * already. A name whose key the decision has already is sent once.
  * @param decision - the decision.
  * @param existing - the client as the Firm Record has it now, or null when it has no such client.
  * @returns the plan.
@@ -154,7 +154,6 @@ export async function planRecords(decision: Decision, existing: ClientDetail | n
       roles.add(`${application.applicationNumber}|${normalizeName(role.party)}|${role.role}`)
     }
   }
-  const recorded = new Set(existing?.applications.map(application => application.applicationNumber))
   const linked = new Set(existing?.names.map(item => normalizeName(item.name)))
   const planned = new Set<string>()
   const party = (name: string): PlanStep[] => {
@@ -175,13 +174,6 @@ export async function planRecords(decision: Decision, existing: ClientDetail | n
     const key = normalizeName(name.name)
     if (!linked.has(key)) steps.push({ kind: 'command', command: { kind: 'name', clientId, name } })
     linked.add(key)
-  }
-  if (decision.role === 'client') {
-    for (const { fact, applicants } of decision.applications) {
-      steps.push(...[...new Set(applicants)].flatMap(party))
-      if (!recorded.has(fact.applicationNumber)) steps.push({ kind: 'command', command: { kind: 'application', clientId, application: fact } })
-      steps.push(...[...new Set(applicants)].flatMap(name => role(fact.applicationNumber, name, 'applicant')))
-    }
   }
   if (decision.role === 'other-party') steps.push(...party(decision.name), ...role(decision.matter.applicationNumber, decision.name, decision.matter.role))
   return { steps, parties }

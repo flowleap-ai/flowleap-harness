@@ -203,7 +203,7 @@ function RefreshLine({ t, refresh, retry }: {
   }
 }
 
-/** The icon of each docket line, as the build steps of Add client show their states. */
+/** The icon of each docket line, as the Record page of Add client shows the states of its lines. */
 const LINE_ICONS = {
   idle: IconInfoOutlineRegular, run: IconLoadingOutlineRegular, wait: IconClockOutlineRegular, ok: IconCheckOutlineRegular,
   stale: IconClockOutlineRegular,

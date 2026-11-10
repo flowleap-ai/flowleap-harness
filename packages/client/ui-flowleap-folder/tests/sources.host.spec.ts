@@ -113,4 +113,13 @@ describe('the record checks', () => {
     expect([TRASHED, UPLOAD, null, 7, { from: 1, at: '' }, { from: 'a.pdf' }].map(isTrashOrigin))
       .toEqual([true, false, false, false, false, false])
   })
+
+  it('keeps the Add client source records apart from damaged ones', () => {
+    expect(isSource({ kind: 'add-client', at: 'x', from: 'ep-register', role: 'matter', key: 'EP23171862' })).toBe(true)
+    expect(isSource({ kind: 'add-client', at: 'x', from: 'epo-publication', role: 'family' })).toBe(true)
+    expect(isSource({ kind: 'add-client', at: 'x', from: 'patstat' })).toBe(false)
+    expect(isSource({ kind: 'add-client', at: 'x', from: 'template', role: 'client' })).toBe(false)
+    expect(isSource({ kind: 'add-client', at: 'x', from: 'template', key: 1 })).toBe(false)
+    expect(isSource({ kind: 'other', at: 'x' })).toBe(false)
+  })
 })

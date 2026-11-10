@@ -6,9 +6,9 @@
  */
 
 import {
-  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type BuildRequest, type BuildStatus, type ClientNamesRequest,
-  type DocketAnswer, type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type OpponentIndexAnswer,
-  type ReviewAnswer, type ReviewRequest, type StatusAnswer,
+  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type AddClientSettingsAnswer, type ClientFolderAnswer,
+  type ClientFolderRequest, type ClientNamesRequest, type DocketAnswer, type DocketReadRequest, type FindAnswer, type FirmIdentity,
+  type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer, type ReviewRequest,
 } from '../../add-client/wire.ts'
 
 /** Why a Host call failed: a route failure, no answer (`network`), or an answer that is not JSON (`internal`). */
@@ -52,10 +52,10 @@ export interface AddClientApi {
   find(name: string, signal?: AbortSignal): Promise<HostResult<FindAnswer>>
   /** The group's EP applications at your firm and at other firms, and the conflicts that the EP Register shows. */
   review(request: ReviewRequest, signal?: AbortSignal): Promise<HostResult<ReviewAnswer>>
-  /** Start or resume the build of a client folder; the Host answers 202 with the status. */
-  build(request: BuildRequest): Promise<HostResult<BuildStatus>>
-  /** The status of every build. */
-  status(signal?: AbortSignal): Promise<HostResult<StatusAnswer>>
+  /** Make the client folder of a recorded client, or find it. */
+  clientFolder(request: ClientFolderRequest): Promise<HostResult<ClientFolderAnswer>>
+  /** The settings of the row config that the browser uses, such as the batch size of the Firm Record commands. */
+  settings(signal?: AbortSignal): Promise<HostResult<AddClientSettingsAnswer>>
   /** Send the names of the firm's clients, for the opponent index of the conflict check. */
   clientNames(names: readonly string[]): Promise<HostResult<OpponentIndexAnswer>>
 }
@@ -64,8 +64,8 @@ export interface AddClientApi {
 export const addClientApi: AddClientApi = {
   find: (name, signal) => call(`${relative(ADD_CLIENT_ROUTES.find)}?${new URLSearchParams({ name })}`, signal === undefined ? {} : { signal }),
   review: (request, signal) => post(ADD_CLIENT_ROUTES.review, request, signal),
-  build: request => post(ADD_CLIENT_ROUTES.build, request),
-  status: signal => call(relative(ADD_CLIENT_ROUTES.status), signal === undefined ? {} : { signal }),
+  clientFolder: request => post(ADD_CLIENT_ROUTES.clientFolder, request),
+  settings: signal => call(relative(ADD_CLIENT_ROUTES.settings), signal === undefined ? {} : { signal }),
   clientNames: names => post(ADD_CLIENT_ROUTES.clientNames, { names } satisfies ClientNamesRequest),
 }
 

@@ -9,7 +9,7 @@ import { readFile } from 'node:fs/promises'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { z } from 'zod'
 import { normalizeIdentity, type FirmIdentity } from './identity.ts'
-import { messageOf } from './jobs.ts'
+import { messageOf } from './message.ts'
 
 /** The identity file as JSON. */
 const IDENTITY_FILE = z.object({
