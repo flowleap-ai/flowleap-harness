@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { ciTimeBudget } from '../support/calibration.ts'
+import { ciTimeBudget, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase, type Timing } from '../support/scaling-report.ts'
 import type { TerminalIoReport } from './terminal-io.worker.ts'
 
@@ -48,8 +48,8 @@ it('bounds steady overflow cost as retained terminal capacity grows 32 times', a
     large.push(await sample(4 * MIB, 'steady'))
   }
   const capacityRatio = median(large.map(row => row.ingestMs)) / median(small.map(row => row.ingestMs))
-  const ingestBudgetMs = ciTimeBudget(EXPECTED_MS.steadyIngest)
-  const completeBudgetMs = ciTimeBudget(EXPECTED_MS.steadyComplete)
+  const ingestBudgetMs = runnerTimeBudget(ciTimeBudget(EXPECTED_MS.steadyIngest))
+  const completeBudgetMs = runnerTimeBudget(ciTimeBudget(EXPECTED_MS.steadyComplete))
   console.log(JSON.stringify({ scenario: 'terminal-steady', small, large, capacityRatio, ingestBudgetMs, completeBudgetMs }))
   const declared = (ms: number): Timing => ({ ms, ioShare: IO_SHARE })
   recordTimings(STEADY_CASE, {
@@ -80,7 +80,7 @@ it('completes a five MiB terminal send with bounded retained output', async () =
   const samples: TerminalIoReport[] = []
   for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) samples.push(await sample(4 * MIB, 'full'))
   const completeMedianMs = median(samples.map(row => row.completeMs))
-  const completeBudgetMs = ciTimeBudget(EXPECTED_MS.fullComplete)
+  const completeBudgetMs = runnerTimeBudget(ciTimeBudget(EXPECTED_MS.fullComplete))
   console.log(JSON.stringify({ scenario: 'terminal-five-mib', samples, completeMedianMs, completeBudgetMs }))
   recordTimings(FIVE_MIB_CASE, { completeMs: { ms: completeMedianMs, ioShare: IO_SHARE } }, { completeMs: completeBudgetMs })
   expect(completeMedianMs).toBeLessThanOrEqual(completeBudgetMs)

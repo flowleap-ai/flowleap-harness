@@ -29,7 +29,7 @@ export class DeliveryLedger {
   private readonly inFlight = new Set<WebhookDeliveryId>()
 
   /**
-   * @param dir - absolute state folder; created on the first record.
+   * @param dir - absolute state folder; created on the first claim.
    */
   constructor(private readonly dir: string) {}
 
@@ -38,11 +38,14 @@ export class DeliveryLedger {
   }
 
   /**
-   * Claim a delivery for one dispatch. The check of the durable file and the claim are one step for this process.
+   * Claim a delivery for one dispatch. The check of the durable file and the claim are one step for this process. The
+   * claim creates the state folder, so a state folder that cannot be created rejects the claim before any Session opens;
+   * a check of the durable file alone does not see a file in place of the folder on Windows.
    * @param deliveryId - the delivery id.
    * @returns `new` when this call claimed it; otherwise what the ledger already knows.
    */
   async claim(deliveryId: WebhookDeliveryId): Promise<DeliveryState> {
+    await mkdir(this.dir, { recursive: true })
     if (await this.started(deliveryId)) return 'started'
     if (this.inFlight.has(deliveryId)) return 'in-flight'
     this.inFlight.add(deliveryId)
@@ -65,7 +68,6 @@ export class DeliveryLedger {
    * @param at - Unix epoch milliseconds.
    */
   async record(deliveryId: WebhookDeliveryId, session: SessionId, at: number): Promise<void> {
-    await mkdir(this.dir, { recursive: true })
     const value: StartedRecord = { deliveryId, session, at }
     try {
       await writeFile(this.fileOf(deliveryId), `${JSON.stringify(value)}\n`, { flag: 'wx' })

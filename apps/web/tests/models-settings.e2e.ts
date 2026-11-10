@@ -760,7 +760,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
         await mobileBrowser?.close()
         await scaffold.ctx.settings.mutate('llm-pi-ai', [{ op: 'unset', path: ['providers', provider] }])
       }
-    }, 60_000,
+    },
   )
 
   it.each([{ name: 'Chromium', engine: chromium }, { name: 'WebKit', engine: webkit }])(
@@ -808,7 +808,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
       } finally {
         await keyboardBrowser.close()
       }
-    }, 60_000,
+    },
   )
 
   it('confirms an identified provider deletion before removing its profile and key', async () => {
