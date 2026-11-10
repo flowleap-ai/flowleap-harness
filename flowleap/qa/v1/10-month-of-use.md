@@ -39,7 +39,7 @@ Edge cases of this area: letters that arrive in the night; a person on holiday; 
 
 ### MON-04. A rule version changes a proposed deadline
 
-- **Mark:** New (rule versions in S16 sheet 08; no second version of a rule exists).
+- **Mark:** New (rule versions in sheet 08; no second version of a rule exists).
 - **Risk:** Deadline.
 - **Lines:** V11, V12.
 - **Story:** As Sabine, I want a deadline that waits for a confirm to be computed again when its rule gets a new version, so that nobody confirms a date of an old rule.

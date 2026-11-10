@@ -1,6 +1,6 @@
 # 4. A letter arrives
 
-An EPO letter arrives in the firm's MyEPO Mailbox. FlowLeap lists it, files it on its matter, records the office event, and shows it on the Letters surface and the matter page. The MyEPO intake source is not started (#389). Its process is in S16's additions to sheet 01 (not committed); the Letters surface is in draft PR 388. The forwarded-mail route (os PR 67, 88) is built and stays as the fallback (decision 11 of the scope).
+An EPO letter arrives in the firm's MyEPO Mailbox. FlowLeap lists it, files it on its matter, records the office event, and shows it on the Letters surface and the matter page. The MyEPO intake source is not started (#389). Its process is in sheet 01 section 8 (committed; its decisions D1.1 to D1.5 are open) and sheet 06 (approved); the firm worker reads the Mailbox and the Firm Record files; the Letters surface is in draft PR 388. The forwarded-mail route (os PR 67, 88) is built and stays as the fallback (decision 11 of the scope).
 
 Use the double (X) with the dev loop or the local firm. `POST /_double/arrive` makes the Rule 71(3) letter of SF-2023-0045 arrive.
 
@@ -8,17 +8,17 @@ Edge cases of this area: a letter with no application; an unknown document code;
 
 ### LET-01. A new EPO letter is filed on its matter by itself
 
-- **Mark:** New (the MyEPO intake source; #389).
+- **Mark:** New (the MyEPO intake source; #389; migration step 7).
 - **Lines:** V9, V14, V16, V5.
 - **Story:** As Tobias (formalities), I want a new EPO letter to be filed on its matter with no step of mine when its application number matches, so that I only act on the letters that need a person.
 - **Start:** L + X. MyEPO linked. SF-2023-0045 has no Rule 71(3) letter yet. Tobias and Anna signed in, in two browser profiles.
-- **Steps:** 1. Call `POST /_double/arrive`. 2. Wait up to the list time (`myepo.listEvery`, 5 minutes). 3. Tobias opens Letters. 4. Anna opens SF-2023-0045.
-- **Expected:** Tobias sees the letter "Communication under Rule 71(3) EPC, 29 Sep 2026, SF-2023-0045" in state "Filed on its matter", with "Source: EPO Mailbox". Anna's matter page lists the letter, the office event and "Filed automatically: application number EP23771920". The Firm Record has the filing with the agent or the intake as actor and the MyEPO communication id as evidence. Decision 4 of the scope applies.
+- **Steps:** 1. Call `POST /_double/arrive`. 2. Wait up to the read interval (`myepo.unhandledEvery`, 15 minutes, sheet 06 D6.7), or select Check now. 3. Tobias opens Letters. 4. Anna opens SF-2023-0045.
+- **Expected:** Tobias sees the letter "Communication under Rule 71(3) EPC, 29 Sep 2026, SF-2023-0045" in state "Filed on its matter", with "Source: EPO Mailbox". Anna's matter page lists the letter, the office event and "Filed automatically: application number EP23771920". The Firm Record files it on the firm worker's observation, with the MyEPO communication id as evidence. Decision 4 of the scope applies: the application number matches exactly, and the user reference is empty or names the same matter (sheet 01 section 8).
 - **Proof:** new test on L + X.
 
 ### LET-02. Listing a letter does not mark it read; opening it does
 
-- **Mark:** New (the MyEPO intake; the read flag setting in S16 sheet 01 and PR 388).
+- **Mark:** New (the MyEPO intake; the setting `myepo.download` of sheet 01 section 8).
 - **Risk:** Distrust.
 - **Lines:** V10, V9.
 - **Story:** As Felix, I want FlowLeap to download a letter only when a person or a task opens it (the default), so that the firm's MyEPO still shows which letters nobody opened.
@@ -35,7 +35,7 @@ Edge cases of this area: a letter with no application; an unknown document code;
 - **Story:** As Felix (administrator), I want a firm letter with no application number to come to me, so that it is not lost and does not land on a wrong matter.
 - **Start:** L + X with a double letter that has no application number (as the sandbox letter `52301_CONF`).
 - **Steps:** 1. The letter arrives. 2. Felix and Tobias open My work.
-- **Expected:** The letter is in Letters as "Needs a person: no application number". Felix has the task "Look at this letter". It is on no matter. Tobias does not see it unless he is an intake person for firm letters.
+- **Expected:** The letter is in Letters as "Needs a person: no application number". The letter is a firm letter, filed on the firm file (sheet 01). Felix has the task "Read this firm letter". It is on no matter. Tobias does not see it unless he is an intake person for firm letters.
 - **Proof:** new test with a new double control.
 
 ### LET-04. A letter with an unknown document code
@@ -55,14 +55,14 @@ Edge cases of this area: a letter with no application; an unknown document code;
 - **Risk:** Wrong person.
 - **Lines:** V9, V3.
 - **Story:** As Tobias, I want a letter for an application that FlowLeap does not know to wait for a formalities person, so that it reaches no matter and no agent.
-- **Start:** L + X with a double letter for EP14724725 (the parent of EP22213933, outside the index).
+- **Start:** L + X with a double letter for EP14724725 (the parent of EP22213933, outside the index), whose applicant is not linked to a client. (When the applicant is linked to a client, the Record files the application by itself, sheet 07 D7.1.)
 - **Steps:** 1. The letter arrives. 2. Tobias, Jonas and Lena open Letters.
-- **Expected:** The letter is "Needs a person: no matter found" for the intake persons. Jonas and Lena do not see it. No agent reads it. The intake person can add the application to a client or mark the letter.
+- **Expected:** The letter is "Needs a person: no matter found" for the intake persons. Jonas and Lena do not see it. No agent reads it. The administrator and the partners see the application in the import list (sheet 07).
 - **Proof:** new test.
 
 ### LET-06. The same letter from the Mailbox and as a forwarded copy
 
-- **Mark:** New (the intake source; S16 sheet 01 section 8).
+- **Mark:** New (the intake source; sheet 01 section 8).
 - **Risk:** Deadline.
 - **Lines:** V9.
 - **Story:** As Sabine, I want the same EPO letter that arrives from the Mailbox and as a mail that a colleague forwards to be filed once, so that the matter shows one letter and one deadline.
@@ -117,7 +117,7 @@ Edge cases of this area: a letter with no application; an unknown document code;
 
 ### LET-11. MyEPO does not answer for hours
 
-- **Mark:** New (the firm process `myepo`; S16 sheet 06).
+- **Mark:** New (the firm worker; sheet 06).
 - **Risk:** Deadline.
 - **Lines:** V9, V5, V14.
 - **Story:** As Felix, I want an alarm when FlowLeap has not read the Mailbox for 4 hours, so that the firm knows that letters can be waiting.
@@ -139,7 +139,7 @@ Edge cases of this area: a letter with no application; an unknown document code;
 
 ### LET-13. The MyEPO permission on a portfolio is removed
 
-- **Mark:** New (S16 sheet 06 `permission_missing`; a double control).
+- **Mark:** New (sheet 06 state `permission_missing`; a double control).
 - **Risk:** Deadline.
 - **Lines:** V5, V9.
 - **Story:** As Felix, I want FlowLeap to tell me when the firm's MyEPO account loses the permission on the Renishaw portfolio, so that Renishaw's letters are not silently missing.
@@ -150,9 +150,9 @@ Edge cases of this area: a letter with no application; an unknown document code;
 
 ### LET-14. A register event with no letter
 
-- **Mark:** New (the lost-letter check; decision 7 of the scope).
+- **Mark:** New (the lost-letter check of sheet 01, whose decision D1.4 is open; decision 7 of the scope).
 - **Risk:** Deadline.
-- **Lines:** V6, V9.
+- **Lines:** V6, V9, V28.
 - **Story:** As Sabine, I want a task when the EP Register shows a communication that never arrived in the Mailbox, so that no letter is lost without anyone noticing.
 - **Start:** L + X with the OPS register data of EP24166597 that lists the Art. 94(3) communication of 2026-09-18, and no such letter in the double.
 - **Steps:** 1. The daily register check runs. 2. Sabine opens My work.
@@ -164,7 +164,7 @@ Edge cases of this area: a letter with no application; an unknown document code;
 - **Mark:** WIP (the screen in draft PR 346; os `fileScan` is merged, os PR 88).
 - **Fails today:** QA findings 9, 10 and 44 on the merged screens: no page image, filing refused (#325), no hand entry.
 - **Risk:** Deadline.
-- **Lines:** V9, V14; decision 3 of the scope.
+- **Lines:** V9, V14, V27; decision 3 of the scope.
 - **Story:** As Tobias, I want to see the page image of a scan and file it with its kind and date, so that a paper letter reaches its matter and gets a deadline.
 - **Start:** L or D. Row 18 posted as a scan with no text layer, OCR off.
 - **Steps:** 1. Tobias opens the letter. 2. He reads the first page image. 3. He chooses SF-2023-0045, enters "Rule 71(3)" and the date 29 Sep 2026, and files. 4. Anna opens the matter.
@@ -216,13 +216,13 @@ Edge cases of this area: a letter with no application; an unknown document code;
 
 ### LET-20. A letter for an imported application with no team
 
-- **Mark:** New (the MyEPO intake; the task "Assign a person" of sheet 00 is not built).
+- **Mark:** New (the MyEPO intake; the task "Assign a person" of sheet 00 is not built; sheet 01 D1.3, the matter from the user reference, is open).
 - **Risk:** Deadline.
 - **Lines:** V7, V9, V13.
 - **Story:** As Dr. Krüger, I want a letter for an imported application with no matter team to give a person the task "Assign a person", so that its deadline is never invisible.
 - **Start:** L + X after IMP-01. One imported application has no matter, no responsible attorney and no formalities person. A Rule 71(3) letter arrives for it.
 - **Steps:** 1. The letter arrives. 2. Dr. Krüger opens My work and Deadlines.
-- **Expected:** The letter is on the application. Dr. Krüger has "Assign a person". Its deadline is proposed and shows on his Deadlines surface. No count on any surface leaves it out without a reason.
+- **Expected:** The letter is `unmatched` (sheet 01) and waits for a person. Dr. Krüger has "Assign a person". Until a matter is known, no deadline starts (sheet 02), and the Deadlines surface shows the letter as "no deadline yet: no matter" with its dispatch date. No count on any surface leaves it out without a reason.
 - **Proof:** new test.
 
 ### LET-21. Nobody decides a letter that needs a person

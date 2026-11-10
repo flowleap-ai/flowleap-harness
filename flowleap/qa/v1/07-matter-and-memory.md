@@ -6,7 +6,7 @@ Edge cases of this area: two persons add to the same matter; a fact with no sour
 
 ### MAT-01. The matter page shows the whole story with sources
 
-- **Mark:** New. Parts: WIP (the dossier in PR 346); New (register events and files at firm level, S17).
+- **Mark:** New. Parts: WIP (the dossier in PR 346); New (register watches in the firm worker, migration step 8; files in the Firm Record's document store by decision D4, M1 and migration step 9).
 - **Lines:** V16, V17.
 - **Story:** As Anna, I want SF-2023-0045's page to show its letters, register events, files and client instructions, each with its source and date, so that I know the matter's story without searching.
 - **Start:** L + X, with OPS linked by Felix. Row 18 filed. A file on the matter. A recorded client instruction.
@@ -16,7 +16,7 @@ Edge cases of this area: two persons add to the same matter; a fact with no sour
 
 ### MAT-02. A file that one attorney adds is seen by the team
 
-- **Mark:** New (the client folder is per runtime, `clientsRoot: dshHomePath('clients')`; S17).
+- **Mark:** New (the client folder is per runtime, `clientsRoot: dshHomePath('clients')`; decision D4 of the design, M1 and migration step 9).
 - **Fails today:** the folder of one runtime is not seen by other runtimes.
 - **Risk:** Distrust.
 - **Lines:** V16, V17, V4.
@@ -61,7 +61,7 @@ Edge cases of this area: two persons add to the same matter; a fact with no sour
 ### MAT-06. A client instruction is recorded with its source
 
 - **Mark:** New (instructions other than the AI wishes have no record; decision 10).
-- **Lines:** V17, V4.
+- **Lines:** V17, V4, V34.
 - **Story:** As Lena, I want to record "Renishaw wants no divisional on EP23771920" with the client's mail as its source, so that Anna and the agent know it.
 - **Start:** L. Lena and Anna in two browser profiles.
 - **Steps:** 1. Lena records the instruction on SF-2023-0045 and attaches the mail. 2. Anna opens the matter. 3. Anna asks the agent about divisionals.
@@ -73,7 +73,7 @@ Edge cases of this area: two persons add to the same matter; a fact with no sour
 - **Mark:** WIP (os `GET search` is merged; the Find dialog is in PR 346).
 - **Fails today:** QA finding 15: the merged Search act opens the app's command menu.
 - **Risk:** Wrong person.
-- **Lines:** V16, V3; decision 2 of the scope.
+- **Lines:** V16, V3, V33; decision 2 of the scope.
 - **Story:** As Lena, I want to find a matter by its file number, its EP number, its client, its title or a person, so that I open it in seconds.
 - **Start:** L. Lena and Jonas.
 - **Steps:** 1. Lena searches "EP22213933", then "Renishaw", then "position encoding". 2. Jonas searches "EP22213933" and "control device".

@@ -8,7 +8,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 - **Mark:** WIP. Parts: Today (os search); WIP (the Find dialog, PR 346).
 - **Risk:** Wrong person.
-- **Lines:** V3.
+- **Lines:** V3, V33.
 - **Story:** As Felix, I want Jonas's search for SF-2022-0024 to find nothing, so that he cannot learn that the matter exists.
 - **Start:** L. Jonas.
 - **Steps:** 1. Jonas searches "SF-2022-0024", "EP22213933", "control device", "switching I/O" and "Lena Hoffmann".
@@ -51,7 +51,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 ### NEV-05. An attorney records a firm-level fact through the record API
 
-- **Mark:** New (a role check in the Firm Record; decision 12 of the scope).
+- **Mark:** New (a role check in the Firm Record, #394; the role function and command table of the design, migration step 5; decision 12 of the scope).
 - **Fails today:** the Firm Record checks the sender kind, not the firm role (os `lib/record/tickets.mjs:382`).
 - **Risk:** Wrong person.
 - **Lines:** V2, V4.
@@ -70,7 +70,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 - **Story:** As Felix, I want the record to refuse an attorney who sets Phoenix Contact to "allowed" or opens a matter with himself on the team of a screened application, so that no person widens their own access.
 - **Start:** L. Jonas.
 - **Steps:** 1. Jonas posts the rules of Phoenix Contact. 2. Jonas posts a matter for EP22213933 with himself on the team.
-- **Expected:** Both refused with the role's reason. Step 2 is also refused because Jonas is screened from that application.
+- **Expected:** Step 1 is refused with the role's reason (client AI rules: partner or administrator, design decision D6). Step 2 is refused because Jonas is screened from that application; an attorney may open a matter (D6), so the screen is the reason.
 - **Proof:** new test.
 
 ### NEV-07. An attorney reads a firm secret from the runtime
@@ -82,7 +82,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 - **Story:** As Felix, I want no firm secret to be readable from an attorney's runtime, so that an attorney cannot take the firm's MyEPO or OPS access home.
 - **Start:** L. Jonas's runtime. MyEPO and OPS linked by Felix.
 - **Steps:** 1. Jonas asks the agent to run `env`, to list the credential store and to read the keys document. 2. Jonas reads the same with the runtime's shell.
-- **Expected:** No MyEPO secret, no OPS key, no record password. The runtime gets only short-lived tokens or calls a firm service.
+- **Expected:** No MyEPO secret, no OPS key, no record password. The runtime has only its virtual model key and the office proxy URL, and no OPS bearer token (ADR 0003).
 - **Proof:** new test: the os invariant `keys.none-in-runtime` passes in full.
 
 ### NEV-08. An attorney does an administrator's act on a screen
@@ -93,7 +93,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 - **Story:** As Felix, I want every administrator act to be refused for an attorney, on the screen and on the route, so that no attorney changes the firm.
 - **Start:** L. Jonas.
 - **Steps:** 1. Jonas opens the console address. 2. Jonas saves the firm identity. 3. Jonas opens each firm setting of v1 (read flag, confirmation level, roles, MyEPO, OPS).
-- **Expected:** The console refuses. Each save is refused with `not-admin` or its equal. Settings show read-only.
+- **Expected:** The console refuses. Each save is refused by the command's role entry, and a runtime cannot send an administrator command (the second origin, D11). Settings show read-only.
 - **Proof:** the existing os test `test/console.test.mjs` and the client test `ui-flowleap-folder/tests/add-client-routes.host.spec.ts`; new tests for the other settings.
 
 ### NEV-09. The person who entered a deadline confirms it from a second browser
@@ -177,7 +177,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 - **Mark:** Today.
 - **Risk:** Deadline.
-- **Lines:** V12, V9.
+- **Lines:** V12, V9, V27.
 - **Story:** As Dr. Krüger, I want an office event that a person entered by hand to count only after a second person confirms it, so that one person's typing mistake is never a deadline.
 - **Start:** L. Tobias enters an event by hand.
 - **Steps:** 1. Open the deadline and the matter.
@@ -199,7 +199,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 - **Mark:** WIP (sign-out in PR 346).
 - **Risk:** Wrong person.
-- **Lines:** V20.
+- **Lines:** V20, V26.
 - **Story:** As Jonas, I want no page of mine to show after I sign out, also from the browser history, so that the next person on the PC sees nothing of my matters.
 - **Start:** B. Jonas signed in; he opened SF-2021-0011.
 - **Steps:** 1. Sign out. 2. Use Back, the history and a direct link to the matter.
@@ -274,7 +274,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 ### NEV-25. A file on a shared matter steers a colleague's agent
 
-- **Mark:** New (files at firm level, S17; no test of this route).
+- **Mark:** New (matter files by decision D4 of the design, M1 and migration step 9; no test of this route).
 - **Risk:** Wrong person.
 - **Lines:** V3, V17, V16.
 - **Story:** As Felix, I want a text that Jonas puts in a file of a shared matter to have no effect on Lena's agent, so that Jonas cannot use Lena's access to a matter that screens him.
@@ -296,7 +296,7 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 
 ### NEV-27. A team member lifts a screen
 
-- **Mark:** New (a role check on the screen; decision 12).
+- **Mark:** New (a role check, #394; decision 12).
 - **Fails today:** `recordScreen` replaces the whole screen, and checks only that the sender is in the matter's team (os `lib/record/commands.mjs:91`).
 - **Risk:** Wrong person.
 - **Lines:** V2, V3.
@@ -311,10 +311,10 @@ The actor of most stories is Jonas, an attorney who is screened from SF-2022-002
 - **Mark:** New (no screen for roles and teams; decision 17 for the weaker settings).
 - **Risk:** Wrong person.
 - **Lines:** V1, V2, V3.
-- **Story:** As Dr. Krüger, I want Felix to be unable to give himself a role, a client group or a matter team, so that the administrator stays outside client files.
-- **Start:** L. Felix on the persons page.
+- **Story:** As Dr. Krüger, I want Felix to be unable to give himself a role or a matter team, so that the administrator stays outside client files.
+- **Start:** L. Felix with the console and the Records app.
 - **Steps:** 1. Felix makes himself attorney. 2. Felix adds himself to a matter team. 3. Felix lowers the confirmation level.
-- **Expected:** Steps 1 and 2 are refused, or wait for a partner. Step 3 follows decision 17 of the scope. Each change is in the record with both names.
+- **Expected:** Steps 1 and 2 are refused, or wait for a partner. Step 3 is refused: a partner sets the level (sheet 08 D8.2). Each change is in the record with both names.
 - **Proof:** new test.
 
 ### NEV-29. A client that forbids AI, at the intake

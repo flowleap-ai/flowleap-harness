@@ -2,18 +2,18 @@
 
 The firm gets its EP applications in: Import your EP docket reads the firm's MyEPO portfolios, and Add client adds one client with its applications at the firm. Both write the client record and the application index to the Firm Record ([the client model](../../docs/2026-11-09-client-model.md)).
 
-Import your EP docket is in design: S16 sheet 07 (not committed) and mockups 1a to 1e of draft PR 388. Add client is merged (PR 362 to 386, os PR 89 and 90), but the identity, the docket, the folders and the Clients list are per runtime.
+Import your EP docket is designed and approved, not built: sheet 07, a firm page of the Records app on the second origin (D7.2), migration steps 6 and 7; mockups 1a to 1e in draft PR 388. Add client is merged (PR 362 to 386, os PR 89 and 90), but the identity, the docket, the folders and the Clients list are per runtime.
 
 Edge cases of this area: two persons add the same client at the same time; the import breaks in the middle; the import runs twice; an application leaves a portfolio; a conflict hit; a screened person opens the client; a client with over a thousand applications; the EP Register does not answer; one client with two spellings.
 
 ### IMP-01. The partner imports the firm's EP docket
 
-- **Mark:** New (no build; S16 sheet 07 and PR 388 mockups are in design).
+- **Mark:** New (sheet 07 approved, not built; the page is on the Records app, D7.2).
 - **Lines:** V7, V5, V4.
 - **Story:** As Dr. Krüger (partner), I want to import the firm's EP docket from MyEPO, so that FlowLeap knows every EP application of the firm without typing.
 - **Start:** L + X. MyEPO linked by Felix. No client recorded.
-- **Steps:** 1. Dr. Krüger opens Import your EP docket. 2. He waits for the read. 3. He reviews the proposed clients (WAGO, Renishaw, Phoenix Contact), records the conflict check, and selects Import 3 clients. 4. Lena opens the Clients list.
-- **Expected:** Step 2 shows 7 applications in 3 portfolios. Step 3 records 3 clients and 7 applications in the Firm Record, each with "Imported from MyEPO by Dr. Martin Krüger" and the date. Lena's Clients list shows the clients of her client groups (WAGO, Renishaw), with their applications.
+- **Steps:** 1. Dr. Krüger opens Import your EP docket. 2. He waits for the read. 3. He reviews the proposed clients (WAGO, Renishaw, Phoenix Contact) and the conflict check that ran for each (D7.5), and selects Import 3 clients. 4. Lena opens the Clients list.
+- **Expected:** Step 2 shows 7 applications in 3 portfolios. Step 3 records 3 clients and 7 applications in the Firm Record, each with "Imported from MyEPO by Dr. Martin Krüger" and the date. Lena's Clients list shows the clients of her matters (WAGO, Renishaw), with their applications. A conflict hit shows only to an attorney, who decides it (D7.5).
 - **Proof:** new test on L + X.
 
 ### IMP-02. Only a starter can start the import
@@ -73,7 +73,7 @@ Edge cases of this area: two persons add the same client at the same time; the i
 
 ### IMP-07. A client that one attorney adds is seen by the others
 
-- **Mark:** New (the Clients list reads the client folders of each runtime, `ui-flowleap-folder/src/client/api.ts:54`; S17).
+- **Mark:** New (the Clients list reads the client folders of each runtime, `ui-flowleap-folder/src/client/api.ts:54`; the Clients list from the Firm Record is migration step 9, after decision D4).
 - **Fails today:** a second attorney's Clients list does not show the client.
 - **Risk:** Distrust.
 - **Lines:** V8, V4.
@@ -133,7 +133,7 @@ Edge cases of this area: two persons add the same client at the same time; the i
 - **Risk:** Wrong person.
 - **Lines:** V3, V8.
 - **Story:** As Felix, I want Jonas's WAGO client page to leave out the application of the matter that screens him, so that the screen holds on every surface.
-- **Start:** L. WAGO recorded with 3 applications. Jonas is in the WAGO client group and screened from EP22213933.
+- **Start:** L. WAGO recorded with 3 applications. Jonas is on the team of a WAGO matter and screened from EP22213933.
 - **Steps:** 1. Jonas opens the WAGO client page. 2. Jonas searches the page for "EP22213933".
 - **Expected:** Jonas sees 2 applications, no row and no count for EP22213933. Lena sees 3.
 - **Proof:** new test.
@@ -173,7 +173,7 @@ Edge cases of this area: two persons add the same client at the same time; the i
 
 ### IMP-16. Day one: the deadlines that already run
 
-- **Mark:** New (the MyEPO intake; the link test reads only unhandled letters in S16 sheet 06).
+- **Mark:** New (the MyEPO intake; sheet 06 reads the whole list, handled and unhandled, and reconciles 30 days each night, D6.7; no sheet defines a first read that goes back further, an open point).
 - **Risk:** Deadline.
 - **Lines:** V7, V9, V11.
 - **Story:** As Dr. Krüger, I want FlowLeap to show on the first day every deadline that already runs, so that the comparison with the old docket starts complete.

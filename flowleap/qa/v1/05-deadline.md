@@ -1,8 +1,8 @@
 # 5. The deadline
 
-FlowLeap computes the deadline of an office event with its rule and its reasons, and a person confirms it. The deadline engine is [flowleap-deadlines](https://github.com/flowleap-ai/flowleap-deadlines); today it has one rule, Rule 71(3) v1, and the calendars of 2025 to 2027. The confirmation levels and the automatic confirm in shadow mode are in S16 sheet 08 (not committed). The founder's rule: confirmed automatically only when the event comes from a structured source, the rule version is signed by an attorney, and a second independent source agrees; otherwise a person gets it with the reason; strict is the default.
+FlowLeap computes the deadline of an office event with its rule and its reasons, and a person confirms it. The deadline engine is [flowleap-deadlines](https://github.com/flowleap-ai/flowleap-deadlines); today it has one rule, Rule 71(3) v1, and the calendars of 2025 to 2027. The confirmation levels, the decision function and shadow mode are in sheet 08 (approved, not built). v1 runs `strict` with shadow mode (D8.9): a person confirms each deadline, and FlowLeap records what the decision function would do. The level `evidence` is off in v1.
 
-The deadline terms of v1 follow decision 5 of the scope (recommended: Rule 71(3), Art. 94(3), Rule 70(2) and 70a(2), Rule 161(1) and 162). A term with no rule goes to hand entry (decision 3).
+The deadline terms of v1 are those of decision 5 of the scope (sheet 08 D8.7): Rule 71(3), Art. 94(3), Rule 70a, and Rules 62a and 63. Rules 161 and 162 and renewal fees are entered by hand (V27). A letter whose period is only in its text gets its date from the three sources of decision A (V32, DL-32 to DL-37).
 
 Edge cases of this area: two persons confirm at the same time; the second person never answers; a deadline on a closed day, at a month end, and in a year with no calendar; the sources differ; a rule version that is not signed; no rule for the event; a person who may not confirm; the responsible attorney changes; a proposed deadline that looks confirmed.
 
@@ -85,7 +85,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 ### DL-08. The sources of a deadline differ
 
-- **Mark:** New (S16 sheet 08; the EPO due date as a second source is not read).
+- **Mark:** New (sheet 08 row 2 and D8.8; the EPO due date as a second source is not read).
 - **Risk:** Deadline.
 - **Lines:** V12, V5.
 - **Story:** As Anna, I want a deadline whose MyEPO due date differs from FlowLeap's date to go to two persons with both dates, so that a difference is never resolved by chance.
@@ -94,15 +94,15 @@ Edge cases of this area: two persons confirm at the same time; the second person
 - **Expected:** "The sources differ: EPO due date 28 Jan 2027, FlowLeap 29 Jan 2027". Two persons must confirm. Until then, My work and the Deadlines surface show the earlier date as the date to watch.
 - **Proof:** new test with a new double control.
 
-### DL-09. A rule version that is not signed is never confirmed automatically
+### DL-09. A rule version that is not signed goes to a person with that reason
 
-- **Mark:** New (rule signatures and levels, S16 sheet 08).
+- **Mark:** New (rule signatures and the decision function, sheet 08 row 7 and D8.3).
 - **Risk:** Deadline.
 - **Lines:** V12.
 - **Story:** As Dr. Krüger, I want a deadline from a rule version that no attorney signed to go to a person with that reason, so that only a rule that an attorney checked confirms anything.
-- **Start:** L + X. Level set to the automatic level. Rule 71(3) v1 not in `deadline.ruleSigners`' signed list. The double serves the same due date.
+- **Start:** L + X. Level `strict` with shadow mode. Rule 71(3) v1 is not signed (`reviewedBy: null`). The double serves the same due date.
 - **Steps:** 1. The letter arrives. 2. Anna opens the deadline.
-- **Expected:** "Waits for a person: rule version Rule 71(3) v1 is not signed." Never "confirmed automatically".
+- **Expected:** The deadline waits for a person. The shadow result names the reason "rule not signed: Rule 71(3) v1" (`rule-not-signed`). Never "confirmed automatically". A run on the level `evidence` is a unit test only, because `evidence` is off in v1.
 - **Proof:** new test.
 
 ### DL-10. At the strict level, every deadline goes to a person
@@ -118,24 +118,24 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 ### DL-11. Confirmation by algorithm in shadow mode
 
-- **Mark:** New (S16 sheet 08; #229 for the shadow report).
+- **Mark:** New (sheet 08 section 8 and D8.11; #229 for the shadow report).
 - **Risk:** Distrust.
 - **Lines:** V12.
 - **Story:** As Dr. Krüger, I want FlowLeap to record, for each deadline, whether the algorithm would have confirmed it and why, while a person still confirms, so that the firm can see in the month whether the algorithm agrees with its people.
-- **Start:** L + X. Strict level. Rule 71(3) v1 signed by Anna. The double serves the same due date.
+- **Start:** L + X. Level `strict`. Rule 71(3) v1 reviewed by FlowLeap and signed by Anna, whom a partner named in `deadline.ruleSigners` (D8.3). The double serves the same due date.
 - **Steps:** 1. The letter arrives. 2. Tobias confirms the deadline. 3. Dr. Krüger opens the shadow list.
-- **Expected:** The deadline shows "Would be confirmed automatically: structured source, signed rule, EPO due date agrees", and "Confirmed by Tobias Schmitt". The shadow list counts agree and disagree for each rule.
+- **Expected:** In the first month the shadow result is "would go to a person: list date not checked yet" (`list-date-unchecked`, D8.11), and the deadline shows "Confirmed by Tobias Schmitt". After the date check, the shadow result names each condition that it met. The shadow list counts agree and disagree for each rule.
 - **Proof:** new test.
 
 ### DL-12. An Art. 94(3) letter has no rule
 
 - **Mark:** WIP. Parts: Today (os refuses `unknown-event`; the task "Enter the due date" exists, os `lib/record/tasks.mjs:106`); WIP (the hand entry screen in PR 346).
 - **Risk:** Deadline.
-- **Lines:** V11; decisions 3 and 5 of the scope.
+- **Lines:** V11, V27, V32; decisions 3 and 5 of the scope.
 - **Story:** As Sabine, I want an Art. 94(3) letter to give me the task to enter its due date from the period in the letter, so that the deadline exists although FlowLeap has no rule.
 - **Start:** L or D. Row 6 (Art. 94(3) of 2026-09-18, German) filed on SF-2024-0007.
 - **Steps:** 1. Sabine opens My work. 2. She enters the due date from the period that the letter names (here 4 months: Monday 18 Jan 2027). DL-25 tests a period that is not 4 months. 3. Jonas opens the deadline.
-- **Expected:** Step 1 shows "Enter the due date: no rule for Art. 94(3)". After step 2, the deadline is "proposed by Sabine Wolf, by hand" and waits for a second person. Jonas sees it and can confirm it. If v1 adds an Art. 94(3) rule (decision 5), FlowLeap proposes the date and Sabine only confirms.
+- **Expected:** Step 1 shows "Enter the due date: no rule for Art. 94(3)". After step 2, the deadline is "proposed by Sabine Wolf, by hand" and waits for a second person. Jonas sees it and can confirm it. When the route of decision A is built (DL-32 to DL-37), FlowLeap proposes the date from the EPO or the letter, and this story tests only its source (3), the hand entry.
 - **Proof:** by hand with PR 346; new test.
 
 ### DL-13. Two readers disagree on the event
@@ -197,7 +197,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** Today (by hand entry).
 - **Risk:** Deadline.
-- **Lines:** V11, V9.
+- **Lines:** V11, V9, V27.
 - **Story:** As Tobias, I want a loss-of-rights communication to give me the task to enter the further-processing date, so that the firm sees the last day to save the application.
 - **Start:** L. Row 11 (Form 2015C, SF-2020-0031).
 - **Steps:** 1. File row 11. 2. Tobias opens My work.
@@ -230,7 +230,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** New (`active` to `to_docket` is R2 in sheet 02; decision 15 of the scope).
 - **Risk:** Deadline.
-- **Lines:** V12, V15, V16.
+- **Lines:** V12, V15, V16, V29.
 - **Story:** As Sabine, I want a deadline whose act was done (reply filed, fee paid, decision to grant received) to close as "met" with its evidence, so that the Deadlines surface shows only what is still open.
 - **Start:** L. SF-2021-0011: rows 2 and 3 filed (Rule 71(3) of 2025-08-29, decision to grant of 2025-10-23); the deadline of row 2 is active.
 - **Steps:** 1. File row 3. 2. Sabine opens the deadline.
@@ -241,7 +241,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** New (`superseded` is R2 in sheet 02; decision 15).
 - **Risk:** Deadline.
-- **Lines:** V11, V12.
+- **Lines:** V11, V12, V29.
 - **Story:** As Sabine, I want the deadline of the first Rule 71(3) communication to close as "replaced" when a second one arrives after amendments, so that the matter has one open grant deadline.
 - **Start:** L. SF-2021-0011, rows 1 and 2 (seed case `r71-3-superseded`), or SF-2020-0031, rows 9 and 10.
 - **Steps:** 1. File row 1, then row 2. 2. Open the matter.
@@ -263,7 +263,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** New (`deadline.internalDates` is in sheet 02 only, not in os `lib/record/settings.mjs`; decision 20).
 - **Risk:** Deadline.
-- **Lines:** V12, V13, V19.
+- **Lines:** V12, V13, V19, V31.
 - **Story:** As Anna, I want a reminder two weeks and one week before a due date, and on the due day, so that I do not depend on opening the list.
 - **Start:** L with a test clock. An active deadline of SF-2023-0045, due Friday 29 Jan 2027.
 - **Steps:** 1. Move the clock to 15 Jan, 22 Jan and 29 Jan 2027, and to the next morning.
@@ -272,9 +272,9 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 ### DL-25. The Art. 94(3) period comes from the letter
 
-- **Mark:** New (a fixture with a 2-month period; no Art. 94(3) rule, decision 5).
+- **Mark:** New (a fixture with a 2-month period; the reading of the period from the letter, decision A step (2)).
 - **Risk:** Deadline.
-- **Lines:** V11.
+- **Lines:** V11, V32.
 - **Story:** As Sabine, I want an Art. 94(3) deadline to use the period that the examiner wrote in the letter, so that a two-month period is not computed as four.
 - **Start:** L. An Art. 94(3) communication with a period of 2 months (new fixture), and row 6 (4 months).
 - **Steps:** 1. File both. 2. Open both deadlines.
@@ -283,7 +283,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 ### DL-26. Rule 70(1) and 70a: the period starts from the Bulletin date
 
-- **Mark:** New (no rule; decision 5).
+- **Mark:** New (no Rule 70a rule in flowleap-deadlines; decision 5, sheet 08 D8.7).
 - **Risk:** Deadline.
 - **Lines:** V11.
 - **Story:** As Sabine, I want the deadline for the examination request and the reply to the search opinion to start from the date of the mention of the search report in the European Patent Bulletin, so that it does not start from the date of a letter.
@@ -294,20 +294,20 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 ### DL-27. Rule 161(1) and 162
 
-- **Mark:** New (no rule and no Euro-PCT fixture; decision 5).
+- **Mark:** New. Parts: WIP (the hand entry screen, PR 346); New (a Euro-PCT fixture).
 - **Risk:** Deadline.
-- **Lines:** V11.
-- **Story:** As Sabine, I want the deadline of a Rule 161(1)/162 communication to be computed from the communication, so that the reply and the claims fees are not missed.
+- **Lines:** V27, V11.
+- **Story:** As Sabine, I want to enter the deadline of a Rule 161(1)/162 communication by hand, so that the reply and the claims fees are not missed although v1 has no rule for them (decision 5).
 - **Start:** L. A Euro-PCT application with a Rule 161(1)/162 communication (new fixture).
 - **Steps:** 1. File the letter. 2. Open the deadline.
-- **Expected:** Six months from the communication, with each step. If v1 does not compute it (decision 5), a person enters the same date by hand.
+- **Expected:** Sabine enters six months from the communication. The deadline is "entered by hand by Sabine Wolf" and waits for a second person. FlowLeap does not propose a date of its own for this term in v1.
 - **Proof:** new test.
 
 ### DL-28. The EPO extends a period
 
 - **Mark:** New (a change of an active deadline's date; sheet 02 does not track the request in R1; decision 16).
 - **Risk:** Deadline.
-- **Lines:** V12, V9.
+- **Lines:** V12, V9, V30.
 - **Story:** As Jonas, I want to move the Art. 94(3) deadline of SF-2024-0007 when the EPO grants an extension under Rule 132(2), so that FlowLeap and the old docket show the same date.
 - **Start:** L. The deadline of row 6 is active (Monday 18 Jan 2027). The EPO letter that grants two more months arrives.
 - **Steps:** 1. File the letter. 2. Jonas proposes the new date. 3. Lena confirms.
@@ -318,7 +318,7 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** Today (by hand; the record machine has `manual_proposed`; the code-decider rule was not checked in the code).
 - **Risk:** Deadline.
-- **Lines:** V12.
+- **Lines:** V12, V27.
 - **Story:** As Dr. Krüger, I want a date that a person entered over the engine's date to wait for another person, with both dates shown, so that a correction is checked as hard as an entry.
 - **Start:** L. A proposed Rule 71(3) deadline of SF-2023-0045; Tobias entered the event. Anna enters another date with a reason.
 - **Steps:** 1. Tobias and Anna each try to confirm. 2. Dr. Krüger opens My work.
@@ -340,9 +340,97 @@ Edge cases of this area: two persons confirm at the same time; the second person
 
 - **Mark:** New. Parts: WIP (the hand entry screen, PR 346); New (a summons fixture).
 - **Risk:** Deadline.
-- **Lines:** V11, V12, V15.
+- **Lines:** V11, V12, V15, V27.
 - **Story:** As Tobias, I want to enter the final date for written submissions (Rule 116 EPC) and the date of the oral proceedings from one summons, so that both are on the docket.
 - **Start:** L. A summons to oral proceedings on SF-2026-0019 (new fixture, or a public one from the register).
 - **Steps:** 1. File the summons. 2. Enter both dates. 3. Anna confirms each.
 - **Expected:** One letter, two deadlines, each with its kind, each "entered by hand" and confirmed by a second person. The date of the oral proceedings is a fixed date: FlowLeap does not move it to the next open day.
 - **Proof:** new test.
+
+### DL-32. The EPO's due date sets the deadline before anyone reads the letter
+
+- **Mark:** New (no MyEPO intake; decision A of the scope; source (1) is not proved, because the MyEPO sandbox has placeholder due dates; the approved sheets 02 and 08 do not yet allow a deadline from the EPO's date alone, see decision A).
+- **Risk:** Deadline.
+- **Lines:** V32, V10, V12.
+- **Story:** As Sabine, I want the deadline of an Art. 94(3) letter to exist from the EPO's own due date at arrival, so that the alarms run before a person opens the letter.
+- **Start:** L + X, read flag at its default. The double delivers the Art. 94(3) letter of 2026-09-18 for SF-2024-0007, and its `dueDates` read for EP24166597 gives Monday 18 Jan 2027 (a double control that gives a real due date).
+- **Steps:** 1. The letter arrives. 2. Read `GET /_double/state` for the letter. 3. Sabine and Jonas open the deadline.
+- **Expected:** The deadline shows Monday 18 Jan 2027, marked "from the EPO, not yet checked against the letter". The reminders and the overdue alarm run on this date. In step 2, the letter is not downloaded and MyEPO does not show it as read. A person still confirms the deadline (V12, `strict`).
+- **Proof:** new test on L + X; a check against the production MyEPO API before the month at a firm.
+
+### DL-33. The letter agrees with the EPO's due date
+
+- **Mark:** New (decision A).
+- **Risk:** Deadline.
+- **Lines:** V32, V10.
+- **Story:** As Jonas, I want FlowLeap to compare the period in the letter with the EPO's date when I open the letter, so that the provisional date becomes a date read from the legal source.
+- **Start:** After DL-32.
+- **Steps:** 1. Jonas opens the letter. 2. Sabine opens the deadline.
+- **Expected:** FlowLeap downloads the PDF (MyEPO now shows it as read), reads "4 months" on page 1, and computes Monday 18 Jan 2027. The mark changes to "checked against the letter, page 1", with Jonas's open as the cause. The date does not change. Nothing goes to two persons.
+- **Proof:** new test.
+
+### DL-34. The letter and the EPO's due date differ
+
+- **Mark:** New (decision A; a double control that gives a due date which differs from the letter).
+- **Risk:** Deadline.
+- **Lines:** V32, V12, V13.
+- **Story:** As Dr. Krüger, I want a difference between the letter's period and the EPO's date to go to two persons, so that FlowLeap never keeps a date that the legal source does not support.
+- **Start:** L + X. The Art. 94(3) letter of 2026-09-18 says 4 months (Monday 18 Jan 2027). The double gives an EPO due date of Wednesday 18 Nov 2026.
+- **Steps:** 1. The letter arrives. 2. Sabine opens the letter. 3. Sabine and Jonas open My work.
+- **Expected:** After step 2, the deadline shows both dates with their sources: "EPO: 18 Nov 2026" and "letter, page 1: 18 Jan 2027". Two persons get the task to decide the date. Until they decide, the earlier date drives the alarms (sheet 08 D8.8), and no surface shows the deadline as checked. The decision names both persons and the date they chose.
+- **Proof:** new test.
+
+### DL-35. MyEPO gives no due date: the letter is read at arrival
+
+- **Mark:** New (decision A; the MyEPO intake).
+- **Risk:** Deadline.
+- **Lines:** V32, V10.
+- **Story:** As Sabine, I want FlowLeap to read the letter at arrival when MyEPO gives no due date, so that a letter whose period is only in its text never waits without a deadline.
+- **Start:** L + X, read flag at its default. The double delivers the Art. 94(3) letter of 2026-09-18, and its `dueDates` read gives no due date for it.
+- **Steps:** 1. The letter arrives. 2. Read `GET /_double/state`. 3. Sabine opens the deadline.
+- **Expected:** FlowLeap downloads the PDF at arrival, although the read flag is "when a person or a task opens the letter". The record names the reason: "no EPO due date: read at arrival". MyEPO shows the letter as read. The deadline is Monday 18 Jan 2027, "from the letter, page 1", and waits for a person's confirm.
+- **Proof:** new test on L + X.
+
+### DL-36. A scanned letter with no due date goes through OCR
+
+- **Mark:** New (decision A; OCR is built for the forward route, os PR 67 and 88, not for the MyEPO route).
+- **Risk:** Deadline.
+- **Lines:** V32.
+- **Story:** As Tobias, I want a scanned EPO letter with no EPO due date to be read by OCR, so that its period is found without a person typing it.
+- **Start:** L + X. The double delivers an Art. 94(3) letter as a PDF with no text layer, and no due date in the `dueDates` read.
+- **Steps:** 1. The letter arrives. 2. Tobias opens the deadline.
+- **Expected:** OCR runs before the period is read. The deadline names its source as "OCR of page 1" and shows the line it read. A person confirms it. The page image is next to the date, so the confirmer can check the line.
+- **Proof:** new test.
+
+### DL-37. OCR fails: a person enters the period
+
+- **Mark:** New (decision A; the hand entry screen is in PR 346).
+- **Risk:** Deadline.
+- **Lines:** V32, V27, V12.
+- **Story:** As Tobias, I want a task to enter the period when neither the EPO nor the letter text gives it, so that the letter never stays with no deadline and FlowLeap never guesses.
+- **Start:** As DL-36, with a scan that OCR cannot read (blank or rotated page).
+- **Steps:** 1. The letter arrives. 2. Tobias opens My work and enters the period of 4 months. 3. Tobias tries to confirm. 4. Anna confirms.
+- **Expected:** Step 1 gives Tobias the task "Enter the period: no EPO date, the letter text cannot be read", due in 1 working day. FlowLeap never assumes 4 months. After step 2, the deadline is "entered by hand by Tobias Schmitt". Step 3 is refused. After step 4, it is active with both names.
+- **Proof:** new test.
+
+### DL-38. Rules 62a and 63: the invitation gives two months
+
+- **Mark:** New (no Rule 62a or 63 rule in flowleap-deadlines; decision 5 of the scope, sheet 08 D8.7).
+- **Risk:** Deadline.
+- **Lines:** V11, V12.
+- **Story:** As Sabine, I want the deadline of an invitation under Rule 62a(1) or Rule 63(1) to be computed, so that the reply that limits the search is not missed.
+- **Start:** L. An invitation under Rule 63(1) dated Tuesday 15 Sep 2026 (new fixture, or a public one from the register).
+- **Steps:** 1. File the invitation. 2. Open the deadline.
+- **Expected:** Two months from the date of the invitation give Sunday 15 Nov 2026; Rule 134(1) moves it to Monday 16 Nov 2026. The deadline shows each step. The same holds for Rule 62a(1). An attorney checks the rule before the first round.
+- **Proof:** new test.
+
+### DL-39. A renewal fee date is entered by hand
+
+- **Mark:** WIP (the hand entry screen in PR 346; renewal fees have no rule in v1, decision 5).
+- **Risk:** Deadline.
+- **Lines:** V27, V11.
+- **Story:** As Sabine, I want to enter the due date of an EP renewal fee by hand, so that the old docket's renewal dates are also in FlowLeap for the month.
+- **Start:** L. SF-2023-0045, with no renewal fee deadline.
+- **Steps:** 1. Sabine enters the renewal fee for the 4th year with its due date. 2. Sabine tries to confirm. 3. Lena confirms.
+- **Expected:** The deadline is "renewal fee, entered by hand by Sabine Wolf". Step 2 is refused; step 3 activates it. No payment is made or offered (money is not in v1).
+- **Proof:** by hand with PR 346; new test.

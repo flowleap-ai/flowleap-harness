@@ -30,7 +30,7 @@ Edge cases of this area: two persons sign in at the same time; a shared PC; a pe
 - **Mark:** WIP (the Sign out item is in draft PR 346; the account picker is in os PR 88).
 - **Fails today:** QA finding 39: the proxy sign-out does not end the Microsoft session, so "Sign in with Microsoft" can sign in the previous person.
 - **Risk:** Wrong person.
-- **Lines:** V20; decision 1 of the scope.
+- **Lines:** V20, V26; decision 1 of the scope.
 - **Story:** As Jonas (attorney), I want to sign out and let Lena sign in on the same PC, so that she never works in my account and I never see her matters.
 - **Start:** B. One Chrome profile. Jonas is signed in with a chat open on SF-2021-0011.
 - **Steps:** 1. Jonas opens the account menu and selects Sign out. 2. Jonas presses the browser's Back button. 3. Lena selects "Sign in with Microsoft".
@@ -124,3 +124,15 @@ Edge cases of this area: two persons sign in at the same time; a shared PC; a pe
 - **Steps:** 1. A person without the Entra app role signs in first. 2. Felix tries to remove himself as the last administrator. 3. Open the console as the person whose two roles differ.
 - **Expected:** Step 1 gives no administrator right. Step 2 is refused. In step 3 the lower right applies, and the console shows the difference between the two sources.
 - **Proof:** new test.
+
+### INS-12. A new attorney knows in ten seconds where to start
+
+- **Mark:** New. Parts: WIP (My work as the first screen, draft PR 346); New (the sidebar groups of decision B of the scope).
+- **Fails today:** the founder's local test of 2026-11-10: the sidebar has no groups, and a new person does not see one start.
+- **Risk:** Distrust.
+- **Lines:** V13, V2; decision B of the scope.
+- **Story:** As Lena (attorney), I want to see at first sign-in where my work starts, so that I start without help.
+- **Start:** L. Accounts `lena` and `felix`, both signing in for the first time. A tester who has not seen FlowLeap plays Lena.
+- **Steps:** 1. Lena signs in. 2. The tester says where to start, with no help, and the time is measured. 3. Felix signs in.
+- **Expected:** My work opens as the first screen. The sidebar has three groups with labels: Work (My work, Letters, Deadlines), Firm (Clients, Matters) and Agent (New chat, Chats, Agents, Automation). Setup is at the bottom with Settings. Lena has no Firm admin row. The tester names My work within 10 seconds. Felix sees Firm admin under Setup.
+- **Proof:** by hand on L as two persons, with a stopwatch.

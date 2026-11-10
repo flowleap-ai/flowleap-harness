@@ -8,18 +8,18 @@ Write a result for a story only by [the QA round procedure](how-to-run-a-qa-roun
 
 | File | Area | Stories | Today | WIP | New |
 |---|---|---|---|---|---|
-| [01-install-and-sign-in.md](01-install-and-sign-in.md) | Install and first sign-in | 11 | 6 | 4 | 1 |
-| [02-firm-setup.md](02-firm-setup.md) | The administrator sets up the firm | 22 | 3 | 5 | 14 |
+| [01-install-and-sign-in.md](01-install-and-sign-in.md) | Install and first sign-in | 12 | 6 | 4 | 2 |
+| [02-firm-setup.md](02-firm-setup.md) | The administrator sets up the firm | 25 | 2 | 1 | 22 |
 | [03-docket-and-clients.md](03-docket-and-clients.md) | Import your EP docket and Add client | 16 | 7 | 0 | 9 |
 | [04-letter-arrives.md](04-letter-arrives.md) | A letter arrives | 22 | 4 | 2 | 16 |
-| [05-deadline.md](05-deadline.md) | The deadline | 31 | 12 | 5 | 14 |
+| [05-deadline.md](05-deadline.md) | The deadline | 39 | 12 | 6 | 21 |
 | [06-my-work.md](06-my-work.md) | My work | 11 | 1 | 8 | 2 |
 | [07-matter-and-memory.md](07-matter-and-memory.md) | The matter page and matter memory | 12 | 3 | 2 | 7 |
 | [08-prepared-work.md](08-prepared-work.md) | Prepared work on a letter | 11 | 7 | 2 | 2 |
 | [09-notices.md](09-notices.md) | Notices | 8 | 6 | 1 | 1 |
 | [10-month-of-use.md](10-month-of-use.md) | A month of use | 15 | 6 | 0 | 9 |
 | [11-must-never-happen.md](11-must-never-happen.md) | What must never happen | 34 | 17 | 3 | 14 |
-| | **All** | **193** | **72** | **32** | **89** |
+| | **All** | **205** | **71** | **29** | **105** |
 
 Count again after each change to a story file, with the command in [how to run a QA round](how-to-run-a-qa-round.md#count-the-stories).
 
@@ -64,7 +64,7 @@ Client AI wishes: WAGO `allowed`; Phoenix Contact `local-model-only`; Renishaw n
 | L | The local firm: the real installer in a VM on the Mac, with the seed firm | yes, one browser profile for each person | flowleap-os `scripts/local-firm.sh up` |
 | D | The dev loop: the harness from source against a local Firm Record | no; act as one person, then switch | `flowleap/dev-loop.sh up`, then `flowleap/dev-loop.sh as <person>` |
 | B | The box: the test firm with Entra | Jonas (attorney.a) and Lena (attorney.b) only | released candidate through the gate |
-| X | The MyEPO double: a local MyEPO with the seed's public letters | with L or D | PR 387; `dev-loop.sh up --myepo-double` |
+| X | The MyEPO double: a local MyEPO with the seed's public letters | with L or D | `dev-loop.sh up --myepo-double` |
 
 [How to run a QA round](how-to-run-a-qa-round.md) has the commands and the order.
 
