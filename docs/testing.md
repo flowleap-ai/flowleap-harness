@@ -14,6 +14,10 @@ How this repo tests, tier by tier, and the rules that keep a green suite meaning
 
 Session fixtures retain headers and payloads but omit body sequence/time envelopes; replay synthesizes them. Replay, record, and refresh select each parent/child role's highest generation. Current fixtures use the [writer format](session-format-status.md) in their filenames and headers, one row per event, and embedded compact Assistant streams. Historical fixtures retain their released representation; explicit `sessionFormat` owners preserve migration coverage. Follow the [format-version cookbook](cookbook/adding-a-session-format-version.md#snapshot-successors) to add successors without changing predecessors.
 
+## Fork CI lanes
+
+In the `flowleap` fork, a draft pull request runs only static, lint, and unit checks and never reports `all checks passed`. A ready pull request, the `full-ci` label, and a push to `flowleap` run the full suite; Windows coverage runs after a merge and nightly ([lanes](../.agents/notes/implemented/process/2026-11-09-fork-ci-draft-and-full-lanes.md)).
+
 ## How specs execute
 
 Forked workers run several spec files at once, the coverage gate splits into [concurrent partitions](../scripts/coverage-partitions.ts) beside the other gates in its job, and the self-hosted runners share one host and one volume. Only the process is isolated: ports, predictable paths, external namespaces, and inherited children are not. Own each acquired resource through teardown. A spec passing only alone has a test defect, not an unstable runner. [dsh-ci-test-reliability](../.agents/skills/dsh-ci-test-reliability/SKILL.md) owns the allocation, restoration, synchronization, timeout-budget, platform, and teardown rules; its [flake diagnosis workflow](../.agents/skills/dsh-ci-test-reliability/references/ci-flake-diagnosis.md) classifies an existing probabilistic failure. [Unexpected fork exits](../scripts/coverage-fork-diagnostics.ts) report PID, file, code, and signal.
