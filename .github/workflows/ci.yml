@@ -1,7 +1,13 @@
 name: CI
 
+# Draft pull requests run the fast lane; ready pull requests, pull requests
+# labelled `full-ci`, and pushes to `flowleap` run the full lane. The `lane`
+# job decides once per run and every other job reads its output.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+  push:
+    branches: [flowleap]
 permissions:
   contents: read
 
@@ -14,9 +20,13 @@ env:
 # Cancel a superseded pull-request run on a new push so a fresh head does not
 # queue a second full run behind a stale one (paid enterprise runners
 # would otherwise stack with no auto-cancellation).
+#
+# A label other than `full-ci` gets its own group, so adding it cannot cancel
+# the run of the current head. Pushes to `flowleap` queue instead of cancelling,
+# so every merged head that starts also finishes.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'full-ci' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 
@@ -39,8 +49,24 @@ jobs:
   # in-house pool's readiness is re-proven on every master push by the
   # serial-linux-selfhosted standby lane in ci-master.yml. Native Windows jobs
   # and their separate DSH_CI_FAILOVER_WINDOWS switch live in ci-windows.yml.
+  # Decides the lane for this run. A `labeled` event for any label other than
+  # `full-ci` skips it, and with it every job of the run.
+  lane:
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
+    runs-on: ubuntu-latest
+    name: ci lane
+    outputs:
+      full: ${{ steps.lane.outputs.full }}
+    steps:
+      - name: Select the fast or the full lane
+        id: lane
+        env:
+          FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
+
   node-24:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.result == 'success'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-8vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
@@ -103,11 +129,12 @@ jobs:
 
       - name: Run static gates
         env:
-          DSH_ARCHIVE_BASE_REF: ${{ github.event.pull_request.base.sha }}
+          DSH_ARCHIVE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: pnpm run check:ci:static
 
   node-24-coverage:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-16vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
@@ -208,7 +235,8 @@ jobs:
   # full rerun. The lane compiles package declarations because oxlint's
   # type-aware rules read them.
   node-24-lint:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.result == 'success'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-8vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
@@ -268,8 +296,82 @@ jobs:
       - name: Run lint and duplication
         run: pnpm run check:ci:lint:contracts-ready
 
+  node-24-unit:
+    needs: lane
+    if: needs.lane.outputs.full != 'true'
+    runs-on: >-
+      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-8vcpu-ubuntu-2404'
+          || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+          && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
+          || 'ubuntu-latest' }}
+    name: node 24 / unit, changed files (draft fast lane)
+    env:
+      # The coverage lane's per-test budget; vitest.config.ts reads it.
+      DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
+      DSH_GATE_FAIL_FAST: '1'
+    steps:
+      # Runner cleanup owns tool caches and fixtures, including cancelled runs.
+      - name: Use runner-owned temporary storage
+        run: |
+          echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
+
+      # Vitest compares against the PR base, so the checkout needs its history.
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Redirect Node compile cache to runner temp
+        run: echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Configure pnpm store path
+        id: pnpm-store
+        run: |
+          store_root="$HOME/.local/share/pnpm/store"
+          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
+          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v6.1.0
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+
+      - name: Install dependencies and prepare bubblewrap
+        run: |
+          pnpm install --frozen-lockfile &
+          install_pid=$!
+          bash scripts/prepare-ci-bubblewrap.sh &
+          sandbox_pid=$!
+          install_status=0
+          wait "$install_pid" || install_status=$?
+          sandbox_status=0
+          wait "$sandbox_pid" || sandbox_status=$?
+          if (( install_status != 0 )); then exit "$install_status"; fi
+          exit "$sandbox_status"
+
+      # Only the tests related to the changed files run; the full lane runs
+      # every test under coverage.
+      - name: Run unit tests for the changed files, without coverage
+        env:
+          DSH_UNIT_CHANGED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: pnpm run check:ci:unit:changed
+
   node-24-bench:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
           || 'ubuntu-24.04' }}
@@ -333,7 +435,8 @@ jobs:
           retention-days: 7
 
   node-24-consumers:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-16vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
@@ -346,7 +449,6 @@ jobs:
       DSH_GATE_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '10' || '' }}
       DSH_OXLINT_THREADS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '8' || '' }}
       DSH_PUBLINT_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '8' || '' }}
-      DSH_WEB_SNAPSHOT_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '6' || '' }}
       DSH_SNAPSHOT_MAX_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '12' || '' }}
       DSH_NODE_COMPAT_SKIP_TYPECHECK: '1'
       # A failing gate aborts its running siblings: a failing build stops the
@@ -459,8 +561,126 @@ jobs:
         run: pnpm run check:ci:consumers
 
 
+  # The web browser snapshot lane is the longest consumer gate, so it runs in
+  # its own job split into Vitest shards. Each shard builds the artifacts it
+  # reads; shard 1 also runs the serial files that rewrite the built tree.
+  node-24-web-snapshots:
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
+    runs-on: >-
+      ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-8vcpu-ubuntu-2404'
+          || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+          && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
+          || 'ubuntu-latest' }}
+    name: node 24 / web snapshots ${{ matrix.shard }}/4
+    strategy:
+      # Every shard reports its own snapshot differences in one run.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      DSH_WEB_SNAPSHOT_SHARD: ${{ matrix.shard }}/4
+      # Shared hosts expose host CPUs, not an isolated allocation.
+      DSH_GATE_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '2' || '' }}
+      DSH_WEB_SNAPSHOT_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '2' || '' }}
+      DSH_GATE_FAIL_FAST: '1'
+    steps:
+      # Runner cleanup owns tool caches and fixtures, including cancelled runs.
+      - name: Use runner-owned temporary storage
+        run: |
+          echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP%/*}/ms-playwright" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Redirect Node compile cache to runner temp
+        run: echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Configure pnpm store path
+        id: pnpm-store
+        run: |
+          store_root="$HOME/.local/share/pnpm/store"
+          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
+          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v6.1.0
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+
+      - uses: actions/cache/restore@v6.1.0
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies and prepare bubblewrap
+        run: |
+          pnpm install --frozen-lockfile &
+          install_pid=$!
+          bash scripts/prepare-ci-bubblewrap.sh &
+          sandbox_pid=$!
+          install_status=0
+          wait "$install_pid" || install_status=$?
+          sandbox_status=0
+          wait "$sandbox_pid" || sandbox_status=$?
+          if (( install_status != 0 )); then exit "$install_status"; fi
+          exit "$sandbox_status"
+
+      # Blacksmith's Ubuntu HTTP archive endpoints can be unreachable while HTTPS works.
+      - name: Use HTTPS for Ubuntu archives on Blacksmith
+        if: vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
+        run: |
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          apt = Path('/etc/apt')
+          sources = [apt / 'sources.list', apt / 'blacksmith-ubuntu-mirrors.txt',
+                     *(apt / 'sources.list.d').glob('*.list'),
+                     *(apt / 'sources.list.d').glob('*.sources')]
+          for source in sources:
+              if source.is_file():
+                  source.write_text(re.sub(
+                      r'http://((?:[a-z]{2}\.)?archive\.ubuntu\.com|security\.ubuntu\.com)/',
+                      r'https://\1/', source.read_text()))
+          PY
+
+      - name: Install Playwright Chromium, WebKit, and hosted dependencies
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        # Ephemeral runner images can carry Ubuntu mirrors whose HTTP endpoints are unreachable.
+        run: |
+          sudo find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name '*.sources' \) -exec sed -i -E 's@http://([a-z]{2}\.)?archive\.ubuntu\.com/ubuntu@https://archive.ubuntu.com/ubuntu@g; s@http://security\.ubuntu\.com/ubuntu@https://security.ubuntu.com/ubuntu@g' {} +
+          pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium webkit
+
+      # The persistent VM image owns Playwright's Linux system packages.
+      - name: Install Playwright Chromium and WebKit on the failover VM
+        if: vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]'
+        run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium webkit
+
+      - name: Run web browser snapshots
+        run: pnpm run check:ci:web-snapshot
+
   node-compat:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true'
     # Under the selfhosted leg this job admits only repository-owned PR code
     # to the persistent shared VM; the blacksmith branch targets ephemeral
     # runners and carries none of those predicates.
@@ -556,8 +776,10 @@ jobs:
   # master-only runtime targets live in ci-master.yml.
   # An explicit status function runs the verdict after failed/skipped needs
   # without keeping a cancelled workflow alive for an obsolete verdict.
+  # Only a full-lane run reports "all checks passed", and only when every
+  # full-lane job succeeded; a draft run reports under a fast-lane name.
   all-checks-passed:
-    name: all checks passed
+    name: ${{ needs.lane.outputs.full == 'true' && 'all checks passed' || 'fast lane passed (draft, not full CI)' }}
     # This bookkeeping-only verdict must not depend on custom-pool
     # provisioning — and under Linux failover it follows the same selector as
     # the worker jobs it aggregates, so a standard-hosted outage cannot strand
@@ -573,13 +795,20 @@ jobs:
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    needs: [node-24, node-24-coverage, node-24-lint, node-24-bench, node-24-consumers, node-compat]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    needs: [lane, node-24, node-24-coverage, node-24-lint, node-24-unit, node-24-bench, node-24-consumers, node-24-web-snapshots, node-compat]
+    if: ${{ !cancelled() && needs.lane.result != 'skipped' }}
     steps:
-      - name: Fail if any needed job did not succeed
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+      - name: Fail if a job of this lane did not succeed
+        if: >-
+          needs.lane.result != 'success'
+          || needs.lane.outputs.full == 'true' && (needs.node-24.result != 'success'
+          || needs.node-24-coverage.result != 'success' || needs.node-24-lint.result != 'success'
+          || needs.node-24-bench.result != 'success' || needs.node-24-consumers.result != 'success'
+          || needs.node-24-web-snapshots.result != 'success' || needs.node-compat.result != 'success')
+          || needs.lane.outputs.full != 'true' && (needs.node-24.result != 'success'
+          || needs.node-24-lint.result != 'success' || needs.node-24-unit.result != 'success')
         run: |
           echo "::error::Needed job results: ${{ join(needs.*.result, ', ') }}"
           exit 1
-      - name: All checks passed
-        run: echo "All needed jobs succeeded (${{ join(needs.*.result, ', ') }})"
+      - name: Report the lane result
+        run: echo "All jobs of the ${{ needs.lane.outputs.full == 'true' && 'full' || 'fast' }} lane succeeded (${{ join(needs.*.result, ', ') }})"

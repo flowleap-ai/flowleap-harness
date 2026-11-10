@@ -65,6 +65,8 @@ This section explains the design behind the backend; observable behavior is full
 
 One direction of trust: the host treats every inbound frame as hostile (model code can forge anything on fd 3) and REBUILDS it field by field before reading; the Python side trusts host replies. The bootstrap (`py/bootstrap.py`) runs the program as the body of an async function, so top-level `await` and `return` work; binding calls travel over fd 3 as JSON-lines and replies are paced across the pump so a flood of large replies cannot pin the host's fd-3 write buffer.
 
+After it posts `done`, the child keeps fd 3 open and reads it until the host terminates the child or closes the pipe. fd 3 is one duplex socket: an exit with a host reply still unread fails the host's pending write, and Node then destroys the socket and discards the unread `done` frame. The child restores SIGTERM's default action before it posts `done`, so a program that trapped SIGTERM cannot hold the run until the SIGKILL backstop.
+
 The shipped bootstrap and protocol sources reach the interpreter as UTF-8 JSON on trusted binary stdin, independently of sandbox temporary-directory mounts and locale text encoding. Model programs and binding traffic use fd 3. The host resolves the sandbox runner before spawning with only `TMPDIR` in the child environment. The wall deadline includes sandbox setup. The configured interpreter's load-time version probe runs outside confinement and executes no model code.
 
 ### Wire contract

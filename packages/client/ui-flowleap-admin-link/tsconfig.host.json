@@ -8,7 +8,8 @@
   "files": [
     "src/index.ts",
     "src/admin-header.ts",
-    "src/route.ts"
+    "src/route.ts",
+    "src/service.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },

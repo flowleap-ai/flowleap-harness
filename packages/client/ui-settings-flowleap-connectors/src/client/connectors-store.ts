@@ -7,7 +7,7 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ConnectorPresence, ConnectorTestResult } from '@deepseek-ai/dsh-api-remotes/client'
-import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { RemotePageStore } from './remote-page-store.ts'
 
 /* jscpd:ignore-start -- the client bundle purity gate forbids value imports from the Host package. */
 /**
@@ -94,28 +94,10 @@ function completeDraft(card: ConnectorCardState): Record<string, string> | undef
 }
 
 /** Coordinates the page state with the Host. */
-export class ConnectorsStore {
-  /** uSES-safe state source shared by the section and the wizard. */
-  readonly store: SnapshotStore<ConnectorsState> = createSnapshotStore<ConnectorsState>(initialState())
-
-  private loading: Promise<void> | undefined
-
+export class ConnectorsStore extends RemotePageStore<ConnectorsState> {
   /** @param ctx - the page plugin's context, whose `remote.flowleapConnectors` namespace this store calls. */
-  constructor(private readonly ctx: ClientContext) {}
-
-  /**
-   * Read presence for every connector and publish it. Concurrent callers share one read.
-   * @returns settlement after the snapshot is published.
-   */
-  load(): Promise<void> {
-    this.loading ??= this.read().finally(() => { this.loading = undefined })
-    return this.loading
-  }
-
-  /** Re-read presence, but only once the page has loaded: an unopened page does not fetch on invalidations. */
-  refresh(): void {
-    if (this.store.getSnapshot().status === 'idle') return
-    void this.load()
+  constructor(ctx: ClientContext) {
+    super(ctx, initialState())
   }
 
   /**
@@ -245,7 +227,7 @@ export class ConnectorsStore {
     })
   }
 
-  private async read(): Promise<void> {
+  protected async read(): Promise<void> {
     this.store.update((state) => { state.status = 'loading'; delete state.error })
     const result = await this.ctx.remote.flowleapConnectors.describe()
     this.store.update((state) => {

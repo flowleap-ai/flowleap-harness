@@ -6,7 +6,7 @@ FlowLeap installs and configures the first instances with you, gives 15 days of 
 
 ## What you get
 
-- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data), the FlowLeap skill pack (the patent research methods the agent follows) and OfficeCLI (the engine of the office tools that write Word letters, claim amendments as tracked changes and Excel claim charts).
+- One Docker image, `flowleap-harness`, built from this repository. It contains the harness (the browser application the attorney uses), the FlowLeap CLI (the connection to FlowLeap's paid patent data), the FlowLeap skill pack (the patent research methods the agent follows) OfficeCLI (the engine of the office tools that write Word letters, claim amendments as tracked changes and Excel claim charts) and Debian's poppler-utils (`pdftotext`, with which the agent reads a PDF's text layer before it spends Mistral OCR pages on it).
 - One container per attorney. Each has its own `/data` volume: sessions, settings, keys. Attorneys do not share a process and cannot see each other's data.
 - One Tailscale sidecar per attorney. It gives the instance a name such as `https://harness-alice.tail1234.ts.net/` with a valid HTTPS certificate. Nothing listens on the server's public network interface.
 - Two support tools: a doctor report and a log bundle. Both are scrubbed; they contain no keys, tokens or cookies.
@@ -97,7 +97,7 @@ Two checks worth doing once per tailnet, with the first instance: open the insta
 
    The attorney opens the URL once; the browser receives a session cookie valid for 30 days and the token is no longer needed. For a new login later (new browser, expired cookie), restart the container (`docker compose restart harness-alice`) and read the new URL from the log.
 
-2. The connector wizard opens on the first visit. The attorney (or you, over their shoulder) enters the firm's EPO OPS consumer key and secret, the USPTO ODP key, the Semantic Scholar key (optional) and the Mistral key for OCR, and presses **Test connection** on each card. These keys are stored in the credential store on the instance's `/data` volume. They can be changed later under **Settings → Patent data connectors**.
+2. The connector wizard opens on the first visit. The attorney (or you, over their shoulder) enters the firm's EPO OPS consumer key and secret, the USPTO ODP key, the Semantic Scholar key (optional) and the Mistral key for OCR, and presses **Test connection** on each card. These keys are stored in the credential store on the instance's `/data` volume. They can be changed later under **Settings → Connectors**.
 
 3. The model key goes in under **Settings → Models**: pick the provider (Anthropic, OpenRouter or Mistral) and paste the firm's key. Alternatively put `ANTHROPIC_API_KEY=…` (or `OPENROUTER_API_KEY`, `MISTRAL_API_KEY`) into the file `/data/.env` of the instance; a key saved in the GUI takes precedence over the file.
 

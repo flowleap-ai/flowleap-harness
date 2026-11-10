@@ -365,6 +365,24 @@ abstract getDeviceIdentity(): Promise<{ deviceId?: string; userId?: AccountUserI
 
 Source: [`packages/credentials/deepseek-account/src/index.ts`](../../packages/credentials/deepseek-account/src/index.ts)
 
+<a id="ctxflowleapadmin--flowleapadmin"></a>
+
+### `ctx.flowleapAdmin` — `FlowleapAdmin`
+
+Whether a request is of a firm administrator.
+
+```ts cordis-catalog
+/**
+ * Check one request. An unusable key file is logged as an error and a refused header as a warning.
+ * @param request - the authenticated request.
+ * @returns true only when the request carries a valid `X-Flowleap-Admin` header of the configured key; always false
+ * when `publicKeyFile` is `''` or the file does not exist.
+ */
+isAdmin(request: Request): Promise<boolean>
+```
+
+Source: [`packages/client/ui-flowleap-admin-link/src/service.ts`](../../packages/client/ui-flowleap-admin-link/src/service.ts)
+
 <a id="ctxflowleapbudget--flowleapbudget"></a>
 
 ### `ctx.flowleapBudget` — `FlowleapBudget`
@@ -419,6 +437,34 @@ Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
  * @throws RemoteError `gateway/bad-request` for an unknown connector.
  */
 @Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>
+
+/**
+ * The MyEPO link for the MyEPO card.
+ * @returns not linked, or linked with the facts of the last passed test; never a credential value.
+ */
+@Remote myEpoDescribe(): Promise<MyEpoLinkView>
+
+/**
+ * Test new MyEPO credentials, and store them only when the test passed. The values cross the wire in this direction only.
+ * @param values - `clientId` and `clientSecret`, each non-empty.
+ * @param signal - cancels the test.
+ * @returns the test outcome; `passed` means the link is stored.
+ * @throws RemoteError `gateway/bad-request` for a missing, empty or unknown field, `flowleap-connectors/rejected` when the store refuses.
+ */
+@Remote async myEpoLink(values: Record<string, string>, signal: AbortSignal): Promise<MyEpoTestOutcome>
+
+/**
+ * Test the stored MyEPO link: a token, the portfolios, and the Mailbox. A passed test stores its facts.
+ * @param signal - cancels the test.
+ * @returns the test outcome; the stored credentials do not change.
+ */
+@Remote myEpoTest(signal: AbortSignal): Promise<MyEpoTestOutcome>
+
+/**
+ * Remove the stored MyEPO link; removing an absent link is a no-op.
+ * @throws RemoteError `flowleap-connectors/rejected` when the store refuses.
+ */
+@Remote async myEpoUnlink(): Promise<void>
 ```
 
 Source: [`packages/host/flowleap-connectors/src/controller.ts`](../../packages/host/flowleap-connectors/src/controller.ts)
@@ -458,6 +504,94 @@ Host service backing the generated `ctx.remote.flowleapModels` namespace.
 
 Source: [`packages/host/flowleap-models/src/index.ts`](../../packages/host/flowleap-models/src/index.ts)
 
+<a id="ctxflowleapmyepo--myeporeads"></a>
+
+### `ctx.flowleapMyEpo` — `MyEpoReads`
+
+The read operations of the MyEPO API. Each call may reject with MyEpoError.
+
+```ts cordis-catalog
+/**
+ * Read the portfolios that the account may read (`GET /portfolios`).
+ * @param signal - cancels the read.
+ * @returns the portfolios; empty when the administrator gave no portfolio permission.
+ */
+portfolios(signal?: AbortSignal): Promise<readonly MyEpoPortfolio[]>
+
+/**
+ * Read one page of the applications of the readable portfolios (`GET /applications`).
+ * @param query - the filters and the page; the EPO's first page by default.
+ * @param signal - cancels the read.
+ * @returns the page.
+ */
+applications(query?: MyEpoApplicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoApplication>>
+
+/**
+ * Read the bibliographic data of one application (`GET /biblio-data/{procedure}/applications/{application}`).
+ * @param application - the procedure and the number.
+ * @param signal - cancels the read.
+ * @returns the flattened record.
+ */
+bibliographicData(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<MyEpoBibliographicData>
+
+/**
+ * Read one page of the Mailbox letters (`GET /communications`).
+ * @param query - the folder and the page; every folder and the first page by default.
+ * @param signal - cancels the read.
+ * @returns the page.
+ */
+communications(query?: MyEpoCommunicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>
+
+/**
+ * Read one page of the Mailbox letters not marked as handled (`GET /communications/unhandled`).
+ * @param query - the page; the first page by default.
+ * @param signal - cancels the read.
+ * @returns the page.
+ */
+unhandledCommunications(query?: MyEpoPageQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>
+
+/**
+ * Read the Mailbox folders (`GET /communications/folders`).
+ * @param signal - cancels the read.
+ * @returns the folders.
+ */
+folders(signal?: AbortSignal): Promise<readonly MyEpoFolder[]>
+
+/**
+ * Download one letter (`GET /communications/download/{id}`). The EPO marks the letter as read in MyEPO at each
+ * download; it stays unhandled there.
+ * @param communication - the letter, as a list read returned it.
+ * @param signal - cancels the read.
+ * @returns the one PDF of the EPO's ZIP, its file name, and the letter.
+ */
+downloadCommunication(communication: MyEpoCommunication, signal?: AbortSignal): Promise<MyEpoDocument>
+
+/**
+ * Read the EPO due dates of one application (`GET /{procedure}/applications/{application}/dueDates`).
+ * @param application - the procedure and the number.
+ * @param signal - cancels the read.
+ * @returns the due dates; {@link MyEpoReads.terms} describes their term keys.
+ */
+dueDates(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoDueDate[]>
+
+/**
+ * Read the descriptions of every term key (`GET /terms`).
+ * @param signal - cancels the read.
+ * @returns the terms in English, French and German.
+ */
+terms(signal?: AbortSignal): Promise<readonly MyEpoTerm[]>
+
+/**
+ * Read the pending fees of one application (`GET /{procedure}/applications/{application}/fees`).
+ * @param application - the procedure and the number.
+ * @param signal - cancels the read.
+ * @returns the pending fees.
+ */
+pendingFees(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoFee[]>
+```
+
+Source: [`packages/host/flowleap-connectors/src/myepo-client.ts`](../../packages/host/flowleap-connectors/src/myepo-client.ts)
+
 <a id="ctxflowleapocr--ocrsource"></a>
 
 ### `ctx.flowleapOcr` — `OcrSource`
@@ -477,6 +611,69 @@ pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRea
 ```
 
 Source: [`packages/host/flowleap-connectors/src/ocr.ts`](../../packages/host/flowleap-connectors/src/ocr.ts)
+
+<a id="ctxflowleappatentdata--patentdata"></a>
+
+### `ctx.flowleapPatentData` — `PatentData`
+
+Reads EP patent data. Each method throws PatentDataError when the read fails.
+
+```ts cordis-catalog
+/**
+ * Find the applicant names in the EP Register that match a company name.
+ * The read searches `pa=<name>` in pages of 100 rows. A name matches when its
+ * company key holds every word of the typed name's company key. Names with the
+ * same company key are one name.
+ * @param name - the company name as the attorney types it.
+ * @param options - `maxRows`: the most register rows to read.
+ * @param signal - caller cancellation.
+ * @returns the matching names with their count of EP applications.
+ * @throws RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.
+ */
+findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>
+
+/**
+ * Run one EP Register search.
+ * @param query - the register CQL, for example `re=Muster` or `pa="Gerhard Schubert"`.
+ * @param range - the rows to read, counted from 1. The EPO allows at most 100 rows.
+ * @param signal - caller cancellation.
+ * @returns the page.
+ * @throws RangeError when `begin` is below 1, `end` is below `begin`, or the range is over 100 rows.
+ */
+searchRegister(query: string, range: { readonly begin: number; readonly end: number }, signal?: AbortSignal): Promise<RegisterPage>
+
+/**
+ * Read the register record of one EP application.
+ * @param application - the EP application number.
+ * @param signal - caller cancellation.
+ * @returns the record, or undefined when the register does not list the application.
+ */
+registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<RegisterRow | undefined>
+
+/**
+ * Read the family of one EP application through its earliest EP publication.
+ * @param application - the EP application number.
+ * @param signal - caller cancellation.
+ * @returns the family. It is empty when the application has no EP publication or the EPO has no family for it.
+ * @throws PatentDataError `malformed` when a member's office code is over 4 characters or its number over 32.
+ */
+family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>
+
+/**
+ * Read the title, abstract and claims of one EP publication. The claims are in
+ * English when the EPO has them, else in the first language it holds.
+ * The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are
+ * then those of the WO publication of the same international application, and `textFrom` names it. The library's
+ * text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP
+ * bibliography names finds it. They are absent when neither finds a WO publication with text.
+ * @param publication - the EP publication number.
+ * @param signal - caller cancellation.
+ * @returns the text.
+ */
+publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>
+```
+
+Source: [`packages/host/flowleap-connectors/src/patent-data.ts`](../../packages/host/flowleap-connectors/src/patent-data.ts)
 
 <a id="ctxflowleaprecord--flowleaprecord"></a>
 

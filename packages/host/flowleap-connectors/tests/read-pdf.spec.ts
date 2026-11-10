@@ -96,6 +96,13 @@ describe('read_pdf', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it('tells the model to read a PDF text layer with pdftotext first, and to OCR only the pages without text', async () => {
+    const { ctx } = await bench()
+    const description = ctx.tools.schemas()[0]!.description
+    expect(description).toContain('Read the text layer of a PDF first, with the shell: `pdftotext -layout "<file>" -` prints the pages in order, with a form feed between two pages. ')
+    expect(description).toContain('Use this tool only for the PDF pages that print no text (a scanned page has no text layer), for a page image, or when pdftotext is not installed; ')
+  })
+
   it('answers without a Mistral key with the text that names the Mistral card, touching neither the file nor the network', async () => {
     const { fetchSpy, call } = await bench()
     const result = await call({ path: 'missing.pdf' })
@@ -103,9 +110,9 @@ describe('read_pdf', () => {
     expect(result.value).toEqual({
       error: 'missing_credentials',
       connector: 'mistral',
-      message: 'Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.',
+      message: 'Mistral key not configured. Add it in Settings > Connectors > Mistral, then call this tool again.',
     })
-    expect(result.content).toEqual([{ type: 'text', text: 'Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.' }])
+    expect(result.content).toEqual([{ type: 'text', text: 'Mistral key not configured. Add it in Settings > Connectors > Mistral, then call this tool again.' }])
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
@@ -186,7 +193,7 @@ describe('read_pdf', () => {
     const result = await call({ path: 'scan.png' })
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ error: 'missing_credentials', connector: 'mistral' })
-    expect(textOf(result.content[0])).toBe('Mistral rejected the stored key. Replace it in Settings > Patent data connectors > Mistral.')
+    expect(textOf(result.content[0])).toBe('Mistral rejected the stored key. Replace it in Settings > Connectors > Mistral.')
     const body = JSON.parse(fetchSpy.mock.calls[0]![1]?.body as string) as { document: { type: string; image_url: string } }
     expect(body.document.type).toBe('image_url')
     expect(body.document.image_url.startsWith('data:image/png;base64,')).toBe(true)
@@ -275,7 +282,7 @@ describe('read_pdf', () => {
     }
     const result = await call({ path: 'scan.png' })
     expect(result.isError).toBe(false)
-    expect(textOf(result.content[0])).toBe('Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.')
+    expect(textOf(result.content[0])).toBe('Mistral key not configured. Add it in Settings > Connectors > Mistral, then call this tool again.')
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

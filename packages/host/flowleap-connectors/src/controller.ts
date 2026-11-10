@@ -1,8 +1,9 @@
 /**
  * Host owner of the `flowleapConnectors` Remote namespace: the connector
  * records as a settings card reads and writes them, plus one cheap
- * authenticated call per connector as a connection test. Secret values cross
- * the wire in one direction only; no method here returns one.
+ * authenticated call per connector as a connection test, and the MyEPO link
+ * of the MyEPO card. Secret values cross the wire in one direction only; no
+ * method here returns one.
  * @module
  */
 
@@ -12,7 +13,11 @@ import type { Connectors } from '@flowleap/connectors'
 import { z } from 'zod'
 import { CONNECTOR_LABELS, type ConnectorCredentialStore } from './credentials.ts'
 import type { BoundConnectorHost } from './host.ts'
-import { CONNECTOR_IDS, isConnectorId, type ConnectorId, type ConnectorPresence, type ConnectorTestResult } from './types.ts'
+import { validateMyEpoFields, type MyEpoLink } from './myepo.ts'
+import {
+  CONNECTOR_IDS, isConnectorId,
+  type ConnectorId, type ConnectorPresence, type ConnectorTestResult, type MyEpoLinkView, type MyEpoTestOutcome,
+} from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -36,6 +41,8 @@ export interface FlowleapConnectorsControllerOptions {
   connectors: Connectors
   /** The host's signal carrier. */
   bound: BoundConnectorHost
+  /** The MyEPO link. */
+  myEpo: MyEpoLink
 }
 
 /** A granted US application whose file wrapper ODP always serves: US 10,000,000 B2. */
@@ -56,6 +63,7 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   private readonly store: ConnectorCredentialStore
   private readonly connectors: Connectors
   private readonly bound: BoundConnectorHost
+  private readonly myEpo: MyEpoLink
 
   /**
    * @param ctx - Host context.
@@ -66,6 +74,7 @@ export class FlowleapConnectorsController extends TypertRemoteService {
     this.store = options.store
     this.connectors = options.connectors
     this.bound = options.bound
+    this.myEpo = options.myEpo
   }
 
   /**
@@ -128,6 +137,55 @@ export class FlowleapConnectorsController extends TypertRemoteService {
     }
   }
 
+  /**
+   * The MyEPO link for the MyEPO card.
+   * @returns not linked, or linked with the facts of the last passed test; never a credential value.
+   */
+  @Remote
+  myEpoDescribe(): Promise<MyEpoLinkView> {
+    return this.myEpo.describe()
+  }
+
+  /**
+   * Test new MyEPO credentials, and store them only when the test passed. The values cross the wire in this direction only.
+   * @param values - `clientId` and `clientSecret`, each non-empty.
+   * @param signal - cancels the test.
+   * @returns the test outcome; `passed` means the link is stored.
+   * @throws RemoteError `gateway/bad-request` for a missing, empty or unknown field, `flowleap-connectors/rejected` when the store refuses.
+   */
+  @Remote
+  async myEpoLink(values: Record<string, string>, signal: AbortSignal): Promise<MyEpoTestOutcome> {
+    const parsed = valuesSchema.safeParse(values)
+    if (!parsed.success) {
+      throw new RemoteError('gateway/bad-request', 'invalid payload for flowleapConnectors.myEpoLink', { issues: parsed.error.issues })
+    }
+    try {
+      validateMyEpoFields(parsed.data)
+    } catch (error) {
+      throw new RemoteError('gateway/bad-request', (error as TypeError).message, {})
+    }
+    return this.write('myepo', () => this.myEpo.link(parsed.data, signal))
+  }
+
+  /**
+   * Test the stored MyEPO link: a token, the portfolios, and the Mailbox. A passed test stores its facts.
+   * @param signal - cancels the test.
+   * @returns the test outcome; the stored credentials do not change.
+   */
+  @Remote
+  myEpoTest(signal: AbortSignal): Promise<MyEpoTestOutcome> {
+    return this.myEpo.test(signal)
+  }
+
+  /**
+   * Remove the stored MyEPO link; removing an absent link is a no-op.
+   * @throws RemoteError `flowleap-connectors/rejected` when the store refuses.
+   */
+  @Remote
+  async myEpoUnlink(): Promise<void> {
+    await this.write('myepo', () => this.myEpo.unlink())
+  }
+
   private async probe(connector: ConnectorId): Promise<ConnectorTestResult> {
     const label = CONNECTOR_LABELS[connector]
     switch (connector) {
@@ -156,9 +214,9 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   }
 
   /** Run one write and report every refusal as `flowleap-connectors/rejected` carrying the store's own message. */
-  private async write(id: ConnectorId, write: () => Promise<void>): Promise<void> {
+  private async write<T>(id: ConnectorId | 'myepo', write: () => Promise<T>): Promise<T> {
     try {
-      await write()
+      return await write()
     } catch (error: unknown) {
       throw new RemoteError(
         'flowleap-connectors/rejected',

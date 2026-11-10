@@ -78,6 +78,12 @@ describe('Records API answers', () => {
     expect(pathOf(() => parsers.matterDetail({ ...matterWire, activity: [{ ...matterWire.activity[1], actor: { kind: 'system', name: 'router' } }] }, 'body'))).toBe('body.activity[0].actor.name')
   })
 
+  it('reads a document of a matter that came from the firm\'s MyEPO Mailbox, and refuses an unknown source', () => {
+    const fromMyEpo = { ...matterWire, documents: [{ ...matterWire.documents[0], source: 'myepo' }] }
+    expect(parsers.matterDetail(fromMyEpo, 'body').documents[0]!.source).toBe('myepo')
+    expect(pathOf(() => parsers.matterDetail({ ...matterWire, documents: [{ ...matterWire.documents[0], source: 'fax' }] }, 'body'))).toBe('body.documents[0].source')
+  })
+
   it('reads who may decide and why not', () => {
     const refused = parsers.intakeDocument({ ...intakeDocumentWire, mayDecide: { allowed: false, reason: 'proposer', decider: { id: 'p-lena', name: 'Lena Hoffmann' } } }, 'body')
     expect(refused.mayDecide).toEqual({ allowed: false, reason: 'proposer', decider: { id: 'p-lena', name: 'Lena Hoffmann' } })

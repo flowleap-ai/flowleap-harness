@@ -73,6 +73,7 @@
     "@deepseek-ai/dsh-client-ui-flowleap-agent-builder": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-budget": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-dashboard": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-flowleap-folder": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-records": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-routines": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-work-pages": "workspace:*",

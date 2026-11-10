@@ -4,6 +4,8 @@
 
 **Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#5-the-demo-path-step-by-step): a person enters the code and the date of a scan by hand. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
 
+**Amended on 2026-11-10** by founder decision 6 of 2026-11-10 (deadline confirmation, agreed in principle), which replaces decision F1, and by founder decision 3 (the MyEPO list data). [Sheet 8](08-deadline-confirmation.md) decides who confirms a deadline: the row `deadline_proposed` to `active` by a person now applies when the decision is one person; new rows add the automatic confirm, the state `first_confirmed` for two persons, and the refusal of the decision function. [Section 8](#8-the-myepo-route) adds the office event from the MyEPO list. Each changed row names sheet 08 or the MyEPO route. The older rows that name a second person or `single-check` keep their meaning on the levels `strict` and `four-eyes`; `engine_refused` now also holds a refusal of the decision function, with its reason codes.
+
 ## 1. The process today
 
 | # | Fact | Label and source |
@@ -42,7 +44,7 @@
 The machine joins the office event and its deadline proposal, because in R1 one office event gives at most one engine proposal per rule, and the proposal cannot exist without the event.
 
 <!-- atlas:deadline -->
-It has **14 states and 24 transitions**, plus the start.
+It has **15 states and 33 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
@@ -50,6 +52,8 @@ It has **14 states and 24 transitions**, plus the start.
 | `awaiting_code` | `recorded` | Both readers agree: the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image | intake | Form-number span, date span, code table version, the model reading (`office-event/observed`) |
 | `awaiting_code` | `recorded` | A person enters the code and the date from the page image of a scan | person | Page image hash, the Decision (`office-event/recorded`) |
 | `awaiting_code` | `code_proposed` | No form number, the two readers differ, or only one reader has a result | intake | Both readings: quoted spans and the model reading |
+| `awaiting_code` | `recorded` | MyEPO route: the document code of the list maps to one event code in the code table, and the dispatch date is the date the letter bears; no download is needed | intake | Communication id, document code, dispatch date, code table version (`office-event/observed`, source `myepo-list`) |
+| `awaiting_code` | `code_proposed` | MyEPO route: the document code is not in the code table, or maps to more than one event code | intake | Communication id, document code, code table version |
 | `code_proposed` | `recorded` | A person accepts or changes the code and the date | person | The proposal and the Decision (`office-event/recorded`) |
 | `code_proposed` | `no_event` | An attorney decides that the letter records no office event, with a reason | person (attorney) | Reason, the document |
 | `no_event` | `awaiting_code` | A person reopens it with a reason | person | Reason |
@@ -60,14 +64,21 @@ It has **14 states and 24 transitions**, plus the start.
 | `engine_refused` | `manual_proposed` | A person enters the date, or the agent proposes it from the letter, with the span and a reason | person or agent | Reason, date span; SessionRef for the agent |
 | `deadline_proposed` | `manual_proposed` | A person disagrees with the computed date and enters another with a reason | person | Reason, date span, the trace |
 | `manual_proposed` | `deadline_proposed` | The missing calendar or rule arrives; the engine proposal replaces the manual entry and shows a different date | engine | Trace, the manual entry |
-| `deadline_proposed` | `active` | A person confirms the record position they saw, the engine computes the same trace, and the person did not decide the code | person | Seen seq, engine check (rule, trace hash) |
+| `deadline_proposed` | `active` | The decision is one person (sheet 08): a person confirms the record position they saw, the engine computes the same trace, and the person made none of the evidence | person | Seen seq, engine check (rule, trace hash), the evidence record and the decision |
+| `deadline_proposed` | `active` | The decision is automatic (sheet 08): the event has a structured source or two readers agree, the firm signed the rule version, the EPO due date agrees, and the firm level allows it for the rule | Firm Record | The evidence record, the decision and the version of the decision function (`deadline/decided`) |
+| `deadline_proposed` | `first_confirmed` | The decision is two persons (sheet 08): a first person confirms the record position they saw | person | Seen seq, the evidence record, the decision |
+| `manual_proposed` | `first_confirmed` | The decision is two persons (sheet 08), for example a manual date that differs from the EPO due date: a first person confirms the record position they saw | person | Seen seq, the evidence record, the decision |
+| `first_confirmed` | `active` | A second person, who is not the first and made none of the evidence, confirms the record position they saw | person | Seen seq, both persons, the engine check |
+| `first_confirmed` | `stale` | The document moves, the event is corrected, or a rule or calendar version changes before the second confirm | person or Firm Record | Correction event or version |
+| `first_confirmed` | `rejected` | An attorney decides that the event sets no deadline, with a reason and evidence | person (attorney) | Reason, evidence document |
+| `deadline_proposed` | `engine_refused` | The decision function refuses (sheet 08): the evidence record lacks a required field, or the signature of the rule version is revoked | Firm Record | The evidence record and the refusal reason |
 | `manual_proposed` | `active` | A second person confirms the record position they saw; in a single-check firm the one confirmer, who is not the proposer | person | Seen seq, second-person check or `single-check` |
 | `deadline_proposed` | `deadline_proposed` | The confirm-within time passes; the item goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
 | `deadline_proposed` | `rejected` | An attorney decides that the event sets no deadline, with a reason and evidence | person (attorney) | Reason, evidence document |
 | `manual_proposed` | `rejected` | An attorney decides that the event sets no deadline, with a reason and evidence | person (attorney) | Reason, evidence document |
 | `deadline_proposed` | `stale` | The document moves, the event is corrected, or a rule or calendar version changes before the confirm | person or Firm Record | Correction event or version |
 | `manual_proposed` | `stale` | The document moves, the event is corrected, or a rule or calendar version changes before the confirm | person or Firm Record | Correction event or version |
-| `active` | `disputed` | The document moves, the event is corrected, a rule or calendar version gives another date, or the engine now computes another date for a manual deadline | person or Firm Record | Correction event or version, both traces |
+| `active` | `disputed` | The document moves, the event is corrected, a rule or calendar version gives another date, the engine now computes another date for a manual deadline, a later EPO due date differs, the weekly audit finds the date wrong, or the signature of the rule version of an automatic deadline is revoked (sheet 08) | person or Firm Record | Correction event or version, both traces, or the audit result |
 | `disputed` | `active` | A person decides the date, and the engine or a second person agrees | person | Both traces, seen seq, the check |
 | `disputed` | `closed_without_act` | An attorney closes it with a reason and evidence, and a second person approves | person (attorney) | Reason from the list, evidence document, approval or `single-check` |
 | `active` | `to_docket` | The docket lifecycle of R2 takes over (met, superseded, closed without its act) | Firm Record | The next docket event |
@@ -80,6 +91,8 @@ stateDiagram-v2
     awaiting_code --> recorded: both readers agree the form number maps to one event code and the date the document bears is read, and the model reads the same code, date and application number from the page image
     awaiting_code --> recorded: a person enters the code and the date from the page image of a scan
     awaiting_code --> code_proposed: no form number, the two readers differ, or only one reader has a result
+    awaiting_code --> recorded: myEPO route the document code of the list maps to one event code in the code table, and the dispatch date is the date the letter bears, no download is needed
+    awaiting_code --> code_proposed: myEPO route the document code is not in the code table, or maps to more than one event code
     code_proposed --> recorded: a person accepts or changes the code and the date
     code_proposed --> no_event: an attorney decides that the letter records no office event, with a reason
     no_event --> awaiting_code: a person reopens it with a reason
@@ -90,14 +103,21 @@ stateDiagram-v2
     engine_refused --> manual_proposed: a person enters the date, or the agent proposes it from the letter, with the span and a reason
     deadline_proposed --> manual_proposed: a person disagrees with the computed date and enters another with a reason
     manual_proposed --> deadline_proposed: the missing calendar or rule arrives, the engine proposal replaces the manual entry and shows a different date
-    deadline_proposed --> active: a person confirms the record position they saw, the engine computes the same trace, and the person did not decide the code
+    deadline_proposed --> active: the decision is one person (sheet 08) a person confirms the record position they saw, the engine computes the same trace, and the person made none of the evidence
+    deadline_proposed --> active: the decision is automatic (sheet 08) the event has a structured source or two readers agree, the firm signed the rule version, the EPO due date agrees, and the firm level allows it for the rule
+    deadline_proposed --> first_confirmed: the decision is two persons (sheet 08) a first person confirms the record position they saw
+    manual_proposed --> first_confirmed: the decision is two persons (sheet 08), for example a manual date that differs from the EPO due date a first person confirms the record position they saw
+    first_confirmed --> active: a second person, who is not the first and made none of the evidence, confirms the record position they saw
+    first_confirmed --> stale: the document moves, the event is corrected, or a rule or calendar version changes before the second confirm
+    first_confirmed --> rejected: an attorney decides that the event sets no deadline, with a reason and evidence
+    deadline_proposed --> engine_refused: the decision function refuses (sheet 08) the evidence record lacks a required field, or the signature of the rule version is revoked
     manual_proposed --> active: a second person confirms the record position they saw, in a single-check firm the one confirmer, who is not the proposer
     deadline_proposed --> deadline_proposed: the confirm-within time passes, the item goes to the next person, and after the last person it is an alarm
     deadline_proposed --> rejected: an attorney decides that the event sets no deadline, with a reason and evidence
     manual_proposed --> rejected: an attorney decides that the event sets no deadline, with a reason and evidence
     deadline_proposed --> stale: the document moves, the event is corrected, or a rule or calendar version changes before the confirm
     manual_proposed --> stale: the document moves, the event is corrected, or a rule or calendar version changes before the confirm
-    active --> disputed: the document moves, the event is corrected, a rule or calendar version gives another date, or the engine now computes another date for a manual deadline
+    active --> disputed: the document moves, the event is corrected, a rule or calendar version gives another date, the engine now computes another date for a manual deadline, a later EPO due date differs, the weekly audit finds the date wrong, or the signature of the rule version of an automatic deadline is revoked (sheet 08)
     disputed --> active: a person decides the date, and the engine or a second person agrees
     disputed --> closed_without_act: an attorney closes it with a reason and evidence, and a second person approves
     active --> to_docket: the docket lifecycle of R2 takes over (met, superseded, closed without its act)
@@ -110,7 +130,7 @@ stateDiagram-v2
 ```
 <!-- /atlas:deadline -->
 
-**The check covers the computation, not the reading.** In R0 the confirm recomputes the date from the stored code and document date and compares the trace hash (`decideDeadline` in `lib/record/commands.mjs`, `decide` in `lib/record/deadlines.mjs`). That check is independent of the arithmetic, but not of the reading: a wrong code or a wrong document date gives the same wrong date twice. In this sheet two rules close part of the gap. The Records app shows the code span and the date span of the letter beside the proposal, and when the model read the code, the person who decided the code cannot also confirm the deadline. The full answer is a design decision on F3 for the founder, written in the [README](README.md#founder-decision-the-independent-check-of-the-reading-f1-on-f3) as a decision to take, not as a done change.
+**The check covers the computation, not the reading.** In R0 the confirm recomputes the date from the stored code and document date and compares the trace hash (`decideDeadline` in `lib/record/commands.mjs`, `decide` in `lib/record/deadlines.mjs`). That check is independent of the arithmetic, but not of the reading: a wrong code or a wrong document date gives the same wrong date twice. In this sheet two rules close part of the gap. The Records app shows the code span and the date span of the letter beside the proposal, and when the model read the code, the person who decided the code cannot also confirm the deadline. The full answer is a design decision on F3 for the founder, written in the [README](README.md#founder-decision-the-independent-check-of-the-reading-f1-on-f3) as a decision to take, not as a done change. **Amended on 2026-11-10:** decision 6 replaces F1. The two readers stay as one form of event evidence, and [sheet 8](08-deadline-confirmation.md#9-the-two-person-rule-and-decision-f1) says what each decision means for the two-person rule.
 
 **What the person saw.** A confirm and a dispute decision carry the record position (seq) that the person saw. The Firm Record refuses the decision when the deadline or its office event changed after that seq (`record-moved`). R0 already serializes the commands with `pg_advisory_xact_lock` (`store.mjs`), but nothing in R0 proves which position the person saw.
 
@@ -131,7 +151,7 @@ stateDiagram-v2
 | Setting | Type | Default | Why firms differ |
 |---|---|---|---|
 | `deadline.confirmerRoles` | list of roles | `['formalities', 'attorney', 'partner']` | Some firms let only the PAFA team confirm; some only attorneys (question Q2.1) |
-| `deadline.checkPolicy` | `'engine-or-second-person' \| 'always-second-person'` | `'engine-or-second-person'` (F3) | Firms with a written four-eyes rule for every entry |
+| `deadline.checkPolicy` | `'engine-or-second-person' \| 'always-second-person'` | `'engine-or-second-person'` (F3) | Firms with a written four-eyes rule for every entry ; **replaced on 2026-11-10** by `deadline.level` of [sheet 8](08-deadline-confirmation.md#5-the-levels): `'always-second-person'` is the level `four-eyes` |
 | `deadline.readingCheck` | `'two-readers' \| 'confirmer-sees-spans' \| 'second-person-when-model-read'` | `'two-readers'`, with `'confirmer-sees-spans'` for letters without a form; the rule "code decider is not the confirmer" applies in all | The risk of a misread code. Founder decision on F1, 2026-11-04 ([README](README.md#founder-decision-the-independent-check-of-the-reading-f1-on-f3)) |
 | `deadline.observeModeConfirm` | `'confirm' \| 'difference-only'` | `'confirm'` | In R1 PATORG stays the docket, so a FlowLeap confirm is a step with no legal effect. `'confirm'` gives the pilot the evidence for F3; `'difference-only'` saves the step (question Q2.5) |
 | `deadline.confirmWithin` | duration | 1 working day | Firm practice; same-day intake (research section 2.3) [INFERRED] |
@@ -214,3 +234,30 @@ New record events: `office-event/observed`, `office-event/code-proposed`, `offic
 - **Q2.8** Who handles a request for an extension under R.132(2) or for further processing today, and where is the pending request noted?
 - **Q2.9** Does the Berufsordnung der Patentanwälte, or your own Büroanweisung, set rules for deadline control that this sheet must follow?
 - **Q2.10** Do you use the PATORG AI for deadlines? Does it enter a deadline without a person?
+
+## 8. The MyEPO route
+
+**Amended on 2026-11-10** by founder decision 3 of 2026-11-10: in both download modes, the office event and the deadline come from the list data at arrival (the document code, the application number and the dispatch date). This section adds two rows to the table of section 3, each named "MyEPO route".
+
+| # | Fact | Label and source |
+|---|---|---|
+| 2.16 | The developer portal lists about 5,600 document codes in English, French and German. Codes read: 2001 "Communication from the Examining Division", 2004 "Communication about intention to grant a European patent", 2006 "Decision to grant a European patent", 1701 "Communication regarding the Extended European Search Report", 1703 "European search opinion", 1225 and 2522 renewal fee reminders, 2524 deemed withdrawal for a missed renewal fee | SOURCED: [document codes](https://api.apps.epo.org/dev-portal/document-codes), read up to code 3034 on 2026-11-10. The codes for an Art. 94(3) communication, a Rule 112(1) communication, Rule 70(2), Rules 161/162 and the code `2006A` that the sandbox shows are NOT VERIFIED |
+| 2.17 | The code 2001 names a communication of the examining division, not its legal basis. An Art. 94(3) communication and other letters of the division can share it | INFERRED from the title of code 2001 (fact 2.16); the pilot's letters must show which codes are specific |
+| 2.18 | MyEPO lists deadlines for the replies under Rule 71(3), Art. 94(3), Rule 70a and Rules 62a/63 | SOURCED: [MyEPO FAQ](https://epo.org/en/service-support/faq/myepo-services/myepo/applications-and-patents/one-my-applications-theres) |
+
+**The code table.** A versioned table maps each document code to one event code, to "no event", or to "needs the text". The intake reads the code from the list and records the event without a download (`office-event/observed`, source `myepo-list`), so the deadline engine starts at arrival.
+
+| Case | Result |
+|---|---|
+| The code maps to one event code | `recorded` from the list; no download is needed |
+| The code maps to "no event" (an acknowledgement, a copy) | `recorded` with an event code that has no period, so `no_period` |
+| The code is not in the table, or it maps to more than one event code (fact 2.17) | `code_proposed`: a person decides the code with the letter in view; the decision downloads the letter, and [sheet 8](08-deadline-confirmation.md) sends the deadline to a person who did not decide the code |
+| The code maps to an event whose period the letter sets (R.132, for example an Art. 94(3) communication) | The engine refuses with `period-not-read`, and the task "Enter the due date" opens at arrival with the EPO due date in view. The person who opens it downloads the letter, and the two readers read the period. A firm can download these codes at arrival instead (`myepo.downloadAtArrivalCodes` of [sheet 1](01-office-letter-intake.md#8-the-myepo-route)) |
+| The application is unknown to the index | The event waits for the filing of sheet 1; the deadline cannot start before the matter is known |
+
+**The EPO due dates.** After each new event, the firm worker reads `dueDates` for its application and sends each due date as an observation. Each due date goes into the evidence record of [sheet 8](08-deadline-confirmation.md#3-the-evidence-record) as a second, independent date source; it never replaces the engine (study decision 2). A due date that differs from the engine date sends the deadline to two persons (sheet 8, row 2). A due date that appears or changes later makes an active deadline `disputed` when it differs.
+
+**Decisions for the founder.** These decisions are still open: the founder's decisions of 2026-11-10 covered sheets 6, 7 and 8.
+
+- **D2.1 The code table is FlowLeap's, versioned and reviewed like a rule.** Recommended: yes; a wrong map of a document code gives a wrong event for every letter of that code, so a change of the table is a new version with golden letters, and the firm's signature of [sheet 8](08-deadline-confirmation.md#6-the-rule-signature) covers the table version too.
+- **D2.2 A shared code such as 2001 maps to "needs the text".** Recommended: yes, until the pilot's letters show which codes name one legal basis. The event then waits in `code_proposed`, and the task opens at arrival; the person's open downloads the letter, and the two readers read it.
