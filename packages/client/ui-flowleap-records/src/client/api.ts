@@ -33,6 +33,8 @@ export type OfficeEventId = Branded<'RecordsOfficeEventId'>
 export type ProposalId = Branded<'RecordsProposalId'>
 /** The id of a work item's run Session in the routed attorney's runtime. */
 export type RunSessionId = Branded<'RecordsRunSessionId'>
+/** The path of one page image under the Records API, `documents/<sha256>/pages/<n>`. */
+export type PageHref = Branded<'RecordsPageHref'>
 /** The `Idempotency-Key` of one act of a person, `ipms:<uuid>`. */
 export type IdempotencyKey = Branded<'RecordsIdempotencyKey'>
 
@@ -49,6 +51,7 @@ export const ids = {
   officeEvent: branded<OfficeEventId>(UUID, 'an office event id'),
   proposal: branded<ProposalId>(OPAQUE, 'a proposal id'),
   session: branded<RunSessionId>(OPAQUE, 'a session id'),
+  page: branded<PageHref>(/^documents\/[0-9a-f]{64}\/pages\/[1-9][0-9]{0,3}$/, 'a page image path'),
 } as const
 
 /**
@@ -119,22 +122,43 @@ const span = obj({ page: num, start: num, end: num, quote: str, excerpt: nullabl
 /** An exact span of a document: the page, the offsets in that page's text, the quote, and the text around it. */
 export type Span = Parsed<typeof span>
 
-/** Who did something: a person, or FlowLeap, the AI mailbox or the attorney's agent (its person is the event's `for`). */
+/**
+ * Who did something: a person, or FlowLeap, the AI mailbox, the scan mailbox (the scan of a letter) or the attorney's
+ * agent (its person is the event's `for`).
+ */
 export type Actor =
   | { readonly kind: 'person'; readonly person: Person }
-  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'agent' }
+  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'scan-mailbox' | 'agent' }
 
 const actor: Parse<Actor> = (value, path) => {
   const source = objectAt(value, path)
   const kind = oneOf(['person', 'system'])(source['kind'], `${path}.kind`)
   return kind === 'person'
     ? { kind, person: person(source['person'], `${path}.person`) }
-    : { kind, name: oneOf(['flowleap', 'mailbox', 'agent'])(source['name'], `${path}.name`) }
+    : { kind, name: oneOf(['flowleap', 'mailbox', 'scan-mailbox', 'agent'])(source['name'], `${path}.name`) }
 }
 
-const activityEvent = obj({ seq: num, at: isoTime, type: str, actor, for: nullable(person), detail: anyObject })
-/** One event of a record. `seq` and `type` show only in Audit; the views word the event from `type` and `detail`. */
-export type ActivityEvent = Parsed<typeof activityEvent>
+const eventWords = obj({ en: str, de: str })
+const activityEvent: Parse<ActivityEvent> = (value, path) => {
+  const source = objectAt(value, path)
+  const parsed = obj({ seq: num, at: isoTime, type: str, actor, for: nullable(person), detail: anyObject })(value, path)
+  return source['words'] === undefined ? parsed : { ...parsed, words: nullable(eventWords)(source['words'], `${path}.words`) }
+}
+/** One event of a record. `seq` and `type` show only in Audit. */
+export interface ActivityEvent {
+  readonly seq: number
+  readonly at: IsoTime
+  readonly type: string
+  readonly actor: Actor
+  readonly for: Person | null
+  readonly detail: Readonly<Record<string, unknown>>
+  /**
+   * What the actor did, in the os's English and German words; `null` for an event that only Audit lists (task and
+   * outbox steps, the seed load). Absent from an os that sends no words: the views word the event from `type` and
+   * `detail`.
+   */
+  readonly words?: { readonly en: string; readonly de: string } | null
+}
 const activity = arrayOf(activityEvent)
 
 /** Why a person may not decide. */
@@ -191,8 +215,14 @@ export type FieldValue = Parsed<typeof fieldValue>
 
 // GET me
 
-const me = obj({ person: member, admin: bool })
-/** The signed-in person. */
+/** The firm roles of a person. */
+export const FIRM_ROLES = ['attorney', 'partner', 'formalities', 'administrator'] as const
+/** One firm role. */
+export type FirmRole = (typeof FIRM_ROLES)[number]
+const me = obj({
+  person: member, admin: bool, roles: arrayOf(oneOf(FIRM_ROLES)), role: nullable(oneOf(FIRM_ROLES)), firm: obj({ timeZone: str }),
+})
+/** The signed-in person, with the roles and the one role that the account menu shows (null for none). */
 export type Me = Parsed<typeof me>
 
 // GET matters
@@ -207,16 +237,69 @@ export type MatterRow = Parsed<typeof matterRow>
 /** The matters the person may see, next due first. */
 export type MattersList = Parsed<typeof mattersList>
 
+// Tasks
+
+/** The task kinds of atlas sheet 0; the views word each kind and never show the os text of `title` or `why`. */
+export const TASK_KINDS = [
+  'file-letter', 'enter-office-event', 'decide-office-event', 'enter-date', 'confirm-deadline', 'decide-dispute',
+  'assign-person', 'restart-run', 'decide-work', 'work-by-hand', 'send-report', 'fix-message', 'follow-up', 'day-check',
+  'answer',
+] as const
+/** One task kind. */
+export type TaskKind = (typeof TASK_KINDS)[number]
+/** The due-time groups of My work. */
+export type WorkGroup = 'overdue' | 'today' | 'later'
+
+const workItemShape = {
+  id: str, task: str, kind: oneOf(TASK_KINDS), state: oneOf(['assigned', 'queued', 'escalated', 'alarm']),
+  group: oneOf(['overdue', 'today', 'later']), matter: nullable(matterRef), due: nullable(isoDate), dueAt: isoTime,
+  since: isoTime, act: str,
+}
+const task = obj(workItemShape)
+/** The fields that every task has, in My work and in a dossier's What waits. */
+export type Task = Parsed<typeof task>
+const workItem = obj({
+  ...workItemShape,
+  reason: obj({ en: str, de: str }),
+  subject: obj({
+    letterDate: nullable(isoDate), arrivedAt: nullable(isoTime), code: nullable(str),
+    deadline: nullable(obj({ due: isoDate, state: deadlineState })),
+  }),
+})
+/**
+ * One open task: its kind, its task state, its due-time group, the matter (null for a letter that is not filed, to an
+ * owner outside the proposed matter's team), the legal date of its deadline (`due`) apart from the task's own due time
+ * (`dueAt`), and `act`, the record address of its object: `intake/<list>/<sha256>`, `deadline/<id>` or `work/<id>`.
+ * `reason` is the os's words for why the task waits, in English and German; `subject` is the letter and the deadline
+ * that the task is about.
+ */
+export type WorkItem = Parsed<typeof workItem>
 // GET matters/<fileNumber>
 
+/** What the client allows the AI to do with its matters. */
+export const AI_USE = ['not-recorded', 'allowed', 'local-model-only', 'not-allowed'] as const
+const reportEvents: Parse<'all-office-actions' | readonly string[]> = (value, path) =>
+  value === 'all-office-actions' ? value : arrayOf(str)(value, path)
+
+/** The client's AI wishes: what AI may do, whether it may draft a letter to the client, and its report language. */
+const clientRules = obj({
+  aiUse: oneOf(AI_USE), aiLetters: oneOf(['allowed', 'not-allowed']), reportEvents, language: nullable(str), text: str,
+  recordSeq: num,
+})
 const matterDetail = obj({
   recordSeq: num,
   matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, state: oneOf(['open', 'closed']), applicationNumber: nullable(str) }),
   responsible: nullable(person),
+  formalitiesPerson: nullable(person),
   team: arrayOf(member),
+  waits: arrayOf(obj({ ...workItemShape, owner: person })),
   deadlines: arrayOf(obj({
     id: ids.deadline, due: isoDate, state: deadlineState, code: nullable(str), officeEventId: ids.officeEvent,
+    confirmedBy: nullable(person), rejectedBy: nullable(person),
   })),
+  clientRules: nullable(clientRules),
+  language: nullable(str),
+  wall: obj({ team: arrayOf(obj({ id: ids.person, name: str, role: oneOf(['responsible', 'formalities', 'team']) })), screened: num }),
   work: arrayOf(obj({
     id: ids.ticket, state: ticketState, code: nullable(str), routedTo: nullable(person), updatedAt: isoTime,
     report: nullable(obj({ state: reportState })), reply: nullable(obj({ state: outboxState })),
@@ -225,15 +308,52 @@ const matterDetail = obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), state: deadlineState,
     document: nullable(ids.document), receivedAt: nullable(isoDate),
   })),
-  documents: arrayOf(obj({ sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime })),
+  documents: arrayOf(obj({
+    sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'myepo', 'agent']), at: isoTime,
+    state: oneOf(['filed', 'proposed']), code: nullable(str), letterDate: nullable(isoDate), filedBy: nullable(person),
+  })),
   activity,
 })
-/** One matter with its deadlines, work, office events, documents and Activity. */
+/**
+ * One matter with its deadlines (each with who confirmed or rejected it), work, office events, documents and Activity;
+ * the client's rules for AI work, the client's report language, and the wall: the team with each one's role, and the
+ * count of people screened from the matter.
+ */
 export type MatterDetail = Parsed<typeof matterDetail>
 
 // GET deadlines/<id>
 
+const pageImage = obj({ page: num, width: num, height: num, href: ids.page })
+/** One page of a letter as an image, with its size in pixels and its path under the Records API. */
+export type PageImage = Parsed<typeof pageImage>
+const mark = obj({ field: oneOf(['formNumber', 'documentDate', 'applicationNumber']), page: num, quote: str, excerpt: nullable(excerpt) })
+/** One read value of a letter with its page and its quote; the OCR gives no position on the page. */
+export type Mark = Parsed<typeof mark>
 const reading = obj({ code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str) })
+/** Where reader 1 read the text: the PDF's text layer, or the OCR text of a scan. */
+export type ReaderSource = { readonly kind: 'text-layer' } | { readonly kind: 'ocr'; readonly provider: string; readonly model: string }
+const readerSource: Parse<ReaderSource> = (value, path) => {
+  const kind = oneOf(['text-layer', 'ocr'])(objectAt(value, path)['kind'], `${path}.kind`)
+  return kind === 'text-layer' ? { kind } : { kind, ...obj({ provider: str, model: str })(value, path) }
+}
+/** Why reader 2 read a letter: before the filing, for the matter that its application number names, or after it. */
+export const READER2_RULES = ['before-file-application-number', 'after-file'] as const
+/** How the readings of a letter came out: both agree, they differ, one reading only, or none. */
+export const READING_OUTCOMES = ['agree', 'differ', 'one-reading', 'no-reading'] as const
+/** The ways in which the two readings of a letter differ. */
+export const READING_DIFFERENCES = ['code', 'documentDate', 'applicationNumber', 'no-code-result', 'no-model-result'] as const
+const readers = obj({
+  code: nullable(obj({ result: nullable(reading), fields: partialRecord(READER_FIELDS, fieldValue), source: readerSource })),
+  model: nullable(obj({ result: nullable(reading), model: str, rule: oneOf(READER2_RULES) })),
+  agree: nullable(bool),
+  differences: nullable(arrayOf(oneOf(READING_DIFFERENCES))),
+  outcome: oneOf(READING_OUTCOMES),
+})
+/**
+ * The two readings of a letter: reader 1 from the text (with its spans and where it read the text), reader 2 from the
+ * page image, whether they agree, and how they differ.
+ */
+export type Readers = Parsed<typeof readers>
 const deadlineDetail = obj({
   recordSeq: num,
   deadline: obj({
@@ -248,16 +368,15 @@ const deadlineDetail = obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     document: nullable(ids.document), fileName: nullable(str), state: deadlineState,
   }),
-  readers: obj({
-    code: nullable(obj({ result: nullable(reading), fields: partialRecord(READER_FIELDS, fieldValue) })),
-    model: nullable(obj({ result: nullable(reading), model: str })),
-    agree: nullable(bool),
-  }),
+  readers,
+  pageImages: arrayOf(pageImage),
+  marks: arrayOf(mark),
   proposer: nullable(person), confirmer: nullable(person), rejecter: nullable(person), reason: nullable(str),
   mayConfirm: mayDecide,
+  confirmTask: nullable(obj({ owner: person, queued: bool, noticeAt: nullable(isoTime) })),
   activity,
 })
-/** One deadline with its calculation, the two readings, the people and Activity. */
+/** One deadline with its calculation, the two readings, the page images and marks of the letter, the people and Activity. */
 export type DeadlineDetail = Parsed<typeof deadlineDetail>
 
 // GET intake?view=
@@ -268,6 +387,11 @@ export type DeadlineDetail = Parsed<typeof deadlineDetail>
  */
 export type IntakeView = 'waiting' | 'filed-today' | 'not-relevant'
 
+/** How a letter came: from the firm's scan mailbox, or forwarded by a person, who gets the reply. */
+export const MAIL_ROUTES = ['scan-mailbox', 'forward', 'myepo'] as const
+/** One route of `MAIL_ROUTES`. */
+export type MailRoute = (typeof MAIL_ROUTES)[number]
+
 const intakeRow: Parse<IntakeRow> = (value, path) => {
   const source = objectAt(value, path)
   return {
@@ -277,6 +401,7 @@ const intakeRow: Parse<IntakeRow> = (value, path) => {
     office: nullable(str)(source['office'], `${path}.office`),
     matter: nullable(matterRef)(source['matter'], `${path}.matter`),
     matterCount: num(source['matterCount'], `${path}.matterCount`),
+    route: oneOf(MAIL_ROUTES)(source['route'], `${path}.route`),
     forwarder: nullable(person)(source['forwarder'], `${path}.forwarder`),
     receivedAt: isoTime(source['receivedAt'], `${path}.receivedAt`),
     since: isoTime(source['since'], `${path}.since`),
@@ -292,6 +417,8 @@ export interface IntakeRow {
   readonly matter: MatterRef | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
+  /** How the letter came: from the firm's scan mailbox or the firm's MyEPO Mailbox (no forwarder), or forwarded by a person. */
+  readonly route: MailRoute
   readonly forwarder: Person | null
   readonly receivedAt: IsoTime
   /** When the letter entered its current state. */
@@ -307,22 +434,39 @@ export type IntakeList = Parsed<typeof intakeList>
 
 // GET intake/documents/<sha256>
 
+const entry = obj({
+  codes: arrayOf(obj({ code: str, form: str, title: obj({ en: str, de: str }) })),
+  read: nullable(obj({ documentDate: nullable(isoDate), applicationNumber: nullable(str), fileNumber: nullable(ids.fileNumber) })),
+})
+/**
+ * The hand entry of a letter with no office event code: the office events that a person may enter, each with its title
+ * in English and German, and what reader 1 read of the letter (`read`, with the matter that its application number
+ * names), or null when it read nothing.
+ */
+export type HandEntry = Parsed<typeof entry>
+
 const intakeDocument: Parse<IntakeDocument> = (value, path) => {
   const source = objectAt(value, path)
   const rest = obj({
     document: ids.document, fileName: str, mediaType: str, pages: nullable(num), since: isoTime,
-    mail: obj({ forwarder: nullable(person), receivedAt: isoTime, subject: str }),
+    mail: obj({ route: oneOf(MAIL_ROUTES), forwarder: nullable(person), receivedAt: isoTime, subject: str }),
     code: nullable(str), office: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
     fields: partialRecord(READER_FIELDS, fieldValue),
-    proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['reference']) })),
+    proposed: nullable(obj({ fileNumber: ids.fileNumber, title: str, client: str, responsible: nullable(person), matchedBy: oneOf(['application-number', 'reference']) })),
     candidates: num,
     filed: nullable(matterRef),
     officeEvent: nullable(obj({ id: ids.officeEvent, state: deadlineState })),
     matters: arrayOf(matterRef),
     mayDecide,
     activity,
+    readers,
+    pageImages: arrayOf(pageImage),
+    marks: arrayOf(mark),
+    nextConfirmer: nullable(obj({ person, queued: bool })),
+    deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
   })(value, path)
-  return { ...rest, status: queueStatus(source, path) }
+  const hand = source['entry'] === undefined ? null : nullable(entry)(source['entry'], `${path}.entry`)
+  return { ...rest, status: queueStatus(source, path), entry: hand }
 }
 /** One letter of intake with its reading, the proposed matter, the matters the person may pick, and Activity. */
 export interface IntakeDocument {
@@ -332,7 +476,7 @@ export interface IntakeDocument {
   readonly pages: number | null
   readonly status: QueueStatus
   readonly since: IsoTime
-  readonly mail: { readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
+  readonly mail: { readonly route: MailRoute; readonly forwarder: Person | null; readonly receivedAt: IsoTime; readonly subject: string }
   readonly code: string | null
   readonly office: string | null
   readonly documentDate: IsoDate | null
@@ -344,7 +488,8 @@ export interface IntakeDocument {
     readonly title: string
     readonly client: string
     readonly responsible: Person | null
-    readonly matchedBy: 'reference'
+    /** The key that found the matter: the application number of an office form, or the firm's reference. */
+    readonly matchedBy: 'application-number' | 'reference'
   } | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly candidates: number
@@ -354,6 +499,29 @@ export interface IntakeDocument {
   readonly matters: readonly MatterRef[]
   readonly mayDecide: MayDecide
   readonly activity: readonly ActivityEvent[]
+  /** Both readings: reader 1 from the text, reader 2 from the page image, and how they differ. */
+  readonly readers: Readers
+  /** The pages as images; empty for a letter stored before the intake sent them. */
+  readonly pageImages: readonly PageImage[]
+  /** The read values with their page and quote. */
+  readonly marks: readonly Mark[]
+  /**
+   * Who gets Confirm the deadline when this person decides now; `queued` when that person keeps a queue. Null while no
+   * matter is named.
+   */
+  readonly nextConfirmer: { readonly person: Person; readonly queued: boolean } | null
+  /**
+   * The deadline that the letter's office event made, with the owner of its open Confirm the deadline task
+   * (`confirmer`); null before the engine proposed one.
+   */
+  readonly deadline: {
+    readonly id: DeadlineId
+    readonly due: IsoDate
+    readonly state: DeadlineState
+    readonly confirmer: Person | null
+  } | null
+  /** The hand entry of a scan with no reading (`unreadable`); null for any other letter, or from an os without it. */
+  readonly entry: HandEntry | null
 }
 
 // GET tickets
@@ -374,34 +542,78 @@ export type TicketsList = Parsed<typeof ticketsList>
 const statement = obj({ text: str, evidence: arrayOf(obj({ document: ids.document, span: nullable(span) })) })
 /** One statement of a draft with its evidence; a statement with no span is missing evidence. */
 export type Statement = Parsed<typeof statement>
+const report = obj({
+  proposalId: ids.proposal, kind: oneOf(['client-report', 'office-reply']), document: ids.document, fileName: str, state: reportState,
+  templateName: nullable(str), language: nullable(str), statements: arrayOf(statement),
+})
+/** One proposed draft of the work: the client report or the reply to the office, with its statements. */
+export type WorkDraft = Parsed<typeof report>
 const ticketDetail = obj({
   recordSeq: num,
   ticket: obj({
     id: ids.ticket, pass: num, state: ticketState, since: isoTime, routedTo: nullable(person), decidedBy: nullable(person),
     decidedAt: nullable(isoTime),
   }),
-  matter: matterRef,
+  matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, formalitiesPerson: nullable(person) }),
   responsible: nullable(person),
   team: arrayOf(member),
+  clientRules: nullable(clientRules),
   letter: nullable(obj({
     document: ids.document, fileName: str, pages: nullable(num), code: nullable(str), documentDate: nullable(isoDate),
-    applicationNumber: nullable(str),
+    applicationNumber: nullable(str), source: nullable(oneOf(['text-layer', 'ocr'])),
   })),
-  reports: arrayOf(obj({
-    proposalId: ids.proposal, document: ids.document, fileName: str, state: reportState, templateName: nullable(str),
-    language: nullable(str), pages: nullable(num), statements: arrayOf(statement),
-  })),
+  reports: arrayOf(report),
+  draftReply: nullable(report),
+  clientReport: nullable(report),
   deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
   reply: nullable(obj({ state: outboxState, to: arrayOf(person) })),
   run: nullable(obj({ model: nullable(str), steps: nullable(num), finishedAt: nullable(isoTime), session: nullable(ids.session) })),
   mayDecide: workMayDecide,
   activity,
 })
-/** One work item on a letter: the letter, the proposed reports with their statements, the deadline, the reply. */
+/**
+ * One work item on a letter: the letter, the proposed drafts with their statements (`reports`, and the latest of each
+ * kind as `clientReport` and `draftReply`), the deadline, the reply.
+ */
 export type TicketDetail = Parsed<typeof ticketDetail>
 
+// GET my-work
+
+const myMatter = obj({
+  fileNumber: ids.fileNumber, title: str, client: str, applicationNumber: nullable(str), role: oneOf(['responsible', 'team']),
+  state: oneOf(['open', 'closed']),
+  nextDeadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState })),
+})
+/** One matter of the person's teams, beside My work. */
+export type MyMatter = Parsed<typeof myMatter>
+const myWork = obj({
+  recordSeq: num,
+  person: member,
+  summary: obj({ lettersArrived: num, lettersToFile: num, lettersWorked: num, needYou: num, overdue: num, today: num, later: num }),
+  work: arrayOf(workItem),
+  inSight: arrayOf(workItem),
+  matters: arrayOf(myMatter),
+})
+/** The person's open tasks, the first line's counts, the tasks held in sight after an escalation, and the person's matters. */
+export type MyWork = Parsed<typeof myWork>
+
+// GET search?q=
+
+const searchMatter = obj({
+  fileNumber: ids.fileNumber, title: str, client: str, applicationNumber: nullable(str), state: oneOf(['open', 'closed']),
+  responsible: nullable(person), formalitiesPerson: nullable(person),
+  matched: arrayOf(obj({ field: oneOf(['fileNumber', 'title', 'client', 'applicationNumber', 'person']), value: str })),
+})
+/** One matter that a search found, with the fields that the words of the query matched. */
+export type SearchMatter = Parsed<typeof searchMatter>
+const searchAnswer = obj({ recordSeq: num, q: str, matters: arrayOf(searchMatter), more: bool })
+/** The matters inside the person's walls that match a query, the exact file number first; `more` when the limit cut them. */
+export type SearchAnswer = Parsed<typeof searchAnswer>
+
 /** The parsers of every read, for tests and fixtures. */
-export const parsers = { me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail } as const
+export const parsers = {
+  me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail, myWork, searchAnswer,
+} as const
 
 // Failures.
 
@@ -456,6 +668,14 @@ export type DeadlineCheck =
 export type Command =
   | { readonly kind: 'intake.match'; readonly document: DocumentId; readonly fileNumber: FileNumber }
   | { readonly kind: 'intake.notRelevant'; readonly document: DocumentId; readonly reason: string }
+  | {
+    readonly kind: 'intake.file'
+    readonly document: DocumentId
+    readonly fileNumber: FileNumber
+    readonly code: string
+    readonly documentDate: IsoDate
+    readonly applicationNumber: string
+  }
   | { readonly kind: 'officeEvent.decide'; readonly id: OfficeEventId; readonly code: string; readonly documentDate: IsoDate; readonly applicationNumber: string }
   | { readonly kind: 'deadline.confirm'; readonly id: DeadlineId; readonly seen: number }
   | { readonly kind: 'deadline.reject'; readonly id: DeadlineId; readonly reason: string }
@@ -485,6 +705,13 @@ export function commandRequest(command: Command): { readonly path: string; reado
   switch (command.kind) {
     case 'intake.match': return { path: `intake/documents/${command.document}/match`, body: { fileNumber: command.fileNumber } }
     case 'intake.notRelevant': return { path: `intake/documents/${command.document}/not-relevant`, body: { reason: command.reason } }
+    case 'intake.file': return {
+      path: `intake/documents/${command.document}/file`,
+      body: {
+        fileNumber: command.fileNumber, code: command.code, documentDate: command.documentDate,
+        applicationNumber: command.applicationNumber,
+      },
+    }
     case 'officeEvent.decide': return {
       path: `office-events/${command.id}/decide`,
       body: { code: command.code, documentDate: command.documentDate, applicationNumber: command.applicationNumber },
@@ -505,8 +732,26 @@ export interface RecordsApi {
   deadline(id: DeadlineId, signal: AbortSignal): Promise<Fetched<DeadlineDetail>>
   intake(view: IntakeView, signal: AbortSignal): Promise<Fetched<IntakeList>>
   intakeDocument(document: DocumentId, signal: AbortSignal): Promise<Fetched<IntakeDocument>>
+  /**
+   * Who gets Confirm the deadline when the person enters the office event of a scan on a matter now, before the filing
+   * names the matter (`GET intake/documents/<sha256>?matter=<file number>`).
+   * @param document - the scan.
+   * @param fileNumber - the matter that the person picked.
+   * @param signal - stops the read.
+   * @returns the next confirmer, or null when the record names nobody.
+   */
+  nextConfirmer(document: DocumentId, fileNumber: FileNumber, signal: AbortSignal): Promise<Fetched<IntakeDocument['nextConfirmer']>>
   tickets(signal: AbortSignal): Promise<Fetched<TicketsList>>
   ticket(id: TicketId, signal: AbortSignal): Promise<Fetched<TicketDetail>>
+  myWork(signal: AbortSignal): Promise<Fetched<MyWork>>
+  /**
+   * Find the matters inside the person's walls whose file number, title, client, application number or team person
+   * matches each word of the query (`GET search`).
+   * @param query - 1 to 100 characters; the os refuses an empty or longer query.
+   * @param signal - stops the read.
+   * @returns the matters found, at most 20, and whether more match.
+   */
+  search(query: string, signal: AbortSignal): Promise<Fetched<SearchAnswer>>
   /**
    * Send one act. A retry of the same act passes the same `Act`, so its key is the same.
    * @returns ok with no value, or the failure; a network failure leaves the outcome unknown, so retry with the act.
@@ -519,6 +764,12 @@ export interface RecordsApi {
    * @returns the same-origin address.
    */
   contentHref(document: DocumentId): string
+  /**
+   * The address of one page image of a letter.
+   * @param href - the page's path from the answer.
+   * @returns the same-origin address; empty until the Records API address is known.
+   */
+  pageHref(href: PageHref): string
 }
 
 /**
@@ -568,18 +819,35 @@ async function exchange<T>(
   }
 }
 
+/** The matters that one search shows; the os answers `more` when others match. */
+const SEARCH_LIMIT = 20
+
 /**
  * Create the Records API client.
- * @param recordsHref - the Records service as a document-relative path ending in `/`, such as `records/`.
+ * @param recordsHref - the Records service as a document-relative path ending in `/`, such as `records/`, or the
+ * promise of it while the Host has not answered; a promise of null (no Records service) fails every request with no
+ * answer (`network`), and `contentHref` is empty until it resolves.
  * @param fetchImpl - the fetch to use; the global fetch by default.
  * @returns the client.
  */
 export function createRecordsApi(
-  recordsHref: string, fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
+  recordsHref: string | Promise<string | null>, fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
 ): RecordsApi {
-  const base = `${recordsHref}api/`
+  let known: string | null = typeof recordsHref === 'string' ? `${recordsHref}api/` : null
+  const baseOf = typeof recordsHref === 'string'
+    ? Promise.resolve(known)
+    : recordsHref.then((href) => {
+      known = href === null ? null : `${href}api/`
+      return known
+    })
+  /** Fetch a path under the base, or reject as no answer when there is no Records service. */
+  const fetchAt = async (path: string, init: RequestInit): Promise<Response> => {
+    const base = await baseOf
+    if (base === null) throw new TypeError('records: no Records service')
+    return fetchImpl(`${base}${path}`, init)
+  }
   const get = <T>(path: string, parse: Parse<T>, signal: AbortSignal): Promise<Fetched<T>> => exchange(
-    () => fetchImpl(`${base}${path}`, { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' }, signal }),
+    () => fetchAt(path, { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' }, signal }),
     async response => parse(await response.json(), 'body'),
     signal,
   )
@@ -590,12 +858,17 @@ export function createRecordsApi(
     deadline: (id, signal) => get(`deadlines/${id}`, deadlineDetail, signal),
     intake: (view, signal) => get(`intake?view=${view}`, intakeList, signal),
     intakeDocument: (document, signal) => get(`intake/documents/${document}`, intakeDocument, signal),
+    nextConfirmer: (document, fileNumber, signal) => get(
+      `intake/documents/${document}?matter=${encodeURIComponent(fileNumber)}`, (value, path) => intakeDocument(value, path).nextConfirmer, signal,
+    ),
     tickets: signal => get('tickets', ticketsList, signal),
     ticket: (id, signal) => get(`tickets/${id}`, ticketDetail, signal),
+    myWork: signal => get('my-work', myWork, signal),
+    search: (query, signal) => get(`search?q=${encodeURIComponent(query)}&limit=${SEARCH_LIMIT}`, searchAnswer, signal),
     perform: (act, signal) => {
       const { path, body } = commandRequest(act.command)
       return exchange(
-        () => fetchImpl(`${base}${path}`, {
+        () => fetchAt(path, {
           method: 'POST', credentials: 'include', cache: 'no-store', signal: signal ?? null,
           headers: { 'content-type': 'application/json', accept: 'application/json', 'idempotency-key': act.key },
           body: JSON.stringify(body),
@@ -604,6 +877,7 @@ export function createRecordsApi(
         signal,
       )
     },
-    contentHref: document => `${base}documents/${document}/content`,
+    contentHref: document => known === null ? '' : `${known}documents/${document}/content`,
+    pageHref: href => known === null ? '' : `${known}${href}`,
   }
 }

@@ -1,5 +1,5 @@
 ---
-description: "The FlowLeap dashboard in the dsh web client: the landing page of flowleap-web with the ask bar and its search groups, the dashboard.metric and dashboard.widget slots, the Install FlowLeap card, and the OS sidebar layers."
+description: "The FlowLeap dashboard in the dsh web client: the ask bar and its search groups, the dashboard.metric and dashboard.widget slots, the Install FlowLeap card, and the OS sidebar layers."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-The dashboard is the first screen of the `flowleap-web` profile (flowleap-harness#60). It shows a greeting, one **Ask the agent or search** bar, the metric cards and panels that apps register, and an **Install FlowLeap** card; a first sign-in also shows **First steps**. Text in the bar shows the search results of each app; Enter opens a new chat with that text. The dashboard is the landing page of [`ui-workspace`](../ui-workspace/README.md#landing-page-and-address-links), so the address names the open chat or page and a link opens that item. The package also adds sidebar layers: **Search**, the **Dashboard**, **Chats** and **Agents** apps, and **Pinned**.
+The dashboard (flowleap-harness#60) shows a greeting, one **Ask the agent or search** bar, the metric cards and panels that apps register, and an **Install FlowLeap** card; a first sign-in also shows **First steps**. Text in the bar shows each app's search results; Enter opens a new chat with that text. The sidebar's **Search** action and the Search command open it; it has no sidebar row and is not the landing page, because **My work** of [`ui-flowleap-records`](../ui-flowleap-records/README.md) is the first screen. The package also adds sidebar layers: **Search**, the **Chats** and **Agents** apps, and **Pinned**.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ The **Search sessions** command (Cmd+K on the desktop, Cmd+Option+K on the web) 
 
 ### Landing page and links
 
-The package provides the dashboard to `uiWorkspace.provideLanding`. `ui-workspace` then shows the dashboard at the start, opens the chat (`?chat=<SessionId>`) or page (`?page=<main panel id>`, for example `?page=flowleap-needs-review`) that the start address names, and keeps the address equal to the open item; see [landing page and address links](../ui-workspace/README.md#landing-page-and-address-links). The local access-token address of `dsh web` (`?token=`) redirects to the plain address and drops the other parameters, so a link works in a browser that already has its session cookie.
+`ui-flowleap-records` provides My work to `uiWorkspace.provideLanding`. `ui-workspace` then shows My work at the start, opens the chat (`?chat=<SessionId>`) or page (`?page=<main panel id>`, for example `?page=flowleap-dashboard`) that the start address names, and keeps the address equal to the open item; see [landing page and address links](../ui-workspace/README.md#landing-page-and-address-links). The local access-token address of `dsh web` (`?token=`) redirects to the plain address and drops the other parameters, so a link works in a browser that already has its session cookie.
 
 **First steps** shows while the Session list has no chat with content, until the user selects **Hide first steps**; the browser keeps that choice in `localStorage`.
 
@@ -63,14 +63,14 @@ The package provides the dashboard to `uiWorkspace.provideLanding`. `ui-workspac
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The browser entry registers three keyed `main` pages (`flowleap-dashboard`, `flowleap-chats`, `flowleap-agents`) and their `sidebar.panellist` launchers (orders -100, -90 and 30). The dashboard registration declares the two list slots as its children. The page reads the ordered metadata of each slot from one snapshot store, and renders each entry with `renderSlot(..., { only: id })`. `createSearchRegistry` keeps the search groups ordered in a snapshot store that the page reads; the page draws every group, so the groups share one look, one row limit, and one pick.
+The browser entry registers three keyed `main` pages (`flowleap-dashboard`, `flowleap-chats`, `flowleap-agents`) and the `sidebar.panellist` launchers of Chats and Agents (orders -90 and -80), so they follow My work and Matters. The dashboard registration declares the two list slots as its children. The page reads the ordered metadata of each slot from one snapshot store, and renders each entry with `renderSlot(..., { only: id })`. `createSearchRegistry` keeps the search groups ordered in a snapshot store that the page reads; the page draws every group, so the groups share one look, one row limit, and one pick.
 
 The **Search** action goes into the `sidebar.actions` slot and the **Pinned** section into the `sidebar.sections` slot of [`ui-sidebar`](../ui-sidebar/README.md).
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Host half: an empty plugin body |
-| [`src/client/index.ts`](src/client/index.ts) | dictionaries, slot entry stores, the search registry, the Search command, the landing page, and every registration |
+| [`src/client/index.ts`](src/client/index.ts) | dictionaries, slot entry stores, the search registry, the Search command, and every registration |
 | [`src/client/contract.ts`](src/client/contract.ts) | the two slot declarations, the search group data, and the match rule |
 | [`src/client/DashboardPage.tsx`](src/client/DashboardPage.tsx) | the page, the ask bar with the search results, and the first steps |
 | [`src/client/widgets.tsx`](src/client/widgets.tsx) | Agent activity and the chat rows of the Chats page and the Chats search group |

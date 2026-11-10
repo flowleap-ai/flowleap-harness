@@ -88,7 +88,7 @@ describe('record_my_work', () => {
     const [item] = MY_WORK.work
     const unknown: MyWorkResult = {
       ...MY_WORK,
-      work: [{ ...item!, id: 'send-report:tk-9', kind: 'send-report', title: 'Send the report', act: 'report/tk-9' }],
+      work: [{ ...item!, id: 'day-check:2026-11-09', kind: 'day-check', title: 'Check the deadlines due today', act: 'deadlines/today' }],
     }
     const { ctx } = await host(unknown)
     const result = await call(ctx)

@@ -37,7 +37,7 @@ export function atlasWord(t: AtlasTranslate, ref: AtlasRef): AtlasWord {
 export function AtlasStatus({ status, word, className }: { status: AtlasRef; word: AtlasWord; className?: string | undefined }) {
   return (
     <span className={clsx(css.status, className)} data-atlas={`${status.machine}.${status.state}`}>
-      <StateDot shape={shapeOf(status)} />{word}
+      <StateDot shape={shapeOf(status)} /><span className={css.word}>{word}</span>
     </span>
   )
 }

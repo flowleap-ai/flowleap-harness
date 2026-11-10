@@ -3,7 +3,7 @@
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
 import type {
   UserTextAllocationReport, UserTextTimeReport, UserTextWorkloadAllocation, UserTextWorkloadTiming,
@@ -142,7 +142,7 @@ describe('sent user text with the credential matcher', () => {
 
   it.each(Object.entries(UNMATCHED_EXPECTED))('evaluates %s without credentials within its budget and ratio', (id, expected) => {
     const measured = timing(id)
-    const budgetMs = ciTimeBudget(expected.ms)
+    const budgetMs = runnerTimeBudget(ciTimeBudget(expected.ms))
     record(benchmarkCase(id, `Fresh ${id} documents without credentials through every shipped matcher.`), measured, budgetMs)
     expect(measured.group).toBe('unmatched')
     expect(measured.secrets).toBe(0)
@@ -152,7 +152,7 @@ describe('sent user text with the credential matcher', () => {
 
   it.each(Object.entries(MATCHED_EXPECTED_MS))('masks every credential of %s within its budget', (id, expectedMs) => {
     const measured = timing(id)
-    const budgetMs = ciTimeBudget(expectedMs)
+    const budgetMs = runnerTimeBudget(ciTimeBudget(expectedMs))
     record(benchmarkCase(id, `Fresh ${id} documents, each credential masked, through every shipped matcher.`), measured, budgetMs)
     expect(measured.group).toBe('matched')
     expect(measured.secrets).toBe(id === 'env-keys-2000' ? 2_000 : 5_000)
@@ -169,7 +169,7 @@ describe('sent user text with the credential matcher', () => {
   it.each(ADVERSARIAL)('scans adversarial %s input linearly without backtracking', (name) => {
     const half = timing(`adversarial-${name}-64k`)
     const full = timing(`adversarial-${name}-128k`)
-    const budgetMs = ciTimeBudget(ADVERSARIAL_EXPECTED_MS)
+    const budgetMs = runnerTimeBudget(ciTimeBudget(ADVERSARIAL_EXPECTED_MS))
     record(benchmarkCase(`adversarial-${name}`, `One 128 KiB document repeating a ${name} unit.`), full, budgetMs)
     expect(full.withSecretMs).toBeLessThanOrEqual(budgetMs)
     expectLinear(half, full)

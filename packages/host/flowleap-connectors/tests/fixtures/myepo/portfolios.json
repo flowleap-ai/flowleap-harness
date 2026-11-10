@@ -1,0 +1,99 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+    "content": [
+      {
+        "id": "1",
+        "name": "Applicant Portfolio 1",
+        "type": "applicant",
+        "hasFullAccess": true,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=1",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      },
+      {
+        "id": "2",
+        "name": "Representative Portfolio 1",
+        "type": "representative",
+        "hasFullAccess": true,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=2",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      },
+      {
+        "id": "3",
+        "name": "Association Portfolio 1",
+        "type": "association",
+        "hasFullAccess": true,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=3",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      },
+      {
+        "id": "4",
+        "name": "Applicant Portfolio 2",
+        "type": "applicant",
+        "hasFullAccess": false,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=4",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      },
+      {
+        "id": "5",
+        "name": "Representative Portfolio 2",
+        "type": "representative",
+        "hasFullAccess": false,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=5",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      },
+      {
+        "id": "6",
+        "name": "Association Portfolio 2",
+        "type": "association",
+        "hasFullAccess": false,
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/applications?portfolioId=6",
+            "title": "Applications",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "applications"
+          }
+        ]
+      }
+    ],
+    "totalElements": 6
+  }
+}

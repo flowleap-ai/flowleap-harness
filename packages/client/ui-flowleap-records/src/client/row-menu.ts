@@ -1,5 +1,6 @@
 /**
- * The context menu of an intake row, contributed to `ui-context-menu`: Open, Accept and file on the proposed
+ * The row context menus, contributed to `ui-context-menu`. A My work row has Open, Open matter and Copy link (decision
+ * B9). The context menu of an intake row has Open, Accept and file on the proposed
  * matter, File on another matter and Not relevant, each with the command whose key it shows (R16). A key in the open
  * menu acts on that row. The two acts that need a person's input open the letter at its step. Copy link writes the
  * address of the open letter. Each act has its icon, as the mockup's context menu draws it.
@@ -11,6 +12,7 @@ import type { MenuAction } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import {
   IconArchiveOutlineRegular, IconCheckOutlineRegular, IconCloseOutlineRegular, IconLinkOutlineRegular, IconRightUpOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { routeOfAct } from './address.ts'
 import { createAct, type DocumentId, type FileNumber, type IntakeView } from './api.ts'
 import { commandId } from './keys.ts'
 import type { RecordsModel, Route } from './model.ts'
@@ -25,10 +27,20 @@ export interface IntakeRowTarget {
   readonly proposed: FileNumber | null
 }
 
+/** The target of a My work row's context menu. */
+export interface WorkRowTarget {
+  /** The task's record address, which names the page of its object. */
+  readonly act: string
+  /** The task's matter; Open matter shows only with one. */
+  readonly fileNumber: FileNumber | null
+}
+
 declare module '@deepseek-ai/dsh-client-ui-context-menu/client' {
   interface ContextMenuTargetMap {
     /** An intake row of the Matters panel. */
     'records.intake-row': IntakeRowTarget
+    /** A task row of My work. */
+    'records.work-row': WorkRowTarget
   }
 }
 
@@ -88,6 +100,58 @@ export function rowActions(model: Pick<RecordsModel, 'navigate' | 'perform'>, t:
       },
     },
   ]
+}
+
+/** What the My work row menu does. */
+export interface WorkRowMenuActs {
+  /** Go to a route in the My work panel. */
+  readonly navigate: (route: Route) => void
+  /** Open a route in the Matters panel. */
+  readonly openInMatters: (route: Route) => void
+  /** The address of a route in the My work panel. */
+  readonly linkOf: (route: Route) => string
+}
+
+/**
+ * The acts of a My work row: Open, Open matter (with a matter) and Copy link.
+ * @param acts - navigation and addresses.
+ * @param t - the translate function.
+ * @param row - the row.
+ * @returns the menu acts; none for a task whose record address names no page.
+ */
+export function workRowActions(acts: WorkRowMenuActs, t: Translate, row: WorkRowTarget): MenuAction[] {
+  const route = routeOfAct(row.act)
+  if (route === null) return []
+  const { fileNumber } = row
+  return [
+    { id: 'open', label: t('act.open'), icon: icon('records.row.open'), commandId: commandId('open'), keyText: 'keycap' as const, run: () => { acts.navigate(route) } },
+    ...(fileNumber === null ? [] : [{
+      id: 'open-matter', label: t('mywork.act.openMatter'), icon: icon('records.row.otherMatter'), commandId: commandId('goMatter'), keyText: 'keycap' as const,
+      run: () => { acts.openInMatters({ view: 'matter', fileNumber }) },
+    }]),
+    {
+      id: 'copy-link',
+      label: t('intake.act.copyLink'),
+      icon: icon('records.row.copyLink'),
+      separatorBefore: true,
+      failureLabel: t('intake.copyFailed'),
+      run: async () => {
+        if (!await copyLink(acts.linkOf(route))) throw new Error('records: the clipboard refused the link')
+      },
+    },
+  ]
+}
+
+/**
+ * Contribute the My work row menu.
+ * @param ctx - the browser context with `contextMenus`.
+ * @param acts - navigation and addresses.
+ * @param t - the translate function.
+ */
+export function registerWorkRowMenu(ctx: Context, acts: WorkRowMenuActs, t: Translate): void {
+  ctx.effect(() => ctx.contextMenus.register({
+    id: 'records.work-row', target: 'records.work-row', order: 0, resolve: row => workRowActions(acts, t, row),
+  }), 'ui-flowleap-records: My work row menu')
 }
 
 /**

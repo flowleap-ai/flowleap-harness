@@ -24,10 +24,12 @@ export type Mode =
   | 'ci-lint-contracts-ready'
   | 'ci-coverage'
   | 'ci-unit'
+  | 'ci-unit-changed'
   | 'ci-bench'
   | 'ci-snapshot'
   | 'ci-artifacts'
   | 'ci-consumers'
+  | 'ci-web-snapshot'
   | 'ci-windows-blocking'
   | 'ci-windows-complete'
   | 'ci-windows-observational-ready'
@@ -165,10 +167,12 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-lint-contracts-ready':
     case 'ci-coverage':
     case 'ci-unit':
+    case 'ci-unit-changed':
     case 'ci-bench':
     case 'ci-snapshot':
     case 'ci-artifacts':
     case 'ci-consumers':
+    case 'ci-web-snapshot':
     case 'ci-windows-blocking':
     case 'ci-windows-complete':
     case 'ci-windows-observational-ready':
@@ -182,7 +186,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-unit-changed | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-web-snapshot | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -235,7 +239,7 @@ export function ciWorkerEnvironment(
   // DSH_COVERAGE_PARTITIONS; the oxlint contract spawns run-oxlint, which
   // reads DSH_OXLINT_THREADS), so the aggregate leaves the environment as
   // `pnpm run test` finds it.
-  if (!mode.startsWith('ci-') || mode === 'ci-unit') return {}
+  if (!mode.startsWith('ci-') || mode === 'ci-unit' || mode === 'ci-unit-changed') return {}
   const budget = defaultParallelism(env, cpus)
   const testBudget = defaultParallelism(env, cpus, LOCAL_TEST_PARALLELISM_CAP)
   const additions: Record<string, string> = {}
@@ -330,6 +334,8 @@ export function gatesForMode(selected: Mode): Gate[] {
       return coverageGates()
     case 'ci-unit':
       return ciUnitGates()
+    case 'ci-unit-changed':
+      return ciUnitGates(unitChangedBase())
     case 'ci-bench':
       return [pnpmExec('bench', ['tsx', 'scripts/run-ci-bench.ts'], { label: 'performance benchmarks' })]
     case 'ci-snapshot':
@@ -338,6 +344,9 @@ export function gatesForMode(selected: Mode): Gate[] {
       return ciArtifactGates()
     case 'ci-consumers':
       return ciConsumerGates()
+    case 'ci-web-snapshot':
+      // The browser lane runs in its own sharded job and owns its build.
+      return [ciArtifactBuildGate(), webSnapshotGate(['build'])]
     case 'ci-windows-blocking':
       return ciWindowsBlockingGates()
     case 'ci-windows-complete':
@@ -546,17 +555,6 @@ function ciArtifactGates(): Gate[] {
 
 function ciConsumerGates(): Gate[] {
   const builtTree = ['build']
-  // The HMR web test starts `dev:web`, which rewrites the shared `lib/` and
-  // `apps/web/dist/` trees. Let every build-artifact reader settle before that
-  // writer starts; `after` preserves the web diagnostic even if a reader fails.
-  const buildArtifactReaders = [
-    'publint',
-    'snapshot',
-    'expected-output',
-    'doc-typecheck',
-    'node-next-types',
-    'built-bin-smoke',
-  ]
   return [
     ciArtifactBuildGate(),
     pnpmScript('node-compat', 'check:node-compat', {
@@ -566,7 +564,6 @@ function ciConsumerGates(): Gate[] {
     pnpmScript('publint', 'publint', { needs: builtTree }),
     snapshotGate(builtTree),
     expectedOutputGate(builtTree),
-    webSnapshotGate(builtTree, buildArtifactReaders),
     pnpmScript('doc-typecheck', 'doc-typecheck:contracts-ready', {
       needs: builtTree,
       env: { DSH_DOC_TYPECHECK_USE_BUILD_OUTPUT: '1' },
@@ -579,8 +576,7 @@ function ciConsumerGates(): Gate[] {
   ]
 }
 
-function webSnapshotGate(needs: string[], after?: string[]): Gate {
-  const order = after === undefined ? { needs } : { needs, after }
+function webSnapshotGate(needs: string[]): Gate {
   const workerRaw = process.env.DSH_WEB_SNAPSHOT_WORKERS
   if (workerRaw !== undefined && workerRaw !== '') {
     const workers = Number.parseInt(workerRaw, 10)
@@ -591,7 +587,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
       label: 'web browser snapshot',
       displayCommand: `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=${workers} pnpm run test:web:ci`,
       env: { DSH_SNAPSHOT: 'replay' },
-      ...order,
+      needs,
       streamOutput: true,
     })
   }
@@ -599,7 +595,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
     label: 'web browser snapshot',
     displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
     env: { DSH_SNAPSHOT: 'replay' },
-    ...order,
+    needs,
   })
 }
 
@@ -759,15 +755,28 @@ function coverageGates(platform: NodeJS.Platform = process.platform): Gate[] {
 // inherited environment, because a shared hosted runner delays cases that
 // inherit Vitest's defaults past them. Output streams so the job log keeps
 // per-file timestamps for a 15–30 minute run.
-function ciUnitGates(): Gate[] {
+function ciUnitGates(changedSince?: string): Gate[] {
+  const changed = changedSince === undefined ? [] : ['--changed', changedSince]
   return [
     pnpmScript('native-system', 'build:native-system'),
-    pnpmExec('unit', ['vitest', 'run'], {
+    pnpmExec('unit', ['vitest', 'run', ...changed], {
       label: 'test',
       needs: ['native-system'],
       streamOutput: true,
     }),
   ]
+}
+
+/**
+ * Read the commit that `ci-unit-changed` compares against. Vitest then runs only
+ * the tests whose module graph reaches a file changed since that commit.
+ */
+function unitChangedBase(): string {
+  const base = process.env.DSH_UNIT_CHANGED_BASE
+  if (base === undefined || base === '') {
+    throw new Error('run-gates: ci-unit-changed requires DSH_UNIT_CHANGED_BASE, the commit to compare against.')
+  }
+  return base
 }
 
 // Recorded-session adapters boot process scenarios in `lib` mode. Callers wait

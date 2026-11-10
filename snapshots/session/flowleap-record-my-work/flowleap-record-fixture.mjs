@@ -1,8 +1,8 @@
 /**
  * The Firm Record with the work of one person as the `flowleapRecord` service: the local admin at record position 45,
  * who has no display name yet (`person.name: null`), with two matters (one the admin is responsible for, with a proposed
- * deadline; one in the admin's team, with no open deadline) and three items of work, the last of a kind (`send-report`)
- * that the harness does not know. The Firm Record answers no matter view in this scenario.
+ * deadline; one in the admin's team, with no open deadline), the first line of My work, and three open tasks, the last of a
+ * kind (`day-check`) that the harness does not know. The Firm Record answers no matter view in this scenario.
  */
 
 /** Cordis plugin name. */
@@ -13,12 +13,17 @@ const DEADLINE_ID = '0b2d5a8e-4c1f-4e7a-9f31-6d2b8c9e1a57'
 const work = Object.freeze({
   recordSeq: 45,
   person: { id: 'admin', name: null },
+  summary: { lettersArrived: 1, needYou: 3, overdue: 1, today: 1, later: 1 },
   work: [
     {
       id: `confirm-deadline:${DEADLINE_ID}`,
+      task: '5f0c3d2e-1b4a-4c8d-9e7f-2a3b4c5d6e7f',
       kind: 'confirm-deadline',
       title: 'Confirm the deadline',
-      why: 'The deadline is proposed and needs a second person; you did not record its office event or decide its code, so you may confirm it.',
+      why: 'You are the formalities person of the matter.',
+      state: 'assigned',
+      group: 'overdue',
+      dueAt: '2026-11-07T10:00:00.000Z',
       matter: { fileNumber: 'FL-2026-0001', title: 'Heat pump control' },
       due: '2026-03-02',
       since: '2026-11-06T10:00:00.000Z',
@@ -26,25 +31,34 @@ const work = Object.freeze({
     },
     {
       id: 'decide-office-event:oe-2',
+      task: '6a1d4e3f-2c5b-4d9e-8f0a-3b4c5d6e7f80',
       kind: 'decide-office-event',
-      title: 'Decide the office event',
-      why: 'A letter of the office is filed in your matter and waits for a decision on its event.',
+      title: 'Check the office event',
+      why: 'You are the formalities person of the matter.',
+      state: 'escalated',
+      group: 'today',
+      dueAt: '2026-11-07T11:30:00.000Z',
       matter: { fileNumber: 'FL-2026-0002', title: 'Pump seal' },
       due: null,
       since: '2026-11-06T11:30:00.000Z',
       act: 'work/oe-2',
     },
     {
-      id: 'send-report:tk-9',
-      kind: 'send-report',
-      title: 'Send the report',
-      why: 'A report to the client is ready and needs your approval to go out.',
-      matter: { fileNumber: 'FL-2026-0001', title: 'Heat pump control' },
+      id: 'day-check:2026-11-09',
+      task: '7b2e5f40-3d6c-4e0f-9a1b-4c5d6e7f8091',
+      kind: 'day-check',
+      title: 'Check the deadlines due today',
+      why: 'You check the deadlines of the firm at the end of each working day.',
+      state: 'assigned',
+      group: 'later',
+      matter: null,
       due: null,
+      dueAt: '2026-11-09T17:00:00.000Z',
       since: '2026-11-06T12:00:00.000Z',
-      act: 'report/tk-9',
+      act: 'deadlines/today',
     },
   ],
+  inSight: [],
   matters: [
     {
       fileNumber: 'FL-2026-0001',

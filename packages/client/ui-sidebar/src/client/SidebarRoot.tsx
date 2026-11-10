@@ -18,7 +18,7 @@
  * scrollbar indirection away while it is elsewhere, so a list the user is not
  * pointing at carries no bar.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   FishLogo, IconAppsAddOutlineRegular, IconNewChatOutlineMedium, IconNewChatOutlineRegular,
@@ -62,7 +62,7 @@ type PanelRowProps =
   & Pick<PropsRuntime<'sidebar'>, 'usePanelInfo'>
   & Pick<InjectFace<SidebarRootInjected>, 'selectPanel' | 'trackEntryClick' | 'setPinned'>
   & { readonly unpinLabel: string; readonly unpinTooltip: string; readonly canUnpin: boolean }
-  & PropsRenderFactories
+  & PropsRenderFactories & PropsRenderSlots<'sidebar.panellist.count'>
 
 /** Analytics category of an official panel; other panels are never reported. */
 function officialEntry(id: string): 'plugin' | 'cron' | undefined {
@@ -73,8 +73,10 @@ function officialEntry(id: string): 'plugin' | 'cron' | undefined {
 /** Each panel row subscribes only to its own selection state. */
 function PanelRow({
   id, label, wide, unpinLabel, unpinTooltip, canUnpin, usePanelInfo, selectPanel, setPinned, trackEntryClick, renderFactorySlot,
+  renderSlot,
 }: PanelRowProps) {
   const active = usePanelInfo(info => info.activePanelId === id)
+  const countId = useId()
   return (
     <div className={clsx(css.panelEntry, wide && css.panelEntryWide, active && css.panelEntryActive)}>
       <Tooltip label={label} delayMs={500} disabled={wide}>
@@ -83,6 +85,7 @@ function PanelRow({
           className={css.panelRow}
           aria-label={label}
           aria-current={active ? 'page' : undefined}
+          aria-describedby={wide ? countId : undefined}
           onClick={() => {
             const entry = officialEntry(id)
             if (entry !== undefined) trackEntryClick({ menu_name: entry, position: 'sidebar' })
@@ -97,6 +100,7 @@ function PanelRow({
               {label}
             </span>
           )}
+          {wide && <span id={countId} className={css.panelCount}>{renderSlot('sidebar.panellist.count', {}, { only: id })}</span>}
         </button>
       </Tooltip>
       {wide && canUnpin && <Tooltip label={unpinTooltip} side="bottom" align="end" delayMs={500} portal>
@@ -433,6 +437,7 @@ export function SidebarRoot({
                   selectPanel={selectPanel}
                   trackEntryClick={trackEntryClick}
                   renderFactorySlot={renderFactorySlot}
+                  renderSlot={renderSlot}
                 />
               ))}
               {hasEntryActions && (

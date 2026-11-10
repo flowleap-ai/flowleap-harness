@@ -178,6 +178,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/host/flowleap-budget': { kind: 'none', reason: 'The flowleapBudget Remote reads the model gateway for the browser only; the read never reaches a model request.' },
   'packages/client/ui-flowleap-dashboard': { kind: 'none', reason: 'Browser-side dashboard page, panels, and sidebar layers; the ask bar only fills a new chat composer.' },
   'packages/client/ui-flowleap-routines': { kind: 'none', reason: 'Browser-side Needs review badge, page, and filter over the flowleapRoutines Remote; registers no model surface.' },
+  'packages/client/ui-flowleap-folder': { kind: 'none', reason: 'Clients launcher, client folder page and folder routes; Ask about this only drafts prompt text that the person sends.' },
   'packages/client/ui-flowleap-records': { kind: 'none', reason: 'Browser-side Matters launcher and page that embed the Firm Record\'s pages; registers no model surface.' },
   'packages/client/ui-flowleap-work-pages': { kind: 'none', reason: 'Browser-side office action board with sample data; registers no model surface.' },
   'packages/client/ui-plan': { kind: 'indirect', reason: 'The chip dispatches /plan off; dsh-plan-mode owns the model-visible policy, exit tool, and logged state.' },

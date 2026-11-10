@@ -26,6 +26,7 @@ export const COMMANDS = {
   next: 'records.list.next',
   previous: 'records.list.previous',
   select: 'records.list.select',
+  find: 'records.find',
 } as const satisfies Record<string, string>
 
 /** An act with a command. */

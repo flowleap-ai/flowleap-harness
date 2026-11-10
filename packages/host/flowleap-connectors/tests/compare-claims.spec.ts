@@ -110,9 +110,9 @@ describe('compare_claims', () => {
     expect(result.value).toEqual({
       error: 'missing_credentials',
       connector: 'epo-ops',
-      message: 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.',
+      message: 'EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.',
     })
-    expect(result.content).toEqual([{ type: 'text', text: 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.' }])
+    expect(result.content).toEqual([{ type: 'text', text: 'EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.' }])
     expect(routed).toEqual([])
     expect(fetchSpy).not.toHaveBeenCalled()
   })
@@ -247,7 +247,7 @@ describe('compare_claims', () => {
     const refused = await call({ userClaim: 'A device.', patentNumbers: ['EP-1000000-A1', 'EP-2000000-A1'] })
     expect(refused.isError).toBe(false)
     expect(refused.value).toMatchObject({ error: 'missing_credentials', connector: 'epo-ops' })
-    expect(textOf(refused.content[0])).toBe('EPO OPS rejected the stored key. Replace it in Settings > Patent data connectors > EPO OPS.')
+    expect(textOf(refused.content[0])).toBe('EPO OPS rejected the stored key. Replace it in Settings > Connectors > EPO OPS.')
 
     routed.splice(0)
     const many = Array.from({ length: COMPARE_CLAIMS_MAX_PATENTS + 2 }, () => 'EP-2000000-A1')
@@ -296,7 +296,7 @@ describe('compare_claims', () => {
     await store.write('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
     const result = await call({ userClaim: 'A device.', patentNumbers: ['EP-1000000-A1'] })
     expect(result.isError).toBe(false)
-    expect(textOf(result.content[0])).toBe('EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.')
+    expect(textOf(result.content[0])).toBe('EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.')
   })
 
   it('reads unnumbered claims, reports an empty claim set as no claims returned, and fails on a router error', async () => {

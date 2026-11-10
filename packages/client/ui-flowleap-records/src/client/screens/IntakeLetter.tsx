@@ -5,31 +5,33 @@
  * offers follows the letter's atlas state and whether the person may decide (`letterDecision`).
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
-  Avatar, Button, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular,
-  IconInfoOutlineRegular, IconPaperclipOutlineRegular, IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular,
+  Avatar, Button, IconAlarmClockOutlineRegular, IconCheckOutlineRegular, IconCloseOutlineRegular, IconFolderOpenOutlineRegular,
+  IconEditOutlineRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { Command, IntakeDocument, IntakeView, MatterRef, Person, Span } from '../api.ts'
+import type { Command, IntakeDocument, IntakeView, IsoDate, MatterRef, Person, Span } from '../api.ts'
 import type { ActsResult } from '../model.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import type { IntakeStep } from '../model.ts'
-import { ActButton } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
-import { DetailHeader, KeyProperties, PropertiesPanel, WorkColumn, type Property } from '../parts/Layout.tsx'
+import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
+import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { formatApplicationNumber, formatDate } from '../format.ts'
-import { avatarOf, fromOffice, letterTitle, listTimeText, officeName, personName } from '../words.ts'
+import { formatApplicationNumber, formatDate, listTime } from '../format.ts'
+import type { FlowleapRecordsKey } from '../locales.ts'
+import { avatarOf, fromOffice, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
-import { letterLines } from '../letter-text.ts'
 import { copyLink } from './links.ts'
 import { decisionHeading, failureNotice, formNumberAudit, RecordActivity } from './shared.tsx'
+import { formatDay } from './detail.tsx'
 import css from './Intake.module.css'
+import detail from './Detail.module.css'
 
 /** What the decision bar of a letter offers. */
 export type LetterDecision =
@@ -41,8 +43,20 @@ export type LetterDecision =
   | { readonly kind: 'other-team' }
   /** The reading of an office event waits for a person: record it. */
   | { readonly kind: 'code' }
+  /**
+   * The scan has no reading: the person reads the page and enters the office event, which also files the scan. The
+   * Records API has no command for it yet, so the bar shows the step and blocks its act.
+   */
+  | { readonly kind: 'hand' }
   /** No act for this person now: the bar says who decides, or that the letter waits. */
   | { readonly kind: 'none'; readonly why: string }
+  /**
+   * The letter is filed and FlowLeap reads its office event before a person checks it: the person's filing is done,
+   * so the bar says so and what comes next.
+   */
+  | { readonly kind: 'filed'; readonly fileNumber: MatterRef['fileNumber'] }
+  /** The letter is filed and its office event recorded: the deadline page has the next decision, so no bar shows. */
+  | { readonly kind: 'done' }
 
 /**
  * The decision that the bar of a letter offers.
@@ -52,13 +66,98 @@ export type LetterDecision =
  */
 export function letterDecision(ctx: ScreenContext, letter: IntakeDocument): LetterDecision {
   const may = letter.mayDecide
+  if (letter.status.machine === 'deadline' && letter.status.state !== 'code_proposed' && letter.status.state !== 'awaiting_code') return { kind: 'done' }
   if (!may.allowed) {
+    if (may.reason === 'not-ready' && letter.filed !== null) return { kind: 'filed', fileNumber: letter.filed.fileNumber }
     if (may.reason === 'not-in-team') return { kind: 'other-team' }
     if (may.reason === 'not-ready') return { kind: 'none', why: ctx.t('intake.decision.notReady') }
     return { kind: 'none', why: may.decider === null ? ctx.t('decision.notYours') : ctx.t('decision.decider', { person: personName(ctx.t, may.decider) }) }
   }
   if (letter.status.machine === 'deadline') return { kind: 'code' }
+  // The card offers the hand entry (`entry`) for a scan with no reading, and for a letter whose office event no reader
+  // could tell.
+  if (letter.entry !== null || letter.status.state === 'unreadable') return { kind: 'hand' }
   return letter.status.state === 'match_proposed' && letter.proposed !== null ? { kind: 'match', proposed: letter.proposed } : { kind: 'pick' }
+}
+
+/** One date that a reader read, with the reading it comes from. */
+interface DateChoice {
+  readonly source: 'text' | 'image'
+  readonly date: IsoDate
+}
+
+/**
+ * The two dates of a letter whose readings differ on its date, so the person chooses the date that the letter bears.
+ * @param letter - the letter.
+ * @returns the date from the text and the date from the page image, or null when the card has no second reading or
+ * the readings agree on the date.
+ */
+export function differingDates(letter: Pick<IntakeDocument, 'readers'>): readonly [DateChoice, DateChoice] | null {
+  const text = letter.readers.code?.result?.documentDate ?? null
+  const image = letter.readers.model?.result?.documentDate ?? null
+  return text === null || image === null || text === image ? null : [{ source: 'text', date: text }, { source: 'image', date: image }]
+}
+
+/**
+ * Whether reader 1 could not read the letter (a scan with no text), so any code on the card is a person's entry.
+ * @param letter - the letter.
+ * @returns true when the record holds the letter's `document/unreadable` event.
+ */
+function readNothing(letter: Pick<IntakeDocument, 'activity'>): boolean {
+  return letter.activity.some(event => event.type === 'document/unreadable')
+}
+
+/**
+ * Whether reader 1 read the date or the application number of a letter whose office event it could not tell: the
+ * record sends such a letter to the hand entry with what reader 1 read (`entry.read`), so the entry starts from it.
+ * @param letter - the letter.
+ * @returns true when the hand entry has read values.
+ */
+function readValues(letter: Pick<IntakeDocument, 'entry'>): boolean {
+  return letter.entry?.read != null
+}
+
+/** The words after "What FlowLeap read", by how the readings came out, so the heading is true in every state (B3). */
+const READING_HEADINGS: Readonly<Record<IntakeDocument['readers']['outcome'], FlowleapRecordsKey>> = {
+  'agree': 'letter.readTwice',
+  'differ': 'letter.readTwice',
+  'one-reading': 'letter.readOnce',
+  'no-reading': 'letter.readNone',
+}
+
+/** The lede's sentence on the readings of a scan, by their outcome; none when FlowLeap read nothing. */
+const OUTCOME_LEDES: Readonly<Record<IntakeDocument['readers']['outcome'], FlowleapRecordsKey | null>> = {
+  'agree': 'intake.lede.readAgree',
+  'differ': 'intake.lede.readDiffer',
+  'one-reading': 'intake.lede.readOnce',
+  'no-reading': null,
+}
+
+/** The lede words of a letter that names no forwarder, by its route. */
+const LEDE_WORDS = {
+  'scan-mailbox': { today: 'intake.lede.scan', on: 'intake.lede.scanOn', yesterday: 'intake.lede.scanYesterday' },
+  'myepo': { today: 'intake.lede.myepo', on: 'intake.lede.myepoOn', yesterday: 'intake.lede.myepoYesterday' },
+} as const
+
+/**
+ * The first sentences of the lede: who forwarded the letter, or, for a letter from the firm's scan mailbox or MyEPO Mailbox
+ * (which name no forwarder), when it came and how FlowLeap's readings came out.
+ * @param ctx - the screen context.
+ * @param letter - the letter.
+ * @returns the sentences, or null for a forward from nobody that the os names.
+ */
+function arrivalOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
+  const { t } = ctx
+  const { mail, readers } = letter
+  if (mail.route === 'forward') return mail.forwarder === null ? null : t('item.forwarded', { person: personName(t, mail.forwarder) })
+  const outcome = OUTCOME_LEDES[readers.outcome]
+  // Today it came "at 08:00"; on an earlier day it came "on 5 Nov" or "yesterday".
+  const when = listTime(mail.receivedAt, ctx.now, ctx.locale, ctx.timeZone)
+  const words = LEDE_WORDS[mail.route]
+  const scan = when.kind === 'today'
+    ? t(words.today, { time: when.text })
+    : when.kind === 'yesterday' ? t(words.yesterday) : t(words.on, { date: when.text })
+  return outcome === null ? scan : `${scan} ${t(outcome)}`
 }
 
 /** One reason that FlowLeap gives for its reading or its proposal. */
@@ -88,10 +187,19 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
   const { t } = ctx
   const reasons: Reason[] = []
   if (letter.status.machine === 'intake' && letter.status.state === 'unreadable') {
-    reasons.push({ key: 'unreadable', ok: false, text: t('intake.reason.unreadable') })
+    reasons.push({ key: 'unreadable', ok: false, text: t(readValues(letter) ? 'intake.reason.noCode' : 'intake.reason.unreadable') })
   }
   const reference = letter.fields.reference
-  if (reference === undefined) {
+  const number = letter.fields.applicationNumber
+  if (letter.proposed?.matchedBy === 'application-number' && number !== undefined) {
+    reasons.push({
+      key: 'application',
+      ok: true,
+      text: <>{t('intake.reason.application', { page: number.span.page, number: formatApplicationNumber(number.value) })} {quote(ctx, number.span)}</>,
+    })
+  } else if (letter.filed !== null) {
+    // A filed letter's matter is in the lede; the search for a matter by its reference no longer applies.
+  } else if (reference === undefined) {
     if (letter.status.machine === 'intake' && letter.status.state === 'unmatched') reasons.push({ key: 'reference', ok: false, text: t('intake.reason.noReference') })
   } else {
     reasons.push({ key: 'reference', ok: true, text: <>{t('intake.reason.reference', { page: reference.span.page })} {quote(ctx, reference.span)}</> })
@@ -102,24 +210,102 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
       text: matters === 1 ? t('intake.reason.oneMatter') : matters === 0 ? t('intake.reason.noMatter') : t('intake.reason.matters', { count: matters }),
     })
   }
-  if (letter.code !== null) {
+  // A scan that reader 1 could not read got its code from a person's hand entry, which is no reading of FlowLeap.
+  if (letter.code !== null && !readNothing(letter)) {
     const office = letter.office ?? letter.code.replace(/:.*$/u, '')
     const words = { title: letterTitle(t, letter.code), from: fromOffice(t, office) }
     // The title line's span supports the kind; the date has its own. A reading without a title quotes nothing for the
     // kind: the form code is not the person's word (R19) and shows only in Audit.
     const { title, documentDate: date } = letter.fields
-    const dated = date === undefined ? null : <>{t('intake.reason.dated')} {quote(ctx, date.span)}</>
+    const sentence = letter.documentDate === null
+      ? t('intake.reason.kind', words)
+      : t('intake.reason.kindOf', { ...words, date: formatDate(letter.documentDate, ctx.locale) })
+    // The sentence comes first and each quote under it, so no clause breaks onto a line of its own.
     reasons.push({
       key: 'kind',
       ok: true,
-      text: title !== undefined
-        ? <>{t('intake.reason.kindQuoted', words)} {quote(ctx, title.span)}{dated}</>
-        : date === undefined
-          ? t('intake.reason.kind', words)
-          : <>{t('intake.reason.kindDated', words)} {quote(ctx, date.span)}</>,
+      text: (
+        <>
+          {sentence}
+          {[title, date].flatMap(field => field === undefined ? [] : [<span key={field.span.start}>{quote(ctx, field.span)}</span>])}
+        </>
+      ),
     })
+  } else if (letter.code === null && !readNothing(letter) && letter.status.machine === 'intake' && letter.status.state !== 'unreadable') {
+    reasons.push({ key: 'kind', ok: false, text: t('intake.reason.noCode') })
   }
   return reasons
+}
+
+/**
+ * The title of a letter page and its breadcrumb: its office event, or, for a letter whose office event no reader could
+ * tell, the date it bears.
+ * @param ctx - the screen context.
+ * @param letter - the letter.
+ * @returns the title.
+ */
+export function letterPageTitle(ctx: Pick<ScreenContext, 't' | 'locale'>, letter: IntakeDocument): string {
+  const date = letter.documentDate ?? letter.entry?.read?.documentDate ?? isoDateOf(letter.fields.documentDate?.value)
+  if (letter.code === null && date !== null) return ctx.t('letter.titleOf', { date: formatDay(date, ctx.locale) })
+  // A letter with read values but no office event is no scan without text: its title is the plain kind.
+  return letterTitle(ctx.t, letter.code, readValues(letter) ? undefined : letter.status)
+}
+
+/**
+ * A date that reader 1 quoted, when it is a calendar date.
+ * @param value - the quoted value.
+ * @returns the date, or null.
+ */
+function isoDateOf(value: string | undefined): IsoDate | null {
+  return value !== undefined && /^\d{4}-\d{2}-\d{2}$/u.test(value) ? value as IsoDate : null
+}
+
+/**
+ * What comes after a recorded office event: who confirms its deadline (the owner of the open Confirm the deadline
+ * task), or that the deadline is confirmed or rejected.
+ * @param ctx - the screen context.
+ * @param deadline - the deadline of the letter's office event, or null before the engine proposed one.
+ * @returns the sentence.
+ */
+function doneDetail({ t }: ScreenContext, deadline: IntakeDocument['deadline']): string {
+  if (deadline === null) return t('letter.done.confirm')
+  switch (deadline.state) {
+    case 'active': return t('letter.done.active')
+    case 'rejected': return t('letter.done.rejected')
+    default: return deadline.confirmer === null ? t('letter.done.confirm') : t('letter.done.confirmBy', { person: personInText(t, deadline.confirmer) })
+  }
+}
+
+/**
+ * Who the letter waits for, by the bar's decision: the person when the decision is theirs, FlowLeap while it reads a
+ * filed letter, nobody once it is done.
+ * @param decision - the decision of the bar.
+ * @returns the text key of the line after the eyebrow pill.
+ */
+function sinceKey(decision: LetterDecision): FlowleapRecordsKey {
+  switch (decision.kind) {
+    case 'filed': return 'letter.waitsFlowLeap'
+    case 'done': return 'letter.doneSince'
+    case 'match':
+    case 'pick':
+    case 'code':
+    case 'hand': return 'item.sinceYou'
+    default: return 'item.since'
+  }
+}
+
+/**
+ * Why the person may decide, at the right of the bar's header: the person's part in the matter, as the mockups word
+ * it. The firm role names it; the card names no role of the person in the matter.
+ * @param ctx - the screen context.
+ * @param decision - the decision of the bar.
+ * @param matter - the proposed or filed matter.
+ * @returns the line, or undefined when the decision is not this person's.
+ */
+function whyLine(ctx: ScreenContext, decision: LetterDecision, matter: MatterRef['fileNumber'] | null): string | undefined {
+  if (decision.kind === 'none' || decision.kind === 'other-team') return undefined
+  if (ctx.me?.role === 'formalities' && matter !== null) return ctx.t('letter.why.formalities', { matter })
+  return ctx.t(decision.kind === 'code' ? 'letter.why.record' : 'intake.decision.why')
 }
 
 /**
@@ -134,10 +320,12 @@ function ledeOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
   const status = letter.status
   if (status.machine === 'deadline') return status.state === 'code_proposed' ? t('intake.lede.codeProposed') : null
   switch (status.state) {
-    case 'match_proposed': return t('intake.lede.matchProposed', { page: letter.fields.reference?.span.page ?? 1 })
+    case 'match_proposed': return letter.proposed?.matchedBy === 'application-number'
+      ? t('intake.lede.matchApplication', { page: letter.fields.applicationNumber?.span.page ?? 1 })
+      : t('intake.lede.matchProposed', { page: letter.fields.reference?.span.page ?? 1 })
     case 'unmatched': return t('intake.lede.unmatched')
     case 'ambiguous': return t('intake.lede.ambiguous')
-    case 'unreadable': return t('intake.lede.unreadable')
+    case 'unreadable': return t(readValues(letter) ? 'intake.lede.noCode' : 'intake.lede.unreadable')
     case 'kind_proposed': return t('intake.lede.kindProposed')
     case 'duplicate_proposed': return t('intake.lede.duplicateProposed')
     case 'not_relevant': return t('intake.lede.notRelevant')
@@ -146,55 +334,15 @@ function ledeOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
 }
 
 /**
- * Render a person or nobody as an avatar and the name: the display name, or the words for a person the os does not
- * name, such as a forwarder outside the team.
+ * Render a person as an avatar and the name: the display name, or the words for a person the os does not name.
  * @param props.ctx - the screen context.
  * @param props.person - the person.
  * @returns the person.
  */
-function Who({ ctx, person }: { ctx: ScreenContext; person: Person | null }) {
-  return person === null
-    ? <>{ctx.t('matter.none')}</>
-    : <span className={css.who}><Avatar person={avatarOf(ctx.t, person)} nameShown />{personName(ctx.t, person)}</span>
+function Who({ ctx, person }: { ctx: ScreenContext; person: Person }) {
+  return <span className={css.who}><Avatar person={avatarOf(ctx.t, person)} nameShown />{personName(ctx.t, person)}</span>
 }
 
-/**
- * Render a drawing of the letter from what reader 1 read: the lines of the page that hold the read values, in the
- * letter's own words and in every UI language, with each read value marked (`letterLines`). It is a picture of the
- * source, so its text is exempt from the deny-list (`data-verbatim`); it never translates or names the letter.
- * @param props.ctx - the screen context.
- * @param props.letter - the letter.
- * @param props.onOpen - open the PDF.
- * @returns the drawing with its page caption and Open the letter.
- */
-export function LetterDrawing({ ctx, letter, onOpen }: { ctx: ScreenContext; letter: IntakeDocument; onOpen: () => void }) {
-  const { t } = ctx
-  const { title, formNumber, documentDate, applicationNumber, reference } = letter.fields
-  const read = [title, formNumber, documentDate, reference, applicationNumber].flatMap(field => field === undefined ? [] : [field.span])
-  const page = reference?.span.page ?? title?.span.page ?? formNumber?.span.page ?? 1
-  return (
-    <figure className={css.paper}>
-      <div className={css.letter} data-fdl-part="letter" data-verbatim="" aria-label={t('intake.letter.label', { page })} role="img">
-        <div className={css.logo} />
-        {letterLines(read).map(line => (
-          <div key={line.key} className={css.letterLine}>
-            {line.cells.map((cell, index) => (
-              <span key={index}>
-                {cell.map((run, place) => run.read ? <mark key={place} className={css.hl}>{run.text}</mark> : run.text)}
-              </span>
-            ))}
-          </div>
-        ))}
-        <div className={css.line} />
-        <div className={css.line} />
-      </div>
-      <figcaption className={css.paperCap}>
-        <span>{letter.pages === null ? t('intake.letter.pageUnknown', { page }) : t('intake.letter.page', { page, count: letter.pages })}</span>
-        <ActButton act={actOf(ctx, 'openLetter', t('intake.act.openLetter'), onOpen, { icon: <IconRightUpOutlineRegular size={16} /> })} rank="tertiary" />
-      </figcaption>
-    </figure>
-  )
-}
 
 /**
  * Render the matter picker of the Other matter step: only the matters that the person may see, and a footer that
@@ -239,6 +387,106 @@ function MatterPicker({ ctx, matters, picked, open, onOpenChange, onPick }: {
   )
 }
 
+/** What the person enters from the page of a scan with no reading. */
+export interface HandValues {
+  readonly fileNumber: string
+  readonly applicationNumber: string
+  readonly code: string
+  readonly documentDate: string
+}
+
+/**
+ * The filing act of a hand entry, or null while a value is missing.
+ * @param letter - the letter.
+ * @param values - what the person entered.
+ * @returns the command.
+ */
+export function handCommand(letter: Pick<IntakeDocument, 'document' | 'matters'>, values: HandValues): Command | null {
+  const matter = letter.matters.find(item => item.fileNumber === values.fileNumber)
+  const applicationNumber = values.applicationNumber.trim()
+  if (matter === undefined || applicationNumber === '' || values.code === '' || !/^\d{4}-\d{2}-\d{2}$/u.test(values.documentDate)) return null
+  return {
+    kind: 'intake.file', document: letter.document, fileNumber: matter.fileNumber, code: values.code,
+    documentDate: values.documentDate as IsoDate, applicationNumber,
+  }
+}
+
+/**
+ * Render the fields of the hand entry of a scan with no reading: the matter, the application number, the office
+ * event and the date of the letter, read from the page by the person. Filing the scan and recording its office event
+ * are one act of the decision bar.
+ * @param props.ctx - the screen context.
+ * @param props.letter - the letter.
+ * @param props.values - what the person entered.
+ * @param props.onChange - a field changed.
+ * @returns the fields.
+ */
+/**
+ * Who confirms the deadline of a hand entry on the matter that the person picked: before the filing the card names
+ * nobody, so this asks the record for the picked matter, and forgets the answer when the pick changes.
+ * @param ctx - the screen context.
+ * @param letter - the scan.
+ * @param fileNumber - the picked matter, or empty.
+ * @returns the next confirmer, or null before an answer or for no pick.
+ */
+function useHandConfirmer(ctx: ScreenContext, letter: IntakeDocument, fileNumber: string): IntakeDocument['nextConfirmer'] {
+  const [next, setNext] = useState<IntakeDocument['nextConfirmer']>(null)
+  const read = ctx.nextConfirmer
+  const picked = letter.entry === null ? undefined : letter.matters.find(matter => matter.fileNumber === fileNumber)?.fileNumber
+  useEffect(() => {
+    setNext(null)
+    if (picked === undefined) return undefined
+    const controller = new AbortController()
+    void read(letter.document, picked, controller.signal).then((result) => {
+      if (!controller.signal.aborted && result.ok) setNext(result.value)
+    })
+    return () => { controller.abort() }
+  }, [read, letter.document, picked])
+  return next
+}
+
+function HandEntryFields({ ctx, letter, values, onChange }: {
+  ctx: ScreenContext
+  letter: IntakeDocument
+  values: HandValues
+  onChange: (values: HandValues) => void
+}) {
+  const { t } = ctx
+  const codes = letter.entry?.codes ?? []
+  const set = (field: keyof HandValues) => (event: { currentTarget: { value: string } }) => {
+    onChange({ ...values, [field]: event.currentTarget.value })
+  }
+  return (
+    <section aria-label={t('letter.hand.heading')}>
+      <h2 className={css.subHeading}>{t('letter.hand.heading')}</h2>
+      <div className={css.fields}>
+        <label className={css.field}>
+          <span className={css.fieldKey}>{t('prop.matter')}</span>
+          <select className={css.input} name="fileNumber" value={values.fileNumber} onChange={set('fileNumber')}>
+            <option value="">{t('letter.hand.chooseMatter')}</option>
+            {letter.matters.map(matter => <option key={matter.fileNumber} value={matter.fileNumber}>{`${matter.fileNumber} ${matter.title}`}</option>)}
+          </select>
+        </label>
+        <label className={css.field}>
+          <span className={css.fieldKey}>{t('prop.application')}</span>
+          <input className={css.input} name="applicationNumber" autoComplete="off" value={values.applicationNumber} onChange={set('applicationNumber')} />
+        </label>
+        <label className={css.field}>
+          <span className={css.fieldKey}>{t('letter.hand.event')}</span>
+          <select className={css.input} name="code" value={values.code} onChange={set('code')} disabled={codes.length === 0}>
+            {codes.map(item => <option key={item.code} value={item.code}>{ctx.locale === 'de' ? item.title.de : item.title.en}</option>)}
+          </select>
+        </label>
+        <label className={css.field}>
+          <span className={css.fieldKey}>{t('letter.hand.date')}</span>
+          <input className={css.input} name="documentDate" type="date" value={values.documentDate} onChange={set('documentDate')} />
+          <span className={css.fieldHint}>{t('letter.hand.dateHint')}</span>
+        </label>
+      </div>
+    </section>
+  )
+}
+
 /**
  * Render one open letter with its decision.
  * @param props.ctx - the screen context.
@@ -258,11 +506,24 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const { t } = ctx
   const decision = letterDecision(ctx, letter)
   const canPick = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'other-team'
-  const canClose = decision.kind === 'match' || decision.kind === 'pick'
+  const canClose = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'hand'
   const [reasonOpen, setReasonOpenState] = useState(step === 'reason' && canClose)
   const [picking, setPicking] = useState((step === 'other-matter' && canPick) || decision.kind === 'pick')
   const [pickerOpen, setPickerOpen] = useState(step === 'other-matter' && canPick)
   const [picked, setPickedState] = useState<MatterRef | null>(null)
+  const dates = differingDates(letter)
+  // The hand entry starts from what reader 1 read (`entry.read`), with the matter that its application number names
+  // when the person may see it.
+  const entryRead = letter.entry?.read ?? null
+  const [hand, setHandState] = useState<HandValues>({
+    fileNumber: letter.matters.find(matter => matter.fileNumber === entryRead?.fileNumber)?.fileNumber ?? '',
+    applicationNumber: letter.applicationNumber ?? entryRead?.applicationNumber ?? '',
+    code: letter.entry?.codes[0]?.code ?? '',
+    documentDate: letter.documentDate ?? entryRead?.documentDate ?? '',
+  })
+  const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
+  const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
+  const [chosenDate, setChosenDate] = useState<IsoDate | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
   const settle = (sent: Promise<ActsResult | null>) => {
@@ -279,7 +540,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     setPickedState(matter)
     runner.clear()
   }
-  const title = letterTitle(t, letter.code, letter.status)
+  const title = letterPageTitle(ctx, letter)
   const reasons = reasonsOf(ctx, letter)
   const agree = reasons.filter(reason => reason.ok).length
   const agreePage = letter.fields.reference?.span.page ?? 1
@@ -294,17 +555,21 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const record = (() => {
     if (decision.kind === 'match' && !picking) return () => { match(decision.proposed.fileNumber) }
     if (canPick && picked !== null) return () => { match(picked.fileNumber) }
+    if (handAct !== null) return () => { decide(handAct) }
     if (decision.kind === 'code') {
       const event = letter.officeEvent
-      const { code, documentDate, applicationNumber } = letter
+      const { code, applicationNumber } = letter
+      const documentDate = dates === null ? letter.documentDate : chosenDate
       if (event === null || code === null || documentDate === null || applicationNumber === null) return null
       return () => { decide({ kind: 'officeEvent.decide', id: event.id, code, documentDate, applicationNumber }) }
     }
     return null
   })()
   const primaryLabel = decision.kind === 'code'
-    ? t('intake.act.recordEvent')
-    : picking && picked !== null ? t('intake.act.fileOn', { matter: picked.fileNumber }) : t('act.acceptFile')
+    ? t(dates === null ? 'intake.act.recordEvent' : 'act.recordDecision')
+    : decision.kind === 'hand'
+      ? t('letter.hand.act')
+      : picking && picked !== null ? t('intake.act.fileOn', { matter: picked.fileNumber }) : t('act.file')
   const matterOf = decision.kind === 'match' ? decision.proposed.fileNumber : letter.filed?.fileNumber ?? null
   useKeyActs(ctx, {
     openLetter,
@@ -365,6 +630,13 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       )}
     />
   )
+  // Who gets Confirm the deadline when this person decides the date or enters the event now (the two-person rule), as
+  // the mockups name it: in the part of the two dates when the readings differ, else in the note. Filing decides
+  // neither, so its bar names nobody.
+  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' ? letter.nextConfirmer : null
+  const nextNote = next === null || (decision.kind === 'code' && dates !== null)
+    ? undefined
+    : t(next.queued ? 'letter.next.queued' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.decide', { person: personInText(t, next.person) })
   const parts = (() => {
     switch (decision.kind) {
       case 'match': return picking
@@ -372,127 +644,193 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         : <DecisionPart icon={<IconCheckOutlineRegular size={16} />} title={`${decision.proposed.fileNumber} ${decision.proposed.title}`} detail={agree === 1 ? t('intake.decision.agreeOne', { page: agreePage }) : t('intake.decision.agree', { count: agree, page: agreePage })} />
       case 'pick':
       case 'other-team': return picking ? pickPart : undefined
-      case 'code': return (
+      case 'code': return dates !== null
+        ? (
+          <>
+            <DecisionPart
+              icon={<IconCheckOutlineRegular size={16} />}
+              title={t('letter.differ.part')}
+              detail={chosenDate === null ? t('letter.differ.notChosen') : t('letter.differ.chosen', { date: formatDate(chosenDate, ctx.locale) })}
+              control={(
+                <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('letter.differ.part')}>
+                  {dates.map(choice => (
+                    <Button
+                      key={choice.source}
+                      variant="ghost"
+                      size="sm"
+                      aria-pressed={chosenDate === choice.date}
+                      className={chosenDate === choice.date ? detail.on : undefined}
+                      onClick={() => { setChosenDate(choice.date); runner.clear() }}
+                    >
+                      {t(`letter.differ.${choice.source}`, { date: formatDay(choice.date, ctx.locale) })}
+                    </Button>
+                  ))}
+                </span>
+              )}
+            />
+            <DecisionPart
+              icon={<IconInfoOutlineRegular size={16} />}
+              title={next === null || next.queued ? t('letter.differ.second') : t('letter.next.part', { person: personInText(t, next.person) })}
+              detail={next?.queued === true ? t('letter.next.queued', { person: personInText(t, next.person) }) : t('letter.differ.secondWhy')}
+            />
+          </>
+        )
+        : (
+          <DecisionPart
+            icon={<IconCheckOutlineRegular size={16} />}
+            title={letter.documentDate === null ? title : t('intake.decision.eventTitle', { title, date: formatDate(letter.documentDate, ctx.locale) })}
+            detail={letter.applicationNumber === null ? undefined : t('intake.decision.eventApplication', { number: formatApplicationNumber(letter.applicationNumber) })}
+            missing={record === null ? t('intake.decision.eventMissing') : null}
+          />
+        )
+      case 'hand': return (
+        <DecisionPart
+          icon={<IconEditOutlineRegular size={16} />}
+          title={t('letter.hand.part')}
+          detail={t('letter.hand.detail')}
+          missing={letter.entry === null ? t('letter.hand.unavailable') : handAct === null ? t('letter.hand.incomplete') : null}
+        />
+      )
+      case 'filed': return (
         <DecisionPart
           icon={<IconCheckOutlineRegular size={16} />}
-          title={letter.documentDate === null ? title : t('intake.decision.eventTitle', { title, date: formatDate(letter.documentDate, ctx.locale) })}
-          detail={letter.applicationNumber === null ? undefined : t('intake.decision.eventApplication', { number: formatApplicationNumber(letter.applicationNumber) })}
-          missing={record === null ? t('intake.decision.eventMissing') : null}
+          title={t('letter.done.filed', { matter: decision.fileNumber })}
+          detail={t('letter.done.reading')}
+        />
+      )
+      case 'done': return (
+        <DecisionPart
+          icon={<IconCheckOutlineRegular size={16} />}
+          title={letter.filed === null ? t('letter.done.recorded') : t('letter.done.filedRecorded', { matter: letter.filed.fileNumber })}
+          detail={doneDetail(ctx, letter.deadline)}
         />
       )
       case 'none': return undefined
     }
   })()
-  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || picking
+  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
+  const finished = decision.kind === 'filed' || decision.kind === 'done'
+  const deadline = letter.deadline
+  const doneActs = [
+    ...(deadline === null
+      ? []
+      : [{
+        id: 'open-deadline', label: t('letter.done.openDeadline'), keycaps: [], icon: <IconAlarmClockOutlineRegular size={16} />,
+        run: () => { ctx.navigate({ view: 'deadline', id: deadline.id }) },
+      }]),
+    ...(matterOf === null ? [] : [actOf(ctx, 'goMatter', t('deadline.goMatter', { matter: matterOf }), () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) }, { icon: <IconFolderOpenOutlineRegular size={16} /> })]),
+  ]
   const bar = ctx.me === null
     ? null
-    : (
-      <DecisionBar
-        heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
-        question={decision.kind === 'code' ? t('intake.decision.whatLetter') : t('decision.whichMatter')}
-        why={decision.kind === 'none' ? undefined : t('intake.decision.why')}
-        labels={{ more: t('decision.more') }}
-        decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
-        parts={parts}
-        failure={failureNotice(ctx, runner.run, retry)}
-        negative={canClose
-          ? {
-            ...keyedOf(ctx, 'reject'),
-            label: t('act.notRelevant'),
-            icon: <IconCloseOutlineRegular size={16} />,
-            open: reasonOpen,
-            onOpenChange: setReasonOpen,
-            reasonLabel: t('reason.notRelevant'),
-            confirmLabel: t('act.markNotRelevant'),
-            cancelLabel: t('act.cancel'),
-            onConfirm: (reason) => {
-              setReasonOpenState(false)
-              decide({ kind: 'intake.notRelevant', document: letter.document, reason })
-            },
-          }
-          : undefined}
-        secondary={canPick && !picking ? [actOf(ctx, 'otherMatter', t('act.otherMatter'), startPicking, { icon: <IconFolderOpenOutlineRegular size={16} /> })] : []}
-        primary={showPrimary
-          ? { ...actOf(ctx, 'record', primaryLabel, () => { record?.() }, { icon: <IconCheckOutlineRegular size={16} />, disabled: record === null }), busy }
-          : null}
-      />
-    )
+    : finished
+      ? (
+        <DecisionBar
+          heading={{ person: null, text: t('letter.done.heading') }}
+          question={t(decision.kind === 'filed' ? 'letter.done.questionFiled' : 'letter.done.question')}
+          labels={{ more: t('decision.more') }}
+          parts={parts}
+          secondary={doneActs}
+          primary={null}
+        />
+      )
+      : (
+        <DecisionBar
+          heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
+          question={decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' ? t('letter.hand.question') : t('decision.whichMatter')}
+          why={whyLine(ctx, decision, matterOf)}
+          labels={{ more: t('decision.more') }}
+          decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
+          parts={parts}
+          note={nextNote}
+          failure={failureNotice(ctx, runner.run, retry)}
+          negative={canClose
+            ? {
+              ...keyedOf(ctx, 'reject'),
+              label: t('act.notRelevant'),
+              icon: <IconCloseOutlineRegular size={16} />,
+              open: reasonOpen,
+              onOpenChange: setReasonOpen,
+              reasonLabel: t('reason.notRelevant'),
+              confirmLabel: t('act.markNotRelevant'),
+              cancelLabel: t('act.cancel'),
+              onConfirm: (reason) => {
+                setReasonOpenState(false)
+                decide({ kind: 'intake.notRelevant', document: letter.document, reason })
+              },
+            }
+            : undefined}
+          secondary={canPick && !picking ? [actOf(ctx, 'otherMatter', t('act.otherMatter'), startPicking, { icon: <IconFolderOpenOutlineRegular size={16} /> })] : []}
+          primary={showPrimary
+            ? { ...actOf(ctx, 'record', primaryLabel, () => { record?.() }, { icon: <IconCheckOutlineRegular size={16} />, disabled: record === null }), busy }
+            : null}
+        />
+      )
 
   const lede = ledeOf(ctx, letter)
-  const forwarder = letter.mail.forwarder
+  const arrival = arrivalOf(ctx, letter)
   const proposed = letter.proposed
-  const keyRows: Property[] = proposed !== null
-    ? [
-      { label: t('prop.proposedMatter'), value: <><span className={css.key}>{proposed.fileNumber}</span>{proposed.title}</> },
-      { label: t('prop.client'), value: proposed.client },
-      { label: t('prop.responsible'), value: <Who ctx={ctx} person={proposed.responsible} /> },
-    ]
-    : [
-      { label: t('prop.matter'), value: letter.filed === null ? t('matter.none') : <><span className={css.key}>{letter.filed.fileNumber}</span>{letter.filed.title}</> },
-      { label: t('intake.prop.office'), value: letter.office === null ? t('matter.none') : officeName(t, letter.office) },
-      { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) },
-    ]
-  const received: Property = { label: t('intake.prop.received'), value: listTimeText(ctx, letter.mail.receivedAt) }
-  const subject: Property = { label: t('intake.prop.subject'), value: letter.mail.subject, title: letter.mail.subject }
-  const pages: Property = {
-    label: t('intake.prop.document'),
-    value: <span className={css.who}><IconPaperclipOutlineRegular size={16} />{letter.pages === null ? letter.fileName : letter.pages === 1 ? t('intake.prop.onePage') : t('intake.prop.pages', { count: letter.pages })}</span>,
-    title: letter.fileName,
-  }
-  const groups = [
-    {
-      heading: t('intake.prop.letter'),
-      rows: [
-        { label: t('intake.prop.office'), value: letter.office === null ? t('matter.none') : officeName(t, letter.office) },
-        { label: t('intake.prop.type'), value: title },
-        { label: t('prop.application'), value: letter.applicationNumber === null ? t('matter.none') : formatApplicationNumber(letter.applicationNumber) },
-        pages,
-      ],
-    },
-    {
-      heading: t('intake.prop.forward'),
-      rows: [
-        { label: t('intake.prop.from'), value: <Who ctx={ctx} person={forwarder} /> },
-        received,
-        subject,
-      ],
-    },
-    ...(proposed === null ? [] : [{
-      heading: t('prop.proposedMatter'),
-      rows: [
-        { label: t('prop.matter'), value: proposed.fileNumber },
-        { label: t('prop.client'), value: proposed.client },
-        { label: t('prop.responsible'), value: <Who ctx={ctx} person={proposed.responsible} /> },
-      ],
-    }]),
-  ]
+  const unreadable = letter.status.machine === 'intake' && letter.status.state === 'unreadable'
+  // A scan filed by hand has no reading: the values on the card are the entry, which Activity names.
+  const read = !readNothing(letter) || readValues(letter)
+  const { readers } = letter
   return (
     <div className={css.item}>
       <WorkColumn decision={bar}>
         <DetailHeader
-          eyebrow={<><AtlasPill status={letter.status} word={atlasWord(t, letter.status)} /><span className={css.since}>{t('item.since', { time: listTimeText(ctx, letter.since) })}</span></>}
+          eyebrow={(
+            <>
+              <AtlasPill status={letter.status} word={atlasWord(t, letter.status)} />
+              <span className={css.since}>{t(sinceKey(decision), { time: listTimeText(ctx, letter.since) })}</span>
+            </>
+          )}
           title={title}
           lede={(
             <>
-              {forwarder !== null && t('item.forwarded', { person: personName(t, forwarder) })}
-              {lede !== null && ` ${lede}`}
+              {[arrival, lede].filter(part => part !== null).join(' ')}
             </>
           )}
         />
-        <div className={css.wideOnly}><KeyProperties rows={keyRows} /></div>
-        <div className={css.match}>
-          <LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />
-          <div>
-            {proposed !== null && (
-              <div className={css.narrowOnly}>
-                <div className={css.label}>{t('prop.proposedMatter')}</div>
-                <div className={css.matterCard}>
-                  <div className={css.key}>{proposed.fileNumber}</div>
-                  <div className={css.matterName}>{proposed.title}</div>
-                  <div className={css.matterMeta}>{proposed.client}<span aria-hidden="true">·</span><Who ctx={ctx} person={proposed.responsible} /></div>
+        {/* The readings take the full width, so a long office event stays on one line beside its quote. */}
+        {read && (
+          <section className={css.readings} aria-label={t('letter.read')}>
+            <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t(READING_HEADINGS[readers.outcome])}`}</span></h2>
+            <Readings ctx={ctx} readers={readers} />
+          </section>
+        )}
+        <EvidenceSplit evidence={(
+          <LetterPages
+            ctx={ctx}
+            images={letter.pageImages}
+            marks={letter.marks}
+            fallback={<LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />}
+            onOpen={openLetter}
+          />
+        )}>
+          {(decision.kind === 'hand' || unreadable) && (
+            <HandEntryFields
+              ctx={ctx}
+              letter={letter}
+              values={hand}
+              onChange={(next) => {
+                setHandState(next)
+                runner.clear()
+              }}
+            />
+          )}
+          {proposed !== null && (
+            <section className={css.found} aria-label={t('prop.proposedMatter')}>
+              <h2 className={css.subHeading}>{t('prop.proposedMatter')}</h2>
+              <div className={css.matterCard}>
+                <div className={css.key}>{proposed.fileNumber}</div>
+                <div className={css.matterName}>{proposed.title}</div>
+                <div className={css.matterMeta}>
+                  {proposed.client}
+                  {proposed.responsible !== null && <><span aria-hidden="true">·</span>{t('prop.responsible')}<Who ctx={ctx} person={proposed.responsible} /></>}
                 </div>
               </div>
-            )}
+            </section>
+          )}
+          {reasons.length > 0 && (
             <ul className={css.reasons} aria-label={t('intake.reason.label')}>
               {reasons.map(reason => (
                 <li key={reason.key} className={css.reason} data-ok={reason.ok || undefined}>
@@ -501,15 +839,19 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
                 </li>
               ))}
             </ul>
-            {decision.kind === 'match' && <p className={css.note}><IconInfoOutlineRegular size={16} />{t('intake.note.confirm')}</p>}
-          </div>
-        </div>
-        <section className={css.letterFacts} aria-label={t('intake.prop.letter')}><KeyProperties rows={[received, subject, pages]} /></section>
+          )}
+          {decision.kind === 'match' && <p className={css.note}><IconInfoOutlineRegular size={16} />{t(proposed?.matchedBy === 'application-number' ? 'intake.note.confirmApplication' : 'intake.note.confirm')}</p>}
+          {decision.kind === 'match' && (
+            <section className={css.found} aria-label={t('letter.whenFile')}>
+              <h2 className={css.subHeading}>{t('letter.whenFile')}</h2>
+              {letter.code === null
+                ? <p className={css.reason}><IconWarningTriangleOutlineRegular size={16} /><span>{t('letter.whenFile.noCode')}</span></p>
+                : <p className={css.reason} data-ok=""><IconCheckOutlineRegular size={16} /><span>{t('letter.whenFile.deadline')}</span></p>}
+            </section>
+          )}
+        </EvidenceSplit>
         <RecordActivity ctx={ctx} events={letter.activity} audit={formNumberAudit(ctx, letter.fields)} />
       </WorkColumn>
-      <div className={css.itemProps}>
-        <PropertiesPanel label={t('prop.label')} groups={groups} />
-      </div>
     </div>
   )
 }

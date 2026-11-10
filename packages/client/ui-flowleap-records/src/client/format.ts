@@ -24,6 +24,17 @@ export function intlLocale(locale: string): string {
 }
 
 /**
+ * The name of a language in the UI language, such as "Englisch" for `en` on a German page.
+ * @param locale - the UI language.
+ * @param code - an ISO 639 language code.
+ * @returns the name.
+ */
+export function languageName(locale: string, code: string): string {
+  /* v8 ignore next -- Intl.DisplayNames answers undefined only for a code it cannot read; the os sends ISO 639 codes. */
+  return new Intl.DisplayNames([intlLocale(locale)], { type: 'language' }).of(code) ?? code
+}
+
+/**
  * The calendar day of a time in a time zone, as `YYYY-MM-DD`.
  * @param time - epoch milliseconds.
  * @param timeZone - the time zone; the browser's when absent.
@@ -68,18 +79,24 @@ export function listTime(time: IsoTime, now: number, locale: string, timeZone?: 
   return { kind: 'date', text: new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', timeZone }).format(at) }
 }
 
-/** An EP application number: two digits of the year, six digits and the check digit, with or without `EP` and spaces. */
-const EP_APPLICATION = /^(?:EP\s*)?(\d{2})\s*(\d{3})\s*(\d{3})\s*\.\s*(\d)$/u
+/**
+ * An EP application number: two digits of the year and six digits, with or without `EP` and spaces, and the check
+ * digit when the Record holds it.
+ */
+const EP_APPLICATION = /^(?:EP\s*)?(\d{2})\s*(\d{3})\s*(\d{3})(?:\s*\.\s*(\d))?$/u
 
 /**
  * An application number as the office writes it: an EP number as `EP 24 123 456.7`, whether the Record holds
- * `24123456.7`, `24 123 456.7` or `EP24123456.7`. A number in another office's format shows as the Record holds it.
+ * `24123456.7`, `24 123 456.7` or `EP24123456.7`, and as `EP 24 123 456` when the Record holds no check digit
+ * (`EP24123456`). A number in another office's format shows as the Record holds it.
  * @param number - the application number from the Record.
  * @returns the number to show.
  */
 export function formatApplicationNumber(number: string): string {
   const match = EP_APPLICATION.exec(number.trim())
-  return match === null ? number : `EP ${match[1]} ${match[2]} ${match[3]}.${match[4]}`
+  if (match === null) return number
+  const digits = `EP ${match[1]} ${match[2]} ${match[3]}`
+  return match[4] === undefined ? digits : `${digits}.${match[4]}`
 }
 
 /**
@@ -93,4 +110,15 @@ export function formatDate(date: IsoDate, locale: string, style: 'short' | 'long
   return new Intl.DateTimeFormat(intlLocale(locale), {
     weekday: style, day: 'numeric', month: style, year: 'numeric', timeZone: 'UTC',
   }).format(Date.parse(date))
+}
+
+/**
+ * Today as the first line of My work writes it: the weekday, the day and the month, such as "Saturday, 7 November".
+ * @param now - the time now, epoch milliseconds.
+ * @param locale - the UI language.
+ * @param timeZone - the time zone of "today"; the browser's when absent.
+ * @returns the text.
+ */
+export function formatToday(now: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'long', day: 'numeric', month: 'long', timeZone }).format(now)
 }

@@ -20,7 +20,7 @@ Preconditions:
 - The baseline in [README.md](./README.md). No model turn is needed.
 - For the desktop, start a second instance with `DSH_VERIFY_PROFILE=flowleap-desktop` on another port.
 
-- **Firm.** Open `Plugins`. Wait for the text `See the plugins that your agent uses. Your firm administrator manages them.` The group `Included plugins` lists `Patent data connectors` with `Tools: N` and `Interface`, `Patent deliverables` with `Tools: N`, and the pages such as `Dashboard` and `Office actions` with `Interface`; each shows `Running`. `find` returns no `switch` and no button `Add plugin`.
+- **Firm.** Open `Plugins`. Wait for the text `See the plugins that your agent uses. Your firm administrator manages them.` The group `Included plugins` lists `Connectors` with `Tools: N` and `Interface`, `Patent deliverables` with `Tools: N`, and the pages such as `Dashboard` and `Office actions` with `Interface`; each shows `Running`. `find` returns no `switch` and no button `Add plugin`.
 - **Names.** `get_page_text` contains no `@deepseek-ai` and no `dsh-`.
 - **Desktop.** Open `Plugins` on the desktop instance. The intro is `Install, enable, and configure plugins`; `Included plugins` shows the same cards plus `FlowLeap model step`; `Experimental plugins` has switches; there is no button `Add plugin`. Open an experimental plugin: its page shows no package name and no `Source` section.
 

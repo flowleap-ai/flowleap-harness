@@ -349,10 +349,15 @@
         maxEventsPerRun: 50
         maxEventTextLength: 300
 
-    # Settings > Patent data connectors (one card per connector) and the
-    # first-run key wizard; the row id is also the wizard's settings namespace.
+    # Settings > Connectors (one card per connector); the row id is
+    # also the wizard's settings namespace. The firm's people land on My work,
+    # and the data keys are the administrator's task, so the first-run key
+    # wizard never opens here: `wizardDismissed` starts true, and an
+    # administrator enters the keys in Settings > Connectors.
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
+      config:
+        wizardDismissed: true
 
     # The dashboard (flowleap-harness#60): the landing page of ui-workspace,
     # so the first screen after sign-in, or the chat or page that the address
@@ -397,23 +402,47 @@
     - id: flowleap-record
       name: '@deepseek-ai/dsh-flowleap-record'
 
-    # The Matters row in the sidebar (German Akten) and the Matters page: the
-    # Records pages of the Firm Record (matter list, matter, confirm), served
-    # by the firm proxy at the same origin under recordsHref, embedded in a
-    # frame with the client's theme; a confirm goes from the page to the Firm
-    # Record, never through the runtime. Without the proxy, as in a local run,
-    # the page says that the firm has no matters yet.
+    # My work (the first screen and the landing page) and the Matters row in
+    # the sidebar (German Akten): the IPMS views over the Records API of the
+    # Firm Record, which the firm proxy serves at the same origin under
+    # recordsHref; a decision goes from the view to the Firm Record, never
+    # through the runtime. The account button at the sidebar foot signs out
+    # through signOutHref, which the firm patch sets to the sign-in proxy's
+    # path (oauth2/sign_out?rd=%2F); empty here, so a run without the proxy
+    # shows no Sign out. Without the proxy the views say that FlowLeap could
+    # not load them.
     - id: ui-flowleap-records
       name: '@deepseek-ai/dsh-client-ui-flowleap-records'
       config:
         recordsHref: records/
+        signOutHref: ''
+
+    # The Clients row in the sidebar (German Mandanten) and the client folder
+    # page: a client's workspace folder with no chat, its files open in the
+    # middle, New folder, Upload files, Rename, Move to, and Ask about this.
+    # Writes stay inside the client folder and never replace an entry; uploads
+    # stop while the disk-low flag of the Host exists, as attachments do.
+    # Add client builds new client folders in clientsRoot. The firm patch sets
+    # firmIdentity (the firm's names, addresses and representatives); while it
+    # is empty, Add client finds no matter at your firm. With it, the row reads
+    # the firm docket (the firm's EP applications) from the EP Register at load.
+    # Only a firm administrator may save Settings > Firm identity: the row asks
+    # the flowleapAdmin Service of flowleap-admin-link below, so the starter's
+    # key path has one home. After the first save, firmIdentity has no effect.
+    - id: ui-flowleap-folder
+      name: '@deepseek-ai/dsh-client-ui-flowleap-folder'
+      config:
+        stateDir: !!js dshHomePath('flowleap-folder')
+        storageLowFlagPath: /run/flowleap/host/disk-low
+        clientsRoot: !!js dshHomePath('clients')
 
     # The Firm admin row in the sidebar (flowleap-harness#112), shown only to a
     # firm administrator: the starter of flowleap-os signs an X-Flowleap-Admin
     # header on each request of an administrator, and this row checks it with
     # the starter's public key. The firm patch of flowleap-os restates this row
     # with publicKeyFile: /run/flowleap/host/admin-link.pub; with '' no request
-    # shows the link.
+    # shows the link. The row also provides the flowleapAdmin Service with the
+    # same check, which the Firm identity save of ui-flowleap-folder uses.
     - id: flowleap-admin-link
       name: '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
       config:

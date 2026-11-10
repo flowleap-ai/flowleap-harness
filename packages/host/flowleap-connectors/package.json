@@ -50,6 +50,7 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~",
     "@flowleap/connectors": "workspace:~",
+    "fflate": "^0.8.3",
     "zod": "4.4.3"
   },
   "peerDependencies": {
@@ -81,6 +82,8 @@
     "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/dsh-working-directory": "workspace:*"
+    "@deepseek-ai/dsh-working-directory": "workspace:*",
+    "flowleap-deadlines": "github:flowleap-ai/flowleap-deadlines#c44b99f506f8b32c57b9b39af636830951c80e05",
+    "flowleap-seed-firm": "github:flowleap-ai/flowleap-seed-firm#75c89f6dcd10c415fed37a01c126faa5403e6e6e"
   }
 }
