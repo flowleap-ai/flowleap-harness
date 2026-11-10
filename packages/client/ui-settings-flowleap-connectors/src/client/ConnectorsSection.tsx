@@ -1,4 +1,4 @@
-/** The Patent data connectors settings section: the MyEPO card of the firm's EPO account, then one card per patent data connector. */
+/** The Connectors settings section: the MyEPO card of the firm's EPO account, then one card per patent data connector. */
 
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'

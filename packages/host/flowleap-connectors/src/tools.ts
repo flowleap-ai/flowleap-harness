@@ -61,8 +61,8 @@ const CONNECTOR_OF_KEYED_PROVIDER: Readonly<Record<KeyedProvider, ConnectorId>> 
 export function missingCredential(connector: ConnectorId, rejected = false): MissingCredentialResult {
   const label = CONNECTOR_LABELS[connector]
   const message = rejected
-    ? `${label} rejected the stored key. Replace it in Settings > Patent data connectors > ${label}.`
-    : `${label} key not configured. Add it in Settings > Patent data connectors > ${label}, then call this tool again.`
+    ? `${label} rejected the stored key. Replace it in Settings > Connectors > ${label}.`
+    : `${label} key not configured. Add it in Settings > Connectors > ${label}, then call this tool again.`
   return { error: 'missing_credentials', connector, message }
 }
 
