@@ -8,7 +8,7 @@ import {
 } from '@flowleap/connectors'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  FlowleapConnectorsController, FlowleapPatentData, PatentDataError, createConnectorHost, createCredentialStore,
+  FlowleapConnectorsController, FlowleapPatentData, PatentDataError, createConnectorHost, createCredentialStore, createMyEpoLink,
   normalizeName, parseEpApplication, parseEpPublication,
   type EpApplicationNumber, type EpPublicationNumber, type PatentDataConnectors, type PatentDataFailure,
 } from '@deepseek-ai/dsh-flowleap-connectors'
@@ -683,7 +683,11 @@ describe('the flowleapPatentData service over the real library', () => {
     })
     const bound = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 10, fetch: fetchSpy })
     const connectors = createConnectors(bound.host)
-    await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound })
+    const myEpo = createMyEpoLink({
+      credentials, fetch: fetchSpy, now: Date.now, gate: { wait: () => Promise.resolve() },
+      endpoint: { baseUrl: 'https://myepo.test', tokenUrl: 'https://login.test/token', requestsPerSecond: 1, timeoutSeconds: 1 },
+    })
+    await ctx.plugin(FlowleapConnectorsController, { store, connectors, bound, myEpo })
     if (withKey) await ctx.flowleapConnectors.set('epo-ops', { consumerKey: 'key', consumerSecret: 'secret' })
     await ctx.plugin(FlowleapPatentData, { connectors, bound })
     return { ctx, fetchSpy }

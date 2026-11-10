@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+    "applicationIdentification": {
+      "procedure": "EPC",
+      "ipOfficeCode": "EP",
+      "applicationNumber": "00000001",
+      "applicationNumberMyEPO": "EP00000001.8",
+      "filingDate": "2014-01-01"
+    },
+    "dueDates": [
+      {
+        "termKey": "DUE_TERM_11",
+        "dueDate": "2024-01-01",
+        "actor": "actor1"
+      },
+      {
+        "termKey": "DUE_TERM_10",
+        "dueDate": "2023-01-01",
+        "actor": "actor2"
+      }
+    ]
+  }
+}

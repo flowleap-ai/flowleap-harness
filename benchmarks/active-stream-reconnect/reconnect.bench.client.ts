@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
 import type { ReconnectReport } from './reconnect.worker.client.ts'
 
@@ -54,7 +54,7 @@ it('reconstructs a 100000-delta live prefix within baseline time and retained-me
   }
   const replaceMs = samples.map(sample => sample.replaceMs).toSorted((a, b) => a - b)[1]!
   const retainedMb = samples.map(sample => sample.retainedMb).toSorted((a, b) => a - b)[1]!
-  const budgetMs = REPLACE_BUDGET_MS
+  const budgetMs = runnerTimeBudget(REPLACE_BUDGET_MS)
   const budgetMb = REFERENCE_RETAINED_MB * PERFORMANCE_BUDGET_HEADROOM
   console.log(JSON.stringify({ benchmark: 'active-stream-reconnect', samples, median: { replaceMs, retainedMb }, referenceMs: REFERENCE_REPLACE_MS, referenceMb: REFERENCE_RETAINED_MB, budgetMs, budgetMb }))
   recordTimings(CASE, { replaceMs: { ms: replaceMs, ioShare: IO_SHARE } }, { replaceMs: budgetMs })

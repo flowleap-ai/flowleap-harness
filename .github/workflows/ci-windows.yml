@@ -8,6 +8,11 @@ name: CI Windows
 # Python's "python checks passed".
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+  push:
+    branches: [flowleap]
+  schedule:
+    - cron: '17 2 * * *'
 permissions:
   contents: read
 
@@ -19,18 +24,35 @@ env:
 
 # Cancel a superseded pull-request run on a new push, as in ci.yml.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'full-ci' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Native builds and process tests block pull requests independently of coverage.
+  # Decides the lane for this run. A `labeled` event for any label other than
+  # `full-ci` skips it, and with it every job of the run.
+  lane:
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
+    runs-on: ubuntu-latest
+    name: ci lane
+    outputs:
+      full: ${{ steps.lane.outputs.full }}
+    steps:
+      - name: Select the fast or the full lane
+        id: lane
+        env:
+          FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
+
+  # Native builds and process tests block full-lane pull requests; coverage
+  # runs after a merge and nightly.
   # Observational checks reuse the successful build and remain non-blocking.
   # Dependabot PRs are excluded from the self-hosted pool and stay queued for
   # the hosted runner.
   # Blacksmith uses 2 vCPU for file-serial native tests and 16 for coverage
   # and the shared build/observational workspace.
   windows-build:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true' && github.event_name != 'schedule'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'blacksmith' && 'blacksmith-16vcpu-windows-2025'
           || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
@@ -119,7 +141,8 @@ jobs:
           $message | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
   windows-coverage:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true' && github.event_name != 'pull_request'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'blacksmith' && 'blacksmith-16vcpu-windows-2025'
           || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
@@ -197,7 +220,8 @@ jobs:
           key: coverage-times-Windows-${{ runner.environment }}-${{ vars.DSH_CI_FAILOVER_WINDOWS || 'enterprise' }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   windows-native-tests:
-    if: github.event_name == 'pull_request'
+    needs: lane
+    if: needs.lane.outputs.full == 'true' && github.event_name != 'schedule'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_WINDOWS == 'blacksmith' && 'blacksmith-2vcpu-windows-2025'
           || vars.DSH_CI_FAILOVER_WINDOWS == 'selfhosted'
@@ -247,24 +271,29 @@ jobs:
 
   # Stable required check for the Windows lanes, with the same semantics as
   # ci.yml's "all checks passed": every blocking job in THIS workflow is
-  # listed in `needs`. windows-coverage stays outside the verdict, so its
-  # per-file result remains visible without blocking. The bookkeeping job
+  # listed in `needs`. windows-coverage runs only on pushes to `flowleap` and
+  # on the nightly schedule, so Windows-only coverage gaps show after a merge.
+  # The bookkeeping job
   # follows the Linux failover switch like the CI verdict.
+  # A draft run runs no Windows job and reports under a name that says so.
   windows-checks-passed:
-    name: windows checks passed
+    name: ${{ needs.lane.outputs.full == 'true' && 'windows checks passed' || 'windows checks not run (draft)' }}
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    needs: [windows-build, windows-native-tests]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    needs: [lane, windows-build, windows-native-tests]
+    if: ${{ !cancelled() && needs.lane.result != 'skipped' && github.event_name != 'schedule' }}
     steps:
-      - name: Fail if any needed job did not succeed
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+      - name: Fail if a job of this lane did not succeed
+        if: >-
+          needs.lane.result != 'success'
+          || needs.lane.outputs.full == 'true' && (needs.windows-build.result != 'success'
+          || needs.windows-native-tests.result != 'success')
         run: |
           echo "::error::Needed job results: ${{ join(needs.*.result, ', ') }}"
           exit 1
-      - name: Windows checks passed
-        run: echo "All needed jobs succeeded (${{ join(needs.*.result, ', ') }})"
+      - name: Report the lane result
+        run: echo "All jobs of the ${{ needs.lane.outputs.full == 'true' && 'full' || 'fast' }} lane succeeded (${{ join(needs.*.result, ', ') }})"

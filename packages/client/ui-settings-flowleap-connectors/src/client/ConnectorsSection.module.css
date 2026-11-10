@@ -28,9 +28,17 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+.group {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .rows {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
