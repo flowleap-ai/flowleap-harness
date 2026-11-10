@@ -1,8 +1,9 @@
 /**
  * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
- * applications and possible conflicts, `build` starts the client folder build, and `status` reports every build. The
- * routes read public data through the `flowleapPatentData` Service when the runtime has it; without it, `find` and
- * `review` say so and `build` makes the folder with the template folders only.
+ * applications and possible conflicts, `build` starts the client folder build, `status` reports every build, `docket`
+ * reports the state of the firm docket, and `docket/read` reads it again. The routes read public data through the
+ * `flowleapPatentData` Service when the runtime has it; without it, `find`, `review` and the docket routes say so and
+ * `build` makes the folder with the template folders only.
  * @module
  */
 
@@ -11,12 +12,13 @@ import { FolderError } from '../folder.ts'
 import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { buildClientFolder, type BuildInput, type FolderTemplate } from './build.ts'
+import type { FirmDocket } from './docket.ts'
 import type { FirmIdentity } from './identity.ts'
 import { BuildJobsStopped, messageOf, type BuildJobs } from './jobs.ts'
 import { review } from './review.ts'
 import {
-  ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type FindAnswer, type KnownClient,
-  type StatusAnswer,
+  ADD_CLIENT_STATUS, clientFolderName, type AddClientFailure, type AddClientFailureCode, type DocketAnswer, type FindAnswer,
+  type KnownClient, type StatusAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -45,6 +47,7 @@ export interface AddClientServices {
   /** The patent data Service now, or undefined while the runtime has none. */
   readonly data: () => PatentData | undefined
   readonly jobs: BuildJobs<BuildInput>
+  readonly docket: FirmDocket
   readonly sources: RecordStore<FolderSource>
   readonly createWorkspace: (folder: string, title: string) => Promise<{ readonly id: string }>
   readonly now: () => Date
@@ -195,6 +198,28 @@ export class AddClientRoutes {
    */
   async status(): Promise<Response> {
     return json({ builds: await this.services.jobs.all() } satisfies StatusAnswer)
+  }
+
+  /**
+   * `GET docket`: the state of the firm docket.
+   * @returns the JSON answer.
+   */
+  async docket(): Promise<Response> {
+    if (this.services.data() === undefined) return json({ status: 'no-plugin' } satisfies DocketAnswer)
+    return json({ status: 'docket', docket: await this.services.docket.state() } satisfies DocketAnswer)
+  }
+
+  /**
+   * `POST docket/read` with a `DocketReadRequest`: read every slice of the firm docket again, or only the failed
+   * slices. While a read runs, the answer is its state and nothing else changes.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
+  async docketRead(request: Request): Promise<Response> {
+    const { slices } = await bodyOf(request)
+    if (slices !== 'all' && slices !== 'failed') throw new AddClientError('bad-request', 'slices must be "all" or "failed"')
+    if (this.services.data() === undefined) return json({ status: 'no-plugin' } satisfies DocketAnswer)
+    return json({ status: 'docket', docket: await this.services.docket.readAgain(slices) } satisfies DocketAnswer)
   }
 }
 

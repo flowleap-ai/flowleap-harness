@@ -5,8 +5,10 @@
  * entries by name. A client folder is the folder of one workspace;
  * every path is relative to it and is checked in `ClientFolder` before any disk act. No route deletes or replaces an
  * entry: Move to Trash moves it into the `Trash` folder at the client folder root. The Add client routes under
- * `add-client/` read the public patent data through the optional `flowleapPatentData` Service and build a client
- * folder inside `clientsRoot` as a job that goes on after its request ends. The browser half (`exports["./client"]`)
+ * `add-client/` read the public patent data through the optional `flowleapPatentData` Service, behind one limiter of
+ * `opsRequestsPerMinute`, and build a client folder inside `clientsRoot` as a job that goes on after its request ends.
+ * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
+ * the `docket` routes report and restart that read. The browser half (`exports["./client"]`)
  * is the Clients page and the Add client page.
  *
  * See packages/client/ui-flowleap-folder/README.md.
@@ -22,8 +24,10 @@ import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { widenBuild, type FolderTemplate } from './add-client/build.ts'
+import { FirmDocket } from './add-client/docket.ts'
 import type { FirmIdentity } from './add-client/identity.ts'
 import { BuildJobs } from './add-client/jobs.ts'
+import { RequestLimiter, limitedPatentData, systemClock } from './add-client/limiter.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
 import { ADD_CLIENT_ROUTES } from './add-client/wire.ts'
 import { ClientFolder, FolderError, checkName } from './folder.ts'
@@ -62,11 +66,25 @@ export interface Config {
   clientsRoot: string
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
-  /** The firm's names, addresses and representatives; matched on the Host against the register, never sent out. */
+  /**
+   * The firm's names, addresses and representatives. The firm docket sends their words to the EP Register to read the
+   * firm's EP applications; every row is matched against them again on the Host.
+   */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
   maxRegisterRows: number
+  /** The age in milliseconds after which the firm docket is `stale` and its scheduled refresh reads it again. */
+  docketRefreshAge: number
+  /** The age in milliseconds over which Check for new matters reads the firm docket again first (a later change). */
+  docketCheckAge: number
+  /** The most rows of one date slice of the firm docket; the EPO reads at most 2,000 rows of one query. */
+  registerSliceRows: number
+  /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
+  opsRequestsPerMinute: number
 }
+
+/** One day in milliseconds. */
+const DAY_MS = 86_400_000
 
 /** Runtime schema for the folder row. */
 export const Config: z<Config> = z.object({
@@ -87,6 +105,10 @@ export const Config: z<Config> = z.object({
     representatives: z.array(String).default([]),
   }).default({ names: [], addresses: [], representatives: [] }),
   maxRegisterRows: z.number().step(1).min(1).max(10000).default(500),
+  docketRefreshAge: z.natural().role('ms').min(1).default(7 * DAY_MS),
+  docketCheckAge: z.natural().role('ms').min(1).default(DAY_MS),
+  registerSliceRows: z.natural().min(1).max(2000).default(2000),
+  opsRequestsPerMinute: z.natural().min(1).default(20),
 })
 
 /**
@@ -358,13 +380,24 @@ export function apply(ctx: Context, config: Config): void {
   const jobs = new BuildJobs(path.join(config.stateDir, 'builds'), () => new Date(), warn, widenBuild)
   ctx.effect(() => () => jobs.dispose(), 'ui-flowleap-folder: Add client builds')
   // The patent data plugin is optional: without it, Add client adds a client by name with the template folders.
-  let data: PatentData | undefined
+  let service: PatentData | undefined
+  const limiter = new RequestLimiter(config.opsRequestsPerMinute, systemClock)
+  const data = (): PatentData | undefined => service === undefined ? undefined : limitedPatentData(service, limiter)
+  const docket = new FirmDocket({
+    file: path.join(config.stateDir, 'docket.json'), identity: config.firmIdentity, sliceRows: config.registerSliceRows,
+    refreshAge: config.docketRefreshAge, data, clock: systemClock, log: warn,
+  })
+  ctx.effect(() => () => docket.dispose(), 'ui-flowleap-folder: firm docket')
   ctx.inject(['flowleapPatentData'], (scope) => {
-    data = scope.flowleapPatentData
-    scope.effect(() => () => { data = undefined }, 'ui-flowleap-folder: patent data')
+    service = scope.flowleapPatentData
+    void docket.wake()
+    scope.effect(() => () => {
+      service = undefined
+      return docket.pause()
+    }, 'ui-flowleap-folder: patent data')
   })
   const addClient = new AddClientRoutes(config, {
-    data: () => data, jobs, sources, now: () => new Date(), log: warn,
+    data, jobs, docket, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -390,4 +423,6 @@ export function apply(ctx: Context, config: Config): void {
   registerAddClient(ADD_CLIENT_ROUTES.review, 'POST', request => addClient.review(request))
   registerAddClient(ADD_CLIENT_ROUTES.build, 'POST', request => addClient.build(request))
   registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
+  registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())
+  registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
 }

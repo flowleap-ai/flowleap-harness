@@ -36,11 +36,15 @@ Mount the row with its Host half and its browser half; the `flowleap-web` bundle
 
 | Field | Default | Meaning |
 |---|---|---|
-| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace; the Add client build statuses go into its `builds/` folder, one JSON file for each client |
+| `stateDir` | required | The plugin's state folder; the source records go into its `sources/` folder and the Trash origins into its `trash/` folder, one JSON file for each workspace; the Add client build statuses go into its `builds/` folder, one JSON file for each client; the firm docket goes into `docket.json` |
 | `clientsRoot` | required | The absolute folder that holds the client folders that Add client builds; every Add client write stays in it. The Clients list shows only the workspaces whose folder is directly in it |
 | `folderTemplate` | `client: [00 Client]`, `matter: [Associates, Client, Drafts, Internal, Office, Search]`, `publicData: Office` | The folders that Add client makes in each client folder and each matter folder, and the matter folder that takes the dated files; a name that is not a valid folder name, a repeated name, or a `publicData` that is not a matter folder stops the row at load |
-| `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`; the Host matches them against the representatives of record and never sends them out. While it is empty, no matter is at your firm |
+| `firmIdentity` | empty lists | The firm's `names`, its current and earlier `addresses` (one line each), and the names of its `representatives`; the Host matches them against the representatives of record. The [firm docket](#the-firm-docket) sends their words to the EP Register, never together with a client name. While it is empty, no matter is at your firm |
 | `maxRegisterRows` | `500` | The row cap of one EP Register query of Add client (at most 10,000, the EPO's cap); the page says when the cap cut a read. The EPO answers a page of 100 rows in about 15 s, so 500 rows take more than a minute |
+| `docketRefreshAge` | `604800000` (7 days) | The age in milliseconds after which the firm docket is `stale`; the scheduled refresh then reads it again |
+| `docketCheckAge` | `86400000` (1 day) | The age in milliseconds over which **Check for new matters** reads the firm docket again first; a later change uses it |
+| `registerSliceRows` | `2000` | The most rows of one date slice of the firm docket, 1 to 2,000: the EPO reads no row after row 2,000 of one query (`CLIENT.InvalidQuery`) |
+| `opsRequestsPerMinute` | `20` | The most EPO OPS requests in any minute of all EP Register reads of this plugin together: the docket, Add client and the build. In its `X-Throttling-Control` header, OPS gives `search=green:30`, 30 search requests a minute, when it is not busy; 20 leaves a third of that for the agent's own patent tools on the same key. A live read measures it |
 | `maxEntries` | `2000` | Cap on the entries of one listing; the rest is dropped and the listing says it is cut |
 | `maxUploadBytes` | `209715200` (200 MiB) | Inclusive byte cap of one uploaded file |
 | `maxSearchHits` | `200` | Cap on the hits of one search by name; the page says when the cap dropped hits |
@@ -80,6 +84,14 @@ The build is a job of this plugin, not of a Session: `POST build` starts it and 
 
 The list shows the source **Add client** for each entry that Add client wrote, and the kind **Family** or **Matter** for its family and matter folders.
 
+### The firm docket
+
+The firm docket is every EP application where the EP Register names your firm as the representative now. The Host reads it through the `flowleapPatentData` Service from the time the plugin loads with a `firmIdentity`, not at the first Add client, so the firm's queries and a client's queries do not go out in the same minutes. It sends one `re=` query for each firm name, each address and each representative: names and addresses as their words without `&` and punctuation (`re="Muster Partner"` for `Muster & Partner`), representatives surname first (`re="Becker, Anna"` for `Anna Becker`). No query holds a client name. `re=` finds the words anywhere in a representative's name and address lines, so it also finds other firms: the Host keeps a row only when a representative of record matches `firmIdentity`, and marks a row that matches only by a firm address as matched by address only, because two firms can share an address. A firm name in the address lines of a person counts as a match by name.
+
+A query over `registerSliceRows` rows splits by its EP publication date (`pd`): into the years from 1978, a year into its months, a month into two halves of its days, until each slice has at most `registerSliceRows` rows. The Host reads each slice in pages of 100 rows. A slice that is still over the limit on one day fails with its query in the Host log. The rows of the slices of a query must sum to the count of the query; at the EPO's count cap of 10,000, they must be at least 10,000. A docket with a wrong sum is `partial` and names the missing count. The docket keeps one row for each application, the time of each slice, and the identity that it was read for, in `docket.json`; another identity drops the rows at load, and an empty identity removes the file.
+
+`GET add-client/docket` answers the state: `no_identity`, `reading` and `interrupted` with the slices done, the slices known and the rows read, `ready` and `stale` with the rows and the time of the oldest slice, `partial` with the failed slices and the wrong sums, and `failed` with the reason. A `failed` docket never means that the firm has no matters. `POST add-client/docket/read` with `{ "slices": "all" }` reads every slice again; `{ "slices": "failed" }` reads only the failed slices and the queries whose sum was wrong. A Host stop leaves the docket `interrupted`, and the next start reads only the unread slices. A scheduled refresh reads the whole docket again when its oldest slice is older than `docketRefreshAge`. Every EP Register read of this plugin waits for its turn in one limiter of `opsRequestsPerMinute`.
+
 ### Ask about this
 
 The act drafts `@path` (a file) or `@"path/"` (a folder) for each entry, relative to the client folder, in the workspace's new-session draft through `uiWorkspace.startSession`, and opens that chat. A single file also opens in the chat's right sidebar once the chat is on screen. The mention is prompt text, so it is part of the logged user message; the agent reads the file only through its own logged tool calls.
@@ -97,11 +109,14 @@ The browser reads files under the workspace's blank Session, which `uiWorkspace.
 | File | Role |
 |---|---|
 | [`src/route.ts`](src/route.ts) | the route paths, the request bodies, the answers and the failure codes, shared by both halves |
-| [`src/index.ts`](src/index.ts) | Host half: the config, the nine folder routes (with `clients`, the workspaces whose folder is directly in `clientsRoot`) and the four Add client routes |
+| [`src/index.ts`](src/index.ts) | Host half: the config, the nine folder routes (with `clients`, the workspaces whose folder is directly in `clientsRoot`) and the six Add client routes; the shared limiter and the firm docket |
 | [`src/folder.ts`](src/folder.ts) | the path and name checks and the listing, writes, Trash, Restore and search of one client folder |
 | [`src/sources.ts`](src/sources.ts) | the source records and the Trash origins of each workspace |
 | [`src/add-client/wire.ts`](src/add-client/wire.ts) | the Add client route paths, request fields and answers, shared by both halves |
-| [`src/add-client/routes.ts`](src/add-client/routes.ts) | the `find`, `review`, `build` and `status` routes |
+| [`src/add-client/routes.ts`](src/add-client/routes.ts) | the `find`, `review`, `build`, `status`, `docket` and `docket/read` routes |
+| [`src/add-client/docket.ts`](src/add-client/docket.ts) | the firm docket read: the slices one after another, the docket file, the resume, the refresh timer and the stop |
+| [`src/add-client/docket-model.ts`](src/add-client/docket-model.ts) | the firm docket as data: the queries, the date slices, the sum check, the state and the docket file schema |
+| [`src/add-client/limiter.ts`](src/add-client/limiter.ts) | the request limiter of all EP Register reads, and the clock |
 | [`src/add-client/review.ts`](src/add-client/review.ts) | the group read, the split by the firm identity, and the conflicts that the EP Register shows |
 | [`src/add-client/identity.ts`](src/add-client/identity.ts) | the firm identity match, the company keys and the town of a representative |
 | [`src/add-client/build.ts`](src/add-client/build.ts) | the client folder build and its dated files |
@@ -154,6 +169,10 @@ None; this package neither assembles nor sends a provider request.
 - **Applicant names from the EP Register only** — PATSTAT is a model-facing MCP tool with no Host-callable client, so Add client finds names and counts their EP applications in the register; names of applications that are not published, and other offices, are missing.
 - **EP publications without a kind code** — the register search of `@flowleap/connectors` drops the kind code, so the Firm Record gets no publication number and the files name the publication without its kind.
 - **A firm identity in the row config** — `firmIdentity` is an ordinary config field that the firm patch sets; no settings form edits it yet, and it moves into the Firm Record later.
+- **The firm docket has no reader yet** — Add client still reads the group's portfolio for the firm's matters; a later change makes the find step, the review and the Settings page read the docket, and gives `docketCheckAge` its use.
+- **Rows with no EP publication** — the date slices use the EP publication date, so a register row with no EP publication is in no slice; the sum check then makes the docket `partial` with the missing count. A live read measures how many rows this is.
+- **The limiter counts calls, not OPS requests** — the limiter is outside `flowleap-connectors`, so it grants each call the most requests that the call can send, such as 5 for a name search of 500 rows or 6 for a publication read; a call can use its grant faster or slower than the window.
+- **The docket file is written whole** — a running read saves at most every 30 s, so a Host stop can lose the slices of the last 30 s; the next start reads them again.
 - **A build job of the plugin** — `ctx.jobs` belongs to a Session; until a job that a person's act owns exists upstream, the plugin runs the build and keeps its status. A Host stop ends the build; Try again resumes it.
 - **Dated files in English** — the Host writes the public data files in English, whatever the page's language.
 - **A rename onto a free name races with another writer** — the Host checks the name and then renames; a writer that takes the name in between is replaced on a file system that renames over a file.

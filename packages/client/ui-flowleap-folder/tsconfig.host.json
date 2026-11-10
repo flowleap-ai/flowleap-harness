@@ -11,8 +11,11 @@
     "src/sources.ts",
     "src/route.ts",
     "src/add-client/build.ts",
+    "src/add-client/docket.ts",
+    "src/add-client/docket-model.ts",
     "src/add-client/identity.ts",
     "src/add-client/jobs.ts",
+    "src/add-client/limiter.ts",
     "src/add-client/review.ts",
     "src/add-client/routes.ts",
     "src/add-client/wire.ts"

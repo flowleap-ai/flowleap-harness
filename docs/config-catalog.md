@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:50`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:54`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -658,10 +658,21 @@ export interface Config {
   clientsRoot: string
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
-  /** The firm's names, addresses and representatives; matched on the Host against the register, never sent out. */
+  /**
+   * The firm's names, addresses and representatives. The firm docket sends their words to the EP Register to read the
+   * firm's EP applications; every row is matched against them again on the Host.
+   */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
   maxRegisterRows: number
+  /** The age in milliseconds after which the firm docket is `stale` and its scheduled refresh reads it again. */
+  docketRefreshAge: number
+  /** The age in milliseconds over which Check for new matters reads the firm docket again first (a later change). */
+  docketCheckAge: number
+  /** The most rows of one date slice of the firm docket; the EPO reads at most 2,000 rows of one query. */
+  registerSliceRows: number
+  /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
+  opsRequestsPerMinute: number
 }
 
 /** The folders that Add client makes in each client folder and each matter folder. */

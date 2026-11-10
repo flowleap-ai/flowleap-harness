@@ -1,7 +1,8 @@
 /**
  * The firm identity and the name matching of Add client. The firm's matters are the EP applications whose
- * representative of record matches the firm identity; the match runs on the Host, so the identity never leaves the
- * firm. Company keys compare applicant names across sources (the EP Register writes `Syntegon Technology GmbH`,
+ * representative of record matches the firm identity. The match runs on the Host; only the firm docket sends the
+ * identity's words to the EP Register, in queries that never hold a client name. Company keys compare applicant names
+ * across sources (the EP Register writes `Syntegon Technology GmbH`,
  * PATSTAT writes `SYNTEGON TECHNOLOGY`).
  * @module
  */
@@ -63,21 +64,36 @@ export function identitySet(identity: FirmIdentity): boolean {
   return [...identity.names, ...identity.addresses, ...identity.representatives].some(entry => wordsOf(entry).length > 0)
 }
 
+/** How a representative of record matches the firm identity. `address`: only a firm address matches. */
+export type FirmMatch = 'name' | 'representative' | 'address'
+
 /**
- * Whether a representative of record is the firm: its name holds every word of a firm name, its name is a
- * representative's name in any order (`Becker, Anna` is `Anna Becker`), or its address holds every word of a firm
- * address.
+ * How a representative of record matches the firm: every word of a firm name is in its name or in its address lines
+ * (the register often names a person and puts the firm in the address), its name is a representative's name in any
+ * order (`Becker, Anna` is `Anna Becker`), or its address holds every word of a firm address. Two firms can share an
+ * address, so a match by address only is the weakest.
+ * @param party - the representative as the EP Register names it.
+ * @param identity - the firm identity.
+ * @returns the strongest match, or undefined when the party is not the firm.
+ */
+export function firmMatch(party: RegisterParty, identity: FirmIdentity): FirmMatch | undefined {
+  const name = wordsOf(party.name)
+  const nameWords = new Set(name)
+  const addressWords = new Set(party.address.flatMap(wordsOf))
+  if (identity.names.some(firm => within(wordsOf(firm), nameWords) || within(wordsOf(firm), addressWords))) return 'name'
+  if (identity.representatives.some(person => sameWords(wordsOf(person), name))) return 'representative'
+  if (identity.addresses.some(address => within(wordsOf(address), addressWords))) return 'address'
+  return undefined
+}
+
+/**
+ * Whether a representative of record is the firm ({@link firmMatch}).
  * @param party - the representative as the EP Register names it.
  * @param identity - the firm identity.
  * @returns true for a match.
  */
 export function isFirm(party: RegisterParty, identity: FirmIdentity): boolean {
-  const name = wordsOf(party.name)
-  const nameWords = new Set(name)
-  const addressWords = new Set(party.address.flatMap(wordsOf))
-  return identity.names.some(firm => within(wordsOf(firm), nameWords))
-    || identity.representatives.some(person => sameWords(wordsOf(person), name))
-    || identity.addresses.some(address => within(wordsOf(address), addressWords))
+  return firmMatch(party, identity) !== undefined
 }
 
 /**
