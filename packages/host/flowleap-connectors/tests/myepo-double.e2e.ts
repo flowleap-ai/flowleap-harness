@@ -33,7 +33,7 @@ describe('the MyEPO double in the headless profile', () => {
       communications: 17,
       unhandled: ['EP21810318.2 2317A', 'EP23771920.8 2004C', 'EP24166597.5 2001A', 'EP23755468.8 2001A'],
       folders: ['Inbox', 'Done'],
-      download: { filename: '1206_EPw_0-2026.09.29-EP23771920-2004C.pdf', head: '%PDF-' },
+      download: { filename: 'SF-2023-0045-2026.09.29-EP23771920-2004C.pdf', head: '%PDF-' },
       readAfter: true,
       dueDates: [{ termKey: 'DUE_TERM_21', dueDate: '2027-01-29', actor: 'applicant' }],
       terms: 82,

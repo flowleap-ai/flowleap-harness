@@ -5,6 +5,7 @@ declare module 'flowleap-seed-firm' {
     readonly kind: string
     readonly language: 'de' | 'en' | 'fr'
     readonly registerListDate: string
+    readonly dateOnDocument: string | null
     readonly formCode: string | null
     readonly reference: string | null
     readonly applicationNumberPrinted: string | null

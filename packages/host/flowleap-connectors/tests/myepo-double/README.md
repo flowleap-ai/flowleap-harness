@@ -2,7 +2,7 @@
 
 The MyEPO double is a local server that answers the MyEPO API calls of the `flowleapMyEpo` connector, in the wire format of the recorded EPO sandbox answers. It lets a firm and the builders see the connector work on real patent data before a firm gives production credentials.
 
-**The data is public sample data. It is not a live MyEPO account.** Every portfolio name ends with `(public sample data, not a live MyEPO account)`, and the start lines of the server say the same. The applications, the bibliographic data and the letters are real public EP files of the seed firm. The due dates and the pending fees are FlowLeap's own: no public source gives them for an application. Thus they are not an independent check of the FlowLeap deadline engine, and a match between the two proves nothing.
+**The data is public sample data. It is not a live MyEPO account.** Every portfolio name ends with `(public sample data, not a live MyEPO account)`, and the start lines of the server say the same. The applications, the bibliographic data and the letters are real public EP files of the seed firm. The due dates and the pending fees are FlowLeap's own: no public source gives them for an application. Each due date comes from `flowleap-deadlines`, the engine of the Firm Record. Thus they are not an independent check of the FlowLeap deadline engine, and a match between the two proves nothing.
 
 ## Start it
 
@@ -53,7 +53,7 @@ There is one portfolio for each seed client, of the type `representative`, with 
 
 ### Letters
 
-Each letter is a register PDF of the seed, byte for byte. The dispatch date is the register's list date. The document code and the title come from the EPO [document code list](https://api.apps.epo.org/dev-portal/document-codes), in the language of the letter. `userReference` is the reference that the letter prints (the real representative's reference). `recipientName` is the first representative in the register, or the applicant when the register has no representative; this agrees with the addressee on rows 6, 15, 16 and 18.
+Each letter is a register PDF of the seed, byte for byte. The dispatch date is the register's list date. The document code and the title come from the EPO [document code list](https://api.apps.epo.org/dev-portal/document-codes), in the language of the letter. `userReference` is the seed firm's file number of the application, the same value as its `applicantFileReference`, because a real account shows the firm's own reference on both. The PDF still prints the real representative's reference (for example `1206/EPw/0` on row 18). `recipientName` is the first representative in the register, or the applicant when the register has no representative; this agrees with the addressee on rows 6, 15, 16 and 18.
 
 | Application | Row | Letter | Code | Dispatch | State at the start |
 |---|---|---|---|---|---|
@@ -77,20 +77,21 @@ A letter dispatched before 2026-06-01 is read and handled at the start; this rul
 
 ### Due dates and pending fees
 
-These values are FlowLeap's. [`seed-data.ts`](seed-data.ts) (`DERIVED`) records the source of each value. They are the values on or after the seed clock `fetch` (2026-11-05).
+These values are FlowLeap's. `derivedValues` in [`seed-data.ts`](seed-data.ts) computes them on each start and gives each one its source. They are the values on or after the seed clock `fetch` (2026-11-05).
 
 | Application | Value | Source |
 |---|---|---|
-| EP23771920 | `DUE_TERM_21` 2027-01-29 | row 18 states four months |
-| EP23771920 | fee `007` EUR 1135, 2027-01-29 | row 18 states the code and the amount |
-| EP23771920 | fee `035` EUR 1050, 2027-09-30 | renewal fee rule, 5th year |
-| EP24166597 | `DUE_TERM_11` 2027-01-18 | row 6 states four months |
-| EP24166597 | fee `034` EUR 885, 2027-03-31 | renewal fee rule, 4th year |
-| EP23755468 | fee `035` EUR 1050, 2027-08-31 | renewal fee rule, 5th year |
-| EP22213933 | fee `044` EUR 1865, 2027-05-31 | renewal fee rule, 14th year |
-| EP21810318 | `DUE_TERM_37` 2027-02-15 | row 15 states four months; Sunday 2027-02-14 moves to Monday |
+| EP23771920 | `DUE_TERM_21` 2027-01-29 | row 18 (Rule 71(3), 2026-09-29), computed by `ep.r71-3.grant-communication` v1 of `flowleap-deadlines`, with the EPO 2027 calendar (OJ EPO 2026, A30) |
+| EP23771920 | fee `007` EUR 1135, 2027-01-29 | row 18 states the code and the amount; due at the end of the same period |
+| EP23771920 | fee `035` EUR 1050, 2027-09-30 | renewal fee, 5th year |
+| EP24166597 | fee `034` EUR 885, 2027-03-31 | renewal fee, 4th year |
+| EP23755468 | fee `035` EUR 1050, 2027-08-31 | renewal fee, 5th year |
+| EP22213933 | fee `044` EUR 1865, 2027-05-31 | renewal fee, 14th year |
 
-A period ends on the dispatch date plus the period that the letter states. Only a weekend moves the end (Rule 134(1) EPC); the EPO closing days are not applied. A renewal fee is due on the last day of the month of the filing anniversary (Art. 86(1), Rule 51(1) EPC), with the amount of OJ EPO 2026, A2. The renewal fee codes (`030` plus the year) are assumed, not checked against an EPO fee code list. The `actor` values `applicant` and `proprietor` are FlowLeap's words: the sandbox shows only placeholders. `currency` is `null`, as in the sandbox.
+- A due date comes only from a rule of `flowleap-deadlines` (pinned at the commit that the Firm Record uses). The library has a rule only for Rule 71(3) EPC. Thus the open Article 94(3) communications (rows 6 and 16) and the Rule 79(1) communication (row 15) have no due date in the double, although each letter states four months.
+- Each fee code and amount is as the [EPO Schedule of Fees](https://fees.apps.epo.org/prod/ui/) lists it on 2026-11-10: 007 EUR 1.135,00; 034 EUR 885,00; 035 EUR 1.050,00; 044 EUR 1.865,00.
+- A renewal fee is due on the last day of the month of the filing anniversary (Art. 86(1), Rule 51(1) EPC). This is a fixed day, not the end of a period, so it does not use the library.
+- The `actor` value `applicant` is FlowLeap's word: the sandbox shows only placeholders. `currency` is `null`, as in the sandbox.
 
 ## Where the spec and the sandbox differ
 
@@ -107,7 +108,8 @@ The double copies the sandbox where the two differ.
 
 ## Known limitations
 
-- The seed has no letter without an application, which the sandbox has (`52301_CONF`). The handler serves such a letter in the sandbox data set; the seed data set has none until a public source is chosen.
+- The double has no letter without an application. The sandbox has one (`52301_CONF`), and the specs keep that case with the recorded sandbox data set; no public source gives such a letter.
+- Due dates exist only where `flowleap-deadlines` has a rule (Rule 71(3) EPC). The Article 94(3) and Rule 79(1) letters have none.
 - The bibliographic data has the English register title only, and no applicant address. The seed has no unitary patent, so there is no `UPP` row.
 - The download file name for an EP letter (`<reference>-<date>-EP<number>-<code>.pdf`) follows the one sandbox name, which was for a PCT letter.
 - The double does not serve the fee schedule calls (`GET /fees...`), which the connector does not use.

@@ -2,12 +2,13 @@
  * The public sample data set of the MyEPO double: the seed firm's real public EP files from the pinned
  * `flowleap-seed-firm` package, in MyEPO wire form. Applications, bibliographic data and letters come from the seed's
  * register snapshots and register PDFs. The due dates and pending fees are FlowLeap's own: no public source gives them
- * for an application, so each value in {@link DERIVED} names the letter that states it or the rule that computes it.
+ * for an application, so {@link derivedValues} gives each value with the letter, the fee schedule or the rule it comes from.
  * @module
  */
 
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { epoCalendars, parseEventCode, parseLocalDate, rulesFor } from 'flowleap-deadlines'
 import { loadSeed, type Matter, type Seed, type SeedDocument } from 'flowleap-seed-firm'
 import type { DoubleLetter, MyEpoDoubleData, WireApplication, WireCommunication, WirePortfolio } from './double.ts'
 
@@ -60,24 +61,95 @@ export interface Derived {
   readonly source: string
 }
 
-const RENEWAL = 'due on the last day of the month of the anniversary of the filing date (Art. 86(1), Rule 51(1) EPC); amount from OJ EPO 2026, A2 (payments from 2026-04-01); fee code assumed as 030 plus the year, not checked against an EPO fee code list'
+/**
+ * The seed letter kinds that start a period that `flowleap-deadlines` computes, with the MyEPO term of that period.
+ * A kind without a rule in the library gets no due date: the double does not compute a period end of its own.
+ */
+const PERIODS: Readonly<Record<string, { readonly event: string; readonly termKey: string; readonly actor: string }>> = {
+  'r71-3-communication': { event: 'EPO:R71(3)', termKey: 'DUE_TERM_21', actor: 'applicant' },
+}
+
+/** The EPO Schedule of Fees that the fee codes and amounts below copy, read on 2026-11-10 (valid on that day). */
+export const FEE_SCHEDULE_SOURCE = 'EPO Schedule of Fees, https://fees.apps.epo.org/prod/ui/ (read 2026-11-10)'
+
+/** Fees that a seed letter states, payable within the period that the letter starts. */
+interface StatedFee {
+  readonly application: string
+  readonly row: number
+  readonly feeCode: string
+  readonly amount: number
+  readonly text: string
+}
+const STATED_FEES: readonly StatedFee[] = [
+  { application: 'EP23771920', row: 18, feeCode: '007', amount: 1135, text: 'row 18 states fee code 007, EUR 1135.00' },
+]
+
+/** The next renewal fee of each pending seed application; code and amount as the EPO Schedule of Fees lists them. */
+interface Renewal {
+  readonly application: string
+  readonly year: number
+  readonly feeCode: string
+  readonly amount: number
+  readonly listed: string
+}
+const RENEWALS: readonly Renewal[] = [
+  { application: 'EP23771920', year: 5, feeCode: '035', amount: 1050, listed: '035 Renewal fee for the 5th year, EUR 1.050,00' },
+  { application: 'EP24166597', year: 4, feeCode: '034', amount: 885, listed: '034 Renewal fee for the 4th year, EUR 885,00' },
+  { application: 'EP23755468', year: 5, feeCode: '035', amount: 1050, listed: '035 Renewal fee for the 5th year, EUR 1.050,00' },
+  { application: 'EP22213933', year: 14, feeCode: '044', amount: 1865, listed: '044 Renewal fee for the 14th year, EUR 1.865,00' },
+]
 
 /**
- * The due dates and pending fees of the double, at the seed clock `fetch` (2026-11-05): each open period of a seed
- * letter and the next renewal fee of each pending application. A period end is the dispatch date plus the period that
- * the letter states (Rules 126(2), 131(2) and (4) EPC), moved to the next working day only for a weekend (Rule 134(1)
- * EPC; EPO closing days are not applied). The `actor` words are FlowLeap's: the sandbox shows only placeholders.
+ * The due date of a renewal fee: the last day of the month that holds the anniversary of the filing date for the
+ * year (Art. 86(1), Rule 51(1) EPC). It is a fixed day, not the end of a period.
  */
-export const DERIVED: readonly Derived[] = [
-  { application: 'EP23771920', kind: 'due-date', value: { termKey: 'DUE_TERM_21', dueDate: '2027-01-29', actor: 'applicant' }, source: 'row 18, Rule 71(3) communication of 2026-09-29: "within a non-extendable period of four months"' },
-  { application: 'EP23771920', kind: 'fee', value: { feeCode: '007', amount: 1135, dueDate: '2027-01-29' }, source: 'row 18 states fee code 007, EUR 1135.00, payable within the same four months' },
-  { application: 'EP23771920', kind: 'fee', value: { feeCode: '035', amount: 1050, dueDate: '2027-09-30' }, source: `renewal fee for the 5th year, filing date 2023-09-06: ${RENEWAL}` },
-  { application: 'EP24166597', kind: 'due-date', value: { termKey: 'DUE_TERM_11', dueDate: '2027-01-18', actor: 'applicant' }, source: 'row 6, Article 94(3) communication of 2026-09-18: "innerhalb einer Frist von 4 Monaten"' },
-  { application: 'EP24166597', kind: 'fee', value: { feeCode: '034', amount: 885, dueDate: '2027-03-31' }, source: `renewal fee for the 4th year, filing date 2024-03-27: ${RENEWAL}` },
-  { application: 'EP23755468', kind: 'fee', value: { feeCode: '035', amount: 1050, dueDate: '2027-08-31' }, source: `renewal fee for the 5th year, filing date 2023-08-07: ${RENEWAL}` },
-  { application: 'EP22213933', kind: 'fee', value: { feeCode: '044', amount: 1865, dueDate: '2027-05-31' }, source: `renewal fee for the 14th year of the divisional application, filing date 2014-05-15: ${RENEWAL}` },
-  { application: 'EP21810318', kind: 'due-date', value: { termKey: 'DUE_TERM_37', dueDate: '2027-02-15', actor: 'proprietor' }, source: 'row 15, Rule 79(1) communication of 2026-10-14: "innerhalb einer Frist von vier Monaten"; 2027-02-14 is a Sunday, so Rule 134(1) EPC moves it to Monday' },
-]
+function renewalDueDate(filingDate: string, year: number): string {
+  const anniversaryYear = Number(filingDate.slice(0, 4)) + year - 1
+  const month = Number(filingDate.slice(5, 7))
+  const lastDay = new Date(Date.UTC(anniversaryYear, month, 0)).getUTCDate()
+  return `${anniversaryYear}-${filingDate.slice(5, 7)}-${String(lastDay).padStart(2, '0')}`
+}
+
+/**
+ * The due dates and pending fees of the double, on or after the seed clock. A due date comes only from a rule of
+ * `flowleap-deadlines` (the Firm Record's engine, with the EPO calendars), so the double and the engine agree by
+ * construction: these values are no independent check of the engine.
+ * @param seed - the seed firm.
+ * @param filingDates - the filing date of each application, `YYYY-MM-DD`.
+ * @returns each value with its source.
+ * @throws Error when the library refuses a computation, for example a missing calendar year.
+ */
+export function derivedValues(seed: Seed, filingDates: Readonly<Record<string, string>>): Derived[] {
+  const clock = seed.clocks.clocks[seed.clocks.default]!
+  const derived: Derived[] = []
+  for (const matter of seed.matters) {
+    for (const document of matter.documents) {
+      const period = PERIODS[document.kind]
+      if (period === undefined) continue
+      const event = parseEventCode(period.event)
+      const [rule, ...others] = rulesFor(event)
+      if (rule === undefined || others.length > 0) throw new Error(`flowleap-deadlines: expected one rule for ${period.event}`)
+      const documentDate = parseLocalDate(document.dateOnDocument ?? document.registerListDate)
+      const computed = rule.compute({ event, documentDate, receivedAt: null }, epoCalendars)
+      if (!computed.ok) throw new Error(`flowleap-deadlines refused ${matter.application} row ${document.row}: ${computed.error} ${computed.detail}`)
+      if (computed.due < clock) continue
+      const ruleSource = `${rule.id} v${rule.version} of flowleap-deadlines (${computed.trace.map(step => step.cite).join('; ')})`
+      derived.push({ application: matter.application, kind: 'due-date', value: { termKey: period.termKey, dueDate: computed.due, actor: period.actor }, source: `row ${document.row}: ${ruleSource}` })
+      for (const fee of STATED_FEES.filter(entry => entry.application === matter.application && entry.row === document.row)) {
+        derived.push({ application: matter.application, kind: 'fee', value: { feeCode: fee.feeCode, amount: fee.amount, dueDate: computed.due }, source: `${fee.text}; due at the end of the same period, ${ruleSource}` })
+      }
+    }
+  }
+  for (const renewal of RENEWALS) {
+    const dueDate = renewalDueDate(filingDates[renewal.application]!, renewal.year)
+    if (dueDate < clock) throw new Error(`renewal fee of ${renewal.application} for year ${renewal.year} is due before the seed clock`)
+    derived.push({
+      application: renewal.application, kind: 'fee', value: { feeCode: renewal.feeCode, amount: renewal.amount, dueDate },
+      source: `due date by Art. 86(1) and Rule 51(1) EPC from the filing date ${filingDates[renewal.application]}; ${FEE_SCHEDULE_SOURCE}: ${renewal.listed}`,
+    })
+  }
+  return derived
+}
 
 interface RegisterBiblio {
   readonly title: string
@@ -122,7 +194,9 @@ function checkDigit(matter: Matter): string {
  * @returns the data set, with {@link ARRIVAL} as its one arrival.
  */
 export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleData {
-  const clock = seed.clocks.clocks[seed.clocks.default]
+  const filingDates = Object.fromEntries(seed.matters.map(matter =>
+    [matter.application, isoDate((snapshot(matter, 'get_register_biblio') as RegisterBiblio).dates.filing)]))
+  const derived = derivedValues(seed, filingDates)
   const portfolios = seed.clients.map((client, index): WirePortfolio => ({
     id: String(index + 1),
     name: `${client.publishedNames[0]} (${SAMPLE_MARKER})`,
@@ -143,7 +217,7 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
     const bibliography = snapshot(matter, 'get_bibliography') as Bibliography
     const key = `EPC/${matter.application}`
     const myEpoNumber = `${matter.application}.${checkDigit(matter)}`
-    const filingDate = isoDate(register.dates.filing)
+    const filingDate = filingDates[matter.application]!
     const identification = { procedure: 'EPC', ipOfficeCode: 'EP', applicationNumber: matter.application.slice(2), applicationNumberMyEPO: myEpoNumber, filingDate }
     const portfolio = portfolioOf(matter)
     applications.push({
@@ -183,9 +257,9 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
         },
       },
     }
-    const derived = DERIVED.filter(entry => entry.application === matter.application && entry.value.dueDate >= clock!)
-    dueDates[key] = { applicationIdentification: identification, dueDates: derived.flatMap(entry => entry.kind === 'due-date' ? [entry.value] : []) }
-    fees[key] = derived.flatMap(entry => entry.kind === 'fee' ? [{ ...entry.value, currency: null }] : [])
+    const own = derived.filter(entry => entry.application === matter.application)
+    dueDates[key] = { applicationIdentification: identification, dueDates: own.flatMap(entry => entry.kind === 'due-date' ? [entry.value] : []) }
+    fees[key] = own.flatMap(entry => entry.kind === 'fee' ? [{ ...entry.value, currency: null }] : [])
 
     for (const document of matter.documents) {
       if (ANNEX_KINDS.has(document.kind)) continue
@@ -224,7 +298,8 @@ function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, r
     dispatchDate: document.registerListDate,
     applicationNumber: myEpoNumber,
     recipientName: register.representatives[0]?.name ?? register.applicants[0] ?? null,
-    userReference: document.reference,
+    // The firm's own reference, as a real account shows it; the PDF prints the real representative's reference.
+    userReference: matter.fileNumber,
     document: `${baseUrl}/communications/download/${id}`,
     digitalFile: null,
     documentCode: code.code,
@@ -236,8 +311,7 @@ function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, r
       { href: `${baseUrl}/communications/handle/${id}`, title: 'Handle communication', media: 'application/json', type: 'POST', rel: 'handle' },
     ],
   }
-  const filename = [document.reference, document.registerListDate.replace(/-/g, '.'), matter.application, code.code]
-    .filter(part => part !== null).join('-').replace(/[/\\]/g, '_')
+  const filename = [matter.fileNumber, document.registerListDate.replace(/-/g, '.'), matter.application, code.code].join('-')
   return { communication, filename: `${filename}.pdf`, pdf: () => readFileSync(document.path) }
 }
 

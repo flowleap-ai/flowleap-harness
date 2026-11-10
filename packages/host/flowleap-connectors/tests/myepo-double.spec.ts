@@ -9,7 +9,7 @@ import {
 } from '@deepseek-ai/dsh-flowleap-connectors'
 import { API_REFUSED, createMyEpoDouble, NOT_PERMITTED, READ_ONLY, TOKEN_REFUSED, UNKNOWN_APPLICATION, type MyEpoDouble } from './myepo-double/double.ts'
 import { recorded, sandboxData } from './myepo-double/sandbox-data.ts'
-import { ARRIVAL, DERIVED, DOUBLE_CLIENT, RESTRICTED_APPLICATION, SAMPLE_MARKER, seedData } from './myepo-double/seed-data.ts'
+import { ARRIVAL, derivedValues, DOUBLE_CLIENT, RESTRICTED_APPLICATION, SAMPLE_MARKER, seedData } from './myepo-double/seed-data.ts'
 import { startMyEpoDoubleServer } from './myepo-double/server.ts'
 
 const ENDPOINT = { baseUrl: 'https://double.test/latest', tokenUrl: 'https://double.test/token' }
@@ -168,7 +168,8 @@ describe('the MyEPO double on the seed firm', () => {
     const document = await client.downloadCommunication(opposition)
     const source = seed.matters.find(matter => matter.application === 'EP21810318')!.documents.find(row => row.row === 15) as { sha256?: string }
     expect(createHash('sha256').update(document.pdf).digest('hex')).toBe(source.sha256)
-    expect(document.filename).toBe('P-2020-0063DEWOEP-2026.10.14-EP21810318-2317A.pdf')
+    expect(document.filename).toBe('SF-2026-0019-2026.10.14-EP21810318-2317A.pdf')
+    expect(opposition.userReference).toBe('SF-2026-0019')
     const after = (await client.unhandledCommunications()).items
     expect(after.map(letter => [letter.id, letter.read, letter.handled])).toEqual([
       [opposition.id, true, false], [after[1]!.id, false, false], [after[2]!.id, false, false],
@@ -180,7 +181,7 @@ describe('the MyEPO double on the seed firm', () => {
     const client = reads(double)
     expect(double.state().waiting).toBe(1)
     const arrived = double.arrive()
-    expect(arrived).toMatchObject({ applicationNumber: 'EP23771920.8', documentCode: '2004C', dispatchDate: '2026-09-29', userReference: '1206/EPw/0', read: false, handled: false })
+    expect(arrived).toMatchObject({ applicationNumber: 'EP23771920.8', documentCode: '2004C', dispatchDate: '2026-09-29', userReference: 'SF-2023-0045', read: false, handled: false })
     expect(double.arrive()).toBeUndefined()
     const unhandled = (await client.unhandledCommunications()).items
     expect(unhandled.map(letter => letter.documentCode)).toEqual(['2317A', '2004C', '2001A', '2001A'])
@@ -210,11 +211,23 @@ describe('the MyEPO double on the seed firm', () => {
     }
   })
 
-  it('names the source of every derived due date and fee, and keeps them out of the past', () => {
-    for (const entry of DERIVED) {
+  it('takes each due date from a flowleap-deadlines rule and names the source of every derived value', async () => {
+    const filingDates = Object.fromEntries(seed.matters.map((matter) => {
+      const filing = (matter.register['get_register_biblio']!.body as { dates: { filing: string } }).dates.filing
+      return [matter.application, `${filing.slice(0, 4)}-${filing.slice(4, 6)}-${filing.slice(6, 8)}`]
+    }))
+    const derived = derivedValues(seed, filingDates)
+    expect(derived.filter(entry => entry.kind === 'due-date').map(entry => [entry.application, entry.value.dueDate])).toEqual([['EP23771920', '2027-01-29']])
+    expect(derived.find(entry => entry.kind === 'due-date')?.source).toContain('ep.r71-3.grant-communication v1 of flowleap-deadlines')
+    expect(derived.find(entry => entry.kind === 'due-date')?.source).toContain('Rule 134(1) EPC; OJ EPO 2026, A30')
+    for (const entry of derived) {
       expect(entry.source.length, entry.application).toBeGreaterThan(20)
       expect(entry.value.dueDate >= seed.clocks.clocks[seed.clocks.default]!, entry.application).toBe(true)
     }
+    const client = reads(seedDouble())
+    expect(await client.dueDates(ep('EP24166597'))).toEqual([])
+    expect(await client.dueDates(ep('EP21810318'))).toEqual([])
+    expect(await client.pendingFees(ep('EP22213933'))).toEqual([{ feeCode: '044', amount: 1865, dueDate: '2027-05-31' }])
   })
 
   it('serves the API, the token and the control surface on a loopback port', async () => {
