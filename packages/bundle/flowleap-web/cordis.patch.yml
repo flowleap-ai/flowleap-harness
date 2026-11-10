@@ -88,6 +88,29 @@
   config:
     packageNames: false
 
+# The sidebar groups: this row is their one owner, with their order, their
+# labels and the rows in each. My work is the start, so Work comes first. A
+# plugin adds its row to `sidebar.panellist` and this list places it; a
+# registered row that no group names follows the groups without a label.
+# Plugins draws at the foot above the person and Settings. A label needs
+# English (en); a language with no entry shows the English label. German:
+# Arbeit (the daily work), Kanzlei (the firm: its matters and clients), Agent
+# (the same word in German). Letters and Deadlines join Work when those pages
+# exist.
+- id: ui-sidebar
+  config:
+    groups:
+      - id: work
+        label: { en: Work, de: Arbeit }
+        panels: [flowleap-my-work, flowleap-office-actions]
+      - id: firm
+        label: { en: Firm, de: Kanzlei }
+        panels: [flowleap-records, flowleap-folder]
+      - id: agent
+        label: { en: Agent, de: Agent }
+        panels: [flowleap-chats, flowleap-agents, schedules]
+    footPanels: [plugins]
+
 # New task on the Automation tasks page opens the new chat with an example
 # request in the composer, unsent; ui-flowleap-routines supplies the patent
 # example.

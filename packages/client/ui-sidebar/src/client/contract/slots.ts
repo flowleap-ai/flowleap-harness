@@ -86,7 +86,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'sidebar.settings': { kind: 'single'; scope: 'root'; owner: SidebarSettingsOwnerProps }
     /**
      * Optional actions beside Settings at the sidebar foot. Declared by this
-     * package's 'sidebar' entry; each action receives only the column state.
+     * package's 'sidebar' entry; each action receives the column state and the panel rows' classes.
      */
     'sidebar.footer.action': { kind: 'list'; scope: 'root'; owner: SidebarFooterActionOwnerProps }
   }
@@ -134,6 +134,16 @@ export interface SidebarPanelMetadata {
   order: number
   /** Row title and accessible name: resolved label, or the id when omitted. */
   label: string
+}
+
+/** FlowLeap fork modification: one labelled group of panel rows, as the deployment configures it. */
+export interface SidebarPanelGroup {
+  /** Group id from the configuration. */
+  readonly id: string
+  /** Group label in the active language; the accessible name of the group's list. */
+  readonly label: string
+  /** Panel ids in display order; ids without a registration render nothing. */
+  readonly panels: readonly string[]
 }
 
 /** One customizable panel launcher listed in the More menu. */
@@ -213,11 +223,11 @@ export interface SidebarSettingsOwnerProps {
   wide: boolean
 }
 
-/** Owner share of an action rendered beside Settings at the sidebar foot. */
-export interface SidebarFooterActionOwnerProps {
-  /** Whether the sidebar renders wide content (false = 56px rail). */
-  wide: boolean
-}
+/**
+ * Owner share of an action rendered beside Settings at the sidebar foot. FlowLeap fork modification: it carries the panel
+ * rows' classes, so a foot action such as Firm admin can draw a panel row; upstream passes only `wide`.
+ */
+export type SidebarFooterActionOwnerProps = SidebarRowOwnerProps
 
 /**
  * Registrant-private injected share (arrives via the register inject
@@ -242,9 +252,13 @@ export type SidebarRootInjected = {
   setPinned: (id: string, pinned: boolean) => void
   /** Record activation of an official navigation control without changing navigation. */
   trackEntryClick: (attributes: ProductEventMap['sidebar_menu_click']) => void
+  /** FlowLeap fork modification: panel ids drawn at the foot above Settings, in display order. */
+  footPanels: readonly string[]
   /** Private reactive sources bound to framework selector hooks. */
   hooks: {
     panels: ObservableSnapshot<readonly SidebarPanelMetadata[]>
+    /** FlowLeap fork modification: labelled panel groups; empty keeps the upstream flat list. */
+    groups: ObservableSnapshot<readonly SidebarPanelGroup[]>
     shortcuts: ObservableSnapshot<readonly ShortcutCatalogEntry[]>
     /** Ids of unpinned panel launchers held in memory until plugin reload. */
     entryPins: ObservableSnapshot<readonly string[]>
