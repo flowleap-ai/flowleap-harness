@@ -1,6 +1,6 @@
 # A fact of the firm lives in the Firm Record or a firm service, a person's runtime keeps only that person's state, and a gate refuses new work that breaks this
 
-**Status:** proposed (2026-11-10), for the founder's decision. The design is [2026-11-10-firm-organisation-design.md](../2026-11-10-firm-organisation-design.md); the facts are in [2026-11-10-firm-state-audit.md](../2026-11-10-firm-state-audit.md).
+**Status:** accepted (2026-11-10). The founder answered "I approve" to the rule, the recommendation and the decisions D1 to D11 of the design. The design is [2026-11-10-firm-organisation-design.md](../2026-11-10-firm-organisation-design.md); the facts are in [2026-11-10-firm-state-audit.md](../2026-11-10-firm-state-audit.md).
 
 ## Context
 

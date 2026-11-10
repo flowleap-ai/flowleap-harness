@@ -1,6 +1,6 @@
 # A firm is an organisation: the state rule, the architecture and the gate
 
-**Status:** draft for the founder's decision, 2026-11-10. The decision record is [ADR 0003](adr/0003-firm-state-rule.md). The facts are in [the audit](2026-11-10-firm-state-audit.md).
+**Status:** approved by the founder on 2026-11-10 ("I approve"), with the eleven [decisions](#10-decisions-for-the-founder) below. The decision record is [ADR 0003](adr/0003-firm-state-rule.md). The facts are in [the audit](2026-11-10-firm-state-audit.md).
 
 ## Summary
 
@@ -18,7 +18,7 @@
 
 **What stops now.** No outside firm uses Add client, the MyEPO link or register watches on a firm installation until their migration steps land. No new feature that writes firm or matter state from a runtime merges. No new page that a runtime serves sends an administrator command. The build of the matter memory (M1) waits for the decision on the home of matter files (D4).
 
-**Decisions for the founder.** Eleven decisions, each with a recommended answer, are in [the last section](#10-decisions-for-the-founder).
+**Decisions for the founder.** The founder decided all eleven on 2026-11-10 with the recommended answers; [the last section](#10-decisions-for-the-founder) lists them.
 
 ## Contents
 
@@ -265,16 +265,18 @@ What must stop until then:
 
 ## 10. Decisions for the founder
 
-| # | Decision | Recommended answer |
-|---|---|---|
-| D1 | Approve the state rule (section 2) and alternative D | Yes |
-| D2 | One role function in the Record with three sources: Entra app roles (administrator, partner, attorney, formalities) from the sign-in proxy, the local administrator, and roles of local accounts on the local firm and a firm of one; each change logged | Yes. The firm's IT already manages Entra, the proxy already sends the roles, administrator gets one meaning everywhere, and the local firm can prove a role. The cost is four app roles in the firm's Entra app and, later, a Graph permission for the roles of persons who never signed in |
-| D3 | Admin surfaces: secrets and host configuration in the Firm admin console, firm facts in the Records app | Yes. A secret never passes through a runtime, and a decision never passes through a runtime (ADR 0002 F2) |
-| D4 | Home of matter files (the decision for M1) | The Firm Record's document store with a working copy in the runtime; SharePoint and file servers as plugin sources |
-| D5 | Single-user is a "firm of one" that runs the same Firm Record (PGlite on the desktop) | Yes. The spike runs before any fact moves (step 2); if it fails, decide again before step 3 |
-| D6 | Who may send each firm-level command | Provider contracts and roles: administrator. Client AI rules: partner or administrator. Open a matter: formalities, attorney or partner |
-| D7 | A change of the state ledger (`flowleap/state-ledger.yml`) or its baseline is a pull request of its own that the founder signs off | Yes. Each new person-state row is then a visible, owned decision, also when an agent commits under the founder's account |
-| D8 | Amend ADR 0002 F10: the firm worker reads MyEPO and hands letters to the intake | Yes. The MyEPO client is harness code; the intake keeps the letters |
-| D9 | The pause list of section 9 | Yes |
-| D10 | The harness types of each Firm Record command are generated from one command catalog in flowleap-os | Yes. It makes the cross-repository step of a new feature one entry, and a stale copy fails a check |
-| D11 | The console and every Record command that needs the administrator or partner role move to a second browser origin | Yes. Today one origin serves the runtime, the console and the Record, so a script in a page that the runtime serves can act with the person's roles |
+The founder answered "I approve" on 2026-11-10 to the question "Do you approve the rule and the recommendation (D1), and what is your decision on D4?". Each decision below is decided with its recommended answer.
+
+| # | Decision | Decided answer | How it was decided |
+|---|---|---|---|
+| D1 | Approve the state rule (section 2) and alternative D | Yes | Approved by name on 2026-11-10 |
+| D2 | One role function in the Record with three sources: Entra app roles (administrator, partner, attorney, formalities) from the sign-in proxy, the local administrator, and roles of local accounts on the local firm and a firm of one; each change logged | Yes. The firm's IT already manages Entra, the proxy already sends the roles, administrator gets one meaning everywhere, and the local firm can prove a role. The cost is four app roles in the firm's Entra app and, later, a Graph permission for the roles of persons who never signed in | Decided by the general approval of 2026-11-10 |
+| D3 | Admin surfaces: secrets and host configuration in the Firm admin console, firm facts in the Records app | Yes. A secret never passes through a runtime, and a decision never passes through a runtime (ADR 0002 F2) | Decided by the general approval of 2026-11-10 |
+| D4 | Home of matter files (the decision for M1) | The Firm Record's document store with a working copy in the runtime; SharePoint and file servers as plugin sources | Decided by the general approval of 2026-11-10; the founder was asked for D4 by name and gave no separate answer |
+| D5 | Single-user is a "firm of one" that runs the same Firm Record (PGlite on the desktop) | Yes. The spike runs before any fact moves (step 2); if it fails, decide again before step 3 | Decided by the general approval of 2026-11-10 |
+| D6 | Who may send each firm-level command | Provider contracts and roles: administrator. Client AI rules: partner or administrator. Open a matter: formalities, attorney or partner | Decided by the general approval of 2026-11-10 |
+| D7 | A change of the state ledger (`flowleap/state-ledger.yml`) or its baseline is a pull request of its own that the founder signs off | Yes. Each new person-state row is then a visible, owned decision, also when an agent commits under the founder's account | Decided by the general approval of 2026-11-10 |
+| D8 | Amend ADR 0002 F10: the firm worker reads MyEPO and hands letters to the intake | Yes. The MyEPO client is harness code; the intake keeps the letters | Decided by the general approval of 2026-11-10 |
+| D9 | The pause list of section 9 | Yes | Decided by the general approval of 2026-11-10 |
+| D10 | The harness types of each Firm Record command are generated from one command catalog in flowleap-os | Yes. It makes the cross-repository step of a new feature one entry, and a stale copy fails a check | Decided by the general approval of 2026-11-10 |
+| D11 | The console and every Record command that needs the administrator or partner role move to a second browser origin | Yes. Today one origin serves the runtime, the console and the Record, so a script in a page that the runtime serves can act with the person's roles | Decided by the general approval of 2026-11-10 |

@@ -1,6 +1,6 @@
 # Where the state of a firm lives today: an audit
 
-**Status:** audit of 2026-11-10, input to [ADR 0003](adr/0003-firm-state-rule.md) and [the firm organisation design](2026-11-10-firm-organisation-design.md). Harness at `0a03c2dcd6` (branch `flowleap`), flowleap-os at `035c2e8` (`main`).
+**Status:** audit of 2026-11-10, the facts behind [ADR 0003](adr/0003-firm-state-rule.md) (accepted 2026-11-10) and [the firm organisation design](2026-11-10-firm-organisation-design.md). Harness at `0a03c2dcd6` (branch `flowleap`), flowleap-os at `035c2e8` (`main`).
 
 ## Contents
 
