@@ -1,6 +1,6 @@
 # MyEPO link
 
-The firm links its own MyEPO account on the MyEPO card of Settings → Patent data connectors. The card stores the client ID and the secret only after a test passed, then shows the portfolios that the account may read; on a later visit it is one header and one summary line.
+The firm links its own MyEPO account on the MyEPO card of Settings → Connectors. The card stores the client ID and the secret only after a test passed, then shows the portfolios that the account may read; on a later visit it is one header and one summary line.
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ The firm links its own MyEPO account on the MyEPO card of Settings → Patent da
 
 ## How to get to it (user POV)
 
-- Choose `Settings` in the sidebar, then `Patent data connectors`. The MyEPO card is first, under `Your firm's EPO account`.
+- Choose `Settings` in the sidebar, then `Connectors`. The MyEPO card is first, under `Your firm's EPO account`.
 
 ## Driving it with the browser tool
 
@@ -20,7 +20,7 @@ Preconditions:
 - The baseline in [README.md](./README.md), started with `DSH_VERIFY_PATCH=.claude/skills/verify/features/myepo.patch.yml`.
 - Before `web.sh start`, in the new run directory: `node .claude/skills/verify/scripts/myepo-link.mjs "$RUN"`. It reads the founder's sandbox credentials from `~/.config/flowleap/myepo-sandbox.env`, runs the card's test against the sandbox, and writes the link into the run's writable credential store. It prints the portfolio count only. Never type the real credentials into the page.
 
-- **Linked.** Choose button `Settings`, then `Patent data connectors`. The MyEPO card shows `Linked`, `6 portfolios`, `Mailbox access` and `Last test` with the time of the link.
+- **Linked.** Choose button `Settings`, then `Connectors`. The MyEPO card shows `Linked`, `6 portfolios`, `Mailbox access` and `Last test` with the time of the link.
 - **Test.** Choose button `Test` on the MyEPO card. The card shows `Test passed`, `6 portfolios`, `that the account may read`, and a table of six portfolios: `Applicant Portfolio 1` to `Association Portfolio 2`, three `Full` and three `Limited`.
 - **Unlink.** Choose button `More acts`, then `Unlink`. The card shows `Not linked`, the four sources, the rows `What FlowLeap reads` and `Set up the account at the EPO`, and the empty `Client ID` and `Client secret` fields. Open both rows once.
 - **Refused.** Type `verify-client` in `Client ID` and `verify-wrong-secret` in `Client secret`, then choose `Save and test`. The card shows `Test failed` and `The EPO refused the client ID or the client secret.` The run's `home/.credentials.yaml` has no `flowleap-connectors/myepo` record.

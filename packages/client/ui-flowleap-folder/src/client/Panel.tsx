@@ -8,10 +8,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
+  Button, DataTable, FileTypeIcon, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular,
   IconNewChatOutlineRegular, IconPaperclipOutlineRegular, IconProjectAddOutlineRegular, IconRefreshOutlineRegular,
   IconRightUpOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular, IconWorkspaceTreeOutlineRegular, Keycap, Modal,
-  Tooltip, type KeycapBox, type MarkdownLabels,
+  Tooltip, type DataTableColumn, type DataTableLabels, type DataTableMode, type KeycapBox, type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -194,7 +194,7 @@ export function FolderPanel(props: PanelProps) {
         )
         : client === null
           ? (
-            <ClientsList t={t} addT={addClientT} clients={clients} watching={adding.clients.filter(item => item.role === 'watch')}
+            <ClientsList t={t} addT={addClientT} locale={locale} clients={clients} watching={adding.clients.filter(item => item.role === 'watch')}
               open={(id) => { void model.openClient(id) }} add={() => { addClient.start() }} />
           )
           : <ClientFolderView {...props} state={state} client={client} keycaps={keycaps} locale={locale} recorded={adding.clients} />}
@@ -205,15 +205,41 @@ export function FolderPanel(props: PanelProps) {
   )
 }
 
-/** The Clients list: one row for each client folder, and Watching. */
-function ClientsList({ t, addT, clients, watching, open, add }: {
+/** The Clients list starts sorted by client name, 25 rows a page. */
+const CLIENTS_MODE: DataTableMode = { kind: 'client', sort: { column: 'client', direction: 'ascending' }, pageSize: 25 }
+
+/** The Clients list: a table of the client folders, with the client and the date it was added, then Watching. */
+function ClientsList({ t, addT, locale, clients, watching, open, add }: {
   readonly t: Translate
   readonly addT: AddClientTranslate
+  readonly locale: LocaleId
   readonly clients: readonly WorkspaceView[]
   readonly watching: AddClientSnapshot['clients']
   readonly open: (id: WorkspaceId) => void
   readonly add: () => void
 }) {
+  const table = useMemo(() => {
+    const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+    const number = new Intl.NumberFormat(locale)
+    const columns: readonly DataTableColumn<WorkspaceView>[] = [
+      { id: 'client', header: t('clients.col.client'), sortValue: row => row.title, cell: row => <span className={css.clientName}>{row.title}</span> },
+      {
+        id: 'added', header: t('clients.col.added'), sortValue: row => row.createdAt, cell: row => date.format(new Date(row.createdAt)), width: 128,
+        hideBelow: 720,
+      },
+    ]
+    const labels: DataTableLabels = {
+      table: t('clients.listLabel'),
+      empty: t('table.empty'),
+      pageSize: t('table.pageSize'),
+      previous: t('table.previous'),
+      next: t('table.next'),
+      range: ({ first, last, total }) => total === 0
+        ? t('table.rangeNone')
+        : t('table.range', { first: number.format(first), last: number.format(last), total: number.format(total) }),
+    }
+    return { columns, labels, textFilter: { label: t('clients.find'), text: (row: WorkspaceView) => row.title } }
+  }, [t, locale])
   return (
     <>
       <header className={css.topbar} data-frame-top-row="">
@@ -236,16 +262,8 @@ function ClientsList({ t, addT, clients, watching, open, add }: {
             </div>
           )
           : (
-            <ul className={css.list} aria-label={t('clients.listLabel')}>
-              {clients.map(item => (
-                <li key={item.workspaceId}>
-                  <button type="button" className={clsx(css.row, css.clientRow)} onClick={() => { open(item.workspaceId) }}>
-                    <span className={css.icon}><IconFolderCloseRegular size={16} /></span>
-                    <span className={css.name}>{item.title}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <DataTable className={css.clients} columns={table.columns} rows={clients} rowKey={row => row.workspaceId} labels={table.labels}
+              mode={CLIENTS_MODE} textFilter={table.textFilter} onOpen={(row) => { open(row.workspaceId) }} />
           )}
         <WatchingList t={addT} watching={watching} />
       </div>

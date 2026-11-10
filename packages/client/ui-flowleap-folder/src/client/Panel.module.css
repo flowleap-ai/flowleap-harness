@@ -254,10 +254,12 @@
   overflow-wrap: anywhere;
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 24px;
+.clients {
+  padding: 8px 16px 24px;
+}
+
+.clientName {
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
 }
 
 .table {
@@ -313,20 +315,6 @@
   height: 44px;
   position: relative;
   color: var(--dsw-alias-label-primary);
-}
-
-.list .row {
-  grid-template-columns: 16px minmax(0, 1fr);
-  width: 100%;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.list .row.clientRow {
-  grid-template-columns: 16px minmax(0, 1fr) auto;
 }
 
 .checked,

@@ -1,5 +1,5 @@
 /**
- * Patent data connectors settings, browser half: the "Patent data connectors"
+ * Connectors settings, browser half: the "Connectors"
  * settings section with one write-only card per connector, and the first-run
  * key wizard shown while no connector is configured and the dismissal is not
  * recorded. Both read presence and write keys through the `flowleapConnectors`
@@ -33,7 +33,7 @@ export type { ConnectorsLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Patent data connectors section and wizard copy. */
+    /** Connectors section and wizard copy. */
     'settings.flowleapConnectors': ConnectorsLocaleKey
   }
 }
