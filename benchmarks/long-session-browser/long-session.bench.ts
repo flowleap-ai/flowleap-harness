@@ -7,9 +7,9 @@ import { chromium, type Page, type CDPSession, type Locator } from 'playwright'
 import { expect, it, vi } from 'vitest'
 import { launchWebScaffold, seedSession, watchConsole, webSnapshotMode } from '../../apps/web/tests/scaffold.ts'
 import { newEnglishPage } from '../../apps/web/tests/support.ts'
-import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
-import { HISTORY_TURNS, SESSION_ID, FIRST, DONE, DELTAS, PACE_MS, syntheticHistory, syntheticReply } from './synthetic-history.ts'
+import { HISTORY_TURNS, SESSION_ID, FIRST, DONE, DONE_CHUNK, DELTAS, PACE_MS, syntheticHistory, syntheticReply } from './synthetic-history.ts'
 
 const SAMPLES = 3
 const TAIL = '[data-chat-flow-key^="9:turn-tail"]'
@@ -147,6 +147,10 @@ it('accepts recorded hosted paging and Trajectory medians and rejects slower end
     expect(budget).toBe(expectedBudget)
     expect(() => expectEndpointWithinBudget(budget + 1, budget)).toThrow()
   }
+})
+
+it('holds the synthetic reply before its DONE delta', () => {
+  expect(syntheticReply()[DONE_CHUNK]).toEqual({ type: 'text-delta', index: 0, text: DONE })
 })
 
 it('waits for visible marker text in the latest Assistant step', async () => {
@@ -349,7 +353,9 @@ it('opens, pages, navigates and streams into a 240-turn browser history', async 
     const root = await mkdtemp(join(tmpdir(), 'dsh-browser-benchmark-'))
     try {
       const replayOverride = join(root, 'reply.json')
-      await writeFile(replayOverride, JSON.stringify([{ kind: 'chunks', chunks: syntheticReply() }]))
+      // The reply stays open before its DONE delta until the draft probe has typed, so overlap does not race replay pacing.
+      const releaseDone = join(root, 'release-done')
+      await writeFile(replayOverride, JSON.stringify([{ kind: 'chunks', chunks: syntheticReply(), hold: { beforeChunk: DONE_CHUNK, releaseFile: releaseDone } }]))
       const scaffold = await launchWebScaffold({ replayFixture: join(root, 'override-only.jsonl'), replayOverride, paceMs: PACE_MS, replayContextWindow: 10000000 })
       try {
         const history = syntheticHistory()
@@ -407,6 +413,7 @@ it('opens, pages, navigates and streams into a 240-turn browser history', async 
             await expect.poll(() => composer.textContent()).toBe('next synthetic question')
           })
           const inputOverlapped = await composer.getAttribute('data-benchmark-input-overlap') === 'true'
+          await writeFile(releaseDone, '')
           const firstObservation = await firstMarker.jsonValue()
           await firstMarker.dispose()
           console.log(JSON.stringify({ benchmark: 'long-session-browser/input', sample, first, input, firstObservation, witness: await composer.getAttribute('data-benchmark-input-witness'), inputTiming: await composer.getAttribute('data-benchmark-input-timing') }))
@@ -444,10 +451,11 @@ it('opens, pages, navigates and streams into a 240-turn browser history', async 
     if (failures.length > 0) throw new AggregateError(failures, 'browser benchmark failed')
   }
   const aggregate = Object.fromEntries(Object.keys(REFERENCE).map(key => [key, median(samples.map(sample => sample[key as keyof typeof REFERENCE]))]))
-  const budgets: Record<string, number> = {
-    ...Object.fromEntries(Object.entries(REFERENCE).map(([key, value]) => [key, ciTimeBudget(value) + (key === 'streamWall' ? REPLAY_DURATION_MS : 0)])),
+  // Replay pacing is timer-driven, so the runner scale applies to the overhead budget but not to the paced duration.
+  const budgets: Record<string, number> = Object.fromEntries(Object.entries({
+    ...Object.fromEntries(Object.entries(REFERENCE).map(([key, value]) => [key, ciTimeBudget(value)])),
     open: OPEN_BUDGET_MS, page: PAGE_BUDGET_MS, trajectory: TRAJECTORY_BUDGET_MS,
-  }
+  }).map(([key, budget]) => [key, runnerTimeBudget(budget) + (key === 'streamWall' ? REPLAY_DURATION_MS : 0)]))
   console.log(JSON.stringify({ benchmark: 'long-session-browser/median', turns: HISTORY_TURNS, deltas: DELTAS, paceMs: PACE_MS, samples, aggregate, referenceMs: REFERENCE, expectedOpenCiMs: EXPECTED_OPEN_CI_MS, expectedPageCiMs: EXPECTED_PAGE_CI_MS, expectedTrajectoryCiMs: EXPECTED_TRAJECTORY_CI_MS, budgets }))
   recordTimings(CASE, Object.fromEntries(SCALED_ENDPOINTS.map(key => [key, { ms: aggregate[key]!, ioShare: IO_SHARE }])), budgets)
   for (const [key, value] of Object.entries(aggregate)) expectEndpointWithinBudget(value, budgets[key]!)
