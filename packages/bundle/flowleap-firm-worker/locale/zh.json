@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "FlowLeap firm worker",
+    "description": "Reads the firm's MyEPO Mailbox for the whole firm and sends each new letter to the Firm Record."
+  }
+}

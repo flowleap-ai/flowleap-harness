@@ -14,6 +14,7 @@ import {
   type MyEpoFee, type MyEpoFolder, type MyEpoFolderId, type MyEpoPage, type MyEpoPortfolio, type MyEpoPortfolioId,
   type MyEpoProcedure, type MyEpoTerm,
 } from './myepo-wire.ts'
+import type { MyEpoPortfolioView, MyEpoTestOutcome } from './types.ts'
 
 /** The client ID and the client secret of the firm's MyEPO B2B account. */
 export interface MyEpoCredentials {
@@ -410,4 +411,51 @@ function pdfOf(bytes: Uint8Array): { filename: string; pdf: Uint8Array } {
     throw new MyEpoError({ kind: 'unreadable-download', message: `download holds ${pdfs.length} PDF files` })
   }
   return { filename: only[0], pdf: only[1] }
+}
+
+/**
+ * Test one MyEPO account: a token, the portfolios, then the Mailbox folders. The settings card and the firm worker run
+ * this same test before they keep a pair.
+ * @param client - a client on the credentials to test.
+ * @param now - the clock, epoch ms.
+ * @param signal - cancels the test.
+ * @returns `passed` with the readable portfolios and whether the Mailbox answered; `refused`, `unreachable`, or `failed`
+ *   with the EPO's description.
+ */
+export async function testMyEpoLink(client: MyEpoReads, now: () => number, signal?: AbortSignal): Promise<MyEpoTestOutcome> {
+  try {
+    const portfolios = await readPortfolios(client, signal)
+    const mailbox = await answers(() => client.folders(signal))
+    return { kind: 'passed', testedAt: new Date(now()).toISOString(), portfolios, mailbox }
+  } catch (error) {
+    if (!(error instanceof MyEpoError)) throw error
+    switch (error.failure.kind) {
+      case 'refused':
+      case 'unreachable':
+        return { kind: error.failure.kind }
+      default:
+        return { kind: 'failed', message: describeFailure(error.failure) }
+    }
+  }
+}
+
+/** The portfolios for the card; an account with no portfolio permission reads as an empty list. */
+async function readPortfolios(client: MyEpoReads, signal: AbortSignal | undefined): Promise<MyEpoPortfolioView[]> {
+  try {
+    return (await client.portfolios(signal)).map(({ name, type, fullAccess }) => ({ name, type, fullAccess }))
+  } catch (error) {
+    if (error instanceof MyEpoError && error.failure.kind === 'no-permission') return []
+    throw error
+  }
+}
+
+/** Whether a read answers; a missing right reads as `false`, every other failure rejects. */
+async function answers(read: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await read()
+    return true
+  } catch (error) {
+    if (error instanceof MyEpoError && error.failure.kind === 'no-permission') return false
+    throw error
+  }
 }

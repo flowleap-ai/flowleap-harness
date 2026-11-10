@@ -384,6 +384,9 @@ importers:
       '@deepseek-ai/dsh-flowleap-firm':
         specifier: workspace:*
         version: link:../../packages/bundle/flowleap-firm
+      '@deepseek-ai/dsh-flowleap-firm-worker':
+        specifier: workspace:*
+        version: link:../../packages/bundle/flowleap-firm-worker
       '@deepseek-ai/dsh-flowleap-web':
         specifier: workspace:*
         version: link:../../packages/bundle/flowleap-web
@@ -2769,6 +2772,16 @@ importers:
       '@deepseek-ai/dsh-flowleap-web':
         specifier: workspace:*
         version: link:../flowleap-web
+
+  packages/bundle/flowleap-firm-worker:
+    dependencies:
+      '@deepseek-ai/dsh-flowleap-connectors':
+        specifier: workspace:*
+        version: link:../../host/flowleap-connectors
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
 
   packages/bundle/flowleap-web:
     dependencies:

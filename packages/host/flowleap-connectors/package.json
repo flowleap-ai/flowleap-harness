@@ -19,6 +19,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./myepo-worker": {
+      "types": "./lib/types/myepo-worker.d.ts",
+      "default": "./lib/types/myepo-worker.js"
+    },
     "./types": {
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
