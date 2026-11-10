@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
-import { companyKey, identitySet, isFirm, townOf, wordsOf, type FirmIdentity } from '../src/add-client/identity.ts'
+import { registerConflicts, type ConflictInput } from '../src/add-client/conflict-check.ts'
+import { companyKey, identitySet, isFirm, wordsOf, type FirmIdentity } from '../src/add-client/identity.ts'
 import { withIndexSlice, withNames, type OpponentIndexFile } from '../src/add-client/opponent-index-model.ts'
-import { matterRow, readGroup, referenceRow, registerConflicts, review, type ConflictInput } from '../src/add-client/review.ts'
 import { readSlice, type SliceReadOptions } from '../src/add-client/sliced-read.ts'
 import { nextUnread } from '../src/add-client/slices.ts'
 import type { KnownClient } from '../src/add-client/wire.ts'
 import { FakePatentData, pub, row } from './patent-data.host.ts'
 
 const ASOF = '2026-11-08T14:02:00.000Z'
-/** The time of the index read, before the review. */
+/** The time of the index read, before the conflict check. */
 const INDEXED = '2026-11-08T07:00:00.000Z'
 const IDENTITY: FirmIdentity = { names: ['Muster Patentanwälte'], addresses: ['Hauptstraße 1, 10115 Berlin'], representatives: ['Anna Becker'] }
 const OURS = { name: 'Becker, Anna', address: ['Muster Patentanwälte', 'Hauptstraße 1', '10115 Berlin'] }
@@ -20,9 +20,9 @@ function slices(at: string, sliceRows = 2000): SliceReadOptions {
   return { sliceRows, clock: { now: () => Date.parse(at) }, label: 'test', log: () => {} }
 }
 
-/** The input of a review with an empty index. */
-function input(names: readonly string[], clients: readonly KnownClient[], sliceRows = 2000): ConflictInput & { readonly maxRows: number } {
-  return { names, clients, identity: IDENTITY, index: undefined, slices: slices(ASOF, sliceRows), maxRows: 1000 }
+/** The input of a conflict check with an empty index. */
+function input(names: readonly string[], clients: readonly KnownClient[], sliceRows = 2000): ConflictInput {
+  return { names, clients, identity: IDENTITY, index: undefined, slices: slices(ASOF, sliceRows) }
 }
 
 /** The opponent index of client names, read completely at {@link INDEXED}. */
@@ -61,55 +61,6 @@ describe('Add client firm identity', () => {
     expect(isFirm({ name: 'Someone', address: ['Hauptstraße 1', '10115 Berlin', 'DE'] }, IDENTITY)).toBe(true)
     expect(isFirm(THEIRS, IDENTITY)).toBe(false)
   })
-
-  it('names the town of a representative, never the firm', () => {
-    expect(townOf(THEIRS)).toBe('Stuttgart')
-    expect(townOf({ name: 'x', address: ['Route de Chancy 1', 'CH-1213 Onex'] })).toBe('Onex')
-    expect(townOf({ name: 'x', address: ['Tokyo '] })).toBe('Tokyo')
-    expect(townOf({ name: 'x', address: [] })).toBeUndefined()
-    expect(townOf({ name: 'x', address: [' '] })).toBeUndefined()
-  })
-})
-
-describe('Add client review', () => {
-  it('reads the group by its names only, page by page, and keeps the rows of the group', async () => {
-    const data = new FakePatentData(SYNTEGON)
-    const group = await readGroup(data, ['Syntegon Technology'], 1000)
-    expect(group.rows.map(item => item.applicationNumber)).toEqual(['EP23171862', 'EP19794879'])
-    expect(group.truncated).toBe(false)
-    expect(data.queries).toEqual(['pa="Syntegon Technology"|1-100'])
-  })
-
-  it('stops at the row cap and says so, with a few names for each query', async () => {
-    const many = Array.from({ length: 250 }, (_, index) => row({ applicationNumber: `EP${String(30000000 + index)}`, applicants: ['Acme GmbH'] }))
-    const data = new FakePatentData(many)
-    const names = ['Acme', ...Array.from({ length: 8 }, (_, index) => `Name ${index} "quoted"`)]
-    const group = await readGroup(data, names, 150)
-    expect(group.rows).toHaveLength(150)
-    expect(group.truncated).toBe(true)
-    expect(data.queries[0]).toMatch(/^pa="Acme" or pa="Name 0 quoted" or pa="Name 1 quoted" or pa="Name 2 quoted"\|/u)
-    expect(data.queries.map(query => query.split('|')[1])).toEqual(['1-100', '101-150', '1-100', '1-100'])
-    const empty = await readGroup(new FakePatentData([]), ['Nobody'], 1000)
-    expect(empty).toEqual({ rows: [], truncated: false })
-  })
-
-  it('splits the group by the firm identity and lists the others by town', async () => {
-    const data = new FakePatentData(SYNTEGON)
-    const answer = await review(data, input(['Syntegon Technology'], []), ASOF)
-    expect(answer).toEqual({
-      status: 'reviewed', asOf: ASOF, total: 2, truncated: false, identity: 'set', conflicts: [], conflictsTruncated: false,
-      conflictCheck: { groupOpposedClients: { state: 'complete', asOf: ASOF }, clientsOpposedGroup: { state: 'complete', asOf: ASOF } },
-      atFirm: [{ applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: 'Packaging element', applicants: ['Syntegon Technology GmbH'], filed: '2023-05-05', representativeSince: '2024-07-24', status: 'Examination is in progress' }],
-      atOtherFirms: [{ applicationNumber: 'EP19794879', title: 'Weighing', applicants: ['Syntegon Technology GmbH', 'Partner AG'], filed: '2019-09-18', town: 'Stuttgart' }],
-    })
-    expect(referenceRow(row({ applicationNumber: 'EP20000001' }))).toEqual({ applicationNumber: 'EP20000001', applicants: [] })
-    expect(data.queries.join(' ')).not.toMatch(/Muster|Becker|Hauptstra/u)
-  })
-
-  it('finds no matter at your firm while the identity is empty', async () => {
-    const answer = await review(new FakePatentData(SYNTEGON), { ...input(['Syntegon Technology GmbH'], []), identity: { names: [], addresses: [], representatives: [] } }, ASOF)
-    expect(answer).toMatchObject({ identity: 'missing', atFirm: [], total: 2 })
-  })
 })
 
 describe('the conflict check', () => {
@@ -129,8 +80,8 @@ describe('the conflict check', () => {
     const data = new FakePatentData([schubert, reverse, noClient])
     const index = await readIndex(data, SYNTEGON_CLIENT.names)
     data.queries.length = 0
-    const answer = await review(data, { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index }, ASOF)
-    expect(answer.status === 'reviewed' && answer.conflicts).toEqual([
+    const answer = await registerConflicts(data, { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index }, ASOF)
+    expect(answer.hits).toEqual([
       {
         applicationNumber: 'EP17000001', otherParty: 'Gerhard Schubert GmbH', otherPartyRole: 'opponent', existingClientId: 'c-1',
         existingClientParty: 'Syntegon Technology GmbH', source: 'ep-register', asOf: ASOF, yourFirm: 'named',
@@ -141,12 +92,9 @@ describe('the conflict check', () => {
         opposedOn: '2025-01-08', yourFirm: 'not-named',
       },
     ])
-    expect(answer).toMatchObject({
-      conflictsTruncated: false,
-      conflictCheck: { groupOpposedClients: { state: 'complete', asOf: ASOF }, clientsOpposedGroup: { state: 'complete', asOf: INDEXED } },
-    })
-    // The review sends the group's names only; the index holds the clients' names.
-    expect(data.queries).toEqual(['pa="Gerhard Schubert"|1-100', 'op="Gerhard Schubert"|1-100'])
+    expect(answer).toMatchObject({ groupOpposedClients: { state: 'complete', asOf: ASOF }, clientsOpposedGroup: { state: 'complete', asOf: INDEXED } })
+    // The conflict check sends the group's names only; the index holds the clients' names.
+    expect(data.queries).toEqual(['op="Gerhard Schubert"|1-100'])
     const unknown = await registerConflicts(data, { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index, identity: { names: [], addresses: [], representatives: [] } }, ASOF)
     expect(unknown.hits.map(hit => hit.yourFirm)).toEqual(['unknown', 'unknown'])
   })
@@ -172,15 +120,12 @@ describe('the conflict check', () => {
     const data = new FakePatentData([schubert])
     data.failing.add('op="Gerhard Schubert"')
     const index = await readIndex(new FakePatentData([schubert]), ['Syntegon'])
-    const answer = await review(data, { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index }, ASOF)
-    expect(answer).toMatchObject({
-      conflictsTruncated: true,
-      conflictCheck: {
-        groupOpposedClients: { state: 'incomplete', failed: [{ query: 'op="Gerhard Schubert"', reason: 'unreachable' }], mismatches: [] },
-        clientsOpposedGroup: { state: 'reading' },
-      },
+    const answer = await registerConflicts(data, { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index }, ASOF)
+    expect(answer).toEqual({
+      hits: [],
+      groupOpposedClients: { state: 'incomplete', failed: [{ query: 'op="Gerhard Schubert"', reason: 'unreachable' }], mismatches: [] },
+      clientsOpposedGroup: { state: 'reading' },
     })
-    expect(answer.status === 'reviewed' && answer.conflicts).toEqual([])
     const unread = withNames(undefined, SYNTEGON_CLIENT.names, ASOF)
     const reading = await registerConflicts(new FakePatentData([]), { ...input(['Gerhard Schubert'], [SYNTEGON_CLIENT]), index: unread }, ASOF)
     expect(reading.clientsOpposedGroup).toEqual({ state: 'reading' })
@@ -201,9 +146,6 @@ describe('the conflict check', () => {
   it('keeps each application once over several queries', async () => {
     const names = Array.from({ length: 9 }, (_, index) => `Firm ${'abcdefghi'[index] ?? ''}`)
     const shared = row({ applicationNumber: 'EP21000001', applicants: ['Firm a', 'Firm i'], opponents: [{ name: 'Client Co', address: [] }] })
-    const group = await readGroup(new FakePatentData([shared]), names, 1000)
-    expect(group.rows).toHaveLength(1)
-    expect(matterRow(shared)).toEqual({ applicationNumber: 'EP21000001', applicants: ['Firm a', 'Firm i'] })
     const clients = [{ clientId: 'c-2', names: ['Client Co', 'CLIENT CO'] }]
     const elsewhere = row({ applicationNumber: 'EP21000002', applicants: ['Elsewhere AG'], opponents: [{ name: 'Client Co', address: [] }] })
     const data = new FakePatentData([shared, elsewhere])

@@ -5,7 +5,7 @@ import { addClientApi, firmIdentityApi } from '../src/client/add-client/api.ts'
 import { applicationLabel, asOfText, counted, dayText, publicationLabel, rich } from '../src/client/add-client/format.ts'
 import { en } from '../src/client/add-client/locales/index.ts'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { found, reviewed } from './add-client-fakes.client.ts'
+import { checked, found, matters } from './add-client-fakes.client.ts'
 
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -27,7 +27,11 @@ describe('the Add client routes', () => {
     const signal = new AbortController().signal
     expect(await addClientApi.find('Syntegon & Co', signal)).toEqual({ ok: true, value: found([['SYNTEGON TECHNOLOGY', 600]]) })
     await addClientApi.find('Syntegon')
-    await addClientApi.review({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }, signal)
+    await addClientApi.matters(['SYNTEGON TECHNOLOGY'], signal)
+    await addClientApi.matters(['SYNTEGON TECHNOLOGY'])
+    await addClientApi.others(['SYNTEGON TECHNOLOGY'], signal)
+    await addClientApi.conflictCheck({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }, signal)
+    await addClientApi.readDocket()
     await addClientApi.clientFolder({ clientId: 'c', name: 'Syntegon', names: [] })
     await addClientApi.settings(signal)
     await addClientApi.settings()
@@ -35,7 +39,11 @@ describe('the Add client routes', () => {
     expect(calls.map(([url, init]) => [url, init?.method ?? 'GET', init?.body ?? null, init?.signal === signal, init?.credentials, init?.cache])).toEqual([
       ['api/flowleap/folder/add-client/find?name=Syntegon+%26+Co', 'GET', null, true, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/find?name=Syntegon', 'GET', null, false, 'include', 'no-store'],
-      ['api/flowleap/folder/add-client/review', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }), true, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/matters', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'] }), true, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/matters', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'] }), false, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/others', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'] }), true, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/conflict-check', 'POST', JSON.stringify({ names: ['SYNTEGON TECHNOLOGY'], clients: [] }), true, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/docket/read', 'POST', JSON.stringify({ slices: 'failed' }), false, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/client-folder', 'POST', JSON.stringify({ clientId: 'c', name: 'Syntegon', names: [] }), false, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/settings', 'GET', null, true, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/settings', 'GET', null, false, 'include', 'no-store'],
@@ -45,7 +53,7 @@ describe('the Add client routes', () => {
 
   it('gives the failure code of a refusal, internal for an unknown or missing code, and network with no answer', async () => {
     host(() => json({ error: 'no-key' }, 424))
-    expect(await addClientApi.review({ names: [], clients: [] })).toEqual({ ok: false, error: 'no-key' })
+    expect(await addClientApi.conflictCheck({ names: [], clients: [] })).toEqual({ ok: false, error: 'no-key' })
     host(() => json({ error: 'brand-new' }, 500))
     expect(await addClientApi.settings()).toEqual({ ok: false, error: 'internal' })
     host(() => json(null, 500))
@@ -54,8 +62,10 @@ describe('the Add client routes', () => {
     expect(await addClientApi.settings()).toEqual({ ok: false, error: 'internal' })
     host(() => Promise.reject(new TypeError('Failed to fetch')))
     expect(await addClientApi.clientFolder({ clientId: 'c', name: 'S', names: [] })).toEqual({ ok: false, error: 'network' })
-    host(() => json(reviewed()))
-    expect(await addClientApi.review({ names: [], clients: [] })).toEqual({ ok: true, value: reviewed() })
+    host(() => json(checked()))
+    expect(await addClientApi.conflictCheck({ names: [], clients: [] })).toEqual({ ok: true, value: checked() })
+    host(() => json(matters(['S'])))
+    expect(await addClientApi.matters(['S'])).toEqual({ ok: true, value: matters(['S']) })
     host(() => json({ workspace: 'ws-1', folder: 'S', made: true }))
     expect(await addClientApi.clientFolder({ clientId: 'c', name: 'S', names: [] })).toEqual({ ok: true, value: { workspace: 'ws-1', folder: 'S', made: true } })
   })
@@ -99,7 +109,7 @@ describe('the forms of numbers, dates and copy', () => {
     expect(dayText('2024-07-24', 'en')).toBe('Jul 24, 2024')
     expect(dayText('2024-07-24T10:00:00.000Z', 'de')).toBe('24.07.2024')
     expect(asOfText(t, '2026-11-08T14:02:00.000Z', 'en')).toMatch(/^Nov 8, 2026, \d{1,2}:02/)
-    expect([counted(t, 1, 'matters.one', 'matters.many'), counted(t, 16, 'matters.one', 'matters.many')]).toEqual(['1 matter', '16 matters'])
+    expect([counted(t, 1, 'applications.one', 'applications.many'), counted(t, 16, 'applications.one', 'applications.many')]).toEqual(['1 application', '16 applications'])
   })
 
   it('puts elements in the place of their placeholders', () => {

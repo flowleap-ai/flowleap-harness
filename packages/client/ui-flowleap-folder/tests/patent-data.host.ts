@@ -60,12 +60,15 @@ export class FakePatentData implements PatentData {
   readonly texts = new Map<string, PublicationText>()
   readonly failing = new Set<string>()
 
+  /** The names of the register sample of `findApplicantNames`; undefined gives the typed name. */
+  sample: readonly string[] | undefined
+
   constructor(public rows: RegisterRow[]) {}
 
   async findApplicantNames(name: string, options: { readonly maxRows: number }): Promise<{ source: 'ep-register'; names: { name: string; applications: number }[]; truncated: boolean }> {
     this.check(`find:${name}`)
     this.queries.push(`find:${name}:${options.maxRows}`)
-    return { source: 'ep-register', names: [{ name, applications: this.rows.length }], truncated: false }
+    return { source: 'ep-register', names: (this.sample ?? [name]).map(entry => ({ name: entry, applications: this.rows.length })), truncated: false }
   }
 
   async searchRegister(query: string, range: { readonly begin: number; readonly end: number }, _signal?: AbortSignal) {

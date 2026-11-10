@@ -1,108 +1,24 @@
 /**
- * The state of Add client: one view at a time (find the company, review its matters and decide, record the client), the
- * clients of the Firm Record, and the toast after an act. Each view is one phase of a discriminated union, so a page
- * renders exactly the parts of its phase. The model calls the Host routes for the public data and the client folder,
- * and the Firm Record with the person's cookie for every record.
+ * The state of Add client: the wizard (Company, Matters, Role, Conflict check or Matter, Review) or the Record run of a
+ * client, the clients of the Firm Record, and the toast after an act. The steps and their reasons to wait are derived
+ * in `wizard.ts`; this model changes the view. The model calls the Host routes for the public data and the client
+ * folder, and the Firm Record with the person's cookie for every record.
  * @module
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { clientFolderName, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
+import { clientFolderName, type FindAnswer } from '../../add-client/wire.ts'
 import type { AddClientApi, HostFailure } from './api.ts'
 import { knownParties, missingApplications, recordBatches, splitBatches, type RecordBatch } from './batches.ts'
+import { indexNames, knownClients, matchExisting, planRecords, runPlan, type ApplicationDecision, type Decision, type OtherPartyRole } from './plan.ts'
+import { newClientId, type ClientDetail, type ClientId, type ClientRole, type FirmClient, type FirmRecord, type PartyId, type RecordError } from './records.ts'
 import {
-  allHits, firmHits, indexNames, knownClients, matchExisting, planRecords, runPlan,
-  type ApplicationDecision, type Decision, type OtherPartyRole,
-} from './plan.ts'
-import {
-  newClientId, type ClientDetail, type ClientId, type ClientRole, type FirmClient, type FirmRecord, type Hit, type LinkedName, type PartyId,
-  type RecordError,
-} from './records.ts'
+  canOpen, decisionOf, groupOf, later, nextOf, previousOf, sameGroup, waitOf,
+  type CheckStatus, type DocketStatus, type FindStatus, type FirmStatus, type Group, type StepId, type WizardView,
+} from './wizard.ts'
 
-/** One applicant name of the proposed group, with whether the person keeps it ticked. */
-export interface GroupName {
-  readonly name: string
-  readonly applications: number
-  readonly ticked: boolean
-}
-
-/** What the find page shows below the name field. */
-export type FindStatus =
-  | { readonly status: 'empty' }
-  /** `skeleton` turns true 150 ms after the request, and the skeleton then shows for at least 300 ms. */
-  | { readonly status: 'loading'; readonly skeleton: boolean }
-  | {
-    readonly status: 'group'
-    readonly source: NameSource
-    readonly edition?: string
-    readonly asOf: string
-    readonly truncated: boolean
-    readonly names: readonly GroupName[]
-  }
-  /** No patent data plugin: add the client by name only. */
-  | { readonly status: 'no-plugin' }
-  /** The runtime has no EPO key: the patent data settings need one. */
-  | { readonly status: 'no-key' }
-  | { readonly status: 'error'; readonly error: HostFailure }
-
-/** Page 1: the typed name, the proposed group, and the existing client of that name. */
-export interface FindView {
-  readonly page: 'find'
-  readonly query: string
-  readonly find: FindStatus
-  readonly existing: FirmClient | null
-}
-
-/** The review answer with its data. */
-export type Reviewed = Extract<ReviewAnswer, { status: 'reviewed' }>
-
-/** What the review page knows of the public data. */
-export type ReviewStatus =
-  | { readonly status: 'loading' }
-  | { readonly status: 'no-key' }
-  | { readonly status: 'error'; readonly error: HostFailure }
-  /** No public data: the client is added by its name only. */
-  | { readonly status: 'by-name' }
-  /** `claimed`: the applications at other firms that the person marked This is ours. */
-  | { readonly status: 'reviewed'; readonly answer: Reviewed; readonly claimed: readonly string[] }
-
-/** The clients with the role client as the Firm Record has them, for the conflict check and the matter picker. */
-export type FirmStatus =
-  | { readonly status: 'loading' }
-  | { readonly status: 'error'; readonly error: RecordError }
-  | { readonly status: 'ready'; readonly details: readonly ClientDetail[]; readonly asOf: string }
-
-/** The company that Add client runs for. */
-export interface Subject {
-  /** The client's name; the client folder's name is `clientFolderName` of it. */
-  readonly name: string
-  /** The ticked applicant names; none when the client is added by name only. */
-  readonly names: readonly LinkedName[]
-  /** The client that the Firm Record has for this company already: Add client runs for it again. */
-  readonly existing: FirmClient | null
-}
-
-/** Sending the records of the decision. */
-export type RecordingStatus =
-  | { readonly status: 'idle' }
-  | { readonly status: 'running'; readonly done: number; readonly total: number }
-  | { readonly status: 'failed'; readonly error: RecordError }
-
-/** Pages 2 and 3: the matters, the conflict check and the decision. */
-export interface ReviewView {
-  readonly page: 'review'
-  readonly subject: Subject
-  readonly review: ReviewStatus
-  readonly firm: FirmStatus
-  readonly role: ClientRole
-  readonly conflict: { readonly checked: boolean; readonly reason: string }
-  /** The matter and the role in it, for the role Other party. */
-  readonly other: { readonly applicationNumber: string | null; readonly role: OtherPartyRole }
-  /** The client id of a new client of this review; a second run with the same role uses the existing id. */
-  readonly newId: ClientId
-  readonly recording: RecordingStatus
-}
+export type { WizardView } from './wizard.ts'
 
 /** The client folder of a Record run: not made yet, being made, or made with its workspace. */
 export type FolderStep =
@@ -110,7 +26,7 @@ export type FolderStep =
   | { readonly state: 'made'; readonly workspace: WorkspaceId }
 
 /**
- * Page 4: the Record run of a client. The review page recorded the conflict check, the client and its names; this page
+ * The Record run of a client, after Review. Review recorded the conflict check, the client and its names; this page
  * records the applications in batches, then makes the client folder. The run is `failed` while `error` is set, `done`
  * once the folder is made, else `running` ({@link recordStatus}).
  */
@@ -134,7 +50,7 @@ export interface RecordView {
 }
 
 /** The open Add client page. */
-export type AddClientView = FindView | ReviewView | RecordView
+export type AddClientView = WizardView | RecordView
 
 /** What the page says when an act ends. */
 export type Toast =
@@ -164,107 +80,10 @@ export const FIND_WAIT_MS = 500
 export const SKELETON_AFTER_MS = 150
 /** How long the skeleton of a search shows at least. */
 export const SKELETON_MIN_MS = 300
+/** How often the Company step reads the docket rows again while the Host reads the firm docket. */
+export const DOCKET_POLL_MS = 2000
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms) })
-
-/**
- * The hits of a review: the Firm Record hits and the register hits, once each.
- * @param view - the review.
- * @returns the hits; none until both sources answered.
- */
-export function hitsOf(view: ReviewView): Hit[] {
-  if (view.firm.status !== 'ready') return []
-  const exclude = view.subject.existing?.clientId ?? null
-  const record = firmHits(view.firm.details, [view.subject.name, ...view.subject.names.map(item => item.name)], view.firm.asOf, exclude)
-  return allHits(record, view.review.status === 'reviewed' ? view.review.answer.conflicts : [])
-}
-
-/**
- * The client id that a decision records under.
- * @param view - the review.
- * @returns the existing client's id when its role is the chosen role, else the new id.
- */
-export function clientIdOf(view: ReviewView): ClientId {
-  return view.subject.existing?.role === view.role ? view.subject.existing.clientId : view.newId
-}
-
-/**
- * Why the primary act of a review waits. `name`: no folder can have the client's name. `self-check`: by name only,
- * FlowLeap read no EP opposition, so the person checks conflicts and writes how.
- */
-export type Blocker = 'busy' | 'review' | 'firm' | 'name' | 'conflict' | 'self-check' | 'matter'
-
-/**
- * Whether the person ticked the conflict check and wrote a reason.
- * @param view - the review.
- * @returns true when both are there.
- */
-function decided(view: ReviewView): boolean {
-  return view.conflict.checked && view.conflict.reason.trim() !== ''
-}
-
-/**
- * Why the person cannot record the decision now.
- * @param view - the review.
- * @returns the first reason, or null when the primary act may run.
- */
-export function blockerOf(view: ReviewView): Blocker | null {
-  if (view.recording.status === 'running') return 'busy'
-  if (view.role === 'watch') return null
-  if (view.firm.status !== 'ready') return 'firm'
-  if (view.role === 'other-party') return view.other.applicationNumber === null ? 'matter' : null
-  // Checked before any record is sent: the client folder route would refuse the name after the client is recorded.
-  if (clientFolderName(view.subject.name) === undefined) return 'name'
-  if (view.review.status === 'loading' || view.review.status === 'error' || view.review.status === 'no-key') return 'review'
-  if (decided(view)) return null
-  if (view.review.status === 'by-name') return 'self-check'
-  return hitsOf(view).length > 0 ? 'conflict' : null
-}
-
-/**
- * The applications that a client decision records: those at your firm, then those claimed with This is ours.
- * @param review - the review status.
- * @returns each application with its applicants.
- */
-export function applicationsOf(review: ReviewStatus): Extract<Decision, { role: 'client' }>['applications'] {
-  if (review.status !== 'reviewed') return []
-  const { atFirm, atOtherFirms } = review.answer
-  return [
-    ...atFirm.map(row => ({
-      fact: {
-        applicationNumber: row.applicationNumber, basis: 'register' as const,
-        ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-        ...(row.title === undefined ? {} : { title: row.title }),
-        ...(row.representativeSince === undefined ? {} : { representativeSince: row.representativeSince }),
-      },
-      applicants: row.applicants,
-    })),
-    ...atOtherFirms.filter(row => review.claimed.includes(row.applicationNumber)).map(row => ({
-      fact: {
-        applicationNumber: row.applicationNumber, basis: 'claimed' as const,
-        ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-        ...(row.title === undefined ? {} : { title: row.title }),
-      },
-      applicants: row.applicants,
-    })),
-  ]
-}
-
-/**
- * The decision of a review.
- * @param view - the review; its blocker is null.
- * @returns the decision.
- */
-export function decisionOf(view: ReviewView): Decision {
-  const { subject, role } = view
-  const base = { clientId: clientIdOf(view), name: subject.name, names: subject.names }
-  if (role === 'watch') return { role, ...base }
-  if (role === 'other-party') return { role, ...base, matter: { applicationNumber: view.other.applicationNumber ?? '', role: view.other.role } }
-  const hits = hitsOf(view)
-  // By name only, the reason says how the person checked conflicts, also with no hit.
-  const reason = hits.length === 0 && view.review.status !== 'by-name' ? {} : { reason: view.conflict.reason.trim() }
-  return { role, ...base, hits, ...reason, applications: applicationsOf(view.review) }
-}
 
 /** The end of sending a plan: the client as the Firm Record had it before the plan, or the failure. */
 type SendOutcome = { readonly ok: true; readonly existing: ClientDetail | null } | { readonly ok: false; readonly error: RecordError }
@@ -274,14 +93,32 @@ const unknownClient = (error: RecordError): boolean => error.kind === 'refused' 
 
 const EMPTY: AddClientSnapshot = { view: null, clients: [], toast: null }
 
+/**
+ * A new wizard on the Company step.
+ * @param fields - the fields that differ from a new wizard.
+ * @returns the wizard.
+ */
+function wizard(fields: Partial<WizardView> = {}): WizardView {
+  return {
+    page: 'wizard', at: 'company', reached: 'company', editing: false, query: '', find: { status: 'empty' }, docket: { status: 'idle' },
+    existing: null, group: null, ticks: {}, others: { status: 'none' }, role: null, check: { status: 'loading' }, firm: { status: 'loading' },
+    conflict: { checked: false, reason: '' }, other: { applicationNumber: null, role: 'opponent' }, newId: newClientId(), recording: { status: 'idle' },
+    ...fields,
+  }
+}
+
 /** Add client's state and acts. */
 export class AddClientModel {
   /** The state; the pages read it through their snapshot hooks. */
   readonly store: SnapshotStore<AddClientSnapshot> = createSnapshotStore<AddClientSnapshot>(EMPTY, { flush: 'sync' })
-  /** Counts the searches and the views, so an answer for an older one is dropped. */
+  /** Counts the views, so an answer for an older view is dropped. */
   private generation = 0
+  /** Counts the searches and the group confirmations of the open wizard, so an older answer is dropped. */
+  private search = 0
+  private group = 0
   private findTimer: ReturnType<typeof setTimeout> | null = null
   private findAbort: AbortController | null = null
+  private pollTimer: ReturnType<typeof setTimeout> | null = null
 
   /** @param deps - the Host routes, the Firm Record and the folder page. */
   constructor(private readonly deps: AddClientDeps) {}
@@ -291,11 +128,11 @@ export class AddClientModel {
     return this.store.getSnapshot()
   }
 
-  /** Open Add client on the empty find page. */
+  /** Open Add client on an empty Company step. */
   start(): void {
     this.leave()
     this.store.update((draft) => {
-      draft.view = { page: 'find', query: '', find: { status: 'empty' }, existing: null }
+      draft.view = wizard()
       draft.toast = null
     })
   }
@@ -311,79 +148,144 @@ export class AddClientModel {
    * @param query - the field's text.
    */
   type(query: string): void {
-    const view = this.state.view
-    if (view?.page !== 'find') return
+    const view = this.wizardView()
+    if (view === null) return
     this.clearFind()
     const empty = query.trim() === ''
     // An emptied field drops the answer of the search that runs now.
-    if (empty) this.generation += 1
-    this.store.update((draft) => { draft.view = empty ? { ...view, query, find: { status: 'empty' }, existing: null } : { ...view, query } })
-    if (!empty) this.findTimer = setTimeout(() => { void this.search() }, FIND_WAIT_MS)
+    if (empty) this.search += 1
+    this.setWizard(empty ? { query, find: { status: 'empty' }, docket: { status: 'idle' }, existing: null } : { query })
+    if (!empty) this.findTimer = setTimeout(() => { void this.find() }, FIND_WAIT_MS)
   }
 
   /**
-   * Search the typed name now.
+   * Search the typed name now: its applicant names with their register counts, the existing client of that name, then
+   * the firm's matters of the names.
    * @returns once the answer shows.
    */
-  async search(): Promise<void> {
-    const view = this.state.view
-    if (view?.page !== 'find' || view.query.trim() === '') return
+  async find(): Promise<void> {
+    const view = this.wizardView()
+    if (view === null || view.query.trim() === '') return
     this.clearFind()
-    const generation = ++this.generation
+    const search = ++this.search
+    const generation = this.generation
     const query = view.query.trim()
     const abort = new AbortController()
     this.findAbort = abort
-    this.setFind(generation, { status: 'loading', skeleton: false }, null)
+    const current = () => generation === this.generation && search === this.search
+    this.setWizard({ find: { status: 'loading', skeleton: false }, docket: { status: 'idle' } })
     let shownAt = null as number | null
     const skeleton = setTimeout(() => {
       shownAt = Date.now()
-      this.setFind(generation, { status: 'loading', skeleton: true }, null)
+      if (current()) this.setWizard({ find: { status: 'loading', skeleton: true } })
     }, SKELETON_AFTER_MS)
     const [found, clients] = await Promise.all([this.deps.api.find(query, abort.signal), this.deps.record.clients(abort.signal)])
     clearTimeout(skeleton)
     if (shownAt !== null) await wait(Math.max(0, shownAt + SKELETON_MIN_MS - Date.now()))
-    const status = findStatusOf(found)
-    const names = status.status === 'group' ? status.names.map(item => item.name) : []
-    this.setFind(generation, status, clients.ok ? matchExisting(clients.value, [query, ...names]) : null)
+    if (!current()) return
+    const find = findStatusOf(found)
+    const names = find.status === 'found' ? find.names.map(item => item.name) : []
+    const existing = clients.ok ? matchExisting(clients.value, [query, ...names]) : null
+    this.setWizard({ find, existing, ...view.group === null && existing !== null ? { role: existing.role } : {} })
+    if (find.status === 'found') await this.readDocket(names)
+    else if (find.status === 'no-plugin') this.setWizard({ docket: { status: 'no-plugin' } })
   }
 
   /**
-   * Tick or untick an applicant name of the group.
+   * Tick or untick an applicant name of the found group.
    * @param name - the name.
    * @param ticked - whether it is part of the client.
    */
   tick(name: string, ticked: boolean): void {
-    const view = this.state.view
-    if (view?.page !== 'find' || view.find.status !== 'group') return
-    const find = { ...view.find, names: view.find.names.map(item => item.name === name ? { ...item, ticked } : item) }
-    this.store.update((draft) => { draft.view = { ...view, find } })
+    const view = this.wizardView()
+    if (view?.find.status !== 'found') return
+    this.setWizard({ find: { ...view.find, names: view.find.names.map(item => item.name === name ? { ...item, ticked } : item) } })
+  }
+
+  /** Go on by name only after the search failed. */
+  byName(): void {
+    const view = this.wizardView()
+    if (view?.find.status === 'error' || view?.find.status === 'no-key') this.setWizard({ find: { status: 'by-name' }, docket: { status: 'idle' } })
   }
 
   /**
-   * Go on to the review: with the ticked names of the group, or by name only when no public data is available.
-   * @returns once the review answered.
+   * Tick or untick a matter row of the Matters step.
+   * @param applicationNumber - the row's application.
+   * @param ticked - whether the client's applications include it.
    */
-  async continue(): Promise<void> {
-    const view = this.state.view
-    if (view?.page !== 'find' || view.query.trim() === '') return
-    const { find, existing } = view
-    if (find.status === 'empty' || find.status === 'loading') return
-    if (find.status === 'group') {
-      const names = find.names.filter(item => item.ticked).map((item): LinkedName => ({
-        name: item.name, source: find.source, applications: item.applications,
-        ...(find.edition === undefined ? {} : { edition: find.edition }),
-      }))
-      if (names.length === 0) return
-      await this.review({ name: existing?.name ?? view.query.trim(), names, existing }, false)
-      return
-    }
-    await this.review({ name: existing?.name ?? view.query.trim(), names: [], existing }, true)
+  tickMatter(applicationNumber: string, ticked: boolean): void {
+    const view = this.wizardView()
+    if (view !== null) this.setWizard({ ticks: { ...view.ticks, [applicationNumber]: ticked } })
   }
 
   /**
-   * Run Add client again for a client of a client folder: read its names and go straight to the review.
+   * Choose the role.
+   * @param role - Client, Watch or Other party.
+   */
+  setRole(role: ClientRole): void {
+    const view = this.wizardView()
+    if (view !== null && view.recording.status !== 'running') this.setWizard({ role, recording: { status: 'idle' } })
+  }
+
+  /**
+   * Tick "I checked this conflict" (by name only: "I checked conflicts myself") or change its reason.
+   * @param checked - whether the person checked the conflict.
+   * @param reason - why the company can be a client, or by name only how the person checked, as typed.
+   */
+  setConflict(checked: boolean, reason: string): void {
+    const view = this.wizardView()
+    if (view !== null && view.recording.status !== 'running') this.setWizard({ conflict: { checked, reason }, recording: { status: 'idle' } })
+  }
+
+  /**
+   * Choose the matter of your firm and the role in it, for the role Other party.
+   * @param applicationNumber - the application of the matter, or null for none.
+   * @param role - the company's role in it.
+   */
+  setOther(applicationNumber: string | null, role: OtherPartyRole): void {
+    if (this.wizardView() !== null) this.setWizard({ other: { applicationNumber, role } })
+  }
+
+  /**
+   * The primary act of a step other than Review: Next, or Back to review after Edit. Leaving Company confirms the group.
+   * @returns once the step is open.
+   */
+  async next(): Promise<void> {
+    const view = this.wizardView()
+    if (view === null || view.at === 'review' || waitOf(view, view.at) !== null) return
+    await this.go(nextOf(view), false)
+  }
+
+  /** Open the step before the open step. */
+  back(): void {
+    const view = this.wizardView()
+    const previous = view === null ? null : previousOf(view)
+    if (previous !== null) this.setWizard({ at: previous })
+  }
+
+  /**
+   * Open a step from the stepper.
+   * @param step - a step that {@link canOpen} allows.
+   * @returns once the step is open.
+   */
+  async open(step: StepId): Promise<void> {
+    const view = this.wizardView()
+    if (view !== null && canOpen(view, step)) await this.go(step, view.editing)
+  }
+
+  /**
+   * Edit on the Review step: open a step; its primary act then goes back to Review, and every later choice stays.
+   * @param step - the step.
+   */
+  edit(step: StepId): void {
+    const view = this.wizardView()
+    if (view?.at === 'review' && view.recording.status !== 'running') this.setWizard({ at: step, editing: true })
+  }
+
+  /**
+   * Run Add client again for a client of a client folder: its names as the group, on the Matters step.
    * @param clientId - the client of the folder ({@link clientOfFolder}).
-   * @returns once the review answered.
+   * @returns once the steps' data is read.
    */
   async checkForNew(clientId: string): Promise<void> {
     this.leave()
@@ -395,80 +297,58 @@ export class AddClientModel {
       return
     }
     const { client, names } = detail.value
-    await this.review({ name: client.name, names, existing: client }, names.length === 0)
-  }
-
-  /** Go on with the review by name only, after the public data failed. */
-  byName(): void {
-    this.updateReview(view => ({ ...view, review: { status: 'by-name' } }))
-  }
-
-  /**
-   * Change the role of the decision.
-   * @param role - Client, Watch or Other party.
-   */
-  setRole(role: ClientRole): void {
-    this.updateReview(view => ({ ...view, role, recording: idleUnlessRunning(view.recording) }))
-  }
-
-  /**
-   * Tick "I checked this conflict" (by name only: "I checked conflicts myself") or change its reason.
-   * @param checked - whether the person checked the conflict.
-   * @param reason - why the company can be a client, or by name only how the person checked, as typed.
-   */
-  setConflict(checked: boolean, reason: string): void {
-    this.updateReview(view => ({ ...view, conflict: { checked, reason }, recording: idleUnlessRunning(view.recording) }))
-  }
-
-  /**
-   * Mark an application at another firm as This is ours, or take the mark back.
-   * @param applicationNumber - the application.
-   * @param claimed - whether it is the firm's.
-   */
-  claim(applicationNumber: string, claimed: boolean): void {
-    this.updateReview((view) => {
-      if (view.review.status !== 'reviewed') return view
-      const others = view.review.claimed.filter(item => item !== applicationNumber)
-      return { ...view, review: { ...view.review, claimed: claimed ? [...others, applicationNumber] : others } }
+    const [first] = names
+    const find: FindStatus = first === undefined
+      ? { status: 'by-name' }
+      : {
+        status: 'found', source: first.source, asOf: new Date().toISOString(), truncated: false, sampleRows: 0, omitted: 0,
+        ...(first.edition === undefined ? {} : { edition: first.edition }),
+        names: names.map(item => ({ name: item.name, matching: item.applications ?? 0, ticked: true })),
+      }
+    this.store.update((draft) => {
+      draft.view = wizard({ query: client.name, find, existing: client, role: client.role })
+      draft.toast = null
     })
+    if (find.status === 'found') await this.readDocket(find.names.map(item => item.name))
+    await this.go('matters', false)
+  }
+
+  /** Read the firm docket again after a partial or failed read, or go on with an interrupted read. */
+  async retryDocket(): Promise<void> {
+    const view = this.wizardView()
+    if (view?.docket.status !== 'read') return
+    const read = await this.deps.api.readDocket()
+    const names = this.foundNames()
+    if (read.ok && names !== null) await this.readDocket(names)
   }
 
   /**
-   * Choose the matter of your firm and the role in it, for the role Other party.
-   * @param applicationNumber - the application of the matter, or null for none.
-   * @param role - the company's role in it.
-   */
-  setOther(applicationNumber: string | null, role: OtherPartyRole): void {
-    this.updateReview(view => ({ ...view, other: { applicationNumber, role } }))
-  }
-
-  /**
-   * Record the decision in the Firm Record: the conflict check, the client and its names on the review page, then for the
-   * role client its applications and its client folder on the Record page. The Firm Record is read first, so only
-   * missing facts are sent.
+   * Record the decision in the Firm Record: the conflict check, the client and its names from the Review step, then
+   * for the role client its applications and its client folder on the Record page. The Firm Record is read first, so
+   * only missing facts are sent.
    * @returns once the records are sent and, for a client, the Record run ended.
    */
   async record(): Promise<void> {
-    const view = this.state.view
-    if (view?.page !== 'review' || blockerOf(view) !== null) return
+    const view = this.wizardView()
+    if (view?.at !== 'review' || view.group === null || view.role === null || waitOf(view, 'review') !== null) return
     const generation = this.generation
-    const decision = decisionOf(view)
-    this.updateReview(current => ({ ...current, recording: { status: 'running', done: 0, total: 0 } }))
+    const decision = decisionOf(view, view.group, view.role)
+    this.setWizard({ recording: { status: 'running', done: 0, total: 0 } })
     const outcome = await this.send(decision, generation)
     if (generation !== this.generation) return
     if (!outcome.ok) {
       const { error } = outcome
       // Another client id names a client of this name and role: Add client runs again for that client.
-      if (error.kind === 'refused' && error.code === 'client-exists' && error.clientId !== undefined && view.subject.existing === null) {
+      if (error.kind === 'refused' && error.code === 'client-exists' && error.clientId !== undefined && view.existing === null) {
         const adopted = await this.deps.record.client(error.clientId)
         if (generation !== this.generation) return
         if (adopted.ok) {
-          this.updateReview(current => ({ ...current, subject: { ...current.subject, existing: adopted.value.client }, recording: { status: 'idle' } }))
+          this.setWizard({ existing: adopted.value.client, recording: { status: 'idle' } })
           await this.record()
           return
         }
       }
-      this.updateReview(current => ({ ...current, recording: { status: 'failed', error } }))
+      this.setWizard({ recording: { status: 'failed', error } })
       return
     }
     void this.refresh()
@@ -490,16 +370,37 @@ export class AddClientModel {
   }
 
   /**
-   * Try again after a failure: search again, review again, send the missing records, or go on with the Record run.
-   * Every key is idempotent and a recorded batch is never sent again, so a retry adds only what is missing.
+   * Try again after a failure of the open step: the search, the docket rows, the count at other firms, the conflict
+   * check, the records of Review, or the Record run. Every key is idempotent and a recorded batch is never sent again,
+   * so a retry adds only what is missing.
    * @returns once the act ran.
    */
   async retry(): Promise<void> {
     const view = this.state.view
-    if (view?.page === 'find' && view.find.status === 'error') await this.search()
-    else if (view?.page === 'review' && view.recording.status === 'failed') await this.record()
-    else if (view?.page === 'review' && (view.review.status === 'error' || view.firm.status === 'error')) await this.review(view.subject, view.review.status === 'by-name')
-    else if (view?.page === 'record' && recordStatus(view) === 'failed') await this.run(view)
+    if (view === null) return
+    if (view.page === 'record') {
+      if (recordStatus(view) === 'failed') await this.run(view)
+      return
+    }
+    const names = this.foundNames()
+    switch (view.at) {
+      case 'company':
+        if (view.find.status === 'error') await this.find()
+        else if (view.docket.status === 'error' && names !== null) await this.readDocket(names)
+        else await this.retryDocket()
+        return
+      case 'matters':
+        if (view.others.status === 'error' && view.group !== null) await this.readOthers(view.group, this.group)
+        return
+      case 'conflict':
+      case 'matter':
+        if (view.group !== null) await this.readCheck(view.group, this.group)
+        return
+      case 'role':
+        return
+      case 'review':
+        if (view.recording.status === 'failed') await this.record()
+    }
   }
 
   /**
@@ -534,42 +435,84 @@ export class AddClientModel {
     await this.deps.api.clientNames(indexNames(clients.value))
   }
 
-  /** Stop the search timer; the page is gone. */
+  /** Stop the timers; the page is gone. */
   dispose(): void {
     this.leave()
   }
 
-  // Phases.
+  // Steps.
 
-  private async review(subject: Subject, byName: boolean): Promise<void> {
-    this.leave()
-    const generation = this.generation
-    const previous = this.state.view
-    const kept = previous?.page === 'review' && previous.subject === subject ? previous : null
-    this.store.update((draft) => {
-      draft.view = {
-        page: 'review', subject, review: byName ? { status: 'by-name' } : { status: 'loading' }, firm: { status: 'loading' },
-        role: kept?.role ?? subject.existing?.role ?? 'client', conflict: kept?.conflict ?? { checked: false, reason: '' },
-        other: kept?.other ?? { applicationNumber: null, role: 'opponent' }, newId: kept?.newId ?? newClientId(), recording: { status: 'idle' },
-      }
-      draft.toast = null
-    })
-    const clients = await this.deps.record.clients()
-    if (generation !== this.generation) return
-    const exclude = subject.existing?.clientId ?? null
-    const known = clients.ok ? knownClients(clients.value, exclude) : []
-    // The opponent index takes the clients' names before the review reads it; after a failed send, a name that the
-    // index does not have leaves the second half of the conflict check `reading`, which the review answer says.
-    const reviewed = async () => {
-      if (clients.ok) await this.deps.api.clientNames(indexNames(clients.value))
-      return this.deps.api.review({ names: subject.names.map(item => item.name), clients: known })
+  /**
+   * Open a step. Leaving Company confirms the group; a new group drops the matter ticks and the conflict tick, and
+   * reads the count at other firms and the conflict check again.
+   */
+  private async go(step: StepId, editing: boolean): Promise<void> {
+    const view = this.wizardView()
+    if (view === null) return
+    const furthest = later(step, view.reached) ? step : view.reached
+    const group = groupOf(view)
+    const changed = view.group === null || !sameGroup(view.group, group)
+    if (!changed) {
+      this.setWizard({ at: step, reached: furthest, editing: step === 'review' ? false : editing })
+      return
     }
-    const [answer, firm] = await Promise.all([
-      byName ? Promise.resolve(null) : reviewed(),
+    const id = ++this.group
+    this.setWizard({
+      at: step, reached: furthest, editing: step === 'review' ? false : editing, group, ticks: {},
+      conflict: { checked: false, reason: view.conflict.reason }, others: group.byName ? { status: 'none' } : { status: 'loading' },
+    })
+    await Promise.all([group.byName ? Promise.resolve() : this.readOthers(group, id), this.readCheck(group, id)])
+  }
+
+  /** Read the firm docket rows of the found names, and read them again while the Host reads the docket. */
+  private async readDocket(names: readonly string[]): Promise<void> {
+    const generation = this.generation
+    const search = this.search
+    this.clearPoll()
+    const view = this.wizardView()
+    if (view?.docket.status !== 'read') this.setWizard({ docket: { status: 'loading' } })
+    const answer = await this.deps.api.matters(names)
+    if (generation !== this.generation || search !== this.search) return
+    const docket: DocketStatus = !answer.ok
+      ? { status: 'error', error: answer.error }
+      : answer.value.status === 'no-plugin' ? { status: 'no-plugin' } : { status: 'read', docket: answer.value.docket, counts: answer.value.counts, rows: answer.value.rows }
+    this.setWizard({ docket })
+    if (docket.status === 'read' && docket.docket.state === 'reading') this.pollTimer = setTimeout(() => { void this.readDocket(names) }, DOCKET_POLL_MS)
+  }
+
+  /** Read the count of the group's EP applications at other firms. */
+  private async readOthers(group: Group, id: number): Promise<void> {
+    const generation = this.generation
+    this.setWizard({ others: { status: 'loading' } })
+    const answer = await this.deps.api.others(group.names.map(item => item.name))
+    if (generation !== this.generation || id !== this.group) return
+    this.setWizard({
+      others: !answer.ok ? { status: 'error', error: answer.error } : answer.value.status === 'no-plugin' ? { status: 'none' } : { status: 'counted', answer: answer.value },
+    })
+  }
+
+  /**
+   * Read the conflict check: the clients of the Firm Record with their details, then the two register halves. The
+   * opponent index takes the clients' names first; after a failed send, a name that the index does not have leaves the
+   * second half `reading`.
+   */
+  private async readCheck(group: Group, id: number): Promise<void> {
+    const generation = this.generation
+    const current = () => generation === this.generation && id === this.group
+    this.setWizard({ check: group.byName ? { status: 'by-name' } : { status: 'loading' }, firm: { status: 'loading' } })
+    const clients = await this.deps.record.clients()
+    if (!current()) return
+    const exclude = this.wizardView()?.existing?.clientId ?? null
+    const known = clients.ok ? knownClients(clients.value, exclude) : []
+    const checked = async (): Promise<CheckStatus> => {
+      if (clients.ok) await this.deps.api.clientNames(indexNames(clients.value))
+      return checkStatusOf(await this.deps.api.conflictCheck({ names: group.names.map(item => item.name), clients: known }))
+    }
+    const [check, firm] = await Promise.all([
+      group.byName ? Promise.resolve<CheckStatus>({ status: 'by-name' }) : checked(),
       clients.ok ? this.readDetails(clients.value) : Promise.resolve<FirmStatus>({ status: 'error', error: clients.error }),
     ])
-    if (generation !== this.generation) return
-    this.updateReview(view => ({ ...view, firm, review: answer === null ? view.review : reviewStatusOf(answer) }))
+    if (current()) this.setWizard({ check, firm })
   }
 
   private async readDetails(clients: readonly FirmClient[]): Promise<FirmStatus> {
@@ -593,10 +536,11 @@ export class AddClientModel {
     const existing = read.ok ? read.value : null
     const plan = await planRecords(decision, existing)
     const total = plan.steps.length
-    this.updateReview(view => ({ ...view, recording: { status: 'running', done: 0, total } }))
-    const outcome = await runPlan(plan, this.deps.record, (done) => {
-      if (generation === this.generation) this.updateReview(view => ({ ...view, recording: { status: 'running', done, total } }))
-    })
+    const progress = (done: number) => {
+      if (generation === this.generation) this.setWizard({ recording: { status: 'running', done, total } })
+    }
+    progress(0)
+    const outcome = await runPlan(plan, this.deps.record, progress)
     return outcome.ok ? { ok: true, existing } : { ok: false, error: outcome.error }
   }
 
@@ -660,10 +604,11 @@ export class AddClientModel {
     this.store.update((draft) => { draft.toast = toast })
   }
 
-  /** Drop the answers of the open view and stop its search. */
+  /** Drop the answers of the open view and stop its timers. */
   private leave(): void {
     this.generation += 1
     this.clearFind()
+    this.clearPoll()
   }
 
   private clearFind(): void {
@@ -673,31 +618,32 @@ export class AddClientModel {
     this.findAbort = null
   }
 
-  private setFind(generation: number, find: FindStatus, existing: FirmClient | null): void {
-    const view = this.state.view
-    if (generation !== this.generation || view?.page !== 'find') return
-    this.store.update((draft) => { draft.view = { ...view, find, existing } })
+  private clearPoll(): void {
+    if (this.pollTimer !== null) clearTimeout(this.pollTimer)
+    this.pollTimer = null
   }
 
-  /** Change the open view when it is a page of this kind. */
-  private updateView<P extends AddClientView['page']>(page: P, change: (view: Extract<AddClientView, { page: P }>) => AddClientView): void {
-    const view = this.state.view
-    // The page check makes the view a member of the union with that page.
-    if (view?.page === page) this.store.update((draft) => { draft.view = change(view as Extract<AddClientView, { page: P }>) })
+  /** The names of the found group, or null when the Company step found none. */
+  private foundNames(): readonly string[] | null {
+    const view = this.wizardView()
+    return view?.find.status === 'found' ? view.find.names.map(item => item.name) : null
   }
 
-  private updateReview(change: (view: ReviewView) => ReviewView): void {
-    this.updateView('review', change)
+  private wizardView(): WizardView | null {
+    const view = this.state.view
+    return view?.page === 'wizard' ? view : null
+  }
+
+  /** Change fields of the open wizard. */
+  private setWizard(fields: Partial<WizardView>): void {
+    const view = this.wizardView()
+    if (view !== null) this.store.update((draft) => { draft.view = { ...view, ...fields } })
   }
 
   private updateRecord(change: (view: RecordView) => RecordView): void {
-    this.updateView('record', change)
+    const view = this.state.view
+    if (view?.page === 'record') this.store.update((draft) => { draft.view = change(view) })
   }
-}
-
-/** A failed recording becomes idle when the person changes the decision; a running one goes on. */
-function idleUnlessRunning(recording: RecordingStatus): RecordingStatus {
-  return recording.status === 'running' ? recording : { status: 'idle' }
 }
 
 /** Where a Record run is: it runs, a failure stopped it, or the client folder is made. */
@@ -731,13 +677,13 @@ function findStatusOf(found: Awaited<ReturnType<AddClientApi['find']>>): FindSta
   const answer: FindAnswer = found.value
   if (answer.status === 'no-plugin') return { status: 'no-plugin' }
   return {
-    status: 'group', source: answer.source, asOf: answer.asOf, truncated: answer.truncated,
+    status: 'found', source: answer.source, asOf: answer.asOf, truncated: answer.truncated, sampleRows: answer.sampleRows, omitted: answer.omitted,
     ...(answer.edition === undefined ? {} : { edition: answer.edition }),
-    names: answer.names.map(item => ({ name: item.name, applications: item.applications, ticked: true })),
+    names: answer.names.map(item => ({ name: item.name, matching: item.matching, ticked: true })),
   }
 }
 
-function reviewStatusOf(answer: Awaited<ReturnType<AddClientApi['review']>>): ReviewStatus {
+function checkStatusOf(answer: Awaited<ReturnType<AddClientApi['conflictCheck']>>): CheckStatus {
   if (!answer.ok) return answer.error === 'no-key' ? { status: 'no-key' } : { status: 'error', error: answer.error }
-  return answer.value.status === 'no-plugin' ? { status: 'by-name' } : { status: 'reviewed', answer: answer.value, claimed: [] }
+  return answer.value.status === 'no-plugin' ? { status: 'by-name' } : { status: 'checked', answer: answer.value }
 }

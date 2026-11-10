@@ -1,25 +1,25 @@
 /**
- * The Add client view of the client folder page: the top bar with the location and the page's act, then one page of
- * the flow (find the company, review and decide, record the client). Also the parts that the Clients list shows: the
- * Watching list and the toast after an act.
+ * The Add client view of the client folder page: the top bar with the location, then the wizard (Company, Matters,
+ * Role, Conflict check or Matter, Review) or the Record run, each with the stepper on top and a footer docked below.
+ * Also the parts that the Clients list shows: the Watching list and the toast after an act.
  */
 
 import { useLayoutEffect, type KeyboardEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconCheckOutlineRegular, IconCloseOutlineRegular, IconCordisPluginOutlineRegular, IconFolderOpenRegular,
-  IconInfoOutlineRegular, IconRefreshOutlineRegular, IconSearchOutlineRegular, IconShieldOutlineRegular, IconUsersOutlineRegular,
-  IconWarningTriangleOutlineRegular, Keycap, type KeycapBox,
+  Button, IconCheckOutlineRegular, IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconInfoOutlineRegular,
+  IconRefreshOutlineRegular, IconSearchOutlineRegular, IconWarningTriangleOutlineRegular, Keycap, type KeycapBox,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
 import { pressed, type KeyHandlers, type RecordKey } from '../keys.ts'
 import panel from '../Panel.module.css'
-import { PATSTAT, asOfText, dayText, publicationLabel, type AddClientTranslate } from './format.ts'
+import { publicationLabel, type AddClientTranslate } from './format.ts'
 import type { HostFailure } from './api.ts'
-import { blockerOf, recordStatus, type AddClientModel, type AddClientView, type FindView, type Toast } from './model.ts'
+import { recordStatus, type AddClientModel, type AddClientView, type Toast } from './model.ts'
 import type { FirmClient, RecordError } from './records.ts'
 import { RecordPage } from './RecordPage.tsx'
-import { ReviewPage } from './ReviewPage.tsx'
+import { WizardPage } from './WizardPage.tsx'
+import { waitOf, type StepId, type StepMark, type WizardView } from './wizard.ts'
 import css from './AddClient.module.css'
 
 /** What every Add client page gets. */
@@ -44,12 +44,12 @@ export function AddClientPage(props: PageProps & {
   const { t, view, model, setKeys, recordKey } = props
   const retry = retryOf(view)
   useLayoutEffect(() => { setKeys(retry ? { retry: () => { void model.retry() } } : {}) })
-  const name = view.page === 'find' ? null : view.page === 'review' ? view.subject.name : view.name
-  // The decision bar's primary act runs on the app's Record the decision key while the focus is in Add client.
+  const name = view.page === 'record' ? view.name : view.group?.name ?? null
+  // The primary act of Review runs on the app's Record the decision key while the focus is in Add client.
   const onKeyDown = (event: KeyboardEvent) => {
-    if (view.page !== 'review' || !pressed(event.nativeEvent, recordKey.binding)) return
+    if (view.page !== 'wizard' || view.at !== 'review' || !pressed(event.nativeEvent, recordKey.binding)) return
     event.preventDefault()
-    if (blockerOf(view) === null) void model.record()
+    if (waitOf(view, 'review') === null) void model.record()
   }
   return (
     <div className={css.work} onKeyDown={onKeyDown} data-testid="add-client">
@@ -61,51 +61,109 @@ export function AddClientPage(props: PageProps & {
             ? <span className={panel.here}>{t('title')}</span>
             : <><span className={panel.wide}>{t('title')}</span><span className={clsx(panel.sep, panel.wide)}>›</span><span className={panel.here} title={name}>{name}</span></>}
         </nav>
-        <div className={panel.actions}>
-          {view.page === 'find' && (
-            <Button variant="primary" size="sm" disabled={!canContinue(view)} onClick={() => { void model.continue() }}>{t('act.continue')}</Button>
-          )}
-          {view.page === 'record' && (
-            <Button variant="primary" size="sm" icon={<IconFolderOpenRegular size={16} />} disabled={recordStatus(view) === 'running' || view.folder.state === 'making'}
-              onClick={() => { void model.openClientPage() }}>{t('act.openClient')}</Button>
-          )}
-        </div>
       </header>
-      {view.page === 'find' && <FindPage {...props} view={view} />}
-      {view.page === 'review' && <ReviewPage {...props} view={view} />}
-      {view.page === 'record' && <RecordPage {...props} view={view} />}
+      {view.page === 'wizard' ? <WizardPage {...props} view={view} /> : <RecordPage {...props} view={view} />}
     </div>
   )
 }
 
-/** Whether the find page's Continue may run. */
-function canContinue(view: FindView): boolean {
-  if (view.find.status === 'group') return view.find.names.some(item => item.ticked)
-  return view.find.status === 'no-plugin'
-}
-
 /** Whether a page offers Try again now. */
 function retryOf(view: AddClientView): boolean {
-  if (view.page === 'find') return view.find.status === 'error'
-  if (view.page === 'review') return view.recording.status === 'failed' || view.review.status === 'error' || view.firm.status === 'error'
-  return recordStatus(view) === 'failed'
+  if (view.page === 'record') return recordStatus(view) === 'failed'
+  return failedOf(view)
 }
 
 /**
- * The line of the three steps of Add client.
- * @param props - copy and the current step, from 1.
- * @returns the steps.
+ * Whether the open step of the wizard shows a failure with Try again.
+ * @param view - the wizard.
+ * @returns true when Try again has something to do.
  */
-export function Steps({ t, current }: { readonly t: AddClientTranslate; readonly current: 1 | 2 | 3 }) {
-  const steps = [t('steps.company'), t('steps.role'), t('steps.record')]
+export function failedOf(view: WizardView): boolean {
+  switch (view.at) {
+    case 'company': {
+      const { find, docket } = view
+      if (find.status === 'error' || docket.status === 'error') return true
+      return docket.status === 'read' && ['partial', 'failed', 'interrupted'].includes(docket.docket.state)
+    }
+    case 'matters':
+      return view.others.status === 'error'
+    case 'conflict': {
+      const wait = waitOf(view, 'conflict')
+      return wait === 'conflict-failed' || (wait === 'conflict-reading' && view.check.status === 'checked')
+    }
+    case 'matter':
+      return view.firm.status === 'error'
+    case 'role':
+      return false
+    case 'review':
+      return view.recording.status === 'failed'
+  }
+}
+
+/** One step of the stepper: its label, its mark, and its act when the stepper opens it. */
+export interface StepperItem {
+  readonly step: StepId
+  readonly mark: StepMark
+  readonly onOpen?: (() => void) | undefined
+}
+
+const STEP_CLASS: Readonly<Record<StepMark, string | undefined>> = {
+  done: css.stepDone, current: css.stepCurrent, todo: undefined, blocked: css.stepBlocked,
+}
+
+/**
+ * The numbered stepper of Add client. A step that the stepper opens is a button.
+ * @param props - copy and the steps.
+ * @returns the stepper.
+ */
+export function Stepper({ t, items }: { readonly t: AddClientTranslate; readonly items: readonly StepperItem[] }) {
   return (
-    <ol className={css.steps} aria-label={t('steps.label')}>
-      {steps.map((step, index) => (
-        <li key={step} className={clsx(index + 1 < current && css.stepDone, index + 1 === current && css.stepOn)} aria-current={index + 1 === current ? 'step' : undefined}>
-          {index + 1 < current && <IconCheckOutlineRegular size={14} />}{step}
-        </li>
-      ))}
+    <ol className={css.stepper} aria-label={t('steps.label')}>
+      {items.map(({ step, mark, onOpen }, index) => {
+        const label = t(`step.${step}`)
+        const inner = (
+          <>
+            <span className={css.stepMark}>
+              {mark === 'done' ? <IconCheckOutlineRegular size={12} /> : mark === 'blocked' ? <IconWarningTriangleOutlineRegular size={12} /> : index + 1}
+            </span>
+            <span className={css.stepLabel}>{label}</span>
+            <span className={css.srOnly}>, {t(`step.mark.${mark}`)}</span>
+          </>
+        )
+        return (
+          <li key={step} className={STEP_CLASS[mark]} title={label} aria-current={mark === 'current' ? 'step' : undefined}>
+            {onOpen === undefined ? inner : <button type="button" className={css.stepOpen} onClick={onOpen}>{inner}</button>}
+          </li>
+        )
+      })}
     </ol>
+  )
+}
+
+/**
+ * The footer docked below a step: Back, Cancel, one line, and the primary act.
+ * @param props - copy, the Back act, the Cancel act, the line, whether the line says why the act waits, and the act.
+ * @returns the footer.
+ */
+export function StepFoot({ t, onBack, onCancel, note, waiting, children }: {
+  readonly t: AddClientTranslate
+  readonly onBack?: (() => void) | undefined
+  readonly onCancel?: (() => void) | undefined
+  readonly note: string
+  readonly waiting: boolean
+  readonly children: ReactNode
+}) {
+  return (
+    <footer className={css.foot}>
+      {onBack !== undefined && (
+        <Button variant="ghost" size="sm" aria-label={t('act.back')} onClick={onBack}>
+          <span className={css.onlySm}><IconChevronLeftOutlineRegular size={16} /></span><span className={css.hideSm}>{t('act.back')}</span>
+        </Button>
+      )}
+      {onCancel !== undefined && <Button variant="ghost" size="sm" onClick={onCancel}>{t('act.cancel')}</Button>}
+      <span className={clsx(css.note, waiting && css.waiting)} role={waiting ? 'note' : undefined}>{note}</span>
+      {children}
+    </footer>
   )
 }
 
@@ -190,112 +248,6 @@ export function hostText(t: AddClientTranslate, error: HostFailure): string {
 export function recordText(t: AddClientTranslate, error: RecordError): string {
   if (error.kind !== 'refused') return t(`error.${error.kind}`)
   return error.code === null ? t('refusal.other') : t(`refusal.${error.code}`)
-}
-
-function FindPage({ t, view, model, locale, retryKeycaps }: PageProps & { readonly view: FindView }) {
-  const { find, existing, query } = view
-  const name = query.trim()
-  const byName = <Button variant="outline" size="sm" onClick={() => { void model.continue() }}>{t('act.byName')}</Button>
-  return (
-    <div className={css.scroll}>
-      <div className={css.flow}>
-        <Steps t={t} current={1} />
-        <h1 className={panel.title}>{t('title')}</h1>
-        <p className={css.lede}>{t('find.lede')}</p>
-        <div className={css.fieldWrap}>
-          <IconSearchOutlineRegular size={16} />
-          <input className={css.field} type="search" value={query} aria-label={t('find.field')} placeholder={t('find.field')} autoFocus
-            onChange={(event) => { model.type(event.currentTarget.value) }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter') return
-              event.preventDefault()
-              void model.search()
-            }} />
-        </div>
-        <p className={css.privacy}><IconShieldOutlineRegular size={16} /><span>{t('find.privacy')}</span></p>
-        {existing !== null && <ExistingNotice t={t} existing={existing} locale={locale} />}
-        {find.status === 'empty' && (
-          <Empty icon={<IconUsersOutlineRegular size={24} />} title={t('find.empty.title')} body={t('find.empty.body')} />
-        )}
-        {find.status === 'loading' && find.skeleton && (
-          <Section title={t('find.group.title')}>
-            <div className={css.table} role="status" aria-label={t('find.loading')}>
-              {[60, 50, 70, 50, 60].map((width, index) => (
-                <div key={index} className={css.skeletonRow}><span /><span style={{ width: `${width}%` }} /><span /></div>
-              ))}
-            </div>
-          </Section>
-        )}
-        {find.status === 'group' && <GroupSection t={t} find={find} existing={existing} model={model} locale={locale} />}
-        {find.status === 'error' && (
-          <>
-            <Notice tone="bad" lead={t('find.error.lead')} rest={t('find.error.rest')} act={<RetryButton t={t} keycaps={retryKeycaps} onClick={() => { void model.retry() }} />} />
-            <p className={css.hint}><IconInfoOutlineRegular size={16} /><span>{t('find.error.hint', { name })}</span>{byName}</p>
-          </>
-        )}
-        {find.status === 'no-key' && <Notice tone="bad" lead={t('find.noKey.title')} rest={t('find.noKey.body', { name })} act={byName} />}
-        {find.status === 'no-plugin' && (
-          <Empty icon={<IconCordisPluginOutlineRegular size={24} />} title={t('find.plugin.title')} body={t('find.plugin.body', { name })} />
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ExistingNotice({ t, existing, locale }: {
-  readonly t: AddClientTranslate
-  readonly existing: FirmClient
-  readonly locale: LocaleId
-}) {
-  const date = dayText(existing.addedAt, locale)
-  return (
-    <Notice tone="info" lead={t(`find.existing.${existing.role}`, { name: existing.name })}
-      rest={existing.addedBy.name === null ? t('find.existing.at', { date }) : t('find.existing.by', { person: existing.addedBy.name, date })} />
-  )
-}
-
-function GroupSection({ t, find, existing, model, locale }: {
-  readonly t: AddClientTranslate
-  readonly find: Extract<FindView['find'], { status: 'group' }>
-  readonly existing: FirmClient | null
-  readonly model: AddClientModel
-  readonly locale: LocaleId
-}) {
-  const number = new Intl.NumberFormat(locale)
-  const ticked = find.names.filter(item => item.ticked)
-  const applications = number.format(ticked.reduce((sum, item) => sum + item.applications, 0))
-  const linked = new Set(existing?.names.map(item => item.name))
-  const fresh = find.names.filter(item => !linked.has(item.name)).length
-  const count = existing === null
-    ? t('find.group.count', { ticked: ticked.length, total: find.names.length, applications })
-    : fresh === 0 ? t('find.existing.noNew', { count: find.names.length }) : t('find.existing.new', { count: find.names.length, new: fresh })
-  const patstat = find.source === 'patstat'
-  return (
-    <Section title={existing === null ? t('find.group.title') : t('find.existing.group')} count={count}>
-      {existing === null && <p className={css.hint}><IconInfoOutlineRegular size={16} /><span>{t('find.group.hint')}</span></p>}
-      <div className={css.table} role="table" aria-label={t('find.group.title')}>
-        <div className={clsx(css.thead, css.names)} role="row">
-          <span />
-          <span role="columnheader">{patstat ? t('find.col.patstat', { product: PATSTAT }) : t('find.col.register')}</span>
-          <span role="columnheader" className={css.end}>{patstat ? t('find.col.applications') : t('find.col.epApplications')}</span>
-        </div>
-        {find.names.map(item => (
-          <label key={item.name} className={clsx(css.row, css.names, !item.ticked && css.off)} role="row">
-            <input type="checkbox" checked={item.ticked} aria-label={t('find.tick', { name: item.name })}
-              onChange={(event) => { model.tick(item.name, event.currentTarget.checked) }} />
-            <span className={css.text} role="cell">{item.name}</span>
-            <span className={clsx(css.cell, css.end)} role="cell">{number.format(item.applications)}</span>
-          </label>
-        ))}
-      </div>
-      {find.truncated && <p className={css.hint}><IconInfoOutlineRegular size={16} /><span>{t('find.truncated')}</span></p>}
-      <p className={css.sourceLine}>
-        {patstat
-          ? `${t('find.source.patstat', { product: PATSTAT, edition: find.edition ?? '' })} ${t('find.attribution')}`
-          : t('find.source.register', { asOf: asOfText(t, find.asOf, locale) })}
-      </p>
-    </Section>
-  )
 }
 
 /**

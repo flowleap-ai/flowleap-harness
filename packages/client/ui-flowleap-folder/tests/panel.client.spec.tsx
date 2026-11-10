@@ -914,11 +914,11 @@ describe('Add client on the client folder page', () => {
   it('opens Add client from the Clients list, and goes back to the list', async () => {
     await mount({ clients: [] })
     await click(screen.getAllByRole('button', { name: addClientEn['list.add'] })[0]!)
-    expect(screen.getByRole('heading', { level: 1, name: addClientEn.title })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: addClientEn['company.title'] })).toBeTruthy()
     await click(button(addClientEn['crumbs.clients']))
     expect(screen.getByRole('heading', { level: 1, name: en['clients.title'] })).toBeTruthy()
     await click(screen.getAllByRole('button', { name: addClientEn['list.add'] })[1]!)
-    expect(screen.getByRole('heading', { level: 1, name: addClientEn.title })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: addClientEn['company.title'] })).toBeTruthy()
   })
 
   it('shows one row for each client folder, and the Watching list', async () => {
@@ -968,8 +968,9 @@ describe('Add client on the client folder page', () => {
     expect(cells('00 Client')[2]).toBe(en['kind.folder'])
     expect(cells('EP Register')[5]).toBe(en['source.addClient'])
     await click(button(addClientEn['folder.check']))
-    expect(screen.getByRole('heading', { level: 1, name: 'Syntegon' })).toBeTruthy()
-    expect(host.review).toHaveBeenCalledWith({ names: ['SYNTEGON TECHNOLOGY'], clients: [] })
+    expect(screen.getByRole('heading', { level: 1, name: 'Syntegon: 0 EP applications at your firm' })).toBeTruthy()
+    expect(host.matters).toHaveBeenCalledWith(['SYNTEGON TECHNOLOGY'])
+    expect(host.conflictCheck).toHaveBeenCalledWith({ names: ['SYNTEGON TECHNOLOGY'], clients: [] })
   })
 
   it('offers no check for a folder whose client the Firm Record does not have', async () => {

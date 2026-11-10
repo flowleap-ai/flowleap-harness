@@ -1,14 +1,15 @@
 /**
- * The Add client routes of the Host half: `find` reads the applicant names of a company, `review` reads the group's EP
- * applications and possible conflicts, `client-folder` makes the client folder of a recorded client, `settings` reports
- * the batch size of the Firm Record commands, `docket` reports the state of the firm docket, `docket/read` reads it
- * again, `identity` reports the firm identity with the
- * docket state, `identity/save` saves a new firm identity, which reads the docket again, and `client-names` takes the
- * names of the firm's clients for the opponent index. Only a firm administrator may save the identity, and `identity`
- * answers whether this request may; the docket routes stay open to every person, because they only read the public
- * register again for the saved identity. The routes read public data through the `flowleapPatentData` Service when the
- * runtime has it; without it, `find`, `review`, the docket routes and `client-names` say so, and a saved identity and
- * the client names wait for the Service. `client-folder` reads no public data.
+ * The Add client routes of the Host half: `find` gives the applicant names of a company with their register counts,
+ * `matters` gives the firm's matters of a group of names from the firm docket, `others` counts the group's EP
+ * applications at other firms, `conflict-check` reads the possible conflicts, `client-folder` makes the client folder of
+ * a recorded client, `settings` reports the batch size of the Firm Record commands, `docket` reports the state of the
+ * firm docket, `docket/read` reads it again, `identity` reports the firm identity with the docket state,
+ * `identity/save` saves a new firm identity, which reads the docket again, and `client-names` takes the names of the
+ * firm's clients for the opponent index. Only a firm administrator may save the identity, and `identity` answers
+ * whether this request may; the docket routes stay open to every person, because they only read the public register
+ * again for the saved identity. The routes read public data through the `flowleapPatentData` Service when the runtime
+ * has it; without it, every route but `client-folder`, `settings` and the identity routes says so, and a saved identity
+ * and the client names wait for the Service. `client-folder` reads no public data.
  * @module
  */
 
@@ -17,14 +18,16 @@ import { FolderError } from '../folder.ts'
 import type { FolderSource } from '../route.ts'
 import type { RecordStore } from '../sources.ts'
 import { makeClientFolder, type FolderTemplate } from './client-folder.ts'
+import { registerConflicts } from './conflict-check.ts'
 import type { FirmDocket } from './docket.ts'
+import { countNames, firmMatters, matchingNames, othersCount } from './group.ts'
 import type { FirmIdentityStore } from './identity-store.ts'
 import { messageOf } from './message.ts'
 import type { OpponentIndex } from './opponent-index.ts'
-import { review } from './review.ts'
 import {
   ADD_CLIENT_STATUS, type AddClientFailure, type AddClientFailureCode, type AddClientSettingsAnswer, type ClientFolderAnswer,
-  type DocketAnswer, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type KnownClient, type OpponentIndexAnswer,
+  type ConflictCheckAnswer, type DocketAnswer, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type KnownClient,
+  type MattersAnswer, type OpponentIndexAnswer, type OthersAnswer,
 } from './wire.ts'
 
 /** A refused Add client act; `code` is the wire failure code. */
@@ -44,7 +47,10 @@ export class AddClientError extends Error {
 export interface AddClientSettings {
   readonly clientsRoot: string
   readonly folderTemplate: FolderTemplate
-  readonly maxRegisterRows: number
+  /** The rows of the register sample of `find`. */
+  readonly findSampleRows: number
+  /** The most names that `find` counts. */
+  readonly findNameLimit: number
   /** The most rows of one date slice of the `op=` reads of the conflict check. */
   readonly registerSliceRows: number
   /** The most applications in one batch command of the Firm Record, which the browser sends. */
@@ -58,7 +64,7 @@ export interface AddClientServices {
   readonly docket: FirmDocket
   /** The applications that the names of the firm's clients opposed, for the conflict check. */
   readonly index: OpponentIndex
-  /** The firm identity that the review matches and the docket reads for. */
+  /** The firm identity that the conflict check matches and the docket reads for. */
   readonly identity: FirmIdentityStore
   /** Whether a request is of a firm administrator, who alone may save the firm identity. */
   readonly isAdmin: (request: Request) => Promise<boolean>
@@ -117,7 +123,7 @@ function identityOf(value: unknown): FirmIdentity {
   }
 }
 
-/** The known clients of a review request. */
+/** The known clients of a conflict check request. */
 function knownClients(value: unknown): KnownClient[] {
   if (!Array.isArray(value)) throw new AddClientError('bad-request', 'clients must be a list')
   return value.map((item: unknown, index) => {
@@ -153,7 +159,9 @@ export class AddClientRoutes {
   }
 
   /**
-   * `GET find?name=`: the applicant names that match a company name. Only the name leaves the firm.
+   * `GET find?name=`: the applicant names that hold every word of a company name, from a register sample of
+   * `findSampleRows` rows and from the firm docket, at most `findNameLimit` of them, each with its register count. Only
+   * the typed name and the found names leave the firm.
    * @param request - the authenticated request.
    * @returns the JSON answer.
    */
@@ -161,33 +169,69 @@ export class AddClientRoutes {
     const name = text(new URL(request.url).searchParams.get('name'), 'name')
     const data = this.services.data()
     if (data === undefined) return json({ status: 'no-plugin' } satisfies FindAnswer)
+    const { findSampleRows, findNameLimit } = this.settings
     const asOf = this.services.now().toISOString()
-    const found = await data.findApplicantNames(name, { maxRows: this.settings.maxRegisterRows }, request.signal)
+    const sample = await data.findApplicantNames(name, { maxRows: findSampleRows }, request.signal)
+    const { rows } = await this.services.docket.served()
+    const found = matchingNames(name, sample.names.map(entry => entry.name), rows ?? [])
+    const kept = found.slice(0, findNameLimit)
     return json({
-      status: 'found', source: found.source, ...(found.edition === undefined ? {} : { edition: found.edition }),
-      names: found.names, asOf, truncated: found.truncated,
+      status: 'found', source: sample.source, ...(sample.edition === undefined ? {} : { edition: sample.edition }),
+      names: await countNames(data, kept, request.signal), omitted: found.length - kept.length, sampleRows: findSampleRows,
+      truncated: sample.truncated, asOf,
     } satisfies FindAnswer)
   }
 
   /**
-   * `POST review` with a a `ReviewRequest`: the group's EP applications at your firm and at other firms, and the
-   * possible conflicts that the EP Register shows.
+   * `POST matters` with a `NamesRequest`: the firm's EP applications of the names, from the firm docket. Nothing is read
+   * from the EP Register.
    * @param request - the authenticated request.
    * @returns the JSON answer.
    */
-  async review(request: Request): Promise<Response> {
+  async matters(request: Request): Promise<Response> {
+    const { names } = await bodyOf(request)
+    const group = texts(names, 'names')
+    if (this.services.data() === undefined) return json({ status: 'no-plugin' } satisfies MattersAnswer)
+    const { state, rows } = await this.services.docket.served()
+    return json({ status: 'matters', docket: state, ...firmMatters(group, rows) } satisfies MattersAnswer)
+  }
+
+  /**
+   * `POST others` with a `NamesRequest`: the count of the group's EP applications whose representative is not the firm.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
+  async others(request: Request): Promise<Response> {
+    const { names } = await bodyOf(request)
+    const group = texts(names, 'names')
+    const data = this.services.data()
+    if (data === undefined) return json({ status: 'no-plugin' } satisfies OthersAnswer)
+    const asOf = this.services.now().toISOString()
+    const { rows } = await this.services.docket.served()
+    const atFirm = firmMatters(group, rows).rows.filter(row => !row.addressOnly).length
+    return json({ status: 'counted', ...await othersCount(data, group, atFirm, request.signal), asOf } satisfies OthersAnswer)
+  }
+
+  /**
+   * `POST conflict-check` with a `ConflictCheckRequest`: the possible conflicts that the EP Register shows, in two
+   * halves, with how complete each half is.
+   * @param request - the authenticated request.
+   * @returns the JSON answer.
+   */
+  async conflictCheck(request: Request): Promise<Response> {
     const body = await bodyOf(request)
     const names = texts(body.names, 'names')
     const clients = knownClients(body.clients)
     const data = this.services.data()
-    if (data === undefined) return json({ status: 'no-plugin' })
+    if (data === undefined) return json({ status: 'no-plugin' } satisfies ConflictCheckAnswer)
     const { services, settings } = this
     const asOf = services.now().toISOString()
     const input = {
-      names, clients, identity: await services.identity.current(), index: await services.index.current(), maxRows: settings.maxRegisterRows,
+      names, clients, identity: await services.identity.current(), index: await services.index.current(),
       slices: { sliceRows: settings.registerSliceRows, clock: { now: () => services.now().getTime() }, label: 'ui-flowleap-folder: conflict check', log: services.log },
     }
-    return json(await review(data, input, asOf, request.signal))
+    const { hits, groupOpposedClients, clientsOpposedGroup } = await registerConflicts(data, input, asOf, request.signal)
+    return json({ status: 'checked', asOf, conflicts: hits, conflictCheck: { groupOpposedClients, clientsOpposedGroup } } satisfies ConflictCheckAnswer)
   }
 
   /**

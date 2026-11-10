@@ -7,10 +7,13 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
 import * as adminLink from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import { PatentDataError } from '@deepseek-ai/dsh-flowleap-connectors'
-import { ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type ClientFolderAnswer, type DocketAnswer, type FindAnswer, type FirmIdentityAnswer, type OpponentIndexAnswer, type ReviewAnswer } from '../src/index.ts'
+import {
+  ADD_CLIENT_ROUTES, apply, checkConfig, Config, inject, type ClientFolderAnswer, type ConflictCheckAnswer, type DocketAnswer,
+  type FindAnswer, type FirmIdentityAnswer, type MattersAnswer, type OpponentIndexAnswer, type OthersAnswer,
+} from '../src/index.ts'
 import { AddClientError, codeOf } from '../src/add-client/routes.ts'
 import { FolderError } from '../src/folder.ts'
-import { FakePatentData, pub, row } from './patent-data.host.ts'
+import { FakePatentData, hold, pub, row } from './patent-data.host.ts'
 
 const CLIENT = '0b7c3c3e-0000-4000-8000-000000000001'
 
@@ -91,7 +94,9 @@ describe('Add client routes', () => {
   it('says that no data plugin is there, and makes the client folder with 00 Client and the About file only', async () => {
     await load()
     expect(await (await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })).json()).toEqual({ status: 'no-plugin' })
-    expect(await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon'], clients: [] })).json()).toEqual({ status: 'no-plugin' })
+    expect(await (await post(ADD_CLIENT_ROUTES.matters, { names: ['Syntegon'] })).json()).toEqual({ status: 'no-plugin' })
+    expect(await (await post(ADD_CLIENT_ROUTES.others, { names: ['Syntegon'] })).json()).toEqual({ status: 'no-plugin' })
+    expect(await (await post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['Syntegon'], clients: [] })).json()).toEqual({ status: 'no-plugin' })
     const made = await post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'Syntegon', names: ['Syntegon Technology GmbH', 'Syntegon Packaging Systems AG'] })
     expect(made.status).toBe(200)
     expect(made.headers.get('cache-control')).toBe('no-store')
@@ -138,16 +143,17 @@ describe('Add client routes', () => {
     expect(await (await call(ADD_CLIENT_ROUTES.settings)).json()).toEqual({ recordBatchSize: 25 })
   })
 
-  it('finds the names and reviews the group with the data plugin', async () => {
+  it('answers the conflict check of a group with no possible conflict, complete in both halves', async () => {
     const fake = data()
     ctx.set('flowleapPatentData', fake)
     await load()
-    const found = await (await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })).json() as FindAnswer
-    expect(found).toMatchObject({ status: 'found', source: 'ep-register', names: [{ name: 'Syntegon', applications: 2 }], truncated: false })
-    expect(found).not.toHaveProperty('edition')
-    const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon Technology GmbH'], clients: [{ clientId: 'c-9', names: ['Rival'] }] })).json() as ReviewAnswer
-    expect(reviewed).toMatchObject({ status: 'reviewed', total: 2, identity: 'set', atFirm: [{ applicationNumber: 'EP23171862' }], atOtherFirms: [{ applicationNumber: 'EP19794879' }] })
-    expect(fake.queries.filter(query => query.startsWith('find:'))).toEqual(['find:Syntegon:500'])
+    const checked = await (await post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['Syntegon Technology GmbH'], clients: [{ clientId: 'c-9', names: ['Rival'] }] })).json() as ConflictCheckAnswer
+    expect(checked).toEqual({
+      status: 'checked', asOf: expect.any(String) as string, conflicts: [],
+      conflictCheck: { groupOpposedClients: { state: 'complete', asOf: expect.any(String) as string }, clientsOpposedGroup: { state: 'reading' } },
+    })
+    expect(fake.queries).toContain('op="Syntegon Technology GmbH"|1-100')
+    expect(fake.queries.some(query => query.startsWith('pa='))).toBe(false)
   })
 
   it('answers the edition of a PATSTAT source', async () => {
@@ -166,12 +172,17 @@ describe('Add client routes', () => {
       return [answer.status, body]
     }
     expect(await refused(call(ADD_CLIENT_ROUTES.find))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, '{'))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, []))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: 'x', clients: [] }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: 'x' }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [null] }))).toEqual([400, { error: 'bad-request' }])
-    expect(await refused(post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [{ clientId: '', names: [] }] }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, '{'))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, []))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, { names: 'x', clients: [] }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['x'], clients: 'x' }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['x'], clients: [null] }))).toEqual([400, { error: 'bad-request' }])
+    expect(await refused(post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['x'], clients: [{ clientId: '', names: [] }] }))).toEqual([400, { error: 'bad-request' }])
+    for (const route of [ADD_CLIENT_ROUTES.matters, ADD_CLIENT_ROUTES.others]) {
+      for (const body of ['{', [], {}, { names: 'x' }, { names: [''] }, { names: [3] }]) {
+        expect(await refused(post(route, body))).toEqual([400, { error: 'bad-request' }])
+      }
+    }
     expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT.toUpperCase(), name: 'x', names: [] }))).toEqual([400, { error: 'bad-request' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'CON', names: [] }))).toEqual([422, { error: 'invalid-name' }])
     expect(await refused(post(ADD_CLIENT_ROUTES.clientFolder, { clientId: CLIENT, name: 'x', names: 'x' }))).toEqual([400, { error: 'bad-request' }])
@@ -184,7 +195,7 @@ describe('Add client routes', () => {
     fake.findApplicantNames = async () => { throw new PatentDataError('no-key', 'no EPO OPS key') }
     expect((await call(ADD_CLIENT_ROUTES.find, { query: { name: 'x' } })).status).toBe(424)
     fake.failing.add('pa="x"')
-    const unreachable = await post(ADD_CLIENT_ROUTES.review, { names: ['x'], clients: [] })
+    const unreachable = await post(ADD_CLIENT_ROUTES.others, { names: ['x'] })
     expect([unreachable.status, await unreachable.json()]).toEqual([502, { error: 'unreachable' }])
     fake.findApplicantNames = async () => { throw new Error('a bug') }
     expect((await call(ADD_CLIENT_ROUTES.find, { query: { name: 'x' } })).status).toBe(500)
@@ -227,13 +238,159 @@ describe('Add client routes', () => {
     expect(() => { checkConfig(config({ folderTemplate: { client: ['a/b'], matter: ['Office'], publicData: 'Office' } })) }).toThrow('folderTemplate.client has the invalid folder name "a/b"')
     expect(() => { checkConfig(config({ folderTemplate: { client: [], matter: ['Office', 'Office'], publicData: 'Office' } })) }).toThrow('folderTemplate.matter repeats a folder name')
     expect(() => { checkConfig(config({ folderTemplate: { client: [], matter: ['Search'], publicData: 'Office' } })) }).toThrow('folderTemplate.publicData "Office" is not a matter folder')
-    expect(() => config({ maxRegisterRows: 10001 })).toThrow()
+    expect(config({}).findSampleRows).toBe(500)
+    expect(config({ findSampleRows: 2000 }).findSampleRows).toBe(2000)
+    expect(() => config({ findSampleRows: 2001 })).toThrow()
+    expect(() => config({ findSampleRows: 0 })).toThrow()
+    expect(config({}).findNameLimit).toBe(20)
+    expect(() => config({ findNameLimit: 0 })).toThrow()
+    expect(() => config({ findNameLimit: 101 })).toThrow()
     expect(() => config({ registerSliceRows: 2001 })).toThrow()
     expect(() => config({ opsRequestsPerMinute: 0 })).toThrow()
     expect(() => config({ docketRefreshAge: 0 })).toThrow()
     expect(config({}).recordBatchSize).toBe(100)
     expect(() => config({ recordBatchSize: 0 })).toThrow()
     expect(() => config({ recordBatchSize: 501 })).toThrow()
+  })
+})
+
+describe('the find, matters and others routes', () => {
+  const BECKER = { name: 'Becker, Anna', address: [] }
+  /** A representative of another firm at the firm's address. */
+  const SAME_ADDRESS = { name: 'Schmidt, Paul', address: ['Hauptstraße 1', '80331 München'] }
+  const IDENTITY = { names: [], addresses: ['Hauptstraße 1, 80331 München'], representatives: ['Anna Becker'] }
+
+  function group() {
+    return new FakePatentData([
+      row({
+        applicationNumber: 'EP23171862', publicationNumber: pub('EP4292805'), title: 'Packaging', applicants: ['Syntegon Technology GmbH'], representatives: [BECKER],
+        status: 'Examination is in progress', representativeSince: '2024-07-24',
+      }),
+      row({ applicationNumber: 'EP23000002', applicants: ['Syntegon Packaging Systems AG', 'Partner AG'], representatives: [BECKER] }),
+      row({ applicationNumber: 'EP23000003', applicants: ['SYNTEGON TECHNOLOGY'], representatives: [SAME_ADDRESS] }),
+      row({ applicationNumber: 'EP23000004', applicants: ['Robert Bosch GmbH'], representatives: [BECKER] }),
+      row({ applicationNumber: 'EP19794879', applicants: ['Syntegon Technology GmbH'] }),
+    ])
+  }
+
+  /** Load the row with the data plugin, and wait until the firm docket is ready. */
+  async function ready(fake: FakePatentData, fields: Partial<Config> = {}) {
+    ctx.set('flowleapPatentData', fake)
+    await load({ firmIdentity: IDENTITY, ...fields })
+    await vi.waitFor(async () => {
+      expect(await (await call(ADD_CLIENT_ROUTES.docket)).json()).toMatchObject({ docket: { state: 'ready', rows: 4 } })
+    })
+    fake.queries.length = 0
+  }
+
+  async function find(name: string): Promise<FindAnswer> {
+    return await (await call(ADD_CLIENT_ROUTES.find, { query: { name } })).json() as FindAnswer
+  }
+
+  /** Let the count queries of `pa=` give a total. */
+  function countAs(fake: FakePatentData, total: number): void {
+    const read = fake.searchRegister.bind(fake)
+    fake.searchRegister = async (query, range, signal) => {
+      if (!query.startsWith('pa=')) return read(query, range, signal)
+      fake.queries.push(`${query}|${range.begin}-${range.end}`)
+      return { total, begin: range.begin, end: range.begin - 1, rows: [] }
+    }
+  }
+
+  it('find gives the names of the register sample and the names of the firm docket, each company once, with one count query each', async () => {
+    const fake = group()
+    fake.sample = ['Syntegon Technology GmbH']
+    await ready(fake)
+    expect(await find('Syntegon')).toEqual({
+      status: 'found', source: 'ep-register', asOf: expect.any(String) as string, omitted: 0, sampleRows: 500, truncated: false,
+      names: [{ name: 'Syntegon Technology GmbH', matching: 3 }, { name: 'Syntegon Packaging Systems AG', matching: 1 }],
+    })
+    expect(fake.queries).toEqual(['find:Syntegon:500', 'pa="Syntegon Technology GmbH"|1-1', 'pa="Syntegon Packaging Systems AG"|1-1'])
+  })
+
+  it('find counts at most findNameLimit names, says how many it left out, and sorts equal counts by name', async () => {
+    const fake = group()
+    fake.sample = ['Syntegon Beta', 'Syntegon Alpha', 'Syntegon Technology GmbH']
+    await ready(fake, { findNameLimit: 2, findSampleRows: 1000 })
+    expect(await find('Syntegon')).toMatchObject({
+      names: [{ name: 'Syntegon Alpha', matching: 0 }, { name: 'Syntegon Beta', matching: 0 }], omitted: 2, sampleRows: 1000,
+    })
+    expect(fake.queries).toEqual(['find:Syntegon:1000', 'pa="Syntegon Beta"|1-1', 'pa="Syntegon Alpha"|1-1'])
+  })
+
+  it('find gives a count at the EPO cap as the cap, and a failed count as unreachable', async () => {
+    const fake = group()
+    await ready(fake)
+    countAs(fake, 12_000)
+    expect(await find('Robert Bosch')).toMatchObject({ names: [{ name: 'Robert Bosch', matching: 10_000 }] })
+    fake.searchRegister = async () => { throw new PatentDataError('unreachable', 'no answer') }
+    const failed = await call(ADD_CLIENT_ROUTES.find, { query: { name: 'Syntegon' } })
+    expect([failed.status, await failed.json()]).toEqual([502, { error: 'unreachable' }])
+  })
+
+  it('find gives the sample names only while the firm docket is read', async () => {
+    const fake = group()
+    const release = hold(fake, 're=')
+    ctx.set('flowleapPatentData', fake)
+    await load({ firmIdentity: IDENTITY })
+    expect(await find('Syntegon')).toMatchObject({ names: [{ name: 'Syntegon', matching: 4 }] })
+    release()
+  })
+
+  it('matters gives the docket rows of the names, with the address-only rows marked and left out of the counts', async () => {
+    const fake = group()
+    await ready(fake)
+    const answer = await (await post(ADD_CLIENT_ROUTES.matters, { names: ['Syntegon Technology GmbH', 'SYNTEGON PACKAGING SYSTEMS', 'Nobody', 'GmbH'] })).json() as MattersAnswer
+    expect(answer).toEqual({
+      status: 'matters', docket: { state: 'ready', rows: 4, asOf: expect.any(String) as string },
+      counts: [
+        { name: 'Syntegon Technology GmbH', atFirm: 1 }, { name: 'SYNTEGON PACKAGING SYSTEMS', atFirm: 1 }, { name: 'Nobody', atFirm: 0 }, { name: 'GmbH', atFirm: 0 },
+      ],
+      rows: [
+        { applicationNumber: 'EP23000003', applicants: ['SYNTEGON TECHNOLOGY'], addressOnly: true, names: ['Syntegon Technology GmbH'] },
+        {
+          applicationNumber: 'EP23171862', publicationNumber: 'EP4292805', title: 'Packaging', applicants: ['Syntegon Technology GmbH'], status: 'Examination is in progress',
+          representativeSince: '2024-07-24', addressOnly: false, names: ['Syntegon Technology GmbH'],
+        },
+        { applicationNumber: 'EP23000002', applicants: ['Syntegon Packaging Systems AG', 'Partner AG'], addressOnly: false, names: ['SYNTEGON PACKAGING SYSTEMS'] },
+      ],
+    })
+    expect(fake.queries).toEqual([])
+  })
+
+  it('matters gives no row and counts of 0 while the firm docket is read', async () => {
+    const fake = group()
+    const release = hold(fake, 're=')
+    ctx.set('flowleapPatentData', fake)
+    await load({ firmIdentity: IDENTITY })
+    expect(await (await post(ADD_CLIENT_ROUTES.matters, { names: ['Syntegon Technology GmbH'] })).json()).toEqual({
+      status: 'matters', docket: { state: 'reading', progress: expect.any(Object) as object }, counts: [{ name: 'Syntegon Technology GmbH', atFirm: 0 }], rows: [],
+    })
+    release()
+  })
+
+  it('others counts the group with one query for each 4 names, less the firm\'s rows that are not address-only', async () => {
+    const fake = group()
+    await ready(fake)
+    expect(await (await post(ADD_CLIENT_ROUTES.others, { names: ['Syntegon Technology GmbH'] })).json()).toEqual({
+      status: 'counted', count: 2, capped: false, atLeast: false, asOf: expect.any(String) as string,
+    } satisfies OthersAnswer)
+    expect(fake.queries).toEqual(['pa="Syntegon Technology GmbH"|1-1'])
+    fake.queries.length = 0
+    const five = ['Syntegon Technology GmbH', 'Syntegon Packaging Systems AG', 'Alpha', 'Beta', 'Gamma "Co"']
+    expect(await (await post(ADD_CLIENT_ROUTES.others, { names: five })).json()).toMatchObject({ count: 2, capped: false, atLeast: true })
+    expect(fake.queries).toEqual([
+      'pa="Syntegon Technology GmbH" or pa="Syntegon Packaging Systems AG" or pa="Alpha" or pa="Beta"|1-1', 'pa="Gamma Co"|1-1',
+    ])
+  })
+
+  it('others says when a count stopped at the cap, and never counts below 0', async () => {
+    const fake = group()
+    await ready(fake)
+    countAs(fake, 10_000)
+    expect(await (await post(ADD_CLIENT_ROUTES.others, { names: ['Syntegon Technology GmbH'] })).json()).toMatchObject({ count: 9_999, capped: true })
+    countAs(fake, 0)
+    expect(await (await post(ADD_CLIENT_ROUTES.others, { names: ['Syntegon Technology GmbH'] })).json()).toMatchObject({ count: 0, capped: false })
   })
 })
 
@@ -316,7 +473,7 @@ describe('the firm identity routes', () => {
     expect([refused.status, await refused.json()]).toEqual([403, { error: 'not-admin' }])
   })
 
-  it('save a new identity: the docket drops the old rows and reads again, and the review matches the new identity', async () => {
+  it('save a new identity: the docket drops the old rows and reads again, and the matters come from the new docket', async () => {
     const fake = data()
     ctx.set('flowleapPatentData', fake)
     const fiber = await load()
@@ -327,8 +484,10 @@ describe('the firm identity routes', () => {
     expect(answer.docket).toMatchObject({ status: 'docket', docket: { state: 'reading', progress: { rows: 0 } } })
     await vi.waitFor(async () => { expect(await identityOf()).toMatchObject({ identity, docket: { status: 'docket', docket: { state: 'ready', rows: 0 } } }) })
     expect(fake.queries.at(-1)).toBe('re="Beispiel IP"|1-100')
-    const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Syntegon Technology GmbH'], clients: [] })).json() as ReviewAnswer
-    expect(reviewed).toMatchObject({ status: 'reviewed', identity: 'set', atFirm: [] })
+    const matters = await (await post(ADD_CLIENT_ROUTES.matters, { names: ['Syntegon Technology GmbH'] })).json() as MattersAnswer
+    expect(matters).toEqual({
+      status: 'matters', docket: { state: 'ready', rows: 0, asOf: expect.any(String) as string }, counts: [{ name: 'Syntegon Technology GmbH', atFirm: 0 }], rows: [],
+    })
     await fiber.dispose()
     await load()
     expect((await identityOf()).identity).toEqual(identity)
@@ -375,7 +534,7 @@ describe('the client names route', () => {
     }
   })
 
-  it('reads the opponent index for the names, and the review finds a client that opposed the group in it', async () => {
+  it('reads the opponent index for the names, and the conflict check finds a client that opposed the group in it', async () => {
     const fake = new FakePatentData([OPPOSED])
     ctx.set('flowleapPatentData', fake)
     await load()
@@ -386,9 +545,9 @@ describe('the client names route', () => {
       expect(state).toMatchObject({ status: 'index', index: { state: 'ready', rows: 1 } })
     })
     const clients = [{ clientId: 'c-1', names: ['Syntegon Packaging Systems'] }]
-    const reviewed = await (await post(ADD_CLIENT_ROUTES.review, { names: ['Gerhard Schubert'], clients })).json() as ReviewAnswer
-    expect(reviewed).toMatchObject({
-      status: 'reviewed', conflictsTruncated: false,
+    const checked = await (await post(ADD_CLIENT_ROUTES.conflictCheck, { names: ['Gerhard Schubert'], clients })).json() as ConflictCheckAnswer
+    expect(checked).toMatchObject({
+      status: 'checked',
       conflicts: [{ applicationNumber: 'EP16188888', otherPartyRole: 'patent-owner', existingClientId: 'c-1', opposedOn: '2025-01-08' }],
       conflictCheck: { groupOpposedClients: { state: 'complete' }, clientsOpposedGroup: { state: 'complete' } },
     })

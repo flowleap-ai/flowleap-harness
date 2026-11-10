@@ -1,84 +1,37 @@
 /**
- * The review of Add client: the EP applications of a group of applicant names, split by the firm identity into the
- * firm's matters and the reference list, and the possible conflicts that the EP Register shows. The conflict check has
- * two halves: the group opposed a client of the firm (date-sliced `op=` reads of the group's names), and a client of
+ * The conflict check of Add client: the possible conflicts that the EP Register shows for a group of applicant names,
+ * in two halves. The group opposed a client of the firm (date-sliced `op=` reads of the group's names), and a client of
  * the firm opposed the group (the group's applications in the opponent index). Only the group's names leave the firm;
  * the firm identity and the names of the firm's clients are matched here.
  * @module
  */
 
 import type { PatentData, RegisterRow } from '@deepseek-ai/dsh-flowleap-connectors'
-import { companyKey, identitySet, isFirm, townOf, type FirmIdentity } from './identity.ts'
+import { companyKey, identitySet, isFirm, type FirmIdentity } from './identity.ts'
 import { opponentTerm, type OpponentIndexFile, type OpposedRow } from './opponent-index-model.ts'
 import { readSlice, type SliceReadOptions } from './sliced-read.ts'
 import {
   failedSlices, nextUnread, oldestAsOf, sumMismatch, unreadSlices, withSliceRead, type SlicedQuery,
 } from './slices.ts'
-import type { ConflictHalf, ConflictHit, KnownClient, MatterRow, ReferenceRow, ReviewAnswer } from './wire.ts'
+import type { ConflictHalf, ConflictHit, KnownClient } from './wire.ts'
 
 /** The most names in one register query: the EPO answered a query of 4 names and refused one of 8 (2026-11-08). */
-const NAMES_PER_QUERY = 4
+export const NAMES_PER_QUERY = 4
 
-/** The most rows of one register page. */
-const PAGE_ROWS = 100
-
-/** The EP applications of a group, read from the EP Register. */
-export interface GroupRead {
-  /** One row for each application, in the register's order. */
-  readonly rows: readonly RegisterRow[]
-  /** Whether a query stopped at the row cap. */
-  readonly truncated: boolean
-}
-
-/** The queries for a list of terms, a few terms each. */
-function queries(terms: readonly string[]): string[] {
+/**
+ * The register queries of a list of terms: the terms joined by `or`, {@link NAMES_PER_QUERY} terms in each query.
+ * @param terms - the terms, such as `pa="Syntegon"`.
+ * @returns the queries, in the order of the terms.
+ */
+export function queries(terms: readonly string[]): string[] {
   const out: string[] = []
   for (let start = 0; start < terms.length; start += NAMES_PER_QUERY) out.push(terms.slice(start, start + NAMES_PER_QUERY).join(' or '))
   return out
 }
 
-/**
- * Read every row of register queries, page by page, up to a row cap for each query; each application once.
- * @param data - the patent data Service.
- * @param list - the queries.
- * @param maxRows - the row cap of one query.
- * @param signal - stops the reads.
- * @returns the rows and whether a cap cut a query.
- */
-async function readAll(data: PatentData, list: readonly string[], maxRows: number, signal?: AbortSignal): Promise<GroupRead> {
-  const rows = new Map<string, RegisterRow>()
-  let truncated = false
-  for (const query of list) {
-    for (let begin = 1; begin <= maxRows; begin += PAGE_ROWS) {
-      const page = await data.searchRegister(query, { begin, end: Math.min(begin + PAGE_ROWS - 1, maxRows) }, signal)
-      // Several queries can give one application; the first row of it stays.
-      for (const row of page.rows) {
-        if (!rows.has(row.applicationNumber)) rows.set(row.applicationNumber, row)
-      }
-      if (page.end >= page.total || page.rows.length === 0) break
-      if (page.end >= maxRows) truncated = true
-    }
-  }
-  return { rows: [...rows.values()], truncated }
-}
-
 /** The company keys of a list of names, without empty keys. */
 function keysOf(names: readonly string[]): Set<string> {
   return new Set(names.map(companyKey).filter(key => key !== ''))
-}
-
-/**
- * Read the EP applications of a group: the rows that name one of the group's names as an applicant.
- * @param data - the patent data Service.
- * @param names - the ticked applicant names.
- * @param maxRows - the row cap of one query.
- * @param signal - stops the reads.
- * @returns the group's rows.
- */
-export async function readGroup(data: PatentData, names: readonly string[], maxRows: number, signal?: AbortSignal): Promise<GroupRead> {
-  const group = keysOf(names)
-  const read = await readAll(data, queries(names.map(name => `pa="${name.replaceAll('"', '')}"`)), maxRows, signal)
-  return { rows: read.rows.filter(row => row.applicants.some(applicant => group.has(companyKey(applicant)))), truncated: read.truncated }
 }
 
 /** The company keys of the known clients' names, to their client ids. */
@@ -106,7 +59,7 @@ interface CheckContext {
   /** The company keys of the clients' names, to their client ids. */
   readonly known: ReadonlyMap<string, string>
   readonly identity: FirmIdentity
-  /** ISO-8601 instant of the review. */
+  /** ISO-8601 instant of the conflict check. */
   readonly asOf: string
 }
 
@@ -209,7 +162,7 @@ function clientsOpposedGroup(index: OpponentIndexFile | undefined, context: Chec
   return { half: halfOf(read, context.asOf), hits }
 }
 
-/** The conflict check of a review. */
+/** The conflict check of a group. */
 export interface RegisterConflicts {
   /** The hits of both halves, each once. */
   readonly hits: readonly ConflictHit[]
@@ -217,7 +170,7 @@ export interface RegisterConflicts {
   readonly clientsOpposedGroup: ConflictHalf
 }
 
-/** What the conflict check of a review uses. */
+/** What the conflict check of a group uses. */
 export interface ConflictInput {
   /** The ticked applicant names. */
   readonly names: readonly string[]
@@ -236,7 +189,7 @@ export interface ConflictInput {
  * and both halves are complete.
  * @param data - the patent data Service.
  * @param input - the names, the clients, the identity, the opponent index and the slice settings.
- * @param asOf - the instant of the review.
+ * @param asOf - the instant of the conflict check.
  * @param signal - stops the reads.
  * @returns the hits, each once, and how complete each half is.
  */
@@ -250,81 +203,4 @@ export async function registerConflicts(
   const hits = new Map<string, ConflictHit>()
   for (const hit of [...first.hits, ...second.hits]) hits.set(`${hit.applicationNumber}|${hit.existingClientId}|${hit.otherPartyRole}|${companyKey(hit.otherParty)}`, hit)
   return { hits: [...hits.values()], groupOpposedClients: first.half, clientsOpposedGroup: second.half }
-}
-
-/** The fields that a matter row and a reference row share. */
-function sharedFields(row: RegisterRow): MatterRow & ReferenceRow {
-  return {
-    applicationNumber: row.applicationNumber,
-    applicants: row.applicants,
-    ...(row.publicationNumber === undefined ? {} : { publicationNumber: row.publicationNumber }),
-    ...(row.title === undefined ? {} : { title: row.title }),
-    ...(row.filed === undefined ? {} : { filed: row.filed }),
-  }
-}
-
-/**
- * A row of the firm's matters.
- * @param row - the register row.
- * @returns the matter row.
- */
-export function matterRow(row: RegisterRow): MatterRow {
-  return {
-    ...sharedFields(row),
-    ...(row.representativeSince === undefined ? {} : { representativeSince: row.representativeSince }),
-    ...(row.status === undefined ? {} : { status: row.status }),
-  }
-}
-
-/**
- * A row of the reference list: the town of the representative, never its name.
- * @param row - the register row.
- * @returns the reference row.
- */
-export function referenceRow(row: RegisterRow): ReferenceRow {
-  const [representative] = row.representatives
-  const town = representative === undefined ? undefined : townOf(representative)
-  return { ...sharedFields(row), ...(town === undefined ? {} : { town }) }
-}
-
-/**
- * Whether the firm is a representative of record of a row.
- * @param row - the register row.
- * @param identity - the firm identity.
- * @returns true when a representative matches.
- */
-export function atFirm(row: RegisterRow, identity: FirmIdentity): boolean {
-  return row.representatives.some(party => isFirm(party, identity))
-}
-
-/**
- * Review a group: its rows split by the firm identity, and its possible conflicts in two halves.
- * @param data - the patent data Service.
- * @param input - the ticked names, the clients of your firm, the firm identity, the opponent index, the slice settings
- *   and the row cap of the group read.
- * @param asOf - the instant of the read.
- * @param signal - stops the reads.
- * @returns the review.
- */
-export async function review(
-  data: PatentData, input: ConflictInput & { readonly maxRows: number }, asOf: string, signal?: AbortSignal,
-): Promise<ReviewAnswer> {
-  const group = await readGroup(data, input.names, input.maxRows, signal)
-  const set = identitySet(input.identity)
-  const mine = group.rows.filter(row => set && atFirm(row, input.identity))
-  const others = group.rows.filter(row => !mine.includes(row))
-  const conflicts = await registerConflicts(data, input, asOf, signal)
-  const conflictCheck = { groupOpposedClients: conflicts.groupOpposedClients, clientsOpposedGroup: conflicts.clientsOpposedGroup }
-  return {
-    status: 'reviewed',
-    asOf,
-    total: group.rows.length,
-    truncated: group.truncated,
-    identity: set ? 'set' : 'missing',
-    atFirm: mine.map(matterRow),
-    atOtherFirms: others.map(referenceRow),
-    conflicts: conflicts.hits,
-    conflictsTruncated: conflictCheck.groupOpposedClients.state !== 'complete' || conflictCheck.clientsOpposedGroup.state !== 'complete',
-    conflictCheck,
-  }
 }

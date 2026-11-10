@@ -639,7 +639,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-folder`
 
 - `inject`: `connection` · `workspaceRegistry`
-- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:59`](../packages/client/ui-flowleap-folder/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:61`](../packages/client/ui-flowleap-folder/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -668,8 +668,13 @@ export interface Config {
    * Host.
    */
   firmIdentity: FirmIdentity
-  /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
-  maxRegisterRows: number
+  /**
+   * The rows of the register sample of the find step of Add client, whose applicant names the step adds to the names of
+   * the firm docket; one EPO query reads at most 2,000 rows.
+   */
+  findSampleRows: number
+  /** The most applicant names that the find step of Add client counts, with one register count query each. */
+  findNameLimit: number
   /**
    * The age in milliseconds after which the firm docket and the opponent index are `stale` and their scheduled refresh
    * reads them again.
