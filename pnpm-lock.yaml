@@ -13623,6 +13623,9 @@ importers:
       '@flowleap/connectors':
         specifier: workspace:~
         version: link:../../../vendor/flowleap-connectors
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       zod:
         specifier: 4.4.3
         version: 4.4.3

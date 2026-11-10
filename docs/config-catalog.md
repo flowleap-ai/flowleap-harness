@@ -1863,7 +1863,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:85`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:104`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1874,6 +1874,20 @@ export interface Config {
   excludeTools: string[]
   /** The longest time of one EPO OPS read, its retries included, in ms. */
   opsRequestDeadlineMs: number
+  /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
+  myepo: MyEpoConfig
+}
+
+/** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
+export interface MyEpoConfig {
+  /** The MyEPO API base, without a trailing slash. */
+  baseUrl: string
+  /** The OAuth 2.0 token endpoint of the EPO login service that issues tokens for `baseUrl`. */
+  tokenUrl: string
+  /** The most MyEPO requests the plugin starts in one second. The EPO publishes no limit. */
+  requestsPerSecond: number
+  /** The deadline of one MyEPO request, in seconds. */
+  timeoutSeconds: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
@@ -2761,7 +2775,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 - `inject`: `llm`
 - `refs`: [`LlmModelBadge`](../packages/llm/llm/src/index.ts) · [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · [`SystemPromptUpdate`](../packages/llm/llm/src/index.ts) · [`ToolUpdate`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/test-support/llm-replay/src/index.ts:1115`](../packages/test-support/llm-replay/src/index.ts)
+- `source`: [`packages/test-support/llm-replay/src/index.ts:1162`](../packages/test-support/llm-replay/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the {@link ReplayConfig} inputs, each defaulting to its `DSH_SNAPSHOT_*` env var in `apply`. */

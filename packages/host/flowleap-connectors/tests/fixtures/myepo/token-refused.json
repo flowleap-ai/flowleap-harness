@@ -1,0 +1,7 @@
+{
+  "status": 401,
+  "body": {
+    "error": "invalid_client",
+    "error_description": "The client secret supplied for a confidential client is invalid."
+  }
+}

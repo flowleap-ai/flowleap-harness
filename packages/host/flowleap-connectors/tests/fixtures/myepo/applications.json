@@ -1,0 +1,315 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": {
+    "content": [
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "EPC",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000001",
+            "applicationNumberMyEpo": "EP00000001.8",
+            "filingDate": "2024-06-06"
+          }
+        },
+        "applicantFileReference": "Applicant reference 1",
+        "portfolioId": "111",
+        "portfolioName": "Portfolio Name 1",
+        "procedure": "EPC",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/EPC/applications/EP00000001",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000001/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000001/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "UPP",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000001",
+            "applicationNumberMyEpo": "EP00000001.8",
+            "filingDate": "2024-05-10"
+          }
+        },
+        "applicantFileReference": "Applicant reference 2",
+        "portfolioId": "111",
+        "portfolioName": "Portfolio Name 1",
+        "procedure": "UPP",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/UPP/applications/EP00000001",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000001/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000001/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "EPC",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000002",
+            "applicationNumberMyEpo": "EP00000002.6",
+            "filingDate": "2023-06-06"
+          }
+        },
+        "applicantFileReference": "Applicant reference 3",
+        "portfolioId": "222",
+        "portfolioName": "Portfolio Name 2",
+        "procedure": "EPC",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/EPC/applications/EP00000002",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000002/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000002/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "UPP",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000002",
+            "applicationNumberMyEpo": "EP00000002.6",
+            "filingDate": "2022-01-13"
+          }
+        },
+        "applicantFileReference": "Applicant reference 4",
+        "portfolioId": "222",
+        "portfolioName": "Portfolio Name 2",
+        "procedure": "UPP",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/UPP/applications/EP00000002",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000002/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000002/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "EPC",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000003",
+            "applicationNumberMyEpo": "EP00000003.4",
+            "filingDate": "2022-06-06"
+          }
+        },
+        "applicantFileReference": "Applicant reference 5",
+        "portfolioId": "333",
+        "portfolioName": "Portfolio Name 3",
+        "procedure": "EPC",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/EPC/applications/EP00000003",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000003/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000003/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "UPP",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000003",
+            "applicationNumberMyEpo": "EP00000003.4",
+            "filingDate": "2022-03-03"
+          }
+        },
+        "applicantFileReference": "Applicant reference 6",
+        "portfolioId": "333",
+        "portfolioName": "Portfolio Name 3",
+        "procedure": "UPP",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/UPP/applications/EP00000003",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000003/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000003/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "EPC",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000008",
+            "applicationNumberMyEpo": "EP00000008.3",
+            "filingDate": "2023-05-13"
+          }
+        },
+        "applicantFileReference": "Applicant reference 7",
+        "portfolioId": "444",
+        "portfolioName": "Portfolio Name 4",
+        "procedure": "EPC",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/EPC/applications/EP00000008",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000008/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/EPC/applications/EP00000008/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      },
+      {
+        "bibliographicData": {
+          "applicationIdentification": {
+            "procedure": "UPP",
+            "ipOfficeCode": "EP",
+            "applicationNumber": "EP00000008",
+            "applicationNumberMyEpo": "EP00000008.3",
+            "filingDate": "2023-01-13"
+          }
+        },
+        "applicantFileReference": "Applicant reference 8",
+        "portfolioId": "444",
+        "portfolioName": "Portfolio Name 4",
+        "procedure": "UPP",
+        "links": [
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/biblio-data/UPP/applications/EP00000008",
+            "title": "Get Biblio",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getBiblioData"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000008/dueDates",
+            "title": "Get due dates",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getDueDates"
+          },
+          {
+            "href": "https://api-sandbox.apps-staging.epo.org/latest/UPP/applications/EP00000008/fees",
+            "title": "Get pending fees",
+            "media": "application/json",
+            "type": "GET",
+            "rel": "getFees"
+          }
+        ]
+      }
+    ],
+    "size": 10,
+    "number": 0,
+    "totalElements": 8
+  }
+}
