@@ -23,7 +23,7 @@ The **Office actions** entry in the Sidebar opens the office action board of [fl
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the row in a web composition with the `flowleap-deliverables` Host row; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle holds the row under the id `ui-flowleap-work-pages` with `disabled: true`, so the first demo shows no Office actions row; a deployment sets `disabled: false` to mount it. The plugin registers its launcher and its page only while the current Peer may call `flowleapWorkPages/list`.
+Mount the row in a web composition with the `flowleap-deliverables` Host row; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-work-pages`. The plugin registers its launcher and its page only while the current Peer may call `flowleapWorkPages/list`.
 
 | Action | What happens |
 |---|---|

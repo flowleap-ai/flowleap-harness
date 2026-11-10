@@ -205,7 +205,7 @@ export function apply(ctx: ClientContext): void {
     setKeys: (handlers) => { keys = handlers },
   }
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-    name: 'sidebar.panellist', id: PANEL_ID, order: 19, locale: NS, label: () => t('panel'),
+    name: 'sidebar.panellist', id: PANEL_ID, order: -105, locale: NS, label: () => t('panel'),
   }, ClientsIcon))
   ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS, inject: () => injected }, FolderPanel))
 

@@ -455,13 +455,11 @@
     - id: ui-flowleap-routines
       name: '@deepseek-ai/dsh-client-ui-flowleap-routines'
 
-    # Work pages (flowleap-harness#81): the Office actions launcher and the
-    # office action board. Off in the first demo, whose Sidebar has no Office
-    # actions row and no other path to the board; a deployment or test
-    # enables the row with `disabled: false`.
+    # Work pages (flowleap-harness#81), look-first stage: the Office actions
+    # launcher and the office action board with one sample analysis. No
+    # Remote, model, or connector call; changes stay in the browser.
     - id: ui-flowleap-work-pages
       name: '@deepseek-ai/dsh-client-ui-flowleap-work-pages'
-      disabled: true
 
     # The agent builder (#55): one agent preset for each folder below
     # $DSH_HOME/agents, built on the patent preset with the agent's

@@ -56,9 +56,6 @@ it.skipIf(MODE === 'record')('fills the office action board from a save and send
     '  disabled: true',
     '- id: llm-pi-ai',
     '  disabled: true',
-    // The first demo takes Office actions out of the flowleap-web sidebar; this test still covers its board.
-    '- id: ui-flowleap-work-pages',
-    '  disabled: false',
     '- id: agent-default-model',
     '  config:',
     '    provider: deepseek-official',
