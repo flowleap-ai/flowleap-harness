@@ -308,7 +308,7 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
               <DetailTable label={t('matter.documents')} grid={css.documentsColumns} header={null}>
                 {data.documents.map(document => (
                   <DetailRow key={document.sha256} opens>
-                    <Cell kind="icon">{document.source === 'mail' ? <IconPaperPlaneOutlineRegular size={14} /> : <IconDeliverDocRegular size={14} />}</Cell>
+                    <Cell kind="icon">{document.source === 'agent' ? <IconDeliverDocRegular size={14} /> : <IconPaperPlaneOutlineRegular size={14} />}</Cell>
                     <OpenCell onOpen={() => { openDocument(ctx, document.sha256) }}>
                       {titleOfDocument(document)}
                       <span className={css.source}>{document.fileName}</span>

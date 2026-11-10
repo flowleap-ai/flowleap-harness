@@ -225,7 +225,7 @@ const matterDetail = obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), state: deadlineState,
     document: nullable(ids.document), receivedAt: nullable(isoDate),
   })),
-  documents: arrayOf(obj({ sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime })),
+  documents: arrayOf(obj({ sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'myepo', 'agent']), at: isoTime })),
   activity,
 })
 /** One matter with its deadlines, work, office events, documents and Activity. */

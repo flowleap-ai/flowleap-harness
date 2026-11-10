@@ -38,7 +38,8 @@ export interface MyEpoEndpoint {
  * fresh token. `no-permission`: the account lacks the right or the portfolio permission (`403`, `ERR_20`).
  * `not-ready`: the sandbox has no data before its first reset (`400`, `ERR_15`). `rejected`: another refusal, with the
  * EPO's code. `unreachable`: no answer before the deadline, a network failure, or a server error.
- * `invalid-response`: an answer FlowLeap cannot read. `not-linked`: no credentials are stored.
+ * `invalid-response`: an answer FlowLeap cannot read. `unreadable-download`: a download whose ZIP holds no one readable PDF; the
+ * same download gives the same bytes again. `not-linked`: no credentials are stored.
  */
 export type MyEpoFailure =
   | { readonly kind: 'not-linked' }
@@ -48,6 +49,7 @@ export type MyEpoFailure =
   | { readonly kind: 'rejected'; readonly status: number; readonly code?: string; readonly message: string }
   | { readonly kind: 'unreachable'; readonly status?: number }
   | { readonly kind: 'invalid-response'; readonly message: string }
+  | { readonly kind: 'unreadable-download'; readonly message: string }
 
 /** A failed MyEPO call; `failure` says why. */
 export class MyEpoError extends Error {
@@ -75,6 +77,7 @@ export function describeFailure(failure: MyEpoFailure): string {
     case 'rejected': return `the EPO refused the read: ${failure.status}${failure.code === undefined ? '' : ` ${failure.code}`} ${failure.message}`
     case 'unreachable': return `the EPO did not answer${failure.status === undefined ? '' : ` (${failure.status})`}`
     case 'invalid-response': return `the EPO answer could not be read: ${failure.message}`
+    case 'unreadable-download': return `the EPO download holds no one readable PDF: ${failure.message}`
   }
 }
 
@@ -399,12 +402,12 @@ function pdfOf(bytes: Uint8Array): { filename: string; pdf: Uint8Array } {
   try {
     files = unzipSync(bytes)
   } catch (error) {
-    throw new MyEpoError({ kind: 'invalid-response', message: 'download is not a ZIP' }, { cause: error })
+    throw new MyEpoError({ kind: 'unreadable-download', message: 'download is not a ZIP' }, { cause: error })
   }
   const pdfs = Object.entries(files).filter(([name]) => name.toLowerCase().endsWith('.pdf'))
   const [only] = pdfs
   if (only === undefined || pdfs.length > 1) {
-    throw new MyEpoError({ kind: 'invalid-response', message: `download holds ${pdfs.length} PDF files` })
+    throw new MyEpoError({ kind: 'unreadable-download', message: `download holds ${pdfs.length} PDF files` })
   }
   return { filename: only[0], pdf: only[1] }
 }

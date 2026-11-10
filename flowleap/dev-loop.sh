@@ -14,7 +14,10 @@
 # so the other commands take none. Ports: the app on <port> (default 3270) through the records proxy, dsh on <port>+1,
 # the probe on <port>+2; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
 # --myepo-double also starts the MyEPO double (public sample data of the seed firm) on <port>+3 and points the MyEPO
-# link at it; link it on Settings -> Connectors with the double's client ID and secret, which its log prints.
+# link at it; link it on Settings -> Connectors with the double's client ID and secret, which its log prints. It also starts
+# the firm's MyEPO letter reader against the double, which sends each new letter to the Firm Record's intake every 5 s, so
+# 'curl -X POST http://127.0.0.1:<port>+3/_double/arrive' files the Rule 71(3) letter of SF-2023-0045. The seed letters
+# then leave out the rows that the reader takes from the double; a run dir whose seed letters have them needs a new run dir.
 # The model keys come from this shell's environment only; with none, the app starts and chats fail at the model call.
 # --model sets the default model of new chats; up refuses a default whose provider has no key while another key is set.
 set -euo pipefail
@@ -173,6 +176,35 @@ start_double() {
   tail -5 "$LOGS/myepo-double.log" >&2
   die "the MyEPO double did not start: $LOGS/myepo-double.log"
 }
+# The seed rows, comma-separated, without the rows that the MyEPO reader takes from the double (tests/myepo-double/seed-data.ts).
+seed_rows_without_myepo() {
+  local skip; skip=$(cd "$HARNESS" && node --import tsx/esm --input-type=module -e "
+    import { unhandledRows } from './packages/host/flowleap-connectors/tests/myepo-double/seed-data.ts'
+    console.log(unhandledRows().join(','))")
+  (cd "$OS/acceptance" && node --input-type=module -e "
+    import { loadSeed } from 'flowleap-seed-firm'
+    const skip = new Set(process.argv[1].split(',').map(Number))
+    console.log(loadSeed().matters.flatMap((m) => m.documents.map((d) => d.row)).filter((r) => !skip.has(r)).join(','))" "$skip")
+}
+# The firm's MyEPO letter reader (packages/host/flowleap-connectors/tests/myepo-reader/bin.ts) against the double, with the
+# double's public test client and the record's intake token, both in a folder that only this account reads.
+start_reader() {
+  alive "$RUN/reader.pid" && return 0
+  local dir=$RUN/myepo-reader
+  (umask 077; mkdir -p "$dir"; printf 'public-sample-data\n' > "$dir/client-secret"; cp "$RECORD/intake-token" "$dir/intake-token"
+    chmod 600 "$dir/client-secret" "$dir/intake-token"
+    printf '{"recordUrl":"http://127.0.0.1:%s/records/api/","myepo":{"baseUrl":"http://127.0.0.1:%s/latest","tokenUrl":"http://127.0.0.1:%s/token","clientId":"flowleap-myepo-double","clientSecretFile":"client-secret","requestsPerSecond":2,"timeoutSeconds":30},"download":"on-arrival","everySeconds":5}\n' \
+      $((RECORD_PORT + 1)) $((PORT + 3)) $((PORT + 3)) > "$dir/config.json")
+  (cd "$HARNESS" && exec node --import tsx/esm packages/host/flowleap-connectors/tests/myepo-reader/bin.ts "$dir" \
+    > "$LOGS/myepo-reader.log" 2>&1 & echo $! > "$RUN/reader.pid")
+  for _ in $(seq 1 40); do
+    grep -q 'myepo-reader: reads' "$LOGS/myepo-reader.log" 2> /dev/null && { sed 's/^/dev-loop: /' "$LOGS/myepo-reader.log"; return 0; }
+    alive "$RUN/reader.pid" || break
+    sleep 0.25
+  done
+  tail -5 "$LOGS/myepo-reader.log" >&2
+  die "the MyEPO reader did not start: $LOGS/myepo-reader.log"
+}
 app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$PORT/}"; }
 
 up() {
@@ -228,10 +260,16 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
     { tail -5 "$LOGS/seed-firm.log" >&2; die "seed-firm.mjs failed: $LOGS/seed-firm.log"; }
   say "seed firm: $(grep -m1 'chain after' "$LOGS/seed-firm.log" || tail -1 "$LOGS/seed-firm.log")"
   # A second run records each letter again as a duplicate, so the letters go in once per run dir.
+  # With the MyEPO reader, the letters that it takes from the double are not loaded as mail too (letters.done says which).
+  if [[ -n $MYEPO_DOUBLE && -f $RUN/seed/letters.done && $(< "$RUN/seed/letters.done") != myepo* ]]; then
+    die "$RUN has the seed letters as mail, so the MyEPO letters would collide with them: give a new FLOWLEAP_DEV_RUN for --myepo-double"
+  fi
   if ((letters)) && [[ ! -f $RUN/seed/letters.done ]]; then
-    node "$OS/acceptance/seed-letters.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) --out "$RUN/seed/letters" > "$LOGS/seed-letters.log" 2>&1 ||
+    local rows=()
+    [[ -z $MYEPO_DOUBLE ]] || rows=(--rows "$(seed_rows_without_myepo)")
+    node "$OS/acceptance/seed-letters.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) ${rows[@]+"${rows[@]}"} --out "$RUN/seed/letters" > "$LOGS/seed-letters.log" 2>&1 ||
       { tail -5 "$LOGS/seed-letters.log" >&2; die "seed-letters.mjs failed: $LOGS/seed-letters.log"; }
-    touch "$RUN/seed/letters.done"
+    printf '%s\n' "${MYEPO_DOUBLE:+myepo}" > "$RUN/seed/letters.done"
     say "seed letters: $(tail -1 "$LOGS/seed-letters.log")"
   fi
 
@@ -244,7 +282,10 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
   if [[ -n $MYEPO_DOUBLE ]]; then
     converge double "$((PORT + 3))"
     start_double
+    converge reader "$PORT|$RECORD_PORT"
+    start_reader
   else
+    stop_pid "$RUN/reader.pid"
     stop_pid "$RUN/double.pid"
   fi
   converge dsh "$PORT|$RECORD_PORT|$PATCH|$MODEL|$MYEPO_DOUBLE"
@@ -285,7 +326,7 @@ probe() {
 status() {
   load_options
   local f
-  for f in watch dsh proxy double; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
+  for f in watch dsh proxy double reader; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
   "$OS/.claude/skills/verify/scripts/record-local.sh" doctor "$RECORD" "$RECORD_PORT" | sed 's/^/record /'
   printf 'person  %s\napp     http://127.0.0.1:%s/ (dsh %s)\nmodel   %s\n' "$(cat "$RUN/person" 2> /dev/null || echo none)" "$PORT" $((PORT + 1)) "$(default_model)"
 }
@@ -293,7 +334,7 @@ status() {
 down() {
   load_options
   local f
-  for f in proxy dsh watch double; do stop_pid "$RUN/$f.pid"; done
+  for f in proxy dsh watch reader double; do stop_pid "$RUN/$f.pid"; done
   "$OS/.claude/skills/verify/scripts/record-local.sh" stop "$RECORD" "$RECORD_PORT"
   say "stopped; the record data, the seed and the Sessions stay in $RUN (remove it to start fresh)"
 }

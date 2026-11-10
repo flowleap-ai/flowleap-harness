@@ -71,6 +71,10 @@ export type {
   MyEpoEndpoint, MyEpoFailure, MyEpoPageQuery, MyEpoReads, RequestGate,
 } from './myepo-client.ts'
 export { createMyEpoLink, FlowleapMyEpo, MYEPO_FIELDS, MYEPO_RECORD, validateMyEpoFields } from './myepo.ts'
+export { createMyEpoLetterIntake, MyEpoIntakeError, readMyEpoLetters } from './myepo-reader.ts'
+export type {
+  MyEpoDeliveryAnswer, MyEpoDownloadMode, MyEpoLetterDelivery, MyEpoLetterIntake, MyEpoReadPass, MyEpoRefusal,
+} from './myepo-reader.ts'
 export type { FlowleapMyEpoOptions, MyEpoLink, MyEpoLinkOptions, MyEpoSource } from './myepo.ts'
 export {
   parseApplications, parseBibliographicData, parseCommunications, parseDueDates, parseFees, parseFolders, parsePortfolios, parseTerms,

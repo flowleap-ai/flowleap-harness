@@ -111,11 +111,11 @@ describe('the MyEPO reads on the recorded sandbox answers', () => {
     const letter = (await reads.communications()).items[0] as MyEpoCommunication
     const path = `/communications/download/${letter.id}`
     epo.answer(path, () => new Response('not a zip'))
-    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'invalid-response', message: 'download is not a ZIP' })
+    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'unreadable-download', message: 'download is not a ZIP' })
     epo.answer(path, () => new Response(zipOf({ 'note.txt': 'x' })))
-    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'invalid-response', message: 'download holds 0 PDF files' })
+    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'unreadable-download', message: 'download holds 0 PDF files' })
     epo.answer(path, () => new Response(zipOf({ 'a.pdf': 'a', 'b.PDF': 'b' })))
-    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'invalid-response', message: 'download holds 2 PDF files' })
+    expect(await failureOf(reads.downloadCommunication(letter))).toEqual({ kind: 'unreadable-download', message: 'download holds 2 PDF files' })
   })
 })
 
