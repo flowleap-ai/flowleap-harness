@@ -88,7 +88,7 @@ describe('the intake list', () => {
       const entry = entries.find(item => item.id === id)
       return entry !== undefined && 'shortcut' in entry ? entry.shortcut?.keys : undefined
     }
-    expect(barKeys(/^Accept and file/)).toEqual(['⇧⌘↵'])
+    expect(barKeys(/^File\b/)).toEqual(['⇧⌘↵'])
     expect(menuKeys('accept')).toEqual(['⇧⌘↵'])
     expect(menuKeys('not-relevant')).toEqual(barKeys(/^Not relevant/))
     expect(menuKeys('other-matter')).toEqual(barKeys(/^Other matter/))
@@ -150,8 +150,7 @@ describe('the intake list', () => {
     vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: letter({ document: sha(22) as DocumentId, mail: { ...fixtures.intakeDocument.mail, forwarder: OUTSIDER } }) })
     await mount(api, open(sha(22)))
     expect(document.body.textContent).toContain('A person outside the team forwarded this letter to the AI mailbox.')
-    const from = screen.getAllByText('From').map(label => label.parentElement!.textContent)
-    expect(from).toContain('FromA person outside the team')
+    expect(screen.queryByText('From')).toBeNull()
     expect([...document.querySelectorAll('[data-anonymous]')].every(avatar => avatar.textContent === '')).toBe(true)
     expect(document.querySelectorAll('[data-anonymous]').length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain(OUTSIDE_WALL.name)
@@ -234,14 +233,14 @@ describe('the German intake', () => {
     expect(preview.querySelector('kbd')?.textContent).toBe('Leer')
   })
 
-  it('names the office in German in the rows, the reasons and the properties, never by its English code', async () => {
+  it('names the office in German in the rows and the reasons, never by its English code', async () => {
     mounted = await mountPanel(createFixtureApi().api, open(R71_DOCUMENT), 'de')
     const row = document.querySelector(`[data-row="${R71_DOCUMENT}"]`)!
     expect(row.textContent).toContain('EPA')
     expect(row.textContent).not.toContain('EPO')
     const reasons = within(screen.getByRole('list', { name: 'Gründe' })).getAllByRole('listitem').map(item => item.textContent)
-    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA gelesen Communication under Rule 71(3) EPCS. 1, datiert 30.10.2026S. 1')
-    expect(screen.getByRole('complementary', { name: 'Eigenschaften' }).textContent).toContain('AmtEPA')
+    expect(reasons[2]).toBe('FlowLeap hat das Schreiben als Mitteilung nach Regel 71(3) vom EPA mit Datum Fr., 30. Okt. 2026 gelesen.Communication under Rule 71(3) EPCS. 130.10.2026S. 1')
+    expect(screen.queryByRole('complementary', { name: 'Eigenschaften' })).toBeNull()
   })
 })
 
@@ -255,7 +254,7 @@ describe('the next letter after a decision', () => {
     const rows = order()
     const { panel, model } = await mount()
     expect(opened()).toMatchObject({ open: rows[0] })
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     expect(opened()).toMatchObject({ open: rows[1] })
     press(panel, 'Digit2')
@@ -273,7 +272,7 @@ describe('the next letter after a decision', () => {
     expect(opened()).toMatchObject({ open: rows[3] })
     act(() => { model.navigate(open(rows.at(-1)!)) })
     await flush()
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     expect(opened()).toMatchObject({ open: rows.at(-2) })
   })
@@ -285,7 +284,7 @@ describe('the next letter after a decision', () => {
     const intake = vi.spyOn(api, 'intake').mockResolvedValue({ ok: true, value: { ...fixtures.intake, rows: [only!] } })
     const { model } = await mount(api)
     expect(opened()).toMatchObject({ open: only!.document })
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     expect(opened()).toMatchObject({ open: null })
     expect(document.querySelector(`[data-row="${only!.document}"]`)).toBeTruthy()
@@ -294,7 +293,7 @@ describe('the next letter after a decision', () => {
     vi.spyOn(api, 'perform').mockImplementation(() => new Promise((resolve) => { answer = resolve }))
     act(() => { model.navigate(open(other!.document)) })
     await flush()
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     act(() => { model.navigate(open(only!.document)) })
     await act(async () => { answer({ ok: true, value: null }) })
     await flush()
@@ -330,13 +329,16 @@ describe('the open letter', () => {
     expect(reasons[0]).toContain('Your reference on page 1 reads FL-2026-0001')
     expect(reasons[1]).toBe('One matter that you may see has this file number.')
     // The kind is quoted by the letter's title line, never by its form code (R19); the date by its own span.
-    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1, dated 30.10.2026p. 1')
+    expect(reasons[2]).toBe('FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Communication under Rule 71(3) EPCp. 130.10.2026p. 1')
     expect(within(decision()).getByText('3 reasons on page 1 agree')).toBeTruthy()
     expect(screen.getByText('Filing puts your name on the record')).toBeTruthy()
     expect(screen.getAllByText('Dr. Anna Becker').length).toBeGreaterThan(0)
-    const facts = screen.getByRole('region', { name: 'Letter' })
-    expect([...facts.querySelectorAll('dt')].map(label => label.textContent)).toEqual(['Received', 'Subject', 'Document'])
-    expect([...facts.querySelectorAll('dd')].map(value => value.textContent)).toEqual([expect.stringMatching(/^\d\d:\d\d$/), 'Fwd: EPO communication', '1 page'])
+    expect(screen.queryByRole('complementary', { name: 'Properties' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Letter' })).toBeNull()
+    const readings = within(screen.getByRole('table', { name: 'What FlowLeap read' }))
+    expect(readings.getAllByRole('rowheader').map(label => label.textContent)).toEqual(['Office event', 'Document date', 'Application'])
+    expect(within(screen.getByRole('region', { name: 'Proposed matter' })).getByText('Pressure sensor housing')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'When you file' })).getByText(/records the office event/)).toBeTruthy()
     press(panel, 'KeyO')
     expect(windowOpen).toHaveBeenCalledWith(`records/api/documents/${R71_DOCUMENT}/content`, '_blank', 'noopener')
     fireEvent.click(screen.getByRole('button', { name: /Open the letter/ }))
@@ -349,7 +351,7 @@ describe('the open letter', () => {
     const next = shownOrder(fixtures.intake.rows)[1]!.document
     press(panel, 'Enter', { metaKey: true, shiftKey: true })
     press(panel, 'Digit1')
-    expect(within(decision()).getByRole('button', { name: /Accept and file/ }).getAttribute('aria-busy')).toBe('true')
+    expect(within(decision()).getByRole('button', { name: /^File\b/ }).getAttribute('aria-busy')).toBe('true')
     await flush()
     expect(acts).toHaveLength(1)
     expect(model.screen.getSnapshot()).toMatchObject({ open: next })
@@ -399,7 +401,7 @@ describe('the open letter', () => {
       return Promise.resolve(answers.shift() ?? { ok: true, value: null })
     })
     const { panel } = await mount(api, open(R71_DOCUMENT))
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     expect(within(decision()).getByRole('alert').textContent).toBe('No answer from FlowLeap. The decision may be recorded. A second try is safe: FlowLeap records it only once.Try againR')
     press(panel, 'KeyR')
@@ -448,7 +450,7 @@ describe('the open letter', () => {
       return Promise.resolve(down)
     })
     await mount(api, open(R71_DOCUMENT))
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     const notices = screen.getAllByRole('alert')
     expect(notices.map(notice => notice.textContent?.split('.')[0])).toEqual(['FlowLeap could not load this view', 'No answer from FlowLeap'])
@@ -474,7 +476,7 @@ describe('the open letter', () => {
       return Promise.resolve(down)
     })
     const { panel } = await mount(api, open(R71_DOCUMENT))
-    fireEvent.click(within(decision()).getByRole('button', { name: /Accept and file/ }))
+    fireEvent.click(within(decision()).getByRole('button', { name: /^File\b/ }))
     await flush()
     const [loadNotice, actNotice] = screen.getAllByRole('alert')
     expect(loadNotice!.textContent).toContain('FlowLeap could not load this view.')
@@ -546,7 +548,7 @@ describe('the open letter', () => {
     expect(within(decision()).getByText('No matter chosen')).toBeTruthy()
     expect(screen.getByText('FlowLeap found no file number on the letter.')).toBeTruthy()
     expect(screen.getByText(/No matter that you may see has its file number\./)).toBeTruthy()
-    const primary = within(decision()).getByRole('button', { name: /Accept and file/ })
+    const primary = within(decision()).getByRole('button', { name: /^File\b/ })
     expect(primary).toHaveProperty('disabled', true)
     press(panel, 'Enter', { metaKey: true, shiftKey: true })
     expect(acts).toEqual([])
@@ -557,10 +559,10 @@ describe('the open letter', () => {
     const spy = vi.spyOn(api, 'intakeDocument')
     const cases: [Partial<IntakeDocument>, string][] = [
       [{ fields: {}, office: null }, 'The file number on page 1 names one matter.'],
-      [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.'],
-      [{ fields: { title: fixtures.intakeDocument.fields.title! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO Communication under Rule 71(3) EPCp. 1Your firm asks'],
-      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO.Your firm asks'],
-      [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated 30.10.2026p. 1'],
+      [{ fields: {}, office: null }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.'],
+      [{ fields: { title: fixtures.intakeDocument.fields.title! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Communication under Rule 71(3) EPCp. 1Your firm asks'],
+      [{ fields: { formNumber: fixtures.intakeDocument.fields.formNumber! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.Your firm asks'],
+      [{ fields: { documentDate: fixtures.intakeDocument.fields.documentDate! } }, 'FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.30.10.2026p. 1'],
       [{ status: { machine: 'intake', state: 'ambiguous' }, proposed: null, candidates: 2 }, 'Two or more matters have its file number.'],
       [{ status: { machine: 'intake', state: 'unreadable' }, proposed: null, fields: {}, code: null }, 'FlowLeap could not read its text.'],
       [{ status: { machine: 'intake', state: 'kind_proposed' }, proposed: null }, 'FlowLeap proposes the kind of this letter.'],
@@ -579,12 +581,12 @@ describe('the open letter', () => {
     }
     expect(screen.getByText('FlowLeap is still reading this letter.')).toBeTruthy()
     expect(screen.queryByText('Your decision')).toBeNull()
-    expect(within(decision('Not your decision')).queryByRole('button', { name: /Accept and file/ })).toBeNull()
+    expect(within(decision('Not your decision')).queryByRole('button', { name: /^File\b/ })).toBeNull()
     spy.mockResolvedValue({ ok: true, value: letter({ document: sha(60) as DocumentId, candidates: 3, pages: null, fields: { reference: fixtures.intakeDocument.fields.reference! }, code: 'EPO:R71(3)' }) })
     act(() => { model.navigate(open(sha(60))) })
     await flush()
     expect(screen.getByText('3 matters that you may see have this file number.')).toBeTruthy()
-    expect(screen.getByText('FlowLeap read the letter as a Rule 71(3) communication from the EPO.')).toBeTruthy()
+    expect(screen.getByText('FlowLeap read the letter as a Rule 71(3) communication from the EPO, dated Fri, 30 Oct 2026.')).toBeTruthy()
     expect(screen.getByText('Page 1')).toBeTruthy()
     expect(within(decision()).getByText('2 reasons on page 1 agree')).toBeTruthy()
     spy.mockResolvedValue({ ok: true, value: letter({
@@ -595,7 +597,7 @@ describe('the open letter', () => {
     expect(screen.getAllByText('None').length).toBeGreaterThan(1)
     expect(screen.getByText('No matter that you may see has this file number.')).toBeTruthy()
     expect(within(decision()).getByText('1 reason on page 1')).toBeTruthy()
-    expect(screen.getAllByText('3 pages')).toHaveLength(2)
+    expect(screen.getByText('Page 1 of 3')).toBeTruthy()
   })
 
   it('lets a person outside the proposed team file the letter on another matter only', async () => {
@@ -658,7 +660,7 @@ describe('the open letter', () => {
     const windowOpen = vi.fn()
     vi.stubGlobal('open', windowOpen)
     const { api, acts } = createFixtureApi()
-    const { commandItems, model, openSearch, panel } = await mount(api, open(R71_DOCUMENT))
+    const { commandItems, model, openFind, openSearch, panel } = await mount(api, open(R71_DOCUMENT))
     const item = commandItems.item()!
     expect(item.label).toBe('Rule 71(3) communication')
     expect(item.groups.map(group => group.acts.map(act => [act.label, act.commandId]))).toEqual([
@@ -689,8 +691,9 @@ describe('the open letter', () => {
     expect(screen.getByLabelText('Why is this letter not relevant?')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
     expect(writeText).toHaveBeenCalledTimes(2)
-    for (const button of screen.getAllByRole('button', { name: /Search/ })) fireEvent.click(button)
-    expect(openSearch).toHaveBeenCalledTimes(2)
+    for (const button of screen.getAllByRole('button', { name: /Find a matter/ })) fireEvent.click(button)
+    expect(openFind).toHaveBeenCalledTimes(2)
+    expect(openSearch).not.toHaveBeenCalled()
     run(1, 0)
     await flush()
     expect(model.screen.getSnapshot()).toMatchObject({ view: 'matter', fileNumber: 'FL-2026-0001' })

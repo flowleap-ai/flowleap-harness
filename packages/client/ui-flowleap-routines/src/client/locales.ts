@@ -6,7 +6,6 @@ export const NS = 'flowleapRoutines'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'time.locale': 'zh-CN',
-  'panel': '待审阅',
   'title': '待审阅',
   'summary': '例行任务运行过的聊天。审阅后将其标记为已完成',
   'badge.label': '待审阅',
@@ -47,7 +46,6 @@ export type FlowleapRoutinesKey = keyof typeof zh
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<FlowleapRoutinesKey, string> = {
   'time.locale': 'en-US',
-  'panel': 'Needs review',
   'title': 'Needs review',
   'summary': 'Chats that a routine ran in. Mark each one as done after you review it.',
   'badge.label': 'Needs review',
@@ -85,7 +83,6 @@ export const en: Record<FlowleapRoutinesKey, string> = {
 /** Japanese dictionary, checked against the English keys. */
 export const ja = {
   'time.locale': 'ja-JP',
-  'panel': '要レビュー',
   'title': '要レビュー',
   'summary': 'ルーティンが実行されたチャットです。レビュー後に完了にしてください。',
   'badge.label': '要レビュー',
@@ -123,7 +120,6 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   'time.locale': 'es-ES',
-  'panel': 'Pendiente de revisión',
   'title': 'Pendiente de revisión',
   'summary': 'Chats en los que se ejecutó una rutina. Márcalos como hechos después de revisarlos.',
   'badge.label': 'Pendiente de revisión',
@@ -161,7 +157,6 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   'time.locale': 'fr-FR',
-  'panel': 'À relire',
   'title': 'À relire',
   'summary': 'Conversations dans lesquelles une routine a été exécutée. Marquez-les comme terminées après relecture.',
   'badge.label': 'À relire',
@@ -199,7 +194,6 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   'time.locale': 'de-DE',
-  'panel': 'Zu prüfen',
   'title': 'Zu prüfen',
   'summary': 'Chats, in denen eine Routine lief. Markieren Sie jeden nach der Prüfung als erledigt.',
   'badge.label': 'Zu prüfen',
@@ -237,7 +231,6 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   'time.locale': 'ru-RU',
-  'panel': 'Нужна проверка',
   'title': 'Нужна проверка',
   'summary': 'Чаты, в которых выполнялась рутина. После проверки отметьте каждый как готовый.',
   'badge.label': 'Нужна проверка',
@@ -275,7 +268,6 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   'time.locale': 'pt-BR',
-  'panel': 'Aguardando revisão',
   'title': 'Aguardando revisão',
   'summary': 'Conversas em que uma rotina foi executada. Marque cada uma como concluída após revisá-la.',
   'badge.label': 'Aguardando revisão',

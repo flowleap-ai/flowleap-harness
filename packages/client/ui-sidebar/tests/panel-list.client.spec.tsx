@@ -334,6 +334,42 @@ describe('sidebar global panels', () => {
   })
 })
 
+describe('sidebar panel counts', () => {
+  async function mountCount(runtime: SlotTestRuntime, id: MainPanelId, value: string) {
+    return runtime.mount({
+      inject: ['slots'],
+      apply(ctx: Context) {
+        ctx.slots.inject('sidebar.panellist.count', () => ctx.slots.register(
+          { name: 'sidebar.panellist.count', id }, () => <>{value}</>,
+        ))
+      },
+    })
+  }
+  const description = (row: HTMLElement) => document.getElementById(row.getAttribute('aria-describedby') ?? '')?.textContent
+
+  it('shows a count only in the row of its panel, as its description, until its plugin unloads', async () => {
+    const { runtime, locale, view } = await bench()
+    await mountPanels(runtime, locale)
+    const count = await mountCount(runtime, ALPHA, '3')
+    const alpha = await view.findByRole('button', { name: 'Alpha panel' })
+    await waitFor(() => { expect(description(alpha)).toBe('3') })
+    expect(description(view.getByRole('button', { name: 'Beta panel' }))).toBe('')
+
+    await count.dispose()
+    await waitFor(() => { expect(description(alpha)).toBe('') })
+    expect(runtime.slots.entries('sidebar.panellist.count')).toEqual([])
+  })
+
+  it('shows no count on the collapsed rail', async () => {
+    const { runtime, locale, view } = await bench(true)
+    await mountPanels(runtime, locale)
+    await mountCount(runtime, ALPHA, '3')
+    const alpha = await view.findByRole('button', { name: 'Alpha panel' })
+    expect(alpha.hasAttribute('aria-describedby')).toBe(false)
+    expect(view.queryByText('3')).toBeNull()
+  })
+})
+
 describe('sidebar launcher pins', () => {
   const PINS_KEY = 'dsh.slot.manual-order.sidebar.panellist.v1'
 

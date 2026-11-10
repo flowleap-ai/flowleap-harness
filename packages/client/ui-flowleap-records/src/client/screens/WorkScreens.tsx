@@ -11,15 +11,15 @@
 
 import { useState, type ReactNode } from 'react'
 import {
-  AvatarStack, Checkbox, IconAlarmClockOutlineRegular, IconCheckOutlineRegular, IconChevronRightOutlineRegular,
-  IconCloseOutlineRegular, IconDeliverDocRegular, IconEditOutlineRegular, IconInspectOutlineRegular, IconShieldOutlineRegular,
+  AvatarStack, Button, Checkbox, IconAgentPresetOutlineRegular, IconAlarmClockOutlineRegular, IconCheckOutlineRegular,
+  IconChevronRightOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconEditOutlineRegular, IconInspectOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
 import type {
-  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkRefusal,
+  CheckedDeadlineState, DeadlineCheck, DeadlineId, ProposalId, ReportDecision, TicketDetail, TicketsList, WorkDraft, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
-import { formatApplicationNumber, formatDate, intlLocale } from '../format.ts'
+import { formatApplicationNumber, formatDate, intlLocale, languageName } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
@@ -29,13 +29,13 @@ import { ActButton, type ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote, MissingEvidence, StatementRow, StatementTable } from '../parts/Evidence.tsx'
 import { DueText, dueSentence } from '../parts/Due.tsx'
-import { WorkColumn } from '../parts/Layout.tsx'
+import { PropertiesPanel, Section, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
-import { AtlasPill, AtlasStatus, atlasWord, FactStatus } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
+import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
+import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, DetailRow, DetailTable, OpenCell, formatDay, openDocument, Who } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, OpenCell, formatDay, matterRows, openDocument, responsibleRow, Who } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import detail from './Detail.module.css'
 
@@ -75,7 +75,7 @@ export function WorkScreen({ screen, ctx }: ScreenProps<'work'>) {
       load={screen.ticket}
       render={{
         loading: () => <PageSpinner label={ctx.t('loading')} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
         ready: data => <WorkView key={data.ticket.id} ctx={ctx} data={data} />,
       }}
     />
@@ -137,7 +137,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { ticket, letter, deadline, mayDecide } = data
   const status = { machine: 'ticket', state: ticket.state } as const
   const title = workTitle(ctx, data)
-  const proposed = data.reports.filter(report => report.state === 'proposed')
+  const proposed = data.reports.filter(report => report.state === 'proposed').toSorted((a, b) => DRAFT_KINDS.indexOf(a.kind) - DRAFT_KINDS.indexOf(b.kind))
   const deciding = ticket.state === 'proposals_ready' && proposed.length > 0
   const missingOf = (report: TicketDetail['reports'][number]) => report.statements
     .map((statement, index) => ({ number: index + 1, missing: statement.evidence.every(evidence => evidence.span === null) }))
@@ -181,11 +181,11 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
   const calculation = deadline === null ? null : () => { ctx.navigate({ view: 'deadline', id: deadline.id }) }
   const openLetter = letter === null ? null : () => { openDocument(ctx, letter.document) }
-  const report = data.reports[0]
+  // The draft reply comes before the client report (mockup 4-review-work); Space previews the first one shown.
+  const drafts = [data.draftReply, data.clientReport].flatMap(draft => draft === null ? [] : [draft])
+  const report = drafts[0]
   const preview = report === undefined ? null : () => { openDocument(ctx, report.document) }
-  const openInWord = report === undefined ? null : () => {
-    window.open(`ms-word:ofe|u|${new URL(ctx.contentHref(report.document), window.location.href).href}`, '_self')
-  }
+  const openInWord = report === undefined ? null : () => { openWord(ctx, report) }
   const allowed = deciding && mayDecide.allowed
   const keyed = allowed && firstOpen !== undefined ? firstOpen : null
   useKeyActs(ctx, {
@@ -198,10 +198,13 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   }, { arrows: false, failed: runner.run.phase === 'failed' })
 
   const calculationOverflow = deadline === null ? [] : [calculationAct(ctx, deadline.id)]
-  const wordAct: ActSpec | null = openInWord === null
-    ? null
-    : { id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: openInWord }
-  const previewAct = preview === null ? null : actOf(ctx, 'preview', t('work.preview'), preview, { icon: <IconInspectOutlineRegular size={16} /> })
+  const wordAct = (draft: WorkDraft): ActSpec => ({
+    id: 'open-in-word', label: t('work.openInWord'), keycaps: [], icon: <IconEditOutlineRegular size={16} />, run: () => { openWord(ctx, draft) },
+  })
+  const previewAct = (draft: WorkDraft): ActSpec => {
+    const act = actOf(ctx, 'preview', t('work.preview'), () => { openDocument(ctx, draft.document) }, { icon: <IconInspectOutlineRegular size={16} /> })
+    return draft === report ? act : { ...act, keycaps: [] }
+  }
   const recordAct = { ...actOf(ctx, 'record', t('work.recordDecision'), record, { icon: <IconCheckOutlineRegular size={16} />, disabled: !ready }), busy }
 
   useCommandItem(ctx, {
@@ -256,23 +259,28 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                 <DecisionPart
                   key={item.proposalId}
                   icon={<IconDeliverDocRegular size={16} />}
-                  title={t('work.clientReport')}
+                  title={draftWords(t, data.letter?.code ?? null, item.kind).heading}
                   missing={firstOfReport !== undefined && choice?.decision !== 'reject' ? t('decision.statementMissing', { number: firstOfReport.number }) : null}
                   detail={choice?.decision === 'reject'
                     ? t('work.rejected', { reason: choice.reason })
                     : (
                       <>
                         <IconCheckOutlineRegular size={16} />
-                        <span>{t('work.sourced', { count: sourced, total: item.statements.length })}</span>
+                        <span>
+                          {choice?.decision === 'approve'
+                            ? <strong className={detail.accepted}>{t('work.acceptedPart')}</strong>
+                            : null}
+                          {t('work.sourced', { count: sourced, total: item.statements.length })}
+                        </span>
                       </>
                     )}
                   hint={choice === undefined && mayDecide.allowed ? t('work.choose') : undefined}
                   control={mayDecide.allowed && (
-                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('work.clientReport')}>
+                    <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={draftWords(t, data.letter?.code ?? null, item.kind).heading}>
                       <ActButton
                         act={{ ...actOf(ctx, 'accept', t('work.accept'), () => { accept(item) }, { icon: <IconCheckOutlineRegular size={16} />, disabled: missing.length > 0 }), ...keys }}
                         rank="tertiary"
-                        className={choice?.decision === 'approve' ? detail.on : undefined}
+                        className={choice?.decision === 'approve' ? detail.onAccept : undefined}
                       />
                       <ActButton
                         act={{ ...actOf(ctx, 'reject', t('act.rejectStep'), () => { reject(item) }, { icon: <IconCloseOutlineRegular size={16} /> }), ...keys }}
@@ -302,13 +310,15 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               setRejecting(null)
             },
           }}
-        overflow={[...calculationOverflow, wordAct].filter((item): item is ActSpec => item !== null)}
+        overflow={[...calculationOverflow, ...report === undefined ? [] : [wordAct(report)]]}
         primary={recordAct}
       />
     )
 
+  // The properties panel holds the right column (mockup 4-review-work); Drafted by opens the agent panel in its place.
+  const agentShown = ctx.agent.view === 'docked' || ctx.agent.view === 'full'
   return (
-    <div className={detail.withDock} data-dock={ctx.agent.view}>
+    <div className={detail.withDock} data-dock={agentShown ? ctx.agent.view : 'docked'}>
       <div className={detail.workArea}>
         <WorkColumn decision={decision}>
           <div className={detail.eyebrowLine}>
@@ -317,28 +327,28 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           </div>
           <h1 className={detail.pageTitle}>{title}</h1>
           <p className={detail.lede}>{lede(ctx, data)}</p>
-          <div className={detail.people}>
-            {data.responsible !== null && <><span className={detail.peopleKey}>{t('work.responsible')}</span><Who t={t} person={data.responsible} /></>}
-            <span className={detail.peopleKey}>{t('prop.team')}</span>
-            <AvatarStack people={data.team.map(person => avatarOf(t, person))} />
-            <span className={detail.wall}><IconShieldOutlineRegular size={16} />{t('work.wall', { matter: data.matter.fileNumber })}</span>
-          </div>
-          {data.reports.map(item => (
+          <DeadlineSection ctx={ctx} data={data} />
+          {data.draftReply === null && (
+            <Section heading={draftWords(t, letter?.code ?? null, 'office-reply').heading} count={0} empty={noReply(ctx, data)}>
+              {null}
+            </Section>
+          )}
+          {drafts.map(item => (
             <section key={item.proposalId} className={detail.section}>
               <div className={detail.sectionHead}>
-                <h2 className={detail.subHeading}>{t('work.clientReport')}</h2>
-                {/* The heading names the report, so its status needs no "Report" label (R11). */}
+                <h2 className={detail.subHeading}>{draftWords(t, data.letter?.code ?? null, item.kind).heading}</h2>
+                {/* The heading names the draft, so its status needs no "Report" label (R11). */}
                 <AtlasStatus status={{ machine: 'report', state: item.state }} word={atlasWord(t, { machine: 'report', state: item.state })} />
                 <div className={detail.sectionActs}>
-                  {wordAct !== null && <ActButton act={wordAct} rank="tertiary" className={detail.wideOnly} />}
-                  {previewAct !== null && <ActButton act={previewAct} rank="secondary" />}
+                  <ActButton act={wordAct(item)} rank="tertiary" className={detail.wideOnly} />
+                  <ActButton act={previewAct(item)} rank="secondary" />
                 </div>
               </div>
               <div className={detail.file} data-fdl-part="file">
                 <span className={detail.fileIcon}><IconDeliverDocRegular size={16} /></span>
                 <div>
-                  <div className={detail.fileTitle}>{t('work.reportOn', { title: letterTitle(t, letter?.code ?? null) })}</div>
-                  <div className={detail.fileMeta}>{fileFacts(ctx, item).join(' · ')}</div>
+                  <div className={detail.fileTitle}>{draftWords(t, data.letter?.code ?? null, item.kind).file}</div>
+                  <div className={detail.fileMeta} title={item.fileName}>{fileFacts(ctx, data, item).join(' · ')}</div>
                 </div>
               </div>
               <StatementTable headers={{ number: t('statement.number'), says: t('statement.says'), source: t('statement.source') }}>
@@ -361,11 +371,12 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
               </StatementTable>
             </section>
           ))}
-          <Related ctx={ctx} data={data} />
           <RecordActivity ctx={ctx} events={data.activity} />
         </WorkColumn>
       </div>
-      <AgentRun ctx={ctx} data={data} title={title} />
+      {agentShown
+        ? <AgentRun ctx={ctx} data={data} title={title} />
+        : <div className={detail.workProps}><WorkProperties ctx={ctx} data={data} /></div>}
     </div>
   )
 }
@@ -445,26 +456,62 @@ function lede(ctx: ScreenContext, data: TicketDetail): string {
   const sent = data.reports.some(report => report.state === 'sent')
   return [
     t(key ?? 'work.lede.letter', { application }),
-    t(data.reports.length > 0 ? 'work.lede.drafted' : 'work.lede.noDraft'),
+    drafted(ctx, data),
     t(sent ? 'work.lede.sent' : 'work.lede.notSent'),
   ].join(' ')
 }
 
 /**
- * The facts of a report's file row: the file name, the language, the template and the pages.
+ * The lede's sentence on what the agent drafted: the reply to the office, the client report, both, or nothing.
  * @param ctx - the screen context.
- * @param report - the report.
+ * @param data - the work.
+ * @returns the sentence.
+ */
+function drafted(ctx: ScreenContext, data: TicketDetail): string {
+  const { t } = ctx
+  const office = officeOfCode(data.letter?.code ?? null)
+  const to = office === null ? '' : toOffice(t, office)
+  if (data.draftReply !== null) return t(data.clientReport === null ? 'work.lede.draftedReply' : 'work.lede.draftedBoth', { to })
+  return t(data.clientReport === null ? 'work.lede.noDraft' : 'work.lede.drafted')
+}
+
+/**
+ * The empty state of a work with no draft reply to the office: the agent has not proposed one.
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @returns the sentence.
+ */
+function noReply(ctx: ScreenContext, data: TicketDetail): string {
+  const office = officeOfCode(data.letter?.code ?? null)
+  return office === null ? ctx.t('work.noReplyPlain') : ctx.t('work.noReply', { to: toOffice(ctx.t, office) })
+}
+
+/**
+ * Open a draft in Word on the desktop through its `ms-word:` link.
+ * @param ctx - the screen context.
+ * @param draft - the draft.
+ */
+function openWord(ctx: ScreenContext, draft: WorkDraft): void {
+  window.open(`ms-word:ofe|u|${new URL(ctx.contentHref(draft.document), window.location.href).href}`, '_self')
+}
+
+/**
+ * The facts of a draft's file row: who the reply goes to, or the client report's own name, and its language. The file
+ * name shows on hover; the template's name is the firm's file and never shows. The firm cannot count the pages of a
+ * .docx reliably, so no page count shows (a difference from the mockup).
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @param report - the draft.
  * @returns the facts.
  */
-function fileFacts(ctx: ScreenContext, report: TicketDetail['reports'][number]): string[] {
-  /* v8 ignore next -- Intl.DisplayNames answers undefined only for a code it cannot read; the os sends ISO 639 codes. */
-  const language = report.language === null ? null : new Intl.DisplayNames([intlLocale(ctx.locale)], { type: 'language' }).of(report.language) ?? null
-  return [
-    report.fileName,
-    ...(language === null ? [] : [language]),
-    ...(report.templateName === null ? [] : [report.templateName]),
-    ...(report.pages === null ? [] : [ctx.t('work.pages', { count: report.pages })]),
-  ]
+function fileFacts(ctx: ScreenContext, data: TicketDetail, report: WorkDraft): string[] {
+  const { t } = ctx
+  const language = report.language === null ? null : languageName(ctx.locale, report.language)
+  const office = officeOfCode(data.letter?.code ?? null)
+  const to = report.kind === 'office-reply'
+    ? office === null ? t('work.file.toOfficePlain') : t('work.file.toOffice', { to: toOffice(t, office) })
+    : draftWords(t, data.letter?.code ?? null, 'client-report').heading
+  return [to, ...(language === null ? [] : [language])]
 }
 
 /**
@@ -531,44 +578,89 @@ function recipients(ctx: ScreenContext, to: NonNullable<TicketDetail['reply']>['
 }
 
 /**
- * Render the records related to the work: its deadline and its reply, each with its status and word.
+ * Render the deadline of the work with its status, who confirmed it and the days left; the row names the deadline,
+ * so its status has no label (mockup 4-review-work).
  * @param props.ctx - the screen context.
  * @param props.data - the work.
- * @returns the section, or nothing when the work has neither.
+ * @returns the section, or nothing before the deadline exists.
  */
-function Related({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
+function DeadlineSection({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const { t } = ctx
-  const { deadline, reply } = data
-  const count = (deadline === null ? 0 : 1) + (reply === null ? 0 : 1)
-  if (count === 0) return null
+  const { deadline } = data
+  if (deadline === null) return null
   return (
     <section className={detail.section}>
       <div className={detail.sectionHead}>
-        <h2 className={detail.subHeading}>{t('work.related')}</h2>
-        <span className={detail.subHint}>{count}</span>
+        <h2 className={detail.subHeading}>{t('work.deadline')}</h2>
       </div>
-      <DetailTable label={t('work.related')} grid={detail.relatedColumns} header={null}>
-        {deadline !== null && (
-          <DetailRow opens>
-            <Cell kind="status"><FactStatus label={t('fact.deadline')} status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
-            <OpenCell onOpen={() => { ctx.navigate({ view: 'deadline', id: deadline.id }) }}>
-              <span className={detail.strong}>{t('crumb.deadline', { date: formatDay(deadline.due, ctx.locale) })}</span>
-            </OpenCell>
-            <Cell kind="meta" wide>{deadline.confirmer === null ? '' : t('deadline.confirmedBy', { person: personInText(t, deadline.confirmer) })}</Cell>
-            <Cell kind="end"><DueText words={ctx} due={deadline.due} /></Cell>
-            <Cell kind="icon" wide><IconChevronRightOutlineRegular size={16} /></Cell>
-          </DetailRow>
-        )}
-        {reply !== null && (
-          <DetailRow>
-            <Cell kind="status"><FactStatus label={t('fact.reply')} status={{ machine: 'outbox', state: reply.state }} word={atlasWord(t, { machine: 'outbox', state: reply.state })} /></Cell>
-            <Cell kind="main">{t('work.replyTo', { people: recipients(ctx, reply.to) })}</Cell>
-            <Cell kind="meta" wide>{t('work.replyFrom')}</Cell>
-            <Cell kind="end" />
-            <Cell kind="icon" wide />
-          </DetailRow>
-        )}
+      <DetailTable label={t('work.deadline')} grid={detail.relatedColumns} header={null}>
+        <DetailRow opens>
+          <Cell kind="status"><AtlasStatus status={{ machine: 'deadline', state: deadline.state }} word={atlasWord(t, { machine: 'deadline', state: deadline.state })} /></Cell>
+          <OpenCell onOpen={() => { ctx.navigate({ view: 'deadline', id: deadline.id }) }}>
+            <span className={detail.strong}>{formatDate(deadline.due, ctx.locale)}</span>
+          </OpenCell>
+          <Cell kind="meta" wide>{deadline.confirmer === null ? '' : t('deadline.confirmedBy', { person: personInText(t, deadline.confirmer) })}</Cell>
+          <Cell kind="end"><DueText words={ctx} due={deadline.due} /></Cell>
+          <Cell kind="icon" wide><IconChevronRightOutlineRegular size={16} /></Cell>
+        </DetailRow>
       </DetailTable>
     </section>
+  )
+}
+
+/**
+ * Render the properties panel of the work (mockup 4-review-work): the matter, its people, and the work with the
+ * agent that drafted it, which opens the agent panel in the panel's place.
+ * @param props.ctx - the screen context.
+ * @param props.data - the work.
+ * @returns the panel.
+ */
+function WorkProperties({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
+  const { t } = ctx
+  const application = data.letter?.applicationNumber ?? null
+  const pages = data.letter?.pages ?? null
+  const finished = data.run?.finishedAt ?? null
+  const { formalitiesPerson } = data.matter
+  const letterWords = pages === null
+    ? null
+    : [t(pages === 1 ? 'work.pages.one' : 'work.pages', { count: pages }), ...(data.letter?.source === 'ocr' ? [t('work.prop.scan')] : [])].join(', ')
+  return (
+    <PropertiesPanel label={t('prop.label')} groups={[
+      {
+        heading: t('prop.matter'),
+        rows: [
+          ...matterRows(t, data.matter, data.clientRules),
+          ...(application === null ? [] : [{ label: t('prop.application'), value: formatApplicationNumber(application) }]),
+        ],
+      },
+      {
+        heading: t('dossier.prop.people'),
+        rows: [
+          responsibleRow(t, data.responsible),
+          { label: t('dossier.prop.formalities'), value: formalitiesPerson === null ? t('matter.none') : <Who t={t} person={formalitiesPerson} /> },
+          { label: t('prop.team'), value: <AvatarStack people={data.team.map(person => avatarOf(t, person))} /> },
+        ],
+      },
+      {
+        heading: t('work.prop.work'),
+        rows: [
+          {
+            label: t('work.prop.draftedBy'),
+            value: (
+              <Button variant="ghost" size="sm" className={detail.agentLink} onClick={() => { ctx.agent.show('docked') }}>
+                <IconAgentPresetOutlineRegular size={16} />
+                {t('actor.agent')}
+              </Button>
+            ),
+          },
+          ...(finished === null ? [] : [{ label: t('work.prop.finished'), value: listTimeText(ctx, finished) }]),
+          ...(letterWords === null ? [] : [{ label: t('work.prop.letter'), value: letterWords }]),
+          ...(data.reply === null ? [] : [{
+            label: t('work.prop.mail'),
+            value: `${recipients(ctx, data.reply.to)} · ${atlasWord(t, { machine: 'outbox', state: data.reply.state })}`,
+          }]),
+        ],
+      },
+    ]} />
   )
 }

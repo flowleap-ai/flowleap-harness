@@ -70,21 +70,26 @@ const LONG_PRESS_MS = 500
 /** How far a touch may move before it is a scroll and not a long press. */
 const PRESS_SLOP_PX = 8
 
+/** What a group header names: an atlas state with its word, or, in My work, a due-time group with its UI icon. */
+export type GroupHeading =
+  | { readonly status: AtlasRef; readonly word: AtlasWord }
+  | { readonly icon: ReactNode; readonly label: string }
+
 /**
- * Render a group of rows under its sticky header: the state's icon and word and the count. An empty group renders
- * nothing.
- * @param props.status - the group's atlas state.
- * @param props.word - its word.
+ * Render a group of rows under its sticky header: the state's icon and word (or the group's icon and label) and the
+ * count. An empty group renders nothing.
  * @param props.count - the rows in the group.
  * @param props.children - the rows.
  * @returns the group.
  */
-export function ListGroup({ status, word, count, children }: { status: AtlasRef; word: AtlasWord; count: number; children: ReactNode }) {
+export function ListGroup({ count, children, ...heading }: GroupHeading & { count: number; children: ReactNode }) {
   if (count === 0) return null
   return (
     <div className={css.group} role="listitem">
       <div className={css.groupHeader}>
-        <AtlasStatus status={status} word={word} />
+        {'status' in heading
+          ? <AtlasStatus status={heading.status} word={heading.word} />
+          : <span className={css.groupLabel}>{heading.icon}{heading.label}</span>}
         <span className={css.count}>{count}</span>
       </div>
       <div role="list">{children}</div>
@@ -107,7 +112,8 @@ export interface RowSelection {
 
 /**
  * Render one 44px row: the status icon (or the checkbox while rows are selected) and the cells.
- * @param props.status - the state of the group header above the row; the icon is `aria-hidden`.
+ * @param props.status - the state of the group header above the row; the icon is `aria-hidden`. A row of a list grouped
+ * by another key (My work) has no status column, and its cells name the status.
  * @param props.selection - the checkbox; while the list is selecting it replaces the icon. A row of a list with no
  * bulk act has none.
  * @param props.open - the row is the open item: active background and the accent bar.
@@ -118,7 +124,7 @@ export interface RowSelection {
  * @returns the row.
  */
 export function ListRow({ status, selection, open = false, onOpen, menu, rowKey, children }: {
-  status: AtlasRef
+  status?: AtlasRef | undefined
   selection?: RowSelection | undefined
   rowKey?: string | undefined
   open?: boolean
@@ -188,21 +194,23 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
       tabIndex={open ? 0 : -1}
       onClick={onClick}
     >
-      <span
-        className={css.lead}
-        onClickCapture={(event) => { range.current = event.shiftKey }}
-        onClick={(event) => { event.stopPropagation() }}
-      >
-        <span className={css.icon}><RowStatusIcon status={status} /></span>
-        {selection !== undefined && (
-          <Checkbox
-            className={css.check}
-            checked={selection.checked}
-            label={selection.label}
-            onChange={(next) => { selection.onChange(next, range.current) }}
-          />
-        )}
-      </span>
+      {status !== undefined && (
+        <span
+          className={css.lead}
+          onClickCapture={(event) => { range.current = event.shiftKey }}
+          onClick={(event) => { event.stopPropagation() }}
+        >
+          <span className={css.icon}><RowStatusIcon status={status} /></span>
+          {selection !== undefined && (
+            <Checkbox
+              className={css.check}
+              checked={selection.checked}
+              label={selection.label}
+              onChange={(next) => { selection.onChange(next, range.current) }}
+            />
+          )}
+        </span>
+      )}
       {children}
     </div>
   )
@@ -211,7 +219,7 @@ export function ListRow({ status, selection, open = false, onOpen, menu, rowKey,
 /**
  * Render a row's title cell: the title, then its source in the secondary colour. In a queue row only this cell
  * and the matter cell truncate; the full value is in the detail. The title truncates first, so a short source such
- * as the office code stays whole; a long source takes at most half of the cell.
+ * as the office code stays whole; a long source takes at most half of the cell, and a cut source shows in full on hover.
  * @param props.title - the title.
  * @param props.source - the source, such as the office.
  * @returns the cell.
@@ -220,7 +228,7 @@ export function TitleCell({ title, source }: { title: string; source?: string | 
   return (
     <span className={css.title}>
       <span className={css.titleText}>{title}</span>
-      {source != null && source !== '' && <span className={css.source} data-source="">{source}</span>}
+      {source != null && source !== '' && <span className={css.source} data-source="" title={source}>{source}</span>}
     </span>
   )
 }

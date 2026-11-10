@@ -8,8 +8,10 @@ import type { PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
-    /** The run Session's conversation in the agent panel of the work page. */
+    /** The run Session's conversation in the agent panel of the work page of the Matters panel. */
     'records.agent.conversation': { kind: 'single'; scope: 'session' }
+    /** The same conversation on the work page of My work: a slot is declared by one panel entry. */
+    'records.mywork.agent.conversation': { kind: 'single'; scope: 'session' }
   }
 }
 
@@ -22,8 +24,11 @@ export function RunChatView(props: ConversationViewsProps) {
   return <>{props.renderSlot('conversation.session', { view: 'chat' })}</>
 }
 
+/** The conversation slot of each panel. */
+export type ConversationSlot = 'records.agent.conversation' | 'records.mywork.agent.conversation'
+
 /** Props of the run conversation. */
-export type RunConversationProps = PropsRuntime<'records.agent.conversation'> & PropsRenderFactories
+export type RunConversationProps = PropsRuntime<ConversationSlot> & PropsRenderFactories
 
 /**
  * Render the run Session's conversation in its embedded variant. A run Session holds the agent's task, so it is never

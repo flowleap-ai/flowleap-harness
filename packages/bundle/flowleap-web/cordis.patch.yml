@@ -349,10 +349,15 @@
         maxEventsPerRun: 50
         maxEventTextLength: 300
 
-    # Settings > Connectors (one card per connector) and the
-    # first-run key wizard; the row id is also the wizard's settings namespace.
+    # Settings > Connectors (one card per connector); the row id is
+    # also the wizard's settings namespace. The firm's people land on My work,
+    # and the data keys are the administrator's task, so the first-run key
+    # wizard never opens here: `wizardDismissed` starts true, and an
+    # administrator enters the keys in Settings > Connectors.
     - id: ui-settings-flowleap-connectors
       name: '@deepseek-ai/dsh-client-ui-settings-flowleap-connectors'
+      config:
+        wizardDismissed: true
 
     # The dashboard (flowleap-harness#60): the landing page of ui-workspace,
     # so the first screen after sign-in, or the chat or page that the address
@@ -397,16 +402,20 @@
     - id: flowleap-record
       name: '@deepseek-ai/dsh-flowleap-record'
 
-    # The Matters row in the sidebar (German Akten) and the Matters page: the
-    # Records pages of the Firm Record (matter list, matter, confirm), served
-    # by the firm proxy at the same origin under recordsHref, embedded in a
-    # frame with the client's theme; a confirm goes from the page to the Firm
-    # Record, never through the runtime. Without the proxy, as in a local run,
-    # the page says that the firm has no matters yet.
+    # My work (the first screen and the landing page) and the Matters row in
+    # the sidebar (German Akten): the IPMS views over the Records API of the
+    # Firm Record, which the firm proxy serves at the same origin under
+    # recordsHref; a decision goes from the view to the Firm Record, never
+    # through the runtime. The account button at the sidebar foot signs out
+    # through signOutHref, which the firm patch sets to the sign-in proxy's
+    # path (oauth2/sign_out?rd=%2F); empty here, so a run without the proxy
+    # shows no Sign out. Without the proxy the views say that FlowLeap could
+    # not load them.
     - id: ui-flowleap-records
       name: '@deepseek-ai/dsh-client-ui-flowleap-records'
       config:
         recordsHref: records/
+        signOutHref: ''
 
     # The Clients row in the sidebar (German Mandanten) and the client folder
     # page: a client's workspace folder with no chat, its files open in the

@@ -727,10 +727,15 @@ export interface FirmIdentity {
 - `source`: [`packages/client/ui-flowleap-records/src/index.ts:26`](../packages/client/ui-flowleap-records/src/index.ts)
 
 ```ts config-catalog
-/** Plugin config: where the Records pages are. */
+/** Plugin config: where the Records pages are, and where Sign out goes. */
 export interface Config {
   /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
   recordsHref: string
+  /**
+   * Where the account menu's Sign out goes: a path relative to the document, with an optional query, such as the firm
+   * proxy's `oauth2/sign_out?rd=%2F`. Empty (the default) means no sign-in in front of the app, and no Sign out.
+   */
+  signOutHref: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->

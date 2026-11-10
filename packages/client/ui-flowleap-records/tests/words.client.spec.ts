@@ -51,6 +51,7 @@ describe('application numbers', () => {
   it('writes an EP number in the office format, whatever spaces or prefix the Record holds, and leaves another office\'s number as it is', () => {
     for (const number of ['24123456.7', '24 123 456.7', 'EP24123456.7', ' EP 24 123 456 . 7 ']) expect(formatApplicationNumber(number)).toBe('EP 24 123 456.7')
     for (const number of ['10 2024 123 456.7', '17/123,456', 'PCT/EP2024/012345', '2412345.6']) expect(formatApplicationNumber(number)).toBe(number)
+    for (const number of ['EP23771920', '23771920']) expect(formatApplicationNumber(number)).toBe('EP 23 771 920')
   })
 })
 
@@ -89,13 +90,43 @@ describe('words of codes and events', () => {
       'FlowLeap opened the work and assigned it to Dr. Anna Becker',
       'Patent agent started on the letter',
       'Patent agent proposed the client report',
-      'AI mailbox sent the reply',
+      'AI mailbox sent the mail with the drafts to the forwarder',
       'Jonas Weber confirmed the deadline',
     ])
+    // An event that the views do not word is noise in Activity: only Audit lists it.
     const unknown = { ...fixtures.ticket.activity[0]!, type: 'ticket/archived', for: null }
-    expect(activityLines(words, [unknown])[0]!.text).toBe('changed the record')
+    expect(activityLines(words, [unknown])).toEqual([])
+    expect(auditRows([unknown])[0]!.cells[1]).toBe('ticket/archived')
     expect(auditRows(fixtures.ticket.activity)[0]!.cells).toEqual(['150', 'ticket/routed', '2026-11-04T14:17:00Z'])
     expect(JSON.stringify(lines)).not.toContain(OUTSIDE_WALL.name)
+  })
+
+  it('takes the os words in English and German, keeps its own words in the other languages, and hides an audit-only event', () => {
+    const base = { ...fixtures.ticket.activity[0]!, for: null }
+    const events = [
+      { ...base, seq: 1, type: 'document/filed', words: { en: 'filed the letter on SF-2023-0045', de: 'hat das Schreiben in SF-2023-0045 abgelegt' } },
+      { ...base, seq: 2, type: 'task/opened', words: null },
+      { ...base, seq: 3, type: 'document/stored', actor: { kind: 'system' as const, name: 'scan-mailbox' as const }, words: { en: 'delivered a scan of 4 pages', de: 'hat einen Scan mit 4 Seiten geliefert' } },
+    ]
+    const text = (line: ReturnType<typeof activityLines>[number]) => `${line.actor.kind === 'person' ? line.actor.person.name : line.actor.name} ${line.text}`
+    expect(activityLines(words, events).map(text)).toEqual(['FlowLeap filed the letter on SF-2023-0045', 'Scan mailbox delivered a scan of 4 pages'])
+    expect(activityLines({ ...words, t: makeTranslate(de), locale: 'de' }, events).map(line => line.text)).toEqual(['hat das Schreiben in SF-2023-0045 abgelegt', 'hat einen Scan mit 4 Seiten geliefert'])
+    expect(activityLines({ ...words, t: makeTranslate(zh), locale: 'zh' }, events)[0]!.text).toBe(zh['event.intakeFiled'])
+  })
+
+  it('names each draft and mail of Activity by its kind, from the event or from the event of the same proposal or mail', () => {
+    const base = fixtures.ticket.activity[0]!
+    const event = (seq: number, type: string, detail: Record<string, unknown>) => ({ ...base, seq, type, for: null, detail })
+    const lines = activityLines(words, [
+      event(1, 'report/proposed', { proposalId: 'p1', kind: 'office-reply' }),
+      event(2, 'report/approved', { proposalId: 'p1' }),
+      event(3, 'outbox/composed', { outboxId: 'o1', message: { kind: 'notice', notice: 'confirm-deadline' } }),
+      event(4, 'outbox/sent', { outboxId: 'o1' }),
+      event(5, 'outbox/composed', { outboxId: 'o2', kind: 'reply' }),
+    ]).map(line => line.text)
+    expect(lines).toEqual([
+      'proposed the draft reply', 'accepted the draft reply', 'wrote the notice', 'sent the notice', 'wrote the mail with the drafts to the forwarder',
+    ])
   })
 
   it('words every event type of the Records service', () => {

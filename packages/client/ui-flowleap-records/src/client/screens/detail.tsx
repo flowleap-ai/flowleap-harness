@@ -7,11 +7,11 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Avatar, AvatarStack } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { DocumentId, IsoDate, Person } from '../api.ts'
+import type { DocumentId, IsoDate, MatterDetail, Person } from '../api.ts'
 import { intlLocale } from '../format.ts'
-import { Overdue } from '../parts/Due.tsx'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, letterTitle, personName, type Translate } from '../words.ts'
+import type { Property } from '../parts/Layout.tsx'
 import type { ScreenContext } from './context.ts'
 import css from './Detail.module.css'
 
@@ -96,25 +96,6 @@ export function OpenCell({ children, onOpen, label }: { children: ReactNode; onO
   )
 }
 
-/**
- * Render the fact chips under a title, such as "1 deadline waits for a second person".
- * @param props.facts - each fact's count, its text and whether it is overdue.
- * @returns the chips, or nothing when no fact applies.
- */
-export function Facts({ facts }: { facts: readonly Fact[] }) {
-  if (facts.length === 0) return null
-  return (
-    <div className={css.facts}>
-      {facts.map(fact => (
-        <span key={fact.key} className={css.fact} data-fdl-part="fact">
-          {fact.overdue === true ? <Overdue><b>{fact.count}</b></Overdue> : <b>{fact.count}</b>}
-          {fact.text}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 /** One fact chip under a title: the count, its text, and whether it counts overdue records. */
 export interface Fact {
   readonly key: string
@@ -132,6 +113,50 @@ export interface Fact {
  */
 export function Who({ t, person }: { t: Translate; person: Person }) {
   return <span className={css.who}><Avatar person={avatarOf(t, person)} nameShown />{personName(t, person)}</span>
+}
+
+/**
+ * What the client allows the AI to do, in the mockup's words ("Drafts, client report"): the drafts of the work, with the
+ * local model only where the client asks for it, and the client report where the client allows an AI letter.
+ * @param t - the translate function.
+ * @param rules - the client's rules, or null where none are recorded.
+ * @returns the words.
+ */
+export function aiAllowed(t: Translate, rules: MatterDetail['clientRules']): string {
+  if (rules === null) return t('matter.notRecorded')
+  const report = rules.aiLetters === 'allowed'
+  switch (rules.aiUse) {
+    case 'not-recorded': return t('matter.notRecorded')
+    case 'not-allowed': return t('dossier.ai.nothing')
+    case 'allowed': return t(report ? 'dossier.ai.draftsReport' : 'dossier.ai.drafts')
+    case 'local-model-only': return t(report ? 'dossier.ai.localReport' : 'dossier.ai.local')
+  }
+}
+
+/**
+ * The first rows of the Matter group of a properties panel, as the dossier and the work page show them: the file number,
+ * the client, and what the client allows the AI to do.
+ * @param t - the translate function.
+ * @param matter - the matter's file number and client.
+ * @param rules - the client's rules, or null where none are recorded.
+ * @returns the rows.
+ */
+export function matterRows(t: Translate, matter: { readonly fileNumber: string; readonly client: string }, rules: MatterDetail['clientRules']): Property[] {
+  return [
+    { label: t('dossier.prop.fileNumber'), value: matter.fileNumber },
+    { label: t('prop.client'), value: matter.client, title: matter.client },
+    { label: t('dossier.prop.ai'), value: aiAllowed(t, rules) },
+  ]
+}
+
+/**
+ * The Responsible row of a properties panel, as the dossier and the work page show it.
+ * @param t - the translate function.
+ * @param person - the responsible person, or null for none.
+ * @returns the row.
+ */
+export function responsibleRow(t: Translate, person: Person | null): Property {
+  return { label: t('prop.responsible'), value: person === null ? t('matter.none') : <Who t={t} person={person} /> }
 }
 
 /**
@@ -174,25 +199,6 @@ export function ruleWords(t: Translate, code: string | null): RuleWords {
     return { short: title, full: title, period: null, months: null }
   }
   return { short: t(rule.short), full: t(rule.full), period: rule.period, months: t(rule.months) }
-}
-
-/**
- * The office of an office event code, such as `EPO` of `EPO:R71(3)`.
- * @param code - the code.
- * @returns the office, or null.
- */
-export function officeOf(code: string | null): string | null {
-  return code?.split(':')[0] ?? null
-}
-
-/**
- * A date without the weekday, or the "not recorded" word.
- * @param ctx - the screen context.
- * @param date - the date.
- * @returns the text.
- */
-export function dateOrNone(ctx: ScreenContext, date: IsoDate | null): string {
-  return date === null ? ctx.t('matter.notRecorded') : formatDay(date, ctx.locale)
 }
 
 /**

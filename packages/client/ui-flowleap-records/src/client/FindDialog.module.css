@@ -1,0 +1,126 @@
+/* Find a matter (mockup 5-dossier, state search): a 712 px menu at 14 % of the view height on a scrim, 44 px items
+ * on the menu material, with no motion; the same frame as the app's command menu. */
+.root {
+  pointer-events: auto;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 14vh 16px 16px;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-2);
+}
+
+.menu {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(712px, 100%);
+  max-height: calc(86vh - 16px);
+  padding: 4px;
+  overflow: hidden;
+  border: 0;
+  box-shadow: var(--dsw-elevation-prominent);
+  outline: none;
+}
+
+.chip {
+  align-self: flex-start;
+  margin: 8px 8px 0;
+  padding: 2px 8px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-multi-select);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.search {
+  margin: 4px 0;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  outline: none;
+}
+
+.search::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.viewport [data-menu-group-heading] {
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--dsw-radius-md);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  cursor: pointer;
+}
+
+.rowActive {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.key {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.title,
+.client {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.client {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.status,
+.note {
+  padding: 8px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+/* On a touch screen the field takes 16 px, so iOS Safari does not zoom into it (R1 exception, dsh-responsive-ui §9.2). */
+@media (pointer: coarse) {
+  input.search {
+    font-size: var(--dsw-font-base-16-font-size);
+  }
+}

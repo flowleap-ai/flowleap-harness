@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { parseRoutePath, readRouteAddress, routePath, syncRouteAddress, writeRouteAddress } from '../src/client/address.ts'
+import { parseRoutePath, readRouteAddress, routeOfAct, routePath, syncRouteAddress, writeRouteAddress } from '../src/client/address.ts'
 import type { DeadlineId, DocumentId, FileNumber, TicketId } from '../src/client/api.ts'
 import type { Route } from '../src/client/model.ts'
 import { FIXTURE_IDS, R71_DOCUMENT } from './fixtures.client.ts'
@@ -66,5 +66,46 @@ describe('the address of a Matters panel route', () => {
     active.set(true)
     expect(replace).toHaveBeenCalledTimes(3)
     expect(writeRouteAddress('https://firm.test/', PANEL, null)).toBe('https://firm.test/')
+  })
+
+  it('keeps a start route in the address until the panel opens once', () => {
+    let href = `https://firm.test/?page=${PANEL}&records=board`
+    const replace = vi.fn((next: string) => { href = next })
+    const route = createSnapshotStore<Route>({ view: 'board' })
+    const active = createSnapshotStore(false)
+    const stop = syncRouteAddress({ route, active, panel: PANEL, address: { href: () => href, replace } })
+    route.set({ view: 'matters' })
+    expect(replace).not.toHaveBeenCalled()
+    active.set(true)
+    expect(href).toBe(`https://firm.test/?page=${PANEL}&records=matters`)
+    stop()
+  })
+})
+
+describe('the address of a My work route', () => {
+  const MY_WORK = 'flowleap-my-work'
+
+  it('writes My work and a letter page as their route paths and reads them back', () => {
+    expect(routePath({ view: 'my-work' })).toBe('my-work')
+    expect(parseRoutePath('my-work')).toEqual({ view: 'my-work' })
+    expect(routePath({ view: 'letter', document: R71_DOCUMENT as DocumentId })).toBe(`letter/${R71_DOCUMENT}`)
+    expect(parseRoutePath(`letter/${R71_DOCUMENT}`)).toEqual({ view: 'letter', document: R71_DOCUMENT })
+    for (const text of ['my-work/x', 'letter', 'letter/abc', `letter/${R71_DOCUMENT}/x`]) expect(parseRoutePath(text)).toBeNull()
+  })
+
+  it('opens the page of a task from its record address', () => {
+    expect(routeOfAct(`intake/waiting/${R71_DOCUMENT}`)).toEqual({ view: 'letter', document: R71_DOCUMENT })
+    expect(routeOfAct(`deadline/${FIXTURE_IDS.deadline}`)).toEqual({ view: 'deadline', id: FIXTURE_IDS.deadline })
+    expect(routeOfAct(`work/${FIXTURE_IDS.ticket}`)).toEqual({ view: 'work', id: FIXTURE_IDS.ticket })
+    for (const act of ['intake/later/x', `intake/waiting/${R71_DOCUMENT}/x`, 'intake/waiting', 'matters', 'board', 'deadline/1']) expect(routeOfAct(act)).toBeNull()
+  })
+
+  it('names no page for the landing panel, and reads its route with no page or with its own page', () => {
+    expect(writeRouteAddress(`https://firm.test/?page=${MY_WORK}`, MY_WORK, { view: 'my-work' }, true)).toBe('https://firm.test/?records=my-work')
+    expect(readRouteAddress('?records=my-work', MY_WORK, true)).toEqual({ view: 'my-work' })
+    expect(readRouteAddress(`?page=${MY_WORK}&records=my-work`, MY_WORK, true)).toEqual({ view: 'my-work' })
+    expect(readRouteAddress('?records=my-work', MY_WORK)).toBeNull()
+    expect(readRouteAddress(`?page=${PANEL}&records=matters`, MY_WORK, true)).toBeNull()
+    expect(readRouteAddress('?chat=c1&records=my-work', MY_WORK, true)).toBeNull()
   })
 })

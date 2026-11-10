@@ -32,12 +32,23 @@ if (!files.length) {
 
 /** The spacing scale of R5; the client has no spacing tokens. */
 const SPACE = new Set(['0', '2px', '4px', '8px', '12px', '16px', '24px', '32px', '48px']);
-/** The type roles of R1; every other --dsw-font-* size (markdown, 11 px, 16 px) fails. */
+/** The type roles of R1; every other --dsw-font-* size (markdown, 11 px, and 16 px outside FIELD_SIZE's one case) fails. */
 const ROLES = '(?:xxs-12|xs-13|xs-strong-13|s-14|l-20|xl-24)';
 const SIZE_TOKEN = new RegExp(`^var\\(--dsw-font-${ROLES}-font-size\\)$`);
 const LINE_TOKEN = new RegExp(`^var\\(--dsw-font-${ROLES}-line-height\\)$`);
 const WEIGHT_TOKEN = new RegExp(`^var\\(--dsw-font-${ROLES}-font-weight\\)$`);
 const FAMILY_TOKEN = /^var\(--(?:dsw-font-family|ds-font-family-code)\)$/;
+/**
+ * The one exception to R1: a text field (an input, a text area or a select) takes the 16 px size under a media query
+ * that applies only to a coarse pointer, so iOS Safari does not zoom into the field (dsh-responsive-ui §9.2).
+ */
+const FIELD_SIZE = 'var(--dsw-font-base-16-font-size)';
+const COARSE_ONLY = m => /^@media\s*\(\s*pointer\s*:\s*coarse\s*\)(?:\s+and\s+\([^()]*\))*\s*$/i.test(m);
+/** A text field: an input that takes typed text (not a checkbox, a radio, a button or the like), a text area or a select. */
+const TEXT_FIELD = /^(?:input(?![^\]]*\[type=['"]?(?:checkbox|radio|range|color|file|submit|button|reset|image|hidden)\b)|textarea|select)(?![\w-])/i;
+/** The subject compound of each selector of a list, with combinators inside () and [] kept in their compound. */
+const fieldCompounds = selector => splitTop(selector.replace(/\[[^\]]*\]/g, a => a.replace(/[\s>+~,]/g, '_')), /,/).map(s => splitTop(s, /[\s>+~]/).pop());
+const fieldOnCoarse = rule => (rule.media ?? []).some(COARSE_ONLY) && fieldCompounds(rule.selector).every(c => TEXT_FIELD.test(c));
 const NAMED = 'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen canvas canvastext linktext visitedtext activetext buttonface buttontext buttonborder field fieldtext highlight highlighttext graytext mark marktext';
 const COLOUR = new RegExp(`#[0-9a-f]{3,8}\\b|\\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb|color|color-mix|light-dark)\\(|(?<![\\w-])(?:${NAMED.split(' ').join('|')})(?![\\w-])`, 'i');
 // --dsw-alias-border-l4 and the label colours may draw a 1 px border that alone identifies a control (WCAG 1.4.11).
@@ -85,7 +96,11 @@ function judge(prop, value, rule) {
     if (/^--dsw-font-/.test(m[1]) && !/-(?:font-size|line-height|font-weight)$|^--dsw-font-family$/.test(m[1])) return `R1/R2: ${m[1]} is a composite font token; use its -font-size, -line-height and -font-weight parts`;
   }
   if (v === 'inherit' || v === 'unset' || v === 'initial') return null;
-  if (prop === 'font-size') return SIZE_TOKEN.test(v) ? null : 'R1: font-size is one of the client roles xxs-12, xs-13, s-14, l-20, xl-24 (--dsw-font-*-font-size)';
+  if (prop === 'font-size') {
+    if (SIZE_TOKEN.test(v)) return null;
+    if (v === FIELD_SIZE) return fieldOnCoarse(rule) ? null : 'R1: the 16 px size is only for a text field (input, textarea or select) inside @media (pointer: coarse)';
+    return 'R1: font-size is one of the client roles xxs-12, xs-13, s-14, l-20, xl-24 (--dsw-font-*-font-size)';
+  }
   if (prop === 'line-height') return LINE_TOKEN.test(v) || v === '1' ? null : 'R1: line-height is the --dsw-font-*-line-height token of the size, or 1 for an icon or a key';
   if (prop === 'font-family') return FAMILY_TOKEN.test(v) ? null : 'R1: font-family is --dsw-font-family or --ds-font-family-code';
   if (prop === 'letter-spacing') return v === '0' || v === 'normal' ? null : 'R1: the client theme has no tracking tokens';
@@ -191,7 +206,8 @@ function parseCss(css, file) {
     if (ch === '{') {
       const selector = buf.trim();
       if (/^@font-face/.test(selector)) fail(file, '', 'R1: no @font-face; the client theme owns the font (--dsw-font-family)');
-      stack.push({ selector, keyframes: /^@keyframes/.test(selector) || stack.some(s => s.keyframes), decls: [] });
+      const media = stack.filter(s => /^@media/.test(s.selector)).map(s => s.selector);
+      stack.push({ selector, media, keyframes: /^@keyframes/.test(selector) || stack.some(s => s.keyframes), decls: [] });
       buf = '';
     } else if (ch === '}') {
       const rule = stack.pop();

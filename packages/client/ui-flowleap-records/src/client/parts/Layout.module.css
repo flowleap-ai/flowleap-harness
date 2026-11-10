@@ -95,6 +95,45 @@
   min-height: 0;
 }
 
+.detail[data-solo] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The evidence beside the content: the picture of the letter at the right, sticky while the content scrolls. */
+.evSplit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  gap: 32px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+.evSplit[data-solo] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stickyEv {
+  position: sticky;
+  top: 0;
+}
+
+@media (max-width: 1365px) {
+  .evSplit {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+    gap: 24px;
+  }
+}
+
+@media (max-width: 720px) {
+  .evSplit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stickyEv {
+    position: static;
+  }
+}
+
 .work {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;

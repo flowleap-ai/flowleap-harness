@@ -10,22 +10,22 @@ import {
   IconCheckOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { DeadlineDetail, FieldValue, MayDecideReason, ReaderField } from '../api.ts'
-import { formatApplicationNumber, formatDate } from '../format.ts'
+import type { DeadlineDetail, IsoDate, MayDecideReason, Person } from '../api.ts'
+import { formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs, type KeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
-import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DueText } from '../parts/Due.tsx'
-import { DetailLayout, KeyFact, PropertiesPanel, WorkColumn } from '../parts/Layout.tsx'
+import { DetailLayout, EvidenceSplit, KeyFact, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { citeText, officeName, personInText, personName } from '../words.ts'
+import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { formatDay, officeOf, openDocument, ruleWords, Who } from './detail.tsx'
-import { decisionHeading, failureNotice, formNumberAudit, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
+import { formatDay, openDocument, ruleWords } from './detail.tsx'
+import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
+import { decisionHeading, failureNotice, formNumberAudit, LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
 /**
@@ -40,7 +40,7 @@ export function DeadlineScreen({ screen, ctx }: ScreenProps<'deadline'>) {
       load={screen.deadline}
       render={{
         loading: () => <PageSpinner label={ctx.t('loading')} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
         ready: data => <DeadlineView ctx={ctx} data={data} />,
       }}
     />
@@ -54,7 +54,6 @@ export function DeadlineScreen({ screen, ctx }: ScreenProps<'deadline'>) {
 type Comparison = 'agree' | 'differ' | 'one' | 'none' | 'noLetter'
 
 /** What one reader read. */
-type Reading = NonNullable<NonNullable<DeadlineDetail['readers']['model']>['result']>
 
 /**
  * How the two readings of the letter compare.
@@ -76,14 +75,6 @@ const READING_ICONS: Readonly<Record<Comparison, ReactNode>> = {
   noLetter: <IconInfoOutlineRegular size={16} />,
 }
 
-/** The words of each step of the engine's calculation. */
-const STEPS: Readonly<Record<string, FlowleapRecordsKey>> = {
-  'delivery': 'deadline.step.delivery',
-  'start': 'deadline.step.start',
-  'month-end': 'deadline.step.monthEnd',
-  'add-period': 'deadline.step.addPeriod',
-  'closure-roll': 'deadline.step.closureRoll',
-}
 
 /**
  * The words of each note code of the engine. A note with another code shows only in Audit, because its text is the
@@ -128,27 +119,67 @@ function deciderOf(reason: MayDecideReason, letter: DeadlineDetail['officeEvent'
 }
 
 /**
- * The words of one step of the calculation. An office event entered by hand has no letter, so its delivery step
- * names the date of the office event.
- * @param step - the step.
- * @param letter - the source letter, or null for an office event entered by hand.
- * @returns the text key.
+ * The whole months from one date to another, and whether the second date has the same day number.
+ * @param from - the earlier date.
+ * @param to - the later date.
+ * @returns the months, and true when the day numbers are equal.
  */
-function stepWords(step: DeadlineDetail['deadline']['trace'][number], letter: DeadlineDetail['officeEvent']['document']): FlowleapRecordsKey {
-  if (step.op === 'closure-roll' && step.from === step.to) return 'deadline.step.openDay'
-  if (step.op === 'delivery' && letter === null) return 'deadline.step.deliveryEvent'
-  return STEPS[step.op] ?? 'deadline.step.other'
+function monthsBetween(from: IsoDate, to: IsoDate): { readonly months: number; readonly sameDay: boolean } {
+  const [y1, m1, d1] = from.split('-').map(Number) as [number, number, number]
+  const [y2, m2, d2] = to.split('-').map(Number) as [number, number, number]
+  return { months: (y2 - y1) * 12 + (m2 - m1), sameDay: d1 === d2 }
 }
 
 /**
- * The reading rows: the reader field whose span quotes the value, and the label. The office event's span is the
- * letter's title line (R14), never its form code (R19); the row's value is the rule in words.
+ * The days from one date to another.
+ * @param from - the earlier date.
+ * @param to - the later date.
+ * @returns the days.
  */
-const READ_ROWS = [
-  { value: 'code', field: 'title', label: 'deadline.field.code' },
-  { value: 'documentDate', field: 'documentDate', label: 'deadline.field.documentDate' },
-  { value: 'applicationNumber', field: 'applicationNumber', label: 'deadline.field.application' },
-] as const satisfies readonly { value: string; field: ReaderField; label: FlowleapRecordsKey }[]
+function daysBetween(from: IsoDate, to: IsoDate): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+/**
+ * One step of the calculation as a plain sentence, as the mockups word it: the period in months or days from the
+ * step's two dates, and the office by its name. An office event entered by hand has no letter, so its delivery step
+ * names the date of the office event.
+ * @param ctx - the screen context.
+ * @param step - the step.
+ * @param letter - the source letter, or null for an office event entered by hand.
+ * @param office - the office's name, or null when the code names none.
+ * @returns the sentence.
+ */
+function stepText(
+  { t, locale }: ScreenContext, step: DeadlineDetail['deadline']['trace'][number], letter: DeadlineDetail['officeEvent']['document'], office: string | null,
+): string {
+  const named = office ?? t('deadline.step.office')
+  switch (step.op) {
+    case 'delivery': return t(letter === null ? 'deadline.step.deliveryEvent' : 'deadline.step.delivery')
+    case 'start': return t('deadline.step.start')
+    case 'add-period':
+    case 'month-end': {
+      const { months, sameDay } = monthsBetween(step.from, step.to)
+      if (step.op === 'month-end') return t('deadline.step.monthEnd', { count: months })
+      if (sameDay && months > 0) return t(months === 1 ? 'deadline.step.month' : 'deadline.step.months', { count: months })
+      return t('deadline.step.days', { count: daysBetween(step.from, step.to) })
+    }
+    case 'closure-roll': return step.from === step.to
+      ? t('deadline.step.openDay', { office: named })
+      : t('deadline.step.closureRoll', { office: named, date: formatDate(step.from, locale) })
+    default: return t('deadline.step.other')
+  }
+}
+
+/**
+ * The person who recorded the office event that starts the period: the actor of its `office-event/recorded` event.
+ * @param activity - the deadline's events.
+ * @returns the person, or null when FlowLeap recorded it.
+ */
+function recorderOf(activity: DeadlineDetail['activity']): Person | null {
+  for (const event of activity) if (event.type === 'office-event/recorded' && event.actor.kind === 'person') return event.actor.person
+  return null
+}
 
 /**
  * Render a deadline: the eyebrow, the key fact, the calculation, the readings, the legal sources, Activity, the
@@ -170,6 +201,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const reading = readingOf(readers, officeEvent.document)
   const due = formatDate(deadline.due, ctx.locale)
   const letter = officeEvent.document
+  const officeCode = officeOfCode(officeEvent.code)
+  const office = officeCode === null ? null : officeName(t, officeCode)
+  const recorder = recorderOf(data.activity)
 
   // Opening the reason step changes the decision, so the failure of a confirm no longer applies.
   const setReasonOpen = (open: boolean) => {
@@ -224,15 +258,20 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     ],
   })
 
+  // Who confirms: the owner of the open Confirm the deadline task, whom the bar's heading and the eyebrow name (B4).
+  const owner = mayConfirm.allowed || data.confirmTask === null ? null : data.confirmTask.owner
   const decision = !proposed || ctx.me === null
     ? null
     : (
       <DecisionBar
-        heading={decisionHeading(ctx, ctx.me.person, mayConfirm)}
+        heading={decisionHeading(ctx, ctx.me.person, owner === null ? mayConfirm : { allowed: false, decider: owner })}
         question={t('decision.dateRight')}
         why={allowed ? whyYou(ctx, data) : undefined}
         labels={{ more: t('decision.more') }}
-        decider={mayConfirm.allowed ? null : t(deciderOf(mayConfirm.reason, letter), { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) })}
+        decider={mayConfirm.allowed ? null : [
+          ...(data.confirmTask === null ? [] : [confirmTaskWords(ctx, data.confirmTask)]),
+          t(deciderOf(mayConfirm.reason, letter), { person: mayConfirm.decider === null ? t('deadline.secondPerson') : personName(t, mayConfirm.decider) }),
+        ].join(' ')}
         failure={failureNotice(ctx, runner.run, retry)}
         parts={(
           <DecisionPart
@@ -255,55 +294,35 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           }
           : undefined}
         secondary={letterAct === null ? [] : [letterAct]}
-        primary={{ ...actOf(ctx, 'record', t('act.confirmDeadline'), confirm, { icon: <IconCheckOutlineRegular size={16} /> }), busy: runner.run.phase === 'running' }}
+        note={allowed ? t('deadline.note.confirm', { person: personInText(t, ctx.me.person) }) : undefined}
+        primary={{ ...actOf(ctx, 'record', t('act.confirm'), confirm, { icon: <IconCheckOutlineRegular size={16} /> }), busy: runner.run.phase === 'running' }}
       />
     )
 
+  // The eyebrow names the owner of the Confirm the deadline task; another person who may confirm still sees the owner.
+  const taskOwner = data.confirmTask?.owner ?? null
   const eyebrowText = proposed
-    ? t('deadline.waitsSecond')
+    ? taskOwner !== null && taskOwner.id !== ctx.me?.person.id
+      ? t('deadline.waitsFor', { person: personInText(t, taskOwner) })
+      : allowed ? t('deadline.waitsYou') : t('deadline.waitsSecond')
     : data.confirmer !== null
       ? t('deadline.confirmedBy', { person: personInText(t, data.confirmer) })
       : data.rejecter !== null
         ? t('deadline.rejectedBy', { person: personInText(t, data.rejecter), reason: data.reason ?? '' })
         : null
-  const code = officeOf(officeEvent.code)
-  const office = code === null ? null : officeName(t, code)
+  const drawing = openLetter === null
+    ? null
+    : (
+      <LetterPages
+        ctx={ctx}
+        images={data.pageImages}
+        marks={data.marks}
+        fallback={<LetterDrawing ctx={ctx} letter={{ fields: readers.code?.fields ?? {}, pages: null }} onOpen={openLetter} />}
+        onOpen={openLetter}
+      />
+    )
   return (
-    <DetailLayout decision={decision !== null} properties={(
-      <PropertiesPanel label={t('prop.label')} groups={[
-        {
-          heading: t('prop.deadline'),
-          rows: [
-            { label: t('prop.due'), value: due },
-            { label: t('deadline.prop.rule'), value: rule.short, title: rule.short },
-            ...(rule.months === null ? [] : [{ label: t('deadline.prop.period'), value: rule.months }]),
-          ],
-        },
-        {
-          heading: t('deadline.prop.checks'),
-          rows: [
-            { label: t(reading === 'noLetter' ? 'deadline.prop.enteredBy' : 'deadline.prop.proposedBy'), value: data.proposer === null ? t('actor.flowleap') : <Who t={t} person={data.proposer} /> },
-            { label: t('deadline.prop.reading'), value: t(`deadline.reading.${reading}`) },
-            {
-              label: t('deadline.prop.confirm'),
-              value: data.confirmer !== null ? <Who t={t} person={data.confirmer} /> : data.rejecter !== null ? <Who t={t} person={data.rejecter} /> : t('deadline.secondPerson'),
-            },
-          ],
-        },
-        {
-          heading: t('deadline.prop.source'),
-          rows: [
-            { label: t('prop.matter'), value: data.matter.fileNumber },
-            {
-              label: t('deadline.prop.officeEvent'),
-              value: officeEvent.documentDate === null
-                ? (office ?? t('matter.notRecorded'))
-                : t('deadline.officeEventValue', { office: office ?? '', date: formatDay(officeEvent.documentDate, ctx.locale) }),
-            },
-          ],
-        },
-      ]} />
-    )}>
+    <DetailLayout decision={decision !== null} properties={null}>
       <WorkColumn decision={decision}>
         <div className={css.eyebrowLine}>
           <AtlasPill status={status} word={atlasWord(t, status)} />
@@ -316,63 +335,76 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             && <span>{` · ${t(rule.period, { date: formatDay(officeEvent.documentDate, ctx.locale) })}`}</span>}
         </div>
 
-        <section className={css.section}>
-          <h2 className={css.subHeading}>{t('deadline.computed')}</h2>
-          <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')}>
-            {deadline.trace.map((step, index) => (
-              <li key={`${index}:${step.op}`} className={css.step}>
-                <span className={css.dot} aria-hidden="true" />
-                <div>
-                  <div className={css.what}>
-                    {t(stepWords(step, letter))}
+        {letter !== null && (
+          <p className={css.lede}>
+            {t(recorder === null ? 'deadline.fromLetter' : 'deadline.fromLetterBy', {
+              title: letterTitle(t, officeEvent.code),
+              matter: data.matter.fileNumber,
+              ...(recorder === null ? {} : { person: personInText(t, recorder) }),
+            })}
+          </p>
+        )}
+        <EvidenceSplit evidence={drawing}>
+          <section className={css.section}>
+            <h2 className={css.subHeading}>{t('deadline.computed')}</h2>
+            <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')} data-state={deadline.state}>
+              {deadline.trace.map((step, index) => (
+                <li key={`${index}:${step.op}`} className={css.step}>
+                  <span className={css.dot} aria-hidden="true" />
+                  <div>
+                    <div className={css.what}>
+                      {stepText(ctx, step, letter, office)}
+                      {/* The last step gives the deadline: the tag says so, and its dot has the deadline's colour. */}
+                      {index === deadline.trace.length - 1 && <span className={css.nextTag}>{t('deadline.step.result')}</span>}
+                    </div>
+                    <div className={css.law}>{citeText(t, step.cite)}</div>
                   </div>
-                  <div className={css.law}>{citeText(t, step.cite)}</div>
-                </div>
-                <div className={css.to}>{'→ '}<b>{WEEKDAY_STEPS.has(step.op) ? formatDate(step.to, ctx.locale) : formatDay(step.to, ctx.locale)}</b></div>
-              </li>
-            ))}
-          </ol>
-          {deadline.notes.flatMap((note, index) => {
-            const key = NOTES[note.kind]
-            return key === undefined
-              ? []
-              : [(
-                <div key={`${index}:${note.kind}`} className={css.note} data-fdl-part="notice">
-                  <IconInfoOutlineRegular size={16} />
-                  <span>{t(key)}</span>
-                </div>
-              )]
-          })}
-        </section>
+                  <div className={css.to}>{'→ '}<b>{WEEKDAY_STEPS.has(step.op) ? formatDate(step.to, ctx.locale) : formatDay(step.to, ctx.locale)}</b></div>
+                </li>
+              ))}
+            </ol>
+            {deadline.notes.flatMap((note, index) => {
+              const key = NOTES[note.kind]
+              return key === undefined
+                ? []
+                : [(
+                  <div key={`${index}:${note.kind}`} className={css.note} data-fdl-part="notice">
+                    <IconInfoOutlineRegular size={16} />
+                    <span>{t(key)}</span>
+                  </div>
+                )]
+            })}
+          </section>
 
-        {reading === 'noLetter'
-          ? (
-            <section className={css.section} aria-label={t('deadline.eventHeading')}>
-              <h2 className={css.subHeading}>{t('deadline.eventHeading')}</h2>
-              <NoSourceLetter ctx={ctx} data={data} />
-            </section>
-          )
-          : (
-            <section className={css.section} aria-label={t('deadline.read')}>
-              <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t('deadline.readHint')}`}</span></h2>
-              {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
+          {reading === 'noLetter'
+            ? (
+              <section className={css.section} aria-label={t('deadline.eventHeading')}>
+                <h2 className={css.subHeading}>{t('deadline.eventHeading')}</h2>
+                <NoSourceLetter ctx={ctx} data={data} />
+              </section>
+            )
+            : (
+              <section className={css.section} aria-label={t('deadline.read')}>
+                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readTwice(readers) ? 'deadline.readHint' : readers.outcome === 'no-reading' ? 'deadline.readHintNone' : 'deadline.readHintOnce')}`}</span></h2>
+                {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
+              </section>
+            )}
+
+          {deadline.sources.length > 0 && (
+            <section className={css.section}>
+              <h2 className={css.subHeading}>{t('deadline.sources')}</h2>
+              <div className={css.lawChips}>
+                {deadline.sources.map((source) => {
+                  const href = httpsHref(source.url)
+                  const text = citeText(t, source.cite)
+                  return href === null
+                    ? <span key={source.cite} className={css.lawChip}>{text}</span>
+                    : <a key={source.cite} className={css.lawChip} href={href} target="_blank" rel="noopener noreferrer">{text}</a>
+                })}
+              </div>
             </section>
           )}
-
-        {deadline.sources.length > 0 && (
-          <section className={css.section}>
-            <h2 className={css.subHeading}>{t('deadline.sources')}</h2>
-            <div className={css.lawChips}>
-              {deadline.sources.map((source) => {
-                const href = httpsHref(source.url)
-                const text = citeText(t, source.cite)
-                return href === null
-                  ? <span key={source.cite} className={css.lawChip}>{text}</span>
-                  : <a key={source.cite} className={css.lawChip} href={href} target="_blank" rel="noopener noreferrer">{text}</a>
-              })}
-            </div>
-          </section>
-        )}
+        </EvidenceSplit>
         <RecordActivity
           ctx={ctx}
           events={data.activity}
@@ -404,6 +436,20 @@ function httpsHref(url: string): string | null {
 }
 
 /**
+ * The sentence on the open Confirm the deadline task: who confirms, and when FlowLeap sent the notice or that the task
+ * waits in that person's queue.
+ * @param ctx - the screen context.
+ * @param task - the task.
+ * @returns the sentence.
+ */
+function confirmTaskWords(ctx: ScreenContext, task: NonNullable<DeadlineDetail['confirmTask']>): string {
+  const { t } = ctx
+  const person = personInText(t, task.owner)
+  if (task.queued) return t('deadline.task.queued', { person })
+  return task.noticeAt === null ? t('deadline.task.owner', { person }) : t('deadline.task.notice', { person, time: listTimeText(ctx, task.noticeAt) })
+}
+
+/**
  * Render the place of the readings for an office event that a person entered by hand: "No source letter" instead of
  * a quote (never "Missing evidence": the second person's confirm is its evidence, R14), and who entered it and who
  * confirmed it.
@@ -428,57 +474,5 @@ function NoSourceLetter({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetai
         </p>
       )}
     </>
-  )
-}
-
-/**
- * Render the two readings side by side: each value from the text with its span, from the page image, and whether
- * they agree.
- * @param props.ctx - the screen context.
- * @param props.readers - the readings.
- * @returns the comparison table.
- */
-function Readings({ ctx, readers }: { ctx: ScreenContext; readers: DeadlineDetail['readers'] }) {
-  const { t } = ctx
-  const shown = (row: (typeof READ_ROWS)[number], result: Reading | null): string | null => {
-    if (result === null) return null
-    switch (row.value) {
-      case 'code': return result.code === null ? null : ruleWords(t, result.code).short
-      case 'documentDate': return result.documentDate === null ? null : formatDate(result.documentDate, ctx.locale)
-      case 'applicationNumber': return result.applicationNumber === null ? null : formatApplicationNumber(result.applicationNumber)
-    }
-  }
-  return (
-    <div className={css.compare} role="table" aria-label={t('deadline.read')}>
-      <div role="row" className={css.compareRow}>
-        <span role="columnheader" className={css.compareHead} />
-        <span role="columnheader" className={css.compareHead}>{t('deadline.fromText')}</span>
-        <span role="columnheader" className={css.compareHead}>{t('deadline.fromImage')}</span>
-        <span role="columnheader" className={css.compareHead} />
-      </div>
-      {READ_ROWS.map((row) => {
-        const text = shown(row, readers.code?.result ?? null)
-        const image = shown(row, readers.model?.result ?? null)
-        const field: FieldValue | undefined = readers.code?.fields[row.field]
-        const agree = text !== null && image !== null && text === image
-        return (
-          <div key={row.value} role="row" className={css.compareRow}>
-            <span role="rowheader" className={css.compareKey}>{t(row.label)}</span>
-            <span role="cell" className={css.compareValue}>
-              {text ?? t('deadline.notRead')}
-              {field !== undefined && <EvidenceQuote span={field.span} labels={quoteLabels(ctx, field.span.page)} />}
-            </span>
-            <span role="cell" className={css.compareValue}>{image ?? t('deadline.notRead')}</span>
-            <span role="cell" className={css.agree}>
-              {text === null || image === null
-                ? null
-                : agree
-                  ? <><IconCheckOutlineRegular size={16} />{t('deadline.agree')}</>
-                  : <><IconWarningTriangleOutlineRegular size={16} />{t('deadline.differ')}</>}
-            </span>
-          </div>
-        )
-      })}
-    </div>
   )
 }
