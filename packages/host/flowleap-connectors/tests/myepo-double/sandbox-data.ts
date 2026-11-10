@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'node:fs'
 import { strToU8 } from 'fflate'
-import type { MyEpoDoubleData, WireApplication, WireCommunication, WirePortfolio } from './double.ts'
+import type { DueDateRecord, MyEpoDoubleData, WireApplication, WireCommunication, WirePortfolio } from './double.ts'
 
 /** One recorded answer: the status, the content type and the body. */
 export interface Recorded {
@@ -28,6 +28,12 @@ function content<T>(name: string): T[] {
   return (recorded(name).body as { content: T[] }).content
 }
 
+/** A recorded due-date answer as the double's record: its identification and its rows, none waiting for a letter. */
+function dueDateRecord(body: unknown): DueDateRecord {
+  const { applicationIdentification, dueDates } = body as { applicationIdentification: unknown; dueDates: unknown[] }
+  return { identification: applicationIdentification, entries: dueDates.map(row => ({ row })) }
+}
+
 /** The sandbox's one recorded download name (`P79105WO1-2023.05.30-SE2023123456-I1015.pdf`). */
 export const SANDBOX_PDF_NAME = 'P79105WO1-2023.05.30-SE2023123456-I1015.pdf'
 
@@ -42,8 +48,8 @@ export function sandboxData(): MyEpoDoubleData {
     applications: content<WireApplication>('applications'),
     restricted: [],
     biblio: { 'EPC/EP00000001': recorded('biblio-EPC-EP00000001').body },
-    dueDates: { 'EPC/EP00000001': recorded('due-dates-EPC-EP00000001').body },
-    fees: { 'EPC/EP00000001': recorded('fees-EPC-EP00000001').body },
+    dueDates: { 'EPC/EP00000001': dueDateRecord(recorded('due-dates-EPC-EP00000001').body) },
+    fees: { 'EPC/EP00000001': (recorded('fees-EPC-EP00000001').body as unknown[]).map(row => ({ row })) },
     terms: recorded('terms').body,
     folders: recorded('folders').body,
     letters: content<WireCommunication>('communications').map(communication => ({

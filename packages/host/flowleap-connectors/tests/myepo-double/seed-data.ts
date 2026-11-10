@@ -10,7 +10,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { epoCalendars, parseEventCode, parseLocalDate, rulesFor } from 'flowleap-deadlines'
 import { loadSeed, type Matter, type Seed, type SeedDocument } from 'flowleap-seed-firm'
-import type { DoubleLetter, MyEpoDoubleData, WireApplication, WireCommunication, WirePortfolio } from './double.ts'
+import type {
+  DatedEntry, DoubleLetter, DueDateRecord, MyEpoDoubleData, WireApplication, WireCommunication, WirePortfolio,
+} from './double.ts'
 
 /** The marker that every portfolio name carries, so no screen can read the data as a live MyEPO account. */
 export const SAMPLE_MARKER = 'public sample data, not a live MyEPO account'
@@ -56,6 +58,8 @@ export interface DerivedFee { readonly feeCode: string; readonly amount: number;
 /** One due date or fee of the double that FlowLeap derived, and where it came from. */
 export interface Derived {
   readonly application: string
+  /** The seed row of the letter that starts the period or states the fee; the value shows only once that letter is in the Mailbox. */
+  readonly row?: number
   readonly kind: 'due-date' | 'fee'
   readonly value: DerivedDueDate | DerivedFee
   readonly source: string
@@ -100,6 +104,15 @@ const RENEWALS: readonly Renewal[] = [
 ]
 
 /**
+ * Whether an EPO filing office is closed on a day: a weekend, or a closing day of that year's calendar.
+ * @throws CalendarMissing when `flowleap-deadlines` has no calendar for the year.
+ */
+function closedAtEpo(date: string): boolean {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
+  return weekday === 0 || weekday === 6 || epoCalendars.calendar('EPO', Number(date.slice(0, 4))).closedDays.some(day => day.date === date)
+}
+
+/**
  * The due date of a renewal fee: the last day of the month that holds the anniversary of the filing date for the
  * year (Art. 86(1), Rule 51(1) EPC). It is a fixed day, not the end of a period.
  */
@@ -111,9 +124,10 @@ function renewalDueDate(filingDate: string, year: number): string {
 }
 
 /**
- * The due dates and pending fees of the double, on or after the seed clock. A due date comes only from a rule of
- * `flowleap-deadlines` (the Firm Record's engine, with the EPO calendars), so the double and the engine agree by
- * construction: these values are no independent check of the engine.
+ * The due dates and pending fees of the double, on or after the seed clock. Each term due date comes only from a rule
+ * of `flowleap-deadlines` (the Firm Record's engine, with the EPO calendars), so the double and the engine agree by
+ * construction: these values are no independent check of the engine. Renewal fee due dates are the double's own
+ * Rule 51(1) arithmetic, and each must be an open day of the EPO calendar.
  * @param seed - the seed firm.
  * @param filingDates - the filing date of each application, `YYYY-MM-DD`.
  * @returns each value with its source.
@@ -134,18 +148,22 @@ export function derivedValues(seed: Seed, filingDates: Readonly<Record<string, s
       if (!computed.ok) throw new Error(`flowleap-deadlines refused ${matter.application} row ${document.row}: ${computed.error} ${computed.detail}`)
       if (computed.due < clock) continue
       const ruleSource = `${rule.id} v${rule.version} of flowleap-deadlines (${computed.trace.map(step => step.cite).join('; ')})`
-      derived.push({ application: matter.application, kind: 'due-date', value: { termKey: period.termKey, dueDate: computed.due, actor: period.actor }, source: `row ${document.row}: ${ruleSource}` })
+      derived.push({ application: matter.application, row: document.row, kind: 'due-date', value: { termKey: period.termKey, dueDate: computed.due, actor: period.actor }, source: `row ${document.row}: ${ruleSource}` })
       for (const fee of STATED_FEES.filter(entry => entry.application === matter.application && entry.row === document.row)) {
-        derived.push({ application: matter.application, kind: 'fee', value: { feeCode: fee.feeCode, amount: fee.amount, dueDate: computed.due }, source: `${fee.text}; due at the end of the same period, ${ruleSource}` })
+        derived.push({ application: matter.application, row: document.row, kind: 'fee', value: { feeCode: fee.feeCode, amount: fee.amount, dueDate: computed.due }, source: `${fee.text}; due at the end of the same period, ${ruleSource}` })
       }
     }
   }
   for (const renewal of RENEWALS) {
     const dueDate = renewalDueDate(filingDates[renewal.application]!, renewal.year)
     if (dueDate < clock) throw new Error(`renewal fee of ${renewal.application} for year ${renewal.year} is due before the seed clock`)
+    // Whether Rule 134(1) EPC moves a renewal due date on a closed day is not settled here, so the double serves none.
+    if (closedAtEpo(dueDate)) {
+      throw new Error(`renewal fee of ${renewal.application} is due on ${dueDate}, a closed day of the EPO: choose the rule before serving it`)
+    }
     derived.push({
       application: renewal.application, kind: 'fee', value: { feeCode: renewal.feeCode, amount: renewal.amount, dueDate },
-      source: `due date by Art. 86(1) and Rule 51(1) EPC from the filing date ${filingDates[renewal.application]}; ${FEE_SCHEDULE_SOURCE}: ${renewal.listed}`,
+      source: `due date computed by the double: Art. 86(1) and Rule 51(1) EPC from the filing date ${filingDates[renewal.application]}, an open day in the EPO calendar of flowleap-deadlines; ${FEE_SCHEDULE_SOURCE}: ${renewal.listed}`,
     })
   }
   return derived
@@ -207,8 +225,8 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
   const portfolioOf = (matter: Matter): WirePortfolio => portfolios[seed.clients.findIndex(client => client.id === matter.client)]!
   const applications: WireApplication[] = []
   const biblio: Record<string, unknown> = {}
-  const dueDates: Record<string, unknown> = {}
-  const fees: Record<string, unknown> = {}
+  const dueDates: Record<string, DueDateRecord> = {}
+  const fees: Record<string, DatedEntry[]> = {}
   const letters: DoubleLetter[] = []
   const arrivals: DoubleLetter[] = []
 
@@ -258,8 +276,10 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
       },
     }
     const own = derived.filter(entry => entry.application === matter.application)
-    dueDates[key] = { applicationIdentification: identification, dueDates: own.flatMap(entry => entry.kind === 'due-date' ? [entry.value] : []) }
-    fees[key] = own.flatMap(entry => entry.kind === 'fee' ? [{ ...entry.value, currency: null }] : [])
+    const dated = (entry: Derived, row: unknown): DatedEntry =>
+      entry.row === undefined ? { row } : { row, letterId: letterIdOf(matter.application, entry.row) }
+    dueDates[key] = { identification, entries: own.flatMap(entry => entry.kind === 'due-date' ? [dated(entry, entry.value)] : []) }
+    fees[key] = own.flatMap(entry => entry.kind === 'fee' ? [dated(entry, { ...entry.value, currency: null })] : [])
 
     for (const document of matter.documents) {
       if (ANNEX_KINDS.has(document.kind)) continue
@@ -283,13 +303,21 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
   }
 }
 
+/** The `recipientName` of every letter: the account holder, which is the fictional seed firm on public sample data. */
+export const RECIPIENT = `Seed firm (${SAMPLE_MARKER})`
+
+/** The id of a seed letter: stable for its application and row. */
+function letterIdOf(application: string, row: number): string {
+  return createHash('sha256').update(`${application}/${row}`).digest('hex').slice(0, 15)
+}
+
 /** The Mailbox folders of the double; their names are FlowLeap's. */
 export const FOLDERS = { inbox: 'sfinbox00000001', done: 'sfdone000000001' }
 
 function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, register: RegisterBiblio, baseUrl: string): DoubleLetter {
   const code = DOCUMENT_CODES[document.formCode ?? '']
   if (code === undefined) throw new Error(`flowleap-seed-firm: ${matter.application} row ${document.row} has form ${document.formCode}, which has no MyEPO document code here`)
-  const id = createHash('sha256').update(`${matter.application}/${document.row}`).digest('hex').slice(0, 15)
+  const id = letterIdOf(matter.application, document.row)
   const handled = document.registerListDate < HANDLED_BEFORE
   const communication: WireCommunication = {
     id,
@@ -297,7 +325,8 @@ function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, r
     title: document.language === 'de' ? code.de : code.en,
     dispatchDate: document.registerListDate,
     applicationNumber: myEpoNumber,
-    recipientName: register.representatives[0]?.name ?? register.applicants[0] ?? null,
+    // The recipient is the account holder; here it carries the sample marker, so a Mailbox screen shows it on each letter.
+    recipientName: RECIPIENT,
     // The firm's own reference, as a real account shows it; the PDF prints the real representative's reference.
     userReference: matter.fileNumber,
     document: `${baseUrl}/communications/download/${id}`,

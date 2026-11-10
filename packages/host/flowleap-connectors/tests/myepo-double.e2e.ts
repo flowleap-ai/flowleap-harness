@@ -8,7 +8,7 @@ const driver = fileURLToPath(new URL('./fixtures/myepo-double/driver.ts', import
 const repoTsconfig = fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url))
 
 describe('the MyEPO double in the headless profile', () => {
-  it('links flowleapMyEpo to the seed firm and serves each of its ten reads', async () => {
+  it('links flowleapMyEpo to the seed firm through the shipped overlay and serves each of its ten reads', async () => {
     let outcome: Record<string, unknown> = {}
     await runLoaderSmoke({
       label: 'MyEPO double headless smoke',

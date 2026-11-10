@@ -40,6 +40,13 @@ stop_pid() {
   ! any_alive $pids || kill -9 $pids 2> /dev/null || true
   rm -f "$1"
 }
+# Converges one process to the options of this `up`: it stops the process when it runs with other options than
+# <signature>, so the start below starts it again with the new ones. Each start writes its signature next to its pid.
+converge() {
+  local name=$1 signature=$2
+  [[ $(cat "$RUN/$name.sig" 2> /dev/null) == "$signature" ]] || stop_pid "$RUN/$name.pid"
+  printf '%s\n' "$signature" > "$RUN/$name.sig"
+}
 load_options() {
   [[ -s $RUN/loop.env ]] || die "no loop in $RUN: run 'flowleap/dev-loop.sh up --os <flowleap-os checkout>' first"
   MODEL=
@@ -234,8 +241,15 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
   if ! alive "$RUN/watch.pid"; then
     (cd "$HARNESS" && exec node --import tsx/esm scripts/dev-web.ts --poll --skip-build --no-serve > "$LOGS/watch.log" 2>&1 & echo $! > "$RUN/watch.pid")
   fi
-  [[ -z $MYEPO_DOUBLE ]] || start_double
+  if [[ -n $MYEPO_DOUBLE ]]; then
+    converge double "$((PORT + 3))"
+    start_double
+  else
+    stop_pid "$RUN/double.pid"
+  fi
+  converge dsh "$PORT|$RECORD_PORT|$PATCH|$MODEL|$MYEPO_DOUBLE"
   alive "$RUN/dsh.pid" || start_dsh
+  converge proxy "$PORT|$RECORD_PORT"
   if ! alive "$RUN/proxy.pid"; then
     (node "$HARNESS/.agents/skills/verify/scripts/records-proxy.mjs" "$PORT" "http://127.0.0.1:$((PORT + 1))" "http://127.0.0.1:$((RECORD_PORT + 1))" "$RUN" \
       > "$LOGS/proxy.log" 2>&1 & echo $! > "$RUN/proxy.pid")

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Test driver: starts the MyEPO double on the seed firm, boots the headless profile with the connectors, links MyEPO,
- * and runs each read of `flowleapMyEpo`.
+ * Test driver: starts the MyEPO double on the seed firm, boots the headless profile with the connectors and the shipped
+ * overlay `flowleap/myepo-double.patch.yml`, links MyEPO, and runs each read of `flowleapMyEpo`.
  */
 
 import { writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
 import type { MyEpoApplicationNumber } from '@deepseek-ai/dsh-flowleap-connectors'
@@ -16,12 +17,15 @@ const configPath = process.argv[2]
 if (configPath === undefined) throw new Error('MyEPO double driver requires a config path')
 
 const server = await startMyEpoDoubleServer({ port: 0, data: seedData, client: DOUBLE_CLIENT })
-process.env['MYEPO_DOUBLE_URL'] = server.origin
+// The test overlay inserts the connectors row on a dead port; the shipped overlay, applied last, must point it at the double.
+process.env['MYEPO_DOUBLE_URL'] = 'http://127.0.0.1:9'
+process.env['FLOWLEAP_MYEPO_DOUBLE_URL'] = server.origin
+const shippedOverlay = fileURLToPath(new URL('../../../../../../flowleap/myepo-double.patch.yml', import.meta.url))
 
 const ctx = await bootProductionProfile({
   binName: 'myepo-double-e2e',
   profile: 'headless',
-  overlayPaths: [resolveConfigPath(configPath, undefined)],
+  overlayPaths: [resolveConfigPath(configPath, undefined), shippedOverlay],
 })
 try {
   const controller = ctx.get('flowleapConnectors')

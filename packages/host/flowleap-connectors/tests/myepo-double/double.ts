@@ -63,6 +63,19 @@ export interface DoubleLetter {
   readonly pdf: () => Uint8Array
 }
 
+/** One due date or fee row, as the EPO writes it, and the letter that must be in the Mailbox before the row shows. */
+export interface DatedEntry {
+  readonly row: unknown
+  /** The id of the letter that states the value; absent when the value does not wait for a letter. */
+  readonly letterId?: string
+}
+
+/** The due dates of one application: the `applicationIdentification` of the answer and its rows. */
+export interface DueDateRecord {
+  readonly identification: unknown
+  readonly entries: readonly DatedEntry[]
+}
+
 /**
  * Everything the double serves. The keys of `biblio`, `dueDates` and `fees` are `<procedure>/<application>` as the
  * request path writes them, for example `EPC/EP23771920`.
@@ -76,8 +89,8 @@ export interface MyEpoDoubleData {
   /** Applications that exist outside the readable portfolios: each per-application read answers `403 ERR_20`. */
   readonly restricted: readonly string[]
   readonly biblio: Readonly<Record<string, unknown>>
-  readonly dueDates: Readonly<Record<string, unknown>>
-  readonly fees: Readonly<Record<string, unknown>>
+  readonly dueDates: Readonly<Record<string, DueDateRecord>>
+  readonly fees: Readonly<Record<string, readonly DatedEntry[]>>
   readonly terms: unknown
   readonly folders: unknown
   /** The letters in the Mailbox at the start and after each reset. */
@@ -125,6 +138,15 @@ export const TOKEN_REFUSED = { error: 'invalid_client', error_description: 'The 
 /** The API's refusal of a token it did not issue, as recorded (`api-401.json`). */
 export const API_REFUSED = 'Jwt is not in the form of Header.Payload.Signature with two dots and 3 sections'
 
+/** The answer to a `page` or `size` that is not a whole number (`size` at least 1); the sandbox answer is not recorded. */
+export const BAD_PAGE = { code: 'DOUBLE_BAD_PAGE', message: 'page must be a whole number from 0 and size a whole number from 1' }
+
+/** The answer to a download of a letter that is not in the Mailbox; the sandbox answer is not recorded. */
+export const UNKNOWN_COMMUNICATION = { code: 'DOUBLE_UNKNOWN_COMMUNICATION', message: 'The provided communication id is not valid' }
+
+/** The content type of the sandbox's list answers of the Mailbox, as recorded. */
+const MAILBOX_JSON = 'application/json;charset=utf-8'
+
 /** The answer to each of the four write operations of the API: the double reads only. */
 export const READ_ONLY = { code: 'DOUBLE_READ_ONLY', message: 'The MyEPO double serves the read operations only; it refuses every write.' }
 
@@ -153,12 +175,15 @@ export function createMyEpoDouble(data: MyEpoDoubleData, endpoint: DoubleEndpoin
   const restricted = new Set(data.restricted)
 
   /** The answer of a per-application read: the record, `403 ERR_20` outside the portfolios, else `400 ERR_30`. */
-  const perApplication = (records: Readonly<Record<string, unknown>>, key: string): Response => {
+  const perApplication = <T>(records: Readonly<Record<string, T>>, key: string, body: (record: T) => unknown): Response => {
     if (restricted.has(key)) return json(403, NOT_PERMITTED)
     const record = records[key]
     if (!known.has(key) || record === undefined) return json(400, UNKNOWN_APPLICATION)
-    return json(200, record)
+    return json(200, body(record))
   }
+  /** The rows whose letter is in the Mailbox, so no value shows before the letter that states it arrives. */
+  const visible = (entries: readonly DatedEntry[]): unknown[] =>
+    entries.filter(entry => entry.letterId === undefined || mailbox.has(entry.letterId)).map(entry => entry.row)
 
   const read = (path: string, query: URLSearchParams): Response => {
     if (path === '/portfolios') return json(200, { content: data.portfolios, totalElements: data.portfolios.length })
@@ -170,26 +195,32 @@ export function createMyEpoDouble(data: MyEpoDoubleData, endpoint: DoubleEndpoin
         && matches(query.get('applicationNumber'), row.bibliographicData.applicationIdentification.applicationNumber)
         && matches(query.get('applicantFileReference'), row.applicantFileReference)
         && matches(query.get('procedure'), row.procedure))
-      return json(200, page(rows, query))
+      return paged(rows, query)
     }
     if (path === '/communications') {
       const folderId = query.get('folderId')
-      return json(200, page(byDispatch().filter(row => folderId === null || row.folderId === folderId), query))
+      return paged(byDispatch().filter(row => folderId === null || row.folderId === folderId), query, MAILBOX_JSON)
     }
-    if (path === '/communications/unhandled') return json(200, page(byDispatch().filter(row => !row.handled), query))
-    if (path === '/communications/folders') return json(200, data.folders, 'application/json;charset=utf-8')
+    if (path === '/communications/unhandled') return paged(byDispatch().filter(row => !row.handled), query, MAILBOX_JSON)
+    if (path === '/communications/folders') return json(200, data.folders, MAILBOX_JSON)
     if (path === '/terms') return json(200, data.terms)
     const download = /^\/communications\/download\/([^/]+)$/.exec(path)
     if (download !== null) {
       const entry = mailbox.get(decodeURIComponent(download[1]!))
-      if (entry === undefined) return json(400, { code: 'DOUBLE_UNKNOWN_COMMUNICATION', message: 'The provided communication id is not valid' })
+      if (entry === undefined) return json(400, UNKNOWN_COMMUNICATION)
       entry.row = { ...entry.row, read: true }
       return new Response(zipSync({ [entry.letter.filename]: entry.letter.pdf() }), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
     }
     const biblio = /^\/biblio-data\/([^/]+)\/applications\/([^/]+)$/.exec(path)
-    if (biblio !== null) return perApplication(data.biblio, `${biblio[1]}/${decodeURIComponent(biblio[2]!)}`)
+    if (biblio !== null) return perApplication(data.biblio, `${biblio[1]}/${decodeURIComponent(biblio[2]!)}`, record => record)
     const perApp = /^\/([^/]+)\/applications\/([^/]+)\/(dueDates|fees)$/.exec(path)
-    if (perApp !== null) return perApplication(perApp[3] === 'fees' ? data.fees : data.dueDates, `${perApp[1]}/${decodeURIComponent(perApp[2]!)}`)
+    if (perApp !== null) {
+      const key = `${perApp[1]}/${decodeURIComponent(perApp[2]!)}`
+      return perApp[3] === 'fees'
+        ? perApplication(data.fees, key, visible)
+        : perApplication(data.dueDates, key, record =>
+          ({ applicationIdentification: record.identification, dueDates: visible(record.entries) }))
+    }
     return json(404, { code: 'DOUBLE_NO_ROUTE', message: `The MyEPO double has no read at ${path}` })
   }
 
@@ -251,11 +282,21 @@ function matches(filter: string | null, value: string | null | undefined): boole
   return filter === null || filter === value
 }
 
-/** One page of rows, as the EPO writes a page: `content`, `size`, `number` (0-based) and `totalElements`. */
-function page<T>(rows: readonly T[], query: URLSearchParams): { content: T[]; size: number; number: number; totalElements: number } {
-  const size = Number(query.get('size') ?? DEFAULT_PAGE_SIZE)
-  const number = Number(query.get('page') ?? 0)
-  return { content: rows.slice(number * size, (number + 1) * size), size, number, totalElements: rows.length }
+/**
+ * One page of rows, as the EPO writes a page: `content`, `size`, `number` (0-based) and `totalElements`. A `page` or
+ * `size` that is not a whole number in range answers `400` with {@link BAD_PAGE}.
+ */
+function paged(rows: readonly unknown[], query: URLSearchParams, contentType = 'application/json'): Response {
+  const size = wholeNumber(query.get('size'), DEFAULT_PAGE_SIZE)
+  const number = wholeNumber(query.get('page'), 0)
+  if (size === undefined || number === undefined || size < 1) return json(400, BAD_PAGE)
+  return json(200, { content: rows.slice(number * size, (number + 1) * size), size, number, totalElements: rows.length }, contentType)
+}
+
+/** A query value as a whole number from 0, the fallback when absent, or `undefined` when it is not one. */
+function wholeNumber(value: string | null, fallback: number): number | undefined {
+  if (value === null) return fallback
+  return /^\d+$/.test(value) ? Number(value) : undefined
 }
 
 function json(status: number, body: unknown, contentType = 'application/json'): Response {

@@ -72,7 +72,7 @@ curl -X POST http://127.0.0.1:3273/_double/arrive
 curl -X POST http://127.0.0.1:3273/_double/reset
 ```
 
-`status` shows the double's process, and `down` stops it. The Mailbox state is lost when the double stops.
+`status` shows the double's process, and `down` stops it. The Mailbox state is lost when the double stops. A later `up` converges to its own options: with another `--port` it moves the double, the host and the proxy to the new ports; without `--myepo-double` it stops the double and starts the host without its overlay.
 
 ## Model keys
 

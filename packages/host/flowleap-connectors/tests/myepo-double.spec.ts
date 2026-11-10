@@ -1,15 +1,18 @@
 import { createHash } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { loadSeed } from 'flowleap-seed-firm'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createMyEpoClient, MyEpoError, parseApplications, parseBibliographicData, parseCommunications, parseDueDates, parseFees,
   parseFolders, parsePortfolios, parseTerms,
-  type MyEpoApplicationNumber, type MyEpoFailure, type MyEpoPortfolioId, type MyEpoReads,
+  type MyEpoApplicationNumber, type MyEpoFailure, type MyEpoFolderId, type MyEpoPortfolioId, type MyEpoReads,
 } from '@deepseek-ai/dsh-flowleap-connectors'
-import { API_REFUSED, createMyEpoDouble, NOT_PERMITTED, READ_ONLY, TOKEN_REFUSED, UNKNOWN_APPLICATION, type MyEpoDouble } from './myepo-double/double.ts'
+import {
+  API_REFUSED, BAD_PAGE, createMyEpoDouble, NOT_PERMITTED, READ_ONLY, TOKEN_REFUSED, UNKNOWN_APPLICATION, UNKNOWN_COMMUNICATION,
+  type MyEpoDouble, type MyEpoDoubleData,
+} from './myepo-double/double.ts'
 import { recorded, sandboxData } from './myepo-double/sandbox-data.ts'
-import { ARRIVAL, derivedValues, DOUBLE_CLIENT, RESTRICTED_APPLICATION, SAMPLE_MARKER, seedData } from './myepo-double/seed-data.ts'
+import { ARRIVAL, derivedValues, DOUBLE_CLIENT, RECIPIENT, RESTRICTED_APPLICATION, SAMPLE_MARKER, seedData } from './myepo-double/seed-data.ts'
 import { startMyEpoDoubleServer } from './myepo-double/server.ts'
 
 const ENDPOINT = { baseUrl: 'https://double.test/latest', tokenUrl: 'https://double.test/token' }
@@ -69,7 +72,8 @@ describe('the MyEPO double on the recorded sandbox data', () => {
     const answer = await get(double, path)
     const expected = recorded(name)
     const body: unknown = await answer.json()
-    expect({ status: answer.status, body }).toEqual({ status: expected.status, body: expected.body })
+    expect({ status: answer.status, contentType: answer.headers.get('content-type'), body })
+      .toEqual({ status: expected.status, contentType: expected.contentType, body: expected.body })
   })
 
   it('refuses a wrong secret and a foreign token in the recorded forms', async () => {
@@ -141,8 +145,8 @@ describe('the MyEPO double on the seed firm', () => {
       ipc: ['G01D 5/244', 'G01D 5/245', 'G01D 5/347'],
       cpc: ['G01D 5/2448', 'G01D 5/2455', 'G01D 5/34715', 'G01D 5/34792', 'G06T 7/73', 'G06T 2207/20056', 'G06T 2207/30204'],
     })
-    expect(await client.dueDates(ep('EP23771920'))).toEqual([{ termKey: 'DUE_TERM_21', dueDate: '2027-01-29', actor: 'applicant' }])
-    expect(await client.pendingFees(ep('EP23771920'))).toEqual([{ feeCode: '007', amount: 1135, dueDate: '2027-01-29' }, { feeCode: '035', amount: 1050, dueDate: '2027-09-30' }])
+    expect(await client.dueDates(ep('EP23771920'))).toEqual([])
+    expect(await client.pendingFees(ep('EP23771920'))).toEqual([{ feeCode: '035', amount: 1050, dueDate: '2027-09-30' }])
     expect(await client.pendingFees(ep('EP20706232'))).toEqual([])
     const terms = await client.terms()
     expect(terms).toHaveLength(82)
@@ -224,10 +228,93 @@ describe('the MyEPO double on the seed firm', () => {
       expect(entry.source.length, entry.application).toBeGreaterThan(20)
       expect(entry.value.dueDate >= seed.clocks.clocks[seed.clocks.default]!, entry.application).toBe(true)
     }
+    expect(() => derivedValues(seed, { ...filingDates, EP24166597: '2024-12-27' })).toThrow(/2027-12-31, a closed day of the EPO/)
     const client = reads(seedDouble())
     expect(await client.dueDates(ep('EP24166597'))).toEqual([])
     expect(await client.dueDates(ep('EP21810318'))).toEqual([])
     expect(await client.pendingFees(ep('EP22213933'))).toEqual([{ feeCode: '044', amount: 1865, dueDate: '2027-05-31' }])
+  })
+
+  it('shows the due date and the fee that a letter states only after that letter arrives, and again after a reset', async () => {
+    const double = seedDouble()
+    const client = reads(double)
+    double.arrive()
+    expect(await client.dueDates(ep('EP23771920'))).toEqual([{ termKey: 'DUE_TERM_21', dueDate: '2027-01-29', actor: 'applicant' }])
+    expect(await client.pendingFees(ep('EP23771920')))
+      .toEqual([{ feeCode: '007', amount: 1135, dueDate: '2027-01-29' }, { feeCode: '035', amount: 1050, dueDate: '2027-09-30' }])
+    double.reset()
+    expect(await client.dueDates(ep('EP23771920'))).toEqual([])
+  })
+
+  it('marks every letter and every application row as public sample data', async () => {
+    const client = reads(seedDouble())
+    const letters = (await client.communications({ size: 50 })).items
+    expect(letters.every(letter => letter.recipientName === RECIPIENT && RECIPIENT.includes(SAMPLE_MARKER))).toBe(true)
+    expect((await client.applications({ size: 50 })).items.every(row => row.portfolioName.includes(SAMPLE_MARKER))).toBe(true)
+  })
+
+  it('filters letters by folder and applications by number', async () => {
+    const client = reads(seedDouble())
+    const inbox = await client.communications({ folderId: brandString<MyEpoFolderId>('sfinbox00000001') })
+    expect(inbox.items.map(letter => letter.documentCode)).toEqual(['2317A', '2001A', '2001A'])
+    expect((await client.communications({ folderId: brandString<MyEpoFolderId>('sfdone000000001'), size: 50 })).total).toBe(13)
+    const one = await client.applications({ applicationNumber: brandString<MyEpoApplicationNumber>('EP24166597') })
+    expect(one.items.map(row => row.fileReference)).toEqual(['SF-2024-0007'])
+    expect((await client.applications({ applicationNumber: brandString<MyEpoApplicationNumber>('EP99999999') })).total).toBe(0)
+  })
+
+  it('refuses a page or size that is not a whole number in range', async () => {
+    const double = seedDouble()
+    for (const query of ['size=0', 'size=-1', 'size=abc', 'page=1.5', 'page=-2']) {
+      const answer = await get(double, `/communications?${query}`)
+      const body: unknown = await answer.json()
+      expect({ status: answer.status, body }, query).toEqual({ status: 400, body: BAD_PAGE })
+    }
+    const second: unknown = await (await get(double, '/applications?page=1&size=3')).json()
+    expect(second).toMatchObject({ size: 3, number: 1, totalElements: 7 })
+  })
+
+  it('answers the token endpoint\'s refusals and the API\'s wrong method', async () => {
+    const double = seedDouble()
+    const basic = `Basic ${Buffer.from(`${DOUBLE_CLIENT.clientId}:${DOUBLE_CLIENT.clientSecret}`).toString('base64')}`
+    const tokenCall = async (method: string, body?: string): Promise<{ status: number; body: unknown }> => {
+      const init = { method, headers: { authorization: basic }, ...body === undefined ? {} : { body } }
+      const answer = await double.fetch(ENDPOINT.tokenUrl, init)
+      const json: unknown = await answer.json()
+      return { status: answer.status, body: json }
+    }
+    expect(await tokenCall('GET')).toMatchObject({ status: 405, body: { error: 'invalid_request' } })
+    expect(await tokenCall('POST', 'grant_type=password&scope=mailboxapi')).toMatchObject({ status: 400, body: { error: 'unsupported_grant_type' } })
+    expect(await tokenCall('POST', 'grant_type=client_credentials&scope=other')).toMatchObject({ status: 400, body: { error: 'invalid_scope' } })
+    const wrongMethod = await get(double, '/portfolios', 'DELETE')
+    const body: unknown = await wrongMethod.json()
+    expect({ status: wrongMethod.status, body }).toEqual({ status: 405, body: { code: 'DOUBLE_METHOD', message: 'The MyEPO double answers GET at /portfolios' } })
+    const unknown = await get(double, '/communications/download/nothere')
+    const unknownBody: unknown = await unknown.json()
+    expect({ status: unknown.status, body: unknownBody }).toEqual({ status: 400, body: UNKNOWN_COMMUNICATION })
+  })
+
+  it('answers 500 and keeps serving when an answer fails', async () => {
+    const broken = (baseUrl: string): MyEpoDoubleData => {
+      const data = seedData(baseUrl, seed)
+      return { ...data, letters: data.letters.map(letter => ({ ...letter, pdf: () => { throw new Error('the PDF is gone') } })) }
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const server = await startMyEpoDoubleServer({ port: 0, data: broken, client: DOUBLE_CLIENT })
+    try {
+      const token = (await (await fetch(server.tokenUrl, {
+        method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=client_credentials&scope=mailboxapi&client_id=${DOUBLE_CLIENT.clientId}&client_secret=${DOUBLE_CLIENT.clientSecret}`,
+      })).json()) as { access_token: string }
+      const auth = { authorization: `Bearer ${token.access_token}` }
+      const letter = server.double.state().letters[0]!
+      expect((await fetch(`${server.baseUrl}/communications/download/${letter.id}`, { headers: auth })).status).toBe(500)
+      expect(logged).toHaveBeenCalledWith('MyEPO double: answer failed', expect.any(Error))
+      expect((await fetch(`${server.baseUrl}/portfolios`, { headers: auth })).status).toBe(200)
+    } finally {
+      logged.mockRestore()
+      await server.close()
+    }
   })
 
   it('serves the API, the token and the control surface on a loopback port', async () => {
