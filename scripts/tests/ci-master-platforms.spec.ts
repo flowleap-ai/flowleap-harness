@@ -37,16 +37,36 @@ function commands(job: Job): string[] {
 
 // These boolean/string cases share Actions and JavaScript semantics. GitHub
 // supplies status functions; this probe is not a general Actions interpreter.
-function evaluateCondition(expression: string, cancelled: boolean, results: string[], event = 'pull_request'): boolean {
+function evaluateCondition(
+  expression: string,
+  cancelled: boolean,
+  results: string[],
+  event = 'pull_request',
+  needs: Record<string, { result: string; outputs?: Record<string, string> }> = {},
+): boolean {
   const source = expression.trim().replace(/^[$][{][{]|[}][}]$/g, '')
     .replaceAll('needs.*.result', 'results')
+    .replace(/\bneeds\.([A-Za-z0-9_-]+)/g, "needs['$1']")
   return runInNewContext(source, {
     cancelled: () => cancelled,
     always: () => true,
     contains: (values: string[], value: string) => values.includes(value),
     results,
+    needs,
     github: { event_name: event },
   }, { timeout: 1000 }) as boolean
+}
+
+// The full lane on a pull request: `lane` succeeded with `full` set, and the
+// first needed worker job has `result`; every other job succeeded.
+function fullLaneNeeds(job: Job, result: string): Record<string, { result: string; outputs?: Record<string, string> }> {
+  const needs: Record<string, { result: string; outputs?: Record<string, string> }> = {
+    lane: { result: 'success', outputs: { full: 'true' } },
+  }
+  job.needs!.filter(id => id !== 'lane').forEach((id, index) => {
+    needs[id] = { result: index === 0 ? result : 'success' }
+  })
+  return needs
 }
 
 const verdicts = [['ci.yml', 'all-checks-passed'], ['ci-windows.yml', 'windows-checks-passed'], ['ci-python.yml', 'python-checks-passed']] as const
@@ -55,30 +75,32 @@ describe('master-only platform scheduling', () => {
   it.each(verdicts.flatMap(([file, job]) => ['success', 'failure', 'skipped', 'cancelled'].map(result => [file, job, result] as const)))(
     '%s %s reports %s dependencies in active runs but never starts a cancelled-run verdict', (file, job, result) => {
       const aggregate = workflow(file).jobs[job]!
-      const results = aggregate.needs!.map(() => 'success')
-      results[0] = result
+      const needs = fullLaneNeeds(aggregate, result)
+      const results = Object.values(needs).map(need => need.result)
       const condition = aggregate.if as string
       // A status function prevents Actions from implicitly gating on success().
       expect(condition).toContain('!cancelled()')
-      expect(evaluateCondition(condition, false, results)).toBe(true)
-      expect(evaluateCondition(condition, true, results)).toBe(false)
-      expect(evaluateCondition(condition, false, results, 'push')).toBe(false)
-      const failureStep = aggregate.steps!.find(step => step.name === 'Fail if any needed job did not succeed')!
-      expect(evaluateCondition(failureStep.if!, false, results)).toBe(result !== 'success')
+      expect(evaluateCondition(condition, false, results, 'pull_request', needs)).toBe(true)
+      expect(evaluateCondition(condition, true, results, 'pull_request', needs)).toBe(false)
+      expect(evaluateCondition(condition, false, results, 'pull_request', { ...needs, lane: { result: 'skipped' } })).toBe(false)
+      const failureStep = aggregate.steps!.find(step => step.name === 'Fail if a job of this lane did not succeed')!
+      expect(evaluateCondition(failureStep.if!, false, results, 'pull_request', needs)).toBe(result !== 'success')
       expect(failureStep.run).toContain('exit 1')
     },
   )
 
   it('distinguishes the obsolete always verdict from the cancellable status guard', () => {
     expect(evaluateCondition("always() && github.event_name == 'pull_request'", true, ['success'])).toBe(true)
-    expect(evaluateCondition(workflow('ci.yml').jobs['all-checks-passed']!.if as string, true, ['success'])).toBe(false)
+    const lane = { lane: { result: 'success', outputs: { full: 'true' } } }
+    expect(evaluateCondition(workflow('ci.yml').jobs['all-checks-passed']!.if as string, true, ['success'], 'pull_request', lane)).toBe(false)
   })
 
   it('keeps the required Python PR verdict and its two x64 targets in CI Python', () => {
     const pr = workflow('ci-python.yml')
     expect(Object.keys(pr.on)).toEqual(['pull_request'])
+    expect(pr.jobs['python-runtime']!.if).toBeUndefined()
     expect(pr.jobs['python-runtime']).toMatchObject({
-      if: "github.event_name == 'pull_request'",
+      needs: 'python-sdk',
       uses: runtimeBuilder,
       with: { ci: true, targets: 'node24-linux-x64,node24-win-x64' },
     })
@@ -88,10 +110,8 @@ describe('master-only platform scheduling', () => {
     expect(aggregate.needs).toContain('python-runtime')
     expect(aggregate.needs).not.toContain('windows')
     expect(aggregate.needs!.every(id => id in pr.jobs)).toBe(true)
-    expect(aggregate.if).toBe("${{ !cancelled() && github.event_name == 'pull_request' }}")
-    expect(aggregate.steps).toContainEqual(expect.objectContaining({
-      if: "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')",
-    }))
+    expect(aggregate.if).toBe("${{ !cancelled() && needs.lane.result != 'skipped' }}")
+    expect(aggregate.steps).toContainEqual(expect.objectContaining({ name: 'Fail if a job of this lane did not succeed' }))
     for (const file of ['ci.yml', 'ci-windows.yml']) {
       expect(workflow(file).jobs['python-runtime']).toBeUndefined()
     }

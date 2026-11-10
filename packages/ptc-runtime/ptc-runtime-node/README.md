@@ -225,6 +225,7 @@ These limits qualify the execution guarantees and retained output.
 - **Bindings are bounded at transport admission** — control limits do not bound the memory a host binding allocates while producing its result.
 - **Preinstalled bootstraps require a compatible protocol revision** — readiness rejects a missing or mismatched revision before dispatching code. Upgrade `launch.bootstrapPath` with the host; the runtime does not install remote bootstrap updates.
 - **The console shim has five methods** — `log`, `info`, `warn`, `error` and `debug`.
+- **A Windows program that blocks its event loop sends only its first frame** — Windows completes each pipe write on a later event-loop turn, so a second binding call or log line written before a synchronous loop stays in the program process until the loop turns. Code starts only after earlier frames have left, so the first call or log line always reaches the host.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -2295,8 +2295,11 @@ export class PythonPtcRuntime extends PtcRuntime {
       // `close` (not `exit`) is the settlement trigger: it fires only after the
       // process exits AND every stdio stream — including the fd-3 protocol pipe —
       // has drained, so a `done` frame the child wrote just before exiting is
-      // always handled before we settle. macOS can deliver `exit` before that
-      // final fd-3 data; keying off `close` makes the ordering irrelevant.
+      // handled before we settle. macOS can deliver `exit` before that final
+      // fd-3 data; keying off `close` makes the ordering irrelevant. A failed
+      // reply write destroys fd 3 without draining it, so the child keeps fd 3
+      // open after `done` until this host terminates it (py/bootstrap.py
+      // `_linger_until_host_closes`).
       child.on('close', (code: number | null, signal: NodeJS.Signals | null) => {
         // An existing done/timeout/abort decision wins. Without a CPU report
         // frame, only SIGXCPU identifies CPU expiry: launchers can remap signals

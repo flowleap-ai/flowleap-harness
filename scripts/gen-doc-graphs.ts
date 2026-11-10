@@ -423,6 +423,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads EP Register searches and records, EP families and EP publication text on the firm\'s EPO key without a tool call, for Add client; only names and numbers leave the firm; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapMyEpo',
+    pkg: 'flowleap-connectors',
+    title: 'FlowLeap MyEPO reader',
+    mode: 'service',
+    consumers: [],
+    note: 'Reads the firm\'s own MyEPO account (applications, Mailbox letters, EPO due dates, pending fees) with the credentials the MyEPO card links; read only, no consumer yet; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'flowleapAgentCatalog',
     pkg: 'flowleap-agent-builder',
     title: 'FlowLeap agent catalog',

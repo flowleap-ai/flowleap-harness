@@ -1,0 +1,498 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": [
+    {
+      "termKey": "DUE_TERM_73",
+      "descriptionEN": "Remedy formal deficiency",
+      "descriptionFR": "Remédier à un vice de forme",
+      "descriptionDE": "Behebung eines Formmangels"
+    },
+    {
+      "termKey": "DUE_TERM_74",
+      "descriptionEN": "Request decision (UP will lapse)",
+      "descriptionFR": "Demander une décision (extinction du brevet unitaire)",
+      "descriptionDE": "Antrag auf Entscheidung (UP erlöscht)"
+    },
+    {
+      "termKey": "DUE_TERM_75",
+      "descriptionEN": "Seek redress against a negative decision",
+      "descriptionFR": "Exercer une voie de recours contre une décision défavorable",
+      "descriptionDE": "Rechtsmittel gegen negative Entscheidung"
+    },
+    {
+      "termKey": "DUE_TERM_27",
+      "descriptionEN": "Seek redress against a negative decision",
+      "descriptionFR": "Exercer une voie de recours contre une décision défavorable",
+      "descriptionDE": "Rechtsmittel gegen negative Entscheidung"
+    },
+    {
+      "termKey": "DUE_TERM_76",
+      "descriptionEN": "Seek redress against a negative decision on a request for re-establishment of rights",
+      "descriptionFR": "Exercer une voie de recours contre une décision défavorable sur une requête en restitutio in integrum",
+      "descriptionDE": "Rechtsmittel gegen negative Entscheidung über den Wiedereinsetzungsantrag"
+    },
+    {
+      "termKey": "DUE_TERM_72",
+      "descriptionEN": "Seek redress against a negative decision on a request for re-establishment of rights",
+      "descriptionFR": "Exercer une voie de recours contre une décision défavorable sur une requête en restitutio in integrum",
+      "descriptionDE": "Rechtsmittel gegen negative Entscheidung über den Wiedereinsetzungsantrag"
+    },
+    {
+      "termKey": "DUE_TERM_2",
+      "descriptionEN": "Incorporate by reference under Rule 20.5bis(d) PCT",
+      "descriptionFR": "Incorporer par renvoi au titre de la règle 20.5bis.d) PCT",
+      "descriptionDE": "Einbeziehung durch Verweis nach Regel 20.5bis d) PCT"
+    },
+    {
+      "termKey": "DUE_TERM_1",
+      "descriptionEN": "Designate applicant",
+      "descriptionFR": "Désigner le demandeur",
+      "descriptionDE": "Erfindernennung"
+    },
+    {
+      "termKey": "DUE_TERM_3",
+      "descriptionEN": "File certificate of exhibition",
+      "descriptionFR": "Produire l'attestation d'exposition",
+      "descriptionDE": "Ausstellungsbescheinigung"
+    },
+    {
+      "termKey": "DUE_TERM_7",
+      "descriptionEN": "File certified copy of earlier application",
+      "descriptionFR": "Produire la copie certifiée conforme de la demande antérieure",
+      "descriptionDE": "Kopie der früheren Anmeldung"
+    },
+    {
+      "termKey": "DUE_TERM_8",
+      "descriptionEN": "File translation of earlier application",
+      "descriptionFR": "Produire la traduction de la demande antérieure",
+      "descriptionDE": "Übersetzung der früheren Anmeldung"
+    },
+    {
+      "termKey": "DUE_TERM_10",
+      "descriptionEN": "Request examination",
+      "descriptionFR": "Présenter la requête en examen",
+      "descriptionDE": "Prüfungsantrag"
+    },
+    {
+      "termKey": "DUE_TERM_12",
+      "descriptionEN": "Remedy deficiencies (claims)",
+      "descriptionFR": "Remédier à des irrégularités (revendications)",
+      "descriptionDE": "Mängelbehebung (Ansprüche)"
+    },
+    {
+      "termKey": "DUE_TERM_13",
+      "descriptionEN": "Remedy deficiencies (inventor address)",
+      "descriptionFR": "Remédier à des irrégularités (adresse de l'inventeur)",
+      "descriptionDE": "Mängelbehebung (Erfinderanschrift)"
+    },
+    {
+      "termKey": "DUE_TERM_14",
+      "descriptionEN": "Remedy deficiencies (designation of inventor)",
+      "descriptionFR": "Remédier à des irrégularités (désignation de l'inventeur)",
+      "descriptionDE": "Mängelbehebung (Erfindernennung)"
+    },
+    {
+      "termKey": "DUE_TERM_15",
+      "descriptionEN": "File application number and/or certified copy of priority document (grace period)",
+      "descriptionFR": "Fournir le numéro de demande et/ou la copie certifiée conforme du document de priorité (délai supplémentaire)",
+      "descriptionDE": "Anmeldenummer und/oder beglaubigte Kopie des Prioritätsbelegs (Nachfrist)"
+    },
+    {
+      "termKey": "DUE_TERM_16",
+      "descriptionEN": "File translation of application documents (grace period)",
+      "descriptionFR": "Produire la traduction des pièces de la demande (délai supplémentaire)",
+      "descriptionDE": "Übersetzung der Anmeldungsunterlagen (Nachfrist)"
+    },
+    {
+      "termKey": "DUE_TERM_22",
+      "descriptionEN": "File designation of inventor(s) or remedy related major deficiency",
+      "descriptionFR": "Déposer la désignation de l'inventeur/des inventeurs ou remédier à une grave irrégularité à cet égard",
+      "descriptionDE": "Einreichung der Erfindernennung oder Behebung eines damit zusammenhängenden schweren Mangels"
+    },
+    {
+      "termKey": "DUE_TERM_77",
+      "descriptionEN": "File missing parts referred to in description",
+      "descriptionFR": "Déposer des parties manquantes mentionnées dans la description",
+      "descriptionDE": "Einreichung fehlender Teile, auf die in der Beschreibung Bezug genommen wird"
+    },
+    {
+      "termKey": "DUE_TERM_32",
+      "descriptionEN": "Withdraw late-filed missing parts to avoid redating",
+      "descriptionFR": "Retirer des parties manquantes déposées tardivement pour éviter le changement de la date",
+      "descriptionDE": "Zurücknahme verspätet eingereichter fehlender Teile zur Vermeidung einer Neufestsetzung des Anmeldetags"
+    },
+    {
+      "termKey": "DUE_TERM_33",
+      "descriptionEN": "Seek redress against redating",
+      "descriptionFR": "Exercer une voie de recours contre le changement de date",
+      "descriptionDE": "Rechtsmittel gegen Neufestsetzung des Anmeldetags"
+    },
+    {
+      "termKey": "DUE_TERM_44",
+      "descriptionEN": "File translation of priority document",
+      "descriptionFR": "Produire la traduction d'un document de priorité",
+      "descriptionDE": "Übersetzung des Prioritätsdokuments"
+    },
+    {
+      "termKey": "DUE_TERM_69",
+      "descriptionEN": "Remedy deficiencies (sequence listing)",
+      "descriptionFR": "Remédier à des irrégularités (listage de séquences)",
+      "descriptionDE": "Mängelbehebung (Sequenzprotokoll)"
+    },
+    {
+      "termKey": "DUE_TERM_71",
+      "descriptionEN": "File translation of application in an EPO official language",
+      "descriptionFR": "Produire la traduction de la demande dans une langue officielle de l'OEB",
+      "descriptionDE": "Übersetzung der Anmeldung in EPA-Amtssprache"
+    },
+    {
+      "termKey": "DUE_TERM_50",
+      "descriptionEN": "Remedy deficiencies (request for examination)",
+      "descriptionFR": "Remédier à des irrégularités (requête en examen)",
+      "descriptionDE": "Mängelbehebung (Prüfungsantrag)"
+    },
+    {
+      "termKey": "DUE_TERM_52",
+      "descriptionEN": "Remedy deficiencies (missing application documents)",
+      "descriptionFR": "Remédier à des irrégularités (pièces de la demande manquantes)",
+      "descriptionDE": "Mängelbehebung (fehlende Anmeldungsunterlagen)"
+    },
+    {
+      "termKey": "DUE_TERM_60",
+      "descriptionEN": "Remedy deficiencies (designation of inventor)",
+      "descriptionFR": "Remédier à des irrégularités (désignation de l'inventeur)",
+      "descriptionDE": "Mängelbehebung (Erfindernennung)"
+    },
+    {
+      "termKey": "DUE_TERM_61",
+      "descriptionEN": "Remedy deficiencies (designation of inventor)",
+      "descriptionFR": "Remédier à des irrégularités (désignation de l'inventeur)",
+      "descriptionDE": "Mängelbehebung (Erfindernennung)"
+    },
+    {
+      "termKey": "DUE_TERM_65",
+      "descriptionEN": "Remedy deficiencies (certified copy of priority)",
+      "descriptionFR": "Remédier à des irrégularités (copie certifiée conforme d'un document de priorité)",
+      "descriptionDE": "Mängelbehebung (beglaubigte Kopie der Priorität)"
+    },
+    {
+      "termKey": "DUE_TERM_66",
+      "descriptionEN": "Remedy deficiencies (translation of priority)",
+      "descriptionFR": "Remédier à des irrégularités (traduction d'un document de priorité)",
+      "descriptionDE": "Mängelbehebung (Übersetzung der Priorität)"
+    },
+    {
+      "termKey": "DUE_TERM_68",
+      "descriptionEN": "Remedy deficiencies (translation of application)",
+      "descriptionFR": "Remédier à des irrégularités (traduction de la demande)",
+      "descriptionDE": "Mängelbehebung (Übersetzung der Anmeldung)"
+    },
+    {
+      "termKey": "DUE_TERM_4",
+      "descriptionEN": "Reply to invitation about subject matter for search",
+      "descriptionFR": "Réponse à l'invitation à indiquer les éléments devant faire l'objet de la recherche",
+      "descriptionDE": "Erwiderung auf die Aufforderung zur Angabe des zu recherchierenden Gegenstand"
+    },
+    {
+      "termKey": "DUE_TERM_78",
+      "descriptionEN": "Indicate subject-matter for search (Rules 62a(1) and 63(1) EPC)",
+      "descriptionFR": "Indiquer les éléments devant faire l'objet de la recherche (règle 62bis(1) ou 63(1) CBE)",
+      "descriptionDE": "Angabe des zu recherchierenden Gegenstands (Regeln 62a (1) und 63 (1) EPÜ)"
+    },
+    {
+      "termKey": "DUE_TERM_79",
+      "descriptionEN": "Respond to non-unity search report",
+      "descriptionFR": "Répondre au rapport de recherche (défaut d'unité)",
+      "descriptionDE": "Erwiderung auf Recherchenbericht bei mangelnder Einheitlichkeit"
+    },
+    {
+      "termKey": "DUE_TERM_17",
+      "descriptionEN": "Remedy deficiencies (formal deficiency)",
+      "descriptionFR": "Remédier à des irrégularités (vice de forme)",
+      "descriptionDE": "Mängelbehebung (Formmangel)"
+    },
+    {
+      "termKey": "DUE_TERM_81",
+      "descriptionEN": "Remedy deficiencies (formal deficiency)",
+      "descriptionFR": "Remédier à des irrégularités (vice de forme)",
+      "descriptionDE": "Mängelbehebung (Formmangel)"
+    },
+    {
+      "termKey": "DUE_TERM_31",
+      "descriptionEN": "Confirm maintenance of application",
+      "descriptionFR": "Confirmer le maintien de la demande",
+      "descriptionDE": "Bestätigung der Aufrechterhaltung der Anmeldung"
+    },
+    {
+      "termKey": "DUE_TERM_9",
+      "descriptionEN": "Respond to extended European search report",
+      "descriptionFR": "Réponse au rapport de recherche européenne élargi",
+      "descriptionDE": "Erwiderung auf den erweiterten europäischen Recherchenbericht"
+    },
+    {
+      "termKey": "DUE_TERM_41",
+      "descriptionEN": "Remedy deficiencies (Patent Prosection Highway)",
+      "descriptionFR": "Remédier à des irrégularités (Patent Prosecution Highway)",
+      "descriptionDE": "Mängelbehebung (Eilweg zur Patenterteilung (PPH))"
+    },
+    {
+      "termKey": "DUE_TERM_40",
+      "descriptionEN": "Reply to communication under Rules 161(1) and 162 EPC",
+      "descriptionFR": "Répondre à la notification émise en vertu des règles 161(1) et 162 CBE",
+      "descriptionDE": "Erwiderung auf die Mitteilung nach Regel 161 (1) und 162 EPÜ"
+    },
+    {
+      "termKey": "DUE_TERM_49",
+      "descriptionEN": "Remedy deficiencies (response to extended European search report)",
+      "descriptionFR": "Remédier à des irrégularités (réponse au rapport de recherche européenne élargi)",
+      "descriptionDE": "Mängelbehebung (Erwiderung auf den erweiterten europäischen Recherchenbericht"
+    },
+    {
+      "termKey": "DUE_TERM_62",
+      "descriptionEN": "Remedy deficiencies (confirmation of maintenance)",
+      "descriptionFR": "Remédier à des irrégularités (confirmation du maintien)",
+      "descriptionDE": "Mängelbehebung (Bestätigung der Aufrechterhaltung)"
+    },
+    {
+      "termKey": "DUE_TERM_64",
+      "descriptionEN": "Remedy deficiencies (response to international search opinion)",
+      "descriptionFR": "Remédier à des irrégularités (réponse à l'opinion de recherche internationale)",
+      "descriptionDE": "Mängelbehebung (Erwiderung auf den internationalen Recherchenbescheid)"
+    },
+    {
+      "termKey": "DUE_TERM_11",
+      "descriptionEN": "Reply to communication in examination",
+      "descriptionFR": "Répondre à une notification au stade de l'examen",
+      "descriptionDE": "Erwiderung auf Mitteilung im Prüfungsverfahren"
+    },
+    {
+      "termKey": "DUE_TERM_18",
+      "descriptionEN": "Remedy formal deficiency",
+      "descriptionFR": "Remédier à un vice de forme",
+      "descriptionDE": "Behebung eines Formmangels"
+    },
+    {
+      "termKey": "DUE_TERM_21",
+      "descriptionEN": "Reply to communication about intention to grant",
+      "descriptionFR": "Répondre à la notification de l'intention de délivrer un brevet",
+      "descriptionDE": "Erwiderung auf die Mitteilung über die Erteilungsabsicht"
+    },
+    {
+      "termKey": "DUE_TERM_39",
+      "descriptionEN": "File prior art (Article 124 EPC)",
+      "descriptionFR": "Déposer des informations sur l'état de la technique (article 124 CBE)",
+      "descriptionDE": "Stand der Technik (Artikel 124 EPÜ)"
+    },
+    {
+      "termKey": "DUE_TERM_45",
+      "descriptionEN": "File copy of search results or related statement (Rule 70b EPC)",
+      "descriptionFR": "Déposer une copie des résultats de la recherche ou une déclaration correspondante (règle 70ter CBE)",
+      "descriptionDE": "Kopie der Recherchenergebnisse oder entsprechende Erklärung (Regel 70b EPÜ)"
+    },
+    {
+      "termKey": "DUE_TERM_46",
+      "descriptionEN": "File translation of priority document",
+      "descriptionFR": "Produire la traduction d'un document de priorité",
+      "descriptionDE": "Übersetzung des Prioritätsdokuments"
+    },
+    {
+      "termKey": "DUE_TERM_51",
+      "descriptionEN": "Remedy deficiencies (reply to examination report)",
+      "descriptionFR": "Remédier à des irrégularités (réponse au rapport d'examen)",
+      "descriptionDE": "Mängelbehebung (Erwiderung auf Prüfungsbericht)"
+    },
+    {
+      "termKey": "DUE_TERM_53",
+      "descriptionEN": "Remedy deficiencies (formal deficiency)",
+      "descriptionFR": "Remédier à des irrégularités (vice de forme)",
+      "descriptionDE": "Mängelbehebung (Formmangel)"
+    },
+    {
+      "termKey": "DUE_TERM_59",
+      "descriptionEN": "Remedy deficiencies (intention to grant)",
+      "descriptionFR": "Remédier à des irrégularités (intention de délivrer un brevet)",
+      "descriptionDE": "Mängelbehebung (Erteilungsabsicht)"
+    },
+    {
+      "termKey": "DUE_TERM_63",
+      "descriptionEN": "Remedy deficiencies (prior art (Article 124 EPC))",
+      "descriptionFR": "Remédier à des irrégularités (état de la technique (article 124 CBE))",
+      "descriptionDE": "Mängelbehebung (Stand der Technik (Artikel 124 EPÜ))"
+    },
+    {
+      "termKey": "DUE_TERM_67",
+      "descriptionEN": "Remedy deficiencies (copy of search results or statement (Rule 70b EPC))",
+      "descriptionFR": "Remédier à des irrégularités (copie des résultats de la recherche ou déclaration (règle 70ter CBE))",
+      "descriptionDE": "Mängelbehebung (Kopie der Recherchenergebnisse oder Erklärung (Regel 70b EPÜ))"
+    },
+    {
+      "termKey": "DUE_TERM_70",
+      "descriptionEN": "Reply re intention to stay proceedings",
+      "descriptionFR": "Réponse relative à l'intention de suspendre la procédure",
+      "descriptionDE": "Erwiderung auf die Absicht, das Verfahren auszusetzen"
+    },
+    {
+      "termKey": "DUE_TERM_82",
+      "descriptionEN": "File translation of document or of reply to communication",
+      "descriptionFR": "Produire la traduction d'un document ou d'une réponse à une notification",
+      "descriptionDE": "Übersetzung eines Dokuments oder Erwiderung auf eine Mitteilung"
+    },
+    {
+      "termKey": "DUE_TERM_24",
+      "descriptionEN": "Seek redress against noting of loss of rights",
+      "descriptionFR": "Exercer une voie de recours contre la constatation de la perte d'un droit",
+      "descriptionDE": "Rechtsmittel gegen die Feststellung eines Rechtsverlusts"
+    },
+    {
+      "termKey": "DUE_TERM_26",
+      "descriptionEN": "Seek redress against partial loss of rights",
+      "descriptionFR": "Exercer une voie de recours contre la perte partielle d'un droit",
+      "descriptionDE": "Rechtsmittel gegen die Feststellung eines Teilrechtsverlusts"
+    },
+    {
+      "termKey": "DUE_TERM_28",
+      "descriptionEN": "Seek redress against refusal of application",
+      "descriptionFR": "Exercer une voie de recours contre le rejet de la demande",
+      "descriptionDE": "Rechtsmittel gegen die Zurückweisung der Anmeldung"
+    },
+    {
+      "termKey": "DUE_TERM_30",
+      "descriptionEN": "Request a decision following rejection of request for further processing",
+      "descriptionFR": "Demander une décision suite au rejet d'une requête en poursuite de la procédure",
+      "descriptionDE": "Antrag auf Entscheidung nach Zurückweisung des Antrags auf Weiterbehandlung"
+    },
+    {
+      "termKey": "DUE_TERM_80",
+      "descriptionEN": "Remedy deficiencies (translation of application)",
+      "descriptionFR": "Remédier à des irrégularités (traduction de la demande)",
+      "descriptionDE": "Mängelbehebung (Übersetzung der Anmeldung)"
+    },
+    {
+      "termKey": "DUE_TERM_19",
+      "descriptionEN": "Appoint a professional representative",
+      "descriptionFR": "Constituer un mandataire agréé",
+      "descriptionDE": "Bestellung eines zugelassenen Vertreters"
+    },
+    {
+      "termKey": "DUE_TERM_20",
+      "descriptionEN": "File authorisation for professional representative",
+      "descriptionFR": "Déposer un pouvoir pour un mandataire agréé",
+      "descriptionDE": "Vollmacht für zugelassenen Vertreter"
+    },
+    {
+      "termKey": "DUE_TERM_54",
+      "descriptionEN": "Remedy deficiencies (appointment of professional representative)",
+      "descriptionFR": "Remédier à des irrégularités (constitution d'un mandataire agréé)",
+      "descriptionDE": "Mängelbehebung (Bestellung eines zugelassenen Vertreters)"
+    },
+    {
+      "termKey": "DUE_TERM_55",
+      "descriptionEN": "Remedy deficiencies (appointment of professional representative)",
+      "descriptionFR": "Remédier à des irrégularités (constitution d'un mandataire agréé)",
+      "descriptionDE": "Mängelbehebung (Bestellung eines zugelassenen Vertreters)"
+    },
+    {
+      "termKey": "DUE_TERM_56",
+      "descriptionEN": "Remedy deficiencies (appointment of professional representative)",
+      "descriptionFR": "Remédier à des irrégularités (constitution d'un mandataire agréé)",
+      "descriptionDE": "Mängelbehebung (Bestellung eines zugelassenen Vertreters)"
+    },
+    {
+      "termKey": "DUE_TERM_58",
+      "descriptionEN": "Remedy deficiencies (appointment of professional representative)",
+      "descriptionFR": "Remédier à des irrégularités (constitution d'un mandataire agréé)",
+      "descriptionDE": "Mängelbehebung (Bestellung eines zugelassenen Vertreters)"
+    },
+    {
+      "termKey": "DUE_TERM_57",
+      "descriptionEN": "Remedy deficiencies (appointment of professional representative)",
+      "descriptionFR": "Remédier à des irrégularités (constitution d'un mandataire agréé)",
+      "descriptionDE": "Mängelbehebung (Bestellung eines zugelassenen Vertreters)"
+    },
+    {
+      "termKey": "DUE_TERM_25",
+      "descriptionEN": "Seek redress against interlocutory decision to maintain patent in amended form",
+      "descriptionFR": "Exercer une voie de recours contre une décision intermédiaire relative au maintien du brevet sous une forme modifiée",
+      "descriptionDE": "Rechtsmittel gegen die Zwischenentscheidung über die Aufrechterhaltung des Patents in geänderter Form"
+    },
+    {
+      "termKey": "DUE_TERM_29",
+      "descriptionEN": "Seek redress against decision to revoke patent",
+      "descriptionFR": "Exercer une voie de recours contre une décision de révoquer le brevet",
+      "descriptionDE": "Rechtsmittel gegen die Entscheidung über den Widerruf des Patents"
+    },
+    {
+      "termKey": "DUE_TERM_37",
+      "descriptionEN": "File observations on opposition",
+      "descriptionFR": "Présenter des observations dans la procédure d'opposition",
+      "descriptionDE": "Stellungnahme im Einspruchsverfahren"
+    },
+    {
+      "termKey": "DUE_TERM_38",
+      "descriptionEN": "Respond to examination report in opposition – all parties",
+      "descriptionFR": "Répondre au rapport d'examen dans le cadre de la procédure d'opposition – toutes les parties",
+      "descriptionDE": "Erwiderung auf Prüfungsbescheid im Einspruchsverfahren – alle Parteien"
+    },
+    {
+      "termKey": "DUE_TERM_42",
+      "descriptionEN": "File translations of claims following interlocutory decision to maintain in amended form",
+      "descriptionFR": "Produire les traductions de revendications suite à une décision intermédiaire relative au maintien du brevet sous une forme modifiée",
+      "descriptionDE": "Übersetzungen von Ansprüchen nach Zwischenentscheidung über Aufrechterhaltung in geänderter Form"
+    },
+    {
+      "termKey": "DUE_TERM_43",
+      "descriptionEN": "File typed amendments",
+      "descriptionFR": "Déposer des modifications dactylographiées",
+      "descriptionDE": "Maschinengeschriebene Änderungen"
+    },
+    {
+      "termKey": "DUE_TERM_5",
+      "descriptionEN": "Remedy deficiencies (request for limitation)",
+      "descriptionFR": "Remédier à des irrégularités (requête en limitation)",
+      "descriptionDE": "Mängelbehebung (Beschränkungsantrag)"
+    },
+    {
+      "termKey": "DUE_TERM_23",
+      "descriptionEN": "Respond to limitation report",
+      "descriptionFR": "Répondre au rapport de limitation",
+      "descriptionDE": "Erwiderung auf den Beschränkungsbescheid"
+    },
+    {
+      "termKey": "DUE_TERM_47",
+      "descriptionEN": "File translation of claims amended in limitation procedure",
+      "descriptionFR": "Produire la traduction des revendications modifiées dans la procédure de limitation",
+      "descriptionDE": "Übersetzung von im Beschränkungsverfahren geänderten Ansprüchen"
+    },
+    {
+      "termKey": "DUE_TERM_48",
+      "descriptionEN": "Seek redress against rejection of request for limitation",
+      "descriptionFR": "Exercer une voie de recours contre le rejet d'une requête en limitation",
+      "descriptionDE": "Rechtsmittel gegen Zurückweisung des Beschränkungsantrags"
+    },
+    {
+      "termKey": "DUE_TERM_6",
+      "descriptionEN": "Remedy deficiencies (request for revocation)",
+      "descriptionFR": "Remédier à des irrégularités (requête en révocation)",
+      "descriptionDE": "Mängelbehebung (Widerrufsantrag)"
+    },
+    {
+      "termKey": "DUE_TERM_34",
+      "descriptionEN": "File translation of appeal grounds",
+      "descriptionFR": "Produire la traduction des motifs du recours",
+      "descriptionDE": "Übersetzung der Beschwerdebegründung"
+    },
+    {
+      "termKey": "DUE_TERM_35",
+      "descriptionEN": "File appeal grounds",
+      "descriptionFR": "Déposer les motifs du recours",
+      "descriptionDE": "Beschwerdebegründung"
+    },
+    {
+      "termKey": "DUE_TERM_36",
+      "descriptionEN": "File translation of request for appeal",
+      "descriptionFR": "Produire la traduction de l'acte de recours",
+      "descriptionDE": "Übersetzung des Beschwerdeantrags"
+    }
+  ]
+}

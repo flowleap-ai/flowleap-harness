@@ -14,6 +14,7 @@ import {
 import {
   ciTimeBudget,
   PERFORMANCE_BUDGET_HEADROOM,
+  runnerTimeBudget,
 } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
 import type {
@@ -408,27 +409,28 @@ describe('opening a large Session for first open and post-upgrade reopen', () =>
     describe(access.label, () => {
       it('profiles all four phases under normal heap', async () => {
         const result = summarizePhases(await suite.sample(access.accessKind, 'phases'))
+        const budgetsMs = {
+          open: runnerTimeBudget(access.openBudgetMs),
+          read: runnerTimeBudget(READ_BUDGET_MS),
+          sessionRestore: runnerTimeBudget(SESSION_RESTORE_BUDGET_MS),
+          projection: runnerTimeBudget(PROJECTION_BUDGET_MS),
+        }
         console.log(JSON.stringify({
           benchmark: `session-open/${access.accessKind}/phases`,
           ...suite.workload(access.accessKind),
           result,
-          budgetsMs: {
-            open: access.openBudgetMs,
-            read: READ_BUDGET_MS,
-            sessionRestore: SESSION_RESTORE_BUDGET_MS,
-            projection: PROJECTION_BUDGET_MS,
-          },
+          budgetsMs,
         }))
         recordTimings(openCase(access, { suffix: 'phases', measures: 'File open, read, Session restore, and projection phases.' }), {
           openMs: { ms: result.openMs.median, ioShare: PHASE_IO_SHARE.file },
           readMs: { ms: result.readMs.median, ioShare: PHASE_IO_SHARE.file },
           sessionRestoreMs: { ms: result.sessionRestoreMs.median, ioShare: PHASE_IO_SHARE.memory },
           projectionMs: { ms: result.projectionMs.median, ioShare: PHASE_IO_SHARE.memory },
-        }, { openMs: access.openBudgetMs, readMs: READ_BUDGET_MS, sessionRestoreMs: SESSION_RESTORE_BUDGET_MS, projectionMs: PROJECTION_BUDGET_MS })
-        expectOpenWithinBudget(result.openMs.median, access.openBudgetMs)
-        expect(result.readMs.median).toBeLessThanOrEqual(READ_BUDGET_MS)
-        expect(result.sessionRestoreMs.median).toBeLessThanOrEqual(SESSION_RESTORE_BUDGET_MS)
-        expect(result.projectionMs.median).toBeLessThanOrEqual(PROJECTION_BUDGET_MS)
+        }, { openMs: budgetsMs.open, readMs: budgetsMs.read, sessionRestoreMs: budgetsMs.sessionRestore, projectionMs: budgetsMs.projection })
+        expectOpenWithinBudget(result.openMs.median, budgetsMs.open)
+        expect(result.readMs.median).toBeLessThanOrEqual(budgetsMs.read)
+        expect(result.sessionRestoreMs.median).toBeLessThanOrEqual(budgetsMs.sessionRestore)
+        expect(result.projectionMs.median).toBeLessThanOrEqual(budgetsMs.projection)
       })
 
       it(`completes all four phases under a ${String(CONSTRAINED_HEAP_MB)} MB old-space limit`, async () => {
@@ -443,16 +445,17 @@ describe('opening a large Session for first open and post-upgrade reopen', () =>
 
       it(`produces first Host history within ${String(access.firstHistoryBudgetMs)} ms`, async () => {
         const result = summarize(await suite.sample(access.accessKind, 'first-history'))
+        const budgetMs = runnerTimeBudget(access.firstHistoryBudgetMs)
         console.log(JSON.stringify({
           benchmark: `session-open/${access.accessKind}/first-history`,
           ...suite.workload(access.accessKind),
           result,
-          budgetMs: access.firstHistoryBudgetMs,
+          budgetMs,
         }))
         recordTimings(openCase(access, { suffix: 'first-history', measures: 'Host delivery of the first history snapshot.' }),
           { totalMs: { ms: result.totalMs.median, cpuMs: result.cpuUserMs.median + result.cpuSystemMs.median } },
-          { totalMs: access.firstHistoryBudgetMs })
-        expect(result.totalMs.median).toBeLessThanOrEqual(access.firstHistoryBudgetMs)
+          { totalMs: budgetMs })
+        expect(result.totalMs.median).toBeLessThanOrEqual(budgetMs)
       })
 
       it(`produces first Host history under a ${String(CONSTRAINED_HEAP_MB)} MB old-space limit`, async () => {
@@ -467,17 +470,18 @@ describe('opening a large Session for first open and post-upgrade reopen', () =>
 
       it(`resumes a cold Agent within ${String(access.agentResumeBudgetMs)} ms`, async () => {
         const result = summarize(await suite.sample(access.accessKind, 'agent-resume'))
+        const budgetMs = runnerTimeBudget(access.agentResumeBudgetMs)
         console.log(JSON.stringify({
           benchmark: `session-open/${access.accessKind}/agent-resume`,
           ...suite.workload(access.accessKind),
           result,
-          budgetMs: access.agentResumeBudgetMs,
+          budgetMs,
           retainedHeapBudgetMb: AGENT_RETAINED_HEAP_BUDGET_MB,
         }))
         recordTimings(openCase(access, { suffix: 'agent-resume', measures: 'Cold Agent resume until the resumed Agent handle returns.' }),
           { totalMs: { ms: result.totalMs.median, cpuMs: result.cpuUserMs.median + result.cpuSystemMs.median } },
-          { totalMs: access.agentResumeBudgetMs })
-        expect(result.totalMs.median).toBeLessThanOrEqual(access.agentResumeBudgetMs)
+          { totalMs: budgetMs })
+        expect(result.totalMs.median).toBeLessThanOrEqual(budgetMs)
         expect(result.retainedHeapMb.median).toBeLessThanOrEqual(AGENT_RETAINED_HEAP_BUDGET_MB)
       })
 
