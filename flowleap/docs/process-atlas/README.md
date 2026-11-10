@@ -1,6 +1,6 @@
 # The firm process atlas
 
-**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for the first demo of phase R1.5: one task model, My work and the matter dossier, and a letter that arrives without a person. [The firm map](firm-map.md) (2026-11-08, draft) lists all work of a patent firm, its actors and where its facts live, before the sheets of step M1.
+**Status:** draft for the founder's approval, 2026-11-04. Part 1 covers phase R1, the AI mailbox. [Sheet 0, the connected flow](00-connected-flow.md) (2026-11-06, draft) connects the five sheets for the first demo of phase R1.5: one task model, My work and the matter dossier, and a letter that arrives without a person. [Sheets 6 to 8](#the-myepo-processes) (2026-11-10, draft) cover how MyEPO feeds the Firm Record and how a deadline is confirmed without a second person. [The firm map](firm-map.md) (2026-11-08, draft) lists all work of a patent firm, its actors and where its facts live, before the sheets of step M1.
 
 **Goal.** The founder's words of 2026-11-04: "Each step, even a small step, is a process, and a process has a state machine." Each firm works differently, but FlowLeap must know each process before it builds it, and the AI-native way must do the work that people did by hand in the PATORG way. The atlas holds one sheet per process. Each sheet gives the process today from primary sources, the actors, the state machine, the firm variation points, the AI-native redesign, the map to the code, and the open questions for the pilot attorney.
 
@@ -8,6 +8,7 @@
 
 - [The R1 processes](#the-r1-processes)
 - [One flow](#one-flow)
+- [The MyEPO processes](#the-myepo-processes)
 - [The shared states](#the-shared-states)
 - [The count, R1 and after the cut-over](#the-count-r1-and-after-the-cut-over)
 - [Founder decision: the independent check of the reading (F1 on F3)](#founder-decision-the-independent-check-of-the-reading-f1-on-f3)
@@ -53,19 +54,37 @@ flowchart TD
 
 The office event opens the Ticket at once. The run does not wait for the deadline confirmation, because the confirmation is a person's act and the attorney's first look must not wait for it. The run result shows the deadline with its state (proposed, active, refused) and its trace, and the attorney's Decision records that they checked it (fact 2.14 of [sheet 2](02-office-event-to-deadline.md)). A later confirmation or correction moves the record, and a proposal that rests on an older record position becomes `stale` (design section 1.3) [INFERRED from the design].
 
+## The MyEPO processes
+
+Founder decisions 1 to 6 of 2026-11-10 (AI-native means removing bottlenecks; four surfaces; the read flag; the firm link; Import your EP docket; deadline confirmation) give three new sheets and one new route in sheets 1 and 2.
+
+| # | Sheet | Starts when | Ends when |
+|---|---|---|---|
+| 6 | [The firm's MyEPO link](06-firm-myepo-link.md) | A firm installation runs in firm mode with no MyEPO credentials | The administrator unlinks MyEPO |
+| 7 | [Import your EP docket](07-import-ep-docket.md) | A person starts the import, or the schedule starts a refresh | Every proposed client of the run is decided, or the run is cancelled |
+| 8 | [Deadline confirmation](08-deadline-confirmation.md) | The engine proposes a deadline | The deadline is active, goes to one or two persons, or is refused |
+| 1, 2 | [The MyEPO route of sheet 1](01-office-letter-intake.md#8-the-myepo-route) and [of sheet 2](02-office-event-to-deadline.md#8-the-myepo-route) | The firm process lists a new MyEPO letter | The letter is filed and its office event is recorded from the list data |
+
+**Why these cuts.** The link is one object with one owner (the administrator) and its own security rules, so it is a sheet. The import owns its client proposals, and the index row is the object that later letters file on, so both machines are in one sheet. The MyEPO letter goes through the same filing states as a forwarded letter, so it is a route in sheets 1 and 2, not a second intake: two machines would repeat the same rules. The decision on a deadline reads evidence from sheets 1, 2 and 7 and changes the confirm of sheet 2, so it is a sheet of its own that sheet 2 points to.
+
 ## The shared states
 
 Seven record objects carry the state across the sheets. Each sheet adds only its own states.
 
 | Object | States | Owner | Used by sheets |
 |---|---|---|---|
-| **Document** | `stored`, `duplicate`, `unreadable`, `kind_proposed`, `read`, `duplicate_proposed`, `match_proposed`, `ambiguous`, `unmatched`, `matched`, `filed`, `replaced`, `not_relevant` | Intake (sheet 1) | 1, 2, 3, 4 (the sent copy of a report is a document) |
+| **Document** | `listed` (MyEPO route), `stored`, `duplicate`, `unreadable`, `kind_proposed`, `read`, `duplicate_proposed`, `match_proposed`, `ambiguous`, `unmatched`, `matched`, `filed`, `replaced`, `not_relevant`, `firm_letter` (MyEPO route) | Intake (sheet 1) | 1, 2, 3, 4 (the sent copy of a report is a document) |
 | **Office event** | `awaiting_code`, `code_proposed`, `recorded`, `no_event`, `no_period` | Sheet 2 | 2, 3 |
 | **Proposal** | `proposed`, `accepted`, `edited`, `rejected`, `stale` (design section 1.3) | Firm Record | 1 (a kind, a match, a duplicate), 2 (an event code, a deadline), 3 (each work product), 4 (the report) |
-| **Deadline** | `deadline_proposed`, `engine_refused`, `manual_proposed`, `active`, `rejected`, `stale`, `disputed`, `closed_without_act`, `to_docket` | Sheet 2 | 2, 3 |
+| **Deadline** | `deadline_proposed`, `engine_refused`, `manual_proposed`, `first_confirmed` (sheet 8), `active`, `rejected`, `stale`, `disputed`, `closed_without_act`, `to_docket` | Sheet 2 | 2, 3 |
 | **Ticket** | `opened`, `no_person`, `routed`, `observed`, `by_hand`, `waking`, `running`, `run_failed`, `proposals_ready`, `decided`, `cancelled` | Work router (sheet 3) | 3, 4, 5 |
 | **Outbound message** | `composed`, `refused`, `queued`, `drafted`, `retrying`, `send_requested`, `sent`, `dead` | Outbox (sheet 5) | 3, 5 |
-| **Task** | `assigned`, `queued`, `escalated`, `alarm`, `done`, `cancelled` | Firm Record (sheet 0) | 0, and every waiting state of 1 to 5 |
+| **Task** | `assigned`, `queued`, `escalated`, `alarm`, `done`, `cancelled` | Firm Record (sheet 0) | 0, and every waiting state of 1 to 8 |
+| **MyEPO link** | `not_linked`, `linked`, `permission_missing`, `refused`, `unlinked` | Firm admin console (sheet 6) | 1, 2, 6, 7, 8 |
+| **Import run** | `reading`, `interrupted`, `read`, `proposed`, `recorded`, `cancelled` | Firm process `myepo` (sheet 7) | 7 |
+| **Application index row** | `indexed`, `left_portfolio`, `representation_ended` | Firm Record (sheet 7) | 1, 7 |
+| **Expected letter** | `expected`, `late`, `asked_epo`, `arrived`, `not_needed` | Firm Record (sheet 1, MyEPO route) | 1, and the EP grant sheet of PR 353 |
+| **Rule signature** | `unsigned`, `signed`, `revoked`, `retired` | Firm Record (sheet 8) | 2, 8 |
 
 A Decision is not a state of its own. It is the record event that moves a Proposal from `proposed` to `accepted`, `edited` or `rejected`, with the person, the time, the reason, the record position that the person saw, and for a guarded change the independent check (design section 4.3).
 
@@ -101,6 +120,8 @@ All old counts are INFERRED and the pilot must measure them. R1 costs the PAFA t
 
 ## Founder decision: the independent check of the reading (F1 on F3)
 
+**Replaced on 2026-11-10** by founder decision 6 (deadline confirmation, agreed in principle), written out in [sheet 8](08-deadline-confirmation.md). The two readers of option B stay as one form of event evidence (`two-readers`). The person moves from each deadline to each rule: an attorney signs a rule version, and a deadline is confirmed automatically when its evidence agrees, only on the level `evidence`; the default level `strict` keeps one person for each deadline. The text below is the decision of 2026-11-04, kept as the record.
+
 **The finding.** F3 (ADR 0002 decision 4, design section 5.5) makes a deadline active only with two independent sources: a person confirms, and the engine or a second person agrees. In R0 the engine's check recomputes the date from the stored code and the stored document date (`decideDeadline` in `lib/record/commands.mjs`). So the engine checks the arithmetic, but it reads the same inputs as the proposal: a misread code or a misread date gives the same wrong date twice, and the engine agrees. The reading has only one check, the person who confirms. In the PATORG way the second person checks the whole entry, the reading too (fact 2.11 of sheet 2) [INFERRED].
 
 **What this PR already does** (no decision needed): the Records app shows the code span and the date span beside the proposal; the person who decided a model-read code cannot confirm its deadline (`docket.code-decider-not-confirmer`); the confirm carries the record position that the person saw.
@@ -119,7 +140,7 @@ All old counts are INFERRED and the pilot must measure them. R1 costs the PAFA t
 
 | Setting or rule | Decision | Why |
 |---|---|---|
-| `deadline.readingCheck` | `'two-readers'` (option B above); `'confirmer-sees-spans'` for letters without a form | The AI is a second, independent reader of the code and the date |
+| `deadline.readingCheck` | `'two-readers'` (option B above); `'confirmer-sees-spans'` for letters without a form | The AI is a second, independent reader of the code and the date. **Amended on 2026-11-10:** the readers are now event evidence for [sheet 8](08-deadline-confirmation.md), which decides who confirms |
 | `intake.exactKeyFiles` | `'person-confirms'` in R1 | Switch to `'file-without-person'` only after the shadow period shows no wrong filing |
 | `deadline.observeModeConfirm` | `'confirm'` in R1 | The confirm costs one step but collects the evidence for F3 before the cut-over |
 | Ticket grouping (#136) | One Ticket per application and day; a later event restarts the run from `running` or adds a second pass from `proposals_ready` | Keeps one analysis per application and day without losing a late letter |
@@ -135,6 +156,9 @@ All old counts are INFERRED and the pilot must measure them. R1 costs the PAFA t
 | 3 Notify and run | [#221](https://github.com/flowleap-ai/flowleap-harness/issues/221) | #135 to #138 (Decision, Ticket, Needs review, run limit) | The client's AI wishes and the provider contract before a run; deputies, the wall check and absence; the routing when nobody is present and its end alarm; the second-pass run; the attorney's recorded deadline check |
 | 4 Report to the client | [#223](https://github.com/flowleap-ai/flowleap-harness/issues/223) | #217 (letter tool), #233 (client rules and Outlook drafts, R3) | The proof that the report was sent; the send reminder; the withdraw; `stale` after approval |
 | 5 Firm-internal message | [#222](https://github.com/flowleap-ai/flowleap-harness/issues/222) | none | The notice to the responsible attorney; the Reply-To rule of Microsoft Graph; the immutable id, the stamp and the send request that never sends twice; the reply to a duplicate forward |
+| 6 The firm's MyEPO link | none yet | PR 366 (connector), #31 (vault), #33 (egress proxy) | The Keys page card, the firm process, the firm-mode refusal of the card ([sheet 6, tickets](06-firm-myepo-link.md#9-tickets)) |
+| 7 Import your EP docket | none yet | PR 387 (MyEPO double), PR 388 (mockups) | The import run, the index row states, the page ([sheet 7, tickets](07-import-ep-docket.md#9-tickets)) |
+| 8 Deadline confirmation | none yet | #219 (R0 confirm) | The evidence record, the decision function, the rule signature, shadow mode, the audit sample ([sheet 8, tickets](08-deadline-confirmation.md#13-tickets)) |
 
 The PR that adds this atlas lists the proposed ticket changes.
 
