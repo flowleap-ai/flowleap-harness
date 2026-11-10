@@ -5,7 +5,7 @@ import { cpus, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings } from '../support/scaling-report.ts'
 import type { ProjectionListReport } from './projection-list.worker.ts'
 
@@ -66,8 +66,8 @@ it.each(['modest', 'tail', 'cheap'] as const)('serves the %s projection list wit
     repeatEventLoopMaxMs: median(reports.map(report => Math.max(...report.samples.slice(1).map(sample => sample.eventLoopMaxMs)))),
   }
   const budgets = {
-    listAndJsonMs: ciTimeBudget(LIST_REFERENCE_MS[workload]),
-    callbackDelayMs: ciTimeBudget(CALLBACK_REFERENCE_MS),
+    listAndJsonMs: runnerTimeBudget(ciTimeBudget(LIST_REFERENCE_MS[workload])),
+    callbackDelayMs: runnerTimeBudget(ciTimeBudget(CALLBACK_REFERENCE_MS)),
     retainedHeapBytes: Math.ceil(RETAINED_HEAP_REFERENCE_BYTES * PERFORMANCE_BUDGET_HEADROOM),
   }
   console.log(JSON.stringify({ benchmark: `session-corpus/projection-list-${workload}`,

@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SESSION_FORMAT_VERSION, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
@@ -1278,6 +1278,14 @@ describe('loadReplayScript', () => {
       { doc: [{ kind: 'chunks', chunks: 'nope' }], message: /chunks must be an array/ },
       { doc: [{ kind: 'chunks', chunks: [], extra: true }], message: /invalid chunks-entry fields/ },
       { doc: [{ kind: 'chunks', chunks: [{ type: 'bogus' }] }], message: /known StreamChunk type/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: null }], message: /hold must have exactly beforeChunk and releaseFile/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: '/r', extra: true } }], message: /hold must have exactly/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: '1', releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 1.5, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: -1, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: TEXT_CHUNKS.length, releaseFile: '/r' } }], message: /hold.beforeChunk must index a chunk/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: '' } }], message: /hold.releaseFile must be an absolute path/ },
+      { doc: [{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile: 'release' } }], message: /hold.releaseFile must be an absolute path/ },
       { doc: [{ kind: 'throw', chunks: [], message: 'nope', code: 'AUTH', extra: true }], message: /invalid throw-entry fields/ },
       { doc: [{ kind: 'throw', chunks: [], message: '', code: 'AUTH' }], message: /message must be a non-empty string/ },
       { doc: [{ kind: 'throw', chunks: [], message: 'nope', code: '' }], message: /code must be a non-empty string/ },
@@ -1681,6 +1689,61 @@ describe('installLlmReplay (through the real LlmRuntime)', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     expect(() => installLlmReplay(ctx, { file, overrideFile })).toThrow(/unknown kind/)
+  })
+
+  it('holds a chunks entry before the named chunk until its release file exists', async () => {
+    writeFileSync(file, sessionJsonl([]), 'utf8')
+    const overrideFile = join(dir, 'replay.override.json')
+    const releaseFile = join(dir, 'release')
+    writeFileSync(overrideFile, JSON.stringify([{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 1, releaseFile } }]), 'utf8')
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    installLlmReplay(ctx, { file, overrideFile })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => { vi.useRealTimers() })
+    const iterator = ctx.llm.stream({ provider: 'm', model: 'm', messages: [] })[Symbol.asyncIterator]()
+    expect((await iterator.next()).value).toEqual(TEXT_CHUNKS[0])
+    let released = false
+    const held = iterator.next().then((result) => { released = true; return result })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(released).toBe(false)
+    writeFileSync(releaseFile, '')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(released).toBe(true)
+    expect((await held).value).toEqual(TEXT_CHUNKS[1])
+    const rest: StreamChunk[] = []
+    for (let next = await iterator.next(); next.done !== true; next = await iterator.next()) rest.push(next.value)
+    expect(rest).toEqual(TEXT_CHUNKS.slice(2))
+  })
+
+  it('passes a hold whose release file already exists without waiting', async () => {
+    writeFileSync(file, sessionJsonl([]), 'utf8')
+    const overrideFile = join(dir, 'replay.override.json')
+    const releaseFile = join(dir, 'release')
+    writeFileSync(releaseFile, '')
+    writeFileSync(overrideFile, JSON.stringify([{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 0, releaseFile } }]), 'utf8')
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    installLlmReplay(ctx, { file, overrideFile })
+    expect(await drain(ctx.llm.stream({ provider: 'm', model: 'm', messages: [], signal: new AbortController().signal }))).toEqual(TEXT_CHUNKS)
+  })
+
+  it('rejects a held chunks entry when the signal fires during the hold', async () => {
+    writeFileSync(file, sessionJsonl([]), 'utf8')
+    const overrideFile = join(dir, 'replay.override.json')
+    const releaseFile = join(dir, 'release')
+    writeFileSync(overrideFile, JSON.stringify([{ kind: 'chunks', chunks: TEXT_CHUNKS, hold: { beforeChunk: 1, releaseFile } }]), 'utf8')
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    installLlmReplay(ctx, { file, overrideFile })
+    const controller = new AbortController()
+    const iterator = ctx.llm.stream({ provider: 'm', model: 'm', messages: [], signal: controller.signal })[Symbol.asyncIterator]()
+    await iterator.next()
+    const pending = iterator.next()
+    await new Promise(resolve => setImmediate(resolve))
+    controller.abort()
+    await expect(pending).rejects.toThrow('aborted')
+    writeFileSync(releaseFile, '')
   })
 
   it('rejects a hang entry when the signal fires DURING the wait (abort listener path)', async () => {
