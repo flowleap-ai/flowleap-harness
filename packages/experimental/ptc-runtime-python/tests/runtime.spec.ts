@@ -5147,6 +5147,25 @@ describe('PythonPtcRuntime — hostile peer', () => {
     expect(result.value).toBe('done')
   }, 30_000)
 
+  it('settles a completed run without the SIGKILL backstop when the program ignored SIGTERM', async () => {
+    // After `done` the child holds fd 3 open until the host terminates it, so
+    // a SIGTERM the program ignored would delay settlement by the full grace
+    // window if the child did not restore the default action first.
+    const { runtime } = await setup({ maxWallMs: 30_000, graceMs: 20_000 })
+    const start = Date.now()
+    const result = await runtime.run(runtime.resolve({
+      program: [
+        'import signal',
+        'signal.signal(signal.SIGTERM, signal.SIG_IGN)',
+        'return "done"',
+      ].join('\n'),
+      bindings: [],
+    }))
+    expect(result.error).toBeUndefined()
+    expect(result.value).toBe('done')
+    expect(Date.now() - start).toBeLessThan(10_000)
+  }, 60_000)
+
   it('caps the pending reply backlog when a child floods calls without reading its replies', async () => {
     // drainReplies writes one reply at a time and waits for `drain` when fd 3's
     // buffer is full. A child that never reads its replies (it only writes

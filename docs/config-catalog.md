@@ -633,6 +633,31 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+<a id="deepseek-aidsh-client-ui-flowleap-folder"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-folder`
+
+- `inject`: `connection` · `workspaceRegistry`
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:36`](../packages/client/ui-flowleap-folder/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The plugin's state folder; the source records go into its `sources/` folder. */
+  stateDir: string
+  /** Cap on the entries of one listing; the rest is dropped and reported cut. */
+  maxEntries: number
+  /** Inclusive byte cap of one uploaded file. */
+  maxUploadBytes: number
+  /** Cap on the hits of one search by name. */
+  maxSearchHits: number
+  /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
+  storageLowFlagPath: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
 <a id="deepseek-aidsh-client-ui-flowleap-records"></a>
 
@@ -1799,7 +1824,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:94`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1808,6 +1833,20 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
+  myepo: MyEpoConfig
+}
+
+/** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
+export interface MyEpoConfig {
+  /** The MyEPO API base, without a trailing slash. */
+  baseUrl: string
+  /** The OAuth 2.0 token endpoint of the EPO login service that issues tokens for `baseUrl`. */
+  tokenUrl: string
+  /** The most MyEPO requests the plugin starts in one second. The EPO publishes no limit. */
+  requestsPerSecond: number
+  /** The deadline of one MyEPO request, in seconds. */
+  timeoutSeconds: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
@@ -2695,7 +2734,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 - `inject`: `llm`
 - `refs`: [`LlmModelBadge`](../packages/llm/llm/src/index.ts) · [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · [`SystemPromptUpdate`](../packages/llm/llm/src/index.ts) · [`ToolUpdate`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/test-support/llm-replay/src/index.ts:1115`](../packages/test-support/llm-replay/src/index.ts)
+- `source`: [`packages/test-support/llm-replay/src/index.ts:1162`](../packages/test-support/llm-replay/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the {@link ReplayConfig} inputs, each defaulting to its `DSH_SNAPSHOT_*` env var in `apply`. */

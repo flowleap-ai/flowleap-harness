@@ -136,7 +136,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [], myepo: { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 } })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
     expect(ctx.tools.schemas()).toHaveLength(40)
     expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
@@ -156,7 +156,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(NativeToolExecutor)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
     provideWorkingDirectoryFixture(ctx, process.cwd())
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], myepo: { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 } })
     const names = ctx.tools.schemas().map(schema => schema.name)
     expect(names).toHaveLength(40)
     expect(names).toContain('read_pdf')

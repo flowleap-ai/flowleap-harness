@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 /** The Connectors section as the settings shell renders it: four cards, write-only fields, and their controls. */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { allowAllAccess, bindSnapshotSelector, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 // Type-only: the LocaleNamespaceMap merge that gives the section its `t` seat.
 import type {} from '../src/client/index.ts'
-import { ConnectorsSection, type ConnectorsSectionController, type ConnectorsSectionProps } from '../src/client/ConnectorsSection.tsx'
+import {
+  ConnectorsSection, type ConnectorsSectionController, type ConnectorsSectionProps, type MyEpoSectionController,
+} from '../src/client/ConnectorsSection.tsx'
+import type { MyEpoState } from '../src/client/myepo-store.ts'
 import {
   CONNECTOR_FIELDS, CONNECTOR_IDS, type ConnectorCardState, type ConnectorId, type ConnectorsState,
 } from '../src/client/connectors-store.ts'
@@ -33,26 +36,62 @@ function state(overrides: Partial<Record<ConnectorId, Partial<ConnectorCardState
   return { status, cards, anyConfigured: CONNECTOR_IDS.some(id => cards[id].configured) }
 }
 
-function renderSection(initial: ConnectorsState) {
+function renderSection(initial: ConnectorsState, myEpo: Partial<MyEpoState> = {}) {
   const store = createSnapshotStore(initial)
   const controller = {
     load: vi.fn(() => Promise.resolve()), edit: vi.fn(), save: vi.fn(() => Promise.resolve(true)),
     remove: vi.fn(() => Promise.resolve(true)), test: vi.fn(() => Promise.resolve(undefined)),
   } satisfies ConnectorsSectionController
-  const props: ConnectorsSectionProps = { ...kit, close: vi.fn(), t, controller, useConnectors: bindSnapshotSelector(store) }
+  const myEpoStore = createSnapshotStore<MyEpoState>({
+    status: 'ready', link: { state: 'not-linked', writable: true }, draft: { clientId: '', clientSecret: '' }, busy: 'idle', replacing: false,
+    ...myEpo,
+  })
+  const myEpoController = {
+    load: vi.fn(() => Promise.resolve()), edit: vi.fn(), link: vi.fn(() => Promise.resolve(undefined)),
+    test: vi.fn(() => Promise.resolve(undefined)), unlink: vi.fn(() => Promise.resolve(true)), replace: vi.fn(),
+  } satisfies MyEpoSectionController
+  const props: ConnectorsSectionProps = {
+    ...kit, close: vi.fn(), t, controller, myEpoController,
+    useConnectors: bindSnapshotSelector(store), useMyEpo: bindSnapshotSelector(myEpoStore),
+  }
   render(<ConnectorsSection {...props} />)
-  return { controller, store }
+  return { controller, store, myEpoController }
 }
 
 describe('ConnectorsSection', () => {
+  it('passes each act of the MyEPO card to its controller', async () => {
+    const draft = { clientId: 'id', clientSecret: 'secret' }
+    const notLinked = renderSection(state(), { draft })
+    fireEvent.change(screen.getByLabelText(en.myEpoClientId), { target: { value: 'id2' } })
+    expect(notLinked.myEpoController.edit).toHaveBeenCalledWith('clientId', 'id2')
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoSaveTest }))
+    expect(notLinked.myEpoController.link).toHaveBeenCalledTimes(1)
+    cleanup()
+    const linked = renderSection(state(), {
+      link: { state: 'linked', writable: true, testedAt: '2026-11-09T12:00:00.000Z', portfolios: 6, mailbox: true },
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoTest }))
+    expect(linked.myEpoController.test).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoMore }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: en.myEpoReplace }))
+    expect(linked.myEpoController.replace).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: en.myEpoMore }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: en.myEpoUnlink }))
+    expect(linked.myEpoController.unlink).toHaveBeenCalledTimes(1)
+  })
+
   it('renders one write-only card per connector and loads presence on mount', () => {
-    const { controller } = renderSection(state())
+    const { controller, myEpoController } = renderSection(state())
     expect(controller.load).toHaveBeenCalledTimes(1)
+    expect(myEpoController.load).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: en.groupFirmAccount })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.groupPatentData })).toBeTruthy()
+    expect(screen.getByText(en.myEpoName)).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
     for (const name of [en.epoOpsName, en.usptoOdpName, en.semanticScholarName, en.mistralName]) {
       expect(screen.getByText(name)).toBeTruthy()
     }
-    const inputs = screen.getAllByLabelText(/key|secret/i)
+    const inputs = within(screen.getByRole('list')).getAllByLabelText(/key|secret/i)
     expect(inputs).toHaveLength(5)
     for (const input of inputs) {
       expect(input).toHaveProperty('type', 'password')
