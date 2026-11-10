@@ -31,8 +31,8 @@ x-harness: &harness
     BIND_HOST: loopback
     PORT: "3080"
     # Model and office keys are entered in the GUI (Settings → Models, Settings →
-    # Patent data connectors) and live in the credential store on the /data
-    # volume. A key exported here applies only while no key is stored for it.
+    # Connectors) and live in the credential store on the /data volume. A key
+    # exported here applies only while no key is stored for it.
     DSH_TELEMETRY_MODE: DISABLED
   healthcheck:
     test: ["CMD", "harness-healthcheck"]

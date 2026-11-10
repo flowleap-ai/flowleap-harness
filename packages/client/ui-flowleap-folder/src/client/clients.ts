@@ -1,6 +1,7 @@
 /**
- * The client folders among the runtime's workspaces: the Clients list shows a workspace only when the Host names it as
- * a client folder in `clientsRoot`, so the runtime's default workspace and every other workspace stay out of the list.
+ * The client folders among the runtime's workspaces, which the Clients list shows: the list shows a workspace only
+ * when the Host names it as a client folder in `clientsRoot`, so the runtime's default workspace and every other
+ * workspace stay out of the list.
  * @module
  */
 

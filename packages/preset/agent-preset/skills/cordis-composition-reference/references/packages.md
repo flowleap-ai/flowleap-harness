@@ -110,7 +110,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-settings` | no | Settings domain base plugin: shared configuration forms and the canonical settings slot-type contract |
 | `@deepseek-ai/dsh-client-ui-settings-account` | yes | Manage DeepSeek login and open Platform billing pages |
 | `@deepseek-ai/dsh-client-ui-settings-agent-loop` | no | Settings page of the agent loop on the dsh web client's Plugins page: the parallel tool-call cap of the agent-loop namespace |
-| `@deepseek-ai/dsh-client-ui-settings-flowleap-connectors` | no | Patent data connectors settings section and first-run key wizard: one write-only card per FlowLeap connector (EPO OPS, USPTO ODP, Semantic Scholar, Mistral) over the flowleapConnectors Remote |
+| `@deepseek-ai/dsh-client-ui-settings-flowleap-connectors` | no | Connectors settings section and first-run key wizard: one write-only card per FlowLeap connector (EPO OPS, USPTO ODP, Semantic Scholar, Mistral) over the flowleapConnectors Remote |
 | `@deepseek-ai/dsh-client-ui-settings-flowleap-models` | no | The desktop model step on the Models page: Test on the Anthropic, OpenAI and OpenRouter cards, and Connect OpenRouter, over the flowleapModels Remote of dsh-flowleap-models |
 | `@deepseek-ai/dsh-client-ui-settings-general` | no | Settings ownerless-copy and product onboarding plugin: the General section, shell trigger/header chrome content, settings dictionaries, and the versioned welcome notice |
 | `@deepseek-ai/dsh-client-ui-settings-models` | yes | Models settings and shared product-onboarding dialogs over existing settings and credential joins |

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** The Patent data connectors section as the settings shell renders it: four cards, write-only fields, and their controls. */
+/** The Connectors section as the settings shell renders it: four cards, write-only fields, and their controls. */
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'

@@ -37,6 +37,11 @@ export { SegmentedControl } from './SegmentedControl.tsx'
 export type { SegmentedControlOption } from './SegmentedControl.tsx'
 export { Checkbox } from './Checkbox.tsx'
 export { Input } from './Input.tsx'
+export { DataTable, DATA_TABLE_PAGE_SIZES } from './DataTable.tsx'
+export type {
+  DataTableColumn, DataTableFilter, DataTableFilterOption, DataTableLabels, DataTableMode, DataTablePageSize, DataTableProps,
+  DataTableRange, DataTableSort, DataTableState,
+} from './DataTable.tsx'
 export { InlineEditor } from './InlineEditor.tsx'
 export { Menu, MenuItemButton } from './Menu.tsx'
 export { MenuSurface, MENU_TRANSITION_MS } from './MenuSurface.tsx'
