@@ -1192,6 +1192,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapAdmin',
+    summary: 'Whether a request is of a firm administrator.',
+    description: 'Whether a request is of a firm administrator.',
+    methods: [
+      {
+        signature: 'isAdmin(request: Request): Promise<boolean>',
+        description: 'Check one request. An unusable key file is logged as an error and a refused header as a warning.',
+        parameters: [{ name: 'request', description: 'the authenticated request.' }],
+        returns: 'true only when the request carries a valid `X-Flowleap-Admin` header of the configured key; always false when `publicKeyFile` is `\'\'` or the file does not exist.',
+      },
+    ],
+  },
+  {
     key: 'flowleapAgentCatalog',
     summary: 'Service owning the agent folders, their indexes and their presets.',
     description: 'Service owning the agent folders, their indexes and their presets.',

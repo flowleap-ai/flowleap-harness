@@ -1,0 +1,160 @@
+/* The Firm identity section of Settings, from client tokens only (.agents/skills/flowleap-design-language and the
+   approved mockup flowleap/docs/mockups/client-model/6-firm-identity.html). */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  outline: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--dsw-font-l-20-font-size);
+  line-height: var(--dsw-font-l-20-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  text-wrap: balance;
+}
+
+.lede {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-s-14-font-size);
+  line-height: var(--dsw-font-s-14-line-height);
+  text-wrap: pretty;
+}
+
+.privacy,
+.line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.privacy > svg,
+.shape {
+  flex: none;
+  margin-top: 2px;
+}
+
+.lead {
+  color: var(--dsw-alias-label-primary);
+}
+
+.ok {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The docket and each list: a group under a hairline, as the approved mockup separates them. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 24px 0 0;
+  border: 0;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.groupHead h3,
+.legend {
+  margin: 0;
+  padding: 0;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+/* A fieldset's legend sits in its border; as a flex item it takes its place in the column. */
+.legend {
+  float: left;
+  width: 100%;
+}
+
+.hint,
+.none {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.none {
+  margin-top: 4px;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+}
+
+.remove {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.add {
+  align-self: flex-start;
+}
+
+@media (hover: hover) {
+  .remove:hover {
+    color: var(--dsw-alias-label-primary);
+    background: var(--dsw-alias-bg-multi-select);
+  }
+}

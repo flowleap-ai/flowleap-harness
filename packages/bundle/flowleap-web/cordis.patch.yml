@@ -417,6 +417,9 @@
     # firmIdentity (the firm's names, addresses and representatives); while it
     # is empty, Add client finds no matter at your firm. With it, the row reads
     # the firm docket (the firm's EP applications) from the EP Register at load.
+    # Only a firm administrator may save Settings > Firm identity: the row asks
+    # the flowleapAdmin Service of flowleap-admin-link below, so the starter's
+    # key path has one home. After the first save, firmIdentity has no effect.
     - id: ui-flowleap-folder
       name: '@deepseek-ai/dsh-client-ui-flowleap-folder'
       config:
@@ -429,7 +432,8 @@
     # header on each request of an administrator, and this row checks it with
     # the starter's public key. The firm patch of flowleap-os restates this row
     # with publicKeyFile: /run/flowleap/host/admin-link.pub; with '' no request
-    # shows the link.
+    # shows the link. The row also provides the flowleapAdmin Service with the
+    # same check, which the Firm identity save of ui-flowleap-folder uses.
     - id: flowleap-admin-link
       name: '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
       config:

@@ -8,16 +8,9 @@
  */
 
 import { normalizeName, type RegisterParty } from '@deepseek-ai/dsh-flowleap-connectors'
+import type { FirmIdentity } from './wire.ts'
 
-/** The firm's names, its current and earlier addresses, and the names of its representatives. */
-export interface FirmIdentity {
-  /** The firm's names, such as its current and earlier names. */
-  names: string[]
-  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
-  addresses: string[]
-  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
-  representatives: string[]
-}
+export type { FirmIdentity } from './wire.ts'
 
 /** Legal-form words that a source adds or leaves out; a company key drops them. */
 const LEGAL_FORMS = new Set([
@@ -62,6 +55,28 @@ function sameWords(left: readonly string[], right: readonly string[]): boolean {
  */
 export function identitySet(identity: FirmIdentity): boolean {
   return [...identity.names, ...identity.addresses, ...identity.representatives].some(entry => wordsOf(entry).length > 0)
+}
+
+/**
+ * Whether two firm identities hold the same entries in the same order.
+ * @param left - one identity.
+ * @param right - the other identity.
+ * @returns true when every list is the same.
+ */
+export function sameFirmIdentity(left: FirmIdentity, right: FirmIdentity): boolean {
+  const key = (value: FirmIdentity) => JSON.stringify([value.names, value.addresses, value.representatives])
+  return key(left) === key(right)
+}
+
+/**
+ * The firm identity as the Host keeps it: each entry trimmed, without the entries that have no word and without an
+ * entry that is already in its list.
+ * @param identity - the identity as a person or the row config wrote it.
+ * @returns the normalized identity.
+ */
+export function normalizeIdentity(identity: FirmIdentity): FirmIdentity {
+  const clean = (entries: readonly string[]) => [...new Set(entries.map(entry => entry.trim()).filter(entry => wordsOf(entry).length > 0))]
+  return { names: clean(identity.names), addresses: clean(identity.addresses), representatives: clean(identity.representatives) }
 }
 
 /** How a representative of record matches the firm identity. `address`: only a firm address matches. */

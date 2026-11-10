@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { addClientApi } from '../src/client/add-client/api.ts'
+import { addClientApi, firmIdentityApi } from '../src/client/add-client/api.ts'
 import { applicationLabel, asOfText, counted, dayText, publicationLabel, rich } from '../src/client/add-client/format.ts'
 import { en } from '../src/client/add-client/locales/index.ts'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -56,6 +56,28 @@ describe('the Add client routes', () => {
     expect(await addClientApi.review({ names: [], clients: [] })).toEqual({ ok: true, value: reviewed() })
     host(() => json(buildStatus('c', 'S'), 202))
     expect((await addClientApi.build({ clientId: 'c', name: 'S', names: [], applications: [] })).ok).toBe(true)
+  })
+})
+
+describe('the firm identity routes', () => {
+  it('calls each route at its document-relative path with the cookie and no cache', async () => {
+    const calls = host(() => json({ status: 'no-plugin' }))
+    const signal = new AbortController().signal
+    const identity = { names: ['Muster & Partner'], addresses: [], representatives: [] }
+    expect(await firmIdentityApi.docket()).toEqual({ ok: true, value: { status: 'no-plugin' } })
+    await firmIdentityApi.identity(signal)
+    await firmIdentityApi.identity()
+    await firmIdentityApi.save(identity)
+    await firmIdentityApi.docket(signal)
+    await firmIdentityApi.readDocket('failed')
+    expect(calls.map(([url, init]) => [url, init?.method ?? 'GET', init?.body ?? null, init?.signal === signal])).toEqual([
+      ['api/flowleap/folder/add-client/docket', 'GET', null, false],
+      ['api/flowleap/folder/add-client/identity', 'GET', null, true],
+      ['api/flowleap/folder/add-client/identity', 'GET', null, false],
+      ['api/flowleap/folder/add-client/identity/save', 'POST', JSON.stringify({ identity }), false],
+      ['api/flowleap/folder/add-client/docket', 'GET', null, true],
+      ['api/flowleap/folder/add-client/docket/read', 'POST', JSON.stringify({ slices: 'failed' }), false],
+    ])
   })
 })
 

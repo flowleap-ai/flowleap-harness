@@ -5,7 +5,8 @@
  * and `remote.officeToPdf`, and it writes through the folder routes of the Host half. Ask about this opens that blank
  * Session's draft with an `@` mention of each entry, and shows a single file in the Session's right sidebar. Add
  * client is a view of the same page: it reads public data through the Add client routes of the Host half and sends
- * every Firm Record command with the person's cookie.
+ * every Firm Record command with the person's cookie. The Firm identity section of Settings reads and saves the firm
+ * identity and shows the state of the firm docket.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -23,18 +24,22 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-files/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
+// Type-only: the settings SlotMap merge (`settings.section`).
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import { addClientApi } from './add-client/api.ts'
+import { addClientApi, firmIdentityApi } from './add-client/api.ts'
+import { FirmIdentitySection, type FirmIdentityInjected } from './add-client/FirmIdentity.tsx'
+import { FirmIdentityModel, retryOf } from './add-client/identity-model.ts'
 import * as addClientCopy from './add-client/locales/index.ts'
 import { AddClientModel } from './add-client/model.ts'
 import { createFirmRecord } from './add-client/records.ts'
 import { createFolderApi, readClientFolders } from './api.ts'
 import { followClientFolders } from './clients.ts'
-import { registerKeys, type KeyHandlers } from './keys.ts'
+import { registerIdentityKeys, registerKeys, type KeyHandlers } from './keys.ts'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapFolderKey } from './locales.ts'
 import { FolderModel } from './model.ts'
 import { ClientsIcon, FolderPanel, type AskTarget, type PanelInjected } from './Panel.tsx'
@@ -45,6 +50,7 @@ import type { ViewerReads } from './viewer.tsx'
 export type { FlowleapFolderKey } from './locales.ts'
 export type { AddClientKey } from './add-client/locales/index.ts'
 export type { PanelInjected, PanelProps } from './Panel.tsx'
+export type { FirmIdentityInjected, FirmIdentitySectionProps } from './add-client/FirmIdentity.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -79,7 +85,7 @@ export function askPrompt(targets: readonly AskTarget[]): string {
 }
 
 /**
- * Register the dictionaries, the keys, the row menu, the Clients row and the page.
+ * Register the dictionaries, the keys, the row menu, the Clients row, the page and the Firm identity section.
  * @param ctx - browser services used by these contributions.
  */
 export function apply(ctx: ClientContext): void {
@@ -202,4 +208,16 @@ export function apply(ctx: ClientContext): void {
     name: 'sidebar.panellist', id: PANEL_ID, order: 19, locale: NS, label: () => t('panel'),
   }, ClientsIcon))
   ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS, inject: () => injected }, FolderPanel))
+
+  const identity = new FirmIdentityModel(firmIdentityApi)
+  ctx.effect(() => () => { identity.dispose() }, 'ui-flowleap-folder: firm identity')
+  registerIdentityKeys(ctx, () => retryOf(identity), addClientT)
+  const identityInjected: FirmIdentityInjected = {
+    hooks: { identity: identity.store, catalog: ctx.shortcuts.catalog, language }, model: identity,
+  }
+  // The section follows the FlowLeap connectors section (order 15), whose EPO key the docket read uses.
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section', id: 'flowleap-firm-identity', order: 16, label: () => addClientT('identity.nav'), locale: ADD_CLIENT_NS,
+    inject: () => identityInjected,
+  }, FirmIdentitySection))
 }

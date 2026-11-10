@@ -365,6 +365,24 @@ abstract getDeviceIdentity(): Promise<{ deviceId?: string; userId?: AccountUserI
 
 Source: [`packages/credentials/deepseek-account/src/index.ts`](../../packages/credentials/deepseek-account/src/index.ts)
 
+<a id="ctxflowleapadmin--flowleapadmin"></a>
+
+### `ctx.flowleapAdmin` — `FlowleapAdmin`
+
+Whether a request is of a firm administrator.
+
+```ts cordis-catalog
+/**
+ * Check one request. An unusable key file is logged as an error and a refused header as a warning.
+ * @param request - the authenticated request.
+ * @returns true only when the request carries a valid `X-Flowleap-Admin` header of the configured key; always false
+ * when `publicKeyFile` is `''` or the file does not exist.
+ */
+isAdmin(request: Request): Promise<boolean>
+```
+
+Source: [`packages/client/ui-flowleap-admin-link/src/service.ts`](../../packages/client/ui-flowleap-admin-link/src/service.ts)
+
 <a id="ctxflowleapbudget--flowleapbudget"></a>
 
 ### `ctx.flowleapBudget` — `FlowleapBudget`

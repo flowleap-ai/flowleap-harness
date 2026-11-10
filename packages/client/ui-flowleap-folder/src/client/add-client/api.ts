@@ -1,12 +1,14 @@
 /**
- * The browser's calls to the four Add client routes of the Host half, at document-relative paths on the same origin.
- * The Host and this page ship together and share the answer types of `wire.ts`.
+ * The browser's calls to the Add client routes of the Host half, at document-relative paths on the same origin: the
+ * four routes of Add client, and the firm identity and docket routes of the Firm identity section of Settings. The Host
+ * and this page ship together and share the answer types of `wire.ts`.
  * @module
  */
 
 import {
-  ADD_CLIENT_ROUTES, type AddClientFailureCode, type BuildRequest, type BuildStatus, type FindAnswer, type ReviewAnswer,
-  type ReviewRequest, type StatusAnswer,
+  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type BuildRequest, type BuildStatus, type DocketAnswer,
+  type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type ReviewAnswer, type ReviewRequest,
+  type StatusAnswer,
 } from '../../add-client/wire.ts'
 
 /** Why a Host call failed: a route failure, no answer (`network`), or an answer that is not JSON (`internal`). */
@@ -15,7 +17,7 @@ export type HostFailure = AddClientFailureCode | 'network'
 /** The answer of one Host call. */
 export type HostResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: HostFailure }
 
-const CODES: ReadonlySet<string> = new Set<AddClientFailureCode>(['bad-request', 'invalid-name', 'no-key', 'unreachable', 'stopped', 'internal'])
+const CODES: ReadonlySet<string> = new Set(Object.keys(ADD_CLIENT_STATUS))
 
 /** A route path relative to the document, like the other app routes. */
 const relative = (route: string): string => route.slice(1)
@@ -62,4 +64,24 @@ export const addClientApi: AddClientApi = {
   review: (request, signal) => post(ADD_CLIENT_ROUTES.review, request, signal),
   build: request => post(ADD_CLIENT_ROUTES.build, request),
   status: signal => call(relative(ADD_CLIENT_ROUTES.status), signal === undefined ? {} : { signal }),
+}
+
+/** The firm identity and firm docket routes. */
+export interface FirmIdentityApi {
+  /** The firm identity now, the docket state, and whether this person may save. */
+  identity(signal?: AbortSignal): Promise<HostResult<FirmIdentityAnswer>>
+  /** Save the whole firm identity; the docket then reads again. A person who is not a firm administrator gets `not-admin`. */
+  save(identity: FirmIdentity): Promise<HostResult<FirmIdentityAnswer>>
+  /** The docket state. */
+  docket(signal?: AbortSignal): Promise<HostResult<DocketAnswer>>
+  /** Read every slice of the docket again, or only the failed slices. */
+  readDocket(slices: DocketReadRequest['slices']): Promise<HostResult<DocketAnswer>>
+}
+
+/** The firm identity and firm docket routes on the same origin. */
+export const firmIdentityApi: FirmIdentityApi = {
+  identity: signal => call(relative(ADD_CLIENT_ROUTES.identity), signal === undefined ? {} : { signal }),
+  save: identity => post(ADD_CLIENT_ROUTES.identitySave, { identity }),
+  docket: signal => call(relative(ADD_CLIENT_ROUTES.docket), signal === undefined ? {} : { signal }),
+  readDocket: slices => post(ADD_CLIENT_ROUTES.docketRead, { slices } satisfies DocketReadRequest),
 }

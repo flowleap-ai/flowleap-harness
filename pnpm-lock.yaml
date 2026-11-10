@@ -5106,6 +5106,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-context-menu':
         specifier: workspace:*
         version: link:../ui-context-menu
+      '@deepseek-ai/dsh-client-ui-flowleap-admin-link':
+        specifier: workspace:*
+        version: link:../ui-flowleap-admin-link
       '@deepseek-ai/dsh-client-ui-layout':
         specifier: workspace:*
         version: link:../ui-layout
@@ -5115,6 +5118,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
       '@deepseek-ai/dsh-client-ui-sidebar':
         specifier: workspace:*
         version: link:../ui-sidebar

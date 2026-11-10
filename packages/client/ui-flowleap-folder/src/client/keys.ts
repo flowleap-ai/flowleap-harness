@@ -3,7 +3,8 @@
  * (founder decision 3 of the design note), Move to Trash `Backspace` on macOS and `Delete` on Windows and Linux (where
  * Backspace goes back in the file manager), Find `/`, and Try again `R` on Add client. Each is a rebindable command of
  * the scope `flowleap.folder`, so a key runs only while the page has the focus and never while the focus is in a text
- * field; a button shows its command's current keycaps from the shortcut catalog.
+ * field; a button shows its command's current keycaps from the shortcut catalog. The Firm identity section of Settings
+ * has its own scope `flowleap.identity` with one command, Try again `R`.
  *
  * The primary act of Add client's decision bar uses the one Record the decision command of the key map
  * (`records.decision.record`, `⇧⌘↵`), which `ui-flowleap-records` registers for the whole app. A second command with
@@ -18,6 +19,7 @@ import type {
   ShortcutBinding, ShortcutCatalogEntry, ShortcutCommandId, ShortcutScopeId,
 } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { KeycapBox } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { AddClientTranslate } from './add-client/format.ts'
 import type { FlowleapFolderKey } from './locales.ts'
 
 /** The scope of the page root (`data-shortcut-scope="flowleap.folder"`). */
@@ -129,4 +131,37 @@ export function registerKeys(ctx: ClientContext, handlers: KeyHandlerSource, t: 
       },
     }), `ui-flowleap-folder: key ${act}`)
   }
+}
+
+/** The scope of the Firm identity section of Settings (`data-shortcut-scope="flowleap.identity"`). */
+export const IDENTITY_SCOPE = 'flowleap.identity' as ShortcutScopeId
+
+/** Try again of the Firm identity section. */
+export const IDENTITY_RETRY = 'flowleap.identity.retry' as ShortcutCommandId
+
+/**
+ * Register the scope and the Try again command of the Firm identity section, each as an effect of `ctx`.
+ * @param ctx - the client context with `shortcuts`.
+ * @param retry - the act of Try again now; undefined passes the key on.
+ * @param t - the translate function of the Add client namespace.
+ */
+export function registerIdentityKeys(ctx: ClientContext, retry: () => (() => void) | undefined, t: AddClientTranslate): void {
+  ctx.effect(() => ctx.shortcuts.registerScope({ id: IDENTITY_SCOPE, label: () => t('keys.identity.scope') }), 'ui-flowleap-folder: identity key scope')
+  const binding = KEYS.retry.binding
+  ctx.effect(() => ctx.shortcuts.registerScoped({
+    id: IDENTITY_RETRY, scope: IDENTITY_SCOPE, label: () => t('keys.identity.retry'), aliases: [], defaults: defaultsOf(binding, binding),
+    resolve: () => {
+      const run = retry()
+      return run === undefined ? { status: 'pass' } : { status: 'handled', run }
+    },
+  }), 'ui-flowleap-folder: identity key retry')
+}
+
+/**
+ * The keycaps of Try again of the Firm identity section.
+ * @param rows - the catalog of rebindable commands.
+ * @returns the keycaps; none when the command has no binding.
+ */
+export function identityRetryKeycaps(rows: readonly ShortcutCatalogEntry[]): readonly KeycapBox[] {
+  return rows.find(row => row.id === IDENTITY_RETRY)?.keycaps ?? []
 }

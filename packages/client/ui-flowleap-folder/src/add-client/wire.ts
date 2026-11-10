@@ -23,8 +23,8 @@ export function clientFolderName(name: string): string | undefined {
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
 /**
- * The six Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
- * firm docket, and a new read of the firm docket.
+ * The eight Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
+ * firm docket, a new read of the firm docket, the firm identity with the docket state, and a save of the firm identity.
  */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
@@ -33,7 +33,19 @@ export const ADD_CLIENT_ROUTES = {
   status: `${ADD_CLIENT_API}/status`,
   docket: `${ADD_CLIENT_API}/docket`,
   docketRead: `${ADD_CLIENT_API}/docket/read`,
+  identity: `${ADD_CLIENT_API}/identity`,
+  identitySave: `${ADD_CLIENT_API}/identity/save`,
 } as const
+
+/** The firm's names, its current and earlier addresses, and the names of its representatives. */
+export interface FirmIdentity {
+  /** The firm's names, such as its current and earlier names. */
+  names: string[]
+  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
+  addresses: string[]
+  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
+  representatives: string[]
+}
 
 /** Where an applicant name comes from: PATSTAT, or the applicant names of the EP Register search. */
 export type NameSource = 'patstat' | 'ep-register'
@@ -277,6 +289,27 @@ export type DocketAnswer =
   /** No patent data plugin in this runtime: the docket cannot be read. */
   | { readonly status: 'no-plugin' }
 
+/** The answer of `GET identity`, and of `POST identity/save`. */
+export interface FirmIdentityAnswer {
+  /** The firm identity now: the saved one, else the `firmIdentity` of the row config. */
+  readonly identity: FirmIdentity
+  readonly docket: DocketAnswer
+  /**
+   * Whether this request may save the firm identity: true only for a firm administrator, whose request carries an
+   * `X-Flowleap-Admin` header that the starter signed (the `flowleapAdmin` Service says so).
+   */
+  readonly canSave: boolean
+}
+
+/**
+ * Body of `POST identity/save`: the whole new firm identity. Only a firm administrator may save; the Host refuses any
+ * other request with `not-admin` before it reads the body. The Host trims each entry and drops the entries with no
+ * word and the repeated entries; lists with no entry left mean no identity.
+ */
+export interface FirmIdentitySaveRequest {
+  readonly identity: FirmIdentity
+}
+
 /** Body of `POST docket/read`: read every slice again, or only the failed slices and the queries whose sum was wrong. */
 export interface DocketReadRequest {
   readonly slices: 'all' | 'failed'
@@ -284,9 +317,10 @@ export interface DocketReadRequest {
 
 /**
  * Why an Add client act failed; each code is one localized sentence in the client. `no-key`: the runtime has no EPO
- * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused.
+ * OPS key; `unreachable`: the EPO did not answer or answered with data that the Service refused; `not-admin`: the
+ * request is not of a firm administrator, so a save of the firm identity changed nothing.
  */
-export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'internal'
+export type AddClientFailureCode = 'bad-request' | 'invalid-name' | 'no-key' | 'unreachable' | 'stopped' | 'not-admin' | 'internal'
 
 /** The JSON body of a failed Add client act. */
 export interface AddClientFailure {
@@ -300,5 +334,6 @@ export const ADD_CLIENT_STATUS: Readonly<Record<AddClientFailureCode, number>> =
   'no-key': 424,
   'unreachable': 502,
   'stopped': 503,
+  'not-admin': 403,
   'internal': 500,
 }

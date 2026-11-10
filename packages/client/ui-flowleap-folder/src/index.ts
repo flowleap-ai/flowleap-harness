@@ -8,8 +8,10 @@
  * `add-client/` read the public patent data through the optional `flowleapPatentData` Service, behind one limiter of
  * `opsRequestsPerMinute`, and build a client folder inside `clientsRoot` as a job that goes on after its request ends.
  * With a firm identity, the plugin reads and refreshes the firm docket, the firm's own EP applications, from load on;
- * the `docket` routes report and restart that read. The browser half (`exports["./client"]`)
- * is the Clients page and the Add client page.
+ * the `docket` routes report and restart that read. The `identity` routes report the firm identity and save a new one
+ * in `stateDir`, which reads the docket again; only a request that the optional `flowleapAdmin` Service names as of a
+ * firm administrator may save. The browser half (`exports["./client"]`) is the Clients page, the Add
+ * client page and the Firm identity section of Settings.
  *
  * See packages/client/ui-flowleap-folder/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-folder
@@ -20,16 +22,17 @@ import path from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-client-ui-flowleap-admin-link'
 import type { PatentData } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { widenBuild, type FolderTemplate } from './add-client/build.ts'
 import { FirmDocket } from './add-client/docket.ts'
-import type { FirmIdentity } from './add-client/identity.ts'
+import { FirmIdentityStore } from './add-client/identity-store.ts'
 import { BuildJobs } from './add-client/jobs.ts'
 import { RequestLimiter, limitedPatentData, systemClock } from './add-client/limiter.ts'
 import { AddClientRoutes } from './add-client/routes.ts'
-import { ADD_CLIENT_ROUTES } from './add-client/wire.ts'
+import { ADD_CLIENT_ROUTES, type FirmIdentity } from './add-client/wire.ts'
 import { ClientFolder, FolderError, checkName } from './folder.ts'
 import {
   FAILURE_STATUS, FOLDER_ROUTES, TRASH, isTrashPath, type ClientFoldersAnswer, type FolderFailure, type FolderSource, type FolderWritten,
@@ -42,7 +45,6 @@ export type * from './route.ts'
 export { ADD_CLIENT_API, ADD_CLIENT_ROUTES, BUILD_STEPS } from './add-client/wire.ts'
 export type * from './add-client/wire.ts'
 export type { FolderTemplate } from './add-client/build.ts'
-export type { FirmIdentity } from './add-client/identity.ts'
 
 /** Cordis plugin name. */
 export const name = 'ui-flowleap-folder'
@@ -67,8 +69,10 @@ export interface Config {
   /** The folders that Add client makes in each client folder and each matter folder. */
   folderTemplate: FolderTemplate
   /**
-   * The firm's names, addresses and representatives. The firm docket sends their words to the EP Register to read the
-   * firm's EP applications; every row is matched against them again on the Host.
+   * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
+   * the saved identity in `stateDir` then wins, and a later change of this value has no effect. The firm docket sends
+   * their words to the EP Register to read the firm's EP applications; every row is matched against them again on the
+   * Host.
    */
   firmIdentity: FirmIdentity
   /** The row cap of one EP Register query of Add client; the EPO answers at most 10,000. */
@@ -383,8 +387,9 @@ export function apply(ctx: Context, config: Config): void {
   let service: PatentData | undefined
   const limiter = new RequestLimiter(config.opsRequestsPerMinute, systemClock)
   const data = (): PatentData | undefined => service === undefined ? undefined : limitedPatentData(service, limiter)
+  const identity = new FirmIdentityStore({ file: path.join(config.stateDir, 'identity.json'), initial: config.firmIdentity, now: () => new Date(), log: warn })
   const docket = new FirmDocket({
-    file: path.join(config.stateDir, 'docket.json'), identity: config.firmIdentity, sliceRows: config.registerSliceRows,
+    file: path.join(config.stateDir, 'docket.json'), identity: identity.current(), sliceRows: config.registerSliceRows,
     refreshAge: config.docketRefreshAge, data, clock: systemClock, log: warn,
   })
   ctx.effect(() => () => docket.dispose(), 'ui-flowleap-folder: firm docket')
@@ -396,8 +401,13 @@ export function apply(ctx: Context, config: Config): void {
       return docket.pause()
     }, 'ui-flowleap-folder: patent data')
   })
+  // The admin-link row provides `flowleapAdmin`; without it, no request is of a firm administrator.
+  const isAdmin = async (request: Request): Promise<boolean> => {
+    const admin = ctx.get('flowleapAdmin')
+    return admin === undefined ? false : admin.isAdmin(request)
+  }
   const addClient = new AddClientRoutes(config, {
-    data, jobs, docket, sources, now: () => new Date(), log: warn,
+    data, jobs, docket, identity, isAdmin, sources, now: () => new Date(), log: warn,
     createWorkspace: (folder, title) => ctx.workspaceRegistry.create(folder, title),
   })
   const register = (path: string, method: 'GET' | 'POST', requestBody: 'buffered' | 'streaming', act: (request: Request) => Promise<Response>) => {
@@ -425,4 +435,6 @@ export function apply(ctx: Context, config: Config): void {
   registerAddClient(ADD_CLIENT_ROUTES.status, 'GET', () => addClient.status())
   registerAddClient(ADD_CLIENT_ROUTES.docket, 'GET', () => addClient.docket())
   registerAddClient(ADD_CLIENT_ROUTES.docketRead, 'POST', request => addClient.docketRead(request))
+  registerAddClient(ADD_CLIENT_ROUTES.identity, 'GET', request => addClient.identity(request))
+  registerAddClient(ADD_CLIENT_ROUTES.identitySave, 'POST', request => addClient.identitySave(request))
 }

@@ -415,6 +415,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads the page text of one document through Mistral OCR on the firm\'s key without a tool call; mounted by the flowleap-web profile only.',
   },
   {
+    key: 'flowleapAdmin',
+    pkg: 'client-ui-flowleap-admin-link',
+    title: 'FlowLeap firm administrator check',
+    mode: 'service',
+    consumers: ['client-ui-flowleap-folder'],
+    note: 'Says whether a request carries an X-Flowleap-Admin header that the flowleap-os starter signed, by the admin-link row\'s public key; the Firm identity save of Add client accepts only such a request; mounted by the flowleap-web profile only.',
+  },
+  {
     key: 'flowleapPatentData',
     pkg: 'flowleap-connectors',
     title: 'FlowLeap patent data reader',
