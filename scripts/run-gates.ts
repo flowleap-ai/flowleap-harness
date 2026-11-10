@@ -28,6 +28,7 @@ export type Mode =
   | 'ci-snapshot'
   | 'ci-artifacts'
   | 'ci-consumers'
+  | 'ci-web-snapshot'
   | 'ci-windows-blocking'
   | 'ci-windows-complete'
   | 'ci-windows-observational-ready'
@@ -169,6 +170,7 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-snapshot':
     case 'ci-artifacts':
     case 'ci-consumers':
+    case 'ci-web-snapshot':
     case 'ci-windows-blocking':
     case 'ci-windows-complete':
     case 'ci-windows-observational-ready':
@@ -182,7 +184,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-web-snapshot | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick | generated | i18n, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -338,6 +340,9 @@ export function gatesForMode(selected: Mode): Gate[] {
       return ciArtifactGates()
     case 'ci-consumers':
       return ciConsumerGates()
+    case 'ci-web-snapshot':
+      // The browser lane runs in its own sharded job and owns its build.
+      return [ciArtifactBuildGate(), webSnapshotGate(['build'])]
     case 'ci-windows-blocking':
       return ciWindowsBlockingGates()
     case 'ci-windows-complete':
@@ -546,17 +551,6 @@ function ciArtifactGates(): Gate[] {
 
 function ciConsumerGates(): Gate[] {
   const builtTree = ['build']
-  // The HMR web test starts `dev:web`, which rewrites the shared `lib/` and
-  // `apps/web/dist/` trees. Let every build-artifact reader settle before that
-  // writer starts; `after` preserves the web diagnostic even if a reader fails.
-  const buildArtifactReaders = [
-    'publint',
-    'snapshot',
-    'expected-output',
-    'doc-typecheck',
-    'node-next-types',
-    'built-bin-smoke',
-  ]
   return [
     ciArtifactBuildGate(),
     pnpmScript('node-compat', 'check:node-compat', {
@@ -566,7 +560,6 @@ function ciConsumerGates(): Gate[] {
     pnpmScript('publint', 'publint', { needs: builtTree }),
     snapshotGate(builtTree),
     expectedOutputGate(builtTree),
-    webSnapshotGate(builtTree, buildArtifactReaders),
     pnpmScript('doc-typecheck', 'doc-typecheck:contracts-ready', {
       needs: builtTree,
       env: { DSH_DOC_TYPECHECK_USE_BUILD_OUTPUT: '1' },
@@ -579,8 +572,7 @@ function ciConsumerGates(): Gate[] {
   ]
 }
 
-function webSnapshotGate(needs: string[], after?: string[]): Gate {
-  const order = after === undefined ? { needs } : { needs, after }
+function webSnapshotGate(needs: string[]): Gate {
   const workerRaw = process.env.DSH_WEB_SNAPSHOT_WORKERS
   if (workerRaw !== undefined && workerRaw !== '') {
     const workers = Number.parseInt(workerRaw, 10)
@@ -591,7 +583,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
       label: 'web browser snapshot',
       displayCommand: `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=${workers} pnpm run test:web:ci`,
       env: { DSH_SNAPSHOT: 'replay' },
-      ...order,
+      needs,
       streamOutput: true,
     })
   }
@@ -599,7 +591,7 @@ function webSnapshotGate(needs: string[], after?: string[]): Gate {
     label: 'web browser snapshot',
     displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
     env: { DSH_SNAPSHOT: 'replay' },
-    ...order,
+    needs,
   })
 }
 
