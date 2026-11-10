@@ -1,6 +1,6 @@
 # The firm map: all work of a patent firm, and where its facts live
 
-**Status:** draft for the founder's approval, 2026-11-08. This page is the map before the sheets. It lists every kind of work that a patent firm does, who acts in it, how its facts reach the firm and where they live today. It does not hold a state machine; each procedure gets its own sheet, by the [method](README.md#the-method-for-every-phase). It serves [the problem and the product principles](../2026-11-08-problem-and-principles.md) and chooses the first procedure of step M1 in [the re-ordered roadmap](../2026-11-08-roadmap-reorder.md).
+**Status:** draft for the founder's approval, 2026-11-08; the MyEPO rows amended on 2026-11-10 for sheets 06 to 08. This page is the map before the sheets. It lists every kind of work that a patent firm does, who acts in it, how its facts reach the firm and where they live today. It does not hold a state machine; each procedure gets its own sheet, by the [method](README.md#the-method-for-every-phase). It serves [the problem and the product principles](../2026-11-08-problem-and-principles.md) and chooses the first procedure of step M1 in [the re-ordered roadmap](../2026-11-08-roadmap-reorder.md).
 
 **Labels.** SOURCED means we read the source and it says this. INFERRED means we concluded it, and the line says from what. Volume shares and the "today" columns are INFERRED until a firm confirms them.
 
@@ -52,7 +52,7 @@ The UPC case view and the statement-of-claim form show the same objects from the
 |---|---|---|---|---|---|---|---|
 | Invention to filing decision | none (client and firm) | A client sends an invention or an IDF | Filed, kept secret, or dropped | attorney, client, inventor | medium | client mail, meetings | new |
 | Drafting and first filing | EPO, DPMA, WIPO | The client instructs to file | Filing receipt | attorney, trainee, PAFA | medium | the firm files; receipt by portal or mail | new |
-| EP grant procedure | EPO | EP filing or PCT regional entry | Grant, refusal, or withdrawal | attorney, PAFA | high | MyEPO Mailbox (API) | [00](00-connected-flow.md) to [05](05-firm-internal-message.md) cover one letter path; full sheet new |
+| EP grant procedure | EPO | EP filing or PCT regional entry | Grant, refusal, or withdrawal | attorney, PAFA | high | MyEPO Mailbox (API) | [00](00-connected-flow.md) to [05](05-firm-internal-message.md) cover one letter path; [06](06-firm-myepo-link.md) to [08](08-deadline-confirmation.md) cover the MyEPO link, the docket import and the deadline confirmation; full sheet new |
 | DE patent and utility model | DPMA | DE filing | Grant, registration, refusal, or lapse | attorney, PAFA | high in German firms | paper or PDF letters; no API found | new |
 | PCT international phase | WIPO, ISA | PCT filing | National and regional entry at 30 or 31 months | attorney, PAFA | medium | ePCT and mail | new |
 | Foreign filings through associates | foreign offices | The client instructs a country | Grant or lapse abroad | attorney, PAFA, associate | medium | associate mail | new |
@@ -74,11 +74,11 @@ The volume column is INFERRED for a German firm of the target size. The register
 
 | Route | Example | What FlowLeap can do |
 |---|---|---|
-| Office API | The MyEPO API gives Mailbox communications with the application number, the user reference, the document code and the dispatch date; from 1 April 2027 the EPO notifies through the MyEPO Mailbox, and on paper only in exceptions [SOURCED in [sheet 00](00-connected-flow.md), facts 0.1 and 0.2] | Pull the letter, match it by its keys, record the event |
+| Office API | The MyEPO API gives Mailbox communications with the application number, the user reference, the document code and the dispatch date; from 1 April 2027 the EPO notifies through the MyEPO Mailbox, and on paper only in exceptions [SOURCED in [sheet 00](00-connected-flow.md), facts 0.1 and 0.2]. It also gives the firm's portfolios and applications, and the EPO due dates [SOURCED in [sheet 07](07-import-ep-docket.md) and [sheet 08](08-deadline-confirmation.md)] | The firm worker reads it one time for the firm, and the Firm Record files what it observes ([sheet 06](06-firm-myepo-link.md)): import the EP docket ([sheet 07](07-import-ep-docket.md)), file the letter by its keys and record the event from the list data ([sheet 01](01-office-letter-intake.md#8-the-myepo-route)), and use the EPO due dates as a second date source ([sheet 08](08-deadline-confirmation.md)) |
 | Portal with an email notice | A UPC case activity: the email names the case and the first parties and links to the CMS; the documents stay in the portal [INFERRED from the founder] | Read the notice in Outlook, open a task on the right matter; a person drops the downloaded documents on the matter |
 | Paper or PDF by mail | DPMA letters, associates, clients | Read the scan or the mail, match it, record the event |
 | The firm's own act | A filing, a reply, a payment | Record it as the firm acts, with the receipt |
-| Register data | EP Register events, publications, legal status; PATSTAT for history | Build the matter timeline; check that the expected letter came |
+| Register data | EP Register events, publications, legal status; PATSTAT for history | Build the matter timeline; check that the expected letter came (the lost-letter check of [sheet 01](01-office-letter-intake.md#8-the-myepo-route)) |
 | People | A call, a meeting, an instruction | Record it as a fact with its source mail or note |
 
 ## Where the facts live today

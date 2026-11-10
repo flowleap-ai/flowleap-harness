@@ -24,7 +24,7 @@ function check(name, m, rows) {
   for (const [f, to] of rows) if (m.terminal.includes(f) && !allowed(f, to)) fail(name, `end state ${f} has an undeclared step to ${to}`)
   for (const [f, to] of [...m.loops, ...m.corrections]) if (!rows.some(([a, b]) => a === f && b === to)) fail(name, `declared step ${f} -> ${to} has no row`)
   for (const row of m.t) if (row.length !== 5 || row.some((c) => !c || c.length === 0)) fail(name, `row without actor or evidence: ${row[2]}`)
-  const reach = new Set([m.start])
+  const reach = new Set(['[*]', m.start])
   for (let grew = true; grew;) { grew = false; for (const [f, to] of rows) if (reach.has(f) && !reach.has(to)) { reach.add(to); grew = true } }
   for (const s of states) if (!reach.has(s)) fail(name, `${s} is not reachable from the start`)
   for (const s of states) {

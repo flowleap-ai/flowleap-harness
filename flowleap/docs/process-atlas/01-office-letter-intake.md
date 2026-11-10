@@ -4,6 +4,8 @@
 
 **Amended on 2026-11-06** by [the connected flow](00-connected-flow.md#5-the-demo-path-step-by-step): the document also arrives by scan-to-email, and later through the MyEPO API and the Fristen mailbox, and the forward is the fallback; a person files an unreadable scan with the page image in view; a MyEPO communication files on its two EPO keys. Each waiting state of this sheet opens the task that [sheet 0](00-connected-flow.md#3-the-task-model) names.
 
+**Amended on 2026-11-10** by founder decisions 2 and 3 of 2026-11-10: [section 8](#8-the-myepo-route) adds the MyEPO route (the states `listed` and `firm_letter`, the two download modes, the filing by application number, and the lost-letter check). The rows of the MyEPO route in the table of section 3 start with "MyEPO route".
+
 ## 1. The process today
 
 | # | Fact | Label and source |
@@ -43,10 +45,18 @@
 The machine is per document, not per mail, because one mail can carry several letters for several matters (design section 6.2).
 
 <!-- atlas:intake -->
-It has **13 states and 24 transitions**, plus the start.
+It has **15 states and 32 transitions**, plus the start.
 
 | From | To | Event | Actor | Evidence in the record log |
 |---|---|---|---|---|
+| start | `listed` | MyEPO route: the firm worker finds a new communication in the Mailbox list and sends it as an observation; in the mode `on-open` it does not download the letter | firm worker | Communication id, document code, application number, user reference, applicant name, dispatch date, title, list read time (`document/listed`) |
+| `listed` | `listed` | In the mode `on-arrival`, or for a document code of `myepo.downloadAtArrivalCodes`, the firm worker downloads the letter at once; MyEPO marks it read | firm worker | ZIP and PDF SHA-256, the download time, the read flag after the download |
+| `listed` | `matched` | The application number names one matter, and the user reference is empty or names the same matter (founder decision 2 of 2026-11-10) | Firm Record | Both MyEPO fields, the application index row, the matter |
+| `listed` | `ambiguous` | The application number and the user reference name different matters, or the application has two matters | Firm Record | Both MyEPO fields and each candidate matter |
+| `listed` | `unmatched` | No matter has the application number: the application is not in the application index, or its index row has no matter yet | Firm Record | The fields searched and the index read |
+| `unmatched` | `matched` | The firm worker observes the application; the Firm Record files its index row on the client whose applicant name is linked, and opens the matter from its file reference (recommendation D1.3) | firm worker and Firm Record | Application read, bibliographic read, the linked name, `matter/opened` with the reference |
+| `listed` | `firm_letter` | The communication has no application number, for example a change in the list of professional representatives | Firm Record | Communication id, document code; filed on the firm file |
+| `listed` | `filed` | A forwarded copy of the same letter is already filed (same application number, mapped document code and date): the list entry joins that document as its MyEPO source, and its office event gets the structured source | Firm Record | Communication id, the filed document, the fields that agree |
 | start | `stored` | A document arrives by a route of the firm (MyEPO API, scan-to-email, the Fristen mailbox, or a forward) and passes the sender check of its route; it is split out and hashed | intake | Route; MyEPO communication id, or immutable Graph message id, sender and authentication result; document SHA-256 |
 | `stored` | `duplicate` | The hash is already in the record | intake | Hash, the earlier document |
 | `stored` | `unreadable` | No text layer and OCR fails | intake | OCR result and its confidence |
@@ -71,12 +81,21 @@ It has **13 states and 24 transitions**, plus the start.
 | `unmatched` | `unmatched` | The decide-within time passes; the item goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
 | `matched` | `filed` | The document enters the e-file of the matter | Firm Record | Match evidence |
 | `filed` | `filed` | A person moves it to another matter; when the walls differ, the Firm Record records a wall incident | person | Reason, old and new matter, the wall incident |
+| `filed` | `filed` | MyEPO route, mode `on-open`: a person or a task opens a filed letter that has no bytes yet; the firm worker downloads it, and MyEPO marks it read | firm worker | Who or which task opened it, ZIP and PDF SHA-256, the read flag after the download |
 | `not_relevant` | `stored` | A person reopens it with a reason | person | Reason |
 
-End states: `duplicate`, `replaced`, `not_relevant`, `filed`. Declared corrections out of an end state: `not_relevant` to `stored`.
+End states: `duplicate`, `replaced`, `not_relevant`, `filed`, `firm_letter`. Declared corrections out of an end state: `not_relevant` to `stored`.
 
 ```mermaid
 stateDiagram-v2
+    [*] --> listed: myEPO route the firm worker finds a new communication in the Mailbox list and sends it as an observation, in the mode `on-open` it does not download the letter
+    listed --> listed: in the mode `on-arrival`, or for a document code of `myepo.downloadAtArrivalCodes`, the firm worker downloads the letter at once, MyEPO marks it read
+    listed --> matched: the application number names one matter, and the user reference is empty or names the same matter (founder decision 2 of 2026-11-10)
+    listed --> ambiguous: the application number and the user reference name different matters, or the application has two matters
+    listed --> unmatched: no matter has the application number the application is not in the application index, or its index row has no matter yet
+    unmatched --> matched: the firm worker observes the application, the Firm Record files its index row on the client whose applicant name is linked, and opens the matter from its file reference (recommendation D1.3)
+    listed --> firm_letter: the communication has no application number, for example a change in the list of professional representatives
+    listed --> filed: a forwarded copy of the same letter is already filed (same application number, mapped document code and date) the list entry joins that document as its MyEPO source, and its office event gets the structured source
     [*] --> stored: a document arrives by a route of the firm (MyEPO API, scan-to-email, the Fristen mailbox, or a forward) and passes the sender check of its route, it is split out and hashed
     stored --> duplicate: the hash is already in the record
     stored --> unreadable: no text layer and OCR fails
@@ -101,11 +120,13 @@ stateDiagram-v2
     unmatched --> unmatched: the decide-within time passes, the item goes to the next person, and after the last person it is an alarm
     matched --> filed: the document enters the e-file of the matter
     filed --> filed: a person moves it to another matter, when the walls differ, the Firm Record records a wall incident
+    filed --> filed: myEPO route, mode `on-open` a person or a task opens a filed letter that has no bytes yet, the firm worker downloads it, and MyEPO marks it read
     not_relevant --> stored: a person reopens it with a reason
     duplicate --> [*]
     replaced --> [*]
     not_relevant --> [*]
     filed --> [*]
+    firm_letter --> [*]
 ```
 <!-- /atlas:intake -->
 
@@ -227,3 +248,129 @@ New record events: `document/stored`, `document/duplicate`, `document/duplicate-
 - **Q1.8** Who marks letters "handled" in MyEPO today? In R1, would the PAFA do the PATORG import and the forward to the AI mailbox both? Can we measure the minutes per letter before and during R1?
 - **Q1.9** Where does your reference appear in EPO, DPMA and associate letters? Do letters cite numbers of your other matters, or of other clients' matters?
 - **Q1.10** (for the firm's IT administrator) Does your Exchange Online mark internal, authenticated mail in a header that the AI mailbox can read through Graph?
+
+## 8. The MyEPO route
+
+**Amended on 2026-11-10** by founder decisions 2 and 3 of 2026-11-10 and by [sheet 6](06-firm-myepo-link.md). This section adds the MyEPO route to this sheet. It is not a second intake: a MyEPO letter becomes a document of this machine and goes through the same filing states. New rows of the transition table: the start in `listed`, the download in `listed` and `filed`, the filing by the two MyEPO keys, `firm_letter`, and the join with a filed forward. The rows of sections 1 to 7 are unchanged.
+
+### Facts
+
+| # | Fact | Label and source |
+|---|---|---|
+| 1.16 | The Mailbox list of the API gives, for each communication, `id`, `applicationNumber` (EP or PCT), `userReference`, `applicantName`, `documentCode`, `title`, `dispatchDate`, `read`, `handled` and `folderId`; a download is a ZIP with one PDF and no structured data | SOURCED: the OpenAPI spec; MEASURED for the ZIP in the sandbox, 2026-11-09 ([study](../2026-11-09-myepo-api-study.md#sandbox-results)) |
+| 1.17 | A download through the API marks the letter as read in the firm's MyEPO; it stays unhandled | MEASURED: sandbox probe of 2026-11-09 |
+| 1.18 | The document is deemed delivered on the date it bears, and earlier access does not change that date; so the read flag has no legal effect | SOURCED for the delivery rule; the conclusion on the read flag is INFERRED, because the sources do not name reading or downloading: [OJ EPO 2026, A20](https://www.epo.org/en/legal/official-journal/2026/03/a20), Art. 2(2); [OJ EPO 2023, A29](https://www.epo.org/en/legal/official-journal/2023/03/a29) |
+| 1.19 | The Mailbox does not delete communications by itself; only the Deleted folder empties after 28 days | SOURCED: [MyEPO FAQ](https://epo.org/en/service-support/faq/myepo-services/myepo/mailbox/are-communications-automatically-deleted-after) |
+| 1.20 | The sandbox Mailbox held a letter with no application: a change in the list of professional representatives | MEASURED: sandbox probe of 2026-11-09 |
+| 1.21 | `dispatchDate` of the list is the date that the letter bears | INFERRED from the field name and the sandbox file names (`<reference>-<dispatch date>-<application>-<document code>.pdf`); NOT VERIFIED against a production letter. The build must compare it with the date printed on each letter of the pilot's first month |
+| 1.22 | The EP Register shows public outgoing communications the day after despatch, and Register Alert sends a mail when the EPO codes an event; some procedural acts make no event | SOURCED: [EP Register FAQ](https://www.epo.org/en/service-support/faq/searching-patents/european-patent-register-and-federated-register/european-4), [Register events](https://epo.org/en/searching-for-patents/legal/register/documentation/events). The list of event codes (`register.epo.org/allEvents`) answered 403: NOT VERIFIED |
+| 1.23 | An unpublished application is not public, so the EP Register cannot show its communications | INFERRED from fact 1.22 and Art. 128 EPC |
+
+### The two download modes
+
+The firm worker reads the whole Mailbox list (`GET /communications`, handled and unhandled) and keys each letter by its communication id, so a letter that the PAFA marks handled in MyEPO during shadow mode is still read. The firm setting `myepo.download` decides when the firm worker downloads a letter. In both modes the office event and the deadline come from the list data at arrival: the document code, the application number and the dispatch date ([sheet 2, section 8](02-office-event-to-deadline.md#8-the-myepo-route)).
+
+| Mode | When the letter is downloaded | Why |
+|---|---|---|
+| `on-open` (default) | When a person opens it, or a task needs its text | Shadow mode beside the firm's old docket: the PAFA and the old docket still see the letter as unread in MyEPO (fact 1.17) |
+| `on-arrival` | At once, when the list shows it | The administrator selects it when FlowLeap is the firm's only docket; the read flag then means "FlowLeap has it" |
+
+**What counts as "a task opens the letter".** In `on-open`, the run of [sheet 3](03-notify-and-run.md) needs the text, so a run that starts at arrival downloads the letter and sets the read flag minutes after arrival. This section does not amend sheet 3; decision D1.1 chooses when the run starts. **Letters whose period the letter sets** (R.132, for example an Art. 94(3) communication) give no date from the list data. In `on-open` the deadline engine refuses with `period-not-read`, and the task "Enter the due date" opens at arrival with the EPO due date in view; the person who opens the letter downloads it (decision D1.2). `myepo.downloadAtArrivalCodes` lets a firm download such codes at arrival instead; its default is empty.
+
+### Filing by application number and firm reference
+
+Founder decision 2: a letter is filed on its matter automatically by its application number. The rules:
+
+| Case | Result |
+|---|---|
+| The application number names one matter, and the user reference is empty or names the same matter | Filed without a person (`listed` to `matched`) |
+| The application number and the user reference name different matters, or the application has two matters (for example after a split of a file) | `ambiguous`: a person picks the matter |
+| No matter has the application number, and the application is in the index (the index row has no matter yet) | `unmatched`; with the recommendation D1.3 the Firm Record opens the matter from the reference that the firm worker observed, and files the letter |
+| The application is not in the index | The firm worker observes the application from MyEPO ([sheet 7](07-import-ep-docket.md)); when its applicant name is linked to a client, the Firm Record files the row and the letter; else the letter waits `unmatched`, and the import list gets a proposal |
+| The communication has no application number (fact 1.20) | `firm_letter`: filed on the firm file, and the administrator gets the task "Read this firm letter" |
+| A PCT number (`PCT/CCYYYY/NNNNNN`) | Matched by the PCT number of the matter, with the same rules |
+
+### Duplicates against a forwarded copy
+
+During shadow mode, the same EPO letter can arrive two times: from MyEPO and as a forward or a scan. The content keys are the application number, the document code mapped to its form, and the date; in `on-open` a hash check is not possible before the download.
+
+- **The forward came first.** The list entry joins the filed document as its MyEPO source (`listed` to `filed`), and the office event of [sheet 2](02-office-event-to-deadline.md) gets the structured source, so its evidence becomes stronger.
+- **The MyEPO letter came first.** The forward goes to `duplicate_proposed` (row `read` to `duplicate_proposed`), and, when the bytes are equal after a download, to `duplicate` by the hash.
+
+### The lost-letter check
+
+A letter can be lost: the list can miss it, the link can be refused for days, or the EPO can send it to another representative. Two signals open an expected letter:
+
+1. **A register event with no letter.** The EP Register shows a communication of the EPO for an application of the index, and no letter of that application, document type and date is filed after `myepo.letterCheck.registerGrace` (fact 1.22). This works only for public applications (fact 1.23).
+2. **An expected letter that is late.** The procedure state of the EP grant sheet (open PR 353, sheet 10) opens its expected next EPO event, and its late-letter alarm time passes. The states that have an alarm in that sheet are `searching`, `examination` and `grant_approved`.
+
+<!-- atlas:letterCheck -->
+It has **5 states and 9 transitions**, plus the start.
+
+| From | To | Event | Actor | Evidence in the record log |
+|---|---|---|---|---|
+| start | `expected` | A procedure state of the EP grant sheet (PR 353) opens its expected next EPO letter, or the EP Register shows a communication of the EPO for an application of the index and no letter with that application, document type and date is filed | Firm Record | The procedure state and its expected event, or the register entry with its date and the read time |
+| `expected` | `arrived` | A letter with the same application number and a matching document code (and for a register entry, the same date) is filed | intake | Communication id or document SHA-256, the fields that agree |
+| `expected` | `not_needed` | The procedure moves on by another event, so this letter is no longer expected | Firm Record | The event that moved the procedure |
+| `expected` | `late` | The late-letter alarm time of the EP grant sheet passes, or a register entry is older than `myepo.letterCheck.registerGrace`, with no letter | Firm Record | Time, the alarm percentile and its data edition, or the register entry and the grace |
+| `late` | `late` | The decide-within time passes; the item goes to the next person, and after the last person it is an alarm | Firm Record | Time, escalation step |
+| `late` | `asked_epo` | A person records that they checked the MyEPO Mailbox by hand or asked the EPO for the letter | person | What they checked or asked, and when |
+| `late`, `asked_epo` | `arrived` | The letter is filed | intake | Communication id or document SHA-256 |
+| `late`, `asked_epo` | `not_needed` | A person records why no letter comes: the EPO did not act yet, the register entry is not a letter to the firm, or the letter went to another representative | person | Reason from the list, evidence |
+
+End states: `arrived`, `not_needed`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> expected: a procedure state of the EP grant sheet (PR 353) opens its expected next EPO letter, or the EP Register shows a communication of the EPO for an application of the index and no letter with that application, document type and date is filed
+    expected --> arrived: a letter with the same application number and a matching document code (and for a register entry, the same date) is filed
+    expected --> not_needed: the procedure moves on by another event, so this letter is no longer expected
+    expected --> late: the late-letter alarm time of the EP grant sheet passes, or a register entry is older than `myepo.letterCheck.registerGrace`, with no letter
+    late --> late: the decide-within time passes, the item goes to the next person, and after the last person it is an alarm
+    late --> asked_epo: a person records that they checked the MyEPO Mailbox by hand or asked the EPO for the letter
+    late --> arrived: the letter is filed
+    asked_epo --> arrived: the letter is filed
+    late --> not_needed: a person records why no letter comes the EPO did not act yet, the register entry is not a letter to the firm, or the letter went to another representative
+    asked_epo --> not_needed: a person records why no letter comes the EPO did not act yet, the register entry is not a letter to the firm, or the letter went to another representative
+    arrived --> [*]
+    not_needed --> [*]
+```
+<!-- /atlas:letterCheck -->
+
+A register event with no letter is urgent: the period may already run, because the letter is deemed delivered on the date it bears (fact 1.18). So the task "Find the missing EPO letter" is due within `myepo.letterCheck.decideWithin` (default 1 working day), and the deadline engine can propose a deadline from the register event as a `register` source, which [sheet 8](08-deadline-confirmation.md) sends to a person [INFERRED; decision D1.4].
+
+### Failure cases of the route
+
+- **A download fails when a person opens the letter** (a timeout, a 5xx answer, the link `refused`). The page says that the letter is not downloaded and why, and offers Try again; the office event and the deadline are already recorded from the list data.
+- **The link is unlinked while listed letters have no bytes.** The letters keep their list data and their events. A person downloads the PDF from the web Mailbox and drops it on the matter; it joins the list entry by its keys, as a forwarded copy does.
+- **The list misses a letter.** The lost-letter check below finds it.
+
+### Settings of the route
+
+| Setting | Type | Default | Why firms differ |
+|---|---|---|---|
+| `myepo.download` | `'on-open' \| 'on-arrival'` | `'on-open'` | Founder decision 3: shadow mode beside the old docket; the administrator selects `'on-arrival'` |
+| `myepo.downloadAtArrivalCodes` | list of document codes | empty | A firm that wants the two readers to read the period at arrival accepts the read flag for these codes |
+| `myepo.listEvery` | duration | 5 minutes | Read cost against the time to filing |
+| `myepo.runAfter` | time of day, or none | 18:00 during shadow mode (decision D1.1) | When the run of sheet 3 may download an unopened letter in `on-open` |
+| `myepo.letterCheck.registerGrace` | working days | 2 | The Register shows a communication one day after despatch (fact 1.22) |
+| `myepo.letterCheck.decideWithin` | duration | 1 working day | The period may already run |
+| `myepo.firmLetterOwner` | person or role | the administrator | Who reads letters with no application |
+
+### The count
+
+| | Old way (PAFA in the web Mailbox) | MyEPO route, typical letter |
+|---|---|---|
+| Manual steps | 5 (fact 1.13) | 0: the letter is filed by its keys, and its event comes from the list |
+| Extra steps, exception | 1 to 3 | 1: decide `ambiguous` or `unmatched`, or find a missing letter |
+| Hand-offs | 1 | 0 |
+
+### Decisions for the founder
+
+These decisions are still open: the founder's decisions of 2026-11-10 covered sheets 6, 7 and 8. Under ADR 0003 the firm worker only observes; the Firm Record resolves the matter, files the letter and makes the tasks.
+
+- **D1.1 When the run of sheet 3 starts in `on-open`.** Option A: at arrival, so the run downloads the letter and the read flag is set at once. Option B: when a person first opens the letter, or at `myepo.runAfter` (a firm time, for example 18:00 of the arrival day), so the PAFA keeps the unread signal for the working day. Recommended: B during shadow mode and A after it; sheet 3 changes when the founder decides.
+- **D1.2 Letters that set their own period are not downloaded at arrival in `on-open`.** Recommended: yes, as decision 3 says: the task "Enter the due date" opens at arrival with the EPO due date in view, so the deadline does not wait in silence, and the person's open downloads the letter. The alternative is to download these codes at arrival (`myepo.downloadAtArrivalCodes`), which marks most examination letters read.
+- **D1.3 A letter for an index row without a matter opens the matter from the MyEPO user reference.** Recommended: yes, when the reference matches `intake.fileNumberPattern`; FlowLeap does not invent file numbers (Add client decision 1). Without a reference, the letter waits `unmatched`, and a person gives the file number.
+- **D1.4 A register event with no letter is a task due in one working day, and the engine proposes a deadline from the register event.** Recommended: yes; the proposal always goes to a person.
+- **D1.5 Letters with no application go to the administrator.** Recommended: yes, with `myepo.firmLetterOwner` as the setting.
