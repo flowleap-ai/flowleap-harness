@@ -3,7 +3,7 @@
 # flowleap-os checkout with the seed firm, and the flowleap-web app from this checkout's source with client watchers.
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
-#                           [--patch <overlay>] [--model <provider>/<model id>]
+#                           [--patch <overlay>] [--model <provider>/<model id>] [--myepo-double]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number]        one record_read through the tool executor, no model call (default SF-2021-0011)
@@ -13,6 +13,8 @@
 # FLOWLEAP_DEV_RUN names the run dir (default ~/.local/share/flowleap-harness/dev-loop). `up` stores its options there,
 # so the other commands take none. Ports: the app on <port> (default 3270) through the records proxy, dsh on <port>+1,
 # the probe on <port>+2; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
+# --myepo-double also starts the MyEPO double (public sample data of the seed firm) on <port>+3 and points the MyEPO
+# link at it; link it on Settings -> Connectors with the double's client ID and secret, which its log prints.
 # The model keys come from this shell's environment only; with none, the app starts and chats fail at the model call.
 # --model sets the default model of new chats; up refuses a default whose provider has no key while another key is set.
 set -euo pipefail
@@ -41,6 +43,7 @@ stop_pid() {
 load_options() {
   [[ -s $RUN/loop.env ]] || die "no loop in $RUN: run 'flowleap/dev-loop.sh up --os <flowleap-os checkout>' first"
   MODEL=
+  MYEPO_DOUBLE=
   # shellcheck source=/dev/null
   source "$RUN/loop.env"
 }
@@ -90,10 +93,11 @@ dsh() {
   mkdir -p "$dir/home" "$dir/workspace"
   FLOWLEAP_RECORD_TOKEN=$(< "$RUN/record-token")
   export FLOWLEAP_SKILLS_DIR=$skills TSX_TSCONFIG_PATH=$HARNESS/tsconfig.json FLOWLEAP_DEV_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) \
-    FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents
+    FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents FLOWLEAP_MYEPO_DOUBLE_URL=http://127.0.0.1:$((PORT + 3))
   cd "$dir/workspace" && exec node --import "$tsx" "$HARNESS/apps/cli/src/bin.ts" --profile flowleap-web \
     --patch "$HARNESS/apps/web/tests/pin-browse-picker.overlay.yml" --patch "$HARNESS/flowleap/dev-loop.patch.yml" \
-    ${PATCH:+--patch "$PATCH"} ${MODEL:+--patch "$RUN/model.patch.yml"} "$@" --no-open --port "$port"
+    ${PATCH:+--patch "$PATCH"} ${MODEL:+--patch "$RUN/model.patch.yml"} ${MYEPO_DOUBLE:+--patch "$HARNESS/flowleap/myepo-double.patch.yml"} \
+    "$@" --no-open --port "$port"
 }
 # The model keys that the loop reads from the shell, and the key of one provider route (none for another route).
 MODEL_KEYS='OPENROUTER_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY'
@@ -149,11 +153,24 @@ start_dsh() {
   done
   die "dsh not ready after 120 s: $LOGS/dsh.log"
 }
+# The MyEPO double (packages/host/flowleap-connectors/tests/myepo-double/README.md) on <port>+3, from source.
+start_double() {
+  alive "$RUN/double.pid" && return 0
+  (cd "$HARNESS" && exec node --import tsx/esm packages/host/flowleap-connectors/tests/myepo-double/bin.ts --port $((PORT + 3)) \
+    > "$LOGS/myepo-double.log" 2>&1 & echo $! > "$RUN/double.pid")
+  for _ in $(seq 1 40); do
+    grep -q 'control http' "$LOGS/myepo-double.log" 2> /dev/null && { sed 's/^/dev-loop: /' "$LOGS/myepo-double.log"; return 0; }
+    alive "$RUN/double.pid" || break
+    sleep 0.25
+  done
+  tail -5 "$LOGS/myepo-double.log" >&2
+  die "the MyEPO double did not start: $LOGS/myepo-double.log"
+}
 app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$PORT/}"; }
 
 up() {
   local as=jonas letters=1
-  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; PATCH=; MODEL=
+  OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; PATCH=; MODEL=; MYEPO_DOUBLE=
   while (($#)); do
     case $1 in
       --os) OS=$2; shift 2 ;;
@@ -163,6 +180,7 @@ up() {
       --no-letters) letters=0; shift ;;
       --patch) PATCH=$(cd "$(dirname "$2")" && pwd)/$(basename "$2"); shift 2 ;;
       --model) MODEL=$2; shift 2 ;;
+      --myepo-double) MYEPO_DOUBLE=1; shift ;;
       *) die "unknown option $1" ;;
     esac
   done
@@ -172,7 +190,7 @@ up() {
   [[ -d $HARNESS/node_modules ]] || die "no node_modules: run 'pnpm install' in $HARNESS"
   local t0=$SECONDS
   mkdir -p "$LOGS" "$RUN/seed"
-  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nPATCH=%q\nMODEL=%q\n' "$OS" "$PORT" "$RECORD_PORT" "$PATCH" "$MODEL" > "$RUN/loop.env"
+  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nPATCH=%q\nMODEL=%q\nMYEPO_DOUBLE=%q\n' "$OS" "$PORT" "$RECORD_PORT" "$PATCH" "$MODEL" "$MYEPO_DOUBLE" > "$RUN/loop.env"
   [[ -z $MODEL ]] || model_overlay
   check_model_keys
   say "harness $(git -C "$HARNESS" rev-parse --short HEAD), flowleap-os $(git -C "$OS" rev-parse --short HEAD) ($OS), run dir $RUN"
@@ -216,6 +234,7 @@ console.log(loadSeed().users.filter((u) => u.firmRole === 'formalities').map((u)
   if ! alive "$RUN/watch.pid"; then
     (cd "$HARNESS" && exec node --import tsx/esm scripts/dev-web.ts --poll --skip-build --no-serve > "$LOGS/watch.log" 2>&1 & echo $! > "$RUN/watch.pid")
   fi
+  [[ -z $MYEPO_DOUBLE ]] || start_double
   alive "$RUN/dsh.pid" || start_dsh
   if ! alive "$RUN/proxy.pid"; then
     (node "$HARNESS/.agents/skills/verify/scripts/records-proxy.mjs" "$PORT" "http://127.0.0.1:$((PORT + 1))" "http://127.0.0.1:$((RECORD_PORT + 1))" "$RUN" \
@@ -252,7 +271,7 @@ probe() {
 status() {
   load_options
   local f
-  for f in watch dsh proxy; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
+  for f in watch dsh proxy double; do printf '%-7s %s\n' "$f" "$(alive "$RUN/$f.pid" && echo "running (pid $(< "$RUN/$f.pid"))" || echo stopped)"; done
   "$OS/.claude/skills/verify/scripts/record-local.sh" doctor "$RECORD" "$RECORD_PORT" | sed 's/^/record /'
   printf 'person  %s\napp     http://127.0.0.1:%s/ (dsh %s)\nmodel   %s\n' "$(cat "$RUN/person" 2> /dev/null || echo none)" "$PORT" $((PORT + 1)) "$(default_model)"
 }
@@ -260,7 +279,7 @@ status() {
 down() {
   load_options
   local f
-  for f in proxy dsh watch; do stop_pid "$RUN/$f.pid"; done
+  for f in proxy dsh watch double; do stop_pid "$RUN/$f.pid"; done
   "$OS/.claude/skills/verify/scripts/record-local.sh" stop "$RECORD" "$RECORD_PORT"
   say "stopped; the record data, the seed and the Sessions stay in $RUN (remove it to start fresh)"
 }

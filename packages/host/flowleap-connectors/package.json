@@ -82,6 +82,7 @@
     "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/dsh-working-directory": "workspace:*"
+    "@deepseek-ai/dsh-working-directory": "workspace:*",
+    "flowleap-seed-firm": "github:flowleap-ai/flowleap-seed-firm#34db8e2eab45bd504b982fe1c785c9c57492414b"
   }
 }

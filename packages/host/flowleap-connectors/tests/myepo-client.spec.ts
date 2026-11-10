@@ -92,7 +92,7 @@ describe('the MyEPO reads on the recorded sandbox answers', () => {
     const reads = client(epo)
     expect(await reads.communications({ folderId: brandString<MyEpoFolderId>('kih7dx82luu148t'), page: 0 })).toEqual({ items: [], page: 0, size: 10, total: 0 })
     expect((await reads.unhandledCommunications({ size: 5 })).size).toBe(5)
-    await expect(reads.applications({ procedure: 'UPP' })).rejects.toBeInstanceOf(MyEpoError)
+    expect((await reads.applications({ procedure: 'UPP' })).items.map(row => row.procedure)).toEqual(['UPP', 'UPP', 'UPP', 'UPP'])
     expect(epo.calls.at(-1)?.url).toBe(`${ENDPOINT.baseUrl}/applications?procedure=UPP`)
   })
 

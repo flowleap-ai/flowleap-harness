@@ -15,4 +15,4 @@ The answers of the EPO MyEPO sandbox (`https://api-sandbox.apps-staging.epo.org/
 | `token-refused.json` | the login service's `401 invalid_client` for a wrong secret (status and error fields only) |
 | `api-401.json` | the API's `401` for a token that is not a JWT |
 
-The download of a letter is not stored: the sandbox ZIP of letter `l9s8o3a1luusand` was 609,537 bytes and held one PDF, `P79105WO1-2023.05.30-SE2023123456-I1015.pdf` (620,983 bytes). The specs build a small ZIP of the same layout (`zipOf` in [`../../myepo-fake.ts`](../../myepo-fake.ts)).
+The download of a letter is not stored: the sandbox ZIP of letter `l9s8o3a1luusand` was 609,537 bytes and held one PDF, `P79105WO1-2023.05.30-SE2023123456-I1015.pdf` (620,983 bytes). The [MyEPO double](../../myepo-double/README.md) answers each download with a ZIP of the same layout and a small PDF; it serves these recordings as its sandbox data set, and its spec checks that it answers each recorded read with the recorded status and body.

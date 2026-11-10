@@ -13693,6 +13693,9 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+      flowleap-seed-firm:
+        specifier: github:flowleap-ai/flowleap-seed-firm#34db8e2eab45bd504b982fe1c785c9c57492414b
+        version: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b
 
   packages/host/flowleap-deliverables:
     dependencies:
@@ -24900,6 +24903,11 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b:
+    resolution: {gitHosted: true, integrity: sha512-UhXAYIChhWiq6ryfItxCFVBlZKeuRK12sAhc8+lki5IYkG51oraTkZI7LTcotGIlZare0DoWsrzTEJpG7Mf/QQ==, tarball: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b}
+    version: 0.1.0
+    engines: {node: '>=22'}
+
   focus-trap@7.8.0:
     resolution: {integrity: sha512-/yNdlIkpWbM0ptxno3ONTuf+2g318kh2ez3KSeZN5dZ8YC6AAmgeWz+GasYYiBJPFaYcSAPeu4GfhUaChzIJXA==}
 
@@ -32768,6 +32776,8 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.4.2: {}
+
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/34db8e2eab45bd504b982fe1c785c9c57492414b: {}
 
   focus-trap@7.8.0:
     dependencies:
