@@ -186,24 +186,26 @@ seed_rows_without_myepo() {
     const skip = new Set(process.argv[1].split(',').map(Number))
     console.log(loadSeed().matters.flatMap((m) => m.documents.map((d) => d.row)).filter((r) => !skip.has(r)).join(','))" "$skip")
 }
-# The firm's MyEPO letter reader (packages/host/flowleap-connectors/tests/myepo-reader/bin.ts) against the double, with the
-# double's public test client and the record's intake token, both in a folder that only this account reads.
+# The firm worker (dsh --profile flowleap-firm-worker) against the double, with the folders that flowleap-os install.sh
+# gives it on a firm: the double's public test client saved as the link (link.json) and the record's intake token, in a
+# folder that only this account reads, and a patch file with the double and the record.
 start_reader() {
   alive "$RUN/reader.pid" && return 0
-  local dir=$RUN/myepo-reader
-  (umask 077; mkdir -p "$dir"; printf 'public-sample-data\n' > "$dir/client-secret"; cp "$RECORD/intake-token" "$dir/intake-token"
-    chmod 600 "$dir/client-secret" "$dir/intake-token"
-    printf '{"recordUrl":"http://127.0.0.1:%s/records/api/","myepo":{"baseUrl":"http://127.0.0.1:%s/latest","tokenUrl":"http://127.0.0.1:%s/token","clientId":"flowleap-myepo-double","clientSecretFile":"client-secret","requestsPerSecond":2,"timeoutSeconds":30},"download":"on-arrival","everySeconds":5}\n' \
-      $((RECORD_PORT + 1)) $((PORT + 3)) $((PORT + 3)) > "$dir/config.json")
-  (cd "$HARNESS" && exec node --import tsx/esm packages/host/flowleap-connectors/tests/myepo-reader/bin.ts "$dir" \
-    > "$LOGS/myepo-reader.log" 2>&1 & echo $! > "$RUN/reader.pid")
-  for _ in $(seq 1 40); do
-    grep -q 'myepo-reader: reads' "$LOGS/myepo-reader.log" 2> /dev/null && { sed 's/^/dev-loop: /' "$LOGS/myepo-reader.log"; return 0; }
+  local dir=$RUN/myepo-worker
+  (umask 077; mkdir -p "$dir/myepo" "$dir/tests" "$dir/home"; cp "$RECORD/intake-token" "$dir/myepo/intake-token"
+    printf '{"clientId":"flowleap-myepo-double","clientSecret":"public-sample-data","linkedBy":"dev-loop","linkedAt":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" > "$dir/myepo/link.json"
+    chmod 600 "$dir/myepo/intake-token" "$dir/myepo/link.json"
+    printf -- '- id: flowleap-myepo-worker\n  config:\n    dir: %s\n    testsDir: %s\n    recordUrl: http://127.0.0.1:%s/records/api/\n    myepo:\n      baseUrl: http://127.0.0.1:%s/latest\n      tokenUrl: http://127.0.0.1:%s/token\n    everySeconds: 5\n' \
+      "$dir/myepo" "$dir/tests" $((RECORD_PORT + 1)) $((PORT + 3)) $((PORT + 3)) > "$dir/worker.patch.yml")
+  (cd "$HARNESS" && DSH_HOME=$dir/home DSH_TELEMETRY_MODE=DISABLED exec node --import tsx/esm apps/cli/src/bin.ts \
+    --patch "$dir/worker.patch.yml" --profile flowleap-firm-worker > "$LOGS/myepo-reader.log" 2>&1 & echo $! > "$RUN/reader.pid")
+  for _ in $(seq 1 80); do
+    grep -q 'flowleap-myepo-worker: reads' "$LOGS/myepo-reader.log" 2> /dev/null && { sed 's/^/dev-loop: /' "$LOGS/myepo-reader.log"; return 0; }
     alive "$RUN/reader.pid" || break
     sleep 0.25
   done
   tail -5 "$LOGS/myepo-reader.log" >&2
-  die "the MyEPO reader did not start: $LOGS/myepo-reader.log"
+  die "the firm worker did not start: $LOGS/myepo-reader.log"
 }
 app_link() { local url; url=$(dsh_url); printf '%s\n' "${url/:$((PORT + 1))\//:$PORT/}"; }
 

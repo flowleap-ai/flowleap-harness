@@ -268,8 +268,6 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
         fail(outcome.kind === 'unreachable' ? describeFailure({ kind: 'unreachable' }) : outcome.message)
         due.nextTest = now() + config.everySeconds * 1000
         return
-      case 'not-linked':
-        return
     }
   }
 

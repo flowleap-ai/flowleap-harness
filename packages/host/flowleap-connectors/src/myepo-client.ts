@@ -422,7 +422,9 @@ function pdfOf(bytes: Uint8Array): { filename: string; pdf: Uint8Array } {
  * @returns `passed` with the readable portfolios and whether the Mailbox answered; `refused`, `unreachable`, or `failed`
  *   with the EPO's description.
  */
-export async function testMyEpoLink(client: MyEpoReads, now: () => number, signal?: AbortSignal): Promise<MyEpoTestOutcome> {
+export async function testMyEpoLink(
+  client: MyEpoReads, now: () => number, signal?: AbortSignal,
+): Promise<Exclude<MyEpoTestOutcome, { kind: 'not-linked' }>> {
   try {
     const portfolios = await readPortfolios(client, signal)
     const mailbox = await answers(() => client.folders(signal))
