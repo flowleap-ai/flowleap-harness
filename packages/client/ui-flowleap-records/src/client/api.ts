@@ -388,7 +388,7 @@ export type DeadlineDetail = Parsed<typeof deadlineDetail>
 export type IntakeView = 'waiting' | 'filed-today' | 'not-relevant'
 
 /** How a letter came: from the firm's scan mailbox, or forwarded by a person, who gets the reply. */
-export const MAIL_ROUTES = ['scan-mailbox', 'forward'] as const
+export const MAIL_ROUTES = ['scan-mailbox', 'forward', 'myepo'] as const
 /** One route of `MAIL_ROUTES`. */
 export type MailRoute = (typeof MAIL_ROUTES)[number]
 
@@ -417,7 +417,7 @@ export interface IntakeRow {
   readonly matter: MatterRef | null
   /** Matters that the person may see whose file number is the letter's reference: 0 or 1 in R1. */
   readonly matterCount: number
-  /** How the letter came: from the firm's scan mailbox (no forwarder), or forwarded by a person. */
+  /** How the letter came: from the firm's scan mailbox or the firm's MyEPO Mailbox (no forwarder), or forwarded by a person. */
   readonly route: MailRoute
   readonly forwarder: Person | null
   readonly receivedAt: IsoTime

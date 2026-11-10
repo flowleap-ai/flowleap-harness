@@ -213,6 +213,16 @@ describe('a scan from the firm\'s scan mailbox', () => {
   })
 })
 
+describe('a letter from the firm\'s MyEPO Mailbox', () => {
+  it('parses the myepo route, says that the letter came from the EPO Mailbox, and names no forwarder', async () => {
+    const wire = { ...intakeDocumentWire, mail: { ...intakeDocumentWire.mail, route: 'myepo', forwarder: null } }
+    await mountLetter(parsers.intakeDocument(wire, 'card'))
+    expect(document.body.textContent).toMatch(/The letter came from the firm's EPO Mailbox (at \d\d:\d\d|on \d+ \w+|yesterday)\./u)
+    expect(document.body.textContent).not.toContain('forwarded this letter')
+    expect(document.body.textContent).not.toContain('scan mailbox')
+  })
+})
+
 describe('the firm\'s time zone', () => {
   it('shows the times of a letter in the firm\'s time zone, not the browser\'s', async () => {
     const { api } = createFixtureApi()

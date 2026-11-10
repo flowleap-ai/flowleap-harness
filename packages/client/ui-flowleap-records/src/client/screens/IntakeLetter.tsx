@@ -133,9 +133,15 @@ const OUTCOME_LEDES: Readonly<Record<IntakeDocument['readers']['outcome'], Flowl
   'no-reading': null,
 }
 
+/** The lede words of a letter that names no forwarder, by its route. */
+const LEDE_WORDS = {
+  'scan-mailbox': { today: 'intake.lede.scan', on: 'intake.lede.scanOn', yesterday: 'intake.lede.scanYesterday' },
+  'myepo': { today: 'intake.lede.myepo', on: 'intake.lede.myepoOn', yesterday: 'intake.lede.myepoYesterday' },
+} as const
+
 /**
- * The first sentences of the lede: who forwarded the letter, or, for a scan from the firm's scan mailbox (which names
- * no forwarder), when it came and how FlowLeap's readings came out.
+ * The first sentences of the lede: who forwarded the letter, or, for a letter from the firm's scan mailbox or MyEPO Mailbox
+ * (which name no forwarder), when it came and how FlowLeap's readings came out.
  * @param ctx - the screen context.
  * @param letter - the letter.
  * @returns the sentences, or null for a forward from nobody that the os names.
@@ -147,9 +153,10 @@ function arrivalOf(ctx: ScreenContext, letter: IntakeDocument): string | null {
   const outcome = OUTCOME_LEDES[readers.outcome]
   // Today it came "at 08:00"; on an earlier day it came "on 5 Nov" or "yesterday".
   const when = listTime(mail.receivedAt, ctx.now, ctx.locale, ctx.timeZone)
+  const words = LEDE_WORDS[mail.route]
   const scan = when.kind === 'today'
-    ? t('intake.lede.scan', { time: when.text })
-    : when.kind === 'yesterday' ? t('intake.lede.scanYesterday') : t('intake.lede.scanOn', { date: when.text })
+    ? t(words.today, { time: when.text })
+    : when.kind === 'yesterday' ? t(words.yesterday) : t(words.on, { date: when.text })
   return outcome === null ? scan : `${scan} ${t(outcome)}`
 }
 
