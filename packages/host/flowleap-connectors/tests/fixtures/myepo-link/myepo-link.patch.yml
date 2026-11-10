@@ -1,0 +1,28 @@
+# Test-only patch over the shipped headless profile: the credential store in the test directory, and the
+# connectors with the MyEPO endpoints on the loopback double of the EPO that the driver starts.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: credentials
+  disabled: false
+  config:
+    path: !!js process.cwd() + '/runtime/credentials.yaml'
+    watch: false
+
+- insert:
+    - id: flowleap-connectors
+      name: '@deepseek-ai/dsh-flowleap-connectors'
+      config:
+        myepo:
+          baseUrl: !!js process.env.MYEPO_DOUBLE_URL + '/latest'
+          tokenUrl: !!js process.env.MYEPO_DOUBLE_URL + '/token'
+          requestsPerSecond: 50
+
+- id: sandbox-policy
+  inject: []
+  config:
+    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: !!js process.cwd()

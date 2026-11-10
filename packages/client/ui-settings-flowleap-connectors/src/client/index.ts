@@ -1,5 +1,5 @@
 /**
- * Patent data connectors settings, browser half: the "Patent data connectors"
+ * Connectors settings, browser half: the "Connectors"
  * settings section with one write-only card per connector, and the first-run
  * key wizard shown while no connector is configured and the dismissal is not
  * recorded. Both read presence and write keys through the `flowleapConnectors`
@@ -17,6 +17,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { ConnectorsSection, type ConnectorsSectionInjected } from './ConnectorsSection.tsx'
 import { ConnectorsWizard, type ConnectorsWizardInjected } from './ConnectorsWizard.tsx'
 import { ConnectorsStore } from './connectors-store.ts'
+import { MyEpoStore } from './myepo-store.ts'
 import { WizardStore, type WizardSection } from './wizard-store.ts'
 import { de, en, es, fr, ja, pt, ru, zh, type ConnectorsLocaleKey } from './locales.ts'
 import { WIZARD_SETTINGS_NAMESPACE } from '../wizard-settings.ts'
@@ -25,12 +26,14 @@ export type { ConnectorsSectionInjected, ConnectorsSectionProps } from './Connec
 export type { ConnectorsWizardInjected, ConnectorsWizardProps } from './ConnectorsWizard.tsx'
 export type { ConnectorCardProps, Translate } from './ConnectorCard.tsx'
 export type { ConnectorCardState, ConnectorId, ConnectorsState } from './connectors-store.ts'
+export type { MyEpoCardActions, MyEpoCardProps } from './MyEpoCard.tsx'
+export type { MyEpoField, MyEpoMode, MyEpoState } from './myepo-store.ts'
 export type { WizardState } from './wizard-store.ts'
 export type { ConnectorsLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Patent data connectors section and wizard copy. */
+    /** Connectors section and wizard copy. */
     'settings.flowleapConnectors': ConnectorsLocaleKey
   }
 }
@@ -49,17 +52,23 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-flowleap-connectors: dictionaries')
   const t = ctx.locale.bind(NS) as ConnectorsWizardInjected['t']
   const controller = new ConnectorsStore(ctx)
+  const myEpoController = new MyEpoStore(ctx)
   const wizardController = new WizardStore(ctx.configForms.get<WizardSection>(WIZARD_SETTINGS_NAMESPACE))
   // A key written from another browser or the wizard changes no settings
   // section; the record event is the one signal that reaches the page.
   ctx.effect(() => {
-    const dispose = ctx.remote.$on('credentials/record-updated', () => { controller.refresh() })
+    const dispose = ctx.remote.$on('credentials/record-updated', () => {
+      controller.refresh()
+      myEpoController.refresh()
+    })
     return () => {
       wizardController.dispose()
       dispose()
     }
   }, 'ui-settings-flowleap-connectors: record invalidations')
-  const sectionInjected = (): ConnectorsSectionInjected => ({ controller, hooks: { connectors: controller.store } })
+  const sectionInjected = (): ConnectorsSectionInjected => ({
+    controller, myEpoController, hooks: { connectors: controller.store, myEpo: myEpoController.store },
+  })
   const wizardInjected = (): ConnectorsWizardInjected => ({
     controller, wizardController, hooks: { connectors: controller.store, wizard: wizardController.store }, t,
   })

@@ -320,6 +320,7 @@
     { "path": "./packages/client/ui-settings-flowleap-connectors/tsconfig.host.json" },
     { "path": "./packages/client/ui-brand-flowleap/tsconfig.host.json" },
     { "path": "./packages/client/ui-flowleap-admin-link/tsconfig.host.json" },
+    { "path": "./packages/client/ui-flowleap-folder/tsconfig.host.json" },
     { "path": "./packages/client/ui-flowleap-records/tsconfig.host.json" },
 
     { "path": "./packages/host/product-telemetry-otel" },

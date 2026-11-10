@@ -309,7 +309,7 @@ const matterDetail = obj({
     document: nullable(ids.document), receivedAt: nullable(isoDate),
   })),
   documents: arrayOf(obj({
-    sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'agent']), at: isoTime,
+    sha256: ids.document, fileName: str, mediaType: str, source: oneOf(['mail', 'myepo', 'agent']), at: isoTime,
     state: oneOf(['filed', 'proposed']), code: nullable(str), letterDate: nullable(isoDate), filedBy: nullable(person),
   })),
   activity,

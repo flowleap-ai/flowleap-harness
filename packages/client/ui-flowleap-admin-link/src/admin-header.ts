@@ -1,6 +1,7 @@
 /**
- * The `X-Flowleap-Admin` header check and the public-key read. The starter signs the header with a private key that
- * only it holds; this module holds only the public key, so it can check a header but never make one.
+ * The `X-Flowleap-Admin` header check, the public-key read, and the check of one request that joins them. The starter
+ * signs the header with a private key that only it holds; this module holds only the public key, so it can check a
+ * header but never make one.
  * @module
  */
 
@@ -127,4 +128,38 @@ export async function readAdminKey(path: string): Promise<AdminKeyRead> {
   }
   if (key.asymmetricKeyType !== 'ed25519') throw new AdminLinkKeyError('malformed', path, `the key type is ${String(key.asymmetricKeyType)}, not ed25519`)
   return { state: 'present', key }
+}
+
+/** Where {@link isAdminRequest} reports a problem that an operator must see. */
+export interface AdminCheckLog {
+  /** Receives an unusable key file. */
+  readonly error: (message: string) => void
+  /** Receives a header that is present but refused, with its reason. */
+  readonly warn: (message: string) => void
+}
+
+/**
+ * Whether one request is of a firm administrator: it carries an `X-Flowleap-Admin` header that the starter signed.
+ * The key file is read again at each call, so a key rotation needs no restart.
+ * @param request - the authenticated request.
+ * @param publicKeyFile - absolute path of the starter's public key, or `''`, which means that no request is of an
+ * administrator.
+ * @param log - receives an unusable key file (error) and a header that is present but refused (warning); a missing
+ * header and a missing key file are not logged.
+ * @param nowSeconds - the current Unix time in seconds.
+ * @returns true only for a valid header of the configured key.
+ */
+export async function isAdminRequest(request: Request, publicKeyFile: string, log: AdminCheckLog, nowSeconds: number): Promise<boolean> {
+  if (publicKeyFile === '') return false
+  let read: AdminKeyRead
+  try {
+    read = await readAdminKey(publicKeyFile)
+  } catch (error) {
+    log.error(`${String(error)}; no request is of a firm administrator until the file holds the starter's public key`)
+    return false
+  }
+  if (read.state === 'absent') return false
+  const check = verifyAdminHeader(request.headers.get(ADMIN_HEADER) ?? undefined, read.key, nowSeconds)
+  if (!check.admin && check.reason !== 'missing') log.warn(`${ADMIN_HEADER} refused (${check.reason}); the request is not of a firm administrator`)
+  return check.admin
 }

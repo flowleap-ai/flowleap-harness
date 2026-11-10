@@ -216,6 +216,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'shell.overlay\' (client-ui-context-menu), so it exists while that entry is mounted',
     occupants: [
       'client-ui-file-actions Icon',
+      'client-ui-flowleap-folder Icon',
       'client-ui-flowleap-records Icon',
       'client-ui-open-in-app Icon',
       'client-ui-open-in-app ContextMenuApplicationIcon key \'open-in-app.application\'',
@@ -2884,6 +2885,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-flowleap-dashboard ChatsPage',
       'client-ui-flowleap-dashboard AgentsPage',
       'client-ui-flowleap-records MyWorkPanel',
+      'client-ui-flowleap-folder FolderPanel',
       'client-ui-flowleap-records RecordsPanel',
       'client-ui-flowleap-routines NeedsReviewPage',
       'client-ui-flowleap-work-pages OfficeActionBoard',
@@ -4144,6 +4146,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'sidebar.settings\' (client-ui-settings-general), so it exists while that entry is mounted',
     occupants: [
       'client-ui-agent-preset AgentPresetSection id \'agent-presets\'',
+      'client-ui-flowleap-folder FirmIdentitySection id \'flowleap-firm-identity\'',
       'client-ui-settings-account AccountSection id \'account\'',
       'client-ui-settings-flowleap-connectors ConnectorsSection id \'flowleap-connectors\'',
       'client-ui-settings-general GeneralSection id \'general\'',
@@ -4724,6 +4727,9 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-flowleap-dashboard launcher.icon',
       'client-ui-flowleap-records panel.icon',
+      'client-ui-flowleap-folder ClientsIcon',
+      'client-ui-flowleap-records MattersIcon',
+      'client-ui-flowleap-routines NeedsReviewPanelIcon',
       'client-ui-flowleap-work-pages WorkPagesPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',
       'client-ui-schedule TaskManagerIcon',

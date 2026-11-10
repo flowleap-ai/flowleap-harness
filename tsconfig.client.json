@@ -139,6 +139,7 @@
     { "path": "./packages/client/ui-jobs" },
     { "path": "./packages/client/ui-schedule" },
     { "path": "./packages/client/ui-flowleap-admin-link/tsconfig.client.json" },
+    { "path": "./packages/client/ui-flowleap-folder/tsconfig.client.json" },
     { "path": "./packages/client/ui-flowleap-records/tsconfig.client.json" },
     { "path": "./packages/client/ui-flowleap-budget" },
     { "path": "./packages/client/ui-settings-flowleap-models" },

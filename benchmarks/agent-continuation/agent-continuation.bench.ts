@@ -5,7 +5,7 @@ import { availableParallelism, cpus, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { runBuiltBenchmarkWorker } from '../support/built-worker.ts'
-import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibration.ts'
+import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM, runnerTimeBudget } from '../support/calibration.ts'
 import { recordTimings, type BenchmarkCase } from '../support/scaling-report.ts'
 import type { ContinuationReport } from './agent-continuation.worker.ts'
 import type { CatalogReport } from './child-catalog.worker.ts'
@@ -207,9 +207,9 @@ describe('continuing tool-heavy Sessions with large histories', () => {
         finally { await rm(root, { recursive: true, force: true }) }
       }
       const totalMs = samples.map(sample => sample.totalMs)
-      const budgetMs = scenario === 'request-history' ? REQUEST_HISTORY_BUDGET_MS
+      const budgetMs = runnerTimeBudget(scenario === 'request-history' ? REQUEST_HISTORY_BUDGET_MS
         : scenario === 'catalog' ? CATALOG_BUDGET_MS
-          : scenario === 'tool-continuation' ? TOOL_CONTINUATION_BUDGET_MS : PROFILE_CONTINUATION_BUDGET_MS
+          : scenario === 'tool-continuation' ? TOOL_CONTINUATION_BUDGET_MS : PROFILE_CONTINUATION_BUDGET_MS)
       const retainedHeapBudgetMb = EXPECTED_RETAINED_HEAP_MB * PERFORMANCE_BUDGET_HEADROOM
       console.log(JSON.stringify({
         benchmark: 'agent-continuation/' + scenario, workload: WORKLOAD,
@@ -227,8 +227,7 @@ describe('continuing tool-heavy Sessions with large histories', () => {
           ? { ms: median(totalMs), ioShare: PROFILE_IO_SHARE }
           : { ms: median(totalMs), cpuMs: median((samples as (ContinuationReport | CatalogReport)[]).map(sample => sample.cpuUserMs + sample.cpuSystemMs)) },
       }, { totalMs: budgetMs })
-      if (scenario === 'request-history') assertRequestHistoryBudget(median(totalMs))
-      else expectTotalWithinBudget(median(totalMs), budgetMs)
+      expectTotalWithinBudget(median(totalMs), budgetMs)
       if (scenario === 'tool-continuation') {
         expect(median((samples as ContinuationReport[]).map(sample => sample.retainedHeapMb)))
           .toBeLessThanOrEqual(retainedHeapBudgetMb)

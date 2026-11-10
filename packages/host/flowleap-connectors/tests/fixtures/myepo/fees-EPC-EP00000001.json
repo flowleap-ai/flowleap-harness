@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": [
+    {
+      "feeCode": "001",
+      "amount": 123,
+      "currency": null,
+      "dueDate": "2024-01-01"
+    },
+    {
+      "feeCode": "002",
+      "amount": 321,
+      "currency": null,
+      "dueDate": "2024-02-01"
+    },
+    {
+      "feeCode": "003",
+      "amount": 999,
+      "currency": null,
+      "dueDate": "2024-03-01"
+    }
+  ]
+}

@@ -2790,6 +2790,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-flowleap-dashboard':
         specifier: workspace:*
         version: link:../../client/ui-flowleap-dashboard
+      '@deepseek-ai/dsh-client-ui-flowleap-folder':
+        specifier: workspace:*
+        version: link:../../client/ui-flowleap-folder
       '@deepseek-ai/dsh-client-ui-flowleap-records':
         specifier: workspace:*
         version: link:../../client/ui-flowleap-records
@@ -5055,6 +5058,130 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
 
+  packages/client/ui-flowleap-folder:
+    dependencies:
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: workspace:*
+        version: link:../../util/atomic-write
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@deepseek-ai/dsh-api-remotes':
+        specifier: workspace:*
+        version: link:../../api/remotes
+      '@deepseek-ai/dsh-api-workspace-controller':
+        specifier: workspace:*
+        version: link:../../api/workspace-controller
+      '@deepseek-ai/dsh-api-workspace-files':
+        specifier: workspace:*
+        version: link:../../api/workspace-files
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../connection
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@deepseek-ai/dsh-client-shortcuts':
+        specifier: workspace:*
+        version: link:../shortcuts
+      '@deepseek-ai/dsh-client-store':
+        specifier: workspace:*
+        version: link:../store
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-context-menu':
+        specifier: workspace:*
+        version: link:../ui-context-menu
+      '@deepseek-ai/dsh-client-ui-flowleap-admin-link':
+        specifier: workspace:*
+        version: link:../ui-flowleap-admin-link
+      '@deepseek-ai/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../ui-layout
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@deepseek-ai/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@deepseek-ai/dsh-client-ui-sidebar':
+        specifier: workspace:*
+        version: link:../ui-sidebar
+      '@deepseek-ai/dsh-client-ui-sidebar-files':
+        specifier: workspace:*
+        version: link:../ui-sidebar-files
+      '@deepseek-ai/dsh-client-ui-sidebar-right':
+        specifier: workspace:*
+        version: link:../ui-sidebar-right
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@deepseek-ai/dsh-client-ui-workspace':
+        specifier: workspace:*
+        version: link:../ui-workspace
+      '@deepseek-ai/dsh-file-reference':
+        specifier: workspace:*
+        version: link:../../context/file-reference
+      '@deepseek-ai/dsh-flowleap-connectors':
+        specifier: workspace:*
+        version: link:../../host/flowleap-connectors
+      '@deepseek-ai/dsh-loader-smoke':
+        specifier: workspace:*
+        version: link:../../test-support/loader-smoke
+      '@deepseek-ai/dsh-office-to-pdf':
+        specifier: workspace:*
+        version: link:../../document/office-to-pdf
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@deepseek-ai/dsh-util-values':
+        specifier: workspace:*
+        version: link:../../util/values
+      '@deepseek-ai/dsh-util-workspace-path':
+        specifier: workspace:*
+        version: link:../../util/workspace-path
+      '@deepseek-ai/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+      postal-mime:
+        specifier: ^4.1.4
+        version: 4.2.0
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+      xlsx:
+        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+
   packages/client/ui-flowleap-records:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -5962,6 +6089,9 @@ importers:
       '@shikijs/langs':
         specifier: ^4.4.3
         version: 4.4.3
+      '@tanstack/react-table':
+        specifier: 8.21.3
+        version: 8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
@@ -13508,6 +13638,9 @@ importers:
       '@flowleap/connectors':
         specifier: workspace:~
         version: link:../../../vendor/flowleap-connectors
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -13560,6 +13693,12 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+      flowleap-deadlines:
+        specifier: github:flowleap-ai/flowleap-deadlines#c44b99f506f8b32c57b9b39af636830951c80e05
+        version: https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05
+      flowleap-seed-firm:
+        specifier: github:flowleap-ai/flowleap-seed-firm#75c89f6dcd10c415fed37a01c126faa5403e6e6e
+        version: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e
 
   packages/host/flowleap-deliverables:
     dependencies:
@@ -22795,11 +22934,22 @@ packages:
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
 
+  '@tanstack/react-table@8.21.3':
+    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
   '@tanstack/react-virtual@3.14.10':
     resolution: {integrity: sha512-SRyoUbdFMRHuYXMijV5H4ZarQWpXkj3iANq8OFre+pybeVap8ZJjZ3Nz9bVjx4d8PfobVUQUdKyyyHYk3E+djw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/table-core@8.21.3':
+    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
+    engines: {node: '>=12'}
 
   '@tanstack/virtual-core@3.17.8':
     resolution: {integrity: sha512-BfEvehNpOT75r5Ksc5xW6NZuXujTfb7nlSEyVu4XHG3gdxNg1KqXruWbDewXOUaUYIo4oRbSfkjIajz4MAT8tA==}
@@ -24756,6 +24906,16 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
+  flowleap-deadlines@https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05:
+    resolution: {gitHosted: true, integrity: sha512-b4dtEW4TPo4HMOXmOIRECGpgRNsf/CF9R+13nHmK5/969/QW3Nr2kDa3Nstd5aGv3qfIvwxVkcGCIOkpTjMT1A==, tarball: https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05}
+    version: 0.1.0
+    engines: {node: '>=22'}
+
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e:
+    resolution: {gitHosted: true, integrity: sha512-NGFkA4pXJjowL8EI99vy59GF1BbJZo+Fd+RhvkQjuscXWOJefFAkd1wRAFJkIYYUUFlz15BCSYcgTlPDVSN36g==, tarball: https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e}
+    version: 0.1.0
+    engines: {node: '>=22'}
+
   focus-trap@7.8.0:
     resolution: {integrity: sha512-/yNdlIkpWbM0ptxno3ONTuf+2g318kh2ez3KSeZN5dZ8YC6AAmgeWz+GasYYiBJPFaYcSAPeu4GfhUaChzIJXA==}
 
@@ -26418,6 +26578,10 @@ packages:
   portfinder@1.0.38:
     resolution: {integrity: sha512-rEwq/ZHlJIKw++XtLAO8PPuOQA/zaPJOZJ37BVuN97nLpMJeuDVLVGRwbFoBgLudgdTMP2hdRJP++H+8QOA3vg==}
     engines: {node: '>= 10.12'}
+
+  postal-mime@4.2.0:
+    resolution: {integrity: sha512-QG5Rh8wY/zjwFF1lKWcBbwWcAWR5jWodmMPL4gMik43XDLebtWoAAPyG0lrE2kYYZ5IHTASrepGuGO0YIwNKAg==}
+    engines: {node: '>=20'}
 
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
@@ -30302,11 +30466,19 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
+  '@tanstack/react-table@8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@tanstack/table-core': 8.21.3
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   '@tanstack/react-virtual@3.14.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@tanstack/virtual-core': 3.17.8
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
+
+  '@tanstack/table-core@8.21.3': {}
 
   '@tanstack/virtual-core@3.17.8': {}
 
@@ -32613,6 +32785,10 @@ snapshots:
 
   flatted@3.4.2: {}
 
+  flowleap-deadlines@https://codeload.github.com/flowleap-ai/flowleap-deadlines/tar.gz/c44b99f506f8b32c57b9b39af636830951c80e05: {}
+
+  flowleap-seed-firm@https://codeload.github.com/flowleap-ai/flowleap-seed-firm/tar.gz/75c89f6dcd10c415fed37a01c126faa5403e6e6e: {}
+
   focus-trap@7.8.0:
     dependencies:
       tabbable: 6.5.0
@@ -34439,6 +34615,8 @@ snapshots:
       debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
+
+  postal-mime@4.2.0: {}
 
   postcss@8.5.28:
     dependencies:

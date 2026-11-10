@@ -119,6 +119,11 @@ flowchart LR
   pkg_flowleap_routines["flowleap-routines"]
   svc_flowleapOcr["ctx.flowleapOcr<br/>FlowLeap OCR reader"]
   pkg_flowleap_agent_builder["flowleap-agent-builder"]
+  pkg_client_ui_flowleap_admin_link["client-ui-flowleap-admin-link"]
+  svc_flowleapAdmin["ctx.flowleapAdmin<br/>FlowLeap firm administrator check"]
+  pkg_client_ui_flowleap_folder["client-ui-flowleap-folder"]
+  svc_flowleapPatentData["ctx.flowleapPatentData<br/>FlowLeap patent data reader"]
+  svc_flowleapMyEpo["ctx.flowleapMyEpo<br/>FlowLeap MyEPO reader"]
   svc_flowleapAgentCatalog["ctx.flowleapAgentCatalog<br/>FlowLeap agent catalog"]
   svc_flowleapAgents["ctx.flowleapAgents<br/>FlowLeap agents Remote"]
   pkg_client_ui_flowleap_agent_builder["client-ui-flowleap-agent-builder"]
@@ -372,6 +377,7 @@ flowchart LR
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
+  pkg_client_ui_flowleap_admin_link --> svc_flowleapAdmin
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_settings_skills --> svc_skillInventory
   pkg_command_feedback --> svc_sessionFeedback
@@ -413,7 +419,9 @@ flowchart LR
   pkg_flowleap_agent_builder --> svc_flowleapAgents
   pkg_flowleap_budget --> svc_flowleapBudget
   pkg_flowleap_connectors --> svc_flowleapConnectors
+  pkg_flowleap_connectors --> svc_flowleapMyEpo
   pkg_flowleap_connectors --> svc_flowleapOcr
+  pkg_flowleap_connectors --> svc_flowleapPatentData
   pkg_flowleap_connectors --> svc_flowleapRegister
   pkg_flowleap_deliverables --> svc_flowleapWorkPages
   pkg_flowleap_models --> svc_flowleapModels
@@ -562,12 +570,14 @@ flowchart LR
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
+  svc_flowleapAdmin --> pkg_client_ui_flowleap_folder
   svc_flowleapAgents --> pkg_client_ui_flowleap_agent_builder
   svc_flowleapBudget --> pkg_client_ui_flowleap_budget
   svc_flowleapConnectors --> pkg_client_ui_settings_flowleap_connectors
   svc_flowleapModels --> pkg_client_ui_settings_flowleap_models
   svc_flowleapOcr --> pkg_flowleap_agent_builder
   svc_flowleapOffice --> pkg_flowleap_office
+  svc_flowleapPatentData --> pkg_client_ui_flowleap_folder
   svc_flowleapRecord --> pkg_flowleap_record
   svc_flowleapRecord --> pkg_flowleap_ticket
   svc_flowleapRegister --> pkg_flowleap_routines
@@ -742,6 +752,9 @@ flowchart LR
 | `ctx.flowleapConnectors` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-settings-flowleap-connectors`](../packages/client/ui-settings-flowleap-connectors) | - | Reports presence of the firm's patent-data connector keys, stores and removes them as credential records, and runs one cheap authenticated call per connector; mounted by the flowleap-web profile only. |
 | `ctx.flowleapRegister` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-routines`](../packages/host/flowleap-routines) | - | Reads the register events of one EP publication or US application on the firm's office keys without a tool call; mounted by the flowleap-web profile only. |
 | `ctx.flowleapOcr` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | Reads the page text of one document through Mistral OCR on the firm's key without a tool call; mounted by the flowleap-web profile only. |
+| `ctx.flowleapAdmin` | `service` | [`client-ui-flowleap-admin-link`](../packages/client/ui-flowleap-admin-link) | - | [`client-ui-flowleap-folder`](../packages/client/ui-flowleap-folder) | - | Says whether a request carries an X-Flowleap-Admin header that the flowleap-os starter signed, by the admin-link row's public key; the Firm identity save of Add client accepts only such a request; mounted by the flowleap-web profile only. |
+| `ctx.flowleapPatentData` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | [`client-ui-flowleap-folder`](../packages/client/ui-flowleap-folder) | - | Reads EP Register searches and records, EP families and EP publication text on the firm's EPO key without a tool call, for Add client; only names and numbers leave the firm; mounted by the flowleap-web profile only. |
+| `ctx.flowleapMyEpo` | `service` | [`flowleap-connectors`](../packages/host/flowleap-connectors) | - | - | - | Reads the firm's own MyEPO account (applications, Mailbox letters, EPO due dates, pending fees) with the credentials the MyEPO card links; read only, no consumer yet; mounted by the flowleap-web profile only. |
 | `ctx.flowleapAgentCatalog` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | - | - | Owns the agent folders, their file indexes and one agent preset each; read by the per-agent preset row of the same package; mounted by the flowleap-web profile only. |
 | `ctx.flowleapAgents` | `service` | [`flowleap-agent-builder`](../packages/host/flowleap-agent-builder) | - | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | - | Lists, reads, saves and deletes the agents of the agent builder and their files, and names the connector rows an agent can choose; mounted by the flowleap-web profile only. |
 | `ctx.flowleapWorkPages` | `service` | [`flowleap-deliverables`](../packages/host/flowleap-deliverables) | - | [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | - | Lists and reads the office action work pages that office-action-scaffold saves write, and changes only their review fields; mounted by the flowleap-web profile only. |

@@ -1,5 +1,5 @@
 /**
- * Patent data connectors settings, node half: the durable wizard-dismissal
+ * Connectors settings, node half: the durable wizard-dismissal
  * preference the browser half reads and writes through the settings form of
  * this row. The browser half owns the cards and the wizard through
  * `exports["./client"]`.

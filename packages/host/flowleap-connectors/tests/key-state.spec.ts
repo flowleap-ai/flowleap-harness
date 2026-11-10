@@ -27,7 +27,7 @@ describe('the patent-data key-state section', () => {
     const text = renderKeyStateSection({ ...NO_KEYS, 'epo-ops': true })
     expect(text).toMatchInlineSnapshot(`
       "Patent-data keys (this host):
-      This host runs the patent offices on the firm's own keys, stored in Settings > Patent data connectors. Key presence this turn:
+      This host runs the patent offices on the firm's own keys, stored in Settings > Connectors. Key presence this turn:
       - EPO OPS: key is set
       - USPTO ODP: key is not set
       - Semantic Scholar: key is not set

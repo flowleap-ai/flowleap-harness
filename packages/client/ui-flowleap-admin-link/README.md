@@ -1,5 +1,5 @@
 ---
-description: "The Firm admin row in the FlowLeap sidebar: shown only for a request with an X-Flowleap-Admin header that the flowleap-os starter signed with Ed25519; it opens the firm admin console."
+description: "The Firm admin row in the FlowLeap sidebar: shown only for a request with an X-Flowleap-Admin header that the flowleap-os starter signed with Ed25519; it opens the firm admin console. The flowleapAdmin Service gives the same check to other Host plugins."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-A firm administrator sees a **Firm admin** row in the sidebar of `flowleap-web`; it opens the firm admin console of flowleap-os in the same tab. An attorney without the administrator role does not see it. The flowleap-os starter, the proxy in front of each attorney runtime, adds a signed `X-Flowleap-Admin` header to each request of an administrator. This package holds only the starter's public key, so the runtime and its tools can check the header but never make one.
+A firm administrator sees a **Firm admin** row in the sidebar of `flowleap-web`; it opens the firm admin console of flowleap-os in the same tab. An attorney without the administrator role does not see it. The flowleap-os starter, the proxy in front of each attorney runtime, adds a signed `X-Flowleap-Admin` header to each request of an administrator. This package holds only the starter's public key, so the runtime and its tools can check the header but never make one. The row also provides the `flowleapAdmin` Service: the same check for other Host plugins, such as the Firm identity save.
 
 ## Table of Contents
 
@@ -43,6 +43,11 @@ The browser asks `GET api/flowleap/admin-link` once at start. When the answer is
 
 The threat that the header stops: an attorney, or a page or tool in the attorney's runtime, that tries to show the console link to a user without the role. The starter drops each `X-Flowleap-Admin` header that a browser sends and adds its own only for an administrator. The runtime cannot sign, because it never holds the private key: a private key file at `publicKeyFile` is refused. The 300-second bound means a captured header cannot stay valid. The link only shows the way; the starter itself guards the console at `/admin/`.
 
+<a id="the-flowleapadmin-service"></a>
+### The `flowleapAdmin` Service
+
+The row provides `ctx.flowleapAdmin` with one method, `isAdmin(request)`, which answers true only for a request with a valid header as above, checked with the row's `publicKeyFile`. The route of the link and the Service run the same check, `isAdminRequest`, with the same logs. A consumer reads the Service with `ctx.get('flowleapAdmin')` at each request and treats a missing Service as "no request is of a firm administrator". The consumer now is [`dsh-client-ui-flowleap-folder`](../ui-flowleap-folder/README.md#the-firm-identity): only a firm administrator may save the firm identity. The key path has one home, this row, so the firm patch of flowleap-os sets it once.
+
 ### Failure behavior
 
 A missing key file (`ENOENT`) means that this firm has no administrator sign-in: no link, no log. A key file that cannot be read, or that is not one SPKI PEM Ed25519 public key, is an `AdminLinkKeyError` (`problem: 'unreadable' | 'malformed'`), logged as an error at each request until an operator replaces the file; the answer is `{ "href": null }`. A header that is present but refused is logged as a warning with its reason (`malformed`, `expired`, `lifetime`, `signature`); a missing header is not logged. The route reads the key file at each request, so a key rotation needs no restart. Each answer carries `Cache-Control: no-store`.
@@ -55,16 +60,17 @@ A missing key file (`ENOENT`) means that this firm has no administrator sign-in:
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`verifyAdminHeader(value, publicKey, nowSeconds)` is a pure check that returns `{ admin: true }` or `{ admin: false, reason }`. `readAdminKey(path)` is the only file read. `answerAdminLink` joins them for one request. The route is an exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first and only the owner Peer reaches it. The browser half registers the row after the answer and aborts the request when it is disposed first.
+`verifyAdminHeader(value, publicKey, nowSeconds)` is a pure check that returns `{ admin: true }` or `{ admin: false, reason }`. `readAdminKey(path)` is the only file read. `isAdminRequest` joins them for one request and logs the problems; `answerAdminLink` and the `flowleapAdmin` Service both call it. The route is an exact Fetch route of `ctx.connection.fetch`, so the connection authenticates the request first and only the owner Peer reaches it. The browser half registers the row after the answer and aborts the request when it is disposed first.
 
 | File | Role |
 |---|---|
-| [`src/admin-header.ts`](src/admin-header.ts) | the header check and the key read |
+| [`src/admin-header.ts`](src/admin-header.ts) | the header check, the key read, and the check of one request |
+| [`src/service.ts`](src/service.ts) | the `flowleapAdmin` Service and its provider |
 | [`src/route.ts`](src/route.ts) | the route path and its JSON answer, shared by both halves |
-| [`src/index.ts`](src/index.ts) | Host half: the config check and the route |
+| [`src/index.ts`](src/index.ts) | Host half: the config check, the route and the Service |
 | [`src/client/index.ts`](src/client/index.ts) | Browser half: the request, the dictionaries and the registration |
 | [`src/client/AdminLink.tsx`](src/client/AdminLink.tsx) | the Firm admin row |
-| [`tests/`](tests/) | each header rule, the key read, the route answers, and the row with its disposal |
+| [`tests/`](tests/) | each header rule, the key read, the route answers, the Service, and the row with its disposal |
 
 </details>
 
@@ -81,7 +87,7 @@ A missing key file (`ENOENT`) means that this firm has no administrator sign-in:
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the package is a sidebar link and an authenticated route that register no model-facing tools or messages.
+None, as the package is a sidebar link, an authenticated route and a Host Service that register no model-facing tools or messages.
 
 #### KV Cache effect
 
