@@ -14,7 +14,7 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 | [4-build.html](4-build.html) | The build: the records first, then the folders, with the step that runs | `failed` (3 publications not read; Try again reads only those) |
 | [5-client-folder.html](5-client-folder.html) | The end: the Syntegon client folder page with the toast | `snapshot` (a dated EP Register file of the matter EP 23 171 862) |
 
-The decision bar holds the one primary action, **Add client** `⇧⌘↵` (the `record` act of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md)), and the role as a segmented control. A part that is not set, such as an unchecked conflict, disables the primary. Page 1 has **Continue** in the top bar and page 4 has **Open client folder**; neither has a key. **Try again** has `R`.
+The decision bar holds the one primary action, **Add client** `⇧⌘↵` (the `record` act of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md)), and the role as a segmented control. A part that is not set, such as an unchecked conflict, disables the primary. The founder replaced this decision bar with a stepper wizard and a Review step on 2026-11-09: see [decision 10 of the client model mockups](../client-model/README.md#decisions-for-the-founder). Page 1 has **Continue** in the top bar and page 4 has **Open client folder**; neither has a key. **Try again** has `R`.
 
 ## Founder decisions
 
