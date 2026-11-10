@@ -71,6 +71,7 @@
     epo: '<circle cx="8" cy="8" r="5.75"/><path d="M5.5 8h5M8 5.5v5"/>',
     shield: '<path d="M8 2.5 13 4.5v3.5c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4.5z"/>',
     outlook: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2.5v2M10.5 2.5v2M5.5 9.5h2"/>',
+    pdf: '<path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M9.5 2.5V5H12M6 9h4M6 11h2.5"/>',
     mywork: '<circle cx="8" cy="8" r="5.75"/><circle cx="8" cy="8" r="2.25"/>',
     signout: '<path d="M6.5 13.5h-3v-11h3M10 5l3 3-3 3M13 8H6.5"/>',
     external: '<path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5v3.5h-9v-9h3.5"/>',
