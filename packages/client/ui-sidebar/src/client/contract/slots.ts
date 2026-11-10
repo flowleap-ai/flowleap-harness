@@ -55,6 +55,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * and rows with the owner's row classes. Declared by this package's 'sidebar' entry.
      */
     'sidebar.sections': { kind: 'list'; scope: 'root'; owner: SidebarRowOwnerProps }
+    /**
+     * A non-interactive count at the end of an expanded panel row, such as the number of the panel's open items. Each
+     * registration's `id` names its panel in `sidebar.panellist`; the row reads the count as its accessible
+     * description, and the collapsed rail shows no count. Declared by this package's 'sidebar' entry.
+     */
+    'sidebar.panellist.count': { kind: 'list'; scope: 'root'; owner: Record<never, never> }
     /** Rows of the panel list's More menu; the sidebar shows More only while this list has registrations. */
     'sidebar.panellist.actions': { kind: 'list'; scope: 'root'; owner: SidebarPanelActionsOwnerProps }
     /**
@@ -258,6 +264,7 @@ export type SidebarRootComponentProps =
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
     | 'sidebar.toggle.badge'
+    | 'sidebar.panellist.count'
     | 'sidebar.panellist.actions'
     | 'sidebar.actions'
     | 'sidebar.sections'

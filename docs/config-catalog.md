@@ -620,7 +620,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-client-ui-flowleap-admin-link`
 
 - `inject`: `connection`
-- `source`: [`packages/client/ui-flowleap-admin-link/src/index.ts:31`](../packages/client/ui-flowleap-admin-link/src/index.ts)
+- `source`: [`packages/client/ui-flowleap-admin-link/src/index.ts:35`](../packages/client/ui-flowleap-admin-link/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: where the starter's public key is, and where the link goes. */
@@ -633,6 +633,91 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+<a id="deepseek-aidsh-client-ui-flowleap-folder"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-folder`
+
+- `inject`: `connection` · `workspaceRegistry`
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:61`](../packages/client/ui-flowleap-folder/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The plugin's state folder; the source records go into its `sources/` folder. */
+  stateDir: string
+  /** Cap on the entries of one listing; the rest is dropped and reported cut. */
+  maxEntries: number
+  /** Inclusive byte cap of one uploaded file. */
+  maxUploadBytes: number
+  /** Cap on the hits of one search by name. */
+  maxSearchHits: number
+  /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
+  storageLowFlagPath: string
+  /** The absolute folder that holds the client folders that Add client makes; every Add client write stays in it. */
+  clientsRoot: string
+  /**
+   * The folders of the firm's template: Add client makes `client` in each client folder. `matter` and `publicData` are
+   * for the matter folder that a later change makes when work on a matter starts; the row checks them now.
+   */
+  folderTemplate: FolderTemplate
+  /**
+   * The firm's names, addresses and representatives until a firm administrator saves them in Settings > Firm identity;
+   * the saved identity in `stateDir` then wins, and a later change of this value has no effect. The firm docket sends
+   * their words to the EP Register to read the firm's EP applications; every row is matched against them again on the
+   * Host.
+   */
+  firmIdentity: FirmIdentity
+  /**
+   * The rows of the register sample of the find step of Add client, whose applicant names the step adds to the names of
+   * the firm docket; one EPO query reads at most 2,000 rows.
+   */
+  findSampleRows: number
+  /** The most applicant names that the find step of Add client counts, with one register count query each. */
+  findNameLimit: number
+  /**
+   * The age in milliseconds after which the firm docket and the opponent index are `stale` and their scheduled refresh
+   * reads them again.
+   */
+  docketRefreshAge: number
+  /** The age in milliseconds over which Check for new matters reads the firm docket again first (a later change). */
+  docketCheckAge: number
+  /**
+   * The most rows of one date slice of the firm docket, the opponent index and the `op=` reads of the conflict check; the
+   * EPO reads at most 2,000 rows of one query.
+   */
+  registerSliceRows: number
+  /** The most EPO OPS requests in any minute of all EP Register reads of this plugin together. */
+  opsRequestsPerMinute: number
+  /**
+   * The most applications in one batch command that the browser sends to the Firm Record. The Firm Record refuses a
+   * larger batch than its own `clients.recordBatchSize` with that maximum, and the browser then splits by it.
+   */
+  recordBatchSize: number
+}
+
+/** The folders of the firm's template. */
+export interface FolderTemplate {
+  /** The folders at the client folder root, such as `00 Client`. */
+  client: string[]
+  /** The folders of each matter folder, for the matter folder that a later change makes when work on a matter starts. */
+  matter: string[]
+  /** The matter folder that takes the dated copies of public data; one of `matter`. */
+  publicData: string
+}
+
+/** The firm's names, its current and earlier addresses, and the names of its representatives. */
+export interface FirmIdentity {
+  /** The firm's names, such as its current and earlier names. */
+  names: string[]
+  /** The firm's current and earlier addresses, each as one line, such as `Street 1, 12345 Town`. */
+  addresses: string[]
+  /** The names of the firm's representatives before the EPO, such as `Anna Becker`. */
+  representatives: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
 <a id="deepseek-aidsh-client-ui-flowleap-records"></a>
 
@@ -642,10 +727,15 @@ export interface Config {
 - `source`: [`packages/client/ui-flowleap-records/src/index.ts:26`](../packages/client/ui-flowleap-records/src/index.ts)
 
 ```ts config-catalog
-/** Plugin config: where the Records pages are. */
+/** Plugin config: where the Records pages are, and where Sign out goes. */
 export interface Config {
   /** The Records pages as a document-relative path, such as `records/`; the firm proxy serves them at the same origin. */
   recordsHref: string
+  /**
+   * Where the account menu's Sign out goes: a path relative to the document, with an optional query, such as the firm
+   * proxy's `oauth2/sign_out?rd=%2F`. Empty (the default) means no sign-in in front of the app, and no Sign out.
+   */
+  signOutHref: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
@@ -1799,7 +1889,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-flowleap-connectors`
 
 - `inject`: `tools` · `credentials`
-- `source`: [`packages/host/flowleap-connectors/src/index.ts:76`](../packages/host/flowleap-connectors/src/index.ts)
+- `source`: [`packages/host/flowleap-connectors/src/index.ts:108`](../packages/host/flowleap-connectors/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. */
@@ -1808,6 +1898,22 @@ export interface Config {
   cacheEntries: number
   /** Office tools from the library that this host does not register, by backend name. */
   excludeTools: string[]
+  /** The longest time of one EPO OPS read, its retries included, in ms. */
+  opsRequestDeadlineMs: number
+  /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
+  myepo: MyEpoConfig
+}
+
+/** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
+export interface MyEpoConfig {
+  /** The MyEPO API base, without a trailing slash. */
+  baseUrl: string
+  /** The OAuth 2.0 token endpoint of the EPO login service that issues tokens for `baseUrl`. */
+  tokenUrl: string
+  /** The most MyEPO requests the plugin starts in one second. The EPO publishes no limit. */
+  requestsPerSecond: number
+  /** The deadline of one MyEPO request, in seconds. */
+  timeoutSeconds: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
@@ -2697,7 +2803,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 - `inject`: `llm`
 - `refs`: [`LlmModelBadge`](../packages/llm/llm/src/index.ts) · [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · [`SystemPromptUpdate`](../packages/llm/llm/src/index.ts) · [`ToolUpdate`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/test-support/llm-replay/src/index.ts:1115`](../packages/test-support/llm-replay/src/index.ts)
+- `source`: [`packages/test-support/llm-replay/src/index.ts:1162`](../packages/test-support/llm-replay/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the {@link ReplayConfig} inputs, each defaulting to its `DSH_SNAPSHOT_*` env var in `apply`. */

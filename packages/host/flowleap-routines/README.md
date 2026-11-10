@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the row beside `dsh-schedule`, `dsh-storage-domain`, the tool registry, the Agent registry, and `dsh-flowleap-connectors`, which provides the register reader; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this. A new chat per run needs the Session controller and the workspace registry of the Web composition; the Remote needs `remoteAccess`. A composition without them (headless) has one chat: `register_watch_create` resolves an omitted `new_chat_per_run` to off there. The register reads use the firm's EPO OPS and USPTO ODP keys from Settings > Patent data connectors.
+Mount the row beside `dsh-schedule`, `dsh-storage-domain`, the tool registry, the Agent registry, and `dsh-flowleap-connectors`, which provides the register reader; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this. A new chat per run needs the Session controller and the workspace registry of the Web composition; the Remote needs `remoteAccess`. A composition without them (headless) has one chat: `register_watch_create` resolves an omitted `new_chat_per_run` to off there. The register reads use the firm's EPO OPS and USPTO ODP keys from Settings > Connectors.
 
 ### Minimal configuration
 

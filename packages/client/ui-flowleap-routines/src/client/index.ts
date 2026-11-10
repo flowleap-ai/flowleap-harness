@@ -1,7 +1,8 @@
 /**
  * Browser half of the FlowLeap "Needs review" mark: a chat that a routine run marked shows a badge on its Sidebar
  * row, lists on the Needs review page, offers Mark as done in its Session header, and selects its task through the
- * Automation tasks page's `schedule.manager.filter` tab. These surfaces read one shared source over
+ * Automation tasks page's `schedule.manager.filter` tab. The page has no Sidebar launcher: the "Needs your review"
+ * dashboard widget opens it. These surfaces read one shared source over
  * `flowleapRoutines.reviews()` and `schedule.catalog()`; a second source reads `flowleapRoutines.watches()`. Both read
  * again on `flowleap-routines/changed`, `schedule/changed`, and `connection/reset`. A `running` mark is not shown. On
  * the FlowLeap dashboard it adds the "Waiting for review" and "Cases watched" metric cards, the "Needs your review" and
@@ -19,7 +20,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapRoutinesKey } from './locales.ts'
-import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from './marks.tsx'
+import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter } from './marks.tsx'
 import { NeedsReviewPage } from './NeedsReviewPage.tsx'
 import { CasesWatchedMetric, ComingUpWidget, NeedsYourReviewWidget, WaitingForReviewMetric } from './dashboard.tsx'
 import { createReviewsSource } from './reviews-source.ts'
@@ -39,7 +40,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Main panel id of the Needs review page and its Sidebar launcher. */
+/** Main panel id of the Needs review page; the dashboard widget and `?page=` select it, as no Sidebar launcher does. */
 const PANEL_ID = 'flowleap-needs-review' as MainPanelId
 
 /** Required services: slots, copy, the Remote namespaces, Session navigation, and access. */
@@ -78,9 +79,6 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.inject('sidebar.session.row.trailing', () => ctx.slots.register({
       name: 'sidebar.session.row.trailing', id: 'flowleap-needs-review', order: 10, locale: NS, inject: shared,
     }, NeedsReviewBadge))
-    yield ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-      name: 'sidebar.panellist', id: PANEL_ID, order: 15, locale: NS, label: () => t('panel'), inject: shared,
-    }, NeedsReviewPanelIcon))
     yield ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main', key: PANEL_ID, locale: NS,
       inject: () => ({ ...source, onOpenSession: openSession }),

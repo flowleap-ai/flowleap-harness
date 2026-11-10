@@ -6,7 +6,7 @@
 
 import { createElement, type ReactNode } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular, type AvatarPerson,
+  IconAgentPresetOutlineRegular, IconDeliverDocRegular, IconEnhanceOutlineRegular, IconPaperPlaneOutlineRegular, type AvatarPerson,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ActivityEvent, Actor, IsoDate, IsoTime, Person, QueueStatus } from './api.ts'
 import { dueDay, listTime } from './format.ts'
@@ -20,6 +20,10 @@ export type Translate = (key: FlowleapRecordsKey, params?: Record<string, unknow
 const CODE_TITLES: Readonly<Record<string, FlowleapRecordsKey>> = {
   'EPO:R71(3)': 'code.epoR71',
   'EPO:ART94(3)': 'code.epoArt94',
+  'EPO:A94(3)': 'code.epoArt94',
+  'EPO:A97(1)': 'code.epoGrant',
+  'EPO:R112(1)': 'code.epoLossOfRights',
+  'EPO:R79(1)': 'code.epoOpposition',
   'EPO:EESR': 'code.epoSearchReport',
   'EPO:SUMMONS': 'code.epoSummons',
   'EPO:RENEWAL': 'code.epoRenewal',
@@ -70,6 +74,50 @@ export function officeName(t: Translate, office: string): string {
 export function fromOffice(t: Translate, office: string): string {
   const stem = OFFICES[office]
   return stem === undefined ? t('office.from.other', { office }) : t(`office.from.${stem}`)
+}
+
+/**
+ * "To" and the office, with the article that the UI language needs ("to the EPO", "an das EPA").
+ * @param t - the translate function.
+ * @param office - the office abbreviation that the Records API sends.
+ * @returns the phrase.
+ */
+export function toOffice(t: Translate, office: string): string {
+  const stem = OFFICES[office]
+  return stem === undefined ? t('office.to.other', { office }) : t(`office.to.${stem}`)
+}
+
+/**
+ * The office of a letter, from its code (`EPO:R71(3)`).
+ * @param code - the letter's code, or null.
+ * @returns the office abbreviation, or null for a letter with no code.
+ */
+export function officeOfCode(code: string | null): string | null {
+  return code?.split(':')[0] ?? null
+}
+
+/** The kinds of a work draft, in the order that the work page shows them (mockup 4-review-work). */
+export const DRAFT_KINDS = ['office-reply', 'client-report'] as const
+
+/** One kind of a work draft. */
+export type DraftKind = (typeof DRAFT_KINDS)[number]
+
+/**
+ * The words of a work draft by its kind: its heading ("Draft reply to the EPO", "Client report") and its file title.
+ * @param t - the translate function.
+ * @param code - the code of the work's letter, or null.
+ * @param kind - the draft's kind.
+ * @returns the heading and the file title.
+ */
+export function draftWords(t: Translate, code: string | null, kind: DraftKind): { readonly heading: string; readonly file: string } {
+  const title = letterTitle(t, code)
+  switch (kind) {
+    case 'client-report': return { heading: t('work.clientReport'), file: t('work.reportOn', { title }) }
+    case 'office-reply': {
+      const office = officeOfCode(code)
+      return { heading: office === null ? t('work.draftReplyPlain') : t('work.draftReply', { to: toOffice(t, office) }), file: t('work.replyOn', { title }) }
+    }
+  }
 }
 
 /** The citation forms of the deadline engine that the views word, each with its words. */
@@ -142,12 +190,13 @@ export function avatarOf(t: Translate, person: Person, label?: string): AvatarPe
 }
 
 /** The name key of each system actor. */
-const SYSTEM_NAMES = { flowleap: 'actor.flowleap', mailbox: 'actor.mailbox', agent: 'actor.agent' } as const
+const SYSTEM_NAMES = { 'flowleap': 'actor.flowleap', 'mailbox': 'actor.mailbox', 'scan-mailbox': 'actor.scanMailbox', 'agent': 'actor.agent' } as const
 
 const SYSTEM_ICONS = {
-  flowleap: IconEnhanceOutlineRegular,
-  mailbox: IconPaperPlaneOutlineRegular,
-  agent: IconAgentPresetOutlineRegular,
+  'flowleap': IconEnhanceOutlineRegular,
+  'mailbox': IconPaperPlaneOutlineRegular,
+  'scan-mailbox': IconDeliverDocRegular,
+  'agent': IconAgentPresetOutlineRegular,
 } as const
 
 /**
@@ -265,15 +314,62 @@ export function dueText(words: WordContext, due: IsoDate): string {
  * @returns the worded lines.
  */
 export function activityLines(words: WordContext, events: readonly ActivityEvent[]): ActivityLine[] {
-  return events.map((event) => {
-    const params = { person: event.for === null ? '' : personInText(words.t, event.for) }
+  const objects = objectWords(words.t, events)
+  // An event that the os marks as audit only (`words: null`: task and outbox steps, the seed load), or that the views
+  // do not word ("changed the record"), is noise in Activity; Audit lists it.
+  const shown = (event: ActivityEvent) => event.words === undefined ? eventText(event) !== 'event.other' : event.words !== null
+  return events.filter(shown).map((event) => {
+    const params = { person: event.for === null ? '' : personInText(words.t, event.for), ...objects(event) }
     const text = eventText(event)
     const key = event.for === null ? WITHOUT_PERSON[text] ?? text : text
     const actor = event.actor.kind === 'person'
       ? { kind: 'person' as const, person: avatarOf(words.t, event.actor.person) }
       : { kind: 'system' as const, name: actorName(words.t, event.actor), icon: systemIcon(event.actor.name) }
-    return { key: String(event.seq), actor, text: words.t(key, params), time: listTimeText(words, event.at) }
+    // The os words the event in English and German with its facts ("filed the letter on SF-2023-0045"); the other
+    // languages take the views' words.
+    const os = event.words === undefined || event.words === null ? null : words.locale === 'de' ? event.words.de : words.locale === 'en' ? event.words.en : null
+    return { key: String(event.seq), actor, text: os ?? words.t(key, params), time: listTimeText(words, event.at) }
   })
+}
+
+/** The words of what a report or an outbox event acts on, by its kind. */
+const OBJECT_WORDS = {
+  'office-reply': 'event.object.draftReply',
+  'client-report': 'event.object.clientReport',
+  'notice': 'event.object.notice',
+  'reply': 'event.object.reply',
+} as const satisfies Record<string, FlowleapRecordsKey>
+
+/**
+ * The words of what each report or outbox event acts on: the draft reply or the client report, the notice to a person
+ * or the mail with the drafts to the person who forwarded the letter. An event names its `kind`; one that does not takes
+ * the kind of the event of the same proposal or mail in the list (`report/proposed`, `outbox/composed`).
+ * @param t - the translate function.
+ * @param events - the events of the record.
+ * @returns the `draft` and `mail` words of an event.
+ */
+function objectWords(t: Translate, events: readonly ActivityEvent[]): (event: ActivityEvent) => { draft: string; mail: string } {
+  // An outbox event names its kind, or its composed message does (`outbox/composed` of a notice: `message.kind`).
+  const kindOf = (detail: ActivityEvent['detail']): string | null => {
+    if (typeof detail['kind'] === 'string') return detail['kind']
+    const message = detail['message']
+    return typeof message === 'object' && message !== null && 'kind' in message && typeof message.kind === 'string' ? message.kind : null
+  }
+  const known = new Map<string, string>()
+  for (const event of events) {
+    const kind = kindOf(event.detail)
+    const id = event.detail['proposalId'] ?? event.detail['outboxId']
+    if (kind !== null && typeof id === 'string') known.set(id, kind)
+  }
+  const word = (kind: string | null | undefined, fallback: keyof typeof OBJECT_WORDS): string => {
+    const shown = kind !== null && kind !== undefined && kind in OBJECT_WORDS ? kind as keyof typeof OBJECT_WORDS : fallback
+    return t(OBJECT_WORDS[shown])
+  }
+  return (event) => {
+    const id = event.detail['proposalId'] ?? event.detail['outboxId']
+    const kind = kindOf(event.detail) ?? (typeof id === 'string' ? known.get(id) : undefined)
+    return { draft: word(kind, 'client-report'), mail: word(kind, 'reply') }
+  }
 }
 
 /**

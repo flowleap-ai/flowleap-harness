@@ -19,7 +19,7 @@ import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
-import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter, NeedsReviewPanelIcon } from '../src/client/marks.tsx'
+import { MarkDoneAction, NeedsReviewBadge, NeedsReviewFilter } from '../src/client/marks.tsx'
 import { NeedsReviewPage, type NeedsReviewPageProps } from '../src/client/NeedsReviewPage.tsx'
 import { createReviewsSource, type ReviewsDependencies, type ReviewsSource } from '../src/client/reviews-source.ts'
 import { CasesWatchedMetric, ComingUpWidget, NeedsYourReviewWidget, WaitingForReviewMetric } from '../src/client/dashboard.tsx'
@@ -244,19 +244,6 @@ describe('Needs review surfaces', () => {
     stop()
   })
 
-  it('shows the count on the panel glyph only when a chat needs review', async () => {
-    const { useReviews, stop } = await readySource()
-    const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
-    expect(container.querySelector('[data-needs-review-count]')?.getAttribute('data-needs-review-count')).toBe('2')
-    expect(container.textContent).toBe('')
-    stop()
-    const empty = await readySource({ reviews: vi.fn(async () => ok([])) })
-    cleanup()
-    const view = render(<NeedsReviewPanelIcon size={16} useReviews={empty.useReviews} />)
-    expect(view.container.querySelector('[data-needs-review-count]')).toBeNull()
-    empty.stop()
-  })
-
   it('lists marked chats newest first, opens one, and marks one as done', async () => {
     const { source, stop, r } = await readySource()
     const sessions: SessionListState = {
@@ -312,15 +299,6 @@ describe('Needs review surfaces', () => {
 })
 
 describe('Needs review surfaces, edge states', () => {
-  it('shows one dot, not a number, for many marked chats', async () => {
-    const many = Array.from({ length: 100 }, (_, index) => review(`chat-${index}` as SessionId, 'watch', '2026-10-27T09:00:00.000Z'))
-    const { useReviews, stop } = await readySource({ reviews: vi.fn(async () => ok(many)) })
-    const { container } = render(<NeedsReviewPanelIcon size={16} useReviews={useReviews} />)
-    expect(container.querySelector('[data-needs-review-count]')?.getAttribute('data-needs-review-count')).toBe('100')
-    expect(container.textContent).toBe('')
-    stop()
-  })
-
   it('keeps Mark as done busy while the request is in flight and reports a failure', async () => {
     const request = deferred<RemoteResult<void>>()
     const { useReviews, source, stop, r } = await readySource({ done: vi.fn(() => request.promise) })
@@ -441,11 +419,11 @@ function searchRegistry(): DashboardSearch & { readonly groups: DashboardSearchG
 }
 
 const SEATS = [
-  'sidebar.session.row.trailing', 'sidebar.panellist', 'main', 'conversation.session.header.utilities', 'schedule.manager.filter',
+  'sidebar.session.row.trailing', 'main', 'conversation.session.header.utilities', 'schedule.manager.filter',
   'dashboard.metric', 'dashboard.widget',
 ] as const
 const SEAT_COUNTS: Record<typeof SEATS[number], number> = {
-  'sidebar.session.row.trailing': 1, 'sidebar.panellist': 1, main: 1, 'conversation.session.header.utilities': 1,
+  'sidebar.session.row.trailing': 1, main: 1, 'conversation.session.header.utilities': 1,
   'schedule.manager.filter': 1, 'dashboard.metric': 2, 'dashboard.widget': 2,
 }
 
@@ -462,6 +440,8 @@ describe('ui-flowleap-routines browser half', () => {
       await fiber.await()
       expect(allows).toHaveBeenCalledWith('flowleapRoutines/reviews')
       for (const seat of SEATS) expect(ctx.slots.entries(seat)).toHaveLength(allowed ? SEAT_COUNTS[seat] : 0)
+      // The Needs review page is reached from the dashboard widget, never from a Sidebar launcher.
+      expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
       const registry = ctx.get('dashboardSearch') as ReturnType<typeof searchRegistry>
       expect(registry.groups.map(group => group.id)).toEqual(allowed ? ['flowleap-routines'] : [])
       await fiber.dispose()
@@ -519,9 +499,6 @@ describe('ui-flowleap-routines browser half', () => {
       const entry = ctx.slots.entries(seat)[0]!
       return entry.inject!()
     }
-    const label = ctx.slots.entries('sidebar.panellist')[0]!.options.label as () => string
-    expect(label()).toBe(en.panel)
-
     const page = injected('main')
     const stop = page.hooks!.reviews.subscribe(() => {})
     await settle()
@@ -542,7 +519,6 @@ describe('ui-flowleap-routines browser half', () => {
     await act(async () => { await injected('conversation.session.header.utilities').onDone!(alpha) })
     expect(done).toHaveBeenCalledWith(alpha)
     expect(injected('sidebar.session.row.trailing').hooks).toBeDefined()
-    expect(injected('sidebar.panellist').hooks).toBeDefined()
     expect(injected('schedule.manager.filter').hooks).toBeDefined()
     expect(injected('dashboard.metric').hooks).toBeDefined()
     const widget = injected('dashboard.widget') as Injected & { onOpenAll: () => void }

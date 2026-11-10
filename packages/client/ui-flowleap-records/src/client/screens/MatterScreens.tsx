@@ -6,19 +6,22 @@
  */
 
 import {
-  Avatar, IconDeliverDocRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular,
+  Avatar, IconFolderOpenOutlineRegular, IconRightUpOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { routeOfAct } from '../address.ts'
+import type { AtlasRef } from '../atlas.ts'
+import { taskDueDay, workStatus } from '../my-work.ts'
 import type { MatterDetail, MattersList } from '../api.ts'
-import { formatApplicationNumber, formatDate } from '../format.ts'
+import { formatApplicationNumber, formatDate, languageName } from '../format.ts'
 import { useCommandItem, useKeyActs } from '../key-layer.ts'
-import { DueText, isOverdue } from '../parts/Due.tsx'
+import { DueText } from '../parts/Due.tsx'
 import { DetailHeader, DetailLayout, PropertiesPanel, Section } from '../parts/Layout.tsx'
 import { SkeletonBone, type SkeletonCell } from '../parts/List.tsx'
 import { EmptyState, LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasStatus, atlasWord } from '../parts/Status.tsx'
-import { avatarOf, letterTitle, listTimeText, personInText, personName } from '../words.ts'
+import { avatarOf, letterTitle, listTimeText, personInText, personName, type Translate } from '../words.ts'
 import { actOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { Cell, dateOrNone, DetailRow, DetailTable, Facts, OpenCell, openDocument, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
+import { Cell, DetailRow, DetailTable, formatDay, OpenCell, matterRows, openDocument, responsibleRow, ruleWords, Team, Who, type HeaderCell } from './detail.tsx'
 import { LoadError, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
@@ -77,7 +80,7 @@ export function MattersScreen({ screen, ctx }: ScreenProps<'matters'>) {
       load={screen.matters}
       render={{
         loading: () => <MattersSkeleton ctx={ctx} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
         ready: data => <MattersRows ctx={ctx} data={data} />,
       }}
     />
@@ -147,21 +150,27 @@ export function MatterScreen({ screen, ctx }: ScreenProps<'matter'>) {
       load={screen.matter}
       render={{
         loading: () => <PageSpinner label={ctx.t('loading')} />,
-        failed: at => <LoadError ctx={ctx} at={at} />,
+        failed: (at, error) => <LoadError ctx={ctx} at={at} error={error} />,
         ready: data => <MatterView ctx={ctx} data={data} />,
       }}
     />
   )
 }
 
-/** Deadline states that wait for a second person. */
-const WAITING_DEADLINES = new Set(['deadline_proposed', 'manual_proposed'])
-
-/** Deadline states that still run: an overdue one is a fact that waits for a person. */
-const OPEN_DEADLINES = new Set(['deadline_proposed', 'manual_proposed', 'active'])
+/**
+ * The EPO Register address of an EP application number, such as `EP23771920` or `23 771 920.8`.
+ * @param number - the application number from the record.
+ * @returns the address, or null for a number that is not an EP application.
+ */
+export function registerHref(number: string): string | null {
+  const match = /^(?:EP\s*)?(\d{2})\s*(\d{3})\s*(\d{3})(?:\s*\.\s*\d)?$/u.exec(number.trim())
+  return match === null ? null : `https://register.epo.org/application?number=EP${match[1]}${match[2]}${match[3]}&lng=en`
+}
 
 /**
- * Render a matter: the header and its facts, the four detail tables, Activity and the properties panel.
+ * Render a matter, the dossier (mockup `5-dossier`): the title and the matter's line (file number, client, the
+ * application linked to the EPO Register), What waits with the next step first, the deadlines, the e-file, Activity,
+ * and the properties panel with the matter and its people.
  * @param props.ctx - the screen context.
  * @param props.data - the matter.
  * @returns the detail page.
@@ -169,29 +178,26 @@ const OPEN_DEADLINES = new Set(['deadline_proposed', 'manual_proposed', 'active'
 function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
   const { t } = ctx
   const open = (route: Parameters<ScreenContext['navigate']>[0]) => () => { ctx.navigate(route) }
-  const waiting = data.deadlines.filter(deadline => WAITING_DEADLINES.has(deadline.state)).length
-  const openDeadlines = data.deadlines.filter(deadline => OPEN_DEADLINES.has(deadline.state))
-  const overdue = openDeadlines.filter(deadline => isOverdue(ctx, deadline.due)).length
-  const ready = data.work.filter(work => work.state === 'proposals_ready')
-  const routed = ready.flatMap(work => work.routedTo === null ? [] : [work.routedTo])
-  const deciders = [...new Map(routed.map(person => [person.id, person])).values()]
-  // ISO dates sort as text, so the first is the earliest open deadline.
-  const nextDue = openDeadlines.map(deadline => deadline.due).toSorted()[0] ?? null
   const titleOfDocument = (document: (typeof data.documents)[number]) => {
-    const event = data.officeEvents.find(item => item.document === document.sha256)
-    if (event !== undefined) return letterTitle(t, event.code)
+    const code = document.code ?? data.officeEvents.find(item => item.document === document.sha256)?.code ?? null
+    if (code !== null) return letterTitle(t, code)
     return document.source === 'agent' ? t('work.clientReport') : t('code.unknown')
   }
+  const application = data.matter.applicationNumber
+  const register = application === null ? null : registerHref(application)
   useCommandItem(ctx, {
     label: `${data.matter.fileNumber} · ${data.matter.title}`,
     groups: [{
       id: 'matter',
       label: t('matter.openGroup'),
       acts: [
+        ...data.waits.flatMap((item) => {
+          const route = routeOfAct(item.act)
+          return route === null ? [] : [{ id: `waits:${item.id}`, label: t(`mywork.task.${item.kind}`), run: open(route) }]
+        }),
         ...data.deadlines.map(deadline => ({
           id: `deadline:${deadline.id}`, label: t('crumb.deadline', { date: formatDate(deadline.due, ctx.locale) }), run: open({ view: 'deadline', id: deadline.id }),
         })),
-        ...data.work.map(work => ({ id: `work:${work.id}`, label: letterTitle(t, work.code), run: open({ view: 'work', id: work.id }) })),
       ],
     }],
   })
@@ -202,43 +208,72 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
           {
             heading: t('prop.matter'),
             rows: [
-              { label: t('prop.client'), value: data.matter.client, title: data.matter.client },
-              { label: t('prop.responsible'), value: data.responsible === null ? t('matter.none') : <Who t={t} person={data.responsible} /> },
-              { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
-              { label: t('prop.application'), value: data.matter.applicationNumber === null ? t('matter.notRecorded') : formatApplicationNumber(data.matter.applicationNumber) },
+              ...matterRows(t, data.matter, data.clientRules),
+              { label: t('dossier.prop.language'), value: data.language === null ? t('matter.notRecorded') : languageName(ctx.locale, data.language) },
+              { label: t('prop.application'), value: application === null ? t('matter.notRecorded') : formatApplicationNumber(application) },
             ],
           },
-          ...(nextDue === null ? [] : [{
-            heading: t('matter.nextDeadline'),
-            rows: [{
-              label: t('prop.due'),
-              value: isOverdue(ctx, nextDue)
-                ? <span className={css.dueValue}>{formatDate(nextDue, ctx.locale)}<DueText words={ctx} due={nextDue} /></span>
-                : formatDate(nextDue, ctx.locale),
-            }],
-          }]),
+          {
+            heading: t('dossier.prop.people'),
+            rows: [
+              responsibleRow(t, data.responsible),
+              { label: t('dossier.prop.formalities'), value: data.formalitiesPerson === null ? t('matter.none') : <Who t={t} person={data.formalitiesPerson} /> },
+              { label: t('prop.team'), value: <Team t={t} team={data.team} /> },
+              { label: t('dossier.prop.wall'), value: wallWords(t, data.wall) },
+            ],
+          },
         ]} />
       )}>
         <div className={css.content}>
           <div className={css.inner}>
             <DetailHeader
-              eyebrow={<span className={css.eyebrowFacts}><span>{data.matter.fileNumber}</span><span aria-hidden="true">·</span><span>{data.matter.client}</span></span>}
+              eyebrow={null}
               title={data.matter.title}
+              lede={(
+                <span className={css.eyebrowFacts}>
+                  <span>{data.matter.fileNumber}</span>
+                  <span>{data.matter.client}</span>
+                  {application !== null && (register === null
+                    ? <span>{formatApplicationNumber(application)}</span>
+                    : <a className={css.registerLink} href={register} target="_blank" rel="noopener noreferrer">{formatApplicationNumber(application)}<IconRightUpOutlineRegular size={12} /></a>)}
+                </span>
+              )}
             />
-            <Facts facts={[
-              ...(overdue === 0 ? [] : [{ key: 'overdue', count: overdue, text: t(overdue === 1 ? 'matter.factOverdue' : 'matter.factOverdues'), overdue: true }]),
-              ...(waiting === 0 ? [] : [{ key: 'deadlines', count: waiting, text: t(waiting === 1 ? 'matter.factDeadline' : 'matter.factDeadlines') }]),
-              ...deciders.map((decider) => {
-                const count = routed.filter(person => person.id === decider.id).length
-                const person = personInText(t, decider)
-                return { key: `work:${decider.id ?? 'outside'}`, count, text: t(count === 1 ? 'matter.factWork' : 'matter.factWorks', { person }) }
-              }),
-            ]} />
+            <Section heading={t('dossier.waits')} count={data.waits.length} empty={t('dossier.noWaits')}>
+              <DetailTable
+                label={t('dossier.waits')}
+                grid={css.waitsColumns}
+                header={[{ text: t('matter.col.state') }, { text: t('mywork.col.task') }, { text: t('dossier.col.owner'), wide: true }, { text: t('mywork.col.due'), end: true }]}
+              >
+                {data.waits.map((item, index) => {
+                  const status = workStatus(item, null, null)
+                  const route = routeOfAct(item.act)
+                  return (
+                    <DetailRow key={item.id} opens={route !== null}>
+                      <Cell kind="status">{status !== null && <AtlasStatus status={status} word={atlasWord(t, status)} />}</Cell>
+                      {route === null
+                        ? <Cell kind="main">{t(`mywork.task.${item.kind}`)}</Cell>
+                        : (
+                          <OpenCell onOpen={open(route)}>
+                            {index === 0 && <span className={css.nextTag}>{t('dossier.next')}</span>}
+                            {t(`mywork.task.${item.kind}`)}
+                          </OpenCell>
+                        )}
+                      <Cell kind="meta" wide><Who t={t} person={item.owner} /></Cell>
+                      <Cell kind="end"><DueText words={ctx} due={taskDueDay(item, ctx.timeZone)} /></Cell>
+                    </DetailRow>
+                  )
+                })}
+              </DetailTable>
+            </Section>
             <Section heading={t('section.deadlines')} count={data.deadlines.length} empty={t('section.noDeadlines')}>
               <DetailTable
                 label={t('section.deadlines')}
                 grid={css.deadlinesColumns}
-                header={[{ text: t('matter.col.state') }, { text: t('prop.due'), endNarrow: true }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true }]}
+                header={[
+                  { text: t('matter.col.state') }, { text: t('prop.due'), endNarrow: true }, { text: '', wide: true }, { text: t('matter.col.rule'), wide: true },
+                  { text: '', wide: true },
+                ]}
               >
                 {data.deadlines.map((deadline) => {
                   const status = { machine: 'deadline', state: deadline.state } as const
@@ -251,69 +286,30 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
                       </OpenCell>
                       <Cell kind="main" wide><span className={css.strong}><DueText words={ctx} due={deadline.due} /></span></Cell>
                       <Cell kind="meta" wide>{ruleWords(t, deadline.code).short}</Cell>
+                      <Cell kind="meta" wide>
+                        {deadline.confirmedBy !== null
+                          ? t('deadline.confirmedBy', { person: personInText(t, deadline.confirmedBy) })
+                          : deadline.rejectedBy === null ? '' : t('dossier.rejectedBy', { person: personInText(t, deadline.rejectedBy) })}
+                      </Cell>
                     </DetailRow>
                   )
                 })}
               </DetailTable>
             </Section>
-            <Section heading={t('section.work')} count={data.work.length} empty={t('section.noWork')}>
-              <DetailTable
-                label={t('section.work')}
-                grid={css.workColumns}
-                header={[{ text: t('matter.col.state') }, { text: t('matter.col.work') }, { text: '', wide: true }, { text: t('matter.col.updated'), end: true }]}
-              >
-                {data.work.map((work) => {
-                  const status = { machine: 'ticket', state: work.state } as const
-                  return (
-                    <DetailRow key={work.id} opens>
-                      <Cell kind="status"><AtlasStatus status={status} word={atlasWord(t, status)} /></Cell>
-                      <OpenCell onOpen={open({ view: 'work', id: work.id })}>{letterTitle(t, work.code)}</OpenCell>
-                      <Cell kind="icon" wide>{work.routedTo !== null && <Avatar person={avatarOf(t, work.routedTo, t('matter.forPerson', { person: personInText(t, work.routedTo) }))} />}</Cell>
-                      <Cell kind="end">{listTimeText(ctx, work.updatedAt)}</Cell>
-                    </DetailRow>
-                  )
-                })}
-              </DetailTable>
-            </Section>
-            <Section heading={t('matter.officeEvents')} count={data.officeEvents.length} empty={t('section.noOfficeEvents')}>
-              <DetailTable
-                label={t('matter.officeEvents')}
-                grid={css.officeEventsColumns}
-                header={[
-                  { text: t('matter.col.state') }, { text: t('matter.col.communication') }, { text: t('matter.col.documentDate'), wide: true },
-                  { text: t('matter.col.received'), wide: true },
-                ]}
-              >
-                {data.officeEvents.map((event) => {
-                  const status = { machine: 'deadline', state: event.state } as const
-                  const deadline = data.deadlines.find(item => item.officeEventId === event.id)
-                  const letter = event.document
-                  const title = letterTitle(t, event.code)
-                  return (
-                    <DetailRow key={event.id} opens={deadline !== undefined || letter !== null}>
-                      <Cell kind="status"><AtlasStatus status={status} word={atlasWord(t, status)} /></Cell>
-                      {deadline !== undefined
-                        ? <OpenCell onOpen={open({ view: 'deadline', id: deadline.id })}>{title}</OpenCell>
-                        : letter !== null
-                          ? <OpenCell onOpen={() => { openDocument(ctx, letter) }}>{title}</OpenCell>
-                          : <Cell kind="main">{title}</Cell>}
-                      <Cell kind="meta" wide>{dateOrNone(ctx, event.documentDate)}</Cell>
-                      <Cell kind="meta" wide>{dateOrNone(ctx, event.receivedAt)}</Cell>
-                    </DetailRow>
-                  )
-                })}
-              </DetailTable>
-            </Section>
-            <Section heading={t('matter.documents')} count={data.documents.length} empty={t('section.noDocuments')}>
-              <DetailTable label={t('matter.documents')} grid={css.documentsColumns} header={null}>
+            <Section heading={t('dossier.efile')} count={data.documents.length} empty={t('section.noDocuments')}>
+              <DetailTable label={t('dossier.efile')} grid={css.documentsColumns} header={null}>
                 {data.documents.map(document => (
                   <DetailRow key={document.sha256} opens>
-                    <Cell kind="icon">{document.source === 'mail' ? <IconPaperPlaneOutlineRegular size={14} /> : <IconDeliverDocRegular size={14} />}</Cell>
+                    <Cell kind="status"><AtlasStatus status={documentStatus(document)} word={atlasWord(t, documentStatus(document))} /></Cell>
                     <OpenCell onOpen={() => { openDocument(ctx, document.sha256) }}>
-                      {titleOfDocument(document)}
-                      <span className={css.source}>{document.fileName}</span>
+                      <span title={document.fileName}>{titleOfDocument(document)}</span>
                     </OpenCell>
-                    <Cell kind="end">{listTimeText(ctx, document.at)}</Cell>
+                    <Cell kind="meta" wide>
+                      {document.letterDate === null
+                        ? t('dossier.doc.arrived', { time: listTimeText(ctx, document.at) })
+                        : t('dossier.doc.letterArrived', { date: formatDay(document.letterDate, ctx.locale), time: listTimeText(ctx, document.at) })}
+                    </Cell>
+                    <Cell kind="meta" wide>{document.filedBy === null ? '' : <Who t={t} person={document.filedBy} />}</Cell>
                   </DetailRow>
                 ))}
               </DetailTable>
@@ -324,4 +320,25 @@ function MatterView({ ctx, data }: { ctx: ScreenContext; data: MatterDetail }) {
       </DetailLayout>
     </div>
   )
+}
+
+/**
+ * The status of an E-file row: a filed document, or a letter that the intake proposed for the matter and no person
+ * filed yet.
+ * @param document - the document.
+ * @returns the atlas state.
+ */
+function documentStatus(document: MatterDetail['documents'][number]): AtlasRef {
+  return { machine: 'intake', state: document.state === 'filed' ? 'filed' : 'match_proposed' }
+}
+
+/**
+ * Who sees the matter: the team, and the count of people the wall screens from it.
+ * @param t - the translate function.
+ * @param wall - the matter's wall.
+ * @returns the words, such as "The team · 2 people screened".
+ */
+function wallWords(t: Translate, wall: MatterDetail['wall']): string {
+  const team = t('dossier.wall.team')
+  return wall.screened === 0 ? team : `${team} · ${t(wall.screened === 1 ? 'dossier.wall.screened.one' : 'dossier.wall.screened', { count: wall.screened })}`
 }

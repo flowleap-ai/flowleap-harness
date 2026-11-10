@@ -40,6 +40,7 @@ type Agent = NonNullable<Parameters<typeof executeModelToolFixture>[1]['agent']>
 
 let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
+const MYEPO = { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 }
 
 describe('registerOfficeTools', () => {
   it('registers the library\'s 39 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
@@ -79,9 +80,9 @@ describe('registerOfficeTools', () => {
     expect(result.value).toEqual({
       error: 'missing_credentials',
       connector: 'epo-ops',
-      message: 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.',
+      message: 'EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.',
     })
-    expect(result.content).toEqual([{ type: 'text', text: 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.' }])
+    expect(result.content).toEqual([{ type: 'text', text: 'EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.' }])
     expect(fetchSpy).not.toHaveBeenCalled()
 
     const search = await executeModelToolFixture(ctx, {
@@ -91,12 +92,12 @@ describe('registerOfficeTools', () => {
     const grant = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'get_us_grant', arguments: { patent_number: '10000000' }, signal: new AbortController().signal,
     })
-    expect(textOf(grant.content[0])).toContain('USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP')
+    expect(textOf(grant.content[0])).toContain('USPTO ODP key not configured. Add it in Settings > Connectors > USPTO ODP')
     const ocr = await executeModelToolFixture(ctx, {
       callId: callId(), name: 'ocr', arguments: { file: 'JVBERi0=', filename: 'scan.pdf' }, signal: new AbortController().signal,
     })
     expect(ocr.isError).toBe(false)
-    expect(textOf(ocr.content[0])).toBe('Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.')
+    expect(textOf(ocr.content[0])).toBe('Mistral key not configured. Add it in Settings > Connectors > Mistral, then call this tool again.')
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
@@ -136,7 +137,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [] })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
     expect(ctx.tools.schemas()).toHaveLength(40)
     expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
@@ -156,7 +157,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(NativeToolExecutor)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
     provideWorkingDirectoryFixture(ctx, process.cwd())
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'] })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
     const names = ctx.tools.schemas().map(schema => schema.name)
     expect(names).toHaveLength(40)
     expect(names).toContain('read_pdf')
@@ -186,10 +187,10 @@ function probeTool(fail?: Error): ToolDefinition & { contexts: ToolContext[] } {
 
 describe('office tool failures', () => {
   it.each([
-    [new DataKeysRequiredError('epo'), 'EPO OPS key not configured. Add it in Settings > Patent data connectors > EPO OPS, then call this tool again.'],
-    [new ProviderKeyInvalidError('uspto', 'refused'), 'USPTO ODP rejected the stored key. Replace it in Settings > Patent data connectors > USPTO ODP.'],
-    [new OcrNotConfiguredError(), 'Mistral key not configured. Add it in Settings > Patent data connectors > Mistral, then call this tool again.'],
-    [new ToolError(400, 'odp_api_key_missing', 'no key'), 'USPTO ODP key not configured. Add it in Settings > Patent data connectors > USPTO ODP, then call this tool again.'],
+    [new DataKeysRequiredError('epo'), 'EPO OPS key not configured. Add it in Settings > Connectors > EPO OPS, then call this tool again.'],
+    [new ProviderKeyInvalidError('uspto', 'refused'), 'USPTO ODP rejected the stored key. Replace it in Settings > Connectors > USPTO ODP.'],
+    [new OcrNotConfiguredError(), 'Mistral key not configured. Add it in Settings > Connectors > Mistral, then call this tool again.'],
+    [new ToolError(400, 'odp_api_key_missing', 'no key'), 'USPTO ODP key not configured. Add it in Settings > Connectors > USPTO ODP, then call this tool again.'],
   ])('answers the library key failure %s with the settings-card text', async (error, text) => {
     const { ctx, connectors, bound } = await bench()
     registerOfficeTools(ctx, connectors, bound, [probeTool(error)])

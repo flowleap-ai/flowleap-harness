@@ -13,8 +13,8 @@ import type { MenuPoint } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { Act, DocumentId, RecordsApi } from '../src/client/api.ts'
 import { CommandItemRegistry, KeyActRegistry, registerKeyLayer } from '../src/client/key-layer.ts'
 import { de, en } from '../src/client/locales.ts'
-import { createRecordsModel, type Route } from '../src/client/model.ts'
-import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
+import { createRecordsModel, type PanelRoot, type Route } from '../src/client/model.ts'
+import { MyWorkPanel, RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import type { IntakeRowTarget } from '../src/client/row-menu.ts'
 import { agentProps } from './agent-fakes.client.tsx'
 
@@ -66,9 +66,11 @@ export function press(target: Element, code: string, extra: KeyboardEventInit = 
  * @param api - the Records API.
  * @param route - the first route.
  * @param language - the UI language.
- * @returns the model, the registries, the context menu spy, the ⌘K opener spy, the fake run Session and a disposer.
+ * @param root - the panel: the Matters panel (default) or My work.
+ * @returns the model, the registries, the context menu spy, the ⌘K opener spy, the Find a matter and cross-panel spies,
+ * the fake run Session and a disposer.
  */
-export async function mountPanel(api: RecordsApi, route: Route, language: 'en' | 'de' = 'en') {
+export async function mountPanel(api: RecordsApi, route: Route, language: 'en' | 'de' = 'en', root: PanelRoot = 'matters') {
   const registry = new ShortcutRegistry('web', 'macos', undefined, 500)
   const disposers: (() => void)[] = []
   const ctx = {
@@ -80,7 +82,10 @@ export async function mountPanel(api: RecordsApi, route: Route, language: 'en' |
   const commandItems = new CommandItemRegistry()
   registerKeyLayer(ctx, keyActs, commandItems, key => en[key])
   disposers.push(installKeyboard(window, registry, undefined, false))
-  const model = createRecordsModel(api, route)
+  const model = createRecordsModel(api, route, root)
+  const openFind = vi.fn()
+  const openInMatters = vi.fn((_route: Route) => {})
+  const openMyWork = vi.fn()
   const openMenu = vi.fn((_target: { readonly kind: string; readonly value: IntakeRowTarget }, _point: MenuPoint) => {})
   const openSearch = vi.fn()
   const agent = agentProps()
@@ -89,6 +94,7 @@ export async function mountPanel(api: RecordsApi, route: Route, language: 'en' |
     t: makeTranslate(language === 'de' ? de : en),
     useScreen: bindSnapshotSelector(model.screen),
     useMe: bindSnapshotSelector(model.me),
+    useMyWork: bindSnapshotSelector(model.myWork),
     useWaitingCount: bindSnapshotSelector(model.waitingCount),
     useCatalog: bindSnapshotSelector(registry.catalog),
     useFixedCatalog: bindSnapshotSelector(registry.fixedCatalog),
@@ -99,15 +105,21 @@ export async function mountPanel(api: RecordsApi, route: Route, language: 'en' |
     refresh: () => { model.refresh() },
     perform: (acts: readonly Act[]) => model.perform(acts),
     contentHref: (document: DocumentId) => api.contentHref(document),
+    pageHref: href => api.pageHref(href),
+    nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
     keyActs,
     commandItems,
     linkOf: (next: Route) => `https://firm.test/?page=flowleap-records&records=${next.view}`,
     openSearch,
-  } as PanelProps
-  const view = render(<RecordsPanel {...props} />)
+    openFind,
+    openInMatters,
+    openMyWork,
+    root,
+  } as PanelProps<'records.agent.conversation'>
+  const view = render(root === 'my-work' ? <MyWorkPanel {...(props as PanelProps<'records.mywork.agent.conversation'> & PanelProps<'records.agent.conversation'>)} /> : <RecordsPanel {...props} />)
   await flush()
   return {
-    model, keyActs, commandItems, openMenu, openSearch, registry, view, agent,
+    model, keyActs, commandItems, openMenu, openSearch, openFind, openInMatters, openMyWork, registry, view, agent,
     panel: view.getByTestId('flowleap-records'),
     dispose: () => {
       view.unmount()

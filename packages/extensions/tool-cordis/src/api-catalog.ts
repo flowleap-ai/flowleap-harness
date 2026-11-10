@@ -1192,6 +1192,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'flowleapAdmin',
+    summary: 'Whether a request is of a firm administrator.',
+    description: 'Whether a request is of a firm administrator.',
+    methods: [
+      {
+        signature: 'isAdmin(request: Request): Promise<boolean>',
+        description: 'Check one request. An unusable key file is logged as an error and a refused header as a warning.',
+        parameters: [{ name: 'request', description: 'the authenticated request.' }],
+        returns: 'true only when the request carries a valid `X-Flowleap-Admin` header of the configured key; always false when `publicKeyFile` is `\'\'` or the file does not exist.',
+      },
+    ],
+  },
+  {
     key: 'flowleapAgentCatalog',
     summary: 'Service owning the agent folders, their indexes and their presets.',
     description: 'Service owning the agent folders, their indexes and their presets.',
@@ -1362,6 +1375,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'whether the call succeeded and a human-readable message.',
         throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
       },
+      {
+        signature: '@Remote myEpoDescribe(): Promise<MyEpoLinkView>',
+        description: 'The MyEPO link for the MyEPO card.',
+        parameters: [],
+        returns: 'not linked, or linked with the facts of the last passed test; never a credential value.',
+      },
+      {
+        signature: '@Remote async myEpoLink(values: Record<string, string>, signal: AbortSignal): Promise<MyEpoTestOutcome>',
+        description: 'Test new MyEPO credentials, and store them only when the test passed. The values cross the wire in this direction only.',
+        parameters: [{ name: 'values', description: '`clientId` and `clientSecret`, each non-empty.' }, { name: 'signal', description: 'cancels the test.' }],
+        returns: 'the test outcome; `passed` means the link is stored.',
+        throws: ['RemoteError `gateway/bad-request` for a missing, empty or unknown field, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote myEpoTest(signal: AbortSignal): Promise<MyEpoTestOutcome>',
+        description: 'Test the stored MyEPO link: a token, the portfolios, and the Mailbox. A passed test stores its facts.',
+        parameters: [{ name: 'signal', description: 'cancels the test.' }],
+        returns: 'the test outcome; the stored credentials do not change.',
+      },
+      {
+        signature: '@Remote async myEpoUnlink(): Promise<void>',
+        description: 'Remove the stored MyEPO link; removing an absent link is a no-op.',
+        parameters: [],
+        throws: ['RemoteError `flowleap-connectors/rejected` when the store refuses.'],
+      },
     ],
   },
   {
@@ -1392,6 +1430,73 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote cancelOpenRouter(): void',
         description: 'End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens.',
         parameters: [],
+      },
+    ],
+  },
+  {
+    key: 'flowleapMyEpo',
+    summary: 'The read operations of the MyEPO API.',
+    description: 'The read operations of the MyEPO API. Each call may reject with MyEpoError.',
+    methods: [
+      {
+        signature: 'portfolios(signal?: AbortSignal): Promise<readonly MyEpoPortfolio[]>',
+        description: 'Read the portfolios that the account may read (`GET /portfolios`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the portfolios; empty when the administrator gave no portfolio permission.',
+      },
+      {
+        signature: 'applications(query?: MyEpoApplicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoApplication>>',
+        description: 'Read one page of the applications of the readable portfolios (`GET /applications`).',
+        parameters: [{ name: 'query', description: 'the filters and the page; the EPO\'s first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'bibliographicData(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<MyEpoBibliographicData>',
+        description: 'Read the bibliographic data of one application (`GET /biblio-data/{procedure}/applications/{application}`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the flattened record.',
+      },
+      {
+        signature: 'communications(query?: MyEpoCommunicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>',
+        description: 'Read one page of the Mailbox letters (`GET /communications`).',
+        parameters: [{ name: 'query', description: 'the folder and the page; every folder and the first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'unhandledCommunications(query?: MyEpoPageQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>',
+        description: 'Read one page of the Mailbox letters not marked as handled (`GET /communications/unhandled`).',
+        parameters: [{ name: 'query', description: 'the page; the first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'folders(signal?: AbortSignal): Promise<readonly MyEpoFolder[]>',
+        description: 'Read the Mailbox folders (`GET /communications/folders`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the folders.',
+      },
+      {
+        signature: 'downloadCommunication(communication: MyEpoCommunication, signal?: AbortSignal): Promise<MyEpoDocument>',
+        description: 'Download one letter (`GET /communications/download/{id}`). The EPO marks the letter as read in MyEPO at each download; it stays unhandled there.',
+        parameters: [{ name: 'communication', description: 'the letter, as a list read returned it.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the one PDF of the EPO\'s ZIP, its file name, and the letter.',
+      },
+      {
+        signature: 'dueDates(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoDueDate[]>',
+        description: 'Read the EPO due dates of one application (`GET /{procedure}/applications/{application}/dueDates`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the due dates; {@link MyEpoReads.terms} describes their term keys.',
+      },
+      {
+        signature: 'terms(signal?: AbortSignal): Promise<readonly MyEpoTerm[]>',
+        description: 'Read the descriptions of every term key (`GET /terms`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the terms in English, French and German.',
+      },
+      {
+        signature: 'pendingFees(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoFee[]>',
+        description: 'Read the pending fees of one application (`GET /{procedure}/applications/{application}/fees`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the pending fees.',
       },
     ],
   },
@@ -1443,6 +1548,46 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Accept or reject tracked changes on a copy of a Word document.',
         parameters: [{ name: 'request', description: 'the document, the action, and the selection.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the reviewed copy and the number of changes it removed.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapPatentData',
+    summary: 'Reads EP patent data.',
+    description: 'Reads EP patent data. Each method throws PatentDataError when the read fails.',
+    methods: [
+      {
+        signature: 'findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>',
+        description: 'Find the applicant names in the EP Register that match a company name. The read searches `pa=<name>` in pages of 100 rows. A name matches when its company key holds every word of the typed name\'s company key. Names with the same company key are one name.',
+        parameters: [{ name: 'name', description: 'the company name as the attorney types it.' }, { name: 'options', description: '`maxRows`: the most register rows to read.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the matching names with their count of EP applications.',
+        throws: ['RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.'],
+      },
+      {
+        signature: 'searchRegister(query: string, range: { readonly begin: number; readonly end: number }, signal?: AbortSignal): Promise<RegisterPage>',
+        description: 'Run one EP Register search.',
+        parameters: [{ name: 'query', description: 'the register CQL, for example `re=Muster` or `pa="Gerhard Schubert"`.' }, { name: 'range', description: 'the rows to read, counted from 1. The EPO allows at most 100 rows.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the page.',
+        throws: ['RangeError when `begin` is below 1, `end` is below `begin`, or the range is over 100 rows.'],
+      },
+      {
+        signature: 'registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<RegisterRow | undefined>',
+        description: 'Read the register record of one EP application.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the record, or undefined when the register does not list the application.',
+      },
+      {
+        signature: 'family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>',
+        description: 'Read the family of one EP application through its earliest EP publication.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the family. It is empty when the application has no EP publication or the EPO has no family for it.',
+        throws: ['PatentDataError `malformed` when a member\'s office code is over 4 characters or its number over 32.'],
+      },
+      {
+        signature: 'publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>',
+        description: 'Read the title, abstract and claims of one EP publication. The claims are in English when the EPO has them, else in the first language it holds. The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are then those of the WO publication of the same international application, and `textFrom` names it. The library\'s text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP bibliography names finds it. They are absent when neither finds a WO publication with text.',
+        parameters: [{ name: 'publication', description: 'the EP publication number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the text.',
       },
     ],
   },
@@ -6130,6 +6275,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
   },
   {
+    name: 'ApplicantNames',
+    declaration: 'export interface ApplicantNames {\n    readonly source: \'patstat\' | \'ep-register\';\n    readonly edition?: string;\n    readonly names: readonly {\n        readonly name: string;\n        readonly applications: number;\n    }[];\n    readonly truncated: boolean;\n}',
+  },
+  {
     name: 'ApprovalOutcome',
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
@@ -6970,8 +7119,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}',
   },
   {
+    name: 'EpApplicationNumber',
+    declaration: 'export type EpApplicationNumber = Branded<\'EpApplicationNumber\'>;',
+  },
+  {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n    system?: never;\n}',
+  },
+  {
+    name: 'EpPublicationNumber',
+    declaration: 'export type EpPublicationNumber = Branded<\'EpPublicationNumber\'>;',
   },
   {
     name: 'EventLogOptions',
@@ -6984,6 +7141,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EveryScheduleRecord',
     declaration: 'export interface EveryScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'every\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly everySeconds: number;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'FamilyRead',
+    declaration: 'export interface FamilyRead {\n    readonly familyId?: string;\n    readonly priorities: readonly {\n        readonly number: string;\n        readonly date?: string;\n    }[];\n    readonly publications: readonly string[];\n}',
   },
   {
     name: 'FeedbackCategory',
@@ -8078,6 +8239,98 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ModTier = \'prepend\' | \'user\' | \'append\' | \'builtin\' | \'core\';',
   },
   {
+    name: 'MyEpoApplication',
+    declaration: 'export interface MyEpoApplication {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n    readonly numberWithCheckDigit: string;\n    readonly filingDate: string;\n    readonly fileReference?: string;\n    readonly portfolioId: MyEpoPortfolioId;\n    readonly portfolioName: string;\n}',
+  },
+  {
+    name: 'MyEpoApplicationNumber',
+    declaration: 'export type MyEpoApplicationNumber = Branded<\'MyEpoApplicationNumber\'>;',
+  },
+  {
+    name: 'MyEpoApplicationQuery',
+    declaration: 'export interface MyEpoApplicationQuery extends MyEpoPageQuery {\n    readonly portfolioId?: MyEpoPortfolioId;\n    readonly applicationNumber?: MyEpoApplicationNumber;\n    readonly applicantFileReference?: string;\n    readonly procedure?: MyEpoProcedure;\n}',
+  },
+  {
+    name: 'MyEpoApplicationRef',
+    declaration: 'export interface MyEpoApplicationRef {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n}',
+  },
+  {
+    name: 'MyEpoBibliographicData',
+    declaration: 'export interface MyEpoBibliographicData {\n    readonly procedure: MyEpoProcedure;\n    readonly number: string;\n    readonly filingDate: string;\n    readonly titles: Readonly<Record<string, string>>;\n    readonly applicants: readonly string[];\n    readonly inventors: readonly string[];\n    readonly representatives: readonly string[];\n    readonly publications: readonly {\n        readonly office: string;\n        readonly number: string;\n        readonly kind: string;\n        readonly date: string;\n    }[];\n    readonly priorities: readonly {\n        readonly office: string;\n        readonly number: string;\n        readonly filingDate: string;\n    }[];\n    readonly ipc: readonly string[];\n    readonly cpc: readonly string[];\n}',
+  },
+  {
+    name: 'MyEpoCommunication',
+    declaration: 'export interface MyEpoCommunication {\n    readonly id: MyEpoCommunicationId;\n    readonly applicationNumber?: string;\n    readonly userReference?: string;\n    readonly applicantName?: string;\n    readonly recipientName?: string;\n    readonly documentCode: string;\n    readonly title: string;\n    readonly dispatchDate: string;\n    readonly read: boolean;\n    readonly handled: boolean;\n    readonly folderId: MyEpoFolderId;\n}',
+  },
+  {
+    name: 'MyEpoCommunicationId',
+    declaration: 'export type MyEpoCommunicationId = Branded<\'MyEpoCommunicationId\'>;',
+  },
+  {
+    name: 'MyEpoCommunicationQuery',
+    declaration: 'export interface MyEpoCommunicationQuery extends MyEpoPageQuery {\n    readonly folderId?: MyEpoFolderId;\n}',
+  },
+  {
+    name: 'MyEpoDocument',
+    declaration: 'export interface MyEpoDocument {\n    readonly communication: MyEpoCommunication;\n    readonly filename: string;\n    readonly pdf: Uint8Array;\n}',
+  },
+  {
+    name: 'MyEpoDueDate',
+    declaration: 'export interface MyEpoDueDate {\n    readonly termKey: string;\n    readonly dueDate: string;\n    readonly actor: string;\n}',
+  },
+  {
+    name: 'MyEpoFee',
+    declaration: 'export interface MyEpoFee {\n    readonly feeCode: string;\n    readonly amount: number;\n    readonly currency?: string;\n    readonly dueDate: string;\n}',
+  },
+  {
+    name: 'MyEpoFolder',
+    declaration: 'export interface MyEpoFolder {\n    readonly id: MyEpoFolderId;\n    readonly name: string;\n}',
+  },
+  {
+    name: 'MyEpoFolderId',
+    declaration: 'export type MyEpoFolderId = Branded<\'MyEpoFolderId\'>;',
+  },
+  {
+    name: 'MyEpoLinkView',
+    declaration: 'export type MyEpoLinkView = {\n    state: \'not-linked\';\n    writable: boolean;\n} | {\n    state: \'linked\';\n    writable: boolean;\n    testedAt: string;\n    portfolios: number;\n    mailbox: boolean;\n};',
+  },
+  {
+    name: 'MyEpoPage',
+    declaration: 'export interface MyEpoPage<T> {\n    readonly items: readonly T[];\n    readonly page: number;\n    readonly size: number;\n    readonly total: number;\n}',
+  },
+  {
+    name: 'MyEpoPageQuery',
+    declaration: 'export interface MyEpoPageQuery {\n    readonly page?: number;\n    readonly size?: number;\n}',
+  },
+  {
+    name: 'MyEpoPortfolio',
+    declaration: 'export interface MyEpoPortfolio {\n    readonly id: MyEpoPortfolioId;\n    readonly name: string;\n    readonly type: MyEpoPortfolioType;\n    readonly fullAccess: boolean;\n}',
+  },
+  {
+    name: 'MyEpoPortfolioId',
+    declaration: 'export type MyEpoPortfolioId = Branded<\'MyEpoPortfolioId\'>;',
+  },
+  {
+    name: 'MyEpoPortfolioType',
+    declaration: 'export type MyEpoPortfolioType = \'applicant\' | \'representative\' | \'association\' | \'other\';',
+  },
+  {
+    name: 'MyEpoPortfolioView',
+    declaration: 'export interface MyEpoPortfolioView {\n    name: string;\n    type: MyEpoPortfolioType;\n    fullAccess: boolean;\n}',
+  },
+  {
+    name: 'MyEpoProcedure',
+    declaration: 'export type MyEpoProcedure = \'EPC\' | \'UPP\';',
+  },
+  {
+    name: 'MyEpoTerm',
+    declaration: 'export interface MyEpoTerm {\n    readonly termKey: string;\n    readonly description: {\n        readonly en: string;\n        readonly fr: string;\n        readonly de: string;\n    };\n}',
+  },
+  {
+    name: 'MyEpoTestOutcome',
+    declaration: 'export type MyEpoTestOutcome = {\n    kind: \'passed\';\n    testedAt: string;\n    portfolios: MyEpoPortfolioView[];\n    mailbox: boolean;\n} | {\n    kind: \'refused\';\n} | {\n    kind: \'unreachable\';\n} | {\n    kind: \'failed\';\n    message: string;\n} | {\n    kind: \'not-linked\';\n};',
+  },
+  {
     name: 'MyWork',
     declaration: 'export interface MyWork {\n    readonly recordSeq: RecordSeq;\n    readonly person: MyWorkPerson;\n    readonly summary?: MyWorkSummary;\n    readonly work: WorkItem[];\n    readonly inSight?: WorkItem[];\n    readonly matters: MyWorkMatter[];\n}',
   },
@@ -8610,6 +8863,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PtcRunSpec extends PtcRunRequest {\n    cwd: string;\n    timeoutMs: number | null;\n}',
   },
   {
+    name: 'PublicationText',
+    declaration: 'export interface PublicationText {\n    readonly publicationNumber: EpPublicationNumber;\n    readonly textFrom?: WoPublicationNumber;\n    readonly title?: string;\n    readonly abstract?: string;\n    readonly claims?: string;\n}',
+  },
+  {
     name: 'QueueAction',
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
   },
@@ -8684,6 +8941,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RegisterEventView',
     declaration: 'export interface RegisterEventView {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
+    name: 'RegisterOpponent',
+    declaration: 'export interface RegisterOpponent extends RegisterParty {\n    readonly filedOn?: string;\n    readonly status?: string;\n}',
+  },
+  {
+    name: 'RegisterPage',
+    declaration: 'export interface RegisterPage {\n    readonly total: number;\n    readonly begin: number;\n    readonly end: number;\n    readonly rows: readonly RegisterRow[];\n}',
+  },
+  {
+    name: 'RegisterParty',
+    declaration: 'export interface RegisterParty {\n    readonly name: string;\n    readonly country?: string;\n    readonly address: readonly string[];\n}',
+  },
+  {
+    name: 'RegisterRow',
+    declaration: 'export interface RegisterRow {\n    readonly applicationNumber: EpApplicationNumber;\n    readonly publicationNumber?: EpPublicationNumber;\n    readonly title?: string;\n    readonly applicants: readonly string[];\n    readonly representatives: readonly RegisterParty[];\n    readonly representativeSince?: string;\n    readonly opponents: readonly RegisterOpponent[];\n    readonly status?: string;\n    readonly filed?: string;\n    readonly published?: string;\n}',
   },
   {
     name: 'Registry',
@@ -11096,6 +11369,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WeeklyScheduleRecord',
     declaration: 'export interface WeeklyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'weekly\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly weekdays: number[];\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'WoPublicationNumber',
+    declaration: 'export type WoPublicationNumber = Branded<\'WoPublicationNumber\'>;',
   },
   {
     name: 'WorkflowAgentEndInfo',

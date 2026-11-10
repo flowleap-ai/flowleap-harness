@@ -26,7 +26,7 @@ export interface QuoteLabels {
  * @param props.labels - the page reference and the captions.
  * @returns the quote.
  */
-export function EvidenceQuote({ span, labels }: { span: Span; labels: QuoteLabels }) {
+export function EvidenceQuote({ span, labels }: { span: Pick<Span, 'quote' | 'excerpt'>; labels: QuoteLabels }) {
   // The quote shows in the main view, so the deny-list reads it (R19); only the excerpt, a picture of the page, is exempt.
   const quote = <span className={css.quote} data-fdl-part="quote" tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
   return (

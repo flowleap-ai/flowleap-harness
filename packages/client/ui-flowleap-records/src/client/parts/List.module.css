@@ -63,6 +63,17 @@
   font-weight: var(--dsw-font-xs-strong-13-font-weight);
 }
 
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.groupLabel svg {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .count {
   color: var(--dsw-alias-label-secondary);
   font-weight: var(--dsw-font-xs-13-font-weight);

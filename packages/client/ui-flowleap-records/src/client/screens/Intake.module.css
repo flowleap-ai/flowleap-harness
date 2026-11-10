@@ -41,9 +41,62 @@
 .item {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 376px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
+
+/* The letter as its own page (My work): the item fills the panel body, so the decision bar docks in view. */
+.solo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.subHeading {
+  margin: 0 0 8px;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.found {
+  margin-top: 24px;
+}
+
+.fields {
+  display: grid;
+  gap: 12px;
+  max-width: 440px;
+  margin-top: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldKey,
+.fieldHint {
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
 
 .itemProps {
   display: flex;
@@ -193,6 +246,45 @@
   background: var(--dsw-alias-border-l3);
 }
 
+/* The letter's page images (`LetterPages`), each at its own aspect ratio from its width and height. */
+.pages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-document-preview);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+/* Each read value with its quote and page, above the images: the OCR gives no position on the page. */
+.marks {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: var(--dsw-font-xs-13-font-size);
+  line-height: var(--dsw-font-xs-13-line-height);
+}
+
+.markRow {
+  display: contents;
+}
+
+.marks dt {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.marks dd {
+  margin: 0;
+  min-width: 0;
+}
+
 .paperCap {
   display: flex;
   align-items: center;
@@ -323,4 +415,16 @@
   .order {
     display: none;
   }
+}
+
+/* On a touch screen the field takes 16 px, so iOS Safari does not zoom into it (R1 exception, dsh-responsive-ui §9.2). */
+@media (pointer: coarse) {
+  .fields input,
+  .fields select {
+    font-size: var(--dsw-font-base-16-font-size);
+  }
+}
+
+.readings {
+  margin: 0 0 24px;
 }

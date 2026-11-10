@@ -212,6 +212,7 @@ const LAYER: Readonly<Record<Exclude<CommandName, 'search' | 'record' | 'open'>,
   next: { code: 'KeyJ', modifiers: [] },
   previous: { code: 'KeyK', modifiers: [] },
   select: { code: 'KeyX', modifiers: [] },
+  find: { code: 'Slash', modifiers: [] },
 }
 
 /**

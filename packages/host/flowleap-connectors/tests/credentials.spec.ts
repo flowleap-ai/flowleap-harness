@@ -114,6 +114,13 @@ describe('the connector host', () => {
     vi.unstubAllGlobals()
   })
 
+  it('gives the library the request deadline of the row, or none so the library keeps its own', () => {
+    const { ctx, store } = bench()
+    const host = createConnectorHost({ store, logger: ctx.logger, cacheEntries: 1, opsRequestDeadlineMs: 60_000 }).host
+    expect(host.settings).toEqual({ opsRequestDeadlineMs: 60_000 })
+    expect(createConnectorHost({ store, logger: ctx.logger, cacheEntries: 1 }).host.settings).toBeUndefined()
+  })
+
   it('sends requests through the global fetch when no fetch is given', async () => {
     const { ctx, store } = bench()
     const globalFetch = vi.fn<typeof fetch>(() => Promise.resolve(new Response('ok')))

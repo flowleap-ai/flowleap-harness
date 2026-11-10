@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react'
 import {
-  IconAgentPresetOutlineRegular, IconFlatListOutlineRegular, IconGaugeOutlineRegular, IconPinOutlineRegular,
+  IconAgentPresetOutlineRegular, IconFlatListOutlineRegular, IconPinOutlineRegular,
   IconSearchOutlineRegular, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -20,11 +20,6 @@ type Copy = PropsLocale<typeof NS>
 
 /** Props of an app launcher glyph. */
 export type AppIconProps = Pick<PropsRuntime<'sidebar.panellist'>, 'size'>
-
-/** Dashboard launcher glyph. */
-export function DashboardIcon({ size }: AppIconProps) {
-  return <IconGaugeOutlineRegular size={size} />
-}
 
 /** Chats launcher glyph. */
 export function ChatsIcon({ size }: AppIconProps) {

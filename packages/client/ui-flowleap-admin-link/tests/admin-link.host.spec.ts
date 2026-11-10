@@ -191,6 +191,24 @@ describe('ui-flowleap-admin-link Host half', () => {
     await ctx.fiber.dispose()
   })
 
+  it('provides the flowleapAdmin Service with the same check, and removes it on dispose', async () => {
+    const ctx = new Context()
+    ctx.provide('connection', { fetch: { register: () => async () => {} } } as never)
+    const publicKeyFile = file('service.pub', publicPem(starter.publicKey))
+    const fiber = ctx.plugin({ inject: ['connection'], Config, apply }, { publicKeyFile, consoleHref: 'admin/' })
+    await fiber.await()
+    const admin = ctx.get('flowleapAdmin')
+    expect(admin).toBeDefined()
+    const expiry = Math.floor(Date.now() / 1000) + 60
+    const request = (value?: string) => new Request('http://runtime.test/api/x', value === undefined ? {} : { headers: { 'x-flowleap-admin': value } })
+    expect(await admin!.isAdmin(request(header(expiry)))).toBe(true)
+    expect(await admin!.isAdmin(request(header(expiry, other.privateKey)))).toBe(false)
+    expect(await admin!.isAdmin(request())).toBe(false)
+    await fiber.dispose()
+    expect(ctx.get('flowleapAdmin')).toBeUndefined()
+    await ctx.fiber.dispose()
+  })
+
   it('fails to load with an invalid config', async () => {
     const ctx = new Context()
     ctx.provide('connection', { fetch: { register: () => async () => {} } } as never)

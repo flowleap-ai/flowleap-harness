@@ -34,6 +34,8 @@ flowleap/dev-loop.sh up --os ~/flowleap/flowleap-os
 
 The first run in a checkout builds the artifacts once (`pnpm run build:artifacts`). `up` prints the app's link with its access token on port 3270. Open that link; do not put the token in a PR or a note.
 
+`--patch <overlay>` adds one overlay after `dev-loop.patch.yml`, for example the connector keys as a read-only credential file (as the [verify overlay](../../.claude/skills/verify/verify.patch.yml) does) or the `firmIdentity` of Add client. Keep that file outside the checkout. `restart` uses it again.
+
 You act as one seed user, default `jonas`. Change the person at any time, with no restart:
 
 ```bash
@@ -60,7 +62,7 @@ After an edit:
 
 ## The full first demo
 
-`up --demo` runs the first demo of atlas sheet 00 with no manual step, from the letter in the AI mailbox to Review the work of the attorney. Use a new run dir, because the seed letters go in once per run dir:
+`up --demo` runs the first demo of atlas sheet 00 with no manual step, from the letter in the AI mailbox to Review the work of the attorney. Use a new run dir, because the seed letters go in once per run dir. `--demo` and `--myepo-double` load the seed letters in two ways, so `up` refuses the two together:
 
 ```bash
 FLOWLEAP_DEV_RUN=~/.local/share/flowleap-harness/demo flowleap/dev-loop.sh up --os ~/flowleap/flowleap-os --demo --officecli <OfficeCLI 1.0.160 binary>
@@ -91,9 +93,27 @@ A person with a Ticket runtime keeps that runtime's record token, because the re
 
 When the records row of the bundle has `signOutHref` (harness PR 346), the loop adds [`dev-loop-signout.patch.yml`](../dev-loop-signout.patch.yml): **Sign out** in the account menu goes to `/_dev/people`, a person picker of the records proxy. A choice runs `dev-loop.sh as <handle>` and opens the app as that person. Without that row, the account menu has no Sign out, and `dev-loop.sh as` changes the person.
 
+## The MyEPO double
+
+`up --myepo-double` also starts the [MyEPO double](../../packages/host/flowleap-connectors/tests/myepo-double/README.md) on `<port>+3` (default 3273) and adds [`myepo-double.patch.yml`](../myepo-double.patch.yml), so the MyEPO link calls the double. The double serves the seed firm's real public EP files as public sample data; it is not a live MyEPO account. `up` prints its client ID and secret. Type them on Settings → Connectors → MyEPO and choose `Save and test`. To make the waiting Rule 71(3) letter of SF-2023-0045 arrive, and to restore the Mailbox:
+
+```bash
+curl -X POST http://127.0.0.1:3273/_double/arrive
+```
+
+```bash
+curl -X POST http://127.0.0.1:3273/_double/reset
+```
+
+`--myepo-double` also starts the firm's [MyEPO letter reader](../../packages/host/flowleap-connectors/README.md#the-myepo-letter-reader) against the double. It reads the unhandled letters every 5 seconds and sends each new letter to the Firm Record's intake, so some seconds after `arrive` the letter is filed on SF-2023-0045 with its office event, its proposed deadline (2027-01-29) and the task Confirm the deadline. Its log is `<run dir>/logs/myepo-reader.log`. The seed letters leave out the rows that the reader takes from the double (rows 6, 15, 16 and 18), so the record has each letter once. A run dir whose seed letters were loaded without `--myepo-double` has those rows already, and `up --myepo-double` stops with a message: give a new `FLOWLEAP_DEV_RUN`.
+
+`status` shows the double's and the reader's processes, and `down` stops them. The Mailbox state is lost when the double stops. A later `up` converges to its own options: with another `--port` it moves the double, the host and the proxy to the new ports; without `--myepo-double` it stops the double and starts the host without its overlay.
+
 ## Model keys
 
 The loop reads `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY` and `DEEPSEEK_API_KEY` from your shell's environment and writes no key to the run dir or the repository. With no key, the app starts, the Matters panel and `probe` work, and a chat fails at its model call.
+
+New chats use the default model of the `flowleap-web` profile (its `agent-default-model` row, `anthropic/claude-sonnet-5-5`). `--model <provider>/<model id>` sets another default for this loop through an overlay in the run dir, for example `--model openrouter/anthropic/claude-sonnet-5.5` with only an OpenRouter key. `up` and `restart` stop with a message when the default model's provider has no key in your shell while the shell has another model key, so a new chat does not fail with "No model is set up". `status` shows the default model.
 
 ## Measured
 

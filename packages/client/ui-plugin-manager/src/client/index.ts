@@ -174,7 +174,8 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
       name: 'sidebar.panellist',
       id: PANEL_ID,
-      order: 0,
+      // After Automation tasks (10): installing plugins is rarer than the work panels above it.
+      order: 20,
       label: () => t('panel'),
       locale: NS,
     }, PluginsPanelIcon))

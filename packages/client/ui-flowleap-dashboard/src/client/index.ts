@@ -1,9 +1,10 @@
 /**
- * Browser half of the FlowLeap dashboard (flowleap-harness#60). It registers the dashboard as a keyed `main` page and
- * as the landing page of `ui-workspace` (which also opens the chat or page that the start address names), declares the
- * `dashboard.metric` and `dashboard.widget` list slots, and provides the `dashboardSearch` registry that apps fill with
- * search groups. The Search command (Cmd+K) opens the dashboard search. It also adds the OS sidebar layers: the Search
- * action, the Dashboard, Chats, and Agents app launchers, and the Pinned section.
+ * Browser half of the FlowLeap dashboard (flowleap-harness#60). It registers the dashboard as a keyed `main` page,
+ * declares the `dashboard.metric` and `dashboard.widget` list slots, and provides the `dashboardSearch` registry that
+ * apps fill with search groups. The Search command (Cmd+K) and the sidebar's Search action open the dashboard search.
+ * It also adds the OS sidebar layers: the Search action, the Chats and Agents app launchers, and the Pinned section.
+ * The dashboard has no sidebar row and is not the landing page: My work of `ui-flowleap-records` is the first screen
+ * (atlas sheet 0, decision Q6).
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -21,7 +22,7 @@ import { IconFlatListOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitive
 import type { DashboardEntry, DashboardSearch, DashboardSearchGroup } from './contract.ts'
 import { DashboardPage } from './DashboardPage.tsx'
 import { de, en, es, fr, ja, NS, pt, ru, zh, type FlowleapDashboardKey } from './locales.ts'
-import { AgentsIcon, ChatsIcon, DashboardIcon, PinnedSection, SearchAction } from './sidebar.tsx'
+import { AgentsIcon, ChatsIcon, PinnedSection, SearchAction } from './sidebar.tsx'
 import { AgentActivity, chatRows } from './widgets.tsx'
 
 export type {
@@ -91,8 +92,7 @@ export function createSearchRegistry(): SearchRegistry {
 }
 
 /**
- * Register the dashboard, its own panel and search group, the app pages, the sidebar layers, the Search command, and
- * the landing page.
+ * Register the dashboard, its own panel and search group, the app pages, the sidebar layers and the Search command.
  * @param ctx - browser services used by these contributions.
  */
 export function apply(ctx: ClientContext): void {
@@ -121,7 +121,6 @@ export function apply(ctx: ClientContext): void {
       onAsk: (text: string) => { ctx.uiWorkspace.startSession(undefined, text === '' ? undefined : { prompt: text }) },
     }),
   }, DashboardPage))
-  ctx.effect(() => ctx.uiWorkspace.provideLanding(DASHBOARD_PANEL_ID), 'ui-flowleap-dashboard: landing page')
   ctx.effect(() => ctx.uiWorkspace.provideSearch(openSearch), 'ui-flowleap-dashboard: Search command')
   ctx.effect(() => {
     const dispose = ctx.reflect.provide('dashboardSearch', search.registry)
@@ -135,9 +134,8 @@ export function apply(ctx: ClientContext): void {
   }, AgentsPage))
 
   const launchers = [
-    { id: DASHBOARD_PANEL_ID, order: -100, label: 'panel.dashboard', icon: DashboardIcon },
     { id: CHATS_PANEL_ID, order: -90, label: 'panel.chats', icon: ChatsIcon },
-    { id: AGENTS_PANEL_ID, order: 30, label: 'panel.agents', icon: AgentsIcon },
+    { id: AGENTS_PANEL_ID, order: -80, label: 'panel.agents', icon: AgentsIcon },
   ] as const
   for (const launcher of launchers) {
     ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
