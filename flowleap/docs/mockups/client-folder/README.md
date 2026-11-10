@@ -20,7 +20,7 @@ Each page has an English file and a German file (`<name>.de.html`). Open a page 
 ## Founder decisions
 
 - **Grouping.** The list groups by **Folders** and **Files**, not by state, because a file has no state. This is an exception to product rule 1, as My work has one; the founder approved it ([decision 2](../../2026-11-08-client-folder-page.md#founder-decisions)).
-- **Keys.** The pages show only keys of the [key map](../../../../.agents/skills/flowleap-design-language/keys.md): `↵` (Open) in the row menu and `R` (Try again). The founder approved the keys of the new acts ([decision 3](../../2026-11-08-client-folder-page.md#founder-decisions)); they go into the key map with the build.
+- **Keys.** Each act shows its key from the [key map](../../../../.agents/skills/flowleap-design-language/keys.md): Ask about this `A`, New folder `⇧N`, Upload files `U`, Rename `F2`, Move to `⇧M` ([decision 3](../../2026-11-08-client-folder-page.md#founder-decisions)), Open `↵` in the row menu and Try again `R`.
 - **Long names.** The real folder names are long. The tree rows and the list rows end a long name in an ellipsis, as the title cell of a list row does (R17); the folder header shows the full name, and every row has it on hover.
 
 ## Data

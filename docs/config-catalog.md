@@ -633,6 +633,31 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-admin-link -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+<a id="deepseek-aidsh-client-ui-flowleap-folder"></a>
+
+## `@deepseek-ai/dsh-client-ui-flowleap-folder`
+
+- `inject`: `connection` · `workspaceRegistry`
+- `source`: [`packages/client/ui-flowleap-folder/src/index.ts:36`](../packages/client/ui-flowleap-folder/src/index.ts)
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** The plugin's state folder; the source records go into its `sources/` folder. */
+  stateDir: string
+  /** Cap on the entries of one listing; the rest is dropped and reported cut. */
+  maxEntries: number
+  /** Inclusive byte cap of one uploaded file. */
+  maxUploadBytes: number
+  /** Cap on the hits of one search by name. */
+  maxSearchHits: number
+  /** A file whose presence means the Host disk is low; while it exists, uploads are refused. Empty: no check. */
+  storageLowFlagPath: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-folder -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-flowleap-records -->
 <a id="deepseek-aidsh-client-ui-flowleap-records"></a>
 

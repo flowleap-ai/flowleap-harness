@@ -1,0 +1,133 @@
+/* The page's own file viewers in the middle area. */
+
+.message {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 48px;
+  color: var(--dsw-alias-label-secondary);
+  text-align: center;
+}
+
+.message p {
+  margin: 0;
+  max-width: 360px;
+}
+
+.pdf {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--dsw-alias-bg-document-preview);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 32px 32px;
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: var(--dsw-radius-lg);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.page {
+  max-width: 760px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.text {
+  margin: 0;
+  font-family: var(--ds-font-family-code);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.subject {
+  margin: 0 0 16px;
+  font-size: var(--dsw-font-l-20-font-size);
+  line-height: var(--dsw-font-l-20-line-height);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  margin: 0 0 24px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.facts dt,
+.facts dd {
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  overflow-wrap: anywhere;
+}
+
+.facts dt {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.body {
+  max-width: 640px;
+  white-space: pre-line;
+}
+
+@media (max-width: 720px) {
+  .scroll { padding: 0 16px 16px; }
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  font: inherit;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+.sheet {
+  overflow: auto;
+}
+
+.sheet table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet td {
+  padding: 4px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.note {
+  margin: 12px 0 0;
+  color: var(--dsw-alias-label-secondary);
+}

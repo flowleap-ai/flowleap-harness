@@ -422,6 +422,7 @@ describe('isPermissive', () => {
   it('requires every operand of an AND, so a copyleft conjunct cannot ride along', () => {
     expect(isPermissive('(MIT OR Apache-2.0) AND GPL-3.0-only')).toBe(false)
     expect(isPermissive('MIT AND ISC')).toBe(true)
+    expect(isPermissive('MIT-0')).toBe(true)
     // An exception clause is not a recognized identifier, so it fails closed.
     expect(isPermissive('GPL-2.0-only WITH Classpath-exception-2.0')).toBe(false)
   })

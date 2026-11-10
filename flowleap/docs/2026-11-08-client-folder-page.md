@@ -20,7 +20,7 @@ Demo loop 4 opened a client folder (client → family → matter, with the folde
 | Organize | Selects **New folder**, **Rename** or **Move to…** | Creates, renames or moves inside the client folder; the firm's template folders are only the start |
 | Ask | Selects **Ask about this** on a file, a folder or a selection | Starts a chat session in the client's workspace with the file or folder already referenced, and opens it |
 
-The page is one view. The tree is 244 px wide, as the app sidebar, and a person can drag its edge wider; a long name ends in an ellipsis, with the full name in the folder header and on hover. At 390 px the tree opens from the top bar. **Ask about this** is the one primary action of the page. The page has no delete act: a person deletes in the file manager of the system, and the page shows the change.
+The page is one view. The tree is 280 px wide, as the app sidebar, and a person drags its edge between the app sidebar's limits of 264 and 420 px; the browser keeps the width for each person. A long name ends in an ellipsis, with the full name in the folder header and on hover. At 390 px the tree opens from the top bar. **Ask about this** is the one primary action of the page. The page has no delete act: **Move to Trash** moves an entry into the `Trash` folder at the client folder root, and **Restore** moves it back (founder decision 7). A search field `/` finds files and folders by name over the whole client folder and shows each hit with its folder; Enter opens the hit and Esc clears the search. A search inside the files' text comes later, as the first part of the Knowledge Pool.
 
 ## Reused parts
 
@@ -29,7 +29,8 @@ The page is one view. The tree is 244 px wide, as the app sidebar, and a person 
 | Workspace and its folder | `workspace`, `api/workspace-controller` | One client is one workspace; `ctx.workspaces.list` gives the client list; `WorkspaceView.path` is the client folder |
 | File reads and changes | `api/workspace-files` (`remote.workspaceFiles`) | `readBytes` and `read` for the preview, `changes` to update the view when a file changes on disk |
 | The tree component | `ui-sidebar-files`, factory slot `sidebar.files.tree` | The tree at the left; the factory is root-scoped, so the page renders it and feeds it its own listing |
-| The previews | `ui-sidebar-documentpreview`, `ctx.documentPreviews` | PDF, Markdown, images, Excel, and Word through the host's LibreOffice conversion |
+| File reads and conversion | `remote.workspaceFiles.readBytes`, `remote.officeToPdf.render` | The page's own viewers read the bytes of a file, and Word and PowerPoint files as PDF, under the workspace's blank Session |
+| Markdown | `MarkdownText` of `ui-primitives` | The Markdown viewer |
 | The chat | `ui-workspace` `startSession(workspaceId, { prompt, whenDraftExists: 'append' })`, `dsh-file-reference` `formatFileMention` | **Ask about this** opens the workspace's new-session draft with `@path` in the prompt |
 | A FlowLeap page | `ui-flowleap-records` pattern: `sidebar.panellist` entry and keyed `main` slot | The **Clients** entry in the app sidebar and the page in the middle; `?page=` selects it |
 | The look | `ui-primitives`, client theme, [FlowLeap design language](../../.agents/skills/flowleap-design-language/SKILL.md) | List rows, menus, the bulk bar, empty, loading and error states |
@@ -41,7 +42,7 @@ All new code is in one FlowLeap plugin, `packages/client/ui-flowleap-folder` (`@
 - **Client half.** The **Clients** list, the folder page, the drop target, the inline name field, the **Move to…** picker, the bulk bar, and the **Ask about this** act.
 - **Host half: the folder Remote.** `list(workspaceId, path)` returns the entries with their modified time and their source; `mkdir`, `upload`, `rename` and `move` write into the client folder. The Remote looks up the workspace by its `WorkspaceId` and takes `WorkspaceView.path` as the root.
 - **Source record.** For each file that the page or **Add client** writes, the plugin stores the source (the public register, a person's upload) and the time, and for each folder that **Add client** builds, its role (family or matter). A file that changes outside the app shows "Not recorded".
-- **Mail preview.** A renderer for `.eml` through `ctx.documentPreviews.register`, with a maintained MIME parser. It also shows mail in the right sidebar of every chat. `.msg` needs a host converter and is not in this step.
+- **Viewers.** One module of the plugin shows a file in the middle: a PDF or an image in the browser's viewer through a `blob:` URL, Markdown and text, Word and PowerPoint through the Host's PDF conversion, a sheet (`.xlsx`, `.xls`, `.csv`) read-only through SheetJS with one table for each sheet and sheet tabs, and mail (`.eml`) through the maintained MIME parser `postal-mime`, with the date in the sender's own zone. Other kinds show "FlowLeap has no preview for this kind of file yet". The preview bodies of `ui-sidebar-documentpreview` render only in that package's Session sidebar: only the plugin that declares a slot may render it (coordinator decision of 2026-11-08 after the build spike). When that package exports a body that a page can render, this module goes away. `.msg` needs a Host converter and is not in this step.
 
 ## How files are written
 
@@ -73,7 +74,7 @@ The page works with no core change. These small slots would remove workarounds; 
 | Slot or field | Package | Why | Workaround until then |
 |---|---|---|---|
 | A workspace-keyed scope for `remote.workspaceFiles` | `api/workspace-files` | Every read and watch needs a session id | Read under the workspace's blank session from `uiWorkspace.connectWorkspace` |
-| A root-scoped factory slot for the preview body, input `{ address }` | `ui-sidebar-documentpreview` | The preview bodies are session-scoped children of the right sidebar | Render the keyed `sidebar.right.tab.document` body under the blank session; the first build step proves this |
+| An exported preview body factory, root-scoped, input `{ address }` | `ui-sidebar-documentpreview` | Only the declaring plugin may render the session-scoped `sidebar.right.tab.document` bodies, so a page cannot reuse them | The plugin's own viewers |
 | `modifiedAt` on `WorkspaceDirectoryEntry` | `api/workspace-files` | The listing has no date | The plugin's own `list` |
 | `mkdir`, `upload`, `rename`, `move` fenced to the root | `api/workspace-files` | No harness package writes into a workspace folder for a person | The plugin's folder Remote |
 | A list slot for the workspace row menu, for example `sidebar.workspaces.menu.item` | `ui-workspace` | "Open folder" belongs on the workspace row in the app sidebar | The **Clients** entry |
@@ -94,5 +95,11 @@ The founder decided on 2026-11-08:
 2. **Product rule 1.** The file list groups by **Folders** and **Files**. This is an approved exception to product rule 1, as My work has one.
 3. **Keys.** **Ask about this** `A`, **New folder** `⇧N`, **Upload files** `U`, **Rename** `F2`, **Move to…** `⇧M`.
 4. **Source.** The source of a file stays in the plugin for now. It moves into the Firm Record's document index in M1.
-5. **Delete.** The app has no delete act in the first step.
+5. **Delete.** The app has no delete act in the first step. Decision 7 adds Move to Trash, which deletes nothing.
 6. **Where the chat opens.** In the middle, with the file in the right sidebar, as drawn.
+
+After the founder's test of the build on 2026-11-08 (a file uploaded by mistake had no way out), the coordinator decided:
+
+7. **Trash.** **Move to Trash** `Backspace` moves an entry into the `Trash` folder at the client folder root, with the same path checks; a name that Trash has gets `name 2.ext`. The Host records the origin, and **Restore** moves the entry back, makes the missing folders, and keeps both on a taken name. Only Move to Trash puts entries into Trash. FlowLeap never deletes an entry.
+8. **Search by name.** **Find** `/` searches names over the whole client folder. Full-text search inside the files is the first slice of the Knowledge Pool.
+9. **Sheets.** Excel and CSV files show read-only in the page, one table for each sheet with sheet tabs, through SheetJS.

@@ -89,18 +89,22 @@ ${body}
     </section>
   </main>
 </div>`;
-const btn = (label, { kind = 'secondary', icon = '', cls = '', attrs = '' } = {}) =>
-  `<span class="btn btn-${kind}${cls ? ` ${cls}` : ''}"${icon ? ` data-i="${icon}"` : ''} role="button"${attrs}>${label}</span>`;
+// The keys of the page's acts (keys.md, founder decision 3); a button or menu item of an act carries its data-act and keycap.
+const KEYS = { ask: 'A', 'new-folder': '⇧N', upload: 'U', rename: 'F2', move: '⇧M', open: '↵', retry: 'R' };
+const kbd = act => `<span class="kbd">${KEYS[act]}</span>`;
+const btn = (label, { kind = 'secondary', icon = '', cls = '', attrs = '', act = '' } = {}) =>
+  `<span class="btn btn-${kind}${cls ? ` ${cls}` : ''}"${icon ? ` data-i="${icon}"` : ''}${act ? ` data-act="${act}"` : ''} role="button"${attrs}>${label}${act ? ` ${kbd(act)}` : ''}</span>`;
+const mi = (act, icon, label) => `<div class="mi" data-i="${icon}"${act ? ` data-act="${act}"` : ''}>${label}${act ? `<span class="kbds">${kbd(act)}</span>` : ''}</div>`;
 const iconbtn = (icon, label, cls = '') => `<span class="iconbtn${cls ? ` ${cls}` : ''}" data-i="${icon}" role="button" aria-label="${label}"></span>`;
 const crumbs = (trail, here) => `${trail.length ? iconbtn('back', t('Up one folder', 'Einen Ordner höher'), 'only-sm') : ''}${iconbtn('tree', t('Show the folders', 'Ordner zeigen'), 'only-sm')}<span class="ico hide-sm" data-i="clients"></span><span class="hide-sm">${t('Clients', 'Mandanten')}</span>${trail.map(c => `<span class="sep hide-sm">›</span>${c === '…' ? iconbtn('dots', t('Show the folders between', 'Ordner dazwischen zeigen'), 'hide-sm') : `<span class="lvl hide-sm">${nm(c)}</span>`}`).join('')}<span class="sep hide-sm">›</span><span class="here">${nm(here)}</span>`;
-const folderActs = ({ primary = true } = {}) => `${iconbtn('search', t('Find in this folder', 'In diesem Ordner suchen'), 'hide-sm')}${btn(t('New folder', 'Neuer Ordner'), { icon: 'newfolder', cls: 'hide-sm' })}${btn(t('Upload files', 'Dateien hochladen'), { icon: 'upload', cls: 'hide-sm' })}<span class="more" data-overflow="more-menu">${iconbtn('dots', t('More acts', 'Weitere Aktionen'))}</span>${primary ? btn(ask(), { kind: 'primary', icon: 'ask' }) : ''}`;
+const folderActs = ({ primary = true } = {}) => `${iconbtn('search', t('Find in this folder', 'In diesem Ordner suchen'), 'hide-sm')}${btn(t('New folder', 'Neuer Ordner'), { icon: 'newfolder', cls: 'hide-sm', act: 'new-folder' })}${btn(t('Upload files', 'Dateien hochladen'), { icon: 'upload', cls: 'hide-sm', act: 'upload' })}<span class="more" data-overflow="more-menu">${iconbtn('dots', t('More acts', 'Weitere Aktionen'))}</span>${primary ? btn(ask(), { kind: 'primary', icon: 'ask', act: 'ask' }) : ''}`;
 const topbar = (crumbHtml, right) => `      <header class="topbar">
         <div class="crumbs">${crumbHtml}</div>
         <div class="bar-right">${right}</div>
       </header>`;
 const overflow = () => `<div class="menu ctx-menu overflow-menu" id="more-menu" data-state="more" role="menu">
-  <div class="mi" data-i="newfolder">${t('New folder', 'Neuer Ordner')}</div>
-  <div class="mi" data-i="upload">${t('Upload files', 'Dateien hochladen')}</div>
+  ${mi('new-folder', 'newfolder', t('New folder', 'Neuer Ordner'))}
+  ${mi('upload', 'upload', t('Upload files', 'Dateien hochladen'))}
   <div class="mi" data-i="search">${t('Find in this folder', 'In diesem Ordner suchen')}</div>
 </div>`;
 
@@ -155,10 +159,10 @@ const clientRows = ({ checked = [], ctx = '' } = {}) => ({
 });
 const ctxMenu = (what = 'folder') => `<div class="menu ctx-menu ctx-at" data-state="context" role="menu">
   <div class="mi on" data-i="${what === 'folder' ? 'folderopen' : 'eye'}" data-act="open">${t('Open', 'Öffnen')}<span class="kbds"><span class="kbd">↵</span></span></div>
-  <div class="mi" data-i="ask">${ask()}</div>
+  ${mi('ask', 'ask', ask())}
   <div class="sep"></div>
-  <div class="mi" data-i="pen">${t('Rename', 'Umbenennen')}</div>
-  <div class="mi" data-i="move">${t('Move to…', 'Verschieben nach …')}</div>
+  ${mi('rename', 'pen', t('Rename', 'Umbenennen'))}
+  ${mi('move', 'move', t('Move to…', 'Verschieben nach …'))}
   <div class="sep"></div>
   <div class="mi" data-i="external">${t('Show in Finder', 'Im Finder zeigen')}</div>
   <div class="mi" data-i="copy">${t('Copy path', 'Pfad kopieren')}</div>
@@ -168,8 +172,8 @@ const bulkBar = n => `<div class="bulk-dock" data-state="select">
               <div class="decision-f">
                 ${iconbtn('x', t('Clear the selection', 'Auswahl aufheben'))}<span class="lbl">${t(`${n} selected`, `${n} ausgewählt`)}</span>
                 <div class="acts">
-                  ${btn(t('Move to…', 'Verschieben nach …'), { kind: 'ghost', icon: 'move' })}
-                  ${btn(t(`Ask about these ${n}`, `Zu diesen ${n} fragen`), { kind: 'primary', icon: 'ask' })}
+                  ${btn(t('Move to…', 'Verschieben nach …'), { kind: 'ghost', icon: 'move', act: 'move' })}
+                  ${btn(t(`Ask about these ${n}`, `Zu diesen ${n} fragen`), { kind: 'primary', icon: 'ask', act: 'ask' })}
                 </div>
               </div>
             </div>
@@ -206,7 +210,7 @@ function matterFolder() {
   const counts = { Associates: 0, Client: 0, Drafts: 0, Internal: 0, Office: 3, Search: 1 };
   const subs = TEMPLATE.map(s => row({ kind: 'folder', name: s, size: items(counts[s]), mod: date(BUILT), src: SRC.add() }));
   const famLede = nm(FAM);
-  const empty = `<div class="empty"><div class="empty-in"><div class="empty-art" data-i="folder"></div><h2>${t('Nothing in Drafts yet', 'Noch nichts in Drafts')}</h2><p>${t('Drop files here, or upload them. A draft that the agent writes for this matter also goes here.', 'Legen Sie Dateien hier ab oder laden Sie sie hoch. Ein Entwurf, den der Agent für diese Akte schreibt, kommt auch hierher.')}</p>${btn(t('Upload files', 'Dateien hochladen'), { icon: 'upload' })}</div></div>`;
+  const empty = `<div class="empty"><div class="empty-in"><div class="empty-art" data-i="folder"></div><h2>${t('Nothing in Drafts yet', 'Noch nichts in Drafts')}</h2><p>${t('Drop files here, or upload them. A draft that the agent writes for this matter also goes here.', 'Legen Sie Dateien hier ab oder laden Sie sie hoch. Ein Entwurf, den der Agent für diese Akte schreibt, kommt auch hierher.')}</p>${btn(t('Upload files', 'Dateien hochladen'), { icon: 'upload', act: 'upload' })}</div></div>`;
   const body = `${topbar(`<span class="cset" data-state="default loading error more tree">${crumbs([CLIENT, '…', MATTER], 'Office')}</span><span class="cset" data-state="matter">${crumbs([CLIENT, '…'], MATTER)}</span><span class="cset" data-state="empty">${crumbs([CLIENT, '…', MATTER], 'Drafts')}</span>`, folderActs())}
       <div class="fp">
         <span class="cset" data-state="default loading error more tree">${clientTree({ open: 3, sel: 'Office', files: OFFICE_FILES })}</span>
@@ -226,10 +230,10 @@ function matterFolder() {
 // ---------- a file open in the middle: the PDF, a Markdown file, the client mail ----------
 function fileOpen() {
   const pdfHead = `<div class="pv-head"><div><h1 class="title">${nm(PDF)}</h1><div class="pv-meta"><span>${KIND.pdf()}</span><span>${bytes(389316)}</span><span>${SRC.pubserver()}</span><span>${date(BUILT)}</span></div></div>
-            <div class="pv-tools"><span class="pager num">1 / 21</span>${iconbtn('zoomout', t('Zoom out', 'Verkleinern'))}${iconbtn('zoomin', t('Zoom in', 'Vergrößern'))}${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask' })}</div></div>`;
+            <div class="pv-tools"><span class="pager num">1 / 21</span>${iconbtn('zoomout', t('Zoom out', 'Verkleinern'))}${iconbtn('zoomin', t('Zoom in', 'Vergrößern'))}${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask', act: 'ask' })}</div></div>`;
   const pdfBody = `<div class="pv-body"><div class="letter scan" data-verbatim><img src="scan/ep-4-292-805-a1-page-1.webp" alt="${t('Page 1 of EP 4 292 805 A1', 'Seite 1 von EP 4 292 805 A1')}" width="909" height="1286"></div></div>`;
   const mdHead = `<div class="pv-head"><div><h1 class="title">${nm('Search report.md')}</h1><div class="pv-meta"><span>Markdown</span><span>${bytes(2157)}</span><span>${SRC.pubserver()}</span><span>${date(BUILT)}</span></div></div>
-            <div class="pv-tools">${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask' })}</div></div>`;
+            <div class="pv-tools">${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask', act: 'ask' })}</div></div>`;
   const cl = (n, x, a) => `<tr><td>${n}</td><td>${x}</td><td>${a}</td></tr>`;
   const mdBody = `<div class="pv-body"><article class="md" data-verbatim>
             <p class="src">Source: EPO publication server. The search report is part of the A1 publication of 20.12.2023. Search completed: 08.11.2023.</p>
@@ -246,7 +250,7 @@ function fileOpen() {
             </tbody></table>
           </article></div>`;
   const mailHead = `<div class="pv-head"><div><h1 class="title">${nm('SAMPLE - EP 23 171 862 (EP 4 292 805): status and search report')}</h1><div class="pv-meta"><span>${KIND.mail()}</span><span>${bytes(715)}</span><span>${SRC.sample()}</span><span>${nm(MAIL)}</span></div></div>
-            <div class="pv-tools">${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask' })}</div></div>`;
+            <div class="pv-tools">${iconbtn('external', t('Open in the system app', 'In der Systemanwendung öffnen'), 'hide-sm')}${btn(ask(), { kind: 'primary', icon: 'ask', act: 'ask' })}</div></div>`;
   const mailBody = `<div class="pv-body"><div class="mail-facts"><div class="k">${t('From', 'Von')}</div><div data-address>SAMPLE Sender &lt;ip-sample@example.invalid&gt;</div><div class="k">${t('To', 'An')}</div><div data-address>SAMPLE Attorney &lt;attorney-sample@example.invalid&gt;</div><div class="k">${t('Date', 'Datum')}</div><div>${t('Friday, 6 November 2026, 09:14', 'Freitag, 6. November 2026, 09:14')}</div></div>
             <div class="mail-body" data-verbatim>THIS IS A SAMPLE MAIL FOR THE DEMO. IT IS NOT A REAL MAIL FROM THE CLIENT.
 
@@ -273,8 +277,8 @@ IP department (SAMPLE)</div></div>`;
       </div>`;
   const more = `<div class="menu ctx-menu overflow-menu" id="more-menu" data-state="more" role="menu">
   <div class="mi" data-i="external">${t('Open in the system app', 'In der Systemanwendung öffnen')}</div>
-  <div class="mi" data-i="pen">${t('Rename', 'Umbenennen')}</div>
-  <div class="mi" data-i="move">${t('Move to…', 'Verschieben nach …')}</div>
+  ${mi('rename', 'pen', t('Rename', 'Umbenennen'))}
+  ${mi('move', 'move', t('Move to…', 'Verschieben nach …'))}
   <div class="mi" data-i="copy">${t('Copy path', 'Pfad kopieren')}</div>
 </div>`;
   return page({ title: t('File open: EP 4 292 805 A1', 'Datei offen: EP 4 292 805 A1'), body: app({ body }), after: `${more}\n` });
