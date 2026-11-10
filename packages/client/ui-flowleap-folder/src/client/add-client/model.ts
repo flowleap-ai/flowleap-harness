@@ -10,7 +10,7 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { clientFolderName, type BuildAdded, type BuildRequest, type BuildStatus, type FindAnswer, type NameSource, type ReviewAnswer } from '../../add-client/wire.ts'
 import type { AddClientApi, HostFailure } from './api.ts'
-import { allHits, firmHits, knownClients, matchExisting, planRecords, runPlan, type Decision, type OtherPartyRole } from './plan.ts'
+import { allHits, firmHits, indexNames, knownClients, matchExisting, planRecords, runPlan, type Decision, type OtherPartyRole } from './plan.ts'
 import {
   newClientId, type ClientDetail, type ClientId, type ClientRole, type FirmClient, type FirmRecord, type Hit, type LinkedName,
   type RecordError,
@@ -462,7 +462,7 @@ export class AddClientModel {
       this.updateReview(current => ({ ...current, recording: { status: 'failed', error: outcome } }))
       return
     }
-    void this.refreshWatching()
+    void this.refreshClients()
     if (decision.role === 'watch') {
       this.finish({ kind: 'watch', name: decision.name })
       return
@@ -531,12 +531,12 @@ export class AddClientModel {
 
   /**
    * Follow the builds and the Watch list while a view shows them: read them now, then read the builds once a second
-   * while one runs.
+   * while one runs. The read of the clients also sends their names to the opponent index.
    * @returns the disposer.
    */
   follow(): () => void {
     this.followers += 1
-    void this.refreshWatching()
+    void this.refreshClients()
     this.poll()
     let done = false
     return () => {
@@ -573,8 +573,14 @@ export class AddClientModel {
     if (generation !== this.generation) return
     const exclude = subject.existing?.clientId ?? null
     const known = clients.ok ? knownClients(clients.value, exclude) : []
+    // The opponent index takes the clients' names before the review reads it; after a failed send, a name that the
+    // index does not have leaves the second half of the conflict check `reading`, which the review answer says.
+    const reviewed = async () => {
+      if (clients.ok) await this.deps.api.clientNames(indexNames(clients.value))
+      return this.deps.api.review({ names: subject.names.map(item => item.name), clients: known })
+    }
     const [answer, firm] = await Promise.all([
-      byName ? Promise.resolve(null) : this.deps.api.review({ names: subject.names.map(item => item.name), clients: known }),
+      byName ? Promise.resolve(null) : reviewed(),
       clients.ok ? this.readDetails(clients.value) : Promise.resolve<FirmStatus>({ status: 'error', error: clients.error }),
     ])
     if (generation !== this.generation) return
@@ -672,9 +678,15 @@ export class AddClientModel {
     this.updateBuild(current => ({ ...current, status }))
   }
 
-  private async refreshWatching(): Promise<void> {
+  /**
+   * Read the clients: keep the Watch list, and send the names of the clients to the opponent index. A failed send
+   * changes nothing here; the next read sends the names again.
+   */
+  private async refreshClients(): Promise<void> {
     const clients = await this.deps.record.clients()
-    if (clients.ok) this.store.update((draft) => { draft.watching = clients.value.filter(client => client.role === 'watch') })
+    if (!clients.ok) return
+    this.store.update((draft) => { draft.watching = clients.value.filter(client => client.role === 'watch') })
+    await this.deps.api.clientNames(indexNames(clients.value))
   }
 
   // Helpers.

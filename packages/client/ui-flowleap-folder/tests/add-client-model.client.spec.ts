@@ -593,3 +593,22 @@ describe('the rules of a review', () => {
     expect(s.model.state.watching).toEqual([])
   })
 })
+
+describe('the names of the opponent index', () => {
+  it('sends the names of the clients with the role client when the list opens, and before the review reads the index', async () => {
+    const watched = firmClient(SCHUBERT_ID, 'Gerhard Schubert', 'watch', ['Gerhard Schubert GmbH'])
+    const s = setup({ clients: [watched], details: [SYNTEGON] })
+    s.model.follow()
+    await settle()
+    expect(s.host.clientNames).toHaveBeenCalledWith(['Syntegon', 'SYNTEGON TECHNOLOGY'])
+    s.host.clientNames.mockClear()
+    await toReview(s, 'Acme')
+    expect(s.host.clientNames).toHaveBeenCalledWith(['Syntegon', 'SYNTEGON TECHNOLOGY'])
+    expect(s.host.clientNames.mock.invocationCallOrder[0]).toBeLessThan(s.host.review.mock.invocationCallOrder.at(-1) ?? 0)
+    s.firm.state.clientsError = { kind: 'network' }
+    s.host.clientNames.mockClear()
+    s.model.follow()
+    await settle()
+    expect(s.host.clientNames).not.toHaveBeenCalled()
+  })
+})

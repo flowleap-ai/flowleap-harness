@@ -81,6 +81,16 @@ export function knownClients(clients: readonly FirmClient[], exclude: ClientId |
 }
 
 /**
+ * The names that the opponent index reads: the names that `review` compares, of every client with the role client,
+ * each once and without blank names.
+ * @param clients - the clients of the Firm Record.
+ * @returns the names.
+ */
+export function indexNames(clients: readonly FirmClient[]): string[] {
+  return [...new Set(knownClients(clients, null).flatMap(client => client.names).filter(name => name.trim() !== ''))]
+}
+
+/**
  * The possible conflicts that the Firm Record shows: a ticked name that is a party with a role other than applicant on
  * an application of an existing client.
  * @param details - each client with the role client, read from `clients/<id>`.
@@ -111,7 +121,7 @@ export function firmHits(details: readonly ClientDetail[], ticked: readonly stri
 
 /**
  * The hits of both sources once each: the Firm Record hits, then the register hits without the fields that the
- * contract `Hit` has not (`opposedOn`, `status`).
+ * contract `Hit` has not (`opposedOn`, `status`, `yourFirm`).
  * @param record - the Firm Record hits.
  * @param register - the conflicts of `review`.
  * @returns the hits, unique by hit key.
@@ -119,7 +129,7 @@ export function firmHits(details: readonly ClientDetail[], ticked: readonly stri
 export function allHits(record: readonly Hit[], register: readonly ConflictHit[]): Hit[] {
   const seen = new Set<string>()
   const out: Hit[] = []
-  for (const hit of [...record, ...register.map(({ opposedOn: _opposedOn, status: _status, ...rest }) => rest)]) {
+  for (const hit of [...record, ...register.map(({ opposedOn: _opposedOn, status: _status, yourFirm: _yourFirm, ...rest }) => rest)]) {
     if (seen.has(hitKey(hit))) continue
     seen.add(hitKey(hit))
     out.push(hit)

@@ -31,6 +31,7 @@ describe('the Add client routes', () => {
     await addClientApi.build({ clientId: 'c', name: 'Syntegon', names: [], applications: [] })
     await addClientApi.status(signal)
     await addClientApi.status()
+    await addClientApi.clientNames(['Syntegon', 'SYNTEGON TECHNOLOGY'])
     expect(calls.map(([url, init]) => [url, init?.method ?? 'GET', init?.body ?? null, init?.signal === signal, init?.credentials, init?.cache])).toEqual([
       ['api/flowleap/folder/add-client/find?name=Syntegon+%26+Co', 'GET', null, true, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/find?name=Syntegon', 'GET', null, false, 'include', 'no-store'],
@@ -38,6 +39,7 @@ describe('the Add client routes', () => {
       ['api/flowleap/folder/add-client/build', 'POST', JSON.stringify({ clientId: 'c', name: 'Syntegon', names: [], applications: [] }), false, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/status', 'GET', null, true, 'include', 'no-store'],
       ['api/flowleap/folder/add-client/status', 'GET', null, false, 'include', 'no-store'],
+      ['api/flowleap/folder/add-client/client-names', 'POST', JSON.stringify({ names: ['Syntegon', 'SYNTEGON TECHNOLOGY'] }), false, 'include', 'no-store'],
     ])
   })
 

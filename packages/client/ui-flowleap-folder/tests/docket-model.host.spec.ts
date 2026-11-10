@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { docketQueries, docketRow, docketState, freshDocket, parseDocketFile, splitRange } from '../src/add-client/docket-model.ts'
+import { docketQueries, docketRow, docketState, freshDocket, parseDocketFile } from '../src/add-client/docket-model.ts'
+import { splitRange } from '../src/add-client/slices.ts'
 import { firmMatch } from '../src/add-client/identity.ts'
 import { row } from './patent-data.host.ts'
 
@@ -65,7 +66,7 @@ describe('the docket state and file', () => {
   it('is ready at once for a docket of no query', () => {
     const identity = { names: ['Muster'], addresses: [], representatives: [] }
     const docket = { ...freshDocket(identity, '2026-11-09T10:00:00.000Z'), queries: [] }
-    expect(docketState(docket, { reading: false, now: TODAY.getTime(), refreshAge: 1000 }))
+    expect(docketState({ served: docket }, { reading: undefined, now: TODAY.getTime(), refreshAge: 1000 }))
       .toEqual({ state: 'ready', rows: 0, asOf: '2026-11-09T10:00:00.000Z' })
   })
 

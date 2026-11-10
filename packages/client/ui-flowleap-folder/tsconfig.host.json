@@ -17,8 +17,12 @@
     "src/add-client/identity-store.ts",
     "src/add-client/jobs.ts",
     "src/add-client/limiter.ts",
+    "src/add-client/opponent-index.ts",
+    "src/add-client/opponent-index-model.ts",
     "src/add-client/review.ts",
     "src/add-client/routes.ts",
+    "src/add-client/sliced-read.ts",
+    "src/add-client/slices.ts",
     "src/add-client/wire.ts"
   ],
   "references": [

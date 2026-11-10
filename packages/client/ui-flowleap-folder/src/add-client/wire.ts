@@ -23,8 +23,9 @@ export function clientFolderName(name: string): string | undefined {
 export const ADD_CLIENT_API = `${FOLDER_API}/add-client`
 
 /**
- * The eight Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
- * firm docket, a new read of the firm docket, the firm identity with the docket state, and a save of the firm identity.
+ * The nine Add client routes: the applicant names, the review, the build, the status of the builds, the state of the
+ * firm docket, a new read of the firm docket, the firm identity with the docket state, a save of the firm identity, and
+ * the names of the firm's clients for the opponent index.
  */
 export const ADD_CLIENT_ROUTES = {
   find: `${ADD_CLIENT_API}/find`,
@@ -35,6 +36,7 @@ export const ADD_CLIENT_ROUTES = {
   docketRead: `${ADD_CLIENT_API}/docket/read`,
   identity: `${ADD_CLIENT_API}/identity`,
   identitySave: `${ADD_CLIENT_API}/identity/save`,
+  clientNames: `${ADD_CLIENT_API}/client-names`,
 } as const
 
 /** The firm's names, its current and earlier addresses, and the names of its representatives. */
@@ -135,6 +137,29 @@ export interface ConflictHit {
   readonly opposedOn?: string
   /** The EP Register status of the application. */
   readonly status?: string
+  /**
+   * Whether the EP Register names your firm as the representative of the application; `unknown` while the firm
+   * identity names nothing.
+   */
+  readonly yourFirm: 'named' | 'not-named' | 'unknown'
+}
+
+/**
+ * How complete one half of the conflict check is. `complete`: every slice of every query was read and its rows sum to
+ * its count, as of `asOf` (ISO-8601, the oldest read). `reading`: the opponent index has not read every name yet.
+ * `incomplete`: slices failed or did not sum to their count, so hits can be missing.
+ */
+export type ConflictHalf =
+  | { readonly state: 'complete'; readonly asOf: string }
+  | { readonly state: 'reading' }
+  | { readonly state: 'incomplete'; readonly failed: readonly FailedSlice[]; readonly mismatches: readonly SumMismatch[] }
+
+/** The two halves of the conflict check; Add client as Client waits until both are `complete`. */
+export interface ConflictCheck {
+  /** The group opposed a client of your firm: date-sliced `op=` reads of the group's names, at the review. */
+  readonly groupOpposedClients: ConflictHalf
+  /** A client of your firm opposed the group: the group's applications in the opponent index. */
+  readonly clientsOpposedGroup: ConflictHalf
 }
 
 /** The answer of `POST review`. */
@@ -153,8 +178,9 @@ export type ReviewAnswer =
     readonly atOtherFirms: readonly ReferenceRow[]
     /** The possible conflicts that the EP Register shows. */
     readonly conflicts: readonly ConflictHit[]
-    /** Whether the read of the oppositions stopped at the configured row cap, so that conflicts can be missing. */
+    /** Whether a half of the conflict check is not complete, so that conflicts can be missing. */
     readonly conflictsTruncated: boolean
+    readonly conflictCheck: ConflictCheck
   }
   | { readonly status: 'no-plugin' }
 
@@ -224,21 +250,21 @@ export interface StatusAnswer {
 }
 
 /**
- * Why a slice of the firm docket failed: a failed EP Register read (`no-key`, `unreachable`, `malformed`, as the
+ * Why a date slice of a register read failed: a failed EP Register read (`no-key`, `unreachable`, `malformed`, as the
  * patent data Service names them), more rows on one day than one query can read (`day-over-limit`), or a fault of the
  * Host (`internal`).
  */
-export type DocketFailureCode = 'no-key' | 'unreachable' | 'malformed' | 'day-over-limit' | 'internal'
+export type SliceFailureCode = 'no-key' | 'unreachable' | 'malformed' | 'day-over-limit' | 'internal'
 
-/** A date slice of the firm docket that failed. */
-export interface DocketFailedSlice {
+/** A date slice of a register read that failed. */
+export interface FailedSlice {
   /** The register CQL of the slice, with its dates. */
   readonly query: string
-  readonly reason: DocketFailureCode
+  readonly reason: SliceFailureCode
 }
 
-/** A query of the firm docket whose slices do not sum to its count. */
-export interface DocketSumMismatch {
+/** A register query whose slices do not sum to its count. */
+export interface SumMismatch {
   /** The register CQL without dates. */
   readonly query: string
   /** The EPO count of the query; the EPO stops counting at 10,000. */
@@ -249,39 +275,84 @@ export interface DocketSumMismatch {
   readonly missing: number
 }
 
-/** The progress of a firm docket read. */
-export interface DocketProgress {
+/** The progress of a sliced register read. */
+export interface SliceProgress {
   /** The date slices that a read ended, read or failed. */
   readonly slicesDone: number
   /** Every date slice known now; a slice with too many rows splits, so this count can grow. */
   readonly slices: number
-  /** The firm's EP applications read so far. */
+  /** The rows kept so far. */
   readonly rows: number
 }
 
 /**
- * The state of the firm docket: every EP application where the EP Register names the firm as the representative.
- * `rows` counts these applications; `asOf` is the ISO-8601 time of the oldest slice that a read ended.
+ * A read again of a complete read, which runs beside it. The complete read stays the served data until the read again
+ * ends complete; then the read again takes its place at once. `reading` and `interrupted` give the progress of the
+ * read again. `failed` is a read again that ended partial or failed: its failed slices and wrong sums, while its rows
+ * are not used.
  */
-export type DocketState =
-  /** The firm identity names nothing: the firm's matters cannot be found until it is set. */
-  | { readonly state: 'no_identity' }
-  | { readonly state: 'reading'; readonly progress: DocketProgress }
+export type RefreshState =
+  | { readonly state: 'reading'; readonly progress: SliceProgress }
+  /** A Host stop ended the read again; the next start reads only its unread slices. */
+  | { readonly state: 'interrupted'; readonly progress: SliceProgress }
+  | { readonly state: 'failed'; readonly failed: readonly FailedSlice[]; readonly mismatches: readonly SumMismatch[] }
+
+/**
+ * The state of a register read in date slices that the Host keeps and refreshes: the firm docket or the opponent
+ * index. `rows` counts the rows kept; `asOf` is the ISO-8601 time of the oldest slice that a read ended. `ready` and
+ * `stale` are a complete read, with `refresh` while a read again of it runs or after the read again did not end
+ * complete. The other states are a read that did not end complete, with no complete read to serve.
+ */
+export type SlicedReadState =
+  | { readonly state: 'reading'; readonly progress: SliceProgress }
   /** A Host stop ended the read; the next start reads only the unread slices. */
-  | { readonly state: 'interrupted'; readonly progress: DocketProgress }
-  | { readonly state: 'ready'; readonly rows: number; readonly asOf: string }
+  | { readonly state: 'interrupted'; readonly progress: SliceProgress }
+  | { readonly state: 'ready'; readonly rows: number; readonly asOf: string; readonly refresh?: RefreshState }
   /** Older than `docketRefreshAge`. */
-  | { readonly state: 'stale'; readonly rows: number; readonly asOf: string }
+  | { readonly state: 'stale'; readonly rows: number; readonly asOf: string; readonly refresh?: RefreshState }
   /** Some slices failed, or the slices of a query do not sum to its count; the rows can be incomplete. */
   | {
     readonly state: 'partial'
     readonly rows: number
     readonly asOf: string
-    readonly failed: readonly DocketFailedSlice[]
-    readonly mismatches: readonly DocketSumMismatch[]
+    readonly failed: readonly FailedSlice[]
+    readonly mismatches: readonly SumMismatch[]
   }
-  /** No slice could be read; the firm's matters are unknown, not absent. */
-  | { readonly state: 'failed'; readonly reason: DocketFailureCode; readonly failed: readonly DocketFailedSlice[] }
+  /** No slice could be read; the rows are unknown, not absent. */
+  | { readonly state: 'failed'; readonly reason: SliceFailureCode; readonly failed: readonly FailedSlice[] }
+
+/**
+ * The state of the firm docket: every EP application where the EP Register names the firm as the representative.
+ * `rows` counts these applications.
+ */
+export type DocketState =
+  /** The firm identity names nothing: the firm's matters cannot be found until it is set. */
+  | { readonly state: 'no_identity' }
+  | SlicedReadState
+
+/**
+ * The state of the opponent index: the EP applications that the names of the firm's clients opposed, by `op=` reads.
+ * `rows` counts the opposed applications of each name.
+ */
+export type OpponentIndexState =
+  /** No client name was sent, or the firm has no client: the index has nothing to read. */
+  | { readonly state: 'no_clients' }
+  | SlicedReadState
+
+/**
+ * Body of `POST client-names`: the names of every client of the Firm Record with the role client, and their linked
+ * applicant names. The Host keeps them and reads the opponent index for them; a name that is no longer in the list
+ * leaves the index.
+ */
+export interface ClientNamesRequest {
+  readonly names: readonly string[]
+}
+
+/** The answer of `POST client-names`. */
+export type OpponentIndexAnswer =
+  | { readonly status: 'index'; readonly index: OpponentIndexState }
+  /** No patent data plugin in this runtime: the names are kept, and the index is read when the plugin comes. */
+  | { readonly status: 'no-plugin' }
 
 /** The answer of `GET docket`, and of `POST docket/read`. */
 export type DocketAnswer =

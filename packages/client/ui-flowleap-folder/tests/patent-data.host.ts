@@ -112,3 +112,23 @@ export class FakePatentData implements PatentData {
     if (this.failing.has(what)) throw new PatentDataError('unreachable', `no answer for ${what}`)
   }
 }
+
+/**
+ * Hold the register reads of the queries that contain a text until the returned function releases them; a stop of a
+ * held read rejects it with the reason of its signal. The fake records a held query only after its release.
+ */
+export function hold(fake: FakePatentData, text: string): () => void {
+  const read = fake.searchRegister.bind(fake)
+  let release = () => {}
+  const held = new Promise<void>((resolve) => { release = resolve })
+  fake.searchRegister = async (query, range, signal) => {
+    if (query.includes(text)) {
+      await new Promise<void>((resolve, reject) => {
+        void held.then(resolve)
+        signal?.addEventListener('abort', () => { reject(signal.reason as Error) })
+      })
+    }
+    return read(query, range, signal)
+  }
+  return release
+}

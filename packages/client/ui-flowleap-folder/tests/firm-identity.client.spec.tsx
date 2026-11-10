@@ -257,6 +257,38 @@ describe('the Firm identity section', () => {
     model.dispose()
   })
 
+  it('keeps the complete docket in view while it is read again, follows the read again, and offers Try again when it fails', async () => {
+    const refreshing = docket({ state: 'ready', rows: 38, asOf: AS_OF, refresh: { state: 'reading', progress: { slicesDone: 1, slices: 4, rows: 3 } } })
+    const failed = docket({
+      state: 'stale', rows: 38, asOf: AS_OF, refresh: { state: 'failed', failed: [{ query: 're="Weber, Jonas"', reason: 'unreachable' }], mismatches: [] },
+    })
+    const api = new FakeApi({ identity: [adminAnswer(MUSTER, READY)], read: [ok(refreshing)], docket: [ok(failed)] })
+    vi.useFakeTimers()
+    const { model } = mount(api)
+    await flush()
+    await click(button('Read again'))
+    expect(screen.getByText('Your firm’s EP docket: 38 EP applications.')).toBeTruthy()
+    expect(screen.getByText('Reading your firm’s EP docket again: 1 of 4 parts.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Read again' })).toBeNull()
+    await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS) })
+    expect(screen.getByText(/^Your firm’s EP docket is out of date: 38 EP applications, as of Nov 9, 2026, .*\.$/u).textContent).not.toContain('Read again')
+    expect(screen.getByText('The new read of your firm’s EP docket is incomplete.')).toBeTruthy()
+    expect(button('Read again')).toBeTruthy()
+    await click(button(/^Try again/u))
+    expect(api.calls).toEqual(['identity', 'read all', 'docket', 'read failed'])
+    await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS * 3) })
+    expect(api.calls.filter(call => call === 'docket')).toHaveLength(2)
+    model.dispose()
+    cleanup()
+    const view = new FirmIdentityModel(new FakeApi({}))
+    const state: IdentityState = {
+      status: 'ready', saved: MUSTER, draft: MUSTER, canSave: true, busy: null, failure: null,
+      docket: docket({ state: 'ready', rows: 38, asOf: AS_OF, refresh: { state: 'interrupted', progress: { slicesDone: 2, slices: 4, rows: 9 } } }),
+    }
+    render(<FirmIdentityView t={makeTranslate(en)} state={state} model={view} locale="en" retryKeycaps={[]} />)
+    expect(screen.getByText('The new read of your firm’s EP docket stopped at 2 of 4 parts.')).toBeTruthy()
+  })
+
   it('reports a failed new read, and Try again repeats it', async () => {
     const api = new FakeApi({
       identity: [adminAnswer(MUSTER, READY)],

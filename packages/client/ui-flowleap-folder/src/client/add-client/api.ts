@@ -1,14 +1,14 @@
 /**
  * The browser's calls to the Add client routes of the Host half, at document-relative paths on the same origin: the
- * four routes of Add client, and the firm identity and docket routes of the Firm identity section of Settings. The Host
+ * five routes of Add client, and the firm identity and docket routes of the Firm identity section of Settings. The Host
  * and this page ship together and share the answer types of `wire.ts`.
  * @module
  */
 
 import {
-  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type BuildRequest, type BuildStatus, type DocketAnswer,
-  type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type ReviewAnswer, type ReviewRequest,
-  type StatusAnswer,
+  ADD_CLIENT_ROUTES, ADD_CLIENT_STATUS, type AddClientFailureCode, type BuildRequest, type BuildStatus, type ClientNamesRequest,
+  type DocketAnswer, type DocketReadRequest, type FindAnswer, type FirmIdentity, type FirmIdentityAnswer, type OpponentIndexAnswer,
+  type ReviewAnswer, type ReviewRequest, type StatusAnswer,
 } from '../../add-client/wire.ts'
 
 /** Why a Host call failed: a route failure, no answer (`network`), or an answer that is not JSON (`internal`). */
@@ -56,6 +56,8 @@ export interface AddClientApi {
   build(request: BuildRequest): Promise<HostResult<BuildStatus>>
   /** The status of every build. */
   status(signal?: AbortSignal): Promise<HostResult<StatusAnswer>>
+  /** Send the names of the firm's clients, for the opponent index of the conflict check. */
+  clientNames(names: readonly string[]): Promise<HostResult<OpponentIndexAnswer>>
 }
 
 /** The Add client routes on the same origin. */
@@ -64,6 +66,7 @@ export const addClientApi: AddClientApi = {
   review: (request, signal) => post(ADD_CLIENT_ROUTES.review, request, signal),
   build: request => post(ADD_CLIENT_ROUTES.build, request),
   status: signal => call(relative(ADD_CLIENT_ROUTES.status), signal === undefined ? {} : { signal }),
+  clientNames: names => post(ADD_CLIENT_ROUTES.clientNames, { names } satisfies ClientNamesRequest),
 }
 
 /** The firm identity and firm docket routes. */
