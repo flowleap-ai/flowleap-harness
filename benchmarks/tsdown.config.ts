@@ -16,6 +16,13 @@ const shared = {
 export default defineConfig([
   {
     ...shared,
+    entry: { 'runner-speed.worker': 'support/runner-speed.worker.ts' },
+    outDir: '.dsh-build/support',
+    clean: true,
+    tsconfig: 'tsconfig.host.json',
+  },
+  {
+    ...shared,
     entry: { 'terminal-io.worker': 'terminal-io/terminal-io.worker.ts' },
     outDir: '.dsh-build/terminal-io',
     clean: true,
