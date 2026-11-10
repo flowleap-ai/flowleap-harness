@@ -880,6 +880,41 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-skills -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar -->
+<a id="deepseek-aidsh-client-ui-sidebar"></a>
+
+## `@deepseek-ai/dsh-client-ui-sidebar`
+
+- `source`: [`packages/client/ui-sidebar/src/config.ts:28`](../packages/client/ui-sidebar/src/config.ts)
+
+```ts config-catalog
+/** Sidebar layout a deployment selects. */
+export interface Config {
+  /** Groups in display order. Registered panels in no group and not in `footPanels` follow the groups unlabelled. */
+  groups: SidebarGroupConfig[]
+  /** Panel ids drawn at the sidebar foot above Settings instead of in the panel list. */
+  footPanels: string[]
+}
+
+/** One labelled group of panel rows. */
+export interface SidebarGroupConfig {
+  /** Stable group id; unique in `groups`. */
+  id: string
+  /** Visible group label and the accessible name of its list. */
+  label: SidebarGroupLabel
+  /** Panel ids (`sidebar.panellist` registration ids) in display order. */
+  panels: string[]
+}
+
+/** Group label text per lowercase locale key; English is required and is the fallback. */
+export interface SidebarGroupLabel {
+  /** English label; required, and shown in each language that has no entry. */
+  readonly en: string
+  readonly [locale: string]: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sidebar-documentpreview -->
 <a id="deepseek-aidsh-client-ui-sidebar-documentpreview"></a>
 
@@ -5577,7 +5612,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-settings-subagent` | — | [`packages/client/ui-settings-subagent/src/index.ts`](../packages/client/ui-settings-subagent/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-settings-web-search` | — | [`packages/client/ui-settings-web-search/src/index.ts`](../packages/client/ui-settings-web-search/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-shortcuts` | — | [`packages/client/ui-shortcuts/src/index.ts`](../packages/client/ui-shortcuts/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-sidebar` | — | [`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-browser` | — | [`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-files` | — | [`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-sidebar-right` | — | [`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts) |

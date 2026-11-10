@@ -9,6 +9,7 @@ export const SIDEBAR_PAGE_GLOBAL = '__DSH_SIDEBAR_PAGE_CONFIG__'
 
 /** Group label text per lowercase locale key; English is required and is the fallback. */
 export interface SidebarGroupLabel {
+  /** English label; required, and shown in each language that has no entry. */
   readonly en: string
   readonly [locale: string]: string
 }
