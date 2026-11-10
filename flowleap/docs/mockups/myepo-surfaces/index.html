@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyEPO surfaces</title>
+<!-- Generated from build.mjs: edit that file and run node build.mjs, never this file -->
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<link rel="stylesheet" href="../add-client/add-client.css">
+<link rel="stylesheet" href="../client-model/client-model.css">
+<link rel="stylesheet" href="myepo-surfaces.css">
+</head>
+<body>
+<main class="review">
+<header class="rv-head">
+<div class="eyebrow"><span data-logo class="rv-logo"></span><span>Mockups for the founder’s approval</span></div>
+<h1 class="title">How a person meets the MyEPO data</h1>
+<p class="lede">Four surfaces. My work is where a person decides. Letters, Deadlines and Files are views of the same records, for looking, search and audit. The seed firm’s real matters, letters and dates; every example is marked.</p>
+<div class="rv-acts"><a class="btn btn-primary" href="5-myepo-card.html?state=linked&amp;walk=1" data-i="eye">Start the walkthrough</a><a class="btn btn-secondary" href="index.de.html">Deutsch</a></div>
+</header>
+<section class="rv-sec"><h2>The walkthrough</h2><p class="muted">18 steps with four persons. Each step marks the one control that goes on; Back and Next are in the panel at the bottom left.</p><ol class="rv-walk"><li><span class="strong">Felix Neumann, administrator</span><span class="muted"> · The linked MyEPO card with the new letter setting</span></li><li><span class="strong">Dr. Martin Krüger, partner</span><span class="muted"> · Import your EP docket: read, clients, conflict check, review, record</span></li><li><span class="strong">Lena Hoffmann, patent attorney</span><span class="muted"> · Letters: a letter listed and not opened, then opened; its deadline with the evidence; the Deadlines table, the month view, and an overdue deadline that needs a person</span></li><li><span class="strong">Dr. Anna Becker, patent attorney</span><span class="muted"> · My work with the three kinds of MyEPO item, and the letter that FlowLeap cannot file</span></li></ol></section>
+<section class="rv-sec"><h2>Decisions for the founder</h2><p class="muted">The background did not decide these points. Each mockup shows the default; tell us the other choice where you want it.</p><ol class="rv-dec"><li><div class="h"><span class="num">1.</span> The letter states</div><p>Each row shows one of six words: Listed, Filed on its matter, Deadline computed, Deadline confirmed, Done, Needs a person. Opened is a column of its own (PDF), because in both modes FlowLeap files the letter and computes its deadline from the list data before anybody opens the PDF. The words are not atlas states yet.</p></li>
+<li><div class="h"><span class="num">2.</span> What done means for a letter</div><p>Default: its deadline is closed (the act is recorded, a later letter replaced it, or the EP Register shows the next step), or the letter starts no period.</p></li>
+<li><div class="h"><span class="num">3.</span> The names of the confirmation levels</div><p>Default: Automatic, Confirmed by a named person, and Needs a person with its reason (sources differ, no rule, entered by hand, rule not signed). Decision 6 is not a process sheet yet; every confirmation part carries the mark “Design not yet approved”.</p></li>
+<li><div class="h"><span class="num">4.</span> Today every deadline goes to a person</div><p>No attorney has signed a rule version of the FlowLeap deadline rules. The automatic confirmation of SF-2023-0045 assumes that Dr. Martin Krüger signed Rule 71(3) EPC, version 1; the page marks it as an example premise. Who may sign a rule version is open.</p></li>
+<li><div class="h"><span class="num">5.</span> The import steps</div><p>Default: the Add client stepper with four steps (Docket, Clients, Conflict check, Review) and Record. Role is a column of the Clients step with the default Client, not a step, because every proposed client comes from your own applications.</p></li>
+<li><div class="h"><span class="num">6.</span> How FlowLeap groups applicant names</div><p>Default: names that differ only in capital letters, punctuation or the legal form become one proposed client; two companies stay apart (Siemens Aktiengesellschaft and Siemens Healthineers AG). A person can split or join rows.</p></li>
+<li><div class="h"><span class="num">7.</span> Who runs the import</div><p>Default: a partner, because the import records every client of the firm. The mockups show Dr. Martin Krüger.</p></li>
+<li><div class="h"><span class="num">8.</span> A letter without an application number</div><p>Default: it belongs to no wall, and a firm setting names one person for such letters. The mockups name Dr. Anna Becker.</p></li>
+<li><div class="h"><span class="num">9.</span> Which Outlook calendar</div><p>Default: each confirmed deadline goes to the Outlook calendar of its responsible attorney. The other choice is one shared firm calendar. A deadline that is not confirmed does not go to Outlook.</p></li>
+<li><div class="h"><span class="num">10.</span> A deadline with no date in the table</div><p>Default: “No date yet” sorts before every date, because a person must enter it first.</p></li>
+<li><div class="h"><span class="num">11.</span> The month view</div><p>Default: it opens at the current month, shows the overdue deadlines and those with no date as two chips above the month, and becomes a list of days on a phone. The mockup shows January 2027, the month of the demo deadline.</p></li>
+<li><div class="h"><span class="num">12.</span> The download setting</div><p>Default: only an administrator changes it, a change applies from the next letter, and other persons see it read only. Prepared work exists only after a download, so in the default mode the agent prepares the work when a person opens the letter.</p></li>
+<li><div class="h"><span class="num">13.</span> My work counts letters</div><p>Default: the first line of My work counts a MyEPO letter as arrived and a letter with prepared work as worked, as the My work of PR 343 does.</p></li></ol></section>
+<section class="rv-sec"><h2>Every screen and state</h2><p class="muted">Add ?theme=light or ?theme=dark to any link. Below 1366 px a letter row opens the letter page.</p>
+<table class="rv-tbl"><thead><tr><th>Screen</th><th>States</th></tr></thead><tbody>
+<tr><td><a href="1a-docket.html">Import your EP docket 1 of 4: Docket</a></td><td><a class="st-link" href="1a-docket.html?state=reading">Reading</a><a class="st-link" href="1a-docket.html?state=large-reading">Large firm, reading</a><a class="st-link" href="1a-docket.html?state=large">Large firm</a><a class="st-link" href="1a-docket.html?state=failed">MyEPO did not answer</a></td></tr>
+<tr><td><a href="1b-clients.html">Import 2 of 4: Clients</a></td><td><a class="st-link" href="1b-clients.html?state=large">Large firm: 287 clients</a></td></tr>
+<tr><td><a href="1c-conflict.html">Import 3 of 4: Conflict check</a></td><td><a class="st-link" href="1c-conflict.html?state=large">Large firm: 1 possible conflict</a></td></tr>
+<tr><td><a href="1d-review.html">Import 4 of 4: Review</a></td><td><a class="st-link" href="1d-review.html?state=large">Large firm</a></td></tr>
+<tr><td><a href="1e-record.html">Import: Record</a></td><td><a class="st-link" href="1e-record.html?state=large">Large firm</a><a class="st-link" href="1e-record.html?state=done">Done</a></td></tr>
+<tr><td><a href="2-letters.html">Letters: table and reading pane</a></td><td><a class="st-link" href="2-letters.html?state=unopened">Listed, not opened</a><a class="st-link" href="2-letters.html?state=r5">Deadline computed, needs a person</a><a class="st-link" href="2-letters.html?state=r6">No rule for the letter type</a><a class="st-link" href="2-letters.html?state=r2">Done</a><a class="st-link" href="2-letters.html?state=loading">Loading</a><a class="st-link" href="2-letters.html?state=error">MyEPO did not answer</a><a class="st-link" href="2-letters.html?state=empty">MyEPO not linked</a></td></tr>
+<tr><td><a href="2-letter.html">One letter (below 1366 px, and from My work)</a></td><td><a class="st-link" href="2-letter.html?state=unopened">Listed, not opened</a><a class="st-link" href="2-letter.html?state=x1">No application number</a></td></tr>
+<tr><td><a href="3-deadlines.html">Deadlines: table by due date</a></td><td><a class="st-link" href="3-deadlines.html?state=month">Month view</a><a class="st-link" href="3-deadlines.html?state=loading">Loading</a><a class="st-link" href="3-deadlines.html?state=error">Error</a></td></tr>
+<tr><td><a href="3-deadline.html">One deadline: confirmed automatically</a></td><td><a class="st-link" href="3-deadline.html?state=person">Overdue, needs a person</a><a class="st-link" href="3-deadline.html?state=r16">No rule: enter the date</a><a class="st-link" href="3-deadline.html?state=r6">No rule, another person enters it</a><a class="st-link" href="3-deadline.html?state=r1">Closed: replaced</a></td></tr>
+<tr><td><a href="4-my-work.html">My work with the MyEPO items</a></td><td><a class="st-link" href="4-my-work.html?state=context">Row menu</a></td></tr>
+<tr><td><a href="5-myepo-card.html">The MyEPO card: when FlowLeap downloads a letter</a></td><td><a class="st-link" href="5-myepo-card.html?state=arrival">Changed to download at arrival</a><a class="st-link" href="5-myepo-card.html?state=saved">Saved</a><a class="st-link" href="5-myepo-card.html?state=readonly">Seen by a person who is not an administrator</a></td></tr>
+</tbody></table></section>
+<section class="rv-sec"><h2>Files</h2><p>Files is the Files tab of the matter page, which exists (client model mockups, approved on 9 Nov 2026). FlowLeap files each letter on its matter by its application number, in the folder Office, when a person or a task opens it. The letter page shows where. There is no file manager.</p></section>
+</main>
+<script src="frame.js"></script>
+<script src="table.js"></script>
+<script src="walk.js"></script>
+</body>
+</html>
