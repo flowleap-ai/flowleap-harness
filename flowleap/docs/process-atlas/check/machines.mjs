@@ -2,6 +2,11 @@
 // t: [from, to, event, actor, evidence]; '[*]' is the start; a list in 'from' is one row for each state in it.
 // terminal: end states. loops: declared self steps (escalation, correction). corrections: declared steps out of an end state.
 const LIVE_TICKET = ['opened', 'no_person', 'routed', 'waking', 'running', 'run_failed', 'proposals_ready']
+const EP_PENDING = ['formalities', 'formal_deficiency', 'r161_reply_due', 'searching', 'unity_fees_due', 'search_opinion_received', 'examination', 'exam_reply_due', 'oral_proceedings', 'grant_approval_due', 'grant_approved', 'refused']
+const EP_LIVE = [...EP_PENDING, 'loss_of_rights_noted', 'reestablishment_requested']
+const EP_EPO_ACTS = ['searching', 'examination', 'grant_approved', 'reestablishment_requested']
+const EP_LETTER = 'Office letter, its event code and date (sheet 02)'
+const EP_LOSS = 'The R.112(1) communication (sheet 02)'
 
 export const machines = {
   intake: {
@@ -166,6 +171,61 @@ export const machines = {
       [['assigned', 'queued', 'escalated', 'alarm'], 'cancelled', 'The object leaves its waiting state without the act (moved, corrected, stale or cancelled), or the person who asked withdraws the mention', 'Firm Record or person', 'The object event, or the withdrawal'],
     ],
   },
+  epGrant: {
+    sheet: '10-ep-grant-procedure.md',
+    start: 'formalities',
+    terminal: ['granted', 'appealed', 'refusal_final', 'deemed_withdrawn', 'withdrawn', 'representation_ended'],
+    loops: [['searching', 'searching'], ['examination', 'examination'], ['exam_reply_due', 'exam_reply_due'], ['grant_approval_due', 'grant_approval_due'], ['grant_approved', 'grant_approved']],
+    corrections: [['deemed_withdrawn', 'reestablishment_requested']],
+    t: [
+      ['[*]', 'formalities', 'A direct EP application is filed and gets a date of filing (Art. 90(1)), or a Euro-PCT application enters the European phase with the acts of R.159(1)', 'person (attorney)', 'Filing receipt or entry acts with their receipts; the application number (`matter/application-recorded`)'],
+      ['formalities', 'formal_deficiency', 'The Receiving Section notes a deficiency and invites the firm to correct it within two months (R.58)', 'EPO (Receiving Section)', EP_LETTER],
+      ['formal_deficiency', 'formalities', 'The firm corrects the deficiency in time', 'person (attorney)', 'The filed correction and its receipt'],
+      ['formal_deficiency', 'refused', 'The deficiency is not corrected, and the EPO refuses the application (Art. 90(5))', 'EPO (Receiving Section)', 'The decision (sheet 02)'],
+      ['formalities', 'loss_of_rights_noted', 'The filing fee or the search fee of a direct application is not paid within one month (R.38(1)), or an entry act of a Euro-PCT application is missing at 31 months (R.159(1), R.160); the EPO notes the loss of rights', 'EPO (Receiving Section)', EP_LOSS],
+      ['formalities', 'searching', 'A direct application passes the formal check, and the search division searches (Art. 92)', 'EPO (Receiving Section)', 'No letter for a clean check; the next office event shows it [INFERRED]'],
+      ['formalities', 'r161_reply_due', 'For a Euro-PCT application, the EPO sends the R.161 and R.162 communication with a six-month period', 'EPO (Receiving Section)', EP_LETTER],
+      ['r161_reply_due', 'searching', 'The EPO was not the ISA: the six-month period for one amendment ends, and the supplementary European search starts (Art. 153(7), R.161(2))', 'EPO (search division)', 'The period end; the amendment if filed'],
+      ['r161_reply_due', 'examination', 'The EPO was the ISA: the firm replies (mandatory after a negative WO-ISA, SISR or IPER), or the period ends with no reply needed, and the examining division takes over', 'person (attorney)', 'The filed reply and its receipt, or the period end'],
+      ['r161_reply_due', 'loss_of_rights_noted', 'The EPO was the ISA, its opinion was negative, and no reply comes within six months (R.161(1))', 'EPO (Receiving Section)', EP_LOSS],
+      ['searching', 'unity_fees_due', 'The search division finds a lack of unity, sends a partial search report, and asks for further search fees within two months (R.64(1), R.164(1))', 'EPO (search division)', EP_LETTER],
+      ['unity_fees_due', 'searching', 'The firm pays further search fees for the inventions that the client chooses, or the two months pass; the search covers only the paid inventions', 'person (attorney)', 'Fee receipts, or the period end'],
+      ['searching', 'search_opinion_received', 'The EPO sends the European or supplementary European search report with the search opinion (R.62), and then the date of the mention of its publication (R.69) or, after an early request, the R.70(2) invitation', 'EPO (search division)', 'The search report and opinion; the R.69 or R.70(2) communication (sheet 02)'],
+      ['searching', 'searching', 'The search report is later than the late-letter alarm time; the Firm Record raises an alarm', 'Firm Record', 'Time, the expected event, the alarm percentile and its data edition'],
+      ['search_opinion_received', 'examination', 'The firm requests examination and pays the fee (Art. 94(1), R.70(1)), and replies to the search opinion where a reply is required (R.70a), within six months of the mention or within the R.70(2) period', 'person (attorney)', 'The filed request, the fee receipt and the reply'],
+      ['search_opinion_received', 'loss_of_rights_noted', 'No request for examination, no required reply, or no designation fee, in time (Art. 94(2), R.70(3), R.70a(3), R.39(2))', 'EPO (Receiving Section)', EP_LOSS],
+      ['examination', 'exam_reply_due', 'The examining division sends an Art. 94(3) communication with a reasoned statement and a period (R.71(1), (2)), normally four months for substantive matters', 'EPO (examining division)', `${EP_LETTER}; the register code 17Q marks only the first one`],
+      ['examination', 'grant_approval_due', 'The examining division sends the R.71(3) communication with the text intended for grant', 'EPO (examining division)', `${EP_LETTER}; the text intended for grant; register code INTG`],
+      ['examination', 'oral_proceedings', 'The examining division summons to oral proceedings with at least two months notice and a final date for written submissions (R.115(1), R.116(1))', 'EPO (examining division)', 'The summons and its annex (sheet 02)'],
+      ['examination', 'refused', 'After at least one Art. 94(3) communication, the objections stay and no oral proceedings are requested; the division refuses (Art. 97(2), Guidelines C-V 14)', 'EPO (examining division)', 'The decision (sheet 02); register code 18R'],
+      ['examination', 'examination', 'The next EPO letter is later than the late-letter alarm time; the Firm Record raises an alarm', 'Firm Record', 'Time, the expected event, the alarm percentile and its data edition'],
+      ['exam_reply_due', 'examination', 'The firm files observations or amendments in time', 'person (attorney)', 'The filed reply, the amended claims and the receipt'],
+      ['exam_reply_due', 'exam_reply_due', 'The firm requests an extension before the period ends, and the EPO grants it in a special case (R.132(2))', 'EPO (examining division)', `${EP_LETTER}; the new due date`],
+      ['exam_reply_due', 'loss_of_rights_noted', 'No reply in time (Art. 94(4))', 'EPO (examining division)', EP_LOSS],
+      ['oral_proceedings', 'grant_approval_due', 'The division accepts the written submissions or a request at the hearing, and sends the R.71(3) communication', 'EPO (examining division)', `${EP_LETTER}; the minutes`],
+      ['oral_proceedings', 'refused', 'The division refuses at the end of the oral proceedings; the written decision follows (Guidelines C-V 14)', 'EPO (examining division)', 'The minutes and the written decision (sheet 02)'],
+      ['oral_proceedings', 'exam_reply_due', 'The division cancels the hearing and sends a new Art. 94(3) communication', 'EPO (examining division)', EP_LETTER],
+      ['grant_approval_due', 'grant_approved', 'The firm pays the fee for grant and publishing and any claims fees, and files the claims translations within four months; the text counts as approved (R.71(5))', 'person (attorney)', 'Fee receipts, the filed translations, the attorney Decision on the text'],
+      ['grant_approval_due', 'grant_approval_due', 'The firm requests reasoned amendments or corrections, keeps to its latest text, rejects the examiner\'s amendments, or asks for a higher-ranking request, and the division consents with a new R.71(3) communication (R.71(6), Guidelines C-V 4)', 'EPO (examining division)', `${EP_LETTER}; the second text intended for grant`],
+      ['grant_approval_due', 'examination', 'The division does not admit the requested amendments, or the firm disapproves the text, and the division resumes examination (R.71(6), Guidelines C-V 4.7 and 4.9)', 'EPO (examining division)', EP_LETTER],
+      ['grant_approval_due', 'loss_of_rights_noted', 'No fees or translations within four months, and no request for amendments or corrections (R.71(7), Guidelines C-V 3)', 'EPO (examining division)', EP_LOSS],
+      ['grant_approved', 'granted', 'The decision to grant issues (R.71a(1)) and takes effect on the date of the mention in the European Patent Bulletin (Art. 97(3))', 'EPO (examining division)', 'The decision to grant; the B1 publication and the mention date'],
+      ['grant_approved', 'examination', 'The division resumes examination before the decision to grant (R.71a(2))', 'EPO (examining division)', EP_LETTER],
+      ['grant_approved', 'grant_approved', 'The decision to grant is later than the late-letter alarm time; the Firm Record raises an alarm', 'Firm Record', 'Time, the expected event, the alarm percentile and its data edition'],
+      [EP_PENDING, 'loss_of_rights_noted', 'A renewal fee is not paid on its due date nor, with the additional fee, within six months; further processing is ruled out (Art. 86(1), R.51(1), (2), R.135(2)). A renewal fee that falls due after the R.71(3) communication also holds the decision to grant (R.71a(4))', 'EPO (Receiving Section)', EP_LOSS],
+      ['refused', 'appealed', 'The firm files the notice of appeal and pays the appeal fee within two months of the notification of the decision (Art. 108); the appeal procedure takes over', 'person (attorney)', 'The notice of appeal and the fee receipt'],
+      ['refused', 'refusal_final', 'The two-month appeal period ends with no appeal; the application stops being pending (Guidelines A-IV 1.1.1)', 'Firm Record', 'The decision date and the period end'],
+      ['loss_of_rights_noted', 'formalities', 'The firm requests further processing with the fee within two months and completes the omitted filing or search fee payment (R.135(1)), or the EPO agrees under R.112(2) that no loss occurred', 'person (attorney)', 'The request, the fee receipt and the omitted act'],
+      ['loss_of_rights_noted', 'examination', 'Further processing with the omitted act (R.135(1)) for a request for examination, a reply to the search opinion, a designation fee, a R.161 reply or an Art. 94(3) reply, or for amendments in the R.71(3) period, which the division then decides under R.71(6) (Guidelines C-V 3); or the EPO agrees under R.112(2) that no loss occurred', 'person (attorney)', 'The request, the fee receipt and the omitted act'],
+      ['loss_of_rights_noted', 'grant_approved', 'Further processing for the R.71(3) acts: the fees and the translations, with no amendments (Guidelines C-V 3)', 'person (attorney)', 'The request, the fee receipts and the translations'],
+      ['loss_of_rights_noted', 'deemed_withdrawn', 'Two months pass without further processing, or further processing is ruled out for the missed period (for example the renewal fee, R.135(2))', 'Firm Record', 'The period end; register code 18D'],
+      ['deemed_withdrawn', 'reestablishment_requested', 'The firm requests re-establishment within two months of the removal of the cause and at most one year after the missed period, with the fee, the grounds and the omitted act (Art. 122, R.136(1), (2))', 'person (attorney)', 'The request, its grounds and evidence, the fee receipt; register code 18RA'],
+      ['reestablishment_requested', 'examination', 'The EPO re-establishes the rights (R.136(4)); the Firm Record returns the application to its state before the loss (`lostFrom`); the table shows `examination`, and section 8 types the other targets', 'EPO (department of the omitted act)', 'The decision; register code 18RR'],
+      ['reestablishment_requested', 'deemed_withdrawn', 'The EPO rejects the request', 'EPO (department of the omitted act)', 'The decision'],
+      [EP_PENDING, 'withdrawn', 'The firm withdraws the application on the client\'s instruction while it is pending (Guidelines E-VIII 8.1)', 'person (attorney)', 'The client instruction with its source mail; the filed withdrawal; register code 18W'],
+      [EP_LIVE, 'representation_ended', 'The client moves the case to another representative, and the EPO records the change', 'person (attorney)', 'The client mail; the register change of representative'],
+    ],
+  },
 }
 
 // The task of each state that waits for a person: machine -> state -> task kind, or { none: reason } when a person
@@ -190,6 +250,95 @@ export const tasks = {
   },
   report: { proposed: 'decide-work', flagged: 'decide-work', approved: 'send-report', send_unconfirmed: 'send-report' },
   outbox: { refused: 'fix-message', dead: 'fix-message' },
+  epGrant: Object.fromEntries(EP_LIVE.map((s) => [s, { none: EP_EPO_ACTS.includes(s) ? 'The EPO acts next; a person acts here only to withdraw or to move the case' : 'The deadline of the period (sheet 02) and the Ticket of the letter (sheet 03) carry the task' }])),
+}
+
+// The facts that the next task of each state needs, with the route by which each fact reaches the firm (firm map,
+// "How facts reach the firm"). check.mjs requires an entry for every state of the machine that is not an end state,
+// and writes the table into the sheet. M2 reads these rows as the selection rules of the agent's context.
+export const routes = {
+  'office-letter': 'office letter (MyEPO Mailbox, then the e-file)',
+  'own-filing': 'firm filing (e-file or file server)',
+  register: 'register (EP Register, publications, family data)',
+  'client-mail': 'client mail (Outlook)',
+  'associate-mail': 'associate mail (Outlook)',
+  people: 'people (a call or a note, recorded as a fact)',
+  record: 'Firm Record (docket, rules, fee table, settings)',
+}
+
+export const evidence = {
+  epGrant: {
+    formalities: { task: 'Check the filing receipt and pay the filing and search fees within one month (R.38(1))', facts: [
+      ['The filing receipt: application number and date of filing', 'own-filing'], ['The request, description, claims and drawings as filed', 'own-filing'],
+      ['The priority claims and the priority documents', 'own-filing'], ['The applicant, the inventors and the representative, each as a party in its role', 'record'],
+      ['The fee receipts', 'own-filing'], ['The client\'s instruction to file, with its scope', 'client-mail']] },
+    formal_deficiency: { task: 'Correct the formal deficiency within two months (R.58)', facts: [
+      ['The invitation and each deficiency it names', 'office-letter'], ['The application as filed', 'own-filing'],
+      ['The documents that correct it, for example a signature or an inventor designation', 'client-mail'], ['The due date', 'record']] },
+    r161_reply_due: { task: 'Reply to the WO-ISA, SISR or IPER, amend, and pay the claims fees above fifteen claims (R.161, R.162)', facts: [
+      ['The WO-ISA, SISR or IPER with each objection', 'register'], ['The documents that it cites', 'register'],
+      ['The claims at entry and any PCT amendments (R.159(1)(b))', 'own-filing'], ['The claims count', 'own-filing'],
+      ['The claims and office actions of the family at other offices', 'register'], ['The foreign associates\' reports on those actions', 'associate-mail'],
+      ['The client\'s instruction on scope, budget and acceleration (PACE, waiver of R.161)', 'client-mail'], ['The due date', 'record']] },
+    searching: { task: 'No firm task, except the reply to a R.62a or R.63 invitation within two months; the Firm Record watches for the search report', facts: [
+      ['A R.62a or R.63 invitation and the claims it names', 'office-letter'],
+      ['The date of the last firm filing', 'own-filing'], ['The measured time to the search report and the alarm percentile', 'register']] },
+    unity_fees_due: { task: 'Choose the inventions to search and pay the further search fees within two months (R.64(1))', facts: [
+      ['The invitation, the EPO\'s groups of inventions and the partial search report', 'office-letter'], ['The claims as filed', 'own-filing'],
+      ['Which invention covers the client\'s product', 'client-mail'], ['The attorney\'s view of the inventions', 'people'],
+      ['The fee per further search', 'record'], ['That unsearched inventions can only go to a divisional (R.137(5))', 'record']] },
+    search_opinion_received: { task: 'Request examination, pay the fees and reply to the search opinion within six months of the mention (R.70, R.70a), or advise the client to stop', facts: [
+      ['The search report with the X, Y and A categories', 'office-letter'], ['The search opinion, objection by objection and claim by claim', 'office-letter'],
+      ['The text of the cited documents', 'register'], ['The claims as filed and any earlier amendments', 'own-filing'],
+      ['The search and examination results of the family at other offices', 'register'], ['The foreign associates\' reports', 'associate-mail'],
+      ['The client\'s instruction to proceed, its scope and budget', 'client-mail'], ['The states that the client wants (designation, later validation)', 'client-mail'],
+      ['The mention date (R.69), the due date and the renewal fee dates', 'record']] },
+    examination: { task: 'No firm task; the Firm Record watches for the next EPO letter', facts: [
+      ['The date of the last firm filing', 'own-filing'], ['Whether PACE is requested', 'own-filing'],
+      ['The measured time to the next coded event and the alarm percentile', 'register']] },
+    exam_reply_due: { task: 'Prepare the reply to the Art. 94(3) communication: the attorney writes it from the prepared facts (M3)', facts: [
+      ['The communication: each objection, its legal basis and the claims it targets', 'office-letter'],
+      ['Every earlier communication and the firm\'s reply to it, in order', 'office-letter'], ['The firm\'s earlier replies and claim sets', 'own-filing'],
+      ['The claims on file, and the application as filed as the basis for Art. 123(2)', 'own-filing'],
+      ['The cited documents, with the passages that the examiner names', 'register'],
+      ['The arguments, amendments and granted claims of the family at other offices', 'register'], ['The foreign associates\' reports', 'associate-mail'],
+      ['The client\'s instruction on scope, products to cover, fall-back positions and cost limit', 'client-mail'],
+      ['Why the firm argued earlier points as it did', 'people'], ['The due date, and whether an extension is possible', 'record'],
+      ['The firm setting for an auxiliary request for oral proceedings', 'record']] },
+    oral_proceedings: { task: 'Prepare the final written submissions and the auxiliary requests by the R.116 date, and the hearing', facts: [
+      ['The summons: the date, the format and the final date for submissions', 'office-letter'], ['The annex with the preliminary opinion', 'office-letter'],
+      ['The full file history', 'office-letter'], ['The claim requests on file', 'own-filing'],
+      ['The client\'s limits for auxiliary requests, and who may decide during the hearing', 'client-mail'],
+      ['The client\'s decision on a divisional application before a possible refusal', 'client-mail'],
+      ['The attorney\'s calendar and the client\'s wish to attend', 'record'], ['What the attorney and the client agreed in calls', 'people']] },
+    grant_approval_due: { task: 'Review the text intended for grant, ask the client about divisionals and validation, then approve the text or request amendments', facts: [
+      ['The text intended for grant, with the examiner\'s own amendments marked', 'office-letter'], ['The last claims that the firm filed', 'own-filing'],
+      ['The examiner\'s last objections and the reasons for allowance', 'office-letter'],
+      ['The bibliographic data (applicant, inventors, title) against the parties in the record', 'record'],
+      ['The client\'s decision on divisional applications; the application is pending until the mention (Guidelines A-IV 1.1.1)', 'client-mail'],
+      ['The fees: grant and publishing, claims above fifteen, a renewal fee before the mention, the designation fee', 'record'],
+      ['The claims translations into the two other official languages', 'own-filing'],
+      ['The client\'s validation states and unitary effect wish', 'client-mail'], ['The claims of the family members', 'register'], ['The due date', 'record']] },
+    grant_approved: { task: 'Pay a renewal fee that falls due before the mention; prepare validation and unitary effect', facts: [
+      ['The expected mention date', 'office-letter'], ['A renewal fee that falls due before the mention', 'record'],
+      ['The client\'s validation states and unitary effect wish', 'client-mail'], ['The translation orders', 'associate-mail']] },
+    refused: { task: 'Advise on an appeal or a divisional application within the two-month appeal period (Art. 108)', facts: [
+      ['The decision and its grounds, and the minutes of the oral proceedings', 'office-letter'], ['The full file history', 'own-filing'],
+      ['The claim requests that the division refused', 'own-filing'], ['The client\'s decision and budget', 'client-mail'],
+      ['That a divisional application is possible until the appeal period ends (Guidelines A-IV 1.1.1)', 'record'], ['The appeal fee and the periods', 'record']] },
+    loss_of_rights_noted: { task: 'Decide further processing within two months (R.135), a request for a decision (R.112(2)), or no action', facts: [
+      ['The R.112(1) communication and the missed act', 'office-letter'],
+      ['The firm\'s deadline for that act: its state, who closed it and why (sheet 02)', 'record'],
+      ['The client\'s instruction, which can be to let the application lapse', 'client-mail'],
+      ['The further processing fee, and whether further processing is ruled out', 'record'], ['The documents of the omitted act', 'own-filing']] },
+    reestablishment_requested: { task: 'Support the request with the grounds, the facts and the evidence of all due care (Art. 122(1), R.136(2))', facts: [
+      ['The cause of the missed period and the date when it ended', 'people'],
+      ['The firm\'s deadline record and its independent check (Guidelines E-VIII 3.2, sheet 02)', 'record'],
+      ['The one-year limit and the fee', 'record'], ['The omitted act', 'own-filing']] },
+    granted: { task: 'Hand off to validation, unitary effect, the opposition watch and renewals', facts: [
+      ['The B1 specification and the mention date', 'register'], ['The client\'s validation states and unitary effect wish', 'client-mail'],
+      ['The translation rule of each state (Art. 65)', 'record'], ['The next renewal fees, now national', 'record'], ['The client\'s UPC opt-out wish', 'client-mail']] },
+  },
 }
 
 // One row per task kind: demo (the first demo uses it), the words of the list, the owner rule, the due time and the escalation chain (settings of

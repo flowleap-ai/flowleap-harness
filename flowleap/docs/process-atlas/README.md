@@ -7,6 +7,7 @@
 ## Contents
 
 - [The R1 processes](#the-r1-processes)
+- [The procedures of M1 and M2](#the-procedures-of-m1-and-m2)
 - [One flow](#one-flow)
 - [The shared states](#the-shared-states)
 - [The count, R1 and after the cut-over](#the-count-r1-and-after-the-cut-over)
@@ -30,6 +31,14 @@
 
 - **Classification moves into two sheets.** "Is this an office letter, and for which matter?" is part of intake (sheet 1), because the match needs the document kind and the keys. "Which event is this, and which dates does it give?" is part of sheet 2, because the event code and the document date are the inputs of the deadline engine, and an error there gives a wrong deadline.
 - **The notice to the attorney and the reply to the forwarder are one machine.** Both are a message from the AI mailbox to firm addresses only, with the same allow-list, the same outbox and the same retry rules. Two machines would repeat the same rules (principle-model-the-domain). So sheet 3 ends at the proposals, and sheet 5 sends the reply to the forwarder and the notice to the responsible attorney.
+
+## The procedures of M1 and M2
+
+A procedure sheet describes the state of one matter through a whole office procedure. It uses the letter path of sheets 0 to 5 for each letter, and it adds the facts that each next task needs and the letter that the firm can expect next.
+
+| # | Sheet | Starts when | Ends when |
+|---|---|---|---|
+| 10 | [The EP grant procedure](10-ep-grant-procedure.md) | A direct EP application is filed, or a Euro-PCT application enters the European phase | Grant and the hand-off; refusal and the end of the appeal period or an appeal; withdrawal or deemed withdrawal; the client moves the case |
 
 ## One flow
 

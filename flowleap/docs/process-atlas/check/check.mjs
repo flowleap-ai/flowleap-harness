@@ -1,11 +1,12 @@
 // Checks each transition table of machines.mjs against the method rules of the atlas README, checks that every
-// state that waits for a person has a task (sheet 00), and compares the generated tables and Mermaid charts with
-// the blocks between the markers in each sheet.
+// state that waits for a person has a task (sheet 00) and that every live state of a machine with evidence names its
+// facts and their routes, and compares the generated tables and Mermaid charts with the blocks between the markers
+// in each sheet.
 // Usage: node check.mjs (check), node check.mjs --write (rewrite the blocks). No dependencies.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { machines, taskKinds, tasks } from './machines.mjs'
+import { evidence, machines, routes, taskKinds, tasks } from './machines.mjs'
 
 const atlas = join(dirname(fileURLToPath(import.meta.url)), '..')
 const write = process.argv.includes('--write')
@@ -80,6 +81,21 @@ function renderTasks() {
   return ['| Machine | State | Task | First demo | Owner | Due | Escalation | Closes when |', '|---|---|---|---|---|---|---|---|', ...mapped, ...other].join('\n')
 }
 
+function checkEvidence(name, m, rows) {
+  const states = new Set(rows.flatMap(([f, to]) => [f, to]).filter((s) => s !== '[*]'))
+  for (const s of states) if (!m.terminal.includes(s) && !evidence[name][s]) fail(`${name}-evidence`, `${s} names no evidence`)
+  for (const [s, e] of Object.entries(evidence[name])) {
+    if (!states.has(s)) fail(`${name}-evidence`, `${s} is not a state`)
+    if (!e.task || e.facts.length === 0) fail(`${name}-evidence`, `${s} lacks its task or its facts`)
+    for (const [fact, route] of e.facts) if (!fact || !routes[route]) fail(`${name}-evidence`, `${s}: fact "${fact}" has no known route`)
+  }
+}
+
+function renderEvidence(name) {
+  const rows = Object.entries(evidence[name]).flatMap(([s, e]) => e.facts.map(([fact, route], i) => `| ${i === 0 ? `\`${s}\`` : ''} | ${i === 0 ? e.task : ''} | ${fact} | ${routes[route]} |`))
+  return ['| State | Next task | Fact that the task needs | Where it lives |', '|---|---|---|---|', ...rows].join('\n')
+}
+
 function sync(sheet, name, block) {
   const path = join(atlas, sheet)
   const text = readFileSync(path, 'utf8')
@@ -94,6 +110,7 @@ function sync(sheet, name, block) {
 for (const [name, m] of Object.entries(machines)) {
   const rows = expand(m)
   sync(m.sheet, name, render(m, rows, check(name, m, rows)))
+  if (evidence[name]) { checkEvidence(name, m, rows); sync(m.sheet, `${name}-evidence`, renderEvidence(name)) }
 }
 checkTasks()
 sync(machines.task.sheet, 'task-map', renderTasks())
