@@ -250,6 +250,7 @@ describe('gate graph validation', () => {
     'ci-snapshot',
     'ci-artifacts',
     'ci-consumers',
+    'ci-web-snapshot',
     'ci-windows-blocking',
     'ci-windows-complete',
     'ci-windows-observational-ready',
@@ -716,6 +717,25 @@ describe('gate graph validation', () => {
     }
   })
 
+  it('runs only the tests related to files changed since the given base in ci-unit-changed', () => {
+    const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    expect(scripts['check:ci:unit:changed']).toBe('tsx scripts/run-gates.ts ci-unit-changed')
+    const gates = withEnv('DSH_UNIT_CHANGED_BASE', 'abc123', () =>
+      withPnpmEntrypoint(() => gatesForMode('ci-unit-changed')))
+    expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit'])
+    expect(gates[1]).toMatchObject({
+      needs: ['native-system'],
+      args: ['/private/pnpm.cjs', 'exec', 'vitest', 'run', '--changed', 'abc123'],
+    })
+    expect(ciWorkerEnvironment('ci-unit-changed', {}, 16)).toEqual({})
+    for (const base of [undefined, '']) {
+      expect(() => withEnv('DSH_UNIT_CHANGED_BASE', base, () => gatesForMode('ci-unit-changed')))
+        .toThrow('ci-unit-changed requires DSH_UNIT_CHANGED_BASE')
+    }
+  })
+
   it('selects partitioned coverage only when explicitly configured', () => {
     const coverage = withEnv('DSH_COVERAGE_PARTITIONS', '3', () =>
       withPnpmEntrypoint(() => gatesForMode('ci-windows-complete').find(subject => subject.id === 'coverage')))
@@ -970,7 +990,6 @@ describe('Node 24 lane ownership', () => {
       'publint',
       'snapshot',
       'expected-output',
-      'web-snapshot',
       'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
@@ -988,7 +1007,6 @@ describe('Node 24 lane ownership', () => {
     for (const id of [
       'snapshot',
       'expected-output',
-      'web-snapshot',
       'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
@@ -1011,18 +1029,22 @@ describe('Node 24 lane ownership', () => {
         'packages/team/agent-team/tests/built-lib.e2e.ts',
       ]),
     )
-    expect(subject.find(item => item.id === 'web-snapshot')).toMatchObject({
+  })
+
+  it('leaves the web browser lane to its own job, which builds before it starts', () => {
+    const subject = withPnpmEntrypoint(() => gatesForMode('ci-web-snapshot'))
+
+    expect(subject.map(item => item.id)).toEqual(['build', 'web-snapshot'])
+    expect(subject.find(item => item.id === 'build')).toMatchObject({
+      displayCommand: 'pnpm run build:artifacts',
+      env: { DSH_BUILD_CLIENT_PROFILE: 'official' },
+    })
+    expect(subject.find(item => item.id === 'web-snapshot')).toEqual(expect.objectContaining({
       displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
       env: { DSH_SNAPSHOT: 'replay' },
-      after: [
-        'publint',
-        'snapshot',
-        'expected-output',
-        'doc-typecheck',
-        'node-next-types',
-        'built-bin-smoke',
-      ],
-    })
+      needs: ['build'],
+    }))
+    expect(subject.find(item => item.id === 'web-snapshot')?.after).toBeUndefined()
   })
 })
 

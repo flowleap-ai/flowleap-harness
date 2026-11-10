@@ -7,16 +7,17 @@ import { standardDecoratorPlugin, vitestExecArgv } from './vitest.shared.ts'
  * `benchmarks/.dsh-build/`; browser cases drive built Client artifacts through
  * the shared shipped-composition Web scaffold.
  * Two files run at a time so the four-vCPU CI runner keeps both cores busy.
- * Budgets keep their reviewed CI scale and headroom; a pairing that inflates an
- * endpoint surfaces as a failing budget and is never loosened to accept it.
+ * Budgets keep their reviewed CI scale and headroom, multiplied only by the
+ * measured runner time scale; a pairing that inflates an endpoint surfaces as a
+ * failing budget and is never loosened to accept it.
  */
 export default defineConfig({
   plugins: [tsconfigPaths({ projects: ['./tsconfig.base.json'] }), standardDecoratorPlugin()],
   test: {
     execArgv: vitestExecArgv,
     setupFiles: ['./scripts/test-proxy-environment.ts'],
-    // Clears recorded timings before the run and renders benchmarks/.dsh-report/report.html after it.
-    globalSetup: ['./benchmarks/support/scaling-report.ts'],
+    // Measures the runner time scale, clears recorded timings before the run, and renders benchmarks/.dsh-report/report.html after it.
+    globalSetup: ['./benchmarks/support/runner-speed.ts', './benchmarks/support/scaling-report.ts'],
     include: [
       'benchmarks/**/*.bench.ts',
       'benchmarks/**/*.bench.client.ts',
