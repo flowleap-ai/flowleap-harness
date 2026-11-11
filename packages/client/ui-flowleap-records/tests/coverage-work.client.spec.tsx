@@ -128,6 +128,17 @@ describe('the matter page', () => {
     }
   })
 
+  it('shows a matter whose team has a person with no display name as an unnamed person', async () => {
+    const unnamed = { id: PEOPLE.lena.id, name: null }
+    const wire = {
+      ...matterWire, formalitiesPerson: unnamed, team: matterWire.team.map(p => p.id === PEOPLE.lena.id ? unnamed : p),
+      wall: { ...matterWire.wall, team: matterWire.wall.team.map(p => p.id === PEOPLE.lena.id ? { ...unnamed, role: p.role } : p) },
+    }
+    await mountMatter(parsers.matterDetail(wire, 'body'))
+    expect(prop(en['dossier.prop.formalities'])).toBe(en['person.unnamed'])
+    expect(prop(en['dossier.prop.wall'])).toBe('The team · 2 people screened')
+  })
+
   it('shows an application number that is not an EP application as text, no language, and no screened people', async () => {
     await mountMatter({
       ...fixtures.matter, matter: { ...fixtures.matter.matter, applicationNumber: 'US 17/123,456' }, language: null, wall: { ...fixtures.matter.wall, screened: 0 },

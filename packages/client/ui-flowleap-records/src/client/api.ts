@@ -286,6 +286,11 @@ const clientRules = obj({
   aiUse: oneOf(AI_USE), aiLetters: oneOf(['allowed', 'not-allowed']), reportEvents, language: nullable(str), text: str,
   recordSeq: num,
 })
+/** The role of a person in the matter's wall. */
+const WALL_ROLES = ['responsible', 'formalities', 'team'] as const
+/** A person of the wall: a team member (with no display name yet, as on a firm before its people sync) and the role. */
+const wallMember: Parse<TeamMember & { readonly role: (typeof WALL_ROLES)[number] }> = (value, path) =>
+  ({ ...member(value, path), role: oneOf(WALL_ROLES)(objectAt(value, path)['role'], `${path}.role`) })
 const matterDetail = obj({
   recordSeq: num,
   matter: obj({ fileNumber: ids.fileNumber, title: str, client: str, state: oneOf(['open', 'closed']), applicationNumber: nullable(str) }),
@@ -299,7 +304,7 @@ const matterDetail = obj({
   })),
   clientRules: nullable(clientRules),
   language: nullable(str),
-  wall: obj({ team: arrayOf(obj({ id: ids.person, name: str, role: oneOf(['responsible', 'formalities', 'team']) })), screened: num }),
+  wall: obj({ team: arrayOf(wallMember), screened: num }),
   work: arrayOf(obj({
     id: ids.ticket, state: ticketState, code: nullable(str), routedTo: nullable(person), updatedAt: isoTime,
     report: nullable(obj({ state: reportState })), reply: nullable(obj({ state: outboxState })),
