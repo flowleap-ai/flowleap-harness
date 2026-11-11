@@ -337,6 +337,49 @@ describe('the two dates of a letter whose readings differ', () => {
   })
 })
 
+describe('the period that the letter sets', () => {
+  const event = FIXTURE_IDS.officeEvent as OfficeEventId
+  const missing = (reason: 'no-text' | 'not-found' | 'two-values' | 'out-of-range', found: number[] = []): IntakeDocument => ({
+    ...fixtures.intakeDocument,
+    status: { machine: 'deadline', state: 'engine_refused' },
+    officeEvent: { id: event, state: 'engine_refused' },
+    period: { state: 'missing', reason, found, range: { minMonths: 2, maxMonths: 6 }, recordSeq: 50 },
+    proposed: null,
+    filed,
+  })
+  const part = () => screen.getByRole('group', { name: en['letter.period.part'] })
+
+  it('asks for the months that the letter states, and enters the chosen period with the record position', async () => {
+    const { api, acts } = createFixtureApi()
+    await mountLetter(missing('two-values', [4, 6]), 'en', api)
+    expect(screen.getByText(en['letter.period.question'])).toBeTruthy()
+    expect(document.body.textContent).toContain('The letter names more than one period: 4, 6 months.')
+    expect(document.body.textContent).toContain(en['letter.period.note'])
+    expect(within(part()).getAllByRole('button').map(button => button.textContent)).toEqual(['2 months', '3 months', '4 months', '5 months', '6 months'])
+    const enter = () => screen.getByRole('button', { name: /^Enter the period/u })
+    expect(enter().hasAttribute('disabled')).toBe(true)
+    fireEvent.click(within(part()).getByRole('button', { name: '4 months' }))
+    expect(document.body.textContent).toContain('Period set in the letter · 4 months')
+    fireEvent.click(enter())
+    await flush()
+    expect(acts.map(act => act.command)).toEqual([{ kind: 'officeEvent.period', id: event, months: 4, seen: 50 }])
+  })
+
+  it('says why FlowLeap read no period, in English and German', async () => {
+    for (const [reason, found, text] of [
+      ['no-text', [], en['letter.period.why.no-text']], ['not-found', [], en['letter.period.why.not-found']],
+      ['out-of-range', [7], 'The letter names 7 months, outside 2 to 6 months.'],
+    ] as const) {
+      await mountLetter(missing(reason, [...found]))
+      expect(document.body.textContent).toContain(text)
+      unmount()
+    }
+    await mountLetter(missing('no-text'), 'de')
+    expect(screen.getByText(de['letter.period.question'])).toBeTruthy()
+    expect(document.body.textContent).toContain(de['letter.period.why.no-text'])
+  })
+})
+
 describe('the evidence of a letter', () => {
   it('shows a quoted date of the letter as the letter prints it when it is no calendar date', async () => {
     const code = { ...fixtures.intakeDocument.readers.code!, result: { code: null, documentDate: null, applicationNumber: null } }

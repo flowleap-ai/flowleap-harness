@@ -88,6 +88,7 @@ const REFUSED: Readonly<Record<Command['kind'], FlowleapRecordsKey>> = {
   'intake.notRelevant': 'failure.notRelevant',
   'intake.file': 'failure.file',
   'officeEvent.decide': 'failure.officeEvent',
+  'officeEvent.period': 'failure.period',
   'deadline.confirm': 'failure.confirm',
   'deadline.reject': 'failure.reject',
   'ticket.decide': 'failure.decide',

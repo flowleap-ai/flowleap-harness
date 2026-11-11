@@ -10,7 +10,7 @@ import {
   IconCheckOutlineRegular, IconCloseOutlineRegular, IconDeliverDocRegular, IconInfoOutlineRegular, IconWarningTriangleOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { DeadlineDetail, IsoDate, MayDecideReason, Person } from '../api.ts'
+import type { DeadlineDetail, IsoDate, LetterPeriod, MayDecideReason, Person } from '../api.ts'
 import { formatDate } from '../format.ts'
 import { useCommandItem, useKeyActs, type KeyActs } from '../key-layer.ts'
 import { commandId } from '../keys.ts'
@@ -21,7 +21,7 @@ import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, EvidenceSplit, KeyFact, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName } from '../words.ts'
+import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName, type Translate } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { formatDay, openDocument, ruleWords } from './detail.tsx'
 import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
@@ -169,6 +169,19 @@ function stepText(
       : t('deadline.step.closureRoll', { office: named, date: formatDate(step.from, locale) })
     default: return t('deadline.step.other')
   }
+}
+
+/**
+ * Where the period of a deadline comes from, for a rule whose period the letter sets: read on a page of the letter, with the words,
+ * or entered by a person.
+ * @param t - the translate function.
+ * @param period - the known period of the office event.
+ * @returns the sentence.
+ */
+function periodText(t: Translate, period: Extract<LetterPeriod, { state: 'known' }>): string {
+  return period.source.kind === 'reader'
+    ? t('deadline.period.read', { count: period.months, page: period.source.page, quote: period.source.quote })
+    : t('deadline.period.entered', { count: period.months, person: personInText(t, period.source.by) })
 }
 
 /**
@@ -347,6 +360,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         <EvidenceSplit evidence={drawing}>
           <section className={css.section}>
             <h2 className={css.subHeading}>{t('deadline.computed')}</h2>
+            {officeEvent.period?.state === 'known' && <p className={css.lede}>{periodText(t, officeEvent.period)}</p>}
             <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')} data-state={deadline.state}>
               {deadline.trace.map((step, index) => (
                 <li key={`${index}:${step.op}`} className={css.step}>

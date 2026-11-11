@@ -181,9 +181,14 @@ export interface RuleWords {
   readonly months: string | null
 }
 
-/** The rules of the deadline engine that the views word; another rule shows the letter's title. */
-const RULES: Readonly<Record<string, Readonly<Record<'short' | 'full' | 'period' | 'months', FlowleapRecordsKey>>>> = {
+/**
+ * The rules of the deadline engine that the views word; another rule shows the letter's title. A rule whose period the letter
+ * sets (Art. 94(3) EPC) has no period words: the deadline page shows the period that the os read or a person entered.
+ */
+type RuleKeys = Readonly<Record<'short' | 'full', FlowleapRecordsKey> & Partial<Record<'period' | 'months', FlowleapRecordsKey>>>
+const RULES: Readonly<Record<string, RuleKeys>> = {
   'EPO:R71(3)': { short: 'deadline.rule.r71Short', full: 'deadline.rule.r71', period: 'deadline.rule.r71Period', months: 'deadline.rule.r71Months' },
+  'EPO:A94(3)': { short: 'deadline.rule.a94Short', full: 'deadline.rule.a94' },
 }
 
 /**
@@ -198,7 +203,8 @@ export function ruleWords(t: Translate, code: string | null): RuleWords {
     const title = letterTitle(t, code)
     return { short: title, full: title, period: null, months: null }
   }
-  return { short: t(rule.short), full: t(rule.full), period: rule.period, months: t(rule.months) }
+  const months = rule.months === undefined ? null : t(rule.months)
+  return { short: t(rule.short), full: t(rule.full), period: rule.period ?? null, months }
 }
 
 /**
