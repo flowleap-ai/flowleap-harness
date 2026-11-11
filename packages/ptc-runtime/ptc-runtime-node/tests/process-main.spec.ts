@@ -217,8 +217,10 @@ async function deferredWriteSetup() {
   const ready = Promise.withResolvers<undefined>()
   const peer = createProcessRpc<ProgramMethods, HostMethods>(host, 4096, {
     ready: () => { ready.resolve(undefined) },
+    initialized: async () => {},
     invoke: async () => encodePtcJsonWire(null),
     log: () => {},
+    image: () => {},
     outputLimit: () => {},
   }, [], () => {})
   const state = processState()

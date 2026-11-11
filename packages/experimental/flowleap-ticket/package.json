@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-ticket",
   "description": "Signed Ticket ingress of a FlowLeap runtime: a Ticket delivery of the Firm Record opens one run Session that starts with the Mandate",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -47,7 +47,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",

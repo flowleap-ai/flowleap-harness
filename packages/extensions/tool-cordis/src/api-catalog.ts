@@ -180,6 +180,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.',
       },
       {
+        signature: 'definition(id: string): PresetDefinition | undefined',
+        description: 'Read one registered definition as its declaring plugin submitted it.',
+        parameters: [{ name: 'id', description: 'preset identity.' }],
+        returns: 'the definition, or undefined when no declaration supplies the id.',
+      },
+      {
         signature: 'inspectCompositions(ctx?: Context): AgentPresetInspection[]',
         description: 'Inspect retained revisions, or the exact revision an Agent joined.',
         parameters: [{ name: 'ctx', description: 'optional Agent context; omission includes all retained revisions.' }],
@@ -444,17 +450,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async admitPromptContent( content: readonly AttachmentAdmissionPart[], ): Promise<AdmittedPromptContentPart[]>',
-        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation.',
+        description: 'Admit one Host prompt and replace each encoded image with its durable reference. Text, durable file references, and already stored images pass through unchanged. Every image part counts toward `maxImagesPerMessage` and `maxMessageImageBytes`; a stored image counts the bytes of the upload that stored it. Refused content starts no writes. A prompt without encoded images performs no storage operation. A prompt with encoded images is refused while assertUploadsAccepted refuses uploads.',
         parameters: [{ name: 'content', description: 'prompt parts in message order after upload receipt resolution.' }],
         returns: 'admitted prompt parts in the same order as `content`.',
         throws: ['AttachmentError when the image batch is refused.'],
       },
       {
-        signature: 'admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
+        signature: 'async admitEncodedFile(input: EncodedFileAttachment): Promise<FileAttachmentRef>',
         description: 'Decode and durably commit one canonical base64 file upload.',
         parameters: [{ name: 'input', description: 'canonical base64 bytes and optional display name.' }],
         returns: 'the durable content-addressed file reference.',
-        throws: ['AttachmentError when the encoding or storage operation is refused.'],
+        throws: ['AttachmentError when the encoding or storage operation is refused, or `STORAGE_LOW` while uploads are refused.'],
+      },
+      {
+        signature: 'assertUploadsAccepted(): Promise<void>',
+        description: 'Refuse a user upload while the deployment does not accept new uploads, for example while the host\'s disk is low. Upload admission (prompt images, file uploads) calls it before any write; attachments a tool stores from a read are not uploads and do not call it. The default accepts every upload.',
+        parameters: [],
+        throws: ['AttachmentError `STORAGE_LOW` while the deployment refuses uploads.'],
       },
       {
         signature: 'isAttachmentError(error: unknown): error is AttachmentError',
@@ -1200,6 +1212,514 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'retirePrompt(agent: Agent, requestId: string): void',
         description: 'Retire every receipt accepted by one removed queue occurrence.',
         parameters: [{ name: 'agent', description: 'receiving Agent.' }, { name: 'requestId', description: 'prompt identity carried by the queue occurrence.' }],
+      },
+    ],
+  },
+  {
+    key: 'flowleapAdmin',
+    summary: 'Whether a request is of a firm administrator.',
+    description: 'Whether a request is of a firm administrator.',
+    methods: [
+      {
+        signature: 'isAdmin(request: Request): Promise<boolean>',
+        description: 'Check one request. An unusable key file is logged as an error and a refused header as a warning.',
+        parameters: [{ name: 'request', description: 'the authenticated request.' }],
+        returns: 'true only when the request carries a valid `X-Flowleap-Admin` header of the configured key; always false when `publicKeyFile` is `\'\'` or the file does not exist.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapAgentCatalog',
+    summary: 'Service owning the agent folders, their indexes and their presets.',
+    description: 'Service owning the agent folders, their indexes and their presets.',
+    methods: [
+      {
+        signature: 'ready(): Promise<void>',
+        description: 'Settles when the agent folders are loaded; the Remote waits for it before its first answer.',
+        parameters: [],
+        returns: 'the load.',
+      },
+      {
+        signature: 'revision(id: AgentId): AgentRevision',
+        description: 'The current revision of one agent for its preset row.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the revision.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: 'search(id: AgentId, query: string, limit: number): SearchHit[]',
+        description: 'Search one agent\'s indexed files.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'query', description: 'the words.' }, { name: 'limit', description: 'most hits.' }],
+        returns: 'hits, best first.',
+      },
+      {
+        signature: 'readFile(id: AgentId, file: string, from: number, to: number): { readonly rows: LocationRow[]; readonly total: number } | undefined',
+        description: 'Read locations of one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'file', description: 'the file name.' }, { name: 'from', description: 'first location.' }, { name: 'to', description: 'last location, inclusive.' }],
+        returns: 'the locations and the location count, or undefined for an unknown file.',
+      },
+      {
+        signature: 'list(): AgentSummary[]',
+        description: 'Every agent, by name.',
+        parameters: [],
+        returns: 'the summaries.',
+      },
+      {
+        signature: 'read(id: AgentId): AgentView',
+        description: 'One agent with its fields, files and mode.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: 'async connectors(): Promise<ConnectorChoice[]>',
+        description: 'The connector rows an agent can choose, each with whether it can answer on this Host.',
+        parameters: [],
+        returns: 'one row per choice.',
+      },
+      {
+        signature: 'async save(id: AgentId | undefined, definition: AgentDefinition, instructions: string): Promise<AgentView>',
+        description: 'Create an agent or change one. The caller validated the fields.',
+        parameters: [{ name: 'id', description: 'the agent to change, or undefined to create one.' }, { name: 'definition', description: 'the `agent.yaml` fields.' }, { name: 'instructions', description: 'the instructions.' }],
+        returns: 'the agent after the change.',
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
+      },
+      {
+        signature: 'async delete(id: AgentId): Promise<void>',
+        description: 'Delete one agent: close its index, move its folder aside, then remove its preset and the moved folder. A read or write of the agent that starts after the delete started refuses with `flowleap-agents/not-found`, and the agent is not listed. When the folder cannot be moved, the index opens again and the agent stays as it was.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`; the file-system error of a failed move.'],
+      },
+      {
+        signature: 'async removeFile(id: AgentId, name: string): Promise<void>',
+        description: 'Remove one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+      {
+        signature: 'async upload(id: AgentId, name: string, chunks: AsyncIterable<Uint8Array>): Promise<AgentFileView>',
+        description: 'Store one uploaded file, then index it in the background. A file with the content the index already read is not read again. File names compare without case, as on the macOS and Windows file systems: an upload replaces a file whose name differs only in case, and the agent keeps the new name.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }, { name: 'chunks', description: 'the request body.' }],
+        returns: 'the file as stored, in its state after the upload.',
+        throws: ['RemoteError `flowleap-agents/invalid` for a refused name (`reason` is the {@link FileNameProblem}), a body larger than the limit (`reason` is `too large`), or while the host\'s disk is low (`reason` is `storage low`); the file-system error of a failed write.'],
+      },
+      {
+        signature: 'async settled(): Promise<void>',
+        description: 'Wait until every upload read and preset change started so far has settled.',
+        parameters: [],
+        returns: 'settles when the background work is done.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapAgents',
+    summary: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapAgents` namespace.',
+    methods: [
+      {
+        signature: '@Remote async list(): Promise<AgentSummary[]>',
+        description: 'Every agent of this Host, the firm agents included.',
+        parameters: [],
+        returns: 'the summaries, by name.',
+      },
+      {
+        signature: '@Remote async read(id: AgentId): Promise<AgentView>',
+        description: 'One agent with its fields, files and mode.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-agents/not-found` for an unknown agent.'],
+      },
+      {
+        signature: '@Remote connectors(): Promise<ConnectorChoice[]>',
+        description: 'The connector rows the form offers, each with whether it can answer on this Host.',
+        parameters: [],
+        returns: 'one row per choice.',
+      },
+      {
+        signature: '@Remote async save(input: { id?: AgentId; name: string; description: string; instructions: string; connectors: string[] }): Promise<AgentView>',
+        description: 'Create an agent (no `id`) or change one. The connectors must be ids that `connectors()` lists.',
+        parameters: [{ name: 'input', description: 'the form fields.' }],
+        returns: 'the agent after the change.',
+        throws: ['RemoteError `flowleap-agents/invalid` for a bad field, `flowleap-agents/not-found` or `flowleap-agents/read-only` for an id that cannot change.'],
+      },
+      {
+        signature: '@Remote async delete(id: AgentId): Promise<void>',
+        description: 'Delete one agent with its files.',
+        parameters: [{ name: 'id', description: 'the agent.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+      {
+        signature: '@Remote async removeFile(id: AgentId, name: string): Promise<void>',
+        description: 'Remove one file of one agent.',
+        parameters: [{ name: 'id', description: 'the agent.' }, { name: 'name', description: 'the file name.' }],
+        throws: ['RemoteError `flowleap-agents/not-found` or `flowleap-agents/read-only`.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapBudget',
+    summary: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapBudget` namespace.',
+    methods: [
+      {
+        signature: '@Remote async month(): Promise<BudgetMonth>',
+        description: 'Read this month\'s spend and budget of the attorney from the gateway.',
+        parameters: [],
+        returns: 'the figures, or `unknown` with the reason.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapConnectors',
+    summary: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapConnectors` namespace.',
+    methods: [
+      {
+        signature: '@Remote async describe(): Promise<Record<string, ConnectorPresence>>',
+        description: 'Presence of every connector, for the settings cards and the first-run wizard.',
+        parameters: [],
+        returns: 'one view per connector id; never a value.',
+      },
+      {
+        signature: '@Remote async set(id: string, values: Record<string, string>): Promise<void>',
+        description: 'Store one connector\'s fields. The values cross the wire in this direction only.',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'values', description: 'its fields, each non-empty.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector or field, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async unset(id: string): Promise<void>',
+        description: 'Remove one connector\'s record; removing an absent record is a no-op.',
+        parameters: [{ name: 'id', description: 'the connector.' }],
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote async test(id: string, signal: AbortSignal): Promise<ConnectorTestResult>',
+        description: 'Run one cheap authenticated call with the stored key: an OPS access-token mint, an ODP lookup of a known grant, or a one-paper Semantic Scholar search, or the library\'s Mistral key verification (one authenticated GET).',
+        parameters: [{ name: 'id', description: 'the connector.' }, { name: 'signal', description: 'cancels the upstream call.' }],
+        returns: 'whether the call succeeded and a human-readable message.',
+        throws: ['RemoteError `gateway/bad-request` for an unknown connector.'],
+      },
+      {
+        signature: '@Remote myEpoDescribe(): Promise<MyEpoLinkView>',
+        description: 'The MyEPO link for the MyEPO card.',
+        parameters: [],
+        returns: 'not linked, or linked with the facts of the last passed test; never a credential value.',
+      },
+      {
+        signature: '@Remote async myEpoLink(values: Record<string, string>, signal: AbortSignal): Promise<MyEpoTestOutcome>',
+        description: 'Test new MyEPO credentials, and store them only when the test passed. The values cross the wire in this direction only.',
+        parameters: [{ name: 'values', description: '`clientId` and `clientSecret`, each non-empty.' }, { name: 'signal', description: 'cancels the test.' }],
+        returns: 'the test outcome; `passed` means the link is stored.',
+        throws: ['RemoteError `gateway/bad-request` for a missing, empty or unknown field, `flowleap-connectors/rejected` when the store refuses.'],
+      },
+      {
+        signature: '@Remote myEpoTest(signal: AbortSignal): Promise<MyEpoTestOutcome>',
+        description: 'Test the stored MyEPO link: a token, the portfolios, and the Mailbox. A passed test stores its facts.',
+        parameters: [{ name: 'signal', description: 'cancels the test.' }],
+        returns: 'the test outcome; the stored credentials do not change.',
+      },
+      {
+        signature: '@Remote async myEpoUnlink(): Promise<void>',
+        description: 'Remove the stored MyEPO link; removing an absent link is a no-op.',
+        parameters: [],
+        throws: ['RemoteError `flowleap-connectors/rejected` when the store refuses.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapModels',
+    summary: 'Host service backing the generated `ctx.remote.flowleapModels` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapModels` namespace.',
+    methods: [
+      {
+        signature: '@Remote async test(provider: string, signal: AbortSignal): Promise<ModelTestResult>',
+        description: 'Test the stored key of one provider with one free authenticated read at that provider.',
+        parameters: [{ name: 'provider', description: '`anthropic`, `openai`, or `openrouter`.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'success, with the model new chats now use when the test adopted one; or the failure reason.',
+        throws: ['RemoteError `gateway/bad-request` for an unknown provider.'],
+      },
+      {
+        signature: '@Remote async startOpenRouter(): Promise<OpenRouterConnectStart>',
+        description: 'Start an OpenRouter connect, and end an earlier attempt that has not ended.',
+        parameters: [],
+        returns: 'the OpenRouter authorization page to open in the attorney\'s browser.',
+      },
+      {
+        signature: '@Remote async awaitOpenRouter(signal: AbortSignal): Promise<OpenRouterConnectResult>',
+        description: 'Wait for the end of the current OpenRouter connect.',
+        parameters: [{ name: 'signal', description: 'cancels the attempt itself when the caller goes away.' }],
+        returns: 'the end of the attempt; `connected` carries the model new chats now use when the connect adopted one.',
+      },
+      {
+        signature: '@Remote cancelOpenRouter(): void',
+        description: 'End the current OpenRouter connect as `cancelled`, as the Cancel button does; without one, nothing happens.',
+        parameters: [],
+      },
+    ],
+  },
+  {
+    key: 'flowleapMyEpo',
+    summary: 'The read operations of the MyEPO API.',
+    description: 'The read operations of the MyEPO API. Each call may reject with MyEpoError.',
+    methods: [
+      {
+        signature: 'portfolios(signal?: AbortSignal): Promise<readonly MyEpoPortfolio[]>',
+        description: 'Read the portfolios that the account may read (`GET /portfolios`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the portfolios; empty when the administrator gave no portfolio permission.',
+      },
+      {
+        signature: 'applications(query?: MyEpoApplicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoApplication>>',
+        description: 'Read one page of the applications of the readable portfolios (`GET /applications`).',
+        parameters: [{ name: 'query', description: 'the filters and the page; the EPO\'s first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'bibliographicData(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<MyEpoBibliographicData>',
+        description: 'Read the bibliographic data of one application (`GET /biblio-data/{procedure}/applications/{application}`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the flattened record.',
+      },
+      {
+        signature: 'communications(query?: MyEpoCommunicationQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>',
+        description: 'Read one page of the Mailbox letters (`GET /communications`).',
+        parameters: [{ name: 'query', description: 'the folder and the page; every folder and the first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'unhandledCommunications(query?: MyEpoPageQuery, signal?: AbortSignal): Promise<MyEpoPage<MyEpoCommunication>>',
+        description: 'Read one page of the Mailbox letters not marked as handled (`GET /communications/unhandled`).',
+        parameters: [{ name: 'query', description: 'the page; the first page by default.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the page.',
+      },
+      {
+        signature: 'folders(signal?: AbortSignal): Promise<readonly MyEpoFolder[]>',
+        description: 'Read the Mailbox folders (`GET /communications/folders`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the folders.',
+      },
+      {
+        signature: 'downloadCommunication(communication: MyEpoCommunication, signal?: AbortSignal): Promise<MyEpoDocument>',
+        description: 'Download one letter (`GET /communications/download/{id}`). The EPO marks the letter as read in MyEPO at each download; it stays unhandled there.',
+        parameters: [{ name: 'communication', description: 'the letter, as a list read returned it.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the one PDF of the EPO\'s ZIP, its file name, and the letter.',
+      },
+      {
+        signature: 'dueDates(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoDueDate[]>',
+        description: 'Read the EPO due dates of one application (`GET /{procedure}/applications/{application}/dueDates`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the due dates; {@link MyEpoReads.terms} describes their term keys.',
+      },
+      {
+        signature: 'terms(signal?: AbortSignal): Promise<readonly MyEpoTerm[]>',
+        description: 'Read the descriptions of every term key (`GET /terms`).',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the terms in English, French and German.',
+      },
+      {
+        signature: 'pendingFees(application: MyEpoApplicationRef, signal?: AbortSignal): Promise<readonly MyEpoFee[]>',
+        description: 'Read the pending fees of one application (`GET /{procedure}/applications/{application}/fees`).',
+        parameters: [{ name: 'application', description: 'the procedure and the number.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the pending fees.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapOcr',
+    summary: 'What a consumer needs from the service.',
+    description: 'What a consumer needs from the service.',
+    methods: [
+      {
+        signature: 'pages(bytes: Uint8Array, filename: string, signal?: AbortSignal): Promise<OcrRead>',
+        description: 'Read the page text of one document.',
+        parameters: [{ name: 'bytes', description: 'the document (PDF or image).' }, { name: 'filename', description: 'the file name Mistral receives.' }, { name: 'signal', description: 'cancels the upstream call.' }],
+        returns: 'the pages, or `not-configured` without a usable key.',
+        throws: ['Error for an upstream failure other than a missing or refused key.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapOffice',
+    summary: 'The Office operations.',
+    description: 'The Office operations. Every method rejects with a `FlowleapOfficeError` (`@deepseek-ai/dsh-flowleap-office`), and never changes its input bytes.',
+    methods: [
+      {
+        signature: 'letter(request: LetterRequest, signal: AbortSignal): Promise<Uint8Array>',
+        description: 'Write a letter: the template with its placeholders filled, then the blocks.',
+        parameters: [{ name: 'request', description: 'template, field values, and blocks.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the `.docx` bytes.',
+      },
+      {
+        signature: 'amendClaims(request: AmendRequest, signal: AbortSignal): Promise<AmendResult>',
+        description: 'Write a marked claims copy with a tracked insertion or deletion for each changed segment and paragraph mark.',
+        parameters: [{ name: 'request', description: 'paragraphs, author, date, and the clean-copy choice.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the marked copy and the clean copy when requested.',
+      },
+      {
+        signature: 'claimChart(request: ChartRequest, signal: AbortSignal): Promise<Uint8Array>',
+        description: 'Write an Excel claim chart.',
+        parameters: [{ name: 'request', description: 'sheet name, header, and rows.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the `.xlsx` bytes.',
+      },
+      {
+        signature: 'read(request: ReadRequest, signal: AbortSignal): Promise<OfficeReadout>',
+        description: 'Read the text and the structure of a document.',
+        parameters: [{ name: 'request', description: 'the document and its format.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'what the document holds.',
+      },
+      {
+        signature: 'reviewChanges(request: ReviewRequest, signal: AbortSignal): Promise<ReviewResult>',
+        description: 'Accept or reject tracked changes on a copy of a Word document.',
+        parameters: [{ name: 'request', description: 'the document, the action, and the selection.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the reviewed copy and the number of changes it removed.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapPatentData',
+    summary: 'Reads EP patent data.',
+    description: 'Reads EP patent data. Each method throws PatentDataError when the read fails.',
+    methods: [
+      {
+        signature: 'findApplicantNames(name: string, options: { readonly maxRows: number }, signal?: AbortSignal): Promise<ApplicantNames>',
+        description: 'Find the applicant names in the EP Register that match a company name. The read searches `pa=<name>` in pages of 100 rows. A name matches when its company key holds every word of the typed name\'s company key. Names with the same company key are one name.',
+        parameters: [{ name: 'name', description: 'the company name as the attorney types it.' }, { name: 'options', description: '`maxRows`: the most register rows to read.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the matching names with their count of EP applications.',
+        throws: ['RangeError when the name has no letter or digit, or `maxRows` is not a positive integer.'],
+      },
+      {
+        signature: 'searchRegister(query: string, range: { readonly begin: number; readonly end: number }, signal?: AbortSignal): Promise<RegisterPage>',
+        description: 'Run one EP Register search.',
+        parameters: [{ name: 'query', description: 'the register CQL, for example `re=Muster` or `pa="Gerhard Schubert"`.' }, { name: 'range', description: 'the rows to read, counted from 1. The EPO allows at most 100 rows.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the page.',
+        throws: ['RangeError when `begin` is below 1, `end` is below `begin`, or the range is over 100 rows.'],
+      },
+      {
+        signature: 'registerRecord(application: EpApplicationNumber, signal?: AbortSignal): Promise<RegisterRow | undefined>',
+        description: 'Read the register record of one EP application.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the record, or undefined when the register does not list the application.',
+      },
+      {
+        signature: 'family(application: EpApplicationNumber, signal?: AbortSignal): Promise<FamilyRead>',
+        description: 'Read the family of one EP application through its earliest EP publication.',
+        parameters: [{ name: 'application', description: 'the EP application number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the family. It is empty when the application has no EP publication or the EPO has no family for it.',
+        throws: ['PatentDataError `malformed` when a member\'s office code is over 4 characters or its number over 32.'],
+      },
+      {
+        signature: 'publication(publication: EpPublicationNumber, signal?: AbortSignal): Promise<PublicationText>',
+        description: 'Read the title, abstract and claims of one EP publication. The claims are in English when the EPO has them, else in the first language it holds. The EPO holds no abstract and no claims of a pre-grant Euro-PCT EP publication: the abstract and the claims are then those of the WO publication of the same international application, and `textFrom` names it. The library\'s text router finds it in the family; for two PCT applications of one filing date, the PCT application that the EP bibliography names finds it. They are absent when neither finds a WO publication with text.',
+        parameters: [{ name: 'publication', description: 'the EP publication number.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the text.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapRecord',
+    summary: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
+    description: 'Service Definition of the seam: the Firm Record as a runtime uses it.',
+    methods: [
+      {
+        signature: 'matterView(fileNumber: MatterFileNumber, signal: AbortSignal): Promise<MatterViewResult>',
+        description: 'Read the current view of one matter.',
+        parameters: [{ name: 'fileNumber', description: 'the matter\'s file number.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the view at the record position it was read at, or the refusal.',
+      },
+      {
+        signature: 'myWork(signal: AbortSignal): Promise<MyWorkResult>',
+        description: 'Read the work of the person that the runtime\'s record token names. The call has no person argument.',
+        parameters: [{ name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the work and the matters of the person at the record position they were read at, or the refusal.',
+      },
+      {
+        signature: 'runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<RecordCommandResult<RunStartReceipt>>',
+        description: 'Report that the run chat of a Ticket opened. A repeat with the same Ticket and Session is the same command.',
+        parameters: [{ name: 'ticket', description: 'the Ticket of the wake.' }, { name: 'command', description: 'the Session of the run chat.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+      {
+        signature: 'proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>',
+        description: 'Propose a client report letter for the attorney\'s decision. A repeat with the same Ticket, Session, and tool call is the same command.',
+        parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the letter, its statements with evidence, and its sources.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+      {
+        signature: 'documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>',
+        description: 'Read the text layer of a document of the record, the text that a quote of a report must be copied from.',
+        parameters: [{ name: 'document', description: 'the SHA-256 of the document.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        returns: 'the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).',
+      },
+      {
+        signature: 'finishRun(ticket: TicketId, command: RunFinish, signal: AbortSignal): Promise<RecordCommandResult<RunFinishReceipt>>',
+        description: 'End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same command.',
+        parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the Session and the deadline summary.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+    ],
+  },
+  {
+    key: 'flowleapRegister',
+    summary: 'Reads the register events of one application.',
+    description: 'Reads the register events of one application.',
+    methods: [
+      {
+        signature: 'read(application: RegisterApplication, signal?: AbortSignal): Promise<readonly RegisterEntry[]>',
+        description: 'Read the current register events of one application.',
+        parameters: [{ name: 'application', description: 'normalized application.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'every event the office lists, in the office\'s order.',
+        throws: ['when the office refuses the read or no key is configured.'],
+      },
+    ],
+  },
+  {
+    key: 'flowleapRoutines',
+    summary: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapRoutines` namespace.',
+    methods: [
+      {
+        signature: '@Remote async reviews(): Promise<RoutineReview[]>',
+        description: 'The marked chats the caller may see.',
+        parameters: [],
+        returns: 'one view per mark, without the chats remote access denies the caller.',
+      },
+      {
+        signature: '@Remote async watches(): Promise<RoutineWatch[]>',
+        description: 'The register watches the caller may see, next check first.',
+        parameters: [],
+        returns: 'one view per watch, without the watches of chats remote access denies the caller.',
+      },
+      {
+        signature: '@Remote async done(sessionId: SessionId): Promise<void>',
+        description: 'Clear the mark of one chat; a chat without a mark is a no-op. The Gateway gates the call on the `session` resource the `sessionId` parameter names.',
+        parameters: [{ name: 'sessionId', description: 'the chat.' }],
+      },
+    ],
+  },
+  {
+    key: 'flowleapWorkPages',
+    summary: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
+    description: 'Host service backing the generated `ctx.remote.flowleapWorkPages` namespace.',
+    methods: [
+      {
+        signature: '@Remote async list(): Promise<WorkPageSummary[]>',
+        description: 'The work pages the caller may see.',
+        parameters: [],
+        returns: 'one summary per page, newest save first.',
+      },
+      {
+        signature: '@Remote async read(id: WorkPageId): Promise<WorkPageView>',
+        description: 'One work page with its file.',
+        parameters: [{ name: 'id', description: 'the page.' }],
+        returns: 'the view.',
+        throws: ['RemoteError `flowleap-work-pages/not-found`, `flowleap-work-pages/unreadable` or `flowleap-work-pages/invalid`.'],
+      },
+      {
+        signature: '@Remote async review(request: WorkPageReviewRequest): Promise<WorkPageView>',
+        description: 'Change the review state, the owner or the note of one objection; an omitted field keeps its value.',
+        parameters: [{ name: 'request', description: 'the page, the objection, and the fields to change.' }],
+        returns: 'the page after the change.',
+        throws: ['RemoteError `flowleap-work-pages/invalid`, `flowleap-work-pages/not-found`, `flowleap-work-pages/objection-not-found` or `flowleap-work-pages/unreadable`.'],
       },
     ],
   },
@@ -2461,7 +2981,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async listPlugins(): Promise<PluginInfo[]>',
         description: 'Read current plugins, including why a row cannot be changed through the profile patch.',
         parameters: [],
-        returns: 'Current runtime entries with persistent patch targets.',
+        returns: 'Current runtime entries with persistent patch targets, the context-global tools each registered, and whether its module has a browser half.',
       },
       {
         signature: '@Remote listBundles(): Promise<BundleInfo[]>',
@@ -2587,7 +3107,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'pluginRegistryProbe',
     summary: 'Compares public registry responses on the Host; the Client owns the initial selection.',
-    description: 'Compares public registry responses on the Host; the Client owns the initial selection.',
+    description: 'Compares public registry responses on the Host; the Client owns the initial selection. Embeds the display switches in browser pages as PLUGIN_MANAGER_PAGE_GLOBAL.',
     methods: [
       {
         signature: '@Remote async fastest(): Promise<string | null>',
@@ -3649,6 +4169,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'skillInventory',
+    summary: 'Serves the skills of the view a new chat gets: the default working directory and the default agent preset.',
+    description: 'Serves the skills of the view a new chat gets: the default working directory and the default agent preset.',
+    methods: [
+      {
+        signature: '@Remote async list(signal: AbortSignal): Promise<SkillInventoryValue>',
+        description: 'List every skill of the default agent view, each replaced skill after its winner, and the files that are not skills.',
+        parameters: [{ name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        returns: 'the rows with their origin.',
+        throws: ['RemoteError `gateway/internal` when discovery fails.'],
+      },
+      {
+        signature: '@Remote async read(ref: SkillRef, signal: AbortSignal): Promise<SkillTextValue>',
+        description: 'Load the body of one exact skill of the default agent view, a winner or a replaced one.',
+        parameters: [{ name: 'ref', description: 'name, provider, source, and path as `list()` reports them.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        returns: 'the Markdown body.',
+        throws: ['RemoteError `skill/not-found` when the view holds no such skill or its file is gone.'],
+      },
+    ],
+  },
+  {
     key: 'skills',
     summary: 'Layered registry of skill providers, the host+per-scope shape the tools registry established.',
     description: 'Layered registry of skill providers, the host+per-scope shape the tools registry established. A registration files into the layer of its calling context\'s scope (scopeOf): host rows and repository plugins land in the global layer, while a plugin mounted by an agent preset\'s standing composition lands in that preset\'s layer. A read merges the global layer with the viewing scope\'s chain — the nearest layer\'s entry wins a duplicate name outright, and the rank order decides duplicates only within one layer. It exposes sorted invocation-neutral summaries and loads full skill bodies on demand.',
@@ -3682,6 +4223,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Load and validate the winning candidate, passing its opaque discovery locator back to the provider. Cancellation is rechecked after selection, including cache hits, and raced against loading so an uncooperative provider cannot hang the caller.',
         parameters: [{ name: 'name', description: 'kebab-case skill name.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects workspace-sensitive skills, and `signal` cancels work.' }],
         returns: 'the full skill, including body content, or `undefined`.',
+      },
+      {
+        signature: 'async inspect(options: SkillViewOptions = {}): Promise<SkillInventory>',
+        description: 'Observe every candidate of a view with the same merge rule as `list()`: the winners, the candidates each winner replaced, and the files that providers could not offer. The read is never cached and never fills the catalog cache.',
+        parameters: [{ name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels discovery.' }],
+        returns: 'the inventory of the view.',
+      },
+      {
+        signature: 'async read(ref: SkillCandidateRef, options: SkillViewOptions = {}): Promise<SkillDefinition | undefined>',
+        description: 'Load the body of one exact candidate of a view, a winner or a replaced one, with the same validation and cancellation as `get()`.',
+        parameters: [{ name: 'ref', description: 'name, provider, source, and path of the candidate, as `inspect()` reports them.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects project roots, and `signal` cancels work.' }],
+        returns: 'the full skill, or `undefined` when the view holds no such candidate or its file is gone.',
       },
     ],
   },
@@ -4358,6 +4911,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'definitions after scoped shadowing and restrictions, limited to the step\'s admission when given.',
       },
       {
+        signature: 'registeredBy(fiber: Fiber): string[]',
+        description: 'Name the context-global tools that the plugin of one fiber registered, itself or through its child plugins. Scoped registrations, such as an agent preset\'s, are not listed.',
+        parameters: [{ name: 'fiber', description: 'the plugin\'s fiber, for example a Loader entry\'s.' }],
+        returns: 'the tool names, sorted.',
+      },
+      {
         signature: 'schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[]',
         description: 'Project visible definitions onto the allowlisted model-facing schema fields, excluding execution and presentation callbacks.',
         parameters: [{ name: 'scope', description: 'the viewing scope (the agent); omitted = the global view.' }, { name: 'toolSet', description: 'step admission, or omitted for registered-definition inspection.' }],
@@ -4978,6 +5537,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.error - persistence, setup, or publication failure.' }],
   },
   {
+    name: 'agent-preset/roster-changed',
+    mode: 'emit',
+    signature: '\'agent-preset/roster-changed\'(): void',
+    summary: 'A preset definition was registered (after its activation settled) or unregistered.',
+    description: 'A preset definition was registered (after its activation settled) or unregistered. Clients refetch `agentPresets.list()`.',
+    parameters: [],
+  },
+  {
     name: 'agent-preset/selected',
     mode: 'emit',
     signature: '\'agent-preset/selected\'(sessionId: SessionId, agentPreset: string): void',
@@ -5266,6 +5833,30 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'inspection', description: 'committed canonical prefix, including the feedback as its last event.' }],
   },
   {
+    name: 'flowleap-agents/changed',
+    mode: 'emit',
+    signature: '\'flowleap-agents/changed\'(): void',
+    summary: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
+    description: 'An agent was created, changed or deleted, or one of its files changed index state; clients refetch `flowleapAgents.list()` and the agent they show.',
+    parameters: [],
+  },
+  {
+    name: 'flowleap-routines/changed',
+    mode: 'emit',
+    signature: '\'flowleap-routines/changed\'(): void',
+    summary: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
+    description: 'A "Needs review" mark was put, changed, or cleared, or a register watch was saved or removed; clients refetch `flowleapRoutines.reviews()` and `flowleapRoutines.watches()`.',
+    parameters: [],
+  },
+  {
+    name: 'flowleap-work-pages/changed',
+    mode: 'emit',
+    signature: '\'flowleap-work-pages/changed\'(view: WorkPageView): void',
+    summary: 'A save wrote a work page, or the attorney changed its review fields.',
+    description: 'A save wrote a work page, or the attorney changed its review fields.',
+    parameters: [{ name: 'view', description: 'the page after the change; it reaches only the callers that may see its chat.' }],
+  },
+  {
     name: 'forge/providers-changed',
     mode: 'parallel',
     signature: '\'forge/providers-changed\'(forge: string): void | Promise<void>',
@@ -5362,6 +5953,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'provider', description: 'route whose model catalog changed.' }],
   },
   {
+    name: 'llm/response-notice',
+    mode: 'emit',
+    signature: '\'llm/response-notice\'(notice: LlmResponseNotice): void',
+    summary: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning.',
+    description: 'A provider response of a Session\'s request on a route that reports notices, such as a gateway\'s budget warning. `text` is the notice for the user of that Session, or `null` when the response carries none, which clears the earlier notice. The notice is for the user only: it is not in the Session log and never reaches the model.',
+    parameters: [{ name: 'notice', description: 'the Session, the route and model of the request, and the notice text or `null`.' }],
+  },
+  {
     name: 'llm/stream',
     mode: 'waterfall',
     signature: '\'llm/stream\'(this: LlmRuntime, options: GenerateOptions, next: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk>',
@@ -5434,12 +6033,28 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'schedule/admit',
+    mode: 'waterfall',
+    signature: '\'schedule/admit\'(request: ScheduleAdmissionRequest, next: () => Promise<ScheduleAdmission>): Promise<ScheduleAdmission>',
+    summary: 'Decide one due timed occurrence before its target Session is resolved.',
+    description: 'Decide one due timed occurrence before its target Session is resolved. Call next() to deliver the stored prompt. A listener runs inside the serialized delivery operation, so management writes wait for it: bound its work and stop on `request.signal`. A rejection keeps the task due until a later drive. A manual run does not pass through this waterfall.',
+    parameters: [{ name: 'request', description: 'Due occurrence and its stored target.' }],
+  },
+  {
     name: 'schedule/changed',
     mode: 'emit',
     signature: '\'schedule/changed\'(): void',
     summary: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     description: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     parameters: [],
+  },
+  {
+    name: 'schedule/delivered',
+    mode: 'emit',
+    signature: '\'schedule/delivered\'(delivery: ScheduleDelivered): void',
+    summary: 'A delivery committed: the Session acknowledged the message and the task write landed.',
+    description: 'A delivery committed: the Session acknowledged the message and the task write landed. Timed and manual deliveries both emit it; `trigger` tells them apart. A crash between those two writes can repeat the delivery without this event.',
+    parameters: [{ name: 'delivery', description: 'Task, saved receipt, and trigger.' }],
   },
   {
     name: 'schedule/resolve-agent',
@@ -5810,6 +6425,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ActionCardView {\n    readonly proposals: Readonly<Record<string, ActionCardProposal>>;\n    readonly decisions: Readonly<Record<string, ActionCardDecision>>;\n}',
   },
   {
+    name: 'ActionRow',
+    declaration: 'export interface ActionRow {\n    readonly field: string;\n    readonly value: string;\n    readonly source: string;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -5820,6 +6439,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AdmittedPromptContentPart',
     declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
+  },
+  {
+    name: 'AdoptedModel',
+    declaration: 'export interface AdoptedModel {\n    readonly provider: ModelProviderId;\n    readonly model: string;\n}',
   },
   {
     name: 'AfterScheduleRecord',
@@ -5834,12 +6457,36 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentCancelCause = {\n    readonly kind: \'user\';\n} | {\n    readonly kind: \'parent\';\n} | {\n    readonly kind: \'hook\';\n    readonly reason: string;\n} | {\n    readonly kind: \'disposed\';\n};',
   },
   {
+    name: 'AgentDefinition',
+    declaration: 'export interface AgentDefinition {\n    readonly name: string;\n    readonly description: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
+  },
+  {
     name: 'AgentFactory',
     declaration: 'export interface AgentFactory {\n    createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>;\n    resume(ownerCtx: Context, options: ResumeAgentOptions): Promise<AgentHandle>;\n}',
   },
   {
+    name: 'AgentFileFailure',
+    declaration: 'export type AgentFileFailure = \'no-text\' | \'ocr-unavailable\' | \'ocr-failed\' | \'unreadable\' | \'too-large\' | \'timeout\';',
+  },
+  {
+    name: 'AgentFileState',
+    declaration: 'export type AgentFileState = {\n    readonly kind: \'indexing\';\n} | {\n    readonly kind: \'indexed\';\n} | {\n    readonly kind: \'failed\';\n    readonly reason: AgentFileFailure;\n    readonly message: string;\n};',
+  },
+  {
+    name: 'AgentFileView',
+    declaration: 'export interface AgentFileView {\n    readonly name: string;\n    readonly bytes: number;\n    readonly state: AgentFileState;\n    readonly locations: number;\n    readonly unit: LocationUnit;\n}',
+  },
+  {
     name: 'AgentHandle',
     declaration: 'export interface AgentHandle {\n    agent: Agent;\n    dispose(): Promise<void>;\n}',
+  },
+  {
+    name: 'AgentId',
+    declaration: 'export type AgentId = Branded<\'FlowleapAgentId\'>;',
+  },
+  {
+    name: 'AgentMode',
+    declaration: 'export type AgentMode = \'context\' | \'search\';',
   },
   {
     name: 'AgentOptions',
@@ -5874,6 +6521,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentResolver = (sessionId: SessionId) => Promise<Agent>;',
   },
   {
+    name: 'AgentRevision',
+    declaration: 'export interface AgentRevision {\n    readonly id: AgentId;\n    readonly instructionsText: string;\n    readonly filesText?: string;\n    readonly mode: AgentMode;\n    readonly connectors: readonly ConnectorChoiceId[];\n}',
+  },
+  {
     name: 'AgentSetup',
     declaration: 'export type AgentSetup = (agentCtx: Context, agent: Agent) => AgentSetupCommit | Promise<AgentSetupCommit | void> | void;',
   },
@@ -5886,12 +6537,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
   },
   {
+    name: 'AgentSummary',
+    declaration: 'export interface AgentSummary {\n    readonly id: AgentId;\n    readonly name: string;\n    readonly description: string;\n    readonly readOnly: boolean;\n}',
+  },
+  {
     name: 'AgentTerminal',
     declaration: 'export interface AgentTerminal {\n    readonly id: WebTerminalId;\n    readonly pid: number;\n    readonly info: WebTerminalInfo;\n    readonly revision: number;\n    changed(after: number, signal: AbortSignal): Promise<number>;\n    write(data: string): Promise<void>;\n    drain(): Promise<void>;\n    read(request: TerminalScreenRequest): TerminalScreenPage;\n    mark(): TerminalScreenMark;\n    inspectForeground(): Promise<SubprocessTerminalForeground | undefined>;\n    signal(signal: SubprocessTerminalSignal): Promise<number>;\n    close(): Promise<void>;\n}',
   },
   {
     name: 'AgentTerminalRequest',
     declaration: 'export interface AgentTerminalRequest {\n    readonly title: string;\n    readonly cwd?: string;\n    readonly cols: number;\n    readonly rows: number;\n    readonly policy: SandboxExecutionPolicy;\n    readonly preferredShells: readonly string[];\n    readonly env?: Readonly<Record<string, string>>;\n}',
+  },
+  {
+    name: 'AgentView',
+    declaration: 'export interface AgentView extends AgentSummary {\n    readonly instructions: string;\n    readonly connectors: readonly ConnectorChoiceId[];\n    readonly files: readonly AgentFileView[];\n    readonly mode: AgentMode;\n}',
+  },
+  {
+    name: 'AmendRequest',
+    declaration: 'export interface AmendRequest {\n    readonly template?: Uint8Array;\n    readonly heading?: string;\n    readonly paragraphs: readonly RedlineParagraph[];\n    readonly author: string;\n    readonly date: string;\n    readonly clean: boolean;\n}',
+  },
+  {
+    name: 'AmendResult',
+    declaration: 'export interface AmendResult {\n    readonly marked: Uint8Array;\n    readonly clean?: Uint8Array;\n}',
   },
   {
     name: 'AnalyticsPreset',
@@ -5920,6 +6587,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApiSessionAgentResult',
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
+  },
+  {
+    name: 'ApplicantNames',
+    declaration: 'export interface ApplicantNames {\n    readonly source: \'patstat\' | \'ep-register\';\n    readonly edition?: string;\n    readonly names: readonly {\n        readonly name: string;\n        readonly applications: number;\n    }[];\n    readonly truncated: boolean;\n}',
   },
   {
     name: 'ApprovalOutcome',
@@ -6118,6 +6789,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type BrowserUseProviderName = Branded<\'BrowserUseProviderName\'>;',
   },
   {
+    name: 'BudgetMonth',
+    declaration: 'export type BudgetMonth = {\n    readonly state: \'known\';\n    readonly month: string;\n    readonly spentUsd: number;\n    readonly budgetUsd: number | null;\n} | {\n    readonly state: \'unknown\';\n    readonly reason: BudgetUnknownReason;\n};',
+  },
+  {
+    name: 'BudgetUnknownReason',
+    declaration: 'export type BudgetUnknownReason = \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'gateway_error\' | \'invalid_answer\';',
+  },
+  {
     name: 'BundleDetail',
     declaration: 'export type BundleDetail = {\n    readonly status: \'found\';\n    readonly origin: \'locale\' | \'readme\';\n    readonly path: string;\n    readonly markdown: string;\n} | {\n    readonly status: \'none\';\n};',
   },
@@ -6174,6 +6853,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    restartReason?: RestartReason;\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
   {
+    name: 'ChartRequest',
+    declaration: 'export interface ChartRequest {\n    readonly sheet: string;\n    readonly header: readonly string[];\n    readonly rows: readonly (readonly string[])[];\n}',
+  },
+  {
     name: 'ChecksRollup',
     declaration: 'export type ChecksRollup = \'none\' | \'pending\' | \'success\' | \'failure\';',
   },
@@ -6182,12 +6865,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CheckState = \'pending\' | \'success\' | \'failure\' | \'neutral\' | \'skipped\' | \'cancelled\';',
   },
   {
-    name: 'ClaimOutcome',
-    declaration: 'export interface ClaimOutcome {\n    readonly claimed: number;\n    readonly skipped: number;\n}',
+    name: 'CitedDocument',
+    declaration: 'export interface CitedDocument {\n    readonly label: string;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'CitedPassage',
+    declaration: 'export interface CitedPassage {\n    readonly document: string;\n    readonly role: string;\n    readonly passage: string;\n    readonly says: string;\n    readonly anchor: string;\n}',
+  },
+  {
+    name: 'ClaimTable',
+    declaration: 'export interface ClaimTable {\n    readonly claim: number;\n    readonly heading: string;\n    readonly interpretation: string;\n    readonly rows: readonly ComparisonRow[];\n    readonly arrangement: string;\n}',
+  },
+  {
+    name: 'ClientAiLetters',
+    declaration: 'export type ClientAiLetters = \'allowed\' | \'not-allowed\';',
+  },
+  {
+    name: 'ClientAiUse',
+    declaration: 'export type ClientAiUse = \'not-recorded\' | \'allowed\' | \'local-model-only\' | \'not-allowed\';',
   },
   {
     name: 'ClientArtifactBaseline',
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly ctimeMs: number;\n    readonly size: number;\n}',
+  },
+  {
+    name: 'ClientRules',
+    declaration: 'export interface ClientRules {\n    readonly seq: RecordSeq;\n    readonly aiUse: ClientAiUse;\n    readonly aiLetters: ClientAiLetters;\n    readonly reportEvents: \'all-office-actions\' | string[];\n    readonly language: \'de\' | \'en\';\n    readonly text: string;\n}',
   },
   {
     name: 'CollectedOutput',
@@ -6264,6 +6967,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CompactionTrigger',
     declaration: 'export type CompactionTrigger = \'pressure\' | \'context-overflow\';',
+  },
+  {
+    name: 'ComparisonRow',
+    declaration: 'export interface ComparisonRow {\n    readonly element: string;\n    readonly examiner: string;\n    readonly cited: string;\n    readonly assessment: ElementAssessment;\n}',
   },
   {
     name: 'CompositionRowEnablement',
@@ -6344,6 +7051,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionTrustRequest',
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+  },
+  {
+    name: 'ConnectorChoice',
+    declaration: 'export interface ConnectorChoice {\n    readonly id: ConnectorChoiceId;\n    readonly configured: boolean;\n}',
+  },
+  {
+    name: 'ConnectorChoiceId',
+    declaration: 'export type ConnectorChoiceId = (typeof CONNECTOR_CHOICE_IDS)[number];',
+  },
+  {
+    name: 'ConnectorPresence',
+    declaration: 'export interface ConnectorPresence {\n    configured: boolean;\n    source?: \'stored\';\n    writable: boolean;\n    fields: string[];\n}',
+  },
+  {
+    name: 'ConnectorTestResult',
+    declaration: 'export interface ConnectorTestResult {\n    ok: boolean;\n    message: string;\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -6546,6 +7269,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface DailyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'daily\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly scheduledAt: string;\n}',
   },
   {
+    name: 'DeadlineId',
+    declaration: 'export type DeadlineId = Branded<\'DeadlineId\'>;',
+  },
+  {
+    name: 'DeadlineState',
+    declaration: 'export type DeadlineState = \'proposed\' | \'active\' | \'rejected\';',
+  },
+  {
+    name: 'DeadlineSummary',
+    declaration: 'export type DeadlineSummary = {\n    readonly id: DeadlineId;\n    readonly state: DeadlineState;\n    readonly seq: RecordSeq;\n} | {\n    readonly id: \'none-yet\';\n    readonly state: \'none-yet\';\n    readonly seq: RecordSeq;\n};',
+  },
+  {
+    name: 'DeadlineView',
+    declaration: 'export interface DeadlineView {\n    readonly id: DeadlineId;\n    readonly ruleId: RuleId;\n    readonly ruleVersion: number;\n    readonly due: LocalDate;\n    readonly state: DeadlineState;\n    readonly trace: TraceStep[];\n}',
+  },
+  {
     name: 'DeepSeekLlmApiExtensionMap',
     declaration: 'export interface DeepSeekLlmApiExtensionMap {\n}',
   },
@@ -6604,6 +7343,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DirectoryRegistrationHandle',
     declaration: 'export interface DirectoryRegistrationHandle {\n    (): void;\n    replace(entries: readonly LlmConfigurableProvider[]): void;\n}',
+  },
+  {
+    name: 'DocumentSha256',
+    declaration: 'export type DocumentSha256 = Branded<\'DocumentSha256\'>;',
+  },
+  {
+    name: 'DocumentSpan',
+    declaration: 'export interface DocumentSpan {\n    readonly page: number;\n    readonly quote: string;\n}',
+  },
+  {
+    name: 'DocumentText',
+    declaration: 'export interface DocumentText {\n    readonly pages: readonly string[];\n}',
+  },
+  {
+    name: 'DocumentView',
+    declaration: 'export interface DocumentView {\n    readonly sha256: DocumentSha256;\n    readonly fileName: string;\n    readonly mediaType: string;\n    readonly source: string;\n}',
   },
   {
     name: 'Domain',
@@ -6678,6 +7433,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
   },
   {
+    name: 'ElementAssessment',
+    declaration: 'export type ElementAssessment = \'disclosed\' | \'not disclosed\' | \'disputable\' | \'not read\';',
+  },
+  {
     name: 'EncodedFileAttachment',
     declaration: 'export interface EncodedFileAttachment {\n    data: string;\n    name?: string;\n}',
   },
@@ -6690,8 +7449,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}',
   },
   {
+    name: 'EpApplicationNumber',
+    declaration: 'export type EpApplicationNumber = Branded<\'EpApplicationNumber\'>;',
+  },
+  {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n    system?: never;\n}',
+  },
+  {
+    name: 'EpPublicationNumber',
+    declaration: 'export type EpPublicationNumber = Branded<\'EpPublicationNumber\'>;',
   },
   {
     name: 'EventLogOptions',
@@ -6704,6 +7471,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EveryScheduleRecord',
     declaration: 'export interface EveryScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'every\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly everySeconds: number;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'FamilyRead',
+    declaration: 'export interface FamilyRead {\n    readonly familyId?: string;\n    readonly priorities: readonly {\n        readonly number: string;\n        readonly date?: string;\n    }[];\n    readonly publications: readonly string[];\n}',
   },
   {
     name: 'FeedbackCategory',
@@ -7354,6 +8125,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type KnownSubagentCatalogFields = {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n} | {\n    readonly mode: \'external\';\n    readonly label?: string;\n    readonly name?: string;\n} | {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly name?: string;\n};',
   },
   {
+    name: 'KnownWorkKind',
+    declaration: 'export type KnownWorkKind = \'file-letter\' | \'enter-office-event\' | \'decide-office-event\' | \'enter-date\' | \'confirm-deadline\' | \'restart-run\' | \'decide-work\' | \'send-report\';',
+  },
+  {
     name: 'KvFacet',
     declaration: 'export interface KvFacet {\n    open(descriptor: KvUnitDescriptor): Promise<KvUnit>;\n}',
   },
@@ -7368,6 +8143,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'KvUnitDescriptor',
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n    readonly layout?: \'single\' | \'per-record\';\n    readonly compatibleVersions?: readonly number[];\n}',
+  },
+  {
+    name: 'LetterBlock',
+    declaration: 'export type LetterBlock = {\n    readonly kind: \'heading\';\n    readonly level: 1 | 2;\n    readonly text: string;\n} | {\n    readonly kind: \'paragraph\';\n    readonly text: string;\n} | {\n    readonly kind: \'table\';\n    readonly header: readonly string[];\n    readonly rows: readonly (readonly string[])[];\n};',
+  },
+  {
+    name: 'LetterRequest',
+    declaration: 'export interface LetterRequest {\n    readonly template: Uint8Array;\n    readonly fields: Readonly<Record<string, string>>;\n    readonly blocks: readonly LetterBlock[];\n}',
   },
   {
     name: 'ListVersionsOptions',
@@ -7462,6 +8245,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LlmResolvedModelInfo extends LlmModelInfo {\n    context?: LlmModelContext;\n    defaultMaxTokens?: number;\n    reasoning?: LlmModelReasoningInfo;\n    systemPromptUpdate?: SystemPromptUpdate;\n    toolUpdate?: ToolUpdate;\n}',
   },
   {
+    name: 'LlmResponseNotice',
+    declaration: 'export interface LlmResponseNotice {\n    readonly sessionId: Branded<\'SessionId\'>;\n    readonly provider: string;\n    readonly model: string;\n    readonly text: string | null;\n}',
+  },
+  {
     name: 'LlmRuntime',
     declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    imageRequestTarget(provider: string, model: string, image: ImageAttachmentRef): ImageRequestTarget;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(conf /* …truncated — full shape in source */',
   },
@@ -7470,8 +8257,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LocalAtInput {\n    readonly date: string;\n    readonly time: string;\n    readonly time_zone: string;\n}',
   },
   {
+    name: 'LocalDate',
+    declaration: 'export type LocalDate = Branded<\'LocalDate\'>;',
+  },
+  {
     name: 'LocalizedText',
     declaration: 'export type LocalizedText = string | {\n    readonly en: string;\n    readonly [locale: string]: string;\n};',
+  },
+  {
+    name: 'LocationRow',
+    declaration: 'export interface LocationRow {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'LocationUnit',
+    declaration: 'export type LocationUnit = \'page\' | \'paragraph\';',
   },
   {
     name: 'LogExporterOptions',
@@ -7604,6 +8403,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MatcherValue',
     declaration: 'export type MatcherValue = string | number | boolean | null | RegExp | readonly (string | number | boolean | null)[];',
+  },
+  {
+    name: 'MatterFileNumber',
+    declaration: 'export type MatterFileNumber = Branded<\'MatterFileNumber\'>;',
+  },
+  {
+    name: 'MatterRole',
+    declaration: 'export type MatterRole = \'responsible\' | \'team\';',
+  },
+  {
+    name: 'MatterState',
+    declaration: 'export type MatterState = \'open\' | \'closed\';',
+  },
+  {
+    name: 'MatterSummary',
+    declaration: 'export interface MatterSummary {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly responsible: string | null;\n    readonly applicationNumber: string | null;\n    readonly state: MatterState;\n}',
+  },
+  {
+    name: 'MatterView',
+    declaration: 'export type MatterView = MatterViewBase & (MatterViewR1 | {\n    readonly [K in keyof MatterViewR1]?: never;\n});',
+  },
+  {
+    name: 'MatterViewBase',
+    declaration: 'export interface MatterViewBase {\n    readonly recordSeq: RecordSeq;\n    readonly viewHash: ViewHash;\n    readonly matter: MatterSummary;\n    readonly deadlines: DeadlineView[];\n}',
+  },
+  {
+    name: 'MatterViewR1',
+    declaration: 'export interface MatterViewR1 {\n    readonly clientRules: ClientRules | null;\n    readonly officeEvents: OfficeEventView[];\n    readonly tickets: TicketSummary[];\n    readonly documents: DocumentView[];\n}',
+  },
+  {
+    name: 'MatterViewRefusal',
+    declaration: 'export type MatterViewRefusal = \'not_found\' | \'not_configured\' | \'no_key\' | \'refused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+  },
+  {
+    name: 'MatterViewResult',
+    declaration: 'export type MatterViewResult = MatterView | {\n    readonly error: MatterViewRefusal;\n};',
   },
   {
     name: 'McpCloseResult',
@@ -7790,12 +8625,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelProviderGroup {\n    readonly id: string;\n    readonly name: string;\n    readonly models: readonly ModelCatalogModel[];\n}',
   },
   {
+    name: 'ModelProviderId',
+    declaration: 'export type ModelProviderId = \'anthropic\' | \'openai\' | \'openrouter\';',
+  },
+  {
     name: 'ModelReasoning',
     declaration: 'export interface ModelReasoning {\n    readonly efforts: readonly ModelReasoningEffort[];\n    readonly defaultEffort?: string;\n}',
   },
   {
     name: 'ModelReasoningEffort',
     declaration: 'export interface ModelReasoningEffort {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n}',
+  },
+  {
+    name: 'ModelTestFailure',
+    declaration: 'export type ModelTestFailure = \'no_key\' | \'refused\' | \'unreachable\' | \'provider_error\';',
+  },
+  {
+    name: 'ModelTestResult',
+    declaration: 'export type ModelTestResult = {\n    readonly ok: true;\n    readonly adopted?: AdoptedModel;\n} | {\n    readonly ok: false;\n    readonly reason: ModelTestFailure;\n    readonly status?: number;\n};',
   },
   {
     name: 'ModEvents',
@@ -7822,16 +8669,152 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ModTier = \'prepend\' | \'user\' | \'append\' | \'builtin\' | \'core\';',
   },
   {
+    name: 'MyEpoApplication',
+    declaration: 'export interface MyEpoApplication {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n    readonly numberWithCheckDigit: string;\n    readonly filingDate: string;\n    readonly fileReference?: string;\n    readonly portfolioId: MyEpoPortfolioId;\n    readonly portfolioName: string;\n}',
+  },
+  {
+    name: 'MyEpoApplicationNumber',
+    declaration: 'export type MyEpoApplicationNumber = Branded<\'MyEpoApplicationNumber\'>;',
+  },
+  {
+    name: 'MyEpoApplicationQuery',
+    declaration: 'export interface MyEpoApplicationQuery extends MyEpoPageQuery {\n    readonly portfolioId?: MyEpoPortfolioId;\n    readonly applicationNumber?: MyEpoApplicationNumber;\n    readonly applicantFileReference?: string;\n    readonly procedure?: MyEpoProcedure;\n}',
+  },
+  {
+    name: 'MyEpoApplicationRef',
+    declaration: 'export interface MyEpoApplicationRef {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n}',
+  },
+  {
+    name: 'MyEpoBibliographicData',
+    declaration: 'export interface MyEpoBibliographicData {\n    readonly procedure: MyEpoProcedure;\n    readonly number: string;\n    readonly filingDate: string;\n    readonly titles: Readonly<Record<string, string>>;\n    readonly applicants: readonly string[];\n    readonly inventors: readonly string[];\n    readonly representatives: readonly string[];\n    readonly publications: readonly {\n        readonly office: string;\n        readonly number: string;\n        readonly kind: string;\n        readonly date: string;\n    }[];\n    readonly priorities: readonly {\n        readonly office: string;\n        readonly number: string;\n        readonly filingDate: string;\n    }[];\n    readonly ipc: readonly string[];\n    readonly cpc: readonly string[];\n}',
+  },
+  {
+    name: 'MyEpoCommunication',
+    declaration: 'export interface MyEpoCommunication {\n    readonly id: MyEpoCommunicationId;\n    readonly applicationNumber?: string;\n    readonly userReference?: string;\n    readonly applicantName?: string;\n    readonly recipientName?: string;\n    readonly documentCode: string;\n    readonly title: string;\n    readonly dispatchDate: string;\n    readonly read: boolean;\n    readonly handled: boolean;\n    readonly folderId: MyEpoFolderId;\n}',
+  },
+  {
+    name: 'MyEpoCommunicationId',
+    declaration: 'export type MyEpoCommunicationId = Branded<\'MyEpoCommunicationId\'>;',
+  },
+  {
+    name: 'MyEpoCommunicationQuery',
+    declaration: 'export interface MyEpoCommunicationQuery extends MyEpoPageQuery {\n    readonly folderId?: MyEpoFolderId;\n}',
+  },
+  {
+    name: 'MyEpoDocument',
+    declaration: 'export interface MyEpoDocument {\n    readonly communication: MyEpoCommunication;\n    readonly filename: string;\n    readonly pdf: Uint8Array;\n}',
+  },
+  {
+    name: 'MyEpoDueDate',
+    declaration: 'export interface MyEpoDueDate {\n    readonly termKey: string;\n    readonly dueDate: string;\n    readonly actor: string;\n}',
+  },
+  {
+    name: 'MyEpoFee',
+    declaration: 'export interface MyEpoFee {\n    readonly feeCode: string;\n    readonly amount: number;\n    readonly currency?: string;\n    readonly dueDate: string;\n}',
+  },
+  {
+    name: 'MyEpoFolder',
+    declaration: 'export interface MyEpoFolder {\n    readonly id: MyEpoFolderId;\n    readonly name: string;\n}',
+  },
+  {
+    name: 'MyEpoFolderId',
+    declaration: 'export type MyEpoFolderId = Branded<\'MyEpoFolderId\'>;',
+  },
+  {
+    name: 'MyEpoLinkView',
+    declaration: 'export type MyEpoLinkView = {\n    state: \'not-linked\';\n    writable: boolean;\n} | {\n    state: \'linked\';\n    writable: boolean;\n    testedAt: string;\n    portfolios: number;\n    mailbox: boolean;\n};',
+  },
+  {
+    name: 'MyEpoPage',
+    declaration: 'export interface MyEpoPage<T> {\n    readonly items: readonly T[];\n    readonly page: number;\n    readonly size: number;\n    readonly total: number;\n}',
+  },
+  {
+    name: 'MyEpoPageQuery',
+    declaration: 'export interface MyEpoPageQuery {\n    readonly page?: number;\n    readonly size?: number;\n}',
+  },
+  {
+    name: 'MyEpoPortfolio',
+    declaration: 'export interface MyEpoPortfolio {\n    readonly id: MyEpoPortfolioId;\n    readonly name: string;\n    readonly type: MyEpoPortfolioType;\n    readonly fullAccess: boolean;\n}',
+  },
+  {
+    name: 'MyEpoPortfolioId',
+    declaration: 'export type MyEpoPortfolioId = Branded<\'MyEpoPortfolioId\'>;',
+  },
+  {
+    name: 'MyEpoPortfolioType',
+    declaration: 'export type MyEpoPortfolioType = \'applicant\' | \'representative\' | \'association\' | \'other\';',
+  },
+  {
+    name: 'MyEpoPortfolioView',
+    declaration: 'export interface MyEpoPortfolioView {\n    name: string;\n    type: MyEpoPortfolioType;\n    fullAccess: boolean;\n}',
+  },
+  {
+    name: 'MyEpoProcedure',
+    declaration: 'export type MyEpoProcedure = \'EPC\' | \'UPP\';',
+  },
+  {
+    name: 'MyEpoTerm',
+    declaration: 'export interface MyEpoTerm {\n    readonly termKey: string;\n    readonly description: {\n        readonly en: string;\n        readonly fr: string;\n        readonly de: string;\n    };\n}',
+  },
+  {
+    name: 'MyEpoTestOutcome',
+    declaration: 'export type MyEpoTestOutcome = {\n    kind: \'passed\';\n    testedAt: string;\n    portfolios: MyEpoPortfolioView[];\n    mailbox: boolean;\n} | {\n    kind: \'refused\';\n} | {\n    kind: \'unreachable\';\n} | {\n    kind: \'failed\';\n    message: string;\n} | {\n    kind: \'not-linked\';\n};',
+  },
+  {
+    name: 'MyWork',
+    declaration: 'export interface MyWork {\n    readonly recordSeq: RecordSeq;\n    readonly person: MyWorkPerson;\n    readonly summary?: MyWorkSummary;\n    readonly work: WorkItem[];\n    readonly inSight?: WorkItem[];\n    readonly matters: MyWorkMatter[];\n}',
+  },
+  {
+    name: 'MyWorkMatter',
+    declaration: 'export interface MyWorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n    readonly client: string;\n    readonly applicationNumber: string | null;\n    readonly role: MatterRole;\n    readonly state: MatterState;\n    readonly nextDeadline: NextDeadline | null;\n}',
+  },
+  {
+    name: 'MyWorkPerson',
+    declaration: 'export interface MyWorkPerson {\n    readonly id: PersonId;\n    readonly name: string | null;\n}',
+  },
+  {
+    name: 'MyWorkRefusal',
+    declaration: 'export type MyWorkRefusal = Exclude<MatterViewRefusal, \'not_found\'>;',
+  },
+  {
+    name: 'MyWorkResult',
+    declaration: 'export type MyWorkResult = MyWork | {\n    readonly error: MyWorkRefusal;\n};',
+  },
+  {
+    name: 'MyWorkSummary',
+    declaration: 'export interface MyWorkSummary {\n    readonly lettersArrived: number;\n    readonly needYou: number;\n    readonly overdue: number;\n    readonly today: number;\n    readonly later: number;\n}',
+  },
+  {
     name: 'NativeFileApplication',
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
+  },
+  {
+    name: 'NextDeadline',
+    declaration: 'export interface NextDeadline {\n    readonly id: DeadlineId;\n    readonly due: LocalDate;\n    readonly state: \'deadline_proposed\' | \'active\';\n}',
   },
   {
     name: 'NpmFileSource',
     declaration: 'export type NpmFileSource = \'jsdelivr\' | \'unpkg\' | \'npmmirror\';',
   },
   {
+    name: 'Objection',
+    declaration: 'export interface Objection {\n    readonly id: string;\n    readonly title: string;\n    readonly ground: string;\n    readonly legalBasis: string;\n    readonly claims: readonly number[];\n    readonly reasoning: string;\n    readonly source: string;\n    readonly citations: readonly CitedPassage[];\n    readonly assessment: string;\n    readonly options: readonly ResponseOption[];\n    readonly replyMustAddress: string;\n    readonly confidence: string;\n    readonly sources: string;\n}',
+  },
+  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
+  },
+  {
+    name: 'OcrPageText',
+    declaration: 'export interface OcrPageText {\n    readonly page: number;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'OcrRead',
+    declaration: 'export type OcrRead = {\n    readonly kind: \'read\';\n    readonly pages: readonly OcrPageText[];\n} | {\n    readonly kind: \'not-configured\';\n};',
+  },
+  {
+    name: 'OfficeActionFindings',
+    declaration: 'export interface OfficeActionFindings {\n    readonly application: string;\n    readonly communication: string;\n    readonly issued: string | null;\n    readonly deadline: string | null;\n    readonly summary: string;\n    readonly action: readonly ActionRow[];\n    readonly documents: readonly CitedDocument[];\n    readonly objections: readonly Objection[];\n    readonly comparison: readonly ClaimTable[];\n    readonly dependentClaims: string;\n}',
   },
   {
     name: 'OfficeConversionFormat',
@@ -7846,12 +8829,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OfficeDocumentExtension = OfficeExtension | \'odt\' | \'ods\' | \'odp\';',
   },
   {
+    name: 'OfficeEventId',
+    declaration: 'export type OfficeEventId = Branded<\'OfficeEventId\'>;',
+  },
+  {
+    name: 'OfficeEventView',
+    declaration: 'export interface OfficeEventView {\n    readonly id: OfficeEventId;\n    readonly seq: RecordSeq;\n    readonly code: string | null;\n    readonly documentDate: LocalDate | null;\n    readonly applicationNumber: string | null;\n    readonly document: DocumentSha256 | null;\n    readonly state: string;\n}',
+  },
+  {
     name: 'OfficeExtension',
     declaration: 'export type OfficeExtension = \'doc\' | \'docx\' | \'xls\' | \'xlsx\' | \'ppt\' | \'pptx\';',
   },
   {
     name: 'OfficeFileResult',
     declaration: 'export interface OfficeFileResult {\n    readonly path: string;\n    readonly bytes: number;\n    readonly pageCount?: number;\n    readonly missingFonts: string[];\n}',
+  },
+  {
+    name: 'OfficeFormat',
+    declaration: 'export type OfficeFormat = \'docx\' | \'xlsx\';',
   },
   {
     name: 'OfficeImage',
@@ -7898,6 +8893,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface OfficeOutputTarget {\n    readonly owner: string;\n    readonly name: string;\n}',
   },
   {
+    name: 'OfficeReadout',
+    declaration: 'export type OfficeReadout = {\n    readonly format: \'docx\';\n    readonly text: string;\n    readonly headings: readonly OutlineHeading[];\n    readonly revisions: readonly TrackedRevision[];\n} | {\n    readonly format: \'xlsx\';\n    readonly text: string;\n    readonly sheets: readonly SheetSummary[];\n};',
+  },
+  {
     name: 'OfficeRecalculationFormat',
     declaration: 'export type OfficeRecalculationFormat = \'xlsx\' | \'ods\';',
   },
@@ -7922,6 +8921,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OneShotScheduleRecord = AfterScheduleRecord | AtScheduleRecord;',
   },
   {
+    name: 'OpenRouterConnectFailure',
+    declaration: 'export type OpenRouterConnectFailure = \'denied\' | \'exchange_refused\' | \'unreachable\' | \'store_refused\' | \'timeout\' | \'not_started\';',
+  },
+  {
+    name: 'OpenRouterConnectResult',
+    declaration: 'export type OpenRouterConnectResult = {\n    readonly state: \'connected\';\n    readonly adopted?: AdoptedModel;\n} | {\n    readonly state: \'cancelled\';\n} | {\n    readonly state: \'failed\';\n    readonly reason: OpenRouterConnectFailure;\n};',
+  },
+  {
+    name: 'OpenRouterConnectStart',
+    declaration: 'export interface OpenRouterConnectStart {\n    readonly url: string;\n}',
+  },
+  {
     name: 'OptionalSessionSeq',
     declaration: 'export type OptionalSessionSeq = SessionSeq | null;',
   },
@@ -7932,6 +8943,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OTelEventScalar',
     declaration: 'export type OTelEventScalar = string | number | boolean;',
+  },
+  {
+    name: 'OutboxId',
+    declaration: 'export type OutboxId = Branded<\'OutboxId\'>;',
+  },
+  {
+    name: 'OutlineHeading',
+    declaration: 'export interface OutlineHeading {\n    readonly level: number;\n    readonly text: string;\n}',
   },
   {
     name: 'OwnerIdentityRequest',
@@ -8006,6 +9025,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PermissionCatalog {\n    options: PresetOption[];\n    defaultOptions: PresetOption[];\n    defaultPreset: string;\n}',
   },
   {
+    name: 'PersonId',
+    declaration: 'export type PersonId = Branded<\'PersonId\'>;',
+  },
+  {
     name: 'PiAiRequestHeaderContext',
     declaration: 'export interface PiAiRequestHeaderContext extends Readonly<Pick<GenerateOptions<string>, \'provider\' | \'model\' | \'sessionId\' | \'purpose\'>> {\n    readonly baseURL: string;\n}',
   },
@@ -8039,7 +9062,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PluginInfo',
-    declaration: 'export type PluginInfo = PluginInventoryEntry & ({\n    patchId: string;\n    readOnlyReason?: never;\n} | {\n    patchId?: never;\n    readOnlyReason: ReadOnlyReason;\n});',
+    declaration: 'export type PluginInfo = PluginInventoryEntry & {\n    tools: string[];\n    hasClient: boolean;\n} & ({\n    patchId: string;\n    readOnlyReason?: never;\n} | {\n    patchId?: never;\n    readOnlyReason: ReadOnlyReason;\n});',
   },
   {
     name: 'PluginInspectProblem',
@@ -8326,6 +9349,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PtcRunSpec extends PtcRunRequest {\n    cwd: string;\n    timeoutMs: number | null;\n}',
   },
   {
+    name: 'PublicationText',
+    declaration: 'export interface PublicationText {\n    readonly publicationNumber: EpPublicationNumber;\n    readonly textFrom?: WoPublicationNumber;\n    readonly title?: string;\n    readonly abstract?: string;\n    readonly claims?: string;\n}',
+  },
+  {
     name: 'QueueAction',
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
   },
@@ -8335,7 +9362,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ReadOnlyReason',
-    declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\';',
+    declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\' | \'deployment-locked\';',
+  },
+  {
+    name: 'ReadRequest',
+    declaration: 'export interface ReadRequest {\n    readonly file: Uint8Array;\n    readonly format: OfficeFormat;\n}',
   },
   {
     name: 'ReadResultView',
@@ -8354,12 +9385,64 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RecommendationDetails = {\n    readonly status: \'available\';\n    readonly title: LocalizedText;\n    readonly description: LocalizedText;\n    readonly enabled: boolean;\n} | {\n    readonly status: \'refused\';\n    readonly reason: \'unknown\' | \'unavailable\' | \'not-live-root\' | \'closing\';\n};',
   },
   {
+    name: 'RecordCommandError',
+    declaration: 'export interface RecordCommandError {\n    readonly error: RecordCommandRefusal;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'RecordCommandRefusal',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+  },
+  {
+    name: 'RecordCommandResult',
+    declaration: 'export type RecordCommandResult<T> = T | RecordCommandError;',
+  },
+  {
+    name: 'RecordSeq',
+    declaration: 'export type RecordSeq = BrandedNumber<\'RecordSeq\'>;',
+  },
+  {
     name: 'RecurringScheduleRecord',
     declaration: 'export type RecurringScheduleRecord = EveryScheduleRecord | DailyScheduleRecord | WeeklyScheduleRecord | CronScheduleRecord | RRuleScheduleRecord;',
   },
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'RedlineParagraph',
+    declaration: 'export interface RedlineParagraph {\n    readonly mark: SegmentKind;\n    readonly segments: readonly RedlineSegment[];\n}',
+  },
+  {
+    name: 'RedlineSegment',
+    declaration: 'export interface RedlineSegment {\n    readonly kind: SegmentKind;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'RegisterApplication',
+    declaration: 'export type RegisterApplication = Branded<\'RegisterApplication\'>;',
+  },
+  {
+    name: 'RegisterEntry',
+    declaration: 'export interface RegisterEntry {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
+    name: 'RegisterEventView',
+    declaration: 'export interface RegisterEventView {\n    readonly date: string;\n    readonly code: string;\n    readonly description: string;\n}',
+  },
+  {
+    name: 'RegisterOpponent',
+    declaration: 'export interface RegisterOpponent extends RegisterParty {\n    readonly filedOn?: string;\n    readonly status?: string;\n}',
+  },
+  {
+    name: 'RegisterPage',
+    declaration: 'export interface RegisterPage {\n    readonly total: number;\n    readonly begin: number;\n    readonly end: number;\n    readonly rows: readonly RegisterRow[];\n}',
+  },
+  {
+    name: 'RegisterParty',
+    declaration: 'export interface RegisterParty {\n    readonly name: string;\n    readonly country?: string;\n    readonly address: readonly string[];\n}',
+  },
+  {
+    name: 'RegisterRow',
+    declaration: 'export interface RegisterRow {\n    readonly applicationNumber: EpApplicationNumber;\n    readonly publicationNumber?: EpPublicationNumber;\n    readonly title?: string;\n    readonly applicants: readonly string[];\n    readonly representatives: readonly RegisterParty[];\n    readonly representativeSince?: string;\n    readonly opponents: readonly RegisterOpponent[];\n    readonly status?: string;\n    readonly filed?: string;\n    readonly published?: string;\n}',
   },
   {
     name: 'Registry',
@@ -8474,6 +9557,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}',
   },
   {
+    name: 'ReportKind',
+    declaration: 'export type ReportKind = \'client-report\' | \'office-reply\';',
+  },
+  {
+    name: 'ReportProposal',
+    declaration: 'export interface ReportProposal {\n    readonly kind: ReportKind;\n    readonly fileName: string;\n    readonly content: Uint8Array;\n    readonly templateName: string;\n    readonly templateVersion: string;\n    readonly rulesSeq: RecordSeq;\n    readonly statements: readonly [\n        ReportStatement,\n        ...ReportStatement[]\n    ];\n    readonly session: SessionId;\n    readonly toolCall: ToolCallId;\n}',
+  },
+  {
+    name: 'ReportStatement',
+    declaration: 'export interface ReportStatement {\n    readonly text: string;\n    readonly evidence: readonly [\n        StatementEvidence,\n        ...StatementEvidence[]\n    ];\n}',
+  },
+  {
     name: 'RequestContext',
     declaration: 'export interface RequestContext {\n    provider: string;\n    model: string;\n    contextWindow?: number;\n    systemPromptUpdate?: SystemPromptUpdate;\n}',
   },
@@ -8530,6 +9625,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedToolSet {\n    dispose(): void;\n    view(scope: ScopeKey | undefined): ReadonlyMap<string, ToolDefinition>;\n}',
   },
   {
+    name: 'ResponseOption',
+    declaration: 'export interface ResponseOption {\n    readonly label: string;\n    readonly text: string;\n}',
+  },
+  {
     name: 'RestartReason',
     declaration: 'export type RestartReason = \'no-hmr\' | \'package-moved\' | \'host-module\' | \'unmanaged-plugin\' | \'module-comparison\';',
   },
@@ -8554,8 +9653,40 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
   },
   {
+    name: 'ReviewEntry',
+    declaration: 'export interface ReviewEntry extends ReviewFields {\n    readonly ground: string;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'ReviewFields',
+    declaration: 'export interface ReviewFields {\n    readonly state: WorkPageReviewState;\n    readonly owner: string;\n    readonly note: string;\n}',
+  },
+  {
+    name: 'ReviewRequest',
+    declaration: 'export interface ReviewRequest {\n    readonly file: Uint8Array;\n    readonly action: \'accept\' | \'reject\';\n    readonly selection: ReviewSelection;\n}',
+  },
+  {
+    name: 'ReviewResult',
+    declaration: 'export interface ReviewResult {\n    readonly file: Uint8Array;\n    readonly changed: number;\n}',
+  },
+  {
+    name: 'ReviewSelection',
+    declaration: 'export type ReviewSelection = {\n    readonly kind: \'all\';\n} | {\n    readonly kind: \'author\';\n    readonly author: string;\n} | {\n    readonly kind: \'ids\';\n    readonly ids: readonly number[];\n};',
+  },
+  {
+    name: 'ReviewState',
+    declaration: 'export type ReviewState = \'running\' | \'needs_review\';',
+  },
+  {
     name: 'ReviewVerdict',
     declaration: 'export type ReviewVerdict = \'approved\' | \'changes-requested\' | \'commented\' | \'dismissed\';',
+  },
+  {
+    name: 'RoutineReview',
+    declaration: 'export interface RoutineReview {\n    readonly sessionId: SessionId;\n    readonly taskId: string;\n    readonly state: ReviewState;\n    readonly since: string;\n}',
+  },
+  {
+    name: 'RoutineWatch',
+    declaration: 'export interface RoutineWatch {\n    readonly taskId: ScheduleId;\n    readonly sessionId: SessionId;\n    readonly title: string;\n    readonly nextCheckAt?: string;\n    readonly applications: readonly WatchedApplication[];\n}',
   },
   {
     name: 'RpcId',
@@ -8566,8 +9697,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RRuleScheduleRecord {\n    readonly kind: \'rrule\';\n    readonly id: ScheduleId;\n    readonly title: string;\n    readonly prompt: string;\n    readonly rrule: string;\n    readonly scheduledAt: string;\n}',
   },
   {
+    name: 'RuleId',
+    declaration: 'export type RuleId = Branded<\'RuleId\'>;',
+  },
+  {
+    name: 'RunFinish',
+    declaration: 'export interface RunFinish {\n    readonly session: SessionId;\n    readonly deadline: DeadlineSummary;\n}',
+  },
+  {
+    name: 'RunFinishReceipt',
+    declaration: 'export interface RunFinishReceipt {\n    readonly recordSeq: RecordSeq;\n    readonly outbox: {\n        readonly id: OutboxId;\n        readonly state: \'queued\' | \'refused\';\n    } | null;\n}',
+  },
+  {
     name: 'RunnerFailureRule',
     declaration: 'export interface RunnerFailureRule {\n    allowedExitCodes?: readonly number[];\n    fatalSignatures: readonly string[];\n    informationalLines?: readonly string[];\n}',
+  },
+  {
+    name: 'RunStart',
+    declaration: 'export interface RunStart {\n    readonly session: SessionId;\n}',
+  },
+  {
+    name: 'RunStartReceipt',
+    declaration: 'export interface RunStartReceipt {\n    readonly recordSeq: RecordSeq;\n}',
   },
   {
     name: 'SandboxEnforcement',
@@ -8606,6 +9757,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
+    name: 'ScheduleAdmission',
+    declaration: 'export type ScheduleAdmission = {\n    readonly kind: \'deliver\';\n    readonly prompt: string;\n    readonly sessionId?: SessionId;\n} | {\n    readonly kind: \'skip\';\n};',
+  },
+  {
+    name: 'ScheduleAdmissionRequest',
+    declaration: 'export interface ScheduleAdmissionRequest {\n    readonly record: ScheduleRecord;\n    readonly target: ScheduleTarget;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
     name: 'ScheduleCatalogEntry',
     declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly target: ScheduleTarget;\n    readonly involvedSessionIds: SessionId[];\n    readonly status: \'active\' | \'paused\' | \'ended\';\n    readonly createdAt?: string;\n    readonly updatedAt?: string;\n    readonly executionActive?: true;\n    readonly deliveryFloorEndsAt?: string;\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
   },
@@ -8624,6 +9783,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ScheduleDeleteResult',
     declaration: 'export type ScheduleDeleteResult = {\n    readonly id: ScheduleId;\n    readonly deleted: true;\n} | {\n    readonly id: ScheduleId;\n    readonly deleted: false;\n    readonly code: \'schedule_not_found\';\n};',
+  },
+  {
+    name: 'ScheduleDelivered',
+    declaration: 'export interface ScheduleDelivered {\n    readonly id: ScheduleId;\n    readonly receipt: ScheduleDeliveryReceipt;\n    readonly trigger: \'timed\' | \'manual\';\n}',
   },
   {
     name: 'ScheduleDeliveryHistoryMiss',
@@ -8730,6 +9893,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SearchFileMatches {\n    path: string;\n    matches: SearchLineMatch[];\n}',
   },
   {
+    name: 'SearchHit',
+    declaration: 'export interface SearchHit {\n    readonly file: string;\n    readonly at: number;\n    readonly unit: LocationUnit;\n    readonly passage: string;\n}',
+  },
+  {
     name: 'SearchLineMatch',
     declaration: 'export interface SearchLineMatch {\n    lineNumber: number;\n    line: string;\n}',
   },
@@ -8744,6 +9911,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SegmentKind',
+    declaration: 'export type SegmentKind = \'same\' | \'ins\' | \'del\';',
   },
   {
     name: 'SerializedElement',
@@ -9482,6 +10653,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ShareSessions {\n    readonly shareId: string;\n    readonly sessionIds: readonly string[];\n}',
   },
   {
+    name: 'SheetSummary',
+    declaration: 'export interface SheetSummary {\n    readonly name: string;\n    readonly rows: number;\n    readonly cols: number;\n}',
+  },
+  {
     name: 'ShellExecRequest',
     declaration: 'export interface ShellExecRequest {\n    command: string;\n    workdir?: string | undefined;\n    timeoutMs?: number | undefined;\n    onExpiry?: ShellExpiryPolicy | undefined;\n    stdoutMaxBytes?: number | undefined;\n    signal?: AbortSignal | undefined;\n    stdin?: string | undefined;\n    env?: Record<string, string> | undefined;\n    dshEnv?: DshEnvironment | undefined;\n    sandboxPolicy?: SandboxExecutionPolicy | undefined;\n}',
   },
@@ -9538,6 +10713,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillCandidate extends SkillSummary {\n    readonly rank: number;\n    readonly locator: unknown;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
   {
+    name: 'SkillCandidateRef',
+    declaration: 'export interface SkillCandidateRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path?: string | undefined;\n}',
+  },
+  {
     name: 'SkillCatalogSnapshot',
     declaration: 'export interface SkillCatalogSnapshot {\n    readonly skills: SkillSummary[];\n    readonly complete: boolean;\n}',
   },
@@ -9548,6 +10727,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillEntry',
     declaration: 'export interface SkillEntry {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
+  },
+  {
+    name: 'SkillFault',
+    declaration: 'export interface SkillFault {\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path: string;\n    readonly reason: SkillFaultReason;\n}',
+  },
+  {
+    name: 'SkillFaultReason',
+    declaration: 'export type SkillFaultReason = {\n    readonly kind: \'missing-frontmatter\';\n} | {\n    readonly kind: \'invalid-yaml\';\n    readonly detail: string;\n} | {\n    readonly kind: \'missing-field\';\n    readonly field: \'name\' | \'description\';\n} | {\n    readonly kind: \'invalid-name\';\n    readonly name: string;\n} | {\n    readonly kind: \'invalid-invocation\';\n    readonly detail: string;\n} | {\n    readonly kind: \'not-text\';\n    readonly detail: string;\n};',
+  },
+  {
+    name: 'SkillFaultRow',
+    declaration: 'export interface SkillFaultRow {\n    readonly path: string;\n    readonly origin: SkillOrigin;\n    readonly reason: SkillFaultReason;\n}',
+  },
+  {
+    name: 'SkillInventory',
+    declaration: 'export interface SkillInventory {\n    readonly skills: readonly SkillInventoryEntry[];\n    readonly faults: readonly SkillFault[];\n    readonly complete: boolean;\n}',
+  },
+  {
+    name: 'SkillInventoryEntry',
+    declaration: 'export interface SkillInventoryEntry extends SkillSummary {\n    readonly replacedBy?: Pick<SkillCandidateRef, \'provider\' | \'source\'>;\n}',
+  },
+  {
+    name: 'SkillInventoryRow',
+    declaration: 'export interface SkillInventoryRow extends SkillRef {\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly origin: SkillOrigin;\n    readonly userInvocable: boolean;\n    readonly modelInvocable: boolean;\n    readonly replacedBy?: {\n        readonly provider: string;\n        readonly source: SkillSource;\n        readonly origin: SkillOrigin;\n    };\n}',
+  },
+  {
+    name: 'SkillInventoryValue',
+    declaration: 'export interface SkillInventoryValue {\n    readonly skills: readonly SkillInventoryRow[];\n    readonly faults: readonly SkillFaultRow[];\n    readonly complete: boolean;\n}',
   },
   {
     name: 'SkillInvocationPolicy',
@@ -9566,6 +10773,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillLookupOptions {\n    readonly cwd?: string | undefined;\n    readonly signal?: AbortSignal | undefined;\n}',
   },
   {
+    name: 'SkillOrigin',
+    declaration: 'export type SkillOrigin = {\n    readonly kind: \'firm\';\n} | {\n    readonly kind: \'mine\';\n} | {\n    readonly kind: \'project\';\n} | {\n    readonly kind: \'plugin\';\n    readonly name: string;\n};',
+  },
+  {
     name: 'SkillProvider',
     declaration: 'export interface SkillProvider {\n    readonly name: string;\n    readonly list: (options: SkillLookupOptions) => Promise<readonly SkillCandidate[] | SkillProviderObservation>;\n    readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>;\n}',
   },
@@ -9575,7 +10786,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillProviderObservation',
-    declaration: 'export interface SkillProviderObservation {\n    readonly candidates: readonly SkillCandidate[];\n    readonly complete: boolean;\n}',
+    declaration: 'export interface SkillProviderObservation {\n    readonly candidates: readonly SkillCandidate[];\n    readonly complete: boolean;\n    readonly faults?: readonly SkillFault[];\n}',
+  },
+  {
+    name: 'SkillRef',
+    declaration: 'export interface SkillRef {\n    readonly name: string;\n    readonly provider: string;\n    readonly source: SkillSource;\n    readonly path?: string | undefined;\n}',
   },
   {
     name: 'SkillRegistration',
@@ -9592,6 +10807,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillSummary',
     declaration: 'export interface SkillSummary {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly invocation: SkillInvocationPolicy;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly resourceBase?: SkillResourceBase;\n}',
+  },
+  {
+    name: 'SkillTextValue',
+    declaration: 'export interface SkillTextValue {\n    readonly content: string;\n}',
   },
   {
     name: 'SkillViewOptions',
@@ -9692,6 +10911,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'StagedAttachment',
     declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
+  },
+  {
+    name: 'StatementEvidence',
+    declaration: 'export interface StatementEvidence {\n    readonly document: DocumentSha256;\n    readonly span: DocumentSpan;\n}',
   },
   {
     name: 'StopShareRequest',
@@ -9922,6 +11145,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
   },
   {
+    name: 'TaskState',
+    declaration: 'export type TaskState = \'assigned\' | \'queued\' | \'escalated\' | \'alarm\';',
+  },
+  {
     name: 'TeamTaskAction',
     declaration: 'export type TeamTaskAction = \'claim\' | \'release\' | \'edit\' | \'set_dependencies\' | \'complete\' | \'reopen\' | \'reassign\' | \'delete\';',
   },
@@ -10068,6 +11295,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TextProps',
     declaration: 'export interface TextProps {\n    readonly color?: string | undefined;\n    readonly bold?: boolean | undefined;\n    readonly dimColor?: boolean | undefined;\n    readonly italic?: boolean | undefined;\n    readonly underline?: boolean | undefined;\n    readonly children?: UiNode | undefined;\n}',
+  },
+  {
+    name: 'TicketId',
+    declaration: 'export type TicketId = Branded<\'TicketId\'>;',
+  },
+  {
+    name: 'TicketState',
+    declaration: 'export type TicketState = \'opened\' | \'no_person\' | \'routed\' | \'observed\' | \'by_hand\' | \'waking\' | \'running\' | \'run_failed\' | \'proposals_ready\' | \'decided\' | \'cancelled\';',
+  },
+  {
+    name: 'TicketSummary',
+    declaration: 'export interface TicketSummary {\n    readonly id: TicketId;\n    readonly pass: number;\n    readonly state: TicketState;\n    readonly routedTo: string | null;\n}',
   },
   {
     name: 'TimedUserQuestionResult',
@@ -10247,7 +11486,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolsService',
-    declaration: 'export class ToolsService extends Service {\n    static inject;\n    static Config;\n    constructor(ctx: Context);\n    register(definition: ToolDefinition, options: ToolRegistrationOptions = {}): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    get(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    executable(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    async resolve(context: ToolActivationContext): Promise<ResolvedToolSet>;\n    definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[];\n    schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[];\n    setExecutor(executor: ToolExecutor): () => void;\n    async execute(input: ToolBatchInput): Promise<ToolBatchResult>;\n    guard(guard: ToolGuard): () => void;\n    checkGuards(exec: ToolExecution): ToolGuardDenial | undefined;\n}',
+    declaration: 'export class ToolsService extends Service {\n    static inject;\n    static Config;\n    constructor(ctx: Context);\n    register(definition: ToolDefinition, options: ToolRegistrationOptions = {}): () => void;\n    restrict(filter: ToolRestriction): () => void;\n    get(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    executable(name: string, scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolDefinition | undefined;\n    async resolve(context: ToolActivationContext): Promise<ResolvedToolSet>;\n    definitions(scope?: ScopeKey, toolSet?: ResolvedToolSet): readonly ToolDefinition[];\n    registeredBy(fiber: Fiber): string[];\n    schemas(scope?: ScopeKey, toolSet?: ResolvedToolSet): ToolSchema[];\n    setExecutor(executor: ToolExecutor): () => void;\n    async execute(input: ToolBatchInput): Promise<ToolBatchResult>;\n    guard(guard: ToolGuard): () => void;\n    checkGuards(exec: ToolExecution): ToolGuardDenial | undefined;\n}',
   },
   {
     name: 'ToolUpdate',
@@ -10256,6 +11495,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ToolUseSummary',
     declaration: 'export interface ToolUseSummary {\n    tool_use_id: string;\n    tool: string;\n    input: Record<string, unknown>;\n}',
+  },
+  {
+    name: 'TraceStep',
+    declaration: 'export interface TraceStep {\n    readonly op: string;\n    readonly from: LocalDate;\n    readonly to: LocalDate;\n    readonly cite: string;\n}',
+  },
+  {
+    name: 'TrackedRevision',
+    declaration: 'export interface TrackedRevision {\n    readonly id: number;\n    readonly type: string;\n    readonly author: string;\n    readonly date?: string;\n    readonly text: string;\n}',
   },
   {
     name: 'Transcript',
@@ -10494,6 +11741,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ViewerPluginPolicy {\n    readonly plugin: string;\n    readonly mode: \'all\' | \'none\' | \'selected\';\n    readonly endpoints?: readonly string[];\n}',
   },
   {
+    name: 'ViewHash',
+    declaration: 'export type ViewHash = Branded<\'ViewHash\'>;',
+  },
+  {
+    name: 'WatchedApplication',
+    declaration: 'export interface WatchedApplication {\n    readonly application: string;\n    readonly readAt?: string;\n    readonly latest?: RegisterEventView;\n}',
+  },
+  {
     name: 'WebBootBatch',
     declaration: 'export interface WebBootBatch {\n    phase: WebBootBatchPhase;\n    url: string;\n    rev: string;\n    entries: string[];\n}',
   },
@@ -10551,7 +11806,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WebhookRule',
-    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n}',
+    declaration: 'export interface WebhookRule<K extends string = string> {\n    readonly id: WebhookRuleId;\n    readonly kind: K;\n    run(delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): WebhookSessionRequest | null | Promise<WebhookSessionRequest | null>;\n    started?(session: SessionId, delivery: Readonly<VerifiedWebhookDelivery<K>>, signal: AbortSignal): void | Promise<void>;\n    failed?(error: unknown, delivery: Readonly<VerifiedWebhookDelivery<K>>): void | Promise<void>;\n}',
   },
   {
     name: 'WebhookRuleId',
@@ -10638,6 +11893,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WeeklyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'weekly\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly weekdays: number[];\n    readonly scheduledAt: string;\n}',
   },
   {
+    name: 'WoPublicationNumber',
+    declaration: 'export type WoPublicationNumber = Branded<\'WoPublicationNumber\'>;',
+  },
+  {
     name: 'WorkflowAgentEndInfo',
     declaration: 'export interface WorkflowAgentEndInfo extends WorkflowAgentInfo {\n    outcome: WorkflowAgentOutcome;\n}',
   },
@@ -10684,6 +11943,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkGroup',
+    declaration: 'export type WorkGroup = \'overdue\' | \'today\' | \'later\';',
+  },
+  {
+    name: 'WorkItem',
+    declaration: 'export interface WorkItem {\n    readonly id: string;\n    readonly task?: string;\n    readonly state?: TaskState;\n    readonly group?: WorkGroup;\n    readonly dueAt?: string;\n    readonly kind: WorkKind;\n    readonly title: string;\n    readonly why: string;\n    readonly matter: WorkMatter | null;\n    readonly due: LocalDate | null;\n    readonly since: string;\n    readonly act: string;\n}',
+  },
+  {
+    name: 'WorkKind',
+    declaration: 'export type WorkKind = KnownWorkKind | (string & {});',
+  },
+  {
+    name: 'WorkMatter',
+    declaration: 'export interface WorkMatter {\n    readonly fileNumber: MatterFileNumber;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'WorkPageFile',
+    declaration: 'export interface WorkPageFile {\n    readonly schemaVersion: 1;\n    readonly kind: \'office-action\';\n    readonly about: string;\n    readonly report: string;\n    readonly findings: OfficeActionFindings;\n    readonly review: Readonly<Record<string, ReviewEntry>>;\n}',
+  },
+  {
+    name: 'WorkPageId',
+    declaration: 'export type WorkPageId = Branded<\'FlowleapWorkPageId\'>;',
+  },
+  {
+    name: 'WorkPageReviewRequest',
+    declaration: 'export interface WorkPageReviewRequest {\n    readonly id: WorkPageId;\n    readonly objection: string;\n    readonly state?: WorkPageReviewState;\n    readonly owner?: string;\n    readonly note?: string;\n}',
+  },
+  {
+    name: 'WorkPageReviewState',
+    declaration: 'export type WorkPageReviewState = typeof REVIEW_STATES[number];',
+  },
+  {
+    name: 'WorkPageSummary',
+    declaration: 'export interface WorkPageSummary {\n    readonly id: WorkPageId;\n    readonly sessionId: SessionId;\n    readonly report: string;\n    readonly path: string;\n    readonly application: string;\n    readonly communication: string;\n    readonly savedAt: string;\n    readonly objections: number;\n    readonly needsReview: number;\n}',
+  },
+  {
+    name: 'WorkPageView',
+    declaration: 'export interface WorkPageView {\n    readonly summary: WorkPageSummary;\n    readonly file: WorkPageFile;\n}',
   },
   {
     name: 'Workspace',

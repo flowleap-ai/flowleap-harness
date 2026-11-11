@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-flowleap-models",
   "description": "The desktop model step on the Models page: Test on the Anthropic, OpenAI and OpenRouter cards, and Connect OpenRouter, over the flowleapModels Remote of dsh-flowleap-models",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-records",
   "description": "The Matters row in the FlowLeap sidebar (German Akten) and the Matters panel: the IPMS views (intake, matters, deadline, work on a letter, the work board) over the Records API of flowleap-os at the same origin",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },

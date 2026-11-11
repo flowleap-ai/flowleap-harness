@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-connectors",
   "description": "In-process FlowLeap patent-data connectors: the EPO OPS, USPTO ODP, academic and Mistral OCR clients of @flowleap/connectors over the dsh credential, logging, filesystem and tool seams, with the native read_pdf tool and the flowleapConnectors Remote for the settings cards",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -48,7 +48,8 @@
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts"
+    "lib/typert.remote-client.d.ts",
+    "lib/typert.remote-client.d.ts.map"
   ],
   "license": "MIT",
   "dependencies": {
@@ -56,7 +57,7 @@
     "@flowleap/connectors": "workspace:~",
     "commander": "^15.0.0",
     "fflate": "^0.8.3",
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",

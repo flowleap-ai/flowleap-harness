@@ -949,7 +949,7 @@ describe('PluginManagerPage', () => {
 
   it('lists the rows of a skipped layer whose patch the Host read, none of them live', () => {
     const name = 'dsh-late'
-    renderTab({ packages: [pkg({ name, error: { code: 'unsupported-platform' }, rows: [{ rowId: 'late', moduleName: name, enabled: false, phase: null }] })] })
+    renderTab({ packages: [pkg({ name, error: { code: 'unsupported-platform' }, rows: [{ rowId: 'late', moduleName: name, enabled: false, phase: null, tools: [], hasClient: false }] })] })
     fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', name) }))
     const detail = document.querySelector(`[data-plugin-detail="${name}"]`) as HTMLElement
     expect(within(detail).getByText(en.statusNotRunning)).toBeTruthy()
