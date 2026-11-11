@@ -99,7 +99,9 @@ describe('Records API answers', () => {
     expect(read(missing)).toEqual(missing)
     expect(parsers.intakeDocument({ ...intakeDocumentWire, period: missing }, 'body').period).toEqual(missing)
     expect(pathOf(() => read({ ...missing, state: 'guessed' }))).toBe('body.officeEvent.period.state')
-    expect(pathOf(() => read({ ...missing, reason: 'model' }))).toBe('body.officeEvent.period.reason')
+    expect(read({ ...missing, reason: 'a-later-reason' })).toEqual({ ...missing, reason: 'other' })
+    expect(read({ ...missing, reason: 'ocr-text' })).toEqual({ ...missing, reason: 'ocr-text' })
+    expect(pathOf(() => read({ ...missing, reason: 4 }))).toBe('body.officeEvent.period.reason')
     expect(pathOf(() => read({ state: 'known', months: 4, source: { kind: 'model' } }))).toBe('body.officeEvent.period.source.kind')
   })
 

@@ -339,9 +339,10 @@ describe('the two dates of a letter whose readings differ', () => {
 
 describe('the period that the letter sets', () => {
   const event = FIXTURE_IDS.officeEvent as OfficeEventId
-  const missing = (reason: 'no-text' | 'not-found' | 'two-values' | 'out-of-range', found: number[] = []): IntakeDocument => ({
+  const missing = (reason: Extract<IntakeDocument['period'], { state: 'missing' }>['reason'], found: number[] = []): IntakeDocument => ({
     ...fixtures.intakeDocument,
     status: { machine: 'deadline', state: 'engine_refused' },
+    mayDecide: { allowed: true },
     officeEvent: { id: event, state: 'engine_refused' },
     period: { state: 'missing', reason, found, range: { minMonths: 2, maxMonths: 6 }, recordSeq: 50 },
     proposed: null,
@@ -368,7 +369,8 @@ describe('the period that the letter sets', () => {
   it('says why FlowLeap read no period, in English and German', async () => {
     for (const [reason, found, text] of [
       ['no-text', [], en['letter.period.why.no-text']], ['not-found', [], en['letter.period.why.not-found']],
-      ['out-of-range', [7], 'The letter names 7 months, outside 2 to 6 months.'],
+      ['out-of-range', [7], 'The letter names 7 months, outside 2 to 6 months.'], ['ocr-text', [], en['letter.period.why.ocr-text']],
+      ['not-read', [], en['letter.period.why.not-read']], ['other', [], en['letter.period.why.other']],
     ] as const) {
       await mountLetter(missing(reason, [...found]))
       expect(document.body.textContent).toContain(text)

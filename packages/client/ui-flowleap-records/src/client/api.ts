@@ -362,7 +362,8 @@ export type Readers = Parsed<typeof readers>
 /**
  * The period that the letter of an office event sets (Rule 132(2) EPC, for example an Art. 94(3) communication): `known` with the
  * months and where they come from (read on a page of the letter, with the words, or entered by a person), or `missing` with why
- * the os read none, the values it found, the range of the rule and the record position that the entry sends.
+ * the os read none, the values it found, the range of the rule and the record position that the entry sends. A reason that this
+ * client does not know reads as `other`.
  */
 export type LetterPeriod =
   | {
@@ -372,11 +373,21 @@ export type LetterPeriod =
   }
   | {
     readonly state: 'missing'
-    readonly reason: 'no-text' | 'not-found' | 'two-values' | 'out-of-range'
+    readonly reason: PeriodReason
     readonly found: readonly number[]
     readonly range: { readonly minMonths: number; readonly maxMonths: number }
     readonly recordSeq: number
   }
+/**
+ * Why the os read no period: no text layer, an OCR text only, no wording on page 1, two values, a value outside the range, or a
+ * letter recorded before the os read periods.
+ */
+const PERIOD_REASONS = ['no-text', 'ocr-text', 'not-found', 'two-values', 'out-of-range', 'not-read'] as const
+type PeriodReason = typeof PERIOD_REASONS[number] | 'other'
+const periodReason: Parse<PeriodReason> = (value, path) => {
+  const reason = str(value, path)
+  return PERIOD_REASONS.find(known => known === reason) ?? 'other'
+}
 const periodSource: Parse<Extract<LetterPeriod, { state: 'known' }>['source']> = (value, path) =>
   oneOf(['reader', 'entered'])(objectAt(value, path)['kind'], `${path}.kind`) === 'reader'
     ? { kind: 'reader', ...obj({ page: num, quote: str })(value, path) }
@@ -386,7 +397,7 @@ const letterPeriodOf: Parse<LetterPeriod> = (value, path) =>
     ? { state: 'known', ...obj({ months: num, source: periodSource })(value, path) }
     : {
       state: 'missing',
-      ...obj({ reason: oneOf(['no-text', 'not-found', 'two-values', 'out-of-range']), found: arrayOf(num), range: obj({ minMonths: num, maxMonths: num }), recordSeq: num })(value, path),
+      ...obj({ reason: periodReason, found: arrayOf(num), range: obj({ minMonths: num, maxMonths: num }), recordSeq: num })(value, path),
     }
 /** The period of an answer: absent (an os before the period) reads as null, like null. */
 const letterPeriod: Parse<LetterPeriod | null> = (value, path) => value === undefined ? null : nullable(letterPeriodOf)(value, path)

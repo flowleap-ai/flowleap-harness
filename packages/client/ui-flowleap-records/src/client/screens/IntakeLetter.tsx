@@ -315,7 +315,8 @@ function whyLine(ctx: ScreenContext, decision: LetterDecision, matter: MatterRef
 }
 
 /**
- * Why FlowLeap read no period that the deadline can use: no text, no wording on page 1, two values, or a value outside the rule's range.
+ * Why FlowLeap read no period that the deadline can use: no text layer, an OCR text only, no wording on page 1, two values, a value
+ * outside the rule's range, a letter recorded before FlowLeap read periods, or another reason.
  * @param ctx - the screen context.
  * @param missing - the missing period.
  * @returns the sentence.
@@ -782,7 +783,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       )
       : (
         <DecisionBar
-          heading={decisionHeading(ctx, ctx.me.person, picking || decision.kind === 'period' ? { allowed: true } : letter.mayDecide)}
+          heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
           question={decision.kind === 'period' ? t('letter.period.question') : decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' ? t('letter.hand.question') : t('decision.whichMatter')}
           why={whyLine(ctx, decision, matterOf)}
           labels={{ more: t('decision.more') }}
