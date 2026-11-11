@@ -12,7 +12,7 @@ import {
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
-import type { Command, IntakeDocument, IntakeView, IsoDate, MatterRef, Person, Span } from '../api.ts'
+import type { Command, IntakeDocument, IntakeView, IsoDate, LetterPeriod, MatterRef, OfficeEventId, Person, Span } from '../api.ts'
 import type { ActsResult } from '../model.ts'
 import type { CommandMenuItem } from '@deepseek-ai/dsh-client-ui-commands/client'
 import { commandId } from '../keys.ts'
@@ -44,6 +44,11 @@ export type LetterDecision =
   /** The reading of an office event waits for a person: record it. */
   | { readonly kind: 'code' }
   /**
+   * The office event needs the period that the letter sets (Rule 132(2) EPC), and FlowLeap read none: the person enters the
+   * months from the letter, and a second person confirms the deadline.
+   */
+  | { readonly kind: 'period'; readonly id: OfficeEventId; readonly missing: Extract<LetterPeriod, { state: 'missing' }> }
+  /**
    * The scan has no reading: the person reads the page and enters the office event, which also files the scan. The
    * Records API has no command for it yet, so the bar shows the step and blocks its act.
    */
@@ -66,6 +71,7 @@ export type LetterDecision =
  */
 export function letterDecision(ctx: ScreenContext, letter: IntakeDocument): LetterDecision {
   const may = letter.mayDecide
+  if (letter.officeEvent?.state === 'engine_refused' && letter.period?.state === 'missing') return { kind: 'period', id: letter.officeEvent.id, missing: letter.period }
   if (letter.status.machine === 'deadline' && letter.status.state !== 'code_proposed' && letter.status.state !== 'awaiting_code') return { kind: 'done' }
   if (!may.allowed) {
     if (may.reason === 'not-ready' && letter.filed !== null) return { kind: 'filed', fileNumber: letter.filed.fileNumber }
@@ -309,6 +315,17 @@ function whyLine(ctx: ScreenContext, decision: LetterDecision, matter: MatterRef
 }
 
 /**
+ * Why FlowLeap read no period that the deadline can use: no text layer, an OCR text only, no wording on page 1, two values, a value
+ * outside the rule's range, a letter recorded before FlowLeap read periods, or another reason.
+ * @param ctx - the screen context.
+ * @param missing - the missing period.
+ * @returns the sentence.
+ */
+function periodWhy(ctx: ScreenContext, missing: Extract<LetterPeriod, { state: 'missing' }>): string {
+  return ctx.t(`letter.period.why.${missing.reason}`, { found: missing.found.join(', '), min: missing.range.minMonths, max: missing.range.maxMonths })
+}
+
+/**
  * The second sentence of the lede: what the record found for the letter.
  * @param ctx - the screen context.
  * @param letter - the letter.
@@ -524,6 +541,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
   const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
   const [chosenDate, setChosenDate] = useState<IsoDate | null>(null)
+  const [months, setMonths] = useState<number | null>(null)
   const runner = useActRunner(ctx.perform)
   const busy = runner.run.phase === 'running'
   const settle = (sent: Promise<ActsResult | null>) => {
@@ -556,6 +574,9 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     if (decision.kind === 'match' && !picking) return () => { match(decision.proposed.fileNumber) }
     if (canPick && picked !== null) return () => { match(picked.fileNumber) }
     if (handAct !== null) return () => { decide(handAct) }
+    if (decision.kind === 'period') {
+      return months === null ? null : () => { decide({ kind: 'officeEvent.period', id: decision.id, months, seen: decision.missing.recordSeq }) }
+    }
     if (decision.kind === 'code') {
       const event = letter.officeEvent
       const { code, applicationNumber } = letter
@@ -565,7 +586,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     }
     return null
   })()
-  const primaryLabel = decision.kind === 'code'
+  const primaryLabel = decision.kind === 'period' ? t('letter.period.act') : decision.kind === 'code'
     ? t(dates === null ? 'intake.act.recordEvent' : 'act.recordDecision')
     : decision.kind === 'hand'
       ? t('letter.hand.act')
@@ -683,6 +704,33 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             missing={record === null ? t('intake.decision.eventMissing') : null}
           />
         )
+      case 'period': {
+        const { minMonths, maxMonths } = decision.missing.range
+        return (
+          <DecisionPart
+            icon={<IconEditOutlineRegular size={16} />}
+            title={months === null ? t('letter.period.part') : `${t('letter.period.part')} · ${t('letter.period.months', { count: months })}`}
+            detail={periodWhy(ctx, decision.missing)}
+            missing={months === null ? `${periodWhy(ctx, decision.missing)} ${t('letter.period.none')}` : null}
+            control={(
+              <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('letter.period.part')}>
+                {Array.from({ length: maxMonths - minMonths + 1 }, (_, i) => minMonths + i).map(count => (
+                  <Button
+                    key={count}
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={months === count}
+                    className={months === count ? detail.on : undefined}
+                    onClick={() => { setMonths(count); runner.clear() }}
+                  >
+                    {t('letter.period.months', { count })}
+                  </Button>
+                ))}
+              </span>
+            )}
+          />
+        )
+      }
       case 'hand': return (
         <DecisionPart
           icon={<IconEditOutlineRegular size={16} />}
@@ -708,7 +756,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       case 'none': return undefined
     }
   })()
-  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || picking
+  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || decision.kind === 'period' || picking
   const finished = decision.kind === 'filed' || decision.kind === 'done'
   const deadline = letter.deadline
   const doneActs = [
@@ -736,12 +784,12 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       : (
         <DecisionBar
           heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
-          question={decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' ? t('letter.hand.question') : t('decision.whichMatter')}
+          question={decision.kind === 'period' ? t('letter.period.question') : decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' ? t('letter.hand.question') : t('decision.whichMatter')}
           why={whyLine(ctx, decision, matterOf)}
           labels={{ more: t('decision.more') }}
           decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
           parts={parts}
-          note={nextNote}
+          note={decision.kind === 'period' ? t('letter.period.note') : nextNote}
           failure={failureNotice(ctx, runner.run, retry)}
           negative={canClose
             ? {

@@ -88,6 +88,23 @@ describe('Records API answers', () => {
     expect(pathOf(() => parsers.matterDetail({ ...wire, wall: { ...wire.wall, team: [{ ...lena, role: 'guest' }] } }, 'body'))).toBe('body.wall.team[0].role')
   })
 
+  it('reads the period that a letter sets, known or missing, and an os before the period as none', () => {
+    const event = deadlineWire.officeEvent
+    const read = (period: unknown) => parsers.deadlineDetail({ ...deadlineWire, officeEvent: { ...event, period } }, 'body').officeEvent.period
+    expect(parsers.deadlineDetail(deadlineWire, 'body').officeEvent.period).toBeNull()
+    expect(read(null)).toBeNull()
+    expect(read({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months' } })).toEqual({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months' } })
+    expect(read({ state: 'known', months: 4, source: { kind: 'entered', by: { id: 'p-lena', name: null } } })!.state).toBe('known')
+    const missing = { state: 'missing', reason: 'no-text', found: [], range: { minMonths: 2, maxMonths: 6 }, recordSeq: 7 }
+    expect(read(missing)).toEqual(missing)
+    expect(parsers.intakeDocument({ ...intakeDocumentWire, period: missing }, 'body').period).toEqual(missing)
+    expect(pathOf(() => read({ ...missing, state: 'guessed' }))).toBe('body.officeEvent.period.state')
+    expect(read({ ...missing, reason: 'a-later-reason' })).toEqual({ ...missing, reason: 'other' })
+    expect(read({ ...missing, reason: 'ocr-text' })).toEqual({ ...missing, reason: 'ocr-text' })
+    expect(pathOf(() => read({ ...missing, reason: 4 }))).toBe('body.officeEvent.period.reason')
+    expect(pathOf(() => read({ state: 'known', months: 4, source: { kind: 'model' } }))).toBe('body.officeEvent.period.source.kind')
+  })
+
   it('reads a document of a matter that came from the firm\'s MyEPO Mailbox, and refuses an unknown source', () => {
     const fromMyEpo = { ...matterWire, documents: [{ ...matterWire.documents[0], source: 'myepo' }] }
     expect(parsers.matterDetail(fromMyEpo, 'body').documents[0]!.source).toBe('myepo')
@@ -197,6 +214,7 @@ describe('commands', () => {
     [{ kind: 'intake.match', document, fileNumber: 'FL-2026-0001' as FileNumber }, `intake/documents/${R71_DOCUMENT}/match`, { fileNumber: 'FL-2026-0001' }],
     [{ kind: 'intake.notRelevant', document, reason: 'Spam' }, `intake/documents/${R71_DOCUMENT}/not-relevant`, { reason: 'Spam' }],
     [{ kind: 'officeEvent.decide', id: FIXTURE_IDS.officeEvent as OfficeEventId, code: 'EPO:R71(3)', documentDate: fixtures.deadline.deadline.due, applicationNumber: '24 123 456.7' }, `office-events/${FIXTURE_IDS.officeEvent}/decide`, { code: 'EPO:R71(3)', documentDate: '2027-03-01', applicationNumber: '24 123 456.7' }],
+    [{ kind: 'officeEvent.period', id: FIXTURE_IDS.officeEvent as OfficeEventId, months: 4, seen: 50 }, `office-events/${FIXTURE_IDS.officeEvent}/period`, { months: 4, seen: 50 }],
     [{ kind: 'deadline.confirm', id: deadline, seen: 141 }, `deadlines/${deadline}/confirm`, { seen: 141 }],
     [{ kind: 'deadline.reject', id: deadline, reason: 'Wrong date' }, `deadlines/${deadline}/reject`, { reason: 'Wrong date' }],
     [{ kind: 'ticket.decide', id: FIXTURE_IDS.ticket as TicketId, reports: [{ proposalId: 'proposal-1' as ProposalId, decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }, `tickets/${FIXTURE_IDS.ticket}/decide`, { reports: [{ proposalId: 'proposal-1', decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }],

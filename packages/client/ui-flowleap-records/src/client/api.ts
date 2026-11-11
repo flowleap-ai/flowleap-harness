@@ -359,6 +359,48 @@ const readers = obj({
  * page image, whether they agree, and how they differ.
  */
 export type Readers = Parsed<typeof readers>
+/**
+ * The period that the letter of an office event sets (Rule 132(2) EPC, for example an Art. 94(3) communication): `known` with the
+ * months and where they come from (read on a page of the letter, with the words, or entered by a person), or `missing` with why
+ * the os read none, the values it found, the range of the rule and the record position that the entry sends. A reason that this
+ * client does not know reads as `other`.
+ */
+export type LetterPeriod =
+  | {
+    readonly state: 'known'
+    readonly months: number
+    readonly source: { readonly kind: 'reader'; readonly page: number; readonly quote: string } | { readonly kind: 'entered'; readonly by: Person }
+  }
+  | {
+    readonly state: 'missing'
+    readonly reason: PeriodReason
+    readonly found: readonly number[]
+    readonly range: { readonly minMonths: number; readonly maxMonths: number }
+    readonly recordSeq: number
+  }
+/**
+ * Why the os read no period: no text layer, an OCR text only, no wording on page 1, two values, a value outside the range, or a
+ * letter recorded before the os read periods.
+ */
+const PERIOD_REASONS = ['no-text', 'ocr-text', 'not-found', 'two-values', 'out-of-range', 'not-read'] as const
+type PeriodReason = typeof PERIOD_REASONS[number] | 'other'
+const periodReason: Parse<PeriodReason> = (value, path) => {
+  const reason = str(value, path)
+  return PERIOD_REASONS.find(known => known === reason) ?? 'other'
+}
+const periodSource: Parse<Extract<LetterPeriod, { state: 'known' }>['source']> = (value, path) =>
+  oneOf(['reader', 'entered'])(objectAt(value, path)['kind'], `${path}.kind`) === 'reader'
+    ? { kind: 'reader', ...obj({ page: num, quote: str })(value, path) }
+    : { kind: 'entered', ...obj({ by: person })(value, path) }
+const letterPeriodOf: Parse<LetterPeriod> = (value, path) =>
+  oneOf(['known', 'missing'])(objectAt(value, path)['state'], `${path}.state`) === 'known'
+    ? { state: 'known', ...obj({ months: num, source: periodSource })(value, path) }
+    : {
+      state: 'missing',
+      ...obj({ reason: periodReason, found: arrayOf(num), range: obj({ minMonths: num, maxMonths: num }), recordSeq: num })(value, path),
+    }
+/** The period of an answer: absent (an os before the period) reads as null, like null. */
+const letterPeriod: Parse<LetterPeriod | null> = (value, path) => value === undefined ? null : nullable(letterPeriodOf)(value, path)
 const deadlineDetail = obj({
   recordSeq: num,
   deadline: obj({
@@ -371,7 +413,7 @@ const deadlineDetail = obj({
   responsible: nullable(person),
   officeEvent: obj({
     id: ids.officeEvent, code: nullable(str), documentDate: nullable(isoDate), applicationNumber: nullable(str),
-    document: nullable(ids.document), fileName: nullable(str), state: deadlineState,
+    document: nullable(ids.document), fileName: nullable(str), state: deadlineState, period: letterPeriod,
   }),
   readers,
   pageImages: arrayOf(pageImage),
@@ -461,6 +503,7 @@ const intakeDocument: Parse<IntakeDocument> = (value, path) => {
     candidates: num,
     filed: nullable(matterRef),
     officeEvent: nullable(obj({ id: ids.officeEvent, state: deadlineState })),
+    period: letterPeriod,
     matters: arrayOf(matterRef),
     mayDecide,
     activity,
@@ -500,6 +543,8 @@ export interface IntakeDocument {
   readonly candidates: number
   readonly filed: MatterRef | null
   readonly officeEvent: { readonly id: OfficeEventId; readonly state: DeadlineState } | null
+  /** The period that the letter sets, read or entered, or missing so that a person enters it; null when it needs none. */
+  readonly period: LetterPeriod | null
   /** The "Other matter" picker: only matters the person may see, by file number. */
   readonly matters: readonly MatterRef[]
   readonly mayDecide: MayDecide
@@ -682,6 +727,7 @@ export type Command =
     readonly applicationNumber: string
   }
   | { readonly kind: 'officeEvent.decide'; readonly id: OfficeEventId; readonly code: string; readonly documentDate: IsoDate; readonly applicationNumber: string }
+  | { readonly kind: 'officeEvent.period'; readonly id: OfficeEventId; readonly months: number; readonly seen: number }
   | { readonly kind: 'deadline.confirm'; readonly id: DeadlineId; readonly seen: number }
   | { readonly kind: 'deadline.reject'; readonly id: DeadlineId; readonly reason: string }
   | { readonly kind: 'ticket.decide'; readonly id: TicketId; readonly reports: readonly ReportDecision[]; readonly deadlineCheck: DeadlineCheck }
@@ -721,6 +767,7 @@ export function commandRequest(command: Command): { readonly path: string; reado
       path: `office-events/${command.id}/decide`,
       body: { code: command.code, documentDate: command.documentDate, applicationNumber: command.applicationNumber },
     }
+    case 'officeEvent.period': return { path: `office-events/${command.id}/period`, body: { months: command.months, seen: command.seen } }
     case 'deadline.confirm': return { path: `deadlines/${command.id}/confirm`, body: { seen: command.seen } }
     case 'deadline.reject': return { path: `deadlines/${command.id}/reject`, body: { reason: command.reason } }
     case 'ticket.decide': return { path: `tickets/${command.id}/decide`, body: { reports: command.reports, deadlineCheck: command.deadlineCheck } }

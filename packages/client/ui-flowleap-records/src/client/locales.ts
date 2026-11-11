@@ -7,8 +7,34 @@
 /** Dictionary namespace owned by this plugin. */
 export const NS = 'flowleapRecords'
 
+/**
+ * The words of the period that a letter sets (Art. 94(3) EPC). They are written in English and German only; the other UI languages
+ * show the English words.
+ */
+const period = {
+  'failure.period': 'FlowLeap refused the period.',
+  'deadline.rule.a94': 'Article 94(3) EPC: communication from the examining division',
+  'deadline.rule.a94Short': 'Article 94(3) EPC',
+  'deadline.period.read': 'The letter sets {count} months: read on page {page}, “{quote}”',
+  'deadline.period.entered': 'The letter sets {count} months: entered by {person}',
+  'letter.period.question': 'What period does the letter set?',
+  'letter.period.part': 'Period set in the letter',
+  'letter.period.months': '{count} months',
+  'letter.period.none': 'Select the months that the letter states.',
+  'letter.period.why.no-text': 'FlowLeap cannot read the text of this letter.',
+  'letter.period.why.not-found': 'FlowLeap found no period on page 1 of the letter.',
+  'letter.period.why.two-values': 'The letter names more than one period: {found} months.',
+  'letter.period.why.out-of-range': 'The letter names {found} months, outside {min} to {max} months.',
+  'letter.period.why.ocr-text': 'FlowLeap reads a period only from the text of the letter, not from a scan.',
+  'letter.period.why.not-read': 'FlowLeap recorded this letter before it read periods.',
+  'letter.period.why.other': 'FlowLeap read no period that it can use.',
+  'letter.period.act': 'Enter the period',
+  'letter.period.note': 'A second person confirms the deadline that FlowLeap computes from this period.',
+} as const
+
 /** English dictionary (the key-set source of truth). */
 export const en = {
+  ...period,
   'panel': 'Matters',
   'tab.matters': 'Matters',
   'tab.intake': 'Intake',
@@ -1082,6 +1108,24 @@ export const de = {
   'failure.match': 'FlowLeap hat das Ablegen des Schreibens abgelehnt.',
   'failure.notRelevant': 'FlowLeap hat das Markieren des Schreibens als nicht relevant abgelehnt.',
   'failure.officeEvent': 'FlowLeap hat das Festhalten des Amtsereignisses abgelehnt.',
+  'failure.period': 'FlowLeap hat die Frist abgelehnt.',
+  'deadline.rule.a94': 'Artikel 94(3) EPÜ: Bescheid der Prüfungsabteilung',
+  'deadline.rule.a94Short': 'Artikel 94(3) EPÜ',
+  'deadline.period.read': 'Das Schreiben setzt {count} Monate: gelesen auf Seite {page}, „{quote}“',
+  'deadline.period.entered': 'Das Schreiben setzt {count} Monate: eingegeben von {person}',
+  'letter.period.question': 'Welche Frist setzt das Schreiben?',
+  'letter.period.part': 'Im Schreiben gesetzte Frist',
+  'letter.period.months': '{count} Monate',
+  'letter.period.none': 'Wählen Sie die Monate, die das Schreiben nennt.',
+  'letter.period.why.no-text': 'FlowLeap kann den Text dieses Schreibens nicht lesen.',
+  'letter.period.why.not-found': 'FlowLeap hat auf Seite 1 des Schreibens keine Frist gefunden.',
+  'letter.period.why.two-values': 'Das Schreiben nennt mehr als eine Frist: {found} Monate.',
+  'letter.period.why.out-of-range': 'Das Schreiben nennt {found} Monate, außerhalb von {min} bis {max} Monaten.',
+  'letter.period.why.ocr-text': 'FlowLeap liest eine Frist nur aus dem Text des Schreibens, nicht aus einem Scan.',
+  'letter.period.why.not-read': 'FlowLeap hat dieses Schreiben erfasst, bevor es Fristen gelesen hat.',
+  'letter.period.why.other': 'FlowLeap hat keine verwendbare Frist gelesen.',
+  'letter.period.act': 'Frist eingeben',
+  'letter.period.note': 'Eine zweite Person bestätigt die Frist, die FlowLeap aus dieser Angabe berechnet.',
   'failure.noAnswer': 'Keine Antwort von FlowLeap.',
   'failure.unknown': 'Die Entscheidung ist vielleicht festgehalten. Ein zweiter Versuch ist sicher: FlowLeap hält sie nur einmal fest.',
   'failure.refused': 'FlowLeap hat nichts festgehalten. Prüfen Sie die Seite und versuchen Sie es dann erneut.',
@@ -1462,6 +1506,7 @@ export const de = {
 
 /** Spanish dictionary. */
 export const es = {
+  ...period,
   'panel': 'Asuntos',
   'tab.matters': 'Asuntos',
   'tab.intake': 'Entrada',
@@ -2187,6 +2232,7 @@ export const es = {
 
 /** French dictionary. */
 export const fr = {
+  ...period,
   'panel': 'Affaires',
   'tab.matters': 'Affaires',
   'tab.intake': 'Arrivée',
@@ -2912,6 +2958,7 @@ export const fr = {
 
 /** Japanese dictionary. */
 export const ja = {
+  ...period,
   'panel': '案件',
   'tab.matters': '案件',
   'tab.intake': '受付',
@@ -3637,6 +3684,7 @@ export const ja = {
 
 /** Portuguese dictionary. */
 export const pt = {
+  ...period,
   'panel': 'Processos',
   'tab.matters': 'Processos',
   'tab.intake': 'Entrada',
@@ -4362,6 +4410,7 @@ export const pt = {
 
 /** Russian dictionary. */
 export const ru = {
+  ...period,
   'panel': 'Дела',
   'tab.matters': 'Дела',
   'tab.intake': 'Входящие',
@@ -5087,6 +5136,7 @@ export const ru = {
 
 /** Simplified Chinese dictionary. */
 export const zh = {
+  ...period,
   'panel': '案件',
   'tab.matters': '案件',
   'tab.intake': '收件',

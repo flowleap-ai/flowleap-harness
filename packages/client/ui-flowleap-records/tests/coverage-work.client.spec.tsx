@@ -212,6 +212,26 @@ describe('the deadline page', () => {
     mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
   }
 
+  /** Unmount the deadline page, so that the next `mountDeadline` starts on an empty page. */
+  function remount() {
+    mounted?.dispose()
+    mounted = null
+    cleanup()
+  }
+
+  it('shows the period that an Art. 94(3) letter sets: read on a page with its words, or entered by a person', async () => {
+    const a94 = { ...fixtures.deadline.officeEvent, code: 'EPO:A94(3)' }
+    await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months' } } } })
+    expect(document.body.textContent).toContain('The letter sets 4 months: read on page 1, “within a period of 4 months”')
+    expect(document.body.textContent).toContain(en['deadline.rule.a94Short'])
+    remount()
+    await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: { state: 'known', months: 2, source: { kind: 'entered', by: lena } } } })
+    expect(document.body.textContent).toContain('The letter sets 2 months: entered by Lena Hoffmann')
+    remount()
+    await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: null } })
+    expect(document.body.textContent).not.toContain('The letter sets')
+  })
+
   it('words a period that ends on the day with the same number in months, and another period in days', async () => {
     const cite = 'Article 94(3) EPC'
     const trace = [
