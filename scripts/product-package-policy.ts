@@ -35,7 +35,6 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/context/tmux-context': { category: 'optional', reason: 'Context contribution requiring a tmux pane.' },
   'packages/fs/tool-str-replace-editor': { category: 'optional', reason: 'Explicit alternative to the default filesystem editing tools.' },
   'packages/fs/fs-observation-policy': { category: 'optional', reason: 'Read-before-mutation guard that a deployment enables on the disabled dsh-base row.' },
-  'packages/client/ui-flowleap-work-pages': { category: 'optional', reason: 'Office actions board that the flowleap-web bundle keeps as a disabled row; a deployment enables it.' },
   'packages/host/flowleap-office': { category: 'optional', reason: 'Requires the pinned OfficeCLI binary, which the FlowLeap firm image provides and switches on.' },
   'packages/sdk/client': { category: 'sdk', reason: 'Published TypeScript embedding client runs in the consumer process.' },
   'packages/typert/generator': { category: 'build', reason: 'Build-time generation of type metadata.' },
