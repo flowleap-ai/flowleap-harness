@@ -34,8 +34,8 @@ const LAYOUT = {
   footPanels: ['plugins'],
 }
 
-async function bench(collapsed = false) {
-  vi.stubGlobal(SIDEBAR_PAGE_GLOBAL, LAYOUT)
+async function bench(collapsed = false, sidebarLayout: object = LAYOUT, withMore = false) {
+  vi.stubGlobal(SIDEBAR_PAGE_GLOBAL, sidebarLayout)
   const runtime = await SlotTestRuntime.create()
   runtimes.add(runtime)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -62,6 +62,11 @@ async function bench(collapsed = false) {
       for (const [id, order] of [['board', 1], ['other', 2], ['matters', 3], ['my-work', 4], ['plugins', 5]] as const) {
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id, order, label: id }, () => null))
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: id }, () => <p>{id} page</p>))
+      }
+      if (withMore) {
+        ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register(
+          { name: 'sidebar.panellist.actions', id: 'more-test' }, () => null,
+        ))
       }
     },
   })
@@ -96,6 +101,25 @@ describe('sidebar panel groups', () => {
     expect(view.getByRole('navigation').contains(plugins)).toBe(false)
     fireEvent.click(plugins)
     expect(layout.selectPanel).toHaveBeenCalledWith('plugins')
+  })
+
+  it('draws More after the groups when every registered row has a place', async () => {
+    const everyRow = { groups: [{ id: 'all', label: { en: 'All' }, panels: ['my-work', 'board', 'matters', 'other'] }], footPanels: ['plugins'] }
+    const withMore = await bench(false, everyRow, true)
+    const navigation = withMore.view.getByRole('navigation')
+    expect(within(navigation).getAllByRole('button').map(button => button.getAttribute('aria-label')).filter(name => !/^Unpin/.test(name ?? '')))
+      .toEqual(['my-work', 'board', 'matters', 'other', 'More'])
+    cleanup()
+    const withoutMore = await bench(false, everyRow)
+    expect(within(withoutMore.view.getByRole('navigation')).getAllByRole('button').map(button => button.getAttribute('aria-label')))
+      .toEqual(['my-work', 'board', 'matters', 'other'])
+  })
+
+  it('draws no foot row for a foot panel that has no registration', async () => {
+    const { view } = await bench(false, { groups: LAYOUT.groups, footPanels: ['gone'] })
+    expect(view.getAllByRole('button').some(button => button.getAttribute('aria-label') === 'gone')).toBe(false)
+    expect(within(view.getByRole('navigation')).getAllByRole('button').map(button => button.getAttribute('aria-label')))
+      .toEqual(['my-work', 'board', 'matters', 'other', 'plugins'])
   })
 
   it('names the rail groups without a visible label', async () => {
