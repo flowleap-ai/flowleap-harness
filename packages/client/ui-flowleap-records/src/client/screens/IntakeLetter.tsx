@@ -311,7 +311,6 @@ function sinceKey(decision: LetterDecision): FlowleapRecordsKey {
 function whyLine(ctx: ScreenContext, decision: LetterDecision, matter: MatterRef['fileNumber'] | null): string | undefined {
   if (decision.kind === 'none' || decision.kind === 'other-team') return undefined
   if (ctx.me?.role === 'formalities' && matter !== null) return ctx.t('letter.why.formalities', { matter })
-  if (decision.kind === 'period') return periodWhy(ctx, decision.missing)
   return ctx.t(decision.kind === 'code' ? 'letter.why.record' : 'intake.decision.why')
 }
 
@@ -710,7 +709,8 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           <DecisionPart
             icon={<IconEditOutlineRegular size={16} />}
             title={months === null ? t('letter.period.part') : `${t('letter.period.part')} · ${t('letter.period.months', { count: months })}`}
-            missing={months === null ? t('letter.period.none') : null}
+            detail={periodWhy(ctx, decision.missing)}
+            missing={months === null ? `${periodWhy(ctx, decision.missing)} ${t('letter.period.none')}` : null}
             control={(
               <span className={detail.segment} data-fdl-part="seg" role="group" aria-label={t('letter.period.part')}>
                 {Array.from({ length: maxMonths - minMonths + 1 }, (_, i) => minMonths + i).map(count => (
