@@ -78,6 +78,16 @@ describe('Records API answers', () => {
     expect(pathOf(() => parsers.matterDetail({ ...matterWire, activity: [{ ...matterWire.activity[1], actor: { kind: 'system', name: 'router' } }] }, 'body'))).toBe('body.activity[0].actor.name')
   })
 
+  it('reads a matter whose wall and team have a person with no display name, as the os sends before its people sync', () => {
+    const lena = { id: 'p-lena', name: null }
+    const wire = { ...matterWire, team: [matterWire.team[0], lena], wall: { ...matterWire.wall, team: [matterWire.wall.team[0], { ...lena, role: 'formalities' }] } }
+    const matter = parsers.matterDetail(wire, 'body')
+    expect(matter.wall.team[1]).toEqual({ id: 'p-lena', name: null, role: 'formalities' })
+    expect(matter.team[1]).toEqual(lena)
+    expect(pathOf(() => parsers.matterDetail({ ...wire, wall: { ...wire.wall, team: [{ id: null, name: null, role: 'team' }] } }, 'body'))).toBe('body.wall.team[0].id')
+    expect(pathOf(() => parsers.matterDetail({ ...wire, wall: { ...wire.wall, team: [{ ...lena, role: 'guest' }] } }, 'body'))).toBe('body.wall.team[0].role')
+  })
+
   it('reads a document of a matter that came from the firm\'s MyEPO Mailbox, and refuses an unknown source', () => {
     const fromMyEpo = { ...matterWire, documents: [{ ...matterWire.documents[0], source: 'myepo' }] }
     expect(parsers.matterDetail(fromMyEpo, 'body').documents[0]!.source).toBe('myepo')
