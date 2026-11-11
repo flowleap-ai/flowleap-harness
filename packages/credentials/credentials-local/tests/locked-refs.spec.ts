@@ -59,5 +59,5 @@ it('resolves a locked reference from the deployment only, refuses to store one, 
 it('leaves every reference writable without lockedRefs', async () => {
   const { ctx } = await boot([])
   expect(await ctx.credentials.resolve(MODEL)).toEqual({ value: 'typed-in-browser', source: 'file' })
-  expect(await ctx.credentials.describe(MODEL)).toEqual({ configured: true, source: 'file', writable: true })
+  expect(await ctx.credentials.describe(MODEL)).toEqual({ configured: true, source: 'file', writable: true, masked: '•'.repeat('typed-in-browser'.length) })
 })

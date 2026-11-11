@@ -3,7 +3,8 @@
  * that declares `web_search` and `web_fetch`. The FlowLeap agent presets copy the patent preset's plugins, so they inherit
  * this. A row counts as mounted unless its `disabled` is the literal `true`, so a `!!js` condition fails this test. The
  * bundle restates `preset-standard` and `preset-ptc` in full; the second test fails when a restated copy differs from its
- * upstream `dsh-web-app` preset in anything but the `tool-web` row.
+ * upstream `dsh-web-app` preset in anything but the `tool-web` row and the `skill-filesystem` `customSkillDirs`, which
+ * upstream points at the `dsh-agent-preset` developer skills about the harness itself.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -16,6 +17,7 @@ import { composeEntries, loadProfile } from '@deepseek-ai/dsh-app-boot'
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 const PRESET = '@deepseek-ai/dsh-agent-preset'
 const TOOL_WEB = '@deepseek-ai/dsh-tool-web'
+const SKILL_FILESYSTEM = '@deepseek-ai/dsh-skill-filesystem'
 const RESTATED = ['preset-standard', 'preset-ptc']
 
 interface PluginRow { id?: string; name?: string; disabled?: unknown; config?: unknown }
@@ -43,6 +45,12 @@ const withoutWebOff = (rows: readonly PluginRow[]): PluginRow[] => rows.map((row
   return rest
 })
 
+const withoutDeveloperSkills = (rows: readonly PluginRow[]): PluginRow[] => rows.map((row) => {
+  if (row.name !== SKILL_FILESYSTEM) return row
+  const { config: _config, ...rest } = row
+  return rest
+})
+
 it('flowleap-web: no offered agent preset declares web_search or web_fetch', () => {
   const presets = composedRows('flowleap-web').filter(row => row.name === PRESET && row.disabled !== true)
   expect(presets.map(row => row.id)).toContain('preset-patent')
@@ -60,6 +68,7 @@ it('flowleap-web: each restated preset equals its upstream preset except for the
     const { plugins: _firmPlugins, ...firmRest } = firmRow?.config as Record<string, unknown>
     const { plugins: _upstreamPlugins, ...upstreamRest } = upstreamRow?.config as Record<string, unknown>
     expect.soft(firmRest, `${id} config`).toEqual(upstreamRest)
-    expect.soft(withoutWebOff(presetPlugins(firmRow)), `${id} plugins`).toEqual(presetPlugins(upstreamRow))
+    expect.soft(presetPlugins(firmRow).find(row => row.name === SKILL_FILESYSTEM)?.config, `${id} adds no developer skills`).toBeUndefined()
+    expect.soft(withoutWebOff(presetPlugins(firmRow)), `${id} plugins`).toEqual(withoutDeveloperSkills(presetPlugins(upstreamRow)))
   }
 })

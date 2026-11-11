@@ -1,7 +1,7 @@
 # Override of the upstream `standard` preset (packages/bundle/web-app/presets/standard.patch.yml):
 # a full copy of its `config`, because an override replaces the whole `config`
 # and a patch cannot target a row inside a preset's plugin list. Only the
-# `tool-web` row differs. apps/cli/tests/flowleap-web-no-web-tools.spec.ts fails
+# `tool-web` row and the `skill-filesystem` `customSkillDirs` differ. apps/cli/tests/flowleap-web-no-web-tools.spec.ts fails
 # when this copy and the upstream preset differ in any other row.
 - id: preset-standard
   name: '@deepseek-ai/dsh-agent-preset'
@@ -38,6 +38,7 @@
         name: '@deepseek-ai/dsh-tool-jobs'
       - id: tool-schedule
         name: '@deepseek-ai/dsh-tool-schedule'
+      # Without the upstream `customSkillDirs`: its `dsh-doc` skill describes the harness itself, which is developer context.
       - id: skill-filesystem
         name: '@deepseek-ai/dsh-skill-filesystem'
       - id: tool-skill
@@ -92,6 +93,8 @@
         config:
           - id: tool-subagent-control
             name: '@deepseek-ai/dsh-tool-subagent-control'
+            config:
+              interrupt: false
           - id: tool-subagent
             name: '@deepseek-ai/dsh-tool-subagent'
             config:
@@ -125,6 +128,8 @@
           searchTimeoutMs: 60000
       - id: present
         name: '@deepseek-ai/dsh-tool-present'
+      - id: tool-office
+        name: '@deepseek-ai/dsh-tool-office'
       - id: tool-plugin-manager
         name: '@deepseek-ai/dsh-plugin-manager/tools'
         disabled: !!js "!ctx.get('profileContext')"

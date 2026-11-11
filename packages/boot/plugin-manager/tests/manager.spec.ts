@@ -179,8 +179,9 @@ it('lists every plugin and bundle read-only and refuses every change while readO
   const row = (await manager.listPlugins()).find(item => String(item.entryId).endsWith(':managed'))!
   expect(row).toMatchObject({ readOnlyReason: 'deployment-locked' })
   expect(row.patchId).toBeUndefined()
-  expect((await manager.listBundles()).find(bundle => bundle.name === 'extra'))
-    .toMatchObject({ enabled: true, readOnlyReason: 'deployment-locked', removable: false, updatable: false })
+  const listed = (await manager.listBundles()).find(bundle => bundle.name === 'extra')
+  expect(listed).toMatchObject({ enabled: true, readOnlyReason: 'deployment-locked', removable: false })
+  expect(listed?.update).toBeUndefined()
   const refused = { changed: false, application: 'failed', error: { code: 'deployment-locked' } }
   expect(await manager.setPluginEnabled(row.entryId, false)).toMatchObject(refused)
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject(refused)

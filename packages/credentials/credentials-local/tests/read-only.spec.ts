@@ -91,7 +91,7 @@ describe('the read-only document', () => {
     expect(await ctx.credentials.resolve(FIRM)).toEqual({ value: 'firm-value', source: 'read-only' })
     expect(await ctx.credentials.describe(FIRM)).toEqual({ configured: true, source: 'read-only', writable: false })
     expect(await ctx.credentials.resolve(OWN)).toEqual({ value: 'own-value', source: 'file' })
-    expect(await ctx.credentials.describe(OWN)).toEqual({ configured: true, source: 'file', writable: true })
+    expect(await ctx.credentials.describe(OWN)).toEqual({ configured: true, source: 'file', writable: true, masked: '•'.repeat('own-value'.length) })
 
     expect(await ctx.credentials.readRecord(FIRM_RECORD)).toEqual({
       kind: 'grant', payload: { consumerKey: 'firm-key', consumerSecret: 'firm-secret' },

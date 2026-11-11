@@ -615,7 +615,7 @@ function PackageCard({ pkg, t, resolveText, busy, highlighted, newer, readOnly, 
         )}
         description={description}
         end={readOnly
-          ? <StateLine state={status === 'problem' ? 'error' : 'done'} text={t(status === 'problem' ? 'rowPhaseFailed' : 'rowPhaseActive')} />
+          ? <StateLine state={status === 'running' ? 'done' : 'error'} text={t(status === 'running' ? 'rowPhaseActive' : 'rowPhaseFailed')} />
           : <EnableSwitch pkg={pkg} title={title} t={t} busy={busy} onSetEnabled={onSetEnabled} />}
       />
       <MetadataError error={pkg.meta?.error} t={t} />
