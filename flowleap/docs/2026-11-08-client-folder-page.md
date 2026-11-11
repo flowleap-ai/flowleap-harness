@@ -29,7 +29,7 @@ The page is one view. The tree is 280 px wide, as the app sidebar, and a person 
 | Workspace and its folder | `workspace`, `api/workspace-controller` | One client is one workspace; `ctx.workspaces.list` gives the client list; `WorkspaceView.path` is the client folder |
 | File reads and changes | `api/workspace-files` (`remote.workspaceFiles`) | `readBytes` and `read` for the preview, `changes` to update the view when a file changes on disk |
 | The tree component | `ui-sidebar-files`, factory slot `sidebar.files.tree` | The tree at the left; the factory is root-scoped, so the page renders it and feeds it its own listing |
-| File reads and conversion | `remote.workspaceFiles.readBytes`, `remote.officeToPdf.render` | The page's own viewers read the bytes of a file, and Word and PowerPoint files as PDF, under the workspace's blank Session |
+| File reads and conversion | `remote.workspaceFiles.readBytes`, `remote.officeKit.render` | The page's own viewers read the bytes of a file, and Word and PowerPoint files as PDF, under the workspace's blank Session |
 | Markdown | `MarkdownText` of `ui-primitives` | The Markdown viewer |
 | The chat | `ui-workspace` `startSession(workspaceId, { prompt, whenDraftExists: 'append' })`, `dsh-file-reference` `formatFileMention` | **Ask about this** opens the workspace's new-session draft with `@path` in the prompt |
 | A FlowLeap page | `ui-flowleap-records` pattern: `sidebar.panellist` entry and keyed `main` slot | The **Clients** entry in the app sidebar and the page in the middle; `?page=` selects it |

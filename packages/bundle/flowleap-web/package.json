@@ -56,7 +56,7 @@
         "deepseek-account",
         "deepseek-llm-api-extensions",
         "ui-settings-account",
-        "account-controller",
+        "ui-account-notifications",
         "web-search-deepseek",
         "web-deepseek-api",
         "session-telemetry-otel",

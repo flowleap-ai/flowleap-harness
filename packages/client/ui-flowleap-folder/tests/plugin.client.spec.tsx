@@ -124,7 +124,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
       return readOk ? { ok: true, value: { data: new Uint8Array([1, 2]) } } : { ok: false, error: { message: 'gone' } }
     },
   }
-  const officeToPdf = {
+  const officeKit = {
     render: async (session: string, path: string, priority: string) => {
       reads.push([session, `${path} ${priority}`])
       return readOk ? { ok: true, value: { data: new Uint8Array([3]) } } : { ok: false, error: { message: 'no converter' } }
@@ -132,7 +132,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
   }
   ctx.provide('remote', {
     workspaceFiles,
-    officeToPdf,
+    officeKit,
     $stream: (stream: { readonly name: string; readonly open: (lifetime: string) => void; readonly ended: () => Error }) => {
       stream.open('lifetime')
       const feed = new Feed(stream.name, stream.ended)
@@ -141,7 +141,7 @@ async function mounted(options: { readonly office?: boolean; readonly sidebar?: 
     },
   } as never)
   ctx.provide('remote.workspaceFiles', workspaceFiles as never)
-  if (options.office === true) ctx.provide('remote.officeToPdf', officeToPdf as never)
+  if (options.office === true) ctx.provide('remote.officeKit', officeKit as never)
   const mountedSession = createSnapshotStore<string | null>(null)
   const resources: string[] = []
   if (options.sidebar !== false) {

@@ -122,7 +122,7 @@ Not ported from the IDE's gate files: the CodeLens providers, the editor-title b
 
 ### Word files and the host filesystem
 
-`ctx.fs` writes UTF-8 text only, so the Word files go through the host filesystem: the target is resolved and fenced through `ctx.fs`, its process path is taken as the host path only when `processPathFromHostPath()` maps it back to the same file (the rule `ui-deliverables` uses before a native open), and the bytes are published atomically with `dsh-atomic-write`, mode `0644`. A Session whose filesystem is not the host's (SSH, a sandbox) is refused: `Word export needs a local workspace: …`. There is no in-browser editor: the attorney opens a presented `.docx` on the delivery card (the right-Sidebar preview converts it to PDF through [`office-to-pdf`](../../document/office-to-pdf/README.md)), edits the exported Word file in Word, or asks the agent to change the draft and export again.
+`ctx.fs` writes UTF-8 text only, so the Word files go through the host filesystem: the target is resolved and fenced through `ctx.fs`, its process path is taken as the host path only when `processPathFromHostPath()` maps it back to the same file (the rule `ui-deliverables` uses before a native open), and the bytes are published atomically with `dsh-atomic-write`, mode `0644`. A Session whose filesystem is not the host's (SSH, a sandbox) is refused: `Word export needs a local workspace: …`. There is no in-browser editor: the attorney opens a presented `.docx` on the delivery card (the right-Sidebar preview converts it to PDF through [`office-kit`](../../document/office-kit/README.md)), edits the exported Word file in Word, or asks the agent to change the draft and export again.
 
 ### The evidence ledger
 
