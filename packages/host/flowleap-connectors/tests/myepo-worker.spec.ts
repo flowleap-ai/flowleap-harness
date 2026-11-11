@@ -184,7 +184,7 @@ describe('createMyEpoWorker', () => {
     expect(w.status().failure).toBeNull()
   })
 
-  it('reports not linked and calls MyEPO not at all when the pair is unlinked or readable by other accounts', async () => {
+  it('reports not linked and calls MyEPO not at all when the pair is unlinked', async () => {
     const w = setup()
     w.link(DOUBLE_CLIENT.clientSecret)
     await w.worker.tick()
@@ -193,29 +193,40 @@ describe('createMyEpoWorker', () => {
     w.advance(3600)
     await w.worker.tick()
     expect(w.status()).toMatchObject({ link: 'not-linked', clientId: null, portfolios: null })
+    expect(w.epoCalls()).toBe(calls)
+  })
+
+  it.skipIf(process.platform === 'win32')('reports not linked and calls MyEPO not at all when other accounts can read the pair', async () => {
+    const w = setup()
     w.link(DOUBLE_CLIENT.clientSecret)
     chmodSync(join(w.dir, 'link.json'), 0o644)
     await w.worker.tick()
     expect(w.status().link).toBe('not-linked')
-    expect(w.epoCalls()).toBe(calls)
+    expect(w.lines.at(-1)).toMatch(/^the saved pair cannot be read: .* is readable by other accounts \(mode 644\)$/)
+    expect(w.epoCalls()).toBe(0)
   })
 })
 
 describe('createMyEpoWorker test requests', () => {
-  it('deletes a test request that other accounts can read or that cannot be read, writes no result, and keeps other files', async () => {
+  it('deletes a test request that cannot be read, writes no result, and keeps other files', async () => {
     const w = setup()
-    const open = `${'a'.repeat(32)}.json`
     const loop = `${'b'.repeat(32)}.json`
-    writeFileSync(join(w.testsDir, open), JSON.stringify(DOUBLE_CLIENT), { mode: 0o644 })
-    chmodSync(join(w.testsDir, open), 0o644)
     symlinkSync(join(w.testsDir, loop), join(w.testsDir, loop))
     writeFileSync(join(w.testsDir, 'notes.txt'), 'not a test request')
     await w.worker.tick()
     expect(readdirSync(w.testsDir)).toEqual(['notes.txt'])
-    expect(w.lines).toEqual(expect.arrayContaining([
-      expect.stringMatching(new RegExp(`^test ${'a'.repeat(32)}: the request cannot be read: .* is readable by other accounts \\(mode 644\\)$`)),
-      expect.stringMatching(new RegExp(`^test ${'b'.repeat(32)}: the request cannot be read: `)),
-    ]))
+    expect(w.lines).toEqual([expect.stringMatching(new RegExp(`^test ${'b'.repeat(32)}: the request cannot be read: `))])
+    expect(w.epoCalls()).toBe(0)
+  })
+
+  it.skipIf(process.platform === 'win32')('deletes a test request that other accounts can read and writes no result', async () => {
+    const w = setup()
+    const open = `${'a'.repeat(32)}.json`
+    writeFileSync(join(w.testsDir, open), JSON.stringify(DOUBLE_CLIENT), { mode: 0o644 })
+    chmodSync(join(w.testsDir, open), 0o644)
+    await w.worker.tick()
+    expect(readdirSync(w.testsDir)).toEqual([])
+    expect(w.lines).toEqual([expect.stringMatching(new RegExp(`^test ${'a'.repeat(32)}: the request cannot be read: .* is readable by other accounts \\(mode 644\\)$`))])
     expect(w.epoCalls()).toBe(0)
   })
 

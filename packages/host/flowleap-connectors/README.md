@@ -296,6 +296,7 @@ These limits define what the row does not do yet; they are current package const
 - **The reader downloads every new letter at arrival.** The atlas default `on-open` (download when a person or a task opens the letter) needs a Firm Record document without bytes; it is not built, and the worker's `download` takes only `on-arrival`.
 - **A letter whose PDF the Firm Record has from a forward stays the forward.** The record answers `already-stored`; the join of a MyEPO letter with a forwarded copy (atlas sheet 1, section 8) is not built. The worker settles the letter for as long as it runs and downloads it once more after a restart.
 - **A letter that a person marks as handled on the MyEPO website before the next read is not read.** The pass reads the unhandled list only; the nightly full reconcile of atlas sheet 6 is not built.
+- **On Windows the worker does not check who can read its secret files.** On POSIX it refuses a `link.json`, an `intake-token` or a test request that other accounts can read. On Windows, `stat` gives mode 666 for every writable file and does not show the ACL, so the worker reads the file, and the ACLs of `dir` and `testsDir` must protect it.
 - **A MyEPO letter has no text layer in the Firm Record.** An agent's report cannot quote it (`report.quote-not-in-letter`).
 
 - **All 39 tools, always** — the row registers the whole `officeTools()` list at the global layer (minus `excludeTools`); narrowing the set per preset is not done.
