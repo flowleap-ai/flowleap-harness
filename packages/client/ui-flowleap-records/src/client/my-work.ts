@@ -19,6 +19,7 @@ export const WORK_GROUPS: readonly WorkGroup[] = ['overdue', 'today', 'later']
 const KIND_STATUS: Readonly<Record<Exclude<TaskKind, 'file-letter'>, AtlasRef | null>> = {
   'enter-office-event': { machine: 'intake', state: 'unreadable' },
   'decide-office-event': { machine: 'deadline', state: 'code_proposed' },
+  'enter-period': { machine: 'deadline', state: 'engine_refused' },
   'enter-date': { machine: 'deadline', state: 'engine_refused' },
   'confirm-deadline': { machine: 'deadline', state: 'deadline_proposed' },
   'decide-dispute': { machine: 'deadline', state: 'disputed' },

@@ -215,6 +215,7 @@ describe('commands', () => {
     [{ kind: 'intake.notRelevant', document, reason: 'Spam' }, `intake/documents/${R71_DOCUMENT}/not-relevant`, { reason: 'Spam' }],
     [{ kind: 'officeEvent.decide', id: FIXTURE_IDS.officeEvent as OfficeEventId, code: 'EPO:R71(3)', documentDate: fixtures.deadline.deadline.due, applicationNumber: '24 123 456.7' }, `office-events/${FIXTURE_IDS.officeEvent}/decide`, { code: 'EPO:R71(3)', documentDate: '2027-03-01', applicationNumber: '24 123 456.7' }],
     [{ kind: 'officeEvent.period', id: FIXTURE_IDS.officeEvent as OfficeEventId, months: 4, seen: 50 }, `office-events/${FIXTURE_IDS.officeEvent}/period`, { months: 4, seen: 50 }],
+    [{ kind: 'officeEvent.noEvent', id: FIXTURE_IDS.officeEvent as OfficeEventId, reason: 'a copy' }, `office-events/${FIXTURE_IDS.officeEvent}/no-event`, { reason: 'a copy' }],
     [{ kind: 'deadline.confirm', id: deadline, seen: 141 }, `deadlines/${deadline}/confirm`, { seen: 141 }],
     [{ kind: 'deadline.reject', id: deadline, reason: 'Wrong date' }, `deadlines/${deadline}/reject`, { reason: 'Wrong date' }],
     [{ kind: 'ticket.decide', id: FIXTURE_IDS.ticket as TicketId, reports: [{ proposalId: 'proposal-1' as ProposalId, decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }, `tickets/${FIXTURE_IDS.ticket}/decide`, { reports: [{ proposalId: 'proposal-1', decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }],

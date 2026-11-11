@@ -8,10 +8,19 @@
 export const NS = 'flowleapRecords'
 
 /**
- * The words of the period that a letter sets (Art. 94(3) EPC). They are written in English and German only; the other UI languages
- * show the English words.
+ * Words that are written in English and German only, such as the period that a letter sets (Art. 94(3) EPC) and the office event
+ * of a letter with an unknown MyEPO document code; the other UI languages show the English words.
  */
-const period = {
+const englishAndGermanOnly = {
+  'actor.myepo': 'MyEPO reader',
+  'mywork.task.enter-period': 'Enter the period',
+  'letter.entry.part': 'The office event that you choose from the letter',
+  'letter.entry.detail': 'FlowLeap does not know the office event of this letter',
+  'letter.entry.myepo': 'MyEPO gave the dispatch date {date} and the application number {number}. Check them against the letter.',
+  'letter.entry.incomplete': 'Enter the application number, the office event and the date of the letter.',
+  'act.notOfficeLetter': 'Not an office letter…',
+  'act.markNotOfficeLetter': 'Mark: no office event',
+  'reason.notOfficeLetter': 'Why does this letter hold no office event?',
   'failure.period': 'FlowLeap refused the period.',
   'deadline.rule.a94': 'Article 94(3) EPC: communication from the examining division',
   'deadline.rule.a94Short': 'Article 94(3) EPC',
@@ -34,7 +43,7 @@ const period = {
 
 /** English dictionary (the key-set source of truth). */
 export const en = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': 'Matters',
   'tab.matters': 'Matters',
   'tab.intake': 'Intake',
@@ -763,6 +772,15 @@ export type FlowleapRecordsKey = keyof typeof en
 
 /** German dictionary. */
 export const de = {
+  'actor.myepo': 'MyEPO-Leser',
+  'mywork.task.enter-period': 'Frist eingeben',
+  'letter.entry.part': 'Das Amtsereignis, das Sie aus dem Schreiben wählen',
+  'letter.entry.detail': 'FlowLeap kennt das Amtsereignis dieses Schreibens nicht',
+  'letter.entry.myepo': 'MyEPO hat das Versanddatum {date} und die Anmeldenummer {number} angegeben. Prüfen Sie beides am Schreiben.',
+  'letter.entry.incomplete': 'Geben Sie die Anmeldenummer, das Amtsereignis und das Datum des Schreibens ein.',
+  'act.notOfficeLetter': 'Kein Amtsschreiben…',
+  'act.markNotOfficeLetter': 'Markieren: kein Amtsereignis',
+  'reason.notOfficeLetter': 'Warum enthält dieses Schreiben kein Amtsereignis?',
   'panel': 'Akten',
   'tab.matters': 'Akten',
   'tab.intake': 'Eingang',
@@ -1506,7 +1524,7 @@ export const de = {
 
 /** Spanish dictionary. */
 export const es = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': 'Asuntos',
   'tab.matters': 'Asuntos',
   'tab.intake': 'Entrada',
@@ -2232,7 +2250,7 @@ export const es = {
 
 /** French dictionary. */
 export const fr = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': 'Affaires',
   'tab.matters': 'Affaires',
   'tab.intake': 'Arrivée',
@@ -2958,7 +2976,7 @@ export const fr = {
 
 /** Japanese dictionary. */
 export const ja = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': '案件',
   'tab.matters': '案件',
   'tab.intake': '受付',
@@ -3684,7 +3702,7 @@ export const ja = {
 
 /** Portuguese dictionary. */
 export const pt = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': 'Processos',
   'tab.matters': 'Processos',
   'tab.intake': 'Entrada',
@@ -4410,7 +4428,7 @@ export const pt = {
 
 /** Russian dictionary. */
 export const ru = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': 'Дела',
   'tab.matters': 'Дела',
   'tab.intake': 'Входящие',
@@ -5136,7 +5154,7 @@ export const ru = {
 
 /** Simplified Chinese dictionary. */
 export const zh = {
-  ...period,
+  ...englishAndGermanOnly,
   'panel': '案件',
   'tab.matters': '案件',
   'tab.intake': '收件',

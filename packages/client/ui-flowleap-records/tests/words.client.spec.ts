@@ -107,10 +107,11 @@ describe('words of codes and events', () => {
       { ...base, seq: 1, type: 'document/filed', words: { en: 'filed the letter on SF-2023-0045', de: 'hat das Schreiben in SF-2023-0045 abgelegt' } },
       { ...base, seq: 2, type: 'task/opened', words: null },
       { ...base, seq: 3, type: 'document/stored', actor: { kind: 'system' as const, name: 'scan-mailbox' as const }, words: { en: 'delivered a scan of 4 pages', de: 'hat einen Scan mit 4 Seiten geliefert' } },
+      { ...base, seq: 4, type: 'document/listed', actor: { kind: 'system' as const, name: 'myepo' as const }, words: { en: 'received the letter from the MyEPO Mailbox', de: 'hat das Schreiben aus der MyEPO-Mailbox erhalten' } },
     ]
     const text = (line: ReturnType<typeof activityLines>[number]) => `${line.actor.kind === 'person' ? line.actor.person.name : line.actor.name} ${line.text}`
-    expect(activityLines(words, events).map(text)).toEqual(['FlowLeap filed the letter on SF-2023-0045', 'Scan mailbox delivered a scan of 4 pages'])
-    expect(activityLines({ ...words, t: makeTranslate(de), locale: 'de' }, events).map(line => line.text)).toEqual(['hat das Schreiben in SF-2023-0045 abgelegt', 'hat einen Scan mit 4 Seiten geliefert'])
+    expect(activityLines(words, events).map(text)).toEqual(['FlowLeap filed the letter on SF-2023-0045', 'Scan mailbox delivered a scan of 4 pages', 'MyEPO reader received the letter from the MyEPO Mailbox'])
+    expect(activityLines({ ...words, t: makeTranslate(de), locale: 'de' }, events).map(line => line.text)).toEqual(['hat das Schreiben in SF-2023-0045 abgelegt', 'hat einen Scan mit 4 Seiten geliefert', 'hat das Schreiben aus der MyEPO-Mailbox erhalten'])
     expect(activityLines({ ...words, t: makeTranslate(zh), locale: 'zh' }, events)[0]!.text).toBe(zh['event.intakeFiled'])
   })
 
