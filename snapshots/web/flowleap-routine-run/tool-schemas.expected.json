@@ -239,22 +239,6 @@
       }
     },
     {
-      "name": "interrupt_agent",
-      "description": "Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a local subagent's conversation later with send_message. External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "agent": {
-            "type": "string",
-            "description": "The name of an agent created under you: your direct child or a deeper descendant."
-          }
-        },
-        "required": [
-          "agent"
-        ]
-      }
-    },
-    {
       "name": "inventor_questions",
       "description": "The Inventor Questions document of one matter folder drafting/<matter>/ (application-drafting skill, Step 5). action \"send\": when the attorney asks to send the questions to the inventor, it writes drafting/<matter>/inventor-questions.docx from inventor-answers.md: a heading, one sentence on what the inventor does, and one table with a row per open question (a question whose current answer is empty) with the question, where the answer goes and an empty answer cell; the file is delivered to the user, do not call present for it. It refuses while the existing inventor-questions.docx holds answers that are not imported yet. action \"import\": when the attorney asks to apply the answers and the inventor answered in a file, call it first with that file (default drafting/<matter>/inventor-questions.docx; also a .md file in the format of inventor-answers.md, in the matter folder). Code copies each answer, in the inventor's words, into the empty answer slot of its question in inventor-answers.md and never writes over a filled answer; the result names the questions filled, the questions not changed and the ids it does not know. Then apply the answers to the draft as the skill says. Never write an answer into inventor-answers.md yourself.",
       "parameters": {
