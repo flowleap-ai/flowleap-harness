@@ -123,19 +123,19 @@ const span = obj({ page: num, start: num, end: num, quote: str, excerpt: nullabl
 export type Span = Parsed<typeof span>
 
 /**
- * Who did something: a person, or FlowLeap, the AI mailbox, the scan mailbox (the scan of a letter) or the attorney's
- * agent (its person is the event's `for`).
+ * Who did something: a person, or FlowLeap, the AI mailbox, the scan mailbox (the scan of a letter), the firm's MyEPO reader,
+ * or the attorney's agent (its person is the event's `for`).
  */
 export type Actor =
   | { readonly kind: 'person'; readonly person: Person }
-  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'scan-mailbox' | 'agent' }
+  | { readonly kind: 'system'; readonly name: 'flowleap' | 'mailbox' | 'scan-mailbox' | 'myepo' | 'agent' }
 
 const actor: Parse<Actor> = (value, path) => {
   const source = objectAt(value, path)
   const kind = oneOf(['person', 'system'])(source['kind'], `${path}.kind`)
   return kind === 'person'
     ? { kind, person: person(source['person'], `${path}.person`) }
-    : { kind, name: oneOf(['flowleap', 'mailbox', 'scan-mailbox', 'agent'])(source['name'], `${path}.name`) }
+    : { kind, name: oneOf(['flowleap', 'mailbox', 'scan-mailbox', 'myepo', 'agent'])(source['name'], `${path}.name`) }
 }
 
 const eventWords = obj({ en: str, de: str })
@@ -241,7 +241,7 @@ export type MattersList = Parsed<typeof mattersList>
 
 /** The task kinds of atlas sheet 0; the views word each kind and never show the os text of `title` or `why`. */
 export const TASK_KINDS = [
-  'file-letter', 'enter-office-event', 'decide-office-event', 'enter-date', 'confirm-deadline', 'decide-dispute',
+  'file-letter', 'enter-office-event', 'decide-office-event', 'enter-period', 'enter-date', 'confirm-deadline', 'decide-dispute',
   'assign-person', 'restart-run', 'decide-work', 'work-by-hand', 'send-report', 'fix-message', 'follow-up', 'day-check',
   'answer',
 ] as const
@@ -570,7 +570,10 @@ export interface IntakeDocument {
     readonly state: DeadlineState
     readonly confirmer: Person | null
   } | null
-  /** The hand entry of a scan with no reading (`unreadable`); null for any other letter, or from an os without it. */
+  /**
+   * The hand entry of a scan with no reading (`unreadable`), and of a filed letter whose office event waits with nothing read (a
+   * MyEPO document code that the code table does not know); null for any other letter, or from an os without it.
+   */
   readonly entry: HandEntry | null
 }
 
@@ -728,6 +731,7 @@ export type Command =
   }
   | { readonly kind: 'officeEvent.decide'; readonly id: OfficeEventId; readonly code: string; readonly documentDate: IsoDate; readonly applicationNumber: string }
   | { readonly kind: 'officeEvent.period'; readonly id: OfficeEventId; readonly months: number; readonly seen: number }
+  | { readonly kind: 'officeEvent.noEvent'; readonly id: OfficeEventId; readonly reason: string }
   | { readonly kind: 'deadline.confirm'; readonly id: DeadlineId; readonly seen: number }
   | { readonly kind: 'deadline.reject'; readonly id: DeadlineId; readonly reason: string }
   | { readonly kind: 'ticket.decide'; readonly id: TicketId; readonly reports: readonly ReportDecision[]; readonly deadlineCheck: DeadlineCheck }
@@ -768,6 +772,7 @@ export function commandRequest(command: Command): { readonly path: string; reado
       body: { code: command.code, documentDate: command.documentDate, applicationNumber: command.applicationNumber },
     }
     case 'officeEvent.period': return { path: `office-events/${command.id}/period`, body: { months: command.months, seen: command.seen } }
+    case 'officeEvent.noEvent': return { path: `office-events/${command.id}/no-event`, body: { reason: command.reason } }
     case 'deadline.confirm': return { path: `deadlines/${command.id}/confirm`, body: { seen: command.seen } }
     case 'deadline.reject': return { path: `deadlines/${command.id}/reject`, body: { reason: command.reason } }
     case 'ticket.decide': return { path: `tickets/${command.id}/decide`, body: { reports: command.reports, deadlineCheck: command.deadlineCheck } }

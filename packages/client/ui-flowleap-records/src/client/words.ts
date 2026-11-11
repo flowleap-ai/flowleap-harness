@@ -190,12 +190,13 @@ export function avatarOf(t: Translate, person: Person, label?: string): AvatarPe
 }
 
 /** The name key of each system actor. */
-const SYSTEM_NAMES = { 'flowleap': 'actor.flowleap', 'mailbox': 'actor.mailbox', 'scan-mailbox': 'actor.scanMailbox', 'agent': 'actor.agent' } as const
+const SYSTEM_NAMES = { 'flowleap': 'actor.flowleap', 'mailbox': 'actor.mailbox', 'scan-mailbox': 'actor.scanMailbox', 'myepo': 'actor.myepo', 'agent': 'actor.agent' } as const
 
 const SYSTEM_ICONS = {
   'flowleap': IconEnhanceOutlineRegular,
   'mailbox': IconPaperPlaneOutlineRegular,
   'scan-mailbox': IconDeliverDocRegular,
+  'myepo': IconDeliverDocRegular,
   'agent': IconAgentPresetOutlineRegular,
 } as const
 

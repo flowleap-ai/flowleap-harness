@@ -44,6 +44,11 @@ export type LetterDecision =
   /** The reading of an office event waits for a person: record it. */
   | { readonly kind: 'code' }
   /**
+   * The office event of a filed letter waits for a person with nothing read (a MyEPO document code that the code table does
+   * not know): the person chooses the office event and checks the date and the number, or decides that it holds none.
+   */
+  | { readonly kind: 'entry'; readonly id: OfficeEventId }
+  /**
    * The office event needs the period that the letter sets (Rule 132(2) EPC), and FlowLeap read none: the person enters the
    * months from the letter, and a second person confirms the deadline.
    */
@@ -79,7 +84,7 @@ export function letterDecision(ctx: ScreenContext, letter: IntakeDocument): Lett
     if (may.reason === 'not-ready') return { kind: 'none', why: ctx.t('intake.decision.notReady') }
     return { kind: 'none', why: may.decider === null ? ctx.t('decision.notYours') : ctx.t('decision.decider', { person: personName(ctx.t, may.decider) }) }
   }
-  if (letter.status.machine === 'deadline') return { kind: 'code' }
+  if (letter.status.machine === 'deadline') return letter.entry !== null && letter.officeEvent !== null ? { kind: 'entry', id: letter.officeEvent.id } : { kind: 'code' }
   // The card offers the hand entry (`entry`) for a scan with no reading, and for a letter whose office event no reader
   // could tell.
   if (letter.entry !== null || letter.status.state === 'unreadable') return { kind: 'hand' }
@@ -295,6 +300,7 @@ function sinceKey(decision: LetterDecision): FlowleapRecordsKey {
     case 'match':
     case 'pick':
     case 'code':
+    case 'entry':
     case 'hand': return 'item.sinceYou'
     default: return 'item.since'
   }
@@ -311,7 +317,7 @@ function sinceKey(decision: LetterDecision): FlowleapRecordsKey {
 function whyLine(ctx: ScreenContext, decision: LetterDecision, matter: MatterRef['fileNumber'] | null): string | undefined {
   if (decision.kind === 'none' || decision.kind === 'other-team') return undefined
   if (ctx.me?.role === 'formalities' && matter !== null) return ctx.t('letter.why.formalities', { matter })
-  return ctx.t(decision.kind === 'code' ? 'letter.why.record' : 'intake.decision.why')
+  return ctx.t(decision.kind === 'code' || decision.kind === 'entry' ? 'letter.why.record' : 'intake.decision.why')
 }
 
 /**
@@ -429,13 +435,28 @@ export function handCommand(letter: Pick<IntakeDocument, 'document' | 'matters'>
 }
 
 /**
+ * The act of the hand entry of a filed letter's office event, or null while a value is missing.
+ * @param id - the office event.
+ * @param values - what the person entered; the matter is the filed one.
+ * @returns the command.
+ */
+export function entryCommand(id: OfficeEventId, values: HandValues): Command | null {
+  const applicationNumber = values.applicationNumber.trim()
+  if (applicationNumber === '' || values.code === '' || !/^\d{4}-\d{2}-\d{2}$/u.test(values.documentDate)) return null
+  return { kind: 'officeEvent.decide', id, code: values.code, documentDate: values.documentDate as IsoDate, applicationNumber }
+}
+
+/**
  * Render the fields of the hand entry of a scan with no reading: the matter, the application number, the office
  * event and the date of the letter, read from the page by the person. Filing the scan and recording its office event
  * are one act of the decision bar.
+ * For a filed letter the matter is fixed, so the matter field does not show, and a MyEPO letter names the dispatch date and the
+ * number that MyEPO gave.
  * @param props.ctx - the screen context.
  * @param props.letter - the letter.
  * @param props.values - what the person entered.
  * @param props.onChange - a field changed.
+ * @param props.filed - the letter is filed: no matter field.
  * @returns the fields.
  */
 /**
@@ -462,28 +483,38 @@ function useHandConfirmer(ctx: ScreenContext, letter: IntakeDocument, fileNumber
   return next
 }
 
-function HandEntryFields({ ctx, letter, values, onChange }: {
+function HandEntryFields({ ctx, letter, values, onChange, filed }: {
   ctx: ScreenContext
   letter: IntakeDocument
   values: HandValues
   onChange: (values: HandValues) => void
+  filed: boolean
 }) {
   const { t } = ctx
   const codes = letter.entry?.codes ?? []
+  const given = letter.mail.route === 'myepo' ? letter.entry?.read ?? null : null
   const set = (field: keyof HandValues) => (event: { currentTarget: { value: string } }) => {
     onChange({ ...values, [field]: event.currentTarget.value })
   }
   return (
     <section aria-label={t('letter.hand.heading')}>
       <h2 className={css.subHeading}>{t('letter.hand.heading')}</h2>
+      {given !== null && given.documentDate !== null && given.applicationNumber !== null && (
+        <p className={css.note}>
+          <IconInfoOutlineRegular size={16} />
+          {t('letter.entry.myepo', { date: formatDay(given.documentDate, ctx.locale), number: formatApplicationNumber(given.applicationNumber) })}
+        </p>
+      )}
       <div className={css.fields}>
-        <label className={css.field}>
-          <span className={css.fieldKey}>{t('prop.matter')}</span>
-          <select className={css.input} name="fileNumber" value={values.fileNumber} onChange={set('fileNumber')}>
-            <option value="">{t('letter.hand.chooseMatter')}</option>
-            {letter.matters.map(matter => <option key={matter.fileNumber} value={matter.fileNumber}>{`${matter.fileNumber} ${matter.title}`}</option>)}
-          </select>
-        </label>
+        {!filed && (
+          <label className={css.field}>
+            <span className={css.fieldKey}>{t('prop.matter')}</span>
+            <select className={css.input} name="fileNumber" value={values.fileNumber} onChange={set('fileNumber')}>
+              <option value="">{t('letter.hand.chooseMatter')}</option>
+              {letter.matters.map(matter => <option key={matter.fileNumber} value={matter.fileNumber}>{`${matter.fileNumber} ${matter.title}`}</option>)}
+            </select>
+          </label>
+        )}
         <label className={css.field}>
           <span className={css.fieldKey}>{t('prop.application')}</span>
           <input className={css.input} name="applicationNumber" autoComplete="off" value={values.applicationNumber} onChange={set('applicationNumber')} />
@@ -523,7 +554,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   const { t } = ctx
   const decision = letterDecision(ctx, letter)
   const canPick = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'other-team'
-  const canClose = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'hand'
+  const canClose = decision.kind === 'match' || decision.kind === 'pick' || decision.kind === 'hand' || decision.kind === 'entry'
   const [reasonOpen, setReasonOpenState] = useState(step === 'reason' && canClose)
   const [picking, setPicking] = useState((step === 'other-matter' && canPick) || decision.kind === 'pick')
   const [pickerOpen, setPickerOpen] = useState(step === 'other-matter' && canPick)
@@ -538,7 +569,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     code: letter.entry?.codes[0]?.code ?? '',
     documentDate: letter.documentDate ?? entryRead?.documentDate ?? '',
   })
-  const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : null
+  const handAct = decision.kind === 'hand' ? handCommand(letter, hand) : decision.kind === 'entry' ? entryCommand(decision.id, hand) : null
   const handConfirmer = useHandConfirmer(ctx, letter, hand.fileNumber)
   const [chosenDate, setChosenDate] = useState<IsoDate | null>(null)
   const [months, setMonths] = useState<number | null>(null)
@@ -586,7 +617,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     }
     return null
   })()
-  const primaryLabel = decision.kind === 'period' ? t('letter.period.act') : decision.kind === 'code'
+  const primaryLabel = decision.kind === 'period' ? t('letter.period.act') : decision.kind === 'code' || decision.kind === 'entry'
     ? t(dates === null ? 'intake.act.recordEvent' : 'act.recordDecision')
     : decision.kind === 'hand'
       ? t('letter.hand.act')
@@ -596,7 +627,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     openLetter,
     ...(record === null ? {} : { record }),
     ...(decision.kind === 'match' && !picking && record !== null ? { accept: record } : {}),
-    ...(decision.kind === 'code' && record !== null ? { recordEvent: record } : {}),
+    ...((decision.kind === 'code' || decision.kind === 'entry') && record !== null ? { recordEvent: record } : {}),
     ...(canClose ? { reject: () => { setReasonOpen(true) } } : {}),
     ...(canPick ? { otherMatter: startPicking } : {}),
     ...(matterOf === null ? {} : { goMatter: () => { ctx.navigate({ view: 'matter', fileNumber: matterOf }) } }),
@@ -617,7 +648,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             run: record,
           }]),
           ...(canPick ? [{ id: 'other-matter', label: t('act.otherMatterMenu'), commandId: commandId('otherMatter'), run: startPicking }] : []),
-          ...(canClose ? [{ id: 'reject', label: t('act.notRelevant'), commandId: commandId('reject'), run: () => { setReasonOpen(true) } }] : []),
+          ...(canClose ? [{ id: 'reject', label: t(decision.kind === 'entry' ? 'act.notOfficeLetter' : 'act.notRelevant'), commandId: commandId('reject'), run: () => { setReasonOpen(true) } }] : []),
           { id: 'open-letter', label: t('intake.act.openLetter'), commandId: commandId('openLetter'), run: openLetter },
           { id: 'copy-link', label: t('intake.act.copyLink'), run: () => { void copyLink(ctx.linkOf(route)) } },
         ],
@@ -654,7 +685,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
   // Who gets Confirm the deadline when this person decides the date or enters the event now (the two-person rule), as
   // the mockups name it: in the part of the two dates when the readings differ, else in the note. Filing decides
   // neither, so its bar names nobody.
-  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' ? letter.nextConfirmer : null
+  const next = decision.kind === 'hand' ? handConfirmer : decision.kind === 'code' || decision.kind === 'entry' ? letter.nextConfirmer : null
   const nextNote = next === null || (decision.kind === 'code' && dates !== null)
     ? undefined
     : t(next.queued ? 'letter.next.queued' : decision.kind === 'hand' ? 'letter.next.entered' : 'letter.next.decide', { person: personInText(t, next.person) })
@@ -739,6 +770,14 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           missing={letter.entry === null ? t('letter.hand.unavailable') : handAct === null ? t('letter.hand.incomplete') : null}
         />
       )
+      case 'entry': return (
+        <DecisionPart
+          icon={<IconEditOutlineRegular size={16} />}
+          title={t('letter.entry.part')}
+          detail={t('letter.entry.detail')}
+          missing={handAct === null ? t('letter.entry.incomplete') : null}
+        />
+      )
       case 'filed': return (
         <DecisionPart
           icon={<IconCheckOutlineRegular size={16} />}
@@ -756,7 +795,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       case 'none': return undefined
     }
   })()
-  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'hand' || decision.kind === 'period' || picking
+  const showPrimary = decision.kind === 'match' || decision.kind === 'code' || decision.kind === 'entry' || decision.kind === 'hand' || decision.kind === 'period' || picking
   const finished = decision.kind === 'filed' || decision.kind === 'done'
   const deadline = letter.deadline
   const doneActs = [
@@ -784,7 +823,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
       : (
         <DecisionBar
           heading={decisionHeading(ctx, ctx.me.person, picking ? { allowed: true } : letter.mayDecide)}
-          question={decision.kind === 'period' ? t('letter.period.question') : decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' ? t('letter.hand.question') : t('decision.whichMatter')}
+          question={decision.kind === 'period' ? t('letter.period.question') : decision.kind === 'code' ? t(dates === null ? 'intake.decision.whatLetter' : 'letter.differ.question') : decision.kind === 'hand' || decision.kind === 'entry' ? t('letter.hand.question') : t('decision.whichMatter')}
           why={whyLine(ctx, decision, matterOf)}
           labels={{ more: t('decision.more') }}
           decider={decision.kind === 'none' ? decision.why : decision.kind === 'other-team' && !picking ? t('intake.decision.otherTeam') : null}
@@ -794,16 +833,16 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
           negative={canClose
             ? {
               ...keyedOf(ctx, 'reject'),
-              label: t('act.notRelevant'),
+              label: t(decision.kind === 'entry' ? 'act.notOfficeLetter' : 'act.notRelevant'),
               icon: <IconCloseOutlineRegular size={16} />,
               open: reasonOpen,
               onOpenChange: setReasonOpen,
-              reasonLabel: t('reason.notRelevant'),
-              confirmLabel: t('act.markNotRelevant'),
+              reasonLabel: t(decision.kind === 'entry' ? 'reason.notOfficeLetter' : 'reason.notRelevant'),
+              confirmLabel: t(decision.kind === 'entry' ? 'act.markNotOfficeLetter' : 'act.markNotRelevant'),
               cancelLabel: t('act.cancel'),
               onConfirm: (reason) => {
                 setReasonOpenState(false)
-                decide({ kind: 'intake.notRelevant', document: letter.document, reason })
+                decide(decision.kind === 'entry' ? { kind: 'officeEvent.noEvent', id: decision.id, reason } : { kind: 'intake.notRelevant', document: letter.document, reason })
               },
             }
             : undefined}
@@ -854,10 +893,11 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
             onOpen={openLetter}
           />
         )}>
-          {(decision.kind === 'hand' || unreadable) && (
+          {(decision.kind === 'hand' || decision.kind === 'entry' || unreadable) && (
             <HandEntryFields
               ctx={ctx}
               letter={letter}
+              filed={decision.kind === 'entry'}
               values={hand}
               onChange={(next) => {
                 setHandState(next)

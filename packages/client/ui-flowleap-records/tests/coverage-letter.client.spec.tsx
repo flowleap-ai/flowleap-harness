@@ -298,6 +298,70 @@ describe('the hand entry of a scan', () => {
   })
 })
 
+describe('the office event of a filed letter with nothing read', () => {
+  const event = FIXTURE_IDS.officeEvent as OfficeEventId
+  const codes = [
+    { code: 'EPO:A94(3)', form: '2001', title: { en: 'Communication under Article 94(3) EPC', de: 'Mitteilung nach Artikel 94(3) EPÜ' } },
+    { code: 'EPO:R71(3)', form: '2004C', title: { en: 'Rule 71(3) communication', de: 'Mitteilung nach Regel 71(3)' } },
+  ]
+  // A MyEPO letter whose document code the code table does not know: filed on its matter, the office event waits for a person.
+  const unknown: IntakeDocument = {
+    ...fixtures.intakeDocument,
+    status: { machine: 'deadline', state: 'code_proposed' },
+    officeEvent: { id: event, state: 'code_proposed' },
+    code: null, documentDate: null, applicationNumber: null, fields: {}, proposed: null, filed,
+    mail: { ...fixtures.intakeDocument.mail, route: 'myepo', forwarder: null },
+    mayDecide: { allowed: true },
+    entry: { codes, read: { documentDate: '2026-09-18' as IsoDate, applicationNumber: 'EP24166597', fileNumber: filed.fileNumber } },
+  }
+  const record = () => screen.getByRole('button', { name: /^Record office event/u })
+
+  it('starts from what MyEPO gave, asks for no matter, and records the office event that the person chooses', async () => {
+    const { api, acts } = createFixtureApi()
+    await mountLetter(unknown, 'en', api)
+    expect(document.body.textContent).toContain('MyEPO gave the dispatch date 18 Sept 2026')
+    expect(document.body.textContent).toContain(en['letter.entry.part'])
+    expect(screen.queryByRole('combobox', { name: en['prop.matter'] })).toBeNull()
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: en['prop.application'] }).value).toBe('EP24166597')
+    fireEvent.change(screen.getByRole('combobox', { name: en['letter.hand.event'] }), { target: { value: 'EPO:R71(3)' } })
+    fireEvent.change(screen.getByRole('combobox', { name: en['letter.hand.event'] }), { target: { value: 'EPO:A94(3)' } })
+    fireEvent.click(record())
+    await flush()
+    expect(acts.map(act => act.command)).toEqual([{ kind: 'officeEvent.decide', id: event, code: 'EPO:A94(3)', documentDate: '2026-09-18', applicationNumber: 'EP24166597' }])
+  })
+
+  it('waits for every value before it records', async () => {
+    await mountLetter(unknown)
+    fireEvent.change(screen.getByRole('textbox', { name: en['prop.application'] }), { target: { value: ' ' } })
+    expect(record().hasAttribute('disabled')).toBe(true)
+    expect(document.body.textContent).toContain(en['letter.entry.incomplete'])
+  })
+
+  it('records that the letter holds no office event, with the reason', async () => {
+    const { api, acts } = createFixtureApi()
+    await mountLetter(unknown, 'en', api)
+    fireEvent.click(screen.getByRole('button', { name: /^Not an office letter/u }))
+    fireEvent.change(screen.getByLabelText(en['reason.notOfficeLetter']), { target: { value: 'A copy of the search report' } })
+    fireEvent.click(screen.getByRole('button', { name: en['act.markNotOfficeLetter'] }))
+    await flush()
+    expect(acts.map(act => act.command)).toEqual([{ kind: 'officeEvent.noEvent', id: event, reason: 'A copy of the search report' }])
+  })
+
+  it('says it in German, and gives no MyEPO line for a mail letter', async () => {
+    await mountLetter(unknown, 'de')
+    expect(screen.getByText(de['letter.hand.question'])).toBeTruthy()
+    expect(document.body.textContent).toContain('MyEPO hat das Versanddatum')
+    unmount()
+    await mountLetter({ ...unknown, mail: fixtures.intakeDocument.mail })
+    expect(document.body.textContent).not.toContain('MyEPO gave')
+    for (const read of [null, { documentDate: null, applicationNumber: 'EP24166597', fileNumber: null }, { documentDate: '2026-09-18' as IsoDate, applicationNumber: null, fileNumber: null }]) {
+      unmount()
+      await mountLetter({ ...unknown, entry: { codes, read } })
+      expect(document.body.textContent, 'MyEPO gave no full pair of values').not.toContain('MyEPO gave')
+    }
+  })
+})
+
 describe('the two dates of a letter whose readings differ', () => {
   const readers = fixtures.intakeDocument.readers
   const differ: IntakeDocument = {
