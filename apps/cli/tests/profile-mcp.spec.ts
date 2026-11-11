@@ -10,9 +10,12 @@ import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 const resourcePackage = '@deepseek-ai/dsh-mcp-resources'
+// The FlowLeap firm worker has no agent and no tool (packages/bundle/flowleap-firm-worker), so it has no MCP consumer.
+const withoutAgent = new Set(['flowleap-firm-worker'])
+const agentProfiles = Object.keys(PROFILE_TEMPLATES).filter(name => !withoutAgent.has(name))
 
 describe('shipped MCP resource composition', () => {
-  it.each(Object.keys(PROFILE_TEMPLATES))('%s carries one shared resource consumer without a server', (name) => {
+  it.each(agentProfiles)('%s carries one shared resource consumer without a server', (name) => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-profile-mcp-'))
     try {
       const profile = loadProfile('dsh', name, installAnchor, home)
@@ -39,6 +42,17 @@ describe('shipped MCP resource composition', () => {
       expect(owners.map(owner => owner.packageName)).toEqual([
         name === 'sdk-minimal' ? '@deepseek-ai/dsh-sdk-minimal' : '@deepseek-ai/dsh-base',
       ])
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it.each([...withoutAgent])('%s composes no MCP row', (name) => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-profile-mcp-'))
+    try {
+      const profile = loadProfile('dsh', name, installAnchor, home)
+      const rows = composeEntries([...profile.layers.map(layer => layer.patches), profile.patches], () => {})
+      expect(rows.filter(row => row.name.startsWith('@deepseek-ai/dsh-mcp-'))).toEqual([])
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
