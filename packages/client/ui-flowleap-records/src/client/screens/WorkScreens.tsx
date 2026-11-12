@@ -607,7 +607,7 @@ function objectionCount(ctx: ScreenContext, reading: LetterReading): string {
 }
 
 /**
- * The state of a reading in words: proposed, accepted by a person, or rejected by a person.
+ * The state of a reading in words: proposed, accepted by a person, rejected by a person, or replaced by a newer reading.
  * @param ctx - the screen context.
  * @param reading - the reading.
  * @returns the words.
@@ -619,6 +619,7 @@ function readingState(ctx: ScreenContext, reading: LetterReading): string {
     case 'proposed': return t('work.reading.proposed')
     case 'approved': return by === null ? t('work.acceptedPart') : t('work.reading.acceptedBy', { person: by })
     case 'rejected': return by === null ? t('work.reading.rejected') : t('work.reading.rejectedBy', { person: by })
+    case 'stale': return t('work.reading.stale')
   }
 }
 

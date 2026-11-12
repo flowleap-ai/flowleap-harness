@@ -65,7 +65,6 @@ const DESCRIPTION =
 
 const MESSAGES = {
   statement_without_evidence: 'Every objection and every cited document needs at least one passage of the letter. Add the passages and propose again.',
-  no_proposals: 'The run has no proposal yet. Propose the reading with record_propose_reading first.',
   idempotency_key_reused: 'The Firm Record already took a different reading of this tool call. Do not repeat it; tell the attorney in this chat what differs.',
   evidence_outside_matter: 'The document is not the office letter of this Ticket. Use the document hash of the office event from record_read.',
 } as const

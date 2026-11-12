@@ -606,7 +606,7 @@ const report = obj({
 export type WorkDraft = Parsed<typeof report>
 const letterReading = obj({
   readingId: ids.reading, pass: num, document: ids.document, language: oneOf(['de', 'en', 'fr']),
-  state: oneOf(['proposed', 'approved', 'rejected']), decidedBy: nullable(person), reason: nullable(str), noItemsReason: nullable(str),
+  state: oneOf(['proposed', 'approved', 'rejected', 'stale']), decidedBy: nullable(person), reason: nullable(str), noItemsReason: nullable(str),
   items: arrayOf(obj({ ground: str, claims: arrayOf(num), documents: arrayOf(str), reasoning: str, evidence: arrayOf(span) })),
   documents: arrayOf(obj({ label: str, publication: str, evidence: arrayOf(span) })),
 })
