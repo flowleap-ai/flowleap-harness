@@ -196,6 +196,15 @@ describe('createMyEpoWorker', () => {
     expect(w.epoCalls()).toBe(calls)
   })
 
+  it('reports not linked and calls MyEPO not at all when the saved pair cannot be read', async () => {
+    const w = setup()
+    symlinkSync(join(w.dir, 'link.json'), join(w.dir, 'link.json'))
+    await w.worker.tick()
+    expect(w.status().link).toBe('not-linked')
+    expect(w.lines.at(-1)).toMatch(/^the saved pair cannot be read: /)
+    expect(w.epoCalls()).toBe(0)
+  })
+
   it.skipIf(process.platform === 'win32')('reports not linked and calls MyEPO not at all when other accounts can read the pair', async () => {
     const w = setup()
     w.link(DOUBLE_CLIENT.clientSecret)
