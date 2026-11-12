@@ -16,7 +16,7 @@ Run the command from the repository root. The server listens on 127.0.0.1 only a
 |---|---|
 | Login service (`client_credentials`, scope `mailboxapi`) | `POST /token`, HTTP Basic or form fields |
 | MyEPO API, read operations | `/latest/...` |
-| Control surface, not a MyEPO path | `GET /_double/state`, `POST /_double/reset`, `POST /_double/arrive` |
+| Control surface, not a MyEPO path | `GET /_double/state`, `POST /_double/reset`, `POST /_double/arrive`, `POST /_double/arrive-text/<seed row>` |
 
 The test client is `flowleap-myepo-double` with the secret `public-sample-data`. These values are public, because the double serves only public data. A wrong secret gets the recorded `401 invalid_client`.
 
@@ -29,7 +29,7 @@ To point `flowleap-web` at the double, add the overlay [`flowleap/myepo-double.p
 - A download answers a ZIP with one PDF, and sets `read` to `true` for that letter only. The letter stays unhandled.
 - An application outside the readable portfolios answers `403 ERR_20`. A `portfolioId` that the account cannot read answers `403 ERR_20`. An unknown application answers `400 ERR_30`. The bodies are the recorded ones.
 - The four write operations (`POST /communications/handle`, `POST /communications/handle/{id}`, `POST /communications/move/{folderId}`, `PATCH /{procedure}/applications/{application}`) answer `501` with the code `DOUBLE_READ_ONLY`. The connector has no write, and the double does not pretend to have one.
-- The Mailbox state lasts for one run. `POST /_double/arrive` adds the waiting letter (the Rule 71(3) communication of `EP23771920`, file SF-2023-0045) unread and unhandled. The due date and the fee that this letter states show only after it arrives. `POST /_double/reset` restores every `read` flag and removes the arrival.
+- The Mailbox state lasts for one run. `POST /_double/arrive` adds the waiting letter (the Rule 71(3) communication of `EP23771920`, file SF-2023-0045) unread and unhandled. The due date and the fee that this letter states show only after it arrives. `POST /_double/reset` restores every `read` flag and removes the arrival. `POST /_double/arrive-text/<seed row>` adds the text version of a Form 2001 letter (rows 4, 6, 8 and 16) unread and unhandled, under its own communication id: a test fixture that FlowLeap made from the scan by OCR, with a text layer, marked as such in its file name and metadata, and not a Mailbox file (the seed's `text-fixtures/` and its README). The letters of rows 6 and 16 hold their reasons (EPO Form 2906) after the letter. By default the double delivers only the scans; a reset removes the text versions.
 - A `page` or `size` that is not a whole number (`page` from 0, `size` from 1) answers `400` with the code `DOUBLE_BAD_PAGE`.
 
 The same handler serves the in-test fake of the specs ([`../myepo-fake.ts`](../myepo-fake.ts)) with the recorded sandbox data ([`sandbox-data.ts`](sandbox-data.ts)). [`../myepo-double.spec.ts`](../myepo-double.spec.ts) checks that the double answers the twelve recorded sandbox reads with the recorded status, content type and body, and that every answer on the seed data parses with the connector's parsers. [`../myepo-double.e2e.ts`](../myepo-double.e2e.ts) boots the headless profile with the shipped overlay, links `flowleapMyEpo` to the double, and runs its ten reads.

@@ -56,5 +56,6 @@ export function sandboxData(): MyEpoDoubleData {
       communication, filename: SANDBOX_PDF_NAME, pdf: () => strToU8('%PDF-1.4 dummy'),
     })),
     arrivals: [],
+    textVersions: {},
   }
 }

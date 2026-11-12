@@ -1,7 +1,8 @@
 /**
  * The MyEPO double on a loopback HTTP port: the login service at `/token`, the API at `/latest/…`, and the control
  * surface at `/_double/…`, which no MyEPO path starts with. The control surface reads the Mailbox state
- * (`GET /_double/state`), restores it (`POST /_double/reset`), and delivers the next arrival (`POST /_double/arrive`).
+ * (`GET /_double/state`), restores it (`POST /_double/reset`), delivers the next arrival (`POST /_double/arrive`), and delivers
+ * the text version of a letter (`POST /_double/arrive-text/<seed row>`).
  * @module
  */
 
@@ -56,6 +57,13 @@ export async function startMyEpoDoubleServer(options: {
     if (method === 'POST' && path === 'arrive') {
       const arrived = double.arrive()
       return arrived === undefined ? Response.json({ error: 'every arrival has arrived; POST /_double/reset first' }, { status: 409 }) : Response.json({ arrived })
+    }
+    const text = /^arrive-text\/(\d+)$/.exec(path)
+    if (method === 'POST' && text !== null) {
+      const arrived = double.arriveText(Number(text[1]))
+      return arrived === undefined
+        ? Response.json({ error: `row ${text[1]} has no text version, or it is in the Mailbox; POST /_double/reset first` }, { status: 409 })
+        : Response.json({ arrived })
     }
     return Response.json({ error: `no control ${method} ${CONTROL_PREFIX}${path}` }, { status: 404 })
   }

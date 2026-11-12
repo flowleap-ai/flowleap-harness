@@ -242,6 +242,7 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
   const fees: Record<string, DatedEntry[]> = {}
   const letters: DoubleLetter[] = []
   const arrivals: DoubleLetter[] = []
+  const textVersions: Record<number, DoubleLetter> = {}
 
   for (const matter of seed.matters) {
     const register = snapshot(matter, 'get_register_biblio') as RegisterBiblio
@@ -300,6 +301,17 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
       const arrives = matter.application === ARRIVAL.application && document.row === ARRIVAL.row
       ;(arrives ? arrivals : letters).push(letter)
     }
+    for (const document of matter.documents) {
+      const fixture = document.textFixture
+      if (fixture === undefined) continue
+      const scan = letterOf(matter, document, myEpoNumber, register, baseUrl)
+      const id = `${scan.communication.id}t`
+      textVersions[document.row] = {
+        communication: { ...scan.communication, id, document: `${baseUrl}/communications/download/${id}`, links: linksOf(baseUrl, id), read: false, handled: false, folderId: FOLDERS.inbox },
+        filename: scan.filename.replace(/\.pdf$/, '-flowleap-ocr-text.pdf'),
+        pdf: () => readFileSync(fixture.path),
+      }
+    }
   }
   return {
     label: `the seed firm's real public EP files (${SAMPLE_MARKER})`,
@@ -313,6 +325,7 @@ export function seedData(baseUrl: string, seed: Seed = loadSeed()): MyEpoDoubleD
     folders: { folders: [{ folderId: FOLDERS.inbox, folderName: 'Inbox' }, { folderId: FOLDERS.done, folderName: 'Done' }] },
     letters,
     arrivals,
+    textVersions,
   }
 }
 
@@ -326,6 +339,14 @@ function letterIdOf(application: string, row: number): string {
 
 /** The Mailbox folders of the double; their names are FlowLeap's. */
 export const FOLDERS = { inbox: 'sfinbox00000001', done: 'sfdone000000001' }
+
+/** The download and handle links of a letter. */
+function linksOf(baseUrl: string, id: string): readonly { href: string; title: string; media: string; type: string; rel: string }[] {
+  return [
+    { href: `${baseUrl}/communications/download/${id}`, title: 'Download communication', media: 'application/zip', type: 'GET', rel: 'download' },
+    { href: `${baseUrl}/communications/handle/${id}`, title: 'Handle communication', media: 'application/json', type: 'POST', rel: 'handle' },
+  ]
+}
 
 function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, register: RegisterBiblio, baseUrl: string): DoubleLetter {
   const code = DOCUMENT_CODES[document.formCode ?? '']
@@ -348,10 +369,7 @@ function letterOf(matter: Matter, document: SeedDocument, myEpoNumber: string, r
     read: handled,
     handled,
     folderId: handled ? FOLDERS.done : FOLDERS.inbox,
-    links: [
-      { href: `${baseUrl}/communications/download/${id}`, title: 'Download communication', media: 'application/zip', type: 'GET', rel: 'download' },
-      { href: `${baseUrl}/communications/handle/${id}`, title: 'Handle communication', media: 'application/json', type: 'POST', rel: 'handle' },
-    ],
+    links: linksOf(baseUrl, id),
   }
   const filename = [matter.fileNumber, document.registerListDate.replace(/-/g, '.'), matter.application, code.code].join('-')
   return { communication, filename: `${filename}.pdf`, pdf: () => readFileSync(document.path) }
