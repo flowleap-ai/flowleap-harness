@@ -2,7 +2,7 @@
  * The resolved `flowleap-web` profile offers no agent preset that mounts `@deepseek-ai/dsh-tool-web`, the only plugin
  * that declares `web_search` and `web_fetch`. The FlowLeap agent presets copy the patent preset's plugins, so they inherit
  * this. A row counts as mounted unless its `disabled` is the literal `true`, so a `!!js` condition fails this test. The
- * bundle restates `preset-standard` and `preset-ptc` in full; the second test fails when a restated copy differs from its
+ * bundle restates `preset-standard`, `preset-ptc` and `preset-cordis` in full; the second test fails when a restated copy differs from its
  * upstream `dsh-web-app` preset in anything but the `tool-web` row.
  */
 
@@ -16,7 +16,7 @@ import { composeEntries, loadProfile } from '@deepseek-ai/dsh-app-boot'
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 const PRESET = '@deepseek-ai/dsh-agent-preset'
 const TOOL_WEB = '@deepseek-ai/dsh-tool-web'
-const RESTATED = ['preset-standard', 'preset-ptc']
+const RESTATED = ['preset-standard', 'preset-ptc', 'preset-cordis']
 
 interface PluginRow { id?: string; name?: string; disabled?: unknown; config?: unknown }
 

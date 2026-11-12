@@ -24,9 +24,6 @@ const off = (rows: Rows, id: string): boolean => row(rows, id)?.disabled === tru
 
 /** Entries no attorney reaches, keyed `<package> <key>`, each with the composed-row condition that makes it so. */
 const UNREACHABLE: Readonly<Record<string, (rows: Rows) => boolean>> = {
-  // The Creator mode guide shows only for the `cordis` preset.
-  '@deepseek-ai/dsh-client-ui-agent-preset guideCordisExplanation': rows => off(rows, 'preset-cordis'),
-  '@deepseek-ai/dsh-client-ui-agent-preset guideCordisUsage': rows => off(rows, 'preset-cordis'),
   // The Creator drafts of "Create your plugin".
   ...Object.fromEntries(['sidebar', 'conversation', 'rightbar'].map(region => [
     `@deepseek-ai/dsh-client-ui-entry-customization createPrompt.${region}`,

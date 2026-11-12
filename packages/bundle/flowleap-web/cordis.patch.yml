@@ -70,7 +70,8 @@
 # Settings > Built-in plugins lists module names (`@deepseek-ai/dsh-…`) for
 # developers; the desktop keeps the Plugins page, whose Built-in plugin
 # settings hold the same configuration pages. The More menus offer no "Create
-# your plugin": its Creator preset (preset-cordis) is off below.
+# your plugin": its draft asks for a DSH plugin. The agent picker offers
+# Creator mode (presets/cordis.patch.yml).
 
 - id: ui-settings-plugins
   disabled: true
@@ -136,17 +137,13 @@
 
 # ── the patent preset is the default ─────────────────────────────────────────
 # `presets/patent.patch.yml` inserts the `patent` declaration (standard's
-# plugin list without the coding persona). `presets/standard.patch.yml` and
-# `presets/ptc.patch.yml` restate those presets with `tool-web` off; standard,
-# ptc and minimal stay selectable.
+# plugin list without the coding persona). `presets/standard.patch.yml`,
+# `presets/ptc.patch.yml` and `presets/cordis.patch.yml` restate those presets
+# with `tool-web` off; standard, ptc, minimal and cordis stay selectable.
 
 - id: agent-preset-registry
   config:
     default: patent
-
-# Off: the cordis preset mounts tool-web, and this profile offers no web tool (flowleap-harness#101).
-- id: preset-cordis
-  disabled: true
 
 # ── the Patent Agent prompt ──────────────────────────────────────────────────
 # No harness identity and no persona prefix: the flowleap-prompt row below
