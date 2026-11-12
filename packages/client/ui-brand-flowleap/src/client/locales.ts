@@ -58,6 +58,8 @@ interface BrandCopyText {
   readonly presetSectionIntro: string
   readonly presetCreatorDescription: string
   readonly presetCreatePlugin: string
+  /** The Standard mode guide without the paragraph on the harness's own `dsh-doc` skill, which this profile does not mount. */
+  readonly presetStandardGuide: string
 }
 
 /** The copy of each shipped language for one product name. */
@@ -101,6 +103,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Choose the agent’s tools and how it works. Use Standard mode for everyday tasks, or Creator mode to add capabilities to ${product}.`,
     presetCreatorDescription: `Customize ${product} through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.`,
     presetCreatePlugin: `Enter Creator mode and make your own ${product} plugin`,
+    presetStandardGuide: '### How it works\n\nThe agent calls tools directly to read and edit files, search, and run terminal commands. It includes Skills, planning, goals, subagents, workflows, plugin management, and context compaction.\n\n### When to choose it\n\nStart here for everyday coding, file work, and research. Standard mode can also write scripts and process files in batches. PTC changes how tool calls are organized; it is not required for batch tasks.',
   }),
   zh: product => ({
     welcomeTitle: '预览版说明',
@@ -141,6 +144,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 ${product} 的能力用「创造模式」。`,
     presetCreatorDescription: `用对话定制 ${product}：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。`,
     presetCreatePlugin: `进入创造模式，制作属于你的 ${product} 插件`,
+    presetStandardGuide: '### 工作方式\n\nAgent 直接调用工具来读写文件、检索资料和执行终端命令。包含 Skills、计划、目标、子 Agent、工作流、插件管理和上下文压缩等能力。\n\n### 什么时候选\n\n日常编程、文件处理和资料整理可以从这里开始。标准模式也能编写脚本、批量处理文件；PTC 改变的是工具调用方式，批量任务并不必须使用 PTC。',
   }),
   ja: product => ({
     welcomeTitle: 'プレビューに関するお知らせ',
@@ -181,6 +185,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `エージェントのツールと動作を選択します。日々のタスクには標準モードを、${product} に機能を追加するにはクリエイターモードを使用してください。`,
     presetCreatorDescription: `会話を通じて ${product} をカスタマイズします。機能や UI を追加するプラグインをエージェントに書かせたり、ツールとプロンプトを組み合わせて独自のモードを作成したりできます。`,
     presetCreatePlugin: `クリエイターモードに入り、独自の ${product} プラグインを作成`,
+    presetStandardGuide: '### 仕組み\n\nエージェントはツールを直接呼び出してファイルの読み取りや編集、検索、ターミナルコマンドの実行を行います。スキル、計画、目標、サブエージェント、ワークフロー、プラグイン管理、コンテキストの圧縮に対応しています。\n\n### 選ぶべき場面\n\n日々のコーディング、ファイル作業、調査はまずここから始めてください。標準モードではスクリプトの作成やファイルの一括処理も行えます。PTC はツール呼び出しの構成を変えるものであり、一括処理に必須ではありません。',
   }),
   es: product => ({
     welcomeTitle: 'Aviso de versión preliminar',
@@ -221,6 +226,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Elija las herramientas del agente y cómo funciona. Utilice el modo Estándar para las tareas diarias o el modo Creador para agregar capacidades a ${product}.`,
     presetCreatorDescription: `Personaliza ${product} a través de la conversación. Deje que el agente escriba complementos que agreguen funciones o interfaz de usuario, o combine herramientas e indicaciones para crear su propio modo.`,
     presetCreatePlugin: `Ingrese al modo Creador y cree su propio complemento ${product}`,
+    presetStandardGuide: '### Cómo funciona\n\n\n\nEl agente llama a herramientas directamente para leer y editar archivos, buscar y ejecutar comandos de terminal. Incluye habilidades, planificación, objetivos, subagentes, flujos de trabajo, gestión de complementos y compactación de contexto.\n\n\n\n### Cuándo elegirlo\n\n\n\nComience aquí para la codificación, el trabajo con archivos y la investigación diaria. El modo estándar también puede escribir scripts y procesar archivos en lotes. PTC cambia la forma en que se organizan las llamadas a herramientas; no es necesario para tareas por lotes.',
   }),
   fr: product => ({
     welcomeTitle: 'Avis de version préliminaire',
@@ -261,6 +267,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Choisissez les outils de l’agent et son fonctionnement. Utilisez le mode Standard pour les tâches quotidiennes ou le mode Créateur pour ajouter des fonctionnalités à ${product}.`,
     presetCreatorDescription: `Personnalisez ${product} via la conversation. Laissez l'agent écrire des plugins qui ajoutent des fonctionnalités ou une interface utilisateur, ou combinez des outils et des invites pour créer votre propre mode.`,
     presetCreatePlugin: `Entrez en mode Créateur et créez votre propre plugin ${product}`,
+    presetStandardGuide: "### Comment ça marche\n\n\n\nL'agent appelle directement des outils pour lire et modifier des fichiers, rechercher et exécuter des commandes de terminal. Il comprend les compétences, la planification, les objectifs, les sous-agents, les flux de travail, la gestion des plugins et le compactage du contexte.\n\n\n\n### Quand le choisir\n\n\n\nCommencez ici pour le codage quotidien, le travail sur les fichiers et la recherche. Le mode standard peut également écrire des scripts et traiter des fichiers par lots. PTC modifie la façon dont les appels d'outils sont organisés ; il n'est pas requis pour les tâches par lots.",
   }),
   de: product => ({
     welcomeTitle: 'Vorschauhinweis',
@@ -301,6 +308,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Wählen Sie die Tools des Agenten und deren Funktionsweise aus. Verwenden Sie den Standardmodus für alltägliche Aufgaben oder den Creator-Modus, um ${product} Funktionen hinzuzufügen.`,
     presetCreatorDescription: `Passen Sie ${product} durch Gespräche an. Lassen Sie den Agenten Plugins schreiben, die Funktionen oder Benutzeroberflächen hinzufügen, oder kombinieren Sie Tools und Eingabeaufforderungen, um Ihren eigenen Modus zu erstellen.`,
     presetCreatePlugin: `Wechseln Sie in den Erstellermodus und erstellen Sie Ihr eigenes ${product}-Plugin`,
+    presetStandardGuide: '### Wie es funktioniert\n\n\n\nDer Agent ruft Tools direkt auf, um Dateien zu lesen und zu bearbeiten, zu suchen und Terminalbefehle auszuführen. Es umfasst Fähigkeiten, Planung, Ziele, Subagenten, Arbeitsabläufe, Plugin-Verwaltung und Kontextkomprimierung.\n\n\n\n### Wann man es wählt\n\n\n\nBeginnen Sie hier mit alltäglicher Codierung, Dateiarbeit und Recherche. Im Standardmodus können auch Skripts geschrieben und Dateien stapelweise verarbeitet werden. PTC ändert die Organisation von Toolaufrufen; Für Batch-Aufgaben ist es nicht erforderlich.',
   }),
   ru: product => ({
     welcomeTitle: 'Предварительная версия',
@@ -341,6 +349,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Выбирайте инструменты агента и то, как они работают. Используйте стандартный режим для повседневных задач или режим Creator, чтобы расширить возможности ${product}.`,
     presetCreatorDescription: `Настройте ${product} через разговор. Позвольте агенту писать плагины, которые добавляют функции или пользовательский интерфейс, или комбинируйте инструменты и подсказки для создания собственного режима.`,
     presetCreatePlugin: `Войдите в режим Creator и создайте свой собственный плагин ${product}.`,
+    presetStandardGuide: '### Как это работает\n\n\n\nАгент напрямую вызывает инструменты для чтения и редактирования файлов, поиска и выполнения команд терминала. Он включает в себя навыки, планирование, цели, субагенты, рабочие процессы, управление плагинами и сжатие контекста.\n\n\n\n### Когда это выбирать\n\n\n\nНачните здесь ежедневное программирование, работу с файлами и исследования. Стандартный режим также позволяет писать сценарии и обрабатывать файлы в пакетном режиме. PTC изменяет организацию вызовов инструментов; для пакетных задач это не требуется.',
   }),
   pt: product => ({
     welcomeTitle: 'Aviso de versão de pré-visualização',
@@ -381,6 +390,7 @@ const COPY: Readonly<Record<BrandLocale, (product: string) => BrandCopyText>> = 
     presetSectionIntro: `Escolha as ferramentas do agente e como funciona. Use o modo Padrão para tarefas diárias ou o modo Criador para adicionar recursos ao ${product}.`,
     presetCreatorDescription: `Personalize ${product} por meio de conversa. Deixe o agente escrever plug-ins que adicionem recursos ou UI, ou combine ferramentas e prompts para criar seu próprio modo.`,
     presetCreatePlugin: `Entre no modo Criador e crie seu próprio plug-in ${product}`,
+    presetStandardGuide: '### Como funciona\n\n\n\nO agente chama ferramentas diretamente para ler e editar arquivos, pesquisar e executar comandos de terminal. Inclui habilidades, planejamento, metas, subagentes, fluxos de trabalho, gerenciamento de plugins e compactação de contexto.\n\n\n\n### Quando escolher\n\n\n\nComece aqui para codificação diária, trabalho de arquivo e pesquisa. O modo padrão também pode escrever scripts e processar arquivos em lotes. PTC altera a forma como as chamadas de ferramenta são organizadas; não é necessário para tarefas em lote.',
   }),
 }
 
@@ -449,6 +459,7 @@ export function brandCopy(brand: BrandRecord, locale: BrandLocale): readonly Cop
         sectionIntro: copy.presetSectionIntro,
         presetCordisDescription: copy.presetCreatorDescription,
         createPluginDescription: copy.presetCreatePlugin,
+        guideStandardExplanation: copy.presetStandardGuide,
       },
     },
     // dsh-client-ui-chat: the running status wording, and turn failure messages that name the process or the vendor account.

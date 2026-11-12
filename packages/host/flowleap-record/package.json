@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-record",
   "description": "The Firm Record of flowleap-os in the harness: the flowleapRecord seam (one matter's view with its record position, and the work of the token's person), its http provider, and the read-only record_read and record_my_work tools",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -38,12 +38,15 @@
     "locale/*.json",
     "lib/index.js",
     "lib/types/**/*.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~",
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",

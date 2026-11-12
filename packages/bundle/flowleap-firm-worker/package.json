@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-firm-worker",
   "description": "The standalone profile bundle of the FlowLeap firm worker: one row that reads the firm's MyEPO Mailbox into the Firm Record, with no model, no tool, no chat store and no listening port",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -27,7 +27,10 @@
     "locale/*.json",
     "lib/index.js",
     "cordis.patch.yml",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "dsh": {

@@ -19,7 +19,6 @@ import { resolveLinuxNodePtyAddon, resolveWindowsNodePtyAddons } from './executa
 import { officeSidecarArchives, runtimeNpmArchive, OFFICE_ASSET_IGNORES } from './build-exe-for-python-sdk-office.ts'
 import { syncPythonRuntimeProduct } from './build-exe-for-python-sdk-resources.ts'
 import { deduplicateStagedWorkspacePackages, materializeStagedLinks } from './build-exe-for-python-sdk-staging.ts'
-import { prepareOfficeSkillAssets } from './primary-runtime/prepare.ts'
 import primaryLock from './primary-runtime/lock.json' with { type: 'json' }
 
 const root = resolve(import.meta.dirname, '..')
@@ -83,6 +82,13 @@ const FLOWLEAP_PROFILE_IGNORES = [
   '**/node_modules/@deepseek-ai/dsh-client-ui-settings-skills/**',
   ...['@hyzyla/pdfium', '@napi-rs/canvas', '@napi-rs/canvas-*', '@xmldom/xmldom', 'docx', 'jszip', 'mammoth', 'pdfjs-dist', 'xml-js', 'xml2js']
     .map(name => `**/node_modules/${name}/**`),
+]
+
+/** Published source and documentation: types and maps already describe the runtime, so no load path needs them. */
+const PUBLISHED_PAYLOAD_IGNORES = [
+  '**/node_modules/@deepseek-ai/dsh/src/**',
+  '**/node_modules/@deepseek-ai/dsh-*/src/**',
+  '**/node_modules/@deepseek-ai/dsh/docs/**',
 ]
 
 const PLATFORMS = ['linux', 'macos', 'win'] as const
@@ -357,7 +363,7 @@ class SingleExeBuild {
     // pkg matches absolute paths, and a leading `**` skips dot folders such as `.claude/worktrees`; a literal staging prefix does not.
     const staging = this.staging.replaceAll('\\', '/')
     const patch = { bin: ENTRY_BIN, pkg: { assets: ASSET_GLOBS, ignore: [
-      ...[...OFFICE_ASSET_IGNORES, ...FLOWLEAP_PROFILE_IGNORES].map(pattern => `${staging}/${pattern}`),
+      ...[...OFFICE_ASSET_IGNORES, ...PUBLISHED_PAYLOAD_IGNORES, ...FLOWLEAP_PROFILE_IGNORES].map(pattern => `${staging}/${pattern}`),
       `${sourceModules}/**`, `${sourceModules}/.pnpm/**`,
       ...['packages', 'apps', 'vendor', 'native', 'scripts'].map(directory => `${join(root, directory).replaceAll('\\', '/')}/**`),
       `${root.replaceAll('\\', '/')}/tsconfig*.json`,
@@ -428,7 +434,7 @@ class SingleExeBuild {
     const ripgrep = await this.copyRipgrepSidecar(target, product)
     const resources = join(this.outDir, `${target.platform}-${target.arch}`)
     if (this.cli.dryRun) {
-      console.log(`build-exe-for-python-sdk: [dry-run] lock optional resource downloads and copy Office skills to ${resources}`)
+      console.log(`build-exe-for-python-sdk: [dry-run] lock optional resource downloads in ${resources}`)
     } else {
       await rm(resources, { recursive: true, force: true })
       await mkdir(resources, { recursive: true })
@@ -438,7 +444,6 @@ class SingleExeBuild {
       const inputs = { version, target: `${target.platform === 'macos' ? 'mac' : target.platform}-${target.arch}`, office, pnpm }
       const identity = createHash('sha256').update(JSON.stringify({ ...inputs, primaryLock })).digest('hex')
       await writeFile(join(resources, 'downloads.json'), JSON.stringify({ ...inputs, identity }, undefined, 2) + '\n')
-      await prepareOfficeSkillAssets(join(this.staging, 'node_modules/@deepseek-ai/dsh-skill-office/assets'), join(resources, 'office-skills'))
     }
     if (target.platform !== 'macos') return [product, ripgrep, resources]
     const spawnHelper = `${product}-spawn-helper`

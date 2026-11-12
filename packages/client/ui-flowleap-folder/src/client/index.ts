@@ -2,7 +2,7 @@
  * Browser half of the FlowLeap client folder page: the Clients row in `sidebar.panellist`, the page in the keyed
  * `main` slot, the row menu and the page's keys. The page opens a client's workspace folder with no chat. It reads
  * files under the workspace's blank Session from `uiWorkspace.connectWorkspace`, through `remote.workspaceFiles`
- * and `remote.officeToPdf`, and it writes through the folder routes of the Host half. Ask about this opens that blank
+ * and `remote.officeKit`, and it writes through the folder routes of the Host half. Ask about this opens that blank
  * Session's draft with an `@` mention of each entry, and shows a single file in the Session's right sidebar. Add
  * client is a view of the same page: it reads public data through the Add client routes of the Host half and sends
  * every Firm Record command with the person's cookie. The Firm identity section of Settings reads and saves the firm
@@ -16,7 +16,7 @@ import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/cl
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceFileWatchFrame } from '@deepseek-ai/dsh-api-workspace-files/types'
 import type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
-import type {} from '@deepseek-ai/dsh-office-to-pdf/remote'
+import type {} from '@deepseek-ai/dsh-office-kit/remote'
 import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -137,9 +137,9 @@ export function apply(ctx: ClientContext): void {
   registerKeys(ctx, { current: () => keys }, t)
 
   // The Office conversion is an optional Remote service: Word and PowerPoint files show while it is present.
-  let office: ClientContext['remote']['officeToPdf'] | undefined
-  ctx.inject(['remote.officeToPdf'], (scope) => {
-    office = scope.remote.officeToPdf
+  let office: ClientContext['remote']['officeKit'] | undefined
+  ctx.inject(['remote.officeKit'], (scope) => {
+    office = scope.remote.officeKit
     scope.effect(() => () => { office = undefined }, 'ui-flowleap-folder: Office conversion')
   })
 

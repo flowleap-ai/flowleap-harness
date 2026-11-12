@@ -47,12 +47,18 @@
 - id: product-analytics
   disabled: true
 
-# The account settings card and its controller wait for `deepseekAccount`,
-# which the disabled row above provides.
+# The account settings card and the account notification cards wait for
+# `deepseekAccount`, which the disabled row above provides.
 - id: ui-settings-account
   disabled: true
 
-- id: account-controller
+- id: ui-account-notifications
+  disabled: true
+
+# The packaged Word, PowerPoint and Excel skills of the Office kit: the FlowLeap
+# Office plugin (`flowleap-office-officecli` below) owns Office documents, so
+# the Patent Agent sees no second Office method in its skill catalog.
+- id: skill-office
   disabled: true
 
 - id: ui-brand-official

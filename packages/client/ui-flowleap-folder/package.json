@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-flowleap-folder",
   "description": "The Clients row in the FlowLeap sidebar (German Mandanten) and the client folder page: a client's workspace folder with no chat, its files open in the middle, new folders, uploads, rename, move, and Ask about this",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -54,7 +54,7 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:~",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -87,7 +87,7 @@
     "@deepseek-ai/dsh-file-reference": "workspace:*",
     "@deepseek-ai/dsh-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-loader-smoke": "workspace:*",
-    "@deepseek-ai/dsh-office-to-pdf": "workspace:*",
+    "@deepseek-ai/dsh-office-kit": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-util-workspace-path": "workspace:*",
@@ -103,6 +103,9 @@
     "locale/*.json",
     "lib/index.js",
     "lib/client.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ]
 }

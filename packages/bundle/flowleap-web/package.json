@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-flowleap-web",
   "description": "The FlowLeap Patent Agent profile layer over dsh-web-app: the patent preset as default, the FlowLeap brand, DeepSeek rows off, the in-process office connectors, the paid FlowLeap MCP tools, the FlowLeap methods skill pack, a file-backed patent persona, and Anthropic, OpenRouter and Mistral routes",
-  "version": "0.2.2-rc.1",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -38,7 +38,10 @@
     "prompt/patent-agent.md",
     "brand/brand.json",
     "brand/flowleap-mark.svg",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "dsh": {
@@ -56,7 +59,7 @@
         "deepseek-account",
         "deepseek-llm-api-extensions",
         "ui-settings-account",
-        "account-controller",
+        "ui-account-notifications",
         "web-search-deepseek",
         "web-deepseek-api",
         "session-telemetry-otel",
