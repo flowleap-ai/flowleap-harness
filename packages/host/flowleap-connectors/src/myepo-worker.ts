@@ -121,10 +121,11 @@ const TEST_REQUEST = /^([0-9a-f]{32})\.json$/
 const MAX_BACKOFF_STEPS = 6
 
 /**
- * Read a secret file of the worker: present, not empty, and readable by its owner only.
+ * Read a secret file of the worker: present, and on POSIX readable by its owner only. Windows has no mode to inspect:
+ * `stat` gives 666 for every writable file and does not show the ACL, so there the folder's ACL protects the file.
  * @param file - the path.
  * @returns the content, or `undefined` when the file does not exist.
- * @throws Error when other accounts can read the file.
+ * @throws Error when, on POSIX, other accounts can read the file.
  */
 async function readSecretFile(file: string): Promise<string | undefined> {
   let mode: number
@@ -134,7 +135,8 @@ async function readSecretFile(file: string): Promise<string | undefined> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
     throw error
   }
-  if ((mode & 0o077) !== 0) throw new Error(`${file} is readable by other accounts (mode ${(mode & 0o777).toString(8)})`)
+  /* v8 ignore next -- each platform takes one side; the POSIX specs assert the refusal, the Windows run the read. */
+  if (process.platform !== 'win32' && (mode & 0o077) !== 0) throw new Error(`${file} is readable by other accounts (mode ${(mode & 0o777).toString(8)})`)
   return readFile(file, 'utf8')
 }
 
