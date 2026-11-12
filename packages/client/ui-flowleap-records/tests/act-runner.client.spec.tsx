@@ -13,12 +13,12 @@ describe('the act runner of a decision', () => {
   it('compares two commands as the request they send, whatever the order of their fields', () => {
     const approve = { proposalId: 'p-1' as ProposalId, decision: 'approve' as const }
     expect(sameRequest(
-      { kind: 'ticket.decide', id: ID, reports: [approve], deadlineCheck: CHECK },
-      { deadlineCheck: { seq: 7, state: 'none-yet', id: 'none-yet' }, reports: [{ decision: 'approve', proposalId: approve.proposalId }], id: ID, kind: 'ticket.decide' },
+      { kind: 'ticket.decide', id: ID, reports: [approve], readings: [], deadlineCheck: CHECK },
+      { deadlineCheck: { seq: 7, state: 'none-yet', id: 'none-yet' }, reports: [{ decision: 'approve', proposalId: approve.proposalId }], readings: [], id: ID, kind: 'ticket.decide' },
     )).toBe(true)
     expect(sameRequest(
-      { kind: 'ticket.decide', id: ID, reports: [approve], deadlineCheck: CHECK },
-      { kind: 'ticket.decide', id: ID, reports: [approve], deadlineCheck: { ...CHECK, seq: 8 } },
+      { kind: 'ticket.decide', id: ID, reports: [approve], readings: [], deadlineCheck: CHECK },
+      { kind: 'ticket.decide', id: ID, reports: [approve], readings: [], deadlineCheck: { ...CHECK, seq: 8 } },
     )).toBe(false)
   })
 

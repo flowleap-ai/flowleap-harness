@@ -1645,6 +1645,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the receipt, or the refusal.',
       },
       {
+        signature: 'proposeReading(ticket: TicketId, command: ReadingProposal, signal: AbortSignal): Promise<RecordCommandResult<ReadingReceipt>>',
+        description: 'Propose a reading of an office letter for the attorney\'s decision. A repeat with the same Ticket, Session, and tool call is the same command.',
+        parameters: [{ name: 'ticket', description: 'the running Ticket.' }, { name: 'command', description: 'the letter, its objections and cited documents with their passages, and the language.' }, { name: 'signal', description: 'ends the command; the provider rejects when it fires.' }],
+        returns: 'the receipt, or the refusal.',
+      },
+      {
         signature: 'documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>',
         description: 'Read the text layer of a document of the record, the text that a quote of a report must be copied from.',
         parameters: [{ name: 'document', description: 'the SHA-256 of the document.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
@@ -9361,6 +9367,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
   {
+    name: 'ReadingDocument',
+    declaration: 'export interface ReadingDocument {\n    readonly label: string;\n    readonly publication: string;\n    readonly evidence: readonly [\n        DocumentSpan,\n        ...DocumentSpan[]\n    ];\n}',
+  },
+  {
+    name: 'ReadingId',
+    declaration: 'export type ReadingId = Branded<\'ReadingId\'>;',
+  },
+  {
+    name: 'ReadingItem',
+    declaration: 'export interface ReadingItem {\n    readonly ground: string;\n    readonly claims: readonly number[];\n    readonly documents: readonly string[];\n    readonly reasoning: string;\n    readonly evidence: readonly [\n        DocumentSpan,\n        ...DocumentSpan[]\n    ];\n}',
+  },
+  {
+    name: 'ReadingLanguage',
+    declaration: 'export type ReadingLanguage = \'de\' | \'en\' | \'fr\';',
+  },
+  {
+    name: 'ReadingProposal',
+    declaration: 'export interface ReadingProposal {\n    readonly document: DocumentSha256;\n    readonly language: ReadingLanguage;\n    readonly items: readonly ReadingItem[];\n    readonly documents: readonly ReadingDocument[];\n    readonly noItemsReason: string | null;\n    readonly session: SessionId;\n    readonly toolCall: ToolCallId;\n}',
+  },
+  {
+    name: 'ReadingReceipt',
+    declaration: 'export interface ReadingReceipt {\n    readonly readingId: ReadingId;\n    readonly recordSeq: RecordSeq;\n}',
+  },
+  {
     name: 'ReadOnlyReason',
     declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\' | \'deployment-locked\';',
   },
@@ -9390,7 +9420,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RecordCommandRefusal',
-    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'evidence_outside_matter\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
   },
   {
     name: 'RecordCommandResult',

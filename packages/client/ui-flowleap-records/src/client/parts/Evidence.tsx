@@ -127,14 +127,14 @@ export function StatementTable({ headers, children }: { headers: StatementHeader
 /**
  * Render one statement of a draft with its sources; a statement with missing evidence takes the waits tint.
  * @param props.number - its number in the draft.
- * @param props.text - what the draft says.
+ * @param props.text - what the draft says, or another row's subject, such as an objection with its claims.
  * @param props.missing - the statement has no span.
  * @param props.children - the quotes, record sources, or the missing-evidence state.
  * @returns the row.
  */
 export function StatementRow({ number, text, missing = false, children }: {
   number: number
-  text: string
+  text: ReactNode
   missing?: boolean
   children: ReactNode
 }) {

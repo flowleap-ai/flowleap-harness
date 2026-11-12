@@ -91,6 +91,9 @@ export type DocumentSha256 = Branded<'DocumentSha256'>
 /** Id of a proposal in the Firm Record. */
 export type ProposalId = Branded<'ProposalId'>
 
+/** Id of a reading of a letter in the Firm Record. */
+export type ReadingId = Branded<'ReadingId'>
+
 /** Id of an outbox item (a reply that the mailbox sends at most once). */
 export type OutboxId = Branded<'OutboxId'>
 
@@ -378,6 +381,52 @@ export interface ReportProposal {
   readonly toolCall: ToolCallId
 }
 
+/** The language of a letter, which a reading keeps for its reasoning; a quote is never translated. */
+export type ReadingLanguage = 'de' | 'en' | 'fr'
+
+/** One objection of the examiner in a reading of a letter: what the examiner said, with the passages that say it. */
+export interface ReadingItem {
+  /** The legal ground, such as `Art. 84 EPC: clarity`. */
+  readonly ground: string
+  /** The numbers of the claims that the objection concerns. */
+  readonly claims: readonly number[]
+  /** The labels of the cited documents that the objection uses, such as `D1`. */
+  readonly documents: readonly string[]
+  /** The examiner's reasoning in short, in the language of the letter. */
+  readonly reasoning: string
+  readonly evidence: readonly [DocumentSpan, ...DocumentSpan[]]
+}
+
+/** A document that the letter cites, with its publication number as the letter prints it. */
+export interface ReadingDocument {
+  /** `D1`, `D2` and so on. */
+  readonly label: string
+  readonly publication: string
+  readonly evidence: readonly [DocumentSpan, ...DocumentSpan[]]
+}
+
+/**
+ * `POST tickets/<id>/readings`: the run's reading of an office letter, for the attorney's decision. No argument and no draft:
+ * only what the letter says, each passage found in the stored text layer of `document`.
+ */
+export interface ReadingProposal {
+  /** The SHA-256 of the office letter, the document of an office event of the Ticket. */
+  readonly document: DocumentSha256
+  readonly language: ReadingLanguage
+  readonly items: readonly ReadingItem[]
+  readonly documents: readonly ReadingDocument[]
+  /** Why a reading has no objection, such as a letter that holds only the cover form; `null` when it has objections. */
+  readonly noItemsReason: string | null
+  readonly session: SessionId
+  readonly toolCall: ToolCallId
+}
+
+/** The Firm Record checked each passage and appended `reading/proposed`. */
+export interface ReadingReceipt {
+  readonly readingId: ReadingId
+  readonly recordSeq: RecordSeq
+}
+
 /** The state of the deadline that a run read, or `none-yet` when the event has no deadline in the record. */
 export type SummaryDeadlineState = DeadlineState | 'none-yet'
 
@@ -449,6 +498,8 @@ export type RecordCommandRefusal =
   | 'quote_not_in_letter'
   /** A quote is in the page text of the document more than once (422 `report.quote-ambiguous`). */
   | 'quote_ambiguous'
+  /** A cited document is not filed on the Ticket's matter (422 `report.evidence-outside-matter`). */
+  | 'evidence_outside_matter'
   /** A finish without a proposal of this Ticket and pass (409 `no-proposals`). */
   | 'no_proposals'
   /** The letter is larger than the Firm Record takes (413 `document-too-large`). */
@@ -507,6 +558,15 @@ export interface FlowleapRecord {
    * @returns the receipt, or the refusal.
    */
   proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
+  /**
+   * Propose a reading of an office letter for the attorney's decision. A repeat with the same Ticket, Session, and tool call
+   * is the same command.
+   * @param ticket - the running Ticket.
+   * @param command - the letter, its objections and cited documents with their passages, and the language.
+   * @param signal - ends the command; the provider rejects when it fires.
+   * @returns the receipt, or the refusal.
+   */
+  proposeReading(ticket: TicketId, command: ReadingProposal, signal: AbortSignal): Promise<RecordCommandResult<ReadingReceipt>>
   /**
    * Read the text layer of a document of the record, the text that a quote of a report must be copied from.
    * @param document - the SHA-256 of the document.

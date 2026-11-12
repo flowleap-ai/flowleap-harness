@@ -4,7 +4,7 @@
 #
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
 #                           [--demo [--officecli <binary>] [--ocr-key-file <mistral.env>] [--image <runtime image>]]
-#                           [--patch <overlay>] [--model <provider>/<model id>] [--myepo-double]
+#                           [--patch <overlay>] [--model <provider>/<model id>] [--myepo-double] [--ticket-runs [--officecli <binary>]]
 #   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number|my-work] one record_read (default SF-2021-0011), or record_my_work, through the tool executor; no model call
@@ -13,7 +13,7 @@
 #
 # FLOWLEAP_DEV_RUN names the run dir (default ~/.local/share/flowleap-harness/dev-loop). `up` stores its options there,
 # so the other commands take none. Ports: the app on <port> (default 3270) through the records proxy, dsh on <port>+1,
-# the probe on <port>+2, the Ticket runtimes of --demo on <port>+10 and up; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
+# the probe on <port>+2, the Ticket runtimes of --demo and --ticket-runs on <port>+10 and up; the record's local proxy on <record port> (default 8275) and its service on <record port>+1.
 # --myepo-double also starts the MyEPO double (public sample data of the seed firm) on <port>+3 and points the MyEPO
 # link at it; link it on Settings -> Connectors with the double's client ID and secret, which its log prints. It also starts
 # the firm's MyEPO letter reader against the double, which sends each new letter to the Firm Record's intake every 5 s, so
@@ -22,6 +22,9 @@
 # --demo is the full first demo (flowleap/docs/dev-loop.md, "The full first demo"): the 18 seed letters with OCR, the
 # mailbox reader loop, and the starter, which starts the Ticket runtime of the routed attorney when the Work router asks.
 # --demo and --myepo-double each load the seed letters their own way, so `up` refuses the two together.
+# --ticket-runs starts the starter of the Ticket runtimes without the rest of --demo, so a Ticket of a letter from the MyEPO
+# double runs (needs OPENROUTER_API_KEY). Without --officecli the runtimes have no Office tools: the reading of an Art. 94(3)
+# letter needs none, the reply and report of a Rule 71(3) letter cannot be written. --demo includes it.
 # The model keys come from this shell's environment only; with none, the app starts and chats fail at the model call.
 # FLOWLEAP_DEV_PATCHES adds overlay files (colon-separated absolute paths) after the loop's own; give it to `up` and `restart`.
 # --model sets the default model of new chats; up refuses a default whose provider has no key while another key is set.
@@ -60,8 +63,11 @@ load_options() {
   [[ -s $RUN/loop.env ]] || die "no loop in $RUN: run 'flowleap/dev-loop.sh up --os <flowleap-os checkout>' first"
   MODEL=
   MYEPO_DOUBLE=
+  TICKET_RUNS=
   # shellcheck source=/dev/null
   source "$RUN/loop.env"
+  # A loop.env from before --ticket-runs: the demo had the Ticket runtimes.
+  TICKET_RUNS=${TICKET_RUNS:-$DEMO}
 }
 # Prints the JSON of one seed user ({ handle, objectId, signIn, name }) from the seed package pinned by the os checkout.
 seed_user() {
@@ -192,7 +198,12 @@ start_dsh() {
 # Ticket wakes a person, the Work router writes starter/requests/<person id> and waits for starter/runtimes/<person id>.json.
 # The starter then starts that person's Ticket runtime: a dsh with the Ticket overlay, the Office rows, the firm templates
 # and the OpenRouter model row, its own record token in runtime-tokens/<person id>, and the person's Ticket key.
-TICKET_PATCHES=$HARNESS/packages/experimental/flowleap-ticket/examples/local-run/cordis.yml:$HARNESS/.agents/skills/verify/features/office.patch.yml:$HARNESS/flowleap/dev-loop-ticket.patch.yml
+# The overlays of a Ticket runtime: the Ticket overlay, the Office rows with the OfficeCLI binary when the loop has one, and the run model.
+ticket_patches() {
+  local office=''
+  [[ -z $OFFICECLI ]] || office=:$HARNESS/.agents/skills/verify/features/office.patch.yml
+  printf '%s%s:%s' "$HARNESS/packages/experimental/flowleap-ticket/examples/local-run/cordis.yml" "$office" "$HARNESS/flowleap/dev-loop-ticket.patch.yml"
+}
 TEMPLATES=$HARNESS/packages/experimental/flowleap-ticket/examples/local-run/templates
 ticket_runtime() {
   local oid=$1 dir=$RUN/runtimes/$1 port
@@ -208,7 +219,7 @@ ticket_runtime() {
   stop_pid "$dir/dsh.pid"
   (DEV_TOKEN_FILE=$dir/record-token FLOWLEAP_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) FLOWLEAP_TICKET_SECRET=$(< "$RECORD/ticket-keys/$oid") \
     FLOWLEAP_TEMPLATES_DIR=$TEMPLATES FLOWLEAP_RUN_WORKSPACE=$dir/runws DSH_VERIFY_OFFICE_TEMPLATES=$TEMPLATES \
-    DSH_VERIFY_OFFICECLI=$OFFICECLI DSH_VERIFY_OFFICECLI_SHA256=$OFFICECLI_SHA256 FLOWLEAP_DEV_PATCHES=$TICKET_PATCHES \
+    DSH_VERIFY_OFFICECLI=$OFFICECLI DSH_VERIFY_OFFICECLI_SHA256=$OFFICECLI_SHA256 FLOWLEAP_DEV_PATCHES=$(ticket_patches) \
     dsh "$dir" "$port" > "$dir/dsh.log" 2>&1 & echo $! > "$dir/dsh.pid")
   wait_ready "$dir/dsh.pid" "$dir/dsh.log" "$port" "the Ticket runtime of $oid" || return 1
   printf '{"url":"http://127.0.0.1:%s/","session":"dev-loop"}\n' "$port" > "$RECORD/starter/runtimes/.$oid.json"
@@ -326,7 +337,7 @@ up() {
   local as='' letters=1
   OS=${FLOWLEAP_OS:-}; PORT=3270; RECORD_PORT=8275; DEMO=0; OFFICECLI=${FLOWLEAP_OFFICECLI:-}
   OCR_KEY=$HOME/.config/flowleap/mistral.env IMAGE=registry.flowleap.co/flowleap/runtime:current
-  PATCH=; MODEL=; MYEPO_DOUBLE=
+  PATCH=; MODEL=; MYEPO_DOUBLE=; TICKET_RUNS=0
   while (($#)); do
     case $1 in
       --os) OS=$2; shift 2 ;;
@@ -341,6 +352,7 @@ up() {
       --patch) PATCH=$(cd "$(dirname "$2")" && pwd)/$(basename "$2"); shift 2 ;;
       --model) MODEL=$2; shift 2 ;;
       --myepo-double) MYEPO_DOUBLE=1; shift ;;
+      --ticket-runs) TICKET_RUNS=1; shift ;;
       *) die "unknown option $1" ;;
     esac
   done
@@ -348,6 +360,15 @@ up() {
   [[ -n $as ]] || { ((DEMO)) && as=tobias || as=jonas; }
   [[ -z $MYEPO_DOUBLE ]] || ((DEMO == 0)) || die "--demo and --myepo-double load the seed letters in two ways: give one of them"
   OFFICECLI_SHA256=''
+  ((DEMO == 0)) || TICKET_RUNS=1
+  if ((TICKET_RUNS && ! DEMO)); then
+    [[ -n ${OPENROUTER_API_KEY:-} ]] || die "--ticket-runs needs OPENROUTER_API_KEY in this shell: the Ticket run uses OpenRouter"
+    if [[ -n $OFFICECLI ]]; then
+      [[ -x $OFFICECLI ]] || die "--officecli $OFFICECLI is not an executable"
+      OFFICECLI=$(cd "$(dirname "$OFFICECLI")" && pwd)/$(basename "$OFFICECLI")
+      OFFICECLI_SHA256=$(shasum -a 256 "$OFFICECLI" | cut -d' ' -f1)
+    fi
+  fi
   if ((DEMO)); then
     ((letters)) || die "--demo needs the seed letters: leave out --no-letters"
     [[ -n ${OPENROUTER_API_KEY:-} ]] || die "--demo needs OPENROUTER_API_KEY in this shell: the Ticket run uses OpenRouter"
@@ -364,8 +385,8 @@ up() {
   [[ -d $HARNESS/node_modules ]] || die "no node_modules: run 'pnpm install' in $HARNESS"
   local t0=$SECONDS
   mkdir -p "$LOGS" "$RUN/seed"
-  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nDEMO=%q\nOFFICECLI=%q\nOFFICECLI_SHA256=%q\nOCR_KEY=%q\nIMAGE=%q\nPATCH=%q\nMODEL=%q\nMYEPO_DOUBLE=%q\n' \
-    "$OS" "$PORT" "$RECORD_PORT" "$DEMO" "$OFFICECLI" "$OFFICECLI_SHA256" "$OCR_KEY" "$IMAGE" "$PATCH" "$MODEL" "$MYEPO_DOUBLE" > "$RUN/loop.env"
+  printf 'OS=%q\nPORT=%q\nRECORD_PORT=%q\nDEMO=%q\nOFFICECLI=%q\nOFFICECLI_SHA256=%q\nOCR_KEY=%q\nIMAGE=%q\nPATCH=%q\nMODEL=%q\nMYEPO_DOUBLE=%q\nTICKET_RUNS=%q\n' \
+    "$OS" "$PORT" "$RECORD_PORT" "$DEMO" "$OFFICECLI" "$OFFICECLI_SHA256" "$OCR_KEY" "$IMAGE" "$PATCH" "$MODEL" "$MYEPO_DOUBLE" "$TICKET_RUNS" > "$RUN/loop.env"
   [[ -z $MODEL ]] || model_overlay
   check_model_keys
   say "harness $(git -C "$HARNESS" rev-parse --short HEAD), flowleap-os $(git -C "$OS" rev-parse --short HEAD) ($OS), run dir $RUN"
@@ -398,6 +419,13 @@ console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name
     if (persons !== process.argv[2]) { console.error("dev-loop: " + process.argv[1] + " has other intake persons: the flowleap-os checkout needs RECORD_INTAKE_PERSONS in record-local.sh; then run down, remove " + process.argv[3] + " and up again"); process.exit(1) }' \
     "$RECORD/settings.json" "$intake" "$RECORD"
   say "Firm Record up in $((SECONDS - t0)) s (service 127.0.0.1:$((RECORD_PORT + 1)))"
+  if ((TICKET_RUNS)); then
+    # The Work router signs a wake with the Ticket key of the routed person, so each seed person has one before the first wake.
+    local oid
+    for oid in $(cd "$OS/acceptance" && node --input-type=module -e "import { loadSeed } from 'flowleap-seed-firm'; console.log(loadSeed().users.map((u) => u.objectId).join(' '))"); do
+      [[ -s $RECORD/ticket-keys/$oid ]] || (umask 077; random_secret > "$RECORD/ticket-keys/$oid")
+    done
+  fi
 
   node "$OS/acceptance/seed-firm.mjs" --local "$RECORD" --port $((RECORD_PORT + 1)) --out "$RUN/seed/firm" > "$LOGS/seed-firm.log" 2>&1 ||
     { tail -5 "$LOGS/seed-firm.log" >&2; die "seed-firm.mjs failed: $LOGS/seed-firm.log"; }
@@ -438,7 +466,7 @@ console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name
   fi
   converge dsh "$PORT|$RECORD_PORT|$PATCH|$MODEL|$MYEPO_DOUBLE"
   alive "$RUN/dsh.pid" || start_dsh
-  if ((DEMO)) && ! alive "$RUN/starter.pid"; then
+  if ((TICKET_RUNS)) && ! alive "$RUN/starter.pid"; then
     (FLOWLEAP_DEV_RUN=$RUN exec "$HARNESS/flowleap/dev-loop.sh" starter > "$LOGS/starter.log" 2>&1 & echo $! > "$RUN/starter.pid")
     say "starter: the Work router's wake request starts the routed person's Ticket runtime (log $LOGS/starter.log)"
   fi

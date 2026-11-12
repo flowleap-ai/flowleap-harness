@@ -1,0 +1,23 @@
+# One Art. 94(3) reading run over fixtures: the Firm Record fixture provides
+# flowleapRecord and writes the reading and the finish it receives into the
+# workspace. The tool rows are the same as in flowleap-ticket-run, so this
+# scenario shares its prompt and schema sidecars; a reading writes no letter.
+- insert:
+    - id: flowleap-ticket-reading-fixture
+      name: './flowleap-ticket-reading-fixture.mjs'
+
+    - id: flowleap-record
+      name: '@deepseek-ai/dsh-flowleap-record'
+
+    - id: flowleap-record-run
+      name: '@deepseek-ai/dsh-flowleap-record/run'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+
+    - id: flowleap-office
+      name: '@deepseek-ai/dsh-flowleap-office'
+      config:
+        templatesDir: !!js process.cwd() + '/templates'
+        revisionAuthor: FlowLeap
+        maxReadChars: 40000
+        maxInputBytes: 33554432

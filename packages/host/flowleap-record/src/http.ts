@@ -20,7 +20,8 @@ import { readBoundedText } from '@deepseek-ai/dsh-flowleap-connectors'
 import type {
   DeadlineId, DocumentSha256, DocumentText, FlowleapRecord, LocalDate, MatterFileNumber, MatterView, MatterViewRefusal, MatterViewResult,
   MyWork, MyWorkResult, OfficeEventId, OutboxId, PersonId, ProposalId, RecordCommandError, RecordCommandRefusal,
-  RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt,
+  RecordCommandResult, RecordSeq, ReadingId, ReadingProposal, ReadingReceipt, ReportProposal, ReportReceipt, RuleId, RunFinish,
+  RunFinishReceipt, RunStart, RunStartReceipt,
   TicketId, ViewHash,
 } from './types.ts'
 
@@ -187,6 +188,11 @@ const reportSchema = zod.object({
   recordSeq: seq,
 })
 
+const readingSchema = zod.object({
+  readingId: zod.string().min(1).transform(value => brandString<ReadingId>(value)),
+  recordSeq: seq,
+})
+
 const finishSchema = zod.object({
   recordSeq: seq,
   outbox: zod.object({
@@ -210,6 +216,7 @@ const COMMAND_CODES: Readonly<Record<string, RecordCommandRefusal>> = {
   'report.statement-has-span': 'statement_without_span',
   'report.quote-not-in-letter': 'quote_not_in_letter',
   'report.quote-ambiguous': 'quote_ambiguous',
+  'report.evidence-outside-matter': 'evidence_outside_matter',
   'no-proposals': 'no_proposals',
   'document-too-large': 'document_too_large',
   'idempotency-key-reused': 'idempotency_key_reused',
@@ -287,7 +294,7 @@ function parseJson<T>(text: string, schema: zod.ZodType<T>): T | undefined {
  * @param parts - the Ticket, the Session, and for a report the tool call.
  * @returns the key.
  */
-export function idempotencyKey(kind: 'run-started' | 'report' | 'finish', parts: readonly string[]): string {
+export function idempotencyKey(kind: 'run-started' | 'report' | 'reading' | 'finish', parts: readonly string[]): string {
   return `${kind}:${createHash('sha256').update(JSON.stringify(parts)).digest('hex')}`
 }
 
@@ -394,6 +401,17 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
   }
 
   /**
+   * Propose a reading of an office letter for the attorney's decision.
+   * @param ticket - the running Ticket.
+   * @param command - the letter, its objections and cited documents with their passages, and the language.
+   * @param signal - ends the command; the method rejects when it fires.
+   * @returns the receipt, or the refusal.
+   */
+  proposeReading(ticket: TicketId, command: ReadingProposal, signal: AbortSignal): Promise<RecordCommandResult<ReadingReceipt>> {
+    return this.command(ticket, 'readings', idempotencyKey('reading', [ticket, command.session, command.toolCall]), command, readingSchema, signal)
+  }
+
+  /**
    * Read the text layer of a document of the record.
    * @param document - the SHA-256 of the document.
    * @param signal - ends the read; the method rejects when it fires.
@@ -415,7 +433,7 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
   }
 
   private async command<T>(
-    ticket: TicketId, action: 'run-started' | 'reports' | 'finish', idempotency: string, body: object,
+    ticket: TicketId, action: 'run-started' | 'reports' | 'readings' | 'finish', idempotency: string, body: object,
     schema: zod.ZodType<T>, signal: AbortSignal,
   ): Promise<RecordCommandResult<T>> {
     return this.send(`tickets/${encodeURIComponent(ticket)}/${action}`, { idempotency, json: JSON.stringify(body) }, schema, signal)

@@ -686,3 +686,16 @@
 :is(.relatedColumns, .waitsColumns, .documentsColumns, .deadlinesColumns) :is(.main, .meta, .open) {
   white-space: normal;
 }
+
+/* The reading of a letter: one objection as its ground, its claims and cited documents, and its reasoning. */
+.readingItem {
+  display: grid;
+  gap: 4px;
+}
+
+.readingMeta {
+  margin: 0;
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  color: var(--dsw-alias-label-secondary);
+}

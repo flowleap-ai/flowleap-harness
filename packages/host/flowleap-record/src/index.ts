@@ -17,7 +17,8 @@ export type {
   DocumentSpan, DocumentText, DocumentView, FlowleapRecord, KnownWorkKind, LocalDate, MatterFileNumber, MatterRole,
   MatterState, MatterSummary, MatterView, MatterViewBase, MatterViewR1, MatterViewRefusal, MatterViewResult, MyWork,
   MyWorkMatter, MyWorkPerson, MyWorkRefusal, MyWorkResult, MyWorkSummary, NextDeadline, OfficeEventId, OfficeEventView, OutboxId,
-  PersonId, ProposalId, RecordCommandError, RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportKind, ReportProposal,
+  PersonId, ProposalId, ReadingDocument, ReadingId, ReadingItem, ReadingLanguage, ReadingProposal, ReadingReceipt, RecordCommandError,
+  RecordCommandRefusal, RecordCommandResult, RecordSeq, ReportKind, ReportProposal,
   ReportReceipt, ReportStatement, RuleId, RunFinish, RunFinishReceipt, RunStart, RunStartReceipt, StatementEvidence,
   SummaryDeadlineState, TaskState, TicketId, TicketState, TicketSummary, TraceStep, ViewHash, WorkGroup, WorkItem, WorkKind, WorkMatter,
 } from './types.ts'

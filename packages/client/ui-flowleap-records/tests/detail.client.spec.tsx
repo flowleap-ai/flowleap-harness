@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleId } from '@deepseek-ai/dsh-client-locale/client'
-import type {
-  Act, DeadlineDetail, DeadlineId, DocumentId, Fetched, FileNumber, IsoDate, MatterDetail, PersonId, RecordsApi, TicketDetail, TicketId,
+import {
+  parsers, type Act, type DeadlineDetail, type DeadlineId, type DocumentId, type Fetched, type FileNumber, type IsoDate, type LetterReading,
+  type MatterDetail, type PersonId, type RecordsApi, type TicketDetail, type TicketId,
 } from '../src/client/api.ts'
 import type { IsoTime } from '../src/client/wire.ts'
 import { CommandItemRegistry, KeyActRegistry } from '../src/client/key-layer.ts'
@@ -14,7 +15,9 @@ import { de, en, es, fr, ja, pt, ru, zh, type FlowleapRecordsKey } from '../src/
 import { createRecordsModel, type Route } from '../src/client/model.ts'
 import { RecordsPanel, type PanelProps } from '../src/client/Panel.tsx'
 import { agentProps } from './agent-fakes.client.tsx'
-import { createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, PEOPLE, R71_DOCUMENT, uuid } from './fixtures.client.ts'
+import {
+  createFixtureApi, fixtures, FIXTURE_IDS, OUTSIDE_WALL, PEOPLE, R71_DOCUMENT, readingWire, ticketWire, uuid,
+} from './fixtures.client.ts'
 import { deniedText, FORM_CODE, mainViewText } from './screen-harness.client.tsx'
 
 const opened = vi.fn()
@@ -791,6 +794,7 @@ describe('the work on a letter', () => {
     expect(acts.at(-1)?.command).toEqual({
       kind: 'ticket.decide', id: FIXTURE_IDS.ticket,
       reports: [{ proposalId: 'proposal-1', decision: 'reject', reason: 'Statement 5 has no source' }],
+      readings: [],
       deadlineCheck: { id: FIXTURE_IDS.deadline, state: 'active', seq: 142 },
     })
   })
@@ -808,6 +812,7 @@ describe('the work on a letter', () => {
     expect(acts.at(-1)?.command).toEqual({
       kind: 'ticket.decide', id: FIXTURE_IDS.ticket,
       reports: [{ proposalId: 'proposal-1', decision: 'approve' }],
+      readings: [],
       deadlineCheck: { id: FIXTURE_IDS.deadline, state: 'active', seq: 142 },
     })
     expect(commandItems.item()?.groups.map(group => group.acts.map(item => item.id))).toEqual([
@@ -1051,5 +1056,111 @@ describe('the work on a letter', () => {
     expect(sent.slice(0, 3).map(act => act.key)).toEqual(Array(3).fill(sent[0]!.key))
     expect(sent[3]!.key).not.toBe(sent[0]!.key)
     expect(within(bar()).queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('the reading of the letter on the work page', () => {
+  const proposed: LetterReading = parsers.ticketDetail({ ...ticketWire, readings: [readingWire] }, 'ticket').readings[0]!
+  const anna = { id: PEOPLE.anna.id as PersonId, name: PEOPLE.anna.name }
+  const withReadings = (...readings: LetterReading[]): TicketDetail => ({ ...sourced, readings })
+  const section = (name = 'Reading of the letter') => screen.getByRole('region', { name })
+  const readingPart = () => within(bar()).getByRole('group', { name: 'Reading of the letter' })
+
+  it('shows each objection with its ground, claims, cited documents, reasoning in the letter\'s language and quote, then the cited documents', async () => {
+    await mount(WORK, { ticket: withReadings(proposed) })
+    const rows = within(section()).getAllByRole('row').map(row => row.textContent)
+    expect(rows).toEqual([
+      '#ObjectionSource in the letter',
+      '1Art. 54 EPÜClaims 1, 3 · Cites D1D1 offenbart alle Merkmale des Anspruchs 1.nicht neu gegenüber D1p. 1',
+      '2Art. 84 EPÜDer Begriff „dünn“ ist unklar.Missing evidence',
+      '#Cited documentSource in the letter',
+      '1D1 · EP 1 234 567 A1D1: EP 1 234 567 A1p. 1',
+    ])
+    expect(within(section()).getByText('D1 offenbart alle Merkmale des Anspruchs 1.').getAttribute('lang')).toBe('de')
+    expect(within(section()).getByText('Proposed')).toBeTruthy()
+    expect(within(bar()).getByText('3 parts, all required')).toBeTruthy()
+    expect(within(bar()).getByText('2 objections')).toBeTruthy()
+  })
+
+  it('shows the reading in German', async () => {
+    await mount(WORK, { ticket: withReadings(proposed) }, 'de')
+    const shown = section('Auswertung des Schreibens')
+    expect(within(shown).getAllByRole('row').map(row => row.textContent)[1]).toContain('Art. 54 EPÜAnsprüche 1, 3 · Zitiert D1')
+    expect(within(shown).getByText('Vorgeschlagen')).toBeTruthy()
+    expect(within(shown).getAllByRole('columnheader').map(head => head.textContent)).toContain('Einwand')
+  })
+
+  it('shows only the latest reading of the work\'s pass, why it has no objection, and who decided it', async () => {
+    const older = { ...proposed, readingId: uuid(0x95) as LetterReading['readingId'], pass: 0, state: 'approved' as const, noItemsReason: 'An older pass' }
+    const none = { ...proposed, items: [], documents: [], noItemsReason: 'The letter raises no objection.' }
+    await mount(WORK, { ticket: withReadings(none, older) })
+    expect(within(section()).getByText('The letter raises no objection.')).toBeTruthy()
+    expect(within(section()).queryByRole('table')).toBeNull()
+    expect(document.body.textContent).not.toContain('An older pass')
+    expect(within(bar()).getByText('No objections')).toBeTruthy()
+    cleanup()
+    const decided = (reading: Partial<LetterReading>) => withReadings({ ...proposed, ...reading })
+    const one = { ...proposed.items[0]!, claims: [2], documents: [] }
+    await mount(WORK, { ticket: decided({ state: 'approved', decidedBy: anna, items: [one], documents: [] }) })
+    expect(within(section()).getByText('Accepted by Dr. Anna Becker')).toBeTruthy()
+    expect(within(section()).getAllByRole('row')[1]!.textContent).toContain('Art. 54 EPÜClaim 2D1')
+    expect(within(bar()).getByText('2 parts, both required')).toBeTruthy()
+    cleanup()
+    await mount(WORK, { ticket: decided({ state: 'approved', items: [], noItemsReason: null }) })
+    expect(within(section()).getByText('Accepted')).toBeTruthy()
+    expect(within(section()).getByText('No objections')).toBeTruthy()
+    cleanup()
+    await mount(WORK, { ticket: decided({ state: 'rejected', decidedBy: anna, reason: 'D1 is the wrong document' }) })
+    expect(within(section()).getByText('Rejected by Dr. Anna Becker')).toBeTruthy()
+    expect(within(section()).getByText('Reason: D1 is the wrong document')).toBeTruthy()
+    cleanup()
+    await mount(WORK, { ticket: decided({ state: 'rejected' }) })
+    expect(within(section()).getByText('Rejected')).toBeTruthy()
+    cleanup()
+    await mount(WORK, { ticket: decided({ items: [{ ...proposed.items[0]!, claims: [] }] }) })
+    expect(within(bar()).getByText('1 objection')).toBeTruthy()
+  })
+
+  it('records the reading\'s acceptance with the report and the deadline check, and only once the person chose for it', async () => {
+    const { acts, press } = await mount(WORK, { ticket: withReadings(proposed) })
+    const record = () => within(bar()).getByRole('button', { name: /Record decision/ })
+    await press('accept')
+    fireEvent.click(screen.getByRole('checkbox', { name: /I checked the deadline/ }))
+    expect(record()).toHaveProperty('disabled', true)
+    await press('accept')
+    expect(within(readingPart()).getByRole('button', { name: /^Accept/ }).className).toMatch(/onAccept/)
+    await press('record')
+    expect(acts.at(-1)?.command).toEqual({
+      kind: 'ticket.decide', id: FIXTURE_IDS.ticket,
+      reports: [{ proposalId: 'proposal-1', decision: 'approve' }],
+      readings: [{ readingId: readingWire.readingId, decision: 'accept' }],
+      deadlineCheck: { id: FIXTURE_IDS.deadline, state: 'active', seq: 142 },
+    })
+  })
+
+  it('records a rejected reading with its reason', async () => {
+    const { acts } = await mount(WORK, { ticket: withReadings(proposed) })
+    fireEvent.click(within(bar()).getAllByRole('button', { name: /^Accept/ })[0]!)
+    fireEvent.click(within(readingPart()).getByRole('button', { name: /^Reject/ }))
+    fireEvent.change(screen.getByLabelText('Why do you reject the reading of the letter?'), { target: { value: 'D1 is the wrong document' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    expect(within(bar()).getByText('Rejected: D1 is the wrong document')).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: /I checked the deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ }))
+    await flush()
+    expect(acts.at(-1)?.command).toMatchObject({
+      reports: [{ proposalId: 'proposal-1', decision: 'approve' }],
+      readings: [{ readingId: readingWire.readingId, decision: 'reject', reason: 'D1 is the wrong document' }],
+    })
+  })
+
+  it('lets the person decide a work item whose only proposal is the reading', async () => {
+    const { acts } = await mount(WORK, { ticket: { ...withReadings(proposed), reports: [], clientReport: null } })
+    expect(within(bar()).getByText('2 parts, both required')).toBeTruthy()
+    fireEvent.click(within(readingPart()).getByRole('button', { name: /^Accept/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /I checked the deadline/ }))
+    fireEvent.click(within(bar()).getByRole('button', { name: /Record decision/ }))
+    await flush()
+    expect(acts.at(-1)?.command).toMatchObject({ reports: [], readings: [{ readingId: readingWire.readingId, decision: 'accept' }] })
   })
 })
