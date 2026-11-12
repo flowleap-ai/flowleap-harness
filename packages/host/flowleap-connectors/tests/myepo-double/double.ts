@@ -97,6 +97,11 @@ export interface MyEpoDoubleData {
   readonly letters: readonly DoubleLetter[]
   /** The letters that {@link MyEpoDouble.arrive} adds, in order; absent from the Mailbox until then. */
   readonly arrivals: readonly DoubleLetter[]
+  /**
+   * The text version of a letter, by its seed row: a test fixture with a text layer that FlowLeap made from the scan, under its
+   * own communication id; absent from the Mailbox until {@link MyEpoDouble.arriveText}.
+   */
+  readonly textVersions: Readonly<Record<number, DoubleLetter>>
 }
 
 /** The read state of one letter, for the control surface. */
@@ -119,6 +124,12 @@ export interface MyEpoDouble {
    * @returns the letter's row, or `undefined` when every arrival has arrived.
    */
   arrive(): WireCommunication | undefined
+  /**
+   * Adds the text version of the letter of seed row `row` to the Mailbox, unread and unhandled.
+   * @param row - the seed row of the letter.
+   * @returns the letter's row, or `undefined` when the row has no text version or it is in the Mailbox already.
+   */
+  arriveText(row: number): WireCommunication | undefined
   /**
    * The Mailbox now.
    * @returns each letter's id, `read` and `handled` in dispatch order, and how many arrivals wait.
@@ -233,6 +244,13 @@ export function createMyEpoDouble(data: MyEpoDoubleData, endpoint: DoubleEndpoin
       const row = { ...next.communication, read: false, handled: false }
       mailbox.set(row.id, { letter: next, row })
       return row
+    },
+    arriveText(row) {
+      const letter = data.textVersions[row]
+      if (letter === undefined || mailbox.has(letter.communication.id)) return undefined
+      const added = { ...letter.communication, read: false, handled: false }
+      mailbox.set(added.id, { letter, row: added })
+      return added
     },
     state: () => ({ letters: byDispatch().map(({ id, read: seen, handled }) => ({ id, read: seen, handled })), waiting: waiting.length }),
     async fetch(input, init) {

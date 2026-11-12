@@ -11,6 +11,8 @@ declare module 'flowleap-seed-firm' {
     readonly applicationNumberPrinted: string | null
     /** The PDF on disk. */
     readonly path: string
+    /** A test fixture that FlowLeap made from the scan: the letter's OCR text as a PDF with a text layer; not a Mailbox file. */
+    readonly textFixture?: { readonly path: string; readonly pages: number }
   }
   export interface RegisterSnapshot {
     readonly tool: string

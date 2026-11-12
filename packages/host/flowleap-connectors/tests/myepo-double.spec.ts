@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { loadSeed } from 'flowleap-seed-firm'
 import { describe, expect, it, vi } from 'vitest'
@@ -196,6 +197,23 @@ describe('the MyEPO double on the seed firm', () => {
     expect(`${ARRIVAL.application}/${ARRIVAL.row}`).toBe('EP23771920/18')
   })
 
+  it('delivers the text version of a Form 2001 letter on request: a marked PDF with the letter and its reasons, under its own id', async () => {
+    const double = seedDouble()
+    const client = reads(double)
+    expect(double.arriveText(15)).toBeUndefined()
+    const arrived = double.arriveText(16)
+    expect(arrived).toMatchObject({ applicationNumber: 'EP23755468.8', documentCode: '2001A', dispatchDate: '2026-06-09', userReference: 'SF-2023-0042', read: false, handled: false })
+    expect(double.arriveText(16)).toBeUndefined()
+    const letter = (await client.unhandledCommunications()).items.find(item => item.id === arrived!.id)!
+    const document = await client.downloadCommunication(letter)
+    const fixture = seed.matters.find(matter => matter.application === 'EP23755468')!.documents.find(row => row.row === 16)!.textFixture!
+    expect(document.pdf).toEqual(new Uint8Array(readFileSync(fixture.path)))
+    expect(Buffer.from(document.pdf).toString('latin1')).toContain('FlowLeap test fixture')
+    expect(document.filename).toBe('SF-2023-0042-2026.06.09-EP23755468-2001A-flowleap-ocr-text.pdf')
+    double.reset()
+    expect(double.state().letters.some(item => item.id === arrived!.id)).toBe(false)
+  })
+
   it('answers 403 ERR_20 outside the portfolios and 400 ERR_30 for an unknown application', async () => {
     const client = reads(seedDouble())
     expect(await failureOf(client.bibliographicData(ep(RESTRICTED_APPLICATION)))).toEqual({ kind: 'no-permission', code: 'ERR_20' })
@@ -330,6 +348,8 @@ describe('the MyEPO double on the seed firm', () => {
       expect(((await arrive.json()) as { arrived: { documentCode: string } }).arrived.documentCode).toBe('2004C')
       expect((await fetch(`${server.origin}/_double/arrive`, { method: 'POST' })).status).toBe(409)
       expect((await client.unhandledCommunications()).total).toBe(4)
+      expect(((await (await fetch(`${server.origin}/_double/arrive-text/6`, { method: 'POST' })).json()) as { arrived: { documentCode: string } }).arrived.documentCode).toBe('2001A')
+      expect((await fetch(`${server.origin}/_double/arrive-text/6`, { method: 'POST' })).status).toBe(409)
       const reset = (await (await fetch(`${server.origin}/_double/reset`, { method: 'POST' })).json()) as { data: string; waiting: number }
       expect(reset.data).toContain(SAMPLE_MARKER)
       expect(reset.waiting).toBe(1)
