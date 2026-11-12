@@ -7,7 +7,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import FlowleapRecordHttp, { idempotencyKey } from '../src/http.ts'
 import type {
-  DeadlineId, FlowleapRecord, MatterFileNumber, MatterViewResult, MyWorkResult, RecordSeq, ReportProposal, TicketId,
+  DeadlineId, DocumentSha256, FlowleapRecord, MatterFileNumber, MatterViewResult, MyWorkResult, RecordSeq, ReportProposal, TicketId,
 } from '../src/types.ts'
 import { FILE_LETTER_SHA256, MY_WORK } from './fixtures/record-read/my-work.ts'
 import { LETTER_SHA256, VIEW } from './fixtures/record-read/view.ts'
@@ -310,6 +310,22 @@ describe('flowleapRecord run commands over HTTP', () => {
     expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'no_key' })
   })
 
+  it('posts the reading with the token, its body as the command, and a key of the Ticket, the Session and the tool call', async () => {
+    const double = await record(json(201, { readingId: 'rd-1', recordSeq: 11 }))
+    const service = await provider({ url: double.url, key: TOKEN })
+    const reading = {
+      document: brandString<DocumentSha256>('a'.repeat(64)), language: 'de' as const, noItemsReason: null, session: SESSION, toolCall: ToolCallId('call-9'),
+      items: [{ ground: 'Art. 56 EPÜ', claims: [1], documents: ['D1'], reasoning: 'Naheliegend.', evidence: [{ page: 3, quote: 'beruht nicht auf einer erfinderischen' }] as const }],
+      documents: [{ label: 'D1', publication: 'US 2011/067255 A1', evidence: [{ page: 3, quote: 'D2 US 2011/067255 A1' }] as const }],
+    }
+    expect(await service.proposeReading(TICKET, reading, new AbortController().signal)).toEqual({ readingId: 'rd-1', recordSeq: 11 })
+    expect(double.paths).toEqual(['/records/api/tickets/tk-1/readings'])
+    expect(double.requests[0]?.key).toBe(idempotencyKey('reading', ['tk-1', 'webhook-1', 'call-9']))
+    expect(JSON.parse(double.requests[0]!.body)).toEqual(JSON.parse(JSON.stringify(reading)))
+    const bad = await record(json(201, { recordSeq: 11 }))
+    expect(await (await provider({ url: bad.url, key: TOKEN })).proposeReading(TICKET, reading, new AbortController().signal)).toEqual({ error: 'invalid_answer' })
+  })
+
   it('maps each refusal code of the Firm Record and keeps its detail', async () => {
     for (const [status, code, error] of [
       [403, 'agent-cannot-decide', 'agent_cannot_decide'],
@@ -323,6 +339,7 @@ describe('flowleapRecord run commands over HTTP', () => {
       [422, 'report.statement-has-span', 'statement_without_span'],
       [422, 'report.quote-not-in-letter', 'quote_not_in_letter'],
       [422, 'report.quote-ambiguous', 'quote_ambiguous'],
+      [422, 'report.evidence-outside-matter', 'evidence_outside_matter'],
       [409, 'no-proposals', 'no_proposals'],
       [413, 'document-too-large', 'document_too_large'],
       [409, 'idempotency-key-reused', 'idempotency_key_reused'],

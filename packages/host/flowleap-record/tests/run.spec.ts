@@ -22,7 +22,8 @@ import { nonEmpty } from '../src/run/args.ts'
 import * as run from '../src/run/index.ts'
 import type {
   DocumentSha256, DocumentText, FlowleapRecord, MatterViewResult, MyWorkResult, OutboxId, ProposalId, RecordCommandError,
-  RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, RunFinish, RunFinishReceipt, RunStartReceipt, TicketId,
+  ReadingId, ReadingProposal, ReadingReceipt, RecordCommandResult, RecordSeq, ReportProposal, ReportReceipt, RunFinish,
+  RunFinishReceipt, RunStartReceipt, TicketId,
 } from '../src/types.ts'
 import { LETTER_SHA256, VIEW } from './fixtures/record-read/view.ts'
 
@@ -34,11 +35,14 @@ afterEach(async () => {
 const RECEIPT: ReportReceipt = {
   proposalId: brandString<ProposalId>('p-1'), document: brandString<DocumentSha256>('b'.repeat(64)), recordSeq: brandNumber<RecordSeq>(10),
 }
+const READ: ReadingReceipt = { readingId: brandString<ReadingId>('rd-1'), recordSeq: brandNumber<RecordSeq>(11) }
 const FINISHED: RunFinishReceipt = { recordSeq: brandNumber<RecordSeq>(12), outbox: { id: brandString<OutboxId>('o-1'), state: 'queued' } }
 
 /** A Firm Record double that keeps each command and answers with the configured result. */
 class RecordDouble extends Service implements FlowleapRecord {
   readonly reports: Array<{ ticket: TicketId; command: ReportProposal }> = []
+  readonly readings: Array<{ ticket: TicketId; command: ReadingProposal }> = []
+  reading: RecordCommandResult<ReadingReceipt> = READ
   readonly finishes: Array<{ ticket: TicketId; command: RunFinish }> = []
   readonly textReads: DocumentSha256[] = []
   text: RecordCommandResult<DocumentText> = { pages: ['Page one text.', 'Page two text.'] }
@@ -55,6 +59,10 @@ class RecordDouble extends Service implements FlowleapRecord {
   async proposeReport(ticket: TicketId, command: ReportProposal): Promise<RecordCommandResult<ReportReceipt>> {
     this.reports.push({ ticket, command })
     return this.report
+  }
+  async proposeReading(ticket: TicketId, command: ReadingProposal): Promise<RecordCommandResult<ReadingReceipt>> {
+    this.readings.push({ ticket, command })
+    return this.reading
   }
   async documentText(document: DocumentSha256): Promise<RecordCommandResult<DocumentText>> {
     this.textReads.push(document)
@@ -216,6 +224,69 @@ describe('record_propose_report', () => {
   })
 })
 
+const readingArgs = {
+  ticket_id: 'tk-1',
+  document: LETTER_SHA256,
+  language: 'en',
+  items: [{
+    ground: 'Art. 84 EPC: clarity', claims: [3, 1, 1], documents: ['D1'], reasoning: 'The second layer of claim 1 has no defined location.',
+    evidence: [{ page: 4, quote: 'the location of said second thermal displacement relief layer is not defined' }],
+  }],
+  documents: [{ label: 'D1', publication: 'DE 196 11 983 C1', evidence: [{ page: 3, quote: 'D1 DE 196 11 983 C1' }] }],
+}
+
+describe('record_propose_reading', () => {
+  it('sends the objections, the cited documents, the language, the Session, and the tool call, and answers the receipt', async () => {
+    const { call, record } = await bench()
+    const result = await call('record_propose_reading', readingArgs)
+    expect([result.isError, JSON.parse(result.text)]).toEqual([false, READ])
+    expect(record.readings).toEqual([{
+      ticket: 'tk-1',
+      command: {
+        document: LETTER_SHA256, language: 'en', noItemsReason: null, session: 'webhook-run-1', toolCall: 'call-7',
+        items: [{ ...readingArgs.items[0], claims: [3, 1, 1] }], documents: readingArgs.documents,
+      },
+    }])
+  })
+
+  it('sends a reading with no objection with its reason', async () => {
+    const { call, record } = await bench()
+    const result = await call('record_propose_reading', { ticket_id: 'tk-1', document: LETTER_SHA256, language: 'de', items: [], no_items_reason: 'Die Gründe (EPA Form 2906) liegen nicht bei.' })
+    expect(result.isError).toBe(false)
+    expect(record.readings[0]?.command).toMatchObject({ items: [], documents: [], noItemsReason: 'Die Gründe (EPA Form 2906) liegen nicht bei.', language: 'de' })
+  })
+
+  it('answers each refusal with its code, a message that names this tool where the shared one does not fit, and the detail', async () => {
+    const { call, record } = await bench()
+    const answer = async (refusal: RecordCommandError) => {
+      record.reading = refusal
+      return JSON.parse((await call('record_propose_reading', readingArgs)).text) as { error: string; message: string; detail?: string }
+    }
+    expect((await answer({ error: 'statement_without_evidence' })).message).toContain('Every objection and every cited document')
+    const outside = await answer({ error: 'evidence_outside_matter', detail: 'not on the matter' })
+    expect([outside.message.includes('record_read'), outside.detail]).toEqual([true, 'not on the matter'])
+    expect((await answer({ error: 'quote_not_in_letter' })).message).toMatch(/character for character/u)
+    expect((await answer({ error: 'no_proposals' })).message).toContain('record_propose_reading')
+  })
+
+  it('refuses an objection without a passage, a bad label, a bad language and a bad hash before the Firm Record', async () => {
+    const { call, record } = await bench()
+    const [item] = readingArgs.items
+    for (const args of [
+      { ...readingArgs, items: [{ ...item, evidence: [] }] },
+      { ...readingArgs, items: [{ ...item, documents: ['Doc 1'] }] },
+      { ...readingArgs, documents: [{ label: 'D1', publication: 'DE 1', evidence: [] }] },
+      { ...readingArgs, language: 'nl' },
+      { ...readingArgs, document: 'abc' },
+      { ...readingArgs, items: [{ ...item, evidence: [{ page: 0, quote: 'x' }] }] },
+    ]) {
+      const result = await call('record_propose_reading', args)
+      expect(result.isError).toBe(true)
+    }
+    expect(record.readings).toEqual([])
+  })
+})
+
 describe('record_read_document_text', () => {
   it('answers the page text of the document from the Firm Record', async () => {
     const { call, record } = await bench()
@@ -287,8 +358,12 @@ describe('the run plugin', () => {
   it('fails loud for a relative template folder and removes both tools when it unloads', async () => {
     const { ctx, fiber } = await bench()
     const names = () => ctx.tools.schemas().map(schema => schema.name).filter(name => name.startsWith('record_'))
-    expect(names().sort()).toEqual(['record_finish_run', 'record_propose_report', 'record_read_document_text'])
     const description = (name: string) => ctx.tools.schemas().find(schema => schema.name === name)?.description
+    expect(names().sort()).toEqual(['record_finish_run', 'record_propose_reading', 'record_propose_report', 'record_read_document_text'])
+    expect(description('record_propose_reading')).toContain('what the examiner said, and nothing else')
+    expect(description('record_propose_reading')).toContain('never translated')
+    expect(ctx.tools.get('record_propose_reading')?.presentCall?.(readingArgs)).toMatchObject({ card: 'generic', title: 'Propose the reading: 1 objection(s)' })
+    expect(ctx.tools.get('record_propose_reading')?.presentCall?.({ ...readingArgs, items: [] })).toMatchObject({ card: 'generic', title: 'Propose the reading' })
     expect(description('record_propose_report')).toContain('Nothing goes to the client or to the office before the attorney decides')
     expect(description('record_propose_report')).toContain('firm addresses only')
     expect(description('record_propose_report')).toContain('record_read_document_text')

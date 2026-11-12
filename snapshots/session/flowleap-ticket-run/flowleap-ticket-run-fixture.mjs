@@ -133,6 +133,8 @@ export function apply(ctx) {
       reports += 1
       return { proposalId: `p-${reports}`, document: sha256(content), recordSeq: 9 + reports }
     },
+    // An R71(3) run proposes no reading; the flowleap-ticket-reading snapshot covers it.
+    proposeReading: async () => ({ error: 'evidence_outside_matter' }),
     finishRun: async (ticket, command) => {
       received('finish.json', { ticket, ...command, session: sessionMark(command.session) })
       return { recordSeq: 12, outbox: { id: 'o-1', state: 'queued' } }

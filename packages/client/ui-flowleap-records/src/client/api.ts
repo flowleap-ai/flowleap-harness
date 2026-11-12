@@ -31,6 +31,8 @@ export type TicketId = Branded<'RecordsTicketId'>
 export type OfficeEventId = Branded<'RecordsOfficeEventId'>
 /** Opaque id of a report proposal. */
 export type ProposalId = Branded<'RecordsProposalId'>
+/** Opaque id of the agent's reading of a letter. */
+export type ReadingId = Branded<'RecordsReadingId'>
 /** The id of a work item's run Session in the routed attorney's runtime. */
 export type RunSessionId = Branded<'RecordsRunSessionId'>
 /** The path of one page image under the Records API, `documents/<sha256>/pages/<n>`. */
@@ -50,6 +52,7 @@ export const ids = {
   ticket: branded<TicketId>(UUID, 'a work id'),
   officeEvent: branded<OfficeEventId>(UUID, 'an office event id'),
   proposal: branded<ProposalId>(OPAQUE, 'a proposal id'),
+  reading: branded<ReadingId>(UUID, 'a reading id'),
   session: branded<RunSessionId>(OPAQUE, 'a session id'),
   page: branded<PageHref>(/^documents\/[0-9a-f]{64}\/pages\/[1-9][0-9]{0,3}$/, 'a page image path'),
 } as const
@@ -601,6 +604,19 @@ const report = obj({
 })
 /** One proposed draft of the work: the client report or the reply to the office, with its statements. */
 export type WorkDraft = Parsed<typeof report>
+const letterReading = obj({
+  readingId: ids.reading, pass: num, document: ids.document, language: oneOf(['de', 'en', 'fr']),
+  state: oneOf(['proposed', 'approved', 'rejected', 'stale']), decidedBy: nullable(person), reason: nullable(str), noItemsReason: nullable(str),
+  items: arrayOf(obj({ ground: str, claims: arrayOf(num), documents: arrayOf(str), reasoning: str, evidence: arrayOf(span) })),
+  documents: arrayOf(obj({ label: str, publication: str, evidence: arrayOf(span) })),
+})
+/**
+ * The agent's reading of an office letter, such as an Art. 94(3) EPC communication: one item for each objection with its
+ * legal ground, claims, cited documents (D1, D2 …), reasoning in the letter's language and quotes, and the cited documents.
+ */
+export type LetterReading = Parsed<typeof letterReading>
+/** The readings of an answer: absent (an os before readings) reads as none. */
+const letterReadings: Parse<readonly LetterReading[]> = (value, path) => value === undefined ? [] : arrayOf(letterReading)(value, path)
 const ticketDetail = obj({
   recordSeq: num,
   ticket: obj({
@@ -618,6 +634,7 @@ const ticketDetail = obj({
   reports: arrayOf(report),
   draftReply: nullable(report),
   clientReport: nullable(report),
+  readings: letterReadings,
   deadline: nullable(obj({ id: ids.deadline, due: isoDate, state: deadlineState, confirmer: nullable(person) })),
   reply: nullable(obj({ state: outboxState, to: arrayOf(person) })),
   run: nullable(obj({ model: nullable(str), steps: nullable(num), finishedAt: nullable(isoTime), session: nullable(ids.session) })),
@@ -626,7 +643,7 @@ const ticketDetail = obj({
 })
 /**
  * One work item on a letter: the letter, the proposed drafts with their statements (`reports`, and the latest of each
- * kind as `clientReport` and `draftReply`), the deadline, the reply.
+ * kind as `clientReport` and `draftReply`), the agent's readings of the letter, the deadline, the reply.
  */
 export type TicketDetail = Parsed<typeof ticketDetail>
 
@@ -706,6 +723,14 @@ export interface ReportDecision {
   readonly reason?: string
 }
 
+/** A person's decision on one proposed reading of the letter. */
+export interface ReadingDecision {
+  readonly readingId: ReadingId
+  readonly decision: 'accept' | 'reject'
+  /** Required for a rejection. */
+  readonly reason?: string
+}
+
 /** The deadline states that a work decision can record as checked. */
 export type CheckedDeadlineState = Extract<DeadlineState, 'deadline_proposed' | 'active' | 'rejected' | 'engine_refused'>
 
@@ -734,7 +759,14 @@ export type Command =
   | { readonly kind: 'officeEvent.noEvent'; readonly id: OfficeEventId; readonly reason: string }
   | { readonly kind: 'deadline.confirm'; readonly id: DeadlineId; readonly seen: number }
   | { readonly kind: 'deadline.reject'; readonly id: DeadlineId; readonly reason: string }
-  | { readonly kind: 'ticket.decide'; readonly id: TicketId; readonly reports: readonly ReportDecision[]; readonly deadlineCheck: DeadlineCheck }
+  | {
+    readonly kind: 'ticket.decide'
+    readonly id: TicketId
+    readonly reports: readonly ReportDecision[]
+    /** One decision for each proposed reading. */
+    readonly readings: readonly ReadingDecision[]
+    readonly deadlineCheck: DeadlineCheck
+  }
 
 /** One act of a person: a command and the key that makes its retries safe. */
 export interface Act {
@@ -775,7 +807,10 @@ export function commandRequest(command: Command): { readonly path: string; reado
     case 'officeEvent.noEvent': return { path: `office-events/${command.id}/no-event`, body: { reason: command.reason } }
     case 'deadline.confirm': return { path: `deadlines/${command.id}/confirm`, body: { seen: command.seen } }
     case 'deadline.reject': return { path: `deadlines/${command.id}/reject`, body: { reason: command.reason } }
-    case 'ticket.decide': return { path: `tickets/${command.id}/decide`, body: { reports: command.reports, deadlineCheck: command.deadlineCheck } }
+    case 'ticket.decide': return {
+      path: `tickets/${command.id}/decide`,
+      body: { reports: command.reports, readings: command.readings, deadlineCheck: command.deadlineCheck },
+    }
   }
 }
 

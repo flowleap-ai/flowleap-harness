@@ -746,6 +746,16 @@ runStarted(ticket: TicketId, command: RunStart, signal: AbortSignal): Promise<Re
 proposeReport(ticket: TicketId, command: ReportProposal, signal: AbortSignal): Promise<RecordCommandResult<ReportReceipt>>
 
 /**
+ * Propose a reading of an office letter for the attorney's decision. A repeat with the same Ticket, Session, and tool call
+ * is the same command.
+ * @param ticket - the running Ticket.
+ * @param command - the letter, its objections and cited documents with their passages, and the language.
+ * @param signal - ends the command; the provider rejects when it fires.
+ * @returns the receipt, or the refusal.
+ */
+proposeReading(ticket: TicketId, command: ReadingProposal, signal: AbortSignal): Promise<RecordCommandResult<ReadingReceipt>>
+
+/**
  * Read the text layer of a document of the record, the text that a quote of a report must be copied from.
  * @param document - the SHA-256 of the document.
  * @param signal - ends the read; the provider rejects when it fires.

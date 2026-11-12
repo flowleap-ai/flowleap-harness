@@ -1,0 +1,13 @@
+version: 1
+scenario: flowleap-ticket-reading
+profile: headless
+composition: flowleap-ticket-reading
+recording: authored
+permission: workspace-write
+header:
+  class: flowleap-ticket-run
+  pin: true
+  systemPromptSource: flowleap-ticket-run
+  toolSchemasSource: flowleap-ticket-run
+workspace:
+  final: true

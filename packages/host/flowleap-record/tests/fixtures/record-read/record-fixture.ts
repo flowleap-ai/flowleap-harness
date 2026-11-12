@@ -2,7 +2,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import { brandNumber, brandString } from '@deepseek-ai/dsh-brand'
 import type {
   DocumentSha256, DocumentText, FlowleapRecord, MatterFileNumber, MatterViewResult, MyWorkResult, OutboxId, ProposalId,
-  RecordCommandResult, RecordSeq, ReportReceipt, RunFinishReceipt, RunStartReceipt,
+  RecordCommandResult, RecordSeq, ReadingId, ReadingReceipt, ReportReceipt, RunFinishReceipt, RunStartReceipt,
 } from '@deepseek-ai/dsh-flowleap-record'
 import { MY_WORK } from './my-work.ts'
 import { VIEW } from './view.ts'
@@ -35,6 +35,10 @@ export default class RecordedFirmRecord extends Service implements FlowleapRecor
       recordSeq: brandNumber<RecordSeq>(10),
     }
   }
+  async proposeReading(): Promise<RecordCommandResult<ReadingReceipt>> {
+    return { readingId: brandString<ReadingId>('rd-1'), recordSeq: brandNumber<RecordSeq>(11) }
+  }
+
 
   async documentText(): Promise<RecordCommandResult<DocumentText>> {
     return { pages: ['The EPO intends to grant a European patent.'] }

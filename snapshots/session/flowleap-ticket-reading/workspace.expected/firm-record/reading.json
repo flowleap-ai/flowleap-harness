@@ -1,0 +1,55 @@
+{
+  "ticket": "tk-1",
+  "document": "975704f3e86280baae5bd94410692e46c0549ae5e18a2ff53d8e3485fa7fa101",
+  "language": "en",
+  "items": [
+    {
+      "ground": "Art. 84 EPC: clarity",
+      "claims": [
+        1
+      ],
+      "documents": [],
+      "reasoning": "Claim 1 defines a second thermal displacement relief layer in lines 7-8 but does not define where that layer is located.",
+      "evidence": [
+        {
+          "page": 4,
+          "start": 99,
+          "end": 185,
+          "quote": "However, the location of said second thermal displacement relief layer is not defined.",
+          "pageText": "However, the location\nof said second thermal displacement relief layer is not defined."
+        }
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "label": "D1",
+      "publication": "DE 196 11 983 C1",
+      "evidence": [
+        {
+          "page": 3,
+          "start": 0,
+          "end": 47,
+          "quote": "D1 DE 196 11 983 C1 (ZEISS CARL JENA GMBH [DE])",
+          "pageText": "D1 DE 196 11 983 C1 (ZEISS CARL JENA GMBH [DE])"
+        }
+      ]
+    },
+    {
+      "label": "D2",
+      "publication": "US 2011/067255 A1",
+      "evidence": [
+        {
+          "page": 3,
+          "start": 74,
+          "end": 120,
+          "quote": "D2 US 2011/067255 A1 (KUMMETZ JENS [DE] ET AL)",
+          "pageText": "D2 US 2011/067255 A1 (KUMMETZ JENS [DE] ET AL)"
+        }
+      ]
+    }
+  ],
+  "noItemsReason": null,
+  "session": "the run Session",
+  "toolCall": "call_00_ticketread000000000003"
+}

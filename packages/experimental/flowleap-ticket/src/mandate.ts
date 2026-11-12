@@ -7,8 +7,8 @@
 
 import type { TicketDelivery } from './types.ts'
 
-/** The task types of R1 and the office event code that selects each. */
-export type TicketTaskType = 'epo-r71-3-report'
+/** The task types and the office event code that selects each. */
+export type TicketTaskType = 'epo-r71-3-report' | 'epo-a94-3-reading'
 
 /** The firm template file names of the letters of a run, each a `.docx` name in the Office tools' template folder. */
 export interface LetterTemplates {
@@ -62,11 +62,36 @@ const TASKS: Readonly<Record<TicketTaskType, TaskText>> = {
     ].join('\n'),
     title: fileNumber => `Reply and report, ${fileNumber}`,
   },
+  'epo-a94-3-reading': {
+    mandate: `${MANDATE_CORE} Task type: epo-a94-3-reading, the reading of the objections of the examiner in an EPO `
+      + 'communication under Article 94(3) EPC. Report only what the examiner said: do not argue, do not draft a reply and do '
+      + 'not propose an amendment.',
+    steps: () => [
+      'Steps:',
+      '1. Read the matter with record_read.',
+      '2. Read every page of the text of the office letter with record_read_document_text, with the document hash of the office event from record_read. '
+      + 'The letter is the communication (EPO Form 2001) and, when it holds them, the reasons (EPO Form 2906) after it.',
+      '3. Find each objection of the examiner in the letter: the legal ground (for example Art. 84 EPC clarity, Art. 54 EPC novelty, '
+      + 'Art. 56 EPC inventive step, Art. 123(2) EPC added matter), the claims it concerns, the cited documents it uses (D1, D2 and so on), '
+      + 'and the reasoning of the examiner. Find the documents that the letter cites, with their publication numbers as the letter prints them.',
+      '4. Propose the reading with record_propose_reading: one item per objection, and the cited documents. Write the reasoning in the language '
+      + 'of the letter, in short. Give each item and each document at least one source: the page number and a quote that you copy character '
+      + 'for character from that page of the letter text, never translated, at most 200 characters, and enough of them that the quote is on '
+      + 'the page only once. If the letter holds no objection (for example only the cover form, which names the reasons as an enclosure), '
+      + 'propose a reading with no item and say why in no_items_reason; do not guess an objection.',
+      '5. Finish with record_finish_run and the deadline summary of the office event from record_read.',
+    ].join('\n'),
+    title: fileNumber => `Reading of the objections, ${fileNumber}`,
+  },
 }
 
-/** The office event codes of R1 and their task types. */
+/**
+ * The office event codes and their task types. The Firm Record keeps the same map (flowleap-os lib/record/office-codes.mjs
+ * RUN_TASKS) and sends a Ticket of any other code to a person, so no run starts that this map would refuse.
+ */
 const TASK_OF_CODE: ReadonlyMap<string, TicketTaskType> = new Map([
   ['EPO:R71(3)', 'epo-r71-3-report'],
+  ['EPO:A94(3)', 'epo-a94-3-reading'],
 ])
 
 /**

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   commandRequest, createAct, createRecordsApi, ids, parsers, type Act, type Command, type DeadlineId, type DocumentId,
-  type FileNumber, type OfficeEventId, type ProposalId, type TicketId,
+  type FileNumber, type OfficeEventId, type ProposalId, type ReadingId, type TicketId,
 } from '../src/client/api.ts'
 import { atlasKey, shapeOf } from '../src/client/atlas.ts'
 import { arrayOf, isoDate, isoTime, nullable, num, obj, oneOf, partialRecord, str, WireError } from '../src/client/wire.ts'
-import { deadlineWire, FIXTURE_IDS, fixtures, intakeDocumentWire, intakeWaitingWire, matterWire, mattersWire, meWire, R71_DOCUMENT, ticketsWire, ticketWire } from './fixtures.client.ts'
+import { deadlineWire, FIXTURE_IDS, fixtures, intakeDocumentWire, intakeWaitingWire, matterWire, mattersWire, meWire, R71_DOCUMENT, readingWire, ticketsWire, ticketWire } from './fixtures.client.ts'
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
@@ -128,6 +128,29 @@ describe('Records API answers', () => {
   })
 })
 
+describe('readings of a letter', () => {
+  const read = (readings: unknown) => parsers.ticketDetail({ ...ticketWire, readings }, 'body').readings
+
+  it('reads the readings of a work item, and an os before readings as none', () => {
+    expect(parsers.ticketDetail(ticketWire, 'body').readings).toEqual([])
+    const [reading] = read([readingWire])
+    expect(reading?.state).toBe('proposed')
+    expect(reading?.items.map(item => [item.ground, item.claims, item.documents])).toEqual([['Art. 54 EPÜ', [1, 3], ['D1']], ['Art. 84 EPÜ', [], []]])
+    expect(reading?.documents[0]?.evidence[0]?.quote).toBe('D1: EP 1 234 567 A1')
+    const decided = read([{ ...readingWire, state: 'rejected', decidedBy: { id: 'p-anna', name: 'Dr. Anna Becker' }, reason: 'D1 is wrong' }])[0]
+    expect([decided?.decidedBy?.name, decided?.reason]).toEqual(['Dr. Anna Becker', 'D1 is wrong'])
+  })
+
+  it('refuses an unknown state, language or id, and a field of the wrong type, with its path', () => {
+    expect(pathOf(() => read([{ ...readingWire, state: 'withdrawn' }]))).toBe('body.readings[0].state')
+    expect(pathOf(() => read([{ ...readingWire, language: 'it' }]))).toBe('body.readings[0].language')
+    expect(pathOf(() => read([{ ...readingWire, readingId: 'r-1' }]))).toBe('body.readings[0].readingId')
+    expect(pathOf(() => read([{ ...readingWire, items: [{ ...readingWire.items[0], claims: ['1'] }] }]))).toBe('body.readings[0].items[0].claims[0]')
+    expect(pathOf(() => read([{ ...readingWire, documents: [{ label: 'D1', publication: 'EP 1', evidence: [{ page: 1 }] }] }]))).toBe('body.readings[0].documents[0].evidence[0].start')
+    expect(pathOf(() => read({}))).toBe('body.readings')
+  })
+})
+
 describe('people', () => {
   it('reads a team member with or without a display name, and anyone outside the team with neither id nor name', () => {
     const reply = parsers.ticketDetail({ ...ticketWire, reply: { state: 'sent', to: [{ id: 'p-lena', name: null }, { id: null, name: null }] } }, 'body')
@@ -218,7 +241,17 @@ describe('commands', () => {
     [{ kind: 'officeEvent.noEvent', id: FIXTURE_IDS.officeEvent as OfficeEventId, reason: 'a copy' }, `office-events/${FIXTURE_IDS.officeEvent}/no-event`, { reason: 'a copy' }],
     [{ kind: 'deadline.confirm', id: deadline, seen: 141 }, `deadlines/${deadline}/confirm`, { seen: 141 }],
     [{ kind: 'deadline.reject', id: deadline, reason: 'Wrong date' }, `deadlines/${deadline}/reject`, { reason: 'Wrong date' }],
-    [{ kind: 'ticket.decide', id: FIXTURE_IDS.ticket as TicketId, reports: [{ proposalId: 'proposal-1' as ProposalId, decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }, `tickets/${FIXTURE_IDS.ticket}/decide`, { reports: [{ proposalId: 'proposal-1', decision: 'approve' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 } }],
+    [
+      {
+        kind: 'ticket.decide', id: FIXTURE_IDS.ticket as TicketId, reports: [{ proposalId: 'proposal-1' as ProposalId, decision: 'approve' }],
+        readings: [{ readingId: readingWire.readingId as ReadingId, decision: 'reject', reason: 'D1 is wrong' }], deadlineCheck: { id: deadline, state: 'active', seq: 142 },
+      },
+      `tickets/${FIXTURE_IDS.ticket}/decide`,
+      {
+        reports: [{ proposalId: 'proposal-1', decision: 'approve' }], readings: [{ readingId: readingWire.readingId, decision: 'reject', reason: 'D1 is wrong' }],
+        deadlineCheck: { id: deadline, state: 'active', seq: 142 },
+      },
+    ],
   ])('sends %j to its path', (command, path, body) => {
     expect(commandRequest(command)).toEqual({ path, body })
   })

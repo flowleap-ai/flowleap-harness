@@ -45,7 +45,7 @@ Mount the provider beside the `credentials` service, which reads the record toke
 | `apiKeyRef` | required | Credential reference (environment-variable name) of the runtime's record token, read through `ctx.credentials` and sent as `Authorization: Bearer <token>`; an invalid name fails at load |
 | `timeoutMs` | `5000` | Longest time one read may take, body included, in milliseconds (100 to 60000) |
 
-The run row registers `record_propose_report` and `record_finish_run` for a Ticket run; the opt-in overlay of [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md) mounts it beside the Ticket ingress:
+The run row registers `record_propose_report`, `record_propose_reading` and `record_finish_run` for a Ticket run; the opt-in overlay of [`dsh-flowleap-ticket`](../../experimental/flowleap-ticket/README.md) mounts it beside the Ticket ingress:
 
 ```yaml
 - id: flowleap-record-run
@@ -165,6 +165,8 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 
 `record_read_document_text` takes `document`, a lower-case SHA-256, calls `documentText`, and answers `{ pages }` or the refusal. It changes nothing in the record. `record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the `kind` (`client-report`, the default, or `office-reply` for the draft reply to the office), the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span }`; `document` is a lower-case SHA-256, and the `span` is required: a positive `page` and a `quote` of 1 to 200 characters. A `span` with `start` or `end` is a tool error, because the Firm Record finds the offsets. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
 
+`record_propose_reading` takes the `document` (the office letter's SHA-256), the letter's `language` (`de`, `en` or `fr`), `items` (one per objection of the examiner: `ground`, `claims`, `documents` labels, `reasoning`, and 1 to 10 `evidence` passages `{ page, quote }`), the cited `documents` (`label`, `publication`, `evidence`), and `no_items_reason` for a letter with no objection. It calls `proposeReading` with the Session id and the id of the tool call, and answers `{ readingId, recordSeq }` or the refusal; the Firm Record finds each quote on its page (a run of whitespace counts as one space). A refusal message names this tool where the shared one would name `record_propose_report`.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -182,7 +184,7 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
 | [`src/my-work-tool.ts`](src/my-work-tool.ts) | the Consumer: the `record_my_work` schema (no parameter), the description, and the refusal messages |
 | [`src/index.ts`](src/index.ts) | the function plugin that registers the tools |
-| [`src/run/`](src/run/) | the run entry: `record_read_document_text`, `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_finish_run`, their argument rules, and the refusal messages |
+| [`src/run/`](src/run/) | the run entry: `record_read_document_text`, `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_propose_reading`, `record_finish_run`, their argument rules, and the refusal messages |
 | [`tests/`](tests/) | the provider against a local Firm Record double, the tools with their refusals and disposal, and the Loader composition test with a fixture provider |
 
 </details>
@@ -238,6 +240,20 @@ The declaration is stable while the row is mounted. Results append to history.
 #### Token effect
 
 The schema contributes fixed request-context tokens while the run row is mounted. A call grows with its statements; the result is a few hundred characters.
+
+#### KV Cache effect
+
+The declaration is stable while the run row is mounted. Results append to history.
+
+### The `record_propose_reading` declaration
+
+#### What the model sees
+
+`record_propose_reading` description: "Propose your reading of the office letter of this Ticket to the attorney: what the examiner said, and nothing else. Give one item per objection: the legal ground (for example "Art. 84 EPC: clarity"), the numbers of the claims it concerns, the labels of the cited documents it uses, and the examiner's reasoning in short, in the language of the letter. List the documents that the letter cites, each with its label (D1, D2 and so on) and its publication number as the letter prints it. Each item and each document needs at least one passage: the page number and a quote of at most 200 characters, copied character for character from that page of the text that record_read_document_text gives, never translated. A run of spaces and line breaks counts as one space; nothing else may differ. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. When the letter holds no objection (for example only the cover form, which names the reasons as an enclosure), give no item and say why in no_items_reason; do not guess an objection. The Firm Record finds each quote and stores its place, and refuses a passage that it does not find. The attorney accepts or rejects the reading in the Records app."
+
+#### Token effect
+
+The schema contributes fixed request-context tokens while the run row is mounted. A call grows with its objections and their quotes; the result is a few hundred characters.
 
 #### KV Cache effect
 

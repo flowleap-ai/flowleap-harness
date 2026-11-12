@@ -84,12 +84,31 @@ describe('the run message', () => {
     expect(runTitle('epo-r71-3-report', delivery)).toBe('Reply and report, FL-2026-0001')
   })
 
+  it('reads the objections of an Art. 94(3) letter with the fixed Mandate and steps that read only, and no template', () => {
+    const [event] = DELIVERY.events
+    const delivery = parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [{ ...event, code: 'EPO:A94(3)' }] }))
+    expect(taskTypeOf(delivery)).toBe('epo-a94-3-reading')
+    const [mandate, steps, ticket] = runMessage('epo-a94-3-reading', delivery, { reply: 'epo-reply.docx', report: 'client-report.docx' }).split('\n\n')
+    expect(mandate).toBe('Mandate: you work for the responsible attorney of this matter. Analyse and draft; never file, send or pay. '
+      + 'You do not decide: each result is a proposal that the attorney decides in the Records app. You do not compute or '
+      + 'change a date. Task type: epo-a94-3-reading, the reading of the objections of the examiner in an EPO communication '
+      + 'under Article 94(3) EPC. Report only what the examiner said: do not argue, do not draft a reply and do not propose an amendment.')
+    expect(steps).toMatch(/2\. Read every page of the text of the office letter with record_read_document_text.*EPO Form 2906/u)
+    expect(steps).toMatch(/4\. Propose the reading with record_propose_reading.*language of the letter.*never translated/u)
+    expect(steps).toMatch(/no_items_reason; do not guess an objection/u)
+    expect(steps).toContain('5. Finish with record_finish_run')
+    expect(steps).not.toMatch(/office_letter_from_template|record_propose_report|epo-reply\.docx/u)
+    expect(ticket).toBe('Ticket: ticket_id "tk-1", pass 1, matter FL-2026-0001.')
+    expect(runTitle('epo-a94-3-reading', delivery)).toBe('Reading of the objections, FL-2026-0001')
+  })
+
   it('has no task type for an unknown code or for codes of two task types', () => {
     const [event] = DELIVERY.events
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [{ ...event, code: 'EPO:R70(2)' }] })))).toBeUndefined()
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [{ ...event, code: 'constructor' }] })))).toBeUndefined()
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [event, { ...event, code: 'EPO:R70(2)' }] })))).toBeUndefined()
     expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [event, { ...event, officeEventSeq: 6 }] })))).toBe('epo-r71-3-report')
+    expect(taskTypeOf(parseTicketDelivery(JSON.stringify({ ...DELIVERY, events: [event, { ...event, code: 'EPO:A94(3)' }] })))).toBeUndefined()
   })
 })
 

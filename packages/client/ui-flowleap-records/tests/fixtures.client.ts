@@ -419,6 +419,24 @@ export const ticketWire = {
 }
 
 /** The ids of the fixture records. */
+/**
+ * One proposed reading of an Art. 94(3) EPC letter in German, for `ticketWire.readings`: two objections, the first with
+ * its claims, cited documents and quote, and the cited document D1 with its quote.
+ */
+export const readingWire = {
+  readingId: uuid(0x94), pass: 1, document: R71_DOCUMENT, language: 'de', state: 'proposed', decidedBy: null, reason: null, noItemsReason: null,
+  items: [
+    {
+      ground: 'Art. 54 EPÜ', claims: [1, 3], documents: ['D1'], reasoning: 'D1 offenbart alle Merkmale des Anspruchs 1.',
+      evidence: [span('nicht neu gegenüber D1', 410, 'Der Gegenstand des Anspruchs 1 ist ', ' (Artikel 54(1) EPÜ).')],
+    },
+    { ground: 'Art. 84 EPÜ', claims: [], documents: [], reasoning: 'Der Begriff „dünn“ ist unklar.', evidence: [] },
+  ],
+  documents: [
+    { label: 'D1', publication: 'EP 1 234 567 A1', evidence: [span('D1: EP 1 234 567 A1', 380, 'Es wird auf folgendes Dokument verwiesen: ', '.')] },
+  ],
+}
+
 export const FIXTURE_IDS = { deadline: DEADLINE_ID, officeEvent: OFFICE_EVENT_ID, ticket: TICKET_ID } as const
 
 /** The parsed fixtures, as the views receive them. */

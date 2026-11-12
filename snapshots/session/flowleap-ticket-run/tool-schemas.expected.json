@@ -564,6 +564,146 @@
       }
     },
     {
+      "name": "record_propose_reading",
+      "description": "Propose your reading of the office letter of this Ticket to the attorney: what the examiner said, and nothing else. Give one item per objection: the legal ground (for example \"Art. 84 EPC: clarity\"), the numbers of the claims it concerns, the labels of the cited documents it uses, and the examiner's reasoning in short, in the language of the letter. List the documents that the letter cites, each with its label (D1, D2 and so on) and its publication number as the letter prints it. Each item and each document needs at least one passage: the page number and a quote of at most 200 characters, copied character for character from that page of the text that record_read_document_text gives, never translated. A run of spaces and line breaks counts as one space; nothing else may differ. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. When the letter holds no objection (for example only the cover form, which names the reasons as an enclosure), give no item and say why in no_items_reason; do not guess an objection. The Firm Record finds each quote and stores its place, and refuses a passage that it does not find. The attorney accepts or rejects the reading in the Records app.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "description": "The ticket id of the run message."
+          },
+          "document": {
+            "type": "string",
+            "description": "SHA-256 of the office letter, the document of the office event in record_read."
+          },
+          "language": {
+            "type": "string",
+            "description": "The language of the letter.",
+            "enum": [
+              "de",
+              "en",
+              "fr"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "description": "One item per objection of the examiner; none when the letter holds no objection.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ground": {
+                  "type": "string",
+                  "description": "The legal ground, such as \"Art. 56 EPC: inventive step\"."
+                },
+                "claims": {
+                  "type": "array",
+                  "description": "The numbers of the claims that the objection concerns.",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "documents": {
+                  "type": "array",
+                  "description": "The labels of the cited documents it uses, such as \"D1\".",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "reasoning": {
+                  "type": "string",
+                  "description": "The examiner's reasoning in short, in the language of the letter."
+                },
+                "evidence": {
+                  "type": "array",
+                  "description": "The passages of the letter that say it: 1 to 10.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "page": {
+                        "type": "integer",
+                        "description": "Page number, from 1."
+                      },
+                      "quote": {
+                        "type": "string",
+                        "description": "Text of that page, copied character for character; 1 to 200 characters; on the page exactly once."
+                      }
+                    },
+                    "required": [
+                      "page",
+                      "quote"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "ground",
+                "reasoning",
+                "evidence"
+              ]
+            }
+          },
+          "documents": {
+            "type": "array",
+            "description": "The documents that the letter cites.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "description": "D1, D2 and so on, as the letter names it."
+                },
+                "publication": {
+                  "type": "string",
+                  "description": "The publication number as the letter prints it."
+                },
+                "evidence": {
+                  "type": "array",
+                  "description": "The passages of the letter that say it: 1 to 10.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "page": {
+                        "type": "integer",
+                        "description": "Page number, from 1."
+                      },
+                      "quote": {
+                        "type": "string",
+                        "description": "Text of that page, copied character for character; 1 to 200 characters; on the page exactly once."
+                      }
+                    },
+                    "required": [
+                      "page",
+                      "quote"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "label",
+                "publication",
+                "evidence"
+              ]
+            }
+          },
+          "no_items_reason": {
+            "type": "string",
+            "description": "Only when there is no item: why the letter holds no objection."
+          }
+        },
+        "required": [
+          "ticket_id",
+          "document",
+          "language",
+          "items"
+        ]
+      }
+    },
+    {
       "name": "record_propose_report",
       "description": "Propose a letter of this Ticket run to the attorney: the report to the client (kind client-report, the default), or the draft reply to the office (kind office-reply). The client rules on AI letters apply to the client report only. The letter is a .docx file in the working directory that office_letter_from_template wrote on a firm template. Give each statement that the letter makes about the office letter, the matter, or the deadline, each with at least one source. A source is the SHA-256 of a document of the record (record_read lists them) and a span: the page number and a quote of at most 200 characters that you copy character for character from that page of the text that record_read_document_text gives. The quote must be on that page exactly once, so use a longer quote when a short one is on the page more than once. The Firm Record finds the quote and stores its place; it refuses a source without a span and a quote that it does not find. rules_seq is the seq of the client rules (clientRules.seq of record_read) that the letter follows. The Firm Record stores the letter as a proposal; the attorney accepts or rejects it in the Records app. Nothing goes to the client or to the office before the attorney decides: when the run finishes, the Firm Record attaches the letters as drafts to one reply to firm addresses only, the person who forwarded the office letter and the routed attorney. You do not send or file a letter.",
       "parameters": {
