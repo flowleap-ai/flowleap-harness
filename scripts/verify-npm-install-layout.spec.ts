@@ -123,6 +123,8 @@ describe('resolution work budget', () => {
     [316, 2786, 880_376],
     [317, 2786, 883_162],
     [320, 2836, 907_520],
+    // FlowLeap fork modification: the measured fork graph.
+    [353, 3232, 1_140_896],
   ])('accepts the measured dual-release graph with %i packages and %i edges', (packages, edges, units) => {
     expect(assertResolutionWorkBudget({ dshPackagesPerVersion: packages, checkedDshEdges: edges }))
       .toBe(units)

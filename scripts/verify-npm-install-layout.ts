@@ -32,10 +32,11 @@ const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependen
  * Raising it requires re-measuring the resolution and recording the new counts.
  * FlowLeap fork modification: the fork graph of 353 package(s) x 3232 internal
  * edge(s) = 1,140,896 unit(s) took 341.32–353.49 s on an M1 Pro with Node 26.4.0
- * and npm 11.17.0, and about 197 s on a GitHub-hosted Linux x64 runner; the
- * budget adds the same 25% headroom to that graph.
+ * and npm 11.17.0, and about 197 s on a GitHub-hosted Linux x64 runner. The
+ * budget is the largest multiple of 320 below the 1,200,000-unit runaway graph
+ * that the spec rejects, about 5% above that measured graph.
  */
-export const MAX_RESOLUTION_WORK_UNITS = 1_426_120
+export const MAX_RESOLUTION_WORK_UNITS = 1_199_680
 
 /**
  * Measured npm seconds per resolution work unit on the reference host: 180.66 s
