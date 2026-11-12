@@ -95,6 +95,6 @@
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "flowleap-deadlines": "github:flowleap-ai/flowleap-deadlines#c44b99f506f8b32c57b9b39af636830951c80e05",
-    "flowleap-seed-firm": "github:flowleap-ai/flowleap-seed-firm#33091f2986f42323c995344197efce940aa7af95"
+    "flowleap-seed-firm": "github:flowleap-ai/flowleap-seed-firm#e6fbb034d56910670336d8df963aaaed9e5386bc"
   }
 }
