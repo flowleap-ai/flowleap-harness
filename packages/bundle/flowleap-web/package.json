@@ -38,7 +38,10 @@
     "prompt/patent-agent.md",
     "brand/brand.json",
     "brand/flowleap-mark.svg",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "dsh": {

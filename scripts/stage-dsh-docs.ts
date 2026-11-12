@@ -72,12 +72,11 @@ export async function stageDshDocs(
   await writeFile(join(destination, UPGRADE_GUIDE_INDEX), await upgradeGuideIndex(source, files))
 }
 
-/** One upgrade guide pair as the generated index lists it. */
+/** One upgrade guide as the generated index lists it. */
 interface IndexedGuide {
   readonly item: string
   readonly title: string
   readonly summary: string
-  readonly summaryZh: string
 }
 
 /**
@@ -85,7 +84,7 @@ interface IndexedGuide {
  * @param source - Documentation root holding the guides.
  * @param files - Staged source-relative paths.
  * @returns the index Markdown; without staged guides it holds only the preamble.
- * @throws When a guide lacks its Chinese counterpart, a `description`, or a level-one title.
+ * @throws When a guide lacks a `description` or a level-one title.
  */
 async function upgradeGuideIndex(source: string, files: readonly string[]): Promise<string> {
   const versions = new Map<string, IndexedGuide[]>()
@@ -93,10 +92,9 @@ async function upgradeGuideIndex(source: string, files: readonly string[]): Prom
     const match = /^upgrade-guide\/v(?<version>[^/]+)\/(?<item>[^/]+)\/guide\.md$/u.exec(file)?.groups
     if (match?.version === undefined || match.item === undefined) continue
     const { version, item } = match
-    const english = await guideHeading(join(source, file))
-    const chinese = await guideHeading(join(source, file.replace(/\.md$/u, '.zh.md')))
+    const heading = await guideHeading(join(source, file))
     const guides = versions.get(version) ?? []
-    guides.push({ item, title: english.title, summary: english.description, summaryZh: chinese.description })
+    guides.push({ item, title: heading.title, summary: heading.description })
     versions.set(version, guides)
   }
   const cell = (text: string): string => text.replace(/\s+/gu, ' ').trim().replaceAll('|', '\\|')
@@ -104,14 +102,12 @@ async function upgradeGuideIndex(source: string, files: readonly string[]): Prom
     '# Upgrade guides',
     '',
     'Generated when `@deepseek-ai/dsh` is packed. A `v<T>` section lists what to change when upgrading from release vT to the release after it; vT is the release being left, not the target. Paths are relative to this file.',
-    '',
-    '打包 `@deepseek-ai/dsh` 时生成。`v<T>` 一节列出从 vT 版本升级到其下一个版本时需要做的修改；vT 是升级前的版本，不是目标版本。路径相对于本文件。',
   ]
   for (const [version, guides] of [...versions].sort(([left], [right]) => rcompare(left, right))) {
-    lines.push('', `## v${version}`, '', '| Item | Summary | 摘要 | English | 中文 |', '| --- | --- | --- | --- | --- |')
+    lines.push('', `## v${version}`, '', '| Item | Summary | Guide |', '| --- | --- | --- |')
     for (const guide of guides) {
       const directory = `v${version}/${guide.item}`
-      lines.push(`| ${cell(guide.title)} | ${cell(guide.summary)} | ${cell(guide.summaryZh)} | [${directory}/guide.md](${directory}/guide.md) | [${directory}/guide.zh.md](${directory}/guide.zh.md) |`)
+      lines.push(`| ${cell(guide.title)} | ${cell(guide.summary)} | [${directory}/guide.md](${directory}/guide.md) |`)
     }
   }
   return `${lines.join('\n')}\n`

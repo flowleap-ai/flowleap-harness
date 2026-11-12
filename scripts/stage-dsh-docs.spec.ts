@@ -60,11 +60,8 @@ describe('documentation staging', () => {
     const destination = join(temporaryRoot(), 'cli', 'docs')
     const guide = (description: string, title: string): string => `---\nkind: upgrade-guide\ndescription: "${description}"\n---\n# ${title}\n`
     write(source, 'upgrade-guide/v0.2.0-rc.1/b-item/guide.md', '---\r\n# note\r\nkind: upgrade-guide\r\ndescription: >\r\n  Second | change\r\n  across lines.\r\n---\r\n# Second\r\n')
-    write(source, 'upgrade-guide/v0.2.0-rc.1/b-item/guide.zh.md', guide('第二项。', '第二'))
     write(source, 'upgrade-guide/v0.2.0-rc.1/a-item/guide.md', guide('First change.', 'First'))
-    write(source, 'upgrade-guide/v0.2.0-rc.1/a-item/guide.zh.md', guide('第一项。', '第一'))
     write(source, 'upgrade-guide/v0.10.0/c-item/guide.md', guide('Later change.', 'Later'))
-    write(source, 'upgrade-guide/v0.10.0/c-item/guide.zh.md', guide('后续变更。', '后续'))
 
     await stageDshDocs(source, destination, new Set())
     const index = readFileSync(join(destination, 'upgrade-guide/README.md'), 'utf8')
@@ -75,10 +72,10 @@ describe('documentation staging', () => {
     const sections = index.split('\n## ').slice(1).map(section => section.split('\n').filter(line => line.startsWith('| ') && !line.startsWith('| Item') && !line.startsWith('| ---')))
     expect(index.match(/^## .+$/gmu)).toEqual(['## v0.10.0', '## v0.2.0-rc.1'])
     expect(sections).toEqual([
-      ['| Later | Later change. | 后续变更。 | [v0.10.0/c-item/guide.md](v0.10.0/c-item/guide.md) | [v0.10.0/c-item/guide.zh.md](v0.10.0/c-item/guide.zh.md) |'],
+      ['| Later | Later change. | [v0.10.0/c-item/guide.md](v0.10.0/c-item/guide.md) |'],
       [
-        '| First | First change. | 第一项。 | [v0.2.0-rc.1/a-item/guide.md](v0.2.0-rc.1/a-item/guide.md) | [v0.2.0-rc.1/a-item/guide.zh.md](v0.2.0-rc.1/a-item/guide.zh.md) |',
-        '| Second | Second \\| change across lines. | 第二项。 | [v0.2.0-rc.1/b-item/guide.md](v0.2.0-rc.1/b-item/guide.md) | [v0.2.0-rc.1/b-item/guide.zh.md](v0.2.0-rc.1/b-item/guide.zh.md) |',
+        '| First | First change. | [v0.2.0-rc.1/a-item/guide.md](v0.2.0-rc.1/a-item/guide.md) |',
+        '| Second | Second \\| change across lines. | [v0.2.0-rc.1/b-item/guide.md](v0.2.0-rc.1/b-item/guide.md) |',
       ],
     ])
   })
@@ -91,7 +88,6 @@ describe('documentation staging', () => {
     expect(readFileSync(join(destination, 'upgrade-guide/README.md'), 'utf8')).not.toContain('## ')
 
     write(source, 'upgrade-guide/v0.1.0/change/guide.md', '# Untitled summary\n')
-    write(source, 'upgrade-guide/v0.1.0/change/guide.zh.md', '# 无摘要\n')
     await expect(stageDshDocs(source, destination, new Set())).rejects.toThrow(/needs a frontmatter description and a level-one title/)
   })
 
@@ -129,7 +125,7 @@ describe('documentation staging', () => {
     const published = publishedDocuments()
 
     expect(published.has('architecture.md')).toBe(true)
-    expect(published.has('architecture.zh.md')).toBe(true)
+    expect(published.has('architecture.zh.md')).toBe(false)
     for (const excluded of ['AGENTS.md', 'testing.md', 'postmortem/README.md', 'persistence-changes/README.md', 'i18n/README.md']) {
       expect(published.has(excluded)).toBe(false)
     }
