@@ -4,11 +4,12 @@ A clickable walkthrough of [process sheet 9, an Art. 94(3) letter arrives](../..
 
 ## Open it
 
-Open [a94-letter-walkthrough.html](a94-letter-walkthrough.html) from the file system. It is one file: the client theme, the CSS and the scripts are inside it, and it loads nothing else. A panel at the bottom left shows the path, the step, what the person sees, and **Back** and **Next**; the one control that goes on has a blue outline. **Hide** folds the panel; **Dark** and **Light** switch the theme. `?walk=<n>` opens step n.
+Open [a94-letter-walkthrough.html](a94-letter-walkthrough.html) from the file system. It is one file: the client theme, the CSS and the scripts are inside it, and it loads nothing else. A panel at the bottom left shows the path, the step, what the person sees, and **Back** and **Next**, 31 steps in all; the one control that goes on has a blue outline. **Hide** folds the panel; **Dark** and **Light** switch the theme. `?walk=<n>` opens step n.
 
 | Path | Steps | What it shows |
 |---|---|---|
 | Main | 13 | Sabine confirms the deadline on the letter board; Jonas marks each objection, corrects objection 3 (claims 2–14 to 2–15), checks the deadline in the Review step, and accepts the reading |
+| Ask the agent | 4 | In the Agent tab beside the form, Jonas asks about objection 3; the answer stays on the board with its passages; the agent proposes the correction and Jonas accepts it; the agent declines to accept the reading for him |
 | New reading | 4 | Jonas asks for a new reading with a reason; reading 2 replaces reading 1, and a mark carries over |
 | Reject | 3 | Jonas rejects the reading and works by hand |
 | Moved task | 2 | A task that moved to Lena Hoffmann stays in Jonas's My work under Moved to others, with Take back |

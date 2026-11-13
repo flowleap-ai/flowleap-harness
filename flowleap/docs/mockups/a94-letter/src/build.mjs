@@ -37,6 +37,17 @@ function sidebar(who, active) {
   </nav>`
 }
 
+const tabs = on => `<span class="ptabs" role="tablist"><span class="ptab${on === 'letter' ? ' on' : ''}" role="tab" aria-selected="${on === 'letter'}">Letter</span><span class="ptab${on === 'agent' ? ' on' : ''}" role="tab" aria-selected="${on === 'agent'}"${on === 'letter' ? ' data-walk="agent-tab"' : ''}>Agent</span></span>`
+
+// The Agent tab beside the form (question h): the run's line, the person's conversation about this letter, the field.
+const msgMe = (who, text) => `<div class="msg me"><span class="av">${people[who].av}</span><div><div class="mh"><span class="strong">${people[who].name}</span></div><div class="mb">${text}</div></div></div>`
+const msgAgent = (html) => `<div class="msg"><span class="av sys" data-i="bot"></span><div><div class="mh"><span class="strong">Patent agent</span><span class="muted">for Jonas Weber</span></div><div class="mb">${html}</div></div></div>`
+function agentPane(convo, draft, walk = '') {
+  return `<aside class="lpane sheet" aria-label="Agent"><div class="lpane-h">${tabs('agent')}<span class="muted">${matter.key} · this letter only</span></div>
+  <div class="lpane-s chat"><div class="runline muted" data-i="check">FlowLeap read the letter at 07:05: 5 objections, 5 cited documents.</div>${convo}</div>
+  <div class="ask-f"><textarea class="fld${draft ? ' on' : ''}" readonly rows="2" placeholder="Ask about this letter…">${draft}</textarea>${btn('btn-secondary', 'Send', { walk, i: 'send' })}</div></aside>`
+}
+
 function letterPane(page, quote, label = 'Letter') {
   const body = pages.map((paras, i) => {
     const n = i + 1
@@ -47,7 +58,7 @@ function letterPane(page, quote, label = 'Letter') {
     }).join('')
     return `<div class="lpage"><div class="paper-cap"><span>Page ${n} of 11</span><span>${n <= 2 ? 'Communication' : 'Annex, reasons'}</span></div><div class="letter" data-verbatim>${html}</div></div>`
   }).join('')
-  return `<aside class="lpane" aria-label="${label}"><div class="lpane-h"><span class="strong">${label}</span><span class="muted">11 pages · German · from MyEPO</span><span class="spacer"></span><span class="btn btn-ghost" data-i="expand" data-act="open-letter" role="button">Open the letter <span class="kbd">O</span></span></div><div class="lpane-s">${body}</div></aside>`
+  return `<aside class="lpane" aria-label="${label}"><div class="lpane-h">${tabs('letter')}<span class="muted">11 pages · German · from MyEPO</span><span class="spacer"></span><span class="btn btn-ghost" data-i="expand" data-act="open-letter" role="button">Open the letter <span class="kbd">O</span></span></div><div class="lpane-s">${body}</div></aside>`
 }
 
 function scanPane() {
@@ -56,7 +67,7 @@ function scanPane() {
 }
 
 function topbar(crumb, right = '') {
-  return `<header class="topbar"><div class="crumbs"><span class="ico hide-sm" data-i="matters"></span><span class="hide-sm">Matters</span><span class="sep hide-sm">›</span><span class="key hide-sm">${matter.key}</span><span class="sep hide-sm">›</span><span class="here">${crumb}</span></div><div class="bar-right">${right}<span class="btn btn-secondary only-narrow" data-i="doc" data-act="open-letter" role="button">Show letter <span class="kbd">O</span></span><span class="iconbtn" data-i="dots" aria-label="More"></span></div></header>`
+  return `<header class="topbar"><div class="crumbs"><span class="ico hide-sm" data-i="matters"></span><span class="hide-sm">Matters</span><span class="sep hide-sm">›</span><span class="key hide-sm">${matter.key}</span><span class="sep hide-sm">›</span><span class="here">${crumb}</span></div><div class="bar-right">${right}<span class="btn btn-secondary only-narrow" data-i="doc" data-act="open-letter" role="button">Show letter <span class="kbd">O</span></span><span class="btn btn-secondary only-narrow" data-i="bot" data-walk="agent-tab" role="button">Agent</span><span class="iconbtn" data-i="dots" aria-label="More"></span></div></header>`
 }
 
 function header(status, lede) {
@@ -107,21 +118,22 @@ function deadlineSection({ mode }) {
 }
 
 // ---------- the reading ----------
-function objectionRows({ marks = {}, open = null, keysOn = null, warn = true, carried = {} }) {
+function objectionRows({ marks = {}, open = null, keysOn = null, warn = true, carried = {}, suggest = {} }) {
   return `<div class="otbl"><div class="thead"><span>#</span><span>Objection</span><span>Passage</span><span class="end">Review</span></div>
   ${items.map(it => {
     const m = marks[it.n]
     const claims = m === 'corrected' ? `${it.fixed}` : it.claims
-    const showWarn = warn && it.fixed && m !== 'corrected'
+    const showWarn = warn && it.fixed && m !== 'corrected' && !suggest[it.n]
     const markCell = m === 'accepted' ? st('readingItem', 'accepted', 'ok', carried[it.n] ? 'Accepted in reading 1' : 'Accepted')
       : m === 'corrected' ? st('readingItem', 'corrected', 'ok', 'Corrected')
       : m === 'rejected' ? st('readingItem', 'rejected', 'bad', 'Rejected')
       : m === 'dim' ? '<span class="muted">Kept in the record</span>'
       : `<span class="seg" role="group" aria-label="Review item ${it.n}"><span data-walk="accept-${it.n}"${keysOn === it.n ? ' data-act="accept"' : ''} role="button">Accept${keysOn === it.n ? ' <span class="kbd">1</span>' : ''}</span><span data-walk="correct-${it.n}" role="button">Correct</span><span data-walk="reject-${it.n}"${keysOn === it.n ? ' data-act="reject"' : ''} role="button">Reject${keysOn === it.n ? ' <span class="kbd">2</span>' : ''}</span></span>`
     const row = `<div class="orow${open === it.n ? ' is-open' : ''}${showWarn ? ' has-warn' : ''}"><span class="num">${it.n}</span><span><span class="g">${it.ground}</span><span class="sub">Claims <span class="num${m === 'corrected' ? ' changed' : ''}">${claims}</span> · ${it.docs === 'none' ? 'no document' : it.docs}</span></span><span>${ref(it.page, it.quote, `quote-${it.n}`)}</span><span class="end">${markCell}</span></div>`
-    const warnLine = showWarn ? `<div class="owarn" data-i="warn">Claims ${it.claims} differ from the passage: <q data-verbatim>Ansprüche 2-15</q>. Correct the claims, or accept with a reason.</div>` : ''
+    const warnLine = showWarn ? `<div class="owarn" data-i="warn"><span>Claims ${it.claims} differ from the passage: <q data-verbatim>Ansprüche 2-15</q>. Correct the claims, or accept with a reason.</span></div>` : ''
+    const sug = suggest[it.n] ? `<div class="osug" data-i="sparkle"><span><span class="strong">Suggested by the agent:</span> claims ${it.fixed}, from the passage <q data-verbatim>Ansprüche 2-15</q>. Accept or dismiss it in the Agent tab.</span></div>` : ''
     const detail = open === it.n ? correctForm(it) : ''
-    return row + warnLine + detail
+    return row + warnLine + sug + detail
   }).join('')}</div>`
 }
 
@@ -200,9 +212,9 @@ S['jonas-mywork'] = myWork('jonas', { title: '1 letter read, 1 needs you', lede:
   rows: group('today', 'Today', 1) + mwRow({ task: 'Review the reading', note: 'Art. 94(3) EPC · 5 objections · deadline active', status: st('reading', 'proposed', 'wait', 'Ready for review') }) })
 
 const jonasRevs = (readingStatus, note) => reviews([['Deadline', dlActive, 'sabine', 'Confirmed at 08:14'], ['Reading', readingStatus, 'jonas', note]])
-function jonasBoard({ step = 1, marks = {}, open = null, keysOn = 1, pane = [3, items[0].quote], left, next = false, more = true, body, readingStatus, note, act = [], banner = '', primary }) {
+function jonasBoard({ step = 1, marks = {}, open = null, keysOn = 1, pane = [3, items[0].quote], left, next = false, more = true, body, readingStatus, note, act = [], banner = '', primary, side, suggest = {} }) {
   const n = Object.keys(marks).length
-  const stepBody = body ?? (step === 1 ? objectionRows({ marks, open, keysOn }) : step === 2 ? docsTable() : '')
+  const stepBody = body ?? (step === 1 ? objectionRows({ marks, open, keysOn, suggest }) : step === 2 ? docsTable() : '')
   const nextBtn = primary ?? btn('btn-primary btn-lg', step === 3 ? 'Accept the reading' : 'Next', { walk: 'next', off: !next, kbd: step === 3 ? '⇧⌘↵' : '', act: step === 3 ? 'record' : '' })
   return board({
     who: 'jonas', crumbStatus: workWaits, lede: 'The examining division raises 5 objections against claims 1 to 15 and cites D1 to D5. Your review marks each objection; each mark is saved at once.',
@@ -210,7 +222,7 @@ function jonasBoard({ step = 1, marks = {}, open = null, keysOn = 1, pane = [3, 
     revs: jonasRevs(readingStatus ?? ready(n), note ?? `${n} of 5 reviewed`),
     body: `<div class="section" id="reading"><div class="section-h"><h2>Reading</h2><span class="muted">By FlowLeap for Jonas Weber, 07:05 · in German, the language of the letter</span></div>${banner}${stepsLine(step)}${stepBody}</div>` + laterPlaces(),
     foot: footer({ left: left ?? `${n} of 5 reviewed · saved · not accepted yet`, more, buttons: btn('btn-ghost', 'Back', { off: step === 1 }) + btn('btn-ghost', 'Cancel review') + nextBtn }),
-    pane: letterPane(...pane), act,
+    pane: side ?? letterPane(...pane), act,
   })
 }
 const four = { 1: 'accepted', 2: 'accepted', 4: 'accepted', 5: 'accepted' }
@@ -232,6 +244,20 @@ S['jonas-done'] = board({
   body: `<div class="notice ok" data-i="check"><span><span class="lead">Reading accepted.</span> Nothing on this letter waits for a person now.</span></div><div class="section"><div class="section-h"><h2>Objections</h2><span class="count">5</span></div>${objectionRows({ marks: all, warn: false })}</div>` + laterPlaces(),
   pane: letterPane(8, items[2].quote), act: [...reviewAct, ['jonas', 'accepted the reading and checked the deadline 18 Jan 2027', '09:36']],
 })
+
+// The agent beside the work (question h).
+const q1 = 'Why does objection 3 name claim 15? The reading says claims 2–14.'
+const a1 = `Section 3 of the reasons treats all dependent claims, 2 to 15: ${ref(8, 'Die abhängigen Ansprüche 2-15')}. Claims 2 to 14 are known from D3, and claim 15 from D5: ${ref(10, 'Anspruch 15: D5 offenbart')}. So the reading should name claims 2–15.
+<div class="card sugcard"><div class="strong">Proposed correction of objection 3</div><div class="muted">Claims: 2–14 → 2–15. Reason: the passage on page 8 says "Ansprüche 2-15", and claim 15 is treated on page 10.</div><div class="cacts">${btn('btn-ghost', 'Dismiss')}${btn('btn-primary', 'Accept the suggestion', { walk: 'accept-sug' })}</div></div>`
+const four3 = { 1: 'accepted', 2: 'accepted', 4: 'accepted', 5: 'accepted' }
+S['agent-open'] = jonasBoard({ marks: four3, keysOn: 3, pane: [8, items[2].quote], act: [['jonas', 'accepted objections 1, 2, 4 and 5', '09:31']] })
+S['agent-ask'] = jonasBoard({ marks: four3, keysOn: 3, side: agentPane('', q1, 'send'), act: [['jonas', 'accepted objections 1, 2, 4 and 5', '09:31']] })
+S['agent-answer'] = jonasBoard({ marks: four3, keysOn: null, suggest: { 3: true }, side: agentPane(msgMe('jonas', q1) + msgAgent(a1), ''),
+  act: [['jonas', 'accepted objections 1, 2, 4 and 5', '09:31'], ['jonas', 'asked the agent about objection 3', '09:32'], ['bot', 'suggested a correction of objection 3: claims 2–15', '09:32']] })
+const q2 = 'Thanks. Accept the reading for me.'
+const a2 = 'I cannot accept the reading: that is your act. Check the deadline and use Accept the reading in step 3 of the review.'
+S['agent-done'] = jonasBoard({ marks: { ...four3, 3: 'corrected' }, next: true, side: agentPane(msgMe('jonas', q1) + msgAgent(a1.replace(/<div class="card sugcard">[^]*$/, '<div class="notice ok" data-i="check"><span><span class="lead">Jonas Weber accepted the suggestion.</span> Objection 3 now names claims 2–15.</span></div>')) + msgMe('jonas', q2) + msgAgent(a2), ''),
+  act: [['jonas', 'accepted objections 1, 2, 4 and 5', '09:31'], ['jonas', 'asked the agent about objection 3', '09:32'], ['bot', 'suggested a correction of objection 3: claims 2–15', '09:32'], ['jonas', 'accepted the agent\'s correction of objection 3: claims 2–14 to 2–15', '09:33']] })
 
 // New reading path.
 const rerunForm = `<div class="ask"><h3 class="sub-h">Ask for a new reading</h3><p class="muted">FlowLeap reads the letter again with your reason. Your marks stay in the record; a mark carries over to an item that is the same in the new reading.</p>

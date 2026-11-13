@@ -21,7 +21,11 @@
     ['Main', 'jonas-docs', 'Step 2 of 3: Cited documents and claims', 'D1 to D5, where the letter cites each, and which objections use it. Below, each claim with the objections that name it. Click Next.', 'next'],
     ['Main', 'jonas-review', 'Step 3 of 3: Review', 'Every mark with Edit, the deadline that Sabine confirmed, and Jonas\'s own check of the date: one line, not a second confirmation. Accept waits for the check. Click the check.', 'check'],
     ['Main', 'jonas-review-checked', 'Ready to accept', 'The one primary act of the page. Click Accept the reading.', 'next'],
-    ['Main', 'jonas-done', 'All decided', 'The deadline is active and the reading is accepted. Other offices and Reply are named places for later. Activity shows sentences; the record events are behind Record log. Click Next for the path "New reading".', null],
+    ['Main', 'jonas-done', 'All decided', 'The deadline is active and the reading is accepted. Other offices and Reply are named places for later. Activity shows sentences; the record events are behind Record log. Click Next for the path "Ask the agent".', null],
+    ['Ask the agent', 'agent-open', 'The agent beside the work', 'Jonas has marked objections 1, 2, 4 and 5; objection 3 has the warning. The right column has two tabs, Letter and Agent. Click Agent.', 'agent-tab'],
+    ['Ask the agent', 'agent-ask', 'Ask about this letter', 'The Agent tab takes the place of the letter; the form, its marks and its step stay. Jonas typed a question. Click Send.', 'send'],
+    ['Ask the agent', 'agent-answer', 'The answer stays on the board', 'Each statement points to a passage. The agent proposes a correction of objection 3; the objection row shows it. The agent cannot mark the item: Jonas does. Click Accept the suggestion.', 'accept-sug'],
+    ['Ask the agent', 'agent-done', 'Corrected by Jonas, suggested by the agent', 'Objection 3 is corrected; the record names Jonas as the actor and the suggestion as evidence. Asked to accept the reading, the agent says that this act is Jonas\'s. Click Next for the path "New reading".', null],
     ['New reading', 'jonas-board', 'A reading that is wrong as a whole', 'Back at step 1. The ⋯ in the footer holds Ask for a new reading and Reject the reading. Click ⋯.', 'more'],
     ['New reading', 'rerun-ask', 'Ask for a new reading', 'Jonas writes what is wrong. The reason goes into the new run, so the session log shows it. Click Ask for a new reading.', 'ask'],
     ['New reading', 'rerun-running', 'FlowLeap reads again', 'Reading 1 and Jonas\'s mark stay in the record. Jonas can leave the page. Click Next.', null],
@@ -53,7 +57,7 @@
     document.querySelectorAll('.app[data-state]').forEach(el => { el.hidden = !el.dataset.state.split(' ').includes(state); });
     const app = document.querySelector(`.app[data-state~="${state}"]`);
     document.querySelectorAll('.walk-target').forEach(el => el.classList.remove('walk-target'));
-    target = walk ? app.querySelector(`[data-walk="${walk}"]`) : null;
+    target = walk ? [...app.querySelectorAll(`[data-walk="${walk}"]`)].find(el => el.getClientRects().length) ?? null : null;
     if (target) { target.classList.add('walk-target'); target.scrollIntoView({ block: 'center' }); }
     const mark = app.querySelector('mark[data-mark]');
     if (mark) mark.scrollIntoView({ block: 'center' });

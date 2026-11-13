@@ -83,6 +83,7 @@ One letter is one piece of work for the person: **the letter board** of that let
 - **New reading.** In step 5 Jonas chooses **Ask for a new reading** and writes what is wrong. The run reads again (a second pass of the Ticket); the marks stay in the record; a mark carries over to an equal item. The board shows "Reading 2 · reading 1 replaced: <reason>". **`reading/rerun-requested`**, `ticket/wake-started`, `reading/proposed`, `reading/superseded`.
 - **Reject.** Jonas chooses **Reject the reading** and works without one, with a reason. `reading/rejected`, `ticket/decided`; the Ticket's work continues by hand.
 - **The task moved.** Jonas is absent; the decide-by time passes in working hours; the task moves to Lena Hoffmann. Jonas's My work shows the row under **Moved to others** with "Lena Hoffmann has it since 08:00 · the decide-by time passed" and **Take back**. `task/escalated`, `task/taken`.
+- **Ask the agent.** In the Agent tab beside the form, Jonas asks why objection 3 names claim 15. The answer stays on the board with its passages; the agent proposes to correct claims 2–14 to 2–15, and Jonas accepts it. When Jonas asks the agent to accept the rest, it says that this act is his. **`letter-chat/opened`**, **`reading/item-suggested`**, **`reading/item-reviewed`**.
 - **Scan.** A letter with no text layer comes by scan-to-email. Sabine files it and enters the type, the date and the period from the page image in one act; Tobias confirms the deadline, because Sabine made its evidence. FlowLeap cannot quote a scan, so there is no reading: Jonas's board says so, shows the page images, and offers **Work by hand**. `intake.file-by-hand`, `office-event/period-entered`, `deadline/proposed`, `deadline/confirmed`, `ticket/by-hand` with the **new reason `no-text-layer`**.
 
 ## 4. State machines
@@ -151,7 +152,7 @@ It has **6 states and 7 transitions**, plus the start.
 | start | `proposed` | The reading names the objection; when its claim numbers or D labels do not stand in its passages, the Firm Record adds a warning, and Accept needs a reason | agent | The item of `reading/proposed`; the warning is computed from the item and its passages |
 | start | `added` | The attorney adds an objection that the reading missed, with a passage of the letter | person (attorney) | `reading/item-added` (new) with the located passage |
 | `proposed` | `accepted` | The attorney accepts the item as read; for an item with a warning, with a reason | person (attorney) | `reading/item-reviewed`: mark accepted, the reason when there is a warning |
-| `proposed` | `corrected` | The attorney changes a field (ground, claims, documents or summary) and saves it with a reason; the value of the agent stays in the record | person (attorney) | `reading/item-reviewed`: mark corrected, the field, the value before and after, the reason |
+| `proposed` | `corrected` | The attorney changes a field (ground, claims, documents or summary) and saves it with a reason, or accepts the correction that the agent suggested in the letter chat; the value of the agent stays in the record | person (attorney) | `reading/item-reviewed`: mark corrected, the field, the value before and after, the reason, and the `reading/item-suggested` it accepts |
 | `proposed` | `rejected` | The attorney rejects the item with a reason, for example because it is not an objection of the letter | person (attorney) | `reading/item-reviewed`: mark rejected, the reason |
 | `proposed` | `superseded` | A new reading replaces the reading of the item | agent | `reading/superseded` |
 | `accepted` | `proposed` | Before the reading is accepted, the attorney takes the mark back | person (attorney) | `reading/item-reviewed`: mark removed |
@@ -165,7 +166,7 @@ stateDiagram-v2
     [*] --> proposed: the reading names the objection, when its claim numbers or D labels do not stand in its passages, the Firm Record adds a warning, and Accept needs a reason
     [*] --> added: the attorney adds an objection that the reading missed, with a passage of the letter
     proposed --> accepted: the attorney accepts the item as read, for an item with a warning, with a reason
-    proposed --> corrected: the attorney changes a field (ground, claims, documents or summary) and saves it with a reason, the value of the agent stays in the record
+    proposed --> corrected: the attorney changes a field (ground, claims, documents or summary) and saves it with a reason, or accepts the correction that the agent suggested in the letter chat, the value of the agent stays in the record
     proposed --> rejected: the attorney rejects the item with a reason, for example because it is not an objection of the letter
     proposed --> superseded: a new reading replaces the reading of the item
     accepted --> proposed: before the reading is accepted, the attorney takes the mark back
@@ -236,7 +237,29 @@ From top to bottom, in the form column:
 9. **Reply (later).** A named empty place: "The reply draft. Later." The attorney's check of the deadline moves here when the reply exists (decision D9.1). No design now.
 10. **Activity.** The sentences.
 
-The letter pane is beside the form (question c). Nothing on the board is a raw id, hash or form code (rule 4 of the skill).
+The letter pane is beside the form (question c), with the Agent tab beside it (question h). Nothing on the board is a raw id, hash or form code (rule 4 of the skill).
+
+### h. The agent beside the work
+
+**Recommendation: the panel stays on the board, and the agent works on this letter there.** The right column of the board has two tabs, **Letter** and **Agent**. A question in the Agent tab never leaves the page: the answer comes in the same panel, beside the form, and the form keeps its marks and its step. The tab opens with one line of the run that made the reading ("FlowLeap read the letter at 07:05: 5 objections, 5 documents"), and then the person's conversation about this letter.
+
+**Context.** The conversation is a chat of the person who asks, scoped to this matter and this letter, inside the matter's wall. Its first message names the matter, the letter and the reading as data (as the run message of a Ticket does, fact 3.7 of sheet 3); the agent reads the letter text, the current reading with its marks, the deadline and the matter through the record tools, so each read is in the session log. The agent reads as the person who asks (sheet 3, fact 3.8), and the client's AI wishes apply as for a run: with `ai-not-allowed` or `ai-wishes-not-recorded`, the Agent tab says so and offers no field.
+
+**What the agent may do from the panel.**
+
+- Explain an objection, a cited document or a passage, with each statement on a passage of the letter (page and quote, the rules of `reading.exact-evidence`); a passage link opens it in the Letter tab.
+- Propose a correction of one field of one item of the reading, with a passage and a reason. The proposal shows in the panel and on the objection row as "Suggested by the agent"; the attorney accepts it (one click) or dismisses it. Accept writes the same `reading/item-reviewed` mark `corrected` as a correction by hand, with the attorney as the actor and the agent's proposal as its evidence.
+- Propose an objection that the reading missed, with its passage; the attorney accepts it as `reading/item-added`.
+- Draft the reason of a new reading (question b) when it finds the reading wrong as a whole; the attorney sends the request.
+- Read public patent data (the cited documents, the family) through the firm's data tools, when the client's AI wishes allow it.
+
+**What it may not do.** No mark, no accept or reject of an item or of the reading, no deadline confirm, no filing, no message to a client or to the EPO, no payment, no change of the matter record: the same rules as before (`record.command-senders`, `agent-cannot-decide`; the agent never files, sends or pays; only an attorney's act changes legal state). Asked to do one, the agent says that the act is the attorney's and names the control on the page. It reads nothing outside the matter's wall.
+
+**How this relates to question b.** The panel is the path between the two answers of b. A small fault is corrected by hand, or by accepting the agent's proposal in the panel: both give the same `corrected` mark, and only the evidence differs. A reading that is wrong as a whole still needs a new reading, which is a second pass of the Ticket with the reason in its run message, not a chat answer; the panel can draft that reason. A chat answer never replaces the reading; only the attorney's marks change it.
+
+**What the Firm Record keeps.** The conversation is a Session of the person's runtime, so its log holds everything that the model saw and said (the rule "model-visible ⟺ logged"). The Firm Record keeps what the firm needs from it: `letter-chat/opened` (new; the person, the matter, the letter, the SessionRef), and each proposal from the chat as a record event with its SessionRef and tool call (`reading/item-suggested`, new), as `reading/proposed` keeps them. Activity shows "Jonas Weber asked the agent about objection 3" and "Jonas Weber accepted the agent's correction of objection 3". The team of the matter can open the conversation read-only from Activity (a firm is an org: the work on a matter is the firm's, not one person's; decision D9.6).
+
+**Why.** The founder's words: the panel stays here and the person works with the agent on the matter here. A jump to the main chat loses the form, the letter and the context, and the main chat has no matter wall or reading. **Rejected: open the main chat with the letter as context.** It is the behaviour that the founder met; the person leaves the decision. **Rejected: let the agent mark items itself.** A mark is the attorney's review; an agent's mark would be a decision by the agent.
 
 ## 6. What the system does alone, failures and time limits
 
@@ -269,6 +292,8 @@ The letter pane is beside the form (question c). Nothing on the board is a raw i
 | `reading.correction-keeps-original` | A correction is an event with the value before and after; the item of `reading/proposed` never changes | A reading whose origin no one can tell |
 | `reading.accept-needs-every-mark` | `reading/accepted` is refused while an item has no mark, or an item with a warning has no reason | An accepted reading with an unchecked item |
 | `reading.rerun-reason-in-mandate` | A new reading starts only from a request with a reason, and the reason is in the run message, so the session log shows it | A second run whose cause no one can see |
+| `letter-chat.proposes-only` | A letter chat writes only proposals (`reading/item-suggested`); a mark, a decision or any other command from its runtime token is refused | An agent that changes the reading or legal state from a chat |
+| `letter-chat.inside-wall` | A letter chat reads only the matter of its letter, as the person who asks; a person outside the wall cannot open one or read its conversation | A chat that leaks another matter |
 | `tasks.no-move-outside-working-hours` | The escalation timer moves no task outside `tasks.workingHours`, except a deadline alarm due before the next working hour | A task that moves to an absent person at night |
 | `deadline.attorney-check-is-not-confirm` | The attorney's check line records what the attorney saw; it confirms only through `deadline/confirmed` with the confirm rules of sheet 8 | A tick that looks like a confirmation |
 
@@ -280,6 +305,7 @@ The letter pane is beside the form (question c). Nothing on the board is a raw i
 | `tasks.movedVisibleDays` (new) | 2 working days | How long a moved task stays in the first owner's My work |
 | `reading.attorneyCheck` (new) | `'check-line'` | `'check-line'`: the Review step asks the attorney's check; `'seen-only'`: the decision records the deadline seen with no line (decision D9.1) |
 | `reading.carryMarks` (new) | `true` | A mark carries over to an equal item of a new reading |
+| `letterChat.teamReads` (new) | `true` | The team of the matter can read a letter chat (decision D9.6) |
 | `deadline.*`, `ticket.*` | As sheets 3 and 8 | Unchanged |
 
 ## 9. AI-native redesign and the count
@@ -314,6 +340,9 @@ The old count is INFERRED, as in [sheet 2](02-office-event-to-deadline.md#5-ai-n
 | `tasks.workingHours`, the due time from the task's start, the escalation in working hours | setting, timer | e |
 | My work: the watched tasks of the last `tasks.movedVisibleDays` with the new owner and the reason | view | e |
 | The matter's Record log route | view | f |
+| `letter-chat/opened` (person, matter, letter, SessionRef) and a route that starts a letter chat scoped by a Mandate | event, route | h |
+| `reading/item-suggested` from a chat (item, field, value, passage, SessionRef, tool call) and the accept that turns it into `reading/item-reviewed` | event, route | h |
+| The team's read-only view of a letter chat, through the Firm Record link | view | h |
 | One board view for the letter: deadline, Ticket, reading, tasks and Activity in one answer | view | g |
 
 **Gaps of the views** (`packages/client/ui-flowleap-records`): the letter board screen (replaces the work page and the deadline page for a letter); the letter pane with the marked span; the stepper and the wizard footer; the item table with marks and the correct form; the documents table; the claims row; the Review step; the deadline section with the sources in one place (defect 8); My work's Moved to others group with Take back; Activity only, the Record log tab; the scan state of the board.
@@ -379,6 +408,13 @@ The walkthrough is English. These are the German strings of the new copy, in sen
 | No reading: this letter is a scan with no text, so FlowLeap cannot quote it | Keine Auswertung: Dieses Schreiben ist ein Scan ohne Text, darum kann FlowLeap nicht daraus zitieren |
 | Work by hand | Von Hand bearbeiten |
 | Moved to others | An andere übergeben |
+| Agent | Agent |
+| Ask about this letter… | Fragen zu diesem Schreiben … |
+| Suggested by the agent | Vom Agenten vorgeschlagen |
+| Accept the suggestion | Vorschlag annehmen |
+| Dismiss | Verwerfen |
+| This is your act: use {control} on the page | Das ist Ihre Handlung: Nutzen Sie {control} auf der Seite |
+| {person} asked the agent about objection {n} | {person} hat den Agenten zu Einwand {n} gefragt |
 | {person} has it since {time} · {why} | {person} hat sie seit {time} · {why} |
 | the decide-by time passed | die Entscheidungsfrist ist abgelaufen |
 | you were absent | Sie waren abwesend |
@@ -400,6 +436,7 @@ The walkthrough is English. These are the German strings of the new copy, in sen
 - **Q9.2** Do you correct a reading item by hand, or do you want the agent to read again? How often do you expect each?
 - **Q9.3** Which Vorfrist do you set for a 4-month EPO period?
 - **Q9.4** Within how many days do you report an Art. 94(3) communication to the client, and does the report wait for your reading?
+- **Q9.6** Should your colleagues on a matter read your questions to the agent about its letters?
 - **Q9.5** Do your formalities persons work fixed hours? Should a task move to a deputy only in those hours?
 
 ## 13. Decisions for the founder
@@ -408,6 +445,7 @@ The walkthrough is English. These are the German strings of the new copy, in sen
 - **D9.2 A mark on each item, recorded at once.** Recommended: yes; a reading is accepted only with a mark on each item. Alternative: accept or reject of the whole reading, as today.
 - **D9.3 A new reading by request.** Recommended: yes, with the reason in the run, and marks that carry over to equal items. Alternative: corrections by hand only.
 - **D9.4 The form footer replaces the decision bar** of the design skill (R13) for every decision page, not only this board. Recommended: yes, through a skill PR with an independent Opus check.
+- **D9.6 The agent beside the work.** Recommended: the Agent tab stays on the board; the agent explains and proposes corrections that the attorney accepts; the team of the matter can read each letter chat. Alternative: a letter chat stays private to the person who asks.
 - **D9.5 Working hours for tasks.** Recommended: `tasks.workingHours` Monday to Friday, 08:00 to 18:00, and Moved to others for two working days. Alternative: tasks move at any hour, with the Moved to others group only.
 
 ## 14. What must be built, in which order
@@ -422,6 +460,7 @@ Each step ends in a check; the views of a step wait for its Firm Record step.
 4. The new reading: `reading/rerun-requested`, the second pass with the reason, the carry-over; `reading.rerun-reason-in-mandate`. The harness Mandate of `epo-a94-3-reading` takes the reason.
 5. Tasks: `tasks.workingHours`, the due time from the task's start, the moved tasks in the My work answer; `tasks.no-move-outside-working-hours`.
 6. `ticket/by-hand` reason `no-text-layer`; the matter's Record log route.
+7. The letter chat: `letter-chat/opened`, the scoped start route, `reading/item-suggested` and its accept; `letter-chat.proposes-only`, `letter-chat.inside-wall`. The harness side: a chat Mandate for one letter, and the agent tools that propose an item correction and an added item.
 
 **View changes** (harness `packages/client/ui-flowleap-records`), after the design skill change of D9.4 and the founder's approval of the board mockups:
 
@@ -431,3 +470,4 @@ Each step ends in a check; the views of a step wait for its Firm Record step.
 4. Ask for a new reading and Reject the reading.
 5. My work: Moved to others with Take back.
 6. The scan state of the board; the Record log tab and Show record event.
+7. The Agent tab beside the Letter tab: the conversation in place, the suggestion on the objection row with Accept and Dismiss, the read-only view for the team. It replaces the composer of `AgentRun` that starts a new chat in the main window.
