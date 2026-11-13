@@ -153,6 +153,33 @@
   padding: 0 16px 16px;
 }
 
+/* The decision bar stays above an open letter viewer (screens/LetterViewer.module.css, z-index 4), so the person decides with
+ * the letter open. */
+.work:has(~ [data-letter-viewer]) > .dock {
+  position: relative;
+  z-index: 5;
+}
+
+/* From 1366px the open letter is a column beside the content, after a 0.5px hairline; the picture of page 1 in the content
+ * hides, because the letter shows it. */
+@media (min-width: 1366px) {
+  .detail[data-letter] {
+    grid-template-columns: minmax(0, 1fr) minmax(440px, 46%);
+  }
+
+  .detail[data-letter] > .work {
+    border-right: 0.5px solid var(--dsw-alias-border-l2);
+  }
+
+  .detail[data-letter] .stickyEv {
+    display: none;
+  }
+
+  .detail[data-letter] .evSplit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .header {
   display: flex;
   flex-direction: column;

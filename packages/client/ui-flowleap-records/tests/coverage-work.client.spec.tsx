@@ -221,7 +221,7 @@ describe('the deadline page', () => {
 
   it('shows the period that an Art. 94(3) letter sets: read on a page with its words, or entered by a person', async () => {
     const a94 = { ...fixtures.deadline.officeEvent, code: 'EPO:A94(3)' }
-    await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months' } } } })
+    await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months', place: null } } } })
     expect(document.body.textContent).toContain('The letter sets 4 months: read on page 1')
     expect(screen.getByRole('button', { name: 'within a period of 4 months · Show on page 1 of the letter' })).toBeTruthy()
     expect(document.body.textContent).toContain(en['deadline.rule.a94Short'])
@@ -244,7 +244,7 @@ describe('the deadline page', () => {
     const readSection = () => screen.getByRole('region', { name: 'What FlowLeap read' })
     const part = () => document.body.textContent ?? ''
 
-    await mountDeadline({ ...myepo, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'innerhalb einer Frist von 4 Monaten' } } } })
+    await mountDeadline({ ...myepo, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'innerhalb einer Frist von 4 Monaten', place: null } } } })
     expect(readSection().textContent).toBe([
       'What FlowLeap read· the calculation uses these values',
       'The MyEPO document code 2001A gives the letter type: Communication under Article 94(3) EPC',

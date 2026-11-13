@@ -544,6 +544,12 @@
   }
 }
 
+/* Below 1366px the letter opens over the work page, and the decision bar stays above it (Layout.module.css .dock). */
+.workArea:has(~ [data-letter-viewer]) [data-decision-dock] {
+  position: relative;
+  z-index: 5;
+}
+
 /* The agent link starts at the value column's edge, as the other property values do. */
 .agentLink {
   gap: 8px;

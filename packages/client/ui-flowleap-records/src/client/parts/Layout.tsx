@@ -58,15 +58,22 @@ export function QueueItemSkeleton() {
  * @param props.children - the content, usually a `WorkColumn` or a scrolling `DetailContent`.
  * @param props.properties - the properties panel, or null for a page with none (the first-demo decision pages).
  * @param props.decision - the page is a decision page: the panel hides at 390px.
+ * @param props.letter - the letter viewer is open: from 1366px it takes a column beside the content.
  * @returns the page.
  */
-export function DetailLayout({ children, properties, decision = false }: {
+export function DetailLayout({ children, properties, decision = false, letter = false }: {
   children: ReactNode
   properties: ReactNode | null
   decision?: boolean
+  letter?: boolean
 }) {
   return (
-    <div className={css.detail} data-decision={decision || undefined} data-solo={properties === null || undefined}>
+    <div
+      className={css.detail}
+      data-decision={decision || undefined}
+      data-solo={properties === null || undefined}
+      data-letter={letter || undefined}
+    >
       {children}
       {properties}
     </div>
@@ -83,7 +90,7 @@ export function WorkColumn({ children, decision }: { children: ReactNode; decisi
   return (
     <div className={css.work}>
       <div className={css.workScroll}>{children}</div>
-      {decision !== null && <div className={css.dock}>{decision}</div>}
+      {decision !== null && <div className={css.dock} data-decision-dock="">{decision}</div>}
     </div>
   )
 }
