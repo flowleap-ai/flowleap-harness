@@ -5,7 +5,7 @@
 #   flowleap/dev-loop.sh up --os <flowleap-os checkout> [--as <seed handle>] [--port <port>] [--record-port <port>] [--no-letters]
 #                           [--demo [--officecli <binary>] [--ocr-key-file <mistral.env>] [--image <runtime image>]]
 #                           [--patch <overlay>] [--model <provider>/<model id>] [--myepo-double] [--ticket-runs [--officecli <binary>]]
-#   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in record_read; no restart
+#   flowleap/dev-loop.sh as <seed handle | admin>   act as that seed user in the Matters panel and in the chat's record tools; no restart
 #   flowleap/dev-loop.sh restart                    restart the dsh host from source after a Host edit
 #   flowleap/dev-loop.sh probe [file number|my-work] one record_read (default SF-2021-0011), or record_my_work, through the tool executor; no model call
 #   flowleap/dev-loop.sh status                     what runs, the person, the model key names
@@ -78,8 +78,18 @@ seed_user() {
     console.log(JSON.stringify(user))" "$1")
 }
 
-# The person switch. The records proxy reads records-headers.json at each request, and the Firm Record reads
-# runtime-tokens/ at each use, so moving the one dev token to the new person's file changes both at once.
+# The record token of a person (flowleap-os lib/record/identity.mjs): the record finds one token in each person's file of
+# runtime-tokens/, so every runtime of one person presents that person's token, as the one runtime of an attorney on a firm.
+# Prints the path of the person's token file, and makes the token on first use.
+person_token() {
+  local file=$RUN/person-tokens/$1
+  [[ -s $file ]] || (umask 077; mkdir -p "$RUN/person-tokens"; random_secret > "$file.tmp" && mv "$file.tmp" "$file")
+  printf '%s\n' "$file"
+}
+
+# The person switch. The records proxy reads records-headers.json at each request, the Firm Record reads runtime-tokens/
+# at each use, and the main dsh reads its credential store at each record call, so the person's token in the record and in
+# the main dsh's store changes the Records screens and the chat's record tools at once.
 act_as() {
   local handle=$1 oid json
   if [[ $handle == admin ]]; then
@@ -94,25 +104,25 @@ act_as() {
       console.log(JSON.stringify({ "x-flowleap-starter": process.argv[2], "x-flowleap-oid": user.objectId, "x-flowleap-signin": user.signIn,
         "x-flowleap-name": Buffer.from(user.name, "utf8").toString("latin1") }))' "$user" "$(< "$RECORD/starter-secret")")
   fi
+  # The person's Ticket runtime and the main dsh present the same token, the person's own. The main dsh's store changes
+  # first: when it cannot change, the screens keep the previous person too.
+  local token; token=$(person_token "$oid")
+  (umask 077; cp "$token" "$RECORD/runtime-tokens/.$oid" && mv "$RECORD/runtime-tokens/.$oid" "$RECORD/runtime-tokens/$oid")
+  (umask 077; mkdir -p "$RUN/home")
+  node "$HARNESS/flowleap/dev-loop-record-token.mjs" "$RUN/home/.credentials.yaml" "$token" || die "cannot set the record token of the main dsh"
   (umask 077
     printf '%s\n' "$json" > "$RUN/records-headers.json.tmp" && mv "$RUN/records-headers.json.tmp" "$RUN/records-headers.json")
-  # A person with a Ticket runtime keeps that runtime's token: the record finds a token in one person's file only.
-  local reads='the Matters panel and record_read read the record as this person'
-  if [[ -s $RUN/runtimes/$oid/record-token ]]; then
-    reads="the Records screens read the record as this person; record_read cannot, because $handle's Ticket runtime holds the record token of $handle"
-  else
-    (umask 077; cp "$RUN/record-token" "$RECORD/runtime-tokens/.next" && mv "$RECORD/runtime-tokens/.next" "$RECORD/runtime-tokens/$oid")
-  fi
+  # The previous person keeps a token in the record only while a Ticket runtime of that person runs.
   local previous; previous=$(cat "$RUN/person-oid" 2> /dev/null || true)
-  [[ -z $previous || $previous == "$oid" ]] || ! cmp -s "$RUN/record-token" "$RECORD/runtime-tokens/$previous" || rm -f "$RECORD/runtime-tokens/$previous"
+  [[ -z $previous || $previous == "$oid" ]] || alive "$RUN/runtimes/$previous/dsh.pid" || rm -f "$RECORD/runtime-tokens/$previous"
   printf '%s\n' "$oid" > "$RUN/person-oid"
   printf '%s\n' "$handle" > "$RUN/person"
-  say "acting as $handle ($oid): $reads"
+  say "acting as $handle ($oid): the Records screens and the chat's record tools read the record as this person"
 }
 
 # Runs dsh from this checkout's source (the launch of `pnpm run start:web`) in <dir>/workspace with DSH_HOME <dir>/home,
-# with the record token of DEV_TOKEN_FILE (default the moving dev token). Call it in a subshell: it exports the loop's
-# variables and ends in exec.
+# with the record token of DEV_TOKEN_FILE in the environment; without it, the main dsh's credential store holds the token
+# (act_as). Call it in a subshell: it exports the loop's variables and ends in exec.
 dsh() {
   local dir=$1 port=$2; shift 2
   local tsx; tsx=$(cd "$HARNESS" && node --input-type=module -e "console.log(import.meta.resolve('tsx/esm'))")
@@ -125,7 +135,8 @@ dsh() {
   # The skill pack row fails at load when its folder does not exist; an empty folder means no FlowLeap skill.
   [[ -d $skills ]] || { skills=$RUN/no-skills; mkdir -p "$skills"; }
   mkdir -p "$dir/home" "$dir/workspace"
-  FLOWLEAP_RECORD_TOKEN=$(< "${DEV_TOKEN_FILE:-$RUN/record-token}")
+  FLOWLEAP_RECORD_TOKEN=
+  [[ -z ${DEV_TOKEN_FILE:-} ]] || FLOWLEAP_RECORD_TOKEN=$(< "$DEV_TOKEN_FILE")
   export FLOWLEAP_SKILLS_DIR=$skills TSX_TSCONFIG_PATH=$HARNESS/tsconfig.json FLOWLEAP_DEV_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) \
     FLOWLEAP_RECORD_TOKEN DSH_HOME=$dir/home DSH_AGENTS_HOME=$dir/home/agents FLOWLEAP_MYEPO_DOUBLE_URL=http://127.0.0.1:$((PORT + 3))
   cd "$dir/workspace" && exec node --import "$tsx" "$HARNESS/apps/cli/src/bin.ts" --profile flowleap-web \
@@ -197,7 +208,7 @@ start_dsh() {
 # The starter of the full demo, as the host of a firm (flowleap-os lib/starter.mjs and lib/record/router.mjs): when a
 # Ticket wakes a person, the Work router writes starter/requests/<person id> and waits for starter/runtimes/<person id>.json.
 # The starter then starts that person's Ticket runtime: a dsh with the Ticket overlay, the Office rows, the firm templates
-# and the OpenRouter model row, its own record token in runtime-tokens/<person id>, and the person's Ticket key.
+# and the OpenRouter model row, the person's record token (person_token), and the person's Ticket key.
 # The overlays of a Ticket runtime: the Ticket overlay, the Office rows with the OfficeCLI binary when the loop has one, and the run model.
 ticket_patches() {
   local office=''
@@ -212,12 +223,12 @@ ticket_runtime() {
   [[ -s $dir/port ]] || { local n; n=$(find "$RUN/runtimes" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | wc -l); mkdir -p "$dir"; echo $((PORT + 10 + n)) > "$dir/port"; }
   port=$(< "$dir/port")
   mkdir -p "$dir/runws"
+  local token; token=$(person_token "$oid")
   (umask 077
-    [[ -s $dir/record-token ]] || random_secret > "$dir/record-token"
-    cp "$dir/record-token" "$RECORD/runtime-tokens/.$oid" && mv "$RECORD/runtime-tokens/.$oid" "$RECORD/runtime-tokens/$oid"
+    cp "$token" "$RECORD/runtime-tokens/.$oid" && mv "$RECORD/runtime-tokens/.$oid" "$RECORD/runtime-tokens/$oid"
     [[ -s $RECORD/ticket-keys/$oid ]] || random_secret > "$RECORD/ticket-keys/$oid")
   stop_pid "$dir/dsh.pid"
-  (DEV_TOKEN_FILE=$dir/record-token FLOWLEAP_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) FLOWLEAP_TICKET_SECRET=$(< "$RECORD/ticket-keys/$oid") \
+  (DEV_TOKEN_FILE=$token FLOWLEAP_RECORD_URL=http://127.0.0.1:$((RECORD_PORT + 1)) FLOWLEAP_TICKET_SECRET=$(< "$RECORD/ticket-keys/$oid") \
     FLOWLEAP_TEMPLATES_DIR=$TEMPLATES FLOWLEAP_RUN_WORKSPACE=$dir/runws DSH_VERIFY_OFFICE_TEMPLATES=$TEMPLATES \
     DSH_VERIFY_OFFICECLI=$OFFICECLI DSH_VERIFY_OFFICECLI_SHA256=$OFFICECLI_SHA256 FLOWLEAP_DEV_PATCHES=$(ticket_patches) \
     dsh "$dir" "$port" > "$dir/dsh.log" 2>&1 & echo $! > "$dir/dsh.pid")
@@ -449,7 +460,6 @@ console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name
     say "seed letters: $(tail -1 "$LOGS/seed-letters.log")"
   fi
 
-  [[ -s $RUN/record-token ]] || (umask 077; random_secret > "$RUN/record-token")
   act_as "$as"
 
   if ! alive "$RUN/watch.pid"; then
@@ -498,7 +508,7 @@ probe() {
   if [[ $target == my-work ]]; then tool=record_my_work arguments='{}'; else tool=record_read arguments="{\"file_number\":\"$target\"}"; fi
   rm -rf "$dir"; mkdir -p "$dir"
   # The probe plugin of flowleap-os sends one call of FLOWLEAP_PROBE_TOOL through ctx.tools.execute, prints its line and ends dsh.
-  (FLOWLEAP_PROBE_TOOL=$tool FLOWLEAP_PROBE_ARGUMENTS=$arguments dsh "$dir" $((PORT + 2)) --patch "$OS/scripts/local-firm/record-read-probe.patch.yml" > "$dir/probe.log" 2>&1 & echo $! > "$dir/pid")
+  (DEV_TOKEN_FILE=$(person_token "$(< "$RUN/person-oid")") FLOWLEAP_PROBE_TOOL=$tool FLOWLEAP_PROBE_ARGUMENTS=$arguments dsh "$dir" $((PORT + 2)) --patch "$OS/scripts/local-firm/record-read-probe.patch.yml" > "$dir/probe.log" 2>&1 & echo $! > "$dir/pid")
   for _ in $(seq 1 240); do alive "$dir/pid" || break; sleep 0.5; done
   stop_pid "$dir/pid"
   out=$(grep -m1 '^FLOWLEAP-RECORD-PROBE ' "$dir/probe.log" || true)

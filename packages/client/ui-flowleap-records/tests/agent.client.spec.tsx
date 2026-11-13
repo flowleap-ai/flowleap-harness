@@ -70,7 +70,10 @@ describe('the agent panel of the work page', () => {
     expect((send as HTMLButtonElement).disabled).toBe(true)
     fireEvent.change(within(panel).getByRole('textbox', { name: 'Ask about this letter' }), { target: { value: '  Which deadline applies?  ' } })
     fireEvent.click(send)
-    expect(agent.prompts).toEqual(['About matter FL-2026-0001, Rule 71(3) communication of 30 Oct 2026: Which deadline applies?'])
+    const ids = `Ticket ${fixtures.ticket.ticket.id}`
+    expect(agent.prompts).toEqual([
+      `About matter FL-2026-0001, Rule 71(3) communication of 30 Oct 2026: Which deadline applies?\n\n(${ids}, letter SHA-256 ${fixtures.ticket.letter!.document}. Read the matter with record_read and the letter with record_read_document_text.)`,
+    ])
     expect(within(panel).getByRole('textbox', { name: 'Ask about this letter' })).toHaveProperty('value', '')
     fireEvent.submit(send.closest('form')!)
     expect(agent.prompts).toHaveLength(1)
@@ -80,6 +83,15 @@ describe('the agent panel of the work page', () => {
     await work({ ...fixtures.ticket, ticket: { ...fixtures.ticket.ticket, routedTo: jonas }, run: { ...fixtures.ticket.run!, steps: 7 } })
     expect(within(dock()!).getByText('The patent agent ran for Jonas Weber.')).toBeTruthy()
     expect(within(dock()!).getByText(/ · 7 steps$/)).toBeTruthy()
+    cleanup()
+    mounted!.dispose()
+    const { agent: noLetter } = await work({ ...fixtures.ticket, letter: null })
+    act(() => { noLetter.resource.set({ status: 'live', value: { kind: 'missing' }, failure: undefined }) })
+    fireEvent.change(within(dock()!).getByRole('textbox', { name: 'Ask about this letter' }), { target: { value: 'Which deadline applies?' } })
+    fireEvent.click(within(dock()!).getByRole('button', { name: 'Ask in a new chat' }))
+    expect(noLetter.prompts).toHaveLength(1)
+    expect(noLetter.prompts[0]).toMatch(/^About matter FL-2026-0001, .*: Which deadline applies\?\n\n\(Ticket [0-9a-f-]+\. /u)
+    expect(noLetter.prompts[0]).toMatch(/ Read the matter with record_read\.\)$/u)
   })
 
   it('says when no run started, the run works, or the record names no Session, and shows the refused shape only for a failed run', async () => {

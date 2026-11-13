@@ -35,6 +35,7 @@ import { registerRowMenu, registerWorkRowMenu } from './row-menu.ts'
 import { runSessionProvider } from './agent-run.ts'
 import { RunConversation } from './RunConversation.tsx'
 import type { NewChat } from './screens/context.ts'
+import { askInNewChat } from './new-chat.ts'
 
 export type { FlowleapRecordsKey } from './locales.ts'
 export type { PanelInjected, PanelProps } from './Panel.tsx'
@@ -103,15 +104,18 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['resources', 'sessions'], (scope) => {
     scope.effect(() => scope.resources.register(runSessionProvider(scope.sessions)), 'ui-flowleap-records: run Sessions')
   })
-  // The agent panel's composer starts a new chat only where the runtime has Session navigation; without it, no composer.
+  // The agent panel's composer sends its question in a new chat only where the runtime has Session navigation, the
+  // Session catalog and the Workspace rows; without them, no composer.
   const ask = createSnapshotStore<NewChat | null>(null)
+  ctx.inject(['uiWorkspace', 'sessions', 'workspaces'], (scope) => {
+    scope.effect(() => {
+      ask.set({ start: (prompt) => { askInNewChat(scope, prompt) } })
+      return () => { ask.set(null) }
+    }, 'ui-flowleap-records: new chat')
+  })
   // My work is the first screen (sheet 00, decision Q6).
   const takeBack: (() => void)[] = []
   ctx.inject(['uiWorkspace'], (scope) => {
-    scope.effect(() => {
-      ask.set({ start: (prompt) => { scope.uiWorkspace.startSession(undefined, { prompt, whenDraftExists: 'append' }) } })
-      return () => { ask.set(null) }
-    }, 'ui-flowleap-records: new chat')
     scope.effect(() => {
       const dispose = scope.uiWorkspace.provideLanding(MY_WORK_PANEL_ID)
       takeBack.push(dispose)

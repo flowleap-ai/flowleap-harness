@@ -1213,6 +1213,22 @@
       }
     },
     {
+      "name": "record_read_document_text",
+      "description": "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you answer a question about it or propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string",
+            "description": "SHA-256 of a document of the record, as record_read lists it."
+          }
+        },
+        "required": [
+          "document"
+        ]
+      }
+    },
+    {
       "name": "register_watch_create",
       "description": "Watch the patent registers of applications with one daily task in the current session. Each day the host reads the register events of each application without you; the task runs only when an event is new, and its prompt then lists the new events (date, application, event code, text). Events listed now are never reported. Manage the task with schedule_list, schedule_view, and schedule_edit. By default each run opens a new chat titled by the event and marks it \"Needs review\" when it finishes; new_chat_per_run and needs_review turn either off.",
       "parameters": {

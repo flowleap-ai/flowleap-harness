@@ -285,8 +285,8 @@ describe('flowleapRecord run commands over HTTP', () => {
   it('reads the page text of a document with the token and sends no idempotency key', async () => {
     const double = await record(json(200, { pages: ['Page one.', 'Page two.'] }))
     const service = await provider({ url: double.url, key: TOKEN })
-    expect(await service.documentText(LETTER_SHA256, new AbortController().signal)).toEqual({ pages: ['Page one.', 'Page two.'] })
-    expect(double.paths).toEqual([`/records/api/documents/${LETTER_SHA256}/text`])
+    expect(await service.documentText(LETTER_SHA256, 'openrouter', new AbortController().signal)).toEqual({ pages: ['Page one.', 'Page two.'] })
+    expect(double.paths).toEqual([`/records/api/documents/${LETTER_SHA256}/text?provider=openrouter`])
     expect(double.tokens).toEqual([`Bearer ${TOKEN}`])
     expect(double.requests.map(request => [request.method, request.key, request.body])).toEqual([['GET', '', '']])
   })
@@ -295,6 +295,7 @@ describe('flowleapRecord run commands over HTTP', () => {
     const signal = new AbortController().signal
     for (const [status, body, error] of [
       [404, { error: 'not-found', detail: 'No text.' }, 'not_found'],
+      [403, { error: 'ai-not-allowed', detail: 'ai-not-allowed' }, 'client_rule_forbids_ai_read'],
       [403, { error: 'no-identity' }, 'refused'],
       [500, 'down', 'service_error'],
       [200, { pages: 'text' }, 'invalid_answer'],
@@ -304,10 +305,10 @@ describe('flowleapRecord run commands over HTTP', () => {
       const double = await record(json(status, body))
       const service = await provider({ url: double.url, key: TOKEN })
       vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(() => {})
-      expect(await service.documentText(LETTER_SHA256, signal)).toMatchObject({ error })
+      expect(await service.documentText(LETTER_SHA256, 'openrouter', signal)).toMatchObject({ error })
     }
-    expect(await (await provider({ url: '', key: TOKEN })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'not_configured' })
-    expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'no_key' })
+    expect(await (await provider({ url: '', key: TOKEN })).documentText(LETTER_SHA256, 'openrouter', signal)).toEqual({ error: 'not_configured' })
+    expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, 'openrouter', signal)).toEqual({ error: 'no_key' })
   })
 
   it('posts the reading with the token, its body as the command, and a key of the Ticket, the Session and the tool call', async () => {
@@ -335,6 +336,7 @@ describe('flowleapRecord run commands over HTTP', () => {
       [409, 'ticket-not-waking', 'ticket_not_waking'],
       [409, 'ticket-not-running', 'ticket_not_running'],
       [409, 'report.no-ai-draft-against-client-rule', 'client_rule_forbids_ai_draft'],
+      [403, 'ai-not-allowed', 'client_rule_forbids_ai_read'],
       [422, 'report.statement-has-evidence', 'statement_without_evidence'],
       [422, 'report.statement-has-span', 'statement_without_span'],
       [422, 'report.quote-not-in-letter', 'quote_not_in_letter'],

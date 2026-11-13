@@ -212,6 +212,7 @@ const COMMAND_CODES: Readonly<Record<string, RecordCommandRefusal>> = {
   'ticket-not-waking': 'ticket_not_waking',
   'ticket-not-running': 'ticket_not_running',
   'report.no-ai-draft-against-client-rule': 'client_rule_forbids_ai_draft',
+  'ai-not-allowed': 'client_rule_forbids_ai_read',
   'report.statement-has-evidence': 'statement_without_evidence',
   'report.statement-has-span': 'statement_without_span',
   'report.quote-not-in-letter': 'quote_not_in_letter',
@@ -414,11 +415,12 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
   /**
    * Read the text layer of a document of the record.
    * @param document - the SHA-256 of the document.
+   * @param provider - the provider route of the model that reads the text.
    * @param signal - ends the read; the method rejects when it fires.
    * @returns the text of each page, or the refusal.
    */
-  documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>> {
-    return this.send(`documents/${document}/text`, undefined, documentTextSchema, signal)
+  documentText(document: DocumentSha256, provider: string, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>> {
+    return this.send(`documents/${document}/text?provider=${encodeURIComponent(provider)}`, undefined, documentTextSchema, signal)
   }
 
   /**

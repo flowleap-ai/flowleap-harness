@@ -189,7 +189,10 @@ function RunSummary({ ctx, data, title, why, notice = null }: {
       {ask !== null && (
         <AskComposer
           labels={{ field: t('agent.ask.label'), placeholder: t('agent.ask.placeholder'), send: t('agent.ask.send') }}
-          onAsk={(question) => { ask.start(t('agent.ask.prompt', { matter: data.matter.fileNumber, letter: title, question })) }}
+          onAsk={(question) => {
+            const about = { matter: data.matter.fileNumber, letter: title, ticket: data.ticket.id, question }
+            ask.start(data.letter === null ? t('agent.ask.promptNoLetter', about) : t('agent.ask.prompt', { ...about, document: data.letter.document }))
+          }}
         />
       )}
     </>

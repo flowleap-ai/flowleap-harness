@@ -64,8 +64,8 @@ export interface AgentSeat {
 /** Starts a new chat; an object, because a snapshot store takes a function value as an updater. */
 export interface NewChat {
   /**
-   * Open a new chat with a prompt drafted for the person to send.
-   * @param prompt - the drafted prompt.
+   * Open a new chat and send the prompt in it.
+   * @param prompt - the message, with the matter and the letter that it is about.
    */
   readonly start: (prompt: string) => void
 }

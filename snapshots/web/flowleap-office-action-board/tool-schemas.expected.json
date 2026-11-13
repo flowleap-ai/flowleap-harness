@@ -442,6 +442,22 @@
       }
     },
     {
+      "name": "record_read_document_text",
+      "description": "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you answer a question about it or propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string",
+            "description": "SHA-256 of a document of the record, as record_read lists it."
+          }
+        },
+        "required": [
+          "document"
+        ]
+      }
+    },
+    {
       "name": "remove_claim",
       "description": "Remove one claim from drafting/<matter>/claims.md (application-drafting skill, Step 4). Call it only after the attorney chose \"Remove claim N\" in chat, for example on a figure-coverage Error (a claim cites a Feature List row that no figure shows) or an advisory item that says a claim has no figure support. The tool asks the attorney to confirm the removal and its cost before it writes; a declined confirmation changes nothing. It deletes the claim, renumbers each later claim down by one, and changes the claim references in the other claims with them (\"of claim 5\" becomes \"of claim 4\"). It refuses, and changes nothing, when another claim refers to the claim (the refusal names those claims: the attorney decides about them first) or when claims.md has no claim with that number. The removal changes the claims, so it re-opens the claims approval: `approved` in claims.md becomes false and the attorney approves the claims again before drafting continues; then call start_application_draft. The tool records the old and new claim numbers in the Working Record. Report the renumbering and the re-opened approval to the attorney; never remove a claim on your own.",
       "parameters": {

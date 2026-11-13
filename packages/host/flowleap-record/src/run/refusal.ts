@@ -22,6 +22,7 @@ const MESSAGES: Record<RecordCommandRefusal, string> = {
   ticket_not_waking: 'The Ticket does not wait for a run.',
   ticket_not_running: 'The Ticket has no running run, so it takes no proposal and no finish. Do not try again; tell the attorney in this chat.',
   client_rule_forbids_ai_draft: 'The client rules do not allow an AI draft of a letter to the client. Do not propose a client report; tell the attorney in this chat that the report is due by hand.',
+  client_rule_forbids_ai_read: 'The client\'s AI wishes, or the firm\'s provider contracts, do not allow this model to read this letter. Do not read it in another way; tell the attorney in this chat that a person reads the letter, or that a model of a provider with a contract may read it if the client allows it.',
   statement_without_evidence: 'Every statement needs at least one source document. Add the evidence and propose again.',
   statement_without_span: 'Every source needs a span: the page number and an exact quote from that page. Read the text with record_read_document_text, add the span to each source, and propose again.',
   quote_not_in_letter: 'A quote is not in the text of its page. Copy each quote character for character from the page text of record_read_document_text, check the page number, and propose again.',

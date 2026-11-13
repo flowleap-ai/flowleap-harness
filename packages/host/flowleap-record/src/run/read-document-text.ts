@@ -18,12 +18,13 @@ const Args = z.object({ document: sha256Arg }).strict()
 const DESCRIPTION =
   'Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. '
   + 'The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before '
-  + 'you propose a report: every statement of the report quotes this text. A quote is a part of one page, copied '
+  + 'you answer a question about it or propose a report: every statement of the report quotes this text. A quote is a part of one page, copied '
   + 'character for character, with that page number. The tool changes nothing in the record.'
 
 const NOT_FOUND =
-  'The Firm Record has no text for this document: the hash is not a document of the record, or the document has no '
-  + 'text layer. Check the hash against record_read. If the document has no text layer, tell the attorney in this chat.'
+  'The Firm Record gives no text for this document: the hash is not a document of the record, the document is not the '
+  + 'letter of a Ticket routed to you, or the document has no text layer. Check the hash against the officeEvents of '
+  + 'record_read. If you cannot read the letter, tell the attorney in this chat.'
 
 const OUTPUT_SCHEMA = {
   oneOf: [
@@ -53,7 +54,10 @@ export function readDocumentTextTool(ctx: Context): ToolDefinition {
     output: { schema: OUTPUT_SCHEMA, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     async execute(raw, exec): Promise<ReadDocumentTextResult> {
       const args = parseArgs(Args, raw)
-      const result = await ctx.flowleapRecord.documentText(args.document, exec.signal)
+      // The Firm Record applies the client's AI wishes to the provider of the model that reads the text.
+      const provider = exec.agent?.model.current()?.provider
+      if (provider === undefined) throw new Error('record_read_document_text needs an agent Session with a model.')
+      const result = await ctx.flowleapRecord.documentText(args.document, provider, exec.signal)
       return 'error' in result ? runRefusal(result, { not_found: NOT_FOUND }) : { pages: [...result.pages] }
     },
     presentCall: args => ({ card: 'generic', title: 'Read the document text', kind: 'read', rawInput: args.document }),

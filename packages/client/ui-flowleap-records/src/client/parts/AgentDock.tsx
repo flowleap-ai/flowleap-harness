@@ -161,8 +161,8 @@ export interface AskLabels {
 }
 
 /**
- * Render the composer of a panel with no conversation: a question field and the send button. Sending starts a new
- * chat about this letter with the question drafted; an empty question sends nothing.
+ * Render the composer of a panel with no conversation: a question field and the send button. Sending opens a new
+ * chat about this letter and sends the question in it; an empty question sends nothing.
  * @param props.labels - the composer's copy.
  * @param props.onAsk - start the new chat with the trimmed question.
  * @returns the composer.
