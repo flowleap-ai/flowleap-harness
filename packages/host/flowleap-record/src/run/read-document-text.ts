@@ -54,7 +54,10 @@ export function readDocumentTextTool(ctx: Context): ToolDefinition {
     output: { schema: OUTPUT_SCHEMA, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     async execute(raw, exec): Promise<ReadDocumentTextResult> {
       const args = parseArgs(Args, raw)
-      const result = await ctx.flowleapRecord.documentText(args.document, exec.signal)
+      // The Firm Record applies the client's AI wishes to the provider of the model that reads the text.
+      const provider = exec.agent?.model.current()?.provider
+      if (provider === undefined) throw new Error('record_read_document_text needs an agent Session with a model.')
+      const result = await ctx.flowleapRecord.documentText(args.document, provider, exec.signal)
       return 'error' in result ? runRefusal(result, { not_found: NOT_FOUND }) : { pages: [...result.pages] }
     },
     presentCall: args => ({ card: 'generic', title: 'Read the document text', kind: 'read', rawInput: args.document }),

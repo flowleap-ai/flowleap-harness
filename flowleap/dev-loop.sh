@@ -104,13 +104,14 @@ act_as() {
       console.log(JSON.stringify({ "x-flowleap-starter": process.argv[2], "x-flowleap-oid": user.objectId, "x-flowleap-signin": user.signIn,
         "x-flowleap-name": Buffer.from(user.name, "utf8").toString("latin1") }))' "$user" "$(< "$RECORD/starter-secret")")
   fi
-  (umask 077
-    printf '%s\n' "$json" > "$RUN/records-headers.json.tmp" && mv "$RUN/records-headers.json.tmp" "$RUN/records-headers.json")
-  # The person's Ticket runtime and the main dsh present the same token, the person's own.
+  # The person's Ticket runtime and the main dsh present the same token, the person's own. The main dsh's store changes
+  # first: when it cannot change, the screens keep the previous person too.
   local token; token=$(person_token "$oid")
   (umask 077; cp "$token" "$RECORD/runtime-tokens/.$oid" && mv "$RECORD/runtime-tokens/.$oid" "$RECORD/runtime-tokens/$oid")
-  mkdir -p "$RUN/home"
+  (umask 077; mkdir -p "$RUN/home")
   node "$HARNESS/flowleap/dev-loop-record-token.mjs" "$RUN/home/.credentials.yaml" "$token" || die "cannot set the record token of the main dsh"
+  (umask 077
+    printf '%s\n' "$json" > "$RUN/records-headers.json.tmp" && mv "$RUN/records-headers.json.tmp" "$RUN/records-headers.json")
   # The previous person keeps a token in the record only while a Ticket runtime of that person runs.
   local previous; previous=$(cat "$RUN/person-oid" 2> /dev/null || true)
   [[ -z $previous || $previous == "$oid" ]] || alive "$RUN/runtimes/$previous/dsh.pid" || rm -f "$RECORD/runtime-tokens/$previous"

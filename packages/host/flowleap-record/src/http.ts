@@ -415,11 +415,12 @@ export default class FlowleapRecordHttp extends Service implements FlowleapRecor
   /**
    * Read the text layer of a document of the record.
    * @param document - the SHA-256 of the document.
+   * @param provider - the provider route of the model that reads the text.
    * @param signal - ends the read; the method rejects when it fires.
    * @returns the text of each page, or the refusal.
    */
-  documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>> {
-    return this.send(`documents/${document}/text`, undefined, documentTextSchema, signal)
+  documentText(document: DocumentSha256, provider: string, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>> {
+    return this.send(`documents/${document}/text?provider=${encodeURIComponent(provider)}`, undefined, documentTextSchema, signal)
   }
 
   /**

@@ -491,8 +491,8 @@ export type RecordCommandRefusal =
   /** The client rules do not allow an AI draft of a client letter (409 `report.no-ai-draft-against-client-rule`). */
   | 'client_rule_forbids_ai_draft'
   /**
-   * The client's AI wishes do not allow a model to read the letter, or the firm has no contract with the provider
-   * (403 `ai-not-allowed`).
+   * The client's AI wishes do not allow a cloud model of the reading model's provider to read the letter, or the firm has
+   * no contract with that provider (403 `ai-not-allowed`).
    */
   | 'client_rule_forbids_ai_read'
   /** A statement has no evidence (422 `report.statement-has-evidence`). */
@@ -573,12 +573,14 @@ export interface FlowleapRecord {
    */
   proposeReading(ticket: TicketId, command: ReadingProposal, signal: AbortSignal): Promise<RecordCommandResult<ReadingReceipt>>
   /**
-   * Read the text layer of a document of the record, the text that a quote of a report must be copied from.
+   * Read the text layer of a document of the record, the text that a quote of a report must be copied from. The Firm
+   * Record gives it only when the client's AI wishes and a provider contract let a cloud model of `provider` read it.
    * @param document - the SHA-256 of the document.
+   * @param provider - the provider route of the model that reads the text, such as `openrouter`.
    * @param signal - ends the read; the provider rejects when it fires.
    * @returns the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).
    */
-  documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>
+  documentText(document: DocumentSha256, provider: string, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>
   /**
    * End the run with its proposals and the deadline summary. A repeat with the same Ticket and Session is the same
    * command.

@@ -46,6 +46,7 @@ class RecordDouble extends Service implements FlowleapRecord {
   reading: RecordCommandResult<ReadingReceipt> = READ
   readonly finishes: Array<{ ticket: TicketId; command: RunFinish }> = []
   readonly textReads: DocumentSha256[] = []
+  readonly textProviders: string[] = []
   text: RecordCommandResult<DocumentText> = { pages: ['Page one text.', 'Page two text.'] }
   report: RecordCommandResult<ReportReceipt> = RECEIPT
   finish: RecordCommandResult<RunFinishReceipt> = FINISHED
@@ -65,8 +66,9 @@ class RecordDouble extends Service implements FlowleapRecord {
     this.readings.push({ ticket, command })
     return this.reading
   }
-  async documentText(document: DocumentSha256): Promise<RecordCommandResult<DocumentText>> {
+  async documentText(document: DocumentSha256, provider: string): Promise<RecordCommandResult<DocumentText>> {
     this.textReads.push(document)
+    this.textProviders.push(provider)
     return this.text
   }
   async finishRun(ticket: TicketId, command: RunFinish): Promise<RecordCommandResult<RunFinishReceipt>> {
@@ -103,7 +105,7 @@ async function bench() {
   await fiber.await()
   const session = ctx.sessions.create(SessionId('webhook-run-1'), { meta: { cwd: dir } })
   const agent: Agent = {
-    id: session.id, options: {}, session, model: unsupportedModel(), inbox: unsupportedInbox(), status: 'idle', ctx,
+    id: session.id, options: {}, session, model: { current: () => ({ provider: 'openrouter', model: 'anthropic/claude-haiku-5.5' }), select: unsupportedModel().select }, inbox: unsupportedInbox(), status: 'idle', ctx,
     send: () => {}, followup: () => {}, steer: (_message: UserMessage) => {}, inject: () => {}, cancel() {},
     runMaintenance: task => task(new AbortController().signal), whenIdle: () => Promise.resolve(),
   }
@@ -296,6 +298,7 @@ describe('record_read_document_text', () => {
     expect(result.isError).toBe(false)
     expect(JSON.parse(result.text)).toEqual({ pages: ['Page one text.', 'Page two text.'] })
     expect(record.textReads).toEqual([LETTER_SHA256])
+    expect(record.textProviders).toEqual(['openrouter'])
   })
 
   it('answers a refusal with its code, a message that says what to do, and the detail', async () => {
@@ -315,11 +318,13 @@ describe('record_read_document_text', () => {
     expect(forbidden.message).toContain('Do not read it in another way')
   })
 
-  it('refuses a document that is not a lower-case SHA-256 before the Firm Record', async () => {
+  it('refuses a document that is not a lower-case SHA-256, or a call with no model, before the Firm Record', async () => {
     const { call, record } = await bench()
     for (const args of [{ document: 'abc' }, { document: LETTER_SHA256.toUpperCase() }, {}, { document: LETTER_SHA256, page: 1 }]) {
       expect((await call('record_read_document_text', args)).isError, JSON.stringify(args)).toBe(true)
     }
+    const outside = await call('record_read_document_text', { document: LETTER_SHA256 }, false)
+    expect([outside.isError, outside.text]).toEqual([true, expect.stringContaining('needs an agent Session with a model')])
     expect(record.textReads).toEqual([])
   })
 })

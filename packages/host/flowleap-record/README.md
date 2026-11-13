@@ -153,7 +153,7 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 | `ticket_not_waking` | 409 `ticket-not-waking`: `run-started` for a Ticket that is not `waking` |
 | `ticket_not_running` | 409 `ticket-not-running`: a report or finish for a Ticket that is not `running` |
 | `client_rule_forbids_ai_draft` | 409 `report.no-ai-draft-against-client-rule` |
-| `client_rule_forbids_ai_read` | 403 `ai-not-allowed`: for `documentText`, the client's AI wishes do not allow a model to read the letter, or the firm has no contract with the provider of its run model |
+| `client_rule_forbids_ai_read` | 403 `ai-not-allowed`: for `documentText`, the client's AI wishes do not allow a cloud model of the reading model's provider to read the letter, or the firm has no contract with that provider |
 | `statement_without_evidence` | 422 `report.statement-has-evidence` |
 | `statement_without_span` | 422 `report.statement-has-span`: an evidence item has no span |
 | `quote_not_in_letter` | 422 `report.quote-not-in-letter`: a quote is not in the text of its page |
@@ -164,7 +164,7 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 
 ### The letter text tool
 
-`record_read_document_text` (main entry) takes `document`, a lower-case SHA-256, calls `documentText`, and answers `{ pages }` or the refusal. It changes nothing in the record. A chat has it, so an attorney can ask about a letter of their work.
+`record_read_document_text` (main entry) takes `document`, a lower-case SHA-256, calls `documentText` with the provider of its Session's current model (a call with no agent Session or no model is a tool error), and answers `{ pages }` or the refusal. It changes nothing in the record. A chat has it, so an attorney can ask about a letter of their work.
 
 ### The run tools
 
@@ -301,7 +301,7 @@ The declaration is stable while the run row is mounted. Results append to histor
 - **The run tools are on in every Session of the row** — the model of any chat sees them while the run row is mounted; the Firm Record refuses a command for a Ticket that is not running or not routed to the runtime's person.
 - **One matter per read, no search** — `record_read` reads one matter by file number; `record_my_work` lists only the matters of the token's person. There is no search over other matters.
 - **No letter text before filing** — `record_my_work` lists a waiting letter as the task of one intake person, but no tool reads the letter before it is filed.
-- **Letter text only for the routed person** — `record_read_document_text` reads a letter only when a Ticket for it is routed to the token's person; a team member who is not the routed person cannot read the letter text through the agent. The Firm Record checks the client's AI wishes against the firm's run model, not against the model of the chat.
+- **Letter text only for the routed person** — `record_read_document_text` reads a letter only when a Ticket for it is routed to the token's person; a team member who is not the routed person cannot read the letter text through the agent. The tool sends the provider of its Session's model, and the Firm Record checks the client's AI wishes and the firm's provider contracts against that provider as a cloud provider: a client that allows a local model only gets no letter text through the agent, also from a local model.
 - **No `?at=` read** — the tool reads the current view only; rebuilding the view at a logged `recordSeq` is an auditor's call on the Firm Record, not a model call.
 
 <a id="dev-note"></a>

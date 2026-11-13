@@ -25,14 +25,16 @@ const token = readFileSync(tokenFile, 'utf8').trim()
 if (token === '') throw new Error(`${tokenFile} holds no token`)
 
 await withFileLock(store, async () => {
-  let text = 'version: 1\n'
+  let text = ''
   try {
     text = await readFile(store, 'utf8')
   } catch (error) {
     if (error.code !== 'ENOENT') throw error
   }
+  if (text.trim() === '') text = 'version: 1\n'
   const document = parseDocument(text)
-  if (document.errors.length > 0) throw new Error(`${store} is not valid YAML: ${document.errors[0].message}`)
+  // The message of a YAML error quotes the line, which can hold a key: give only its code and place.
+  if (document.errors.length > 0) throw new Error(`${store} is not valid YAML: ${document.errors[0].code} at ${JSON.stringify(document.errors[0].linePos?.[0])}`)
   document.setIn(['refs', 'FLOWLEAP_RECORD_TOKEN'], token)
   await writeFileAtomic(store, document.toString(), { mode: 0o600 })
 })

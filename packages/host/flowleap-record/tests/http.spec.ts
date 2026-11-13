@@ -285,8 +285,8 @@ describe('flowleapRecord run commands over HTTP', () => {
   it('reads the page text of a document with the token and sends no idempotency key', async () => {
     const double = await record(json(200, { pages: ['Page one.', 'Page two.'] }))
     const service = await provider({ url: double.url, key: TOKEN })
-    expect(await service.documentText(LETTER_SHA256, new AbortController().signal)).toEqual({ pages: ['Page one.', 'Page two.'] })
-    expect(double.paths).toEqual([`/records/api/documents/${LETTER_SHA256}/text`])
+    expect(await service.documentText(LETTER_SHA256, 'openrouter', new AbortController().signal)).toEqual({ pages: ['Page one.', 'Page two.'] })
+    expect(double.paths).toEqual([`/records/api/documents/${LETTER_SHA256}/text?provider=openrouter`])
     expect(double.tokens).toEqual([`Bearer ${TOKEN}`])
     expect(double.requests.map(request => [request.method, request.key, request.body])).toEqual([['GET', '', '']])
   })
@@ -305,10 +305,10 @@ describe('flowleapRecord run commands over HTTP', () => {
       const double = await record(json(status, body))
       const service = await provider({ url: double.url, key: TOKEN })
       vi.spyOn(contexts.at(-1)!.logger, 'warn').mockImplementation(() => {})
-      expect(await service.documentText(LETTER_SHA256, signal)).toMatchObject({ error })
+      expect(await service.documentText(LETTER_SHA256, 'openrouter', signal)).toMatchObject({ error })
     }
-    expect(await (await provider({ url: '', key: TOKEN })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'not_configured' })
-    expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, signal)).toEqual({ error: 'no_key' })
+    expect(await (await provider({ url: '', key: TOKEN })).documentText(LETTER_SHA256, 'openrouter', signal)).toEqual({ error: 'not_configured' })
+    expect(await (await provider({ url: 'http://127.0.0.1:9', key: undefined })).documentText(LETTER_SHA256, 'openrouter', signal)).toEqual({ error: 'no_key' })
   })
 
   it('posts the reading with the token, its body as the command, and a key of the Ticket, the Session and the tool call', async () => {
