@@ -75,7 +75,7 @@ describe('the new chat of the agent panel', () => {
     failing.failPrompt()
     askInNewChat(failing.given, 'Which documents?')
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledTimes(2) })
-    expect(warn.mock.calls.map(call => call[0])).toEqual(['ui-flowleap-records: the new chat did not open:', 'ui-flowleap-records: the question was not sent:'])
+    expect(warn.mock.calls.map(call => String(call[0]))).toEqual(['ui-flowleap-records: the new chat did not open:', 'ui-flowleap-records: the question was not sent:'])
     expect(unbound.sent).toEqual([])
     warn.mockRestore()
   })

@@ -105,7 +105,7 @@ async function bench() {
   await fiber.await()
   const session = ctx.sessions.create(SessionId('webhook-run-1'), { meta: { cwd: dir } })
   const agent: Agent = {
-    id: session.id, options: {}, session, model: { current: () => ({ provider: 'openrouter', model: 'anthropic/claude-haiku-5.5' }), select: unsupportedModel().select }, inbox: unsupportedInbox(), status: 'idle', ctx,
+    id: session.id, options: {}, session, model: { ...unsupportedModel(), current: () => ({ provider: 'openrouter', model: 'anthropic/claude-haiku-5.5' }) }, inbox: unsupportedInbox(), status: 'idle', ctx,
     send: () => {}, followup: () => {}, steer: (_message: UserMessage) => {}, inject: () => {}, cancel() {},
     runMaintenance: task => task(new AbortController().signal), whenIdle: () => Promise.resolve(),
   }
