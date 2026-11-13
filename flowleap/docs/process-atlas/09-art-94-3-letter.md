@@ -21,7 +21,8 @@
 - [11. German strings](#11-german-strings)
 - [12. Open questions for the pilot attorney](#12-open-questions-for-the-pilot-attorney)
 - [13. Decisions for the founder](#13-decisions-for-the-founder)
-- [14. What must be built, in which order](#14-what-must-be-built-in-which-order)
+- [14. What the steps after the reading need](#14-what-the-steps-after-the-reading-need)
+- [15. What must be built, in which order](#15-what-must-be-built-in-which-order)
 
 ## 1. The process today
 
@@ -436,6 +437,7 @@ The walkthrough is English. These are the German strings of the new copy, in sen
 - **Q9.2** Do you correct a reading item by hand, or do you want the agent to read again? How often do you expect each?
 - **Q9.3** Which Vorfrist do you set for a 4-month EPO period?
 - **Q9.4** Within how many days do you report an Art. 94(3) communication to the client, and does the report wait for your reading?
+- **Q9.7** Besides the objections, how should a reading show what the examiner accepts (for example "claim 5 would be allowable") and what the examiner asks for (for example to adapt the description, or to state the problem and solution)? As items of their own kind, or as fields of the reading?
 - **Q9.6** Should your colleagues on a matter read your questions to the agent about its letters?
 - **Q9.5** Do your formalities persons work fixed hours? Should a task move to a deputy only in those hours?
 
@@ -446,9 +448,29 @@ The walkthrough is English. These are the German strings of the new copy, in sen
 - **D9.3 A new reading by request.** Recommended: yes, with the reason in the run, and marks that carry over to equal items. Alternative: corrections by hand only.
 - **D9.4 The form footer replaces the decision bar** of the design skill (R13) for every decision page, not only this board. Recommended: yes, through a skill PR with an independent Opus check.
 - **D9.6 The agent beside the work.** Recommended: the Agent tab stays on the board; the agent explains and proposes corrections that the attorney accepts; the team of the matter can read each letter chat. Alternative: a letter chat stays private to the person who asks.
+- **D9.7 How the attorney checks the examiner (open).** The founder's question of [section 14](#14-what-the-steps-after-the-reading-need): how does the attorney check that what the examiner said is correct, with the full matter and not only the letter in hand? No recommendation yet; the founder decides with the coordinator.
 - **D9.5 Working hours for tasks.** Recommended: `tasks.workingHours` Monday to Friday, 08:00 to 18:00, and Moved to others for two working days. Alternative: tasks move at any hour, with the Moved to others group only.
 
-## 14. What must be built, in which order
+## 14. What the steps after the reading need
+
+The founder's order of 2026-11-13: the gaps that the steps after the reading (the check of the examiner's view, the reply draft, the client report) meet in today's system. These are facts of the code at harness `e4c10045e1` and flowleap-os `c55a95b`; this section designs nothing for them. The board keeps room for them in its named places (question g): **Reply (later)** and **Other offices (later)**, and the empty Claims row and documents table of the Reading section, which can take more than numbers and labels.
+
+**Gap 1. No history of the matter in the run.** The task `epo-a94-3-reading` (harness `packages/experimental/flowleap-ticket/src/mandate.ts`) has five steps: read the matter with `record_read`, read every page of this office letter with `record_read_document_text`, find the objections, propose the reading, finish. Nothing in it reads another document.
+
+- `record_read` (`packages/host/flowleap-record/src/tool.ts`) returns: the matter (file number, title, client, responsible attorney, application number, state); each deadline with its rule, due date, state and trace; the client's recorded rules; the office events (code, document date, application number, document hash, state); the Tickets (id, pass, state, routed person); and the documents of the e-file with only their hash, file name, media type and source. It returns no document kind, no claims, no reading and no result of an earlier run.
+- So a run could read another document of the e-file by its hash, but the task text does not ask it to, and the list does not say which document is the search opinion or the applicant's reply.
+- Each Ticket run is a new Session that starts from the run message (the Mandate, the steps and the Ticket delivery: the matter key and title, the office events, the deadline). A run has no memory of earlier runs, and `record_read` holds no earlier reading.
+- The seed letter of SF-2024-0007 is not the first communication: it answers an earlier reply of the applicant ("doch ist die Prüfungsabteilung weiterhin der Ansicht", page 4). The seed folder of the matter holds four documents: this communication and its annex (rows 6 and 7), the European search report of 2024 (row 20) and a Rule 69 reminder (row 21). It holds no earlier communication and no reply of the applicant. Whether rows 20 and 21 are in the Firm Record's e-file depends on the rows that the loop sends (`acceptance/seed-letters.mjs --rows`) [not verified by a run]. A reply draft needs that history.
+
+**Gap 2. No claims text.** A reading item holds claim numbers only (`readings.mjs` `parseReading`: a list of integers). No tool of the run and no field of `record_read` holds the claims on file, so the board cannot show the words of claim 1. The claims on file are in the EP Register and the publication, outside the Firm Record.
+
+**Gap 3. The cited documents are not checked.** A cited document of a reading is a label (D1, D2…), a publication as the model read it in the letter (free text of up to 200 characters) and a passage of the letter (`readings.mjs`). Nothing looks the publication number up in patent data, so a misread number stays, and the text of D1 to D5 is not in the matter.
+
+**Gap 4. No place for what the examiner accepts or asks.** An item of a reading has a ground, claims, documents, reasoning and passages; a reading with no item has a reason (`noItemsReason`). There is no field for what the examiner accepts (for example "claim 5 would be allowable") or asks for (for example to adapt the description to the claims, or to state the problem and its solution). In the seed letter, the request of section 5 (to name D1 to D5 in the description, to adapt it, and to mark amendments) is read as objection 5, and the request of section 4.1 (the problem and solution approach) is in the reasoning of objection 4. Open question Q9.7 asks the pilot attorney how a reading should show both.
+
+**Open design question, not answered (decision D9.7).** The founder's question: "I am the attorney, I opened the letter, the examiner said this and this: how do I check if it is correct?" The founder's point: the agent has context only on the letter in hand, and an AI-native system must work with the full matter (the history of the prosecution, the claims on file, the cited documents themselves). The coordinator comes back with the founder's decision. Until then, the reading reports what the examiner said, and it does not check whether the examiner is right.
+
+## 15. What must be built, in which order
 
 Each step ends in a check; the views of a step wait for its Firm Record step.
 
