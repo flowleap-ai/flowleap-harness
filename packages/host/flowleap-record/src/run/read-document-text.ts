@@ -18,12 +18,13 @@ const Args = z.object({ document: sha256Arg }).strict()
 const DESCRIPTION =
   'Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. '
   + 'The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before '
-  + 'you propose a report: every statement of the report quotes this text. A quote is a part of one page, copied '
+  + 'you answer a question about it or propose a report: every statement of the report quotes this text. A quote is a part of one page, copied '
   + 'character for character, with that page number. The tool changes nothing in the record.'
 
 const NOT_FOUND =
-  'The Firm Record has no text for this document: the hash is not a document of the record, or the document has no '
-  + 'text layer. Check the hash against record_read. If the document has no text layer, tell the attorney in this chat.'
+  'The Firm Record gives no text for this document: the hash is not a document of the record, the document is not the '
+  + 'letter of a Ticket routed to you, or the document has no text layer. Check the hash against the officeEvents of '
+  + 'record_read. If you cannot read the letter, tell the attorney in this chat.'
 
 const OUTPUT_SCHEMA = {
   oneOf: [

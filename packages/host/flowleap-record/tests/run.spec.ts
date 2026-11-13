@@ -18,6 +18,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import * as FlowleapRecordPlugin from '../src/index.ts'
 import { nonEmpty } from '../src/run/args.ts'
 import * as run from '../src/run/index.ts'
 import type {
@@ -97,6 +98,7 @@ async function bench() {
   await ctx.plugin(RecordDouble)
   const record = ctx.get('flowleapRecord')
   if (!(record instanceof RecordDouble)) throw new Error('record double not mounted')
+  await ctx.plugin(FlowleapRecordPlugin)
   const fiber = ctx.plugin(run, { templatesDir })
   await fiber.await()
   const session = ctx.sessions.create(SessionId('webhook-run-1'), { meta: { cwd: dir } })
@@ -307,6 +309,10 @@ describe('record_read_document_text', () => {
     const down = JSON.parse((await call('record_read_document_text', { document: LETTER_SHA256 })).text) as { error: string; message: string }
     expect(down.error).toBe('unreachable')
     expect(down.message).toContain('did not answer')
+    record.text = { error: 'client_rule_forbids_ai_read', detail: 'ai-not-allowed' }
+    const forbidden = JSON.parse((await call('record_read_document_text', { document: LETTER_SHA256 })).text) as { error: string; message: string }
+    expect(forbidden.error).toBe('client_rule_forbids_ai_read')
+    expect(forbidden.message).toContain('Do not read it in another way')
   })
 
   it('refuses a document that is not a lower-case SHA-256 before the Firm Record', async () => {
@@ -355,11 +361,13 @@ describe('record_finish_run', () => {
 })
 
 describe('the run plugin', () => {
-  it('fails loud for a relative template folder and removes both tools when it unloads', async () => {
+  it('fails loud for a relative template folder and removes its tools when it unloads', async () => {
     const { ctx, fiber } = await bench()
     const names = () => ctx.tools.schemas().map(schema => schema.name).filter(name => name.startsWith('record_'))
     const description = (name: string) => ctx.tools.schemas().find(schema => schema.name === name)?.description
-    expect(names().sort()).toEqual(['record_finish_run', 'record_propose_reading', 'record_propose_report', 'record_read_document_text'])
+    expect(names().sort()).toEqual([
+      'record_finish_run', 'record_my_work', 'record_propose_reading', 'record_propose_report', 'record_read', 'record_read_document_text',
+    ])
     expect(description('record_propose_reading')).toContain('what the examiner said, and nothing else')
     expect(description('record_propose_reading')).toContain('never translated')
     expect(ctx.tools.get('record_propose_reading')?.presentCall?.(readingArgs)).toMatchObject({ card: 'generic', title: 'Propose the reading: 1 objection(s)' })
@@ -380,7 +388,7 @@ describe('the run plugin', () => {
     expect(ctx.tools.get('record_finish_run')?.presentCall?.({ ticket_id: 'tk-1', deadline_id: 'd-1', deadline_state: 'active', record_seq: 7 })).toMatchObject({ card: 'generic', title: 'Finish the run' })
     expect(() => nonEmpty([])).toThrow(/must not be empty/u)
     await fiber.dispose()
-    expect(names()).toEqual([])
+    expect(names().sort()).toEqual(['record_my_work', 'record_read', 'record_read_document_text'])
     await expect(ctx.plugin(run, { templatesDir: 'templates' })).rejects.toThrow(/absolute path/u)
   })
 })

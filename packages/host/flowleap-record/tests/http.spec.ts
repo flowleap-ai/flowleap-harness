@@ -295,6 +295,7 @@ describe('flowleapRecord run commands over HTTP', () => {
     const signal = new AbortController().signal
     for (const [status, body, error] of [
       [404, { error: 'not-found', detail: 'No text.' }, 'not_found'],
+      [403, { error: 'ai-not-allowed', detail: 'ai-not-allowed' }, 'client_rule_forbids_ai_read'],
       [403, { error: 'no-identity' }, 'refused'],
       [500, 'down', 'service_error'],
       [200, { pages: 'text' }, 'invalid_answer'],
@@ -335,6 +336,7 @@ describe('flowleapRecord run commands over HTTP', () => {
       [409, 'ticket-not-waking', 'ticket_not_waking'],
       [409, 'ticket-not-running', 'ticket_not_running'],
       [409, 'report.no-ai-draft-against-client-rule', 'client_rule_forbids_ai_draft'],
+      [403, 'ai-not-allowed', 'client_rule_forbids_ai_read'],
       [422, 'report.statement-has-evidence', 'statement_without_evidence'],
       [422, 'report.statement-has-span', 'statement_without_span'],
       [422, 'report.quote-not-in-letter', 'quote_not_in_letter'],

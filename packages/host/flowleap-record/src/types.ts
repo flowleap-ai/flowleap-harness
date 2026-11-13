@@ -490,6 +490,11 @@ export type RecordCommandRefusal =
   | 'ticket_not_running'
   /** The client rules do not allow an AI draft of a client letter (409 `report.no-ai-draft-against-client-rule`). */
   | 'client_rule_forbids_ai_draft'
+  /**
+   * The client's AI wishes do not allow a model to read the letter, or the firm has no contract with the provider
+   * (403 `ai-not-allowed`).
+   */
+  | 'client_rule_forbids_ai_read'
   /** A statement has no evidence (422 `report.statement-has-evidence`). */
   | 'statement_without_evidence'
   /** An evidence item has no span (422 `report.statement-has-span`). */

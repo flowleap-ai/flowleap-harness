@@ -174,4 +174,12 @@ describe('record_read', () => {
     await plugin.dispose()
     expect(ctx.tools.schemas().some(candidate => candidate.name === 'record_read')).toBe(false)
   })
+
+  it('gives a chat the letter text tool with the read rule, and removes it when the plugin unloads', async () => {
+    const { ctx, plugin } = await host()
+    expect(ctx.tools.schemas().find(candidate => candidate.name === 'record_read_document_text')?.description)
+      .toContain('before you answer a question about it')
+    await plugin.dispose()
+    expect(ctx.tools.schemas().some(candidate => candidate.name === 'record_read_document_text')).toBe(false)
+  })
 })

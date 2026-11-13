@@ -212,6 +212,7 @@ const COMMAND_CODES: Readonly<Record<string, RecordCommandRefusal>> = {
   'ticket-not-waking': 'ticket_not_waking',
   'ticket-not-running': 'ticket_not_running',
   'report.no-ai-draft-against-client-rule': 'client_rule_forbids_ai_draft',
+  'ai-not-allowed': 'client_rule_forbids_ai_read',
   'report.statement-has-evidence': 'statement_without_evidence',
   'report.statement-has-span': 'statement_without_span',
   'report.quote-not-in-letter': 'quote_not_in_letter',

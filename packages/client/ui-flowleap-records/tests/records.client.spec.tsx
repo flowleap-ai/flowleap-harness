@@ -90,6 +90,7 @@ async function mounted(fetch: (url: string) => Promise<Response>) {
     },
   } as never)
   ctx.provide('sessions', { list: createSnapshotStore({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }) } as never)
+  ctx.provide('workspaces', { list: createSnapshotStore({ items: [] }) } as never)
   ctx.provide('resources', {
     register: (provider: { readonly protocol: string }) => {
       providers.push(provider)

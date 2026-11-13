@@ -1,5 +1,5 @@
 ---
-description: "The Firm Record of flowleap-os in the harness: the flowleapRecord seam that reads one matter's view with its record position and the work of the token's person, its http provider, and the read-only record_read and record_my_work tools whose JSON results name recordSeq in the Session log."
+description: "The Firm Record of flowleap-os in the harness: the flowleapRecord seam that reads one matter's view with its record position and the work of the token's person, its http provider, the read-only record_read and record_my_work tools whose JSON results name recordSeq in the Session log, and record_read_document_text, the page text of a letter."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214). A runtime reads and proposes; it never writes a decision. The Service Definition `ctx.flowleapRecord` reads a matter's view and the work of the token's person, and sends the run commands of a Ticket. The http Provider is `./http`. The read-only tools are `record_read` (its result names `recordSeq` and `viewHash`) and `record_my_work`. The `./run` entry adds the tools of a Ticket run.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214). A runtime reads and proposes; it never writes a decision. The Service Definition `ctx.flowleapRecord` reads a matter's view and the work of the token's person, and sends the run commands of a Ticket. The http Provider is `./http`. The read-only tools are `record_read` (its result names `recordSeq` and `viewHash`), `record_my_work` and `record_read_document_text` (the page text of a letter of a Ticket routed to the token's person, when the client's AI wishes allow it), so a chat and a Ticket run read a letter in the same way. The `./run` entry adds the tools that propose and finish a Ticket run.
 
 ## Table of Contents
 
@@ -148,11 +148,12 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 | `refused` | 401, or 403 without a known code |
 | `agent_cannot_decide` | 403 `agent-cannot-decide` |
 | `not_routed_person` | 403 `not-routed-person`: the Ticket is routed to another person |
-| `not_found` | 404: no Ticket with this id; for `documentText`, no document with this hash or no text layer for it |
+| `not_found` | 404: no Ticket with this id; for `documentText`, no document with this hash, no Ticket routed to the token's person for it, or no text layer for it |
 | `invalid_body` | 400 `invalid-body` |
 | `ticket_not_waking` | 409 `ticket-not-waking`: `run-started` for a Ticket that is not `waking` |
 | `ticket_not_running` | 409 `ticket-not-running`: a report or finish for a Ticket that is not `running` |
 | `client_rule_forbids_ai_draft` | 409 `report.no-ai-draft-against-client-rule` |
+| `client_rule_forbids_ai_read` | 403 `ai-not-allowed`: for `documentText`, the client's AI wishes do not allow a model to read the letter, or the firm has no contract with the provider of its run model |
 | `statement_without_evidence` | 422 `report.statement-has-evidence` |
 | `statement_without_span` | 422 `report.statement-has-span`: an evidence item has no span |
 | `quote_not_in_letter` | 422 `report.quote-not-in-letter`: a quote is not in the text of its page |
@@ -161,9 +162,13 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 | `document_too_large` | 413 `document-too-large`: the letter is above 5 MiB |
 | `idempotency_key_reused` | 409 `idempotency-key-reused`: the key came before with another body, such as a second finish of the run with another deadline summary, or a report of the same tool call with another letter |
 
+### The letter text tool
+
+`record_read_document_text` (main entry) takes `document`, a lower-case SHA-256, calls `documentText`, and answers `{ pages }` or the refusal. It changes nothing in the record. A chat has it, so an attorney can ask about a letter of their work.
+
 ### The run tools
 
-`record_read_document_text` takes `document`, a lower-case SHA-256, calls `documentText`, and answers `{ pages }` or the refusal. It changes nothing in the record. `record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the `kind` (`client-report`, the default, or `office-reply` for the draft reply to the office), the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span }`; `document` is a lower-case SHA-256, and the `span` is required: a positive `page` and a `quote` of 1 to 200 characters. A `span` with `start` or `end` is a tool error, because the Firm Record finds the offsets. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
+`record_propose_report` reads the `.docx` letter from the Session working directory (relative path, inside the directory, at most 5 MiB) and the named template from `templatesDir`, and calls `proposeReport` with the `kind` (`client-report`, the default, or `office-reply` for the draft reply to the office), the letter, the template name, `templateVersion`, `rules_seq`, the statements, the Session id, and the id of the tool call itself (a call inside a PTC program has its own id, so two letters proposed by one `run_code` program are two commands). Each statement needs at least one evidence item `{ document, span }`; `document` is a lower-case SHA-256, and the `span` is required: a positive `page` and a `quote` of 1 to 200 characters. A `span` with `start` or `end` is a tool error, because the Firm Record finds the offsets. `record_finish_run` calls `finishRun` with the Session id and the summary `{ id, state, seq }` from `deadline_id`, `deadline_state` (`proposed`, `active`, `rejected`, or `none-yet`), and `record_seq`; `deadline_id` and `deadline_state` are both `none-yet` or neither is. An argument that breaks these rules, a missing file or template, or a call outside an agent Session is a tool error, and the seam is not called. A refusal of the Firm Record is a JSON result `{ error, message, detail? }`, where `message` says what the model does next.
 
 `record_propose_reading` takes the `document` (the office letter's SHA-256), the letter's `language` (`de`, `en` or `fr`), `items` (one per objection of the examiner: `ground`, `claims`, `documents` labels, `reasoning`, and 1 to 10 `evidence` passages `{ page, quote }`), the cited `documents` (`label`, `publication`, `evidence`), and `no_items_reason` for a letter with no objection. It calls `proposeReading` with the Session id and the id of the tool call, and answers `{ readingId, recordSeq }` or the refusal; the Firm Record finds each quote on its page (a run of whitespace counts as one space). A refusal message names this tool where the shared one would name `record_propose_report`.
 
@@ -183,8 +188,8 @@ A statement is `{ text, evidence: [{ document, span }] }` with at least one evid
 | [`src/http.ts`](src/http.ts) | the http Provider: Config, the read and the commands (bodies through `readBoundedText` of `dsh-flowleap-connectors`), the idempotency key, the refusal-code map, and the answer validation |
 | [`src/tool.ts`](src/tool.ts) | the Consumer: the `record_read` schema, the file-number parse, and the refusal messages |
 | [`src/my-work-tool.ts`](src/my-work-tool.ts) | the Consumer: the `record_my_work` schema (no parameter), the description, and the refusal messages |
-| [`src/index.ts`](src/index.ts) | the function plugin that registers the tools |
-| [`src/run/`](src/run/) | the run entry: `record_read_document_text`, `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_propose_reading`, `record_finish_run`, their argument rules, and the refusal messages |
+| [`src/index.ts`](src/index.ts) | the function plugin that registers `record_read`, `record_my_work` and `record_read_document_text` |
+| [`src/run/`](src/run/) | the run entry: `record_propose_report` (the letter and template read through the file rules of `dsh-flowleap-office`), `record_propose_reading`, `record_finish_run`, their argument rules, and the refusal messages; also the module of `record_read_document_text`, which the main entry registers |
 | [`tests/`](tests/) | the provider against a local Firm Record double, the tools with their refusals and disposal, and the Loader composition test with a fixture provider |
 
 </details>
@@ -263,15 +268,15 @@ The declaration is stable while the run row is mounted. Results append to histor
 
 #### What the model sees
 
-`record_read_document_text` description: "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record." One required parameter, `document`. The result is JSON text: `{ pages }`, or `{ error, message, detail? }`.
+`record_read_document_text` description: "Read the text of a document of the record, page by page. Give the SHA-256 of the document as record_read lists it. The result pages holds the text of each page, and pages[0] is page 1. Read the office letter with this tool before you answer a question about it or propose a report: every statement of the report quotes this text. A quote is a part of one page, copied character for character, with that page number. The tool changes nothing in the record." One required parameter, `document`. The result is JSON text: `{ pages }`, or `{ error, message, detail? }`.
 
 #### Token effect
 
-The schema contributes fixed request-context tokens while the run row is mounted. A result is the full text of the document, bounded by the provider's 1 MiB answer limit, and it stays in the history of the run.
+The schema contributes fixed request-context tokens while the tool row is mounted, in every chat. A result is the full text of the document, bounded by the provider's 1 MiB answer limit, and it stays in the history of the Session.
 
 #### KV Cache effect
 
-The declaration is stable while the run row is mounted. Results append to history.
+The declaration is stable while the tool row is mounted. Results append to history.
 
 ### The `record_finish_run` declaration
 
@@ -296,6 +301,7 @@ The declaration is stable while the run row is mounted. Results append to histor
 - **The run tools are on in every Session of the row** — the model of any chat sees them while the run row is mounted; the Firm Record refuses a command for a Ticket that is not running or not routed to the runtime's person.
 - **One matter per read, no search** — `record_read` reads one matter by file number; `record_my_work` lists only the matters of the token's person. There is no search over other matters.
 - **No letter text before filing** — `record_my_work` lists a waiting letter as the task of one intake person, but no tool reads the letter before it is filed.
+- **Letter text only for the routed person** — `record_read_document_text` reads a letter only when a Ticket for it is routed to the token's person; a team member who is not the routed person cannot read the letter text through the agent. The Firm Record checks the client's AI wishes against the firm's run model, not against the model of the chat.
 - **No `?at=` read** — the tool reads the current view only; rebuilding the view at a logged `recordSeq` is an auditor's call on the Firm Record, not a model call.
 
 <a id="dev-note"></a>

@@ -1,15 +1,17 @@
 /**
  * The Firm Record of flowleap-os in the harness. This entry is a Consumer of the `flowleapRecord` seam: the function
  * plugin registers the read-only `record_read` tool, whose JSON result names the record position (`recordSeq`) and the
- * view hash, so the Session log holds the position a model answer rests on, and the read-only `record_my_work` tool,
- * whose JSON result lists the work that waits for the person that the record token names, and the person's matters. The Service
- * Definition is in `./types.ts`; the http Provider is the `./http` entry; the run tools of a Ticket run are the `./run`
- * entry.
+ * view hash, so the Session log holds the position a model answer rests on, the read-only `record_my_work` tool,
+ * whose JSON result lists the work that waits for the person that the record token names, and the person's matters, and
+ * the read-only `record_read_document_text` tool, the page text of a letter, which a chat and a Ticket run both read. The
+ * Service Definition is in `./types.ts`; the http Provider is the `./http` entry; the run tools of a Ticket run are the
+ * `./run` entry.
  * @module @deepseek-ai/dsh-flowleap-record
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { registerRecordMyWorkTool } from './my-work-tool.ts'
+import { readDocumentTextTool } from './run/read-document-text.ts'
 import { registerRecordReadTool } from './tool.ts'
 
 export type {
@@ -34,10 +36,11 @@ export const name = 'flowleap-record'
 export const inject = ['tools', 'flowleapRecord']
 
 /**
- * Register `record_read` and `record_my_work`; disposing the plugin removes them.
+ * Register `record_read`, `record_my_work` and `record_read_document_text`; disposing the plugin removes them.
  * @param ctx - the mounting context.
  */
 export function apply(ctx: Context): void {
   ctx.effect(() => registerRecordReadTool(ctx), 'flowleap-record: record_read')
   ctx.effect(() => registerRecordMyWorkTool(ctx), 'flowleap-record: record_my_work')
+  ctx.effect(() => ctx.tools.register(readDocumentTextTool(ctx)), 'flowleap-record: record_read_document_text')
 }
