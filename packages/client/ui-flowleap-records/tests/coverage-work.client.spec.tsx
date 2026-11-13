@@ -2,8 +2,8 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  commandRequest, createRecordsApi, ids, parsers, type DeadlineDetail, type DeadlineId, type DocumentId, type Fetched, type FileNumber,
-  type MatterDetail, type MyWork, type PersonId, type TicketDetail, type TicketId, type WorkDraft,
+  commandRequest, createRecordsApi, ids, parsers, type ActivityEvent, type DeadlineDetail, type DeadlineId, type DocumentId, type Fetched,
+  type FileNumber, type IsoTime, type MatterDetail, type MyWork, type PersonId, type TicketDetail, type TicketId, type WorkDraft,
 } from '../src/client/api.ts'
 import { en } from '../src/client/locales.ts'
 import { createFixtureApi, fixtures, FIXTURE_IDS, intakeDocumentWire, matterWire, PEOPLE, R71_DOCUMENT } from './fixtures.client.ts'
@@ -230,6 +230,38 @@ describe('the deadline page', () => {
     remount()
     await mountDeadline({ ...fixtures.deadline, officeEvent: { ...a94, period: null } })
     expect(document.body.textContent).not.toContain('The letter sets')
+  })
+
+  it('says what FlowLeap read of a MyEPO letter: the letter type from its document code, and the period read on a page or entered by a person', async () => {
+    const a94 = { ...fixtures.deadline.officeEvent, code: 'EPO:A94(3)' }
+    const noReaders = { code: null, model: null, agree: null, differences: null, outcome: 'no-reading' as const }
+    const observed: ActivityEvent = {
+      seq: 90, at: '2026-11-13T09:00:00Z' as IsoTime, type: 'office-event/observed', actor: { kind: 'system', name: 'myepo' }, for: null,
+      detail: { code: 'EPO:A94(3)', codeSource: { kind: 'myepo-list', documentCode: '2001A', table: 'v1', communicationId: 'c-6' } },
+    }
+    const myepo = { ...fixtures.deadline, readers: noReaders, activity: [observed, ...fixtures.deadline.activity] }
+    const readSection = () => screen.getByRole('region', { name: 'What FlowLeap read' })
+    const part = () => document.body.textContent ?? ''
+
+    await mountDeadline({ ...myepo, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'innerhalb einer Frist von 4 Monaten' } } } })
+    expect(readSection().textContent).toBe([
+      'What FlowLeap read· the calculation uses these values',
+      'The MyEPO document code 2001A gives the letter type: Communication under Article 94(3) EPC',
+      'FlowLeap read the period of 4 months on page 1 of the letter text: “innerhalb einer Frist von 4 Monaten”',
+    ].join(''))
+    expect(part()).toContain('steps · MyEPO gave the letter type')
+    expect(part()).not.toContain('a person entered the values')
+    expect(part()).not.toContain('no reading')
+    remount()
+
+    await mountDeadline({ ...myepo, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'entered', by: lena } } } })
+    expect(readSection().textContent).toContain('The period of 4 months: entered by Lena Hoffmann')
+    expect(readSection().textContent).not.toContain('FlowLeap read the period')
+    remount()
+
+    await mountDeadline({ ...fixtures.deadline, readers: noReaders, officeEvent: { ...a94, period: { state: 'known', months: 4, source: { kind: 'entered', by: lena } } } })
+    expect(readSection().textContent).toBe('What FlowLeap read· nothing read · a person entered the values' + en['deadline.noReading'])
+    expect(part()).toContain('steps · FlowLeap has no reading')
   })
 
   it('words a period that ends on the day with the same number in months, and another period in days', async () => {

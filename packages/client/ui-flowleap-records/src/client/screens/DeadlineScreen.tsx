@@ -49,21 +49,46 @@ export function DeadlineScreen({ screen, ctx }: ScreenProps<'deadline'>) {
 
 /**
  * How the two readings of the letter compare; `noLetter` for an office event that a person entered by hand, which has
- * no source letter to read (a second person confirms it, R14).
+ * no source letter to read (a second person confirms it, R14); `myepo` for a MyEPO letter that no reader read, whose
+ * letter type comes from its MyEPO document code.
  */
-type Comparison = 'agree' | 'differ' | 'one' | 'none' | 'noLetter'
-
-/** What one reader read. */
+type Comparison = 'agree' | 'differ' | 'one' | 'none' | 'noLetter' | 'myepo'
 
 /**
  * How the two readings of the letter compare.
- * @param readers - the readings.
+ * @param data - the deadline.
  * @returns the comparison.
  */
-function readingOf(readers: DeadlineDetail['readers'], letter: DeadlineDetail['officeEvent']['document']): Comparison {
-  if (letter === null) return 'noLetter'
+function readingOf({ readers, officeEvent, activity }: DeadlineDetail): Comparison {
+  if (officeEvent.document === null) return 'noLetter'
   if (readers.agree !== null) return readers.agree ? 'agree' : 'differ'
-  return readers.code === null && readers.model === null ? 'none' : 'one'
+  if (readers.code !== null || readers.model !== null) return 'one'
+  return myepoCodeOf(activity) === null ? 'none' : 'myepo'
+}
+
+/**
+ * The MyEPO document code that gave the code of the office event: the `codeSource` of its `office-event/observed` event.
+ * @param activity - the deadline's events.
+ * @returns the document code, or null when the code did not come from the MyEPO list.
+ */
+function myepoCodeOf(activity: DeadlineDetail['activity']): string | null {
+  for (const event of activity) {
+    const source = event.detail['codeSource']
+    if (event.type === 'office-event/observed' && typeof source === 'object' && source !== null
+      && 'kind' in source && source.kind === 'myepo-list' && 'documentCode' in source && typeof source.documentCode === 'string') return source.documentCode
+  }
+  return null
+}
+
+/**
+ * The hint after the heading What FlowLeap read.
+ * @param reading - how the letter was read.
+ * @param readers - the readings.
+ * @returns the text key.
+ */
+function readHintOf(reading: Comparison, readers: DeadlineDetail['readers']): FlowleapRecordsKey {
+  if (reading === 'myepo' || readTwice(readers)) return 'deadline.readHint'
+  return readers.outcome === 'no-reading' ? 'deadline.readHintNone' : 'deadline.readHintOnce'
 }
 
 /** The icon of the deadline part in the decision bar, by how the two readings compare. */
@@ -73,6 +98,7 @@ const READING_ICONS: Readonly<Record<Comparison, ReactNode>> = {
   one: <IconInfoOutlineRegular size={16} />,
   none: <IconWarningTriangleOutlineRegular size={16} />,
   noLetter: <IconInfoOutlineRegular size={16} />,
+  myepo: <IconInfoOutlineRegular size={16} />,
 }
 
 
@@ -211,7 +237,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const proposed = deadline.state === 'deadline_proposed' || deadline.state === 'manual_proposed'
   const allowed = proposed && mayConfirm.allowed
   const rule = ruleWords(t, officeEvent.code)
-  const reading = readingOf(readers, officeEvent.document)
+  const reading = readingOf(data)
   const due = formatDate(deadline.due, ctx.locale)
   const letter = officeEvent.document
   const officeCode = officeOfCode(officeEvent.code)
@@ -399,8 +425,10 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
             )
             : (
               <section className={css.section} aria-label={t('deadline.read')}>
-                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readTwice(readers) ? 'deadline.readHint' : readers.outcome === 'no-reading' ? 'deadline.readHintNone' : 'deadline.readHintOnce')}`}</span></h2>
-                {reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
+                <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readHintOf(reading, readers))}`}</span></h2>
+                {reading === 'myepo'
+                  ? <MyEpoReading ctx={ctx} data={data} />
+                  : reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
               </section>
             )}
 
@@ -461,6 +489,29 @@ function confirmTaskWords(ctx: ScreenContext, task: NonNullable<DeadlineDetail['
   const person = personInText(t, task.owner)
   if (task.queued) return t('deadline.task.queued', { person })
   return task.noticeAt === null ? t('deadline.task.owner', { person }) : t('deadline.task.notice', { person, time: listTimeText(ctx, task.noticeAt) })
+}
+
+/**
+ * Render what FlowLeap read of a MyEPO letter that no reader read: the letter type from its MyEPO document code, and the
+ * period that the letter sets, read on a page of the letter text or entered by a person.
+ * @param props.ctx - the screen context.
+ * @param props.data - the deadline.
+ * @returns the lines.
+ */
+function MyEpoReading({ ctx: { t }, data }: { ctx: ScreenContext; data: DeadlineDetail }) {
+  const { period, code } = data.officeEvent
+  return (
+    <>
+      <p className={css.lede}>{t('deadline.myepo.type', { code: myepoCodeOf(data.activity) ?? '', title: letterTitle(t, code) })}</p>
+      {period?.state === 'known' && (
+        <p className={css.lede}>
+          {period.source.kind === 'reader'
+            ? t('deadline.myepo.periodRead', { count: period.months, page: period.source.page, quote: period.source.quote })
+            : t('deadline.myepo.periodEntered', { count: period.months, person: personInText(t, period.source.by) })}
+        </p>
+      )}
+    </>
+  )
 }
 
 /**
