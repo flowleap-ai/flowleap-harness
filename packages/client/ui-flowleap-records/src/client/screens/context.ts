@@ -32,6 +32,8 @@ export interface ScreenContext extends WordContext, KeyLayerContext {
   readonly pageHref: (href: PageHref) => string
   /** Who confirms the deadline of a hand entry on a picked matter. */
   readonly nextConfirmer: RecordsApi['nextConfirmer']
+  /** The text of a letter, for the letter viewer. */
+  readonly letterText: RecordsApi['letterText']
   /** The context menu trigger props of an intake row. */
   readonly rowMenu: (target: IntakeRowTarget) => ContextMenuTriggerProps
   /** The context menu trigger props of a My work row. */

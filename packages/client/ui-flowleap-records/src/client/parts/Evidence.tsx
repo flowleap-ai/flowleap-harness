@@ -1,58 +1,36 @@
 /**
- * Evidence (R14): each statement and each read value points to an exact span of its source, a quote and its page,
- * with the letter text around it on hover or focus. A statement without a span shows "Missing evidence", why, and
+ * Evidence (R14): each statement and each read value points to an exact span of its source, a quote and its page;
+ * a click on the quote shows the span on its page of the letter. A statement without a span shows "Missing evidence", why, and
  * the two ways out; the screen then blocks Accept in the decision bar.
  */
 
 import type { ReactNode } from 'react'
-import { Button, HoverCard, IconCloseOutlineRegular, IconSearchOutlineRegular, IconWarningTriangleOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCloseOutlineRegular, IconSearchOutlineRegular, IconWarningTriangleOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Span } from '../api.ts'
 import css from './Evidence.module.css'
 
-/** Copy of a quote: the page reference and the two captions of the excerpt. */
+/** Copy of a quote: the page reference and the name of the act that shows the quote in the letter. */
 export interface QuoteLabels {
   /** The page reference, such as "p. 1". */
   readonly page: string
-  /** The excerpt's caption, such as "Letter, page 1". */
-  readonly excerpt: string
-  /** The caption of the marked span, "Exact span". */
-  readonly exact: string
+  /** The accessible name of the act, such as "Show on page 1 of the letter". */
+  readonly show: string
 }
 
 /**
- * Render a quoted span and its page. With the page text around the span, hover or focus shows the excerpt with the
- * span marked.
+ * Render a quoted span and its page as one button: a click shows the span marked on its page of the letter.
  * @param props.span - the exact span.
- * @param props.labels - the page reference and the captions.
+ * @param props.labels - the page reference and the name of the act.
+ * @param props.onShow - show the span in the letter.
  * @returns the quote.
  */
-export function EvidenceQuote({ span, labels }: { span: Pick<Span, 'quote' | 'excerpt'>; labels: QuoteLabels }) {
-  // The quote shows in the main view, so the deny-list reads it (R19); only the excerpt, a picture of the page, is exempt.
-  const quote = <span className={css.quote} data-fdl-part="quote" tabIndex={span.excerpt === null ? undefined : 0}>{span.quote}</span>
+export function EvidenceQuote({ span, labels, onShow }: { span: Pick<Span, 'quote'>; labels: QuoteLabels; onShow: () => void }) {
   return (
-    <span className={css.spanRef}>
-      {span.excerpt === null
-        ? quote
-        : (
-          <HoverCard
-            inline
-            fitContent
-            openDelayMs={200}
-            anchor={quote}
-            content={(
-              <span className={css.excerpt} data-fdl-part="excerpt">
-                <span className={css.caption}><span>{labels.excerpt}</span><span>{labels.exact}</span></span>
-                <span className={css.page} data-verbatim="">
-                  <span className={css.fade}>{span.excerpt.before}</span>
-                  <mark className={css.mark}>{span.quote}</mark>
-                  <span className={css.fade}>{span.excerpt.after}</span>
-                </span>
-              </span>
-            )}
-          />
-        )}
+    <button type="button" className={css.spanRef} onClick={onShow} title={labels.show} aria-label={`${span.quote} · ${labels.show}`}>
+      {/* The quote shows in the main view, so the deny-list reads it (R19). */}
+      <span className={css.quote} data-fdl-part="quote">{span.quote}</span>
       <span className={css.pageRef}>{labels.page}</span>
-    </span>
+    </button>
   )
 }
 

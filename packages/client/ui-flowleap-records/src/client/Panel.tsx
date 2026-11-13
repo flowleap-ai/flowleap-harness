@@ -75,6 +75,7 @@ export interface PanelInjected {
   readonly contentHref: (document: DocumentId) => string
   readonly pageHref: (href: PageHref) => string
   readonly nextConfirmer: RecordsApi['nextConfirmer']
+  readonly letterText: RecordsApi['letterText']
   /** The key handlers of the mounted screens. */
   readonly keyActs: KeyActRegistry
   /** The ⌘K items of the mounted screens. */
@@ -150,6 +151,7 @@ function PanelView(props: PanelViewProps) {
     contentHref: props.contentHref,
     pageHref: props.pageHref,
     nextConfirmer: props.nextConfirmer,
+    letterText: props.letterText,
     keyActs: props.keyActs,
     commandItems: props.commandItems,
     rowMenu: (target: IntakeRowTarget) => getTriggerProps({ kind: 'records.intake-row', value: target }),

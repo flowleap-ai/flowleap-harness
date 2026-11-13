@@ -1,0 +1,176 @@
+/* The letter viewer: a column on bg-base with a 44px header, as the docked agent panel. From 1366px a `side` viewer is a
+ * column of the work page, after the work column's 0.5px hairline (Detail.module.css .withDock[data-letter]); below 1366px, and for
+ * an `over` viewer at every width, it is an elevated panel over the right of the page, full width at 720px and below.
+ * The pages fill the width of the viewer and scroll inside it. */
+.viewer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--dsw-alias-bg-base);
+}
+
+.over {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 4;
+  width: min(880px, 100%);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+@media (max-width: 1365px) {
+  .side {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 4;
+    width: min(720px, 100%);
+    box-shadow: var(--dsw-elevation-prominent);
+  }
+}
+
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px 0 16px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-font-xs-13-font-size);
+  font-weight: var(--dsw-font-xs-strong-13-font-weight);
+  line-height: var(--dsw-font-xs-13-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title:focus {
+  outline: none;
+}
+
+/* At 390px the viewer starts under the 44px top bar, which keeps its sidebar opener, and the title takes its own row with
+ * the acts under it. */
+@media (max-width: 720px) {
+  .over,
+  .side {
+    top: 44px;
+  }
+
+  .head {
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+
+  .title {
+    flex: 1 0 100%;
+  }
+
+  .acts {
+    margin-left: 0;
+  }
+}
+
+.count {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+}
+
+.acts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.notices {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-multi-select);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.notice > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.page {
+  margin: 0;
+  scroll-margin-top: 16px;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-document-preview);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.text {
+  margin: 0;
+  padding: 24px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-document-preview);
+  box-shadow: var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-document-preview);
+  font-family: var(--ds-font-family-code);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+}
+
+.mark {
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-state-warn-tertiary);
+  box-shadow: 0 0 0 1px var(--dsw-alias-state-warn-primary);
+  color: var(--dsw-alias-label-document-preview);
+  scroll-margin: 96px;
+}
+
+.pageCap {
+  margin: 8px 0 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
+  text-align: center;
+}
+
+.loading {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+}

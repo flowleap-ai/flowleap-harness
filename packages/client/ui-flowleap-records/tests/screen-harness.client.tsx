@@ -107,6 +107,7 @@ export async function mountPanel(api: RecordsApi, route: Route, language: 'en' |
     contentHref: (document: DocumentId) => api.contentHref(document),
     pageHref: href => api.pageHref(href),
     nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
+    letterText: (document, signal) => api.letterText(document, signal),
     keyActs,
     commandItems,
     linkOf: (next: Route) => `https://firm.test/?page=flowleap-records&records=${next.view}`,

@@ -63,6 +63,7 @@ async function mount(api: RecordsApi = createFixtureApi().api, route: Route = TA
     contentHref: (document: DocumentId) => api.contentHref(document),
     pageHref: href => api.pageHref(href),
     nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
+    letterText: (document, signal) => api.letterText(document, signal),
     keyActs: new KeyActRegistry(),
     commandItems: new CommandItemRegistry(),
     linkOf: (next: Route) => `https://firm.test/?records=${next.view}`,
@@ -347,7 +348,7 @@ describe('the Matters panel', () => {
     const api: RecordsApi = {
       me: never, matters: never, matter: never, deadline: never, intake: never, intakeDocument: never, tickets: never, ticket: never,
       myWork: never, search: never,
-      perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }),
+      perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }), letterText: () => Promise.resolve({ ok: false, error: { kind: 'network' } }),
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })
     const routes: Route[] = [{ view: 'matters' }, { view: 'matter', fileNumber: 'FL-1' as FileNumber }, { view: 'deadline', id: 'd' as DeadlineId }, { view: 'work', id: 'w' as TicketId }, { view: 'board' }]
@@ -367,7 +368,7 @@ describe('the Matters panel', () => {
     const api: RecordsApi = {
       me: down, matters: down, matter: down, deadline: down, intake: down, intakeDocument: down, tickets: down, ticket: down,
       myWork: down, search: down,
-      perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }),
+      perform: () => Promise.resolve({ ok: true, value: null }), contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }), letterText: () => Promise.resolve({ ok: false, error: { kind: 'network' } }),
     }
     const { model } = await mount(api, { view: 'intake', list: 'waiting', open: R71_DOCUMENT as DocumentId })
     expect(screen.getAllByRole('alert')).toHaveLength(1)

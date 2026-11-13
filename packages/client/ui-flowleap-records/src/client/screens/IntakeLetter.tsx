@@ -22,13 +22,14 @@ import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
 import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DetailHeader, EvidenceSplit, WorkColumn } from '../parts/Layout.tsx'
 import { LetterDrawing, LetterPages, Readings } from './evidence.tsx'
+import { LetterViewer, useLetterPane, type LetterPlace, type ShownLetter } from './LetterViewer.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
 import { formatApplicationNumber, formatDate, listTime } from '../format.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import { avatarOf, fromOffice, letterTitle, listTimeText, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext } from './context.ts'
 import { copyLink } from './links.ts'
-import { decisionHeading, failureNotice, formNumberAudit, RecordActivity } from './shared.tsx'
+import { decisionHeading, failureNotice, formNumberAudit, quoteLabels, RecordActivity } from './shared.tsx'
 import { formatDay } from './detail.tsx'
 import css from './Intake.module.css'
 import detail from './Detail.module.css'
@@ -179,23 +180,17 @@ interface Reason {
 }
 
 /**
- * Render a span as its quote with the page.
- * @param ctx - the screen context.
- * @param span - the span.
- * @returns the quote.
- */
-function quote(ctx: ScreenContext, span: Span): ReactNode {
-  return <EvidenceQuote span={span} labels={{ page: ctx.t('evidence.page', { page: span.page }), excerpt: ctx.t('evidence.excerpt', { page: span.page }), exact: ctx.t('evidence.exact') }} />
-}
-
-/**
  * The reasons of a letter: what reader 1 read, with its quotes, and what the record holds for it.
  * @param ctx - the screen context.
  * @param letter - the letter.
+ * @param onShow - show a quote in the letter.
  * @returns the reasons.
  */
-export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] {
+export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument, onShow: (place: LetterPlace) => void): Reason[] {
   const { t } = ctx
+  const quote = (span: Span): ReactNode => (
+    <EvidenceQuote span={span} labels={quoteLabels(ctx, span.page)} onShow={() => { onShow({ kind: 'span', span }) }} />
+  )
   const reasons: Reason[] = []
   if (letter.status.machine === 'intake' && letter.status.state === 'unreadable') {
     reasons.push({ key: 'unreadable', ok: false, text: t(readValues(letter) ? 'intake.reason.noCode' : 'intake.reason.unreadable') })
@@ -206,14 +201,14 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
     reasons.push({
       key: 'application',
       ok: true,
-      text: <>{t('intake.reason.application', { page: number.span.page, number: formatApplicationNumber(number.value) })} {quote(ctx, number.span)}</>,
+      text: <>{t('intake.reason.application', { page: number.span.page, number: formatApplicationNumber(number.value) })} {quote(number.span)}</>,
     })
   } else if (letter.filed !== null) {
     // A filed letter's matter is in the lede; the search for a matter by its reference no longer applies.
   } else if (reference === undefined) {
     if (letter.status.machine === 'intake' && letter.status.state === 'unmatched') reasons.push({ key: 'reference', ok: false, text: t('intake.reason.noReference') })
   } else {
-    reasons.push({ key: 'reference', ok: true, text: <>{t('intake.reason.reference', { page: reference.span.page })} {quote(ctx, reference.span)}</> })
+    reasons.push({ key: 'reference', ok: true, text: <>{t('intake.reason.reference', { page: reference.span.page })} {quote(reference.span)}</> })
     const matters = letter.candidates
     reasons.push({
       key: 'matters',
@@ -238,7 +233,7 @@ export function reasonsOf(ctx: ScreenContext, letter: IntakeDocument): Reason[] 
       text: (
         <>
           {sentence}
-          {[title, date].flatMap(field => field === undefined ? [] : [<span key={field.span.start}>{quote(ctx, field.span)}</span>])}
+          {[title, date].flatMap(field => field === undefined ? [] : [<span key={field.span.start}>{quote(field.span)}</span>])}
         </>
       ),
     })
@@ -590,11 +585,14 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
     runner.clear()
   }
   const title = letterPageTitle(ctx, letter)
-  const reasons = reasonsOf(ctx, letter)
+  const pane = useLetterPane()
+  const shown: ShownLetter = { document: letter.document, title, images: letter.pageImages }
+  const showLetter = (place: LetterPlace) => { pane.show(shown, place) }
+  const reasons = reasonsOf(ctx, letter, showLetter)
   const agree = reasons.filter(reason => reason.ok).length
   const agreePage = letter.fields.reference?.span.page ?? 1
   const route = { view: 'intake', list, open: letter.document } as const
-  const openLetter = () => { window.open(ctx.contentHref(letter.document), '_blank', 'noopener') }
+  const openLetter = () => { showLetter({ kind: 'page', page: 1 }) }
   const match = (fileNumber: MatterRef['fileNumber']) => { decide({ kind: 'intake.match', document: letter.document, fileNumber }) }
   const startPicking = () => {
     setPicking(true)
@@ -881,16 +879,16 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         {read && (
           <section className={css.readings} aria-label={t('letter.read')}>
             <h2 className={css.subHeading}>{t('letter.read')}<span className={css.since}>{` · ${t(READING_HEADINGS[readers.outcome])}`}</span></h2>
-            <Readings ctx={ctx} readers={readers} />
+            <Readings ctx={ctx} readers={readers} onShow={showLetter} />
           </section>
         )}
         <EvidenceSplit evidence={(
           <LetterPages
             ctx={ctx}
             images={letter.pageImages}
-            marks={letter.marks}
+            fields={letter.fields}
             fallback={<LetterDrawing ctx={ctx} letter={letter} onOpen={openLetter} />}
-            onOpen={openLetter}
+            onShow={showLetter}
           />
         )}>
           {(decision.kind === 'hand' || decision.kind === 'entry' || unreadable) && (
@@ -940,6 +938,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         </EvidenceSplit>
         <RecordActivity ctx={ctx} events={letter.activity} audit={formNumberAudit(ctx, letter.fields)} />
       </WorkColumn>
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="over" onClose={pane.close} />}
     </div>
   )
 }

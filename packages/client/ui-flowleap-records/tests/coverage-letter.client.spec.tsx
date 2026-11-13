@@ -455,10 +455,15 @@ describe('the evidence of a letter', () => {
     expect(within(table()).getAllByRole('row')[2]!.textContent).toMatch(/^Document date30\.10\.2026/u)
   })
 
-  it('counts the pages of a letter with more than one page image', async () => {
+  it('shows page 1 of a letter with more than one page image, and every page in the letter viewer', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
     const pageImages = [1, 2].map(page => ({ page, width: 1240, height: 1754, href: `documents/${R71_DOCUMENT}/pages/${page}` }))
     await mountLetter(parsers.intakeDocument({ ...intakeDocumentWire, pages: 2, pageImages }, 'card'))
-    expect(screen.getByText('2 pages')).toBeTruthy()
-    expect(screen.getAllByRole('img', { name: /^Page \d of 2 of the letter$/u })).toHaveLength(2)
+    expect(screen.getByText('Page 1 of 2')).toBeTruthy()
+    expect(screen.getAllByRole('img', { name: /^Page \d of 2 of the letter$/u })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Page 1 of 2 of the letter' }))
+    await act(async () => { await Promise.resolve() })
+    const viewer = screen.getByRole('complementary', { name: /^Letter: / })
+    expect(within(viewer).getAllByRole('img', { name: /^Page \d of 2 of the letter$/u })).toHaveLength(2)
   })
 })

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeadlineDetail, DeadlineId, DocumentId, FileNumber, TicketId } from '../src/client/api.ts'
 import type { Route } from '../src/client/model.ts'
@@ -114,7 +114,7 @@ describe('the design-language part markers (R8)', () => {
     expectAllowedNames()
   })
 
-  it('marks the empty state\'s tile, the error notice, the chips, the excerpt and a system avatar', () => {
+  it('marks the empty state\'s tile, the error notice, the chips, the quote and a system avatar', () => {
     const span = fixtures.ticket.reports[0]!.statements[1]!.evidence[0]!.span!
     const act_ = { id: 'retry', label: 'Try again', keycaps: [], run: vi.fn() }
     render(
@@ -123,17 +123,14 @@ describe('the design-language part markers (R8)', () => {
         <ErrorNotice lead="FlowLeap could not load this view." retry={act_} />
         <RecordSource icon={<span />}>Deadline, active</RecordSource>
         <MissingEvidence labels={{ title: 'Missing evidence', why: 'No span.', find: 'Find the source', remove: 'Remove from the draft' }} onFind={vi.fn()} onRemove={vi.fn()} />
-        <EvidenceQuote span={span} labels={{ page: 'p. 1', excerpt: 'Letter, page 1', exact: 'Exact span' }} />
+        <EvidenceQuote span={span} labels={{ page: 'p. 1', show: 'Show on page 1 of the letter' }} onShow={vi.fn()} />
         <ActivityTimeline heading="Activity" lines={[{ key: 'a', actor: { kind: 'system', icon: <svg />, name: 'FlowLeap' }, text: 'read the letter', time: '14:16' }]} audit={{ label: 'Audit', rows: [] }} />
       </>,
     )
     expect(parts('empty-art')).toHaveLength(1)
     expect(part(screen.getByRole('alert'))).toBe('notice')
     expect(parts('chip')).toHaveLength(2)
-    vi.useFakeTimers()
-    fireEvent.pointerEnter(screen.getByText('intends to grant a European patent'), { pointerType: 'mouse' })
-    act(() => { vi.advanceTimersByTime(200) })
-    expect(parts('excerpt')).toHaveLength(1)
+    expect(parts('quote')).toHaveLength(1)
     expect(parts('av')).toHaveLength(1)
     expectAllowedNames()
   })

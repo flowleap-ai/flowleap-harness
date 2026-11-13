@@ -17,15 +17,17 @@ import { commandId } from '../keys.ts'
 import type { FlowleapRecordsKey } from '../locales.ts'
 import type { ActSpec } from '../parts/Act.tsx'
 import { DecisionBar, DecisionPart } from '../parts/Decision.tsx'
+import { EvidenceQuote } from '../parts/Evidence.tsx'
 import { DueText } from '../parts/Due.tsx'
 import { DetailLayout, EvidenceSplit, KeyFact, WorkColumn } from '../parts/Layout.tsx'
 import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, atlasWord } from '../parts/Status.tsx'
-import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName, type Translate } from '../words.ts'
+import { citeText, letterTitle, listTimeText, officeName, officeOfCode, personInText, personName } from '../words.ts'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
-import { formatDay, openDocument, ruleWords } from './detail.tsx'
+import { formatDay, ruleWords } from './detail.tsx'
 import { LetterDrawing, LetterPages, Readings, readTwice } from './evidence.tsx'
-import { decisionHeading, failureNotice, formNumberAudit, LoadError, RecordActivity } from './shared.tsx'
+import { LetterViewer, useLetterPane, type LetterPlace, type ShownLetter } from './LetterViewer.tsx'
+import { decisionHeading, failureNotice, formNumberAudit, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
 import css from './Detail.module.css'
 
 /**
@@ -198,16 +200,34 @@ function stepText(
 }
 
 /**
- * Where the period of a deadline comes from, for a rule whose period the letter sets: read on a page of the letter, with the words,
- * or entered by a person.
- * @param t - the translate function.
- * @param period - the known period of the office event.
- * @returns the sentence.
+ * Render where the period of a deadline comes from, for a rule whose period the letter sets: read on a page of the letter,
+ * with its words, or entered by a person. The words open the letter at their page; the record keeps no offsets of the
+ * period, so the viewer shows the page with no mark and says so.
+ * @param props.ctx - the screen context.
+ * @param props.period - the known period of the office event.
+ * @param props.text - the sentence of a period read on a page.
+ * @param props.entered - the sentence of a period entered by a person.
+ * @param props.onShow - open the letter at a place.
+ * @returns the sentence, with the quote under it for a period read on a page.
  */
-function periodText(t: Translate, period: Extract<LetterPeriod, { state: 'known' }>): string {
-  return period.source.kind === 'reader'
-    ? t('deadline.period.read', { count: period.months, page: period.source.page, quote: period.source.quote })
-    : t('deadline.period.entered', { count: period.months, person: personInText(t, period.source.by) })
+function PeriodLine({ ctx, period, text, entered, onShow }: {
+  ctx: ScreenContext
+  period: Extract<LetterPeriod, { state: 'known' }>
+  text: 'deadline.period.read' | 'deadline.myepo.periodRead'
+  entered: 'deadline.period.entered' | 'deadline.myepo.periodEntered'
+  onShow: ((place: LetterPlace) => void) | null
+}) {
+  const { t } = ctx
+  const { source } = period
+  if (source.kind !== 'reader') return <p className={css.lede}>{t(entered, { count: period.months, person: personInText(t, source.by) })}</p>
+  return (
+    <div className={`${css.lede} ${css.period}`}>
+      <p className={css.periodText}>{t(text, { count: period.months, page: source.page })}</p>
+      {onShow === null
+        ? <span className={css.periodQuote}>{source.quote}</span>
+        : <EvidenceQuote span={source} labels={quoteLabels(ctx, source.page)} onShow={() => { onShow({ kind: 'words', page: source.page, quote: source.quote }) }} />}
+    </div>
+  )
 }
 
 /**
@@ -231,6 +251,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
   const { t } = ctx
   const [reasonOpen, setReasonOpenState] = useState(false)
   const runner = useActRunner(ctx.perform)
+  const pane = useLetterPane()
   const steps = useRef<HTMLOListElement>(null)
   const { deadline, officeEvent, readers, mayConfirm } = data
   const status = { machine: 'deadline', state: deadline.state } as const
@@ -264,7 +285,11 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
     steps.current?.focus()
   }
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
-  const openLetter = letter === null ? null : () => { openDocument(ctx, letter) }
+  const shown: ShownLetter | null = letter === null
+    ? null
+    : { document: letter, title: letterTitle(t, officeEvent.code), images: data.pageImages }
+  const showLetter = shown === null ? null : (place: LetterPlace) => { pane.show(shown, place) }
+  const openLetter = showLetter === null ? null : () => { showLetter({ kind: 'page', page: 1 }) }
 
   const acts: KeyActs = {
     calculation, goMatter,
@@ -349,15 +374,15 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       : data.rejecter !== null
         ? t('deadline.rejectedBy', { person: personInText(t, data.rejecter), reason: data.reason ?? '' })
         : null
-  const drawing = openLetter === null
+  const drawing = openLetter === null || showLetter === null
     ? null
     : (
       <LetterPages
         ctx={ctx}
         images={data.pageImages}
-        marks={data.marks}
+        fields={readers.code?.fields ?? {}}
         fallback={<LetterDrawing ctx={ctx} letter={{ fields: readers.code?.fields ?? {}, pages: null }} onOpen={openLetter} />}
-        onOpen={openLetter}
+        onShow={showLetter}
       />
     )
   return (
@@ -386,7 +411,9 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
         <EvidenceSplit evidence={drawing}>
           <section className={css.section}>
             <h2 className={css.subHeading}>{t('deadline.computed')}</h2>
-            {officeEvent.period?.state === 'known' && <p className={css.lede}>{periodText(t, officeEvent.period)}</p>}
+            {officeEvent.period?.state === 'known' && (
+              <PeriodLine ctx={ctx} period={officeEvent.period} text="deadline.period.read" entered="deadline.period.entered" onShow={showLetter} />
+            )}
             <ol className={css.steps} ref={steps} tabIndex={-1} aria-label={t('deadline.computed')} data-state={deadline.state}>
               {deadline.trace.map((step, index) => (
                 <li key={`${index}:${step.op}`} className={css.step}>
@@ -427,8 +454,10 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
               <section className={css.section} aria-label={t('deadline.read')}>
                 <h2 className={css.subHeading}>{t('deadline.read')}<span className={css.subHint}>{`· ${t(readHintOf(reading, readers))}`}</span></h2>
                 {reading === 'myepo'
-                  ? <MyEpoReading ctx={ctx} data={data} />
-                  : reading === 'none' ? <p className={css.subHint}>{t('deadline.noReading')}</p> : <Readings ctx={ctx} readers={readers} />}
+                  ? <MyEpoReading ctx={ctx} data={data} onShow={showLetter} />
+                  : reading === 'none' || showLetter === null
+                    ? <p className={css.subHint}>{t('deadline.noReading')}</p>
+                    : <Readings ctx={ctx} readers={readers} onShow={showLetter} />}
               </section>
             )}
 
@@ -456,6 +485,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           ]}
         />
       </WorkColumn>
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="over" onClose={pane.close} />}
     </DetailLayout>
   )
 }
@@ -496,19 +526,17 @@ function confirmTaskWords(ctx: ScreenContext, task: NonNullable<DeadlineDetail['
  * period that the letter sets, read on a page of the letter text or entered by a person.
  * @param props.ctx - the screen context.
  * @param props.data - the deadline.
+ * @param props.onShow - open the letter at a place.
  * @returns the lines.
  */
-function MyEpoReading({ ctx: { t }, data }: { ctx: ScreenContext; data: DeadlineDetail }) {
+function MyEpoReading({ ctx, data, onShow }: { ctx: ScreenContext; data: DeadlineDetail; onShow: ((place: LetterPlace) => void) | null }) {
+  const { t } = ctx
   const { period, code } = data.officeEvent
   return (
     <>
       <p className={css.lede}>{t('deadline.myepo.type', { code: myepoCodeOf(data.activity) ?? '', title: letterTitle(t, code) })}</p>
       {period?.state === 'known' && (
-        <p className={css.lede}>
-          {period.source.kind === 'reader'
-            ? t('deadline.myepo.periodRead', { count: period.months, page: period.source.page, quote: period.source.quote })
-            : t('deadline.myepo.periodEntered', { count: period.months, person: personInText(t, period.source.by) })}
-        </p>
+        <PeriodLine ctx={ctx} period={period} text="deadline.myepo.periodRead" entered="deadline.myepo.periodEntered" onShow={onShow} />
       )}
     </>
   )

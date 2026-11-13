@@ -175,6 +175,7 @@ export function apply(ctx: ClientContext): void {
       contentHref: document => api.contentHref(document),
       pageHref: href => api.pageHref(href),
       nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
+      letterText: (document, signal) => api.letterText(document, signal),
       keyActs,
       commandItems,
       linkOf: linkOf(panel.id),
