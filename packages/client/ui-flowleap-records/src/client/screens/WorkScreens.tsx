@@ -405,7 +405,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
         ? <AgentRun ctx={ctx} data={data} title={title} />
         : <div className={detail.workProps}><WorkProperties ctx={ctx} data={data} /></div>}
       {/* From 1366px the letter takes the right column beside the reading; below, it opens over the page. */}
-      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="side" onClose={pane.close} />}
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="side" card={decision !== null} onClose={pane.close} />}
     </div>
   )
 }

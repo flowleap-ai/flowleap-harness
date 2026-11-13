@@ -938,7 +938,7 @@ export function IntakeLetter({ ctx, list, letter, step, onDecided }: {
         </EvidenceSplit>
         <RecordActivity ctx={ctx} events={letter.activity} audit={formNumberAudit(ctx, letter.fields)} />
       </WorkColumn>
-      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="over" onClose={pane.close} />}
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="over" card={bar !== null} onClose={pane.close} />}
     </div>
   )
 }

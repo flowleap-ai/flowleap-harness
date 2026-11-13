@@ -5,7 +5,8 @@
  * (`Pages`) with no mark. A letter with no text layer shows its pages and says that no mark is possible.
  *
  * The viewer is a panel beside the page or over it, never a route: the page under it keeps its scroll position and its
- * state, and Close returns the focus to the act that opened the letter.
+ * state, and Close returns the focus to the act that opened the letter. Where it is over the page, the page's decision bar
+ * stays above it, so the person decides with the letter open.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
@@ -133,13 +134,15 @@ const pageOf = (place: LetterPlace): number => place.kind === 'span' ? place.spa
  * @param props.ctx - the screen context.
  * @param props.shown - the letter and the place to show.
  * @param props.placement - `side`: a column beside the content from 1366px, over the page below; `over`: always over the page.
+ * @param props.card - the page has a decision bar, which stays above the viewer where the viewer is over the page.
  * @param props.onClose - close the viewer.
  * @returns the viewer.
  */
-export function LetterViewer({ ctx, shown, placement, onClose }: {
+export function LetterViewer({ ctx, shown, placement, card, onClose }: {
   ctx: ScreenContext
   shown: LetterShow
   placement: 'side' | 'over'
+  card: boolean
   onClose: () => void
 }) {
   const { t } = ctx
@@ -172,13 +175,13 @@ export function LetterViewer({ ctx, shown, placement, onClose }: {
   const notices = [
     ...(text.state === 'none' ? [t('letter.viewer.noText')] : []),
     ...(text.state === 'failed' ? [t('letter.viewer.textFailed')] : []),
-    ...(place.kind === 'words' ? [t('letter.viewer.noPlace', { page, quote: place.quote })] : []),
+    ...(place.kind === 'words' ? [t('letter.viewer.noPlace', { page })] : []),
     ...(place.kind === 'span' && hasText && mark === null ? [t('letter.viewer.moved', { page })] : []),
     ...(place.kind === 'span' && hasText && mark !== null && mode === 'pages' ? [t('letter.viewer.markInText', { page })] : []),
     ...(!hasImages && (text.state === 'none' || text.state === 'failed') ? [t('letter.viewer.noPages')] : []),
   ]
   return (
-    <aside className={`${css.viewer} ${placement === 'side' ? css.side : css.over}`} data-placement={placement} aria-label={t('letter.viewer.label', { title: letter.title })} onKeyDown={keyDown}>
+    <aside className={`${css.viewer} ${placement === 'side' ? css.side : css.over}`} data-placement={placement} data-letter-viewer="" data-card={card || undefined} aria-label={t('letter.viewer.label', { title: letter.title })} onKeyDown={keyDown}>
       <header className={css.head}>
         <h2 className={css.title} ref={heading} tabIndex={-1}>{letter.title}</h2>
         <span className={css.count}>{count > 0 && t(count === 1 ? 'intake.letter.pages.one' : 'intake.letter.pages', { count })}</span>

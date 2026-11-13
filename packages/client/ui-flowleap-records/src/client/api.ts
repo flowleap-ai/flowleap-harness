@@ -364,7 +364,8 @@ const readers = obj({
 export type Readers = Parsed<typeof readers>
 /**
  * The period that the letter of an office event sets (Rule 132(2) EPC, for example an Art. 94(3) communication): `known` with the
- * months and where they come from (read on a page of the letter, with the words, or entered by a person), or `missing` with why
+ * months and where they come from (read on a page of the letter, with the words and their `place` on that page, null for a period
+ * that the os read before it kept the place, or entered by a person), or `missing` with why
  * the os read none, the values it found, the range of the rule and the record position that the entry sends. A reason that this
  * client does not know reads as `other`.
  */
@@ -372,7 +373,9 @@ export type LetterPeriod =
   | {
     readonly state: 'known'
     readonly months: number
-    readonly source: { readonly kind: 'reader'; readonly page: number; readonly quote: string } | { readonly kind: 'entered'; readonly by: Person }
+    readonly source:
+      | { readonly kind: 'reader'; readonly page: number; readonly quote: string; readonly place: { readonly start: number; readonly end: number } | null }
+      | { readonly kind: 'entered'; readonly by: Person }
   }
   | {
     readonly state: 'missing'
@@ -393,8 +396,14 @@ const periodReason: Parse<PeriodReason> = (value, path) => {
 }
 const periodSource: Parse<Extract<LetterPeriod, { state: 'known' }>['source']> = (value, path) =>
   oneOf(['reader', 'entered'])(objectAt(value, path)['kind'], `${path}.kind`) === 'reader'
-    ? { kind: 'reader', ...obj({ page: num, quote: str })(value, path) }
+    ? { kind: 'reader', ...obj({ page: num, quote: str })(value, path), place: placeOf(value, path) }
     : { kind: 'entered', ...obj({ by: person })(value, path) }
+/** The offsets of the period's words on their page: both numbers, or none (an os or a period from before the os kept them). */
+const placeOf = (value: unknown, path: string): { readonly start: number; readonly end: number } | null => {
+  const { start, end } = obj({ start: optionalNumber, end: optionalNumber })(value, path)
+  return start === null || end === null ? null : { start, end }
+}
+const optionalNumber: Parse<number | null> = (value, path) => value === undefined ? null : nullable(num)(value, path)
 const letterPeriodOf: Parse<LetterPeriod> = (value, path) =>
   oneOf(['known', 'missing'])(objectAt(value, path)['state'], `${path}.state`) === 'known'
     ? { state: 'known', ...obj({ months: num, source: periodSource })(value, path) }

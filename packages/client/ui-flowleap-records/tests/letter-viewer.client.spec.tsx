@@ -26,8 +26,16 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** Page 1 of the Art. 94(3) letter of `readingWire`, with its two quotes at their stored offsets 380 and 410. */
-const PAGE_1 = `${' '.repeat(380)}D1: EP 1 234 567 A1${' '.repeat(11)}nicht neu gegenüber D1 (Artikel 54(1) EPÜ).`
+/**
+ * Page 1 of the Art. 94(3) letter of `readingWire`, with its two quotes at their stored offsets 380 and 410, and the period on its own
+ * centred line, as the form prints it.
+ */
+const PAGE_1 = `${' '.repeat(380)}D1: EP 1 234 567 A1${' '.repeat(11)}nicht neu gegenüber D1 (Artikel 54(1) EPÜ).
+You are invited to file your observations within a period
+                                        of 4 months
+from the notification of this communication.`
+const PERIOD_WORDS = 'within a period\n                                        of 4 months'
+const PERIOD_START = PAGE_1.indexOf(PERIOD_WORDS)
 const PAGES = [PAGE_1, 'Seite 2 des Bescheids', 'Seite 3 des Bescheids']
 const images = PAGES.map((_, index) => ({ page: index + 1, width: 1240, height: 1754, href: `documents/${R71_DOCUMENT}/pages/${index + 1}` as PageHref }))
 const viewer = () => screen.getByRole('complementary', { name: /^Letter: / })
@@ -104,35 +112,58 @@ describe('the letter on the work page', () => {
 describe('the letter on the deadline page', () => {
   /** Mount the deadline page; `fixtureText` keeps the fixture's page text of the Rule 71(3) letter, where reader 1's spans are. */
   async function mountDeadline(deadline: DeadlineDetail, fixtureText = false) {
-    const { api } = createFixtureApi()
+    const { api, acts } = createFixtureApi()
     vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: deadline })
     if (!fixtureText) textOf(api, PAGES)
     mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    return acts
   }
-  const a94: DeadlineDetail = {
+  const periodOf = (place: { start: number; end: number } | null): DeadlineDetail => ({
     ...fixtures.deadline,
     pageImages: images,
-    officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:A94(3)', period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months' } } },
-  }
+    deadline: { ...fixtures.deadline.deadline, state: 'deadline_proposed' },
+    officeEvent: { ...fixtures.deadline.officeEvent, code: 'EPO:A94(3)', period: { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months', place } } },
+  })
+  const a94 = periodOf({ start: PERIOD_START, end: PERIOD_START + PERIOD_WORDS.length })
 
-  it('shows page 1 of the letter, and Open the letter shows every page over the page', async () => {
-    await mountDeadline(a94)
+  it('shows page 1 of the letter; Open the letter shows every page beside the page, and the decision bar stays usable', async () => {
+    const acts = await mountDeadline(a94)
     expect(screen.getAllByRole('img', { name: /of the letter$/u }).map(image => image.getAttribute('alt'))).toEqual(['Page 1 of 3 of the letter'])
     expect(screen.getByText('Page 1 of 3')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Page 1 of 3 of the letter' }))
     await flush()
-    expect(viewer().getAttribute('data-placement')).toBe('over')
+    expect(viewer().getAttribute('data-placement')).toBe('side')
+    expect(viewer().hasAttribute('data-card')).toBe(true)
+    expect(viewer().parentElement?.hasAttribute('data-letter')).toBe(true)
     expect(within(viewer()).getAllByRole('img')).toHaveLength(3)
+
+    const bar = screen.getByRole('region', { name: 'Your decision' })
+    fireEvent.click(within(bar).getByRole('button', { name: /^Confirm/ }))
+    await flush()
+    expect(acts.at(-1)?.command).toMatchObject({ kind: 'deadline.confirm' })
+    expect(screen.getByRole('complementary', { name: /^Letter: / })).toBeTruthy()
+
     fireEvent.click(within(viewer()).getByRole('button', { name: 'Close the letter' }))
     await flush()
     expect(screen.queryByRole('complementary', { name: /^Letter: / })).toBeNull()
   })
 
-  it('opens page 1 from the words of the period and says that the record keeps no place for them', async () => {
+  it('marks the words of the period in the text of page 1', async () => {
     await mountDeadline(a94)
     fireEvent.click(screen.getByRole('button', { name: 'within a period of 4 months · Show on page 1 of the letter' }))
     await flush()
-    expect(viewer().textContent).toContain('FlowLeap read these words on page 1, but it did not keep their place on the page, so the page shows no mark: “within a period of 4 months”')
+    expect(within(viewer()).getByRole('tab', { name: 'Text' }).getAttribute('aria-selected')).toBe('true')
+    const mark = viewer().querySelector('mark')
+    expect(mark?.textContent).toBe(PERIOD_WORDS)
+    expect(scrolled.at(-1)).toBe(mark)
+    expect(viewer().textContent).not.toContain('shows no mark')
+  })
+
+  it('opens page 1 with no mark for a period that FlowLeap read before it kept the place of its words', async () => {
+    await mountDeadline(periodOf(null))
+    fireEvent.click(screen.getByRole('button', { name: 'within a period of 4 months · Show on page 1 of the letter' }))
+    await flush()
+    expect(viewer().textContent).toContain('FlowLeap read this letter before it kept the place of its words, so page 1 shows no mark.')
     expect(within(viewer()).getByRole('tab', { name: 'Pages' }).getAttribute('aria-selected')).toBe('true')
     expect(scrolled.at(-1)).toBe(within(viewer()).getAllByRole('figure')[0])
   })

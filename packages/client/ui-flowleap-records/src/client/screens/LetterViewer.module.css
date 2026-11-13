@@ -115,6 +115,18 @@
   margin-top: 2px;
 }
 
+/* Where the viewer is over the page, the page's decision bar stays above it (Layout.module.css .dock): the pages end with room
+ * for the bar, so the last page scrolls above it. The bar takes at most 48 % of the view height. */
+.over[data-card] .body {
+  padding-bottom: 50vh;
+}
+
+@media (max-width: 1365px) {
+  .side[data-card] .body {
+    padding-bottom: 50vh;
+  }
+}
+
 .body {
   display: flex;
   flex: 1;

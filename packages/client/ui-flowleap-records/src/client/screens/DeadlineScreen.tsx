@@ -200,9 +200,19 @@ function stepText(
 }
 
 /**
+ * The place in the letter that the words of a read period open: their span, which the viewer marks in the page text, or for a
+ * period that the record read before it kept the place, the page with the words and no mark.
+ * @param source - the source of a read period.
+ * @returns the place.
+ */
+export function periodPlace(source: Extract<Extract<LetterPeriod, { state: 'known' }>['source'], { kind: 'reader' }>): LetterPlace {
+  const { page, quote, place } = source
+  return place === null ? { kind: 'words', page, quote } : { kind: 'span', span: { page, start: place.start, end: place.end, quote } }
+}
+
+/**
  * Render where the period of a deadline comes from, for a rule whose period the letter sets: read on a page of the letter,
- * with its words, or entered by a person. The words open the letter at their page; the record keeps no offsets of the
- * period, so the viewer shows the page with no mark and says so.
+ * with its words, or entered by a person. The words open the letter at their page with the words marked (`periodPlace`).
  * @param props.ctx - the screen context.
  * @param props.period - the known period of the office event.
  * @param props.text - the sentence of a period read on a page.
@@ -225,7 +235,7 @@ function PeriodLine({ ctx, period, text, entered, onShow }: {
       <p className={css.periodText}>{t(text, { count: period.months, page: source.page })}</p>
       {onShow === null
         ? <span className={css.periodQuote}>{source.quote}</span>
-        : <EvidenceQuote span={source} labels={quoteLabels(ctx, source.page)} onShow={() => { onShow({ kind: 'words', page: source.page, quote: source.quote }) }} />}
+        : <EvidenceQuote span={source} labels={quoteLabels(ctx, source.page)} onShow={() => { onShow(periodPlace(source)) }} />}
     </div>
   )
 }
@@ -386,7 +396,7 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
       />
     )
   return (
-    <DetailLayout decision={decision !== null} properties={null}>
+    <DetailLayout decision={decision !== null} properties={null} letter={pane.shown !== null}>
       <WorkColumn decision={decision}>
         <div className={css.eyebrowLine}>
           <AtlasPill status={status} word={atlasWord(t, status)} />
@@ -485,7 +495,8 @@ function DeadlineView({ ctx, data }: { ctx: ScreenContext; data: DeadlineDetail 
           ]}
         />
       </WorkColumn>
-      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="over" onClose={pane.close} />}
+      {/* From 1366px the letter is a column beside the page; below, it opens over the page under the decision bar. */}
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="side" card={decision !== null} onClose={pane.close} />}
     </DetailLayout>
   )
 }

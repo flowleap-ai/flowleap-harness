@@ -93,7 +93,9 @@ describe('Records API answers', () => {
     const read = (period: unknown) => parsers.deadlineDetail({ ...deadlineWire, officeEvent: { ...event, period } }, 'body').officeEvent.period
     expect(parsers.deadlineDetail(deadlineWire, 'body').officeEvent.period).toBeNull()
     expect(read(null)).toBeNull()
-    expect(read({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months' } })).toEqual({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months' } })
+    expect(read({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months' } })).toEqual({ state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'of 4 months', place: null } })
+    expect(read({ state: 'known', months: 4, source: { kind: 'reader', page: 1, start: null, end: null, quote: 'of 4 months' } })!).toMatchObject({ source: { place: null } })
+    expect(read({ state: 'known', months: 4, source: { kind: 'reader', page: 1, start: 12, end: 23, quote: 'of 4 months' } })!).toMatchObject({ source: { place: { start: 12, end: 23 } } })
     expect(read({ state: 'known', months: 4, source: { kind: 'entered', by: { id: 'p-lena', name: null } } })!.state).toBe('known')
     const missing = { state: 'missing', reason: 'no-text', found: [], range: { minMonths: 2, maxMonths: 6 }, recordSeq: 7 }
     expect(read(missing)).toEqual(missing)
