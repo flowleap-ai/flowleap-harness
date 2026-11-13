@@ -528,6 +528,22 @@
   min-height: 0;
 }
 
+/* From 1366px the open letter takes the right column, wider than the properties panel, so that a page reads at its width;
+ * below 1366px the letter opens over the page (LetterViewer.module.css) and the column keeps its panel. */
+@media (min-width: 1366px) {
+  .withDock[data-letter][data-dock] {
+    grid-template-columns: minmax(0, 1fr) minmax(440px, 46%);
+  }
+
+  .withDock[data-letter] > :nth-child(2) {
+    display: none;
+  }
+
+  .withDock[data-letter] > .workArea {
+    border-right: 0.5px solid var(--dsw-alias-border-l2);
+  }
+}
+
 /* The agent link starts at the value column's edge, as the other property values do. */
 .agentLink {
   gap: 8px;
@@ -698,4 +714,19 @@
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
   color: var(--dsw-alias-label-secondary);
+}
+
+/* The period read on a page: the sentence, then its quote, which opens the letter at that page. */
+.period {
+  margin-bottom: 16px;
+}
+
+.periodText {
+  margin: 0 0 4px;
+}
+
+.periodQuote {
+  font-family: var(--ds-font-family-code);
+  font-size: var(--dsw-font-xxs-12-font-size);
+  line-height: var(--dsw-font-xxs-12-line-height);
 }

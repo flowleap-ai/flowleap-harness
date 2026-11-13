@@ -246,11 +246,15 @@
   background: var(--dsw-alias-border-l3);
 }
 
-/* The letter's page images (`LetterPages`), each at its own aspect ratio from its width and height. */
-.pages {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* The letter's first page (`LetterPages`) at its own aspect ratio from its width and height; a click opens the letter. */
+.pageButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-lg);
+  background: none;
+  cursor: zoom-in;
 }
 
 .pageImage {

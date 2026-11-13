@@ -615,6 +615,8 @@ const letterReading = obj({
  * legal ground, claims, cited documents (D1, D2 …), reasoning in the letter's language and quotes, and the cited documents.
  */
 export type LetterReading = Parsed<typeof letterReading>
+/** The page images of the letter of a work item: absent (an os before them) reads as none. */
+const pageImagesOrNone: Parse<readonly PageImage[]> = (value, path) => value === undefined ? [] : arrayOf(pageImage)(value, path)
 /** The readings of an answer: absent (an os before readings) reads as none. */
 const letterReadings: Parse<readonly LetterReading[]> = (value, path) => value === undefined ? [] : arrayOf(letterReading)(value, path)
 const ticketDetail = obj({
@@ -629,7 +631,7 @@ const ticketDetail = obj({
   clientRules: nullable(clientRules),
   letter: nullable(obj({
     document: ids.document, fileName: str, pages: nullable(num), code: nullable(str), documentDate: nullable(isoDate),
-    applicationNumber: nullable(str), source: nullable(oneOf(['text-layer', 'ocr'])),
+    applicationNumber: nullable(str), source: nullable(oneOf(['text-layer', 'ocr'])), pageImages: pageImagesOrNone,
   })),
   reports: arrayOf(report),
   draftReply: nullable(report),
@@ -646,6 +648,15 @@ const ticketDetail = obj({
  * kind as `clientReport` and `draftReply`), the agent's readings of the letter, the deadline, the reply.
  */
 export type TicketDetail = Parsed<typeof ticketDetail>
+
+// GET documents/<sha256>/text
+
+const letterText = obj({ pages: arrayOf(str) })
+/**
+ * The text of a letter, one text for each page: its text layer, or the OCR text of a scan. Each span of the letter is a pair of
+ * offsets into the text of its page.
+ */
+export type LetterText = Parsed<typeof letterText>
 
 // GET my-work
 
@@ -683,6 +694,7 @@ export type SearchAnswer = Parsed<typeof searchAnswer>
 /** The parsers of every read, for tests and fixtures. */
 export const parsers = {
   me, mattersList, matterDetail, deadlineDetail, intakeList, intakeDocument, ticketsList, ticketDetail, myWork, searchAnswer,
+  letterText,
 } as const
 
 // Failures.
@@ -833,6 +845,14 @@ export interface RecordsApi {
    * @returns the next confirmer, or null when the record names nobody.
    */
   nextConfirmer(document: DocumentId, fileNumber: FileNumber, signal: AbortSignal): Promise<Fetched<IntakeDocument['nextConfirmer']>>
+  /**
+   * The text of a letter inside the person's walls (`GET documents/<sha256>/text`); the os refuses 404 for a letter with no text.
+   * The text stays in the view: it is never logged.
+   * @param document - the letter.
+   * @param signal - stops the read.
+   * @returns the text of each page.
+   */
+  letterText(document: DocumentId, signal: AbortSignal): Promise<Fetched<LetterText>>
   tickets(signal: AbortSignal): Promise<Fetched<TicketsList>>
   ticket(id: TicketId, signal: AbortSignal): Promise<Fetched<TicketDetail>>
   myWork(signal: AbortSignal): Promise<Fetched<MyWork>>
@@ -953,6 +973,7 @@ export function createRecordsApi(
     nextConfirmer: (document, fileNumber, signal) => get(
       `intake/documents/${document}?matter=${encodeURIComponent(fileNumber)}`, (value, path) => intakeDocument(value, path).nextConfirmer, signal,
     ),
+    letterText: (document, signal) => get(`documents/${document}/text`, letterText, signal),
     tickets: signal => get('tickets', ticketsList, signal),
     ticket: (id, signal) => get(`tickets/${id}`, ticketDetail, signal),
     myWork: signal => get('my-work', myWork, signal),

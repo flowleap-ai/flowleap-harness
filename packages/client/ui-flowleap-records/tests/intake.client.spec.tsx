@@ -339,10 +339,12 @@ describe('the open letter', () => {
     expect(readings.getAllByRole('rowheader').map(label => label.textContent)).toEqual(['Office event', 'Document date', 'Application'])
     expect(within(screen.getByRole('region', { name: 'Proposed matter' })).getByText('Pressure sensor housing')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: 'When you file' })).getByText(/records the office event/)).toBeTruthy()
+    Element.prototype.scrollIntoView = vi.fn()
     press(panel, 'KeyO')
+    expect(screen.getByRole('complementary', { name: /^Letter: / })).toBeTruthy()
+    expect(windowOpen).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Open the PDF' }))
     expect(windowOpen).toHaveBeenCalledWith(`records/api/documents/${R71_DOCUMENT}/content`, '_blank', 'noopener')
-    fireEvent.click(screen.getByRole('button', { name: /Open the letter/ }))
-    expect(windowOpen).toHaveBeenCalledTimes(2)
   })
 
   it('records Accept and file with ⇧⌘↵ and with 1, one act with its own key each time, and no second act while one runs', async () => {
@@ -679,7 +681,7 @@ describe('the open letter', () => {
     run(0, 0)
     await flush()
     expect(acts).toHaveLength(1)
-    expect(windowOpen).toHaveBeenCalledOnce()
+    expect(windowOpen).not.toHaveBeenCalled()
     expect(writeText).toHaveBeenCalledWith('https://firm.test/?page=flowleap-records&records=intake')
     act(() => { model.navigate(open(R71_DOCUMENT)) })
     await flush()

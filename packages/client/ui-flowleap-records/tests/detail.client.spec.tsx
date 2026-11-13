@@ -84,6 +84,7 @@ async function mount(
     contentHref: (document: DocumentId) => api.contentHref(document),
     pageHref: href => api.pageHref(href),
     nextConfirmer: (document, fileNumber, signal) => api.nextConfirmer(document, fileNumber, signal),
+    letterText: (document, signal) => api.letterText(document, signal),
     openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
     keyActs,
     commandItems,
@@ -139,7 +140,8 @@ describe('the matters list', () => {
       useFixedCatalog: bindSnapshotSelector(createSnapshotStore([])), useLanguage: bindSnapshotSelector(createSnapshotStore<LocaleId>('en')), useAsk: bindSnapshotSelector(createSnapshotStore(null)),
       useContextMenu: contextMenuHook(), navigate: () => {}, retry: () => {}, refresh: () => {},
       perform: () => Promise.resolve({ failed: [] }),
-      contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }), keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
+      contentHref: () => '', pageHref: () => '', nextConfirmer: () => Promise.resolve({ ok: true, value: null }),
+      letterText: () => Promise.resolve({ ok: false, error: { kind: 'network' } }), keyActs: new KeyActRegistry(), commandItems: new CommandItemRegistry(),
       openFind: vi.fn(), openInMatters: vi.fn(), openMyWork: vi.fn(), root: 'matters',
     } as PanelProps<'records.agent.conversation'>
     render(<RecordsPanel {...props} />)
@@ -392,9 +394,10 @@ describe('the deadline page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reject' }))
     await flush()
     expect(acts.at(-1)?.command).toEqual({ kind: 'deadline.reject', id: FIXTURE_IDS.deadline, reason: 'Wrong period' })
-    await press('openLetter')
-    expect(opened).toHaveBeenCalledWith(`records/api/documents/${R71_DOCUMENT}/content`)
     Element.prototype.scrollIntoView = vi.fn()
+    await press('openLetter')
+    expect(screen.getByRole('complementary', { name: 'Letter: Rule 71(3) communication' })).toBeTruthy()
+    expect(opened).not.toHaveBeenCalled()
     await press('calculation')
     expect(document.activeElement).toBe(screen.getByRole('list', { name: 'How FlowLeap computed the date' }))
     const groups = commandItems.item()!.groups
@@ -824,8 +827,10 @@ describe('the work on a letter', () => {
     const { press, model, commandItems } = await mount(WORK, { ticket: sourced })
     await press('preview')
     expect(opened).toHaveBeenLastCalledWith('records/api/documents/0000000000000000000000000000000000000000000000000000000000000064/content')
+    Element.prototype.scrollIntoView = vi.fn()
     await press('openLetter')
-    expect(opened).toHaveBeenLastCalledWith(`records/api/documents/${R71_DOCUMENT}/content`)
+    expect(screen.getByRole('complementary', { name: /^Letter: / })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close the letter' }))
     const acts = commandItems.item()!.groups
     act(() => { acts[1]!.acts[1]!.run() })
     expect(opened.mock.lastCall?.[0]).toMatch(/^ms-word:ofe\|u\|http.*\/records\/api\/documents\/0+64\/content$/)

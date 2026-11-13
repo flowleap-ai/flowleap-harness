@@ -1,9 +1,16 @@
-/* Evidence (R14): the quote in 12px monospace on the waits tint with its page in 12px label-secondary; a hovered
- * quote gets a 1px ring in the waits colour and a focused one the client focus ring; missing evidence tints the
- * statement row. */
+/* Evidence (R14): the quote in 12px monospace on the waits tint with its page in 12px label-secondary, as one button
+ * that shows the quote in the letter; a hovered quote gets a 1px ring in the waits colour and a focused one the client
+ * focus ring; missing evidence tints the statement row. */
 .spanRef {
   display: block;
   min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
 }
 
 .quote {
@@ -20,7 +27,7 @@
 }
 
 @media (hover: hover) {
-  .quote:hover {
+  .spanRef:hover .quote {
     box-shadow: 0 0 0 1px var(--dsw-alias-state-warn-primary);
   }
 }
@@ -31,43 +38,6 @@
   font-size: var(--dsw-font-xxs-12-font-size);
   line-height: var(--dsw-font-xxs-12-line-height);
   white-space: nowrap;
-}
-
-.excerpt {
-  display: block;
-  width: 360px;
-  max-width: 100%;
-  padding: 12px;
-}
-
-.caption {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: var(--dsw-font-xxs-12-font-size);
-  line-height: var(--dsw-font-xxs-12-line-height);
-}
-
-.page {
-  display: block;
-  padding: 12px;
-  border-radius: var(--dsw-radius-xs);
-  background: var(--dsw-alias-bg-document-preview);
-  color: var(--dsw-alias-label-document-preview);
-  font-size: var(--dsw-font-xxs-12-font-size);
-  line-height: var(--dsw-font-xs-13-line-height);
-}
-
-.fade {
-  color: var(--dsw-alias-label-secondary);
-}
-
-.mark {
-  padding: 0 2px;
-  border-radius: var(--dsw-radius-xs);
-  background: var(--dsw-alias-state-warn-tertiary);
-  color: var(--dsw-alias-label-document-preview);
 }
 
 .source {

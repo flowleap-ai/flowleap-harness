@@ -485,6 +485,7 @@ export function createFixtureApi(): { api: RecordsApi; acts: Act[] } {
       contentHref: id => `records/api/documents/${id}/content`,
       pageHref: href => `records/api/${href}`,
       nextConfirmer: () => ok(fixtures.intakeDocument.nextConfirmer),
+      letterText: () => ok({ pages: [R71_PAGE] }),
     },
   }
 }

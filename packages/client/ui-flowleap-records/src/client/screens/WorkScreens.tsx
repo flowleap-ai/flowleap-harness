@@ -17,8 +17,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useActRunner } from '../act-runner.ts'
 import type {
-  CheckedDeadlineState, DeadlineCheck, DeadlineId, LetterReading, ReadingDecision, ReportDecision, TicketDetail, TicketsList, WorkDraft,
-  WorkRefusal,
+  CheckedDeadlineState, DeadlineCheck, DeadlineId, DocumentId, LetterReading, ReadingDecision, ReportDecision, TicketDetail, TicketsList,
+  WorkDraft, WorkRefusal,
 } from '../api.ts'
 import type { DeadlineState } from '../atlas.ts'
 import { formatApplicationNumber, formatDate, intlLocale, languageName } from '../format.ts'
@@ -36,6 +36,7 @@ import { LoadView, PageSpinner } from '../parts/States.tsx'
 import { AtlasPill, AtlasStatus, atlasWord } from '../parts/Status.tsx'
 import { avatarOf, DRAFT_KINDS, draftWords, letterTitle, listTimeText, officeOfCode, personInText, personName, toOffice } from '../words.ts'
 import { AgentRun } from './AgentRun.tsx'
+import { LetterViewer, useLetterPane, type LetterPane, type ShownLetter } from './LetterViewer.tsx'
 import { actOf, keyedOf, type ScreenContext, type ScreenProps } from './context.ts'
 import { Cell, DetailRow, DetailTable, OpenCell, formatDay, matterRows, openDocument, responsibleRow, Who } from './detail.tsx'
 import { decisionHeading, failureNotice, LoadError, quoteLabels, RecordActivity } from './shared.tsx'
@@ -140,6 +141,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [ticked, setTicked] = useState<DeadlineCheck | null>(null)
   const runner = useActRunner(ctx.perform)
+  const pane = useLetterPane()
   const busy = runner.run.phase === 'running'
   const { ticket, letter, deadline, mayDecide } = data
   const status = { machine: 'ticket', state: ticket.state } as const
@@ -195,7 +197,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   }
   const goMatter = () => { ctx.navigate({ view: 'matter', fileNumber: data.matter.fileNumber }) }
   const calculation = deadline === null ? null : () => { ctx.navigate({ view: 'deadline', id: deadline.id }) }
-  const openLetter = letter === null ? null : () => { openDocument(ctx, letter.document) }
+  const openLetter = letter === null ? null : () => { pane.show(shownLetter(ctx, data, letter.document), { kind: 'page', page: 1 }) }
   // The draft reply comes before the client report (mockup 4-review-work); Space previews the first one shown.
   const drafts = [data.draftReply, data.clientReport].flatMap(draft => draft === null ? [] : [draft])
   const report = drafts[0]
@@ -335,7 +337,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
   // The properties panel holds the right column (mockup 4-review-work); Drafted by opens the agent panel in its place.
   const agentShown = ctx.agent.view === 'docked' || ctx.agent.view === 'full'
   return (
-    <div className={detail.withDock} data-dock={agentShown ? ctx.agent.view : 'docked'}>
+    <div className={detail.withDock} data-dock={agentShown ? ctx.agent.view : 'docked'} data-letter={pane.shown !== null || undefined}>
       <div className={detail.workArea}>
         <WorkColumn decision={decision}>
           <div className={detail.eyebrowLine}>
@@ -345,7 +347,7 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
           <h1 className={detail.pageTitle}>{title}</h1>
           <p className={detail.lede}>{lede(ctx, data)}</p>
           <DeadlineSection ctx={ctx} data={data} />
-          <ReadingSection ctx={ctx} data={data} />
+          <ReadingSection ctx={ctx} data={data} pane={pane} />
           {data.draftReply === null && (
             <Section heading={draftWords(t, letter?.code ?? null, 'office-reply').heading} count={0} empty={noReply(ctx, data)}>
               {null}
@@ -382,7 +384,14 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
                             onRemove={() => { if (allowed) reject(`report:${item.proposalId}`) }}
                           />
                         )
-                        : spans.map(span => <EvidenceQuote key={`${span.page}:${span.start}`} span={span} labels={quoteLabels(ctx, span.page)} />)}
+                        : statement.evidence.flatMap(({ document, span }) => span === null ? [] : [(
+                          <EvidenceQuote
+                            key={`${document}:${span.page}:${span.start}`}
+                            span={span}
+                            labels={quoteLabels(ctx, span.page)}
+                            onShow={() => { pane.show(shownLetter(ctx, data, document), { kind: 'span', span }) }}
+                          />
+                        )])}
                     </StatementRow>
                   )
                 })}
@@ -395,6 +404,8 @@ function WorkView({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
       {agentShown
         ? <AgentRun ctx={ctx} data={data} title={title} />
         : <div className={detail.workProps}><WorkProperties ctx={ctx} data={data} /></div>}
+      {/* From 1366px the letter takes the right column beside the reading; below, it opens over the page. */}
+      {pane.shown !== null && <LetterViewer ctx={ctx} shown={pane.shown} placement="side" onClose={pane.close} />}
     </div>
   )
 }
@@ -629,15 +640,24 @@ function readingState(ctx: ScreenContext, reading: LetterReading): string {
  * cited documents with their quotes. A reading with no objection says why.
  * @param props.ctx - the screen context.
  * @param props.data - the work.
+ * @param props.pane - the letter panel, which a quote opens at its place.
  * @returns the section, or nothing when the pass has no reading.
  */
-function ReadingSection({ ctx, data }: { ctx: ScreenContext; data: TicketDetail }) {
+function ReadingSection({ ctx, data, pane }: { ctx: ScreenContext; data: TicketDetail; pane: LetterPane }) {
   const { t } = ctx
   const reading = data.readings.filter(each => each.pass === data.ticket.pass).at(-1)
   if (reading === undefined) return null
+  const letter = shownLetter(ctx, data, reading.document)
   const quotes = (spans: LetterReading['items'][number]['evidence']) => spans.length === 0
     ? <span className={detail.readingMeta}>{t('evidence.missing')}</span>
-    : spans.map(span => <EvidenceQuote key={`${span.page}:${span.start}`} span={span} labels={quoteLabels(ctx, span.page)} />)
+    : spans.map(span => (
+      <EvidenceQuote
+        key={`${span.page}:${span.start}`}
+        span={span}
+        labels={quoteLabels(ctx, span.page)}
+        onShow={() => { pane.show(letter, { kind: 'span', span }) }}
+      />
+    ))
   return (
     <section className={detail.section} aria-label={t('work.reading.heading')}>
       <div className={detail.sectionHead}>
@@ -684,6 +704,19 @@ function ReadingSection({ ctx, data }: { ctx: ScreenContext; data: TicketDetail 
       )}
     </section>
   )
+}
+
+/**
+ * A document of the work as the letter viewer shows it: the letter of the work with its page images, or another letter of
+ * the work (one that joined it) with its text only.
+ * @param ctx - the screen context.
+ * @param data - the work.
+ * @param document - the document.
+ * @returns the letter.
+ */
+function shownLetter({ t }: ScreenContext, data: TicketDetail, document: DocumentId): ShownLetter {
+  const { letter } = data
+  return { document, title: letterTitle(t, letter?.code ?? null), images: letter?.document === document ? letter.pageImages : [] }
 }
 
 /**

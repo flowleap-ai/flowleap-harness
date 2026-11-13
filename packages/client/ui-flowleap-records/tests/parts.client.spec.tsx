@@ -345,16 +345,13 @@ describe('decision bar', () => {
 describe('evidence', () => {
   const span = fixtures.ticket.reports[0]!.statements[1]!.evidence[0]!.span!
 
-  it('quotes the span with its page, focusable for its excerpt', () => {
-    render(<EvidenceQuote span={span} labels={{ page: 'p. 1', excerpt: 'Letter, page 1', exact: 'Exact span' }} />)
-    const quote = screen.getByText('intends to grant a European patent')
-    expect(quote.getAttribute('tabindex')).toBe('0')
-    expect(screen.getByText('p. 1')).toBeTruthy()
-  })
-
-  it('quotes a span with no page text without an excerpt', () => {
-    render(<EvidenceQuote span={{ ...span, excerpt: null }} labels={{ page: 'p. 1', excerpt: 'Letter, page 1', exact: 'Exact span' }} />)
-    expect(screen.getByText('intends to grant a European patent').getAttribute('tabindex')).toBeNull()
+  it('quotes the span with its page as one button that shows it in the letter', () => {
+    const onShow = vi.fn()
+    render(<EvidenceQuote span={span} labels={{ page: 'p. 1', show: 'Show on page 1 of the letter' }} onShow={onShow} />)
+    const quote = screen.getByRole('button', { name: 'intends to grant a European patent · Show on page 1 of the letter' })
+    expect(quote.textContent).toBe('intends to grant a European patentp. 1')
+    fireEvent.click(quote)
+    expect(onShow).toHaveBeenCalledTimes(1)
   })
 
   it('shows missing evidence with its two ways out, in a tinted statement row', () => {

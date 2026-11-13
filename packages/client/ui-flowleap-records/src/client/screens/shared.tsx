@@ -131,10 +131,10 @@ export function failureNotice(ctx: ScreenContext, run: ActRun, retry: () => void
  * The copy of an evidence quote on a page.
  * @param ctx - the screen context.
  * @param page - the page number.
- * @returns the page reference and the excerpt's captions.
+ * @returns the page reference and the name of the act that shows the quote in the letter.
  */
 export function quoteLabels(ctx: ScreenContext, page: number): QuoteLabels {
-  return { page: ctx.t('evidence.page', { page }), excerpt: ctx.t('evidence.excerpt', { page }), exact: ctx.t('evidence.exact') }
+  return { page: ctx.t('evidence.page', { page }), show: ctx.t('evidence.show', { page }) }
 }
 
 /**
