@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214). A runtime reads and proposes; it never writes a decision. The Service Definition `ctx.flowleapRecord` reads a matter's view and the work of the token's person, and sends the run commands of a Ticket. The http Provider is `./http`. The read-only tools are `record_read` (its result names `recordSeq` and `viewHash`), `record_my_work` and `record_read_document_text` (the page text of a letter of a Ticket routed to the token's person, when the client's AI wishes allow it), so a chat and a Ticket run read a letter in the same way. The `./run` entry adds the tools that propose and finish a Ticket run.
+`dsh-flowleap-record` connects an attorney's runtime to the Firm Record of flowleap-os, the only writer of the firm's record (design PR 214). A runtime reads and proposes; it never writes a decision. The Service Definition `ctx.flowleapRecord` reads a matter's view and the work of the token's person, and sends the run commands of a Ticket. The http Provider is `./http`. The read-only tools are `record_read` (its result names `recordSeq` and `viewHash`), `record_my_work` and `record_read_document_text` (a letter's page text, for a chat and a run). The `./run` entry adds the tools that propose and finish a Ticket run.
 
 ## Table of Contents
 

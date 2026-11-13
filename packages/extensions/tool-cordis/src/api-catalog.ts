@@ -1651,9 +1651,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the receipt, or the refusal.',
       },
       {
-        signature: 'documentText(document: DocumentSha256, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>',
-        description: 'Read the text layer of a document of the record, the text that a quote of a report must be copied from.',
-        parameters: [{ name: 'document', description: 'the SHA-256 of the document.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
+        signature: 'documentText(document: DocumentSha256, provider: string, signal: AbortSignal): Promise<RecordCommandResult<DocumentText>>',
+        description: 'Read the text layer of a document of the record, the text that a quote of a report must be copied from. The Firm Record gives it only when the client\'s AI wishes and a provider contract let a cloud model of `provider` read it.',
+        parameters: [{ name: 'document', description: 'the SHA-256 of the document.' }, { name: 'provider', description: 'the provider route of the model that reads the text, such as `openrouter`.' }, { name: 'signal', description: 'ends the read; the provider rejects when it fires.' }],
         returns: 'the text of each page, or the refusal (`not_found` when the Firm Record has no text for the document).',
       },
       {
@@ -9420,7 +9420,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RecordCommandRefusal',
-    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'evidence_outside_matter\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
+    declaration: 'export type RecordCommandRefusal = \'not_configured\' | \'no_key\' | \'refused\' | \'agent_cannot_decide\' | \'not_routed_person\' | \'not_found\' | \'invalid_body\' | \'ticket_not_waking\' | \'ticket_not_running\' | \'client_rule_forbids_ai_draft\' | \'client_rule_forbids_ai_read\' | \'statement_without_evidence\' | \'statement_without_span\' | \'quote_not_in_letter\' | \'quote_ambiguous\' | \'evidence_outside_matter\' | \'no_proposals\' | \'document_too_large\' | \'idempotency_key_reused\' | \'unreachable\' | \'service_error\' | \'invalid_answer\';',
   },
   {
     name: 'RecordCommandResult',
