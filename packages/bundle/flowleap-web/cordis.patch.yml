@@ -108,7 +108,7 @@
     groups:
       - id: work
         label: { en: Work, de: Arbeit }
-        panels: [flowleap-my-work, flowleap-office-actions]
+        panels: [flowleap-my-work, flowleap-letters, flowleap-office-actions]
       - id: firm
         label: { en: Firm, de: Kanzlei }
         panels: [flowleap-records, flowleap-folder]
@@ -489,6 +489,14 @@
     # Remote, model, or connector call; changes stay in the browser.
     - id: ui-flowleap-work-pages
       name: '@deepseek-ai/dsh-client-ui-flowleap-work-pages'
+
+    # Letters: the mirror of the firm's MyEPO Mailbox. The Letters launcher
+    # and a three-pane page with the views and folders, each letter of the
+    # Mailbox with the fields of the MyEPO list, and the PDF of the open
+    # letter. It reads through the flowleapConnectors Remote of the
+    # flowleap-connectors row; a download marks the letter as read in MyEPO.
+    - id: ui-flowleap-letters
+      name: '@deepseek-ai/dsh-client-ui-flowleap-letters'
 
     # The agent builder (#55): one agent preset for each folder below
     # $DSH_HOME/agents, built on the patent preset with the agent's

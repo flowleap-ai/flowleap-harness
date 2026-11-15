@@ -130,3 +130,80 @@ export type MyEpoTestOutcome =
     /** No credentials are stored, so there is nothing to test. */
     kind: 'not-linked'
   }
+
+/** One letter of the MyEPO Mailbox as the Letters page reads it: the fields of the MyEPO list, with `null` for a field the EPO left out. */
+export interface MyEpoLetterView {
+  /** The EPO communication id. */
+  id: string
+  /** The title as the EPO writes it, in the language of the letter. */
+  title: string
+  /** The EPO document code, for example `2006A`. */
+  documentCode: string
+  /** The dispatch date, ISO calendar date. */
+  dispatchDate: string
+  /** Whether MyEPO shows the letter as read. */
+  read: boolean
+  /** Whether MyEPO shows the letter as handled. */
+  handled: boolean
+  /** The id of the Mailbox folder that holds the letter. */
+  folderId: string
+  /** The application number as MyEPO writes it (`EP12345678.2`, `PCT/SE2023/123456`). */
+  applicationNumber: string | null
+  /** The firm's reference on the letter. */
+  userReference: string | null
+  /** The applicant name. */
+  applicantName: string | null
+  /** The recipient name. */
+  recipientName: string | null
+  /** The address of the application's digital file on the MyEPO website. */
+  digitalFile: string | null
+}
+
+/** The PDF of one letter of the MyEPO Mailbox. */
+export interface MyEpoLetterPdf {
+  /** The file name that the EPO gave the PDF. */
+  fileName: string
+  /** The PDF bytes. */
+  pdf: Uint8Array
+}
+
+/** One folder of the MyEPO Mailbox. */
+export interface MyEpoFolderView {
+  /** The folder id that a letter names. */
+  id: string
+  /** The folder name the firm gave it in MyEPO. */
+  name: string
+}
+
+/** The MyEPO Mailbox as the Letters page reads it, or why it could not be read. */
+export type MyEpoMailboxView =
+  | {
+    /** The EPO answered. */
+    kind: 'read'
+    /** When the read ended, ISO 8601. */
+    readAt: string
+    /** The letters, in the order of the MyEPO list; at most the first 500. */
+    letters: MyEpoLetterView[]
+    /** The folders of the Mailbox. */
+    folders: MyEpoFolderView[]
+    /** How many letters the Mailbox holds; more than `letters.length` when the list was cut. */
+    total: number
+  }
+  | {
+    /** No credentials are stored. */
+    kind: 'not-linked'
+  }
+  | {
+    /** The EPO refused the stored credentials. */
+    kind: 'refused'
+  }
+  | {
+    /** The EPO did not answer, or answered with a server error. */
+    kind: 'unreachable'
+  }
+  | {
+    /** The EPO answered with another error. */
+    kind: 'failed'
+    /** The EPO's error code and message, for the person who reads the page. */
+    message: string
+  }

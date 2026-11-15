@@ -101,6 +101,8 @@ When the composition has a system prompt, the row registers `flowleap:patent-dat
 | `myEpoLink(values, signal?)` | `MyEpoTestOutcome` | tests `clientId` and `clientSecret` and stores them only when the test passed: `passed` with the portfolios, `refused`, `unreachable` or `failed` with the EPO's message; a missing or unknown field is `gateway/bad-request`, a store refusal `flowleap-connectors/rejected` |
 | `myEpoTest(signal?)` | `MyEpoTestOutcome` | tests the stored link; `not-linked` without one |
 | `myEpoUnlink()` | `void` | removes the link; absent is a no-op |
+| `myEpoMailbox(signal?)` | `MyEpoMailboxView` | reads the folders and every letter of the Mailbox list (`GET /communications`, 50 for each request, at most 500) for the Letters page: `read` with the letters, the folders and the total, or `not-linked`, `refused`, `unreachable` or `failed`; changes nothing in MyEPO |
+| `myEpoLetterPdf(id, signal?)` | `MyEpoLetterPdf` | downloads the PDF of a letter that the last `myEpoMailbox()` returned, with the file name of the EPO; the EPO marks the letter as read; another id is `gateway/bad-request`, a failed download `flowleap-connectors/rejected` |
 | `test(id, signal?)` | `{ ok, message }` | without a stored key, `{ ok: false, message: '<Connector> key not configured' }` and no network call; with one, an OPS access-token mint, an ODP lookup of application 15043224 (US 10,000,000), a one-paper Semantic Scholar search, or the library's Mistral key verification (`connectors.ocr.verifyKey()`: one authenticated `GET /v1/models` on Mistral's API, or one OCR page of a 1x1 PNG at a record's `baseUrl`) |
 
 ### The tools

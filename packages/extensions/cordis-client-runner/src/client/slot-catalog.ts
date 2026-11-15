@@ -2960,6 +2960,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-flowleap-dashboard ChatsPage',
       'client-ui-flowleap-dashboard AgentsPage',
       'client-ui-flowleap-folder FolderPanel',
+      'client-ui-flowleap-letters LettersPage',
       'client-ui-flowleap-records MyWorkPanel',
       'client-ui-flowleap-records RecordsPanel',
       'client-ui-flowleap-routines NeedsReviewPage',
@@ -4841,6 +4842,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-flowleap-dashboard launcher.icon',
       'client-ui-flowleap-folder ClientsIcon',
+      'client-ui-flowleap-letters LettersPanelIcon',
       'client-ui-flowleap-records panel.icon',
       'client-ui-flowleap-work-pages WorkPagesPanelIcon',
       'client-ui-plugin-manager PluginsPanelIcon',

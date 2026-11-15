@@ -77,10 +77,12 @@ describe('the MyEPO reads on the recorded sandbox answers', () => {
       id: 'l9s8o3a1luusand', applicationNumber: 'PCT/SE2023/123456', userReference: 'P79105WO1', applicantName: 'Dummy applicant 1',
       recipientName: 'Dummy recipient 000026', documentCode: 'I1015', title: 'Important information concerning EPO Form 1010',
       dispatchDate: '2023-05-30', read: true, handled: false, folderId: 'l3ldt00aluu2917',
+      digitalFile: 'https://my-i.epo.org/user-area/mailbox-intg/applications/PCTSE2023123456',
     })
     const noApplication = letters.items.find(letter => letter.documentCode === '52301_CONF')
     expect(noApplication).not.toHaveProperty('applicationNumber')
     expect(noApplication).not.toHaveProperty('userReference')
+    expect(noApplication).not.toHaveProperty('digitalFile')
     expect((await reads.unhandledCommunications()).items).toHaveLength(9)
     expect(await reads.folders()).toEqual([{ id: 'l3ldt00aluu2917', name: 'Drafts' }, { id: 'kih7dx82luu148t', name: 'PDFs' }])
   })

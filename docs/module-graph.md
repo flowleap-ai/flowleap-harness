@@ -186,6 +186,7 @@ flowchart TD
     pkg_client_ui_flowleap_budget["client-ui-flowleap-budget"]
     pkg_client_ui_flowleap_dashboard["client-ui-flowleap-dashboard"]
     pkg_client_ui_flowleap_folder["client-ui-flowleap-folder"]
+    pkg_client_ui_flowleap_letters["client-ui-flowleap-letters"]
     pkg_client_ui_flowleap_records["client-ui-flowleap-records"]
     pkg_client_ui_flowleap_routines["client-ui-flowleap-routines"]
     pkg_client_ui_flowleap_work_pages["client-ui-flowleap-work-pages"]
@@ -1732,6 +1733,7 @@ flowchart TD
 | [`client-ui-flowleap-agent-builder`](../packages/client/ui-flowleap-agent-builder) | `client` | — |
 | [`client-ui-flowleap-budget`](../packages/client/ui-flowleap-budget) | `client` | — |
 | [`client-ui-flowleap-dashboard`](../packages/client/ui-flowleap-dashboard) | `client` | — |
+| [`client-ui-flowleap-letters`](../packages/client/ui-flowleap-letters) | `client` | — |
 | [`client-ui-flowleap-records`](../packages/client/ui-flowleap-records) | `client` | — |
 | [`client-ui-flowleap-routines`](../packages/client/ui-flowleap-routines) | `client` | — |
 | [`client-ui-flowleap-work-pages`](../packages/client/ui-flowleap-work-pages) | `client` | — |

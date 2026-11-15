@@ -14,9 +14,12 @@ import { z } from 'zod'
 import { CONNECTOR_LABELS, type ConnectorCredentialStore } from './credentials.ts'
 import type { BoundConnectorHost } from './host.ts'
 import { validateMyEpoFields, type MyEpoLink } from './myepo.ts'
+import { describeFailure, MyEpoError } from './myepo-client.ts'
+import type { MyEpoCommunication } from './myepo-wire.ts'
 import {
   CONNECTOR_IDS, isConnectorId,
-  type ConnectorId, type ConnectorPresence, type ConnectorTestResult, type MyEpoLinkView, type MyEpoTestOutcome,
+  type ConnectorId, type ConnectorPresence, type ConnectorTestResult, type MyEpoLetterPdf, type MyEpoLetterView, type MyEpoLinkView,
+  type MyEpoMailboxView, type MyEpoTestOutcome,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -50,6 +53,28 @@ const ODP_PROBE_APPLICATION = '15043224'
 
 const valuesSchema = z.record(z.string(), z.string())
 
+/** The page size of a Mailbox read, and the most letters one read returns (ten pages). */
+const MAILBOX_PAGE_SIZE = 50
+const MAILBOX_LIMIT = 500
+
+/** One letter for the Letters page. */
+function letterView(letter: MyEpoCommunication): MyEpoLetterView {
+  return {
+    id: letter.id,
+    title: letter.title,
+    documentCode: letter.documentCode,
+    dispatchDate: letter.dispatchDate,
+    read: letter.read,
+    handled: letter.handled,
+    folderId: letter.folderId,
+    applicationNumber: letter.applicationNumber ?? null,
+    userReference: letter.userReference ?? null,
+    applicantName: letter.applicantName ?? null,
+    recipientName: letter.recipientName ?? null,
+    digitalFile: letter.digitalFile ?? null,
+  }
+}
+
 /** Parse one connector id off the wire. */
 function parseId(method: string, value: string): ConnectorId {
   if (!isConnectorId(value)) {
@@ -64,6 +89,8 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   private readonly connectors: Connectors
   private readonly bound: BoundConnectorHost
   private readonly myEpo: MyEpoLink
+  /** The letters of the last Mailbox read, by id: a download names one of them. */
+  private letters = new Map<string, MyEpoCommunication>()
 
   /**
    * @param ctx - Host context.
@@ -184,6 +211,65 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   @Remote
   async myEpoUnlink(): Promise<void> {
     await this.write('myepo', () => this.myEpo.unlink())
+  }
+
+  /**
+   * Read the MyEPO Mailbox for the Letters page: every letter of the list (handled or not) and the folders. The read
+   * changes nothing in MyEPO.
+   * @param signal - cancels the read.
+   * @returns the letters and the folders, or why the EPO gave none; never a credential value.
+   */
+  @Remote
+  async myEpoMailbox(signal: AbortSignal): Promise<MyEpoMailboxView> {
+    const { reads } = this.myEpo
+    try {
+      const folders = await reads.folders(signal)
+      const letters: MyEpoCommunication[] = []
+      let total = 0
+      for (let page = 0; letters.length < MAILBOX_LIMIT; page++) {
+        const result = await reads.communications({ page, size: MAILBOX_PAGE_SIZE }, signal)
+        total = result.total
+        letters.push(...result.items)
+        if (result.items.length === 0 || letters.length >= total) break
+      }
+      this.letters = new Map(letters.map(letter => [letter.id, letter]))
+      return {
+        kind: 'read',
+        readAt: new Date().toISOString(),
+        letters: letters.map(letterView),
+        folders: folders.map(({ id, name }) => ({ id, name })),
+        total,
+      }
+    } catch (error) {
+      if (!(error instanceof MyEpoError)) throw error
+      switch (error.failure.kind) {
+        case 'not-linked':
+        case 'refused':
+        case 'unreachable':
+          return { kind: error.failure.kind }
+        default:
+          return { kind: 'failed', message: describeFailure(error.failure) }
+      }
+    }
+  }
+
+  /**
+   * Download the PDF of one letter of the last Mailbox read. The EPO marks the letter as read in MyEPO at each download.
+   * @param id - the communication id of a letter that {@link myEpoMailbox} returned.
+   * @param signal - cancels the download.
+   * @returns the PDF bytes with the file name of the EPO.
+   * @throws RemoteError `gateway/bad-request` for an id that the last read did not return, and
+   *   `flowleap-connectors/rejected` when the EPO gives no PDF.
+   */
+  @Remote
+  async myEpoLetterPdf(id: string, signal: AbortSignal): Promise<MyEpoLetterPdf> {
+    const letter = this.letters.get(id)
+    if (letter === undefined) {
+      throw new RemoteError('gateway/bad-request', 'invalid payload for flowleapConnectors.myEpoLetterPdf: unknown letter', {})
+    }
+    const document = await this.write('myepo', () => this.myEpo.reads.downloadCommunication(letter, signal))
+    this.letters.set(id, { ...letter, read: true })
+    return { fileName: document.filename, pdf: document.pdf }
   }
 
   private async probe(connector: ConnectorId): Promise<ConnectorTestResult> {
