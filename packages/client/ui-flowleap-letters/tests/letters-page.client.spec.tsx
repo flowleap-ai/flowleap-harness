@@ -36,7 +36,6 @@ function page(state: Partial<MailboxSnapshot> = {}) {
   const hooks: Mailbox['hooks'] = { mailbox: { getSnapshot: () => snapshot, subscribe: () => () => {} } }
   const props: LettersPageProps = {
     ...acts,
-    hooks,
     useMailbox: bindSnapshotSelector(hooks.mailbox),
     usePanelInfo: select => select({ activePanelId: null }),
     useSessions: () => { throw new Error('The page reads no Session') },
@@ -74,7 +73,7 @@ describe('the Letters page', () => {
       page({ readAt: null, letters: [], failure, reading: true })
       expect(screen.getByRole('alert').textContent).toContain(text)
       expect(screen.queryByRole('heading')).toBeNull()
-      expect((screen.getByRole('button', { name: 'Read again' })).disabled).toBe(true)
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Read again' }).disabled).toBe(true)
     }
   })
 
