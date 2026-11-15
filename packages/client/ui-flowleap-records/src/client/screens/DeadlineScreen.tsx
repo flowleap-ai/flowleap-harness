@@ -545,7 +545,8 @@ function MyEpoReading({ ctx, data, onShow }: { ctx: ScreenContext; data: Deadlin
   const { period, code } = data.officeEvent
   return (
     <>
-      <p className={css.lede}>{t('deadline.myepo.type', { code: myepoCodeOf(data.activity) ?? '', title: letterTitle(t, code) })}</p>
+      {/* This part shows only for a reading from the MyEPO list (readingOf), so the document code exists. */}
+      <p className={css.lede}>{t('deadline.myepo.type', { code: myepoCodeOf(data.activity) as string, title: letterTitle(t, code) })}</p>
       {period?.state === 'known' && (
         <PeriodLine ctx={ctx} period={period} text="deadline.myepo.periodRead" entered="deadline.myepo.periodEntered" onShow={onShow} />
       )}
