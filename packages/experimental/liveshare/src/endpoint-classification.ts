@@ -110,7 +110,9 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'credentials/unset': 'owner-only', // owner credentials; secrets never reach a reader
   'flowleapConnectors/describe': 'owner-only', // FlowLeap: the firm's connector keys; secrets never reach a reader
   'flowleapConnectors/myEpoDescribe': 'owner-only', // FlowLeap: the firm's MyEPO link; secrets never reach a reader
+  'flowleapConnectors/myEpoLetterPdf': 'owner-only', // FlowLeap: a letter of the firm's MyEPO Mailbox; a download marks it as read at the EPO
   'flowleapConnectors/myEpoLink': 'owner-only', // FlowLeap: the firm's MyEPO link; secrets never reach a reader
+  'flowleapConnectors/myEpoMailbox': 'owner-only', // FlowLeap: the letters of the firm's MyEPO Mailbox never reach a reader
   'flowleapConnectors/myEpoTest': 'owner-only', // FlowLeap: the firm's MyEPO link; secrets never reach a reader
   'flowleapConnectors/myEpoUnlink': 'owner-only', // FlowLeap: the firm's MyEPO link; secrets never reach a reader
   'flowleapConnectors/set': 'owner-only', // FlowLeap: the firm's connector keys; secrets never reach a reader
