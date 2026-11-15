@@ -134,6 +134,11 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/client/ui-workspace/tests/workspaces-service.client.spec.ts', upstream: ['cordis'] },
   // The preset-roster loop names the `cordis` preset id, not a package.
   { file: 'apps/cli/tests/windows-shell.spec.ts', upstream: ['cordis'] },
+  // These name the `cordis` agent preset in a comment, a profile patch, an upgrade guide and a preset roster.
+  { file: 'apps/cli/tests/flowleap-attorney-copy.spec.ts', upstream: ['cordis'] },
+  { file: 'apps/web/tests/creator-persona.e2e.ts', upstream: ['cordis'] },
+  { file: 'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.md', upstream: ['cordis'] },
+  { file: 'packages/experimental/cua/tests/agent-scopes.spec.ts', upstream: ['cordis'] },
   // GROUP_ORDER holds `packages/<group>/` directory names, not package names.
   { file: 'scripts/gen-module-graph.ts', upstream: ['cordis'] },
   { file: 'scripts/gen-doc-graphs.ts', upstream: ['cordis'] },
