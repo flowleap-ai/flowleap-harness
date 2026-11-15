@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MyEpoLetterPdf, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
-import { createMailbox, inView, PAGE_SIZE, shownLetters, type Answer, type MailboxDependencies } from '../src/client/mailbox.ts'
-import { failed, FOLDERS, LETTERS, ok, READ } from './fixture.client.ts'
+import { createMailbox, inView, PAGE_SIZE, shownLetters, type Answer, type MailboxDependencies } from '../src/client/letters/mailbox.ts'
+import { failed, FOLDERS, LETTERS, ok, READ } from './letters-fixture.client.ts'
 
 const PDF: MyEpoLetterPdf = { fileName: 'letter.pdf', pdf: new Uint8Array([37, 80, 68, 70]) }
 

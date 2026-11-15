@@ -15,11 +15,12 @@ import { CONNECTOR_LABELS, type ConnectorCredentialStore } from './credentials.t
 import type { BoundConnectorHost } from './host.ts'
 import { validateMyEpoFields, type MyEpoLink } from './myepo.ts'
 import { describeFailure, MyEpoError } from './myepo-client.ts'
-import type { MyEpoCommunication } from './myepo-wire.ts'
+import type { MyEpoApplicationNumber, MyEpoCommunication, MyEpoPage, MyEpoTerm } from './myepo-wire.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import {
   CONNECTOR_IDS, isConnectorId,
-  type ConnectorId, type ConnectorPresence, type ConnectorTestResult, type MyEpoLetterPdf, type MyEpoLetterView, type MyEpoLinkView,
-  type MyEpoMailboxView, type MyEpoTestOutcome,
+  type ConnectorId, type ConnectorPresence, type ConnectorTestResult, type MyEpoApplicationDetailView, type MyEpoApplicationsView,
+  type MyEpoLetterPdf, type MyEpoLetterView, type MyEpoLinkView, type MyEpoMailboxView, type MyEpoReadFailure, type MyEpoTestOutcome,
 } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -53,9 +54,50 @@ const ODP_PROBE_APPLICATION = '15043224'
 
 const valuesSchema = z.record(z.string(), z.string())
 
-/** The page size of a Mailbox read, and the most letters one read returns (ten pages). */
-const MAILBOX_PAGE_SIZE = 50
+/** The page size of a list read, the most letters one Mailbox read returns, and the most applications one docket read returns. */
+const LIST_PAGE_SIZE = 50
 const MAILBOX_LIMIT = 500
+const APPLICATIONS_LIMIT = 2000
+
+/** An application number as MyEPO writes it in a path. */
+const APPLICATION_NUMBER = /^EP\d{8}$/u
+
+/**
+ * Read a paged MyEPO list from its first page until the list ends, a page is empty, or the limit is reached.
+ * @param read - reads one 0-based page.
+ * @param limit - the most items to return.
+ * @returns the items read and the total the EPO reports.
+ */
+async function readPages<T>(read: (page: number) => Promise<MyEpoPage<T>>, limit: number): Promise<{ items: T[]; total: number }> {
+  const items: T[] = []
+  let total = 0
+  for (let page = 0; items.length < limit; page++) {
+    const result = await read(page)
+    total = result.total
+    items.push(...result.items)
+    if (result.items.length === 0 || items.length >= total) break
+  }
+  return { items, total }
+}
+
+/**
+ * Why a MyEPO read gave no answer, for a page.
+ * @param error - what the read rejected with.
+ * @returns the failure of a {@link MyEpoError}.
+ * @throws the error itself when it is not a {@link MyEpoError}, such as a caller cancellation.
+ */
+function readFailure(error: unknown): MyEpoReadFailure | { kind: 'no-permission' } {
+  if (!(error instanceof MyEpoError)) throw error
+  switch (error.failure.kind) {
+    case 'not-linked':
+    case 'refused':
+    case 'unreachable':
+    case 'no-permission':
+      return { kind: error.failure.kind }
+    default:
+      return { kind: 'failed', message: describeFailure(error.failure) }
+  }
+}
 
 /** One letter for the Letters page. */
 function letterView(letter: MyEpoCommunication): MyEpoLetterView {
@@ -91,6 +133,8 @@ export class FlowleapConnectorsController extends TypertRemoteService {
   private readonly myEpo: MyEpoLink
   /** The letters of the last Mailbox read, by id: a download names one of them. */
   private letters = new Map<string, MyEpoCommunication>()
+  /** The term descriptions by term key, read once; a failed read is read again. */
+  private terms: Promise<Map<string, MyEpoTerm['description']>> | undefined
 
   /**
    * @param ctx - Host context.
@@ -224,14 +268,7 @@ export class FlowleapConnectorsController extends TypertRemoteService {
     const { reads } = this.myEpo
     try {
       const folders = await reads.folders(signal)
-      const letters: MyEpoCommunication[] = []
-      let total = 0
-      for (let page = 0; letters.length < MAILBOX_LIMIT; page++) {
-        const result = await reads.communications({ page, size: MAILBOX_PAGE_SIZE }, signal)
-        total = result.total
-        letters.push(...result.items)
-        if (result.items.length === 0 || letters.length >= total) break
-      }
+      const { items: letters, total } = await readPages(page => reads.communications({ page, size: LIST_PAGE_SIZE }, signal), MAILBOX_LIMIT)
       this.letters = new Map(letters.map(letter => [letter.id, letter]))
       return {
         kind: 'read',
@@ -241,16 +278,95 @@ export class FlowleapConnectorsController extends TypertRemoteService {
         total,
       }
     } catch (error) {
-      if (!(error instanceof MyEpoError)) throw error
-      switch (error.failure.kind) {
-        case 'not-linked':
-        case 'refused':
-        case 'unreachable':
-          return { kind: error.failure.kind }
-        default:
-          return { kind: 'failed', message: describeFailure(error.failure) }
-      }
+      const failure = readFailure(error)
+      // A Mailbox read has no portfolio; the EPO's missing-right answer reads as its error text.
+      return failure.kind === 'no-permission' ? { kind: 'failed', message: (error as MyEpoError).message } : failure
     }
+  }
+
+  /**
+   * Read the applications of the portfolios that the account may read, for the Applications page: every page of
+   * `GET /applications`, at most 2,000 applications. The read changes nothing in MyEPO.
+   * @param signal - cancels the read.
+   * @returns the applications with the fields of the MyEPO list, or why the EPO gave none; never a credential value.
+   */
+  @Remote
+  async myEpoApplications(signal: AbortSignal): Promise<MyEpoApplicationsView> {
+    const { reads } = this.myEpo
+    try {
+      const { items, total } = await readPages(page => reads.applications({ page, size: LIST_PAGE_SIZE }, signal), APPLICATIONS_LIMIT)
+      return {
+        kind: 'read',
+        readAt: new Date().toISOString(),
+        applications: items.map(application => ({
+          procedure: application.procedure,
+          number: application.number,
+          numberWithCheckDigit: application.numberWithCheckDigit,
+          filingDate: application.filingDate,
+          fileReference: application.fileReference ?? null,
+          portfolioId: application.portfolioId,
+          portfolioName: application.portfolioName,
+        })),
+        total,
+      }
+    } catch (error) {
+      const failure = readFailure(error)
+      // An account with no portfolio permission has no application to list.
+      return failure.kind === 'no-permission' ? { kind: 'read', readAt: new Date().toISOString(), applications: [], total: 0 } : failure
+    }
+  }
+
+  /**
+   * Read one application for the Applications page: its bibliographic data, the EPO due dates with the words of
+   * their terms, and the pending fees. The read changes nothing in MyEPO.
+   * @param procedure - `EPC` or `UPP`.
+   * @param number - the application number as MyEPO writes it in a path, for example `EP00000001`.
+   * @param signal - cancels the read.
+   * @returns the data, or why the EPO gave none; `no-permission` when the account may not read the portfolio.
+   * @throws RemoteError `gateway/bad-request` for another procedure or a number of another form.
+   */
+  @Remote
+  async myEpoApplication(procedure: string, number: string, signal: AbortSignal): Promise<MyEpoApplicationDetailView> {
+    if ((procedure !== 'EPC' && procedure !== 'UPP') || !APPLICATION_NUMBER.test(number)) {
+      throw new RemoteError('gateway/bad-request', 'invalid payload for flowleapConnectors.myEpoApplication', {})
+    }
+    const { reads } = this.myEpo
+    const application = { procedure, number: brandString<MyEpoApplicationNumber>(number) } as const
+    try {
+      const [data, dueDates, fees, terms] = await Promise.all([
+        reads.bibliographicData(application, signal),
+        reads.dueDates(application, signal),
+        reads.pendingFees(application, signal),
+        this.termDescriptions(signal),
+      ])
+      return {
+        kind: 'read',
+        titles: { ...data.titles },
+        applicants: [...data.applicants],
+        inventors: [...data.inventors],
+        representatives: [...data.representatives],
+        publications: data.publications.map(publication => ({ ...publication })),
+        priorities: data.priorities.map(priority => ({ ...priority })),
+        ipc: [...data.ipc],
+        cpc: [...data.cpc],
+        dueDates: dueDates.map(({ termKey, dueDate, actor }) => ({ termKey, description: terms.get(termKey) ?? null, dueDate, actor })),
+        fees: fees.map(({ feeCode, amount, currency, dueDate }) => ({ feeCode, amount, currency: currency ?? null, dueDate })),
+      }
+    } catch (error) {
+      return readFailure(error)
+    }
+  }
+
+  /** The term descriptions by term key: one read of `GET /terms` for the life of the service, repeated after a failure. */
+  private termDescriptions(signal: AbortSignal): Promise<Map<string, MyEpoTerm['description']>> {
+    this.terms ??= this.myEpo.reads.terms(signal).then(
+      terms => new Map(terms.map(term => [term.termKey, term.description])),
+      (error: unknown) => {
+        this.terms = undefined
+        throw error
+      },
+    )
+    return this.terms
   }
 
   /**

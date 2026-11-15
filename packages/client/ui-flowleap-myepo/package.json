@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-flowleap-letters",
-  "description": "FlowLeap Letters in Web: the Letters page in the main column and its Sidebar launcher; the mirror of the firm's MyEPO Mailbox over the flowleapConnectors Remote",
+  "name": "@deepseek-ai/dsh-client-ui-flowleap-myepo",
+  "description": "FlowLeap MyEPO pages in Web: the Letters and Applications pages in the main column and their Sidebar launchers; the mirrors of the Mailbox and the applications that MyEPO has for the firm, over the flowleapConnectors Remote",
   "version": "0.2.2-rc.2",
   "type": "module",
   "main": "lib/index.js",
@@ -38,7 +38,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/client/ui-flowleap-letters"
+    "directory": "packages/client/ui-flowleap-myepo"
   },
   "publishConfig": {
     "access": "public"

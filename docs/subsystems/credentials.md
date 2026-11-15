@@ -504,6 +504,25 @@ Host service backing the generated `ctx.remote.flowleapConnectors` namespace.
 @Remote async myEpoMailbox(signal: AbortSignal): Promise<MyEpoMailboxView>
 
 /**
+ * Read the applications of the portfolios that the account may read, for the Applications page: every page of
+ * `GET /applications`, at most 2,000 applications. The read changes nothing in MyEPO.
+ * @param signal - cancels the read.
+ * @returns the applications with the fields of the MyEPO list, or why the EPO gave none; never a credential value.
+ */
+@Remote async myEpoApplications(signal: AbortSignal): Promise<MyEpoApplicationsView>
+
+/**
+ * Read one application for the Applications page: its bibliographic data, the EPO due dates with the words of
+ * their terms, and the pending fees. The read changes nothing in MyEPO.
+ * @param procedure - `EPC` or `UPP`.
+ * @param number - the application number as MyEPO writes it in a path, for example `EP00000001`.
+ * @param signal - cancels the read.
+ * @returns the data, or why the EPO gave none; `no-permission` when the account may not read the portfolio.
+ * @throws RemoteError `gateway/bad-request` for another procedure or a number of another form.
+ */
+@Remote async myEpoApplication(procedure: string, number: string, signal: AbortSignal): Promise<MyEpoApplicationDetailView>
+
+/**
  * Download the PDF of one letter of the last Mailbox read. The EPO marks the letter as read in MyEPO at each download.
  * @param id - the communication id of a letter that {@link myEpoMailbox} returned.
  * @param signal - cancels the download.
