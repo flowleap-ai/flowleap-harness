@@ -97,7 +97,10 @@ describe('master-only platform scheduling', () => {
 
   it('keeps the required Python PR verdict and its two x64 targets in CI Python', () => {
     const pr = workflow('ci-python.yml')
-    expect(Object.keys(pr.on)).toEqual(['pull_request'])
+    // The fork runs the Python lane on a pull request only with the `full-ci`
+    // label, so the push to `flowleap` is its run after each merge.
+    expect(Object.keys(pr.on).sort()).toEqual(['pull_request', 'push'])
+    expect(pr.on.push).toEqual({ branches: ['flowleap'] })
     expect(pr.jobs['python-runtime']!.if).toBeUndefined()
     expect(pr.jobs['python-runtime']).toMatchObject({
       needs: 'python-sdk',
