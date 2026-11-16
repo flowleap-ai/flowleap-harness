@@ -94,6 +94,8 @@ export interface MyEpoCommunication {
   readonly read: boolean
   readonly handled: boolean
   readonly folderId: MyEpoFolderId
+  /** The address of the application's digital file on the MyEPO website; absent for a letter with no application. */
+  readonly digitalFile?: string
 }
 
 /** One Mailbox folder. */
@@ -193,6 +195,7 @@ const communicationsSchema = z.object({
     read: z.boolean(),
     handled: z.boolean(),
     folderId: z.string(),
+    digitalFile: z.string().nullish(),
   })),
   ...pageFields,
 })
@@ -313,6 +316,7 @@ export function parseCommunications(body: unknown): MyEpoPage<MyEpoCommunication
       read: entry.read,
       handled: entry.handled,
       folderId: brandString<MyEpoFolderId>(entry.folderId),
+      ...optional('digitalFile', entry.digitalFile),
     })),
     page: page.number,
     size: page.size,

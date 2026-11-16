@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE: Mailbox mirror</title>
+<!--
+  PROTOTYPE, throwaway. Question: what should the Letters page look like as a mirror of the MyEPO Mailbox?
+  Three variants of one page, switchable with ?variant=A|B|C and the bar at the bottom (or the arrow keys).
+  The rows are the nine letters of the EPO sandbox answer GET /communications, recorded 2026-11-09
+  (packages/host/flowleap-connectors/tests/fixtures/myepo/communications.json and folders.json), field for field.
+  State is in memory only. Nothing writes to MyEPO. The PDF is a drawing, because the fixture stores no PDF.
+-->
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<style>
+  #root { display: flex; flex-direction: column; min-height: 0; height: 100%; font-size: var(--dsw-font-xs-13-font-size); line-height: var(--dsw-font-xs-13-line-height); color: var(--dsw-alias-label-primary); }
+  .p-ico { width: 16px; height: 16px; flex: none; }
+  .p-muted { color: var(--dsw-alias-label-secondary); }
+  .p-strong { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .p-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .p-num { font-variant-numeric: tabular-nums; }
+  .p-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dsw-alias-state-business-primary); flex: none; }
+  .p-dot.off { background: transparent; }
+  .p-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); flex: none; }
+  .p-bar h1 { margin: 0 8px 0 0; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .p-search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); flex: 1; max-width: 480px; }
+  .p-search input { border: 0; outline: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; flex: 1; min-width: 0; }
+  .p-chip { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0.5px solid var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; white-space: nowrap; }
+  .p-chip:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .p-chip.on { background: var(--dsw-alias-interactive-bg-active); color: var(--dsw-alias-label-primary); }
+  .p-btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; white-space: nowrap; }
+  .p-btn:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .p-btn.ghost { border-color: transparent; background: transparent; }
+  .p-btn.icon { width: 32px; padding: 0; justify-content: center; }
+  .p-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: var(--dsw-font-xxs-12-font-size); white-space: nowrap; background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); }
+  .p-tag.warn { background: var(--dsw-alias-state-warn-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-tag.ok { background: var(--dsw-alias-state-success-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-tag.new { background: var(--dsw-alias-state-business-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-empty { display: grid; place-items: center; flex: 1; color: var(--dsw-alias-label-secondary); padding: 48px; text-align: center; }
+
+  /* the letter, shared by the three variants */
+  .lt { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--dsw-alias-bg-base); }
+  .lt-top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); flex: none; }
+  .lt-top .sp { flex: 1; }
+  .lt-scroll { overflow: auto; padding: 24px 24px 80px; flex: 1; min-height: 0; }
+  .lt h2 { margin: 8px 0 16px; font-size: var(--dsw-font-l-20-font-size); line-height: var(--dsw-font-l-20-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); max-width: 40ch; }
+  .lt-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lt-props { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin-bottom: 16px; }
+  .lt-props .k { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .lt-note { display: flex; gap: 8px; align-items: center; padding: 8px 12px; margin-bottom: 16px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); }
+  .lt-sheet { max-width: 560px; aspect-ratio: 210 / 297; padding: 40px; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-bg-document-preview); color: var(--dsw-alias-label-document-preview); box-shadow: var(--dsw-elevation-panel); font-size: var(--dsw-font-xxs-12-font-size); line-height: 1.6; }
+  .lt-sheet .hd { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 16px; margin-bottom: 24px; border-bottom: 1px solid currentColor; }
+  .lt-sheet b { display: block; margin: 24px 0 8px; font-size: var(--dsw-font-xs-13-font-size); }
+  .lt-sheet .ln { height: 6px; margin: 8px 0; border-radius: 2px; background: currentColor; opacity: 0.16; }
+
+  /* truncation: a fade, not a hard cut, on a line that does not fit (cut() sets .is-cut and the title) */
+  [data-cut] { overflow: hidden; white-space: nowrap; min-width: 0; }
+  [data-cut].is-cut { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+  [dir="rtl"] [data-cut].is-cut, [data-cut][dir="rtl"].is-cut { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
+  .p-wrap { overflow-wrap: anywhere; }
+  .p-more { display: block; width: calc(100% - 32px); margin: 16px; justify-content: center; }
+  .lt h2.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .lt-more { border: 0; background: none; padding: 0; margin: -8px 0 16px; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; text-decoration: underline; }
+  .lt-tags .p-tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 20px; }
+  .lt-top { container-type: inline-size; }
+  .lt-top .p-btn { flex: none; }
+  .lt-top .lbl { white-space: nowrap; }
+  .lt { container-type: inline-size; }
+  @container (max-width: 520px) { .lt-top-in .lbl { display: none; } .lt-top-in .p-btn { width: 32px; padding: 0; justify-content: center; } }
+  .lt-top-in { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; }
+  .lt-crumb { display: none; }
+  /* the PDF: a toolbar with zoom, and a wide reading mode */
+  .pdf-bar { position: sticky; top: -24px; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px 0; margin-bottom: 8px; background: var(--dsw-alias-bg-base); }
+  .pdf-bar .sp { flex: 1; }
+  .pdf-bar .pg { color: var(--dsw-alias-label-secondary); white-space: nowrap; padding: 0 8px; }
+  .pdf-bar .z { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+  .pdf-stage { overflow: auto; padding: 16px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-multi-select); }
+  .pdf-stage .lt-sheet { max-width: none; margin: 0 auto; }
+  .a-wrap.wide { grid-template-columns: minmax(0, 1fr); }
+  .a-wrap.wide .a-folders, .a-wrap.wide .a-list { display: none; }
+  .a-wrap.wide .lt-crumb { display: inline-flex; }
+  .a-wrap.wide .lt-props, .a-wrap.wide .lt-note { display: none; }
+  .a-wrap.wide .lt h2 { font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); max-width: none; margin: 8px 0; }
+  .a-select { display: none; }
+  .a-list .p-bar { min-width: 0; }
+  .p-search { min-width: 0; }
+  .a-list .a-select { flex: none; }
+  .a-wrap.wide .lt-more { display: none; }
+  .a-wrap.wide .lt h2.clamp { display: block; }
+  .proto .st { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* A: three panes, as Outlook */
+  .a-wrap { display: grid; grid-template-columns: 208px 380px minmax(0, 1fr); flex: 1; min-height: 0; }
+  .a-wrap > * { min-height: 0; overflow: auto; }
+  .a-folders { padding: 12px 8px; border-right: 0.5px solid var(--dsw-alias-border-l3); }
+  .a-fh { padding: 12px 8px 4px; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .a-f { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: var(--dsw-radius-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; text-align: left; }
+  .a-f:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .a-f.on { background: var(--dsw-alias-interactive-bg-active); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .a-f span:not(.n) { min-width: 0; flex: 1; }
+  .a-f .p-ico { flex: none; }
+  .a-f .n { flex: none; margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: 400; }
+  .a-list { border-right: 0.5px solid var(--dsw-alias-border-l3); display: flex; flex-direction: column; overflow: hidden !important; }
+  .a-list .rows { overflow: auto; flex: 1; padding-bottom: 64px; }
+  .a-row { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 4px 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); cursor: pointer; position: relative; }
+  .a-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .a-row.sel { background: var(--dsw-alias-interactive-bg-active); }
+  .a-row.sel::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--dsw-alias-state-business-primary); }
+  .a-row .l1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+  .a-row .l1 .p-who { flex: 1; display: block; }
+  .a-row .t { overflow-wrap: anywhere; }
+  .a-row .l1 .d { margin-left: auto; flex: none; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .a-row .p-dot { margin-top: 6px; }
+  .a-row .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .a-row.is-new .p-who, .a-row.is-new .t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+
+  /* B: full-width rows and a drawer, as Gmail */
+  .b-tabs { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); overflow: auto; flex: none; }
+  .b-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .b-rows { height: 100%; overflow: auto; }
+  .b-row { display: grid; grid-template-columns: 8px 176px minmax(0, 1fr) 152px 120px 96px; gap: 16px; align-items: center; height: 44px; padding: 0 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); cursor: pointer; }
+  .b-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .b-row.sel { background: var(--dsw-alias-interactive-bg-active); }
+  .b-row.is-new .p-who, .b-row.is-new .t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .b-row .d { text-align: right; color: var(--dsw-alias-label-secondary); }
+  .b-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(640px, 100%); border-left: 0.5px solid var(--dsw-alias-border-l2); box-shadow: var(--dsw-elevation-prominent); transform: translateX(104%); transition: transform var(--ds-transition-duration) var(--ds-ease-in-out); }
+  .b-drawer.open { transform: none; }
+
+  /* C: a table grouped by application, with the letter beside it */
+  .c-wrap { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }
+  .c-wrap.open { grid-template-columns: minmax(0, 1fr) minmax(400px, 44%); }
+  .c-wrap > * { min-height: 0; overflow: auto; }
+  .c-side { border-left: 0.5px solid var(--dsw-alias-border-l3); overflow: hidden !important; }
+  .c-tbl { width: 100%; border-collapse: collapse; }
+  .c-tbl th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 16px; text-align: left; font-weight: 400; font-size: var(--dsw-font-xxs-12-font-size); color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-base); border-bottom: 0.5px solid var(--dsw-alias-border-l3); white-space: nowrap; }
+  .c-tbl td { height: 44px; padding: 0 16px; white-space: nowrap; }
+  .c-tbl td.t { white-space: normal; min-width: 240px; }
+  .c-tbl tr.g td { height: 36px; background: var(--dsw-alias-bg-multi-select); position: sticky; top: 32px; z-index: 1; }
+  .c-tbl tr.r { cursor: pointer; }
+  .c-tbl tr.r:hover td { background: var(--dsw-alias-interactive-bg-hover); }
+  .c-tbl tr.r.sel td { background: var(--dsw-alias-interactive-bg-active); }
+  .c-tbl tr.r.is-new td.t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .c-tbl .ti { display: flex; align-items: center; gap: 8px; }
+  .c-wrap.open .c-hide { display: none; }
+
+  /* the prototype switcher: not a part of the design */
+  .proto { white-space: nowrap; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 99; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 999px; background: #111; color: #fff; font: 12px/1.4 ui-monospace, Menlo, monospace; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); border: 1px solid #f5a524; }
+  .proto button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #333; color: #fff; cursor: pointer; font-size: 14px; }
+  .proto button:hover { background: #555; }
+  .proto .st { color: #aaa; border-left: 1px solid #444; padding-left: 12px; }
+  .proto b { color: #f5a524; }
+  .proto .seg { display: flex; padding: 2px; border-radius: 999px; background: #333; }
+  .proto .seg a { padding: 4px 10px; border-radius: 999px; color: #ccc; text-decoration: none; }
+  .proto .seg a.on { background: #fff; color: #111; }
+  @media (max-width: 1100px) { .a-wrap { grid-template-columns: 320px minmax(0, 1fr); } .a-folders { display: none; } .a-select { display: block; height: 32px; max-width: 160px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; padding: 0 8px; } .proto .st { display: none; } }
+  @media (max-width: 760px) { .a-wrap { grid-template-columns: minmax(0, 1fr); } .a-wrap > .a-read { display: none; } .a-wrap.has-sel > .a-list { display: none; } .a-wrap.has-sel > .a-read { display: block; } .a-wrap .lt-crumb { display: inline-flex; } .proto { left: 8px; right: 8px; transform: none; overflow: auto; } }
+  @media (max-width: 1100px) { .b-row { grid-template-columns: 8px 120px minmax(0, 1fr) 96px; } .b-row .hide-n { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="letters" data-name="Lena Hoffmann" data-role="Patent attorney" data-count=""></nav>
+  <main class="main"><section class="panel fixed"><div id="root"></div></section></main>
+</div>
+<div class="proto" id="proto"></div>
+<script src="frame.js"></script>
+<script>
+// ---- the sandbox answer, field for field (links and download URL removed) ----
+const DEMO_FOLDERS = [{ folderId: 'l3ldt00aluu2917', folderName: 'Drafts' }, { folderId: 'kih7dx82luu148t', folderName: 'PDFs' }];
+const DEMO_LETTERS = [{"id":"l9s8o3a1luusand","applicantName":"Dummy applicant 1","title":"Important information concerning EPO Form 1010","dispatchDate":"2023-05-30","applicationNumber":"PCT/SE2023/123456","recipientName":"Dummy recipient 000026","userReference":"P79105WO1","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/PCTSE2023123456","documentCode":"I1015","read":true,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"kylfolhdluusand","applicantName":"Dummy applicant 2","title":"Reminder period for payment of examination fee/designation fee and correction of deficiencies in Written Opinion/amendment","dispatchDate":"2023-02-26","applicationNumber":"EP12345678.2","recipientName":"Dummy recipient 000026","userReference":"EP102844","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP12345678","documentCode":"1081","read":false,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"kylfkdqfluusand","applicantName":"Dummy applicant 3","title":"Invitation to confirm maintenance of the application and to correct deficiencies in the Written Opinion/amend application","dispatchDate":"2023-02-26","applicationNumber":"EP12345678.2","recipientName":"Dummy recipient 000026","userReference":"EP102441","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP12345678","documentCode":"1082","read":false,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"kqstpwzhluusand","applicantName":"Dummy applicant 5","title":"Communication regarding possible amendment of the application/payment of claims fee","dispatchDate":"2023-02-26","applicationNumber":"EP23456789.9","recipientName":"Dummy recipient 000026","userReference":"EP102754","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP23456789","documentCode":"1226CC","read":false,"handled":false,"folderId":"kih7dx82luu148t"},{"id":"kqrzwbsaluusand","applicantName":"Dummy applicant 6","title":"Application deemed to be withdrawn (no declaration of maintenance of the application/non-reply to the Written Opinion)","dispatchDate":"2023-02-26","applicationNumber":"EP20678449.8","recipientName":"Dummy recipient 000026","userReference":"REF00006","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP20678449","documentCode":"1099","read":false,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"kylfn0yrluusand","applicantName":"Dummy applicant 8","title":"Communication regarding the expiry of opposition period","dispatchDate":"2023-02-26","applicationNumber":"EP18123456.8","recipientName":"Dummy recipient 000026","userReference":"REF00008","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP18123456","documentCode":"2057","read":false,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"kw0l0eylluusand","applicantName":"Dummy applicant 9","title":"Decision to grant a European patent","dispatchDate":"2023-02-26","applicationNumber":"EP18123456.8","recipientName":"Dummy recipient 000026","userReference":"REF00009","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP18123456","documentCode":"2006A","read":false,"handled":false,"folderId":"kih7dx82luu148t"},{"id":"ljzogle7luusand","applicantName":null,"title":"Mitteilung über die Änderung des Eintrags in der Liste der zugelassenen Vertreter (Bestätigung)","dispatchDate":"2023-02-26","applicationNumber":null,"recipientName":"Dummy recipient 000026","userReference":null,"digitalFile":null,"documentCode":"52301_CONF","read":false,"handled":false,"folderId":"l3ldt00aluu2917"},{"id":"k6abkigvluusand","applicantName":"Dummy applicant 11","title":"European search report","dispatchDate":"2020-02-11","applicationNumber":"EP12346578.3","recipientName":"Dummy recipient 000026","userReference":"REF000261","digitalFile":"https://my-i.epo.org/user-area/mailbox-intg/applications/EP12346578","documentCode":"Search Report","read":false,"handled":false,"folderId":"kih7dx82luu148t"}];
+
+// ---- break-ui: the worst realistic data, behind ?data= (dev only; a prototype never ships) ----
+// Limits of the record: title 500, userReference 200, applicationNumber 64 (flowleap-os lib/record/myepo.mjs). applicantName,
+// recipientName and folderName have no limit.
+const W = (o) => ({ recipientName: 'Dummy recipient 000026', digitalFile: 'https://my-i.epo.org/user-area/mailbox-intg/applications/EP00000000', read: false, handled: false, folderId: 'f-long', ...o });
+const WORST_FOLDERS = [
+  { folderId: 'f-long', folderName: 'Einspruchsverfahren – Mandant Fraunhofer – dringend bis Jahresende 2026' },
+  { folderId: 'f-a', folderName: 'A' }, { folderId: 'f-pct', folderName: 'PCT_Regionalisierungsphase_Eingang' },
+  ...['Prüfung', 'Erteilung', 'Einspruch', 'Beschwerde', 'Gebühren', 'Vertreterwechsel', 'Recherche', 'Formalprüfung', 'Unitary Patent', 'Archiv 2019–2024'].map((n, i) => ({ folderId: `f-${i}`, folderName: n })),
+];
+const WORST_LETTERS = [
+  W({ id: 'w1', applicantName: 'Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.', title: 'Communication pursuant to Rules 161(1) and 162 EPC: invitation to correct the deficiencies noted in the written opinion of the International Searching Authority, to amend the application, and to pay the claims fees for the sixteenth and each subsequent claim, and the fiftieth and each subsequent claim, within a period of six months from notification of this communication', dispatchDate: '2026-11-14', applicationNumber: 'PCT/EP2023/087654', userReference: 'P2023-0456-EP-DIV2/WO-PCT/Mü-Kr (alt: 2019P12345WE01)', documentCode: '1226AA' }),
+  W({ id: 'w2', applicantName: 'Koninklijke Philips N.V.; Philips Lighting Holding B.V.; Signify Netherlands B.V.', title: 'Communication under Rule 71(3) EPC', dispatchDate: '2026-11-13', applicationNumber: 'EP23771920.8', userReference: 'SIEMENS_HEALTHINEERS_2023P00123WOEP01_DIVISIONAL_02_FORTSETZUNG', documentCode: '2004C', folderId: 'f-pct' }),
+  W({ id: 'w3', applicantName: '3M', title: 'Receipt', dispatchDate: '2026-11-13', applicationNumber: 'EP24166597.5', userReference: 'A1', documentCode: '1', folderId: 'f-a' }),
+  W({ id: 'w4', applicantName: null, title: '', dispatchDate: '2026-11-12', applicationNumber: null, userReference: null, digitalFile: null, documentCode: '52301_CONF_REPRESENTATIVE_LIST', folderId: 'f-deleted-folder-id' }),
+  W({ id: 'w5', applicantName: '株式会社日立ハイテクノロジーズ', title: 'Notification relative à la transmission du rapport de recherche européenne élargi conformément à la règle 62 CBE', dispatchDate: '2026-11-11', applicationNumber: 'EP22213933.9', userReference: 'HT-JP-2022-特願-004512', documentCode: '1507N', folderId: 'f-6' }),
+  W({ id: 'w6', applicantName: 'Müller & Söhne <Patent> GmbH & Co. KGaA', title: 'Mitteilung <b>nach</b> Artikel 94(3) EPÜ &amp; Regel 71(1)', dispatchDate: '2026-11-10', applicationNumber: 'EP21755382.5', userReference: 'M&S/"2021"/<07>', documentCode: '2001A', folderId: 'f-0' }),
+  W({ id: 'w7', applicantName: 'Bundesrepublik Deutschland, vertreten durch das Bundesministerium für Wirtschaft und Klimaschutz', title: 'Rechtsverlustmitteilung nach Regel 112(1) EPÜ – Weiterbehandlungsgebühr/Wiedereinsetzungsantrag/Jahresgebührenzuschlagsfrist', dispatchDate: '2026-01-01', applicationNumber: 'EP20706232.4', userReference: 'BMWK-2020-000017', documentCode: '2015C', read: true, handled: true, folderId: 'f-1' }),
+  W({ id: 'w8', applicantName: 'شركة سابك للابتكار البلاستيكي', title: 'Decision to grant a European patent', dispatchDate: '1999-12-31', applicationNumber: 'EP99123456.7', userReference: 'SABIC-99-0001', documentCode: '2006A', read: true, handled: true, folderId: 'f-9' }),
+  W({ id: 'w9', applicantName: 'Đặng Thị Ngọc Hân', title: 'Invitation to pay additional fees and, where applicable, protest fee (Rule 158(1) EPC)', dispatchDate: '2026-10-02', applicationNumber: 'PCT/VN2025/050001', userReference: 'ĐTNH/Å-Ø/001', documentCode: '1206' }),
+];
+const MANY = n => Array.from({ length: n }, (_, i) => { const b = (i % 3 ? DEMO_LETTERS : WORST_LETTERS)[i % 9]; const d = new Date(Date.UTC(2026, 10, 14) - i * 36e5 * 7); return { ...b, id: `m${i}`, read: i % 4 === 0, handled: i % 5 === 0, dispatchDate: d.toISOString().slice(0, 10) }; });
+const DATASETS = { demo: 'Demo data', worst: 'Worst case', empty: 'Empty', one: 'One', many: '1,284 rows' };
+const dataKey = DATASETS[new URLSearchParams(location.search).get('data')] ? new URLSearchParams(location.search).get('data') : 'demo';
+const clone = a => a.map(x => ({ ...x }));
+const FOLDERS = dataKey === 'demo' || dataKey === 'empty' ? DEMO_FOLDERS : WORST_FOLDERS;
+const LETTERS = { demo: () => clone(DEMO_LETTERS), worst: () => clone(WORST_LETTERS), empty: () => [], one: () => clone(WORST_LETTERS.slice(0, 1)), many: () => MANY(1284) }[dataKey]();
+
+// ---- state: in memory only ----
+const VARIANTS = { A: 'Three panes (Outlook)', B: 'Full rows + drawer (Gmail)', C: 'Table by application' };
+const url = new URLSearchParams(location.search);
+const PAGE = 100;
+const S = { variant: VARIANTS[url.get('variant')] ? url.get('variant') : 'A', sel: null, view: 'all', q: '', opened: {}, wide: false, zoom: 1, fit: true, full: false, limit: PAGE };
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const date = iso => { const [y, m, d] = iso.split('-'); return `${Number(d)} ${MO[m - 1]} ${y}`; };
+const none = '<span class="p-muted">None</span>';
+const folderName = id => FOLDERS.find(f => f.folderId === id)?.folderName ?? 'Unknown folder';
+const int = n => n.toLocaleString('en-GB');
+const titleOf = l => (l.title ?? '').trim() ? esc(l.title) : `<span class="p-muted">No title (document ${esc(l.documentCode)})</span>`;
+/** One line that fades when it does not fit; cut() gives it the full text as its title. dir=auto puts a right-to-left name on its side. */
+const line = (html, cls = '') => `<span data-cut dir="auto" class="${cls}">${html}</span>`;
+function cut() { for (const el of document.querySelectorAll('[data-cut]')) { const over = el.scrollWidth > el.clientWidth + 1; el.classList.toggle('is-cut', over); if (over) el.title = el.textContent; else el.removeAttribute('title'); } }
+const I = {
+  inbox: '<path d="M2.5 9.5 4.5 3.5h7l2 6v3h-11z"/><path d="M2.5 9.5h3l1 1.5h3l1-1.5h3"/>', mail: '<rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/><path d="m3 4.5 5 4 5-4"/>',
+  back: '<path d="M10 4 6 8l4 4"/>', expand: '<path d="M9.5 3h3.5v3.5M6.5 13H3V9.5M13 3 9 7M3 13l4-4"/>', shrink: '<path d="M13 6.5H9.5V3M3 9.5h3.5V13M9.5 6.5 13 3M6.5 9.5 3 13"/>', minus: '<path d="M4 8h8"/>', plus: '<path d="M8 4v8M4 8h8"/>',
+  flag: '<circle cx="8" cy="8" r="5.6" stroke-dasharray="2.2 1.6"/><circle cx="8" cy="8" r="1.6"/>', folder: '<path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11z"/>',
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>', x: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', download: '<path d="M8 3v7M5 7l3 3 3-3"/><path d="M3 11v2h10v-2"/>',
+  ext: '<path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5v3.5h-9v-9h3.5"/>', up: '<path d="M4.5 9.5 8 6l3.5 3.5"/>', down: '<path d="M4.5 6.5 8 10l3.5-3.5"/>', info: '<circle cx="8" cy="8" r="5.75"/><path d="M8 7.5v3.5M8 5.2v.1"/>',
+};
+const ico = n => `<svg class="p-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+
+const VIEWS = () => [
+  { id: 'all', label: 'All letters', icon: 'inbox', test: () => true },
+  { id: 'unread', label: 'Unread', icon: 'mail', test: l => !l.read },
+  { id: 'open', label: 'Not handled', icon: 'flag', test: l => !l.handled },
+  ...FOLDERS.map(f => ({ id: f.folderId, label: f.folderName, icon: 'folder', folder: true, test: l => l.folderId === f.folderId })),
+];
+const shown = () => { const v = VIEWS().find(x => x.id === S.view); const q = S.q.trim().toLowerCase(); return LETTERS.filter(l => v.test(l) && (!q || [l.title, l.applicationNumber, l.userReference, l.applicantName, l.documentCode].join(' ').toLowerCase().includes(q))); };
+const count = v => LETTERS.filter(v.test).length;
+
+// ---- acts ----
+function select(id) { S.sel = id; S.full = false; const l = LETTERS.find(x => x.id === id); if (l && !l.read) { l.read = true; S.opened[id] = true; } render(); }
+function step(n) { const list = shown(); if (!list.length) return; const i = list.findIndex(l => l.id === S.sel); select(list[Math.max(0, Math.min(list.length - 1, i < 0 ? 0 : i + n))].id); }
+function setVariant(v) { S.variant = v; url.set('variant', v); history.replaceState(null, '', `?${url}`); render(); }
+
+// ---- the letter (shared) ----
+function letter(l) {
+  if (!l) return `<div class="lt"><div class="p-empty"><div>${ico('mail')}<p>${LETTERS.length ? 'Select a letter to read it.' : 'No letter to read.'}</p></div></div></div>`;
+  const prop = (k, v) => `<div><div class="k">${k}</div><div class="p-wrap" dir="auto">${v}</div></div>`;
+  const long = (l.title ?? '').length > 160;
+  return `<div class="lt">
+  <div class="lt-top"><div class="lt-top-in">
+    <button class="p-btn ghost lt-crumb" data-act="back" title="Back to the letters (Esc)">${ico('back')}<span class="lbl">Letters</span></button>
+    <button class="p-btn icon ghost" data-act="prev" title="Previous letter (K)">${ico('up')}</button><button class="p-btn icon ghost" data-act="next" title="Next letter (J)">${ico('down')}</button>
+    <span class="sp"></span>
+    ${l.digitalFile ? `<a class="p-btn ghost" href="${esc(l.digitalFile)}" target="_blank" rel="noreferrer" title="Open in MyEPO">${ico('ext')}<span class="lbl">Open in MyEPO</span></a>` : ''}
+    <button class="p-btn" title="Download PDF">${ico('download')}<span class="lbl">Download PDF</span></button>
+    <button class="p-btn icon ghost" data-act="close" title="Close (Esc)">${ico('x')}</button>
+  </div></div>
+  <div class="lt-scroll">
+    <div class="lt-tags"><span class="p-tag ${l.handled ? 'ok' : 'warn'}">${l.handled ? 'Handled' : 'Not handled'}</span><span class="p-tag" title="${esc(folderName(l.folderId))}">${esc(folderName(l.folderId))}</span><span class="p-tag" title="${esc(l.documentCode)}">${esc(l.documentCode)}</span></div>
+    <h2 class="p-wrap${long && !S.full ? ' clamp' : ''}" dir="auto">${titleOf(l)}</h2>
+    ${long ? `<button class="lt-more" data-act="full">${S.full ? 'Show less' : 'Show the full title'}</button>` : ''}
+    <div class="lt-props">
+      ${prop('Application', l.applicationNumber ? `<span class="p-num">${esc(l.applicationNumber)}</span>` : none)}
+      ${prop('Your reference', l.userReference ? esc(l.userReference) : none)}
+      ${prop('Applicant', l.applicantName ? esc(l.applicantName) : none)}
+      ${prop('Recipient', esc(l.recipientName))}
+      ${prop('Dispatched', `<span class="p-num">${date(l.dispatchDate)}</span>`)}
+      ${prop('Read', 'Read in MyEPO')}
+    </div>
+    ${S.opened[l.id] ? `<div class="lt-note">${ico('info')}<span>You opened this letter. MyEPO now shows it as read for your firm.</span></div>` : ''}
+    <div class="pdf-bar">
+      <span class="pg p-num">Page 1 of 4</span><span class="sp"></span>
+      <button class="p-btn icon ghost" data-act="zoom-out" title="Zoom out (-)">${ico('minus')}</button><span class="z">${Math.round(S.zoom * 100)} %</span><button class="p-btn icon ghost" data-act="zoom-in" title="Zoom in (+)">${ico('plus')}</button>
+      <button class="p-btn ghost" data-act="fit" title="Fit the page to the width (0)">Fit</button>
+      <button class="p-btn" data-act="wide" title="${S.wide ? 'Back to three panes (F)' : 'Read in the full width (F)'}">${ico(S.wide ? 'shrink' : 'expand')}<span class="lbl">${S.wide ? 'Three panes' : 'Read wide'}</span></button>
+    </div>
+    <div class="pdf-stage"><div class="lt-sheet" style="width:${Math.round(640 * S.zoom)}px;font-size:${(12 * S.zoom).toFixed(1)}px;padding:${Math.round(40 * S.zoom)}px">
+      <div class="hd"><span>European Patent Office<br>80298 Munich, Germany</span><span>${date(l.dispatchDate)}<br>${esc(l.documentCode)}</span></div>
+      <div dir="auto">${esc(l.recipientName)}</div>
+      <div class="p-wrap">${l.applicationNumber ? `Application No. ${esc(l.applicationNumber)}` : ''}${l.userReference ? ` · Ref. ${esc(l.userReference)}` : ''}</div>
+      <b class="p-wrap" style="font-size:inherit">${titleOf(l)}</b>
+      ${'<div class="ln"></div>'.repeat(9)}<div class="ln" style="width:60%"></div><br>${'<div class="ln"></div>'.repeat(6)}<div class="ln" style="width:35%"></div>
+    </div></div>
+  </div></div>`;
+}
+const search = () => `<label class="p-search">${ico('search')}<input id="q" placeholder="Find a letter" value="${esc(S.q)}" autocomplete="off"></label>`;
+const emptyRows = () => `<div class="p-empty">${LETTERS.length ? 'No letter matches.' : 'The MyEPO Mailbox has no letters.'}</div>`;
+
+// ---- variant A: folders, list, reading pane ----
+function VariantA() {
+  const v = VIEWS(), all = shown(), list = all.slice(0, S.limit), sel = LETTERS.find(l => l.id === S.sel);
+  const f = x => `<button class="a-f${S.view === x.id ? ' on' : ''}" data-view="${x.id}">${ico(x.icon)}${line(esc(x.label))}<span class="n p-num">${int(count(x))}</span></button>`;
+  return `<div class="a-wrap${sel ? ' has-sel' : ''}${sel && S.wide ? ' wide' : ''}">
+  <div class="a-folders"><div class="a-fh">MyEPO Mailbox</div>${v.filter(x => !x.folder).map(f).join('')}<div class="a-fh">Folders</div>${v.filter(x => x.folder).map(f).join('')}</div>
+  <div class="a-list"><div class="p-bar"><select class="a-select" id="view" aria-label="View">${v.map(x => `<option value="${x.id}"${S.view === x.id ? ' selected' : ''}>${esc(x.label)} (${int(count(x))})</option>`).join('')}</select>${search()}</div><div class="rows">${list.map(l => `<div class="a-row${l.id === S.sel ? ' sel' : ''}${l.read ? '' : ' is-new'}" data-id="${l.id}">
+    <span class="p-dot${l.read ? ' off' : ''}"></span>
+    <div style="min-width:0"><div class="l1">${line(l.applicantName ? esc(l.applicantName) : '<span class="p-muted">No applicant</span>', 'p-who')}<span class="d p-num">${date(l.dispatchDate)}</span></div>
+    <div class="t" dir="auto" title="${esc(l.title)}">${titleOf(l)}</div>
+    <div class="p-muted p-num" style="display:flex">${line([l.userReference, l.applicationNumber].filter(Boolean).map(esc).join(' · ') || 'No application')}</div></div></div>`).join('') || emptyRows()}
+    ${all.length > list.length ? `<button class="p-btn p-more" data-act="more">Show ${int(Math.min(PAGE, all.length - list.length))} more of ${int(all.length)}</button>` : ''}</div></div>
+  <div class="a-read">${letter(sel)}</div></div>`;
+}
+
+// ---- variant B: full-width rows, the letter in a drawer ----
+function VariantB() {
+  const list = shown(), sel = LETTERS.find(l => l.id === S.sel);
+  return `<div class="p-bar"><h1>Letters</h1>${search()}<span class="p-muted">MyEPO Mailbox · ${LETTERS.length} letters · ${LETTERS.filter(l => !l.read).length} unread</span></div>
+  <div class="b-tabs">${VIEWS().map(x => `<button class="p-chip${S.view === x.id ? ' on' : ''}" data-view="${x.id}">${ico(x.icon)}${esc(x.label)} <span class="p-num">${count(x)}</span></button>`).join('')}</div>
+  <div class="b-body"><div class="b-rows">${list.map(l => `<div class="b-row${l.id === S.sel ? ' sel' : ''}${l.read ? '' : ' is-new'}" data-id="${l.id}">
+    <span class="p-dot${l.read ? ' off' : ''}"></span>
+    <span class="p-who p-ell">${l.applicantName ? esc(l.applicantName) : '<span class="p-muted">No applicant</span>'}</span>
+    <span class="p-ell"><span class="t">${titleOf(l)}</span>${l.userReference ? ` <span class="p-muted">· ${esc(l.userReference)}</span>` : ''}</span>
+    <span class="p-num p-ell hide-n">${l.applicationNumber ? esc(l.applicationNumber) : none}</span>
+    <span class="hide-n"><span class="p-tag ${l.handled ? 'ok' : 'warn'}">${l.handled ? 'Handled' : 'Not handled'}</span></span>
+    <span class="d p-num">${date(l.dispatchDate)}</span></div>`).join('') || emptyRows()}</div>
+  <div class="b-drawer${sel ? ' open' : ''}">${sel ? letter(sel) : ''}</div></div>`;
+}
+
+// ---- variant C: a table grouped by application, the letter beside it ----
+function VariantC() {
+  const list = shown(), sel = LETTERS.find(l => l.id === S.sel);
+  const groups = new Map();
+  for (const l of list) { const k = l.applicationNumber ?? ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(l); }
+  const body = [...groups].map(([k, ls]) => `<tr class="g"><td colspan="6"><span class="p-strong p-num">${k ? esc(k) : 'No application'}</span> <span class="p-muted">· ${ls.length} ${ls.length === 1 ? 'letter' : 'letters'}</span></td></tr>
+  ${ls.map(l => `<tr class="r${l.id === S.sel ? ' sel' : ''}${l.read ? '' : ' is-new'}" data-id="${l.id}">
+    <td class="t"><span class="ti"><span class="p-dot${l.read ? ' off' : ''}"></span>${esc(l.title)}</span></td>
+    <td>${l.userReference ? esc(l.userReference) : none}</td>
+    <td class="c-hide">${l.applicantName ? esc(l.applicantName) : none}</td>
+    <td class="c-hide">${esc(folderName(l.folderId))}</td>
+    <td class="p-num">${date(l.dispatchDate)}</td>
+    <td class="c-hide"><span class="p-tag ${l.handled ? 'ok' : 'warn'}">${l.handled ? 'Handled' : 'Not handled'}</span></td></tr>`).join('')}`).join('');
+  return `<div class="p-bar"><h1>Letters</h1>${search()}${VIEWS().filter(x => !x.folder).map(x => `<button class="p-chip${S.view === x.id ? ' on' : ''}" data-view="${x.id}">${esc(x.label)} <span class="p-num">${count(x)}</span></button>`).join('')}</div>
+  <div class="c-wrap${sel ? ' open' : ''}"><div>${list.length ? `<table class="c-tbl"><thead><tr><th>Document</th><th>Your reference</th><th class="c-hide">Applicant</th><th class="c-hide">Folder</th><th>Dispatched</th><th class="c-hide">Handled</th></tr></thead><tbody>${body}</tbody></table>` : emptyRows()}</div>
+  ${sel ? `<div class="c-side">${letter(sel)}</div>` : ''}</div>`;
+}
+
+// ---- render and the switcher ----
+const root = document.getElementById('root'), proto = document.getElementById('proto');
+function render() {
+  const focused = document.activeElement?.id === 'q';
+  root.innerHTML = { A: VariantA, B: VariantB, C: VariantC }[S.variant]();
+  if (S.fit) { const st = document.querySelector('.pdf-stage'), sh = st?.querySelector('.lt-sheet'); if (sh && st.clientWidth) { S.zoom = Math.max(0.5, Math.min(1.6, +((st.clientWidth - 32) / 640).toFixed(2))); sh.style.width = `${Math.round(640 * S.zoom)}px`; sh.style.fontSize = `${(12 * S.zoom).toFixed(1)}px`; sh.style.padding = `${Math.round(40 * S.zoom)}px`; const z = document.querySelector('.pdf-bar .z'); if (z) z.textContent = `${Math.round(S.zoom * 100)} %`; } }
+  cut();
+  if (focused) { const q = document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  const sel = LETTERS.find(l => l.id === S.sel);
+  proto.innerHTML = `<button data-v="-1" title="Previous variant (←)">‹</button><span><b>${S.variant}</b> ${VARIANTS[S.variant]}</span><button data-v="1" title="Next variant (→)">›</button>
+  <span class="seg">${Object.entries(DATASETS).map(([k, w]) => `<a href="?${new URLSearchParams({ ...Object.fromEntries(url), data: k })}" class="${k === dataKey ? 'on' : ''}">${w}</a>`).join('')}</span><span class="st">PROTOTYPE · view=${S.view} · shown=${shown().length}/${LETTERS.length} · unread=${LETTERS.filter(l => !l.read).length} · open=${sel ? sel.documentCode : 'none'}</span>`;
+}
+const cycle = n => { const k = Object.keys(VARIANTS); setVariant(k[(k.indexOf(S.variant) + n + k.length) % k.length]); };
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-v]'); if (v) return cycle(Number(v.dataset.v));
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'close' || act === 'back') { if (S.wide && act === 'back') S.wide = false; else { S.sel = null; S.wide = false; } return render(); }
+  if (act === 'wide') { S.wide = !S.wide; S.fit = true; return render(); }
+  if (act === 'zoom-in' || act === 'zoom-out') { S.fit = false; S.zoom = Math.max(0.5, Math.min(3, +(S.zoom + (act === 'zoom-in' ? 0.2 : -0.2)).toFixed(1))); return render(); }
+  if (act === 'fit') return fit();
+  if (act === 'full') { S.full = !S.full; return render(); }
+  if (act === 'more') { S.limit += PAGE; return render(); }
+  if (act === 'prev') return step(-1);
+  if (act === 'next') return step(1);
+  const view = e.target.closest('[data-view]'); if (view) { S.view = view.dataset.view; S.limit = PAGE; return render(); }
+  const row = e.target.closest('[data-id]'); if (row) select(row.dataset.id);
+});
+document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; S.limit = PAGE; render(); } });
+document.addEventListener('change', e => { if (e.target.id === 'view') { S.view = e.target.value; S.limit = PAGE; render(); } });
+function fit() { S.fit = true; render(); }
+addEventListener('resize', () => { if (S.fit && S.sel) render(); else cut(); });
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea, [contenteditable]')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.key === 'ArrowLeft') cycle(-1);
+  else if (e.key === 'ArrowRight') cycle(1);
+  else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+  else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  else if (e.key === 'Escape') { if (S.wide) S.wide = false; else S.sel = null; render(); }
+  else if (e.key === 'f' && S.sel) { S.wide = !S.wide; S.fit = true; render(); }
+  else if (e.key === '+' || e.key === '=') { S.fit = false; S.zoom = Math.min(3, +(S.zoom + 0.2).toFixed(1)); render(); }
+  else if (e.key === '-') { S.fit = false; S.zoom = Math.max(0.5, +(S.zoom - 0.2).toFixed(1)); render(); }
+  else if (e.key === '0') fit();
+  else if (e.key === '/') { e.preventDefault(); document.getElementById('q')?.focus(); }
+});
+render();
+</script>
+</body>
+</html>

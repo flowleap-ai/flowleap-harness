@@ -176,6 +176,82 @@ describe('the MyEPO Remote methods', () => {
     })
     await expect(controller.myEpoUnlink()).rejects.toMatchObject({ code: 'flowleap-connectors/rejected', details: { id: 'myepo' } })
   })
+
+  it('reads the Mailbox for the Letters page: every letter with the fields of the MyEPO list, and the folders', async () => {
+    const { controller } = await remote()
+    const signal = new AbortController().signal
+    expect(await controller.myEpoMailbox(signal)).toEqual({ kind: 'not-linked' })
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    const mailbox = await controller.myEpoMailbox(signal)
+    expect(mailbox).toMatchObject({ kind: 'read', total: 9, folders: [{ id: 'l3ldt00aluu2917', name: 'Drafts' }, { id: 'kih7dx82luu148t', name: 'PDFs' }] })
+    const letters = mailbox.kind === 'read' ? mailbox.letters : []
+    expect(letters).toHaveLength(9)
+    // The sandbox writes each space of this title as a no-break space.
+    expect(letters[0]).toEqual({
+      id: 'l9s8o3a1luusand', title: expect.stringMatching(/^Important\sinformation\sconcerning\sEPO\sForm\s1010$/u) as string, documentCode: 'I1015', dispatchDate: '2023-05-30',
+      read: true, handled: false, folderId: 'l3ldt00aluu2917', applicationNumber: 'PCT/SE2023/123456', userReference: 'P79105WO1',
+      applicantName: 'Dummy applicant 1', recipientName: 'Dummy recipient 000026',
+      digitalFile: 'https://my-i.epo.org/user-area/mailbox-intg/applications/PCTSE2023123456',
+    })
+    // The letter with no application: the EPO left four fields out.
+    expect(letters.find(letter => letter.documentCode === '52301_CONF')).toMatchObject({
+      applicationNumber: null, userReference: null, applicantName: null, digitalFile: null,
+    })
+    expect(JSON.stringify(mailbox)).not.toContain(CREDENTIALS.clientSecret)
+  })
+
+  it('reads the Mailbox page by page, stops at an empty page, and returns at most 500 letters', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    const row = (id: string) => ({ id, documentCode: '2001', title: 'Communication', dispatchDate: '2026-01-02', read: false, handled: false, folderId: 'f' })
+    const page = (number: number, ids: string[], totalElements: number) =>
+      json(200, { content: ids.map(row), number, size: 50, totalElements })
+    // The list says 3 letters and gives 1: the next page is empty, and the read ends.
+    epo.answer('/communications?page=0&size=50', () => page(0, ['a'], 3))
+    epo.answer('/communications?page=1&size=50', () => page(1, [], 3))
+    expect(await controller.myEpoMailbox(signal)).toMatchObject({ kind: 'read', total: 3, letters: [{ id: 'a' }] })
+    for (let number = 0; number < 11; number++) {
+      epo.answer(`/communications?page=${number}&size=50`, () => page(number, Array.from({ length: 50 }, (_, at) => `${number}-${at}`), 9_999))
+    }
+    const cut = await controller.myEpoMailbox(signal)
+    expect(cut).toMatchObject({ kind: 'read', total: 9_999 })
+    expect(cut.kind === 'read' ? cut.letters : []).toHaveLength(500)
+    expect(epo.calls.filter(call => call.url.includes('/communications?page=10'))).toHaveLength(0)
+  })
+
+  it('reports why the EPO gave no Mailbox, and lets a cancellation through', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    epo.answer('/communications/folders', () => json(500, {}))
+    expect(await controller.myEpoMailbox(signal)).toEqual({ kind: 'unreachable' })
+    epo.answer('/communications/folders', () => json(400, { code: 'ERR_30', message: 'Invalid procedure' }))
+    expect(await controller.myEpoMailbox(signal)).toEqual({ kind: 'failed', message: 'the EPO refused the read: 400 ERR_30 Invalid procedure' })
+    epo.answer('/communications/folders', () => json(401, {}))
+    epo.answer(ENDPOINT.tokenUrl, () => json(401, { error: 'invalid_client' }))
+    expect(await controller.myEpoMailbox(signal)).toEqual({ kind: 'refused' })
+    const cancel = new AbortController()
+    const reason = new Error('the person left the page')
+    epo.answer(ENDPOINT.tokenUrl, () => { cancel.abort(reason); return Promise.reject(reason) })
+    await expect(controller.myEpoMailbox(cancel.signal)).rejects.toBe(reason)
+  })
+
+  it('downloads the PDF of a letter of the last Mailbox read, and refuses another id', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    await expect(controller.myEpoLetterPdf('l9s8o3a1luusand', signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await controller.myEpoMailbox(signal)
+    const letter = await controller.myEpoLetterPdf('kylfolhdluusand', signal)
+    expect(letter.fileName).toBe('P79105WO1-2023.05.30-SE2023123456-I1015.pdf')
+    expect(new TextDecoder().decode(letter.pdf)).toBe('%PDF-1.4 dummy')
+    await expect(controller.myEpoLetterPdf('not-a-letter', signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    epo.answer('/communications/download/kylfolhdluusand', () => json(500, {}))
+    await expect(controller.myEpoLetterPdf('kylfolhdluusand', signal)).rejects.toMatchObject({
+      code: 'flowleap-connectors/rejected', details: { id: 'myepo' },
+    })
+  })
 })
 
 describe('the MyEPO Config', () => {

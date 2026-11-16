@@ -1424,6 +1424,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
         throws: ['RemoteError `flowleap-connectors/rejected` when the store refuses.'],
       },
+      {
+        signature: '@Remote async myEpoMailbox(signal: AbortSignal): Promise<MyEpoMailboxView>',
+        description: 'Read the MyEPO Mailbox for the Letters page: every letter of the list (handled or not) and the folders. The read changes nothing in MyEPO.',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the letters and the folders, or why the EPO gave none; never a credential value.',
+      },
+      {
+        signature: '@Remote async myEpoLetterPdf(id: string, signal: AbortSignal): Promise<MyEpoLetterPdf>',
+        description: 'Download the PDF of one letter of the last Mailbox read. The EPO marks the letter as read in MyEPO at each download.',
+        parameters: [{ name: 'id', description: 'the communication id of a letter that {@link myEpoMailbox} returned.' }, { name: 'signal', description: 'cancels the download.' }],
+        returns: 'the PDF bytes with the file name of the EPO.',
+        throws: ['RemoteError `gateway/bad-request` for an id that the last read did not return, and `flowleap-connectors/rejected` when the EPO gives no PDF.'],
+      },
     ],
   },
   {
@@ -8696,7 +8709,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MyEpoCommunication',
-    declaration: 'export interface MyEpoCommunication {\n    readonly id: MyEpoCommunicationId;\n    readonly applicationNumber?: string;\n    readonly userReference?: string;\n    readonly applicantName?: string;\n    readonly recipientName?: string;\n    readonly documentCode: string;\n    readonly title: string;\n    readonly dispatchDate: string;\n    readonly read: boolean;\n    readonly handled: boolean;\n    readonly folderId: MyEpoFolderId;\n}',
+    declaration: 'export interface MyEpoCommunication {\n    readonly id: MyEpoCommunicationId;\n    readonly applicationNumber?: string;\n    readonly userReference?: string;\n    readonly applicantName?: string;\n    readonly recipientName?: string;\n    readonly documentCode: string;\n    readonly title: string;\n    readonly dispatchDate: string;\n    readonly read: boolean;\n    readonly handled: boolean;\n    readonly folderId: MyEpoFolderId;\n    readonly digitalFile?: string;\n}',
   },
   {
     name: 'MyEpoCommunicationId',
@@ -8727,8 +8740,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MyEpoFolderId = Branded<\'MyEpoFolderId\'>;',
   },
   {
+    name: 'MyEpoFolderView',
+    declaration: 'export interface MyEpoFolderView {\n    id: string;\n    name: string;\n}',
+  },
+  {
+    name: 'MyEpoLetterPdf',
+    declaration: 'export interface MyEpoLetterPdf {\n    fileName: string;\n    pdf: Uint8Array;\n}',
+  },
+  {
+    name: 'MyEpoLetterView',
+    declaration: 'export interface MyEpoLetterView {\n    id: string;\n    title: string;\n    documentCode: string;\n    dispatchDate: string;\n    read: boolean;\n    handled: boolean;\n    folderId: string;\n    applicationNumber: string | null;\n    userReference: string | null;\n    applicantName: string | null;\n    recipientName: string | null;\n    digitalFile: string | null;\n}',
+  },
+  {
     name: 'MyEpoLinkView',
     declaration: 'export type MyEpoLinkView = {\n    state: \'not-linked\';\n    writable: boolean;\n} | {\n    state: \'linked\';\n    writable: boolean;\n    testedAt: string;\n    portfolios: number;\n    mailbox: boolean;\n};',
+  },
+  {
+    name: 'MyEpoMailboxView',
+    declaration: 'export type MyEpoMailboxView = {\n    kind: \'read\';\n    readAt: string;\n    letters: MyEpoLetterView[];\n    folders: MyEpoFolderView[];\n    total: number;\n} | {\n    kind: \'not-linked\';\n} | {\n    kind: \'refused\';\n} | {\n    kind: \'unreachable\';\n} | {\n    kind: \'failed\';\n    message: string;\n};',
   },
   {
     name: 'MyEpoPage',
