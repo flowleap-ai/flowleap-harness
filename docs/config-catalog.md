@@ -2027,6 +2027,8 @@ export interface Config {
   opsRequestDeadlineMs: number
   /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
   myepo: MyEpoConfig
+  /** Where the DPMA register connector calls; the default is the DPMA's production service. */
+  dpma: DpmaConfig
 }
 
 /** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
@@ -2039,6 +2041,12 @@ export interface MyEpoConfig {
   requestsPerSecond: number
   /** The deadline of one MyEPO request, in seconds. */
   timeoutSeconds: number
+}
+
+/** The DPMAconnectPlus endpoint of a deployment: production, or a local double for a test. */
+export interface DpmaConfig {
+  /** The base of the DPMAconnectPlus REST services, without a trailing slash. */
+  baseUrl: string
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-flowleap-connectors -->
