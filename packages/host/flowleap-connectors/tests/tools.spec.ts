@@ -41,6 +41,7 @@ type Agent = NonNullable<Parameters<typeof executeModelToolFixture>[1]['agent']>
 let calls = 0
 const callId = (): ToolCallId => `call-${String(++calls)}` as ToolCallId
 const MYEPO = { baseUrl: 'https://api.apps.epo.org/latest', tokenUrl: 'https://login.epo.org/token', requestsPerSecond: 4, timeoutSeconds: 30 }
+const DPMA = { baseUrl: 'https://dpmaconnect.dpma.de/dpmaws/rest-services' }
 
 describe('registerOfficeTools', () => {
   it('registers the library\'s 39 office tools under their backend names with the library\'s JSON schemas, and unregisters them together', async () => {
@@ -137,13 +138,15 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: [], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
+    const fiber = await ctx.plugin(FlowleapConnectors, {
+      cacheEntries: 5, excludeTools: [], opsRequestDeadlineMs: 60_000, myepo: MYEPO, dpma: DPMA,
+    })
     // Without a filesystem and a session directory the office tools and compare_claims register: no read_pdf.
     expect(ctx.tools.schemas()).toHaveLength(40)
     expect(ctx.tools.schemas().map(schema => schema.name)).toContain('compare_claims')
     expect(ctx.tools.schemas().map(schema => schema.name)).not.toContain('read_pdf')
     expect(ctx.get('flowleapConnectors')).toBeDefined()
-    expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'])
+    expect(Object.keys(await ctx.flowleapConnectors.describe())).toEqual(['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral', 'dpma'])
     await fiber.dispose()
     expect(ctx.tools.schemas()).toEqual([])
     expect(ctx.get('flowleapConnectors')).toBeUndefined()
@@ -157,7 +160,7 @@ describe('registerOfficeTools', () => {
     await ctx.plugin(NativeToolExecutor)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
     provideWorkingDirectoryFixture(ctx, process.cwd())
-    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], opsRequestDeadlineMs: 60_000, myepo: MYEPO })
+    const fiber = await ctx.plugin(FlowleapConnectors, { cacheEntries: 5, excludeTools: ['get_fulltext'], opsRequestDeadlineMs: 60_000, myepo: MYEPO, dpma: DPMA })
     const names = ctx.tools.schemas().map(schema => schema.name)
     expect(names).toHaveLength(40)
     expect(names).toContain('read_pdf')

@@ -14,7 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialKeyScope, type CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { CONNECTOR_LABELS, CREDENTIAL_SCOPE, type ConnectorCredentialStore } from './credentials.ts'
-import { CONNECTOR_IDS, type ConnectorId } from './types.ts'
+import { CONNECTOR_IDS, TOOL_CONNECTOR_IDS, type ConnectorId } from './types.ts'
 
 /** Name of the registered prompt section. */
 export const KEY_STATE_SECTION_NAME = 'flowleap:patent-data-keys'
@@ -36,10 +36,10 @@ export const NO_KEYS: KeyPresence = Object.freeze(
 /**
  * Render the section text for one presence map.
  * @param presence - whether a key is stored, per connector.
- * @returns the section text: the heading, one line per connector, and the rules the model follows.
+ * @returns the section text: the heading, one line per connector that a tool can spend, and the rules the model follows.
  */
 export function renderKeyStateSection(presence: KeyPresence): string {
-  const rows = CONNECTOR_IDS.map(id => `- ${CONNECTOR_LABELS[id]}: ${presence[id] ? 'key is set' : 'key is not set'}`)
+  const rows = TOOL_CONNECTOR_IDS.map(id => `- ${CONNECTOR_LABELS[id]}: ${presence[id] ? 'key is set' : 'key is not set'}`)
   return [
     `${KEY_STATE_HEADING}:`,
     'This host runs the patent offices on the firm\'s own keys, stored in Settings > Connectors. Key presence this turn:',

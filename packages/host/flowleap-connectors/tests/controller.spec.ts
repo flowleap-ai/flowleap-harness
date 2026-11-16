@@ -30,6 +30,7 @@ describe('the flowleapConnectors Remote', () => {
       'uspto-odp': { configured: false, writable: true, fields: ['apiKey'] },
       'semantic-scholar': { configured: false, writable: true, fields: ['apiKey'] },
       mistral: { configured: false, writable: true, fields: ['apiKey'] },
+      dpma: { configured: false, writable: true, fields: ['username', 'password'] },
     })
     await controller.set('epo-ops', { consumerKey: 'ck', consumerSecret: 'cs' })
     const described = await controller.describe()
@@ -42,9 +43,9 @@ describe('the flowleapConnectors Remote', () => {
 
   it('refuses unknown connectors and incomplete fields as gateway/bad-request or flowleap-connectors/rejected', async () => {
     const { controller } = await bench()
-    await expect(controller.set('dpma', { apiKey: 'x' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
-    await expect(controller.unset('dpma')).rejects.toMatchObject({ code: 'gateway/bad-request' })
-    await expect(controller.test('dpma', new AbortController().signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.set('inpi', { apiKey: 'x' })).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.unset('inpi')).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.test('inpi', new AbortController().signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
     await expect(controller.set('epo-ops', { consumerKey: 'ck' })).rejects.toMatchObject({
       code: 'flowleap-connectors/rejected', message: 'EPO OPS: field "consumerSecret" is required', details: { id: 'epo-ops' },
     })
@@ -58,6 +59,23 @@ describe('the flowleapConnectors Remote', () => {
     expect(await controller.test('semantic-scholar', signal)).toEqual({ ok: false, message: 'Semantic Scholar key not configured' })
     expect(await controller.test('mistral', signal)).toEqual({ ok: false, message: 'Mistral key not configured' })
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('tests the DPMA access with the version call of the register service', async () => {
+    const { controller, fetchSpy } = await bench()
+    const signal = new AbortController().signal
+    expect(await controller.test('dpma', signal)).toEqual({ ok: false, message: 'DPMA key not configured' })
+    expect(fetchSpy).not.toHaveBeenCalled()
+    await controller.set('dpma', { username: 'firm', password: 'secret' })
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response('8.26.0-b12')))
+    expect(await controller.test('dpma', signal)).toEqual({ ok: true, message: 'DPMA: register service 8.26.0-b12 answered' })
+    const [url, init] = fetchSpy.mock.calls[0] ?? []
+    expect(url).toBe('https://dpmaconnect.dpma.de/dpmaws/rest-services/DPMAregisterPatService/version')
+    expect(new Headers(init?.headers).get('authorization')).toBe(`Basic ${Buffer.from('firm:secret').toString('base64')}`)
+    fetchSpy.mockImplementation(() => Promise.resolve(new Response(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Error Message_DE="Authentifizierung fehlgeschlagen" Message_EN="Authentification failed"/>', { status: 401 },
+    )))
+    expect(await controller.test('dpma', signal)).toEqual({ ok: false, message: 'DPMA: Authentification failed' })
   })
 
   it('runs one cheap call per stored connector, verifies the Mistral key with one GET, and folds an upstream refusal into a failed test', async () => {

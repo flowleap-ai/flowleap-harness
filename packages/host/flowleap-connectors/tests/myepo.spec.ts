@@ -363,6 +363,8 @@ describe('the MyEPO Config', () => {
     expect(validateMyEpoUrl('baseUrl', 'http://127.0.0.1:9000/latest')).toBe('http://127.0.0.1:9000/latest')
     expect(validateMyEpoUrl('baseUrl', 'http://localhost:9000')).toBe('http://localhost:9000')
     expect(validateMyEpoUrl('baseUrl', 'http://[::1]:9000')).toBe('http://[::1]:9000')
+    expect(() => validateMyEpoUrl('dpma.baseUrl', 'http://dpma.example/rest')).toThrow('flowleap-connectors: dpma.baseUrl must use HTTPS')
+    expect(() => validateMyEpoUrl('dpma.baseUrl', 'not a url')).toThrow('flowleap-connectors: dpma.baseUrl is not a URL')
     expect(() => validateMyEpoUrl('tokenUrl', 'http://login.epo.org/token')).toThrow('flowleap-connectors: myepo.tokenUrl must use HTTPS: http://login.epo.org/token')
     expect(() => validateMyEpoUrl('baseUrl', 'not a url')).toThrow('flowleap-connectors: myepo.baseUrl is not a URL: not a url')
   })

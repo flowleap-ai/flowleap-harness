@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-working-directory'
-import { createConnectors, officeTools } from '@flowleap/connectors'
+import { createConnectors, DPMA_BASE_URL, officeTools } from '@flowleap/connectors'
 import { registerCompareClaimsTool } from './compare-claims.ts'
 import { FlowleapConnectorsController } from './controller.ts'
 import { createCredentialStore } from './credentials.ts'
@@ -115,6 +115,14 @@ export interface Config {
   opsRequestDeadlineMs: number
   /** Where the MyEPO link calls and how fast; the defaults are the EPO's production services. */
   myepo: MyEpoConfig
+  /** Where the DPMA register connector calls; the default is the DPMA's production service. */
+  dpma: DpmaConfig
+}
+
+/** The DPMAconnectPlus endpoint of a deployment: production, or a local double for a test. */
+export interface DpmaConfig {
+  /** The base of the DPMAconnectPlus REST services, without a trailing slash. */
+  baseUrl: string
 }
 
 /** The MyEPO endpoint of a deployment: production, or the EPO sandbox for a test. */
@@ -130,8 +138,8 @@ export interface MyEpoConfig {
 }
 
 /**
- * Check one MyEPO endpoint URL: HTTPS, or HTTP to a loopback host for a local double.
- * @param field - the Config field, for the error.
+ * Check one office endpoint URL: HTTPS, or HTTP to a loopback host for a local double.
+ * @param field - the Config field with its block, for the error; a bare name is a field of `myepo`.
  * @param value - the URL.
  * @returns the URL without a trailing slash.
  * @throws TypeError for a value that is not such a URL.
@@ -141,13 +149,22 @@ export function validateMyEpoUrl(field: string, value: string): string {
   try {
     url = new URL(value)
   } catch (error) {
-    throw new TypeError(`flowleap-connectors: myepo.${field} is not a URL: ${value}`, { cause: error })
+    throw new TypeError(`flowleap-connectors: ${configPath(field)} is not a URL: ${value}`, { cause: error })
   }
   const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
-    throw new TypeError(`flowleap-connectors: myepo.${field} must use HTTPS: ${value}`)
+    throw new TypeError(`flowleap-connectors: ${configPath(field)} must use HTTPS: ${value}`)
   }
   return value.replace(/\/+$/, '')
+}
+
+/**
+ * The Config path of one endpoint field.
+ * @param field - `baseUrl` or `tokenUrl` of `myepo`, or a path with its block such as `dpma.baseUrl`.
+ * @returns the path for an error message.
+ */
+function configPath(field: string): string {
+  return field.includes('.') ? field : `myepo.${field}`
 }
 
 /** Runtime schema for the row. */
@@ -162,6 +179,9 @@ export const Config: z<Config> = z.object({
     requestsPerSecond: z.number().min(0.1).max(50).default(4),
     timeoutSeconds: z.number().min(1).max(300).default(30),
   }),
+  dpma: z.object({
+    baseUrl: z.string().default(DPMA_BASE_URL),
+  }),
 })
 
 /**
@@ -173,6 +193,7 @@ export function apply(ctx: Context, config: Config): void {
   const store = createCredentialStore(ctx.credentials)
   const bound = createConnectorHost({
     store, logger: ctx.logger, cacheEntries: config.cacheEntries, opsRequestDeadlineMs: config.opsRequestDeadlineMs,
+    dpmaBaseUrl: validateMyEpoUrl('dpma.baseUrl', config.dpma.baseUrl),
   })
   const connectors = createConnectors(bound.host)
   const myEpo = createMyEpoLink({

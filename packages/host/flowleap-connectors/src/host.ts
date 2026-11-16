@@ -12,7 +12,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { ConnectorCache, ConnectorHost, ConnectorLogger } from '@flowleap/connectors'
+import { DPMA_BASE_URL, type ConnectorCache, type ConnectorHost, type ConnectorLogger } from '@flowleap/connectors'
 import { lookupCredentials, type ConnectorCredentialStore } from './credentials.ts'
 
 /** What the host needs from the plugin. */
@@ -29,6 +29,8 @@ export interface ConnectorHostOptions {
   now?: () => number
   /** The network; defaults to the global `fetch`. Specs pass a recorder. */
   fetch?: ConnectorHost['fetch']
+  /** The base that DPMAconnectPlus calls go to instead of {@link DPMA_BASE_URL}, without a trailing slash; absent keeps the DPMA. */
+  dpmaBaseUrl?: string
 }
 
 /** One cached value and its expiry (epoch ms). */
@@ -123,8 +125,15 @@ export function createConnectorHost(options: ConnectorHostOptions): BoundConnect
   const cache = new LruCache(options.cacheEntries, now)
   const callerSignal = new AsyncLocalStorage<AbortSignal>()
   const network = options.fetch ?? ((input, init) => fetch(input, init))
+  const { dpmaBaseUrl } = options
+  // The library has one fixed DPMA base; a deployment that reads a double sends those calls to its own base here.
+  const route = (input: string | URL): string | URL => {
+    if (dpmaBaseUrl === undefined) return input
+    const url = String(input)
+    return url.startsWith(`${DPMA_BASE_URL}/`) ? `${dpmaBaseUrl}${url.slice(DPMA_BASE_URL.length)}` : input
+  }
   const host: ConnectorHost = {
-    fetch: (input, init) => network(input, init),
+    fetch: (input, init) => network(route(input), init),
     credentials: provider => lookupCredentials(options.store, provider),
     cache,
     logger: options.logger,

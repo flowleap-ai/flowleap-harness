@@ -6,8 +6,11 @@
  * @module @deepseek-ai/dsh-flowleap-connectors/types
  */
 
-/** The four connectors this plugin holds credentials for; `mistral` pays for OCR (`ocr`, `read_pdf`, file-wrapper documents). */
-export const CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const
+/**
+ * The five connectors this plugin holds credentials for; `mistral` pays for OCR (`ocr`, `read_pdf`, file-wrapper documents).
+ * `dpma` is the access of a DPMAconnectPlus contract: public register data of DE patents and utility models, with no tool over it.
+ */
+export const CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral', 'dpma'] as const
 
 /** One connector id. */
 export type ConnectorId = (typeof CONNECTOR_IDS)[number]
@@ -18,6 +21,7 @@ export const CONNECTOR_FIELDS: Readonly<Record<ConnectorId, readonly string[]>> 
   'uspto-odp': ['apiKey'],
   'semantic-scholar': ['apiKey'],
   mistral: ['apiKey'],
+  dpma: ['username', 'password'],
 }
 
 /**
@@ -31,7 +35,14 @@ export const CONNECTOR_OPTIONAL_FIELDS: Readonly<Record<ConnectorId, readonly st
   'uspto-odp': [],
   'semantic-scholar': [],
   mistral: ['baseUrl'],
+  dpma: [],
 }
+
+/**
+ * The connectors an office tool can spend. The key state section of the system prompt lists these and no other:
+ * no tool reads the DPMA, so the model has no DPMA call to plan.
+ */
+export const TOOL_CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const satisfies readonly ConnectorId[]
 
 /**
  * Whether a raw string is a {@link ConnectorId}.

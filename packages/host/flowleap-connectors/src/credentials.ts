@@ -3,7 +3,8 @@
  * one `flowleap-connectors/<id>` record per connector, written by the settings
  * card and read per call by the connector host. The record is a `grant` whose
  * payload is the field map the connector needs (`{ consumerKey, consumerSecret }`
- * for EPO OPS, `{ apiKey }` for the others, plus an optional Mistral `baseUrl`); the payload is validated on every
+ * for EPO OPS, `{ username, password }` for the DPMA, `{ apiKey }` for the others, plus an optional Mistral `baseUrl`);
+ * the payload is validated on every
  * read because it crosses the durable-storage boundary.
  * @module
  */
@@ -23,6 +24,7 @@ export const CONNECTOR_OF_PROVIDER: Readonly<Record<ConnectorProvider, Connector
   usptoOdp: 'uspto-odp',
   semanticScholar: 'semantic-scholar',
   mistral: 'mistral',
+  dpma: 'dpma',
 }
 
 /** The library provider behind each connector id. */
@@ -31,6 +33,7 @@ export const PROVIDER_OF_CONNECTOR: Readonly<Record<ConnectorId, ConnectorProvid
   'uspto-odp': 'usptoOdp',
   'semantic-scholar': 'semanticScholar',
   mistral: 'mistral',
+  dpma: 'dpma',
 }
 
 /** Display names used in results and test messages. */
@@ -39,6 +42,7 @@ export const CONNECTOR_LABELS: Readonly<Record<ConnectorId, string>> = {
   'uspto-odp': 'USPTO ODP',
   'semantic-scholar': 'Semantic Scholar',
   mistral: 'Mistral',
+  dpma: 'DPMA',
 }
 
 const payloadSchema = z.record(z.string(), z.string())
@@ -176,4 +180,8 @@ const CREDENTIAL_BUILDERS: { readonly [K in ConnectorProvider]: (fields: Record<
     apiKey: (fields as Record<'apiKey', string>).apiKey,
     ...fields['baseUrl'] === undefined ? {} : { baseUrl: fields['baseUrl'] },
   }),
+  dpma: (fields) => {
+    const { username, password } = fields as Record<'username' | 'password', string>
+    return { username, password }
+  },
 }
