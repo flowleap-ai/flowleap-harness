@@ -64,7 +64,8 @@ export async function readRecordsHref(fetchImpl: typeof fetch): Promise<string |
 
 const text = z.string()
 const optionalText = z.string().nullable()
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u)
+/** A date as the Firm Record keeps it: it starts with an ISO calendar date. */
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}/u)
 const notRead = z.object({ kind: z.literal('not-read') })
 const mailboxSchema = z.discriminatedUnion('kind', [notRead, z.object({
   kind: z.literal('read'),
