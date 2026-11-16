@@ -19,7 +19,7 @@ This file covers the manifest, the local-modification log, and the procedure for
 | `timer/` | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | 1.1.4 | https://github.com/cordiverse/cordis (`packages/timer`) | `01b396240ce47cf2779c40af9bc445bb748fe112` |
 | `hmr/` | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | 1.0.15 | https://github.com/cordiverse/cordis (`packages/hmr`) | `ed8a7755c26a27a72064a21dea036ad1d1d6833c` |
 | `logger-console/` | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | 1.0.0 | https://github.com/cordiverse/cordis (`packages/logger-console`) | `01b396240ce47cf2779c40af9bc445bb748fe112` |
-| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`) | `ce0725ccd955289308e12bde25a72103fe1f4156` |
+| `flowleap-connectors/` | `@flowleap/connectors` | `@flowleap/connectors` | 0.1.0 | https://github.com/abdullahatrash/flowleap-backend (`packages/connectors`) | `07bfa11957236b4b83a8d98afbf3216277bc131b` |
 
 Third-party dependencies of the vendored packages stay on npm: `@standard-schema/spec`, `js-yaml`, `chokidar`, `picomatch`, `@babel/code-frame`, `supports-color`, `node-addon-require-builtin`.
 
