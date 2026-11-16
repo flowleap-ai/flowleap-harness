@@ -14,7 +14,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import { credentialKeyScope, type CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import { CONNECTOR_LABELS, CREDENTIAL_SCOPE, type ConnectorCredentialStore } from './credentials.ts'
-import { CONNECTOR_IDS, TOOL_CONNECTOR_IDS, type ConnectorId } from './types.ts'
+import { CONNECTOR_IDS, type ConnectorId } from './types.ts'
+
+/**
+ * The connectors an office tool can spend. The section lists these and no other:
+ * no tool reads the DPMA, so the model has no DPMA call to plan.
+ */
+const TOOL_CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const satisfies readonly ConnectorId[]
 
 /** Name of the registered prompt section. */
 export const KEY_STATE_SECTION_NAME = 'flowleap:patent-data-keys'

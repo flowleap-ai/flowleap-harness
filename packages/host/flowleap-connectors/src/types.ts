@@ -39,12 +39,6 @@ export const CONNECTOR_OPTIONAL_FIELDS: Readonly<Record<ConnectorId, readonly st
 }
 
 /**
- * The connectors an office tool can spend. The key state section of the system prompt lists these and no other:
- * no tool reads the DPMA, so the model has no DPMA call to plan.
- */
-export const TOOL_CONNECTOR_IDS = ['epo-ops', 'uspto-odp', 'semantic-scholar', 'mistral'] as const satisfies readonly ConnectorId[]
-
-/**
  * Whether a raw string is a {@link ConnectorId}.
  * @param value - candidate id from a wire request.
  * @returns true for one of {@link CONNECTOR_IDS}.

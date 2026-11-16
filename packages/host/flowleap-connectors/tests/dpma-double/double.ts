@@ -117,7 +117,9 @@ function parseQuery(query: string): ParsedQuery {
   for (const part of query.split(/\s+(?:UND|AND)\s+/i)) {
     const match = /^(TI|INH|VTR|AKZ|AT)\s*(>=|<=|=)\s*"?([^"]+?)"?$/i.exec(part.trim())
     if (match === null) return { ok: false, position, text: part.trim().slice(0, 1) || query.slice(0, 1) }
-    const [, field, operator, value] = match as unknown as [string, string, string, string]
+    const field = match[1] ?? ''
+    const operator = match[2] ?? ''
+    const value = match[3] ?? ''
     // An operator that the double does not know stays in the value: refuse it, do not search for it as text.
     if (/(?:^|\s)(?:ODER|OR|NICHT|NOT)(?:\s|$)|[=(){}]/i.test(value)) return { ok: false, position, text: value.slice(0, 1) }
     switch (field.toUpperCase()) {

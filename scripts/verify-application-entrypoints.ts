@@ -40,6 +40,7 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
   ['packages/host/flowleap-connectors/tests/fixtures/read-only-keys/driver.ts', 'test-only subprocess driver'],
   ['packages/host/flowleap-connectors/tests/fixtures/myepo-link/driver.ts', 'test-only subprocess driver'],
   ['packages/host/flowleap-connectors/tests/fixtures/myepo-double/driver.ts', 'test-only subprocess driver'],
+  ['packages/host/flowleap-connectors/tests/dpma-double/bin.ts', 'development-only DPMA double server'],
   ['packages/host/flowleap-connectors/tests/myepo-double/bin.ts', 'development-only MyEPO double server'],
   ['packages/host/flowleap-record/tests/fixtures/record-read/driver.ts', 'test-only subprocess driver'],
   ['packages/host/flowleap-routines/tests/fixtures/register-watch/driver.ts', 'test-only subprocess driver'],
